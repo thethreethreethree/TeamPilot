@@ -21,6 +21,7 @@ import {
   isSlippingVsBaseline,
   isSlippingSeries,
   overallQualityForSession,
+  layer3InputFromPayload,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
@@ -403,6 +404,30 @@ describe("winLossRatio", () => {
   it("gates below MIN_SESSIONS opportunities", () => {
     const rows = [S("sold", 100, "2026-07-01"), S("no_sale", null, "2026-07-02")];
     expect(winLossRatio(rows).value).toBeNull();
+  });
+});
+
+describe("layer3InputFromPayload (shared /me + /team parser)", () => {
+  it("keeps only string-key + numeric-score entries and reads the caveat flag", () => {
+    const out = layer3InputFromPayload("s1", {
+      scores: [
+        { key: "opener", score: 7 },
+        { key: "close", score: 5, caveat: true },
+        { key: "bad", score: "x" }, // non-numeric score → dropped
+        { score: 9 }, // missing key → dropped
+      ],
+    });
+    expect(out.sessionId).toBe("s1");
+    expect(out.scores).toEqual([
+      { key: "opener", score: 7, caveat: false },
+      { key: "close", score: 5, caveat: true },
+    ]);
+  });
+
+  it("tolerates a missing/non-array payload without throwing", () => {
+    expect(layer3InputFromPayload("s1", null).scores).toEqual([]);
+    expect(layer3InputFromPayload("s1", {}).scores).toEqual([]);
+    expect(layer3InputFromPayload("s1", { scores: "nope" }).scores).toEqual([]);
   });
 });
 

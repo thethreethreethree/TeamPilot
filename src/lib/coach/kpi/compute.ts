@@ -356,6 +356,24 @@ export function isSlippingVsBaseline(
 }
 
 /**
+ * Parse a raw after_pitch_summaries `payload` into a Layer3ScoreInput. Pure + defensive: tolerates a missing
+ * or non-array `scores`, and keeps only entries with a string key + numeric score (a caveat flag defaults
+ * false). ONE parser shared by /me and /team so the two can't drift on how a score is validated or how a
+ * caveat is read — the risk that motivated extracting it.
+ */
+export function layer3InputFromPayload(sessionId: string, payload: unknown): Layer3ScoreInput {
+  const p = (payload ?? {}) as { scores?: unknown };
+  const scoresRaw = Array.isArray(p.scores) ? p.scores : [];
+  return {
+    sessionId,
+    scores: scoresRaw
+      .map((s) => s as { key?: unknown; score?: unknown; caveat?: unknown })
+      .filter((s) => typeof s.key === "string" && typeof s.score === "number")
+      .map((s) => ({ key: s.key as string, score: s.score as number, caveat: !!s.caveat })),
+  };
+}
+
+/**
  * A session's OVERALL quality = the mean of its non-caveat evidenced after-pitch scores (0-10). Mirrors
  * layer3Dimension's caveat-skip (a caveated score is "not enough evidence", so it must not drag the mean).
  * Null when the session has no usable score — the caller treats null as "no reading", never as zero.

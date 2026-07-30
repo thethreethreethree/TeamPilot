@@ -8,10 +8,10 @@ import {
   isSlippingVsBaseline,
   isSlippingSeries,
   overallQualityForSession,
+  layer3InputFromPayload,
   ALERT_DROP_FRACTION,
   type KpiSessionRow,
   type MetricResult,
-  type Layer3ScoreInput,
 } from "@/lib/coach/kpi/compute";
 
 /**
@@ -82,15 +82,7 @@ export async function GET() {
       .select("session_id, payload")
       .in("agent_id", memberIds);
     for (const r of apRows ?? []) {
-      const payload = (r.payload ?? {}) as { scores?: unknown };
-      const scoresRaw = Array.isArray(payload.scores) ? payload.scores : [];
-      const input: Layer3ScoreInput = {
-        sessionId: r.session_id as string,
-        scores: scoresRaw
-          .map((s) => s as { key?: unknown; score?: unknown; caveat?: unknown })
-          .filter((s) => typeof s.key === "string" && typeof s.score === "number")
-          .map((s) => ({ key: s.key as string, score: s.score as number, caveat: !!s.caveat })),
-      };
+      const input = layer3InputFromPayload(r.session_id as string, r.payload);
       qualityBySession.set(r.session_id as string, overallQualityForSession(input));
     }
   }

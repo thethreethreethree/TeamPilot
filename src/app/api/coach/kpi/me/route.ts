@@ -8,6 +8,7 @@ import {
   avgDealSize,
   quotaAttainment,
   winLossRatio,
+  layer3InputFromPayload,
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
@@ -103,17 +104,9 @@ export async function GET() {
     .select("session_id, payload")
     .eq("agent_id", ctx.userId);
 
-  const layer3Rows: Layer3ScoreInput[] = (apRows ?? []).map((r) => {
-    const payload = (r.payload ?? {}) as { scores?: unknown };
-    const scoresRaw = Array.isArray(payload.scores) ? payload.scores : [];
-    return {
-      sessionId: r.session_id as string,
-      scores: scoresRaw
-        .map((s) => s as { key?: unknown; score?: unknown; caveat?: unknown })
-        .filter((s) => typeof s.key === "string" && typeof s.score === "number")
-        .map((s) => ({ key: s.key as string, score: s.score as number, caveat: !!s.caveat })),
-    };
-  });
+  const layer3Rows: Layer3ScoreInput[] = (apRows ?? []).map((r) =>
+    layer3InputFromPayload(r.session_id as string, r.payload)
+  );
   for (const k of LAYER3_KEYS) metrics[`l3_${k}`] = layer3Dimension(layer3Rows, k);
   // Talk share (Layer 2) — the after-pitch already scores talk_ratio (rep's share of the talking, 0-100
   // after scaling; lower leaves more room to listen). Reuse the same evidenced-score aggregator.
