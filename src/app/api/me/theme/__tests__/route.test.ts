@@ -90,6 +90,15 @@ describe("/api/me/theme authz + guard", () => {
     expect((await PATCH(req({ preference: "dark" }))).status).toBe(409);
   });
 
+  it("a real (non-missing-column) DB error returns a generic 500, not the raw message (CWE-209)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setCtx(MEMBER);
+    setSb(fakeSb({ profileErr: { code: "XX000", message: "internal pg detail: profiles rls policy" } }));
+    const res = await PATCH(req({ preference: "dark" }));
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain("internal pg detail");
+  });
+
   it("GET returns the user pref, the company default, and isAdmin", async () => {
     setCtx(ADMIN);
     setSb(fakeSb({ row: { theme_preference: "dark", default_theme: "light" } }));

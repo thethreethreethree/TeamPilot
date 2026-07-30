@@ -101,11 +101,13 @@ describe("PATCH /api/me/experience-mode", () => {
     expect(sb._updateEq).toHaveBeenCalledOnce();
   });
 
-  it("500s when the DB update errors (honest failure, not a false ok)", async () => {
+  it("500s when the DB update errors (honest failure, not a false ok) WITHOUT leaking the raw error (CWE-209)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(createClient).mockResolvedValue(
-      fakeSb({ user: { id: "u1" }, updateError: { message: "db down" } }) as never
+      fakeSb({ user: { id: "u1" }, updateError: { message: "internal pg detail: role rls" } }) as never
     );
     const res = await PATCH(patchReq({ mode: "standard" }));
     expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain("internal pg detail");
   });
 });
