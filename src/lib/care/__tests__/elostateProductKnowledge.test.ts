@@ -49,6 +49,11 @@ describe("ELOSTATE_PRODUCT_KNOWLEDGE — the answers Jeff must never fail", () =
       // numbers / prove the coaching works?" — Jeff must be able to say yes and name Reliance Reduction.
       "KPI Analytics",
       "Reliance Reduction",
+      // Shipped 2026-07-30 — the two founder-confirmed KPI additions. A manager asks "can I set a target /
+      // will it warn me when a rep is slipping?" — Jeff must be able to say yes and describe both honestly
+      // (quota stays "building" with no target; the alert is a check-in prompt vs the rep's own baseline).
+      "Quota Attainment",
+      "exception alert",
     ]) {
       expect(
         ELOSTATE_PRODUCT_KNOWLEDGE,
