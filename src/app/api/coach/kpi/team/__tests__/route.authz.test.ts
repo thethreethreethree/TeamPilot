@@ -62,4 +62,48 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ agents: [] });
   });
+
+  it("computes the per-agent rollup for a manager (Alice: 5 sold → 100% conversion)", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    const sess = (id: string, day: string) => ({
+      id,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `${day}T10:00:00.000Z`,
+      ended_at: `${day}T10:30:00.000Z`,
+    });
+    const tables: Record<string, { data: unknown }> = {
+      // from("profiles") awaited → members list (the manager check uses maybeSingle instead, below).
+      profiles: { data: [{ id: "a1", full_name: "Alice" }] },
+      coaching_sessions: {
+        data: ["2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04", "2026-07-05"].map((d, i) =>
+          sess(`s${i}`, d)
+        ),
+      },
+      coaching_cues: { data: [] },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      agents: { name: string; sessionCount: number; conversionRate: { value: number | null } }[];
+    };
+    expect(body.agents).toHaveLength(1);
+    expect(body.agents[0]?.name).toBe("Alice");
+    expect(body.agents[0]?.sessionCount).toBe(5);
+    expect(body.agents[0]?.conversionRate.value).toBe(100);
+  });
 });
