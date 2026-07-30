@@ -939,7 +939,10 @@ export default function SessionDetail() {
             <LiveCoachingPanel
               sessionId={id}
               context={session?.context}
-              onRecordingSaved={() => void load()}
+              // Founder 2026-07-31 (urgent): the moment the live recording's transcript is saved, the
+              // After-Pitch Summary must show up — go straight to it (it auto-generates) instead of just
+              // reloading the session page. This is the live-coaching twin of the upload path's onLabeled.
+              onRecordingSaved={() => router.push(`/dashboard/sales-coach/${id}/after-pitch`)}
               // Gate the "not recording" banner to active sessions so it can't
               // misfire on an already-ended one (founder 2026-07-26 fix).
               active={session?.status === "active"}
@@ -953,8 +956,14 @@ export default function SessionDetail() {
                 transcript wall. */}
             {!isStandard && (
               <>
-            {/* S1a — upload a recording → diarize → one-tap label */}
-            <SessionRecordingUpload sessionId={id} onLabeled={() => void load()} />
+            {/* S1a — upload a recording → diarize → one-tap label. Founder 2026-07-31 (urgent): after the
+                recording is processed, the After-Pitch Summary must show up — so on label-complete we go
+                straight to it (it auto-generates from the just-labeled transcript) instead of just reloading
+                the session page. push (not replace) so "Back to session" still works. */}
+            <SessionRecordingUpload
+              sessionId={id}
+              onLabeled={() => router.push(`/dashboard/sales-coach/${id}/after-pitch`)}
+            />
 
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.
                 Spawn task + Decision dialogue removed here (founder 2026-07-03). */}
