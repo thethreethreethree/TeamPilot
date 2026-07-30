@@ -60,6 +60,7 @@ type Session = {
   approach: string | null;
   offer: string | null;
   outcome: SalesOutcome | null;
+  dealValue: number | null;
 };
 
 type Strength = { point: string; example: string };
@@ -270,14 +271,19 @@ export default function SessionDetail() {
   // Phase 2 — record the OUTCOME (the downstream consequence, §3.5). Append-
   // only server-side; re-recording is a correction, not a rewrite of history.
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
-  const recordOutcome = async (outcome: SalesOutcome) => {
+  const [dealDraft, setDealDraft] = useState("");
+  const [savingDeal, setSavingDeal] = useState(false);
+  const recordOutcome = async (outcome: SalesOutcome, dealValue?: number | null) => {
     setSavingOutcome(outcome);
     setError(null);
     try {
       const res = await fetch(`/api/coach/sales-session/${id}/outcome`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outcome }),
+        body: JSON.stringify({
+          outcome,
+          ...(dealValue !== undefined ? { dealValue } : {}),
+        }),
       });
       if (res.ok) setSession((await res.json()).session);
       else setError(`Couldn't record the outcome (HTTP ${res.status}).`);
@@ -286,6 +292,18 @@ export default function SessionDetail() {
     } finally {
       setSavingOutcome(null);
     }
+  };
+  // Deal value — only meaningful on a 'sold' outcome (Layer-1 KPI, 0205).
+  const saveDealValue = async () => {
+    const trimmed = dealDraft.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+      setError("Enter a deal value of 0 or more (numbers only).");
+      return;
+    }
+    setSavingDeal(true);
+    await recordOutcome("sold", parsed);
+    setSavingDeal(false);
   };
 
   // Phase 3 — the WHY. §3.3 rep-first: the rep's hypothesis is REQUIRED
@@ -672,6 +690,38 @@ export default function SessionDetail() {
                     </button>
                   ))}
                 </div>
+                {/* Deal value — only on a 'sold' outcome (Layer-1 KPI, 0205). Optional. */}
+                {session.outcome === "sold" && (
+                  <div className="flex items-end gap-2 pt-1">
+                    <div className="flex-1 min-w-0 max-w-[12rem]">
+                      <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                        Deal value (optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={dealDraft}
+                        onChange={(e) => setDealDraft(e.target.value)}
+                        placeholder={session.dealValue != null ? String(session.dealValue) : "e.g. 2500"}
+                        className="w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void saveDealValue()}
+                      disabled={savingDeal}
+                      className="text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 px-3 py-1.5 rounded-md disabled:opacity-50"
+                    >
+                      {savingDeal ? "Saving…" : "Save value"}
+                    </button>
+                    {session.dealValue != null && (
+                      <span className="text-[11px] text-emerald-300 mb-1.5">
+                        Recorded: {session.dealValue.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {session.outcome === null && (
                   <p className="text-[11px] text-muted">
                     Not recorded yet — logging the result is what lets your coach

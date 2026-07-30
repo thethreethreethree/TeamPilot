@@ -22,6 +22,8 @@ import {
 
 const BodySchema = z.object({
   outcome: z.enum(SALES_OUTCOMES as [SalesOutcome, ...SalesOutcome[]]),
+  // Optional deal value (Layer-1 KPI, 0205). Omit to leave unchanged; null to clear.
+  dealValue: z.number().nonnegative().max(1_000_000_000_000).nullable().optional(),
 });
 
 export async function POST(
@@ -58,6 +60,7 @@ export async function POST(
     sessionId: id,
     outcome: body.outcome,
     actorId: auth.user.id,
+    dealValue: body.dealValue,
   });
   if (!updated) {
     return NextResponse.json(

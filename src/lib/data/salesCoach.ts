@@ -55,6 +55,7 @@ export type SalesSession = {
   approach: string | null; // HOW
   offer: string | null; // WHAT
   outcome: SalesOutcome | null; // downstream result (recorded after the call)
+  dealValue: number | null; // deal value when sold (Layer-1 KPI source, 0205). null = not recorded.
 };
 
 export type TranscriptSegment = {
@@ -106,6 +107,10 @@ function mapSession(row: Record<string, unknown>): SalesSession {
     approach: (row.approach as string | null) ?? null,
     offer: (row.offer as string | null) ?? null,
     outcome: (row.outcome as SalesOutcome | null) ?? null,
+    dealValue:
+      row.deal_value === null || row.deal_value === undefined
+        ? null
+        : Number(row.deal_value),
   };
 }
 
@@ -245,11 +250,15 @@ export async function setSessionOutcome(args: {
   sessionId: string;
   outcome: SalesOutcome;
   actorId: string;
+  /** Optional deal value (Layer-1 KPI, 0205). undefined = leave unchanged; null = clear it. */
+  dealValue?: number | null;
 }): Promise<SalesSession | null> {
   const sb = createServiceRoleClient();
+  const update: Record<string, unknown> = { outcome: args.outcome };
+  if (args.dealValue !== undefined) update.deal_value = args.dealValue;
   const { data, error } = await sb
     .from("coaching_sessions")
-    .update({ outcome: args.outcome })
+    .update(update)
     .eq("id", args.sessionId)
     .select("*")
     .single();
@@ -268,7 +277,10 @@ export async function setSessionOutcome(args: {
       actor: args.actorId,
       kind: "coach.session_outcome_recorded",
       subject: `sales_session:${args.sessionId}`,
-      payload: { outcome: args.outcome },
+      payload: {
+        outcome: args.outcome,
+        ...(args.dealValue !== undefined ? { dealValue: args.dealValue } : {}),
+      },
     });
   } catch {
     /* best-effort — the outcome column is already set */
