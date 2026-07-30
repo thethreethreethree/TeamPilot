@@ -60,7 +60,8 @@ export async function GET(
     .select("profile_id, granted_by, granted_at")
     .eq("file_id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[files/access GET] failed to load grants:", error);
+    return NextResponse.json({ error: "Couldn't load file access." }, { status: 500 });
   }
   return NextResponse.json({ grants: data ?? [] });
 }
@@ -96,7 +97,8 @@ export async function POST(
     granted_by: auth.userId,
   });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[files/access POST] failed to grant access:", error);
+    return NextResponse.json({ error: "Couldn't grant file access." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }
@@ -127,7 +129,8 @@ export async function DELETE(
     .eq("file_id", id)
     .eq("profile_id", profileId);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[files/access DELETE] failed to revoke access:", error);
+    return NextResponse.json({ error: "Couldn't revoke file access." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

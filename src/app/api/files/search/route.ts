@@ -39,7 +39,8 @@ export async function GET(req: NextRequest) {
   }
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[files/search] failed to search files:", error);
+    return NextResponse.json({ error: "Couldn't search files." }, { status: 500 });
   }
   return NextResponse.json({ files: data ?? [] });
 }
