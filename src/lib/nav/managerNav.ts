@@ -17,3 +17,18 @@ export function filterManagerNav<T extends { managerOnly?: boolean }>(
 ): T[] {
   return items.filter((item) => !item.managerOnly || isManager);
 }
+
+/**
+ * Grouped-nav visibility (founder 2026-07-31 Sales Coach mockup): filter manager-only items WITHIN each
+ * section, then DROP any section left with no visible items — so a rep never sees a bare section header (e.g.
+ * "Manager Dashboard") with nothing under it (AMD-006 L3: the nav must not present an empty heading). Same
+ * predicate as filterManagerNav, lifted to sections and unit-tested so the empty-header-hiding can't regress.
+ */
+export function filterManagerNavSections<
+  I extends { managerOnly?: boolean },
+  S extends { items: I[] },
+>(sections: S[], isManager: boolean): S[] {
+  return sections
+    .map((s) => ({ ...s, items: filterManagerNav(s.items, isManager) }))
+    .filter((s) => s.items.length > 0);
+}

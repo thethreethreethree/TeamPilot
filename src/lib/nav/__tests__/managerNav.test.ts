@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterManagerNav } from "../managerNav";
+import { filterManagerNav, filterManagerNavSections } from "../managerNav";
 
 /**
  * Locks the manager-only nav visibility rule shared by CareShell + SalesCoachShell.
@@ -36,5 +36,36 @@ describe("filterManagerNav", () => {
     const plain: { label: string; managerOnly?: boolean }[] = [{ label: "A" }, { label: "B" }];
     expect(filterManagerNav(plain, false)).toEqual(plain);
     expect(filterManagerNav(plain, true)).toEqual(plain);
+  });
+});
+
+/**
+ * Grouped Sales Coach nav (founder 2026-07-31). Locks that a section whose items are ALL manager-only is
+ * dropped for a rep — so a rep never sees a bare "Manager Dashboard" header with nothing beneath it (AMD-006
+ * L3). A regression (e.g. keeping empty sections) would render a heading pointing at nothing.
+ */
+type TestItem = { label: string; managerOnly?: boolean };
+type TestSection = { header?: string; items: TestItem[] };
+const sections: TestSection[] = [
+  { items: [{ label: "Home" }] },
+  {
+    header: "Manager Dashboard",
+    items: [{ label: "Coach Assessment", managerOnly: true }, { label: "Analytics" }],
+  },
+  { header: "Manager Only", items: [{ label: "Team", managerOnly: true }] },
+];
+
+describe("filterManagerNavSections", () => {
+  it("for a rep: filters manager-only items AND drops a fully-manager-only section", () => {
+    const out = filterManagerNavSections(sections, false);
+    // "Manager Only" (Team only) vanishes entirely; "Manager Dashboard" keeps just Analytics.
+    expect(out.map((s) => s.header)).toEqual([undefined, "Manager Dashboard"]);
+    expect(out[1]?.items.map((i) => i.label)).toEqual(["Analytics"]);
+  });
+
+  it("for a manager: keeps every section and every item", () => {
+    const out = filterManagerNavSections(sections, true);
+    expect(out.map((s) => s.header)).toEqual([undefined, "Manager Dashboard", "Manager Only"]);
+    expect(out[1]?.items.map((i) => i.label)).toEqual(["Coach Assessment", "Analytics"]);
   });
 });

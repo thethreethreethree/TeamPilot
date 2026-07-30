@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
-import { filterManagerNav } from "@/lib/nav/managerNav";
+import { filterManagerNavSections } from "@/lib/nav/managerNav";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
@@ -121,11 +121,8 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
   const isSalesCoachManager = useIsSalesCoachManager();
   // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
-  // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3).
-  const visibleSections = NAV_SECTIONS.map((s) => ({
-    ...s,
-    items: filterManagerNav(s.items, isSalesCoachManager),
-  })).filter((s) => s.items.length > 0);
+  // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
+  const visibleSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
   // Standard-only nav relabel (founder revision 2026-07-28, PDF): the "Strategy"
   // item reads "One Liners" in Standard; Expert keeps "Strategy". Label-only —
   // the route/content is unchanged. Rename is scoped to Standard per the founder's
