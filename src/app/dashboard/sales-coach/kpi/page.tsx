@@ -243,25 +243,41 @@ export default function KpiAnalyticsPage() {
       {/* Growth summary — LEAD with what improved (spec: the agent view is growth-framed). Only shows once
           there's delta signal; counts good-direction session metrics + skill progression. */}
       {(() => {
-        const goodDir = ["conversionRate", "closeRate", "avgDealSize", "sessionsPerDay"];
-        const skill = data?.metrics?.skillProgression?.value ?? null;
-        let up = goodDir.filter((k) => (data?.deltas?.[k] ?? 0) > 0).length;
-        let down = goodDir.filter((k) => (data?.deltas?.[k] ?? 0) < 0).length;
-        if (typeof skill === "number") {
-          if (skill > 0) up += 1;
-          else if (skill < 0) down += 1;
+        // Name WHICH areas moved (spec principle 5: surface the contributing factors, not just a number).
+        const NAMES: Record<string, string> = {
+          conversionRate: "Conversion",
+          closeRate: "Close rate",
+          avgDealSize: "Avg deal size",
+          sessionsPerDay: "Sessions/day",
+        };
+        const improved: string[] = [];
+        const declined: string[] = [];
+        for (const [k, label] of Object.entries(NAMES)) {
+          const d = data?.deltas?.[k];
+          if (typeof d === "number") {
+            if (d > 0) improved.push(label);
+            else if (d < 0) declined.push(label);
+          }
         }
-        if (up + down === 0) return null;
+        const skill = data?.metrics?.skillProgression?.value ?? null;
+        if (typeof skill === "number") {
+          if (skill > 0) improved.push("Overall quality");
+          else if (skill < 0) declined.push("Overall quality");
+        }
+        if (improved.length + declined.length === 0) return null;
         return (
           <section className="rounded-2xl border border-default bg-white/[0.02] p-4 mb-5">
-            <p className="text-sm">
-              <span className="font-semibold text-emerald-300">
-                Since your earlier calls, you&apos;re up in {up} area{up === 1 ? "" : "s"}.
-              </span>
-              {down > 0 && (
+            <p className="text-sm leading-relaxed">
+              {improved.length > 0 && (
+                <span className="text-emerald-300">
+                  <span className="font-semibold">Since your earlier calls, you&apos;re up in</span>{" "}
+                  {improved.join(", ")}.
+                </span>
+              )}
+              {declined.length > 0 && (
                 <span className="text-secondary">
-                  {" "}
-                  {down} to focus on next.
+                  {improved.length > 0 ? " " : ""}
+                  Focus next on {declined.join(", ")}.
                 </span>
               )}
             </p>
