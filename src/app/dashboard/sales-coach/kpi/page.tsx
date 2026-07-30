@@ -30,6 +30,7 @@ type TeamAgent = {
   sessionCount: number;
   conversionRate: MetricResult;
   relianceReduction: MetricResult;
+  quotaAttainment?: MetricResult;
   slipping?: boolean;
   slippingReasons?: string[];
 };
@@ -114,6 +115,7 @@ export default function KpiAnalyticsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamAgent[] | null>(null);
   const [alertDropPct, setAlertDropPct] = useState(15);
+  const [teamQuotaTarget, setTeamQuotaTarget] = useState<number | null>(null);
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
   const [teamSort, setTeamSort] = useState<"name" | "conversion" | "reliance">("name");
 
@@ -134,8 +136,13 @@ export default function KpiAnalyticsPage() {
       try {
         const res = await fetch("/api/coach/kpi/team");
         if (res.ok && alive) {
-          const j = (await res.json()) as { agents: TeamAgent[]; alertDropPct?: number };
+          const j = (await res.json()) as {
+            agents: TeamAgent[];
+            alertDropPct?: number;
+            monthlyQuotaTarget?: number | null;
+          };
           if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
+          if (typeof j.monthlyQuotaTarget === "number") setTeamQuotaTarget(j.monthlyQuotaTarget);
           if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
         }
       } catch {
@@ -467,6 +474,12 @@ export default function KpiAnalyticsPage() {
             Per-agent growth, each measured against their own past. Ranking is optional — the default is by
             name, not a leaderboard.
           </p>
+          {teamQuotaTarget != null && (
+            <p className="text-[11px] text-secondary mb-2">
+              Monthly quota: <strong>{teamQuotaTarget}</strong> deal{teamQuotaTarget === 1 ? "" : "s"} per rep.
+              Attainment below is deals won this month ÷ target.
+            </p>
+          )}
           <div className="flex items-center gap-1.5 mb-3">
             <span className="text-[10px] text-muted">Sort:</span>
             {(
@@ -538,6 +551,14 @@ export default function KpiAnalyticsPage() {
                           : `${a.relianceReduction.value > 0 ? "+" : ""}${a.relianceReduction.value}/s`}
                       </span>
                     </span>
+                    {teamQuotaTarget != null && (
+                      <span>
+                        <span className="block text-[9px] uppercase tracking-widest text-muted">Quota</span>
+                        <span className="block text-xs font-semibold text-primary tabular-nums">
+                          {a.quotaAttainment?.value == null ? "building…" : `${a.quotaAttainment.value}%`}
+                        </span>
+                      </span>
+                    )}
                   </span>
                 </li>
               ))}

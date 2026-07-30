@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import {
   conversionRate,
+  quotaAttainment,
   relianceReductionFromFirstCue,
   isSlippingVsBaseline,
   isSlippingSeries,
@@ -51,6 +53,24 @@ export async function GET() {
 
   const memberIds = (members ?? []).map((m) => m.id as string);
   if (memberIds.length === 0) return NextResponse.json({ agents: [] });
+
+  // The company's monthly deals-won quota target (the manager set it in Coaching settings). This is the view
+  // where the manager who SET the quota finally sees per-rep attainment against it — /me is self-scoped, so
+  // without this the quota they configured had no team-level readout. A34-guarded: no column / read error →
+  // null target → every rep's quota reads "building", never a guess. UTC month, consistent with /me.
+  let monthlyTarget: number | null = null;
+  {
+    const { data: co, error: coErr } = await sb
+      .from("companies")
+      .select("sales_coach_monthly_deal_target")
+      .eq("id", ctx.companyId)
+      .maybeSingle();
+    if (!coErr || !isMissingColumnError(coErr, "sales_coach_monthly_deal_target")) {
+      monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
+    }
+  }
+  const now = new Date();
+  const monthPrefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
   // One query for all the team's sessions; then compute per agent in memory (cheap, no per-agent round-trips).
   const { data: sessRows } = await sb
@@ -118,16 +138,27 @@ export async function GET() {
     const slippingReasons: string[] = [];
     if (slippingConversion) slippingReasons.push("conversion");
     if (slippingQuality) slippingReasons.push("quality");
+    // Quota attainment vs the company target (deals won THIS month ÷ target). Same UTC-month + gating as /me,
+    // so a rep's number matches between their own view and the manager's rollup.
+    const dealsWonThisMonth = rows.filter(
+      (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
+    ).length;
+    const quota: MetricResult = quotaAttainment(dealsWonThisMonth, monthlyTarget);
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
       sessionCount: rows.length,
       conversionRate: conversion,
       relianceReduction: reliance,
+      quotaAttainment: quota,
       slipping: slippingReasons.length > 0,
       slippingReasons,
     };
   });
 
-  return NextResponse.json({ agents, alertDropPct: Math.round(ALERT_DROP_FRACTION * 100) });
+  return NextResponse.json({
+    agents,
+    alertDropPct: Math.round(ALERT_DROP_FRACTION * 100),
+    monthlyQuotaTarget: monthlyTarget,
+  });
 }

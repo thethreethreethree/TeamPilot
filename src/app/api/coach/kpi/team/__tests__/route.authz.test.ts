@@ -194,4 +194,48 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(body.agents[0]?.slipping).toBe(true);
     expect(body.agents[0]?.slippingReasons).toEqual(["quality"]); // only quality tripped
   });
+
+  it("rolls up per-rep quota attainment against the company target (manager sees who's tracking)", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    // Company target = 10 deals/month. This UTC month, Bob has 5 sold → 50%.
+    const now = new Date();
+    const m = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const sessions = [1, 2, 3, 4, 5].map((n) => ({
+      id: `w${n}`,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `${m}-0${n}T10:00:00.000Z`,
+      ended_at: `${m}-0${n}T10:30:00.000Z`,
+    }));
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Bob" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: [] },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        // companies quota read (maybeSingle) → target 10; profiles manager check → admin.
+        chain.maybeSingle = async () =>
+          t === "companies"
+            ? { data: { sales_coach_monthly_deal_target: 10 }, error: null }
+            : { data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null };
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    const body = (await res.json()) as {
+      agents: { quotaAttainment: { value: number | null } }[];
+      monthlyQuotaTarget: number | null;
+    };
+    expect(body.monthlyQuotaTarget).toBe(10);
+    expect(body.agents[0]?.quotaAttainment.value).toBe(50); // 5 of 10
+  });
 });
