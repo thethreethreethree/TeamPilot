@@ -4,9 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Copy, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
-import { AdaptiveKnowledgePanel } from "@/components/care/AdaptiveKnowledgePanel";
-import { JeffGuidancePanel } from "@/components/care/JeffGuidancePanel";
-import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
 import { CURATED_VOICES } from "@/lib/care/voice/curated-client";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -86,11 +83,6 @@ export default function CareWidgetSettingsPage() {
   const [inboundEmailAddress, setInboundEmailAddress] = useState<string | null>(
     null
   );
-  // ELOSTATE's own tenant: product context is authoritative in code, so the field below
-  // is display-only (editing it has no effect). The server tells us; we say so in the UI
-  // instead of letting the edit silently do nothing.
-  const [productContextManagedInCode, setProductContextManagedInCode] =
-    useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -101,7 +93,6 @@ export default function CareWidgetSettingsPage() {
         setDraft(data.config);
         setOriginsRaw((data.config.allowed_origins ?? []).join("\n"));
         setInboundEmailAddress(data.inboundEmailAddress ?? null);
-        setProductContextManagedInCode(!!data.productContextManagedInCode);
       }
     } finally {
       setLoading(false);
@@ -138,10 +129,6 @@ export default function CareWidgetSettingsPage() {
           // PATCH no longer accepts it (prevents arbitrary-URL bypass).
           companyDisplayName: draft.company_display_name,
           replySignature: draft.reply_signature,
-          aiProductContext: draft.ai_product_context,
-          aiTone: draft.ai_tone,
-          aiResponseLength: draft.ai_response_length,
-          aiName: draft.ai_name,
           voiceId: draft.voice_id,
           businessType: draft.business_type ?? "general",
         }),
@@ -624,201 +611,6 @@ export default function CareWidgetSettingsPage() {
           </div>
         </Section>
 
-        {/* AI personality */}
-        <Section
-          title="AI personality"
-          subtitle="How the AI represents your product and speaks to customers."
-        >
-          <div className="space-y-3">
-            <LearningHint
-              as="block"
-              category="C.A.R.E · Settings"
-              title="Agent name"
-              whatItIs="The name the AI introduces itself as and signs its messages with — its persona on your widget."
-              why="A named responder feels like a someone, not a bot, which changes how customers engage. It appears in the greeting and every AI message, so it's part of your brand voice. Line breaks and control characters are stripped so what you type is what customers see."
-              how="Enter 1–50 characters, no line breaks. Pick a name that fits your brand's tone."
-              principle="A name turns a bot into a first responder customers will actually talk to."
-            >
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                  Agent name
-                </label>
-                <input
-                  type="text"
-                  value={draft.ai_name}
-                onChange={(e) =>
-                  // Per audit L3 (2026-06-24): strip control + Unicode
-                  // line/paragraph separators client-side, mirroring
-                  // the server's \p{C}\p{Zl}\p{Zp} transform and the
-                  // DB CHECK (migration 0066). Without this the server
-                  // silently mutates the saved value and the user sees
-                  // their typed name differ from what persisted. WYSIWYG.
-                  setDraft({
-                    ...draft,
-                    ai_name: e.target.value
-                      .replace(/[\p{C}\p{Zl}\p{Zp}]/gu, "")
-                      .slice(0, 50),
-                  })
-                }
-                maxLength={50}
-                placeholder="Jeff"
-                className="w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
-              />
-                <p className="text-[11px] text-muted mt-1">
-                  What your AI introduces itself as. Shows up in the widget greeting
-                  (&ldquo;Hi, my name is X.&rdquo;) and in every message the AI sends.
-                  1–50 characters; no line breaks.
-                </p>
-              </div>
-            </LearningHint>
-            <LearningHint
-              as="block"
-              category="C.A.R.E · Settings"
-              title="Product context"
-              whatItIs="A briefing the AI reads before answering — what your product is, its features by name, pricing/access, and what to hand off to a human."
-              why="This is the single biggest lever on whether the AI helps or hurts. When it's uncertain about a feature it defaults to 'no' — telling a customer you can't do something you can, and losing them. Naming features here makes 'yes, we have that' its safe default, and anything you don't name gets handed to a human by design rather than guessed at."
-              how="List features by the names customers use, state pricing/access plainly, and be explicit about what the AI must hand off (billing, refunds, account data). Be thorough — the AI only knows what's written here."
-              principle="An AI that doesn't know your product will confidently misdescribe it — name what's real so it never has to guess."
-            >
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                  Product context
-                </label>
-                {productContextManagedInCode && (
-                  <div className="mb-2 rounded-md border border-default bg-base px-3 py-2 text-[11px] text-secondary leading-relaxed">
-                    <strong className="text-primary">Managed in code for this account.</strong>{" "}
-                    This account&apos;s product knowledge is maintained in the codebase and kept
-                    current with every feature, so it&apos;s always authoritative. Edits to this
-                    field have no effect here — it&apos;s shown for reference only.
-                  </div>
-                )}
-                {!productContextManagedInCode && (
-                  <div className="flex items-center justify-end mb-1.5">
-                    <DocUploadButton
-                      onExtracted={(t) =>
-                        setDraft({ ...draft, ai_product_context: t || null })
-                      }
-                      targetLabel="the product context"
-                      endpoint="/api/care/agent/acms/extract"
-                      maxChars={8000}
-                    />
-                  </div>
-                )}
-                <textarea
-                  value={draft.ai_product_context ?? ""}
-                onChange={(e) =>
-                  setDraft({ ...draft, ai_product_context: e.target.value || null })
-                }
-                disabled={productContextManagedInCode}
-                rows={10}
-                placeholder={`What ELOSTATE actually is:
-[one sentence — the product in plain terms]
-
-Features the AI should know about (use these names when customers ask):
-- [Feature 1] — [one sentence: what it does, when to mention it]
-- [Feature 2] — [...]
-- [Feature 3] — [...]
-
-Pricing & access:
-[how customers can buy / what tier they get / what to hand off]
-
-Always hand off to a human for:
-[account-specific data, billing, refunds, anything you don't want the AI deciding]`}
-                className={`w-full bg-base border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-y leading-relaxed font-mono${
-                  productContextManagedInCode ? " opacity-60 cursor-not-allowed" : ""
-                }`}
-              />
-              <div className="text-[11px] text-muted mt-1.5 space-y-1">
-                <p>
-                  <strong className="text-secondary">Why this matters:</strong>{" "}
-                  When the AI is uncertain about a feature, it defaults to
-                  &quot;no&quot; — telling the customer your product can&apos;t
-                  do something it actually does. They walk away. Listing
-                  features by name here makes &quot;yes, we have that&quot; the
-                  AI&apos;s safe default for things you actually offer.
-                </p>
-                <p>
-                  Anything you don&apos;t name here, the AI will hand off to a
-                  human rather than guess — that&apos;s the design. Be
-                  explicit about features that exist; the AI is told to never
-                  confidently say &quot;no&quot; when uncertain.
-                </p>
-              </div>
-              </div>
-            </LearningHint>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <LearningHint
-                as="block"
-                category="C.A.R.E · Settings"
-                title="Tone"
-                whatItIs="The register the AI writes in — warm, formal, casual, or direct."
-                why="Tone is how the AI's answers feel, and it should match your brand. A luxury service reads formal; a dev tool reads direct. A mismatch makes even correct answers feel off-brand."
-                how="Pick the register closest to how your team already talks to customers. Save to apply it to every AI reply."
-                principle="Correct and off-brand still feels wrong — match the voice to your brand."
-              >
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                  Tone
-                </label>
-                <select
-                  value={draft.ai_tone}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      ai_tone: e.target.value as TenantConfig["ai_tone"],
-                    })
-                  }
-                  className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
-                >
-                  <option value="warm">Warm</option>
-                  <option value="formal">Formal</option>
-                  <option value="casual">Casual</option>
-                  <option value="direct">Direct</option>
-                </select>
-              </div>
-              </LearningHint>
-              <LearningHint
-                as="block"
-                category="C.A.R.E · Settings"
-                title="Response length"
-                whatItIs="How long the AI's answers run — short (1–2 sentences), medium, or long (up to ~6)."
-                why="Length is a trade-off between speed and completeness. Short suits simple, high-volume questions; long suits products where a thin answer just creates a follow-up. Set it to how much your customers actually need."
-                how="Choose based on your typical question. If customers keep replying 'and…?', go longer; if they skim, go shorter."
-                principle="Answer at the length the question deserves — not every reply needs to be a paragraph."
-              >
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
-                  Response length
-                </label>
-                <select
-                  value={draft.ai_response_length}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      ai_response_length: e.target
-                        .value as TenantConfig["ai_response_length"],
-                    })
-                  }
-                  className="w-full bg-base border border-default rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
-                >
-                  <option value="short">Short (1-2 sentences)</option>
-                  <option value="medium">Medium (1-4 sentences)</option>
-                  <option value="long">Long (up to ~6 sentences)</option>
-                </select>
-              </div>
-              </LearningHint>
-            </div>
-          </div>
-        </Section>
-
-        {/* Adaptive Customer Management (ACMS, 0193) — right under AI personality per
-            founder 2026-07-25. Client uploads a .md of their own knowledge (facts the
-            AI answers from; fenced as untrusted data at the prompt layer — never
-            behavior). Self-contained: fetches/uploads via /api/care/agent/acms/documents,
-            independent of this page's tenant-config draft/Save. */}
-        <JeffGuidancePanel />
-
-        <AdaptiveKnowledgePanel />
 
         {/* Business type — 0188. Drives the concern-topic list on the customer handoff
             card (and whether the order-number field appears) when Jeff hands off to a

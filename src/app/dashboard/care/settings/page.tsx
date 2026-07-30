@@ -1,9 +1,23 @@
 import Link from "next/link";
-import { Tag, Users, Zap, MessageCircle, Settings as SettingsIcon } from "lucide-react";
+import { Tag, Users, Zap, MessageCircle, Settings as SettingsIcon, Sparkles } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 
 const CARDS = [
+  {
+    href: "/dashboard/care/settings/ai",
+    label: "AI & Personality",
+    body: "Make the AI yours: its name, tone, product knowledge, customer-assistance guidance, and the facts it answers from.",
+    icon: Sparkles,
+    hint: {
+      title: "AI & Personality",
+      whatItIs:
+        "The one place you configure how the AI actually behaves — its persona (name, tone, length), what it knows about your product, how you want it to assist customers, and the adaptive knowledge it answers from.",
+      why: "This is the single biggest lever on whether the AI helps or hurts. Everything else — appearance, routing, tags — is packaging around the substance the customer experiences, which is set here.",
+      how: "Open it to name the AI, brief it on your product, set tone and length, write your assistance guidance, and upload knowledge documents.",
+      principle: "Configure the substance before the packaging — the AI's judgment is what the customer feels.",
+    },
+  },
   {
     href: "/dashboard/care/settings/agents",
     label: "Agents",
