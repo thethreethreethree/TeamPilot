@@ -340,6 +340,38 @@ export function isSlippingVsBaseline(
   return recent < prior * (1 - dropFraction);
 }
 
+/**
+ * A session's OVERALL quality = the mean of its non-caveat evidenced after-pitch scores (0-10). Mirrors
+ * layer3Dimension's caveat-skip (a caveated score is "not enough evidence", so it must not drag the mean).
+ * Null when the session has no usable score — the caller treats null as "no reading", never as zero.
+ */
+export function overallQualityForSession(input: Layer3ScoreInput): number | null {
+  const usable = input.scores.filter((s) => !s.caveat && Number.isFinite(s.score));
+  if (usable.length === 0) return null;
+  return usable.reduce((sum, s) => sum + s.score, 0) / usable.length;
+}
+
+/**
+ * Series form of the exception alert: is the recent half of an ordered numeric series ≥dropFraction below the
+ * prior half's mean? Used for the quality-slippage trigger (per-session overall quality in time order), where
+ * the metric is a value-per-session, not a rate over a session set. Nulls (unscored sessions) are dropped
+ * first; then the same ≥2·MIN_SESSIONS + positive-prior gates as isSlippingVsBaseline apply — so a thin or
+ * all-zero history never trips a false alert.
+ */
+export function isSlippingSeries(
+  orderedValues: Array<number | null>,
+  dropFraction: number = ALERT_DROP_FRACTION
+): boolean {
+  const vals = orderedValues.filter((v): v is number => v !== null && Number.isFinite(v));
+  if (vals.length < 2 * MIN_SESSIONS) return false;
+  const mid = Math.floor(vals.length / 2);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const prior = mean(vals.slice(0, mid));
+  const recent = mean(vals.slice(mid));
+  if (prior <= 0) return false;
+  return recent < prior * (1 - dropFraction);
+}
+
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

@@ -148,5 +148,50 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     };
     expect(body.alertDropPct).toBe(15);
     expect(body.agents[0]?.slipping).toBe(true);
+    expect((body.agents[0] as { slippingReasons?: string[] }).slippingReasons).toEqual(["conversion"]);
+  });
+
+  it("flags QUALITY slippage even when conversion holds (recent pitch scores ≥15% below baseline)", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    // All 10 sold → conversion 100% on both halves (no conversion slip). But after-pitch quality drops
+    // 8 → 6 across the halves (6 < 8×0.85=6.8) → quality slips alone.
+    const sessions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n, i) => ({
+      id: `q${n}`,
+      agent_id: "a1",
+      outcome: "sold",
+      deal_value: 100,
+      started_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:00:00.000Z`,
+      ended_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:30:00.000Z`,
+    }));
+    const afterPitch = sessions.map((s, i) => ({
+      session_id: s.id,
+      payload: { scores: [{ key: "opener", score: i < 5 ? 8 : 6 }] },
+    }));
+    const tables: Record<string, { data: unknown }> = {
+      profiles: { data: [{ id: "a1", full_name: "Bob" }] },
+      coaching_sessions: { data: sessions },
+      coaching_cues: { data: [] },
+      after_pitch_summaries: { data: afterPitch },
+    };
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.not = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
+        chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
+        return chain;
+      },
+    });
+    const res = await GET();
+    const body = (await res.json()) as {
+      agents: { slipping: boolean; slippingReasons: string[]; conversionRate: { value: number | null } }[];
+    };
+    expect(body.agents[0]?.conversionRate.value).toBe(100); // conversion held
+    expect(body.agents[0]?.slipping).toBe(true);
+    expect(body.agents[0]?.slippingReasons).toEqual(["quality"]); // only quality tripped
   });
 });

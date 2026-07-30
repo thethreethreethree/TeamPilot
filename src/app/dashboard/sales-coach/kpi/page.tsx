@@ -31,6 +31,7 @@ type TeamAgent = {
   conversionRate: MetricResult;
   relianceReduction: MetricResult;
   slipping?: boolean;
+  slippingReasons?: string[];
 };
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
@@ -436,9 +437,14 @@ export default function KpiAnalyticsPage() {
                   <TrendingDown className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
                   <span>
                     <strong>{slipping.length}</strong> rep{slipping.length === 1 ? "" : "s"} slipped ≥
-                    {alertDropPct}% below their own recent baseline on conversion —{" "}
-                    {slipping.map((a) => a.name || "Agent").join(", ")}. Worth a check-in; this reads their
-                    trend, not a leaderboard.
+                    {alertDropPct}% below their own recent baseline (conversion or pitch quality) —{" "}
+                    {slipping
+                      .map((a) => {
+                        const why = a.slippingReasons?.length ? ` (${a.slippingReasons.join(" + ")})` : "";
+                        return `${a.name || "Agent"}${why}`;
+                      })
+                      .join(", ")}
+                    . Worth a check-in; this reads their trend, not a leaderboard.
                   </span>
                 </p>
               </div>
@@ -500,7 +506,9 @@ export default function KpiAnalyticsPage() {
                       {a.slipping && (
                         <span
                           className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-300"
-                          title={`Recent conversion is ≥${alertDropPct}% below this rep's own baseline — worth a check-in.`}
+                          title={`Recent ${
+                            a.slippingReasons?.join(" and ") || "performance"
+                          } is ≥${alertDropPct}% below this rep's own baseline — worth a check-in.`}
                         >
                           <TrendingDown className="w-2.5 h-2.5" aria-hidden /> check-in
                         </span>

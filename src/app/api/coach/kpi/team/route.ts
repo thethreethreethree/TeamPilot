@@ -6,9 +6,12 @@ import {
   conversionRate,
   relianceReductionFromFirstCue,
   isSlippingVsBaseline,
+  isSlippingSeries,
+  overallQualityForSession,
   ALERT_DROP_FRACTION,
   type KpiSessionRow,
   type MetricResult,
+  type Layer3ScoreInput,
 } from "@/lib/coach/kpi/compute";
 
 /**
@@ -70,6 +73,28 @@ export async function GET() {
     }
   }
 
+  // Per-session overall quality (Layer-3 after-pitch scores) — for the quality-slippage alert trigger. One
+  // query for the team; a session with no scored after-pitch simply has no entry (isSlippingSeries drops it).
+  const qualityBySession = new Map<string, number | null>();
+  if (memberIds.length > 0) {
+    const { data: apRows } = await sb
+      .from("after_pitch_summaries")
+      .select("session_id, payload")
+      .in("agent_id", memberIds);
+    for (const r of apRows ?? []) {
+      const payload = (r.payload ?? {}) as { scores?: unknown };
+      const scoresRaw = Array.isArray(payload.scores) ? payload.scores : [];
+      const input: Layer3ScoreInput = {
+        sessionId: r.session_id as string,
+        scores: scoresRaw
+          .map((s) => s as { key?: unknown; score?: unknown; caveat?: unknown })
+          .filter((s) => typeof s.key === "string" && typeof s.score === "number")
+          .map((s) => ({ key: s.key as string, score: s.score as number, caveat: !!s.caveat })),
+      };
+      qualityBySession.set(r.session_id as string, overallQualityForSession(input));
+    }
+  }
+
   const byAgent = new Map<string, KpiSessionRow[]>();
   for (const s of sessRows ?? []) {
     const aid = s.agent_id as string;
@@ -91,17 +116,24 @@ export async function GET() {
     const reliance: MetricResult = relianceReductionFromFirstCue(
       rows.map((r) => ({ cueCount: cueCountBySession.get(r.sessionId) ?? 0, sessionId: r.sessionId }))
     );
-    // Exception alert (founder-set threshold): this rep's recent conversion is ≥15% below their own prior
-    // baseline. Not a leaderboard signal — a "check in with this rep" flag for the manager. Only fires with
-    // enough sessions on both halves (isSlippingVsBaseline gates internally), so a thin agent never trips it.
-    const slipping = isSlippingVsBaseline(rows, conversionRate);
+    // Exception alert (founder-set threshold): this rep is ≥15% below their OWN prior baseline — on outcomes
+    // (conversion) and/or on pitch quality. Two triggers because a rep can close fine while their craft
+    // slips, or vice versa; a manager coaches both. Each trigger gates internally (≥2·MIN_SESSIONS + positive
+    // prior), so a thin agent never trips it. Not a leaderboard signal — a "check in with this rep" flag.
+    const slippingConversion = isSlippingVsBaseline(rows, conversionRate);
+    const orderedQuality = rows.map((r) => qualityBySession.get(r.sessionId) ?? null);
+    const slippingQuality = isSlippingSeries(orderedQuality);
+    const slippingReasons: string[] = [];
+    if (slippingConversion) slippingReasons.push("conversion");
+    if (slippingQuality) slippingReasons.push("quality");
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
       sessionCount: rows.length,
       conversionRate: conversion,
       relianceReduction: reliance,
-      slipping,
+      slipping: slippingReasons.length > 0,
+      slippingReasons,
     };
   });
 

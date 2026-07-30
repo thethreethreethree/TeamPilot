@@ -18,6 +18,8 @@ import {
   layer3Delta,
   selfDelta,
   isSlippingVsBaseline,
+  isSlippingSeries,
+  overallQualityForSession,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
@@ -375,6 +377,53 @@ describe("isSlippingVsBaseline (manager exception alert)", () => {
 
   it("uses the founder-set 15% threshold by default", () => {
     expect(ALERT_DROP_FRACTION).toBe(0.15);
+  });
+});
+
+describe("overallQualityForSession", () => {
+  const mk = (scores: { key: string; score: number; caveat?: boolean }[]) => ({
+    sessionId: "s",
+    scores: scores.map((s) => ({ key: s.key, score: s.score, caveat: !!s.caveat })),
+  });
+
+  it("averages the non-caveat evidenced scores", () => {
+    expect(overallQualityForSession(mk([{ key: "opener", score: 6 }, { key: "close", score: 8 }]))).toBe(7);
+  });
+
+  it("skips caveated scores (not enough evidence must not drag the mean)", () => {
+    expect(
+      overallQualityForSession(
+        mk([{ key: "opener", score: 8 }, { key: "close", score: 2, caveat: true }])
+      )
+    ).toBe(8);
+  });
+
+  it("is null when no usable score (never zero)", () => {
+    expect(overallQualityForSession(mk([{ key: "opener", score: 5, caveat: true }]))).toBeNull();
+    expect(overallQualityForSession(mk([]))).toBeNull();
+  });
+});
+
+describe("isSlippingSeries (quality-slippage trigger)", () => {
+  it("fires when the recent half's mean is ≥15% below the prior half's mean", () => {
+    // prior 5 = 8s (mean 8), recent 5 = 6s (mean 6); 6 < 8 × 0.85 = 6.8 → slipping.
+    const series = [8, 8, 8, 8, 8, 6, 6, 6, 6, 6];
+    expect(isSlippingSeries(series)).toBe(true);
+  });
+
+  it("does NOT fire on a dip within the threshold", () => {
+    // recent mean 7 vs prior 8: 7 ≥ 6.8 → not slipping.
+    expect(isSlippingSeries([8, 8, 8, 8, 8, 7, 7, 7, 7, 7])).toBe(false);
+  });
+
+  it("drops nulls first, then needs ≥2·MIN_SESSIONS scored values", () => {
+    // 9 scored + nulls → below the gate → false even though the drop is huge.
+    const withNulls = [10, 10, 10, 10, 10, null, 1, 1, 1, 1];
+    expect(isSlippingSeries(withNulls)).toBe(false);
+  });
+
+  it("does not fire on a zero prior baseline", () => {
+    expect(isSlippingSeries([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])).toBe(false);
   });
 });
 
