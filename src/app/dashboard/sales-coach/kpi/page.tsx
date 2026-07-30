@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight } from "lucide-react";
+import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users } from "lucide-react";
 
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
@@ -20,6 +20,14 @@ type KpiResponse = {
   minSessions: number;
   metrics: Record<string, MetricResult>;
   sessions: Record<string, SessionInfo>;
+};
+
+type TeamAgent = {
+  agentId: string;
+  name: string | null;
+  sessionCount: number;
+  conversionRate: MetricResult;
+  relianceReduction: MetricResult;
 };
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope";
@@ -97,6 +105,7 @@ export default function KpiAnalyticsPage() {
   const [data, setData] = useState<KpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [team, setTeam] = useState<TeamAgent[] | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -108,6 +117,18 @@ export default function KpiAnalyticsPage() {
         /* leave data null → everything shows "building" */
       } finally {
         if (alive) setLoading(false);
+      }
+    })();
+    // Manager rollup — 403 for non-managers (we just hide the section then).
+    (async () => {
+      try {
+        const res = await fetch("/api/coach/kpi/team");
+        if (res.ok && alive) {
+          const j = (await res.json()) as { agents: TeamAgent[] };
+          if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
+        }
+      } catch {
+        /* non-manager or error → no team section */
       }
     })();
     return () => {
@@ -294,6 +315,53 @@ export default function KpiAnalyticsPage() {
           );
         })}
       </div>
+
+      {team && (
+        <section className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-4 h-4 text-brand" aria-hidden />
+            <h2 className="text-sm font-semibold text-primary">Team</h2>
+            <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
+          </div>
+          <p className="text-[11px] text-muted mb-3">
+            Per-agent growth, each measured against their own past — not a leaderboard. Sorted by name.
+          </p>
+          <ul className="divide-y divide-white/[0.06]">
+            {[...team]
+              .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+              .map((a) => (
+                <li key={a.agentId} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-medium text-primary truncate">{a.name || "Agent"}</span>
+                    <span className="block text-[10px] text-muted">{a.sessionCount} sessions</span>
+                  </span>
+                  <span className="flex items-center gap-5 shrink-0 text-right">
+                    <span>
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Conversion</span>
+                      <span className="block text-xs font-semibold text-primary tabular-nums">
+                        {a.conversionRate.value === null ? "building…" : `${a.conversionRate.value}%`}
+                      </span>
+                    </span>
+                    <span>
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Reliance</span>
+                      <span
+                        className={`block text-xs font-semibold tabular-nums ${
+                          a.relianceReduction.value !== null && a.relianceReduction.value < 0
+                            ? "text-emerald-300"
+                            : "text-primary"
+                        }`}
+                      >
+                        {a.relianceReduction.value === null
+                          ? "building…"
+                          : `${a.relianceReduction.value > 0 ? "+" : ""}${a.relianceReduction.value}/s`}
+                      </span>
+                    </span>
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
 
       <p className="text-[11px] text-muted mt-6 text-center">
         Wired Layer 1–2 metrics compute live from your sessions; the rest activate as more of the measurement
