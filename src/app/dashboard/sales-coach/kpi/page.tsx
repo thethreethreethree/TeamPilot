@@ -15,7 +15,7 @@ import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, I
 type MetricResult = { value: number | null; sampleSize: number; gated: boolean; sourceSessionIds: string[] };
 type KpiResponse = { sessionCount: number; minSessions: number; metrics: Record<string, MetricResult> };
 
-type Fmt = "pct" | "money" | "num" | "min" | "score";
+type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope";
 type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
 type Layer = { key: string; title: string; subtitle: string; icon: typeof Target; metrics: Metric[] };
 
@@ -67,11 +67,11 @@ const LAYERS: Layer[] = [
     subtitle: "The differentiator — is the coaching actually working?",
     icon: Sparkles,
     metrics: [
-      { name: "Reliance reduction", note: "fewer cues needed while performance holds — the proof coaching worked", headline: true },
+      { name: "Reliance reduction", note: "cue-frequency slope — negative means you need fewer cues over time", apiKey: "relianceReduction", fmt: "slope", headline: true },
+      { name: "Cue acceptance rate", note: "cues you acted on ÷ delivered", apiKey: "cueAcceptanceRate", fmt: "pct" },
       { name: "Cue-to-outcome correlation", note: "did acting on a cue improve the result?" },
       { name: "Skill progression", note: "Δ in your quality scores vs. your own baseline" },
       { name: "Recommendation uptake", note: "did last session's advice show up this session?" },
-      { name: "Time to competency", note: "days to sustained target performance" },
       { name: "Consistency", note: "how steady you are, session to session" },
     ],
   },
@@ -82,6 +82,7 @@ function fmtValue(v: number, fmt?: Fmt): string {
   if (fmt === "money") return `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   if (fmt === "min") return `${v} min`;
   if (fmt === "score") return `${v} / 100`;
+  if (fmt === "slope") return `${v > 0 ? "+" : ""}${v}/session`;
   return v.toLocaleString();
 }
 
@@ -170,9 +171,37 @@ export default function KpiAnalyticsPage() {
           you&apos;re internalizing the skill, not renting it — the one metric no tool without a live AI coach
           can measure.
         </p>
-        <p className="text-[11px] text-muted mt-2 font-mono">
-          building… — activates once you have a cue-frequency trend across enough sessions.
-        </p>
+        {(() => {
+          const r = data?.metrics?.relianceReduction;
+          if (!r || r.value === null) {
+            return (
+              <p className="text-[11px] text-muted mt-2 font-mono">
+                building… — activates once you have a cue-frequency trend across {data?.minSessions ?? 5}+ sessions.
+              </p>
+            );
+          }
+          const v = r.value;
+          const declining = v < 0;
+          return (
+            <p className="text-xs mt-2">
+              <span
+                className={
+                  declining ? "text-emerald-300 font-semibold" : v === 0 ? "text-secondary" : "text-amber-300"
+                }
+              >
+                {declining
+                  ? "Declining — you're needing fewer cues over time (the coaching is landing)"
+                  : v === 0
+                    ? "Flat — steady cue use"
+                    : "Rising — needing more cues lately"}
+              </span>{" "}
+              <span className="font-mono text-muted tabular-nums">
+                ({v > 0 ? "+" : ""}
+                {v} cues/session · n={r.sampleSize})
+              </span>
+            </p>
+          );
+        })()}
       </section>
 
       {loading && (

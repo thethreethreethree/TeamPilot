@@ -132,6 +132,39 @@ export function layer3Dimension(rows: Layer3ScoreInput[], key: string): MetricRe
   return { value: round1(avg * 10), sampleSize: vals.length, gated: false, sourceSessionIds: ids };
 }
 
+// ---- Layer 4: Coaching & growth (THE DIFFERENTIATOR) -------------------------------------------------
+
+/** Cue acceptance rate (%) = cues acted on ÷ cues delivered. Gate: ≥ MIN_SESSIONS cues delivered. */
+export function cueAcceptanceRate(cues: { acted: boolean }[]): MetricResult {
+  if (cues.length < MIN_SESSIONS) return gated(cues.length, []);
+  const acted = cues.filter((c) => c.acted).length;
+  return { value: round1((acted / cues.length) * 100), sampleSize: cues.length, gated: false, sourceSessionIds: [] };
+}
+
+/**
+ * Reliance reduction (the headline) — the slope of cues-per-session over the agent's session timeline.
+ * A NEGATIVE slope = fewer cues needed over time = the agent is internalizing the skill (good). Value is
+ * cues/session change per session. Gate: ≥ MIN_SESSIONS sessions. (The "while performance holds" qualifier
+ * is applied by the reader against the Layer-3 trend; this returns the raw reliance signal, honestly.)
+ */
+export function relianceReductionSlope(
+  points: { order: number; cueCount: number; sessionId: string }[]
+): MetricResult {
+  const ids = points.map((p) => p.sessionId);
+  const n = points.length;
+  if (n < MIN_SESSIONS) return gated(n, ids);
+  const xbar = points.reduce((a, p) => a + p.order, 0) / n;
+  const ybar = points.reduce((a, p) => a + p.cueCount, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (const p of points) {
+    num += (p.order - xbar) * (p.cueCount - ybar);
+    den += (p.order - xbar) ** 2;
+  }
+  const slope = den === 0 ? 0 : num / den;
+  return { value: round2(slope), sampleSize: n, gated: false, sourceSessionIds: ids };
+}
+
 // ---- Baseline / delta (self-comparison) --------------------------------------------------------------
 
 /** Rolling mean + stddev of a metric's historical values (population). Feeds delta_vs_baseline. */

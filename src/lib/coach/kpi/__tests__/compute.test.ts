@@ -8,6 +8,8 @@ import {
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
+  cueAcceptanceRate,
+  relianceReductionSlope,
   baseline,
   sumDollarsExact,
   isOpportunity,
@@ -167,6 +169,43 @@ describe("Layer 3 (after-pitch score aggregation)", () => {
   it("gates below MIN_SESSIONS scored", () => {
     const rows = [row("1", "close", 7), row("2", "close", 7)];
     expect(layer3Dimension(rows, "close").value).toBeNull();
+  });
+});
+
+describe("Layer 4 (coaching & growth)", () => {
+  it("cueAcceptanceRate = acted ÷ delivered, gated below MIN_SESSIONS cues", () => {
+    expect(cueAcceptanceRate([{ acted: true }, { acted: false }]).value).toBeNull(); // < 5
+    const cues = [
+      { acted: true },
+      { acted: true },
+      { acted: false },
+      { acted: true },
+      { acted: false },
+    ];
+    expect(cueAcceptanceRate(cues).value).toBe(60); // 3/5
+  });
+
+  it("relianceReductionSlope is NEGATIVE when cues-per-session decline (coaching working)", () => {
+    const pts = [
+      { order: 1, cueCount: 6, sessionId: "a" },
+      { order: 2, cueCount: 5, sessionId: "b" },
+      { order: 3, cueCount: 4, sessionId: "c" },
+      { order: 4, cueCount: 3, sessionId: "d" },
+      { order: 5, cueCount: 2, sessionId: "e" },
+    ];
+    const r = relianceReductionSlope(pts);
+    expect(r.gated).toBe(false);
+    expect(r.value).toBe(-1); // perfectly declining by 1/session
+    expect(r.sourceSessionIds).toHaveLength(5);
+  });
+
+  it("relianceReductionSlope gates below MIN_SESSIONS", () => {
+    expect(
+      relianceReductionSlope([
+        { order: 1, cueCount: 5, sessionId: "a" },
+        { order: 2, cueCount: 4, sessionId: "b" },
+      ]).value
+    ).toBeNull();
   });
 });
 

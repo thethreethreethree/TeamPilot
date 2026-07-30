@@ -9,6 +9,8 @@ import {
   sessionsPerDay,
   avgSessionDurationMin,
   layer3Dimension,
+  cueAcceptanceRate,
+  relianceReductionSlope,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
@@ -78,6 +80,38 @@ export async function GET() {
     };
   });
   for (const k of LAYER3_KEYS) metrics[`l3_${k}`] = layer3Dimension(layer3Rows, k);
+
+  // Layer 4 — cues + outcomes (from the agent's sessions). Reliance Reduction is the headline.
+  const sessionIds = rows.map((r) => r.sessionId);
+  if (sessionIds.length > 0) {
+    const [{ data: cueRows }, { data: outcomeRows }] = await Promise.all([
+      sb.from("coaching_cues").select("id, session_id").in("session_id", sessionIds),
+      sb.from("coaching_cue_outcomes").select("cue_id, determination").in("session_id", sessionIds),
+    ]);
+    const actedCueIds = new Set(
+      (outcomeRows ?? [])
+        .filter((o) => o.determination === "followed" || o.determination === "partial")
+        .map((o) => o.cue_id as string)
+    );
+    const cues = (cueRows ?? []).map((c) => ({ acted: actedCueIds.has(c.id as string) }));
+    metrics.cueAcceptanceRate = cueAcceptanceRate(cues);
+
+    // Reliance reduction: per-session cue count, ordered by the agent's session timeline (rows are asc).
+    const countBySession = new Map<string, number>();
+    for (const c of cueRows ?? []) {
+      const sid = c.session_id as string;
+      countBySession.set(sid, (countBySession.get(sid) ?? 0) + 1);
+    }
+    const points = rows.map((r, i) => ({
+      order: i + 1,
+      cueCount: countBySession.get(r.sessionId) ?? 0,
+      sessionId: r.sessionId,
+    }));
+    metrics.relianceReduction = relianceReductionSlope(points);
+  } else {
+    metrics.cueAcceptanceRate = cueAcceptanceRate([]);
+    metrics.relianceReduction = relianceReductionSlope([]);
+  }
 
   return NextResponse.json({
     sessionCount: rows.length,
