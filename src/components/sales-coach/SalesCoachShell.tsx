@@ -25,6 +25,7 @@ import {
   Mic,
   Settings,
   Target,
+  TrendingUp,
   Users,
   Video,
   User,
@@ -66,6 +67,7 @@ const NAV: NavItem[] = [
     icon: MessageSquare,
   },
   { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
+  { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
   { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
   {
     label: "Coach Assessment",
