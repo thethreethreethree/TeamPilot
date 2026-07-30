@@ -56,26 +56,45 @@ type NavItem = {
   managerOnly?: boolean;
 };
 
-const NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/sales-coach", icon: Home },
-  { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
-  { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
-  { label: "Strategy", href: "/dashboard/sales-coach/strategy", icon: Library },
+/** A grouped run of nav items under an optional section header. */
+type NavSection = { header?: string; items: NavItem[] };
+
+// Founder revision 2026-07-31 (annotated mockup): the sidebar is now GROUPED into
+// "Manager Dashboard" and "Team Tools" sections, in the mockup's order, instead of a
+// flat list. Item gating is unchanged (Coach Assessment + Team stay server-gated /
+// manager-only); a section whose items are all hidden for a rep drops its header too,
+// so a rep never sees an empty "Manager Dashboard" heading (AMD-006 L3).
+const NAV_SECTIONS: NavSection[] = [
+  { items: [{ label: "Home", href: "/dashboard/sales-coach", icon: Home }] },
   {
-    label: "Team Chat",
-    href: "/dashboard/sales-coach/team-chat",
-    icon: MessageSquare,
+    header: "Manager Dashboard",
+    items: [
+      {
+        label: "Coach Assessment",
+        href: "/dashboard/sales-coach/coach-assessment",
+        icon: ClipboardCheck,
+        managerOnly: true,
+      },
+      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
+      { label: "Session", href: "/dashboard/sales-coach/sessions", icon: Mic },
+    ],
   },
-  { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
-  { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
-  { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
   {
-    label: "Coach Assessment",
-    href: "/dashboard/sales-coach/coach-assessment",
-    icon: ClipboardCheck,
-    managerOnly: true,
+    header: "Team Tools",
+    items: [
+      { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
+      // Label is per-mode below: "One Liners" (Standard) / "Strategy" (Expert).
+      { label: "Strategy", href: "/dashboard/sales-coach/strategy", icon: Library },
+      { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
+    ],
   },
-  { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
+  {
+    items: [
+      { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
+      { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
+      { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
+    ],
+  },
 ];
 
 // Mobile bottom tab bar (founder 2026-07-04 PWA design). Per the founder's
@@ -101,7 +120,12 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   // user never clicks a nav entry that bounces them (AMD-006 L3). isManager is false while loading →
   // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
   const isSalesCoachManager = useIsSalesCoachManager();
-  const visibleNav = filterManagerNav(NAV, isSalesCoachManager);
+  // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
+  // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3).
+  const visibleSections = NAV_SECTIONS.map((s) => ({
+    ...s,
+    items: filterManagerNav(s.items, isSalesCoachManager),
+  })).filter((s) => s.items.length > 0);
   // Standard-only nav relabel (founder revision 2026-07-28, PDF): the "Strategy"
   // item reads "One Liners" in Standard; Expert keeps "Strategy". Label-only —
   // the route/content is unchanged. Rename is scoped to Standard per the founder's
@@ -149,35 +173,46 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-            {visibleNav.map((item) => {
-              const Icon = item.icon;
-              const active =
-                pathname === item.href ||
-                (item.href !== "/dashboard/sales-coach" &&
-                  pathname.startsWith(item.href + "/"));
-              // Standard-only: "Strategy" → "One Liners" (label only; href/content unchanged).
-              const label =
-                isStandard && item.href === "/dashboard/sales-coach/strategy"
-                  ? "One Liners"
-                  : item.label;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    active
-                      ? "bg-white/10 text-white"
-                      : "text-white/70 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <LinkProgress />
-                  <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                  {label}
-                </Link>
-              );
-            })}
+          {/* Nav — grouped into sections (founder mockup 2026-07-31). Each section renders its header (when
+              present) then its items; an ungrouped section (Home; the Team Chat/KPI/Settings run) has no
+              header. */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+            {visibleSections.map((section, si) => (
+              <div key={section.header ?? `group-${si}`} className="space-y-0.5">
+                {section.header && (
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+                    {section.header}
+                  </p>
+                )}
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard/sales-coach" &&
+                      pathname.startsWith(item.href + "/"));
+                  // Standard-only: "Strategy" → "One Liners" (label only; href/content unchanged).
+                  const label =
+                    isStandard && item.href === "/dashboard/sales-coach/strategy"
+                      ? "One Liners"
+                      : item.label;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-white/10 text-white"
+                          : "text-white/70 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <LinkProgress />
+                      <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* Back to ELOSTATE */}
