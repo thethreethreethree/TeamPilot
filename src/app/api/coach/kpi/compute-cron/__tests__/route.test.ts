@@ -8,6 +8,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
  */
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { GET } from "../route";
 
 const req = (authHeader: string | null) =>
@@ -35,5 +36,22 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
   it("401 on a missing Authorization header", async () => {
     process.env.CRON_SECRET = "s3cret-value";
     expect((await GET(req(null))).status).toBe(401);
+  });
+
+  it("runs cleanly with no agents → computed:0 (no crash on empty data)", async () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: () => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.order = () => chain;
+        chain.limit = () => chain;
+        chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
+        return chain;
+      },
+    });
+    const res = await GET(req("Bearer s3cret-value"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ computed: 0, snapshots: 0, scannedAgents: 0, bounded: false });
   });
 });
