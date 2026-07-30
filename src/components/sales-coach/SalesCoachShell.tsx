@@ -154,7 +154,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                 <p className="text-sm font-bold tracking-tight leading-none">
                   Sales Coach
                 </p>
-                <p className="text-[9px] uppercase tracking-widest text-white/40 mt-0.5">
+                <p className="text-[9px] uppercase tracking-widest text-white/50 mt-0.5">
                   Live Coaching · Growth Reviews
                 </p>
               </div>
@@ -177,7 +177,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
             {visibleSections.map((section, si) => (
               <div key={section.header ?? `group-${si}`} className="space-y-0.5">
                 {section.header && (
-                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/50">
                     {section.header}
                   </p>
                 )}
@@ -208,7 +208,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                           section). Ungrouped runs (Home; Team Chat/KPI/Settings) carry no number, as in the
                           mockup. tabular-nums so the digits align. */}
                       {section.header && (
-                        <span className="text-white/35 tabular-nums shrink-0 w-3 text-right">{ii + 1}.</span>
+                        <span className="text-white/50 tabular-nums shrink-0 w-3 text-right">{ii + 1}.</span>
                       )}
                       {label}
                     </Link>
