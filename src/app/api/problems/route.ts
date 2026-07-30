@@ -51,7 +51,10 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[problems POST] failed to create problem:", error);
+    return NextResponse.json({ error: "Couldn't create the problem." }, { status: 500 });
+  }
 
   if (Array.isArray(signalIds) && signalIds.length > 0) {
     const links = signalIds.map((sid: string) => ({
@@ -63,7 +66,8 @@ export async function POST(req: NextRequest) {
       .from("problem_signals")
       .insert(links);
     if (linkErr) {
-      return NextResponse.json({ error: linkErr.message }, { status: 500 });
+      console.error("[problems POST] failed to link signals:", linkErr);
+      return NextResponse.json({ error: "Couldn't link signals to the problem." }, { status: 500 });
     }
   }
 
@@ -112,12 +116,14 @@ export async function PATCH(req: NextRequest) {
     .select("id");
 
   if (error) {
-    // Distinguish gate refusals from real errors for the UI.
+    // The Understanding-Gate refusal is a CONTROLLED domain message from the DB trigger — surface it (422)
+    // so the UI can explain the hold. Any OTHER error is a raw DB error: log it, return a generic 500 (CWE-209).
     const isGateHold = /Understanding Gate/i.test(error.message);
-    return NextResponse.json(
-      { error: error.message, gateHold: isGateHold },
-      { status: isGateHold ? 422 : 500 }
-    );
+    if (isGateHold) {
+      return NextResponse.json({ error: error.message, gateHold: true }, { status: 422 });
+    }
+    console.error("[problems PATCH] failed to update problem:", error);
+    return NextResponse.json({ error: "Couldn't update the problem." }, { status: 500 });
   }
   if (!updated || updated.length === 0) {
     return NextResponse.json(
@@ -153,6 +159,9 @@ export async function PUT(req: NextRequest) {
     weight: 1.0,
   }));
   const { error } = await ctx.supabase.from("problem_signals").insert(links);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[problems PUT] failed to link signals:", error);
+    return NextResponse.json({ error: "Couldn't link signals to the problem." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
