@@ -132,6 +132,27 @@ export function layer3Dimension(rows: Layer3ScoreInput[], key: string): MetricRe
   return { value: round1(avg * 10), sampleSize: vals.length, gated: false, sourceSessionIds: ids };
 }
 
+/**
+ * Skill progression (Layer 4) — Δ in overall conversation quality vs. the agent's OWN earlier calls. Per
+ * after-pitch session, average its non-caveat scores (0-10) into an overall quality; split the time-ordered
+ * scored sessions in half; return (recent mean − prior mean) scaled to 0-100 (can be negative). The VALUE is
+ * itself the delta — a positive number means the rep is scoring better than they used to. Gate: ≥ 2·MIN_SESSIONS
+ * scored sessions.
+ */
+export function overallSkillProgression(orderedRows: Layer3ScoreInput[]): MetricResult {
+  const perSession: { v: number; sid: string }[] = [];
+  for (const r of orderedRows) {
+    const vals = r.scores.filter((s) => !s.caveat && Number.isFinite(s.score)).map((s) => s.score);
+    if (vals.length > 0) perSession.push({ v: vals.reduce((a, b) => a + b, 0) / vals.length, sid: r.sessionId });
+  }
+  const ids = perSession.map((p) => p.sid);
+  if (perSession.length < 2 * MIN_SESSIONS) return gated(perSession.length, ids);
+  const mid = Math.floor(perSession.length / 2);
+  const mean = (a: { v: number }[]) => a.reduce((x, y) => x + y.v, 0) / a.length;
+  const delta = (mean(perSession.slice(mid)) - mean(perSession.slice(0, mid))) * 10;
+  return { value: round1(delta), sampleSize: perSession.length, gated: false, sourceSessionIds: ids };
+}
+
 // ---- Layer 4: Coaching & growth (THE DIFFERENTIATOR) -------------------------------------------------
 
 /** Cue acceptance rate (%) = cues acted on ÷ cues delivered. Gate: ≥ MIN_SESSIONS cues delivered. */

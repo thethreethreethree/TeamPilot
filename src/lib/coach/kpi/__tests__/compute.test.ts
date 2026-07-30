@@ -11,6 +11,7 @@ import {
   cueAcceptanceRate,
   relianceReductionSlope,
   relianceReductionFromFirstCue,
+  overallSkillProgression,
   selfDelta,
   baseline,
   sumDollarsExact,
@@ -226,6 +227,22 @@ describe("Layer 4 (coaching & growth)", () => {
       { cueCount: 0, sessionId: "b" },
     ]);
     expect(r.value).toBeNull();
+  });
+
+  it("overallSkillProgression = (recent-half mean − prior-half mean) of quality, scaled 0-100", () => {
+    const r = (sid: string, score: number) => ({ sessionId: sid, scores: [{ key: "objection", score }] });
+    const rows = [
+      r("1", 5), r("2", 5), r("3", 5), r("4", 5), r("5", 5), // prior avg 5
+      r("6", 7), r("7", 7), r("8", 7), r("9", 7), r("10", 7), // recent avg 7
+    ];
+    const res = overallSkillProgression(rows);
+    expect(res.gated).toBe(false);
+    expect(res.value).toBe(20); // (7-5)*10
+  });
+
+  it("overallSkillProgression gates below 2·MIN_SESSIONS scored sessions", () => {
+    const r = (sid: string) => ({ sessionId: sid, scores: [{ key: "close", score: 6 }] });
+    expect(overallSkillProgression([r("1"), r("2"), r("3")]).value).toBeNull();
   });
 
   it("relianceReductionSlope gates below MIN_SESSIONS", () => {
