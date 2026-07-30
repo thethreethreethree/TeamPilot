@@ -6,6 +6,7 @@ import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { CareNotificationsPanel } from "@/components/care/CareNotificationsPanel";
+import { DataPrivacyPanel } from "@/components/care/DataPrivacyPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -61,6 +62,7 @@ export default function CareGeneralSettingsPage() {
           <LearningModePanel />
           <ExperienceModePanel />
           <CareNotificationsPanel />
+          <DataPrivacyPanel />
         </div>
 
         {/* Jump to the operational config surfaces. */}
