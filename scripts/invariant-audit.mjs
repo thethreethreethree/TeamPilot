@@ -70,6 +70,11 @@ const CSV_EXPORT_ALLOWLIST = new Map([
   ["src/app/dashboard/finance/cards/page.tsx", "CSV file INPUT (card statement import), not an export."],
 ]);
 
+// Extracted + self-tested (guard-integrity 2026-07-31, INV1-6 got no self-test before): the "wired to the
+// safe CSV primitive" matcher is the fragile part — a rename of csvSafe or a regex typo here would make INV1
+// silently pass every export. The self-test at the bottom locks it.
+const CSV_ROUTED_RE = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv/;
+
 for (const f of FILES) {
   const producesCsv =
     /new Blob\(\s*\[[^\]]*\]\s*,\s*\{\s*type:\s*["']text\/csv/.test(f.sql) ||
@@ -78,7 +83,7 @@ for (const f of FILES) {
   if (!producesCsv) continue;
   if (CSV_EXPORT_ALLOWLIST.has(f.path)) continue;
 
-  const routed = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv/.test(f.sql);
+  const routed = CSV_ROUTED_RE.test(f.sql);
   if (!routed) {
     findings.push({
       rule: "CSV export must route through csvSafe",
@@ -110,9 +115,13 @@ const SERVICE_ROLE_ALLOWLIST = new Map([
   ],
 ]);
 
+// Extracted + self-tested (guard-integrity 2026-07-31): the "uses a service-role client" matcher. If a rename
+// or typo broke this regex, INV2 would silently green-light a finance route that bypasses RLS.
+const FINANCE_SERVICE_ROLE_RE = /createAdminClient|SUPABASE_SERVICE_ROLE|service_role/;
+
 for (const f of FILES) {
   if (!f.path.startsWith("src/app/api/finance/")) continue;
-  const usesServiceRole = /createAdminClient|SUPABASE_SERVICE_ROLE|service_role/.test(f.sql);
+  const usesServiceRole = FINANCE_SERVICE_ROLE_RE.test(f.sql);
   if (!usesServiceRole) continue;
   if (SERVICE_ROLE_ALLOWLIST.has(f.path)) continue;
 
@@ -356,6 +365,10 @@ const UPLOAD_VALIDATE_ALLOWLIST = new Map([
     "the BLOCKED_EXTENSIONS check adds nothing. (SVG is allowed but served cross-origin from the storage bucket " +
     "and rendered via <img>, so SVG-script never runs in the app origin.)"],
 ]);
+// Extracted + self-tested (guard-integrity 2026-07-31): the "upload is validated" matcher. A broken regex here
+// would silently pass an unvalidated multipart upload route (spoofable Content-Type → executable upload).
+const UPLOAD_VALIDATED_RE = /validateUploadCandidate|EXECUTABLE_EXTENSIONS/;
+
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;
   const handlesUpload =
@@ -363,7 +376,7 @@ for (const f of FILES) {
     /(instanceof File|uploadAssetBytes|\.arrayBuffer\(\))/.test(f.sql);
   if (!handlesUpload) continue;
   if (UPLOAD_VALIDATE_ALLOWLIST.has(f.path)) continue;
-  if (/validateUploadCandidate|EXECUTABLE_EXTENSIONS/.test(f.sql)) continue;
+  if (UPLOAD_VALIDATED_RE.test(f.sql)) continue;
   findings.push({
     rule: "A file-upload route must validate the upload (size / MIME / extension)",
     file: f.path,
@@ -855,6 +868,17 @@ for (const f of FILES) {
 // it's a presence-check, accepts a synthetic-valid). A failure here means a GUARD regressed — fix the matcher.
 const selfTestFailures = [];
 const st = (name, ok) => { if (!ok) selfTestFailures.push(name); };
+
+// INV1-6 self-tests added 2026-07-31 — these older invariants shipped with NO detection self-test, so a
+// broken matcher would have silently reported 0 violations forever (the exact failure this whole block
+// guards against). Each locks the extracted "safe-primitive wired?" regex in both directions.
+st("INV1 routing regex accepts a csvSafe-wired export", CSV_ROUTED_RE.test("rows.map(toCsv).join('')"));
+st("INV1 routing regex flags an unrouted producer", !CSV_ROUTED_RE.test('new Blob([raw], { type: "text/csv" })'));
+st("INV2 service-role regex flags createAdminClient", FINANCE_SERVICE_ROLE_RE.test("const a = createAdminClient();"));
+st("INV2 service-role regex ignores the RLS client", !FINANCE_SERVICE_ROLE_RE.test("const a = await createClient();"));
+st("INV5 upload-validated regex accepts validateUploadCandidate", UPLOAD_VALIDATED_RE.test("await validateUploadCandidate(file, {})"));
+st("INV5 upload-validated regex flags an unvalidated upload", !UPLOAD_VALIDATED_RE.test("const f = form.get('file'); await put(f);"));
+
 // INV7 admin-gate: must NOT match an ungated route, MUST match a gated one.
 st("INV7 flags an ungated admin route", !ADMIN_GATE_RE.test("export async function GET(){ return data; }"));
 st("INV7 accepts a gated admin route", ADMIN_GATE_RE.test("const g = await requireVendorAdmin();"));
