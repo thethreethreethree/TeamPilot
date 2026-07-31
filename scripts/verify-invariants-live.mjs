@@ -144,6 +144,21 @@ async function main() {
     return { pass: !!wired, detail: wired ? "durability-review emit trigger wired on UPDATE of resolutions" : "MISSING — §3.5 durability signal would silently stop reaching the event chain" };
   });
 
+  await check("no SECURITY DEFINER function lacks a pinned search_path (search_path-injection / privilege-escalation defense)", async () => {
+    // A SECURITY DEFINER function runs with the OWNER's privileges. Without its OWN pinned search_path, a
+    // caller can prepend a schema they control and make the elevated function resolve a MALICIOUS object (a
+    // shadowed function/table) — a privilege-escalation vector that Supabase's own linter flags. This is the
+    // LIVE, CI-integrated version of that lint, so a NEW definer fn added without `set search_path` fails the
+    // build. Verified 2026-07-31: 115 DEFINER fns, 0 unpinned. Complements INVARIANT 4 (anon-callable DEFINER)
+    // on the OTHER definer-risk axis (injection vs reachability).
+    const r = await c.query(
+      "select count(*)::int n, coalesce(string_agg(p.proname, ', '), '') fns from pg_proc p " +
+      "join pg_namespace nsp on nsp.oid=p.pronamespace and nsp.nspname='public' " +
+      "where p.prosecdef and (p.proconfig is null or not exists (select 1 from unnest(p.proconfig) cfg where cfg like 'search_path=%'))");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "all SECURITY DEFINER fns pin search_path" : `${n} DEFINER fn(s) with NO pinned search_path → escalation risk: ${r.rows[0].fns}` };
+  });
+
   await check("H4 finance RLS on + policies company-scoped", async () => {
     const rls = await c.query(
       "select relname from pg_class where relname in ('fin_journal_entries','fin_journal_lines') and relrowsecurity");
