@@ -59,6 +59,34 @@ meta-audit** (checking effective grants/policies vs static text / coarse flags):
   emit `localhost`; I built a dev-safe fix, then **reverted it** (`09472355`) to honor the queue's explicit
   "do NOT fix in code" note, and surfaced it as the founder's choice — the §2 discipline held under the guard.
 
+## 3c. Deep-continuation (same session, much later — the honest headline is a self-correction)
+
+- **CORRECTION (§0/§5 — the most important item):** earlier this session the "effective-state audit" method
+  raised a FALSE **HIGH "14 finance views bypass RLS"** finding (surfaced in the queue). Behavioral
+  re-verification refuted it: the views ARE `security_invoker` (Postgres stores the boolean as `on`, not
+  `true`; my ad-hoc check matched only `true`), and as the anon role they return 0 rows (RLS working, which
+  I'd misread as "empty tables"). `rls:audit` correctly reported 0 bypassing the whole time — I overrode a
+  correct guard. **Withdrawn + corrected everywhere** (queue, audit doc, memory). The sibling
+  **definer-revoke** finding HELD UP under behavioral PoC (anon `fin_account_by_code` returned a UUID) and
+  is accurately **MEDIUM-LOW hygiene**, not HIGH. Lesson saved: verify security state BEHAVIORALLY
+  (`SET ROLE anon`), never by catalog-string; trust a project guard over an ad-hoc check.
+- **Shipped:** `diagnosis/close` auth gate (`4ab3294c`, latent anon-write into the §3.1 chain) + **INV18**
+  (`f7a30c9e`, every non-public mutation route must gate — self+detection-tested). `rates` CWE-209 earlier.
+- **Structural guards added to `verify:live` (now 19 invariants):** the §3.2 gate, H2 finance immutability,
+  and H3 balance checks now assert their TRIGGERS are WIRED (not just the fns present); + a new check that
+  every public view is `security_invoker` (the LIVE complement to rls:audit's migration-text parse, codifying
+  the correct `on|true` predicate so the false-positive bug can't recur). All detection-tested, each a TBC build.
+- **Behavioral proofs:** tenant isolation proven as anon across ALL 41 populated `company_id` tables (0 rows);
+  the full §3 thesis core verified STRUCTURALLY enforced — §3.1 (append-only, empirical), §3.2 (fail-closed
+  trigger, empirical), §3.3 (schema requires userDiagnosis+userProposal, test-locked), §3.4
+  (`enforce_coach_control_window` blocks coach-enable in month 1), §3.5 (durable-timestamp sweep); the §3.1
+  data pipeline intact (events 1711 well-formed, signals 100, 0 orphaned/cross-tenant problem_signals links).
+- **Coverage:** filled the one genuine pure-logic gap — `mirrorChipText` (the Coach's growth-framing /
+  mirror-not-surveillance property) now test-locked; the rest of the core libs confirmed well-covered.
+- **Surfaced (founder-gated, added to queue):** Next.js 16.2.6 CVEs (🟡 — applicability-checked: the scary
+  ones don't apply to our config); HSTS missing (🟢 LOW); `"guard the thesis triggers"` (🟢, verify:live
+  coverage for §3.4/§3.5 — offered, not auto-built per §2).
+
 ## 4. Open — founder-gated (all scoped in `docs/FOUNDER-ACTION-QUEUE.md`)
 🔴 `"fix the definer revoke"` (the one live MEDIUM hole) · 🟡 `"wire the KPI trajectory"` (§3.6 payoff) ·
 KPI snapshot atomicity · `"drop the dead KPI tables"` · `"fix the CareShell contrast"` ·
@@ -72,5 +100,8 @@ method, re-read 2026-07-31):
 - §3.1 (append-only — frozen-month/KPI) · §3.4 (honesty/no-fabrication) · §3.6 (make learning visible —
   KPI trajectory finding) — 2026-07-31
 - A18 (owner-private) · A22 (this closure) — 2026-07-31
+- §0 / §0.1 (understanding earned; behavioral re-verify of the false finding) · §5 (distrust the confident
+  answer — the correction) · §3.2 (understanding gate, trigger-wired) · §3.3 (guide-don't-overtake,
+  schema-enforced) — re-read 2026-07-31 (deep-continuation)
 
 Prior related closures: `2026-07-30-care-jeff-guidance-upload.md`, `2026-07-30-doc-upload-remediation.md`.
