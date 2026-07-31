@@ -1,25 +1,25 @@
 # Founder action queue
 
-> **CURRENT OPEN DECISIONS — refreshed 2026-07-31.** A navigation index over the full log below
-> (which is the append-only historical record, §1.1 — nothing here is removed, only summarized).
-> Everything below this box is detail/history. This box is the "what still needs *you*" surface.
-
-> **CURRENT OPEN DECISIONS (prioritized) — say the phrase and I execute.** Detail for each is in the
-> blocks below.
+> **CURRENT OPEN DECISIONS — refreshed 2026-07-31 (rewritten crisp after a long autonomous session).**
+> Navigation index over the append-only log below (§1.1 — nothing removed, only summarized). This box is
+> the "what still needs *you*" surface; say a **`phrase`** and I execute. Detail for each is in the blocks below.
 >
-> **⚠️ CORRECTION (2026-07-31): I OVERSTATED both "HIGH finance leak" findings. Re-verified behaviorally — one was FALSE, one is real-but-MEDIUM. Do not treat either as a live HIGH cross-tenant PII leak. Details + the honest re-assessment in the two blocks below.**
-> - **~~"fix the finance views"~~ — WITHDRAWN (FALSE POSITIVE).** The 14 views ARE `security_invoker=on` (verified: as the anon role they return 0 rows — RLS scopes them correctly). My original "bypass RLS" read was a bug (I matched the reloption as `=true`; Postgres stores `=on`) and I misattributed the anon-0 result to "empty tables" when it was RLS working. `rls:audit` correctly reported 0 bypassing views all along. **No action needed.**
-> - **`"fix the definer revoke"` (MEDIUM hygiene, was mis-ranked HIGH)** — some DEFINER fns are anon-EXECUTE-able with no `auth.uid()` guard. Real, but the impact I claimed ("cross-tenant financial PII") was WRONG: the finance helpers leak only SCALARS (an account UUID, an approval-limit number) to someone who already knows a company UUID; the 5 non-finance fns allow low/moderate unauthenticated TRIGGERS (event-injection needs a known target id, a count read, a sweep run). Good hygiene to revoke anon EXECUTE, but NOT a HIGH PII leak + NOT "before real finance posting." Detail + accurate severity in the block below.
-> - **`"upgrade next"`** (🟡 hygiene, LOWER priority than finance) — Next.js 16.2.6 CVEs; an applicability check shows the scary ones (auth-bypass, SSRF, Server-Function disclosure, SVG DoS) DON'T apply to our config (no Turbopack-prod / no rewrites / no Server Actions / no SVG-opt). Good-hygiene minor upgrade to ≥16.3.0 (breaking-classified) — I'll bump + full local verify, you approve the deploy. Detail in the 🟡 Next.js block.
+> **⚠️ Read first — I corrected myself:** I earlier flagged TWO "HIGH finance leaks." Behavioral re-verification
+> (`SET ROLE anon`) showed **there is NO live HIGH cross-tenant finance leak.** One was a FALSE POSITIVE
+> (withdrawn); one is real but only MEDIUM hygiene. So the finance security picture is far calmer than my
+> mid-session flags implied — details in the two blocks below.
 >
-> **Other decisions (each a real trade-off, not a bug):**
-> - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403. Now bounded: **~21 clear-cut** (`.from` writes + 3 `.select` reads) to genericize + **~26 `.rpc`** to confirm-curated (genericizing those degrades UX). `rates` already fixed.
-> - **`"wire the KPI trajectory"`** — computed KPI layer has no reader; §3.6 "vs earlier months" arc stored but never shown. Pipeline **verified live-ready** (cron runs daily; first monthly snapshot next run); reader must diff the monthKey `value` series (delta columns are unpopulated by design).
-> - **`"drop the dead KPI tables"`** — `agent_baseline` + `growth_record` are 0-reference, superseded schema from 0205.
-> - **✅ thesis-trigger guards COMPLETE** — verify:live now asserts the trigger-WIRING (not just fn-existence) for every §3 mechanism: §3.1 (append-only rules), §3.2 (understanding gate), §3.4 (control-window / honesty moat, `1c1bc543`), §3.5 (durability-emit, `0457020d`). 21 invariants. The product's honesty/anti-overtake/measurement mechanisms can't be silently un-wired by a migration. Built this session after reversing my "on your word" deferral (reasoning + revert paths in the two TBC closures); generic non-thesis triggers stay founder-scope.
-> - **`"make the kpi snapshot write atomic"`** · **`"fix the CareShell contrast"`** (~7 elements <WCAG AA) · **`"write the skill reads"`**/`"generic is fine"` · **`"review the INV18 allowlist"`** (10 public-route classifications) · **confirm `RCD_RETENTION_DAYS`** (default 90; RCD now stores real customer PII) · the 3 Sales Coach nav calls (*gate manager sections* · *end session after recording* · *One Liners everywhere*).
+> **Security / infra (do when convenient — none is a live HIGH hole):**
+> - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
+> - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
+> - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset).
 >
-> **✅ Shipped autonomously this session (2026-07-31) — no action needed, noted for awareness:** `diagnosis/close` auth gate (`4ab3294c`, closed a latent anon-write path into the append-only event chain) · **INV18** structural guard (`f7a30c9e`, every non-public mutation route must gate — self+detection-tested, 0 violations) · finance `rates` CWE-209 fix · 5 mechanical security fixes + guards earlier. Full-gate green (1896 tests). Thesis core (§3.1/§3.2/§3.5) + 5 crons + the two data-deleters verified sound live.
+> **Product / trade-off decisions (each real, not a bug):**
+> - `"do the finance CWE-209 pass"` — raw DB errors leak at 400/403; bounded to ~21 clear-cut genericizes + ~26 `.rpc` to confirm-curated (`rates` already fixed).
+> - `"wire the KPI trajectory"` — the §3.6 "vs earlier months" arc is computed+stored but has no reader; pipeline **verified live-ready** (reader diffs the monthKey `value` series).
+> - `"drop the dead KPI tables"` (`agent_baseline`+`growth_record`, 0-ref) · `"make the kpi snapshot write atomic"` · `"fix the CareShell contrast"` (~7 elems <WCAG AA) · `"write the skill reads"`/`"generic is fine"` · `"review the INV18 allowlist"` (10 public routes) · confirm `RCD_RETENTION_DAYS` (default 90) · the 3 Sales Coach nav calls (*gate manager sections* · *end session after recording* · *One Liners everywhere*).
+>
+> **✅ Shipped autonomously this session — no action needed:** 2 security fixes (`diagnosis/close` auth gate `4ab3294c`; finance `rates` CWE-209) + earlier mechanical fixes; **8 structural guards** — INV18 (every non-public mutation route gates, `f7a30c9e`) + verify:live grew 14→**22 invariants**: the full §3-thesis trigger-wiring (§3.1/§3.2/§3.4/§3.5), the view-invoker check, and the SECURITY DEFINER search_path guard; **2 coverage tests** (mirrorChipText, moduleLanding). The DB-security-lint classes are comprehensively clean + CI-guarded; the §3 thesis core is enforced + test-locked + guarded. **Final state: verify:live 22/22, full suite 1906 green, prod healthy.** The false-positive correction + behavioral tenant-isolation proof (41 tables) are on the record (audit doc + memory).
 
 ### 🟠 SECURITY (MEDIUM, hygiene) — finance DEFINER fns anon-callable → low-value scalar cross-tenant read (found 2026-07-28; severity re-confirmed 2026-07-31 — this one held up, unlike the withdrawn views finding above)
 - `0183_fin_definer_revoke.sql` tried to lock ~50 finance SECURITY DEFINER helpers but revoked from
