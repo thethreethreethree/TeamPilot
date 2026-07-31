@@ -180,6 +180,15 @@ Three deliberate defaults I chose — flip any on your word:
   previews resolve against localhost). **Set `NEXT_PUBLIC_SITE_URL=https://elostate.com` in Vercel** to fix
   canonical/OG/robots/sitemap. *Low urgency* (SEO/metadata only — NOT pilot-blocking, NOT extension-breaking).
   Do NOT "fix" it in code — the `localhost` fallback is intentionally correct for local dev.
+  **🆕 STILL LIVE 2026-07-31** (re-verified via `curl` — canonical + sitemap still emit
+  `http://localhost:4321`, days after this was flagged). I prototyped a code fix and then **REVERTED it**
+  to honor the "do NOT fix in code" note above — but I want to flag that the fix I built does NOT break the
+  dev concern: a shared `siteUrl()` helper that falls back to Vercel's STABLE production domain
+  (`VERCEL_PROJECT_PRODUCTION_URL`, prefers the custom domain) **only when on Vercel**, keeping `localhost`
+  for local dev, and with an explicit `NEXT_PUBLIC_SITE_URL` still winning. So there are now two paths:
+  (a) set `NEXT_PUBLIC_SITE_URL=https://elostate.com` in Vercel (your stated preference — cleanest,
+  explicit), or (b) say **"add the site-url fallback"** and I'll re-apply the reverted helper (makes prod
+  correct without the env var, dev unchanged). Your call — I won't re-ship it unprompted.
   **Blast radius CONFIRMED SEO-only** (ruled out the scary cases): every FUNCTIONAL absolute URL uses
   `window.location.origin` at runtime, not this env var — invite links (`team/page.tsx:320`,
   `InviteMemberDialog.tsx:85`) resolve to elostate.com when the admin browses there; widget embed snippet
