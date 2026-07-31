@@ -183,6 +183,21 @@ async function main() {
     };
   });
 
+  await check("storage.objects has no anon/public or permissive read policy (private buckets stay private)", async () => {
+    // Complements the bucket-`public` check: private buckets (assets-v1 user files, care-rcd-media customer
+    // media) rely on storage.objects RLS — access only for `authenticated`, scoped to the caller's own company
+    // path via auth_company_id(). The bucket-public check can't see this layer, so a future migration adding
+    // an anon/public SELECT policy (world-readable via RLS) OR an authenticated policy with a permissive
+    // `using (true)` (any tenant reads any object) would leak PII while the public-flag check stays green.
+    // Verified 2026-07-31: the 6 policies are all authenticated + company-scoped; this locks that.
+    const r = await c.query(
+      "select coalesce(string_agg(policyname, ', '), '') as pols, count(*)::int n from pg_policies " +
+      "where schemaname='storage' and tablename='objects' and cmd in ('SELECT','ALL') " +
+      "and ((roles && array['anon','public']::name[]) or qual is null or btrim(lower(qual)) in ('true','(true)'))");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "all storage.objects read policies are authenticated + scoped" : `${n} anon/public/permissive read policy(ies) → possible PII leak: ${r.rows[0].pols}` };
+  });
+
   await check("pilot_codes RLS-sealed (deny-all: RLS on + 0 policies)", async () => {
     // pilot_codes holds LIVE single-use access keys — a leak lets an attacker read unredeemed codes and
     // create free accounts. Its security model is deny-all: RLS enabled with ZERO policies, so anon /
