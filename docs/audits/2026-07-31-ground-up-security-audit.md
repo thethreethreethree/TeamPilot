@@ -61,6 +61,25 @@ protection is removed), not merely asserted green.
   log/event inserts (duplicates tolerated), or id-scoped updates. No new defect; the known cases
   (0197 redeem fixed, 0047 flagged) stand.
 
+## Additional sweeps (later in the session — result noted even where clean, per §1.7.3)
+
+- **maxDuration on LLM/heavy routes** — found 2 real prod-timeout defects (`care/demo/ask`,
+  `sales/demo/roleplay` — public LLM demos with no ceiling → killed on Vercel's default). Fixed +
+  locked with **INVARIANT 16**.
+- **Cron scheduling** — all 7 `*-cron` routes are registered in `vercel.json` (no silently-dead cron).
+  Locked with **INVARIANT 17**.
+- **Rate-limit coverage on LLM routes** — clean; only the inbound-email webhook lacks a per-user limit
+  (a webhook — its cost-abuse vector is the already-surfaced AI-COST-CAP item, not a new gap).
+- **Un-awaited DB mutations** (silent write-loss: a lazy Supabase builder that's never awaited never
+  executes) — CLEAN. Every mutation is awaited (multi-line chains await on the object line; batch
+  inserts via `Promise.all`). No fire-and-forget writes.
+- **Input validation on mutation routes** — the raw-`req.json()` routes validate MANUALLY (typeof/trim,
+  e.g. `pilot/redeem`), not via zod, but the security-critical inputs are checked before use; RPCs are
+  parameterized. No unvalidated-input-to-sink gap found.
+- **CWE-209 non-finance re-sweep (complete recipe)** — the high-severity raw-DB-error leak class is
+  confined to finance (fixed `rates`, scoped the rest); non-finance matches are curated `.rpc`/typed
+  messages or a low-risk document-parse fallback.
+
 ## Live verification
 
 `npm run verify:live` — **14/14 invariants hold** (append-only, finance immutability + balance, RLS
