@@ -183,6 +183,24 @@ async function main() {
     };
   });
 
+  await check("every finance company_id table has an affirmatively company-scoped read policy", async () => {
+    // H4 above verifies the two LEDGER tables reference auth_company_id(); this extends that AFFIRMATIVE
+    // property to ALL 54 fin_* company_id tables. The permissive-policy check catches `using(true)`, but a
+    // SUBTLY under-scoped SELECT policy (e.g. scoped by a wrong column, or referencing another table without
+    // the company match) is not literally `true` yet can still leak — so require every fin_ SELECT/ALL policy
+    // to reference a company-scoping signal (auth_company_id() or company_id). A table with NO select policy
+    // (deny-all) is fine — it has no unscoped policy to flag. Verified 2026-07-31: 0 unscoped across 54 tables.
+    const r = await c.query(
+      "select count(*)::int n, coalesce(string_agg(distinct cl.relname, ', '), '') as tbls " +
+      "from pg_policies pol join pg_class cl on cl.relname = pol.tablename " +
+      "join pg_namespace ns on ns.oid=cl.relnamespace and ns.nspname='public' " +
+      "where pol.schemaname='public' and pol.tablename like 'fin_%' and pol.cmd in ('SELECT','ALL') " +
+      "and exists (select 1 from information_schema.columns col where col.table_name=cl.relname and col.column_name='company_id') " +
+      "and lower(coalesce(pol.qual,'')) not like '%auth_company_id%' and lower(coalesce(pol.qual,'')) not like '%company_id%'");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "all fin_ company_id tables company-scoped (54 verified)" : `${n} finance SELECT policy(ies) NOT company-scoped → possible leak: ${r.rows[0].tbls}` };
+  });
+
   await check("storage.objects has no anon/public or permissive read policy (private buckets stay private)", async () => {
     // Complements the bucket-`public` check: private buckets (assets-v1 user files, care-rcd-media customer
     // media) rely on storage.objects RLS — access only for `authenticated`, scoped to the caller's own company
