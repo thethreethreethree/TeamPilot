@@ -10,6 +10,7 @@
 > **🔴 SECURITY — do these two before any real finance posting (both anon-reachable cross-tenant finance leaks, both from incomplete prior migrations, both fully worked up + verified-safe fixes):**
 > - **`"fix the finance views"`** — 14 `fin_*` views bypass RLS + are anon-readable (HIGH, latent: 0 rows today but one journal-post from live). Detail in the 🔴 HIGH block. *(+ a zero-cost view-join rider bundled there.)*
 > - **`"fix the definer revoke"`** — finance DEFINER fns anon-callable (MEDIUM, live); 0183 revoke was a no-op. Broader than finance: 5 non-finance fns too. Detail in the 🔴 MEDIUM block.
+> - **`"upgrade next"`** — Next.js 16.2.6 has multiple HIGH CVEs (middleware/proxy bypass, SSRF via rewrites, unauth Server-Function-endpoint disclosure, image-opt SVG DoS). Fix = a MINOR upgrade to ≥16.3.0 (breaking-classified, needs testing) — I'll do the bump + full local verify, you approve the deploy. Detail in the 🔴 Next.js block.
 >
 > **Other decisions (each a real trade-off, not a bug):**
 > - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403. Now bounded: **~21 clear-cut** (`.from` writes + 3 `.select` reads) to genericize + **~26 `.rpc`** to confirm-curated (genericizing those degrades UX). `rates` already fixed.
@@ -93,6 +94,27 @@
   non-enumerable UUID (RLS blocks listing other companies' report defs) and leaks a name, not numbers. So:
   not a live risk, but when you're already flipping this view to `security_invoker` above, add
   `AND r.company_id = s.company_id` to the join in the same migration — zero marginal cost, closes the nit.
+
+### 🔴 SECURITY (HIGH) — Next.js 16.2.6 has multiple HIGH CVEs; fix is a minor upgrade (found 2026-07-31, `npm audit`)
+
+- `npm audit` flags **Next.js 16.2.6** (our pinned `^16.2.6`) with several HIGH advisories. The ones that
+  matter for a multi-tenant SaaS: **Middleware/Proxy bypass** (App Router — an auth-gate bypass class,
+  conditional on Turbopack + single locale), **SSRF via rewrites** (attacker-controlled destination
+  hostname), **Unauthenticated disclosure of internal Server Function endpoints**, **Cache confusion of
+  response bodies**, and **Image-Optimization DoS via SVGs** (we DO accept SVG logo uploads). Plus
+  transitive `postcss` (XSS via unescaped `</style>`, path traversal via sourceMappingURL) and `fast-uri`
+  (host confusion). **Also flagged: `js-yaml` quadratic-CPU DoS.**
+- **Why I did NOT auto-fix it:** `npm audit fix` (safe, non-force) does NOT resolve the Next CVEs — the
+  vulnerable range is `… - 16.3.0-canary.5`, so the patched version is **≥ 16.3.0**, a MINOR upgrade that
+  npm classifies as breaking (`npm audit fix --force`). A minor framework bump on a LIVE product can
+  introduce runtime regressions the test suite won't catch, and I can't smoke-test prod — so this is a
+  founder-authorized, tested upgrade, not an autonomous `--force`. (`npm audit fix` alone only bumps to
+  16.2.12, still in the vulnerable range — I reverted that no-op lock change to keep the tree clean.)
+- **The fix (when you're ready):** bump `next` to the latest patched 16.x (≥ 16.3.0; check `npm view next
+  version` for the current stable), run `npm run check` + `npm run build` locally, then watch the Vercel
+  deploy. Say **"upgrade next"** and I'll do the bump + full local verification (typecheck/lint/test/build)
+  and flag anything that breaks BEFORE it ships — you approve the deploy. Given the auth-bypass + SSRF
+  classes on a multi-tenant app, this is worth doing soon (rank it alongside the two finance items).
 
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
