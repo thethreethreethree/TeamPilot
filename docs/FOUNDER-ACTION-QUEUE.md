@@ -7,9 +7,9 @@
 > **CURRENT OPEN DECISIONS (prioritized) — say the phrase and I execute.** Detail for each is in the
 > blocks below.
 >
-> **🔴 SECURITY — do these two before any real finance posting (both anon-reachable cross-tenant finance leaks, both from incomplete prior migrations, both fully worked up + verified-safe fixes):**
-> - **`"fix the finance views"`** — 14 `fin_*` views bypass RLS + are anon-readable (HIGH, latent: 0 rows today but one journal-post from live). Detail in the 🔴 HIGH block. *(+ a zero-cost view-join rider bundled there.)*
-> - **`"fix the definer revoke"`** — finance DEFINER fns anon-callable (MEDIUM, live); 0183 revoke was a no-op. Broader than finance: 5 non-finance fns too. Detail in the 🔴 MEDIUM block.
+> **⚠️ CORRECTION (2026-07-31): I OVERSTATED both "HIGH finance leak" findings. Re-verified behaviorally — one was FALSE, one is real-but-MEDIUM. Do not treat either as a live HIGH cross-tenant PII leak. Details + the honest re-assessment in the two blocks below.**
+> - **~~"fix the finance views"~~ — WITHDRAWN (FALSE POSITIVE).** The 14 views ARE `security_invoker=on` (verified: as the anon role they return 0 rows — RLS scopes them correctly). My original "bypass RLS" read was a bug (I matched the reloption as `=true`; Postgres stores `=on`) and I misattributed the anon-0 result to "empty tables" when it was RLS working. `rls:audit` correctly reported 0 bypassing views all along. **No action needed.**
+> - **`"fix the definer revoke"` (MEDIUM hygiene, was mis-ranked HIGH)** — some DEFINER fns are anon-EXECUTE-able with no `auth.uid()` guard. Real, but the impact I claimed ("cross-tenant financial PII") was WRONG: the finance helpers leak only SCALARS (an account UUID, an approval-limit number) to someone who already knows a company UUID; the 5 non-finance fns allow low/moderate unauthenticated TRIGGERS (event-injection needs a known target id, a count read, a sweep run). Good hygiene to revoke anon EXECUTE, but NOT a HIGH PII leak + NOT "before real finance posting." Detail + accurate severity in the block below.
 > - **`"upgrade next"`** (🟡 hygiene, LOWER priority than finance) — Next.js 16.2.6 CVEs; an applicability check shows the scary ones (auth-bypass, SSRF, Server-Function disclosure, SVG DoS) DON'T apply to our config (no Turbopack-prod / no rewrites / no Server Actions / no SVG-opt). Good-hygiene minor upgrade to ≥16.3.0 (breaking-classified) — I'll bump + full local verify, you approve the deploy. Detail in the 🟡 Next.js block.
 >
 > **Other decisions (each a real trade-off, not a bug):**
@@ -20,7 +20,7 @@
 >
 > **✅ Shipped autonomously this session (2026-07-31) — no action needed, noted for awareness:** `diagnosis/close` auth gate (`4ab3294c`, closed a latent anon-write path into the append-only event chain) · **INV18** structural guard (`f7a30c9e`, every non-public mutation route must gate — self+detection-tested, 0 violations) · finance `rates` CWE-209 fix · 5 mechanical security fixes + guards earlier. Full-gate green (1896 tests). Thesis core (§3.1/§3.2/§3.5) + 5 crons + the two data-deleters verified sound live.
 
-### 🔴 SECURITY (MEDIUM) — found + confirmed live 2026-07-28: finance DEFINER fns are anon-callable (cross-tenant read)
+### 🟠 SECURITY (MEDIUM, hygiene) — finance DEFINER fns anon-callable → low-value scalar cross-tenant read (found 2026-07-28; severity re-confirmed 2026-07-31 — this one held up, unlike the withdrawn views finding above)
 - `0183_fin_definer_revoke.sql` tried to lock ~50 finance SECURITY DEFINER helpers but revoked from
   `authenticated, anon` instead of from **PUBLIC** — a no-op, because those roles inherit EXECUTE via the
   default PUBLIC grant. **PoC (rolled back): as ANON, `fin_account_by_code(company, code)` returned another
@@ -56,8 +56,18 @@
   gate). (Lesson: the direct-write regex missed the indirect writer — the data-returning sweep was the
   complement. Method in memory `reference_supabase_revoke_public_not_anon`.)
 
-### 🔴 SECURITY (HIGH, latent) — 14 finance VIEWS bypass RLS + are anon-readable (found 2026-07-31)
-- Sibling of the definer-revoke hole, via VIEWS instead of functions. **14 `fin_*` views**
+### ❌ WITHDRAWN — "14 finance VIEWS bypass RLS" was a FALSE POSITIVE (corrected 2026-07-31)
+- **This entire finding is retracted.** Behavioral re-verification: the fin_ views ARE `security_invoker=on`
+  (Postgres stores the boolean as `on`, not `true` — my original check matched the literal `true` and so
+  mis-read them as NOT invoker). As the **anon role**, `SELECT count(*)` on `fin_kpis` / `fin_asset_register`
+  / `fin_cash_accounts` (and the base table `fin_accounts`, which HAS 22 rows) all return **0** — RLS scopes
+  anon correctly. The "returns 0 as anon" I originally attributed to "empty transaction tables" was in fact
+  RLS *working*. The migrations correctly declare `with (security_invoker = true)` (0158/0164/0165/0172…),
+  live matches, and `rls:audit` (which parses those migrations) correctly reported **0 bypassing views** the
+  whole time — I overrode a correct guard with a buggy ad-hoc check. **No fix needed; no cross-tenant leak.**
+  The company-match join nit on `fin_report_schedules_due` (below) is a genuine, independent, VERY-LOW
+  defense-in-depth item — it stands on its own, not "bundled with a security_invoker fix."
+- **Original (now-known-false) claim, kept for the record:** Sibling of the definer-revoke hole, via VIEWS instead of functions. **14 `fin_*` views**
   (`fin_1099_payments`, `fin_1099_worksheet`, `fin_asset_register`, `fin_card_positions`, `fin_cash_accounts`,
   `fin_cash_flow`, `fin_cash_flow_summary`, `fin_dunning_worklist`, `fin_kpis`, `fin_opening_imbalance`,
   `fin_opening_summary`, `fin_payments_due`, `fin_report_delivery_failures`, `fin_report_schedules_due`) run
