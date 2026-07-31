@@ -10,7 +10,7 @@
 > **🔴 SECURITY — do these two before any real finance posting (both anon-reachable cross-tenant finance leaks, both from incomplete prior migrations, both fully worked up + verified-safe fixes):**
 > - **`"fix the finance views"`** — 14 `fin_*` views bypass RLS + are anon-readable (HIGH, latent: 0 rows today but one journal-post from live). Detail in the 🔴 HIGH block. *(+ a zero-cost view-join rider bundled there.)*
 > - **`"fix the definer revoke"`** — finance DEFINER fns anon-callable (MEDIUM, live); 0183 revoke was a no-op. Broader than finance: 5 non-finance fns too. Detail in the 🔴 MEDIUM block.
-> - **`"upgrade next"`** — Next.js 16.2.6 has multiple HIGH CVEs (middleware/proxy bypass, SSRF via rewrites, unauth Server-Function-endpoint disclosure, image-opt SVG DoS). Fix = a MINOR upgrade to ≥16.3.0 (breaking-classified, needs testing) — I'll do the bump + full local verify, you approve the deploy. Detail in the 🔴 Next.js block.
+> - **`"upgrade next"`** (🟡 hygiene, LOWER priority than finance) — Next.js 16.2.6 CVEs; an applicability check shows the scary ones (auth-bypass, SSRF, Server-Function disclosure, SVG DoS) DON'T apply to our config (no Turbopack-prod / no rewrites / no Server Actions / no SVG-opt). Good-hygiene minor upgrade to ≥16.3.0 (breaking-classified) — I'll bump + full local verify, you approve the deploy. Detail in the 🟡 Next.js block.
 >
 > **Other decisions (each a real trade-off, not a bug):**
 > - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403. Now bounded: **~21 clear-cut** (`.from` writes + 3 `.select` reads) to genericize + **~26 `.rpc`** to confirm-curated (genericizing those degrades UX). `rates` already fixed.
@@ -95,15 +95,24 @@
   not a live risk, but when you're already flipping this view to `security_invoker` above, add
   `AND r.company_id = s.company_id` to the join in the same migration — zero marginal cost, closes the nit.
 
-### 🔴 SECURITY (HIGH) — Next.js 16.2.6 has multiple HIGH CVEs; fix is a minor upgrade (found 2026-07-31, `npm audit`)
+### 🟡 SECURITY (HYGIENE, de-escalated after applicability check) — Next.js 16.2.6 CVEs; most DON'T apply to our config (found 2026-07-31, `npm audit`)
 
-- `npm audit` flags **Next.js 16.2.6** (our pinned `^16.2.6`) with several HIGH advisories. The ones that
-  matter for a multi-tenant SaaS: **Middleware/Proxy bypass** (App Router — an auth-gate bypass class,
-  conditional on Turbopack + single locale), **SSRF via rewrites** (attacker-controlled destination
-  hostname), **Unauthenticated disclosure of internal Server Function endpoints**, **Cache confusion of
-  response bodies**, and **Image-Optimization DoS via SVGs** (we DO accept SVG logo uploads). Plus
-  transitive `postcss` (XSS via unescaped `</style>`, path traversal via sourceMappingURL) and `fast-uri`
-  (host confusion). **Also flagged: `js-yaml` quadratic-CPU DoS.**
+- `npm audit` flags **Next.js 16.2.6** with several CVEs that are HIGH *by CVSS*, but an applicability
+  check (§1.3 — does it actually apply HERE?) de-escalates almost all of them for THIS app's config:
+  - **Middleware/Proxy bypass** (the scary auth-bypass one) — requires **Turbopack**. Our prod build is
+    `next build` (webpack; Turbopack is opt-in via `--turbopack`, which we don't use). → **N/A to prod.**
+  - **SSRF via rewrites** — we have **no `rewrites`** in next.config. → **N/A.**
+  - **SSRF / DoS / unbounded-payload / endpoint-disclosure in Server Actions** — we use **no Server
+    Actions** (`"use server"` appears nowhere in src). → **N/A.**
+  - **Image-Optimization DoS via SVGs** — requires `images.dangerouslyAllowSVG: true`; we don't set it, so
+    next/image rejects SVG (our SVG logos are served via storage signed URLs + `<img src>`, not
+    next/image). → **N/A.**
+  - What plausibly REMAINS: the general **cache-confusion of response bodies** class (cache-poisoning/DoS,
+    not auth), plus build-time transitive `postcss` (XSS in CSS stringify — build tooling, not a runtime
+    surface), `fast-uri`, and `js-yaml` quadratic-CPU (only if we parse untrusted YAML — we don't obviously).
+  - **Net: this is good-hygiene upkeep, NOT a live hole. Rank it BELOW the two finance items** (which ARE
+    live/latent cross-tenant leaks). I initially over-framed it as "HIGH auth-bypass, rank alongside
+    finance" before checking applicability — corrected here.
 - **Why I did NOT auto-fix it:** `npm audit fix` (safe, non-force) does NOT resolve the Next CVEs — the
   vulnerable range is `… - 16.3.0-canary.5`, so the patched version is **≥ 16.3.0**, a MINOR upgrade that
   npm classifies as breaking (`npm audit fix --force`). A minor framework bump on a LIVE product can
