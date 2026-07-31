@@ -51,6 +51,25 @@
   gate). (Lesson: the direct-write regex missed the indirect writer — the data-returning sweep was the
   complement. Method in memory `reference_supabase_revoke_public_not_anon`.)
 
+### 🔴 SECURITY (HIGH, latent) — 14 finance VIEWS bypass RLS + are anon-readable (found 2026-07-31)
+- Sibling of the definer-revoke hole, via VIEWS instead of functions. **14 `fin_*` views**
+  (`fin_1099_payments`, `fin_1099_worksheet`, `fin_asset_register`, `fin_card_positions`, `fin_cash_accounts`,
+  `fin_cash_flow`, `fin_cash_flow_summary`, `fin_dunning_worklist`, `fin_kpis`, `fin_opening_imbalance`,
+  `fin_opening_summary`, `fin_payments_due`, `fin_report_delivery_failures`, `fin_report_schedules_due`) run
+  as their owner **`postgres` (rolbypassrls=true)** and are NOT `security_invoker`, so they read the
+  underlying `fin_*` tables with **RLS bypassed**; none self-filter by `auth_company_id()`; and **anon +
+  authenticated both have SELECT**. So a raw `GET /rest/v1/fin_1099_payments` (anon key) returns EVERY
+  tenant's vendor tax IDs / cash flow / KPIs / payments — a cross-tenant financial-PII leak reachable
+  UNAUTHENTICATED, and directly (no function/param, unlike the definer hole). **Verified the mechanism live**
+  (owner=postgres+bypassrls, FORCE RLS=false, anon has SELECT). **Currently returns 0 rows ONLY because the
+  finance tables are empty** — it activates the instant any tenant enters finance data. Migration `0203`
+  (`security_invoker_rls`) fixed SOME views; these 14 were MISSED. **Fix (founder-gated, finance):** `alter
+  view <each> set (security_invoker = true)` (they then run as the caller → the caller's RLS scopes them to
+  their own company — the exact pattern 0203 used) AND/OR revoke anon/authenticated SELECT. Verify each view
+  still returns correctly for an authed finance user after the flip. Say **"fix the finance views"** and I'll
+  write the migration. **Pair with `"fix the definer revoke"`** — same root class (RLS-bypass reachable by
+  anon), same finance surface.
+
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
   Knudtson, john@alignsalespros.com). **Verified healthy end-to-end via live DB:** company created · admin
