@@ -80,6 +80,32 @@ protection is removed), not merely asserted green.
   confined to finance (fixed `rates`, scoped the rest); non-finance matches are curated `.rpc`/typed
   messages or a low-risk document-parse fallback.
 
+## Security-primitive / linchpin audit (deepest layer — the actual guard functions, not just their call sites)
+
+Auditing whether each security-critical FUNCTION is itself correct (INV5/INV10/etc. only guard that it's
+*called*). Two real gaps found + fixed, one surfaced, the rest verified complete:
+
+- **Extension `esc()`** (HTML escape) — escaped only `&<>`, used in ATTRIBUTE contexts (`placeholder="…"`,
+  `href="…"`) safe only because that data is static → latent attribute-injection XSS. **FIXED** (quote-safe),
+  verified live in the download zip.
+- **Upload filename blocklist** — `endsWith(ext)` on the raw name let `evil.exe ` / `evil.exe.` bypass the
+  executable-extension check, then Windows renormalizes it on a victim's disk. **FIXED** (trim trailing
+  `[.\s]`), detection-tested.
+- **Prompt-injection fence** — applied to the C.A.R.E tools + live-coaching prompt but NOT the post-call
+  review engines. **SURFACED** (modifies tuned prompts → founder's call).
+- **CSV formula neutralizer** — complete (all 6 CWE-1236 triggers `=+-@` TAB CR, number-exempt). Clean.
+- **Email header + display-name sanitizers** — complete (strips all control chars for CRLF; strips `"`/`\`/`<>`
+  for the quoted display-name context). Clean.
+- **Rate limiter** — non-spoofable key (`x-real-ip`, author understood the `x-forwarded-for` spoof), correct
+  sliding window. Sound (the in-memory per-instance ceiling is the known AI-cost-cap tradeoff).
+- **Identity derivation** (`getCurrentCompanyId`/`getCurrentAuthContext`) — companyId from the server-verified
+  `auth.user.id` → profile, never client input. Sound — the foundation all tenant isolation rests on.
+- **Signed-URL issuance** (file-access chokepoint) — all 3 sites prove access before signing (RLS read /
+  token→conversation→file-link / RLS read). Clean.
+- **SVG logo upload** (allowed despite the global SVG block) — verified SAFE: the widget renders it via
+  `<img src>` (script-sandboxed), a documented deliberate mitigation. Not a false-flag (§0 — verified the
+  render path before concluding).
+
 ## Live verification
 
 `npm run verify:live` — **14/14 invariants hold** (append-only, finance immutability + balance, RLS
