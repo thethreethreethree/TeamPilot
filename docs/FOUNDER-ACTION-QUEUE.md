@@ -79,6 +79,16 @@
   user loses legitimate rows. **Scope fully bounded (verified):** these 14 are the COMPLETE set of
   non-`security_invoker` views in `public` (all happen to be `fin_`), and there are **0 materialized views**
   (which would be the identical leak) — nothing else of this class exists to find.
+- **RIDER (VERY LOW / defense-in-depth, bundle with the above) — `fin_report_schedules_due` join isn't
+  company-matched.** While auditing the report-delivery cron (2026-07-31), found the view joins
+  `fin_report_definitions r ON r.id = s.report_id` with **no `r.company_id = s.company_id`**. The recipient
+  IS correctly same-company-scoped (`p.company_id = s.company_id` + active + a `fin_roles` finance-access
+  EXISTS check), and the delivery is a "doorbell not envelope" (no figures in the push — data stays behind
+  login), so there is **no cross-tenant financial-DATA leak**. The only theoretical exposure is a report
+  *name* surfacing if a schedule referenced another company's `report_id` — which requires guessing a
+  non-enumerable UUID (RLS blocks listing other companies' report defs) and leaks a name, not numbers. So:
+  not a live risk, but when you're already flipping this view to `security_invoker` above, add
+  `AND r.company_id = s.company_id` to the join in the same migration — zero marginal cost, closes the nit.
 
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
