@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { isVendorAdmin } from "../vendorAuth";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
+import { isVendorAdmin, requireVendorAdmin } from "../vendorAuth";
+import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { NextResponse } from "next/server";
 
 /**
  * Pins the fix for the CRITICAL vendor-CRM authorization hole (audit
@@ -31,5 +34,47 @@ describe("isVendorAdmin", () => {
 
   it("rejects an empty companyId (fail closed)", () => {
     expect(isVendorAdmin({ isAdmin: true, companyId: "" }, VENDOR)).toBe(false);
+  });
+});
+
+/**
+ * The pure predicate above is the logic; requireVendorAdmin is the GATE the routes actually call — it
+ * composes getCurrentAuthContext + isVendorAdmin and returns 401 / 403 / the AuthContext. The predicate
+ * being correct is worthless if the gate doesn't invoke it or mis-maps its result, so lock the wiring: an
+ * unauthenticated caller gets 401, a customer-company admin gets 403 (fail-closed, so a route never runs
+ * its service-role body), and only a real vendor admin gets the context back to proceed.
+ */
+const auth = getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>;
+describe("requireVendorAdmin — the route gate", () => {
+  const savedEnv = process.env.CARE_DEFAULT_TENANT_ID;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.CARE_DEFAULT_TENANT_ID = VENDOR; // deterministic vendor company
+  });
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env.CARE_DEFAULT_TENANT_ID;
+    else process.env.CARE_DEFAULT_TENANT_ID = savedEnv;
+  });
+
+  it("401 when unauthenticated", async () => {
+    auth.mockResolvedValue(null);
+    const res = await requireVendorAdmin();
+    expect(res).toBeInstanceOf(NextResponse);
+    expect((res as NextResponse).status).toBe(401);
+  });
+
+  it("403 for a customer-company admin (fail-closed — the 0089 escalation, at the gate)", async () => {
+    auth.mockResolvedValue({ isAdmin: true, companyId: OTHER, userId: "u1" });
+    const res = await requireVendorAdmin();
+    expect(res).toBeInstanceOf(NextResponse);
+    expect((res as NextResponse).status).toBe(403);
+  });
+
+  it("returns the AuthContext (NOT a NextResponse) for a real vendor admin", async () => {
+    const ctx = { isAdmin: true, companyId: VENDOR, userId: "vendor-user" };
+    auth.mockResolvedValue(ctx);
+    const res = await requireVendorAdmin();
+    expect(res).not.toBeInstanceOf(NextResponse);
+    expect(res).toBe(ctx);
   });
 });
