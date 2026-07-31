@@ -41,6 +41,21 @@ Three deliberate defaults I chose — flip any on your word:
   mobile card).
 
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
+- **KPI computed layer has NO reader — the trajectory (§3.6) is computed but never shown** (structural
+  audit 2026-07-31). Verified: `kpi_snapshot` / `agent_baseline` / `growth_record` are written ONLY by
+  the compute-cron; **zero routes read them** — both `/me` and `/team` compute their numbers on-read
+  from `coaching_sessions`. So the FROZEN-MONTH history (the whole reason the cron persists a per-month
+  snapshot; I verified + test-locked its Data-as-Asset guarantee this session) currently powers nothing a
+  user can see. That is a direct **§3.6 "Make Learning Visible"** gap: the system computes "your
+  conversion this month vs last month" and stores it, but no surface renders that trajectory — today a rep
+  only sees the on-read half-split (recent vs baseline within their current sessions), not a real
+  cross-month arc. It fails safe (the cron is CRON_SECRET-gated / dormant, nothing breaks), so this is a
+  gap, not a bug. **Options:** (a) build the trajectory read — surface "vs earlier months" in `/me` from
+  the monthKey snapshots (the compute layer + tests already exist; this is the §3.6-serving payoff) — but
+  it needs the cron enabled first or it shows empty until months accrue; (b) keep it forward-built and
+  wire it when the email digest lands (its other intended consumer); (c) confirm it's intentional
+  forward-build and I'll just note it. My recommendation: (a) once you're ready to enable the cron, since
+  the trajectory is the visible proof the coaching is working. Say *"wire the KPI trajectory."*
 - **C.A.R.E sidebar (CareShell) text contrast — a11y** (audit 2026-07-31). On the dark brand-shell
   (#0B1620), ~7 informational-text elements are `text-white/40` = **3.81:1**, below the WCAG AA
   minimum (4.5:1) for small text: the "Customer · Assist · Respond · Engine" subtitle, the "Theme"
