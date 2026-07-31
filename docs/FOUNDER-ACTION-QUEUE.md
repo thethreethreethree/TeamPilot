@@ -42,9 +42,11 @@ Three deliberate defaults I chose — flip any on your word:
 
 ### 🟡 Product / policy decisions — I build on your word (each is a real trade-off, not a bug)
 - **KPI computed layer has NO reader — the trajectory (§3.6) is computed but never shown** (structural
-  audit 2026-07-31). Verified: `kpi_snapshot` / `agent_baseline` / `growth_record` are written ONLY by
-  the compute-cron; **zero routes read them** — both `/me` and `/team` compute their numbers on-read
-  from `coaching_sessions`. So the FROZEN-MONTH history (the whole reason the cron persists a per-month
+  audit 2026-07-31, refined). Verified precisely by reference count: `kpi_snapshot` is written by the
+  compute-cron and **read by zero routes** (both `/me` and `/team` compute on-read from
+  `coaching_sessions`); **`agent_baseline` and `growth_record` have ZERO references anywhere — never
+  written, never read** (fully dead schema created by migration `0205`, never wired). So the FROZEN-MONTH
+  history (the whole reason the cron persists a per-month
   snapshot; I verified + test-locked its Data-as-Asset guarantee this session) currently powers nothing a
   user can see. That is a direct **§3.6 "Make Learning Visible"** gap: the system computes "your
   conversion this month vs last month" and stores it, but no surface renders that trajectory — today a rep
@@ -56,6 +58,10 @@ Three deliberate defaults I chose — flip any on your word:
   wire it when the email digest lands (its other intended consumer); (c) confirm it's intentional
   forward-build and I'll just note it. My recommendation: (a) once you're ready to enable the cron, since
   the trajectory is the visible proof the coaching is working. Say *"wire the KPI trajectory."*
+  Separately, `agent_baseline` + `growth_record` are the two FULLY-dead tables (0 refs) — if you'd
+  rather not carry them until the readers exist, say *"drop the dead KPI tables"* and I'll write a
+  migration that drops just those two (kpi_snapshot stays — it IS populated). Low priority; empty
+  tables cost nothing but clarity.
 - **C.A.R.E sidebar (CareShell) text contrast — a11y** (audit 2026-07-31). On the dark brand-shell
   (#0B1620), ~7 informational-text elements are `text-white/40` = **3.81:1**, below the WCAG AA
   minimum (4.5:1) for small text: the "Customer · Assist · Respond · Engine" subtitle, the "Theme"
