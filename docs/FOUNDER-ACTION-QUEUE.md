@@ -72,7 +72,11 @@
   their own company — the exact pattern 0203 used) AND/OR revoke anon/authenticated SELECT. Verify each view
   still returns correctly for an authed finance user after the flip. Say **"fix the finance views"** and I'll
   write the migration. **Pair with `"fix the definer revoke"`** — same root class (RLS-bypass reachable by
-  anon), same finance surface. **Scope fully bounded (verified):** these 14 are the COMPLETE set of
+  anon), same finance surface. **Fix is de-risked (verified safe):** the earlier invariant check confirmed
+  ALL 54 finance tables have company-scoped SELECT RLS, so flipping each view to `security_invoker=true`
+  makes it return the caller's OWN company data (authed finance user, via the underlying RLS), 0 for anon,
+  and unchanged for service-role crons (they bypass RLS regardless). No per-view edge case where an authed
+  user loses legitimate rows. **Scope fully bounded (verified):** these 14 are the COMPLETE set of
   non-`security_invoker` views in `public` (all happen to be `fin_`), and there are **0 materialized views**
   (which would be the identical leak) — nothing else of this class exists to find.
 
