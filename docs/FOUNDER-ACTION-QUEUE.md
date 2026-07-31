@@ -108,9 +108,14 @@ Three deliberate defaults I chose — flip any on your word:
   `.from().insert/update/delete` subclass (leaving curated RPC messages), then tighten INV14 to catch it.
   There is already an in-repo TEMPLATE for the fix: the `problems` PATCH route (route.ts:118-126) tests
   `error.message` for its one curated signal (`/Understanding Gate/`) → surfaces only that (422), logs +
-  generic-izes everything else (500). The non-finance sweep for this exact blind-spot pattern came back
-  CLEAN — `problems` was the only match and it already handles it correctly — so this class is confined to
-  the finance surface.
+  generic-izes everything else (500). The COMPLETE non-finance sweep (`error.message` at any excluded
+  status — `.from` OR `.rpc` OR a typed catch; my first pass wrongly required a `.from` mutation and
+  under-counted, missing `.rpc`/typed variants) found 5 routes, NONE a high-severity raw-DB leak:
+  `problems` (gold-standard discriminator), `pilot/redeem` + `team/accept` (curated `.rpc` domain messages
+  like "invitation expired" — intended), and the two `extract` routes (typed `UnsupportedFormatError`, plus
+  a low-severity 422 fallback surfacing a document-parse library error — library internals, no tenant/DB
+  data). So the HIGH-severity raw-DB-error leak class (RLS/constraint/column names) is confined to the
+  finance surface; non-finance is curated or low-risk.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
