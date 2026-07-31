@@ -2035,6 +2035,14 @@ export function ConversationsApp({
           7-day durability check). */}
       {selected && (
         <ResolutionCaptureModal
+          // key on the conversation id so a switch REMOUNTS the modal → its form state
+          // (issueSummary/whatWorked/category) resets. Without this the modal instance is
+          // reused across conversation switches (`selected` stays truthy, no key), so a
+          // half-typed resolution for conversation A bleeds into B's modal — and if submitted
+          // would post A's text as B's resolution into the append-only chain. The modal only
+          // self-clears on a successful submit, not on a cancel/close. (reference_context_
+          // switch_state_bleed_class — same fix as the prior 3 instances.)
+          key={selected.id}
           conversationId={selected.id}
           open={resolveModalOpen}
           onClose={() => setResolveModalOpen(false)}
