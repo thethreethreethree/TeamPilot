@@ -148,7 +148,12 @@
   root.appendChild(wrap);
 
   const $ = (id) => root.getElementById(id);
-  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  // Escape for HTML — &<> AND both quote styles, so esc() is safe in ATTRIBUTE contexts too (e.g.
+  // placeholder="${esc(...)}", href="${esc(...)}"), not only element content. The attribute uses are safe
+  // today only because their data (static tool config, the configured apiBase) happens to carry no quotes —
+  // a quote-unsafe escape one data-source change from an attribute-injection XSS. Quote-escaping is harmless
+  // in element content (&quot;/&#39; render as "/'), and the raw copyText (not this) is what wireCopy copies.
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // ── Keep keystrokes INSIDE the panel (founder report 2026-07-23: "can't type") ───────────────────────────
   // The panel lives in a CLOSED shadow DOM injected into the host page. Keyboard/input events are composed:true,
