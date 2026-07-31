@@ -133,6 +133,15 @@ Three deliberate defaults I chose — flip any on your word:
   rather not carry them until the readers exist, say *"drop the dead KPI tables"* and I'll write a
   migration that drops just those two (kpi_snapshot stays — it IS populated). Low priority; empty
   tables cost nothing but clarity.
+  **DESIGN NOTE (live-verified 2026-07-31, for whoever wires the reader):** the implementation DIVERGED
+  from the spec's separate-tables model — self-comparison is computed ON-READ in `/me` (the `baseline()`
+  fn) and the trajectory lives in `kpi_snapshot`'s monthly rows, so `agent_baseline` + `growth_record`
+  aren't just unwired, they're SUPERSEDED. Corollary: `kpi_snapshot.baseline_value`, `delta_vs_baseline`,
+  and `confidence` are NEVER written (NULL in all 24 live rows) — a trajectory reader must derive the
+  month-over-month delta from the `value` SERIES across monthKey periods, NOT from those columns. (Also
+  expected, not a bug: `value` is populated in only 6/24 rows — the other 18 are correctly gated NULL by
+  the 5-session Understanding Gate.) So the clean wiring is: reader diffs the monthKey `value` series; the
+  three unpopulated snapshot columns are either dropped or filled by the cron in the same change.
 - **C.A.R.E sidebar (CareShell) text contrast — a11y** (audit 2026-07-31). On the dark brand-shell
   (#0B1620), ~7 informational-text elements are `text-white/40` = **3.81:1**, below the WCAG AA
   minimum (4.5:1) for small text: the "Customer · Assist · Respond · Engine" subtitle, the "Theme"
