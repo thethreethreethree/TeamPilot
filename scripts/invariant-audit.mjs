@@ -797,6 +797,56 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 18 — every non-public mutation route references a recognised auth/tenant gate ═══════
+//
+// LEARNED: diagnosis/close (2026-07-31) wrote to the append-only resolutions+events chain (Rule 3.1) with
+// NO route-layer auth — safe ONLY because close_problem() happened to be SECURITY INVOKER + problems-RLS
+// fails closed. It was the lone diagnosis mutation route without a gate, caught by a manual sibling-asymmetry
+// sweep, not a structural guard. This generalises INV7 (admin) + INV8 (extension) to EVERY mutating route
+// (POST/PATCH/PUT/DELETE) outside those already-guarded trees (+ cron, INV11): it must reference a recognised
+// auth / tenant-capability-token / shared-secret mechanism, or be allowlisted as intentionally-public WITH
+// the reason it is safe to reach without a session. The allowlist IS the design surface — a NEW unauthenticated
+// mutation route forces a conscious, on-the-record "why is this safe anonymous?" answer instead of a silent gap.
+const PUBLIC_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/ai/analyze/route.ts", "Deprecated stub: POST() takes no request, calls no LLM, touches no data — returns a static 'use the dialogue route' JSON (the single-call-diagnosis anti-pattern retired). Nothing to gate."],
+  ["src/app/api/ai/decision/route.ts", "Deprecated stub: POST() with no req/LLM/data — returns a deprecation notice pointing at /api/ai/decision-dialogue. Nothing to gate."],
+  ["src/app/api/ai/finance/route.ts", "Deprecated stub: POST() with no req/LLM/data — returns a deprecation notice. Nothing to gate."],
+  ["src/app/api/ai/marketing/route.ts", "Deprecated stub: POST() with no req/LLM/data — returns a deprecation notice. Nothing to gate."],
+  ["src/app/api/llm/ping/route.ts", "Provider health check: rate-limited (llm-ping), returns only up/down + latency for the configured LLM provider. No tenant data, no unbounded cost."],
+  ["src/app/api/pilot/validate/route.ts", "Pre-auth BY DESIGN: the /redeem UI calls it to confirm a pilot code + show its module BEFORE the user has an account. Rate-limited 20/min; read-only pilot_code_status() RPC returns only {valid, module, redeemed} — no PII, no mutation."],
+  ["src/app/api/sales/demo/roleplay/route.ts", "Public sales demo: intentionally reachable without login. Double rate-limited (8/min + 40/10min) + maxDuration-bounded; the LLM sees only the prospect roleplay text, never tenant data."],
+  ["src/app/api/care/conversations/route.ts", "Public chat widget: a website visitor opens a conversation with no account. Scoped by resolveCareTenant (the embed token identifies + validates the tenant) + rate-limited; a visitor is anonymous BY DESIGN."],
+  ["src/app/api/care/demo/ask/route.ts", "Public C.A.R.E demo: reachable without login. Scoped by resolveCareTenant + rate-limited + maxDuration-bounded; no tenant data beyond the demo tenant."],
+  ["src/app/api/care/widget/presence/route.ts", "Public chat-widget presence beacon: a visitor's typing/online signal. Scoped by resolveCareTenant; no session by design."],
+]);
+// Recognised gates: a session (auth.getUser / getCurrentCompanyId / getCurrentAuthContext), a role gate
+// (requireCareAgent / requireVendorAdmin / …), a per-conversation capability token (getCareConversationByToken),
+// or a shared secret (CRON/SWEEP/inbound-email). resolveCareTenant is deliberately NOT here — it is tenant
+// RESOLUTION for public widgets, not a session gate, so its routes are allowlisted individually above (which
+// forces a NEW resolveCareTenant route to be consciously classified rather than passing silently).
+const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
+const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
+for (const f of FILES) {
+  if (!/^src\/app\/api\/.*route\.(ts|tsx)$/.test(f.path)) continue;
+  if (/^src\/app\/api\/admin\//.test(f.path)) continue;            // INV7 (admin gate)
+  if (/^src\/app\/api\/care\/extension\//.test(f.path)) continue;  // INV8 (extension auth)
+  if (/-cron\/route\.(ts|tsx)$/.test(f.path)) continue;            // INV11 (cron secret)
+  if (!MUTATION_EXPORT_RE.test(f.sql)) continue;                   // read-only route — not in scope
+  if (ROUTE_AUTH_RE.test(f.sql)) continue;
+  if (PUBLIC_ROUTE_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Mutation route without a recognised auth/tenant gate",
+    file: f.path,
+    why:
+      "A POST/PATCH/PUT/DELETE route outside the admin (INV7) / extension (INV8) / cron (INV11) trees that\n" +
+      "      references NO recognised auth mechanism (auth.getUser / getCurrentCompanyId / requireCareAgent /\n" +
+      "      a per-conversation capability token / a shared secret) is reachable + mutating for an ANONYMOUS\n" +
+      "      caller — the diagnosis/close shape (2026-07-31: an anon-writable path into the append-only event\n" +
+      "      chain, saved only by an INVOKER RPC + RLS, with zero route-layer defense). Gate it at the top, or\n" +
+      "      allowlist here WITH the reason it is safe to reach without a session.",
+  });
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -863,6 +913,18 @@ st("INV17 ignores a normal route path", !/-cron\/route\.ts$/.test("src/app/api/c
 st("INV17 route→key equals the vercel.json key form",
   "src/app/api/coach/kpi/compute-cron/route.ts".replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, "") ===
     "/api/coach/kpi/compute-cron".replace(/^\/?api\//, "").replace(/^\//, ""));
+// INV18 mutation-route auth: the scope regex must match only mutations, the auth regex must flag an ungated
+// route and accept each recognised gate shape (session, role, capability-token), and the allowlist must know
+// a known-public route. A false-accept here would silently green-light the next diagnosis/close.
+st("INV18 scope matches a POST export", MUTATION_EXPORT_RE.test("export async function POST(req) {}"));
+st("INV18 scope matches a const DELETE export", MUTATION_EXPORT_RE.test("export const DELETE = handler;"));
+st("INV18 scope ignores a GET-only route", !MUTATION_EXPORT_RE.test("export async function GET() { return NextResponse.json({}); }"));
+st("INV18 flags an ungated mutation body", !ROUTE_AUTH_RE.test("export async function POST(req){ await sb.rpc('close_problem', p); }"));
+st("INV18 accepts a session-gated route", ROUTE_AUTH_RE.test("const { data } = await supabase.auth.getUser();"));
+st("INV18 accepts a role-gated route", ROUTE_AUTH_RE.test("const agent = await requireCareAgent(req);"));
+st("INV18 accepts a capability-token route", ROUTE_AUTH_RE.test("const conv = await getCareConversationByToken(token);"));
+st("INV18 accepts a shared-secret route", ROUTE_AUTH_RE.test('const ok = constantTimeEqual(h, process.env.SWEEP_SECRET);'));
+st("INV18 allowlist documents a known public route", PUBLIC_ROUTE_ALLOWLIST.has("src/app/api/sales/demo/roleplay/route.ts"));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -872,7 +934,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -886,7 +948,8 @@ if (findings.length === 0) {
       " no route returns a raw error .message to the client (CWE-209) ·" +
       " every coaching_sessions write scoped to company_id (no latent cross-tenant write) ·" +
       " every LLM/transcription route exports maxDuration (no prod timeout) ·" +
-      " every cron route registered in vercel.json (no silently-dead cron)."
+      " every cron route registered in vercel.json (no silently-dead cron) ·" +
+      " every non-public mutation route references a recognised auth/tenant gate (no anon-writable route)."
   );
   process.exit(0);
 }
