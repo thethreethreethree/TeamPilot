@@ -4,16 +4,20 @@
 > (which is the append-only historical record, §1.1 — nothing here is removed, only summarized).
 > Everything below this box is detail/history. This box is the "what still needs *you*" surface.
 
-> **🆕 Added this session (2026-07-31) — say the phrase and I execute.** Detail for each is in the
-> 🟡 Product/policy block below.
-> - 🔴 **`"fix the definer revoke"`** — the one live MEDIUM security hole (finance DEFINER fns anon-callable). ← highest priority
-> - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403 (~49 finance sites; high-severity class is finance-only; `rates` already fixed).
-> - **`"wire the KPI trajectory"`** — the computed KPI layer has no reader; the §3.6 "vs earlier months" arc is stored but never shown.
-> - **`"drop the dead KPI tables"`** — `agent_baseline` + `growth_record` are 0-reference dead schema from 0205.
-> - **`"make the kpi snapshot write atomic"`** — no unique constraint → non-atomic replace.
-> - **`"fix the CareShell contrast"`** — ~7 C.A.R.E sidebar text elements below WCAG AA (SalesCoachShell already fixed).
-> - **`"write the skill reads"`** / **`"generic is fine"`** — skill-analytics `bandRead` ignores its skill key (generic reads).
-> - Plus the 3 Sales Coach nav calls: *gate the manager sections* · *end the session after recording* · *One Liners everywhere*.
+> **CURRENT OPEN DECISIONS (prioritized) — say the phrase and I execute.** Detail for each is in the
+> blocks below.
+>
+> **🔴 SECURITY — do these two before any real finance posting (both anon-reachable cross-tenant finance leaks, both from incomplete prior migrations, both fully worked up + verified-safe fixes):**
+> - **`"fix the finance views"`** — 14 `fin_*` views bypass RLS + are anon-readable (HIGH, latent: 0 rows today but one journal-post from live). Detail in the 🔴 HIGH block. *(+ a zero-cost view-join rider bundled there.)*
+> - **`"fix the definer revoke"`** — finance DEFINER fns anon-callable (MEDIUM, live); 0183 revoke was a no-op. Broader than finance: 5 non-finance fns too. Detail in the 🔴 MEDIUM block.
+>
+> **Other decisions (each a real trade-off, not a bug):**
+> - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403. Now bounded: **~21 clear-cut** (`.from` writes + 3 `.select` reads) to genericize + **~26 `.rpc`** to confirm-curated (genericizing those degrades UX). `rates` already fixed.
+> - **`"wire the KPI trajectory"`** — computed KPI layer has no reader; §3.6 "vs earlier months" arc stored but never shown. Pipeline **verified live-ready** (cron runs daily; first monthly snapshot next run); reader must diff the monthKey `value` series (delta columns are unpopulated by design).
+> - **`"drop the dead KPI tables"`** — `agent_baseline` + `growth_record` are 0-reference, superseded schema from 0205.
+> - **`"make the kpi snapshot write atomic"`** · **`"fix the CareShell contrast"`** (~7 elements <WCAG AA) · **`"write the skill reads"`**/`"generic is fine"` · **`"review the INV18 allowlist"`** (10 public-route classifications) · **confirm `RCD_RETENTION_DAYS`** (default 90; RCD now stores real customer PII) · the 3 Sales Coach nav calls (*gate manager sections* · *end session after recording* · *One Liners everywhere*).
+>
+> **✅ Shipped autonomously this session (2026-07-31) — no action needed, noted for awareness:** `diagnosis/close` auth gate (`4ab3294c`, closed a latent anon-write path into the append-only event chain) · **INV18** structural guard (`f7a30c9e`, every non-public mutation route must gate — self+detection-tested, 0 violations) · finance `rates` CWE-209 fix · 5 mechanical security fixes + guards earlier. Full-gate green (1896 tests). Thesis core (§3.1/§3.2/§3.5) + 5 crons + the two data-deleters verified sound live.
 
 ### 🔴 SECURITY (MEDIUM) — found + confirmed live 2026-07-28: finance DEFINER fns are anon-callable (cross-tenant read)
 - `0183_fin_definer_revoke.sql` tried to lock ~50 finance SECURITY DEFINER helpers but revoked from
