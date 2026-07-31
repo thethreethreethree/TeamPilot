@@ -196,6 +196,18 @@ Three deliberate defaults I chose — flip any on your word:
   a low-severity 422 fallback surfacing a document-parse library error — library internals, no tenant/DB
   data). So the HIGH-severity raw-DB-error leak class (RLS/constraint/column names) is confined to the
   finance surface; non-finance is curated or low-risk.
+  **PRECISE SCOPE (source-classified 2026-07-31, all 49 finance sites):** by error SOURCE — **18 are
+  `.from().insert/update/delete`** (accounts, ap/recurring ×2, ar/dunning ×2, bank/transactions, budgets,
+  cards/import, contractors, expenses/reports, inventory, opening-balances, reports ×2, reports/schedules
+  ×3, roles) → the clear-cut RLS/constraint-leak candidates, same shape as `rates`; **25 are `.rpc()`**
+  (ap/bills approve+pay, ap/pos ×2, ap/schedules ×3, ar/credit-notes, ar/invoices ×2, ar/dunning, assets
+  ×2, bank ×2, cards/automatch, close-year, delegations ×2, expenses, inventory, opening-balances,
+  payroll, periods, reports) → mostly curated finance-fn RAISEs (genericizing degrades UX); **6 unknown**
+  (need a manual look). CAVEAT (per the discriminator above): source ≠ verdict — a `.from().update()` on a
+  table with a curated trigger (like `problems`) still yields a curated message, so the 18 are *candidates*
+  needing the message-content test, not automatic genericizes. This turns the coarse "49 leak" into a
+  bounded pass: ~18 to test+genericize, 25 to confirm-curated, 6 to inspect. Still your word (finance +
+  the raw-vs-curated judgment) — say *"do the finance CWE-209 pass."*
 - **Prompt-injection fence missing on the post-call COACH REVIEW engines** (LLM-linchpin audit 2026-07-31).
   The C.A.R.E tools + the LIVE-coaching prompt (`prompt.ts:188`) append the `CONVERSATION_IS_DATA` fence
   (treat the analyzed conversation as untrusted data, don't follow instructions inside it). But the post-call
