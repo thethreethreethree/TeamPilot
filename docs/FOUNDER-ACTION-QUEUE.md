@@ -164,6 +164,16 @@ Three deliberate defaults I chose — flip any on your word:
   you TUNED for output quality, so I didn't ship it unprompted (same reason I don't touch the skill-read /
   CareShell copy). Say *"fence the review engines"* and I'll apply it (it's already accepted in the live
   path, so it's extending a pattern, not inventing one). *(reference: `reference_llm_injection_fence_posture`.)*
+- **Missing indexes on hot FK columns — a PRE-SCALE perf item** (index audit 2026-07-31). ~41 frequently-
+  filtered FK columns (`company_id` / `agent_id` / `conversation_id` / `entry_id` on the growing coach, chat,
+  and finance tables — e.g. `coaching_sessions.agent_id`, `chat_messages.company_id`, `fin_journal_lines.company_id`)
+  have NO leading index, so a tenant-scoped or per-agent query seq-scans. **ZERO impact today** — every one
+  of these tables is tiny (≤ ~280 rows; most empty), and Postgres correctly seq-scans small tables faster than
+  it would index them. But it becomes real latency once any of these tables reaches thousands of rows (many
+  sessions / messages / journal lines). Standard fix: one batch `CREATE INDEX CONCURRENTLY` migration over the
+  hot subset before growth (skip the ~150 low-value attribution columns like `created_by`/`resolved_by` — those
+  are rarely filtered and an index there is just write-cost). Founder-gated (schema migration) + genuinely not
+  urgent. Say *"add the pre-scale indexes"* and I'll write the migration over the hot FK subset.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
