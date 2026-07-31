@@ -817,7 +817,7 @@ const PUBLIC_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/sales/demo/roleplay/route.ts", "Public sales demo: intentionally reachable without login. Double rate-limited (8/min + 40/10min) + maxDuration-bounded; the LLM sees only the prospect roleplay text, never tenant data."],
   ["src/app/api/care/conversations/route.ts", "Public chat widget: a website visitor opens a conversation with no account. Scoped by resolveCareTenant (the embed token identifies + validates the tenant) + rate-limited; a visitor is anonymous BY DESIGN."],
   ["src/app/api/care/demo/ask/route.ts", "Public C.A.R.E demo: reachable without login. Scoped by resolveCareTenant + rate-limited + maxDuration-bounded; no tenant data beyond the demo tenant."],
-  ["src/app/api/care/widget/presence/route.ts", "Public chat-widget presence beacon: a visitor's typing/online signal. Scoped by resolveCareTenant; no session by design."],
+  ["src/app/api/care/widget/presence/route.ts", "Public chat-widget presence beacon: a visitor's typing/online signal. Scoped by resolveCareTenantByEmbedToken (VALIDATES the embed token: care_tenant_config lookup + active + origin allowlist), not the pass-through resolveCareTenant; no session by design."],
 ]);
 // Recognised gates: a session (auth.getUser / getCurrentCompanyId / getCurrentAuthContext), a role gate
 // (requireCareAgent / requireVendorAdmin / …), a per-conversation capability token (getCareConversationByToken),
