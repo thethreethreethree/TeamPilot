@@ -38,11 +38,18 @@
   `is_topic_admin`, `is_topic_participant` — they self-deny via an internal `auth.uid()` gate.) So the fix is
   `revoke execute … from public, anon` on the finance list **+ these 4**, and the new effective-grant live check
   (below) should ship WITH the fix (it would fail today, correctly, since the hole is live).
-  **Scope is fully bounded (verified):** a broader sweep of ALL anon-executable DEFINER functions that WRITE
-  found 23 candidates, but 17 are TRIGGER functions (`returns trigger` — not RPC-invocable by anon, so
-  harmless) and the remaining 6 are exactly these 3 non-finance writes + 3 finance ones already on the list.
-  Plus the 1 non-finance READ (`count_user_casual_uploads_today`). So the complete non-finance set is these 4
-  — nothing else to find. (Method + full reasoning in memory `reference_supabase_revoke_public_not_anon`.)
+  **Scope (bounded, corrected to 5).** A DIRECT-write sweep found 3 non-finance writes above (the other 17
+  write-candidates are TRIGGER functions — `returns trigger`, not RPC-invocable, harmless). A follow-up
+  data-returning sweep caught a 5th that the direct-write recipe MISSED because it writes INDIRECTLY:
+  `run_task_overrun_sweep(p_limit)` — anon can trigger the whole overrun sweep (it loops and calls
+  `emit_task_overran_event`). LOW severity: idempotent + emits only legitimate overran events (just earlier
+  than the cron), not fabricated ones — but same class, revoke it too. So the complete non-finance set is
+  **5**: `emit_task_overran_event`, `emit_care_durability_due_event`, `recompute_file_classification`,
+  `count_user_casual_uploads_today` (read), `run_task_overrun_sweep`. **Verified SAFE-by-design despite the
+  anon grant** (do NOT revoke): `pilot_code_status` (intended anon code-check — needs the exact code, no
+  enumeration), `complete_company_onboarding`, `is_topic_admin`, `is_topic_participant` (internal `auth.uid()`
+  gate). (Lesson: the direct-write regex missed the indirect writer — the data-returning sweep was the
+  complement. Method in memory `reference_supabase_revoke_public_not_anon`.)
 
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
