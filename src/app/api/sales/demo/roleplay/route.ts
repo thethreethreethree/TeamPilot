@@ -21,6 +21,10 @@ import { parseRoleplayReply, prospectOnlyFallback } from "@/lib/sales/parseRolep
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Awaits a blocking LLM completion (generateCareReply) — without a raised ceiling Vercel's short default
+// (~10-15s) would kill a slower response mid-generation, breaking the PUBLIC sales-demo roleplay in prod.
+// Matches the other LLM routes (roleplay/skills/formulate all use 60).
+export const maxDuration = 60;
 
 const RoleplaySchema = z
   .object({

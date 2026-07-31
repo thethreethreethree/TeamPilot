@@ -35,6 +35,10 @@ import { LlmError } from "@/lib/llm/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// This route awaits a blocking LLM completion (generateCareReply). Without a raised ceiling it would
+// hit Vercel's short default (~10-15s) and the platform would kill a slower response mid-generation —
+// on the PUBLIC prospect demo, that means a timeout instead of an answer. Matches the other LLM routes.
+export const maxDuration = 60;
 
 const AskSchema = z
   .object({
