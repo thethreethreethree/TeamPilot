@@ -96,13 +96,14 @@ Three deliberate defaults I chose — flip any on your word:
 - **Finance CWE-209 pass — raw DB errors leak at 400/403** (audit 2026-07-31). ~49 finance route sites
   return a raw `error.message` to the client. This is genuinely MIXED, which is why INVARIANT 14 excludes
   400/403: a finance TRIGGER often RAISEs a curated domain message ("period is closed", "entry
-  unbalanced") that SHOULD be surfaced. The precise leak subclass: an `error` from a
-  `.from(...).insert()/.update()/.delete()` (PostgREST) is ALWAYS a raw DB error — an RLS denial leaks
-  `"new row violates row-level security policy for table ..."`, a constraint failure leaks
-  column/constraint names — never a curated app message. Errors from `.rpc(...)` MAY be curated (a trigger
-  RAISE) and are usually fine to surface. I fixed the confirmed instance (`rates` route, `.insert()` errors
-  → generic message, commit 76d6fbd8); the rest need a per-site pass separating PostgREST-mutation errors
-  (log + generic) from curated RPC/trigger messages (keep). Low-severity (authenticated callers, config
+  unbalanced") that SHOULD be surfaced. The discriminator is the error's MESSAGE CONTENT, not its source:
+  a trigger can RAISE a curated message on a plain `.from(...).update()` too (the `problems` route proves
+  this — its `.update()` gets an "Understanding Gate" RAISE). So the leak = any `error.message` returned
+  WITHOUT first testing it for the table's known curated signal; an RLS denial (`"new row violates
+  row-level security policy for table ..."`) or a raw constraint/column error then reaches the client.
+  I fixed the confirmed instance (`rates` route — its inserts fail on RLS/constraint, no curated trigger,
+  so a blanket generic is correct there; commit 76d6fbd8); the rest need a per-site pass that whitelists
+  each table's curated messages (surface) and generic-izes everything else (log + generic). Low-severity (authenticated callers, config
   metadata) but real schema/RLS disclosure. Say *"do the finance CWE-209 pass"* and I'll sweep the
   `.from().insert/update/delete` subclass (leaving curated RPC messages), then tighten INV14 to catch it.
   There is already an in-repo TEMPLATE for the fix: the `problems` PATCH route (route.ts:118-126) tests
