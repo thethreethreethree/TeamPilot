@@ -72,10 +72,17 @@ meta-audit** (checking effective grants/policies vs static text / coarse flags):
   (`SET ROLE anon`), never by catalog-string; trust a project guard over an ad-hoc check.
 - **Shipped:** `diagnosis/close` auth gate (`4ab3294c`, latent anon-write into the §3.1 chain) + **INV18**
   (`f7a30c9e`, every non-public mutation route must gate — self+detection-tested). `rates` CWE-209 earlier.
-- **Structural guards added to `verify:live` (now 19 invariants):** the §3.2 gate, H2 finance immutability,
-  and H3 balance checks now assert their TRIGGERS are WIRED (not just the fns present); + a new check that
-  every public view is `security_invoker` (the LIVE complement to rls:audit's migration-text parse, codifying
-  the correct `on|true` predicate so the false-positive bug can't recur). All detection-tested, each a TBC build.
+- **Structural guards added to `verify:live` (14 → 22 invariants):** the trigger-wiring class — §3.2 gate,
+  H2 finance immutability, H3 balance now assert their TRIGGERS are WIRED (not just the fns present); the full
+  §3-thesis trigger-wiring completed with §3.4 (control-window / honesty moat) + §3.5 (durability-emit); a
+  view-invoker check (LIVE complement to rls:audit's migration-text parse, codifying the correct `on|true`
+  predicate so the false-positive bug can't recur); and a SECURITY DEFINER `search_path` guard (privilege-
+  escalation / the CI form of Supabase's linter). With these, the DB-security-lint classes (RLS-on,
+  security_invoker views, definer search_path, policies, extensions-not-in-public) are comprehensively
+  clean + CI-guarded, and the SECURITY DEFINER surface is guarded on BOTH axes (INVARIANT 4 reachability +
+  search_path injection). All detection-tested, each its own TBC build. INV18 (every non-public mutation
+  route gates) shipped separately in invariant-audit. Final integrated state: verify:live 22/22, full suite
+  1906 tests green, prod healthy on the deployed commit.
 - **Behavioral proofs:** tenant isolation proven as anon across ALL 41 populated `company_id` tables (0 rows);
   the full §3 thesis core verified STRUCTURALLY enforced — §3.1 (append-only, empirical), §3.2 (fail-closed
   trigger, empirical), §3.3 (schema requires userDiagnosis+userProposal, test-locked), §3.4
