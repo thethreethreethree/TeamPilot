@@ -97,10 +97,23 @@ async function main() {
     return { pass: !!immEntry && !!immLines && !!trigEntry && !!trigLines };
   });
 
-  await check("H3 finance double-entry balance (fin_assert_entry_balanced raises on unbalanced)", async () => {
+  await check("H3 finance double-entry balance (fn raises + both balance triggers WIRED on the journal tables)", async () => {
     const bal = await has(
       "select 1 from pg_proc where proname='fin_assert_entry_balanced' and pg_get_functiondef(oid) ilike '%unbalanced%'");
-    return { pass: !!bal };
+    // fn-exists is not enough (the §3.2/H2 lesson, 2026-07-31): balance is enforced by two DEFERRABLE
+    // CONSTRAINT triggers that fire at commit. If either were dropped, an UNBALANCED entry could post while
+    // this check stayed green. Assert both are wired + fire on INSERT (tgtype bit 4=INSERT):
+    // fin_assert_balanced_from_entry on fin_journal_entries (it calls the fin_assert_entry_balanced above)
+    // and fin_assert_balanced on fin_journal_lines.
+    const trigEntry = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='fin_journal_entries' and not tg.tgisinternal and p.proname='fin_assert_balanced_from_entry' " +
+      "and (tg.tgtype & 4)=4");
+    const trigLines = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='fin_journal_lines' and not tg.tgisinternal and p.proname='fin_assert_balanced' " +
+      "and (tg.tgtype & 4)=4");
+    return { pass: !!bal && !!trigEntry && !!trigLines };
   });
 
   await check("H4 finance RLS on + policies company-scoped", async () => {
