@@ -203,16 +203,17 @@ Three deliberate defaults I chose — flip any on your word:
   hot subset before growth (skip the ~150 low-value attribution columns like `created_by`/`resolved_by` — those
   are rarely filtered and an index there is just write-cost). Founder-gated (schema migration) + genuinely not
   urgent. Say *"add the pre-scale indexes"* and I'll write the migration over the hot FK subset.
-- **Proposed structural guard INV18 — "every non-public mutation route asserts auth before its first write"**
-  (no-auth-route sweep, 2026-07-31). This session I found + FIXED (`4ab3294c`, sibling-parity) the one gap the
-  sweep surfaced: `diagnosis/close` wrote to the append-only resolutions+events chain with no route-layer auth
-  (safe today only via close_problem being INVOKER + problems-RLS; one admin-client or DEFINER change from an
-  anon hole). The *class* is still ungated — it was caught by a manual sweep + sibling-asymmetry, not a gate.
-  The guard would iterate `src/app/api/**/route.ts` mutation exports and flag any lacking an auth check, minus a
-  curated allowlist of the *intentionally* public routes (widget, demo, pilot/validate, llm/ping, the deprecated
-  ai/* stubs, extension/refresh, the secret-gated sweeps, the inbound-email webhook). **That allowlist is the
-  whole design cost** — it encodes "which routes are deliberately public," a judgment call I won't self-author
-  under the build guard. Say *"build the auth-route guard"* and I'll write INV18 + curate the allowlist with you.
+- **✅ BUILT — INV18 structural guard: "every non-public mutation route references a recognised auth/tenant gate"**
+  (`f7a30c9e`, 2026-07-31). Completes the A30 class-gate for the `diagnosis/close` fix (`4ab3294c`). It iterates
+  every `src/app/api/**/route.ts` mutation export (outside the admin/extension/cron trees, which INV7/8/11 own)
+  and fails the build if it references no recognised gate and isn't allowlisted. Self-tested (9 cases) +
+  detection-tested end-to-end (a synthetic ungated POST makes it fire; a GET is ignored); 0 violations on the
+  real tree. **YOUR review, not a build trigger:** the guard rests on a 10-entry `PUBLIC_ROUTE_ALLOWLIST` — the
+  routes I classified as deliberately public (4 deprecated `ai/*` stubs, `llm/ping`, `pilot/validate`,
+  `sales/demo/roleplay`, and the 3 embed-token widget/demo routes `care/conversations` · `care/demo/ask` ·
+  `care/widget/presence`). Each entry carries its safety justification in `scripts/invariant-audit.mjs`. Skim
+  that list; if any route should NOT be public (or a public one is missing), say so and I'll adjust. The guard
+  being in place is strictly safer than the ungated class — but you own the "which routes are public" call.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
