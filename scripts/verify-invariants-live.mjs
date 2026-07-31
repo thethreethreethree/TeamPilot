@@ -124,6 +124,23 @@ async function main() {
     return { pass: rls.rowCount === 2 && pols.rows[0].n >= 4, detail: `${rls.rowCount}/2 tables RLS, ${pols.rows[0].n} scoped policies` };
   });
 
+  await check("no public VIEW bypasses RLS (every view is security_invoker on|true) — LIVE complement to rls:audit's migration-text parse", async () => {
+    // A Postgres view runs as its OWNER (bypassing the caller's RLS) UNLESS security_invoker is set — then it
+    // runs as the CALLER and the underlying tables' RLS applies. rls:audit parses the MIGRATION TEXT; this
+    // checks the LIVE catalog, catching a DRIFT where a view lost the option live (e.g. a `create or replace
+    // view` that omitted the clause, which resets it to owner-security) — the text can say safe while live
+    // isn't. The predicate matches BOTH renderings: Postgres stores the boolean as `on`, migrations write
+    // `true`. NB (2026-07-31): matching ONLY `true` is exactly the bug that produced a FALSE "14 views bypass
+    // RLS" finding — a later behavioral `SET ROLE anon; SELECT` (→ 0 rows) proved every view RLS-safe. This
+    // guard codifies the correct predicate so that mistake can't recur, and it fails if a real drift appears.
+    const r = await c.query(
+      "select count(*)::int n, coalesce(string_agg(cl.relname, ', '), '') tbls from pg_class cl " +
+      "join pg_namespace ns on ns.oid=cl.relnamespace and ns.nspname='public' " +
+      "where cl.relkind='v' and coalesce(array_to_string(cl.reloptions,','),'') !~* 'security_invoker=(on|true)'");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "all public views are security_invoker (RLS applies as the caller)" : `${n} non-invoker view(s) → potential RLS bypass: ${r.rows[0].tbls}` };
+  });
+
   await check("tenant isolation: every company_id table has RLS ON (no cross-tenant leak)", async () => {
     // The single highest-value tenant-isolation invariant: a table holding tenant data (a company_id column)
     // MUST have RLS enabled, or any authenticated user reads every tenant's rows. A future migration that adds
