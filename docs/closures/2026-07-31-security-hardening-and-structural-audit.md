@@ -39,6 +39,26 @@ and the founder queue.
 - **Jeff** now describes product-aware post-call review (`118a0810`); **skill-analytics generic-reads**
   gap surfaced (`bcf0affb`).
 
+## 3b. Post-closure continuation (same session, after this doc was first written)
+
+The autonomous guard kept running; the high-value vein turned out to be the **live-DB effective-state
+meta-audit** (checking effective grants/policies vs static text / coarse flags):
+
+- **`verify:live` 14 → 18 invariants** — 4 tenant-isolation checks added, all confirmed clean live:
+  no permissive READ policy (`edef438f`), storage.objects read-policy scoped (`bbdf047b`), all 54 finance
+  tables affirmatively company-scoped (`528f9b09`), no permissive WRITE (incl. DELETE) policy
+  (`4573c70d`/`e6c18b8e`). Each closed a *coarse-flag* blind spot (RLS-on ≠ open; bucket-public ≠ object
+  policy); the code was correct, the verification coverage wasn't.
+- **Definer-revoke hole is BROADER than finance** (`827c2845`/`c24f2bf5`/`af6b9786`): a live effective-anon-grant
+  sweep of ALL DEFINER functions found the hole isn't finance-only — **5 non-finance functions** are
+  anon-callable without an internal `auth.uid()` gate, 2 allowing unauthenticated event-injection into the
+  append-only §3.1 chain. Fully bounded (safe ones excluded); the `0200` fix now has an exact target list.
+- **Static-guard & fresh-dimension sweeps**: INV1 (CSV) + INV6 (cross-person) blind-spot checks — clean.
+  Un-awaited mutations, rate-limit, cron-scheduling, state-bleed — clean. PWA/manifest — clean. Security
+  headers — well-configured (CSP a documented deferral). **SEO — a real live bug**: prod canonical/sitemap
+  emit `localhost`; I built a dev-safe fix, then **reverted it** (`09472355`) to honor the queue's explicit
+  "do NOT fix in code" note, and surfaced it as the founder's choice — the §2 discipline held under the guard.
+
 ## 4. Open — founder-gated (all scoped in `docs/FOUNDER-ACTION-QUEUE.md`)
 🔴 `"fix the definer revoke"` (the one live MEDIUM hole) · 🟡 `"wire the KPI trajectory"` (§3.6 payoff) ·
 KPI snapshot atomicity · `"drop the dead KPI tables"` · `"fix the CareShell contrast"` ·
