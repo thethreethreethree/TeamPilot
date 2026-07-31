@@ -125,6 +125,21 @@
   and flag anything that breaks BEFORE it ships — you approve the deploy. Given the auth-bypass + SSRF
   classes on a multi-tenant app, this is worth doing soon (rank it alongside the two finance items).
 
+### 🟢 SECURITY-HEADER hygiene — HSTS missing (LOW; found 2026-07-31 auditing next.config headers)
+
+- `next.config.ts` sets a solid, thoughtfully-split header set: `X-Frame-Options: SAMEORIGIN` (every route
+  EXCEPT the intentionally-embeddable `/widget/care/*`), `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
+  a locked-down `Permissions-Policy` (camera/geo off, mic=self for Jeff voice), `X-DNS-Prefetch-Control`, and
+  `poweredByHeader: false`. **CSP is absent but that's a CONSCIOUS documented deferral** (a strict CSP breaks
+  Next's inline scripts + the LLM runtime calls without a nonce/allowlist strategy — noted in the config, not
+  an oversight). So the only genuinely-missing standard header is **`Strict-Transport-Security` (HSTS)**.
+- **Severity LOW:** Vercel already HTTPS-redirects, so the residual exposure is a first-visit SSL-strip via
+  active MITM — narrow. HSTS is standard defense-in-depth, not a live hole. But it has semi-permanent browser
+  implications (browsers cache `max-age`; `includeSubDomains` forces HTTPS on ALL subdomains; `preload` is
+  hard to undo) — so it's your call, not an autonomous header edit. Say **"add HSTS"** and I'll add the safe
+  conservative form (`max-age=63072000; includeSubDomains`, no `preload` initially) to `BASE_SECURITY_HEADERS`
+  — confirm first that every `elostate.com` subdomain is HTTPS-only (it should be on Vercel).
+
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
   Knudtson, john@alignsalespros.com). **Verified healthy end-to-end via live DB:** company created · admin
