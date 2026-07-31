@@ -45,6 +45,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         const chain: Record<string, unknown> = {};
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.in = () => chain;
         chain.limit = () => chain;
         chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
         return chain;
@@ -65,6 +66,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         chain.select = () => chain;
         chain.order = () => chain;
         chain.eq = () => chain;
+        chain.in = () => chain;
         chain.delete = () => chain;
         chain.limit = () => {
           limited = true;
@@ -80,10 +82,11 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
               limited
                 ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null } // distinct-agents scan
                 : {
-                    // one agent's sessions
+                    // one agent's sessions (agent_id needed — the cron batches the read then groups by it)
                     data: [
                       {
                         id: "s1",
+                        agent_id: "a1",
                         outcome: "sold",
                         deal_value: 100,
                         started_at: "2026-07-01T10:00:00.000Z",
@@ -133,6 +136,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         let deleteHasPeriodFilter = false;
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.in = () => chain;
         chain.limit = () => {
           limited = true;
           return chain;
@@ -158,6 +162,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
                     data: [
                       {
                         id: "s1",
+                        agent_id: "a1",
                         outcome: "sold",
                         deal_value: 100,
                         started_at: "2026-07-01T10:00:00.000Z",

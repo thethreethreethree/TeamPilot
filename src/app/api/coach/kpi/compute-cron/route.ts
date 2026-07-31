@@ -76,23 +76,33 @@ export async function GET(req: NextRequest) {
   for (const r of agentRows ?? []) agentToCompany.set(r.agent_id as string, r.company_id as string);
   const agents = [...agentToCompany.keys()].slice(0, BATCH_AGENTS);
 
-  let computed = 0;
-  let snapshots = 0;
-  for (const agentId of agents) {
-    const companyId = agentToCompany.get(agentId) as string;
-    const { data: sessRows } = await admin
-      .from("coaching_sessions")
-      .select("id, outcome, deal_value, started_at, ended_at")
-      .eq("agent_id", agentId)
-      .order("started_at", { ascending: true });
-
-    const rows: KpiSessionRow[] = (sessRows ?? []).map((s) => ({
+  // Batch the whole batch's sessions in ONE read, grouped by agent in memory — avoids an N+1 (a
+  // separate coaching_sessions query per agent), mirroring how the /team rollup reads its team. The
+  // global started_at order is preserved within each agent's subgroup (the metric fns assume ascending).
+  const { data: allSessRows } = await admin
+    .from("coaching_sessions")
+    .select("id, agent_id, outcome, deal_value, started_at, ended_at")
+    .in("agent_id", agents)
+    .order("started_at", { ascending: true });
+  const rowsByAgent = new Map<string, KpiSessionRow[]>();
+  for (const s of allSessRows ?? []) {
+    const aid = s.agent_id as string;
+    const list = rowsByAgent.get(aid) ?? [];
+    list.push({
       sessionId: s.id as string,
       outcome: (s.outcome as KpiSessionRow["outcome"]) ?? null,
       dealValue: s.deal_value === null || s.deal_value === undefined ? null : Number(s.deal_value),
       startedAt: s.started_at as string,
       endedAt: (s.ended_at as string | null) ?? null,
-    }));
+    });
+    rowsByAgent.set(aid, list);
+  }
+
+  let computed = 0;
+  let snapshots = 0;
+  for (const agentId of agents) {
+    const companyId = agentToCompany.get(agentId) as string;
+    const rows = rowsByAgent.get(agentId) ?? [];
 
     const toWrite: { metric: string; layer: number; res: MetricResult }[] = [];
     for (const [metric, fn] of Object.entries(LAYER1)) toWrite.push({ metric, layer: 1, res: fn(rows) });
