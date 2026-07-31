@@ -79,10 +79,22 @@ async function main() {
     return { pass: !!gateFn && !!star && !!trigWired };
   });
 
-  await check("H2 finance immutability (fin_entries_immutable + fin_lines_immutable)", async () => {
+  await check("H2 finance immutability (fin_entries_immutable + fin_lines_immutable fns + triggers WIRED)", async () => {
     const immEntry = await has("select 1 from pg_proc where proname='fin_entries_immutable'");
     const immLines = await has("select 1 from pg_proc where proname='fin_lines_immutable'");
-    return { pass: !!immEntry && !!immLines };
+    // Same fn-exists-is-not-enough lesson as §3.2 (2026-07-31): assert each immutability fn is WIRED as a
+    // BEFORE UPDATE+DELETE trigger on its table (tgtype bits 2=BEFORE, 8=DELETE, 16=UPDATE). A dropped or
+    // event-narrowed trigger would let a POSTED journal entry/line be silently mutated or deleted — the
+    // money-integrity guarantee gone — while the fn-exists check above still passed green.
+    const trigEntry = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='fin_journal_entries' and not tg.tgisinternal and p.proname='fin_entries_immutable' " +
+      "and (tg.tgtype & 2)=2 and (tg.tgtype & 8)=8 and (tg.tgtype & 16)=16");
+    const trigLines = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='fin_journal_lines' and not tg.tgisinternal and p.proname='fin_lines_immutable' " +
+      "and (tg.tgtype & 2)=2 and (tg.tgtype & 8)=8 and (tg.tgtype & 16)=16");
+    return { pass: !!immEntry && !!immLines && !!trigEntry && !!trigLines };
   });
 
   await check("H3 finance double-entry balance (fin_assert_entry_balanced raises on unbalanced)", async () => {
