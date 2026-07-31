@@ -190,11 +190,14 @@ async function main() {
     // company-scoped qual is SAFE (verified 2026-07-31: 3 such ALL policies — care_tenant_config,
     // support_canned_responses, support_tags — inherit their scoped qual). Flag only when that EFFECTIVE check
     // is null/true. service_role policies are excluded (service-role writes are trusted, RLS-bypassing jobs).
+    // Covers INSERT/UPDATE/DELETE/ALL. For DELETE (and UPDATE's row-visibility) with_check is null, so
+    // coalesce(with_check, qual) correctly falls through to qual — a permissive DELETE (qual true) that
+    // could remove another tenant's rows is caught too.
     const r = await c.query(
       "select count(*)::int n, coalesce(string_agg(distinct cl.relname, ', '), '') as tbls " +
       "from pg_policies pol join pg_class cl on cl.relname=pol.tablename " +
       "join pg_namespace ns on ns.oid=cl.relnamespace and ns.nspname='public' " +
-      "where pol.schemaname='public' and pol.cmd in ('INSERT','UPDATE','ALL') " +
+      "where pol.schemaname='public' and pol.cmd in ('INSERT','UPDATE','DELETE','ALL') " +
       "and exists (select 1 from information_schema.columns col where col.table_name=cl.relname and col.column_name='company_id') " +
       "and btrim(lower(coalesce(pol.with_check, pol.qual, 'true'))) in ('true','(true)') " +
       "and not (pol.roles::text[] && array['service_role'])");
