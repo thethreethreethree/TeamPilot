@@ -63,11 +63,20 @@ async function main() {
     return { pass: !!rDel && !!rUpd };
   });
 
-  await check("§3.2 understanding gate (raises when unconfigurable) + '*' threshold present", async () => {
+  await check("§3.2 understanding gate (raises + '*' threshold + trigger WIRED before insert-or-update)", async () => {
     const gateFn = await has(
       "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
     const star = await has("select 1 from problem_thresholds where kind='*'");
-    return { pass: !!gateFn && !!star };
+    // The fn EXISTING is not enough — it must be WIRED. A trigger that is dropped (or narrowed to
+    // UPDATE-only) silently lets a direct INSERT of a non-'draft' problem BYPASS the gate, while the
+    // fn-exists check above still passes. Assert the trigger runs check_understanding_gate on `problems`,
+    // BEFORE, on BOTH insert and update (tgtype bits: 2=BEFORE, 4=INSERT, 16=UPDATE). Empirically verified
+    // 2026-07-31: an INSERT straight to status='open' with 0 signals raised "needs >=3, has 0".
+    const trigWired = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='problems' and not tg.tgisinternal and p.proname='check_understanding_gate' " +
+      "and (tg.tgtype & 2)=2 and (tg.tgtype & 4)=4 and (tg.tgtype & 16)=16");
+    return { pass: !!gateFn && !!star && !!trigWired };
   });
 
   await check("H2 finance immutability (fin_entries_immutable + fin_lines_immutable)", async () => {
