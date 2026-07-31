@@ -342,6 +342,15 @@ Three deliberate defaults I chose — flip any on your word:
   previews resolve against localhost). **Set `NEXT_PUBLIC_SITE_URL=https://elostate.com` in Vercel** to fix
   canonical/OG/robots/sitemap. *Low urgency* (SEO/metadata only — NOT pilot-blocking, NOT extension-breaking).
   Do NOT "fix" it in code — the `localhost` fallback is intentionally correct for local dev.
+- 🔒 **CONFIRM `NEXT_PUBLIC_CARE_EXTENSION_ID` is set in prod (SECURITY — token-theft vector if unset).**
+  Verified the CODE this session (2026-07-31): `/extension/connect` correctly REFUSES the token hand-off to
+  any `?ext=<id>` that isn't the pinned id **when the pin is set** — so a lure to
+  `/extension/connect?ext=<attacker-extension>` can't exfiltrate the user's session+refresh token. But when
+  the pin is UNSET it FAIL-OPENS (hands the token to whatever ext id is in the URL, with only a console warn).
+  It's a `NEXT_PUBLIC_` var → baked into the client bundle at build, so it must be set in Vercel. Memory
+  indicates it's pinned, but I can't verify prod env from here — **please confirm
+  `NEXT_PUBLIC_CARE_EXTENSION_ID=<official Web Store id>` is set in Vercel prod.** Higher-stakes than the
+  SITE_URL item (session-token theft vs SEO), so worth a 30-second check.
   **🆕 STILL LIVE 2026-07-31** (re-verified via `curl` — canonical + sitemap still emit
   `http://localhost:4321`, days after this was flagged). I prototyped a code fix and then **REVERTED it**
   to honor the "do NOT fix in code" note above — but I want to flag that the fix I built does NOT break the
