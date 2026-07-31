@@ -763,6 +763,40 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 17 — every *-cron route is registered in vercel.json (else it silently never runs) ═══
+//
+// A cron route file that has no matching entry in vercel.json's `crons` is DEAD: the platform never invokes
+// it, so whatever it powers (retention purge, KPI compute, report delivery, overrun sweep) silently doesn't
+// happen. That's a high-consequence, low-visibility failure — the code looks complete, the feature just
+// never runs. The current set matches 7↔7; this locks it so a NEW cron added without a schedule entry (or a
+// schedule entry whose route was moved) is caught at check time. An intentionally-unscheduled cron is
+// allowlisted WITH its reason.
+const CRON_SCHEDULE_ALLOWLIST = new Map();
+let scheduledCronKeys = new Set();
+try {
+  const vj = JSON.parse(readFileSync("vercel.json", "utf8"));
+  for (const c of vj.crons ?? []) {
+    scheduledCronKeys.add(String(c.path).replace(/^\/?api\//, "").replace(/^\//, ""));
+  }
+} catch {
+  /* no/invalid vercel.json → every cron reads as unscheduled below (which is the honest signal) */
+}
+for (const f of FILES) {
+  if (!/-cron\/route\.ts$/.test(f.path)) continue;
+  if (CRON_SCHEDULE_ALLOWLIST.has(f.path)) continue;
+  const routeKey = f.path.replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, "");
+  if (!scheduledCronKeys.has(routeKey)) {
+    findings.push({
+      rule: "cron route not registered in vercel.json (silently never runs)",
+      file: f.path,
+      why:
+        `this "*-cron" route has no matching entry in vercel.json's crons — the platform will never invoke\n` +
+        "      it, so the feature it powers silently never runs. Add a `{ path: \"/api/" + routeKey +
+        "\", schedule: … }`\n      entry, or (if intentionally unscheduled) allowlist it here WITH the reason.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -822,6 +856,13 @@ st("INV16 flags an LLM route without maxDuration",
 st("INV16 accepts an LLM route WITH maxDuration",
   /export const maxDuration/.test("export const maxDuration = 60;\nawait dissectCoachV5(x);"));
 st("INV16 ignores a route with no LLM call", !LLM_CALL_RE.test("const { data } = await sb.from('x').select();"));
+// INV17 cron-schedule: the path matcher must recognize a *-cron route and ignore a normal route; and the
+// route→key normalization must line up with the vercel.json key form so a scheduled cron isn't false-flagged.
+st("INV17 matches a *-cron route path", /-cron\/route\.ts$/.test("src/app/api/coach/kpi/compute-cron/route.ts"));
+st("INV17 ignores a normal route path", !/-cron\/route\.ts$/.test("src/app/api/coach/kpi/me/route.ts"));
+st("INV17 route→key equals the vercel.json key form",
+  "src/app/api/coach/kpi/compute-cron/route.ts".replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, "") ===
+    "/api/coach/kpi/compute-cron".replace(/^\/?api\//, "").replace(/^\//, ""));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -831,7 +872,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -844,7 +885,8 @@ if (findings.length === 0) {
       " every raw .or(...ilike...) filter sanitized (no PostgREST injection) ·" +
       " no route returns a raw error .message to the client (CWE-209) ·" +
       " every coaching_sessions write scoped to company_id (no latent cross-tenant write) ·" +
-      " every LLM/transcription route exports maxDuration (no prod timeout)."
+      " every LLM/transcription route exports maxDuration (no prod timeout) ·" +
+      " every cron route registered in vercel.json (no silently-dead cron)."
   );
   process.exit(0);
 }
