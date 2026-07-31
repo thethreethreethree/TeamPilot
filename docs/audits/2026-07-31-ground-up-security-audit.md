@@ -106,6 +106,31 @@ Auditing whether each security-critical FUNCTION is itself correct (INV5/INV10/e
   `<img src>` (script-sandboxed), a documented deliberate mitigation. Not a false-flag (§0 — verified the
   render path before concluding).
 
+## Layer: route-level authorization (no-auth mutation-route sweep — later addition)
+
+Swept every `src/app/api/**/route.ts` exporting a POST/PATCH/PUT/DELETE for the absence of ANY
+auth pattern. Eleven matched; ten resolved cleanly under §0 (the four `ai/*` routes are deprecated
+static stubs — `POST()`, no `req`, no LLM; `care/durability-sweep` + `diagnosis/task-overrun-sweep`
+are shared-secret-gated with a custom header the grep didn't list; `care/extension/refresh` is
+intentionally credential-is-the-token + rate-limited; `pilot/validate` + `llm/ping` are public by
+design).
+
+- **FINDING (fixed): `diagnosis/close` had no route-layer auth** — it writes the resolution + emits
+  the closing event into the append-only resolutions+events chain (Rule 3.1) via `close_problem()`,
+  and was the LONE diagnosis mutation route without a gate (siblings outside-view/ripple-trace use
+  `getCurrentCompanyId`, task-overrun-sweep a secret). Verified live it fails closed TODAY
+  (`close_problem` is `prosecdef=false` → INVOKER → its opening `select company_id from problems` is
+  RLS-filtered → anon/wrong-company gets null → raises before writing). But it is the **"RLS-only
+  mutation route = latent tenant gap"** class: one admin-client refactor, or a `close_problem`→
+  DEFINER change (its finance-fn siblings ALREADY are DEFINER), turns it into anon injection into the
+  immutable event chain with zero route-layer defense. **Fixed** with the sibling `auth.getUser()→401`
+  gate; detection-tested (anon 401, RPC never reached). Commit `4ab3294c`, TBC build
+  `docs/tbc/2026-07-31-diagnosis-close-auth-gate`.
+- **Class still ungated** — caught by manual sweep + sibling-asymmetry, not a structural guard. INV18
+  ("every non-public mutation route asserts auth before its first write") proposed in
+  FOUNDER-ACTION-QUEUE; deferred because its intentionally-public allowlist is a judgment call
+  (A33 — the hole is named, the gate declined pending the founder).
+
 ## Live verification
 
 `npm run verify:live` — **14/14 invariants hold** (append-only, finance immutability + balance, RLS
