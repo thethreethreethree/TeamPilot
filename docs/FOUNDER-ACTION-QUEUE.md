@@ -115,10 +115,17 @@ Three deliberate defaults I chose — flip any on your word:
   user can see. That is a direct **§3.6 "Make Learning Visible"** gap: the system computes "your
   conversion this month vs last month" and stores it, but no surface renders that trajectory — today a rep
   only sees the on-read half-split (recent vs baseline within their current sessions), not a real
-  cross-month arc. It fails safe (the cron is CRON_SECRET-gated / dormant, nothing breaks), so this is a
-  gap, not a bug. **Options:** (a) build the trajectory read — surface "vs earlier months" in `/me` from
-  the monthKey snapshots (the compute layer + tests already exist; this is the §3.6-serving payoff) — but
-  it needs the cron enabled first or it shows empty until months accrue; (b) keep it forward-built and
+  cross-month arc. It fails safe (nothing breaks without a reader), so this is a gap, not a bug.
+  **LIVE-VERIFIED STATUS (2026-07-31, live DB):** the cron is NOT dormant — it is scheduled (daily 05:00
+  UTC) and HAS run: `kpi_snapshot` holds 24 rows (4 agents × 6 metrics) from the 2026-07-30 05:01 UTC run,
+  all `period='current'`, ZERO monthly. That is NOT a bug — the monthly-freeze code (`66abbd4f`) was
+  committed 13:41 UTC on 07-30, AFTER that day's 05:01 run, so the only run so far used the current-only
+  Phase-5 code. The FIRST monthly (`2026-07`) snapshot lands at the next 05:00 UTC run under the deployed
+  monthly-freeze code (which loops both periods + is test-locked), then a real cross-month arc accrues
+  automatically — no manual enable needed. (`agent_baseline` + `growth_record` are still 0-row dead
+  schema.) **Options:** (a) build the trajectory read — surface "vs earlier months" in `/me` from the
+  monthKey snapshots (the compute layer + tests already exist; this is the §3.6-serving payoff) — it will
+  show empty for ~a day then populate the current month, and build a real arc as months accrue; (b) keep it forward-built and
   wire it when the email digest lands (its other intended consumer); (c) confirm it's intentional
   forward-build and I'll just note it. My recommendation: (a) once you're ready to enable the cron, since
   the trajectory is the visible proof the coaching is working. Say *"wire the KPI trajectory."*
