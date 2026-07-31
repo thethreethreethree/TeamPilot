@@ -734,6 +734,35 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 16 — every route that awaits a blocking LLM/transcription call exports maxDuration ═══
+//
+// LEARNED: 2026-07-31. A route that `await`s an LLM completion (or a batch transcription) but omits
+// `export const maxDuration` runs under Vercel's short default (~10-15s). The platform KILLS a slower
+// response mid-generation, so the feature works in dev and TIMES OUT in prod — a dev-passes/prod-fails
+// class. An earlier maxDuration sweep still left care/demo/ask + sales/demo/roleplay (the PUBLIC prospect
+// demos) uncovered, both calling generateCareReply with no ceiling. The class has recurred, so it gets a
+// gate: any route file that CALLS one of the known blocking LLM/transcription functions must set
+// maxDuration. Keyed on the call site in the route file (the common shape); a route that hides the call
+// behind a helper isn't matched — allowlist such a case here with its reason if it ever arises.
+const LLM_CALL_RE =
+  /\b(generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken)\s*\(/;
+const MAXDURATION_ALLOWLIST = new Map();
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (MAXDURATION_ALLOWLIST.has(f.path)) continue;
+  if (LLM_CALL_RE.test(f.sql) && !/export const maxDuration/.test(f.sql)) {
+    findings.push({
+      rule: "route awaits an LLM/transcription call but does not export maxDuration (prod timeout)",
+      file: f.path,
+      why:
+        "this route calls a blocking LLM/transcription function but has no `export const maxDuration`, so\n" +
+        "      Vercel's short default (~10-15s) will kill a slower response mid-generation — works in dev,\n" +
+        "      times out in prod. Add `export const maxDuration = 60;` (300 for batch transcription), matching\n" +
+        "      the other LLM routes. If the call is intentionally bounded elsewhere, allowlist WITH the reason.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -786,6 +815,13 @@ st("INV15 is statement-bounded (a later scoped write can't mask an earlier gap)"
   coachingSessionWriteUnscoped('await a.from("coaching_sessions").update({ x: 1 }).eq("id", id);\nawait a.from("coaching_sessions").update({ y: 2 }).eq("id", id).eq("company_id", c);'));
 st("INV15 allowlist documents the retention cron",
   COACHING_SESSION_WRITE_ALLOWLIST.has("src/app/api/coach/sales-session/recording-purge-cron/route.ts"));
+// INV16 maxDuration: must flag an LLM route with no maxDuration, accept one that has it, ignore a non-LLM route.
+st("INV16 flags an LLM route without maxDuration",
+  LLM_CALL_RE.test("const r = await generateCareReply({ systemPrompt });") &&
+    !/export const maxDuration/.test("const r = await generateCareReply({ systemPrompt });"));
+st("INV16 accepts an LLM route WITH maxDuration",
+  /export const maxDuration/.test("export const maxDuration = 60;\nawait dissectCoachV5(x);"));
+st("INV16 ignores a route with no LLM call", !LLM_CALL_RE.test("const { data } = await sb.from('x').select();"));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -795,7 +831,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -807,7 +843,8 @@ if (findings.length === 0) {
       " every cron route CRON_SECRET-gated · constitution metadata matches the ratified amendments ·" +
       " every raw .or(...ilike...) filter sanitized (no PostgREST injection) ·" +
       " no route returns a raw error .message to the client (CWE-209) ·" +
-      " every coaching_sessions write scoped to company_id (no latent cross-tenant write)."
+      " every coaching_sessions write scoped to company_id (no latent cross-tenant write) ·" +
+      " every LLM/transcription route exports maxDuration (no prod timeout)."
   );
   process.exit(0);
 }
