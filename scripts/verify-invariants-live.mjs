@@ -101,6 +101,24 @@ async function main() {
     return { pass: n === 0, detail: n === 0 ? "all company_id tables RLS-protected" : `${n} table(s) with RLS OFF → LEAK: ${r.rows[0].tbls}` };
   });
 
+  await check("tenant isolation: no company_id table has a PERMISSIVE read policy (RLS-on ≠ open)", async () => {
+    // Complements the RLS-ON check above: a table can have RLS ENABLED yet a SELECT/ALL policy whose USING
+    // clause is literally `true` (or null) — which permits EVERY row, so any authenticated user reads all
+    // tenants. That passes the "RLS on" check while leaking exactly what RLS is supposed to stop. A debug
+    // `using (true)` left in a migration, or an "enable RLS" without a real policy, is the shape. Flag any
+    // company_id table with a permissive read policy. (The finance H4 check verifies the stronger property —
+    // policies reference auth_company_id() — but only for the two ledger tables; this covers the rest.)
+    const r = await c.query(
+      "select count(distinct cl.relname)::int n, coalesce(string_agg(distinct cl.relname, ', '), '') as tbls " +
+      "from pg_policies pol join pg_class cl on cl.relname = pol.tablename " +
+      "join pg_namespace ns on ns.oid = cl.relnamespace and ns.nspname = 'public' " +
+      "where pol.schemaname = 'public' and pol.cmd in ('SELECT','ALL') " +
+      "and (pol.qual is null or btrim(lower(pol.qual)) in ('true','(true)')) " +
+      "and exists (select 1 from information_schema.columns col where col.table_name = cl.relname and col.column_name = 'company_id')");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "no company_id table has a permissive read policy" : `${n} table(s) with a PERMISSIVE read policy → LEAK: ${r.rows[0].tbls}` };
+  });
+
   await check("auth-gate invariant: profiles.status CHECK is exactly (active, removed)", async () => {
     // The extension auth gate + requireCareAgent DENYLIST 'removed' (block it, allow the rest). That's only
     // safe because status can ONLY be 'active' or 'removed'. If a migration adds a status (e.g. 'suspended'),
