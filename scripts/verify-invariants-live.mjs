@@ -130,6 +130,20 @@ async function main() {
     return { pass: !!wired, detail: wired ? "control-window trigger wired BEFORE UPDATE on companies" : "MISSING — §3.4 honesty moat can be silently bypassed" };
   });
 
+  await check("§3.5 durability loop — the durability-review EMIT trigger is WIRED (a resolved-then-reviewed signal reaches the event chain)", async () => {
+    // §3.5 measures whether a resolution HELD (the "did the fix stay fixed?" moat metric). When a
+    // resolution's `durability` changes, resolutions_emit_durability_review inserts a
+    // `resolution.durability_reviewed` event — that's how the §3.5 signal becomes visible (§3.6). It is an
+    // EMIT trigger (not a raise): if dropped, durability reviews would SILENTLY stop reaching the event
+    // chain — the moat metric vanishes while the fn still exists. Same fn-checked-not-trigger class as §3.4.
+    // Assert the trigger runs the fn on resolutions, firing on UPDATE (tgtype bit 16=UPDATE).
+    const wired = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='resolutions' and not tg.tgisinternal and p.proname='resolutions_emit_durability_review' " +
+      "and (tg.tgtype & 16)=16");
+    return { pass: !!wired, detail: wired ? "durability-review emit trigger wired on UPDATE of resolutions" : "MISSING — §3.5 durability signal would silently stop reaching the event chain" };
+  });
+
   await check("H4 finance RLS on + policies company-scoped", async () => {
     const rls = await c.query(
       "select relname from pg_class where relname in ('fin_journal_entries','fin_journal_lines') and relrowsecurity");
