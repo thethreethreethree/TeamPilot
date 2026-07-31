@@ -145,6 +145,31 @@ on every company_id table, storage-bucket privacy, pilot-code seal).
 - 🟡 **KPI snapshot write atomicity** (no unique constraint on `(agent_id, metric, period)` → non-atomic
   replace). Founder-gated (schema migration). Filed in FOUNDER-ACTION-QUEUE.
 
+## Correction + behavioral re-verification (later in session — §1.1 data-as-asset, §1.7.3 on the record)
+
+The "effective-state audit" method used this session (read the LIVE catalog for effective grants/policies
+vs migration text) is high-value but produced ONE false positive that must be on the record:
+
+- **FALSE POSITIVE (withdrawn): "14 finance views bypass RLS + anon-readable (HIGH)."** Surfaced in
+  FOUNDER-ACTION-QUEUE, never in this doc. Refuted by behavioral re-test: the views ARE `security_invoker`
+  (Postgres stores the boolean as `on`, not `true`; my ad-hoc check matched only `true` → mis-read them),
+  and as the anon role they return 0 rows (RLS scoping), which I had wrongly attributed to "empty tables."
+  `rls:audit` (migration-text) correctly reported 0 bypassing the whole time — I overrode a correct guard.
+- **CONFIRMED (held up): the definer-revoke finding.** Behavioral PoC as anon —
+  `fin_account_by_code(<real company>, '1000')` returned the account UUID (RLS-bypass via DEFINER). Accurate
+  severity MEDIUM-LOW (leaks account-existence + an internal UUID for a company whose id you already know;
+  no data access — RLS still gates balances/transactions). This is line-141's "confirmed", now behavioral.
+- **Foundation re-proven behaviorally:** as the anon role, ALL 41 populated `company_id` tables return 0
+  rows — tenant isolation proven by BEHAVIOR (mechanism-agnostic), not policy-catalog inference.
+- **New guard shipped:** verify:live now asserts every public view is `security_invoker` (predicate matches
+  `on|true`) — the LIVE complement to rls:audit's migration-text parse, codifying the correct check so the
+  string-match bug can't recur. (Also this session: verify:live now asserts the §3.2 gate + H2 immutability
+  + H3 balance TRIGGERS are wired, not just their functions present.)
+- **Lesson (recorded to memory):** verify security-critical DB state BEHAVIORALLY (`SET LOCAL ROLE anon;
+  SELECT`), never by catalog-string equality; when a project guard contradicts an ad-hoc finding, suspect
+  the ad-hoc check first. The method isn't worthless (the definer finding held) — but every effective-state
+  finding needs the anon behavioral PoC before a severity is attached.
+
 ## Verdict
 
 The distinct high-risk boundaries across both products (cross-tenant writes, public-surface IDOR,
