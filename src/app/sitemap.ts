@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/siteUrl";
 
 /**
  * /sitemap.xml — only the public, indexable surfaces. Customer-specific
@@ -6,7 +7,7 @@ import type { MetadataRoute } from "next";
  * already, but we also don't list them here so they never get discovered.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4321";
+  const base = siteUrl();
   // 2026-06-02 is the constitution-rewrite date and is a stable anchor; not
   // tied to deploy time so the sitemap is deterministic across builds.
   const lastModified = new Date("2026-06-02");

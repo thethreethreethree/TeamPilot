@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { CareChatWidget } from "@/components/care/CareChatWidget";
 import { ToastProvider } from "@/components/ui/toast";
+import { siteUrl } from "@/lib/siteUrl";
 
 /**
  * No-flash theme bootstrap.
@@ -54,12 +55,10 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   applicationName: "ELOSTATE",
-  // metadataBase is used to resolve relative URLs in OG tags. In production set
-  // NEXT_PUBLIC_SITE_URL to your deployed origin; falls back to a placeholder
-  // so build doesn't fail in dev.
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4321"
-  ),
+  // metadataBase resolves relative URLs in the canonical + OG tags. Prefer an
+  // explicit NEXT_PUBLIC_SITE_URL; else Vercel's stable production domain; else a
+  // dev placeholder — so prod never emits a localhost canonical (siteUrl()).
+  metadataBase: new URL(siteUrl()),
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
