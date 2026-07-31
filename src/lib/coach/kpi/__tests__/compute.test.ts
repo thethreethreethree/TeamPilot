@@ -289,6 +289,19 @@ describe("Layer 4 (coaching & growth)", () => {
     expect(cueToOutcomeCorrelation(perfect.slice(0, 9)).value).toBeNull(); // < 10
   });
 
+  it("cueToOutcomeCorrelation returns 0 (never NaN) when a variable has zero variance — e.g. an all-won rep", () => {
+    const s = (rate: number, won: boolean, id: string) => ({ actedRate: rate, won, sessionId: id });
+    // 10 sessions (clears the 2·MIN gate), every one WON: the outcome variable has zero variance (dy=0),
+    // so denom = sqrt(dx·dy) = 0. The `denom === 0 ? 0` guard must return 0 — WITHOUT it this is 0/0 = NaN,
+    // which would surface as "NaN" in the manager readout for a high-performing all-won rep (a REAL state,
+    // not a contrived edge). Locks the guard so a future refactor can't silently drop it. actedRate varies
+    // so it's specifically the outcome-variance-zero path (not both), matching the realistic all-won case.
+    const allWon = Array.from({ length: 10 }, (_, i) => s(i / 10, true, `w${i}`));
+    const r = cueToOutcomeCorrelation(allWon);
+    expect(r.value).toBe(0);
+    expect(Number.isNaN(r.value as number)).toBe(false);
+  });
+
   it("relianceReductionSlope gates below MIN_SESSIONS", () => {
     expect(
       relianceReductionSlope([
