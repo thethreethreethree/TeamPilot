@@ -84,7 +84,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
       // Label is per-mode below: "One Liners" (Standard) / "Strategy" (Expert).
-      { label: "Strategy", href: "/dashboard/sales-coach/strategy", icon: Library },
+      // Founder 2026-08-01 (decision C): "One Liners" is what reps call this — the winning-lines library.
+      // Route path kept as /strategy so existing links/bookmarks don't break; only the visible label changes.
+      { label: "One Liners", href: "/dashboard/sales-coach/strategy", icon: Library },
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
     ],
   },

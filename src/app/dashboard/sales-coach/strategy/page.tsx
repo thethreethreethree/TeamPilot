@@ -6,7 +6,6 @@ import TopBar from "@/components/layout/TopBar";
 import { DeckCard, SectionLabel, DeckPill } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
-import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   Quote,
   BookOpen,
@@ -44,9 +43,10 @@ export default function SalesCoachStrategyPage() {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Standard-only title relabel (founder revision 2026-07-28, PDF: "change this to
-  // <One Liners>"). Expert keeps "Strategy Library". Content/subtitle unchanged.
-  const { isStandard } = useExperienceMode();
+  // Founder decision 2026-08-01 (C): full rename to "One Liners" (previously a Standard-only relabel on
+  // 2026-07-28, with Expert keeping "Strategy Library"). The nav item is now "One Liners" in both modes, so
+  // the page title matches it in both — a nav label and page heading that disagree is exactly the layer-4
+  // mismatch this avoids. Route path stays /strategy so existing links don't break; content/subtitle unchanged.
 
   useEffect(() => {
     (async () => {
@@ -65,7 +65,7 @@ export default function SalesCoachStrategyPage() {
   return (
     <>
       <TopBar
-        title={isStandard ? "One Liners" : "Strategy Library"}
+        title="One Liners"
         subtitle="Correct lines & sales strategies"
       />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full space-y-5 bg-base">
@@ -83,7 +83,7 @@ export default function SalesCoachStrategyPage() {
               <SectionLabel icon={Quote}>Your correct lines</SectionLabel>
               <LearningHint
                 as="block"
-                category="Sales Coach · Strategy"
+                category="Sales Coach · One Liners"
                 title="Your correct lines"
                 whatItIs="The exact lines the coach surfaced on your past breakdown moments — the thing that would have landed, saved from each review, in one place."
                 why="A correct line is only useful if you can find it again before the next door. Scattered across a dozen reviews, they're forgotten; gathered here, they're a drill list you actually revisit."
@@ -143,7 +143,7 @@ export default function SalesCoachStrategyPage() {
               </SectionLabel>
               <LearningHint
                 as="block"
-                category="Sales Coach · Strategy"
+                category="Sales Coach · One Liners"
                 title="Your team's playbook"
                 whatItIs="Your company's own sales methodology — the strategy and tactics an admin authored — which is also what grounds the coach's reviews."
                 why="Generic advice is easy to ignore; your team's own playbook is the shared language everyone is coached against. Reading it is how a rep gets on the same page as the reviews they'll get."

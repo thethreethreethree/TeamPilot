@@ -212,6 +212,26 @@ export default function SessionDetail() {
     }
   };
 
+  // Founder decision 2026-08-01 (B): finishing a recording AUTO-ENDS the session, then lands on the
+  // After-Pitch Summary. Ending here is what makes the duration + the avgSessionDuration KPI populate and
+  // keeps the post-call flow one clean step instead of forcing a separate "End session" tap. It is safe to
+  // fire even if the rep already ended manually: the 0070 trigger stamps ended_at only on the active→ended
+  // transition and only when ended_at is null, so a re-end never overwrites the real end time. Non-blocking
+  // on failure — the After-Pitch summary generates from the labeled transcript regardless, so we still
+  // navigate even if the end PATCH errored (the rep can end manually from there).
+  const endThenAfterPitch = async () => {
+    try {
+      await fetch(`/api/coach/sales-session/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ended" }),
+      });
+    } catch {
+      // Swallow — the redirect must still happen (see above).
+    }
+    router.push(`/dashboard/sales-coach/${id}/after-pitch`);
+  };
+
   // Step 3 — pre-knock prep. A short briefing from the session's captured
   // offer/approach + the corpus. On-demand, not stored (momentary prep).
   const [prep, setPrep] = useState<{
@@ -940,9 +960,10 @@ export default function SessionDetail() {
               sessionId={id}
               context={session?.context}
               // Founder 2026-07-31 (urgent): the moment the live recording's transcript is saved, the
-              // After-Pitch Summary must show up — go straight to it (it auto-generates) instead of just
-              // reloading the session page. This is the live-coaching twin of the upload path's onLabeled.
-              onRecordingSaved={() => router.push(`/dashboard/sales-coach/${id}/after-pitch`)}
+              // After-Pitch Summary must show up — go straight to it (it auto-generates). Founder 2026-08-01
+              // (decision B): finishing the recording also auto-ends the session (endThenAfterPitch) so the
+              // duration + KPI populate. This is the live-coaching twin of the upload path's onLabeled.
+              onRecordingSaved={endThenAfterPitch}
               // Gate the "not recording" banner to active sessions so it can't
               // misfire on an already-ended one (founder 2026-07-26 fix).
               active={session?.status === "active"}
@@ -958,11 +979,12 @@ export default function SessionDetail() {
               <>
             {/* S1a — upload a recording → diarize → one-tap label. Founder 2026-07-31 (urgent): after the
                 recording is processed, the After-Pitch Summary must show up — so on label-complete we go
-                straight to it (it auto-generates from the just-labeled transcript) instead of just reloading
-                the session page. push (not replace) so "Back to session" still works. */}
+                straight to it (it auto-generates from the just-labeled transcript). Founder 2026-08-01
+                (decision B): finishing the recording also auto-ends the session (endThenAfterPitch), so the
+                duration + KPI populate. push (not replace) so "Back to session" still works. */}
             <SessionRecordingUpload
               sessionId={id}
-              onLabeled={() => router.push(`/dashboard/sales-coach/${id}/after-pitch`)}
+              onLabeled={endThenAfterPitch}
             />
 
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.
