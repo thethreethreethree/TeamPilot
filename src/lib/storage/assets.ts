@@ -134,7 +134,11 @@ export function validateUploadCandidate(args: {
     return { ok: true };
   }
   if (args.filename) {
-    const lower = args.filename.toLowerCase();
+    // Normalize the way Windows does when it SAVES a file — it strips trailing dots and spaces. Without
+    // this, `evil.exe ` (trailing space) or `evil.exe.` sails past the endsWith() blocklist here, then
+    // re-materializes as `evil.exe` on a victim's disk when they download it. A legitimate filename never
+    // ends in a dot/space, so trimming them for the check is lossless.
+    const lower = args.filename.toLowerCase().replace(/[.\s]+$/, "");
     if (BLOCKED_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
       return {
         ok: false,

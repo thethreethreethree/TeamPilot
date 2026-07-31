@@ -58,6 +58,21 @@ describe("validateUploadCandidate", () => {
     ).toMatchObject({ ok: false, reason: "blocked_type" });
   });
 
+  it("blocks a TRAILING-SPACE/DOT filename that Windows would normalize back to an executable", () => {
+    // Windows strips trailing dots + spaces when it saves a file, so `evil.exe ` / `evil.exe.` would sail
+    // past a naive endsWith() blocklist here and re-materialize as `evil.exe` on a victim's disk. The
+    // normalization in validateUploadCandidate closes that; both variants (spoofed image MIME) must block.
+    for (const filename of ["evil.exe ", "evil.exe.", "evil.exe.  ", "evil.EXE "]) {
+      expect(
+        validateUploadCandidate({ sizeBytes: 100, mimeType: "image/png", filename, uploadedVia: agent })
+      ).toMatchObject({ ok: false, reason: "blocked_type" });
+    }
+    // A legitimate filename with a trailing space (no dangerous extension) is unaffected by the trim.
+    expect(
+      validateUploadCandidate({ sizeBytes: 100, mimeType: "image/png", filename: "vacation.png ", uploadedVia: agent })
+    ).toMatchObject({ ok: true });
+  });
+
   it("blocks a MIME-spoofed executable on the PUBLIC customer path too (security 2026-07-09)", () => {
     // The customer widget upload route is public + unauthenticated. Both care upload
     // routes previously skipped `filename`, so this extension defense never fired on
