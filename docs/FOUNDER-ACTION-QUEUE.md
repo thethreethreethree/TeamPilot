@@ -105,6 +105,11 @@ Three deliberate defaults I chose — flip any on your word:
   (log + generic) from curated RPC/trigger messages (keep). Low-severity (authenticated callers, config
   metadata) but real schema/RLS disclosure. Say *"do the finance CWE-209 pass"* and I'll sweep the
   `.from().insert/update/delete` subclass (leaving curated RPC messages), then tighten INV14 to catch it.
+  There is already an in-repo TEMPLATE for the fix: the `problems` PATCH route (route.ts:118-126) tests
+  `error.message` for its one curated signal (`/Understanding Gate/`) → surfaces only that (422), logs +
+  generic-izes everything else (500). The non-finance sweep for this exact blind-spot pattern came back
+  CLEAN — `problems` was the only match and it already handles it correctly — so this class is confined to
+  the finance surface.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
