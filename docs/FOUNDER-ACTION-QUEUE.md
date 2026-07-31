@@ -1,8 +1,19 @@
 # Founder action queue
 
-> **CURRENT OPEN DECISIONS — refreshed 2026-07-28.** A navigation index over the full log below
+> **CURRENT OPEN DECISIONS — refreshed 2026-07-31.** A navigation index over the full log below
 > (which is the append-only historical record, §1.1 — nothing here is removed, only summarized).
 > Everything below this box is detail/history. This box is the "what still needs *you*" surface.
+
+> **🆕 Added this session (2026-07-31) — say the phrase and I execute.** Detail for each is in the
+> 🟡 Product/policy block below.
+> - 🔴 **`"fix the definer revoke"`** — the one live MEDIUM security hole (finance DEFINER fns anon-callable). ← highest priority
+> - **`"do the finance CWE-209 pass"`** — raw DB errors leak at 400/403 (~49 finance sites; high-severity class is finance-only; `rates` already fixed).
+> - **`"wire the KPI trajectory"`** — the computed KPI layer has no reader; the §3.6 "vs earlier months" arc is stored but never shown.
+> - **`"drop the dead KPI tables"`** — `agent_baseline` + `growth_record` are 0-reference dead schema from 0205.
+> - **`"make the kpi snapshot write atomic"`** — no unique constraint → non-atomic replace.
+> - **`"fix the CareShell contrast"`** — ~7 C.A.R.E sidebar text elements below WCAG AA (SalesCoachShell already fixed).
+> - **`"write the skill reads"`** / **`"generic is fine"`** — skill-analytics `bandRead` ignores its skill key (generic reads).
+> - Plus the 3 Sales Coach nav calls: *gate the manager sections* · *end the session after recording* · *One Liners everywhere*.
 
 ### 🔴 SECURITY (MEDIUM) — found + confirmed live 2026-07-28: finance DEFINER fns are anon-callable (cross-tenant read)
 - `0183_fin_definer_revoke.sql` tried to lock ~50 finance SECURITY DEFINER helpers but revoked from
