@@ -12,8 +12,11 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { POST } from "../route";
 
-const setRpc = (result: { data?: unknown; error?: unknown }) =>
+// Default: an authenticated user (the real caller is the signed-in dashboard). Pass
+// `{ user: null }` to simulate an anon caller and exercise the auth gate.
+const setRpc = (result: { data?: unknown; error?: unknown; user?: unknown }) =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    auth: { getUser: async () => ({ data: { user: "user" in result ? result.user : { id: "u1" } } }) },
     rpc: async () => ({ data: result.data ?? null, error: result.error ?? null }),
   });
 
@@ -25,6 +28,20 @@ const OK = { problemId: "p1", action: "Re-scoped the sprint", reasoning: "The ro
 beforeEach(() => vi.clearAllMocks());
 
 describe("POST /api/diagnosis/close", () => {
+  it("401 for an anonymous caller — the append-only resolutions+events chain is not anon-writable", async () => {
+    // Detection test for the 2026-07-31 auth-gate fix: without a signed-in user the route must
+    // reject BEFORE the close_problem RPC (no write to the §3.1 chain). Sibling-parity with
+    // outside-view / ripple-trace. If the gate is removed this returns 400/200 instead of 401.
+    let rpcCalled = false;
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: null } }) },
+      rpc: async () => { rpcCalled = true; return { data: "res-x", error: null }; },
+    });
+    const res = await POST(req(OK));
+    expect(res.status).toBe(401);
+    expect(rpcCalled).toBe(false);
+  });
+
   it("400 when problemId is missing", async () => {
     setRpc({});
     expect((await POST(req({ action: "x", reasoning: "a".repeat(40) }))).status).toBe(400);

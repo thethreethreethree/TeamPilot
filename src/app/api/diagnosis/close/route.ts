@@ -20,6 +20,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Auth gate (audit 2026-07-31): close was the lone diagnosis MUTATION route with no
+  // app-layer auth — its three siblings (outside-view, ripple-trace, task-overrun-sweep) all
+  // gate. It relied entirely on close_problem() being SECURITY INVOKER + problems-RLS to fail
+  // closed for anon / cross-tenant callers. That holds today (INVOKER → the `select company_id
+  // from problems` is RLS-filtered → null → it raises + writes nothing), but it is the
+  // "RLS-only mutation route = latent tenant gap" class: one createAdminClient() refactor — or a
+  // close_problem→SECURITY DEFINER change, which its finance-fn siblings already are — from anon
+  // injection into the append-only resolutions+events chain (§3.1). The real caller is the
+  // authenticated dashboard (dashboard/diagnose), so this gate is a no-op for it.
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData?.user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   try {
     const { problemId, action, reasoning, expectedOutcome } = await req.json();
 
@@ -39,7 +54,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
     const { data, error } = await supabase.rpc("close_problem", {
       p_problem_id: problemId,
       p_action_taken: action,
