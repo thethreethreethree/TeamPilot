@@ -116,6 +116,20 @@ async function main() {
     return { pass: !!bal && !!trigEntry && !!trigLines };
   });
 
+  await check("§3.4 no-instant-results — the coach-control-window trigger is WIRED (Month-1 baseline can't be silently skipped)", async () => {
+    // §3.4 "honesty is the moat": enforce_coach_control_window RAISES if coach_enabled flips false→true during
+    // a company's first-30-day control phase — so no customer gets instant AI guidance (which would claim
+    // understanding the System can't yet have). It is TRIGGER-enforced; if the trigger were dropped (a
+    // migration recreating companies triggers), the honesty moat would lapse SILENTLY while the fn still
+    // exists. Assert the trigger is wired BEFORE UPDATE on companies (tgtype bits 2=BEFORE, 16=UPDATE) — the
+    // same fn-checked-not-trigger discipline this session applied to §3.2 / H2 / H3.
+    const wired = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='companies' and not tg.tgisinternal and p.proname='enforce_coach_control_window' " +
+      "and (tg.tgtype & 2)=2 and (tg.tgtype & 16)=16");
+    return { pass: !!wired, detail: wired ? "control-window trigger wired BEFORE UPDATE on companies" : "MISSING — §3.4 honesty moat can be silently bypassed" };
+  });
+
   await check("H4 finance RLS on + policies company-scoped", async () => {
     const rls = await c.query(
       "select relname from pg_class where relname in ('fin_journal_entries','fin_journal_lines') and relrowsecurity");
