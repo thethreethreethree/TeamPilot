@@ -231,8 +231,13 @@ Three deliberate defaults I chose — flip any on your word:
   `computed_at desc`, and it self-heals next run). A `unique (agent_id, metric, period)` constraint + an
   `upsert` would make the replace atomic and prevent duplicate cruft. Founder-gated because it's a schema
   migration on a live table. Say *"make the kpi snapshot write atomic"* and I'll write it (constraint + cron
-  switch to upsert + a de-dup of any existing duplicates first). Low priority — the KPI cron is still dormant
-  (CRON_SECRET-gated). Full context: `docs/audits/2026-07-31-tenant-write-scoping-class-sweep.md`.
+  switch to upsert + a de-dup of any existing duplicates first). **CORRECTION 2026-07-31: NOT dormant — the
+  cron is LIVE, scheduled daily 05:00 UTC (`vercel.json`) with CRON_SECRET set, and `kpi_snapshot` holds real
+  rows. So the non-atomic DELETE-then-INSERT runs every day; a raced/failed run leaves a momentary gap the
+  manager rollup reads (self-heals next run, but it's a live daily path, not hypothetical).** Deeper diagnosis
+  (2 failure modes) + the exact migration (dedupe precondition + `unique` constraint) + the array-upsert cron
+  change + verify plan are worked up in **`docs/proposals/2026-07-31-kpi-snapshot-atomic-write.md`** — ready to
+  execute on the trigger. Full audit context: `docs/audits/2026-07-31-tenant-write-scoping-class-sweep.md`.
 - **Skill analytics reads are generic, not skill-specific** (dead-surface audit 2026-07-31).
   `bandRead(key, score)` in `skillAnalytics.ts` is called 6× with a DISTINCT skill key
   (talk_listen / tone / speed / questions / objection / closing) but **ignores `key`** — so every
