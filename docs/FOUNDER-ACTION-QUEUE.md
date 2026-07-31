@@ -26,6 +26,18 @@
   correctly; verify no app route calls these directly as authenticated first) + tighten INVARIANT 4 to
   require `from public`. Full write-up + PoC + fn list: `docs/audits/2026-07-28-fin-definer-revoke-ineffective.md`.
   Say **"fix the definer revoke"** and I'll write the 0200 migration + guard fix for your review.
+- **🆕 BROADER THAN FINANCE (live-grant audit 2026-07-31).** Checking EFFECTIVE anon grants (not migration
+  text) found the problem isn't finance-only: **4 NON-finance DEFINER functions are anon-executable with NO
+  internal auth guard**, so the `0200` fix should revoke these too:
+  `emit_task_overran_event(p_task_id)` and `emit_care_durability_due_event(p_check_id)` — **anon can inject
+  fake events into the append-only §3.1 chain** for any task/check (integrity: could spawn bogus
+  signals/problems; these are meant for the CRON/service-role only); `count_user_casual_uploads_today(p_user_id)`
+  — anon reads ANY user's daily upload count (minor cross-user leak); `recompute_file_classification(p_file_id)`
+  — anon triggers a classification write on ANY tenant's file (integrity). All need a valid UUID to exploit,
+  so LOW-MEDIUM, but same class as the finance hole. (Safe despite the anon grant, verified: `complete_company_onboarding`,
+  `is_topic_admin`, `is_topic_participant` — they self-deny via an internal `auth.uid()` gate.) So the fix is
+  `revoke execute … from public, anon` on the finance list **+ these 4**, and the new effective-grant live check
+  (below) should ship WITH the fix (it would fail today, correctly, since the hole is live).
 
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
