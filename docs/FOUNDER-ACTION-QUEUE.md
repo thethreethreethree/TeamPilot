@@ -38,6 +38,11 @@
   `is_topic_admin`, `is_topic_participant` — they self-deny via an internal `auth.uid()` gate.) So the fix is
   `revoke execute … from public, anon` on the finance list **+ these 4**, and the new effective-grant live check
   (below) should ship WITH the fix (it would fail today, correctly, since the hole is live).
+  **Scope is fully bounded (verified):** a broader sweep of ALL anon-executable DEFINER functions that WRITE
+  found 23 candidates, but 17 are TRIGGER functions (`returns trigger` — not RPC-invocable by anon, so
+  harmless) and the remaining 6 are exactly these 3 non-finance writes + 3 finance ones already on the list.
+  Plus the 1 non-finance READ (`count_user_casual_uploads_today`). So the complete non-finance set is these 4
+  — nothing else to find. (Method + full reasoning in memory `reference_supabase_revoke_public_not_anon`.)
 
 ### ✅ RESOLVED — the first real pilot redemption happened + verified healthy (2026-07-28 01:04)
 - A live `sales_coach` redemption succeeded in production: code `FSJEHTP` → **Align Sales Pros** (John
