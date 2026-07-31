@@ -423,11 +423,16 @@ for (const f of FILES) {
 //      detector by construction. A route that reads a session with the ADMIN client and no in-code gate would
 //      slip past both this invariant and RLS; that shape has no precise detector either.
 const CROSS_PERSON_GATE_ALLOWLIST = new Map([]);
+// Extracted + self-tested (guard-integrity 2026-07-31): the ?agentId trigger + the shared-gate matcher. A
+// broken trigger regex would stop detecting cross-person reads; a broken gate regex would flag every gated
+// route (cry-wolf, A30). Both directions locked at the bottom.
+const AGENT_ID_READ_RE = /searchParams\.get\(["']agentId["']\)/;
+const CROSS_PERSON_GATE_RE = /canManagerViewRepSkills/;
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;
-  if (!/searchParams\.get\(["']agentId["']\)/.test(f.sql)) continue;
+  if (!AGENT_ID_READ_RE.test(f.sql)) continue;
   if (CROSS_PERSON_GATE_ALLOWLIST.has(f.path)) continue;
-  if (/canManagerViewRepSkills/.test(f.sql)) continue;
+  if (CROSS_PERSON_GATE_RE.test(f.sql)) continue;
   findings.push({
     rule: "A route reading another person's data (?agentId=) must use the shared cross-person gate",
     file: f.path,
@@ -878,6 +883,10 @@ st("INV2 service-role regex flags createAdminClient", FINANCE_SERVICE_ROLE_RE.te
 st("INV2 service-role regex ignores the RLS client", !FINANCE_SERVICE_ROLE_RE.test("const a = await createClient();"));
 st("INV5 upload-validated regex accepts validateUploadCandidate", UPLOAD_VALIDATED_RE.test("await validateUploadCandidate(file, {})"));
 st("INV5 upload-validated regex flags an unvalidated upload", !UPLOAD_VALIDATED_RE.test("const f = form.get('file'); await put(f);"));
+st("INV6 detects an ?agentId read", AGENT_ID_READ_RE.test('const a = req.nextUrl.searchParams.get("agentId");'));
+st("INV6 ignores a non-agentId param (memberId is a mutation target, not a read)", !AGENT_ID_READ_RE.test('searchParams.get("memberId")'));
+st("INV6 gate regex accepts canManagerViewRepSkills", CROSS_PERSON_GATE_RE.test("if (!(await canManagerViewRepSkills(ctx, agentId))) return;"));
+st("INV6 gate regex flags an ungated agentId read", !CROSS_PERSON_GATE_RE.test('const a = searchParams.get("agentId"); return read(a);'));
 
 // INV7 admin-gate: must NOT match an ungated route, MUST match a gated one.
 st("INV7 flags an ungated admin route", !ADMIN_GATE_RE.test("export async function GET(){ return data; }"));
