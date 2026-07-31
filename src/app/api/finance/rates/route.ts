@@ -124,7 +124,16 @@ export async function POST(req: NextRequest) {
       rate: b.rate,
       as_of_date: b.asOfDate,
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error) {
+      // CWE-209: never hand the raw PostgREST/Postgres error to the client — an RLS denial or a
+      // constraint failure would leak table/column/policy names. Log it server-side, return a generic
+      // message. Rate-setting is controller/CFO-gated, so the likely cause is a permission denial.
+      console.error("[finance/rates POST] rate insert failed:", error);
+      return NextResponse.json(
+        { error: "Couldn't save the rate — you may not have permission to set rates." },
+        { status: 403 },
+      );
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -144,7 +153,16 @@ export async function POST(req: NextRequest) {
 
     // An RLS denial comes back as an error (or as no row) — never report a phantom ok. An employee
     // hitting this route must SEE that they were refused, not believe a rate was saved.
-    if (error) return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error) {
+      // CWE-209: never hand the raw PostgREST/Postgres error to the client — an RLS denial or a
+      // constraint failure would leak table/column/policy names. Log it server-side, return a generic
+      // message. Rate-setting is controller/CFO-gated, so the likely cause is a permission denial.
+      console.error("[finance/rates POST] rate insert failed:", error);
+      return NextResponse.json(
+        { error: "Couldn't save the rate — you may not have permission to set rates." },
+        { status: 403 },
+      );
+    }
     if (!data) {
       return NextResponse.json(
         { error: "Rate not saved — only a controller or CFO may set rates." },
