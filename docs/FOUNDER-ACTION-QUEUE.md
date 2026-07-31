@@ -82,6 +82,17 @@ Three deliberate defaults I chose — flip any on your word:
   migration on a live table. Say *"make the kpi snapshot write atomic"* and I'll write it (constraint + cron
   switch to upsert + a de-dup of any existing duplicates first). Low priority — the KPI cron is still dormant
   (CRON_SECRET-gated). Full context: `docs/audits/2026-07-31-tenant-write-scoping-class-sweep.md`.
+- **Skill analytics reads are generic, not skill-specific** (dead-surface audit 2026-07-31).
+  `bandRead(key, score)` in `skillAnalytics.ts` is called 6× with a DISTINCT skill key
+  (talk_listen / tone / speed / questions / objection / closing) but **ignores `key`** — so every
+  skill shows the same band text ("Strong — keep doing this" / "Solid, with room to sharpen" / "The
+  clearest thing to work on next"), regardless of which skill. The unused param is the scaffolding for
+  skill-tailored reads that was never built. It works (generic is honest), but the coaching is blunter
+  than intended: a rep can't tell "strong at closing" from "strong at discovery." Resolution is
+  customer-facing COACHING COPY — your product voice — so I didn't write it: say *"write the skill reads"*
+  (I'll draft 6×3 skill-specific lines for your approval) or *"generic is fine"* (I'll remove the unused
+  `key` param so the code is honest). Bonus: once resolved, I can tighten the lint rule to `args:"all"`
+  (this is the ONLY violation codebase-wide) so future accepted-but-unread params are caught automatically.
 - **Support-search access policy** — support content is company-searchable by non-agents; agent-gate it, or leave
   as intended? ~10 lines. Say *"agent-gate support in search."* *(Access-consistency §.)*
 - **C.A.R.E product-context field on `/redeem`** (F3) — pilot skips the wizard so Jeff hands off product Qs until
