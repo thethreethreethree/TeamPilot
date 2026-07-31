@@ -61,8 +61,12 @@
   authenticated both have SELECT**. So a raw `GET /rest/v1/fin_1099_payments` (anon key) returns EVERY
   tenant's vendor tax IDs / cash flow / KPIs / payments — a cross-tenant financial-PII leak reachable
   UNAUTHENTICATED, and directly (no function/param, unlike the definer hole). **Verified the mechanism live**
-  (owner=postgres+bypassrls, FORCE RLS=false, anon has SELECT). **Currently returns 0 rows ONLY because the
-  finance tables are empty** — it activates the instant any tenant enters finance data. Migration `0203`
+  (owner=postgres+bypassrls, FORCE RLS=false, anon has SELECT). **Currently returns 0 rows** — but a
+  verification refinement (2026-07-31) makes it MORE urgent than "all empty": 4 finance tables actually have
+  data (`fin_accounts`=22 chart-of-accounts rows, `fin_audit_log`=24, `fin_periods`=1, `fin_settings`=1); the
+  views still return 0 as anon only because they aggregate/join over the empty TRANSACTION tables
+  (`fin_journal_lines` etc.). So the finance system is PARTIALLY set up, and **posting the first journal entry
+  activates the leak** — fix before any real finance posting. Migration `0203`
   (`security_invoker_rls`) fixed SOME views; these 14 were MISSED. **Fix (founder-gated, finance):** `alter
   view <each> set (security_invoker = true)` (they then run as the caller → the caller's RLS scopes them to
   their own company — the exact pattern 0203 used) AND/OR revoke anon/authenticated SELECT. Verify each view
