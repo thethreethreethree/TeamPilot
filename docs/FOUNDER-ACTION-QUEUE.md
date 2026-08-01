@@ -9,6 +9,20 @@
 > (withdrawn); one is real but only MEDIUM hygiene. So the finance security picture is far calmer than my
 > mid-session flags implied — details in the two blocks below.
 >
+> **🆕 2026-08-01 — Sales Coach priority directive + module accounts: SHIPPED (all live on elostate.com).**
+> Diagnosed "edits don't stick" (mode-specific edits + stale PWA/host — the edits WERE live; now mode-universal).
+> Shipped: flat nav (July-28 order) + **Strategy→One Liners** everywhere · **required session naming** on finish
+> → After-Pitch · the full **module HARD-LOCK** (0207 `companies.access_module` + middleware confines a
+> single-module pilot account to its module; verify:live now **23/23**). The old "3 Sales Coach nav calls"
+> (*gate manager sections* → kept rep-visible per your call · *end session after recording* → built as auto-end
+> then required-naming · *One Liners* → done) are COMPLETE.
+> **New decisions from this work (each one word away):**
+> - `"gate the care area"` — `/dashboard/care` has NO access gate today; any authed company member can open the
+>   C.A.R.E dashboard (RLS still scopes the DATA, so not a leak — it's an access-model choice). Add a care-access
+>   gate mirroring Sales Coach's? (I flagged, didn't self-authorize.)
+> - `"build the trajectory UI"` — the KPI trajectory READER + tests are now committed (`a3e4765d`); only the UI
+>   is left, and it's UX-reserved + thin on data (1 month live). Say the word + I'll build the sparkline/delta view.
+>
 > **Security / infra (do when convenient — none is a live HIGH hole):**
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
