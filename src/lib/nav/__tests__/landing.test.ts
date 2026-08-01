@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { moduleLanding, MODULE_LANDING } from "../landing";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { moduleLanding, MODULE_LANDING, resolveUserLanding } from "../landing";
+
+/** Minimal from→select→eq→maybeSingle stub, returning per-table data. */
+const mockSb = (byTable: Record<string, unknown>) =>
+  ({
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: byTable[table] ?? null }) }),
+      }),
+    }),
+  }) as unknown as SupabaseClient;
 
 /**
  * moduleLanding maps a redeemed/authed module to its landing page — it drives where a
@@ -38,5 +49,38 @@ describe("moduleLanding", () => {
     for (const path of Object.values(MODULE_LANDING)) {
       expect(path).toMatch(/^\/(?![/\\])/);
     }
+  });
+});
+
+/**
+ * resolveUserLanding must read the 0207 access_module column FIRST — the same signal the middleware
+ * confines on. Locks that a locked account lands directly in its module (not the hub, then a bounce),
+ * and that a null access_module still falls through to the legacy levers so complete/legacy accounts
+ * don't regress. The regression this guards: reverting to the lever-only heuristic, under which 0045's
+ * every-company care_tenant_config makes a sales_coach user resolve to the hub, never their module.
+ */
+describe("resolveUserLanding", () => {
+  it("lands a locked sales_coach account directly in its module (access_module is authoritative)", async () => {
+    const sb = mockSb({ companies: { access_module: "sales_coach" } });
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard/sales-coach");
+  });
+
+  it("lands a locked care account directly in its module", async () => {
+    const sb = mockSb({ companies: { access_module: "care" } });
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard/care");
+  });
+
+  it("null access_module falls through to the legacy levers (care row present, no sales_coach_role → care)", async () => {
+    const sb = mockSb({
+      companies: { access_module: null },
+      care_tenant_config: { company_id: "co1" },
+      profiles: { sales_coach_role: null },
+    });
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard/care");
+  });
+
+  it("falls back to the hub when there is no company context", async () => {
+    const sb = mockSb({ profiles: { sales_coach_role: null } });
+    expect(await resolveUserLanding(sb, "u1", null)).toBe("/dashboard");
   });
 });
