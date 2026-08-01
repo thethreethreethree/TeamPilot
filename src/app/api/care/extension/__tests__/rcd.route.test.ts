@@ -194,4 +194,31 @@ describe("sanitizeSourceUrl — stored source URLs are http(s) only (safe by con
     expect(sanitizeSourceUrl(undefined)).toBeNull();
     expect(sanitizeSourceUrl(123)).toBeNull();
   });
+
+  it("nulls a PROTOCOL-RELATIVE url (//host) — a distinct vector the scheme cases miss", () => {
+    // `//evil.com` has no scheme, so it isn't caught by the dangerous-scheme test above; new URL()
+    // rejects it without a base, so it nulls. Matters because a scheme-relative link resolves to the
+    // AMBIENT protocol if ever used as an href base — this locks that it can never be stored.
+    expect(sanitizeSourceUrl("//evil.com/x")).toBeNull();
+    expect(sanitizeSourceUrl("///evil.com")).toBeNull();
+  });
+
+  it("nulls a dangerous scheme regardless of CASE or leading whitespace (no normalization bypass)", () => {
+    expect(sanitizeSourceUrl("JavaScript:alert(1)")).toBeNull();
+    expect(sanitizeSourceUrl(" javascript:alert(1)")).toBeNull(); // URL() strips leading space, still javascript:
+    expect(sanitizeSourceUrl("DATA:text/html,x")).toBeNull();
+  });
+
+  it("keeps an UPPERCASE http(s) scheme (a legitimate URL — protocol is case-insensitive)", () => {
+    // Guards against an over-eager future 'reject unless lowercase https:' that would drop valid URLs.
+    expect(sanitizeSourceUrl("HTTPS://ok.com/")).toBe("HTTPS://ok.com/");
+  });
+
+  it("truncates an over-long url to 4000 chars (bounded storage) without changing the scheme decision", () => {
+    const long = "https://ok.com/" + "a".repeat(5000);
+    const out = sanitizeSourceUrl(long);
+    expect(out).not.toBeNull();
+    expect(out!.length).toBe(4000);
+    expect(out!.startsWith("https://")).toBe(true);
+  });
 });
