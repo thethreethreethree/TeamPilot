@@ -53,6 +53,19 @@
 > idempotency"` (LOW, design). Plus `"finance read-path error handling"` (MED — 62 sites show infinite-spinner /
 > fake-empty on load failure; recommend a shared fetch helper, exemplar `finance/statements` already fixed).
 >
+> **🆕 2026-08-02 — Autonomous session: 7 real fixes shipped + 5 classes verified clean/sound.** No action needed on
+> these; listed so you see what changed. **Shipped (all gated, pushed):** (1) input-validation on `/api/tasks`,
+> `/api/problems`, `/api/decisions` — they inserted raw bodies past existing-but-unwired zod schemas; worst was a bad
+> task `status` that **permanently jams the task** (no valid transitions). Now schema-validated; 38 route tests;
+> enumeration-complete across all 22 `req.json` routes (`cb69379d`). (2) `/api/files` storagePath `..`-guard
+> (`2eff39cb`). (3) C.A.R.E "customer replied" agent push was a bare `void` → **dropped on serverless freeze** in the
+> agent-claimed branch; `after()`-wrapped to match the email path (`82826062`). (4) `GET /sales-session/[id]/why`
+> read a rep's **private why hypothesis** via the admin client gated only by company scope → a peer rep could read it;
+> now owner-or-manager, mirroring `/list` (`5384bad9`). **Verified clean/sound (real assurance, no fix):** NaN/coercion
+> class; both single-use-token consume paths (pilot redeem = row-lock, team invite = PK-idempotent); context-switch
+> state-bleed; floating-write discipline; all other service-role/definer reads tenant/owner-scoped. The two items
+> below are what genuinely needs YOU.
+>
 > **🆕 2026-08-02 — Coach KPI metrics silently go WRONG at scale (unbounded-query audit; VERIFIED, HIGH, founder-gated):**
 > An adversarial "unbounded list query" audit + my verification found a real honesty-thesis bug. **Confirmed fact:**
 > `supabase/config.toml max_rows = 1000` — PostgREST caps every unbounded `.select()` at 1000 rows (the codebase
