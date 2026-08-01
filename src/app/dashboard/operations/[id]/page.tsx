@@ -92,6 +92,13 @@ export default function TaskDetailPage() {
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  // SYNCHRONOUS latches. An earlier fix used only these useState flags, but a
+  // state flag is applied a render too late to stop a double-click — the exact
+  // race it was meant to prevent. postTaskMessage and changeTaskStatus both
+  // APPEND immutable rows (a message / a status_changed event), so the ref is
+  // what actually closes the double-fire. (Caught by an adversarial re-audit.)
+  const submittingRef = useRef(false);
+  const transitioningRef = useRef(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { enabled: coachEnabled } = useCoachEnabled();
   // Coach v5 Ask-Coach token for the task composer.
@@ -145,7 +152,8 @@ export default function TaskDetailPage() {
 
   const submitMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.trim() || submitting) return;
+    if (!draft.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const msg = await postTaskMessage({ taskId: id, body: draft.trim() });
@@ -158,6 +166,7 @@ export default function TaskDetailPage() {
         err instanceof Error ? err.message : "Unknown error"
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -166,7 +175,8 @@ export default function TaskDetailPage() {
     // Guard against a double-fire: without this the buttons stay live during the load() round-trip, so a
     // double-click (or a quick In-Progress→Blocked) reads the SAME stale task.status as fromStatus and posts
     // TWO status_changed events onto the append-only event chain (duplicate/contradictory audit history).
-    if (!task || transitioning) return;
+    if (!task || transitioningRef.current) return;
+    transitioningRef.current = true;
     setTransitioning(true);
     try {
       await changeTaskStatus({
@@ -185,6 +195,7 @@ export default function TaskDetailPage() {
         err instanceof Error ? err.message : "Unknown error"
       );
     } finally {
+      transitioningRef.current = false;
       setTransitioning(false);
     }
   };
@@ -594,6 +605,7 @@ function GateForm({
   const [resources, setResources] = useState("");
   const [roles, setRoles] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const submit = async () => {
     if (!what.trim()) {
@@ -610,6 +622,10 @@ function GateForm({
       );
       return;
     }
+    // Synchronous latch — clearTaskGate flips an idempotent flag but ALSO
+    // appends a gate_cleared task_message; a double-click duplicates that.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await clearTaskGate({
@@ -630,6 +646,7 @@ function GateForm({
         err instanceof Error ? err.message : "Unknown error"
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
