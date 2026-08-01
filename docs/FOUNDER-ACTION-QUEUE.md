@@ -46,6 +46,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   there's >1 month of live data so it isn't all "building"?). Say the word + I'll build the chosen shape.
 >
 > **Security / infra (do when convenient — none is a live HIGH hole):**
+> - 🟡 `"pin the node version"` — environment drift (found 2026-08-02 via live /api/health): **CI tests on Node
+>   20** (`.github/workflows/ci.yml`) but **prod runs Node 24.18**, and there's **no `engines` pin in
+>   package.json / no `.nvmrc`**. Two consequences: CI's green doesn't test the version prod actually runs (a
+>   Node-24 behavior CI-on-20 wouldn't catch), and prod's version is Vercel's UNPINNED default — it can silently
+>   move again. Low-severity (most code is version-agnostic; I've verified all 2142 tests pass on Node 24 all
+>   session + prod builds/runs on 24), but a real drift. Fix = pin `engines.node` (e.g. `"24.x"`) + bump CI to 24
+>   + add `.nvmrc` so CI/Vercel/local all agree. It touches deploy config (Vercel reads `engines`), so your
+>   approve — say the word + I make CI test reality and pin the runtime.
 > - 🟡 `"gitignore the IP PDFs"` — structural IP protection gap (found 2026-08-02). You ALREADY gitignore
 >   `PILOT-ACCESS-CODES.pdf` + the ThinkerThinker key files, but several other sensitive untracked IP docs are
 >   NOT gitignored — they rely on commit-discipline alone (a stray `git add -A` or a tool could sweep them into
