@@ -51,6 +51,10 @@
 >   adjacent in one file) + extracting it risks a curly-apostrophe mismatch, so I left it — say the word to DRY it.
 > - `"delete SalesCoachComing"` — `src/components/sales-coach/SalesCoachComing.tsx` (the old "coming soon"
 >   placeholder) is now imported by nothing — every nav route is real. Orphaned dead code; safe to delete on your ok.
+> - `"kill the earpiece cue hint"` — full revision-spec cross-check (2026-08-01, both PDF pages) confirms EVERY
+>   July-28 edit is live. The ONE nuance: the "(cue plays to your device's audio…)" sentence you crossed out is
+>   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
+>   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
 > **Product / trade-off decisions (each real, not a bug):**
 > - `"do the finance CWE-209 pass"` — raw DB errors leak at 400/403; bounded to ~21 clear-cut genericizes + ~26 `.rpc` to confirm-curated (`rates` already fixed).

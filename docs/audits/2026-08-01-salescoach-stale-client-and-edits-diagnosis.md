@@ -14,11 +14,26 @@ Grepped the live code for the exact texts crossed out in the founder's July-28 s
 | Remove "Opening the session isn't the same as recording it" | **already gone** |
 | "You're not recording yet" → keep only "Tap Start live coaching before you begin" | **exactly per spec** (LiveCoachingPanel.tsx:224/229) |
 | Earpiece checkbox parenthetical "(cue plays to your device…)" | **gone from visible text**; still in the hidden Ask-Jeff tooltip (LearningHint `why=`) |
-| Auto-coach OFF by default | **done** (LiveCoachingPanel.tsx:336) |
+| Auto-coach OFF by default | **done** — verified at the SOURCE: `useLiveCoaching.ts:263` `useState(false)`, not just the LiveCoachingPanel.tsx:336 comment |
 | Strategy → "One Liners" | page title done; was **Standard-only** |
 
-**Conclusion: the edits were made and are deployed.** Prod `/api/health` serves the latest commit
-(`82f64f01`). This is not a build/deploy failure.
+### Full-spec cross-check completed 2026-08-01 (both PDF pages, read from the source `Sales Coach Revision.pdf`)
+
+The rows above cover the page-2 *text-removal* edits. Re-reading the authoritative PDF end-to-end (the
+consult-the-source precondition, AMD-005: work from the source, not the mockup memory) surfaced two page-2
+*functional-flow* requirements not previously in this table — both verified live:
+
+| Spec item (PDF p.2) | Live? | Evidence |
+|---|---|---|
+| "After pitch feature automatically activated" + "`<Your Read>` automatically triggered" after a session | ✅ | after-pitch `generate()` auto-runs on arrival when no summary is stored (`[id]/after-pitch/page.tsx:235-238`) |
+| Layout: "scoreboard on top, after-pitch summary, then next-door focus" | ✅ | after-pitch page structure + "Start Next Door" continuity (`page.tsx:49-58, 109-133`) |
+| Nav order + labels (Home…Settings, p.1) | ✅ | SalesCoachShell flat nav matches the p.1 typed order (Team Chat + KPI Analytics are post-PDF features kept before Settings) |
+
+**Conclusion: EVERY edit in the July-28 revision spec is applied and live — verified against the source PDF,
+both pages.** The one nuance is the earpiece "(cue plays to your device…)" sentence, which is gone from the
+visible flow but survives inside an expandable `why=` help-hint (progressive disclosure) — a founder judgment
+call (remove entirely, or accept as tucked-away help?), flagged in the action queue. Prod `/api/health` serves
+the latest commit. This is not a build/deploy failure.
 
 ## The actual origin — three compounding causes
 
