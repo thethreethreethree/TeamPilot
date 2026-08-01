@@ -79,6 +79,17 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **Decisions flow audit (2026-08-01) — 3 fixed, 1 flagged:** ✅ FIXED (`84f0d64f`): the persist-decision
+> double-write (duplicate IMMUTABLE decision rows — CRITICAL, no race needed), the LLM double-fire, and a
+> blank-titled row. Auth + the min-20-char precondition gate verified SOUND (server-enforced, unlike diagnose).
+> `"fix decisions demo-vs-live-empty"` (MED) — `fetchDecisions` (`src/lib/data/decisions.ts:35`) returns mock
+> fixtures on `error || !data || data.length === 0`, conflating THREE states: a read FAILURE shows fabricated
+> demo rows (error-as-fake-data), AND a live tenant with zero real decisions sees fabricated demo decisions in
+> their OWN Decision Memory (the real "No decisions yet" empty state is unreachable when Supabase is on). Fix:
+> only mock when Supabase is DISABLED (demo/dev); when live, distinguish error (error state) from empty (the
+> real empty state). Intertwined with the demo/mock design (when should demo show?), so flagged — but "a live
+> tenant sees fake decisions" is a clear bug, not a design call.
+
 > **Operations module audit (2026-08-01, out-of-directive but real production code) — 2 fixed, findings flagged:**
 > Deep adversarial audit of `operations/[id]/page.tsx` (a module beyond the Sales Coach + C.A.R.E directive).
 > ✅ **FIXED** (`e256881a`): status-transition double-submit (posted duplicate status_changed events on the
