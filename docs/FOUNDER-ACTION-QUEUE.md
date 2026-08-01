@@ -106,6 +106,11 @@
 > `finance/` dashboard landing `4ee6912c` — the latter had shown "set up your ledger" + an Initialize button to
 > a company WITH a ledger on any transient error, and had a dead `reason:"error"` field the render never read).
 > The remaining ~60 are lower-traffic per-module pages — the shared-helper refactor is the right move for those.
+> **Scaffolding now in place: `src/lib/http/fetchJson.ts` (+ 9 tests)** — the uncontroversial primitive the refactor
+> needs: it throws a typed `FetchJsonError` on any detectable failure (non-2xx, network, non-JSON, or a 2xx body
+> with a string `error` field), so a caller's `catch` distinguishes load-failure from empty. It changes nothing
+> until adopted. Still YOUR call: the `useResource`-style hook shape + which pages migrate. Say `"migrate finance
+> reads to fetchJson"` and I'll build the hook + convert the pages.
 
 > **Finance domain re-entrancy — ASSESSED, no mass-patch (2026-08-01).** After the app-wide re-entrancy sweep
 > I checked whether the ~29 finance create handlers (addBill, addVendor, etc.) share the double-click class. They
