@@ -27,6 +27,10 @@ const engines = [
   "../salesWhy.ts",
   "../salesPivot.ts",
   "../salesIntel.ts",
+  // The roleplay routes also feed conversation text to an LLM with a custom
+  // system prompt (the demo one is PUBLIC/unauthenticated) — same fence.
+  "../../../../app/api/sales/demo/roleplay/route.ts",
+  "../../../../app/api/coach/sales-session/roleplay/route.ts",
 ];
 
 const here = dirname(fileURLToPath(import.meta.url));

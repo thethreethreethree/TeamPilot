@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/api/rateLimit";
+// Prompt-injection fence — this is a PUBLIC/unauthenticated demo taking external
+// visitor text; the fence keeps the AI in character and refusing embedded commands.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { readBody } from "@/lib/api/validate";
 import { generateCareReply } from "@/lib/claude";
 import { parseRoleplayReply, prospectOnlyFallback } from "@/lib/sales/parseRoleplayReply";
@@ -70,7 +73,10 @@ export async function POST(req: NextRequest) {
   ].join("\n\n");
 
   try {
-    const r = await generateCareReply({ systemPrompt: SYSTEM_PROMPT, userMessage });
+    const r = await generateCareReply({
+      systemPrompt: SYSTEM_PROMPT + CONVERSATION_IS_DATA,
+      userMessage,
+    });
     const parsed = parseRoleplayReply(r.text);
     if (!parsed) {
       // The model answered but not as clean JSON. Keep the prospect line, strip any cue/coach section

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+// Prompt-injection fence — the roleplay transcript is conversation text; the AI
+// must stay in the prospect role and never obey commands embedded in it.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import { extractObjectionGuidance } from "@/lib/coach/v5/objectionGuidance";
 import { dissectCoachV5 } from "@/lib/claude";
@@ -176,7 +179,7 @@ export async function POST(req: NextRequest) {
   if (body.phase === "turn") {
     const r = await dissectCoachV5({
       companyId,
-      systemPrompt: prospectSystem(body, corpus?.content),
+      systemPrompt: prospectSystem(body, corpus?.content) + CONVERSATION_IS_DATA,
       userMessage: `Conversation so far:\n${transcript || "(the rep is about to open)"}\n\nRespond as the PROSPECT with your next line only.`,
     });
     const reply = parseReply(r.text);
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest) {
   // phase === "review"
   const r = await dissectCoachV5({
     companyId,
-    systemPrompt: reviewSystem(body, corpus?.content),
+    systemPrompt: reviewSystem(body, corpus?.content) + CONVERSATION_IS_DATA,
     userMessage: `Full roleplay transcript:\n${transcript}\n\nReview the REP's performance.`,
   });
   return NextResponse.json({ review: parseReview(r.text) });
