@@ -192,8 +192,9 @@ export default function CoachAssessmentPage() {
                   other. The{" "}
                   <span className="text-primary">{isExpert ? "Sales ELO Rating" : "coaching grade"}</span>
                   {isExpert
-                    ? " is a gamified score of each rep against our measurement standard (1500) — never against peers. Admins and managers see the team’s; each rep sees their own."
-                    : " is a letter summarizing each rep’s calls against our competent-call standard — never against peers. Admins and managers see the team’s; each rep sees their own."}
+                    ? " is a gamified score of each rep against our measurement standard (1500)"
+                    : " is a letter summarizing each rep’s calls against our competent-call standard"}
+                  {" — never against peers. Admins and managers see the team’s; each rep sees their own."}
                 </p>
               </div>
             </LearningHint>
