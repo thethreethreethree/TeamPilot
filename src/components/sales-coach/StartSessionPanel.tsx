@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Video, DoorOpen, Mic } from "lucide-react";
 import {
@@ -25,6 +25,7 @@ export function StartSessionPanel() {
   const [offer, setOffer] = useState("");
   const [showCapture, setShowCapture] = useState(false);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
@@ -33,6 +34,11 @@ export function StartSessionPanel() {
       setError("Give the session a client / campaign title before starting.");
       return;
     }
+    // Synchronous latch: the Start button is not disabled while the POST is
+    // in flight, so without this a second click (during the session-create
+    // round-trip) would create a duplicate sales session.
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setError(null);
     try {
@@ -57,8 +63,11 @@ export function StartSessionPanel() {
       router.push(`/dashboard/sales-coach/${session.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      startingRef.current = false;
       setStarting(false);
     }
+    // No finally: on success we navigate away (router.push) and the
+    // component unmounts, so the latch intentionally stays set.
   };
 
   return (
@@ -137,7 +146,7 @@ export function StartSessionPanel() {
         <DeckButton
           pending={starting}
           onClick={() => void start()}
-          disabled={!clientLabel.trim()}
+          disabled={!clientLabel.trim() || starting}
           icon={<Mic className="w-4 h-4" aria-hidden />}
           className="w-full"
         >
