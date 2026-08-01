@@ -54,6 +54,14 @@ export default function FinancePage() {
   const load = async () => {
     try {
       const res = await fetch("/api/finance/summary");
+      // A 500 with a JSON error body would otherwise pass res.json() and set
+      // `available: undefined` — rendering the "set up your ledger" screen to a
+      // company that HAS a ledger. Route any non-ok to the same error state as a
+      // network throw so the render can tell "load failed" from "not initialized".
+      if (!res.ok) {
+        setState({ available: false, reason: "error" });
+        return;
+      }
       setState((await res.json()) as ApiState);
     } catch {
       setState({ available: false, reason: "error" });
@@ -99,9 +107,31 @@ export default function FinancePage() {
             company is out of money today, when the truth is that it isn't burning at all. */}
         {state?.available && <KpiStrip />}
 
+        {/* LOAD ERROR — a failed fetch must NOT read as "not set up" (which would
+            invite a company with a real ledger to re-initialize). The `reason`
+            field carried this all along but the render never read it. */}
+        {state && !state.available && state.reason === "error" && (
+          <div className="glass-card p-8 text-center space-y-4 max-w-xl mx-auto">
+            <Landmark className="w-8 h-8 text-muted mx-auto" />
+            <h2 className="text-lg font-semibold text-primary">
+              Couldn&apos;t load your finance summary
+            </h2>
+            <p className="text-sm text-secondary leading-relaxed">
+              This is a load error, not an empty ledger — your books are safe.
+              Retry, or refresh the page.
+            </p>
+            <button
+              onClick={() => void load()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand text-black font-medium text-sm"
+            >
+              <Loader2 className="w-4 h-4" /> Retry
+            </button>
+          </div>
+        )}
+
         {/* NOT INITIALIZED — honest state (no mock numbers). The ledger is built + applied; this
             company just hasn't set up its books yet. */}
-        {state && !state.available && (
+        {state && !state.available && state.reason !== "error" && (
           <div className="glass-card p-8 text-center space-y-4 max-w-xl mx-auto">
             <Landmark className="w-8 h-8 text-brand mx-auto" />
             <h2 className="text-lg font-semibold text-primary">Your ledger isn&apos;t set up yet</h2>
