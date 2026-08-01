@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Circle,
@@ -66,6 +66,7 @@ export function TaskStepChecklist({
   const [steps, setSteps] = useState<TaskStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [newBody, setNewBody] = useState("");
   const [openCoachStepId, setOpenCoachStepId] = useState<string | null>(null);
   const [askCoachToken, setAskCoachToken] = useState(0);
@@ -116,15 +117,23 @@ export function TaskStepChecklist({
 
   const onAdd = async () => {
     const body = newBody.trim();
-    if (!body) return;
+    // Synchronous latch: addTaskStep inserts a new step row per call with no
+    // unique constraint, so an Enter-mash / double-click would append
+    // duplicate steps. The `adding` state guard lands a render too late.
+    if (!body || addingRef.current) return;
+    addingRef.current = true;
     setAdding(true);
-    const created = await addTaskStep({ taskId, body });
-    setAdding(false);
-    if (created) {
-      setSteps((prev) => [...prev, created]);
-      setNewBody("");
-    } else {
-      toast.error("Couldn't add step");
+    try {
+      const created = await addTaskStep({ taskId, body });
+      if (created) {
+        setSteps((prev) => [...prev, created]);
+        setNewBody("");
+      } else {
+        toast.error("Couldn't add step");
+      }
+    } finally {
+      addingRef.current = false;
+      setAdding(false);
     }
   };
 

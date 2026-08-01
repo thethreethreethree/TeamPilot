@@ -459,6 +459,7 @@ function CreateTopicModal({
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
   // Create into the scope of the surface we're on (keeps Sales Coach and
   // Elostate topics separate, migration 0076).
@@ -538,6 +539,11 @@ function CreateTopicModal({
       setError("Title required.");
       return;
     }
+    // Synchronous latch: createTopic inserts a chat_topics + chat_participants
+    // row with no unique constraint, so a double-click on Create would make two
+    // topics. The `submitting` state guard lands a render too late.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
     try {
@@ -556,6 +562,7 @@ function CreateTopicModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

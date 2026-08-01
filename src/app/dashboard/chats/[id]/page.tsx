@@ -503,7 +503,13 @@ export default function TeamChatTopicPage() {
   // canonical row with the correct author name resolved.
   const post = async (body: string, opts?: { aiAssisted?: boolean }) => {
     const trimmed = body.trim();
-    if (!trimmed) return;
+    // Gate on the ref, not `submitting` state / the optimistic setDraft("") —
+    // both are applied a render too late to stop a double-click, and each
+    // postMessage appends a chat_messages row. sendingRef is set synchronously
+    // so the second click bails before the first await. (The effect above keeps
+    // it mirrored for the polling tick; here it doubles as the re-entrancy latch.)
+    if (!trimmed || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     const aiFlag = opts?.aiAssisted ?? aiAssisted;
     const replyToSnapshot = replyTo;
@@ -570,6 +576,7 @@ export default function TeamChatTopicPage() {
         err instanceof Error ? err.message : "Unknown error."
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { useSseStream } from "@/lib/hooks/useSseStream";
@@ -28,9 +28,28 @@ export function SummarizeModal({
   topic: ChatTopic;
   messages: ChatMessage[];
   onClose: () => void;
-  onPost: (text: string) => void;
+  onPost: (text: string) => void | Promise<void>;
 }) {
   const { status, run, abort } = useSseStream();
+  // The Post button disables only on !ready (content-based), which does not
+  // flip on click — so without a latch a double-click posts TWO summary
+  // messages. Gate synchronously; keep a `posting` state for the button.
+  const [posting, setPosting] = useState(false);
+  const postingRef = useRef(false);
+  const handlePost = async () => {
+    if (postingRef.current) return;
+    postingRef.current = true;
+    setPosting(true);
+    try {
+      // The parent handles its own success/error (closes on success, keeps
+      // the modal open + toasts on failure); awaiting lets us re-enable for
+      // a retry if it stayed open.
+      await onPost(status.text.trim());
+    } finally {
+      postingRef.current = false;
+      setPosting(false);
+    }
+  };
   const payload = useMemo(
     () => ({
       topic: { title: topic.title, description: topic.description },
@@ -94,8 +113,8 @@ export function SummarizeModal({
               Discard
             </button>
             <button
-              onClick={() => onPost(status.text.trim())}
-              disabled={!ready}
+              onClick={() => void handlePost()}
+              disabled={!ready || posting}
               className="flex items-center gap-2 bg-arc-400 hover:bg-arc-500 disabled:opacity-40 disabled:cursor-not-allowed text-navy-900 font-semibold px-4 py-2 rounded-lg transition-colors text-xs"
             >
               <Send className="w-3.5 h-3.5" aria-hidden="true" />
