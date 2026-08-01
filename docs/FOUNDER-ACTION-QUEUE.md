@@ -79,6 +79,17 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **Append-only double-write sweep (2026-08-01) — 9 fixed, 1 server follow-up flagged:** ✅ A recurring
+> corruption class — an async handler that POST-appends an immutable row guarded ONLY by a React busy-state +
+> disabled button (applied a render too late to stop a double-click). Fixed across every thesis-critical append
+> surface: diagnose close-loop, decisions persist + LLM, operations transition, problems create, care resolution
+> capture, in-thread askSystem, brain learn, brain unlock (commits `6230891e`/`84f0d64f`/`e256881a`/`ee7c6a7c`/
+> `20e9f3a9`). All now use a synchronous `useRef` latch. `"/respond server idempotency"` (LOW, founder design
+> call) — `POST /api/chat/topic-decisions/[id]/respond` has NO existing-response short-circuit, so an INTENTIONAL
+> re-ask (not just a double-click, which the latch now stops) re-runs the LLM and appends a duplicate
+> `decision.system_responded` event + chat_message. Decide whether re-ask should be blocked, or should REPLACE
+> the prior response/event rather than append a second. The client latch only closes the accidental double-click.
+
 > **Decisions flow audit (2026-08-01) — 3 fixed, 1 flagged:** ✅ FIXED (`84f0d64f`): the persist-decision
 > double-write (duplicate IMMUTABLE decision rows — CRITICAL, no race needed), the LLM double-fire, and a
 > blank-titled row. Auth + the min-20-char precondition gate verified SOUND (server-enforced, unlike diagnose).
