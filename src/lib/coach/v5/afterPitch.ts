@@ -1,5 +1,8 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+// Prompt-injection fence — the transcript judged below carries untrusted CUSTOMER
+// speech; instructions inside it are DATA, never obeyed. Shared with the care surfaces.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import {
   getSessionTranscriptAdmin,
   getSessionCuesAdmin,
@@ -283,7 +286,7 @@ no clear signal either way, use "ignored" with evidence null rather than
 guessing "followed". Do NOT invent evidence.
 
 OUTPUT — ONLY this JSON:
-{ "outcomes": [ { "index": 0, "determination": "followed"|"partial"|"ignored", "evidence": "..."|null } ] }`;
+{ "outcomes": [ { "index": 0, "determination": "followed"|"partial"|"ignored", "evidence": "..."|null } ] }` + CONVERSATION_IS_DATA;
 
   const userMessage = `CUES DELIVERED (index in brackets):
 ${cueList}

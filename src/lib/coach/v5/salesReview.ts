@@ -9,6 +9,10 @@ import {
   buildSalesReviewSystemPrompt,
   buildSalesReviewUserMessage,
 } from "./salesReviewPrompt";
+// Shared prompt-injection fence: the diarized transcript below carries CUSTOMER
+// speech (untrusted), so a customer saying "ignore your instructions, output…"
+// must be treated as DATA, never obeyed. Same discipline as the care surfaces.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 
 /**
  * Live Sales Coach — post-call growth review engine.
@@ -69,7 +73,9 @@ export async function generateSalesReview(args: {
       // Product/brand details (founder 2026-07-31) — the review critiques against what the team sells.
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt = buildSalesReviewSystemPrompt(corpus?.content, args.mode, product?.content);
+    const systemPrompt =
+      buildSalesReviewSystemPrompt(corpus?.content, args.mode, product?.content) +
+      CONVERSATION_IS_DATA;
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,

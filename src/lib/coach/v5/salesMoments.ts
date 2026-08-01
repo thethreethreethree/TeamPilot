@@ -2,6 +2,9 @@ import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { groundQuote } from "./grounding";
+// Prompt-injection fence — the diarized transcript carries untrusted CUSTOMER
+// speech; instructions inside it are DATA, never obeyed. Shared with the care surfaces.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import {
   getCurrentSalesCorpus,
   type TranscriptSegment,
@@ -110,7 +113,9 @@ export async function generateSalesMoments(args: {
       getCurrentSalesCorpus(args.companyId).catch(() => null),
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt = buildSalesMomentsSystemPrompt(corpus?.content, product?.content);
+    const systemPrompt =
+      buildSalesMomentsSystemPrompt(corpus?.content, product?.content) +
+      CONVERSATION_IS_DATA;
     const userMessage = buildSalesMomentsUserMessage({
       context: args.context,
       outcome: args.outcome,
