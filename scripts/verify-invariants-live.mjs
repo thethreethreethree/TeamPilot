@@ -63,10 +63,18 @@ async function main() {
     return { pass: !!rDel && !!rUpd };
   });
 
-  await check("§3.2 understanding gate (raises + '*' threshold + trigger WIRED before insert-or-update)", async () => {
+  await check("§3.2 understanding gate (raises + '*' threshold MEANINGFUL + trigger WIRED before insert-or-update)", async () => {
     const gateFn = await has(
       "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
-    const star = await has("select 1 from problem_thresholds where kind='*'");
+    // The '*' default must EXIST *and* stay MEANINGFUL. A bare existence check passes even if the row's
+    // min_signals were set to 0 — which silently DISABLES the gate (a problem surfaces with 0 signals),
+    // defeating "understanding precedes solving" while every wiring check above still greens. Thesis floor:
+    // >=2 signals from >=2 DISTINCT sources + a non-empty diagnosis. The founder may tune ABOVE this; a value
+    // dropping BELOW it (a mis-migration or a manual edit) must FAIL the build, not slip through. Seeded
+    // default is (3, 2, 80); thresholds are migration-only (no runtime mutation), so a migration is the risk.
+    const star = await has(
+      "select 1 from problem_thresholds where kind='*' " +
+      "and min_signals >= 2 and min_distinct_sources >= 2 and min_diagnosis_chars >= 1");
     // The fn EXISTING is not enough — it must be WIRED. A trigger that is dropped (or narrowed to
     // UPDATE-only) silently lets a direct INSERT of a non-'draft' problem BYPASS the gate, while the
     // fn-exists check above still passes. Assert the trigger runs check_understanding_gate on `problems`,
