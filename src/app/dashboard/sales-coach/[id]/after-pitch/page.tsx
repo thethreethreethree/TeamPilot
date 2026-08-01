@@ -137,7 +137,9 @@ export default function AfterPitchPage() {
   const [whatHappened, setWhatHappened] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const generatingRef = useRef(false);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   // Auto-generate fires at most ONCE per session id. Its only other guard is the load()
   // dependency array, which includes `isStandard` — a value ExperienceModeProvider mutates
@@ -193,6 +195,12 @@ export default function AfterPitchPage() {
   );
 
   const generate = useCallback(async () => {
+    // Synchronous latch: /after-pitch runs the LLM and appends a
+    // coach.after_pitch_summary_generated event with no already-generated
+    // guard, so a double-fire (manual click racing the auto-gen effect, or a
+    // double-click) wastes an LLM call and duplicates the event.
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     setGenerating(true);
     setError(null);
     try {
@@ -213,6 +221,7 @@ export default function AfterPitchPage() {
     } catch {
       setError("Couldn't build the summary.");
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
   }, [id]);
@@ -270,7 +279,11 @@ export default function AfterPitchPage() {
   }, [load]);
 
   const startNextDoor = async () => {
-    if (!session) return;
+    // Synchronous latch: the button is disabled only on `!session`, not while
+    // the create POST is in flight, so a second click during the round-trip
+    // would create a duplicate "next door" session.
+    if (!session || startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setError(null);
     try {
@@ -293,8 +306,10 @@ export default function AfterPitchPage() {
       router.push(`/dashboard/sales-coach/${next.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      startingRef.current = false;
       setStarting(false);
     }
+    // On success we router.push away and unmount, so the latch stays set.
   };
 
   const ctxLabel = session
@@ -573,7 +588,7 @@ export default function AfterPitchPage() {
                 <LoadingButton
                   pending={starting}
                   onClick={() => void startNextDoor()}
-                  disabled={!session}
+                  disabled={!session || starting}
                   icon={<ChevronRight className="w-4 h-4" aria-hidden />}
                   spinnerClassName="w-4 h-4"
                   className="w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] disabled:opacity-50 px-4 py-3 rounded-xl transition-colors"
