@@ -96,16 +96,30 @@ select conname from pg_constraint where conname = 'coaching_transcript_segments_
 Then add a live-invariant check to `scripts/verify-invariants-live.mjs` asserting the constraint
 exists (so it can't silently regress).
 
-## Step 3 — SEPARATE decision: re-score the 12 sessions
+## Step 3 — re-score the 12 sessions? Impact is NARROWER than it first looks (I traced it)
 
-Those 12 sessions' after-pitch summaries + KPI numbers ran on the inflated transcripts. After the
-dedup, the stored transcript is correct, but the *derived* review/scores are stale. Options for you:
-- **Re-generate** the after-pitch summary for each (the `/after-pitch` route regenerates from the
-  transcript) and recompute their KPI contribution. Cleanest.
-- **Leave as-is** if the pilot cohort's historical numbers aren't load-bearing — but flag it so the
-  numbers aren't trusted for the pilot proof.
+I traced exactly what reads the transcript, so you don't over-react. The corruption's effect on
+*derived* numbers is limited:
 
-I can script a one-shot re-generation over these 12 session ids on your go.
+- **Cue-based KPIs are duplication-IMMUNE.** `kpi/me` + `kpi/team` use transcript segments only as an
+  existence check — `new Set(segRows.map(s => s.session_id))` ("did this session produce ≥1 segment?",
+  route.ts:132). A session with 5 transcript copies scores identically to 1. So cueAcceptanceRate,
+  relianceReduction, and cue-to-outcome correlation are UNAFFECTED.
+- **The numeric after-pitch scores (talk_ratio, question_rate) are largely SELF-CORRECTING.** The bug
+  re-appended the WHOLE transcript (all speakers), so both the numerator and denominator of these
+  ratios scaled by the same factor — the ratio barely moves. (Not provably exact if a click landed
+  mid-transcript, but directionally these are fine.)
+- **What IS genuinely skewed: the LLM qualitative after-pitch summary.** `generateAfterPitchSummary`
+  reads the raw segments (`getSessionTranscriptAdmin`, afterPitch.ts:123) and feeds them to the LLM —
+  which saw every line 3–5×. Its narrative / "moments" / growth-areas for those 12 sessions were
+  written off repeated text and may over-weight repeated points. AND the raw transcript a rep views
+  is visibly tripled.
+
+**Recommendation:** after the dedup, regenerate ONLY the after-pitch summary for the 12 session ids
+(the `/after-pitch` route rebuilds it from the now-clean transcript; talk_ratio etc. recompute as a
+side effect). No KPI backfill needed — the cue metrics never moved. I can script the one-shot
+regeneration over the 12 ids on your go. If the pilot's qualitative summaries aren't load-bearing yet,
+"leave as-is" is also defensible now that we know the numbers are essentially intact.
 
 ## Notes / risks
 
