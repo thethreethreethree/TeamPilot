@@ -1439,7 +1439,14 @@ export function ConversationsApp({
   // Resolve, §3.3) can chain the resolve ONLY on a confirmed send — never
   // resolve a conversation whose reply failed to leave.
   const send = async (): Promise<boolean> => {
-    if (!selected || !draft.trim() || sending) return false;
+    // Gate on the ref, not `sending` state: a double-click fires both
+    // handlers before React re-renders the disabled button, and each POST
+    // appends a customer-visible reply — a duplicate message in the
+    // highest-stakes channel. sendingRef is set synchronously so the second
+    // click bails before the first await. (The effect below keeps it mirrored
+    // for the polling tick; here it doubles as the re-entrancy latch.)
+    if (!selected || !draft.trim() || sendingRef.current) return false;
+    sendingRef.current = true;
     setSending(true);
     try {
       const res = await fetch(
@@ -1473,6 +1480,7 @@ export function ConversationsApp({
       toast.error("Couldn't send.");
       return false;
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
