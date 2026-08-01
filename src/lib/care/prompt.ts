@@ -19,6 +19,8 @@
  * reading customer transcripts.
  */
 
+import { SERVICE_PHILOSOPHY } from "./servicePhilosophy";
+
 export type CareContextPayload = {
   /** Optional product/company context the AI should ground in.
    *  Set per-tenant: e.g. "ELOSTATE — a team problem-solving
@@ -251,7 +253,11 @@ export function buildCareSystemPrompt(args: {
   aiResponseLength?: "short" | "medium" | "long";
 }): string {
   const name = (args.agentName ?? "Jeff").trim() || "Jeff";
-  const sections = [buildIdentity(name)];
+  // Identity + honesty rules FIRST (the instruction baseline), then the service
+  // philosophy that shapes HOW every reply is written. Both precede any tenant/
+  // customer-supplied content so they are the established behavior before product
+  // context, tenant guidance, or untrusted knowledge.
+  const sections = [buildIdentity(name), SERVICE_PHILOSOPHY];
   if (args.productContext) {
     sections.push(
       `\n\nPRODUCT CONTEXT — what you're representing:\n${args.productContext}\n\nIf the customer asks about something outside this context, treat it as a hand-off case.`

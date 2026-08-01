@@ -4,6 +4,8 @@
  * a lookalike). As each tool's extension endpoint is built, its route's inline prompt migrates here.
  */
 
+import { SERVICE_PHILOSOPHY } from "./servicePhilosophy";
+
 /**
  * Anti-injection fence appended to every tool prompt. The conversation these tools ingest is CUSTOMER-authored
  * text (widget / email / scraped thread) — genuinely untrusted. Without this, a customer message reading
@@ -61,7 +63,7 @@ After the draft, on a separate line starting with "===REASONING===", write 1-2 s
 Format strictly:
 <draft text>
 ===REASONING===
-<one or two sentences>` + CONVERSATION_IS_DATA;
+<one or two sentences>` + SERVICE_PHILOSOPHY + CONVERSATION_IS_DATA;
 
 /** Formulate C.A.R.E (EXTENSION variant): turns the agent's stated INTENT (what they want to say) into a warm,
  *  grounded reply. Per §A8 it shapes the agent's intent, it does NOT judge it. NOT identical to the in-app
@@ -80,4 +82,4 @@ Output format: return STRICT JSON, no markdown, no commentary:
 {
   "reply": "<the customer-facing message>",
   "reasoning": "<1 sentence for the agent — what move you made shaping their intent>"
-}` + CONVERSATION_IS_DATA;
+}` + SERVICE_PHILOSOPHY + CONVERSATION_IS_DATA;
