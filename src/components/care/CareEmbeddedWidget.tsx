@@ -388,10 +388,17 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
 
   const send = async () => {
     const body = draft.trim();
-    if (!body || sending) return;
+    // Latch synchronously BEFORE the ensureSession await — `sending` and the
+    // cleared draft are set only after it, so a double-click during that
+    // round-trip would post two duplicate customer messages.
+    if (!body || sendingRef.current) return;
+    sendingRef.current = true;
     setError(null);
     const active = await ensureSession();
-    if (!active) return;
+    if (!active) {
+      sendingRef.current = false;
+      return;
+    }
     setDraft("");
     setSending(true);
     setAiThinking(true);
@@ -436,6 +443,7 @@ export function CareEmbeddedWidget({ embedToken }: { embedToken: string }) {
       setDraft(body);
       setMessages((p) => p.filter((m) => m.id !== tempId));
     } finally {
+      sendingRef.current = false;
       setSending(false);
       setAiThinking(false);
     }

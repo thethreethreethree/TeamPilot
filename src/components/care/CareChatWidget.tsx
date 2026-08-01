@@ -350,11 +350,19 @@ export function CareChatWidget() {
 
   const handleSend = async () => {
     const body = draft.trim();
-    if (!body || sending) return;
+    // Latch synchronously BEFORE the ensureSession await. `sending` state and
+    // the cleared draft are both set only AFTER that await (a network round-
+    // trip on the first message), so without this a double-click / Enter-mash
+    // passes the guard twice and posts two duplicate customer messages.
+    if (!body || sendingRef.current) return;
+    sendingRef.current = true;
     setError(null);
 
     const active = await ensureSession();
-    if (!active) return;
+    if (!active) {
+      sendingRef.current = false;
+      return;
+    }
 
     setDraft("");
     setSending(true);
@@ -510,6 +518,7 @@ export function CareChatWidget() {
       setDraft(body);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
+      sendingRef.current = false;
       setSending(false);
       setAiThinking(false);
     }
