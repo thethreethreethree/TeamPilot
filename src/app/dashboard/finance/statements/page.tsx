@@ -50,6 +50,12 @@ export default function StatementsPage() {
   const [s, setS] = useState<Statements | null>(null);
   const [sPrior, setSPrior] = useState<Statements | null>(null);
   const [loading, setLoading] = useState(true);
+  // Distinguish a LOAD FAILURE from a genuinely-empty ledger: without this a
+  // 500 / network error left `s` null and the page told a tenant WITH data to
+  // "initialize finance" (fake-empty), and a thrown .json() skipped
+  // setLoading(false) entirely → an eternal spinner.
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [period, setPeriod] = useState<Period>("all");
   const [cFrom, setCFrom] = useState("");
   const [cf, setCf] = useState<CashFlow | null>(null);
@@ -59,28 +65,41 @@ export default function StatementsPage() {
 
   useEffect(() => {
     setLoading(true);
+    setLoadError(false);
     void (async () => {
-      const qs = new URLSearchParams();
-      if (from) qs.set("from", from);
-      if (to) qs.set("to", to);
-      const r = await fetch(`/api/finance/statements?${qs.toString()}`).then((x) => x.json());
-      fetch(`/api/finance/statements/cash-flow`)
-        .then((x) => x.json())
-        .then((j) => setCf(j.error ? null : j))
-        .catch(() => setCf(null));
-      setS(r.statements ?? null);
-      // Period-over-period: fetch the prior same-length window when a bounded period is selected.
-      if (prior.from && prior.to) {
-        const pqs = new URLSearchParams({ from: prior.from, to: prior.to });
-        const pr = await fetch(`/api/finance/statements?${pqs.toString()}`).then((x) => x.json());
-        setSPrior(pr.statements ?? null);
-      } else {
-        setSPrior(null);
+      try {
+        const qs = new URLSearchParams();
+        if (from) qs.set("from", from);
+        if (to) qs.set("to", to);
+        const res = await fetch(`/api/finance/statements?${qs.toString()}`);
+        if (!res.ok) throw new Error(`statements ${res.status}`);
+        const r = await res.json();
+        if (r.error) throw new Error(r.error);
+        fetch(`/api/finance/statements/cash-flow`)
+          .then((x) => x.json())
+          .then((j) => setCf(j.error ? null : j))
+          .catch(() => setCf(null));
+        setS(r.statements ?? null);
+        // Period-over-period: fetch the prior same-length window when a bounded period is selected.
+        if (prior.from && prior.to) {
+          const pqs = new URLSearchParams({ from: prior.from, to: prior.to });
+          const pr = await fetch(`/api/finance/statements?${pqs.toString()}`)
+            .then((x) => x.json())
+            .catch(() => null);
+          setSPrior(pr?.statements ?? null);
+        } else {
+          setSPrior(null);
+        }
+      } catch {
+        // A load failure must not masquerade as an empty ledger.
+        setLoadError(true);
+        setS(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to]);
+  }, [from, to, reloadKey]);
 
   return (
     <div className="min-h-screen bg-base">
@@ -133,7 +152,18 @@ export default function StatementsPage() {
             <Loader2 className="w-4 h-4 animate-spin" /> Deriving statements…
           </div>
         )}
-        {!loading && !s && <div className="glass-card p-6 text-sm text-muted">No data — initialize finance and post entries.</div>}
+        {!loading && loadError && (
+          <div className="glass-card p-6 text-sm text-muted flex flex-col items-start gap-3">
+            <span>Couldn&apos;t load statements. This is a load error, not an empty ledger.</span>
+            <button
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="rounded-md border border-default px-3 py-1.5 text-xs text-primary hover:bg-base/60"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {!loading && !loadError && !s && <div className="glass-card p-6 text-sm text-muted">No data — initialize finance and post entries.</div>}
         {!loading && s && (
           <>
             <div className="flex justify-end">
