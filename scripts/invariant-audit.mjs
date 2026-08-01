@@ -754,16 +754,22 @@ for (const f of FILES) {
 
 // ═══ INVARIANT 16 — every route that awaits a blocking LLM/transcription call exports maxDuration ═══
 //
-// LEARNED: 2026-07-31. A route that `await`s an LLM completion (or a batch transcription) but omits
-// `export const maxDuration` runs under Vercel's short default (~10-15s). The platform KILLS a slower
-// response mid-generation, so the feature works in dev and TIMES OUT in prod — a dev-passes/prod-fails
-// class. An earlier maxDuration sweep still left care/demo/ask + sales/demo/roleplay (the PUBLIC prospect
-// demos) uncovered, both calling generateCareReply with no ceiling. The class has recurred, so it gets a
-// gate: any route file that CALLS one of the known blocking LLM/transcription functions must set
-// maxDuration. Keyed on the call site in the route file (the common shape); a route that hides the call
-// behind a helper isn't matched — allowlist such a case here with its reason if it ever arises.
+// LEARNED: 2026-07-31, HARDENED 2026-08-02. A route that `await`s an LLM completion (or a batch
+// transcription) but omits `export const maxDuration` runs under Vercel's short default (~10-15s). The
+// platform KILLS a slower response mid-generation, so the feature works in dev and TIMES OUT in prod — a
+// dev-passes/prod-fails class. An earlier maxDuration sweep still left care/demo/ask + sales/demo/roleplay
+// (the PUBLIC prospect demos) uncovered, both calling generateCareReply with no ceiling.
+//
+// BLIND SPOT this guard originally admitted ("a route that hides the call behind a helper isn't matched"):
+// brain/learn/route.ts reached the LLM via runLearningCycle() — a lib wrapper, not a leaf name in the list
+// — so it slipped the gate and shipped with NO ceiling (found + fixed 2026-08-02, the learning cycle is
+// multiple model calls). A hardcoded leaf-name list is only as good as its last update. So the regex now
+// keys on the ACTUAL chokepoint too — llmCall / llmStream (src/lib/llm) — which every LLM path funnels
+// through, PLUS the known route-invoked wrappers. A direct-chokepoint route can no longer be missed; a new
+// wrapper still needs adding, but the common direct shape is now robust. (Only route.ts files are scanned,
+// so the chokepoint's own definition + lib callers are correctly ignored.)
 const LLM_CALL_RE =
-  /\b(generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken)\s*\(/;
+  /\b(llmCall|llmStream|generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken|runLearningCycle|runBrainCall|analyzeCoachV5|followUpCoachV5|gradeCoachV5|debriefCoachV5|liveSalesCue|proposeDecisionDialogue|generateDailyQuestions|generateDailyBriefing|proposeCoachPatterns|generateOutsideViews|traceRipples)\s*\(/;
 const MAXDURATION_ALLOWLIST = new Map();
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;
@@ -1057,6 +1063,13 @@ st("INV16 flags an LLM route without maxDuration",
 st("INV16 accepts an LLM route WITH maxDuration",
   /export const maxDuration/.test("export const maxDuration = 60;\nawait dissectCoachV5(x);"));
 st("INV16 ignores a route with no LLM call", !LLM_CALL_RE.test("const { data } = await sb.from('x').select();"));
+// Blind-spot regression locks (2026-08-02): the exact shapes that previously slipped INV16 — a route
+// reaching the LLM through a lib WRAPPER (runLearningCycle, the brain/learn miss), and one calling the raw
+// llmCall/llmStream CHOKEPOINT directly. Both must now be flagged when maxDuration is absent.
+st("INV16 flags the wrapper-indirection shape that slipped it (runLearningCycle)",
+  LLM_CALL_RE.test("const result = await runLearningCycle(companyId);"));
+st("INV16 flags a direct llmCall chokepoint route", LLM_CALL_RE.test("const r = await llmCall({ system, messages });"));
+st("INV16 flags a direct llmStream chokepoint route", LLM_CALL_RE.test("for await (const t of llmStream(args)) {}"));
 // INV17 cron-schedule: the path matcher must recognize a *-cron route and ignore a normal route; and the
 // route→key normalization must line up with the vercel.json key form so a scheduled cron isn't false-flagged.
 st("INV17 matches a *-cron route path", /-cron\/route\.ts$/.test("src/app/api/coach/kpi/compute-cron/route.ts"));
