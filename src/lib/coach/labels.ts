@@ -11,3 +11,9 @@
 /** The winning-lines library (route: /dashboard/sales-coach/strategy). Interpolate for compound forms:
  *  `Your ${ONE_LINERS_LABEL}`, `Sales Coach · ${ONE_LINERS_LABEL}`. */
 export const ONE_LINERS_LABEL = "One Liners";
+
+/** The simulated-pitch trainer (route: /dashboard/sales-coach/roleplay). Named here because the SAME label was
+ *  typed literally in the home card AND the page's TopBar (two files) — the identical cross-file duplication that
+ *  produced the One Liners drift. The nav deliberately uses the terser "Roleplay"; this fuller label is the
+ *  card + page-title form. (Found by the 2026-08-01 outside-view Sales Coach sweep — same defect class.) */
+export const ROLEPLAY_PRACTICE_LABEL = "Roleplay Practice";

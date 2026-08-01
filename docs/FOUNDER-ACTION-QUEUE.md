@@ -39,6 +39,19 @@
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
 > - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset).
 >
+> **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
+> - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
+>   TopBar (two files) — same cross-file drift class as One Liners. Centralized to `ROLEPLAY_PRACTICE_LABEL`
+>   (`src/lib/coach/labels.ts`); zero behavior change.
+> - `"reconcile the analytics label"` — the home mobile card says **"Pitch Performance"** but the destination page
+>   + nav both say **"Analytics"** (`page.tsx:176` vs `analytics/page.tsx` + shell nav). Same feature, two names —
+>   a tap lands you on a differently-titled page. Which is canonical? (I didn't rename — that's your naming call.)
+> - `"dry the coach-assessment copy"` — the `isExpert` ternary at `coach-assessment/page.tsx:194-196` repeats an
+>   identical tail sentence in both branches; an edit to one silently misses the other. LOW risk (both branches
+>   adjacent in one file) + extracting it risks a curly-apostrophe mismatch, so I left it — say the word to DRY it.
+> - `"delete SalesCoachComing"` — `src/components/sales-coach/SalesCoachComing.tsx` (the old "coming soon"
+>   placeholder) is now imported by nothing — every nav route is real. Orphaned dead code; safe to delete on your ok.
+>
 > **Product / trade-off decisions (each real, not a bug):**
 > - `"do the finance CWE-209 pass"` — raw DB errors leak at 400/403; bounded to ~21 clear-cut genericizes + ~26 `.rpc` to confirm-curated (`rates` already fixed).
 > - `"wire the KPI trajectory"` — the §3.6 "vs earlier months" arc is computed+stored but has no reader; pipeline **verified live-ready** (reader diffs the monthKey `value` series).

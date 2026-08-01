@@ -9,6 +9,7 @@ import {
   SectionLabel,
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { ROLEPLAY_PRACTICE_LABEL } from "@/lib/coach/labels";
 import {
   Target,
   Video,
@@ -189,7 +190,7 @@ export default function SalesCoachRoleplayPage() {
 
   return (
     <>
-      <TopBar title="Roleplay Practice" subtitle="Simulated pitches" />
+      <TopBar title={ROLEPLAY_PRACTICE_LABEL} subtitle="Simulated pitches" />
       <div className="flex-1 min-h-0 flex flex-col bg-base">
         {/* ── Setup ───────────────────────────────────────────────── */}
         {phase === "setup" && (

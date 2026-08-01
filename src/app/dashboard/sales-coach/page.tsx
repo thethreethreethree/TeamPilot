@@ -29,7 +29,7 @@ import {
   SectionLabel,
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
+import { ONE_LINERS_LABEL, ROLEPLAY_PRACTICE_LABEL } from "@/lib/coach/labels";
 
 /**
  * /dashboard/sales-coach — Sales Coach product home.
@@ -185,7 +185,7 @@ export default function SalesCoachHome() {
           <MobileCard
             href="/dashboard/sales-coach/roleplay"
             icon={Target}
-            title="Roleplay Practice"
+            title={ROLEPLAY_PRACTICE_LABEL}
             sub="Build your skills with simulated pitches"
           />
           <MobileCard
