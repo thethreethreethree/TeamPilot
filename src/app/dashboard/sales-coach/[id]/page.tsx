@@ -162,6 +162,11 @@ export default function SessionDetail() {
     setNamingOpen(false);
     setSessionName("");
     setNamingError(null);
+    // Reset the in-flight flag too: if a session→session control ever switches away mid-save, an unreset
+    // namingBusy would ride into the next session and render Save permanently "Saving…"/disabled — and the
+    // modal has no escape hatch, so that's a hard trap. A freshly-mounted session is never mid-save, so
+    // clearing it here is always correct. (Found by the 2026-08-01 adversarial naming-gate audit.)
+    setNamingBusy(false);
   }, [id]);
 
   // Standard (the rep's simplified flow): once a session is no longer active, the
@@ -216,6 +221,10 @@ export default function SessionDetail() {
       setNamingError("Give this session a name to continue.");
       return;
     }
+    // Re-entrancy guard: don't fire a second PATCH if one is already in flight. In practice LoadingButton
+    // disables on re-render, but every other Sales Coach mutation guards explicitly rather than trusting
+    // render timing — match that so a fast double-submit can't slip a duplicate end-and-name through.
+    if (namingBusy) return;
     setNamingBusy(true);
     setNamingError(null);
     try {
