@@ -140,7 +140,15 @@ const SETTINGS_NAV: NavItem[] = [
   { label: "Account", href: "/dashboard/care/settings/account", icon: Settings },
 ];
 
-export function CareShell({ children }: { children: React.ReactNode }) {
+export function CareShell({
+  children,
+  // Module hard-lock (0207): true for a single-module (care-locked) account — it can't return to the ELOSTATE
+  // hub (the middleware redirects it straight back), so the "Back to ELOSTATE" link is hidden. Mirrors SalesCoachShell.
+  locked = false,
+}: {
+  children: React.ReactNode;
+  locked?: boolean;
+}) {
   const pathname = usePathname() ?? "";
   // Role-filter the Tools group: hide manager-only destinations (Team, Coach Assessment — server-gated
   // CEO/COO/admin) from non-managers so a regular agent never clicks a nav item that bounces them
@@ -374,12 +382,16 @@ export function CareShell({ children }: { children: React.ReactNode }) {
             </span>
             <ThemeToggle variant="compact" />
           </div>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
-          >
-            ← Back to ELOSTATE
-          </Link>
+          {/* Hidden for a module-locked care account — it can't reach the hub (the middleware redirects it
+              straight back), so the link would be a dead loop. */}
+          {!locked && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
+            >
+              ← Back to ELOSTATE
+            </Link>
+          )}
         </div>
       </aside>
       )}

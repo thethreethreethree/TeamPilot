@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { CARE_ROOT, SALES_COACH_ROOT } from "@/lib/auth/moduleAccess";
 
 /**
  * Post-auth landing per module — the SINGLE source of truth for where a module's
@@ -9,8 +10,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export const MODULE_LANDING: Record<string, string> = {
   elostate: "/dashboard",
-  care: "/dashboard/care",
-  sales_coach: "/dashboard/sales-coach",
+  // The two module-home paths live once in moduleAccess.ts (the middleware guard's source); imported here so
+  // this map and the guard can't drift (A21 — one concept, one encoding).
+  care: CARE_ROOT,
+  sales_coach: SALES_COACH_ROOT,
 };
 
 export function moduleLanding(module: string | null | undefined): string {

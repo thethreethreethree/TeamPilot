@@ -9,6 +9,8 @@
  * real (non-null) values to compare — never a guess.
  */
 
+import { round1 } from "./compute";
+
 /** A trend needs at least this many months to mean anything; below it the UI shows a "building" state. */
 export const MIN_MONTHS_FOR_TRAJECTORY = 2;
 
@@ -37,10 +39,6 @@ export type Trajectory = {
   monthsCovered: number; // distinct periods present (regardless of value)
   metrics: MetricTrajectory[];
 };
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
 
 /**
  * Group frozen monthly rows into per-metric chronological series + honest month-over-month deltas.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { DeckCard, SectionLabel, DeckPill } from "@/components/sales-coach/ui/deck";
+import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import {
@@ -65,7 +66,7 @@ export default function SalesCoachStrategyPage() {
   return (
     <>
       <TopBar
-        title="One Liners"
+        title={ONE_LINERS_LABEL}
         subtitle="Correct lines & sales strategies"
       />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full space-y-5 bg-base">
@@ -80,11 +81,11 @@ export default function SalesCoachStrategyPage() {
           <>
             {/* ── Your One Liners (rep-private, A18) ──────────────── */}
             <section className="space-y-2.5">
-              <SectionLabel icon={Quote}>Your One Liners</SectionLabel>
+              <SectionLabel icon={Quote}>Your {ONE_LINERS_LABEL}</SectionLabel>
               <LearningHint
                 as="block"
-                category="Sales Coach · One Liners"
-                title="Your One Liners"
+                category={`Sales Coach · ${ONE_LINERS_LABEL}`}
+                title={`Your ${ONE_LINERS_LABEL}`}
                 whatItIs="The exact lines the coach surfaced on your past breakdown moments — the thing that would have landed, saved from each review, in one place."
                 why="A correct line is only useful if you can find it again before the next door. Scattered across a dozen reviews, they're forgotten; gathered here, they're a drill list you actually revisit."
                 how="Read one before a similar call and say it in your own words. These are yours alone — pulled only from your own reviews, never anyone else's."
@@ -143,7 +144,7 @@ export default function SalesCoachStrategyPage() {
               </SectionLabel>
               <LearningHint
                 as="block"
-                category="Sales Coach · One Liners"
+                category={`Sales Coach · ${ONE_LINERS_LABEL}`}
                 title="Your team's playbook"
                 whatItIs="Your company's own sales methodology — the strategy and tactics an admin authored — which is also what grounds the coach's reviews."
                 why="Generic advice is easy to ignore; your team's own playbook is the shared language everyone is coached against. Reading it is how a rep gets on the same page as the reviews they'll get."

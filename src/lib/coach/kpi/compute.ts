@@ -416,7 +416,7 @@ export function isSlippingSeries(
   return recent < prior * (1 - dropFraction);
 }
 
-function round1(n: number): number {
+export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 function round2(n: number): number {

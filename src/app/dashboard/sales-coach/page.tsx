@@ -29,6 +29,7 @@ import {
   SectionLabel,
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
 
 /**
  * /dashboard/sales-coach — Sales Coach product home.
@@ -191,9 +192,9 @@ export default function SalesCoachHome() {
             href="/dashboard/sales-coach/strategy"
             icon={Library}
             // Founder 2026-08-01: "One Liners" is the universal name now (was a Standard-only relabel — the same
-            // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Matches the
-            // nav + the page title.
-            title="One Liners"
+            // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Sourced from
+            // the shared ONE_LINERS_LABEL constant so it can't drift from the nav + page title again.
+            title={ONE_LINERS_LABEL}
             sub="Find your top-performing lines and sales strategies"
           />
         </div>

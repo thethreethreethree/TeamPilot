@@ -19,8 +19,11 @@ export type LockedModule = "care" | "sales_coach";
 /** Which module a dashboard path belongs to. "elostate" = the shared hub / any non-module route. */
 export type PathModule = LockedModule | "elostate";
 
-const SALES_COACH_ROOT = "/dashboard/sales-coach";
-const CARE_ROOT = "/dashboard/care";
+// The module home routes — the SINGLE source for these two paths. `src/lib/nav/landing.ts`'s MODULE_LANDING
+// imports them (rather than re-typing the map), so the "where a module lives" path can't drift between the
+// middleware guard and the login/redeem landing (the A21 "one concept, two encodings" class).
+export const SALES_COACH_ROOT = "/dashboard/sales-coach";
+export const CARE_ROOT = "/dashboard/care";
 
 /**
  * The module a path belongs to. A path is a module's iff it IS the module root or sits under it (`root/`), so
@@ -49,13 +52,12 @@ export function isPathAllowed(lock: LockedModule | null, pathname: string): bool
 
 /**
  * The redirect target for a request, or null if it's allowed (no redirect). Encapsulates the guard decision so
- * the layout can call one function: `const to = redirectForLock(lock, pathname); if (to) redirect(to);`.
- * Never redirects a path that's already the account's module home (avoids a redirect loop).
+ * the caller can do `const to = redirectForLock(lock, pathname); if (to) redirect(to)`. Loop-safe by
+ * construction: a module home is always inside its own subtree, so `isPathAllowed(lock, home)` is true — the
+ * early null covers the home path, and we only fall through to `moduleHome` for a genuinely disallowed path.
  */
 export function redirectForLock(lock: LockedModule | null, pathname: string): string | null {
-  if (isPathAllowed(lock, pathname)) return null;
-  const home = moduleHome(lock as LockedModule);
-  return pathname === home ? null : home;
+  return isPathAllowed(lock, pathname) ? null : moduleHome(lock as LockedModule);
 }
 
 /** Map a pilot code's `module` value to a lock. 'elostate' (complete) and anything unknown → null (no lock). */

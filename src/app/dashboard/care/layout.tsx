@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { deriveCareAccess } from "@/lib/api/careAgentAuth";
+import { lockFromPilotModule } from "@/lib/auth/moduleAccess";
 
 /**
  * Layout for every route under /dashboard/care/*.
@@ -33,6 +34,9 @@ export default async function CareLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Module hard-lock (0207): a single-module (care-locked) account can't return to the ELOSTATE hub (the
+  // middleware bounces it), so hide CareShell's "Back to ELOSTATE" link for it — mirrors SalesCoachShell.
+  let locked = false;
   if (supabaseEnabled) {
     const supabase = await createClient();
     const {
@@ -41,7 +45,7 @@ export default async function CareLayout({
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, is_support_agent, status")
+        .select("role, is_support_agent, status, companies(access_module)")
         .eq("id", user.id)
         .maybeSingle();
       const { isAgent } = deriveCareAccess({
@@ -52,8 +56,10 @@ export default async function CareLayout({
       if (!isAgent) {
         redirect("/dashboard");
       }
+      const company = (profile?.companies ?? null) as { access_module?: string | null } | null;
+      locked = !!lockFromPilotModule(company?.access_module ?? null);
     }
   }
 
-  return <CareShell>{children}</CareShell>;
+  return <CareShell locked={locked}>{children}</CareShell>;
 }

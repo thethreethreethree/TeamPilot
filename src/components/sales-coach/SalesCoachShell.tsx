@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
+import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -73,7 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
       { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
       { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
-      { label: "One Liners", href: "/dashboard/sales-coach/strategy", icon: Library },
+      { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
