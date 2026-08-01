@@ -102,7 +102,8 @@
 > chat/care/decisions would leave the task thread silently truncating. The fix is real pagination (initial
 > newest-N window + a "load older" affordance) — a UI feature + UX call, not a silent autonomous change.
 > - `"paginate the message threads"` — I build the newest-first window + load-older for chat + support + tasks
->   (+ decisions). Scope note: these FOUR are the thread-DISPLAY loaders. A completeness re-sweep also found two
+>   (+ decisions). **DESIGN READY: `docs/proposals/2026-08-02-message-thread-pagination.md`** (data layer specced;
+>   UI presented as 3 options for your call). Scope note: these FOUR are the thread-DISPLAY loaders. A completeness re-sweep also found two
 >   unbounded support_messages ANALYTICS scans (`care.ts:2021`/`2128`, voice/co-pilot cohort classification in a
 >   leadership readout) — those belong to the silent-truncation class below, not pagination.
 >
