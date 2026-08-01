@@ -45,7 +45,7 @@
 > duplicate TENANT on onboarding). All ~25 client instances are fixed + latched (an independent adversarial
 > re-audit caught 6 more I'd missed + one false "fix"). Three durable server-side backstops are schema/design
 > calls only you should make (details in the blocks below): `"onboarding RPC advisory lock"` (HIGH — concurrent
-> double-create still makes two companies), `"transcript segment dedup constraint"` (MED), `"/respond server
+> double-create still makes two companies), `"transcript segment dedup constraint"` (HIGH — ~20% of coaching sessions already have duplicated transcripts; read-only prod count confirmed 128 excess rows), `"/respond server
 > idempotency"` (LOW, design). Plus `"finance read-path error handling"` (MED — 62 sites show infinite-spinner /
 > fake-empty on load failure; recommend a shared fetch helper, exemplar `finance/statements` already fixed).
 >
@@ -121,15 +121,19 @@
 > codebase already uses in 0071 (chat topic) and 0127/0128/0152/0153 (finance). This is the TOCTOU my notes had
 > flagged at "0047 onboarding"; it was never actually locked. Recommend as a migration.
 
-> **`"transcript segment dedup constraint"` (MED — data integrity, schema change) — 2026-08-01.**
+> **`"transcript segment dedup constraint"` (HIGH — EXISTING production corruption confirmed, schema change) — 2026-08-01.**
 > `coaching_transcript_segments` (0070) has only a NON-unique index on `(session_id, seq)` and rules forbidding
-> UPDATE + DELETE, while `appendTranscriptSegment` is a plain insert with no `onConflict`. So ANY duplicate-append
-> path (I fixed the client double-click in `5d8be3ac`, but a second tab, a client retry, or a future caller still
-> qualifies) permanently duplicates the transcript the after-pitch review + coaching scores run on — and because
-> the table is no-delete, it can't be cleaned up. Durable fix: a `unique (session_id, seq)` constraint so the DB
-> rejects the second insert (the code already treats a null return as "not appended", so it degrades cleanly).
-> Recommend as a migration. This is the same shape as the diagnose/decisions server gates that made those flows
-> safe regardless of the client — the transcript table is missing its equivalent.
+> UPDATE + DELETE, while `appendTranscriptSegment` is a plain insert with no `onConflict`. The label double-click
+> bug (client side now fixed, `5d8be3ac`) has **ALREADY corrupted live data** — I ran a read-only count against
+> prod: **97 duplicate (session_id, seq) groups, 128 excess rows = 13.8% of ALL 928 transcript segments, across
+> 12 of 61 sessions (~20%).** Those 12 sessions' after-pitch reviews + coaching scores ran on transcripts inflated
+> 3–5×. So this is not preventive any more — there's a cleanup to do AND a recurrence to seal. Recommended migration
+> (founder-gated; touches append-only prod data, so review carefully): (1) temporarily drop the no-delete rule;
+> (2) dedup keeping one row per (session_id, seq) — `DELETE … USING` a `row_number()` CTE / min(ctid); (3) re-add
+> the no-delete rule; (4) add `unique (session_id, seq)` so the DB rejects future double-appends (the code already
+> treats a null return as "not appended", so it degrades cleanly). SEPARATE decision: re-generate the after-pitch
+> summary + KPI scores for the 12 affected sessions, since they were computed on corrupt transcripts. I can draft
+> the migration + the affected-session id list on your go — I did NOT touch prod data (read-only diagnostic only).
 
 > **Append-only double-write sweep (2026-08-01) — 9 fixed, 1 server follow-up flagged:** ✅ A recurring
 > corruption class — an async handler that POST-appends an immutable row guarded ONLY by a React busy-state +
