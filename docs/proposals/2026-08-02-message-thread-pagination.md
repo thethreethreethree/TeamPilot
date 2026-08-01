@@ -23,32 +23,52 @@ already-unbounded reads.
 
 ## 2. Data-layer design (UX-independent — this part is not a UX call)
 
-**Keyset (cursor) pagination, newest-first**, on the existing `created_at` index. Each thread loader gains two
-optional params; called with none, behaviour is IDENTICAL to today for threads under the cap (so adoption is
-incremental and safe):
+**Keyset (cursor) pagination, newest-first**, on `(created_at, id)`. Each thread loader gains two optional
+params; called with none, behaviour is IDENTICAL to today for threads under the cap (so adoption is incremental
+and safe):
 
 ```ts
 // Example for chats; the same shape for support_messages / task_messages.
 export async function fetchMessagesPage(
   topicId: string,
-  opts?: { before?: string /* ISO cursor */; limit?: number /* default 50, max 200 */ }
-): Promise<{ messages: ChatMessage[]; hasMore: boolean; nextCursor: string | null }> {
+  opts?: { before?: { createdAt: string; id: string } /* compound cursor */; limit?: number /* default 50, max 200 */ }
+): Promise<{ messages: ChatMessage[]; hasMore: boolean; nextCursor: { createdAt: string; id: string } | null }> {
   const limit = Math.min(opts?.limit ?? 50, 200);
   let q = supabase.from("chat_messages").select("...").eq("topic_id", topicId)
-    .order("created_at", { ascending: false })          // NEWEST first
+    // Tie-break on id so rows that share a created_at have a total order — see the CRITICAL note below.
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);                                   // +1 to detect hasMore
-  if (opts?.before) q = q.lt("created_at", opts.before); // older than the cursor
+  if (opts?.before) {
+    // "strictly older than the cursor" under (created_at DESC, id DESC):
+    //   created_at < C  OR  (created_at = C AND id < cursorId)
+    q = q.or(
+      `created_at.lt.${opts.before.createdAt},and(created_at.eq.${opts.before.createdAt},id.lt.${opts.before.id})`
+    );
+  }
   const rows = (await q).data ?? [];
   const hasMore = rows.length > limit;
-  const page = rows.slice(0, limit).reverse();           // back to ascending for display
-  return { messages: page, hasMore, nextCursor: hasMore ? rows[limit - 1].created_at : null };
+  const page = rows.slice(0, limit);                     // the `limit` newest, still DESC
+  const oldest = page[page.length - 1];                  // page's oldest row = the cursor for the next page
+  return {
+    messages: page.reverse(),                            // back to ascending for display
+    hasMore,
+    nextCursor: hasMore && oldest ? { createdAt: oldest.created_at, id: oldest.id } : null,
+  };
 }
 ```
 
-Notes: keyset (not `offset`) so it's stable as new messages arrive; `limit+1` detects `hasMore` without a
-count; `<` on the cursor (created_at is effectively unique per thread; if a same-ms collision is ever a
-concern, extend the cursor to `(created_at, id)`). The existing full-thread loaders stay until every caller
-adopts the paged one, then are deleted.
+**CRITICAL — why the compound `(created_at, id)` cursor is the DEFAULT, not an option (adversarial review
+2026-08-02):** a bare `.lt("created_at", oldestOfPage)` cursor SILENTLY DROPS a message at the page boundary
+whenever the discarded sentinel row (`rows[limit]`) shares a `created_at` with the page's oldest row
+(`rows[limit-1]`) — the sentinel is dropped from this page AND excluded from the next by the strict `<`. Ties
+happen in real threads (rapid messages, batch/import inserts), and a message thread that silently loses a
+message is exactly the corruption this proposal exists to prevent. The compound cursor gives every row a total
+order so no row can hide in a timestamp tie. Requires a `(topic_id, created_at, id)` composite index per thread
+table for the keyset to stay index-only (add it in the same change; cheap, read-path only).
+
+Other notes: keyset (not `offset`) so it's stable as new messages arrive; `limit+1` detects `hasMore` without a
+count. The existing full-thread loaders stay until every caller adopts the paged one, then are deleted.
 
 ## 3. UI — three options (YOUR call)
 
@@ -69,7 +89,9 @@ fits; it's lower-growth so lowest priority.
 1. Add the paged loader alongside each existing one (additive, no behaviour change).
 2. Unit-test each: newest-first ordering, `hasMore`/`nextCursor` correctness, the `before` cursor filters
    older-only, and a >`limit` fixture returns exactly `limit` + `hasMore:true` (the regression the whole thing
-   fixes).
+   fixes). **Must-have tie case:** seed two messages with the SAME `created_at` straddling the page boundary
+   (one as the page's last row, one as the sentinel) and assert BOTH appear across the two pages — this is the
+   message-drop the compound `(created_at, id)` cursor prevents, and a bare created_at cursor fails it.
 3. Wire the chosen UI per surface; delete the old full-thread loader once its callers migrate.
 4. Staging check on a seeded >1000-message thread that the newest messages now appear (they currently don't).
 
