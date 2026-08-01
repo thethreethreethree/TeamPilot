@@ -120,6 +120,18 @@ export async function POST(req: NextRequest) {
     if (!preUploadedPath.startsWith(`${auth.companyId}/`)) {
       return NextResponse.json({ error: "Invalid storage path." }, { status: 403 });
     }
+    // The prefix check alone is bypassable by a '..' segment: "co/../otherco/x"
+    // still startsWith "co/". Supabase treats keys literally today (so this is
+    // not a live traversal), but buildStoragePath — which this signed-URL branch
+    // SKIPS — explicitly sanitizes keys "even if the storage backend treats keys
+    // literally today, we don't depend on it". Enforce the same posture here so
+    // the two upload paths can't diverge: reject any '..'/'.' segment or backslash.
+    if (
+      preUploadedPath.split("/").some((seg) => seg === ".." || seg === ".") ||
+      preUploadedPath.includes("\\")
+    ) {
+      return NextResponse.json({ error: "Invalid storage path." }, { status: 403 });
+    }
     fileName =
       typeof body.originalFilename === "string" && body.originalFilename.trim()
         ? body.originalFilename
