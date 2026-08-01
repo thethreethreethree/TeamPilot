@@ -1000,6 +1000,11 @@ export function ConversationsApp({
     setAiReasoning(null);
     setAiPrecedents([]);
     setIsInternalNote(false);
+    // Reset the Co-Pilot in-flight flag too: an A-conversation Co-Pilot call may still be pending, but
+    // its result is now discarded by the reqId guard in askAiCoPilot, and its finally won't touch this
+    // flag once we've switched. Clearing here re-enables B's Co-Pilot button immediately instead of
+    // leaving it disabled until A's stale call resolves.
+    setAiDrafting(false);
     // Close every per-conversation OVERLAY/PANEL on switch — same bleed class as the draft (§A26).
     // These all bind to `selected` reactively: ResolutionCaptureModal + TaskRefinementPanel take
     // conversationId={selected.id}, so leaving one open and navigating (J/K works even under the
@@ -1489,17 +1494,27 @@ export function ConversationsApp({
 
   const askAiCoPilot = async () => {
     if (!selected || aiDrafting) return;
+    // The conversation this draft is FOR. Co-Pilot is a multi-second LLM call; the agent can switch
+    // conversations before it resolves. Every write below is gated on this still being the selected
+    // conversation (mirroring loadDetail's latestDetailReqRef guard) — else A's AI reply + provenance
+    // would land in B's composer and be SENT to B's customer, stamped as B's learning record. This was
+    // the one async writer into shared per-conversation state with no staleness guard.
+    const reqId = selected.id;
     setAiDrafting(true);
     setAiReasoning(null);
     setAiOriginalDraft(null);
     setAiPrecedents([]);
     try {
       const res = await fetch(
-        `/api/care/agent/conversations/${selected.id}/co-pilot`,
+        `/api/care/agent/conversations/${reqId}/co-pilot`,
         { method: "POST" }
       );
+      // A newer selection superseded this request — discard the stale response (re-checked after the
+      // json() parse too, another suspension point).
+      if (latestDetailReqRef.current !== reqId) return;
       if (res.ok) {
         const data = await res.json();
+        if (latestDetailReqRef.current !== reqId) return;
         if (data.suppressed) {
           toast.info(
             data.message ??
@@ -1527,7 +1542,10 @@ export function ConversationsApp({
         );
       }
     } finally {
-      setAiDrafting(false);
+      // Only clear the flag if we're still on this conversation — otherwise a stale resolution would
+      // re-enable the Co-Pilot button for the conversation the agent has since switched to (mid-draft).
+      // The switch effect resets aiDrafting for the newly-selected conversation.
+      if (latestDetailReqRef.current === reqId) setAiDrafting(false);
     }
   };
 
