@@ -162,6 +162,16 @@ export default function ResolutionsPage() {
           </div>
         )}
 
+        {!loading && mode === "live-error" && (
+          <div className="glass-card p-8 text-center">
+            <p className="text-sm text-primary mb-2">Couldn&apos;t load your resolutions.</p>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+              This is a load error, not an empty list — your resolutions are safe.
+              Refresh to try again.
+            </p>
+          </div>
+        )}
+
         {!loading && mode === "live-empty" && (
           <div className="glass-card p-8 text-center">
             <p className="text-sm text-primary mb-2">No resolutions yet.</p>
