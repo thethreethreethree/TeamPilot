@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { siteUrl } from "../siteUrl";
 
 /**
@@ -38,4 +40,27 @@ describe("siteUrl", () => {
     vi.stubEnv("NODE_ENV", "development");
     expect(siteUrl()).toBe("http://localhost:3000");
   });
+});
+
+/**
+ * DRIFT GUARD — the original SEO bug (canonical/sitemap = localhost:4321 in prod) was ONLY detectable by
+ * observing live output; no test caught it. Now that siteUrl() is the single production-safe source, this
+ * makes a REINTRODUCTION test-detectable: the three consumers must DELEGATE to siteUrl() and must NOT inline
+ * their own `NEXT_PUBLIC_SITE_URL ?? "..."` fallback again (that literal is encapsulated in siteUrl.ts alone).
+ */
+describe("origin-fallback drift guard (canonical/sitemap/robots must delegate to siteUrl)", () => {
+  const root = join(__dirname, "..", "..", "app");
+  const consumers = ["layout.tsx", "sitemap.ts", "robots.ts"];
+  for (const f of consumers) {
+    it(`${f} uses siteUrl() and does NOT inline a NEXT_PUBLIC_SITE_URL fallback`, () => {
+      const src = readFileSync(join(root, f), "utf8");
+      expect(src, `${f} must call siteUrl()`).toContain("siteUrl(");
+      // The env ACCESS lives ONLY in siteUrl.ts now; `process.env.NEXT_PUBLIC_SITE_URL` here means a re-inlined
+      // fallback (a comment mentioning the var by name is fine — we target the code access, not documentation).
+      expect(src, `${f} must not re-inline process.env.NEXT_PUBLIC_SITE_URL — delegate to siteUrl()`).not.toContain(
+        "process.env.NEXT_PUBLIC_SITE_URL"
+      );
+      expect(src, `${f} must not hardcode the localhost:4321 origin`).not.toContain("localhost:4321");
+    });
+  }
 });
