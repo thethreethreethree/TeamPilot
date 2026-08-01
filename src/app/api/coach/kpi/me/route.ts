@@ -75,14 +75,19 @@ export async function GET() {
   // Quota attainment (founder: monthly deals-won target). Fetch the company target (A34-guarded: a missing
   // column pre-0206, or any read error, leaves the target null → the metric reads "building", never a guess).
   let monthlyTarget: number | null = null;
-  {
-    const { data: co, error: coErr } = await sb
+  // The company target and the after-pitch scores are independent reads (one keys on companyId, the
+  // other on the agent), so fetch them concurrently instead of serially. apRows feeds the Layer-3
+  // block below; the quota computation right after uses only monthlyTarget. Each read's error is
+  // handled exactly as before (A34-guarded target; apRows ?? []).
+  const [{ data: co, error: coErr }, { data: apRows }] = await Promise.all([
+    sb
       .from("companies")
       .select("sales_coach_monthly_deal_target")
       .eq("id", ctx.companyId)
-      .maybeSingle();
-    if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
-  }
+      .maybeSingle(),
+    sb.from("after_pitch_summaries").select("session_id, payload").eq("agent_id", ctx.userId),
+  ]);
+  if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
   const monthPrefix = monthKeyUtc(new Date());
   const dealsWonThisMonth = rows.filter(
     (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
@@ -98,12 +103,8 @@ export async function GET() {
     avgSessionDurationMin: selfDelta(rows, avgSessionDurationMin),
   };
 
-  // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a ScoreCategory[].
-  const { data: apRows } = await sb
-    .from("after_pitch_summaries")
-    .select("session_id, payload")
-    .eq("agent_id", ctx.userId);
-
+  // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a
+  // ScoreCategory[]. apRows was fetched above, in parallel with the company target.
   const layer3Rows: Layer3ScoreInput[] = (apRows ?? []).map((r) =>
     layer3InputFromPayload(r.session_id as string, r.payload)
   );
