@@ -897,6 +897,36 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 20 — every redirect in the auth middleware preserves rotated session cookies ═══════
+//
+// LEARNED: 2026-08-01 (5d3219f0). src/middleware.ts refreshes the Supabase session; when getUser() rotates
+// an expiring token, the fresh cookies are accumulated onto `response` via the setAll callback. A bare
+// NextResponse.redirect(url) is a NEW response that DROPS those Set-Cookie headers → the browser keeps the
+// pre-rotation cookie, the server may have already invalidated it → intermittent logout of a paying user.
+// The module-lock redirect added the same session put this on the HOT /dashboard path. The fix routes every
+// guard return through ONE redirectPreservingCookies() helper that copies response.cookies onto the redirect.
+// This gate keeps it that way: after stripping comments, middleware.ts may hold only the helper's single
+// NextResponse.redirect( — a SECOND raw redirect bypasses the cookie copy and silently reopens the logout bug.
+const mwFile = FILES.find((f) => f.path === "src/middleware.ts");
+if (mwFile) {
+  const codeOnly = mwFile.sql
+    .split("\n")
+    .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)) // drop JSDoc/line-comment lines (they mention the API by name)
+    .join("\n");
+  const rawRedirects = (codeOnly.match(/NextResponse\.redirect\(/g) ?? []).length;
+  if (rawRedirects > 1) {
+    findings.push({
+      rule: "Auth middleware redirect bypasses the cookie-preserving helper (intermittent-logout risk)",
+      file: mwFile.path,
+      why:
+        "src/middleware.ts has more than one `NextResponse.redirect(` (comments stripped) — the single\n" +
+        "      legitimate call is inside redirectPreservingCookies(). Any other raw redirect after getUser()\n" +
+        "      drops the rotated session cookies (the 5d3219f0 intermittent-logout bug). Route the new\n" +
+        "      redirect through redirectPreservingCookies(response, url) instead.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -1001,6 +1031,13 @@ st("INV19 accepts an append WITH an owner check",
     SESSION_OWNER_CHECK_RE.test("if (session.agentId !== auth.user.id) return forbidden();"));
 st("INV19 ignores a route with no owner-required append",
   !OWNER_REQUIRED_APPEND_RE.test("await appendSomethingElse({ id });"));
+// INV20 middleware cookie-preservation: the comment-stripped count must flag a second raw redirect, accept the
+// single helper redirect, and NOT count a redirect named only in a JSDoc comment (the false-positive to avoid).
+const inv20Count = (s) =>
+  (s.split("\n").filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join("\n").match(/NextResponse\.redirect\(/g) ?? []).length;
+st("INV20 flags a second raw redirect", inv20Count("const r = NextResponse.redirect(u);\nreturn NextResponse.redirect(x);") > 1);
+st("INV20 accepts the single helper redirect", inv20Count("  const redirect = NextResponse.redirect(url);") <= 1);
+st("INV20 ignores a redirect named in a JSDoc comment", inv20Count(" * a bare NextResponse.redirect(url) drops cookies") === 0);
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -1026,7 +1063,8 @@ if (findings.length === 0) {
       " every LLM/transcription route exports maxDuration (no prod timeout) ·" +
       " every cron route registered in vercel.json (no silently-dead cron) ·" +
       " every non-public mutation route references a recognised auth/tenant gate (no anon-writable route) ·" +
-      " every owner-required service-role append (cue / cue-outcome / transcript) carries a session-owner check (no cross-user injection)."
+      " every owner-required service-role append (cue / cue-outcome / transcript) carries a session-owner check (no cross-user injection) ·" +
+      " every auth-middleware redirect preserves rotated session cookies (no intermittent logout)."
   );
   process.exit(0);
 }
