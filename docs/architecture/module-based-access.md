@@ -74,6 +74,22 @@ sales_coach-locked account *could* call `/api/care/*` directly and vice-versa.
 - Pure decision core (`moduleAccess.ts`) has 13 unit tests; the RLS read is behaviorally proven (a locked user
   can read `access_module`).
 
+### Source-spec compliance (verified 2026-08-01 against `PILOT-ACCESS-CODES.pdf`)
+
+The three tiers here are the same ones on the confidential codes handout, and the account-creation system was
+cross-checked against that source PDF end-to-end — all compliant:
+
+| PDF promise | Where it holds |
+|---|---|
+| Unambiguous alphabet (no `0/O/1/I/L`) | `PILOT_CODE_ALPHABET` (`src/lib/pilot/generateCode.ts`) = `ABCDEFGHJKMNPQRSTUVWXYZ23456789`; guarded by `generateCode.test.ts` (asserts the 5 glyphs are excluded — a future edit re-adding one fails CI, not a client's support ticket) |
+| 7-char, single-use, case-insensitive redeem | `PILOT_CODE_LENGTH=7`; `redeem_pilot_code` row-lock single-use; `upper(trim(code))` lookup (0197) |
+| Each code provisions "that code's module" | `pilot_codes.module ∈ (elostate, care, sales_coach)` → 0207 stamps `companies.access_module` → this lock confines |
+
+The 100 live codes are NOT in the repo (confidential; generated + inserted out-of-band via
+`scripts/pilot-generate.mjs`, which draws from the same guarded alphabet). 0197's header still describes the
+original *soft* land-in-module decision — that's a correct append-only historical record; 0207's header
+documents superseding it with this hard lock, and this doc is the current-state source of truth.
+
 ## Adding a new module — the checklist (so the care-gate gap doesn't recur)
 
 1. Add its `access_module` value + the redeem/provisioning path.
