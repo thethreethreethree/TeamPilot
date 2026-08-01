@@ -140,6 +140,10 @@
 > treats a null return as "not appended", so it degrades cleanly). SEPARATE decision: re-generate the after-pitch
 > summary + KPI scores for the 12 affected sessions, since they were computed on corrupt transcripts. I can draft
 > the migration + the affected-session id list on your go — I did NOT touch prod data (read-only diagnostic only).
+> **A full reviewable draft is now written: [`docs/proposals/2026-08-01-transcript-dedup-cleanup.md`] — the exact
+> 12 affected session ids, a dry-run count query, the single-transaction dedup+constraint SQL (drops/re-adds the
+> no-delete rule safely), verification queries, and the re-scoring decision. Review + promote to a migration when
+> you're ready; say `"apply the transcript cleanup"` and I'll turn it into the migration file + apply it.**
 
 > **Append-only double-write sweep (2026-08-01) — 9 fixed, 1 server follow-up flagged:** ✅ A recurring
 > corruption class — an async handler that POST-appends an immutable row guarded ONLY by a React busy-state +
