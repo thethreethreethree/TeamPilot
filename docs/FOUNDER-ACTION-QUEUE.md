@@ -79,6 +79,16 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **`"transcript segment dedup constraint"` (MED — data integrity, schema change) — 2026-08-01.**
+> `coaching_transcript_segments` (0070) has only a NON-unique index on `(session_id, seq)` and rules forbidding
+> UPDATE + DELETE, while `appendTranscriptSegment` is a plain insert with no `onConflict`. So ANY duplicate-append
+> path (I fixed the client double-click in `5d8be3ac`, but a second tab, a client retry, or a future caller still
+> qualifies) permanently duplicates the transcript the after-pitch review + coaching scores run on — and because
+> the table is no-delete, it can't be cleaned up. Durable fix: a `unique (session_id, seq)` constraint so the DB
+> rejects the second insert (the code already treats a null return as "not appended", so it degrades cleanly).
+> Recommend as a migration. This is the same shape as the diagnose/decisions server gates that made those flows
+> safe regardless of the client — the transcript table is missing its equivalent.
+
 > **Append-only double-write sweep (2026-08-01) — 9 fixed, 1 server follow-up flagged:** ✅ A recurring
 > corruption class — an async handler that POST-appends an immutable row guarded ONLY by a React busy-state +
 > disabled button (applied a render too late to stop a double-click). Fixed across every thesis-critical append
