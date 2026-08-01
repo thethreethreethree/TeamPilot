@@ -814,6 +814,27 @@ for (const f of FILES) {
     });
   }
 }
+// The REVERSE direction: every vercel.json cron `path` must resolve to a route file. A schedule entry
+// whose route was deleted/renamed makes the platform 404 on EVERY scheduled run — a silent cron failure
+// (the opposite of a dead route: here the SCHEDULE is live but the code it points at is gone). The forward
+// loop above catches a route with no schedule; this catches a schedule with no route.
+const cronRouteKeys = new Set(
+  FILES.filter((f) => /-cron\/route\.ts$/.test(f.path)).map((f) =>
+    f.path.replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, "")
+  )
+);
+for (const key of scheduledCronKeys) {
+  if (!cronRouteKeys.has(key)) {
+    findings.push({
+      rule: "vercel.json cron path has no route (scheduled 404 on every run)",
+      file: `vercel.json -> /api/${key}`,
+      why:
+        `vercel.json schedules "/api/${key}" but no matching *-cron route file exists — the platform will\n` +
+        "      404 on every scheduled run (silent cron failure). Remove the stale crons entry, or restore/\n" +
+        "      rename the route to match the scheduled path.",
+    });
+  }
+}
 
 // ═══ INVARIANT 18 — every non-public mutation route references a recognised auth/tenant gate ═══════
 //
@@ -1088,6 +1109,12 @@ st("INV3 ADD_COL_RE extracts an added column name",
 st("INV3 CREATE_TBL_RE extracts a created table name",
   [...("create table if not exists fin_widgets (id uuid)").matchAll(CREATE_TBL_RE)][0]?.[1] === "fin_widgets");
 st("INV3 camel() maps snake_case -> camelCase (the src/ reachability name-match)", camel("foo_bar_baz") === "fooBarBaz");
+// INV17 reverse (vercel.json path -> route): the load-bearing part is that the vercel-path normalization and
+// the route-path normalization yield the SAME cron key — if either regex drifts they'd never match and the
+// reverse check would silently pass everything. Lock that they agree on a synthetic cron.
+st("INV17 vercel-path and route-path normalize to the same cron key",
+  "/api/foo/bar-cron".replace(/^\/?api\//, "").replace(/^\//, "") ===
+    "src/app/api/foo/bar-cron/route.ts".replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, ""));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
