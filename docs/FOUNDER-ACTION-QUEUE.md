@@ -79,6 +79,17 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **`"onboarding RPC advisory lock"` (HIGH — duplicate tenant on first run, schema change) — 2026-08-01.**
+> `complete_company_onboarding` (0047) short-circuits if the user already has a `company_id`, so SEQUENTIAL
+> retries are safe. But it's check-then-insert with NO lock: two CONCURRENT calls (two tabs, or a network retry
+> racing the first) both read null, both `insert into companies`, and the profiles `on conflict (id)` upsert lets
+> the second win — creating a SECOND company and orphaning the first tenant on the user's very first action.
+> I closed the single-client double-click with a client latch (`3fdc8cbe`), but the concurrent race is server-side.
+> Durable fix: `pg_advisory_xact_lock(hashtext(v_user_id::text))` at the top of the RPC so concurrent calls
+> serialize and the second reads the committed company_id and short-circuits — the SAME advisory-lock pattern the
+> codebase already uses in 0071 (chat topic) and 0127/0128/0152/0153 (finance). This is the TOCTOU my notes had
+> flagged at "0047 onboarding"; it was never actually locked. Recommend as a migration.
+
 > **`"transcript segment dedup constraint"` (MED — data integrity, schema change) — 2026-08-01.**
 > `coaching_transcript_segments` (0070) has only a NON-unique index on `(session_id, seq)` and rules forbidding
 > UPDATE + DELETE, while `appendTranscriptSegment` is a plain insert with no `onConflict`. So ANY duplicate-append
