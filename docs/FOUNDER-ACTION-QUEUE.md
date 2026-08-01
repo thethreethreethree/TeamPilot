@@ -57,6 +57,28 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
+> **Operations module audit (2026-08-01, out-of-directive but real production code) — 2 fixed, findings flagged:**
+> Deep adversarial audit of `operations/[id]/page.tsx` (a module beyond the Sales Coach + C.A.R.E directive).
+> ✅ **FIXED** (`e256881a`): status-transition double-submit (posted duplicate status_changed events on the
+> append-only chain) + composer draft-bleed on a task→task deep-link (posted task A's draft to B). Remaining,
+> FLAGGED (out-of-directive, your prioritization):
+> - `"fix the operations data-layer error-as-no-data"` — HIGH. `src/lib/data/tasks.ts` `fetchTask`/
+>   `fetchTaskMessages`/`fetchTaskParticipants` discard the Supabase query `error` → return null/[], so a
+>   transient RLS/network failure renders "Task not found" / "No messages yet" / "No participants" — an active
+>   task looks deleted / a live thread looks empty (user re-posts a duplicate). The sibling `fetchTasks` already
+>   splits `live-error` vs `live-empty`; the detail-path functions never got it.
+> - `"guard the operations async-writer bleed"` — MED. `submitMessage`/`transitionStatus` call `void load()` +
+>   an optimistic `setMessages` from a stale-`id` closure; a mid-flight task→task nav lands A's result in B.
+> - `"format the operations deadline"` — LOW. `dueDate` renders as a raw ISO string.
+>
+> **DATA-LAYER error-as-no-data VARIANT (class note, 2026-08-01):** the operations audit revealed a THIRD variant
+> of the error-dressed-as-no-data class my earlier sweeps missed — `src/lib/data/*.ts` functions that discard the
+> `{data, error}` destructure (32 sites, MOST benign) and return null/[]. It's a real bug ONLY where the function
+> feeds a PRIMARY display whose caller renders empty on null/[] (tasks.ts above is the confirmed instance). A
+> route that 200+empties on a swallowed DB error would also defeat a client `res.ok` error-check. A careful
+> per-caller audit of the 32 sites (which feed a primary display?) is a genuine follow-up — flagged, not
+> blanket-fixed, since most discards are legitimately fine (config-default reads, deliberate degrades).
+
 > **Sales-side pilot tracking — ✅ BUILT (2026-08-01): `/founder/pilot-codes`.** The gap was real: nothing
 > showed which of the 100 seeded codes are spent vs available, per module, or who redeemed which (only new
 > COMPANIES appeared, in `admin/crm/accounts`). Built a founder-only tracker (server component, gated by the
