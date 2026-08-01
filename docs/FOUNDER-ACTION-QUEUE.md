@@ -48,7 +48,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > **Security / infra (do when convenient — none is a live HIGH hole):**
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
-> - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset).
+> - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset — confirmed still unset via live /api/health 2026-08-02: `anthropic:false`, so DeepSeek is a single point of failure for ALL AI).
+> - ✅ **FIXED autonomously 2026-08-02 (`77d26336`) — LIVE SEO BUG:** curling elostate.com showed the homepage's
+>   `<link rel="canonical">` AND the entire /sitemap.xml pointing to **`http://localhost:4321`** (Astro-port
+>   dev default). Root cause: `NEXT_PUBLIC_SITE_URL` is unset in Vercel and layout/sitemap/robots all fell back
+>   to a localhost literal → search engines credited/crawled a non-existent localhost, silently tanking SEO for
+>   weeks. Fixed the fallback to be production-safe (`https://elostate.com` in prod, never localhost) + DRY'd to
+>   one helper + tests. Deploys on next build. **You may still set `NEXT_PUBLIC_SITE_URL` in Vercel** (the proper
+>   override, e.g. if the canonical domain ever changes) but it's no longer REQUIRED for a correct canonical.
 >
 > **Data integrity (2026-08-01 app-wide re-entrancy audit — ~25 double-write bugs FIXED autonomously; 3 server
 > backstops need YOU):** A systemic class — append handlers guarded only by React state double-wrote on a
