@@ -39,6 +39,16 @@
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
 > - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset).
 >
+> **Data integrity (2026-08-01 app-wide re-entrancy audit — ~25 double-write bugs FIXED autonomously; 3 server
+> backstops need YOU):** A systemic class — append handlers guarded only by React state double-wrote on a
+> double-click (duplicate decisions, resolutions, customer messages, transcript segments, and — worst — a
+> duplicate TENANT on onboarding). All ~25 client instances are fixed + latched (an independent adversarial
+> re-audit caught 6 more I'd missed + one false "fix"). Three durable server-side backstops are schema/design
+> calls only you should make (details in the blocks below): `"onboarding RPC advisory lock"` (HIGH — concurrent
+> double-create still makes two companies), `"transcript segment dedup constraint"` (MED), `"/respond server
+> idempotency"` (LOW, design). Plus `"finance read-path error handling"` (MED — 62 sites show infinite-spinner /
+> fake-empty on load failure; recommend a shared fetch helper, exemplar `finance/statements` already fixed).
+>
 > **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
 > - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
 >   TopBar (two files) — same cross-file drift class as One Liners. Centralized to `ROLEPLAY_PRACTICE_LABEL`
