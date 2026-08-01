@@ -22,7 +22,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import type { TaskCanonicalStatus } from "@/lib/tasks/statusLabels";
@@ -129,6 +129,7 @@ export default function OperationsPage() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
   const [members, setMembers] = useState<TeamMember[]>([]);
 
@@ -212,6 +213,11 @@ export default function OperationsPage() {
       setError("A blocker reason is required when a task is Blocked.");
       return;
     }
+    // Synchronous latch: on the CREATE path (editing=false → POST) a double-click
+    // would make two tasks. (Tasks are editable/deletable so it's recoverable,
+    // unlike the immutable chains — but still a duplicate to avoid.)
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
     try {
@@ -237,6 +243,7 @@ export default function OperationsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -657,6 +664,18 @@ function ModeBanner(_: { mode: FetchTasksMode }): React.ReactElement | null {
 }
 
 function EmptyState({ mode, hasFilter }: { mode: FetchTasksMode; hasFilter: boolean }) {
+  // A LOAD FAILURE must not read as "no tasks" — fetchTasks returns mode
+  // "live-error" distinctly, but this render only handled "live-empty", so a
+  // failed load fell through to the bare "No tasks." fallback (fake-empty). Show
+  // the error first, regardless of any active filter.
+  if (mode === "live-error") {
+    return (
+      <p className="text-center text-xs text-muted py-10">
+        Couldn&apos;t load tasks — this is a load error, not an empty list. Your
+        tasks are safe; refresh to try again.
+      </p>
+    );
+  }
   if (hasFilter) {
     return (
       <p className="text-center text-xs text-muted py-10">
