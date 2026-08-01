@@ -4,6 +4,7 @@ import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
+import { coerceJsonText } from "@/lib/llm/coerceJson";
 import { FORMULATE_SYSTEM } from "@/lib/care/toolPrompts";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -65,10 +66,13 @@ ${productContext}`,
       userMessage: `Conversation so far:\n${body.conversation}\n\nAgent's intent (what they want to communicate):\n${body.intent}\n\nShape the agent's intent into a reply. Return STRICT JSON.`,
     });
     // The prompt asks for strict JSON {reply, reasoning}; degrade gracefully if the model wraps or strays.
+    // generateCareReply is expectJson:false (prose helper), so this gets no json_object mode and no llmCall
+    // coercion — coerceJsonText extracts the JSON from a ```json fence / preamble so the agent gets a clean
+    // {reply, reasoning} instead of the raw-fenced-text fallback (which would leak markdown into their draft).
     let reply = "";
     let reasoning = "";
     try {
-      const parsed = JSON.parse(r.text) as { reply?: unknown; reasoning?: unknown };
+      const parsed = JSON.parse(coerceJsonText(r.text)) as { reply?: unknown; reasoning?: unknown };
       reply = typeof parsed.reply === "string" ? parsed.reply.trim() : "";
       reasoning = typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "";
     } catch {

@@ -5,6 +5,7 @@ import { readBody } from "@/lib/api/validate";
 import { fetchAgentConversation } from "@/lib/data/care";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
+import { coerceJsonText } from "@/lib/llm/coerceJson";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { SERVICE_PHILOSOPHY } from "@/lib/care/servicePhilosophy";
@@ -157,7 +158,11 @@ export async function POST(
     }
     let parsed: { draft?: string; reasoning?: string };
     try {
-      parsed = JSON.parse(r.text);
+      // This route needs {draft, reasoning} JSON but reuses generateCareReply (expectJson:false, a PROSE
+      // helper) for its month-1 control-window gating — so it gets neither DeepSeek's json_object mode nor
+      // llmCall's expectJson coercion. Without coerceJsonText a fenced/prose reply (esp. on the Anthropic
+      // failover) would 502 "Couldn't parse" even though valid JSON is right there. Extract it explicitly.
+      parsed = JSON.parse(coerceJsonText(r.text));
     } catch {
       return NextResponse.json(
         { error: "Couldn't parse the formulate response." },
