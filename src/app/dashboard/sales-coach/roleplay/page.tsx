@@ -103,6 +103,13 @@ export default function SalesCoachRoleplayPage() {
           STORAGE_KEY,
           JSON.stringify({ context, persona, custom, messages })
         );
+      } else if (phase === "chat") {
+        // messages.length === 0 while in chat = a failed FIRST turn just rolled the optimistic rep
+        // line back to empty. Without clearing, the earlier setItem's orphaned lone rep message
+        // survives in sessionStorage, and the recovery effect resurrects it on reload — the rep then
+        // sends again and ships TWO rep turns in a row to the prospect. Clear the orphan here. (Not
+        // touched during the "setup" phase, so the mount-time recovery read is unaffected.)
+        sessionStorage.removeItem(STORAGE_KEY);
       }
     } catch {
       /* ignore */

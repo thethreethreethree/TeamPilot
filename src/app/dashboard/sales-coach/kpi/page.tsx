@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
 import { toCsv } from "@/lib/export/toCsv";
@@ -120,6 +120,12 @@ function fmtValue(v: number, fmt?: Fmt): string {
 export default function KpiAnalyticsPage() {
   const [data, setData] = useState<KpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // Distinguish a FETCH FAILURE from a genuine "no data yet". Without this the page swallowed every
+  // error and left `data` null, so a veteran rep with hundreds of sessions saw every KPI as
+  // "building…" — an error disguised as insufficient-data, the exact dishonesty the product's
+  // honesty thesis forbids (the page's own copy promises "an honest insufficient-data, never a
+  // guessed number").
+  const [loadError, setLoadError] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamAgent[] | null>(null);
   const [alertDropPct, setAlertDropPct] = useState(15);
@@ -127,18 +133,27 @@ export default function KpiAnalyticsPage() {
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
   const [teamSort, setTeamSort] = useState<"name" | "conversion" | "reliance">("name");
 
+  // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
+  const loadMe = useCallback(async () => {
+    setLoadError(false);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/coach/kpi/me");
+      if (res.ok) setData(await res.json());
+      else setLoadError(true); // 401/500/etc — an error, NOT "no data yet"
+    } catch {
+      setLoadError(true); // network — an error, NOT "no data yet"
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMe();
+  }, [loadMe]);
+
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/coach/kpi/me");
-        if (res.ok && alive) setData(await res.json());
-      } catch {
-        /* leave data null → everything shows "building" */
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
     // Manager rollup — 403 for non-managers (we just hide the section then).
     (async () => {
       try {
@@ -257,6 +272,30 @@ export default function KpiAnalyticsPage() {
           </button>
         )}
       </header>
+
+      {loadError && !data && (
+        <section className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-4 mb-5">
+          <div className="flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-red-400 shrink-0 mt-0.5" aria-hidden />
+            <div className="text-xs text-secondary leading-relaxed">
+              <p>
+                <strong className="text-primary">Couldn&apos;t load your KPIs.</strong> This is a
+                temporary error, not a reset — your sessions are safe. Any metrics below reading{" "}
+                <span className="font-mono text-muted">building…</span> are showing that only because
+                the load failed, not because the data is missing.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadMe()}
+                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary border border-default hover:border-strong rounded-md px-2.5 py-1.5 transition-colors"
+              >
+                <Loader2 className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden />
+                Try again
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.05] p-4 mb-5">
         <div className="flex items-start gap-2.5">
