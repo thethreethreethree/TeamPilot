@@ -114,6 +114,12 @@ export default function DecisionsPage() {
    *  saw 'Persisted', and lost the connection to the now-visible
    *  Spawn affordance below. Auto-scroll fixes the continuity gap. */
   const spawnButtonRef = useRef<HTMLButtonElement | null>(null);
+  // Synchronous re-entrancy latches: `persisting`/`loading` are React state, applied on the NEXT render, so a
+  // double-click fires both handlers before the button disables. persistDecision writes IMMUTABLE decision +
+  // decision_dialogue rows (0003 immutability trigger) — a double-write is unrecoverable Decision-Memory
+  // corruption. A ref flips synchronously so the 2nd call bails.
+  const persistingRef = useRef(false);
+  const loadingRef = useRef(false);
   const [persistedDecisionId, setPersistedDecisionId] = useState<string | null>(
     null
   );
@@ -228,10 +234,21 @@ export default function DecisionsPage() {
 
   const persistDecision = async () => {
     if (!decision || !response) return;
+    // Already persisted this dialogue → a second click (the button re-enables after success) must not write a
+    // DUPLICATE immutable decision + dialogue. This is the no-race trigger; the ref below covers the double-click.
+    if (persistedDecisionId) return;
+    if (persistingRef.current) return;
+    persistingRef.current = true;
     setPersisting(true);
     setPersistMsg("");
     try {
-      const title = (userProposal.split("\n")[0] ?? "Decision").slice(0, 80);
+      // Fall to the situation, then a generic label — the defer/hybrid paths often leave userProposal empty,
+      // and `?? "Decision"` did NOT catch that (empty string isn't nullish) → a blank-titled row on the chain.
+      const title = (
+        userProposal.split("\n")[0]?.trim() ||
+        situation.split("\n")[0]?.trim() ||
+        "Decision"
+      ).slice(0, 80);
       const res = await fetch("/api/decisions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -273,6 +290,7 @@ export default function DecisionsPage() {
       );
     } finally {
       setPersisting(false);
+      persistingRef.current = false;
     }
   };
 
@@ -284,6 +302,8 @@ export default function DecisionsPage() {
 
   const requestSystemResponse = async () => {
     if (!userDiagnosis.trim() || !userProposal.trim()) return;
+    if (loadingRef.current) return; // latch: a double-click must not fire two LLM requests whose results race
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -300,6 +320,7 @@ export default function DecisionsPage() {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
@@ -612,7 +633,7 @@ export default function DecisionsPage() {
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <button
                       onClick={persistDecision}
-                      disabled={persisting || !supabaseEnabled}
+                      disabled={persisting || !!persistedDecisionId || !supabaseEnabled}
                       className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
