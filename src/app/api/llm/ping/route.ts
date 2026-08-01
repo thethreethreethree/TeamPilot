@@ -4,6 +4,13 @@ import { chooseProvider } from "@/lib/llm";
 import { LlmError } from "@/lib/llm/errors";
 import { rateLimit } from "@/lib/api/rateLimit";
 
+// The provider call has a 45s internal timeout (anthropic.ts / deepseek.ts). This
+// route awaits it, so it needs a serverless budget ABOVE 45s — otherwise Vercel's
+// short default kills the function first and the caller gets a generic 504 instead
+// of the structured LlmError { kind: "timeout" } this route exists to surface. 60s
+// matches the app-wide LLM-route convention and clears the 45s provider timeout.
+export const maxDuration = 60;
+
 /**
  * POST /api/llm/ping
  *
