@@ -630,10 +630,36 @@ export default function DecisionsPage() {
                     System&apos;s response, and this choice — can be persisted now so the
                     WHY survives past the moment.
                   </p>
+                  {decision.kind === "hybrid" && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-primary mb-1">
+                        Describe what you&apos;re actually doing
+                      </label>
+                      <p className="text-[11px] text-muted mb-2">
+                        A hybrid combines both — say which parts of your proposal and
+                        the System&apos;s suggestion you&apos;re taking, so the recorded
+                        outcome is the decision you actually made, not a blank.
+                      </p>
+                      <textarea
+                        value={decision.note}
+                        onChange={(e) =>
+                          setDecision({ kind: "hybrid", note: e.target.value })
+                        }
+                        rows={3}
+                        placeholder="e.g. Adopt the System's framing of the risk, but keep my original timeline and owner."
+                        className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-secondary placeholder:text-muted focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30 transition-colors resize-none leading-relaxed"
+                      />
+                    </div>
+                  )}
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <button
                       onClick={persistDecision}
-                      disabled={persisting || !!persistedDecisionId || !supabaseEnabled}
+                      disabled={
+                        persisting ||
+                        !!persistedDecisionId ||
+                        !supabaseEnabled ||
+                        (decision.kind === "hybrid" && !decision.note.trim())
+                      }
                       className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 text-primary font-semibold px-4 py-2 rounded-lg transition-all text-xs"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -643,6 +669,13 @@ export default function DecisionsPage() {
                         ? "Persist dialogue"
                         : "Persist (live mode only)"}
                     </button>
+                    {decision.kind === "hybrid" &&
+                      !decision.note.trim() &&
+                      !persistedDecisionId && (
+                        <span className="text-[11px] text-muted">
+                          Describe your hybrid above to record it.
+                        </span>
+                      )}
                     <button
                       type="button"
                       onClick={reset}
