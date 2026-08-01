@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
-import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -59,39 +58,23 @@ type NavItem = {
 /** A grouped run of nav items under an optional section header. */
 type NavSection = { header?: string; items: NavItem[] };
 
-// Founder revision 2026-07-31 (annotated mockup): the sidebar is now GROUPED into
-// "Manager Dashboard" and "Team Tools" sections, in the mockup's order, instead of a
-// flat list. Item gating is unchanged (Coach Assessment + Team stay server-gated /
-// manager-only); a section whose items are all hidden for a rep drops its header too,
-// so a rep never sees an empty "Manager Dashboard" heading (AMD-006 L3).
+// Founder decision 2026-08-01: the sidebar is a FLAT list in the founder's July-28 PDF order (the earlier
+// 2026-07-31 grouping into "Manager Dashboard"/"Team Tools" was reverted at the founder's request). One
+// headerless section renders as a flat list — no section headers, no per-item numbering. Item gating is
+// unchanged (Coach Assessment + Team stay server-gated / manager-only; hidden from a rep's nav — AMD-006 L3).
+// "One Liners" is the universal label now (was a Standard-only relabel of "Strategy"); route path kept as
+// /strategy so existing links don't break. Team Chat + KPI Analytics are kept (real features built AFTER the
+// July-28 list) after Team, before Settings.
 const NAV_SECTIONS: NavSection[] = [
-  { items: [{ label: "Home", href: "/dashboard/sales-coach", icon: Home }] },
   {
-    header: "Manager Dashboard",
     items: [
-      {
-        label: "Coach Assessment",
-        href: "/dashboard/sales-coach/coach-assessment",
-        icon: ClipboardCheck,
-        managerOnly: true,
-      },
+      { label: "Home", href: "/dashboard/sales-coach", icon: Home },
+      { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
       { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
-      { label: "Session", href: "/dashboard/sales-coach/sessions", icon: Mic },
-    ],
-  },
-  {
-    header: "Team Tools",
-    items: [
+      { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
       { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
-      // Label is per-mode below: "One Liners" (Standard) / "Strategy" (Expert).
-      // Founder 2026-08-01 (decision C): "One Liners" is what reps call this — the winning-lines library.
-      // Route path kept as /strategy so existing links/bookmarks don't break; only the visible label changes.
       { label: "One Liners", href: "/dashboard/sales-coach/strategy", icon: Library },
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
-    ],
-  },
-  {
-    items: [
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
       { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
@@ -125,12 +108,6 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
   // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
   // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
   const visibleSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
-  // Standard-only nav relabel (founder revision 2026-07-28, PDF): the "Strategy"
-  // item reads "One Liners" in Standard; Expert keeps "Strategy". Label-only —
-  // the route/content is unchanged. Rename is scoped to Standard per the founder's
-  // decision (Expert users keep the "Strategy" vocabulary).
-  const { isStandard } = useExperienceMode();
-
   return (
     <NavProgressProvider>
     <div className="fixed inset-0 z-[60] flex flex-col md:flex-row bg-base overflow-hidden">
@@ -183,17 +160,12 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                     {section.header}
                   </p>
                 )}
-                {section.items.map((item, ii) => {
+                {section.items.map((item) => {
                   const Icon = item.icon;
                   const active =
                     pathname === item.href ||
                     (item.href !== "/dashboard/sales-coach" &&
                       pathname.startsWith(item.href + "/"));
-                  // Standard-only: "Strategy" → "One Liners" (label only; href/content unchanged).
-                  const label =
-                    isStandard && item.href === "/dashboard/sales-coach/strategy"
-                      ? "One Liners"
-                      : item.label;
                   return (
                     <Link
                       key={item.href}
@@ -206,13 +178,7 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
                     >
                       <LinkProgress />
                       <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                      {/* Per-group numbering to match the founder's mockup (1./2./3. within each headered
-                          section). Ungrouped runs (Home; Team Chat/KPI/Settings) carry no number, as in the
-                          mockup. tabular-nums so the digits align. */}
-                      {section.header && (
-                        <span className="text-white/50 tabular-nums shrink-0 w-3 text-right">{ii + 1}.</span>
-                      )}
-                      {label}
+                      {item.label}
                     </Link>
                   );
                 })}
