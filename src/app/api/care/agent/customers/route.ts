@@ -18,7 +18,7 @@ export async function GET() {
   // even though RLS on support_customers (migration 0034) also
   // enforces it. Route-level filter survives future RLS changes
   // and makes the auth boundary auditable at the route surface.
-  const { data } = await auth.sb
+  const { data, error } = await auth.sb
     .from("support_customers")
     .select(
       "id, name, email, phone, lifetime_value, signup_date, last_seen_at, support_conversations(count)"
@@ -26,6 +26,14 @@ export async function GET() {
     .eq("company_id", auth.companyId)
     .order("last_seen_at", { ascending: false, nullsFirst: false })
     .limit(500);
+
+  // A DB read error must NOT return 200 + [] — that renders as "No customers yet" and tells the agent
+  // the team has no customers (the error-dressed-as-no-data class). Surface it as a 500 so the client's
+  // loadError state shows "temporary error, try again" instead of a false-empty. (The client res.ok check
+  // is necessary but not sufficient without this — the server must not swallow the error into an empty 200.)
+  if (error) {
+    return NextResponse.json({ error: "Couldn't load customers." }, { status: 500 });
+  }
 
   const customers = (data ?? []).map((row) => {
     const convCount = Array.isArray(
