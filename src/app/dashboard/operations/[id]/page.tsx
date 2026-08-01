@@ -91,6 +91,7 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { enabled: coachEnabled } = useCoachEnabled();
   // Coach v5 Ask-Coach token for the task composer.
@@ -126,6 +127,10 @@ export default function TaskDetailPage() {
   };
 
   useEffect(() => {
+    // Reset the composer on task switch: this page is keyed on the [id] route segment, and a
+    // notification/deep-link from task A to task B reuses this component instance (no remount), so a
+    // half-typed draft for A would otherwise stay in the textarea and post to B. Clear it here.
+    setDraft("");
     void load();
     void (async () => {
       const { createClient, supabaseEnabled } = await import(
@@ -158,7 +163,11 @@ export default function TaskDetailPage() {
   };
 
   const transitionStatus = async (toStatus: string) => {
-    if (!task) return;
+    // Guard against a double-fire: without this the buttons stay live during the load() round-trip, so a
+    // double-click (or a quick In-Progress→Blocked) reads the SAME stale task.status as fromStatus and posts
+    // TWO status_changed events onto the append-only event chain (duplicate/contradictory audit history).
+    if (!task || transitioning) return;
+    setTransitioning(true);
     try {
       await changeTaskStatus({
         taskId: id,
@@ -175,6 +184,8 @@ export default function TaskDetailPage() {
         "Couldn't change status",
         err instanceof Error ? err.message : "Unknown error"
       );
+    } finally {
+      setTransitioning(false);
     }
   };
 
@@ -349,7 +360,8 @@ export default function TaskDetailPage() {
                       key={next}
                       type="button"
                       onClick={() => transitionStatus(next)}
-                      className="text-[11px] text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1 rounded-md transition-colors"
+                      disabled={transitioning}
+                      className="text-[11px] text-secondary hover:text-primary border border-default hover:border-strong px-2.5 py-1 rounded-md transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
                       {next}
                     </button>
