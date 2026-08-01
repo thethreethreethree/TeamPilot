@@ -155,6 +155,13 @@ export default function SessionDetail() {
     setPrepQuestion("");
     setPrepAnswer(null);
     setError(null);
+    // Phase 4 (2026-08-01) — the required naming buffer is per-session too: close the modal + clear the typed
+    // name on a session switch, so a half-typed name for session A can't ride a future session→session nav into
+    // B's naming PATCH (same append-only-write-to-wrong-item risk as whyDraft above). Latent today (route
+    // remount), floored here so it stays impossible if a session→session control is ever added.
+    setNamingOpen(false);
+    setSessionName("");
+    setNamingError(null);
   }, [id]);
 
   // Standard (the rep's simplified flow): once a session is no longer active, the
