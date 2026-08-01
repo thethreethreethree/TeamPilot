@@ -79,6 +79,17 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **Finance domain re-entrancy — ASSESSED, no mass-patch (2026-08-01).** After the app-wide re-entrancy sweep
+> I checked whether the ~29 finance create handlers (addBill, addVendor, etc.) share the double-click class. They
+> have the same React-flag-only client shape, BUT finance is server-backstopped by data-integrity constraints —
+> e.g. `fin_bills` has `unique (company_id, vendor_id, bill_number)` (0123), so a double-click's second insert
+> fails the constraint instead of duplicating the bill (a proper accounting control). This is a DIFFERENT risk
+> tier than the surfaces I fixed (which had NO server backstop → real corruption): here a double-click is a
+> self-inflicted error toast, a minor UX wrinkle, not a data defect. Deliberately did NOT add 29 client latches
+> — that would be churn against already-correct integrity. OPTIONAL low-priority polish if you want it: a shared
+> `useReentrancyLatch` hook wired into the finance forms would remove the self-inflicted error, but it changes no
+> correctness. Flagging the assessment so the "why didn't finance get latched too" question is already answered.
+
 > **`"onboarding RPC advisory lock"` (HIGH — duplicate tenant on first run, schema change) — 2026-08-01.**
 > `complete_company_onboarding` (0047) short-circuits if the user already has a `company_id`, so SEQUENTIAL
 > retries are safe. But it's check-then-insert with NO lock: two CONCURRENT calls (two tabs, or a network retry
