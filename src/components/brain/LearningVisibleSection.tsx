@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Brain,
@@ -102,24 +102,52 @@ const HEURISTIC_LABEL: Record<CoachHeuristicId, string> = {
 export function LearningVisibleSection() {
   const [data, setData] = useState<LearningSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  // A fetch FAILURE (non-ok / network) must not fall through to the null-data branch below, which shows
+  // "Learning surface unavailable / Live mode required" — misleading on a transient error (it isn't a
+  // live-mode problem), and on a make-learning-visible surface an error reading like "nothing here" is the
+  // exact dishonesty this section exists to avoid. Distinguish it with a retryable error state.
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoadError(false);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/brain/learning-summary");
+      if (!res.ok) {
+        setLoadError(true);
+        return;
+      }
+      setData(await res.json());
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch("/api/brain/learning-summary");
-        if (!res.ok) return;
-        setData(await res.json());
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    void load();
+  }, [load]);
 
   if (loading) {
     return (
       <div className="glass-card p-5 flex items-center gap-2 text-xs text-muted">
         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
         Reading the chain…
+      </div>
+    );
+  }
+
+  if (loadError && !data) {
+    return (
+      <div className="glass-card p-5">
+        <p className="text-sm text-primary mb-1">Couldn&apos;t read the learning chain</p>
+        <p className="text-xs text-muted">
+          A temporary error — not a sign nothing has accumulated.{" "}
+          <button type="button" onClick={() => void load()} className="underline hover:text-primary">
+            Try again
+          </button>
+        </p>
       </div>
     );
   }
