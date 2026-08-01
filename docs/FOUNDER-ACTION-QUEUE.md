@@ -56,6 +56,21 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
+> **Sales Coach server-route audit (2026-08-01) — 3 fixed, 2 LOW flagged:**
+> - ✅ **FIXED** — 2 cross-user injection holes (cue + label-transcript appended to a rep's private records
+>   via the RLS-bypassing service client, gated only on company-scoped getSession). Owner check added +
+>   INVARIANT 19 guards the class (`a86312ff`).
+> - ✅ **FIXED** — `sales-session/review` LLM cost/DoS: `InlineSegment.text` had no length cap, so 2000 array
+>   slots could each carry a multi-MB string into the LLM prompt. Capped at 8000 (matches label-transcript).
+> - `"scope the chat grade hydration"` — LOW. `gradeClient.fetchTopicMessageGrades(topicId)` reads
+>   `coach.message_graded` by subject with NO actor filter, so a rep who knows a peer's topicId+messageId (two
+>   non-enumerable UUIDs) could surface a bogus grade indicator on the peer's chat message. The LEADER readout
+>   is UNAFFECTED (it aggregates grade counts, ignores message_id). Fix = `.eq("actor", self)` on the read, but
+>   it needs the userId threaded to a client-side hydration (adds an auth round-trip) — flagged, not done.
+> - `"restrict the tts voice"` — LOW. `sales-session/tts` passes an arbitrary `voiceId` (≤64 chars) to
+>   ElevenLabs with no check against the curated set; an authed user (60/min, text ≤2000) could synthesize in a
+>   premium/non-curated voice. Bounded cost. Constrain to CURATED_VOICES if you want it tight.
+>
 > **Product / trade-off decisions (each real, not a bug):**
 > - `"do the finance CWE-209 pass"` — raw DB errors leak at 400/403; bounded to ~21 clear-cut genericizes + ~26 `.rpc` to confirm-curated (`rates` already fixed).
 > - `"wire the KPI trajectory"` — the §3.6 "vs earlier months" arc is computed+stored but has no reader; pipeline **verified live-ready** (reader diffs the monthKey `value` series).

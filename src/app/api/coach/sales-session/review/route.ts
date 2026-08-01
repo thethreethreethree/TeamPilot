@@ -30,7 +30,10 @@ import type { TranscriptSegment } from "@/lib/data/salesCoach";
 
 const InlineSegment = z.object({
   speaker: z.enum(["agent", "customer", "unknown"]),
-  text: z.string().min(1),
+  // Cap per-segment text (matches the 8000 cap on the label-transcript sibling that stores the same
+  // data). Without it, all 2000 array slots could each carry a multi-MB string straight into the LLM
+  // prompt (maxDuration=60) — attacker-controlled model spend + worker occupancy at 20 req/min.
+  text: z.string().min(1).max(8000),
 });
 
 const BodySchema = z.union([
