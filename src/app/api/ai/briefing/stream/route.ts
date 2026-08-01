@@ -3,6 +3,7 @@ import { runBrainStream } from "@/lib/brain";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { coerceJsonText } from "@/lib/llm/coerceJson";
 
 /**
  * Streaming variant of the daily-questions briefing.
@@ -95,7 +96,10 @@ export async function POST(req: NextRequest) {
 
         let parsed: unknown = null;
         try {
-          parsed = JSON.parse(collected);
+          // coerceJsonText: the STREAM path doesn't get llmCall's expectJson coercion, and llmStream's
+          // Anthropic failover returns un-enforced JSON that may arrive fenced/prose-wrapped — extract it
+          // so the briefing isn't silently blanked (parsed:null) whenever we fall back off DeepSeek.
+          parsed = JSON.parse(coerceJsonText(collected));
         } catch {
           /* fall through; client may still be useful with partial parse */
         }
