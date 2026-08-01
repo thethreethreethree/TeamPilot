@@ -111,6 +111,10 @@
 > with a string `error` field), so a caller's `catch` distinguishes load-failure from empty. It changes nothing
 > until adopted. Still YOUR call: the `useResource`-style hook shape + which pages migrate. Say `"migrate finance
 > reads to fetchJson"` and I'll build the hook + convert the pages.
+> **Severity bounded (2026-08-01):** NO finance page has the infinite-spinner variant — every finance load
+> resolves `loading` in a `finally` (statements, which didn't, is fixed). So the worst symptom (a permanent stuck
+> screen) is clean everywhere; the remaining ~60 are the MILDER fake-empty (a failed load shows empty data, most
+> already flashing a toast). So this refactor is quality/consistency, not an urgent correctness gap.
 
 > **Finance domain re-entrancy — ASSESSED, no mass-patch (2026-08-01).** After the app-wide re-entrancy sweep
 > I checked whether the ~29 finance create handlers (addBill, addVendor, etc.) share the double-click class. They
