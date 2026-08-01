@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -74,6 +74,7 @@ export default function SalesCoachHome() {
   const [offer, setOffer] = useState("");
   const [showCapture, setShowCapture] = useState(false);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -112,6 +113,12 @@ export default function SalesCoachHome() {
       setError("Give the session a client / campaign title before starting.");
       return;
     }
+    // Synchronous latch: `pending={starting}` disables the button only a render
+    // after the click, so a double-click would POST two sessions. (Same fix as
+    // StartSessionPanel + after-pitch startNextDoor — this is a THIRD start
+    // handler, on the coach landing page, that the earlier sweep missed.)
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setError(null);
     try {
@@ -134,8 +141,10 @@ export default function SalesCoachHome() {
       router.push(`/dashboard/sales-coach/${session.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      startingRef.current = false;
       setStarting(false);
     }
+    // On success we router.push away and unmount, so the latch stays set.
   };
 
   return (
