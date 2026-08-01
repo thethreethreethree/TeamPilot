@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 let aiResponding = true;
 let recentAiReplyCount = 0;
+let existingDedup: { id: string } | null = null; // a prior support_messages row with the same external_message_id
 const insertSpy = vi.fn().mockResolvedValue({ error: null });
 const updateEqSpy = vi.fn().mockResolvedValue({ error: null });
 
@@ -30,10 +31,14 @@ const adminMock = {
       };
     }
     if (table === "support_messages") {
-      // loop breaker count: .select("id",{count,head}).eq().eq().gte()
       return {
         select: () => ({
-          eq: () => ({ eq: () => ({ gte: () => Promise.resolve({ count: recentAiReplyCount }) }) }),
+          eq: () => ({
+            // webhook-retry dedup pre-check: .eq("external_message_id", id).maybeSingle()
+            maybeSingle: () => Promise.resolve({ data: existingDedup }),
+            // loop breaker count: .eq().eq().gte()
+            eq: () => ({ gte: () => Promise.resolve({ count: recentAiReplyCount }) }),
+          }),
         }),
       };
     }
@@ -61,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   aiResponding = true;
   recentAiReplyCount = 0;
+  existingDedup = null;
   insertSpy.mockResolvedValue({ error: null });
   updateEqSpy.mockResolvedValue({ error: null });
 });
@@ -164,5 +170,44 @@ describe("POST /api/care/inbound/email — webhook auth gate (public endpoint)",
     process.env.CARE_INBOUND_EMAIL_SECRET = "s3cret";
     expect((await POST(postReq("wrong-secret"))).status).toBe(401);
     expect((await POST(postReq(undefined))).status).toBe(401);
+  });
+});
+
+/**
+ * Webhook retry idempotency. Email providers RE-DELIVER a webhook on any timeout / non-2xx, so the
+ * same inbound email can arrive 2+ times. Without dedup, each redelivery would append a duplicate
+ * CUSTOMER message and trigger another AI reply. The route dedups on the provider's MessageID
+ * (external_message_id) BEFORE any processing. Asserting the response is exactly { deduped: true }
+ * is a reliable signal the dedup path was taken (any pre-dedup failure returns a different code).
+ */
+describe("POST /api/care/inbound/email — webhook retry idempotency (dedup)", () => {
+  const OLD_SECRET = process.env.CARE_INBOUND_EMAIL_SECRET;
+  beforeEach(() => {
+    process.env.CARE_INBOUND_EMAIL_SECRET = "s3cret";
+  });
+  afterEach(() => {
+    if (OLD_SECRET === undefined) delete process.env.CARE_INBOUND_EMAIL_SECRET;
+    else process.env.CARE_INBOUND_EMAIL_SECRET = OLD_SECRET;
+  });
+
+  const validBody = {
+    MessageID: "dup-msg-1",
+    From: "jane@customer.com",
+    To: "t-abc@care.elostate.com",
+    TextBody: "Hi, I would like a refund on my order please.",
+  };
+  const postReq = (body: unknown) =>
+    ({
+      headers: {
+        get: (k: string) => (k.toLowerCase() === "x-care-webhook-secret" ? "s3cret" : null),
+      },
+      json: () => Promise.resolve(body),
+    }) as never;
+
+  it("a re-delivered webhook (MessageID already stored) is deduped — 200 { deduped: true }, no reprocessing", async () => {
+    existingDedup = { id: "existing-msg-1" }; // support_messages already has a row for this MessageID
+    const res = await POST(postReq(validBody));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ deduped: true });
   });
 });
