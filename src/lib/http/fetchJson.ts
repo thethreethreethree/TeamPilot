@@ -71,7 +71,18 @@ export async function fetchJson<T = unknown>(
     );
   }
 
-  const text = await res.text();
+  // Reading the body can itself reject (a body stream that errors or is aborted
+  // mid-read). Wrap it so EVERY failure path is a typed FetchJsonError, honoring
+  // the contract a caller's catch relies on — never a stray raw error.
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    throw new FetchJsonError(
+      res.status,
+      e instanceof Error && e.message ? e.message : "Failed to read response body"
+    );
+  }
   let body: unknown = undefined;
   if (text.length > 0) {
     try {

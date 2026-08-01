@@ -83,6 +83,20 @@ describe("fetchJson", () => {
     expect(data.rows).toBe(5);
   });
 
+  it("wraps a body-read failure (res.text() rejects) as a FetchJsonError, not a raw error", async () => {
+    const bad = {
+      ok: true,
+      status: 200,
+      text: async () => {
+        throw new TypeError("network error while reading body");
+      },
+    } as unknown as Response;
+    stubFetch(async () => bad);
+    const err = await fetchJson("/api/x").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FetchJsonError);
+    expect((err as FetchJsonError).message).toBe("network error while reading body");
+  });
+
   it("throws 'not valid JSON' on a 2xx with a malformed body", async () => {
     stubFetch(async () => resp(200, "{not json"));
     await expect(fetchJson("/api/x")).rejects.toMatchObject({
