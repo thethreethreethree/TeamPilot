@@ -36,7 +36,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const STEP_META: Record<
   DiagnosisStep,
@@ -138,6 +138,11 @@ export default function DiagnosePage() {
   // this as Critical: the §1.6 close-the-loop pathway was
   // structurally incomplete.
   const [closingLoop, setClosingLoop] = useState(false);
+  // Synchronous re-entrancy latch: `closingLoop` is React state, so a double-click fires both onClick
+  // handlers before the button re-renders to disabled — both read closingLoop===false and proceed, writing
+  // TWO problems + TWO resolutions + TWO problem.resolved events onto the append-only event chain for one
+  // logical diagnosis (close_problem doesn't dedupe). A ref flips synchronously, so the 2nd call bails.
+  const closingLoopRef = useRef(false);
   const [closeError, setCloseError] = useState("");
   const [closedResolutionId, setClosedResolutionId] = useState<string | null>(
     null
@@ -268,6 +273,8 @@ export default function DiagnosePage() {
    */
   const closeTheLoop = async () => {
     if (!liveRun.chosen || !supabaseEnabled) return;
+    if (closingLoopRef.current) return; // a double-click's 2nd call bails here (before React re-renders)
+    closingLoopRef.current = true;
     setClosingLoop(true);
     setCloseError("");
     try {
@@ -352,6 +359,7 @@ export default function DiagnosePage() {
       );
     } finally {
       setClosingLoop(false);
+      closingLoopRef.current = false;
     }
   };
 
@@ -424,6 +432,8 @@ export default function DiagnosePage() {
                       ? "demo fixtures"
                       : signalsMode === "live-empty"
                       ? "live (none yet)"
+                      : signalsMode === "live-error"
+                      ? "load failed"
                       : "live data"}
                   </span>
                 </div>
@@ -440,6 +450,8 @@ export default function DiagnosePage() {
                       </li>
                     ))}
                   </ul>
+                ) : signalsMode === "live-error" ? (
+                  <EmptyHint text="Couldn't load signals — a temporary error, not an empty stream. Hit Refresh to try again." />
                 ) : signalsMode === "live-empty" ? (
                   <EmptyHint
                     text={
