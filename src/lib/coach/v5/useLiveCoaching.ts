@@ -304,6 +304,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
+  // Set true when the hook unmounts. start() awaits the mic prompt + token + ctx.resume BEFORE
+  // its resources land in the refs above; if the component unmounts during one of those awaits,
+  // the unmount cleanup frees nothing (refs still null) and start() would then build the mic
+  // stream / recorder / AudioContext / socket on a dead component — leaving the mic indicator lit
+  // forever. start() checks this after each await and tears down instead. Reset false on (re)mount
+  // so a remount (incl. React strict-mode double-invoke) isn't wedged closed.
+  const unmountedRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
   // Session epoch — bumped on every start() and stop() (audit 2026-07-09 A6). An
   // in-flight /cue or /attribute captures the epoch at request time; if it resolves
@@ -809,6 +816,40 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     setAgentSpeaking(false);
   }, [sessionId]);
 
+  // Free every live-coaching media resource straight from the refs — NO setState, so it is safe
+  // to call after the component has unmounted. Shared by the unmount cleanup AND start()'s
+  // mid-await cancel path (stop() keeps its own inline teardown, which the audit verified sound).
+  const teardownMedia = useCallback(() => {
+    try {
+      recorderRef.current?.stop();
+    } catch {
+      /* noop */
+    }
+    recorderRef.current = null;
+    try {
+      procRef.current?.disconnect();
+    } catch {
+      /* noop */
+    }
+    procRef.current = null;
+    try {
+      void ctxRef.current?.close();
+    } catch {
+      /* noop */
+    }
+    ctxRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    try {
+      wsRef.current?.close();
+    } catch {
+      /* noop */
+    }
+    wsRef.current = null;
+    if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+  }, []);
+
   const start = useCallback(async () => {
     setError(null);
     // Fresh readout per call — clear the prior session's traces + summary.
@@ -845,11 +886,21 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     recentPitchConfRef.current = [];
     anchorHintRef.current = false;
     setAnchorHint(false);
+    // Clear the cue-overlap guard: a prior session's /cue fetch may still be pending (no timeout on
+    // it), and its flag is otherwise cleared only in its own finally. Without this reset a stop→start
+    // over an in-flight cue leaves cueInFlightRef stuck true, so EVERY cue in the new session —
+    // including on-demand "Coach me now" — silently returns at the guard until the stale fetch settles.
+    cueInFlightRef.current = false;
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     try {
       // 1. Mic.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      // Unmounted while the mic prompt was open? Free the stream and abort before building anything.
+      if (unmountedRef.current) {
+        teardownMedia();
+        return;
+      }
 
       // F2: record the call audio in parallel for the post-call
       // transcript/review (S1a pipeline). Best-effort — a recorder
@@ -886,6 +937,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         throw new Error(b?.error ?? "Couldn't get a realtime token.");
       }
       const { token } = await tokRes.json();
+      // Unmounted during the token round-trip? Free the stream + recorder and abort.
+      if (unmountedRef.current) {
+        teardownMedia();
+        return;
+      }
 
       // 3. AudioContext FIRST — prefer 16kHz so the PCM we send matches
       //    Scribe's default audio_format. We pass the real rate to the
@@ -900,6 +956,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       // Resume on the Start gesture so it can also play cue audio later
       // without hitting autoplay restrictions.
       if (ctx.state === "suspended") await ctx.resume();
+      // Unmounted while the AudioContext was resuming? Free stream + recorder + ctx and abort
+      // before opening the socket / building the audio graph.
+      if (unmountedRef.current) {
+        teardownMedia();
+        return;
+      }
       const sr = Math.round(ctx.sampleRate);
 
       // 4. WebSocket to Scribe v2 Realtime.
@@ -1289,7 +1351,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // `status` intentionally omitted: the only read was the stale onclose check,
     // now replaced by the functional setStatus form. Keeping it here would
     // recreate `start` on every status transition for no benefit.
-  }, [invokeCue, stop, classifyTurn]);
+  }, [invokeCue, stop, classifyTurn, teardownMedia]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;
@@ -1310,32 +1372,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // socket + AudioContext + live timers. Free everything via refs (always
   // current) on unmount. Empty deps → runs once, on teardown.
   useEffect(() => {
+    // (Re)mount: clear the cancel flag so a remount (incl. React strict-mode double-invoke)
+    // isn't permanently wedged into the "unmounted" branch of start().
+    unmountedRef.current = false;
     return () => {
-      try {
-        recorderRef.current?.stop();
-      } catch {
-        /* noop */
-      }
-      try {
-        procRef.current?.disconnect();
-      } catch {
-        /* noop */
-      }
-      try {
-        void ctxRef.current?.close();
-      } catch {
-        /* noop */
-      }
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      try {
-        wsRef.current?.close();
-      } catch {
-        /* noop */
-      }
-      if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
-      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+      // Signal any in-flight start() to abort after its current await, THEN free whatever is
+      // already in the refs. Freeing from refs alone missed resources start() acquires AFTER an
+      // await (the mic-prompt window) — the flag closes that gap.
+      unmountedRef.current = true;
+      teardownMedia();
     };
-  }, []);
+  }, [teardownMedia]);
 
   // Toggle the manual "agent is speaking" lock (single earbud tap / button).
   const toggleAgentSpeaking = useCallback(() => {
