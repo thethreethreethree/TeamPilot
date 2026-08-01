@@ -154,7 +154,11 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > - `"dedup RCD captures"` — if (a): add a partial `unique (company_id, external_ref) where external_ref is not
 >   null` + upsert-or-skip on conflict. If (b): keep versioning but add a short-window guard (same `external_ref` +
 >   same `message_count` within ~N seconds → skip the duplicate) and surface "captured ×N" in the RcdPanel so the
->   agent sees it's a re-capture. Either is a small migration + route tweak; tell me which intent and I build it.
+>   agent sees it's a re-capture. **DESIGN READY: `docs/proposals/2026-08-02-rcd-capture-idempotency.md`** (dry-run
+>   to size existing dups, the migration, the route/RPC change per intent, + the load-bearing media-BYTE anti-orphan
+>   nuance on re-capture). **Even stronger evidence found 2026-08-02:** `external_ref`'s own column comment in 0194
+>   literally says "(dedup/link)" — the dedup was DESIGNED, the enforcing unique constraint just never got added.
+>   Tell me the intent (I lean (a)) and I build it.
 >
 > **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
 > - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
