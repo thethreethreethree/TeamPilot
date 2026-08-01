@@ -1,5 +1,16 @@
 # Founder action queue
 
+## ▶ START HERE — the 4 highest-value open decisions, ranked (≈30 more UX/hygiene/naming options in the detail below)
+
+These are the only OPEN items that touch data integrity or metric correctness — do them before the cosmetic ones. Say the phrase and I execute; full diagnosis for each is in the dated blocks below.
+
+| # | Say this | What it does | Why it's ranked here |
+|---|----------|--------------|----------------------|
+| 1 | `"fix the coach KPI aggregation"` | Build the server-side aggregation (per-session counters via trigger, or a `GROUP BY session_id` RPC) + rewire `me`/`team`/`dashboard` to bounded aggregates. | The **only real latent bug**: once a rep's transcript rows pass ~1000 (2–3 days of active use), `coachedSessions`/`relianceReduction`/`cueAcceptanceRate` compute over a silently-truncated subset → the "training-wheels-off" honesty-thesis metrics go quietly wrong and `/me` vs `/team` diverge. |
+| 2 | `"transcript segment dedup constraint"` | Add the dedup constraint + clean the confirmed 128 excess rows. | **HIGH** — the ONE re-entrancy instance that actually corrupted prod data (~20% of coaching sessions have duplicated transcripts; read-only count confirmed). |
+| 3 | `"onboarding RPC advisory lock"` | Wrap company-create in an advisory lock so a concurrent double-submit can't mint two tenants. | **HIGH** — a real check-then-create TOCTOU; the client latch is in but the server can still double-create. Design ready: `docs/proposals/2026-08-02-onboarding-advisory-lock.md`. |
+| 4 | `"finance read-path error handling"` | Shared fetch helper so load failures show an error + retry, not an infinite spinner / fake-empty. | **MED-HIGH** — honesty-thesis class (error dressed as no-data); 62 finance surfaces affected, exemplar `finance/statements` already fixed. |
+
 > **CURRENT OPEN DECISIONS — refreshed 2026-07-31 (rewritten crisp after a long autonomous session).**
 > Navigation index over the append-only log below (§1.1 — nothing removed, only summarized). This box is
 > the "what still needs *you*" surface; say a **`phrase`** and I execute. Detail for each is in the blocks below.
