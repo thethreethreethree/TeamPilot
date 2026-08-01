@@ -387,6 +387,29 @@ async function main() {
     }
   });
 
+  await check("module hard-lock: every single-module redeemed company has the matching access_module (0207)", async () => {
+    // The hard-lock only enforces if companies.access_module is set. The redeem_pilot_code RPC (0207) stamps
+    // it from the code's module. If a future RPC edit silently stops stamping it, new single-module accounts
+    // would provision UNLOCKED (full hub access) — the feature would erode invisibly. This asserts the write
+    // path held: every care/sales_coach code already redeemed maps to a company locked to that module.
+    const r = await c.query(
+      `select count(*)::int as mismatched,
+              coalesce(string_agg(distinct pc.module || '→' || coalesce(co.access_module,'null'), ', '), '') as detail
+         from pilot_codes pc
+         join companies co on co.id = pc.redeemed_company_id
+        where pc.redeemed_company_id is not null
+          and pc.module in ('care','sales_coach')
+          and coalesce(co.access_module,'') <> pc.module`
+    );
+    const n = r.rows[0].mismatched;
+    return {
+      pass: n === 0,
+      detail: n === 0
+        ? "every single-module redeemed company is access_module-locked to its module"
+        : `${n} redeemed single-module company(ies) NOT locked (redeem RPC regression?): ${r.rows[0].detail}`,
+    };
+  });
+
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${failed.length === 0 ? "✅ ALL " + results.length + " invariants hold." : "❌ " + failed.length + " of " + results.length + " FAILED."}\n`);
   await c.end();
