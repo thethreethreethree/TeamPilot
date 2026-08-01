@@ -92,6 +92,14 @@
 > 500s) or return a discriminated `{ok:false}` — then the client's existing error states fire. A per-function
 > audit of which of the ~32 discards feed a primary display + the convention decision is a founder-scoped
 > architectural task (rare per-instance impact — transient DB errors — so it's hygiene, not an emergency).
+> **PERVASIVE across 3 modules (confirmed 2026-08-01), which is why it's a convention not N patches:** operations
+> `tasks.ts`, C.A.R.E `care.ts` `fetchAgentConversation`, AND chats `chats.ts` (`fetchTopic`→null "not found",
+> `fetchMessages`/`fetchParticipants`→[] empty) all swallow read errors into a null/empty primary display; each
+> module's MUTATIONS correctly `throw`, and some reads (`fetchTopics`, KPI `/me`, sessions) already surface —
+> so the codebase already KNOWS the right pattern, it's just applied inconsistently on the detail-read path.
+> One convention pass (or a small lint: a data-layer read feeding a page must not discard `error`) closes the
+> whole class; I did NOT one-off patch chats/care/tasks because a partial patch leaves the class open + is the
+> wrong altitude (the four-layer framework's build-structure layer — fix the mechanism, not one special case).
 
 > **Sales-side pilot tracking — ✅ BUILT (2026-08-01): `/founder/pilot-codes`.** The gap was real: nothing
 > showed which of the 100 seeded codes are spent vs available, per module, or who redeemed which (only new
