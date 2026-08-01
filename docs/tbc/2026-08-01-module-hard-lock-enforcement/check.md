@@ -9,6 +9,11 @@
   the column is the correct home for the signal — not a member-unreadable pilot_codes read.
 - Middleware fails OPEN (A30): a lookup error never locks a legitimate user out.
 
+## Findings (A26)
+No findings. Verified both module paths don't loop: sales_coach (has sales_coach_role → passes the
+sales-coach layout gate) and care (/dashboard/care has no access gate → accessible); the nested embed returns
+`companies` as an object (not an array), so the lock resolves; redeem→land lands on the module home (allowed).
+
 ## Verification
 ```
 $ npm run db:apply          → applied 0207; DB at 0207

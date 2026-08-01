@@ -8,8 +8,8 @@
 - Bounded blast radius: only the sidebar list + its now-dead mode hooks; MOBILE_TABS untouched.
 
 ## Findings (A26 sweep)
-- No test asserted the grouped nav ("Manager Dashboard"/"Team Tools") — the managerNav helper test uses its own
-  fixtures, so the flat data change doesn't break it.
+No findings. Swept for tests asserting the grouped nav ("Manager Dashboard"/"Team Tools") — none; the
+managerNav helper test uses its own fixtures, so the flat data change breaks no assertion.
 
 ## Verification
 ```
