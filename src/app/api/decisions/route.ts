@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { DecisionCreateSchema } from "@/lib/api/validate";
 
 /**
  * POST /api/decisions
@@ -44,7 +45,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
+  const parsed = DecisionCreateSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid decision fields." },
+      { status: 400 }
+    );
+  }
   const {
     situation,
     userDiagnosis,
@@ -54,7 +61,17 @@ export async function POST(req: NextRequest) {
     chosenNote,
     title,
     outcome,
-  } = body;
+  } = parsed.data;
+
+  // systemResponse is validated as a bounded object (guards against an oversized
+  // jsonb blob); its inner shape is the LLM dialogue response. Type it locally for
+  // the per-column extraction below — the values land in text / jsonb columns.
+  const sr = (systemResponse ?? null) as {
+    engagement?: unknown;
+    addedPerspective?: unknown;
+    suggestion?: { action?: unknown; why?: unknown };
+    comparison?: unknown;
+  } | null;
 
   // Insert the outcome row first (decisions table from 0001 schema).
   const { data: decision, error: decisionErr } = await supabase
@@ -83,11 +100,11 @@ export async function POST(req: NextRequest) {
       situation,
       user_diagnosis: userDiagnosis,
       user_proposal: userProposal,
-      system_engagement: systemResponse?.engagement,
-      system_added_perspective: systemResponse?.addedPerspective,
-      system_suggestion_action: systemResponse?.suggestion?.action,
-      system_suggestion_why: systemResponse?.suggestion?.why,
-      system_comparison: systemResponse?.comparison,
+      system_engagement: sr?.engagement,
+      system_added_perspective: sr?.addedPerspective,
+      system_suggestion_action: sr?.suggestion?.action,
+      system_suggestion_why: sr?.suggestion?.why,
+      system_comparison: sr?.comparison,
       chosen_path: chosenPath,
       chosen_note: chosenNote ?? null,
       created_by: auth.user.id,

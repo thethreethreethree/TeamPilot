@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { allowedTaskTransitions } from "@/lib/tasks/statusLabels";
+import { TaskCreateSchema } from "@/lib/api/validate";
 
 /**
  * Production task API. Live-mode only — the chain depends on real events being
@@ -50,16 +51,24 @@ export async function POST(req: NextRequest) {
   const ctx = await getCompanyId();
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
 
-  const body = await req.json();
-  const required = ["title"];
-  for (const f of required) {
-    if (typeof body[f] !== "string" || !body[f].trim()) {
-      return NextResponse.json(
-        { error: `Field '${f}' is required.` },
-        { status: 400 }
-      );
-    }
+  // Validate the core task fields against the single source of truth
+  // (TaskCreateSchema — enums derived from statusLabels, bounded strings,
+  // ai_priority_score clamped to 0-100). Before this, POST inserted body.status /
+  // body.priority / body.aiPriorityScore RAW with no DB CHECK behind them, so a
+  // crafted request could create a task with a NON-CANONICAL status. That status
+  // has no outgoing edges in allowedTaskTransitions(), so the task becomes
+  // permanently un-transitionable — a jammed row the board can't move. The schema
+  // strips unknown fields, so we keep the raw body for the spawn-linkage fields it
+  // deliberately doesn't model (validated by shape + the DB xor constraint below).
+  const raw = await req.json();
+  const parsed = TaskCreateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid task fields." },
+      { status: 400 }
+    );
   }
+  const body = parsed.data;
 
   // Enforce the "a Blocked task must carry a reason" guarantee on CREATE. PATCH
   // already enforces it (route below), but POST did not — so a task could be
@@ -84,14 +93,14 @@ export async function POST(req: NextRequest) {
   // set, so we just pass through whatever the caller sent and let
   // the DB reject contradictions.
   const linkedDecisionId =
-    typeof body.linkedDecisionId === "string" ? body.linkedDecisionId : null;
+    typeof raw.linkedDecisionId === "string" ? raw.linkedDecisionId : null;
   const linkedChatTopicId =
-    typeof body.linkedChatTopicId === "string" ? body.linkedChatTopicId : null;
-  const linkedMessageIds = Array.isArray(body.linkedMessageIds)
-    ? body.linkedMessageIds.filter((v: unknown) => typeof v === "string")
+    typeof raw.linkedChatTopicId === "string" ? raw.linkedChatTopicId : null;
+  const linkedMessageIds = Array.isArray(raw.linkedMessageIds)
+    ? raw.linkedMessageIds.filter((v: unknown) => typeof v === "string")
     : null;
-  const spawnSteps = Array.isArray(body.spawnSteps)
-    ? body.spawnSteps.filter((v: unknown) => typeof v === "string")
+  const spawnSteps = Array.isArray(raw.spawnSteps)
+    ? raw.spawnSteps.filter((v: unknown) => typeof v === "string")
     : null;
 
   const { data, error } = await ctx.supabase

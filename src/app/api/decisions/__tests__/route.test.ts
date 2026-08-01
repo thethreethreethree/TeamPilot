@@ -110,4 +110,27 @@ describe("POST /api/decisions", () => {
     expect(j.error).toBe("Couldn't save the decision.");
     expect(JSON.stringify(j)).not.toContain("internal pg detail");
   });
+
+  // Input validation via DecisionCreateSchema. The inserts were previously
+  // unvalidated — arbitrary-size text and jsonb went straight into the immutable
+  // rows. These pin the bounds WITHOUT re-introducing the min-length constraints
+  // that would have broken the terse / empty-userProposal (defer) paths.
+  it("400 on an oversized free-text field (bounds the unbounded insert)", async () => {
+    mock(fakeSb({}));
+    const res = await POST(req({ ...body(), situation: "x".repeat(20_001) }));
+    expect(res.status).toBe(400);
+  });
+
+  it("400 on an invalid chosenPath (not one of user/system/hybrid/defer)", async () => {
+    mock(fakeSb({}));
+    expect((await POST(req({ ...body(), chosenPath: "whatever" }))).status).toBe(400);
+  });
+
+  it("STILL accepts a terse decision and an empty userProposal (defer path)", async () => {
+    mock(fakeSb({}));
+    const res = await POST(
+      req({ situation: "At risk", userDiagnosis: "Churn", userProposal: "", chosenPath: "defer", title: "T" })
+    );
+    expect(res.status).toBe(200);
+  });
 });

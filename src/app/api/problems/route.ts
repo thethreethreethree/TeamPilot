@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import {
+  ProblemCreateSchema,
+  ProblemLinkSchema,
+  ProblemPatchSchema,
+} from "@/lib/api/validate";
 
 async function getCtx() {
   if (!supabaseEnabled) return { error: "Live mode required." };
@@ -30,14 +35,18 @@ export async function POST(req: NextRequest) {
   const ctx = await getCtx();
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
 
-  const body = await req.json();
-  const { kind, title, diagnosis, signalIds } = body;
-  if (typeof kind !== "string" || !kind.trim()) {
-    return NextResponse.json({ error: "kind is required" }, { status: 400 });
+  // Validate against the shared schema: bounds signalIds (was unbounded — a
+  // 100k-element array became one oversized insert) and requires each to be a
+  // uuid up front, instead of letting the FK reject non-uuids only AFTER the
+  // payload was assembled. Strings are length-capped too.
+  const parsed = ProblemCreateSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid problem fields." },
+      { status: 400 }
+    );
   }
-  if (typeof title !== "string" || !title.trim()) {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
-  }
+  const { kind, title, diagnosis, signalIds } = parsed.data;
 
   const { data, error } = await ctx.supabase
     .from("problems")
@@ -85,11 +94,14 @@ export async function PATCH(req: NextRequest) {
   const ctx = await getCtx();
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
 
-  const body = await req.json();
-  const { id, title, diagnosis, status, dismissalReason } = body;
-  if (typeof id !== "string") {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = ProblemPatchSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid problem fields." },
+      { status: 400 }
+    );
   }
+  const { id, title, diagnosis, status, dismissalReason } = parsed.data;
 
   const patch: Record<string, unknown> = {};
   if (typeof title === "string") patch.title = title;
@@ -145,13 +157,14 @@ export async function PUT(req: NextRequest) {
   const ctx = await getCtx();
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
 
-  const { id, signalIds } = await req.json();
-  if (typeof id !== "string" || !Array.isArray(signalIds)) {
+  const parsed = ProblemLinkSchema.safeParse(await req.json());
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "id and signalIds[] are required" },
+      { error: parsed.error.issues[0]?.message ?? "id and signalIds[] are required" },
       { status: 400 }
     );
   }
+  const { id, signalIds } = parsed.data;
 
   const links = signalIds.map((sid: string) => ({
     problem_id: id,

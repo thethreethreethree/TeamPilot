@@ -181,3 +181,50 @@ describe("POST create — blocker_reason guarantee", () => {
     expect(res.status).toBe(200);
   });
 });
+
+/**
+ * POST create — input validation via the shared TaskCreateSchema.
+ *
+ * The bug this guards: POST inserted body.status / body.priority /
+ * body.aiPriorityScore RAW, with no DB CHECK behind them. A crafted request could
+ * create a task with a NON-CANONICAL status ("Foobar"), and since that status has
+ * no outgoing edges in allowedTaskTransitions() it becomes permanently
+ * un-transitionable — a jammed row the board can never move. The route now parses
+ * the core fields through the schema whose enums are derived from statusLabels.
+ */
+describe("POST create — schema validation", () => {
+  it("REJECTS a non-canonical status (the jam-the-state-machine bug) with 400", async () => {
+    mock(createSb());
+    const res = await POST(req({ title: "X", status: "Foobar" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("REJECTS a non-canonical priority with 400", async () => {
+    mock(createSb());
+    expect((await POST(req({ title: "X", priority: "SUPER-URGENT" }))).status).toBe(400);
+  });
+
+  it("REJECTS an out-of-range aiPriorityScore (>100) with 400", async () => {
+    mock(createSb());
+    expect((await POST(req({ title: "X", aiPriorityScore: 9999 }))).status).toBe(400);
+  });
+
+  it("REJECTS a missing/empty title with 400", async () => {
+    mock(createSb());
+    expect((await POST(req({ title: "" }))).status).toBe(400);
+    expect((await POST(req({}))).status).toBe(400);
+  });
+
+  it("REJECTS an oversized title (>200 chars) with 400", async () => {
+    mock(createSb());
+    expect((await POST(req({ title: "a".repeat(201) }))).status).toBe(400);
+  });
+
+  it("ACCEPTS a valid canonical create (To Do / Medium)", async () => {
+    mock(createSb());
+    const res = await POST(
+      req({ title: "Real task", status: "To Do", priority: "Medium", aiPriorityScore: 50 })
+    );
+    expect(res.status).toBe(200);
+  });
+});

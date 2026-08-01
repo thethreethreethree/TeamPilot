@@ -113,6 +113,14 @@ export const ProblemCreateSchema = z.object({
   signalIds: z.array(z.string().uuid()).max(200).optional(),
 });
 
+// PUT /api/problems — link signals to an existing problem. Same bound as
+// ProblemCreateSchema.signalIds so the two link paths can't diverge (an
+// unbounded array here would sidestep the create-path cap).
+export const ProblemLinkSchema = z.object({
+  id: z.string().uuid(),
+  signalIds: z.array(z.string().uuid()).max(200),
+});
+
 export const ProblemPatchSchema = z.object({
   id: z.string().uuid(),
   title: TitleSchema.optional(),
@@ -129,15 +137,23 @@ export const ResolutionPatchSchema = z.object({
   durability: z.enum(["held", "reopened", "partial", "unknown"]),
 });
 
-export const DecisionPersistSchema = z.object({
-  situation: z.string().min(20).max(20_000),
-  userDiagnosis: z.string().min(20).max(20_000),
-  userProposal: z.string().min(20).max(20_000),
+// POST /api/decisions create payload. Bounds every free-text field so a crafted
+// request can't push oversized text / jsonb into the immutable decision + dialogue
+// rows (the finding: these inserts were entirely unvalidated). Deliberately carries
+// NO min lengths — the defer/hybrid paths legitimately send an EMPTY userProposal,
+// and real decisions are often terse ("Renewal at risk"), so a min(20) would 400
+// valid submissions (which is exactly why the earlier min-bearing DecisionPersistSchema
+// was written but never wired). chosenPath is the one hard requirement: a persisted
+// decision must record which path was taken.
+export const DecisionCreateSchema = z.object({
+  situation: z.string().max(20_000).optional().nullable(),
+  userDiagnosis: z.string().max(20_000).optional().nullable(),
+  userProposal: z.string().max(20_000).optional().nullable(),
   systemResponse: z.record(z.string(), z.unknown()).optional().nullable(),
   chosenPath: z.enum(["user", "system", "hybrid", "defer"]),
-  chosenNote: z.string().max(20_000).optional().or(z.literal("")),
-  title: z.string().max(200),
-  outcome: z.string().max(20_000).optional().or(z.literal("")),
+  chosenNote: z.string().max(20_000).optional().nullable(),
+  title: z.string().max(200).optional().nullable(),
+  outcome: z.string().max(20_000).optional().nullable(),
 });
 
 export const BrainUnlockSchema = z.object({
