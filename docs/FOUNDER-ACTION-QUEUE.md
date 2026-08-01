@@ -76,6 +76,29 @@
 > - `"wire the KPI trajectory"` — the §3.6 "vs earlier months" arc is computed+stored but has no reader; pipeline **verified live-ready** (reader diffs the monthKey `value` series).
 > - `"drop the dead KPI tables"` (`agent_baseline`+`growth_record`, 0-ref) · `"make the kpi snapshot write atomic"` · `"fix the CareShell contrast"` (~7 elems <WCAG AA) · `"write the skill reads"`/`"generic is fine"` · `"review the INV18 allowlist"` (10 public routes) · confirm `RCD_RETENTION_DAYS` (default 90) · the 3 Sales Coach nav calls (*gate manager sections* · *end session after recording* · *One Liners everywhere*).
 >
+> **✅ Shipped autonomously 2026-08-01 (this session) — LIVE on prod (prod build.commit == HEAD, verified):**
+> Your Sales Coach revisions applied + **cross-checked against BOTH source PDFs** (Sales Coach Revision.pdf +
+> PILOT-ACCESS-CODES.pdf) — every edit confirmed live; the "edits don't stick" origin was mode-gated labels +
+> stale client, NOT a deploy failure (watched two commits deploy in real time). **Module hard-lock built
+> end-to-end** — 0207 `access_module`, middleware confinement, care + sales-coach layout gates, required session
+> naming, and the login landing unified onto `access_module` (`4ccf9ece`) so login + confinement can't diverge.
+> **16 bug fixes** (adversarial audit of both pilot modules, all layers): 🔴 CRITICAL live-coaching mic/socket
+> leak on unmount (`d7a54df3`); 🟠 HIGH middleware cookie-drop logout (`5d3219f0`), after-pitch duplicate LLM
+> gen + dup KPI event (`4e06fef8`), KPI error-shown-as-building (`988fdbb2`), 2 cross-user injection holes cue +
+> transcript (`a86312ff`), C.A.R.E co-pilot cross-conversation mis-send (`240e4f65`); plus naming state-bleed
+> (`ed34b8b7`), cue-wedge (`d7a54df3`), roleplay orphan (`988fdbb2`), sessions error-latch (`27d31bf9`), Roleplay
+> label drift (`ad01fea0`), review LLM cost cap (`bd3da16a`), RCD + customers error-shown-as-empty (`e7b152fd`/
+> `9b849072`), care agent-upload agent-gate (`e4f82126`). **2 new CI invariants** — INV19 (owner-required
+> service-role append) + INV20 (middleware cookie preservation) — self-tested, so those fixes can't regress. **9
+> new tests**, **4 defect classes swept app-wide** (context-switch bleed 4th axis · error-as-no-data · cross-user
+> append · cookie-drop), all recorded to memory. **Verified-CLEAN** (no fix needed, foundation confirmed sound):
+> C.A.R.E cross-tenant isolation, the extension prompt-injection fence, the customer-facing widget (XSS/postMessage/
+> cleanup), monitor polling. **Final state: full suite 1936 green, invariant-audit + verify:live green, prod == HEAD.**
+> Founder-gated residuals from this session are in the lists above (trajectory UI · Jeff tiers · API-level lock ·
+> Pitch-Performance/Analytics label · DRY coach-assessment tail · delete SalesCoachComing · earpiece cue hint ·
+> scope chat-grade hydration · restrict tts voice) + the confirmed-live `ANTHROPIC_API_KEY` gap (no AI failover).
+> _(The "✅ Shipped autonomously this session" block just below predates THIS one — its 1906-test / INV18 / verify:live-22 markers are the earlier session; the 2026-08-01 record above is current.)_
+>
 > **✅ Shipped autonomously this session — no action needed:** 2 security fixes (`diagnosis/close` auth gate `4ab3294c`; finance `rates` CWE-209) + earlier mechanical fixes; **8 structural guards** — INV18 (every non-public mutation route gates, `f7a30c9e`) + verify:live grew 14→**22 invariants**: the full §3-thesis trigger-wiring (§3.1/§3.2/§3.4/§3.5), the view-invoker check, and the SECURITY DEFINER search_path guard; **2 coverage tests** (mirrorChipText, moduleLanding). The DB-security-lint classes are comprehensively clean + CI-guarded; the §3 thesis core is enforced + test-locked + guarded. **Final state: verify:live 22/22, full suite 1906 green, prod healthy.** The false-positive correction + behavioral tenant-isolation proof (41 tables) are on the record (audit doc + memory).
 
 ### 🟠 SECURITY (MEDIUM, hygiene) — finance DEFINER fns anon-callable → low-value scalar cross-tenant read (found 2026-07-28; severity re-confirmed 2026-07-31 — this one held up, unlike the withdrawn views finding above)
