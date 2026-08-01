@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/siteUrl";
 
 /**
  * /robots.txt — index public pages, keep /api, /dashboard, /onboarding, and
@@ -11,7 +12,7 @@ import type { MetadataRoute } from "next";
  * Remove "/care/demo" here if the demo page is ever meant to rank.
  */
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4321";
+  const base = siteUrl();
   return {
     rules: [
       {

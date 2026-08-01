@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { siteUrl } from "@/lib/siteUrl";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { CareChatWidget } from "@/components/care/CareChatWidget";
 import { ToastProvider } from "@/components/ui/toast";
@@ -54,12 +55,9 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   applicationName: "ELOSTATE",
-  // metadataBase is used to resolve relative URLs in OG tags. In production set
-  // NEXT_PUBLIC_SITE_URL to your deployed origin; falls back to a placeholder
-  // so build doesn't fail in dev.
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4321"
-  ),
+  // metadataBase resolves relative URLs in OG/canonical tags. Prefer NEXT_PUBLIC_SITE_URL; the shared
+  // siteUrl() fallback is production-safe (never localhost in prod — see siteUrl.ts / the 2026-08-02 fix).
+  metadataBase: new URL(siteUrl()),
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
