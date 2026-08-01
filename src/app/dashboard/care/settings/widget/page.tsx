@@ -94,6 +94,11 @@ export default function CareWidgetSettingsPage() {
         setOriginsRaw((data.config.allowed_origins ?? []).join("\n"));
         setInboundEmailAddress(data.inboundEmailAddress ?? null);
       }
+      // On a non-ok response we leave config null; the render below
+      // distinguishes "still loading" from "loaded but empty" and shows
+      // a retry rather than an eternal spinner.
+    } catch {
+      // Network throw — same: config stays null, error branch renders.
     } finally {
       setLoading(false);
     }
@@ -155,7 +160,7 @@ export default function CareWidgetSettingsPage() {
     }
   };
 
-  if (loading || !config || !draft) {
+  if (loading) {
     return (
       <>
         <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
@@ -166,6 +171,32 @@ export default function CareWidgetSettingsPage() {
         <div className="flex items-center gap-2 text-xs text-muted py-16 justify-center">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           Loading…
+        </div>
+      </>
+    );
+  }
+
+  // Loaded but config never arrived → the fetch failed (500 / auth / network).
+  // Show a retry instead of an eternal "Loading…" spinner.
+  if (!config || !draft) {
+    return (
+      <>
+        <header className="px-4 md:px-8 py-4 border-b border-default bg-base/60">
+          <h1 className="text-lg font-semibold text-primary">Settings</h1>
+          <p className="text-[11px] text-muted">Widget</p>
+        </header>
+        <SettingsTabs />
+        <div className="flex flex-col items-center gap-3 text-xs text-muted py-16 justify-center">
+          <p className="text-secondary">Couldn&apos;t load your widget settings.</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
+            className="rounded-md border border-default px-3 py-1.5 text-xs text-primary hover:bg-base/60"
+          >
+            Retry
+          </button>
         </div>
       </>
     );
@@ -798,12 +829,17 @@ const RESULT_LABEL: Record<WidgetLoadResult, string> = {
 function WidgetLoadEvents() {
   const [summary, setSummary] = useState<LoadEventsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const res = await fetch("/api/care/settings/widget/load-events");
-        if (res.ok && !cancelled) setSummary(await res.json());
+        if (cancelled) return;
+        if (res.ok) setSummary(await res.json());
+        else setFailed(true);
+      } catch {
+        if (!cancelled) setFailed(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -822,6 +858,10 @@ function WidgetLoadEvents() {
         <div className="flex items-center gap-2 text-xs text-muted py-4">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
         </div>
+      ) : failed ? (
+        <p className="text-[11px] text-muted italic">
+          Couldn&apos;t load widget traffic. Refresh to try again.
+        </p>
       ) : !summary || summary.total === 0 ? (
         <p className="text-[11px] text-muted italic">
           No widget loads recorded yet.
