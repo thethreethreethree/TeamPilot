@@ -70,11 +70,24 @@ export async function fetchTopicMessageGrades(
   const result = new Map<string, EncouragementGrade>();
   if (!supabaseEnabled) return result;
   const supabase = createClient();
+  // Scope to the caller's OWN grades. A topic's message-grade indicators are the user's private
+  // self-assessments (they grade their own sent messages), so `actor = self` is both the correct privacy
+  // behavior (never surface a colleague's grade on their message) AND closes a LOW injection: without it,
+  // the read returned every same-company `coach.message_graded` row for the topic, so a colleague who knew
+  // a peer's topicId + messageId could write a row that surfaced a bogus indicator on the peer's message.
+  // getSession() is LOCAL (no network round-trip). (The leader readout is separately unaffected — it
+  // aggregates grade counts and ignores message_id/subject.)
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return result;
   const { data, error } = await supabase
     .from("events")
     .select("payload, created_at")
     .eq("kind", "coach.message_graded")
     .eq("subject", `chat_topic:${topicId}`)
+    .eq("actor", uid)
     .order("created_at", { ascending: true })
     .limit(500);
   if (error || !data) return result;

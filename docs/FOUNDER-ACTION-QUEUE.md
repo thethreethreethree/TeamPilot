@@ -72,11 +72,11 @@
 >   INVARIANT 19 guards the class (`a86312ff`).
 > - ✅ **FIXED** — `sales-session/review` LLM cost/DoS: `InlineSegment.text` had no length cap, so 2000 array
 >   slots could each carry a multi-MB string into the LLM prompt. Capped at 8000 (matches label-transcript).
-> - `"scope the chat grade hydration"` — LOW. `gradeClient.fetchTopicMessageGrades(topicId)` reads
->   `coach.message_graded` by subject with NO actor filter, so a rep who knows a peer's topicId+messageId (two
->   non-enumerable UUIDs) could surface a bogus grade indicator on the peer's chat message. The LEADER readout
->   is UNAFFECTED (it aggregates grade counts, ignores message_id). Fix = `.eq("actor", self)` on the read, but
->   it needs the userId threaded to a client-side hydration (adds an auth round-trip) — flagged, not done.
+> - ✅ **FIXED** — chat grade hydration is now `actor`-scoped. `gradeClient.fetchTopicMessageGrades` read
+>   `coach.message_graded` by subject with NO actor filter, so a rep who knew a peer's topicId+messageId could
+>   surface a bogus grade indicator on the peer's message. Resolved the "needs a round-trip" objection with
+>   `getSession()` (LOCAL, no network) + `.eq("actor", self)` — which is also the correct PRIVACY behavior (a
+>   topic's indicators are the user's own self-assessments). Leader readout was already unaffected.
 > - `"restrict the tts voice"` — LOW. `sales-session/tts` passes an arbitrary `voiceId` (≤64 chars) to
 >   ElevenLabs with no check against the curated set; an authed user (60/min, text ≤2000) could synthesize in a
 >   premium/non-curated voice. Bounded cost. Constrain to CURATED_VOICES if you want it tight.
