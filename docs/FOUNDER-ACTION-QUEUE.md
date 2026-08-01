@@ -93,12 +93,31 @@
 >   pattern. Honest but not correct — turns a silent lie into a disclosed bound until the real fix lands.
 >
 > **🆕 2026-08-02 — Message threads load unbounded (same audit, MEDIUM, needs a "load older" UX decision):**
-> Three read paths load an entire thread with no limit → silently truncate past 1000 messages (older/newer messages
-> vanish from the thread) + full-thread memory per open: `fetchMessages` (team chat, `lib/data/chats.ts:702`),
-> `getConversationMessages`/`getConversationWithMessages` (C.A.R.E support, `lib/data/care.ts:287,690`), and
-> `fetchDecisions` (decision history, `lib/data/decisions.ts:30`, moderate-growth). The fix is real pagination
-> (initial newest-N window + a "load older" affordance) — a UI feature + UX call, not a silent autonomous change.
-> - `"paginate the message threads"` — I build the newest-first window + load-older for chat + support (+ decisions).
+> Read paths that load an entire thread with no limit → silently truncate past 1000 messages (order is ascending,
+> so the NEWEST messages vanish from the thread) + full-thread memory per open: `fetchMessages` (team chat,
+> `lib/data/chats.ts:702`), `getConversationMessages`/`getConversationWithMessages` (C.A.R.E support,
+> `lib/data/care.ts:287,690`), `fetchDecisions` (decision history, `lib/data/decisions.ts:30`, moderate-growth),
+> and — **found on the completeness re-sweep 2026-08-02** — `fetchTaskMessages` (task discussion thread,
+> `lib/data/tasks.ts:269`, the task detail view). That's **FOUR** surfaces, not three; scoping the fix to only
+> chat/care/decisions would leave the task thread silently truncating. The fix is real pagination (initial
+> newest-N window + a "load older" affordance) — a UI feature + UX call, not a silent autonomous change.
+> - `"paginate the message threads"` — I build the newest-first window + load-older for chat + support + tasks
+>   (+ decisions). Scope note: these FOUR are the thread-DISPLAY loaders. A completeness re-sweep also found two
+>   unbounded support_messages ANALYTICS scans (`care.ts:2021`/`2128`, voice/co-pilot cohort classification in a
+>   leadership readout) — those belong to the silent-truncation class below, not pagination.
+>
+> **🆕 2026-08-02 — `.limit(N)` with N>1000 is a FALSE bound (found on the completeness re-sweep; MEDIUM):**
+> PostgREST enforces `max_rows=1000` REGARDLESS of a larger client `.limit()`, so a read that asks for 2000/5000
+> rows silently gets ≤1000 — the developer's intended bound is a false comfort. Six sites: `finance/bank/accounts/[id]/transactions:17` (`.limit(2000)` — **highest: a busy account's register shows only the
+> first 1000 transactions**), `admin/coach-readout` (×3 `.limit(2000)`), `brain/learning-summary:119`
+> (`.limit(2000)` coach-events aggregation), `care/agent/analytics:34` (`.limit(5000)`),
+> `coach/kpi/compute-cron:71` (`.limit(5000)` — the KPI cron processes ≤1000), and the `care.ts` voice-value
+> readout durability read (`.limit(5000)`). Same root as the coach-KPI truncation: the fix is server-side
+> aggregation or true pagination (`.range()` loop), NOT a bigger `.limit()`. Most are analytics undercounts
+> (LOW-MED); the finance register is the one worth prioritizing. Diagnosed, not auto-fixed — same reason as the
+> coach-KPI item (can't verify the corrected figures live; §3.3/§4).
+> - `"fix the false limits"` — I convert the finance-register read to real `.range()` pagination and the analytics
+>   scans to server-side aggregates (or disclosed `capped` flags), per site.
 >
 > **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
 > - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
