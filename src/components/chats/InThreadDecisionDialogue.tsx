@@ -86,6 +86,7 @@ export function InThreadDecisionDialogue({
   // ─── Async ──────────────────────────────────────────────────
   const [advancing, setAdvancing] = useState(false);
   const [askingSystem, setAskingSystem] = useState(false);
+  const askingSystemRef = useRef(false);
   const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState("");
 
@@ -206,6 +207,13 @@ export function InThreadDecisionDialogue({
   };
 
   const askSystem = async () => {
+    // Synchronous latch: /respond re-runs the LLM and inserts a fresh
+    // chat_message + decision.system_responded event every call (no
+    // existing-response short-circuit), so a double-click would generate
+    // two responses and duplicate the event log. `askingSystem` state is
+    // applied a render too late to stop the second click.
+    if (askingSystemRef.current) return;
+    askingSystemRef.current = true;
     setAskingSystem(true);
     setError("");
     try {
@@ -216,6 +224,7 @@ export function InThreadDecisionDialogue({
     } catch (err) {
       setError(err instanceof Error ? err.message : "System didn't respond.");
     } finally {
+      askingSystemRef.current = false;
       setAskingSystem(false);
     }
   };

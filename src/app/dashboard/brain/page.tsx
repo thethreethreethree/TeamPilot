@@ -19,7 +19,7 @@ import {
   Sparkles,
   Unlock,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface BrainState {
   brain: {
@@ -54,6 +54,7 @@ export default function BrainPage() {
   const [state, setState] = useState<BrainState | null>(null);
   const [loading, setLoading] = useState(true);
   const [learning, setLearning] = useState(false);
+  const learningRef = useRef(false);
   const [learnMessage, setLearnMessage] = useState("");
   const [unlockOpen, setUnlockOpen] = useState(false);
 
@@ -73,6 +74,11 @@ export default function BrainPage() {
   };
 
   const triggerLearning = async () => {
+    // Synchronous latch: a double-click would fire two expensive LLM
+    // learning passes for one intent (and double-append to the evolution
+    // log). `learning` state disables the button a render too late.
+    if (learningRef.current) return;
+    learningRef.current = true;
     setLearning(true);
     setLearnMessage("");
     try {
@@ -106,6 +112,7 @@ export default function BrainPage() {
           : "Learning cycle failed (network error)."
       );
     } finally {
+      learningRef.current = false;
       setLearning(false);
     }
   };
@@ -413,6 +420,7 @@ function UnlockModal({
 }) {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
 
   const submit = async () => {
@@ -422,6 +430,11 @@ function UnlockModal({
       );
       return;
     }
+    // Synchronous latch: the unlock lands an immutable record on the
+    // brain_evolution_events audit trail with no already-unlocked guard,
+    // so a double-click would write two override records for one action.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
     try {
@@ -436,6 +449,7 @@ function UnlockModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unlock failed.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
