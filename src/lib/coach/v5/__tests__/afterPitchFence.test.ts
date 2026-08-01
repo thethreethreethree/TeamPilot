@@ -14,16 +14,24 @@ import { dirname, join } from "node:path";
  * it). This test fails if a refactor drops the fence from any engine — a silent
  * security regression that would otherwise pass typecheck + the other tests.
  */
+// Every coach engine that feeds the diarized transcript (customer speech) to an
+// LLM. Prep engines (salesPrep/salesPrepQA) and aggregate ones (salesWhyPatterns)
+// don't ingest the transcript, so they're intentionally absent.
 const engines = [
   "../salesReview.ts",
   "../salesMoments.ts",
   "../salesScore.ts",
   "../afterPitch.ts",
+  "../salesDissect.ts",
+  "../salesSummary.ts",
+  "../salesWhy.ts",
+  "../salesPivot.ts",
+  "../salesIntel.ts",
 ];
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-describe("after-pitch LLM engines keep the prompt-injection fence", () => {
+describe("sales-coach transcript LLM engines keep the prompt-injection fence", () => {
   for (const rel of engines) {
     it(`${rel.replace("../", "")} imports and applies CONVERSATION_IS_DATA`, () => {
       const src = readFileSync(join(here, rel), "utf8");

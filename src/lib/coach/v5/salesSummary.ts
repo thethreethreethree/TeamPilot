@@ -1,4 +1,6 @@
 import "server-only";
+// Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { generateCareReply } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TranscriptSegment } from "@/lib/data/salesCoach";
@@ -38,7 +40,7 @@ export async function runAndStoreSummary(args: {
 
   const r = await generateCareReply({
     companyId: args.companyId,
-    systemPrompt: SUMMARY_SYSTEM,
+    systemPrompt: SUMMARY_SYSTEM + CONVERSATION_IS_DATA,
     userMessage: `Transcript:\n${transcript}\n\nWrite the summary.`,
     controlExempt: true,
   });

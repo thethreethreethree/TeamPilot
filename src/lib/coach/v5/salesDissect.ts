@@ -1,4 +1,6 @@
 import "server-only";
+// Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -59,7 +61,9 @@ export async function generateSalesDissect(args: {
       getCurrentSalesCorpus(args.companyId).catch(() => null),
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt = buildSalesDissectSystemPrompt(corpus?.content, product?.content);
+    const systemPrompt =
+      buildSalesDissectSystemPrompt(corpus?.content, product?.content) +
+      CONVERSATION_IS_DATA;
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,

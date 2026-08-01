@@ -1,4 +1,6 @@
 import "server-only";
+// Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { groundQuote } from "./grounding";
@@ -103,7 +105,9 @@ export async function generateSalesPivot(args: {
       getCurrentSalesCorpus(args.companyId).catch(() => null),
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt = buildSalesPivotSystemPrompt(corpus?.content, product?.content);
+    const systemPrompt =
+      buildSalesPivotSystemPrompt(corpus?.content, product?.content) +
+      CONVERSATION_IS_DATA;
     const userMessage = buildSalesPivotUserMessage({
       context: args.context,
       outcome: args.outcome,

@@ -1,4 +1,6 @@
 import "server-only";
+// Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
@@ -161,7 +163,7 @@ export async function generateSessionWhy(args: {
       (s) => s.speaker === "agent"
     ).length;
     if (agentSegments < MIN_AGENT_SEGMENTS) return EMPTY_WHY;
-    const systemPrompt = buildWhySystemPrompt();
+    const systemPrompt = buildWhySystemPrompt() + CONVERSATION_IS_DATA;
     const userMessage = buildWhyUserMessage(args);
     const r = await dissectCoachV5({
       companyId: args.companyId,

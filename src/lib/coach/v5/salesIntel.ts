@@ -1,4 +1,6 @@
 import "server-only";
+// Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
@@ -31,7 +33,7 @@ export async function generateSalesIntel(args: {
     if (args.segments.length < MIN_SEGMENTS) return EMPTY;
     const r = await dissectCoachV5({
       companyId: args.companyId,
-      systemPrompt: buildSalesIntelSystemPrompt(),
+      systemPrompt: buildSalesIntelSystemPrompt() + CONVERSATION_IS_DATA,
       userMessage: buildSalesIntelUserMessage({
         context: args.context,
         segments: args.segments,
