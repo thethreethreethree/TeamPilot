@@ -7,6 +7,7 @@ import {
   DecisionCreateSchema,
   ResolutionPatchSchema,
 } from "../validate";
+import { INVITABLE_ROLES } from "@/lib/roles";
 
 /**
  * Code-enum <-> DB-CHECK-constraint sync guard (same class as tagColors <-> 0035).
@@ -60,6 +61,14 @@ const PAIRS = [
     name: "resolutions.durability (ResolutionPatchSchema.durability <-> 0005)",
     zod: enumOptions(ResolutionPatchSchema.shape.durability),
     db: dbCheck("0005", "durability"),
+  },
+  {
+    // The LIVE role list isInvitableRole() gates team invites with (roles.ts), which its own
+    // comment says maps to team_invitations.role. A drift = a role the invite accepts fails the
+    // DB CHECK on insert (privilege-relevant path).
+    name: "team_invitations.role (INVITABLE_ROLES <-> 0008)",
+    zod: [...INVITABLE_ROLES],
+    db: dbCheck("0008", "role"),
   },
 ];
 
