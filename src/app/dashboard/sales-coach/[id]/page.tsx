@@ -91,8 +91,13 @@ export default function SessionDetail() {
   const [intel, setIntel] = useState<SalesIntel | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phase 4 (founder 2026-08-01): finishing a session REQUIRES naming it before the After-Pitch opens.
+  // The gate is shown on any finish path (recording complete OR manual End session); it can't be skipped.
+  const [namingOpen, setNamingOpen] = useState(false);
+  const [sessionName, setSessionName] = useState("");
+  const [namingError, setNamingError] = useState<string | null>(null);
+  const [namingBusy, setNamingBusy] = useState(false);
 
   // Guard against a stale-response race on rapid session navigation (A→B): a slow
   // load for A must not overwrite B's session/review. Stamp + verify still-current.
@@ -183,53 +188,48 @@ export default function SessionDetail() {
     }
   };
 
-  const endSession = async () => {
-    setEnding(true);
-    setError(null);
+  // Phase 4 (founder 2026-08-01): finishing a session opens a REQUIRED naming gate — the rep must name the
+  // session before it ends and the After-Pitch opens. Every finish path routes through here (the manual
+  // "End session" button AND recording-complete), so no session reaches After-Pitch unnamed. Pre-fills any
+  // existing name so a re-finish just confirms it.
+  const openNaming = () => {
+    setSessionName(session?.clientLabel ?? "");
+    setNamingError(null);
+    setNamingOpen(true);
+  };
+
+  // Submit the required name → end the session WITH the name in ONE PATCH → land on After-Pitch. The name is
+  // mandatory (the modal has no skip/close and Save is disabled until it's non-empty). Ending + naming
+  // together is safe + idempotent: the 0070 trigger stamps ended_at once on the active→ended transition and
+  // never re-stamps, so a re-finish keeps the real end time; clientLabel becomes the session's name wherever
+  // it's listed. On error we keep the modal open with the message rather than trapping the rep half-ended.
+  const submitNameAndFinish = async () => {
+    const name = sessionName.trim();
+    if (name.length < 1) {
+      setNamingError("Give this session a name to continue.");
+      return;
+    }
+    setNamingBusy(true);
+    setNamingError(null);
     try {
       const res = await fetch(`/api/coach/sales-session/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ended" }),
+        body: JSON.stringify({ status: "ended", clientLabel: name }),
       });
-      if (res.ok) {
-        setSession((await res.json()).session);
-        // Standard's post-call screen IS the After-Pitch Summary. Setting the session
-        // to a non-active status here triggers the redirect useEffect above — the SAME
-        // path a rep takes when reloading/reopening an already-ended session. One source
-        // of truth for "Standard rep on an ended session → After-Pitch", not two.
-      } else {
-        // §3.4 / 558ce56 class: a failed end-session must be visible (the sibling
-        // handlers here already setError; this one was the outlier). Otherwise the
-        // view stays "active" and the user thinks the session ended.
+      if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Couldn't end the session — try again.");
+        setNamingError(data?.error ?? "Couldn't save the name — try again.");
+        return;
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't reach the server to end the session.");
-    } finally {
-      setEnding(false);
-    }
-  };
-
-  // Founder decision 2026-08-01 (B): finishing a recording AUTO-ENDS the session, then lands on the
-  // After-Pitch Summary. Ending here is what makes the duration + the avgSessionDuration KPI populate and
-  // keeps the post-call flow one clean step instead of forcing a separate "End session" tap. It is safe to
-  // fire even if the rep already ended manually: the 0070 trigger stamps ended_at only on the active→ended
-  // transition and only when ended_at is null, so a re-end never overwrites the real end time. Non-blocking
-  // on failure — the After-Pitch summary generates from the labeled transcript regardless, so we still
-  // navigate even if the end PATCH errored (the rep can end manually from there).
-  const endThenAfterPitch = async () => {
-    try {
-      await fetch(`/api/coach/sales-session/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ended" }),
-      });
+      setNamingOpen(false);
+      // After-Pitch generates from the labeled transcript; the session is now ended + named.
+      router.push(`/dashboard/sales-coach/${id}/after-pitch`);
     } catch {
-      // Swallow — the redirect must still happen (see above).
+      setNamingError("Couldn't reach the server — try again.");
+    } finally {
+      setNamingBusy(false);
     }
-    router.push(`/dashboard/sales-coach/${id}/after-pitch`);
   };
 
   // Step 3 — pre-knock prep. A short briefing from the session's captured
@@ -471,15 +471,14 @@ export default function SessionDetail() {
                   why="A call that never gets closed out sits half-finished: no outcome logged, no review pulled, no lesson extracted. Ending the session is the gate that turns a live call into something you can learn from."
                   how="Tap it when the conversation is genuinely over. It never interrupts you mid-call — the post-call tools only appear after you've ended, so you're never blocked while the door is still open."
                   principle="Closing the session is what converts a call you had into a call you can improve on.">
-                  <LoadingButton
-                    pending={ending}
-                    onClick={() => void endSession()}
-                    icon={<Square className="w-3 h-3" aria-hidden />}
-                    spinnerClassName="w-3 h-3"
+                  <button
+                    type="button"
+                    onClick={openNaming}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-default text-secondary hover:text-primary disabled:opacity-60"
                   >
+                    <Square className="w-3 h-3" aria-hidden />
                     End session
-                  </LoadingButton>
+                  </button>
                 </LearningHint>
               )}
               {/* Generate growth review — Expert only (spec p4). In Standard the
@@ -960,10 +959,10 @@ export default function SessionDetail() {
               sessionId={id}
               context={session?.context}
               // Founder 2026-07-31 (urgent): the moment the live recording's transcript is saved, the
-              // After-Pitch Summary must show up — go straight to it (it auto-generates). Founder 2026-08-01
-              // (decision B): finishing the recording also auto-ends the session (endThenAfterPitch) so the
-              // duration + KPI populate. This is the live-coaching twin of the upload path's onLabeled.
-              onRecordingSaved={endThenAfterPitch}
+              // After-Pitch must show up. Founder 2026-08-01 (Phase 4): finishing REQUIRES naming — so this
+              // opens the required naming gate; submitting it ends the session (populating duration + KPI)
+              // AND names it, then lands on After-Pitch. Live-coaching twin of the upload path's onLabeled.
+              onRecordingSaved={openNaming}
               // Gate the "not recording" banner to active sessions so it can't
               // misfire on an already-ended one (founder 2026-07-26 fix).
               active={session?.status === "active"}
@@ -978,13 +977,12 @@ export default function SessionDetail() {
             {!isStandard && (
               <>
             {/* S1a — upload a recording → diarize → one-tap label. Founder 2026-07-31 (urgent): after the
-                recording is processed, the After-Pitch Summary must show up — so on label-complete we go
-                straight to it (it auto-generates from the just-labeled transcript). Founder 2026-08-01
-                (decision B): finishing the recording also auto-ends the session (endThenAfterPitch), so the
-                duration + KPI populate. push (not replace) so "Back to session" still works. */}
+                recording is processed, the After-Pitch must show up. Founder 2026-08-01 (Phase 4): finishing
+                REQUIRES naming — on label-complete we open the required naming gate; submitting it ends the
+                session (duration + KPI populate) AND names it, then lands on After-Pitch. */}
             <SessionRecordingUpload
               sessionId={id}
-              onLabeled={endThenAfterPitch}
+              onLabeled={openNaming}
             />
 
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.
@@ -1028,6 +1026,50 @@ export default function SessionDetail() {
           </>
         )}
       </div>
+
+      {/* Phase 4 (founder 2026-08-01): REQUIRED session-naming gate. Shown on any finish (manual End or
+          recording-complete). No X, no backdrop-close, Save disabled until non-empty — the rep MUST name the
+          session before it ends and the After-Pitch opens, so every session is findable in Sessions and its
+          duration/KPI are attributable to a named call. */}
+      {namingOpen && (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-base border border-default rounded-xl shadow-2xl w-full max-w-md p-5">
+            <h2 className="text-sm font-semibold text-primary">Name this session</h2>
+            <p className="text-[11px] text-muted mt-1 leading-relaxed">
+              Give this call a name before your After-Pitch review — so you can find it again in Sessions
+              (the customer, the door, or the deal).
+            </p>
+            <input
+              type="text"
+              autoFocus
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && sessionName.trim() && !namingBusy) void submitNameAndFinish();
+              }}
+              maxLength={120}
+              placeholder="e.g. 123 Oak St — solar quote"
+              className="w-full mt-3 bg-surface border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+            />
+            {namingError && (
+              <p role="alert" className="text-xs text-amber-300 mt-2">
+                {namingError}
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <LoadingButton
+                pending={namingBusy}
+                disabled={!sessionName.trim()}
+                pendingLabel="Saving…"
+                onClick={() => void submitNameAndFinish()}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-40 px-4 py-2 rounded-lg transition-colors"
+              >
+                Save &amp; continue
+              </LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
