@@ -1079,6 +1079,15 @@ const inv21Bad = (s) => [...s.matchAll(FALSE_LIMIT_RE)].some((m) => Number(m[1])
 st("INV21 flags .limit(5000) as a false bound", inv21Bad(".limit(5000)"));
 st("INV21 accepts .limit(500)", !inv21Bad(".limit( 500 )"));
 st("INV21 accepts .limit(1000) (matches max_rows exactly)", !inv21Bad(".limit(1000)"));
+// INV3 finance-reachability (added 2026-08-02 — this guard shipped WITHOUT a self-test, the only one that
+// had none). Its two extraction matchers are the fragile part: if a SQL-syntax change made ADD_COL_RE or
+// CREATE_TBL_RE match nothing, INV3 would find no columns/tables and SILENTLY pass ("worse than no guard").
+// matchAll is stateless, so it exercises the ACTUAL /g matchers without touching their lastIndex.
+st("INV3 ADD_COL_RE extracts an added column name",
+  [...("alter table fin_bills add column if not exists foo_bar text").matchAll(ADD_COL_RE)][0]?.[2] === "foo_bar");
+st("INV3 CREATE_TBL_RE extracts a created table name",
+  [...("create table if not exists fin_widgets (id uuid)").matchAll(CREATE_TBL_RE)][0]?.[1] === "fin_widgets");
+st("INV3 camel() maps snake_case -> camelCase (the src/ reachability name-match)", camel("foo_bar_baz") === "fooBarBaz");
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
