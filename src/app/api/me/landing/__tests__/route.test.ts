@@ -37,7 +37,7 @@ describe("GET /api/me/landing", () => {
     (resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("/dashboard/sales-coach");
     const body = await (await GET()).json();
     expect(body.landing).toBe("/dashboard/sales-coach");
-    const call = (resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    const call = (resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
     expect(call[1]).toBe("u1"); // userId
     expect(call[2]).toBe("co1"); // company_id from the profile
   });
@@ -46,6 +46,6 @@ describe("GET /api/me/landing", () => {
     mockSb({ id: "u1" }, null);
     (resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("/dashboard");
     await (await GET()).json();
-    expect((resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mock.calls[0][2]).toBeNull();
+    expect(((resolveUserLanding as unknown as ReturnType<typeof vi.fn>).mock.calls[0] ?? [])[2]).toBeNull();
   });
 });
