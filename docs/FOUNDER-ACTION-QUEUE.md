@@ -56,6 +56,15 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
+> **Sales-side pilot tracking GAP (2026-08-01, feature — "serves the Sales dept" half of the directive):**
+> There is NO code-level pilot-tracking surface. A redeemed code creates a company that shows up in
+> `admin/crm/accounts`, so you can see NEW ACCOUNTS — but nothing shows **which of the 100 codes are spent vs
+> available, which module each was for, or which company redeemed which code**. During a live 100-code pilot
+> that's an operational blind spot (today it's a psql query). The data is all there — `pilot_codes.redeemed_at`
+> + `module` + `redeemed_by_company` (0197). `"build the pilot-code tracker"` = a small vendor-admin view
+> (behind `requireVendorAdmin`, the 0089 precedent) listing code → module → redeemed_at → company, with a
+> spent/remaining count. A genuine Sales-onboarding enabler, but a NEW admin surface = your scope call.
+>
 > **Redeem UI edge (2026-08-01, LOW/UX — not a bug):** `/redeem` `createAccount` skips signUp when a user is
 > ALREADY authenticated (correct for the email-confirmation-return case). But if a DIFFERENT user is logged in
 > (a Sales rep on their own account redeeming a client's code while typing the client's email/password), it
