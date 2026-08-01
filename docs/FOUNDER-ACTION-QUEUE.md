@@ -84,6 +84,14 @@
 > the RCD list route DELIBERATELY 200+empties on a DB error (documented by-design), so a DB hiccup reads as
 > "no captures yet"; that's technically the class but a deliberate choice — surface it like sessions/customers,
 > or keep the degrade? Your call.
+> **Confirmed data-layer instances beyond customers (feed a "not found"/empty primary display):** `tasks.ts`
+> `fetchTask`/`fetchTaskMessages`/`fetchTaskParticipants` (operations), and `care.ts` `fetchAgentConversation`
+> (line 684 discards the conversation-read error → null → agent sees "conversation not found" on a transient DB
+> hiccup). `"systematize the data-layer error surfacing"` = the RIGHT fix is a CONVENTION, not N one-off 3-layer
+> patches: data-layer reads that feed a primary display should either throw on `error` (so the route's try/catch
+> 500s) or return a discriminated `{ok:false}` — then the client's existing error states fire. A per-function
+> audit of which of the ~32 discards feed a primary display + the convention decision is a founder-scoped
+> architectural task (rare per-instance impact — transient DB errors — so it's hygiene, not an emergency).
 
 > **Sales-side pilot tracking — ✅ BUILT (2026-08-01): `/founder/pilot-codes`.** The gap was real: nothing
 > showed which of the 100 seeded codes are spent vs available, per module, or who redeemed which (only new
