@@ -60,6 +60,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   weeks. Fixed the fallback to be production-safe (`https://elostate.com` in prod, never localhost) + DRY'd to
 >   one helper + tests. Deploys on next build. **You may still set `NEXT_PUBLIC_SITE_URL` in Vercel** (the proper
 >   override, e.g. if the canonical domain ever changes) but it's no longer REQUIRED for a correct canonical.
+> - 🟡 `"add a share image"` — LOW/polish (found via live OG tags 2026-08-02): the site declares
+>   `twitter:card = summary_large_image` (promises a big preview image) but has **NO og:image / twitter:image
+>   defined anywhere** — so every share of elostate.com (Slack, LinkedIn, X, iMessage) renders an EMPTY large
+>   card (title+description, blank image box), which looks broken. Three paths, your call: **(a)** you supply a
+>   designed 1200×630 share image (best — on-brand) and I wire it; **(b)** I build a code-generated
+>   `opengraph-image.tsx` default (ELOSTATE name + the honesty tagline on a branded background — no asset needed,
+>   but I'd be choosing the look, so I'd want your ok on brand); **(c)** downgrade the card to `summary` (small,
+>   no image expected — removes the "broken" look without an image). I did NOT auto-pick — the image is a brand call.
 >
 > **Data integrity (2026-08-01 app-wide re-entrancy audit — ~25 double-write bugs FIXED autonomously; 3 server
 > backstops need YOU):** A systemic class — append handlers guarded only by React state double-wrote on a
