@@ -41,10 +41,33 @@ export default async function FounderPilotCodesPage() {
   }
 
   const admin = createAdminClient();
-  const { data: codesRaw } = await admin
+  const { data: codesRaw, error: codesErr } = await admin
     .from("pilot_codes")
     .select("code, module, redeemed_at, redeemed_by_email, redeemed_company_id")
     .order("redeemed_at", { ascending: false, nullsFirst: false });
+
+  // Distinguish a DB READ FAILURE from a genuine empty table. Without this, a failed read fell to codes=[]
+  // and rendered "0 / 0 codes redeemed" — telling the founder there are ZERO redemptions when the query
+  // actually errored (the error-dressed-as-no-data class — ironically the one this session swept; caught by
+  // the adversarial audit of this very page). A server component can't retry in place, so the honest signal
+  // is an explicit error + a refresh hint.
+  if (codesErr) {
+    return (
+      <div className="min-h-screen bg-base px-4 py-10">
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="text-xs font-mono uppercase tracking-[0.18em] text-brand mb-2">
+            Founder · Pilot codes
+          </div>
+          <div className="glass-card p-6">
+            <p className="text-sm text-primary mb-1">Couldn&apos;t load pilot codes</p>
+            <p className="text-xs text-muted">
+              A temporary error reading the code table — not a sign of zero redemptions. Refresh to retry.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const codes = (codesRaw ?? []) as PilotCode[];
 
   // Company names for the redeemed rows (RLS-sealed table → admin client, separate lookup to avoid
