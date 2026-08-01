@@ -99,6 +99,17 @@ export async function POST(
       { status: 404 }
     );
   }
+  // Owner-only: appendCue below writes to coaching_cues via the SERVICE-ROLE client (bypasses RLS),
+  // and getSession is company-scoped (owner OR any same-company manager, per the 0084 policy). Without
+  // this check a colleague could POST to another rep's session and inject cue rows — inflating that
+  // rep's cue-reliance count and bending the "training wheels come off" progress trend the coach grades
+  // itself against. Mirrors the identical guard on cue-outcome + segments (the 0082 A18 integrity class).
+  if (session.agentId !== auth.user.id) {
+    return NextResponse.json(
+      { error: "Only the session's rep can generate its cues." },
+      { status: 403 }
+    );
+  }
 
   // ── 3-day silent-observe (spec 4.3a), Standard only ──────────────────────
   // For a rep's first 3 days on the coach, the AI listens: the call is still

@@ -865,6 +865,38 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 19 — an owner-required service-role append must have a session-owner check ══════════
+//
+// LEARNED: 2026-08-01. cue/route.ts and label-transcript/route.ts each appended to a rep's PRIVATE
+// coaching records (coaching_cues / the append-only stored transcript) via the SERVICE-ROLE client
+// (bypasses RLS), gated only by getSession(id) — which is COMPANY-scoped (owner OR any same-company
+// manager, per the 0084 policy). So a colleague could inject cues / fabricate transcript segments into
+// another rep's session, poisoning the after-pitch review + the progress metrics the coach grades itself
+// against (the A18 data-integrity class, first paid for by the 0082 transcript hole). Their siblings
+// cue-outcome + segments ALREADY carried the `session.agentId !== user.id` owner check: the rule was
+// known and written in three routes while two peers silently diverged — the same "rule known, not gated"
+// shape as INV4/5/6. This gate enumerates every caller of the RLS-bypassing owner-required appends and
+// requires an owner check in the same file. No allowlist: there is no legitimate cross-user append to
+// these private per-rep tables (a manager reads them, never writes them).
+const OWNER_REQUIRED_APPEND_RE = /\bappend(Cue|CueOutcome|TranscriptSegment)\s*\(/;
+const SESSION_OWNER_CHECK_RE = /\.agentId\s*!==/;
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (!OWNER_REQUIRED_APPEND_RE.test(f.sql)) continue;
+  if (SESSION_OWNER_CHECK_RE.test(f.sql)) continue;
+  findings.push({
+    rule: "Owner-required service-role append without a session-owner check (cross-user data-integrity)",
+    file: f.path,
+    why:
+      "This route calls appendCue / appendCueOutcome / appendTranscriptSegment — a SERVICE-ROLE write\n" +
+      "      (bypasses RLS) into a rep's private coaching records — but has no `session.agentId !== user.id`\n" +
+      "      owner check. getSession() is COMPANY-scoped (owner OR any same-company manager, 0084), so a\n" +
+      "      colleague could inject cues / fabricate transcript segments into another rep's session and\n" +
+      "      poison the after-pitch review + progress metrics (the A18 integrity class). Add the owner check\n" +
+      "      (see cue / cue-outcome / segments / label-transcript).",
+  });
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -958,6 +990,17 @@ st("INV18 accepts a role-gated route", ROUTE_AUTH_RE.test("const agent = await r
 st("INV18 accepts a capability-token route", ROUTE_AUTH_RE.test("const conv = await getCareConversationByToken(token);"));
 st("INV18 accepts a shared-secret route", ROUTE_AUTH_RE.test('const ok = constantTimeEqual(h, process.env.SWEEP_SECRET);'));
 st("INV18 allowlist documents a known public route", PUBLIC_ROUTE_ALLOWLIST.has("src/app/api/sales/demo/roleplay/route.ts"));
+// INV19 owner-required-append: must flag a service-role append with no owner check, accept one that has it,
+// and ignore a route with no owner-required append. A false-accept here re-opens the cross-user cue/transcript
+// injection this invariant was born from.
+st("INV19 flags an append without an owner check",
+  OWNER_REQUIRED_APPEND_RE.test("await appendCue({ sessionId: id });") &&
+    !SESSION_OWNER_CHECK_RE.test("await appendCue({ sessionId: id });"));
+st("INV19 accepts an append WITH an owner check",
+  OWNER_REQUIRED_APPEND_RE.test("await appendTranscriptSegment({ sessionId: id });") &&
+    SESSION_OWNER_CHECK_RE.test("if (session.agentId !== auth.user.id) return forbidden();"));
+st("INV19 ignores a route with no owner-required append",
+  !OWNER_REQUIRED_APPEND_RE.test("await appendSomethingElse({ id });"));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -982,7 +1025,8 @@ if (findings.length === 0) {
       " every coaching_sessions write scoped to company_id (no latent cross-tenant write) ·" +
       " every LLM/transcription route exports maxDuration (no prod timeout) ·" +
       " every cron route registered in vercel.json (no silently-dead cron) ·" +
-      " every non-public mutation route references a recognised auth/tenant gate (no anon-writable route)."
+      " every non-public mutation route references a recognised auth/tenant gate (no anon-writable route) ·" +
+      " every owner-required service-role append (cue / cue-outcome / transcript) carries a session-owner check (no cross-user injection)."
   );
   process.exit(0);
 }

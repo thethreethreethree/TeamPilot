@@ -54,6 +54,14 @@ describe("POST /label-transcript", () => {
     expect(appendTranscriptSegment).not.toHaveBeenCalled();
   });
 
+  it("403 when the caller is a same-company NON-owner (no cross-user transcript injection)", async () => {
+    // getSession is company-scoped (owner OR same-company manager), so a colleague passes the 404 gate.
+    // The owner check must then stop them appending fabricated segments into another rep's transcript.
+    setAuth("colleague2");
+    expect((await POST(req(BODY), ctx)).status).toBe(403);
+    expect(appendTranscriptSegment).not.toHaveBeenCalled();
+  });
+
   it("400 on an invalid body (no segments)", async () => {
     setAuth("rep1");
     expect((await POST(req({ agentSpeakerId: "spk_A", segments: [] }), ctx)).status).toBe(400);

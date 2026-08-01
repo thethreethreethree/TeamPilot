@@ -56,6 +56,17 @@ export async function POST(
       { status: 404 }
     );
   }
+  // Owner-only: appendTranscriptSegment writes the canonical append-only transcript via the
+  // SERVICE-ROLE client (bypasses RLS), and getSession is company-scoped (owner OR same-company
+  // manager, per the 0084 policy). Without this, a colleague could POST fabricated segments into
+  // another rep's transcript — poisoning the exact record the after-pitch review + coaching scores
+  // run on (the A18 data-integrity rule). Mirrors the guard on cue / cue-outcome / segments (0082 class).
+  if (session.agentId !== auth.user.id) {
+    return NextResponse.json(
+      { error: "Only the session's rep can label its transcript." },
+      { status: 403 }
+    );
+  }
 
   let appended = 0;
   for (const seg of body.segments) {
