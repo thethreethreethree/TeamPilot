@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -139,6 +139,14 @@ export default function AfterPitchPage() {
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Auto-generate fires at most ONCE per session id. Its only other guard is the load()
+  // dependency array, which includes `isStandard` — a value ExperienceModeProvider mutates
+  // AFTER mount (the server-rendered initialMode can default to "standard" then reconcile to
+  // "expert" for an Expert rep). That flip re-runs load() while the first (slow LLM) generate()
+  // is still in flight, so `existing` is still null and a SECOND generate() would fire — double
+  // LLM cost + double DB write + a duplicate after_pitch_summary_generated event polluting the
+  // KPI stream. Keying the guard on id (not a bare bool) lets a genuine session switch re-arm it.
+  const autoGenAttemptedFor = useRef<string | null>(null);
   // "What happened" is the longest block; collapsed by default so it doesn't
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
@@ -234,12 +242,28 @@ export default function AfterPitchPage() {
       setLoading(false);
       // Auto-generate on arrival if none stored yet — "ready before the next
       // driveway" (AMD-006 L3). Cheap no-op if the transcript is too thin
-      // (assembler returns hasSignal:false).
-      if (!existing) void generate();
+      // (assembler returns hasSignal:false). Guarded to fire ONCE per id so a
+      // post-mount mode reconcile can't trigger a duplicate LLM generation.
+      if (!existing && autoGenAttemptedFor.current !== id) {
+        autoGenAttemptedFor.current = id;
+        void generate();
+      }
     } catch {
       setLoading(false);
     }
   }, [id, generate, isStandard]);
+
+  // Reset per-session view state when the id changes, so one rep's private scoreboard/summary
+  // can't flash into another session's view. Latent today (After-Pitch is only reached by a fresh
+  // mount from the session page, never after-pitch→after-pitch), floored now so a future
+  // sessions-list "→ After-Pitch" deep link can't surface the bleed. Keyed on [id] only, so a
+  // same-id mode reconcile does NOT re-flash the loading spinner.
+  useEffect(() => {
+    setLoading(true);
+    setSummary(null);
+    setWhatHappened(null);
+    setError(null);
+  }, [id]);
 
   useEffect(() => {
     void load();
