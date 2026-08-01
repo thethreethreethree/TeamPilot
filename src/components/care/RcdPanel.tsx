@@ -52,7 +52,7 @@ function RcdImageThumb({ url, label, filename }: { url: string; label: string; f
 }
 
 export default function RcdPanel({ defaultOpen = false }: { defaultOpen?: boolean } = {}) {
-  const { conversations, listLoaded, loadList, selectedId, messages, detailLoading, openConversation, back } =
+  const { conversations, listLoaded, listError, loadList, selectedId, messages, detailLoading, detailError, openConversation, back } =
     useRcd();
   // defaultOpen=true on the dedicated /dashboard/care/rcd page (the panel IS the page there, so it
   // shouldn't start collapsed); defaults false so the legacy footer usage is unchanged.
@@ -120,6 +120,20 @@ export default function RcdPanel({ defaultOpen = false }: { defaultOpen?: boolea
           </div>
           {!listLoaded ? (
             <p className="px-4 py-6 text-sm text-muted">Loading captured conversations…</p>
+          ) : listError ? (
+            <div className="px-4 py-6 text-sm text-muted">
+              <p>
+                Couldn&apos;t load your captures — this is a temporary error (your session may have expired),
+                not a sign they&apos;re missing. Your captured conversations are safe.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadList()}
+                className="mt-2 inline-block text-secondary underline hover:text-primary"
+              >
+                Try again
+              </button>
+            </div>
           ) : conversations.length === 0 ? (
             <div className="px-4 py-6 text-sm text-muted">
               <p>
@@ -168,6 +182,17 @@ export default function RcdPanel({ defaultOpen = false }: { defaultOpen?: boolea
                   <p className="text-sm text-muted">Select a capture to see its raw content.</p>
                 ) : detailLoading ? (
                   <p className="text-sm text-muted">Loading…</p>
+                ) : detailError ? (
+                  <div className="text-sm text-muted">
+                    <p>Couldn&apos;t load this capture — a temporary error, not empty content.</p>
+                    <button
+                      type="button"
+                      onClick={() => selectedId && openConversation(selectedId)}
+                      className="mt-2 inline-block text-secondary underline hover:text-primary"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 ) : messages && messages.length > 0 ? (
                   <ol className="space-y-3">
                     {messages.map((m) => (

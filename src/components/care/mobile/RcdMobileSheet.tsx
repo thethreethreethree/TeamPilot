@@ -47,7 +47,7 @@ function RcdMobileImageThumb({ url, label, filename }: { url: string; label: str
 }
 
 export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
-  const { conversations, listLoaded, selectedId, messages, detailLoading, openConversation, back } = useRcd();
+  const { conversations, listLoaded, listError, loadList, selectedId, messages, detailLoading, detailError, openConversation, back } = useRcd();
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 flex items-end" onClick={onClose}>
@@ -75,6 +75,14 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
             <p className="text-xs text-white/50 flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
             </p>
+          ) : listError ? (
+            <div className="text-xs text-white/50 leading-relaxed">
+              <p>Couldn&apos;t load your captures — a temporary error (your session may have expired), not a
+              sign they&apos;re missing.</p>
+              <button type="button" onClick={() => void loadList()} className="mt-2 underline text-white/70">
+                Try again
+              </button>
+            </div>
           ) : conversations.length === 0 ? (
             <p className="text-xs text-white/50 leading-relaxed">
               No captured conversations yet. Capture a thread with the C.A.R.E browser extension on a
@@ -99,6 +107,17 @@ export default function RcdMobileSheet({ onClose }: { onClose: () => void }) {
           <p className="text-xs text-white/50 flex items-center gap-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
           </p>
+        ) : detailError ? (
+          <div className="text-xs text-white/50">
+            <p>Couldn&apos;t load this capture — a temporary error, not empty content.</p>
+            <button
+              type="button"
+              onClick={() => selectedId && openConversation(selectedId)}
+              className="mt-2 underline text-white/70"
+            >
+              Try again
+            </button>
+          </div>
         ) : messages && messages.length > 0 ? (
           <ol className="space-y-3">
             {messages.map((m) => (

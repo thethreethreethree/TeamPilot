@@ -67,11 +67,24 @@ export function useRcd() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<RcdMessage[] | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Distinguish a FETCH FAILURE (auth 401/403, 5xx, network) from a genuine empty result. Without this,
+  // a failure collapsed into `conversations: []` / `messages: []`, and both surfaces rendered the cheerful
+  // "no captures yet — use the extension" / "no readable content" empty state — telling an agent whose
+  // session just expired that their 12 captured threads are GONE. The sibling panels (analytics, patterns,
+  // ConversationsApp) all distinguish error-from-empty with a retry; RCD was the only one that didn't. (The
+  // list ROUTE deliberately degrades a DB error to 200 + [] by design — that stays an honest empty; only the
+  // client-detectable non-2xx / thrown failures become an error here.)
+  const [listError, setListError] = useState(false);
+  const [detailError, setDetailError] = useState(false);
 
   const loadList = useCallback(async () => {
+    setListError(false);
     try {
       const res = await fetch("/api/care/rcd");
       if (res.ok) setConversations((await res.json()).conversations ?? []);
+      else setListError(true); // 401/403/5xx — an error, NOT "no captures yet"
+    } catch {
+      setListError(true); // network — an error, NOT "no captures yet"
     } finally {
       setListLoaded(true);
     }
@@ -88,14 +101,20 @@ export function useRcd() {
     latestReqId.current = id;
     setSelectedId(id);
     setMessages(null);
+    setDetailError(false);
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/care/rcd/${id}`);
-      const data = res.ok ? await res.json() : { messages: [] };
       if (latestReqId.current !== id) return; // superseded by a newer selection
-      setMessages(data.messages ?? []);
+      if (res.ok) {
+        const data = await res.json();
+        if (latestReqId.current !== id) return;
+        setMessages(data.messages ?? []);
+      } else {
+        setDetailError(true); // an error, NOT "this capture has no readable content"
+      }
     } catch {
-      if (latestReqId.current === id) setMessages([]);
+      if (latestReqId.current === id) setDetailError(true);
     } finally {
       if (latestReqId.current === id) setDetailLoading(false);
     }
@@ -104,15 +123,18 @@ export function useRcd() {
   const back = useCallback(() => {
     setSelectedId(null);
     setMessages(null);
+    setDetailError(false);
   }, []);
 
   return {
     conversations,
     listLoaded,
+    listError,
     loadList,
     selectedId,
     messages,
     detailLoading,
+    detailError,
     openConversation,
     back,
   };
