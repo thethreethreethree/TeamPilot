@@ -49,14 +49,20 @@ export function computeLineTax(
   const r = Number(ratePct);
   const safeA = Number.isFinite(a) ? a : 0;
   const safeR = Number.isFinite(r) ? r : 0;
-  // Round to integer cents BEFORE formatting. Computing (a*r/100).toFixed(2) lets
-  // toFixed round a half-cent that float misrepresents: $100.50 @ 1% is truly 1.005
-  // but 1.00499… in float, so toFixed yields "1.00" — a cent light (confirmed for
-  // several amount×rate combos). a*r is already the tax IN CENTS (dollars × percent-
-  // points), so Math.round on it rounds the half-cent half-up correctly, then /100
-  // returns dollars. Even though this is an editable prefill, a money figure shown
-  // (and, if accepted, stored) a cent short is exactly the §3 never-float-for-money
-  // failure — the authoritative SQL still owns the posting, but the prefill must be
-  // right. (Amount/rate are non-negative on a real tax line.)
-  return (Math.round(safeA * safeR) / 100).toFixed(2);
+  // Compute the tax on INTEGER cents so the multiply never drifts. `safeA * safeR`
+  // is the tax in cents (dollars × percent-points), but computing it directly in
+  // float lets a TRUE half-cent land just below .5 and round DOWN — e.g. 8.20 @ 7.5%
+  // is truly 0.615 (61.5¢), yet `8.2 * 7.5 = 61.4999…` → Math.round → 61 → "0.61",
+  // a cent light. (An earlier version's comment claimed Math.round on the product
+  // fixed this; it did NOT — the PRODUCT itself carried the drift, and the unit test
+  // missed it because its half-cent cases happened to be float-exact.) Staging on
+  // integers removes the drift: amount → integer cents, rate → ×100 (so 2dp rates
+  // like 7.5% → 750 stay exact), multiply as exact integers, divide back, then round
+  // to the nearest cent (half-up; amount/rate are non-negative on a real tax line).
+  // This is the never-float-for-money discipline — the authoritative SQL still owns
+  // the posting, but the prefill (which is what stores unless overridden) is now exact.
+  const aCents = Math.round(safeA * 100); // amount in integer cents
+  const rScaled = Math.round(safeR * 100); // ratePct × 100 (7.5% → 750, 8.25% → 825)
+  const taxCents = Math.round((aCents * rScaled) / 10000); // exact nearest cent
+  return (taxCents / 100).toFixed(2);
 }

@@ -78,4 +78,16 @@ describe("computeLineTax (bill/invoice line tax auto-calc)", () => {
     expect(computeLineTax(200, 8.25)).toBe("16.50");
     expect(computeLineTax(99.99, 10)).toBe("10.00");
   });
+
+  it("rounds a half-cent whose float PRODUCT drifts just below .5 (the blind spot the earlier fix missed)", () => {
+    // Adversarial audit 2026-08-01: the cases above are all float-EXACT products
+    // (100.5*1, 100.4*1.25, 123*0.5), so `Math.round(a*r)` happened to be right.
+    // These are the ones where `a*r` itself drifts below the half-cent — e.g.
+    // 8.2*7.5 = 61.4999… — which the pre-integer-cent code rounded DOWN, a cent
+    // light. 7.5% is a real, common rate (VAT/GST). The integer-cent staging fixes them.
+    expect(computeLineTax(8.2, 7.5)).toBe("0.62"); // true 0.615 — was "0.61"
+    expect(computeLineTax(33.8, 7.5)).toBe("2.54"); // true 2.535 — was "2.53"
+    expect(computeLineTax(66.6, 7.5)).toBe("5.00"); // true 4.995 — was "4.99"
+    expect(computeLineTax(64.6, 7.5)).toBe("4.85"); // true 4.845 — was "4.84"
+  });
 });
