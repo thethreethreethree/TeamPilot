@@ -55,6 +55,28 @@ describe("POST /api/care/extension/formulate", () => {
     expect(body.reasoning).toBe("Led with the outcome.");
   });
 
+  it("extracts JSON from a ```json-FENCED reply (Anthropic-failover shape) instead of leaking the fence", async () => {
+    // generateCareReply is expectJson:false, so the failover provider can return fenced JSON. Before the
+    // coerceJsonText fix this failed JSON.parse and fell through to the raw-text branch, surfacing the literal
+    // ```json markdown as the agent's draft. Now it must extract the clean {reply, reasoning}.
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({
+      text: '```json\n{"reply":"Refund approved.","reasoning":"Outcome first."}\n```',
+    } as never);
+    const body = await (await POST(req)).json();
+    expect(body.reply).toBe("Refund approved."); // clean value, NOT the fenced string
+    expect(body.reasoning).toBe("Outcome first.");
+  });
+
+  it("extracts JSON from a PROSE-wrapped reply (preamble before the object)", async () => {
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({
+      text: 'Sure — here is the reply:\n{"reply":"On its way.","reasoning":"Reassure."}',
+    } as never);
+    const body = await (await POST(req)).json();
+    expect(body.reply).toBe("On its way.");
+  });
+
   it("passes an agent-identity anchor to the model (role-attribution fix, founder 2026-07-24)", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(generateCareReply).mockResolvedValue({
