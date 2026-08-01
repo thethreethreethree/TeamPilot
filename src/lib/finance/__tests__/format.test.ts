@@ -90,4 +90,14 @@ describe("computeLineTax (bill/invoice line tax auto-calc)", () => {
     expect(computeLineTax(66.6, 7.5)).toBe("5.00"); // true 4.995 — was "4.99"
     expect(computeLineTax(64.6, 7.5)).toBe("4.85"); // true 4.845 — was "4.84"
   });
+
+  it("preserves 3-decimal tax rates (real US local rates) without pre-rounding them", () => {
+    // 7.125% / 8.375% etc. are real local sales-tax rates. Scaling the rate by only
+    // 100 would round 7.125→7.13 BEFORE the math and over-charge a cent on some
+    // amounts. Scaling by 1e4 keeps the rate exact.
+    expect(computeLineTax(200, 7.125)).toBe("14.25"); // true 14.25 (NOT 14.26)
+    expect(computeLineTax(100, 7.125)).toBe("7.13"); // true 7.125 → half-up 7.13
+    expect(computeLineTax(1000, 8.375)).toBe("83.75"); // true 83.75
+    expect(computeLineTax(49.99, 9.225)).toBe("4.61"); // true 4.6116… → 4.61
+  });
 });

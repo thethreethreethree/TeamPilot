@@ -61,8 +61,15 @@ export function computeLineTax(
   // to the nearest cent (half-up; amount/rate are non-negative on a real tax line).
   // This is the never-float-for-money discipline — the authoritative SQL still owns
   // the posting, but the prefill (which is what stores unless overridden) is now exact.
+  // Scale amount to integer cents (money is 2dp) and the RATE by 1e4 — enough to
+  // hold real tax rates without pre-rounding them: 2dp (7.5→75000), and the 3dp
+  // local sales-tax rates that exist (7.125%→71250, 8.375%→83750). Scaling the
+  // rate by only 100 would round 7.125%→7.13% BEFORE the math, over-charging a cent
+  // on some amounts (e.g. 200 @ 7.125% → 14.26 vs the true 14.25). The integer
+  // product is exact (well under MAX_SAFE_INTEGER for any real amount×rate), so only
+  // the final /1e6 + round touches float, at the cent granularity — half-up.
   const aCents = Math.round(safeA * 100); // amount in integer cents
-  const rScaled = Math.round(safeR * 100); // ratePct × 100 (7.5% → 750, 8.25% → 825)
-  const taxCents = Math.round((aCents * rScaled) / 10000); // exact nearest cent
+  const rScaled = Math.round(safeR * 10000); // ratePct × 1e4 (2–3dp rates stay exact)
+  const taxCents = Math.round((aCents * rScaled) / 1_000_000); // exact nearest cent
   return (taxCents / 100).toFixed(2);
 }
