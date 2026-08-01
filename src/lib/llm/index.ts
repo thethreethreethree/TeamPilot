@@ -3,6 +3,7 @@ import "@/lib/env"; // side-effect: validates env at first LLM call (fails fast)
 import { deepseekProvider } from "./deepseek";
 import { anthropicProvider } from "./anthropic";
 import { LlmError } from "./errors";
+import { coerceJsonText } from "./coerceJson";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
 import { shapeSystemPrompt } from "@/lib/experience/mode";
 
@@ -117,7 +118,7 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
   const provider = chooseProvider();
   const shaped = withModeDirective(args);
   try {
-    return await provider.call(shaped);
+    return coerceResultJson(shaped, await provider.call(shaped));
   } catch (err) {
     if (shouldCascade(err)) {
       const fallback = otherProvider(provider);
@@ -129,11 +130,23 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
               ? ` ACTION: ${provider.name} rejected its configured model — update ${provider.name === "deepseek" ? "DEEPSEEK_MODEL" : "ANTHROPIC_MODEL"} to a current model name so traffic returns to ${provider.name}.`
               : "")
         );
-        return await fallback.call(shaped);
+        // The fallback provider (Anthropic) has no response_format=json_object, so honor expectJson here.
+        return coerceResultJson(shaped, await fallback.call(shaped));
       }
     }
     throw err;
   }
+}
+
+/**
+ * Honor `expectJson` provider-agnostically: DeepSeek enforces it in-band (json_object), but Anthropic
+ * (the failover) ignores it, so a fenced / prose-wrapped reply would fail every downstream JSON.parse and
+ * silently degrade to an empty result. Extracting the JSON here makes the failover path as robust as the
+ * primary. No-op for a bare-JSON response (the common case), so DeepSeek is unaffected.
+ */
+function coerceResultJson(args: LlmCallArgs, result: LlmResult): LlmResult {
+  if (!args.expectJson) return result;
+  return { ...result, text: coerceJsonText(result.text) };
 }
 
 /**
