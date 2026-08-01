@@ -2,6 +2,7 @@ import { CareShell } from "@/components/care/CareShell";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { deriveCareAccess } from "@/lib/api/careAgentAuth";
 
 /**
  * Layout for every route under /dashboard/care/*.
@@ -23,6 +24,9 @@ import { supabaseEnabled } from "@/lib/supabase/config";
  * the shell flash — mirrors the parent dashboard + sales-coach layouts. Demo mode (no Supabase) bypasses.
  * (A care-provisioned pilot account is role='admin' from redeem_pilot_code, so it passes; the module-lock
  * middleware separately confines it to /dashboard/care.)
+ *
+ * The predicate is NOT inlined — it reuses `deriveCareAccess` (the SAME tested pure gate `requireCareAgent`
+ * uses on every C.A.R.E API), so the page + API can't drift and the `isRemoved` case is handled identically.
  */
 export default async function CareLayout({
   children,
@@ -37,14 +41,15 @@ export default async function CareLayout({
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, is_support_agent")
+        .select("role, is_support_agent, status")
         .eq("id", user.id)
         .maybeSingle();
-      const role = (profile?.role as string | null) ?? null;
-      const isCompanyAdmin =
-        role === "CEO" || role === "COO" || role === "admin";
-      const isCareAgent = !!profile?.is_support_agent;
-      if (!isCompanyAdmin && !isCareAgent) {
+      const { isAgent } = deriveCareAccess({
+        role: (profile?.role as string | null) ?? null,
+        isSupportAgent: profile?.is_support_agent as boolean | null | undefined,
+        isRemoved: (profile?.status as string | null) === "removed",
+      });
+      if (!isAgent) {
         redirect("/dashboard");
       }
     }
