@@ -24,6 +24,24 @@ describe("C.A.R.E service philosophy reaches every reply-drafting surface", () =
     expect(SERVICE_PHILOSOPHY).toContain(MARKER);
   });
 
+  // Content-integrity guard for the SAFETY-critical clauses. The marker above
+  // only proves *a* line survived; these prove the load-bearing scoping did.
+  // Without them a future edit could keep the marker but silently drop the
+  // honesty-compatible recovery scoping — which is the whole reason the Schulz
+  // "full amends" method is safe to inject into an AI that CANNOT grant refunds.
+  it("keeps the service-recovery clause scoped to the honesty rules", () => {
+    const p = SERVICE_PHILOSOPHY.toLowerCase();
+    // No half-measure recovery (the Schulz "50% is not making amends" principle).
+    expect(p).toContain("half-measure");
+    // But the AI must hand off remedies it cannot grant, never promise them.
+    expect(p).toContain("hand off");
+    expect(p).toMatch(/never promise a remedy you can'?t deliver/);
+    // And it must explicitly defer to the core honesty rules (never invent /
+    // never claim human), so it shapes HOW to write, not WHETHER to be honest.
+    expect(p).toContain("never invent facts");
+    expect(p).toContain("never claim to be human");
+  });
+
   it("the customer-facing auto-reply embeds it", () => {
     const prompt = buildCareSystemPrompt({ productContext: "Test product." });
     expect(prompt).toContain(MARKER);
