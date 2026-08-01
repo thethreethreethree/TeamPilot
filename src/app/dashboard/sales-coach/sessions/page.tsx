@@ -135,6 +135,12 @@ export default function SalesCoachSessionsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    // Clear prior error latches so this attempt's outcome is what shows. noAccess was never reset
+    // anywhere and degraded only cleared on a clean success, so a transient failure (or a stale
+    // 401 before auth/company context settled) followed by a successful filter-change refetch left
+    // a stuck "Load failed" / "No access" banner over real data. The loading spinner masks the reset.
+    setNoAccess(false);
+    setDegraded(false);
     // Server-side filters (backlog): context/status/period go to the DB query
     // so filtering isn't trapped inside the 300-row cap. Text search stays
     // client-side (matches client + agent name) — see `filtered`.
