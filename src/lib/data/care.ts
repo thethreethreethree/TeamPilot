@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { careQualityScore } from "@/lib/care/careQualityGrade";
@@ -327,12 +328,21 @@ export async function postCustomerMessage(args: {
     );
     return null;
   }
-  // Queue #2: push the assigned agent that a customer replied
-  // (fire-and-forget; never blocks the message write).
-  void notifyAssignedAgentOfCustomerMessage({
-    conversationId: args.conversationId,
-    body: args.body,
-  });
+  // Queue #2: push the assigned agent that a customer replied. Use `after()`,
+  // NOT a bare `void` — postCustomerMessage runs inside a route handler that
+  // returns its response as soon as the message write lands, and the push is a
+  // Web-Push HTTP round-trip that's typically still in flight at that point. A
+  // bare `void` promise is abandoned when the serverless instance freezes
+  // post-response, silently dropping the "customer replied" push — worst in the
+  // agent-claimed (non-AI) branch, the exact case a human agent needs it. This
+  // matches the inbound-email path, which already wraps the SAME notify in
+  // after() for this reason. after() keeps the instance alive until it settles.
+  after(() =>
+    notifyAssignedAgentOfCustomerMessage({
+      conversationId: args.conversationId,
+      body: args.body,
+    })
+  );
   return mapMessage(data);
 }
 
