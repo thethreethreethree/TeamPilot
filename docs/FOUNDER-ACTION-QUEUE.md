@@ -16,10 +16,15 @@
 > single-module pilot account to its module; verify:live now **23/23**). The old "3 Sales Coach nav calls"
 > (*gate manager sections* → kept rep-visible per your call · *end session after recording* → built as auto-end
 > then required-naming · *One Liners* → done) are COMPLETE.
-> **New decisions from this work (each one word away):**
-> - `"gate the care area"` — `/dashboard/care` has NO access gate today; any authed company member can open the
->   C.A.R.E dashboard (RLS still scopes the DATA, so not a leak — it's an access-model choice). Add a care-access
->   gate mirroring Sales Coach's? (I flagged, didn't self-authorize.)
+> **Also shipped since:** ✅ `"gate the care area"` DONE (`bebc5b40`, hardened `afd245a7`) — `/dashboard/care`
+> now gates on `is_support_agent OR admin` (the same predicate its APIs already enforced, so zero access change).
+> ✅ A 4-agent **simplify review** applied 5 quality fixes (`9b4f4bc9`), incl. a `ONE_LINERS_LABEL` constant
+> (the label was in 5 places — the drift root cause) + a missed CareShell "Back to ELOSTATE" twin.
+> **Open decisions (each one word away):**
+> - `"lock the module APIs too"` — the module hard-lock is PAGE-level, not API-level (adversarial finding,
+>   `37e8e410`): a single-module admin account could call another module's `/api/*` (RLS still scopes the data
+>   to their own company — NOT a leak; a billing-integrity softness). Make it hard at the API layer? (broader
+>   build; today's page lock is enough for data security.)
 > - `"build the trajectory UI"` — the KPI trajectory READER + tests are now committed (`a3e4765d`); only the UI
 >   is left, and it's UX-reserved + thin on data (1 month live). Say the word + I'll build the sparkline/delta view.
 >
