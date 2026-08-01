@@ -46,6 +46,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   there's >1 month of live data so it isn't all "building"?). Say the word + I'll build the chosen shape.
 >
 > **Security / infra (do when convenient — none is a live HIGH hole):**
+> - 🟡 `"gitignore the IP PDFs"` — structural IP protection gap (found 2026-08-02). You ALREADY gitignore
+>   `PILOT-ACCESS-CODES.pdf` + the ThinkerThinker key files, but several other sensitive untracked IP docs are
+>   NOT gitignored — they rely on commit-discipline alone (a stray `git add -A` or a tool could sweep them into
+>   history, which HAS happened before: `861e5ffc`). Candidates (all currently untracked): `BUILD-A-SAAS-MANUAL.pdf`,
+>   `BUILD-AUDIT-7DAY-2026-07-29.pdf`, `SALES-COACH-REVISION-2026-07-28.pdf`, `docs/Amex 500 sample messages.pdf`,
+>   `docs/CARE-SERVICE-PHILOSOPHY-REPORT-2026-08-01.pdf`, the Ritz-Carlton transcript PDF. I did NOT auto-add them
+>   (which of YOUR IP files to ignore is your call — one might be intended for commit; and a blanket `*.pdf` would
+>   wrongly ignore the intentionally-TRACKED doc PDFs like the financial-system briefing). Say the word + confirm
+>   the list and I add them.
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy). **Full `npm audit` 2026-08-02: 4 HIGH, 0 critical** — applicability-assessed: next's advisories are mostly Server-Actions/Turbopack (this app uses API ROUTES, not Server Actions → largely N/A); the other 3 (brace-expansion, postcss, fast-uri) are BUILD-TIME/transitive (Sentry bundler plugin, dev-authored CSS, URI parser) — HIGH by CVSS but LOW real risk here, and all fixable by a **NON-breaking `npm audit fix`** (no `--force`). Say `"run npm audit fix"` and I apply the non-breaking fixes + verify locally for your deploy-approve; the `next` major stays separate under `"upgrade next"`.
 > - ✅ **`"add HSTS"` — ALREADY DONE (stale flag, corrected 2026-08-02 via live headers):** `Strict-Transport-Security:
