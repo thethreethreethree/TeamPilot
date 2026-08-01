@@ -46,9 +46,11 @@ Why this is the right primitive:
 - **`pg_advisory_xact_lock`** (not `pg_advisory_lock`) is bound to the transaction and released automatically
   at commit/rollback — no leak risk if the function errors mid-way. The RPC already runs in a single implicit
   transaction (the migration's own comment at line ~130 says "in a transaction").
-- **Keyed on the user id** (`hashtext(v_user_id::text)` → int4; or the two-int `pg_advisory_xact_lock(k1,k2)`
-  form with a namespace constant if you want to avoid cross-feature hash collisions). Different users never
-  contend; the same user serializes.
+- **Keyed on the user id** (`hashtext(v_user_id::text)` → int4, widened to the bigint single-key form).
+  Different users never contend; the same user serializes. **Verified 2026-08-02: this is the ONLY advisory
+  lock in the entire migration set** (`grep pg_advisory supabase/migrations` → none), so the single-key form
+  is collision-free — the two-int `pg_advisory_xact_lock(namespace, key)` form is NOT needed here; adopt it only
+  if a second advisory-lock feature is ever introduced. Keep the fix minimal.
 - It composes with the existing idempotency check — the second caller, unblocked after the first commits,
   reads the now-set `company_id` and returns it. Net effect: exactly one company per user, always.
 

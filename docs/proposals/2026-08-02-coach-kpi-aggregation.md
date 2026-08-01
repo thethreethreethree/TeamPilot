@@ -91,7 +91,18 @@ alter table coaching_sessions
   add column if not exists cue_count       integer not null default 0,
   add column if not exists acted_cue_count integer not null default 0;
 
--- segment insert -> bump segment_count
+-- segment insert -> bump segment_count.
+-- NOTE (verified 2026-08-02): segment_count is consumed ONLY as `segment_count > 0` (coachedSessions =
+-- "session produced ≥1 segment"). It is a PRESENCE signal, not a quantity anyone reads. Two consequences:
+--   (a) You could equally use a `has_segments boolean` and set it true on first insert — arguably the more
+--       honest primitive for what's consumed, and immune to the drift below. Either is fine; count is kept
+--       here only because the backfill query already computes it.
+--   (b) DEDUP INTERACTION — apply-order matters. The sibling proposal 2026-08-01-transcript-dedup-cleanup
+--       DROPS the segments no-delete rule and DELETEs 128 duplicate rows. This trigger is AFTER INSERT only
+--       (no DELETE trigger, since the table normally forbids delete), so a dedup run AFTER counters exist
+--       would leave segment_count inflated by the removed dups. Harmless for the `> 0` consumer, but to keep
+--       the number honest: run the transcript-dedup migration FIRST, then this one's backfill (which counts
+--       the post-dedup rows). If you pick `has_segments boolean`, ordering is irrelevant.
 create or replace function bump_session_segment_count() returns trigger
   language plpgsql security definer set search_path = public as $$
 begin
@@ -101,9 +112,31 @@ end $$;
 create trigger trg_bump_segment_count after insert on coaching_transcript_segments
   for each row execute function bump_session_segment_count();
 
--- cue insert -> bump cue_count   (analogous fn/trigger on coaching_cues)
--- cue_outcome insert/update -> recompute acted_cue_count for the session
---   (count distinct cue_id where determination in ('followed','partial'); handle determination CHANGE)
+-- cue insert -> bump cue_count. SAFE as an incremental +1: coaching_cues is append-only
+--   (0070/0073 no-update + no-delete rules), and cue_count is a plain total (no DISTINCT), so
+--   the +1-per-insert counter can never drift. Same shape as bump_session_segment_count above.
+
+-- acted_cue_count -> MUST RECOMPUTE, NOT increment. CRITICAL (verified 2026-08-02):
+--   coaching_cue_outcomes has an index on (cue_id, created_at desc), NOT a unique(cue_id) — a cue can have
+--   MULTIPLE outcome rows — and determination is mutable (this proposal's own Option-A note). The metric is
+--   count(DISTINCT cue_id ... in ('followed','partial')). A +1-per-insert counter would DOUBLE-COUNT a cue
+--   with two 'followed' outcomes and mishandle a determination flip (followed->ignored should decrement) —
+--   i.e. it would re-introduce the exact metric corruption this whole migration exists to remove. So the
+--   trigger recomputes the session's distinct count from scratch (cheap — outcomes-per-session is small):
+create or replace function recompute_session_acted_cue_count() returns trigger
+  language plpgsql security definer set search_path = public as $$
+declare v_session uuid := coalesce(new.session_id, old.session_id);
+begin
+  update coaching_sessions s
+     set acted_cue_count = (
+       select count(distinct o.cue_id) from coaching_cue_outcomes o
+        where o.session_id = v_session and o.determination in ('followed','partial'))
+   where s.id = v_session;
+  return null; -- AFTER trigger
+end $$;
+create trigger trg_recompute_acted_cue_count
+  after insert or update or delete on coaching_cue_outcomes
+  for each row execute function recompute_session_acted_cue_count();
 
 -- one-time backfill
 update coaching_sessions s set
@@ -120,8 +153,12 @@ stays unchanged (it already takes plain counts).
 
 ## 6. Test + rollout plan (honesty gate)
 
-1. Unit-test the three trigger functions on a fresh row (insert child → count increments; outcome
-   determination change → acted_count adjusts; backfill matches a hand-counted fixture).
+1. Unit-test the three trigger functions on a fresh row (insert child → count increments; backfill matches a
+   hand-counted fixture). **Must-have case for `acted_cue_count` (the recompute trigger, where the subtle bug
+   lives):** one cue with TWO 'followed' outcome rows must count as 1, not 2 (proves DISTINCT holds); a
+   determination flip 'followed'→'ignored' must DECREMENT; a flip back must re-increment; deleting an outcome
+   recomputes. A naive +1 counter passes the single-insert test and FAILS all four — so these are the tests
+   that actually protect the metric.
 2. Add a route test per KPI route asserting the metric equals the pre-change client-side result **on a
    <1000-row fixture** (proves the refactor is behaviour-preserving) AND on a **>1000-child fixture** (proves
    the cap is gone — the exact regression this fixes).
