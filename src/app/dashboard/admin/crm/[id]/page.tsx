@@ -64,25 +64,34 @@ export default function CrmAccountDetailPage() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  // A non-403 load failure (404 "Account not found", 500, network) must not leave `detail` null with
+  // loading=false — the render guard `if (loading || !detail)` would then show "Loading…" FOREVER, an error
+  // dressed as an infinite spinner. Track it so we render a real error state with retry instead.
+  const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<
     "overview" | "contacts" | "subscription" | "activity" | "notes"
   >("overview");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/admin/crm/accounts/${accountId}`);
-    if (res.status === 403) {
-      setForbidden(true);
+    setLoadError(false);
+    try {
+      const res = await fetch(`/api/admin/crm/accounts/${accountId}`);
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      if (!res.ok) {
+        setLoadError(true); // 404/500/etc — an error, not a perpetual "Loading…"
+        return;
+      }
+      const data = (await res.json()) as Detail;
+      setDetail(data);
+    } catch {
+      setLoadError(true); // network — same, don't spin forever
+    } finally {
       setLoading(false);
-      return;
     }
-    if (!res.ok) {
-      setLoading(false);
-      return;
-    }
-    const data = (await res.json()) as Detail;
-    setDetail(data);
-    setLoading(false);
   }, [accountId]);
 
   useEffect(() => {
@@ -104,6 +113,29 @@ export default function CrmAccountDetailPage() {
             <p className="text-xs text-secondary leading-relaxed">
               CRM detail pages require CEO / COO / admin role.
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError && !detail) {
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Account" subtitle="Vendor back office" />
+        <div className="p-6 max-w-3xl mx-auto">
+          <div className="glass-card p-6">
+            <h2 className="text-sm font-semibold text-primary mb-1">Couldn&apos;t load this account</h2>
+            <p className="text-xs text-secondary leading-relaxed mb-3">
+              A temporary error (or the account no longer exists) — not a stuck load.
+            </p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="text-xs text-secondary underline hover:text-primary"
+            >
+              Try again
+            </button>
           </div>
         </div>
       </div>
@@ -319,6 +351,11 @@ export default function CrmAccountDetailPage() {
         )}
         {tab === "subscription" && (
           <SubscriptionTab
+            // key per account (same App-Router-preservation defense as OverviewTab/ContactsTab above): this
+            // tab seeds plan/status/seatCount/MRR from the subscription prop via once-only useState initializers,
+            // so without a remount on an account→account switch it would PATCH account A's revenue values onto
+            // account B. This was the one editable form the "cover ALL forms" keying missed.
+            key={account.id}
             accountId={account.id}
             subscription={subscription}
             invoices={invoices}
