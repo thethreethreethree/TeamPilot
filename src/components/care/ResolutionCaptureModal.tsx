@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BookOpen, CheckCircle2, Loader2, X } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -39,10 +39,18 @@ export function ResolutionCaptureModal({
   const [category, setCategory] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Synchronous latch: a double-click fires both onClicks before React
+  // re-renders the button to disabled — the `submitting` state guard is
+  // applied a render too late. Without this, one capture writes TWO
+  // immutable resolution records (and can double the mark-resolved
+  // transition). See the append-only double-write class.
+  const submittingRef = useRef(false);
 
   if (!open) return null;
 
   const submit = async (alsoResolve: boolean) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -70,6 +78,7 @@ export function ResolutionCaptureModal({
       setWhatWorked("");
       setCategory("");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

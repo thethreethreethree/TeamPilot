@@ -19,7 +19,7 @@ import {
   Plus,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -361,6 +361,7 @@ function CreateProblemModal({
   >([]);
   const [selectedSignalIds, setSelectedSignalIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -394,6 +395,12 @@ function CreateProblemModal({
       setError("Title required.");
       return;
     }
+    // Synchronous latch: a double-click on Create would otherwise fire two
+    // inserts before `submitting` re-renders the button to disabled, writing
+    // TWO duplicate problem hypotheses (+ their signal links). See the
+    // append-only double-write class.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
     try {
@@ -413,6 +420,7 @@ function CreateProblemModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
