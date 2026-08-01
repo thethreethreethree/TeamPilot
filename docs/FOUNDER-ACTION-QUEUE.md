@@ -48,7 +48,11 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > **Security / infra (do when convenient — none is a live HIGH hole):**
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
 > - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
-> - 🟢 `"add HSTS"` — the one missing security header (LOW; Vercel already HTTPS-redirects). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset — confirmed still unset via live /api/health 2026-08-02: `anthropic:false`, so DeepSeek is a single point of failure for ALL AI).
+> - ✅ **`"add HSTS"` — ALREADY DONE (stale flag, corrected 2026-08-02 via live headers):** `Strict-Transport-Security:
+>   max-age=63072000` (2yr) IS live — Vercel auto-injects it for the custom domain (not in code, and reliable). No
+>   action. The one header NOT present is **CSP** (Content-Security-Policy) — a defense-in-depth XSS gap, but a
+>   bigger/riskier add (a bad CSP breaks the app), so it's optional-hardening, not a bug: say `"add a CSP"` if you
+>   want it scoped. Everything else is set + well-configured (X-Frame SAMEORIGIN, nosniff, Referrer-Policy, Permissions-Policy mic=self). · 🟢 **confirm 2 prod env vars:** `NEXT_PUBLIC_CARE_EXTENSION_ID` (🔒 token-theft if unset) + `ANTHROPIC_API_KEY` (no AI failover if unset — confirmed still unset via live /api/health 2026-08-02: `anthropic:false`, so DeepSeek is a single point of failure for ALL AI).
 > - ✅ **FIXED autonomously 2026-08-02 (`77d26336`) — LIVE SEO BUG:** curling elostate.com showed the homepage's
 >   `<link rel="canonical">` AND the entire /sitemap.xml pointing to **`http://localhost:4321`** (Astro-port
 >   dev default). Root cause: `NEXT_PUBLIC_SITE_URL` is unset in Vercel and layout/sitemap/robots all fell back
