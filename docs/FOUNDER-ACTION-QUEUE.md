@@ -43,7 +43,9 @@
 > backstops need YOU):** A systemic class — append handlers guarded only by React state double-wrote on a
 > double-click (duplicate decisions, resolutions, customer messages, transcript segments, and — worst — a
 > duplicate TENANT on onboarding). All ~25 client instances are fixed + latched (an independent adversarial
-> re-audit caught 6 more I'd missed + one false "fix"). Three durable server-side backstops are schema/design
+> re-audit caught 6 more I'd missed + one false "fix"). **Blast-radius checked against prod (read-only): only the
+> transcript path actually corrupted data (12 sessions); `chat_messages` (304 rows) + `task_messages` have ZERO
+> near-simultaneous dups — those fixes are purely preventive.** Three durable server-side backstops are schema/design
 > calls only you should make (details in the blocks below): `"onboarding RPC advisory lock"` (HIGH — concurrent
 > double-create still makes two companies), `"transcript segment dedup constraint"` (HIGH — ~20% of coaching sessions already have duplicated transcripts; read-only prod count confirmed 128 excess rows), `"/respond server
 > idempotency"` (LOW, design). Plus `"finance read-path error handling"` (MED — 62 sites show infinite-spinner /
