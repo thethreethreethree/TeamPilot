@@ -22,7 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { getSession } from "@/lib/data/salesCoach";
-import { POST } from "../route";
+import { POST, GET } from "../route";
 
 const setAuth = (userId: string | null) =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -90,5 +90,71 @@ describe("POST /why — rep-only + outcome-first", () => {
     expect(res.status).toBe(200);
     expect(inserts).toHaveLength(1); // the rep hypothesis (system why has no signal → not stored)
     expect(inserts[0]).toMatchObject({ actor: "rep1", payload: { hypothesis: HYP } });
+  });
+});
+
+/**
+ * GET /why — owner-or-manager read gate. readLatestWhy reads the rep's private why via the ADMIN
+ * (RLS-bypassing) client, so the handler must enforce ownership in app code. Before this gate, any
+ * company member (incl. a peer rep) could read another rep's why — more permissive than every sibling
+ * Sessions read (/list restricts non-managers to their own agent_id). Mirror the subsystem: owner always;
+ * otherwise only a manager (isSalesCoachManager). 404 for an unauthorized peer (no existence leak).
+ */
+// RLS client mock that also serves the profiles read the manager-check performs.
+const setAuthWithProfile = (
+  userId: string | null,
+  profile: { role?: string | null; sales_coach_role?: string | null; company_id?: string | null } | null
+) =>
+  (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
+    from: (t: string) => {
+      if (t === "profiles") {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile }) }) }) };
+      }
+      throw new Error(`unexpected table ${t}`);
+    },
+  });
+// Admin mock for readLatestWhy (GET reads the why events).
+const mockAdminReadWhy = () =>
+  (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          in: () => ({
+            order: async () => ({
+              data: [{ kind: "coach.session_why_recorded", payload: { hypothesis: HYP }, created_at: "2026-08-02T00:00:00Z" }],
+            }),
+          }),
+        }),
+      }),
+    }),
+  });
+
+describe("GET /why — owner-or-manager read gate", () => {
+  beforeEach(() => mockAdminReadWhy());
+
+  it("401 unauthenticated", async () => {
+    setAuthWithProfile(null, null);
+    expect((await GET({} as never, ctx)).status).toBe(401);
+  });
+
+  it("200 for the owning rep — returns the why", async () => {
+    setAuthWithProfile("rep1", { role: "Member", sales_coach_role: null, company_id: "co1" });
+    const res = await GET({} as never, ctx);
+    expect(res.status).toBe(200);
+    expect((await res.json()).repHypothesis).toBe(HYP);
+  });
+
+  it("200 for a NON-owner MANAGER (coaching visibility — mirrors /list)", async () => {
+    setAuthWithProfile("boss", { role: "CEO", sales_coach_role: null, company_id: "co1" });
+    expect((await GET({} as never, ctx)).status).toBe(200);
+  });
+
+  it("404 for a NON-owner NON-manager peer — and does NOT leak the why", async () => {
+    setAuthWithProfile("rep2", { role: "Member", sales_coach_role: null, company_id: "co1" });
+    const res = await GET({} as never, ctx);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(JSON.stringify(body)).not.toContain(HYP);
   });
 });

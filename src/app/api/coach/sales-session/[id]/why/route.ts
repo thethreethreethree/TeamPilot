@@ -7,6 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { generateSessionWhy, type SessionWhy } from "@/lib/coach/v5/salesWhy";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 
 /**
  * /api/coach/sales-session/[id]/why  (Sessions Phase 3 — the WHY engine)
@@ -58,12 +59,38 @@ export async function GET(
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const session = await getSession(id); // RLS-scoped read = access check
+  const session = await getSession(id); // RLS-scoped read = company access check
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
       { status: 404 }
     );
+  }
+  // Owner-or-manager gate. getSession is RLS company-scoped (so a manager here is
+  // necessarily same-company), but readLatestWhy below reads the why via the ADMIN
+  // client (RLS-bypassing). Without this, ANY company member — including a peer rep —
+  // could read another rep's private why hypothesis: more permissive than every
+  // sibling Sessions read (/list: "Staff see their OWN sessions; managers see all
+  // company", the A33 chokepoint) AND than this file's own POST, which owner-gates.
+  // Mirror the subsystem: the owner always; otherwise only a manager. 404 (not 403)
+  // to avoid confirming the session's existence to an unauthorized peer.
+  if (session.agentId !== auth.user.id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, sales_coach_role, company_id")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    const isManager = isSalesCoachManager({
+      role: (profile?.role as string | null) ?? null,
+      sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+      company_id: (profile?.company_id as string | null) ?? null,
+    });
+    if (!isManager) {
+      return NextResponse.json(
+        { error: "Session not found or not accessible." },
+        { status: 404 }
+      );
+    }
   }
   return NextResponse.json({
     outcome: session.outcome,
