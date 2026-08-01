@@ -55,10 +55,17 @@ sales_coach-locked account *could* call `/api/care/*` directly and vice-versa.
   its OWN (empty, for the unbought module) data — never another tenant's. RLS, not this lock, is the data
   boundary.
 - It IS a billing/product-access softness: a determined admin of a single-module account could *use* an
-  unbought module via direct API calls (there's no UI, since the pages are locked). If billing integrity needs
-  the lock to be hard at the API layer too, the fix is to add the same `access_module` check to each module's
-  API route group (e.g. in `requireCareAgent` / the sales-coach route gate), keyed on the caller's
-  `companies.access_module`. That's a founder decision (how strict) + a broader change, not done here.
+  unbought module via direct API calls (there's no UI, since the pages are locked). The softness is
+  **symmetric**: a sales_coach account passes the care gate (`requireCareAgent` = `is_support_agent OR admin`,
+  and it's `role='admin'`), AND a care account passes the sales-coach manager gate (`isSalesCoachManager` =
+  `sales_coach_role='admin' OR role in CEO/COO/admin`, and it's `role='admin'`).
+- **Effort if you want it hard at the API layer (scoped 2026-08-01):** it's NOT a clean 2-chokepoint fix.
+  C.A.R.E has one gate (`requireCareAgent`) → one edit. But Sales Coach APIs gate at MULTIPLE points: manager
+  routes use `isSalesCoachManager`, while rep routes use `getCurrentAuthContext` (ANY authed user, no role
+  check) — so a per-route/per-gate `access_module` check is needed, with real risk of missing a route or
+  breaking a legitimate one. That's why this stays a founder decision (`"lock the module APIs too"`), not a
+  self-authorized change: today's page-level lock is sufficient for DATA security (RLS), and the API hardening
+  is a genuine build with a strictness trade-off only the founder should set.
 
 ## Guardrails
 
