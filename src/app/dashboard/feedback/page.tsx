@@ -101,6 +101,8 @@ export default function MyFeedbackPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<FeedbackRow[]>([]);
+  // A failed load must not read as "you haven't filed any feedback yet".
+  const [loadError, setLoadError] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   // Compose panel state — opens immediately when the page is
   // entered via ?intent=feedback (from the landing-page Feedback
@@ -120,16 +122,22 @@ export default function MyFeedbackPage() {
   useEffect(() => {
     void (async () => {
       setLoading(true);
+      setLoadError(false);
       try {
         const params = new URLSearchParams({ mine: "1" });
         if (statusFilter !== "all") params.set("status", statusFilter);
         const res = await fetch(`/api/feedback?${params.toString()}`);
         if (!res.ok) {
           toast.error("Couldn't load your feedback");
+          setLoadError(true);
           return;
         }
         const data = (await res.json()) as { feedback: FeedbackRow[] };
         setRows(data.feedback);
+      } catch {
+        // Network throw / non-JSON body — the toast branch above never fired,
+        // so without this the page would silently show the empty state.
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -250,6 +258,20 @@ export default function MyFeedbackPage() {
           <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
             Loading…
+          </div>
+        ) : loadError ? (
+          <div className="glass-card p-8 text-center">
+            <MessageSquarePlus
+              className="w-7 h-7 text-muted mx-auto mb-3"
+              aria-hidden
+            />
+            <p className="text-sm text-primary mb-1">
+              Couldn&apos;t load your feedback.
+            </p>
+            <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">
+              This is a load error, not an empty list. Change the filter or
+              refresh to try again.
+            </p>
           </div>
         ) : rows.length === 0 ? (
           <div className="glass-card p-8 text-center">

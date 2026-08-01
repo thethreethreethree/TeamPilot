@@ -18,6 +18,9 @@ export default function CareTagsPage() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("gray");
   const [creating, setCreating] = useState(false);
+  // Distinguish a load FAILURE from "still loading" — otherwise a 500/network
+  // error leaves tags null forever and the `tags == null` gate spins eternally.
+  const [loadError, setLoadError] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -25,10 +28,14 @@ export default function CareTagsPage() {
   }, []);
 
   const refresh = async () => {
-    const res = await fetch("/api/care/agent/tags");
-    if (res.ok) {
+    setLoadError(false);
+    try {
+      const res = await fetch("/api/care/agent/tags");
+      if (!res.ok) throw new Error(`tags ${res.status}`);
       const data = await res.json();
       setTags(data.tags ?? []);
+    } catch {
+      setLoadError(true);
     }
   };
 
@@ -168,7 +175,17 @@ export default function CareTagsPage() {
         {/* List */}
         <div className="bg-white/[0.02] border border-default rounded-xl p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">All tags</h2>
-          {tags == null ? (
+          {loadError ? (
+            <div className="flex flex-col items-center gap-2 text-xs text-muted py-4">
+              <span>Couldn&apos;t load tags.</span>
+              <button
+                onClick={() => void refresh()}
+                className="rounded-md border border-default px-3 py-1 text-primary hover:bg-base/60"
+              >
+                Retry
+              </button>
+            </div>
+          ) : tags == null ? (
             <div className="flex items-center gap-2 text-xs text-muted py-4 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
               Loading…

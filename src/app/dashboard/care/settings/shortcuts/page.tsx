@@ -17,13 +17,20 @@ export default function CareShortcutsPage() {
   const [items, setItems] = useState<Shortcut[] | null>(null);
   const [draft, setDraft] = useState({ shortcut: "", title: "", body: "" });
   const [creating, setCreating] = useState(false);
+  // Distinguish a load FAILURE from "still loading" — otherwise a 500/network
+  // error leaves items null forever and the `items == null` gate spins eternally.
+  const [loadError, setLoadError] = useState(false);
   const toast = useToast();
 
   const refresh = async () => {
-    const res = await fetch("/api/care/agent/shortcuts");
-    if (res.ok) {
+    setLoadError(false);
+    try {
+      const res = await fetch("/api/care/agent/shortcuts");
+      if (!res.ok) throw new Error(`shortcuts ${res.status}`);
       const data = await res.json();
       setItems(data.shortcuts ?? []);
+    } catch {
+      setLoadError(true);
     }
   };
 
@@ -189,7 +196,17 @@ export default function CareShortcutsPage() {
           <h2 className="text-sm font-semibold text-primary mb-3">
             All shortcuts
           </h2>
-          {items == null ? (
+          {loadError ? (
+            <div className="flex flex-col items-center gap-2 text-xs text-muted py-4">
+              <span>Couldn&apos;t load shortcuts.</span>
+              <button
+                onClick={() => void refresh()}
+                className="rounded-md border border-default px-3 py-1 text-primary hover:bg-base/60"
+              >
+                Retry
+              </button>
+            </div>
+          ) : items == null ? (
             <div className="flex items-center gap-2 text-xs text-muted py-4 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
               Loading…

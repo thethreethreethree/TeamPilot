@@ -57,14 +57,18 @@ export default function CareAgentsPage() {
   const toast = useToast();
   const [agents, setAgents] = useState<AgentRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  // A failed roster load must not read as an empty team.
+  const [loadError, setLoadError] = useState(false);
 
   const refresh = async () => {
+    setLoadError(false);
     try {
       const res = await fetch("/api/care/agent/settings/agents");
-      if (res.ok) {
-        const data = await res.json();
-        setAgents(data.agents ?? []);
-      }
+      if (!res.ok) throw new Error(`agents ${res.status}`);
+      const data = await res.json();
+      setAgents(data.agents ?? []);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -158,6 +162,16 @@ export default function CareAgentsPage() {
               <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
               Loading…
             </div>
+          ) : loadError ? (
+            <p className="text-xs text-muted py-6 text-center">
+              Couldn&apos;t load teammates.{" "}
+              <button
+                onClick={() => void refresh()}
+                className="underline hover:text-primary"
+              >
+                Retry
+              </button>
+            </p>
           ) : !agents || agents.length === 0 ? (
             <p className="text-xs text-muted py-6 text-center">
               No teammates loaded.

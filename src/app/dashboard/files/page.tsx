@@ -49,6 +49,8 @@ export default function FilesLibraryPage() {
   const [taskFilter, setTaskFilter] = useState<string>("");
   const [laneFilter, setLaneFilter] = useState<"" | "classified" | "casual">("");
   const [loading, setLoading] = useState(true);
+  // A failed library load must not read as "No assets yet".
+  const [loadError, setLoadError] = useState(false);
   const [casual, setCasual] = useState<CasualSnap>({ today: 0, cap: 3, remaining: 3 });
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   // Pre-upload classify (2026-06-26 audit Finding B): the picked file is
@@ -69,6 +71,7 @@ export default function FilesLibraryPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     const params = new URLSearchParams();
     if (search) params.set("q", search);
     if (departmentFilter) params.set("department", departmentFilter);
@@ -85,6 +88,11 @@ export default function FilesLibraryPage() {
         const data = await filesRes.json();
         setFiles(data.files ?? []);
         setCasual(data.casual ?? { today: 0, cap: 3, remaining: 3 });
+      } else {
+        // The primary library fetch failed — flag it so the render shows an
+        // error, not the "No assets yet" empty state. (The deps/tasks/team
+        // fetches below are filter data; their failure just empties a dropdown.)
+        setLoadError(true);
       }
       if (depsRes.ok) {
         const data = await depsRes.json();
@@ -115,6 +123,10 @@ export default function FilesLibraryPage() {
           )
         );
       }
+    } catch {
+      // A network throw (or a non-JSON body) on the primary fetch — same
+      // treatment: surface an error rather than a fake-empty library.
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -417,6 +429,18 @@ export default function FilesLibraryPage() {
               <div className="flex items-center justify-center py-16 text-muted text-sm">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden />
                 Loading files…
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-16">
+                <p className="text-sm text-primary mb-2">
+                  Couldn&apos;t load your files.
+                </p>
+                <button
+                  onClick={() => void refresh()}
+                  className="text-xs text-muted underline hover:text-primary"
+                >
+                  Retry
+                </button>
               </div>
             ) : cardData.length === 0 ? (
               <div className="text-center py-16">

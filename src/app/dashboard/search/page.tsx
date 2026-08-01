@@ -39,6 +39,9 @@ export default function SearchPage() {
   const [files, setFiles] = useState<FileHit[]>([]);
   const [chats, setChats] = useState<ChatHit[]>([]);
   const [supports, setSupports] = useState<SupportHit[]>([]);
+  // A failed search must not read as "No results" — that's indistinguishable
+  // from a genuinely empty result set.
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const term = q.trim();
@@ -50,17 +53,23 @@ export default function SearchPage() {
     }
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     const t = setTimeout(async () => {
       try {
         const res = await fetch(
           `/api/search?q=${encodeURIComponent(term)}`
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) setLoadError(true);
+          return;
+        }
         const data = await res.json();
         if (cancelled) return;
         setFiles(data.files ?? []);
         setChats(data.chatMessages ?? []);
         setSupports(data.supportMessages ?? []);
+      } catch {
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -110,7 +119,13 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!loading && q.trim() && files.length === 0 && chats.length === 0 && supports.length === 0 && (
+        {!loading && q.trim() && loadError && (
+          <p className="text-center text-sm text-muted py-12">
+            Search couldn&apos;t run just now. Edit your query to retry.
+          </p>
+        )}
+
+        {!loading && q.trim() && !loadError && files.length === 0 && chats.length === 0 && supports.length === 0 && (
           <p className="text-center text-sm text-muted py-12">
             No results for &ldquo;{q}&rdquo;.
           </p>
