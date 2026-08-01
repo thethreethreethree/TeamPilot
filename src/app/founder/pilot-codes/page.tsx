@@ -96,6 +96,9 @@ export default async function FounderPilotCodesPage() {
     <div className="min-h-screen bg-base px-4 py-10">
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-8">
+          <a href="/founder/files" className="text-xs text-secondary hover:text-primary inline-flex items-center gap-1 mb-2">
+            ← Founder files
+          </a>
           <div className="text-xs font-mono uppercase tracking-[0.18em] text-brand">Founder · Pilot codes</div>
           <h1 className="mt-2 text-2xl font-bold text-primary">Pilot access codes</h1>
           <p className="mt-1 text-sm text-muted">
