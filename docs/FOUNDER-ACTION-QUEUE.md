@@ -131,6 +131,22 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > - `"fix the false limits"` — I convert the finance-register read to real `.range()` pagination and the analytics
 >   scans to server-side aggregates (or disclosed `capped` flags), per site.
 >
+> **🆕 2026-08-02 — RCD capture ingestion is NOT idempotent — re-capturing a thread DUPLICATES it (needs a product call):**
+> `POST /api/care/extension/rcd` does a plain `.insert()` into `care_rcd_conversations`; `external_ref` (the
+> third-party thread id) is a nullable `text` with **no unique constraint**, and the route has no dedup. So if an
+> agent captures the same WhatsApp/Gmail thread twice — a re-open, a double-click, or an extension retry — it
+> creates a SECOND full conversation row (+ duplicated messages/media + a second set of signed upload URLs). The
+> messages table's `unique(conversation_id, seq)` only dedups *within* one conversation, not across re-captures.
+> This is the same double-write/idempotency class already fixed elsewhere, but RCD is EXTENSION-triggered so a
+> client latch can't fully close it (retries/replays still reach the server). **It's a product call, not a clear
+> bug — I did NOT self-resolve it (guide, don't overtake):** is a re-capture meant to be (a) the same conversation, deduped/updated,
+> or (b) an intentional point-in-time *versioned snapshot*? The spec doesn't say. My read: even if (b) is intended,
+> an *accidental* exact double-fire should still be prevented.
+> - `"dedup RCD captures"` — if (a): add a partial `unique (company_id, external_ref) where external_ref is not
+>   null` + upsert-or-skip on conflict. If (b): keep versioning but add a short-window guard (same `external_ref` +
+>   same `message_count` within ~N seconds → skip the duplicate) and surface "captured ×N" in the RcdPanel so the
+>   agent sees it's a re-capture. Either is a small migration + route tweak; tell me which intent and I build it.
+>
 > **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
 > - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
 >   TopBar (two files) — same cross-file drift class as One Liners. Centralized to `ROLEPLAY_PRACTICE_LABEL`
