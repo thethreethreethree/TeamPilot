@@ -190,8 +190,11 @@ export default function SalesCoachHome() {
           <MobileCard
             href="/dashboard/sales-coach/strategy"
             icon={Library}
-            title={isStandard ? "One Liners" : "Strategy Library"}
-            sub="Find top-performing correct lines and sales strategies"
+            // Founder 2026-08-01: "One Liners" is the universal name now (was a Standard-only relabel — the same
+            // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Matches the
+            // nav + the page title.
+            title="One Liners"
+            sub="Find your top-performing lines and sales strategies"
           />
         </div>
 
