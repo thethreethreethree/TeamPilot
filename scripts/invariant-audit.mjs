@@ -927,6 +927,41 @@ if (mwFile) {
   }
 }
 
+// ═══ INVARIANT 21 — a literal .limit(N) with N > 1000 is a FALSE bound past PostgREST max_rows ══════
+//
+// LEARNED: 2026-08-02. supabase/config.toml sets max_rows = 1000. PostgREST enforces that ceiling
+// REGARDLESS of a larger client .limit(), so `.limit(5000)` silently returns <= 1000 rows. A read that asks
+// for 2000/5000 LOOKS bounded in review but processes at most 1000 — an analytics undercount, or a finance
+// register that hides older rows. The fix is real .range() pagination or a server-side aggregate, never a
+// bigger .limit(). This gate blocks NEW false bounds; the known existing ones are allowlisted with the queue
+// trigger that will fix them ("fix the false limits", FOUNDER-ACTION-QUEUE 2026-08-02). If you set an
+// INTENTIONAL cap, make it <= 1000 (like assetReadout's FILE_SCAN_CAP = 1000, which matches max_rows).
+const FALSE_LIMIT_ALLOWLIST = new Map([
+  ["src/app/api/finance/bank/accounts/[id]/transactions/route.ts", "Known false bound (register shows newest <=1000 txns). Tracked: 'fix the false limits'."],
+  ["src/app/api/admin/coach-readout/route.ts", "Known false bound (analytics undercount, x3). Tracked: 'fix the false limits'."],
+  ["src/app/api/brain/learning-summary/route.ts", "Known false bound (coach-events aggregation undercount). Tracked: 'fix the false limits'."],
+  ["src/app/api/care/agent/analytics/route.ts", "Known false bound (analytics undercount). Tracked: 'fix the false limits'."],
+  ["src/app/api/coach/kpi/compute-cron/route.ts", "Known false bound (KPI cron processes <=1000). Tracked: 'fix the false limits'."],
+  ["src/lib/data/care.ts", "Known false bound (voice-value readout durability read). Tracked: 'fix the false limits'."],
+]);
+const FALSE_LIMIT_RE = /\.limit\(\s*(\d+)\s*\)/g;
+for (const f of FILES) {
+  if (FALSE_LIMIT_ALLOWLIST.has(f.path)) continue;
+  for (const m of f.sql.matchAll(FALSE_LIMIT_RE)) {
+    if (Number(m[1]) > 1000) {
+      findings.push({
+        rule: ".limit(N) with N > 1000 is a false bound (PostgREST caps at max_rows=1000)",
+        file: f.path,
+        why:
+          `\`.limit(${m[1]})\` silently returns <=1000 rows — max_rows=1000 (supabase/config.toml) caps it\n` +
+          "      regardless of the client limit. Use .range() pagination or a server-side aggregate; if this is\n" +
+          "      an intentional cap, set it to <=1000. Allowlist with a reason if it's a known/tracked exception.",
+      });
+      break; // one finding per file is enough
+    }
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -1038,6 +1073,12 @@ const inv20Count = (s) =>
 st("INV20 flags a second raw redirect", inv20Count("const r = NextResponse.redirect(u);\nreturn NextResponse.redirect(x);") > 1);
 st("INV20 accepts the single helper redirect", inv20Count("  const redirect = NextResponse.redirect(url);") <= 1);
 st("INV20 ignores a redirect named in a JSDoc comment", inv20Count(" * a bare NextResponse.redirect(url) drops cookies") === 0);
+// INV21 false-limit: exercise the ACTUAL FALSE_LIMIT_RE (matchAll is stateless, so it's safe to reuse the /g
+// regex here). It must flag a literal > 1000, accept <= 1000, and accept the max_rows-exact 1000.
+const inv21Bad = (s) => [...s.matchAll(FALSE_LIMIT_RE)].some((m) => Number(m[1]) > 1000);
+st("INV21 flags .limit(5000) as a false bound", inv21Bad(".limit(5000)"));
+st("INV21 accepts .limit(500)", !inv21Bad(".limit( 500 )"));
+st("INV21 accepts .limit(1000) (matches max_rows exactly)", !inv21Bad(".limit(1000)"));
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -1047,7 +1088,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
