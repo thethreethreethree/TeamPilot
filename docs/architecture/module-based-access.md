@@ -43,6 +43,23 @@ so members can't read it there.
 A locked account never reaches another module's access gate (the middleware redirects it first). A care/
 sales_coach pilot account is `role='admin'` (from `redeem_pilot_code`), so it passes its own area's gate.
 
+## Scope + a known limitation (adversarial-lens finding, 2026-08-01)
+
+The lock is **page-level, not API-level.** The middleware matcher is `/dashboard/:path*` (+ onboarding/login) —
+it does NOT cover `/api/*`. And a single-module pilot account is `role='admin'` (set by `redeem_pilot_code`),
+which passes the module-agnostic API gates (`requireCareAgent` = `is_support_agent OR admin`). So a
+sales_coach-locked account *could* call `/api/care/*` directly and vice-versa.
+
+**Why this is acceptable as a DATA boundary but flagged as a PRODUCT boundary:**
+- Not a data leak: every module API is RLS-scoped to the caller's own company, so a locked account gets only
+  its OWN (empty, for the unbought module) data — never another tenant's. RLS, not this lock, is the data
+  boundary.
+- It IS a billing/product-access softness: a determined admin of a single-module account could *use* an
+  unbought module via direct API calls (there's no UI, since the pages are locked). If billing integrity needs
+  the lock to be hard at the API layer too, the fix is to add the same `access_module` check to each module's
+  API route group (e.g. in `requireCareAgent` / the sales-coach route gate), keyed on the caller's
+  `companies.access_module`. That's a founder decision (how strict) + a broader change, not done here.
+
 ## Guardrails
 
 - **verify:live invariant #23** — every single-module redeemed company has the matching `access_module`; catches
