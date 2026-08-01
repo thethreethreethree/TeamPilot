@@ -25,8 +25,14 @@
 >   `37e8e410`): a single-module admin account could call another module's `/api/*` (RLS still scopes the data
 >   to their own company — NOT a leak; a billing-integrity softness). Make it hard at the API layer? (broader
 >   build; today's page lock is enough for data security.)
-> - `"build the trajectory UI"` — the KPI trajectory READER + tests are now committed (`a3e4765d`); only the UI
->   is left, and it's UX-reserved + thin on data (1 month live). Say the word + I'll build the sparkline/delta view.
+> - `"build the trajectory UI"` — the KPI trajectory READER + tests are committed (`a3e4765d`); the route
+>   (`/api/coach/kpi/trajectory`) is verified sound + self-scoped but has **zero UI consumers** (intentional,
+>   UX-reserved — not a bug). **Concrete design tension I traced 2026-08-01 (so this isn't blind UX taste):** the
+>   KPI page *already* shows a trend story — per-metric "▲ +N vs earlier" deltas + a reliance-reduction-over-time
+>   arc. The trajectory route adds a *month-over-month* series, a **second, different** "trend" signal. Dropping it
+>   onto the same 30 KB page risks two competing trend narratives on one screen — a real clarity call only you
+>   should make (replace the "vs earlier" deltas with the month series? add a separate section? defer until
+>   there's >1 month of live data so it isn't all "building"?). Say the word + I'll build the chosen shape.
 >
 > **Security / infra (do when convenient — none is a live HIGH hole):**
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
