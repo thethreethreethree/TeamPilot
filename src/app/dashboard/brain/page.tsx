@@ -68,6 +68,10 @@ export default function BrainPage() {
       } else {
         setState(null);
       }
+    } catch {
+      // Network / non-JSON failure — same as a non-ok response: null state, which
+      // the render now shows as an honest load error (not "no brain available").
+      setState(null);
     } finally {
       setLoading(false);
     }
@@ -166,10 +170,21 @@ export default function BrainPage() {
 
         {supabaseEnabled && !loading && !state && (
           <div className="glass-card p-6 text-center">
-            <p className="text-sm text-primary mb-2">No brain available.</p>
-            <p className="text-xs text-muted">
-              Sign in and complete onboarding to initialize this company&apos;s brain.
+            {/* Every company's brain is auto-created on onboarding (0007 trigger),
+                so a null state here can ONLY be a load failure — never a genuinely
+                missing brain. Say that honestly and offer a retry, rather than
+                "No brain available" (which reads as "it doesn't exist"). */}
+            <p className="text-sm text-primary mb-2">Couldn&apos;t load the brain.</p>
+            <p className="text-xs text-muted mb-3">
+              This is a load error, not a missing brain — your company&apos;s brain
+              is safe. Try again.
             </p>
+            <button
+              onClick={() => void refresh()}
+              className="rounded-md border border-default px-3 py-1.5 text-xs text-primary hover:bg-base/60"
+            >
+              Retry
+            </button>
           </div>
         )}
 
