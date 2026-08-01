@@ -53,6 +53,40 @@
 > idempotency"` (LOW, design). Plus `"finance read-path error handling"` (MED — 62 sites show infinite-spinner /
 > fake-empty on load failure; recommend a shared fetch helper, exemplar `finance/statements` already fixed).
 >
+> **🆕 2026-08-02 — Coach KPI metrics silently go WRONG at scale (unbounded-query audit; VERIFIED, HIGH, founder-gated):**
+> An adversarial "unbounded list query" audit + my verification found a real honesty-thesis bug. **Confirmed fact:**
+> `supabase/config.toml max_rows = 1000` — PostgREST caps every unbounded `.select()` at 1000 rows (the codebase
+> already documents this in `assetReadout.ts`/`care.ts`/`salesCoach.ts` with §3.4 `bounded` flags). The coach KPI
+> read routes **compute cross-session aggregates client-side** by bulk-loading child rows: `GET /api/coach/kpi/me`
+> loads ALL `coaching_transcript_segments` + `coaching_cues` for a rep (routes `me/route.ts:126-128`,
+> `team/route.ts:103`), and `sales-session/dashboard` loads all sessions. `coaching_transcript_segments` grows
+> ~one row per spoken utterance (~80/call) → the 1000-cap is hit in **~2-3 days of active use** (per rep for /me,
+> even faster for the whole-team /team rollup). Past that, `coachedSessions`/`relianceReduction`/`cueAcceptanceRate`
+> are computed over a **silently truncated subset → the exact §3.5 "training-wheels-come-off" numbers become quietly
+> wrong** (and /me vs /team diverge, breaking the cross-view-consistency the code calls "the whole honesty thesis").
+> **Why I did NOT autofix (constitutional, not laziness):** the correct fix is *server-side aggregation* — the child
+> tables are keyed by `session_id` not `agent_id`, so you must enumerate >1000 session_ids to aggregate them, which
+> itself needs a DB-side `count`/`DISTINCT` (an RPC or a denormalized per-session counter maintained by trigger =
+> a **migration**). A naive `.limit()` would make the metric *more* wrong (1000 arbitrary segment rows → an
+> incomplete coached-sessions set). That's a design change in the founder-gated §3.5 KPI subsystem whose correctness
+> I **cannot verify against live data** — §3.3 (guide, don't overtake) + §4 (distrust unverified evolution). So I
+> diagnosed + verified it and am handing you the decision.
+> - `"fix the coach KPI aggregation"` — I build the migration (per-session `cue_count` / `segment_count` +
+>   `acted_count` as denormalized counters via an append-triggered function, OR a `coach_kpi_rollup` RPC that does
+>   the `GROUP BY session_id` server-side), rewire `me`/`team`/`dashboard` to read the bounded aggregates, and add
+>   compute tests. Highest-value: it restores §3.5 metric correctness at pilot scale.
+> - `"just disclose the cap for now"` — smaller stopgap: detect when a load hit 1000 and surface a §3.4 `capped:true`
+>   flag the KPI UI renders ("computed over your most recent N sessions"), matching the existing `assetReadout`
+>   pattern. Honest but not correct — turns a silent lie into a disclosed bound until the real fix lands.
+>
+> **🆕 2026-08-02 — Message threads load unbounded (same audit, MEDIUM, needs a "load older" UX decision):**
+> Three read paths load an entire thread with no limit → silently truncate past 1000 messages (older/newer messages
+> vanish from the thread) + full-thread memory per open: `fetchMessages` (team chat, `lib/data/chats.ts:702`),
+> `getConversationMessages`/`getConversationWithMessages` (C.A.R.E support, `lib/data/care.ts:287,690`), and
+> `fetchDecisions` (decision history, `lib/data/decisions.ts:30`, moderate-growth). The fix is real pagination
+> (initial newest-N window + a "load older" affordance) — a UI feature + UX call, not a silent autonomous change.
+> - `"paginate the message threads"` — I build the newest-first window + load-older for chat + support (+ decisions).
+>
 > **Sales Coach label/dead-surface sweep (outside-view audit 2026-08-01) — 1 fixed, 3 need your call:**
 > - ✅ **FIXED autonomously** — "Roleplay Practice" was typed identically in the home card AND the roleplay page's
 >   TopBar (two files) — same cross-file drift class as One Liners. Centralized to `ROLEPLAY_PRACTICE_LABEL`
