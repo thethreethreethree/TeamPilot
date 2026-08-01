@@ -46,9 +46,10 @@
 > - `"reconcile the analytics label"` — the home mobile card says **"Pitch Performance"** but the destination page
 >   + nav both say **"Analytics"** (`page.tsx:176` vs `analytics/page.tsx` + shell nav). Same feature, two names —
 >   a tap lands you on a differently-titled page. Which is canonical? (I didn't rename — that's your naming call.)
-> - `"dry the coach-assessment copy"` — the `isExpert` ternary at `coach-assessment/page.tsx:194-196` repeats an
->   identical tail sentence in both branches; an edit to one silently misses the other. LOW risk (both branches
->   adjacent in one file) + extracting it risks a curly-apostrophe mismatch, so I left it — say the word to DRY it.
+> - ✅ **FIXED** (`2fc0e1f8`) — DRY'd the coach-assessment `isExpert` ternary: the ternary now holds only the
+>   differing half and the shared peer-visibility tail is appended once, so it can't drift. Zero behavior change
+>   (exact bytes incl. the curly apostrophe preserved); the apostrophe-mismatch risk was avoided by copying the
+>   literal, not retyping it.
 > - `"delete SalesCoachComing"` — `src/components/sales-coach/SalesCoachComing.tsx` (the old "coming soon"
 >   placeholder) is now imported by nothing — every nav route is real. Orphaned dead code; safe to delete on your ok.
 > - `"kill the earpiece cue hint"` — full revision-spec cross-check (2026-08-01, both PDF pages) confirms EVERY
