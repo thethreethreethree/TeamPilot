@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { getVendorCompanyId, isVendorAdmin } from "@/lib/crm/vendorAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { summarizePilotCodes } from "@/lib/pilot/summarizePilotCodes";
 
 export const dynamic = "force-dynamic";
 
@@ -57,17 +58,12 @@ export default async function FounderPilotCodesPage() {
     }
   }
 
-  const modules = [...new Set([...MODULE_ORDER, ...codes.map((c) => c.module)])];
-  const summary = modules
-    .map((m) => {
-      const forM = codes.filter((c) => c.module === m);
-      const redeemed = forM.filter((c) => c.redeemed_at).length;
-      return { module: m, total: forM.length, redeemed, available: forM.length - redeemed };
-    })
-    .filter((s) => s.total > 0);
-
-  const totalCodes = codes.length;
-  const totalRedeemed = codes.filter((c) => c.redeemed_at).length;
+  // Counts via the pure, tested summarizer (src/lib/pilot/summarizePilotCodes.ts) so the founder-facing
+  // spent/available numbers can't silently drift.
+  const { total: totalCodes, redeemed: totalRedeemed, byModule: summary } = summarizePilotCodes(
+    codes,
+    MODULE_ORDER
+  );
   const redeemedList = codes.filter((c) => c.redeemed_at);
 
   const fmtDate = (iso: string | null) =>
