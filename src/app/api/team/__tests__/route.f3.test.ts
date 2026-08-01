@@ -83,3 +83,59 @@ describe("POST /api/team — F3 duplicate/expired invite reconciliation", () => 
     expect(sb._insertSingle).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Privilege-escalation gate (audit 2026-07-13): CEO/COO are both invitable AND admin roles, and
+ * accepting such an invite grants company-admin (0114). Neither the route nor the invite-INSERT RLS
+ * checked the CALLER's role, so any Member could mint a CEO/COO invitation and escalate a proxy
+ * account to admin. The route now requires the caller to be an admin to assign an admin role.
+ */
+function fakeSbWithCallerRole(callerRole: string | null) {
+  const insertSingle = vi.fn(async () => ({ data: { id: "inv-new", code: "CODE123" }, error: null }));
+  return {
+    auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) },
+    from: (t: string) => {
+      if (t === "profiles") {
+        return {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: callerRole } }) }) }),
+        };
+      }
+      // team_invitations: no existing pending invite -> straight to insert.
+      const chain: Record<string, unknown> = {};
+      Object.assign(chain, {
+        eq: () => chain,
+        is: () => chain,
+        order: () => chain,
+        limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+      });
+      return { select: () => chain, insert: () => ({ select: () => ({ single: insertSingle }) }) };
+    },
+    _insertSingle: insertSingle,
+  };
+}
+
+describe("POST /api/team — privilege-escalation gate", () => {
+  it("403: a NON-admin (Member) may NOT mint a CEO invite — no insert (the escalation is blocked)", async () => {
+    const sb = fakeSbWithCallerRole("Member");
+    vi.mocked(createClient).mockResolvedValue(sb as never);
+    const res = await POST(postReq({ email: "proxy@x.com", role: "CEO" }));
+    expect(res.status).toBe(403);
+    expect(sb._insertSingle).not.toHaveBeenCalled();
+  });
+
+  it("an ADMIN (CEO) MAY invite an admin role — proceeds to insert", async () => {
+    const sb = fakeSbWithCallerRole("CEO");
+    vi.mocked(createClient).mockResolvedValue(sb as never);
+    const res = await POST(postReq({ email: "coo@x.com", role: "COO" }));
+    expect(res.status).toBe(200);
+    expect(sb._insertSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it("a NON-admin MAY invite a non-admin role (Member) — the gate applies only to admin roles", async () => {
+    const sb = fakeSbWithCallerRole("Member");
+    vi.mocked(createClient).mockResolvedValue(sb as never);
+    const res = await POST(postReq({ email: "teammate@x.com", role: "Member" }));
+    expect(res.status).toBe(200);
+    expect(sb._insertSingle).toHaveBeenCalledTimes(1);
+  });
+});
