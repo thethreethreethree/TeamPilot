@@ -102,6 +102,10 @@
 > structural fix (the altitude fix, not 62 band-aids): a shared `fetchJson(url)` helper that throws on `!res.ok`/
 > `{error}`, plus a small `useFinanceResource` hook standardizing loading / error / retry — then migrate the pages
 > onto it. One decision + one reusable primitive replaces 62 scattered fragile reads. Founder-scoped (architecture).
+> **The TWO highest-traffic finance surfaces are already fixed individually** (`finance/statements` `b381c177`,
+> `finance/` dashboard landing `4ee6912c` — the latter had shown "set up your ledger" + an Initialize button to
+> a company WITH a ledger on any transient error, and had a dead `reason:"error"` field the render never read).
+> The remaining ~60 are lower-traffic per-module pages — the shared-helper refactor is the right move for those.
 
 > **Finance domain re-entrancy — ASSESSED, no mass-patch (2026-08-01).** After the app-wide re-entrancy sweep
 > I checked whether the ~29 finance create handlers (addBill, addVendor, etc.) share the double-click class. They
