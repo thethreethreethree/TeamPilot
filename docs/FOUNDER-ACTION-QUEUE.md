@@ -78,6 +78,12 @@
 > route that 200+empties on a swallowed DB error would also defeat a client `res.ok` error-check. A careful
 > per-caller audit of the 32 sites (which feed a primary display?) is a genuine follow-up — flagged, not
 > blanket-fixed, since most discards are legitimately fine (config-default reads, deliberate degrades).
+> **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
+> 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
+> returns a `degraded` flag (both correct end-to-end, no change). `"reconsider the RCD list degrade"` (LOW) —
+> the RCD list route DELIBERATELY 200+empties on a DB error (documented by-design), so a DB hiccup reads as
+> "no captures yet"; that's technically the class but a deliberate choice — surface it like sessions/customers,
+> or keep the degrade? Your call.
 
 > **Sales-side pilot tracking — ✅ BUILT (2026-08-01): `/founder/pilot-codes`.** The gap was real: nothing
 > showed which of the 100 seeded codes are spent vs available, per module, or who redeemed which (only new
