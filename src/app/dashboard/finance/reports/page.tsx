@@ -146,10 +146,12 @@ export default function ReportsPage() {
       ["Label", "Amount"],
     );
     const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `${active.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`;
     a.click();
+    URL.revokeObjectURL(url); // release the blob URL — click() has already fired the download
   }
 
   if (ready === false) return <FinanceNotSetUp feature="Reports" />;

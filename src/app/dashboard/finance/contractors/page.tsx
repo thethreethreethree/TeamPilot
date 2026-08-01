@@ -97,10 +97,12 @@ export default function ContractorsPage() {
       ["Vendor", "Taxpayer ID", "Classification", "Payments", "Total paid", "Reportable"],
     );
     const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `1099-worksheet-${year}.csv`;
     a.click();
+    URL.revokeObjectURL(url); // release the blob URL — click() has already fired the download
   }
 
   if (ready === false) return <FinanceNotSetUp feature="Contractors" />;

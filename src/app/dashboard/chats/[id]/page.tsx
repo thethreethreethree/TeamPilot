@@ -174,21 +174,34 @@ export default function TeamChatTopicPage() {
   const isNearBottomRef = useRef(true);
   const [hasNewBelow, setHasNewBelow] = useState(false);
 
+  // Load token: refresh() is shared (the [topicId] effect + post-mutation calls),
+  // so a plain `cancelled` flag like the poll sibling below doesn't fit. Each call
+  // takes a token; only the LATEST call commits its results. This makes refreshes
+  // last-write-wins AND — the race the poll already guards — stops a slow load for
+  // topic A from landing under topic B once a direct chat→chat jump exists (today
+  // navigation remounts, so it's latent; this closes it defensively). The finally
+  // also guarantees the spinner resolves even if a fetch throws.
+  const loadTokenRef = useRef(0);
   const refresh = async () => {
+    const token = ++loadTokenRef.current;
     setLoading(true);
-    const [t, m, p, d, grades] = await Promise.all([
-      fetchTopic(topicId),
-      fetchMessages(topicId),
-      fetchParticipants(topicId),
-      fetchTopicDecision(topicId),
-      fetchTopicMessageGrades(topicId),
-    ]);
-    setTopic(t);
-    setMessages(m);
-    setParticipants(p);
-    setTopicDecision(d);
-    setMessageGrades(grades);
-    setLoading(false);
+    try {
+      const [t, m, p, d, grades] = await Promise.all([
+        fetchTopic(topicId),
+        fetchMessages(topicId),
+        fetchParticipants(topicId),
+        fetchTopicDecision(topicId),
+        fetchTopicMessageGrades(topicId),
+      ]);
+      if (token !== loadTokenRef.current) return; // superseded by a newer refresh / topic switch
+      setTopic(t);
+      setMessages(m);
+      setParticipants(p);
+      setTopicDecision(d);
+      setMessageGrades(grades);
+    } finally {
+      if (token === loadTokenRef.current) setLoading(false);
+    }
   };
 
   useEffect(() => {
