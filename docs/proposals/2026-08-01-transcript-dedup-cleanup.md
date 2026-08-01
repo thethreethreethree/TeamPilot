@@ -39,16 +39,22 @@ keeping any single copy of each `(session_id, seq)` is lossless.
 
 ## Step 0 — DRY RUN (run first, expect 128)
 
-Count exactly what the dedup DELETE below would remove, without deleting anything:
+Count exactly what the dedup DELETE below would remove, without deleting anything.
+
+**This query must mirror the DELETE's row-semantics, not its pair-semantics.** The Step-1b DELETE removes a
+row `a` iff a same-group row `b` exists with `b.ctid < a.ctid` — i.e. `(k-1)` rows per group of size `k`,
+128 total. A plain self-`join` (an earlier draft of this query) instead yields one row per `(a,b)` *pair* —
+`C(k,2)` per group — which over-counts every group of size ≥3 (and we know such groups exist: 128 excess rows
+across only 97 dup groups). So the count MUST use `exists` (each deletable row counted once), or it will report
+a number larger than 128 and undermine the very confidence this dry run exists to give:
 
 ```sql
-select count(*) as would_delete from (
-  select a.ctid
-  from coaching_transcript_segments a
-  join coaching_transcript_segments b
-    on a.session_id = b.session_id and a.seq = b.seq
-  where a.ctid > b.ctid
-) x;   -- expect 128
+select count(*) as would_delete
+from coaching_transcript_segments a
+where exists (
+  select 1 from coaching_transcript_segments b
+  where b.session_id = a.session_id and b.seq = a.seq and b.ctid < a.ctid
+);   -- expect 128 — exactly the rows Step 1b deletes (row a survives iff it is the min ctid in its group)
 ```
 
 ## Step 1 — the migration (single transaction)
