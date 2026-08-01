@@ -56,4 +56,57 @@ describe("GET /api/care/rcd/retention-cron", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).purged).toBe(0);
   });
+
+  // Fuller mock for the purge loop: routes conversations (read + delete), media (read), and storage.remove.
+  const fullAdmin = (o: {
+    conversations: Array<{ id: string }>;
+    media: Array<{ conversation_id: string; storage_path: string }>;
+    removeError?: unknown;
+    deleteError?: unknown;
+  }) => ({
+    from: (t: string) => {
+      if (t === "care_rcd_conversations") {
+        return {
+          select: () => ({
+            lt: () => ({ order: () => ({ limit: async () => ({ data: o.conversations, error: null }) }) }),
+          }),
+          delete: () => ({ eq: async () => ({ error: o.deleteError ?? null }) }),
+        };
+      }
+      if (t === "care_rcd_media") {
+        return { select: () => ({ in: async () => ({ data: o.media }) }) };
+      }
+      throw new Error(`unexpected table ${t}`);
+    },
+    storage: { from: () => ({ remove: async () => ({ error: o.removeError ?? null }) }) },
+  });
+
+  it("leaves the row (does NOT delete) when the byte-removal fails — bytes are never orphaned", async () => {
+    process.env.CRON_SECRET = "s3cret";
+    setAdmin(
+      fullAdmin({
+        conversations: [{ id: "c1" }],
+        media: [{ conversation_id: "c1", storage_path: "p1" }],
+        removeError: { message: "network error" }, // a REAL storage failure (not 'not found')
+      })
+    );
+    const res = await GET(req("Bearer s3cret"));
+    const body = await res.json();
+    expect(body.purged).toBe(0); // row NOT deleted while its bytes may still exist
+    expect(body.storageErrors).toBe(1);
+  });
+
+  it("purges (removes bytes THEN deletes the row) on the happy path", async () => {
+    process.env.CRON_SECRET = "s3cret";
+    setAdmin(
+      fullAdmin({
+        conversations: [{ id: "c1" }],
+        media: [{ conversation_id: "c1", storage_path: "p1" }],
+        removeError: null,
+        deleteError: null,
+      })
+    );
+    const res = await GET(req("Bearer s3cret"));
+    expect((await res.json()).purged).toBe(1);
+  });
 });
