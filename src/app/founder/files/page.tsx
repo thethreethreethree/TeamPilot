@@ -53,6 +53,18 @@ export default async function FounderFilesPage() {
         <p className="mt-4 text-xs text-muted">
           The download link is founder-only — anyone else who opens it receives an access error.
         </p>
+
+        <div className="mt-6 border-t border-default pt-4">
+          <a
+            href="/founder/pilot-codes"
+            className="text-sm text-brand hover:text-primary inline-flex items-center gap-1.5"
+          >
+            Pilot-code redemption tracker →
+          </a>
+          <p className="mt-1 text-xs text-muted">
+            How many of the seeded pilot codes are spent vs available, and who redeemed which.
+          </p>
+        </div>
       </div>
     </div>
   );

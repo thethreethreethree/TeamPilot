@@ -56,14 +56,15 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
-> **Sales-side pilot tracking GAP (2026-08-01, feature — "serves the Sales dept" half of the directive):**
-> There is NO code-level pilot-tracking surface. A redeemed code creates a company that shows up in
-> `admin/crm/accounts`, so you can see NEW ACCOUNTS — but nothing shows **which of the 100 codes are spent vs
-> available, which module each was for, or which company redeemed which code**. During a live 100-code pilot
-> that's an operational blind spot (today it's a psql query). The data is all there — `pilot_codes.redeemed_at`
-> + `module` + `redeemed_by_company` (0197). `"build the pilot-code tracker"` = a small vendor-admin view
-> (behind `requireVendorAdmin`, the 0089 precedent) listing code → module → redeemed_at → company, with a
-> spent/remaining count. A genuine Sales-onboarding enabler, but a NEW admin surface = your scope call.
+> **Sales-side pilot tracking — ✅ BUILT (2026-08-01): `/founder/pilot-codes`.** The gap was real: nothing
+> showed which of the 100 seeded codes are spent vs available, per module, or who redeemed which (only new
+> COMPANIES appeared, in `admin/crm/accounts`). Built a founder-only tracker (server component, gated by the
+> same `isVendorAdmin` → `notFound()` as `/founder/files`, reads the RLS-sealed `pilot_codes` via the admin
+> client): a spent/available headline + per-module counts, and a table of REDEEMED codes with company + email +
+> date. Security-conscious v1 — it shows redeemed (spent) codes but reports AVAILABLE codes as COUNTS ONLY, so
+> no live key is ever rendered in a web page (use the handout for actual keys). Cross-linked from
+> `/founder/files`. **Reshape at will** — if you want available codes listed, masking, CSV export, or a filter,
+> say so; this is a minimal v1.
 >
 > **Redeem UI edge (2026-08-01, LOW/UX — not a bug):** `/redeem` `createAccount` skips signUp when a user is
 > ALREADY authenticated (correct for the email-confirmation-return case). But if a DIFFERENT user is logged in
