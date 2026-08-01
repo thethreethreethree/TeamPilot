@@ -56,6 +56,16 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
+> **Redeem UI edge (2026-08-01, LOW/UX — not a bug):** `/redeem` `createAccount` skips signUp when a user is
+> ALREADY authenticated (correct for the email-confirmation-return case). But if a DIFFERENT user is logged in
+> (a Sales rep on their own account redeeming a client's code while typing the client's email/password), it
+> silently IGNORES the typed email/password and attaches the new company to the CURRENT account. Self-serve
+> design expects the client to redeem their own code, so it's a mis-use edge — but for Sales-led onboarding it
+> could surprise. `"warn on signed-in redeem"` = add a "You're signed in as X — redeeming adds this workspace to
+> your account; sign out to create a separate one" notice on the details step. The rest of the redeem flow is
+> verified sound (already-registered + email-confirm handling, inline retryable errors, module shown pre-create,
+> no double-submit, non-consuming validate vs consuming redeem).
+>
 > **Sales Coach server-route audit (2026-08-01) — 3 fixed, 2 LOW flagged:**
 > - ✅ **FIXED** — 2 cross-user injection holes (cue + label-transcript appended to a rep's private records
 >   via the RLS-bypassing service client, gated only on company-scoped getSession). Owner check added +
