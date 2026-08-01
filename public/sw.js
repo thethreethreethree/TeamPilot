@@ -117,8 +117,18 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl =
+  const rawUrl =
     (event.notification.data && event.notification.data.url) || "/dashboard";
+  // Enforce same-origin at the navigation sink (defense-in-depth). The push
+  // payload is server-built (relative id paths today), but navigate()/openWindow()
+  // must NOT trust that — only a rooted relative path is allowed, never an
+  // absolute or protocol-relative URL (`//evil`, `https://evil`). So a future
+  // payload carrying user-influenced text can't turn a notification click into an
+  // open navigation. Mirrors src/lib/nav/safeRedirect.ts (inlined — sw.js is plain JS).
+  const targetUrl =
+    typeof rawUrl === "string" && /^\/(?![/\\])/.test(rawUrl)
+      ? rawUrl
+      : "/dashboard";
 
   event.waitUntil(
     (async () => {
