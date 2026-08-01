@@ -37,11 +37,17 @@ export interface MessageGroup {
   messages: ChatMessage[];
 }
 
-/** Group a flat message stream by date (UTC-day boundary). */
+/** Group a flat message stream by LOCAL calendar day.
+ *  The key MUST be derived in the same zone as `formatDateHeader` (which uses
+ *  local `toDateString`/`toLocaleDateString`). Using the UTC `createdAt.slice(0,10)`
+ *  as the key while labeling in local time made the two disagree across UTC
+ *  midnight — a 12:30am-local message grouped under the previous UTC day showed
+ *  under yesterday's local header, and same-local-day messages straddling UTC
+ *  midnight split into two identical headers. `toDateString()` is the local day. */
 export function groupMessages(msgs: ChatMessage[]): MessageGroup[] {
   const groups: MessageGroup[] = [];
   for (const m of msgs) {
-    const dateKey = m.createdAt.slice(0, 10);
+    const dateKey = new Date(m.createdAt).toDateString(); // LOCAL day — matches the label's zone
     let g = groups[groups.length - 1];
     if (!g || g.dateKey !== dateKey) {
       g = { dateKey, label: formatDateHeader(m.createdAt), messages: [] };
