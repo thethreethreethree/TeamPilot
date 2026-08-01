@@ -121,7 +121,11 @@
 > Durable fix: `pg_advisory_xact_lock(hashtext(v_user_id::text))` at the top of the RPC so concurrent calls
 > serialize and the second reads the committed company_id and short-circuits — the SAME advisory-lock pattern the
 > codebase already uses in 0071 (chat topic) and 0127/0128/0152/0153 (finance). This is the TOCTOU my notes had
-> flagged at "0047 onboarding"; it was never actually locked. Recommend as a migration.
+> flagged at "0047 onboarding"; it was never actually locked. Recommend as a migration. **Prod check (read-only,
+> 2026-08-01): NO visible footprint — 0 near-simultaneous same-name companies, so the double-create hasn't fired
+> in practice; this is preventive, not cleanup.** (Aside from the same query: 10 of 14 companies have zero
+> profiles/members — almost certainly dev/test tenants from building, not this bug since none are same-name twins;
+> worth a glance in case any is a real abandoned signup.)
 
 > **`"transcript segment dedup constraint"` (HIGH — EXISTING production corruption confirmed, schema change) — 2026-08-01.**
 > `coaching_transcript_segments` (0070) has only a NON-unique index on `(session_id, seq)` and rules forbidding
