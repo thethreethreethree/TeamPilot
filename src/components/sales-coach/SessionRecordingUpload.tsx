@@ -32,6 +32,7 @@ export function SessionRecordingUpload({
   initialBlob?: Blob | null;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const labelingRef = useRef(false);
   const [phase, setPhase] = useState<"idle" | "uploading" | "labeling" | "done">(
     "idle"
   );
@@ -82,6 +83,14 @@ export function SessionRecordingUpload({
   };
 
   const label = async (agentSpeakerId: string) => {
+    // Synchronous latch: label-transcript APPENDS every segment
+    // (appendTranscriptSegment, plain insert — no unique seq, and the table
+    // is append-only/no-delete), so a double-click on a speaker button would
+    // duplicate the entire transcript PERMANENTLY, poisoning the record the
+    // after-pitch review + coaching scores run on. The phase-based button
+    // disable is applied a render too late to stop the second click.
+    if (labelingRef.current) return;
+    labelingRef.current = true;
     setPhase("labeling");
     setError(null);
     try {
@@ -103,6 +112,8 @@ export function SessionRecordingUpload({
       onLabeled();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      // Reset the latch so the rep can retry after a transient failure.
+      labelingRef.current = false;
       setPhase("idle");
     }
   };
