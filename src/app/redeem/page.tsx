@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { Activity, CheckCircle2, Loader2, ArrowRight, KeyRound } from "lucide-react";
@@ -39,6 +39,10 @@ function RedeemInner() {
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Synchronous latch for account-create/redeem: the button disables on `busy`
+  // a render too late, so a double-click would fire a second signUp (erroring
+  // "already registered" on the user's own click) or a second redeem POST.
+  const creatingRef = useRef(false);
   const [notice, setNotice] = useState("");
 
   // Prefill (only) a code passed in the URL (?code=XXXXXXX) so a /redeem?code=…
@@ -87,6 +91,8 @@ function RedeemInner() {
 
   const createAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setError("");
     setNotice("");
     setBusy(true);
@@ -118,6 +124,7 @@ function RedeemInner() {
           setNotice(
             "Check your email to confirm your account, then return to this page and re-enter your key to finish."
           );
+          creatingRef.current = false;
           setBusy(false);
           return;
         }
@@ -133,6 +140,7 @@ function RedeemInner() {
       setTimeout(() => router.push(data.landing ?? "/dashboard"), 1400);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+      creatingRef.current = false;
       setBusy(false);
     }
   };
