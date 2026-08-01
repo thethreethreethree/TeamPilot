@@ -5,6 +5,23 @@ import { decideAuthRedirect } from "@/lib/auth/routeGuard";
 import { lockFromPilotModule, redirectForLock } from "@/lib/auth/moduleAccess";
 
 /**
+ * Redirect while carrying over any auth cookies Supabase rotated onto `response` this request.
+ *
+ * The `setAll` callback below accumulates refreshed session cookies onto `response` when `getUser()` renews an
+ * expiring token. A bare `NextResponse.redirect(url)` is a FRESH response that drops those Set-Cookie headers —
+ * the documented Supabase-SSR footgun: the browser keeps the pre-rotation cookie, the server may have already
+ * invalidated it, and the user gets intermittently logged out. Every redirect that can follow a token refresh
+ * must copy the cookies over. Centralized here so a future redirect can't silently reintroduce the drop.
+ * (Found by the 2026-08-01 adversarial middleware audit: the module-lock redirect fires on the hot `/dashboard`
+ * path, which turned this latent bug into a frequent one.)
+ */
+function redirectPreservingCookies(response: NextResponse, url: URL): NextResponse {
+  const redirect = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
+}
+
+/**
  * Refreshes the Supabase session on every request and guards routes:
  *  - unauthenticated users hitting /dashboard or /onboarding are sent to /login
  *  - authenticated users hitting /login are sent to /dashboard
@@ -49,7 +66,7 @@ export async function middleware(request: NextRequest) {
     search: request.nextUrl.search, // preserve the deep link's query into ?next=
   });
   if (dest) {
-    return NextResponse.redirect(new URL(dest, request.url));
+    return redirectPreservingCookies(response, new URL(dest, request.url));
   }
 
   // MODULE HARD-LOCK (0207). Only for an authed user on a /dashboard route. One nested query reads the
@@ -67,7 +84,7 @@ export async function middleware(request: NextRequest) {
       const lock = lockFromPilotModule(company?.access_module ?? null);
       const to = redirectForLock(lock, request.nextUrl.pathname);
       if (to) {
-        return NextResponse.redirect(new URL(to, request.url));
+        return redirectPreservingCookies(response, new URL(to, request.url));
       }
     } catch {
       // Fail-open: never lock a user out on a lookup error.
