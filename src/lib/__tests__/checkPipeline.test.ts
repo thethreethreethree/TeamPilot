@@ -31,3 +31,36 @@ describe("check-pipeline guard", () => {
     expect(weakened.includes("invariant:audit")).toBe(false); // proves the matcher would catch the drop
   });
 });
+
+/**
+ * CI-ENFORCEMENT GUARD — the local `check` script only matters if CI actually RUNS the gates on every change.
+ * CI (.github/workflows/ci.yml) is a SEPARATE definition that can drift from `check`; if its `test` step were
+ * dropped, all 2000+ tests AND every structural guard here would silently stop enforcing in CI while the
+ * workflow still goes green. This locks the CI workflow to keep running the core gates on push + PR.
+ */
+describe("CI-enforcement guard (.github/workflows/ci.yml runs the gates)", () => {
+  let ci = "";
+  try {
+    ci = readFileSync(join(SRC_DIR, "..", ".github", "workflows", "ci.yml"), "utf8");
+  } catch {
+    /* handled by the presence test below */
+  }
+
+  it("the CI workflow exists", () => {
+    expect(ci.length, "expected .github/workflows/ci.yml to exist").toBeGreaterThan(0);
+  });
+
+  // The gates whose ABSENCE from CI would silently stop enforcing a whole class on every merge.
+  for (const step of ["npm run typecheck", "npm run test", "npm run invariant:audit", "npm run rls:audit"]) {
+    it(`CI runs "${step}"`, () => {
+      expect(ci, `ci.yml must run ${step} — dropping it stops enforcing that class on every merge`).toContain(
+        step
+      );
+    });
+  }
+
+  it("CI triggers on push and pull_request", () => {
+    expect(ci).toMatch(/\bpush\s*:/);
+    expect(ci).toMatch(/\bpull_request\s*:/);
+  });
+});
