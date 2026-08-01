@@ -10,7 +10,8 @@
   and Your Read" is satisfied by landing there.
 
 ## Findings (A26)
-- Confirmed no other caller of the removed `endSession`/`endThenAfterPitch` remained (grep) before deleting.
+No findings. Swept for other callers of the removed `endSession`/`endThenAfterPitch` (grep) before deleting —
+none remained; the three finish paths are the only entries and all route through the one required gate.
 
 ## Verification
 ```

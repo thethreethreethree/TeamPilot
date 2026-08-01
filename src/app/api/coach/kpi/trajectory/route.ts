@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { MIN_MONTHS_FOR_TRAJECTORY, buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/trajectory";
+import { buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/trajectory";
 
 /**
  * GET /api/coach/kpi/trajectory — the caller's OWN month-over-month KPI trajectory (§3.6 "make learning
