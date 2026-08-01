@@ -11,7 +11,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -39,6 +39,13 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous latches: onboarding create/join both write once and then
+  // navigate away, so a double-click race (before the disabled button re-
+  // renders) must not fire the RPC/route twice — a second complete_company_
+  // onboarding call would create a SECOND company and re-point the profile,
+  // orphaning the first tenant on the user's very first action.
+  const submittingRef = useRef(false);
+  const joiningRef = useRef(false);
   const [error, setError] = useState("");
   // F5 (audit 2026-07-10): a user who signed up WITHOUT an invite link lands here
   // with no company and can only create one — a dead end if they were meant to JOIN
@@ -52,7 +59,8 @@ export default function OnboardingPage() {
 
   const handleJoin = async () => {
     const code = joinCode.trim();
-    if (!code) return;
+    if (!code || joiningRef.current) return;
+    joiningRef.current = true;
     setJoining(true);
     setJoinError("");
     try {
@@ -69,6 +77,7 @@ export default function OnboardingPage() {
         err instanceof Error ? err.message : "Couldn't join with that code."
       );
     } finally {
+      joiningRef.current = false;
       setJoining(false);
     }
   };
@@ -132,6 +141,8 @@ export default function OnboardingPage() {
   };
 
   const finish = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
     if (!supabaseEnabled) {
@@ -234,8 +245,11 @@ export default function OnboardingPage() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not complete setup.");
+      submittingRef.current = false;
       setSubmitting(false);
     }
+    // On success we router.push away and unmount, so the latch intentionally
+    // stays set — the create must not be re-fireable after it succeeds.
   };
 
   const next = () => {
