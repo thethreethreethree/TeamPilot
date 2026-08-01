@@ -142,6 +142,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > bug — I did NOT self-resolve it (guide, don't overtake):** is a re-capture meant to be (a) the same conversation, deduped/updated,
 > or (b) an intentional point-in-time *versioned snapshot*? The spec doesn't say. My read: even if (b) is intended,
 > an *accidental* exact double-fire should still be prevented.
+> **STRENGTHENED 2026-08-02 — RCD breaks your own established pattern:** every OTHER external-identifier column
+> in the codebase carries a dedupe UNIQUE constraint, and the migrations literally comment them "dedupe key":
+> `support_messages.external_message_id` (unique idx), `fin_bank_txn.external_id` ("dedupe key from the source",
+> `unique(bank_account_id, external_id)`), `fin_card_txn.external_id` ("dedupe key, exactly as 0145"),
+> `fin_payroll.external_id` (`unique(company_id, provider, external_id)`). RCD's `external_ref` is the ONLY one
+> without. Since intentional versioning would be an *undocumented* departure from a 4×-repeated convention, this
+> reads as an oversight, not a design choice — **I lean (a): add the dedupe unique + upsert.** The one nuance that
+> keeps it a product call: an RCD thread legitimately GROWS between captures, so "dedup" here likely means
+> dedup-and-UPDATE (refresh to the latest snapshot) rather than dedup-and-skip. Confirm that and I build it.
 > - `"dedup RCD captures"` — if (a): add a partial `unique (company_id, external_ref) where external_ref is not
 >   null` + upsert-or-skip on conflict. If (b): keep versioning but add a short-window guard (same `external_ref` +
 >   same `message_count` within ~N seconds → skip the duplicate) and surface "captured ×N" in the RcdPanel so the
