@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Search, Users } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
@@ -19,20 +19,32 @@ export default function CareCustomersPage() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  // Distinguish a fetch FAILURE (401/403/5xx/network) from a genuine empty index. Without this, a failure
+  // left customers null → "No customers yet." — telling an agent whose session expired that the team has no
+  // customers. Extracted to a retryable load(). (The error-dressed-as-no-data class, fixed 4th time here.)
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoadError(false);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/care/agent/customers");
+      if (res.ok) {
+        const data = await res.json();
+        setCustomers(data.customers ?? []);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch("/api/care/agent/customers");
-        if (res.ok) {
-          const data = await res.json();
-          setCustomers(data.customers ?? []);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    void load();
+  }, [load]);
 
   const filtered =
     customers?.filter(
@@ -85,7 +97,24 @@ export default function CareCustomersPage() {
             Loading…
           </div>
         )}
-        {!loading && filtered.length === 0 && (
+        {!loading && loadError && (
+          <div className="text-center py-16">
+            <Users className="w-8 h-8 text-muted mx-auto mb-2" aria-hidden />
+            <p className="text-sm text-primary mb-1">Couldn&apos;t load customers.</p>
+            <p className="text-xs text-muted max-w-md mx-auto mb-3">
+              This is a temporary error (your session may have expired), not a sign the customer index is
+              empty.
+            </p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="text-xs text-secondary underline hover:text-primary"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {!loading && !loadError && filtered.length === 0 && (
           <div className="text-center py-16">
             <Users className="w-8 h-8 text-muted mx-auto mb-2" aria-hidden />
             <p className="text-sm text-primary mb-1">No customers yet.</p>
