@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+// LOCAL calendar day — new Date().toISOString() is UTC, so an evening user west of UTC
+// would acquire the asset a day ahead (depreciation start / fiscal-year off by one).
+import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -100,7 +103,7 @@ export default function AssetsPage() {
         action: "register",
         name: name.trim(),
         assetAccountId: acct,
-        acquiredDate: new Date().toISOString().slice(0, 10),
+        acquiredDate: todayIso(),
         cost: c,
         salvageValue: Number.isFinite(s) ? s : 0,
         usefulLifeMonths: l,

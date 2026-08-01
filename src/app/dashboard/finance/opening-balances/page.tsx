@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+// LOCAL calendar day — new Date().toISOString() is UTC, dating the record a day ahead
+// for an evening user west of UTC. (Same fix pos/ap/ar already use.)
+import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -41,7 +44,7 @@ type Batch = {
   summary: Summary | null;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayIso;
 
 export default function OpeningBalancesPage() {
   const toast = useToast();

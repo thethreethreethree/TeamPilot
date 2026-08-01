@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+// LOCAL calendar day — new Date().toISOString() is UTC, dating the record a day ahead
+// for an evening user west of UTC. Feeds period grace-window + rate effective-from dates.
+import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -48,7 +51,7 @@ type Member = { id: string; full_name: string | null };
 type Account = { id: string; code: string; name: string; type: string; cost_type: string };
 type Fx = { id: string; from_currency: string; to_currency: string; rate: number; as_of_date: string };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayIso;
 
 export default function FinanceControlsPage() {
   const toast = useToast();

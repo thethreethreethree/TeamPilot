@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+// todayIso() = the user's LOCAL calendar day. new Date().toISOString() is UTC, so an
+// evening user west of UTC would default this record's date to TOMORROW — and payroll
+// posts by entry_date into an accounting PERIOD, so that silently books it next month.
+import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -56,7 +60,7 @@ export default function PayrollPage() {
   const [net, setNet] = useState("");
   const [wh, setWh] = useState("");
   const [etax, setEtax] = useState("");
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(todayIso());
 
   const load = useCallback(async () => {
     const [r, p] = await Promise.all([
