@@ -47,7 +47,7 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >
 > **Security / infra (do when convenient — none is a live HIGH hole):**
 > - 🟠 `"fix the definer revoke"` — MEDIUM hygiene. Some DEFINER fns are anon-executable (leak a scalar UUID/limit to someone who already knows a company id; the 5 non-finance ones allow low/moderate unauth triggers). Revoke anon EXECUTE. NOT "before real posting."
-> - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy).
+> - 🟡 `"upgrade next"` — Next 16.2.6 CVEs, but an applicability check shows the scary ones don't apply to our config; good-hygiene minor bump to ≥16.3.0 (I bump + verify locally, you approve the deploy). **Full `npm audit` 2026-08-02: 4 HIGH, 0 critical** — applicability-assessed: next's advisories are mostly Server-Actions/Turbopack (this app uses API ROUTES, not Server Actions → largely N/A); the other 3 (brace-expansion, postcss, fast-uri) are BUILD-TIME/transitive (Sentry bundler plugin, dev-authored CSS, URI parser) — HIGH by CVSS but LOW real risk here, and all fixable by a **NON-breaking `npm audit fix`** (no `--force`). Say `"run npm audit fix"` and I apply the non-breaking fixes + verify locally for your deploy-approve; the `next` major stays separate under `"upgrade next"`.
 > - ✅ **`"add HSTS"` — ALREADY DONE (stale flag, corrected 2026-08-02 via live headers):** `Strict-Transport-Security:
 >   max-age=63072000` (2yr) IS live — Vercel auto-injects it for the custom domain (not in code, and reliable). No
 >   action. The one header NOT present is **CSP** (Content-Security-Policy) — a defense-in-depth XSS gap, but a
