@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createFileRecord } from "@/lib/data/files";
 import { postAgentMessage, fetchAgentConversation } from "@/lib/data/care";
@@ -38,9 +38,18 @@ export async function POST(
     max: 20,
   });
   if (limited) return limited;
-  const auth = await getCurrentAuthContext();
-  if (!auth) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  // Support-agent gate (not just any authenticated company member): this posts an AGENT-authored
+  // attachment message the customer sees, so it must require agent status — mirroring the sibling
+  // care/agent/conversations/[id]/messages route (requireCareAgent = is_support_agent OR admin). The
+  // earlier getCurrentAuthContext gate mirrored only the sibling's TENANT check, not its AGENT check —
+  // letting a non-agent same-company employee speak to a customer as support staff (the A16 apply-here-
+  // miss-there class). Within-tenant, so not a data leak, but a real privilege inconsistency.
+  const auth = await requireCareAgent();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  if (!auth.companyId) {
+    return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
 
   // Defense-in-depth + fail-fast: verify the conversation exists and belongs to
@@ -122,7 +131,7 @@ export async function POST(
   // System counts derived from facts (linked conversation,
   // uploader department, filename, support-department lookup).
   const routed = await autoRouteFile({
-    uploaderId: auth.userId,
+    uploaderId: auth.agentId,
     companyId: auth.companyId,
     fileName: file.name,
     mimeType: file.type || "application/octet-stream",
@@ -134,7 +143,7 @@ export async function POST(
   try {
     row = await createFileRecord({
       companyId: auth.companyId,
-      uploaderId: auth.userId,
+      uploaderId: auth.agentId,
       customerSessionToken: null,
       storagePath,
       mimeType: file.type || "application/octet-stream",
@@ -193,7 +202,7 @@ export async function POST(
   const posted = await postAgentMessage({
     conversationId: id,
     body: row.title,
-    agentId: auth.userId,
+    agentId: auth.agentId,
     isInternalNote,
     kind: "attachment",
     mediaUrl: `assets-v1://${row.id}`,
@@ -216,7 +225,7 @@ export async function POST(
   // §3.1 chain event.
   await emitAssetEvent({
     companyId: auth.companyId,
-    actor: auth.userId,
+    actor: auth.agentId,
     kind: "asset.file.uploaded",
     fileId: row.id,
     payload: {
