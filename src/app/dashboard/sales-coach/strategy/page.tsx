@@ -78,13 +78,13 @@ export default function SalesCoachStrategyPage() {
           <p className="text-xs text-amber-300 py-8 text-center">{error}</p>
         ) : data ? (
           <>
-            {/* ── Your correct lines (rep-private, A18) ──────────────── */}
+            {/* ── Your One Liners (rep-private, A18) ──────────────── */}
             <section className="space-y-2.5">
-              <SectionLabel icon={Quote}>Your correct lines</SectionLabel>
+              <SectionLabel icon={Quote}>Your One Liners</SectionLabel>
               <LearningHint
                 as="block"
                 category="Sales Coach · One Liners"
-                title="Your correct lines"
+                title="Your One Liners"
                 whatItIs="The exact lines the coach surfaced on your past breakdown moments — the thing that would have landed, saved from each review, in one place."
                 why="A correct line is only useful if you can find it again before the next door. Scattered across a dozen reviews, they're forgotten; gathered here, they're a drill list you actually revisit."
                 how="Read one before a similar call and say it in your own words. These are yours alone — pulled only from your own reviews, never anyone else's."

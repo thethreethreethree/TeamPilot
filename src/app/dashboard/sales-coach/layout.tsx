@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { SalesCoachShell } from "@/components/sales-coach/SalesCoachShell";
+import { lockFromPilotModule } from "@/lib/auth/moduleAccess";
 
 // Sales Coach gets its OWN installable PWA identity (founder 2026-07-04):
 // installing from any Sales Coach page uses this manifest — name "Sales Coach",
@@ -39,6 +40,9 @@ export default async function SalesCoachLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Module hard-lock (0207): a single-module account can't return to the ELOSTATE hub (the middleware bounces
+  // it), so hide the shell's "Back to ELOSTATE" link for it. Resolved server-side + passed to the shell.
+  let locked = false;
   if (supabaseEnabled) {
     const supabase = await createClient();
     const {
@@ -47,7 +51,7 @@ export default async function SalesCoachLayout({
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, sales_coach_role")
+        .select("role, sales_coach_role, companies(access_module)")
         .eq("id", user.id)
         .maybeSingle();
       const role = (profile?.role as string | null) ?? null;
@@ -57,8 +61,10 @@ export default async function SalesCoachLayout({
       if (!isCompanyAdmin && !hasSalesCoachRole) {
         redirect("/dashboard");
       }
+      const company = (profile?.companies ?? null) as { access_module?: string | null } | null;
+      locked = !!lockFromPilotModule(company?.access_module ?? null);
     }
   }
 
-  return <SalesCoachShell>{children}</SalesCoachShell>;
+  return <SalesCoachShell locked={locked}>{children}</SalesCoachShell>;
 }

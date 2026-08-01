@@ -98,7 +98,15 @@ const MOBILE_TABS: NavItem[] = [
   { label: "Account", href: "/dashboard/sales-coach/settings", icon: User },
 ];
 
-export function SalesCoachShell({ children }: { children: React.ReactNode }) {
+export function SalesCoachShell({
+  children,
+  // Module hard-lock (0207): true for a single-module (sales_coach-locked) account — it can't return to the
+  // ELOSTATE hub (the middleware redirects it straight back), so the "Back to ELOSTATE" link is hidden.
+  locked = false,
+}: {
+  children: React.ReactNode;
+  locked?: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
   // Hide manager-only desktop nav items (Team, Coach Assessment — server-gated) from reps so a staff
@@ -186,16 +194,19 @@ export function SalesCoachShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          {/* Back to ELOSTATE */}
-          <div className="px-2 pt-2 border-t border-white/[0.06] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
-              Back to ELOSTATE
-            </Link>
-          </div>
+          {/* Back to ELOSTATE — hidden for a module-locked account (it can't reach the hub; the middleware
+              redirects it straight back, so the link would be a dead loop). */}
+          {!locked && (
+            <div className="px-2 pt-2 border-t border-white/[0.06] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
+                Back to ELOSTATE
+              </Link>
+            </div>
+          )}
         </aside>
       )}
 
