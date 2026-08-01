@@ -633,26 +633,31 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
       };
     }
 
-    const openProbe = await sb
-      .from("support_conversations")
-      .select("id", { count: "exact", head: true })
-      .in("status", OPEN_CONVERSATION_STATUSES);
-    const guidanceProbe = await sb
-      .from("support_conversations")
-      .select("id", { count: "exact", head: true })
-      .not("supervisor_guidance_requested_at", "is", null)
-      .neq("status", "closed");
-    const newProbe = await sb
-      .from("support_conversations")
-      .select("id", { count: "exact", head: true })
-      .eq("status", AWAITING_FIRST_REPLY_STATUS);
-    // §3.5 durability checks scheduled 7+ days ago that the
-    // agent hasn't reviewed yet (checked_at IS NULL).
-    const durabilityProbe = await sb
-      .from("support_durability_checks")
-      .select("id", { count: "exact", head: true })
-      .is("checked_at", null)
-      .lte("scheduled_for", new Date().toISOString());
+    // The four stat probes are mutually independent count/head reads (none consumes
+    // another's result), so they run concurrently instead of four serial round-trips on
+    // this dashboard-load path. The totalProbe gate above stays sequential — it
+    // short-circuits the whole no-activity case before we bother with these.
+    // (durabilityProbe: §3.5 durability checks scheduled 7+ days ago not yet reviewed.)
+    const [openProbe, guidanceProbe, newProbe, durabilityProbe] = await Promise.all([
+      sb
+        .from("support_conversations")
+        .select("id", { count: "exact", head: true })
+        .in("status", OPEN_CONVERSATION_STATUSES),
+      sb
+        .from("support_conversations")
+        .select("id", { count: "exact", head: true })
+        .not("supervisor_guidance_requested_at", "is", null)
+        .neq("status", "closed"),
+      sb
+        .from("support_conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", AWAITING_FIRST_REPLY_STATUS),
+      sb
+        .from("support_durability_checks")
+        .select("id", { count: "exact", head: true })
+        .is("checked_at", null)
+        .lte("scheduled_for", new Date().toISOString()),
+    ]);
 
     return {
       hasActivity: true,

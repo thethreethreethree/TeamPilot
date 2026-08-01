@@ -94,14 +94,63 @@ export async function GET() {
     "coach.suggestion_accepted",
     "coach.suggestion_dismissed",
   ];
-  const { data: coachEvents, error: eCoach } = await supabase
-    .from("events")
-    .select("kind, payload, occurred_at")
-    .eq("company_id", companyId)
-    .in("kind", coachKinds)
-    .gte("occurred_at", prior7Start)
-    .order("occurred_at", { ascending: false })
-    .limit(2000);
+  // All seven reads below depend only on companyId + the precomputed date strings
+  // — none consumes another's result — so they run concurrently (Promise.all) instead
+  // of seven serial serverless round-trips on this §3.6 command-center load. The
+  // in-memory aggregation (which DOES need the returned rows) stays sequential after.
+  // Supabase returns {data|count, error} (never throws), so the per-read error vars and
+  // the §3.4 chainReadError combine below are byte-identical to the sequential form.
+  const [
+    { data: coachEvents, error: eCoach },
+    { count: cumulativePatternsRaw, error: eCumulative },
+    { data: decisionEvents, error: eDecision },
+    { data: topicRows, error: eTopic },
+    { count: chainLast7, error: eChain7 },
+    { count: chainPrior7, error: eChainP },
+    { count: chainTotalAllTime, error: eChainTotal },
+  ] = await Promise.all([
+    supabase
+      .from("events")
+      .select("kind, payload, occurred_at")
+      .eq("company_id", companyId)
+      .in("kind", coachKinds)
+      .gte("occurred_at", prior7Start)
+      .order("occurred_at", { ascending: false })
+      .limit(2000),
+    supabase
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("kind", "coach.pattern_observed"),
+    supabase
+      .from("events")
+      .select("kind, payload, occurred_at")
+      .eq("company_id", companyId)
+      .in("kind", ["decision.opened", "decision.decided", "decision.phase_entered"])
+      .gte("occurred_at", last28)
+      .limit(1000),
+    supabase
+      .from("chat_topics")
+      .select("id, status, close_durability, created_at, closed_at")
+      .eq("company_id", companyId)
+      .gte("created_at", last28)
+      .limit(500),
+    supabase
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("occurred_at", last7),
+    supabase
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("occurred_at", prior7Start)
+      .lt("occurred_at", last7),
+    supabase
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId),
+  ]);
 
   const aggregateCoach = (windowStart: string, windowEnd: string): CoachStats => {
     const stats: CoachStats = {
@@ -151,23 +200,10 @@ export async function GET() {
       priorCount: coachPrior7.byHeuristic[id as CoachHeuristicId] ?? 0,
     }));
 
-  // ─── Cumulative pattern observations (all time) ────────────
-  const { count: cumulativePatternsRaw, error: eCumulative } = await supabase
-    .from("events")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("kind", "coach.pattern_observed");
+  // ─── Cumulative pattern observations (all time) ──────────── (read in the Promise.all above)
   const cumulativePatterns = cumulativePatternsRaw ?? 0;
 
-  // ─── Decision activity (last 28d) ──────────────────────────
-  const { data: decisionEvents, error: eDecision } = await supabase
-    .from("events")
-    .select("kind, payload, occurred_at")
-    .eq("company_id", companyId)
-    .in("kind", ["decision.opened", "decision.decided", "decision.phase_entered"])
-    .gte("occurred_at", last28)
-    .limit(1000);
-
+  // ─── Decision activity (last 28d) ────────────────────────── (read in the Promise.all above)
   const decisionStats = {
     opened: 0,
     decided: 0,
@@ -187,14 +223,7 @@ export async function GET() {
     }
   }
 
-  // ─── Topic activity (last 28d) + durability ────────────────
-  const { data: topicRows, error: eTopic } = await supabase
-    .from("chat_topics")
-    .select("id, status, close_durability, created_at, closed_at")
-    .eq("company_id", companyId)
-    .gte("created_at", last28)
-    .limit(500);
-
+  // ─── Topic activity (last 28d) + durability ──────────────── (read in the Promise.all above)
   const topicStats = {
     opened: 0,
     closed: 0,
@@ -213,27 +242,10 @@ export async function GET() {
     }
   }
 
-  // ─── Chain activity (last 7d vs prior 7d) ──────────────────
-  const { count: chainLast7, error: eChain7 } = await supabase
-    .from("events")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .gte("occurred_at", last7);
-  const { count: chainPrior7, error: eChainP } = await supabase
-    .from("events")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .gte("occurred_at", prior7Start)
-    .lt("occurred_at", last7);
-
-  // Honest readiness gate — if the chain has fewer than ~30 events
-  // total, we haven't accumulated enough to make any readout
-  // meaningful. Be explicit about that instead of showing tiny
-  // numbers as if they were signal.
-  const { count: chainTotalAllTime, error: eChainTotal } = await supabase
-    .from("events")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId);
+  // Chain-activity counts (chainLast7 / chainPrior7 / chainTotalAllTime) are read in the
+  // Promise.all above. Honest readiness gate — if the chain has fewer than ~30 events total,
+  // we haven't accumulated enough to make any readout meaningful. Be explicit about that
+  // instead of showing tiny numbers as if they were signal.
 
   // §3.4 honest-error-state (audit 2026-07-09): if ANY chain read failed, do NOT
   // render zeros/low numbers as if they were real activity — that makes the
