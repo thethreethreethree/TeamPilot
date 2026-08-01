@@ -57,6 +57,28 @@
 >   gone from the visible flow but survives inside an expandable `why=` help-hint (`LiveCoachingPanel.tsx:454`).
 >   Tucked-away progressive-disclosure help, not the main panel — accept it, or say the word to remove entirely.
 >
+> **🔴 THESIS-INTEGRITY — the Understanding Gate is COSMETIC on the client diagnose surface (2026-08-01, deep audit):**
+> The product's core promise is that the Understanding Gate (understanding-precedes-solving) is STRUCTURAL, not
+> optional. On the `/dashboard/diagnose` client surface it is NOT: (1a) the step-stepper jumps are ungated
+> (`onJump` = bare `setStep`, the Lock icon is decorative) so a user can jump data→close; (1b) the ONE gated
+> control (the Next button) evaluates `canAdvance(run, …)` against the base `run` — but the gate/retrospective/
+> hypothesis only ever exist on `liveRun`, so `run.gate` is always empty → Next is stuck DISABLED through the
+> whole middle of the flow, forcing users onto the ungated stepper. (3) `POST /api/problems` ignores the
+> client's `targetStatus:"surfaced"` and hardcodes `draft`, so the gate never fires at creation; it fires only
+> inside `close_problem()`'s draft→resolved UPDATE (the DB trigger — the REAL backstop that keeps this from
+> being an un-gated-write hole), but the close route collapses the gate's hold into an OPAQUE 500 ("Couldn't
+> close") instead of "here's what's missing" — the opposite of the page's stated promise. (5) the client gate
+> counts pattern-derived signals while the DB gate counts ALL linked `problem_signals`, AND the client links
+> `signalIds: signals.map(all recent)` indiscriminately — so ambient noise (≥3 signals / ≥2 sources in 30d)
+> satisfies the understanding gate for ANY 80-char hypothesis, and the two gates can DISAGREE (client says hold, DB passes → close
+> succeeds while the UI said "held"). **✅ FIXED this session (`6230891e`): the close-the-loop double-submit race
+> (duplicate problems/resolutions/events) + the live-error-as-no-data signal state.** The gate cluster (1a/1b/3/5)
+> + the async-bleed-across-reset (Finding 7) is FLAGGED not patched — it's your core-method design (where should
+> the gate live? should linkage be the supporting signals only? should the client enforce or only mirror the DB?).
+> `evaluateUnderstandingGate` math + thresholds (3/2/80) are CORRECT and match the DB; the issue is WHERE/whether
+> the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
+> the diagnose deep audit (2026-08-01).
+
 > **Operations module audit (2026-08-01, out-of-directive but real production code) — 2 fixed, findings flagged:**
 > Deep adversarial audit of `operations/[id]/page.tsx` (a module beyond the Sales Coach + C.A.R.E directive).
 > ✅ **FIXED** (`e256881a`): status-transition double-submit (posted duplicate status_changed events on the
