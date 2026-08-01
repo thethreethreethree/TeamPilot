@@ -79,6 +79,16 @@
 > the client enforces, not the arithmetic. This is the highest-thesis-value item in the queue. Full detail:
 > the diagnose deep audit (2026-08-01).
 
+> **`"finance read-path error handling"` (MED — systemic, structural) — 2026-08-01.** 62 fetch call sites across
+> 19 finance pages use `fetch(url).then(x => x.json())` with NO `!res.ok` check and (in the load effects) no
+> try/catch/finally. Two real failure modes, both confirmed on `finance/statements` (now FIXED, `b381c177`, as the
+> exemplar): a thrown `.json()` on a network/non-JSON 500 skips `setLoading(false)` → an ETERNAL spinner; a JSON
+> `{error}` body leaves the data null → the page renders its empty state ("No data — initialize finance") to a
+> tenant who actually HAS data. Deliberately did NOT hand-patch all 62 (churn + inconsistent). Recommended
+> structural fix (the altitude fix, not 62 band-aids): a shared `fetchJson(url)` helper that throws on `!res.ok`/
+> `{error}`, plus a small `useFinanceResource` hook standardizing loading / error / retry — then migrate the pages
+> onto it. One decision + one reusable primitive replaces 62 scattered fragile reads. Founder-scoped (architecture).
+
 > **Finance domain re-entrancy — ASSESSED, no mass-patch (2026-08-01).** After the app-wide re-entrancy sweep
 > I checked whether the ~29 finance create handlers (addBill, addVendor, etc.) share the double-click class. They
 > have the same React-flag-only client shape, BUT finance is server-backstopped by data-integrity constraints —
