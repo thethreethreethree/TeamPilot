@@ -1,6 +1,10 @@
 # Founder action queue
 
-## ▶ START HERE — the 4 highest-value open decisions, ranked (≈30 more UX/hygiene/naming options in the detail below)
+## ▶ START HERE
+
+> 💲 **Actively working on PRICING?** Your live pricing decisions are in the **PRICING block below** (search `PRICING SIMPLIFIED`): (a) **Option A vs B** for the client-facing tiers, (b) the **$60/rep coaching seat** tuning, and (c) the new **Managed-C.A.R.E "save 15%" VA offer** (answered + in the Phase 1-2 PDF; blocked only on **your fully-loaded VA cost**). Those are business calls, not phrases — decide them when you're ready. The table below is a **separate track**: technical data-integrity items I execute on a phrase.
+
+### The 4 highest-value open TECHNICAL decisions, ranked (≈30 more UX/hygiene/naming options in the detail below)
 
 These are the only OPEN items that touch data integrity or metric correctness — do them before the cosmetic ones. Say the phrase and I execute; full diagnosis for each is in the dated blocks below.
 
