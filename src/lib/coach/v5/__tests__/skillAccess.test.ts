@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canManagerViewRepSkills, isSalesCoachManager } from "../skillAccess";
+import { canManagerViewRepSkills, isSalesCoachManager, isSalesCoachMember } from "../skillAccess";
 
 /**
  * Pins the §A18-crossing gate: a manager may read a rep's skills ONLY if manager AND same-company.
@@ -19,6 +19,27 @@ describe("isSalesCoachManager", () => {
   it("false for staff / member / null", () => {
     expect(isSalesCoachManager({ role: "Member", sales_coach_role: "staff", company_id: CO })).toBe(false);
     expect(isSalesCoachManager({ role: null, sales_coach_role: null, company_id: CO })).toBe(false);
+  });
+});
+
+describe("isSalesCoachMember — the /dashboard/sales-coach access gate", () => {
+  it("true for a Sales-Coach participant of ANY role (admin OR staff)", () => {
+    expect(isSalesCoachMember({ role: "Member", sales_coach_role: "admin", company_id: CO })).toBe(true);
+    expect(isSalesCoachMember({ role: "Member", sales_coach_role: "staff", company_id: CO })).toBe(true);
+  });
+  it("true for a company leader (CEO/COO/admin) with no sales_coach_role", () => {
+    for (const role of ["CEO", "COO", "admin"]) {
+      expect(isSalesCoachMember({ role, sales_coach_role: null, company_id: CO })).toBe(true);
+    }
+  });
+  it("false for a plain member with no sales_coach_role, and for null/null", () => {
+    expect(isSalesCoachMember({ role: "Member", sales_coach_role: null, company_id: CO })).toBe(false);
+    expect(isSalesCoachMember({ role: null, sales_coach_role: null, company_id: CO })).toBe(false);
+  });
+  it("is STRICTLY WIDER than isSalesCoachManager — a staff rep is a member but NOT a manager (never lock reps out)", () => {
+    const staff = { role: "Member", sales_coach_role: "staff", company_id: CO };
+    expect(isSalesCoachMember(staff)).toBe(true);
+    expect(isSalesCoachManager(staff)).toBe(false);
   });
 });
 

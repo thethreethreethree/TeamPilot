@@ -25,6 +25,27 @@ export function isSalesCoachManager(caller: SkillViewer): boolean {
 }
 
 /**
+ * "Member" = who may ENTER the Sales Coach area (the layout access gate). A Sales-Coach
+ * participant of ANY role (`admin` OR `staff` — a staff rep coaches in their own area) OR a
+ * company leader (CEO/COO/admin, the bootstrap). Strictly WIDER than `isSalesCoachManager`:
+ * every manager is a member, but a `staff` rep is a member and NOT a manager — conflating the
+ * two would lock staff reps out of their own coaching area.
+ *
+ * Extracted pure + tested for the same reason as the manager gate above (this file's doctrine:
+ * the access gate is the first defense; a future weakening must fail CI, not just review). The
+ * `/dashboard/sales-coach` layout calls this instead of inlining the predicate — the sibling
+ * `/dashboard/care` gate already routes through a shared tested predicate (`deriveCareAccess`).
+ */
+export function isSalesCoachMember(caller: SkillViewer): boolean {
+  return (
+    !!caller.sales_coach_role ||
+    caller.role === "CEO" ||
+    caller.role === "COO" ||
+    caller.role === "admin"
+  );
+}
+
+/**
  * Can `caller` read `target`'s skill profile? Two conditions, both required:
  *  1. caller is a manager (else `not-manager`), and
  *  2. target is in the SAME company as caller (else `not-in-team` — the tenant boundary).

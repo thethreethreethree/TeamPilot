@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { SalesCoachShell } from "@/components/sales-coach/SalesCoachShell";
 import { lockFromPilotModule } from "@/lib/auth/moduleAccess";
+import { isSalesCoachMember } from "@/lib/coach/v5/skillAccess";
 
 // Sales Coach gets its OWN installable PWA identity (founder 2026-07-04):
 // installing from any Sales Coach page uses this manifest — name "Sales Coach",
@@ -54,11 +55,16 @@ export default async function SalesCoachLayout({
         .select("role, sales_coach_role, companies(access_module)")
         .eq("id", user.id)
         .maybeSingle();
-      const role = (profile?.role as string | null) ?? null;
-      const isCompanyAdmin =
-        role === "CEO" || role === "COO" || role === "admin";
-      const hasSalesCoachRole = !!profile?.sales_coach_role;
-      if (!isCompanyAdmin && !hasSalesCoachRole) {
+      // Access gate: a Sales-Coach member (admin|staff) OR a company leader may enter. The predicate is the
+      // pure, tested `isSalesCoachMember` (NOT inlined) so a future weakening fails CI — mirrors how the
+      // /dashboard/care gate routes through `deriveCareAccess`. It is deliberately WIDER than
+      // `isSalesCoachManager`: a staff rep is a member and must reach their own coaching area.
+      const member = isSalesCoachMember({
+        role: (profile?.role as string | null) ?? null,
+        sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+        company_id: null,
+      });
+      if (!member) {
         redirect("/dashboard");
       }
       const company = (profile?.companies ?? null) as { access_module?: string | null } | null;
