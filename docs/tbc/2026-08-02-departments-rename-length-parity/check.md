@@ -13,7 +13,7 @@ are otherwise thoroughly hand-validated. This create/rename length asymmetry was
 the surface is well-hardened. No further fix.
 
 ## Findings
-No new findings beyond the one fixed. (Positive audit result: manual validation across this surface is
+No findings beyond the one fixed. (Positive audit result: manual validation across this surface is
 consistent and defensive — the exception was the single asymmetry corrected here.)
 
 ## Verification (A38)

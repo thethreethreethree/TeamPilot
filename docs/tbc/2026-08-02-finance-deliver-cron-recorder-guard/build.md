@@ -8,15 +8,17 @@ e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f  CLAUDE.md
 ```
 
 ## Change
-`src/app/api/finance/reports/deliver-cron/route.ts` — the per-item delivery loop.
 
-- **success path:** `sent++` now happens immediately after a confirmed push; the `fin_record_report_delivery`
-  `'sent'` write moved INSIDE the success branch and is wrapped in its own `try/catch` (logs, continues). A
-  record-throw can no longer (a) fall through to the outer catch and reclassify a delivered report as failed,
-  or (b) abort the batch.
-- **failure path:** the `fin_record_report_delivery` `'failed'` write is wrapped in its own `try/catch` (logs,
-  continues). A throw while recording a failure can no longer propagate out of the loop and drop every delivery
-  scheduled after it.
+### Delivery-recorder batch resilience
+The per-item delivery loop in `src/app/api/finance/reports/deliver-cron/route.ts`.
+
+- **write-path:** both `fin_record_report_delivery` calls (`'sent'` and `'failed'`) are now each wrapped in
+  their own `try/catch` (log + continue), and `sent++` moved INSIDE the success branch. A recording throw can
+  no longer (a) fall through to the outer catch and reclassify a delivered report as failed, or (b) propagate
+  out of the loop and drop every delivery scheduled after it.
+- **read-path:** the response shape `{due, sent, failed}` is unchanged, but the counts stay accurate even when
+  a bookkeeping write throws — the item is still counted and the throw is contained to it. A caller reading the
+  cron's result sees a true sent/failed split rather than a batch that silently stopped partway.
 
 No change to: auth (CRON_SECRET + constant-time compare), the due-list read, the return shape `{due, sent,
 failed}`, or the `fin_record_report_delivery` rpc itself.

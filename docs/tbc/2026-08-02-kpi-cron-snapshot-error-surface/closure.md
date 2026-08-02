@@ -21,3 +21,11 @@ the previous instance).
    the on-read view. Needs a timezone source + a product call on which zone defines "a day". → founder queue.
 2. `kpi_snapshot` missing unique(agent_id, metric, period) → delete-then-insert instead of upsert. → migration,
    gated.
+
+## Residual (A36)
+```json
+[
+  { "id": "RES-01", "item": "No live end-to-end test of the snapshotErrors path against a real kpi_snapshot write — only the mocked route test and typecheck.", "why_skipped": "Cron is 503-dormant until CRON_SECRET; the mocked test (kpi compute-cron __tests__, commit b25166b0) already drives the failure branch.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-02T00:50:00Z", "outcome": "OPENED — the mocked test forces every insert to error and asserts snapshotErrors=12 + console.error called; adequate coverage for a dormant path, live is founder-activated." },
+  { "id": "RES-02", "item": "The delete-then-insert data-loss window is now VISIBLE but not eliminated (a failed insert still leaves a one-cycle gap).", "why_skipped": "Eliminating it needs unique(agent_id,metric,period) + upsert = a migration, founder-gated; the gap self-heals next run and is now surfaced.", "confidence_it_does_not_matter": "medium", "opened_at": null, "outcome": null }
+]
+```

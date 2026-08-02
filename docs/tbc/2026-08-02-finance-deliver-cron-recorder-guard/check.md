@@ -16,8 +16,8 @@ durability-sweep + task-overrun have outer try/catch; kpi-compute checks `insErr
 the sole instance of throwing-IO-in-an-unguarded-per-item-catch. Class boundary = this route. No other fix
 needed.
 
-## Findings (A26)
-No new findings. The cron remains 503-dormant until `CRON_SECRET` is set (operator step), so this is a
+## Findings
+No findings. The cron remains 503-dormant until `CRON_SECRET` is set (operator step), so this is a
 correctness hardening of a not-yet-live path — no production behavior changes today.
 
 ## Verification (A38)

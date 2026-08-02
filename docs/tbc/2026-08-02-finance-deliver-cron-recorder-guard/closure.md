@@ -18,3 +18,11 @@ delivered report can also no longer be mis-recorded as `'failed'` if its success
 - **Not converted to a structural guard.** A route-level test would need to mock the admin client + push
   sender to throw; for a dormant, low-severity path that was judged disproportionate this pass. The invariant
   above is recorded here instead so a future edit has the reason in the tree.
+
+## Residual (A36)
+```json
+[
+  { "id": "RES-01", "item": "No live end-to-end run — only the mocked route test (commit b25166b0) and typecheck cover the batch-resilience behavior.", "why_skipped": "Cron is 503-dormant until CRON_SECRET; the mocked test drives a recorder throw and asserts all recipients are still attempted.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-02T00:40:00Z", "outcome": "OPENED — the test forces a throw on the 2nd item's recorder and asserts sendPushToUsers is called 3 times + status 200; the batch-abort regression is locked." },
+  { "id": "RES-02", "item": "The 'nothing in the per-item loop may throw out of the for' invariant is recorded in prose (closure) but not enforced by a structural guard.", "why_skipped": "A lint/AST rule for this shape is fragile; the mocked test covers the current code, and the reasoning is in the tree for the next editor.", "confidence_it_does_not_matter": "medium", "opened_at": null, "outcome": null }
+]
+```

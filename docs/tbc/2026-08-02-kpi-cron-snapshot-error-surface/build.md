@@ -8,16 +8,18 @@ e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f  CLAUDE.md
 ```
 
 ## Change
-`src/app/api/coach/kpi/compute-cron/route.ts` — the persistence loop.
 
-- Added `let snapshotErrors = 0;`.
-- The insert-result handling changed from `if (!insErr) snapshots += 1;` (empty failure branch) to: on
-  success `snapshots += 1`; on failure `snapshotErrors += 1` **and** `console.error(...)` naming the agent,
-  metric, and period.
-- The response now returns `snapshotErrors`, with a comment that non-zero means some snapshots were dropped
-  this run (self-heals next run) and is never silent.
-- An inline comment above the branch records WHY the failure path must stay surfaced (the delete already ran;
-  a dropped KPI must not be invisible — §3.4).
+### KPI snapshot-error surfacing
+The per-item persistence loop in `src/app/api/coach/kpi/compute-cron/route.ts`. Added `let snapshotErrors = 0;`
+and changed the empty failure branch of `if (!insErr) snapshots += 1;` into an explicit surfaced failure.
+
+- **write-path:** on a snapshot insert failure, the run now increments `snapshotErrors` **and**
+  `console.error(...)`s the agent/metric/period (was: silently ignored). The preceding delete already ran, so a
+  dropped snapshot is now recorded rather than invisible. An inline comment records why the failure path must
+  stay surfaced (a dropped KPI must not be silent).
+- **read-path:** the JSON response now returns `snapshotErrors` (non-zero = some snapshots were dropped this
+  run, self-heals next run), alongside the existing `snapshots` / `computed` / `bounded`. A monitor reading the
+  cron's output can now see a persistent failure instead of a silent zero.
 
 No change to compute (`fn(rows)`), the delete, the period logic, auth, or schema.
 

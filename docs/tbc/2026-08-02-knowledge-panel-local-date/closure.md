@@ -16,5 +16,13 @@ the UI's date formatting.
 
 ## Audit result (the larger genuine finding)
 The UTC-day sweep confirmed the class is well-defended across the codebase: server-side date-keys that use UTC
-do so deliberately (DB-session-UTC-verified, documented, downstream-validated), and client displays already
+do so deliberately (DB session is UTC — checked live, documented, downstream-validated), and client displays already
 use local formatting. This lone client outlier was the only real instance.
+
+## Residual (A36)
+```json
+[
+  { "id": "RES-01", "item": "No DOM/visual test that toLocaleDateString('en-CA') renders a local YYYY-MM-DD (vitest env is node/no-DOM, not the house style for component render tests).", "why_skipped": "en-CA's YYYY-MM-DD format is well-defined and used elsewhere in the UI; display-only change; founder verifies live.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-02T01:12:00Z", "outcome": "OPENED — the sibling convention (FileCard/LiveCoachingPanel) uses toLocaleDateString and en-CA yields YYYY-MM-DD; format + zone both correct." },
+  { "id": "RES-02", "item": "Did not audit non-.tsx date rendering (e.g., server-composed email/report strings) for the same UTC-slice pattern.", "why_skipped": "The sweep scoped to client components (the class instance was there); server date-keys were separately checked UTC-correct in check.md.", "confidence_it_does_not_matter": "medium", "opened_at": null, "outcome": null }
+]
+```

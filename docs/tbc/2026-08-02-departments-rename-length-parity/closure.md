@@ -18,3 +18,11 @@ to a live admin-only route.
 The input-validation sweep of the 15 no-zod body-parsing routes came back well-hardened: the core DB-write
 routes validate manually and defensively (resolutions: write-once + race + strictUpdate; departments:
 rate-limit + admin gate + JSON guard + now length parity). This asymmetry was the single real gap.
+
+## Residual (A36)
+```json
+[
+  { "id": "RES-01", "item": "No route test added for the rename length validation (the departments route has no __tests__ dir).", "why_skipped": "The new check is byte-identical to the POST create rule; typecheck clean; admin-only low-severity path.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-02T00:58:00Z", "outcome": "OPENED — traced both branches: rename now returns 400 for >80 chars exactly as create does, by reading the two predicates side by side." },
+  { "id": "RES-02", "item": "No DB CHECK constraint on departments.name — the route-layer rule remains the only length guard.", "why_skipped": "Adding a column CHECK is a migration (gated); recorded in the un-named-reliance so its absence is a known state.", "confidence_it_does_not_matter": "medium", "opened_at": null, "outcome": null }
+]
+```

@@ -12,8 +12,10 @@ All 7 crons checked. retention (`storageErrors`), purge (`assetErrors`/`malforme
 durability (outer try/catch), finance deliver-cron (fixed in the previous commit). KPI was the sole remaining
 swallowed-write-error. Boundary closed.
 
-## Findings (A26)
-Two adjacent issues found and FLAGGED (not fixed here — each needs a decision, §3.3):
+## Findings
+No findings in this build's own change — the surfacing fix is correct and behavior-preserving on the happy
+path. Two ADJACENT issues (separate from this fix, not defects in it) were flagged for founder decision rather
+than changed here (§3.3):
 1. **`sessionsPerDay` counts distinct days by `startedAt.slice(0,10)` = UTC days** (compute.ts:125). A rep
    working 9–5 in a west-of-UTC zone straddles two UTC dates per workday, ~halving their sessions-per-day.
    This runs LIVE in the agent's on-read view, not only in the dormant cron. Fix needs a timezone source
