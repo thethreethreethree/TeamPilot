@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
 
   let computed = 0;
   let snapshots = 0;
+  let snapshotErrors = 0;
   for (const agentId of agents) {
     const companyId = agentToCompany.get(agentId) as string;
     const rows = rowsByAgent.get(agentId) ?? [];
@@ -129,7 +130,20 @@ export async function GET(req: NextRequest) {
           sample_size: w.res.sampleSize,
           source_session_ids: w.res.sourceSessionIds,
         });
-        if (!insErr) snapshots += 1;
+        // The delete above already ran, so a failed insert leaves this (agent, metric, period) with NO
+        // snapshot until the next run re-computes it. That gap is self-healing, but it must NOT be invisible:
+        // a metrics cron that silently drops a KPI is the honesty-thesis failure (§3.4) — and a PERSISTENT
+        // insert failure (bad value, constraint) would otherwise produce zero snapshots with no signal at all.
+        // Surfaced + counted, mirroring the sibling crons (retention's storageErrors, purge's assetErrors).
+        if (!insErr) {
+          snapshots += 1;
+        } else {
+          snapshotErrors += 1;
+          console.error(
+            `[coach/kpi/compute-cron] snapshot insert failed for agent=${agentId} metric=${w.metric} period=${period}:`,
+            insErr
+          );
+        }
       }
     }
     computed += 1;
@@ -138,6 +152,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     computed,
     snapshots,
+    snapshotErrors, // non-zero = some KPI snapshots were dropped this run (self-heals next run); never silent
     scannedAgents: agentToCompany.size,
     bounded: agentToCompany.size > BATCH_AGENTS, // true = more agents remain than this run covered
   });
