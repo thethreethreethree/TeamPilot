@@ -82,19 +82,32 @@ export async function GET(req: NextRequest) {
         },
       });
       if (res.sent === 0) throw new Error("No active push subscription for this recipient.");
-
-      await sb.rpc("fin_record_report_delivery", { p_schedule: d.schedule_id, p_status: "sent" });
       sent++;
+
+      // Recording is BEST-EFFORT and must not throw out of the loop: the report WAS delivered, so a hiccup
+      // writing the bookkeeping row can't be allowed to (a) flip it to "failed" via the outer catch, or
+      // (b) abort every remaining delivery. Log the gap and continue.
+      try {
+        await sb.rpc("fin_record_report_delivery", { p_schedule: d.schedule_id, p_status: "sent" });
+      } catch (recErr) {
+        console.error("[finance/deliver-cron] delivered but could not record 'sent' for", d.schedule_id, recErr);
+      }
     } catch (e) {
       // A failure is RECORDED, never swallowed. A delivery that silently stops is worse than one that never
       // existed: the recipient believes no news is good news, and quietly stops looking at the numbers they
-      // were relying on. fin_report_delivery_failures is where this surfaces.
+      // were relying on. fin_report_delivery_failures is where this surfaces. The recording is itself wrapped
+      // — a throw while recording a failure must NOT abort the rest of the batch (that would let one transient
+      // DB error silence every report scheduled after it, the exact silent-stop this cron exists to prevent).
       failed++;
-      await sb.rpc("fin_record_report_delivery", {
-        p_schedule: d.schedule_id,
-        p_status: "failed",
-        p_detail: e instanceof Error ? e.message.slice(0, 500) : "Unknown error",
-      });
+      try {
+        await sb.rpc("fin_record_report_delivery", {
+          p_schedule: d.schedule_id,
+          p_status: "failed",
+          p_detail: e instanceof Error ? e.message.slice(0, 500) : "Unknown error",
+        });
+      } catch (recErr) {
+        console.error("[finance/deliver-cron] could not record 'failed' for", d.schedule_id, recErr);
+      }
     }
   }
 
