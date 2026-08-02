@@ -93,11 +93,14 @@ export async function PATCH(req: NextRequest) {
     const ok = await unarchiveDepartment(body.id);
     return NextResponse.json({ ok });
   }
-  // default: rename
-  if (!body.name || body.name.trim().length === 0) {
-    return NextResponse.json({ error: "Name required." }, { status: 400 });
+  // default: rename — mirror the POST create rule EXACTLY. Rename previously checked only non-empty, so an
+  // admin could rename a department to an arbitrarily long name that create (1-80) rejects — the `name text`
+  // column has no DB cap, so the inconsistent rule was the only guard, and it was missing here.
+  const renameName = (body.name ?? "").trim();
+  if (renameName.length === 0 || renameName.length > 80) {
+    return NextResponse.json({ error: "Name must be 1-80 chars." }, { status: 400 });
   }
-  const dep = await renameDepartment(body.id, body.name, body.description);
+  const dep = await renameDepartment(body.id, renameName, body.description);
   if (!dep) {
     return NextResponse.json({ error: "Rename failed." }, { status: 500 });
   }
