@@ -1,0 +1,24 @@
+.section { background: #141414; color: #F7F7F5; padding: 120px 24px; position: relative; }
+.inner { max-width: 1040px; margin: 0 auto; }
+.eyebrow { color: #ff8f8f; font-weight: 700; letter-spacing: .3em; font-size: 12px; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
+.heading { font-weight: 800; letter-spacing: -.025em; line-height: 1.02; font-size: clamp(32px, 5vw, 62px); text-align: center; margin: 0 auto; max-width: 15ch; }
+.sub { color: rgba(247,247,245,.58); font-size: clamp(15px, 1.55vw, 19px); line-height: 1.6; text-align: center; max-width: 620px; margin: 22px auto 0; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 56px; }
+.card { border: 1px solid rgba(247,247,245,.1); border-radius: 16px; padding: 26px 26px 28px; background: #191919;
+  position: relative; overflow: hidden; transition: transform .25s, border-color .25s; }
+.card:hover { transform: translateY(-4px); border-color: rgba(255,107,107,.35); }
+.card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: linear-gradient(180deg, rgba(255,107,107,.6), rgba(255,107,107,0)); }
+.num { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: #ff8f8f; margin-bottom: 14px; }
+.cardTitle { font-size: clamp(19px, 2.1vw, 24px); font-weight: 800; letter-spacing: -.01em; margin-bottom: 10px; line-height: 1.15; }
+.cardText { color: rgba(247,247,245,.62); font-size: 15px; line-height: 1.55; }
+
+.kicker { text-align: center; margin-top: 46px; font-size: clamp(17px, 2vw, 23px); font-weight: 700; color: #F7F7F5; }
+.kicker span { color: rgba(247,247,245,.5); font-weight: 400; }
+
+@media (max-width: 720px) {
+  .section { padding: 88px 20px; }
+  .grid { grid-template-columns: 1fr; gap: 12px; margin-top: 40px; }
+  .card { padding: 22px 22px 24px; }
+}

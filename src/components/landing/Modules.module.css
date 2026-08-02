@@ -1,0 +1,30 @@
+.section { background: #141414; color: #F7F7F5; padding: 120px 24px; }
+.inner { max-width: 1080px; margin: 0 auto; }
+.eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12px; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
+.heading { font-weight: 800; letter-spacing: -.025em; line-height: 1.03; font-size: clamp(32px, 5vw, 60px); text-align: center; margin: 0 auto 12px; max-width: 16ch; }
+.em { color: #FFDA03; }
+.sub { color: rgba(247,247,245,.58); font-size: clamp(15px, 1.55vw, 19px); text-align: center; max-width: 580px; margin: 0 auto; line-height: 1.55; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 56px; }
+.card { border: 1px solid rgba(247,247,245,.1); border-radius: 18px; padding: 28px; background: #191919; position: relative; overflow: hidden;
+  transition: transform .25s, border-color .25s; }
+.card::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; transform: scaleX(0); transform-origin: left;
+  background: linear-gradient(90deg, #FFDA03, rgba(255,218,3,0)); transition: transform .3s cubic-bezier(.2,.7,.2,1); }
+.card:hover { transform: translateY(-4px); border-color: rgba(255,218,3,.35); }
+.card:hover::after { transform: scaleX(1); }
+.icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,218,3,.1); border: 1px solid rgba(255,218,3,.25); margin-bottom: 18px; }
+.title { font-size: clamp(20px, 2.2vw, 26px); font-weight: 800; letter-spacing: -.01em; }
+.title span { color: rgba(247,247,245,.4); font-weight: 600; font-size: .62em; letter-spacing: .04em; margin-left: 8px; }
+.text { color: rgba(247,247,245,.62); font-size: 15px; line-height: 1.55; margin-top: 10px; }
+.replaces { margin-top: 16px; font-size: 12px; color: #a89250; font-weight: 600; }
+.replaces b { color: #FFDA03; }
+
+.connect { text-align: center; margin-top: 44px; font-size: clamp(15px, 1.7vw, 19px); color: rgba(247,247,245,.7); line-height: 1.6; max-width: 720px; margin-left: auto; margin-right: auto; }
+.connect b { color: #fff; }
+
+@media (max-width: 720px) {
+  .section { padding: 88px 20px; }
+  .grid { grid-template-columns: 1fr; gap: 12px; margin-top: 40px; }
+  .card { padding: 24px; }
+}

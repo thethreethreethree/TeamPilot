@@ -1,0 +1,14 @@
+.section { background: #141414; color: #F7F7F5; padding: 130px 24px; position: relative; overflow: hidden; text-align: center; }
+/* warm glow — the pivot from red tension to yellow hope */
+.glow { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 900px; height: 520px; pointer-events: none;
+  background: radial-gradient(ellipse at center top, rgba(255,218,3,.13) 0%, transparent 62%); }
+.inner { max-width: 820px; margin: 0 auto; position: relative; z-index: 1; }
+.bulb { margin: 0 auto 26px; display: flex; justify-content: center; }
+.eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12px; text-transform: uppercase; margin-bottom: 20px; }
+.heading { font-weight: 800; letter-spacing: -.03em; line-height: 1.03; font-size: clamp(34px, 5.4vw, 68px); margin: 0 auto; max-width: 16ch; }
+.em { color: #FFDA03; }
+.sub { color: rgba(247,247,245,.66); font-size: clamp(16px, 1.75vw, 21px); line-height: 1.6; max-width: 640px; margin: 26px auto 0; }
+.pledge { margin-top: 40px; display: inline-block; border: 1px solid rgba(255,218,3,.3); border-radius: 100px;
+  padding: 13px 24px; font-size: clamp(14px, 1.6vw, 17px); font-weight: 600; color: #F7F7F5; background: rgba(255,218,3,.05); }
+.pledge b { color: #FFDA03; font-weight: 800; }
+@media (max-width: 640px) { .section { padding: 92px 20px; } .pledge { padding: 12px 18px; } }

@@ -1,0 +1,24 @@
+.section { background: #141414; color: #F7F7F5; padding: 120px 24px; }
+.inner { max-width: 1040px; margin: 0 auto; }
+.eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12px; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
+.heading { font-weight: 800; letter-spacing: -.025em; line-height: 1.03; font-size: clamp(32px, 5vw, 60px); text-align: center; margin: 0 auto 14px; max-width: 15ch; }
+.em { color: #FFDA03; }
+.sub { color: rgba(247,247,245,.6); font-size: clamp(15px, 1.6vw, 19px); text-align: center; max-width: 620px; margin: 0 auto; line-height: 1.6; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 60px; }
+.stat { text-align: center; padding: 30px 18px; border: 1px solid rgba(247,247,245,.1); border-radius: 16px; background: #191919; }
+.statNum { font-weight: 800; letter-spacing: -.03em; font-size: clamp(44px, 6vw, 76px); color: #FFDA03; line-height: 1; font-variant-numeric: tabular-nums; }
+.statLabel { color: rgba(247,247,245,.62); font-size: 14px; line-height: 1.5; margin-top: 14px; max-width: 220px; margin-left: auto; margin-right: auto; }
+
+.quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
+.quote { border: 1px dashed rgba(247,247,245,.18); border-radius: 16px; padding: 24px; background: rgba(255,255,255,.015); }
+.mark { color: rgba(255,218,3,.5); font-size: 34px; line-height: .6; font-weight: 800; }
+.qText { color: rgba(247,247,245,.5); font-style: italic; font-size: 15px; line-height: 1.55; margin: 10px 0 16px; }
+.qWho { color: rgba(247,247,245,.4); font-size: 13px; font-weight: 600; }
+.placeholderNote { text-align: center; color: rgba(247,247,245,.38); font-size: 12.5px; margin-top: 16px; letter-spacing: .02em; }
+
+@media (max-width: 760px) {
+  .section { padding: 88px 20px; }
+  .stats { grid-template-columns: 1fr; gap: 12px; margin-top: 44px; }
+  .quotes { grid-template-columns: 1fr; }
+}
