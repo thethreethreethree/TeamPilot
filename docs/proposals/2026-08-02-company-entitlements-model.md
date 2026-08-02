@@ -90,3 +90,29 @@ access decision keyed on the entitlement/lock, and let billing be a read-only ro
 - No pricing rates in this doc (IP discipline) — it's pure substrate.
 
 **Green-light phrase:** `"build the entitlements model"`.
+
+---
+
+## ADDENDUM (2026-08-02) — the pricing pivoted to simple TIERS; this design SIMPLIFIES
+
+The founder found the multi-module hybrid pricing too complex and pivoted to **simple client-facing tiers**
+(delivered as `ELOSTATE-PRICING-SIMPLE-*.pdf`). This changes the entitlement shape — and makes it *easier*:
+
+- **Under tier pricing, a company is on ONE tier, not a SET of modules.** So the entitlement is a single value
+  — `companies.tier` ∈ (`starter`, `business`, `performance`) — much closer to the EXISTING single
+  `companies.access_module` (0207) than the `company_module_entitlements` SET this doc designed. The set-based
+  table above is now over-engineered for the chosen direction.
+- **The two live pricing options differ only in how coaching is entitled:**
+  - **Option A (pure 3 tiers):** entitlement = `companies.tier` alone. Feature access resolves from the tier
+    (`performance` unlocks coaching; `business` unlocks care+finance; `starter` = base). Simplest possible.
+  - **Option B (2 tiers + per-rep coaching add-on, RECOMMENDED):** `companies.tier` ∈ (`starter`,`business`)
+    PLUS a per-rep `profiles.is_coaching_rep` flag (mirrors the existing `is_support_agent`, 0034) for the reps
+    who have the coaching seat. This is the cleaner build — one company tier column + one profile boolean, both
+    patterns already in the codebase.
+- **Everything else in this doc still holds:** extend (don't weaken) the 0207 pilot lock (verify:live #23 stays
+  green); tenant-pinned writes (INV15); RLS company-scoped reads; append/soft-disable over delete (§3.1);
+  access-control vs billing kept separate.
+
+**Net:** wait for the founder's A-vs-B choice, then build a single `tier` column (both options) + (option B) an
+`is_coaching_rep` flag. Drop the `company_module_entitlements` SET table — the tier model doesn't need it. The
+green-light phrase and gating are unchanged.
