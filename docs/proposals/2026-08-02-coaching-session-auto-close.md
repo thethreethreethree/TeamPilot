@@ -34,9 +34,14 @@ Two composing mechanisms:
 
 ### A. Client-side auto-close on `stop()` (primary)
 When the live coaching stream stops — user Stop, or unmount/navigate-away (both already call `stop()` in
-`useLiveCoaching.ts`) — PATCH the session to `status='ended'` (stamping `ended_at`) if it is still `active`.
-The existing finish+name flow then operates on an already-ended session (rename/After-Pitch as enrichment),
-rather than being the ONLY path to `ended`.
+`useLiveCoaching.ts`) — PATCH the session to `status='ended'` if it is still `active`. The existing finish+name
+flow then operates on an already-ended session (rename/After-Pitch as enrichment), rather than being the ONLY
+path to `ended`.
+- **`ended_at` is auto-handled (verified):** migration 0070 already ships a trigger
+  `stamp_coaching_session_ended_at` (0070:104-121) that stamps `ended_at = now()` on the `active→ended`
+  transition. So the fix only needs to PATCH `status='ended'`; the timestamp the duration metric depends on
+  lands automatically. The status enum `check (status in ('active','ended','reviewed'))` (0070:42) already
+  makes the state forward-only. This makes A a genuinely small change.
 - **Guards:** forward-only status (the `check (status in ('active','ended','reviewed'))` + a
   `active→ended→reviewed` state machine); owner-scoped PATCH (the session's rep — the existing `[id]` PATCH
   route is owner-gated); idempotent (`.eq('status','active')` so a double-fire is a no-op).
