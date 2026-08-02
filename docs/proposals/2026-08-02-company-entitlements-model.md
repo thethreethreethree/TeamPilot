@@ -116,3 +116,23 @@ The founder found the multi-module hybrid pricing too complex and pivoted to **s
 **Net:** wait for the founder's A-vs-B choice, then build a single `tier` column (both options) + (option B) an
 `is_coaching_rep` flag. Drop the `company_module_entitlements` SET table — the tier model doesn't need it. The
 green-light phrase and gating are unchanged.
+
+---
+
+## Substrate verified against the tree (2026-08-02)
+
+Before this proposal is greenlit, its factual premises were re-checked against the live migrations (not cached
+labels) so the founder-gated build starts on confirmed ground:
+
+- **`companies.access_module` (0207):** confirmed a single `text` column, `check (access_module is null or
+  access_module in ('care','sales_coach'))`, null = full hub access. The tier `text` column is therefore a
+  *separate, additive* column — it extends the lock, it does not replace it (the "don't weaken 0207" constraint
+  above holds structurally, not just by intent).
+- **`profiles.is_support_agent` (0034):** confirmed `boolean not null default false`. Option B's `is_coaching_rep`
+  is a verbatim mirror of an existing, proven pattern — not a new shape.
+- **`is_coaching_rep` and `companies.tier`:** confirmed **absent** everywhere in `supabase/migrations/` — both are
+  clean forward-adds, no collision, no accidental reuse of an existing name.
+- **Next migration number:** `0208` (latest applied is `0207`).
+
+No code was written for this check — it only converts the proposal's cached claims into tree-verified facts, so
+that "build the entitlements model" does not discover a wrong premise mid-build.
