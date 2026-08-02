@@ -1,0 +1,46 @@
+.section { background: #141414; color: #F7F7F5; padding: 130px 24px; position: relative; overflow: hidden; }
+.inner { max-width: 720px; margin: 0 auto; }
+.eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12px; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
+.heading { font-weight: 800; letter-spacing: -.02em; line-height: 1.04; font-size: clamp(30px, 4.4vw, 56px); text-align: center; margin: 0 auto; max-width: 14ch; }
+.em { color: #FFDA03; }
+.sub { color: rgba(247,247,245,.6); font-size: clamp(15px, 1.5vw, 19px); line-height: 1.55; text-align: center; max-width: 540px; margin: 22px auto 0; }
+
+.diagram { margin-top: 60px; }
+.card { border-radius: 16px; padding: 22px 24px; background: #1a1a1a; border: 1px solid rgba(247,247,245,.1); }
+.cardLabel { font-size: 10.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 8px; }
+.cardBody { font-size: clamp(17px, 2vw, 22px); font-weight: 600; line-height: 1.3; }
+
+.symptom { border-color: rgba(255,107,107,.4); background: linear-gradient(180deg, rgba(255,107,107,.07), #1a1a1a 70%); }
+.symptom .cardLabel { color: #ff8f8f; }
+.symptomMeta { margin-top: 10px; font-size: 13px; color: rgba(247,247,245,.5); display: flex; align-items: center; gap: 8px; }
+.down { color: #ff6b6b; font-weight: 800; }
+
+.divider { display: flex; align-items: center; gap: 14px; margin: 20px 0; }
+.divider span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(247,247,245,.45); white-space: nowrap; }
+.divider .rule { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, rgba(247,247,245,.28) 0 5px, transparent 5px 10px); }
+
+.trace { position: relative; padding: 4px 0 4px 30px; margin: 6px 0; }
+.trace::before { content: ""; position: absolute; left: 9px; top: 12px; bottom: 12px; width: 2px;
+  background: linear-gradient(180deg, rgba(255,218,3,.15), rgba(255,218,3,.7)); border-radius: 2px; }
+.node { position: relative; padding: 11px 0; font-size: clamp(14px, 1.7vw, 16.5px); color: rgba(247,247,245,.82); }
+.node::before { content: ""; position: absolute; left: -25px; top: 50%; transform: translateY(-50%); width: 11px; height: 11px;
+  border-radius: 50%; background: #FFDA03; box-shadow: 0 0 12px rgba(255,218,3,.8); }
+.node b { color: #fff; font-weight: 700; }
+
+.root { margin-top: 6px; border-color: rgba(255,218,3,.55);
+  background: linear-gradient(180deg, rgba(255,218,3,.12), #1a1a1a 75%); box-shadow: 0 0 44px rgba(255,218,3,.18); }
+.root .cardLabel { color: #FFDA03; }
+.root .cardBody { color: #fff; }
+.fix { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,218,3,.2);
+  color: #FFDA03; font-weight: 700; font-size: clamp(14px, 1.7vw, 17px); }
+
+.punch { text-align: center; margin-top: 46px; font-size: clamp(16px, 1.8vw, 20px); color: rgba(247,247,245,.7); line-height: 1.5; }
+.punch b { color: #fff; }
+
+@media (max-width: 640px) {
+  .section { padding: 90px 20px; }
+  .diagram { margin-top: 44px; }
+  .card { padding: 18px 18px; }
+  .divider span { font-size: 10px; }
+  .trace { padding-left: 26px; }
+}

@@ -1,0 +1,8 @@
+/* Robust scroll reveal. Default state = VISIBLE (no-JS / reduced-motion safe). JS "arms" the
+   hidden state only once it's present, then IntersectionObserver adds `.in` to reveal on scroll. */
+.reveal { transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+.armed { opacity: 0; transform: translateY(28px); }
+.in { opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .armed, .in { transition: none; opacity: 1; transform: none; }
+}
