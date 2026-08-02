@@ -117,6 +117,60 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     expect(monthMetrics).toEqual(currentMetrics);
   });
 
+  it("surfaces snapshot insert failures instead of silently dropping them (a dropped KPI must never be silent)", async () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        let limited = false;
+        chain.select = () => chain;
+        chain.order = () => chain;
+        chain.eq = () => chain;
+        chain.in = () => chain;
+        chain.delete = () => chain;
+        chain.limit = () => {
+          limited = true;
+          return chain;
+        };
+        // Every insert FAILS — the delete already ran, so this is the silent-drop scenario. Pre-fix the
+        // failure was swallowed (no counter, no log); it must now be surfaced.
+        chain.insert = () => Promise.resolve({ error: { message: "insert failed" } });
+        chain.then = (resolve: (v: unknown) => unknown) => {
+          if (t === "coaching_sessions") {
+            return resolve(
+              limited
+                ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null }
+                : {
+                    data: [
+                      {
+                        id: "s1",
+                        agent_id: "a1",
+                        outcome: "sold",
+                        deal_value: 100,
+                        started_at: "2026-07-01T10:00:00.000Z",
+                        ended_at: "2026-07-01T10:30:00.000Z",
+                      },
+                    ],
+                    error: null,
+                  }
+            );
+          }
+          return resolve({ data: [], error: null });
+        };
+        return chain;
+      },
+    });
+
+    const res = await GET(req("Bearer s3cret-value"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { snapshots: number; snapshotErrors: number };
+    // 6 Layer-1/2 metrics × 2 periods = 12 attempted inserts, all failing → 0 snapshots, 12 surfaced errors.
+    expect(body.snapshots).toBe(0);
+    expect(body.snapshotErrors).toBe(12);
+    expect(errSpy).toHaveBeenCalled(); // the failure is logged, not swallowed
+  });
+
   // DATA-AS-ASSET (§3.1) — the frozen-month guarantee lives on the DELETE side, and that is the real
   // history-destruction risk: the idempotent replace clears a snapshot before re-inserting it, so if the
   // clear ever widened to "all periods for this (agent, metric)" — e.g. dropping the .eq("period") filter in
