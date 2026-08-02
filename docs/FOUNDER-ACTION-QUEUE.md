@@ -34,7 +34,10 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   API, a different product.) So the cost model's structure holds. The one open item is the exact CURRENT
 >   per-minute rate: ElevenLabs reportedly **cut STT pricing ~45% in May 2026**, so the modeled $0.08/min is
 >   likely STALE-HIGH (real margins even better — model stays conservative). Confirm the current realtime rate
->   from your ElevenLabs dashboard/contract to lock the meter precisely. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   from your ElevenLabs dashboard/contract to lock the meter precisely. **↳ The OTHER cost pillar checks out
+>   exactly:** DeepSeek-V4-Flash re-confirmed at $0.14/1M input-miss · $0.0028 cache-hit · $0.28/1M output
+>   (web, 2026-08-02) — matches the model to the digit, so the "AI ~free" pillar is grounded on CURRENT pricing
+>   (no change). Both major cost inputs now verified against current external rates. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
