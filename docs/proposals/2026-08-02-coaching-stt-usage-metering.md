@@ -111,3 +111,23 @@ it changes WHY it exists, and if anything makes it MORE important:
 The table, guards (append-only, idempotency, owner-check, tenant-pin) are all unchanged — only the consumer of
 the data changes (internal cost dashboards / fair-use checks, not a customer invoice line). Green-light phrase
 and gating unchanged.
+
+---
+
+## Substrate verified against the tree (2026-08-02)
+
+Premises re-checked against the live migrations before the founder-gated build:
+
+- **No existing STT/billable-minutes substrate** — a grep across `supabase/migrations/` and `src/lib/coach/` for
+  `stt_min` / `audio_min` / `billable_second` / `usage.*minute` / `meter*` returns **nothing**. The proposal's
+  core premise (the priced unit is recorded nowhere) is confirmed; `coaching_stt_usage_events` is a genuine new
+  substrate, not a reinvention.
+- **`coaching_sessions` (0070)** confirmed present with exactly the columns this design references:
+  `agent_id uuid not null references profiles(id)` (so the new table's `agent_id → profiles` FK stays consistent —
+  not `auth.users`), `started_at`, `ended_at`.
+- **The "0070 already stamps `ended_at`" claim** (shared with the auto-close proposal) is real: trigger
+  `stamp_coaching_session_ended_at` at `0070_live_sales_coach_foundation.sql:104-121` stamps `ended_at` on the
+  transition. The INV19 owner-check + RLS-mirror guards are grounded in the actual 0070 policy shape
+  (`agent_id = p.id or role in ('CEO','COO','admin')`, 0070:159).
+
+No code written — verification only, so "build the STT metering" starts on confirmed ground.
