@@ -65,6 +65,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   the auto-close gap + metric-filtering are real either way. Fix = auto-set `status='ended'` when the live
 >   session stops (and/or a cleanup for stale 'active'); it composes with `"cap live-coaching sessions"` (same
 >   root: no reliable close) and fixes cost + data quality + metric completeness together.
+> - **↳ HONESTY CORRECTION on the pilot scale (live query, 2026-08-02):** Phase 1 framed the pilot as "14
+>   companies / 13 users" — but **only 1 of the 14 companies has real activity** (8 members, 1,659 events; the
+>   primary/internal company). The other 13 are empty or test/dormant (≤5 events; one has 20 events but 0
+>   members = orphan test co). So the pricing's **cost model is soundly grounded** (real infra rates + the one
+>   active company's actual usage across coaching/care/events), but there is **no demand/market validation** in
+>   the pilot yet — 0 external active customers. That's normal PRE-LAUNCH, and the deliverable already frames
+>   usage as forward projections — but the "14 companies" figure overstated it; the honest base is one active
+>   (internal) team. The pricing is a cost-grounded + market-researched RECOMMENDATION, not demand-validated.
 > - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
 >   **17 ended coaching sessions across 3 reps in ~4 weeks**, median session **~6 min**, with one **958-min
 >   (16-hr) outlier that is a session left OPEN, not real coaching**. Two takeaways: (a) actual pilot coaching is
