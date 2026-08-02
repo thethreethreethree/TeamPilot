@@ -49,8 +49,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   "per-resolution trap" differentiator holds on CURRENT pricing: both incumbents bill per-resolution while
 >   our C.A.R.E is flat/unlimited, so high-support-volume customers pay unboundedly with them, flat with us.
 >   Both halves of the directive ("competitive" + "profitable") are now grounded on current external data
->   (coaching + care competitor anchors + STT + DeepSeek all verified; base/finance competitors are commodity/
->   structural claims, lower-value to re-ground). (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   (coaching + care competitor anchors + STT + DeepSeek all verified; finance competitor is commodity,
+>   lower-value to re-ground).
+> - **↳ BASE-module correction (web, 2026-08-02) — the "no AI tax" differentiator is NARROWER than stated:**
+>   grounding team-mgmt competitors found ClickUp DOES charge separately ($7 + $9 Brain AI = matches the
+>   deliverable), BUT **Monday ($9–19/seat) now INCLUDES AI** with no add-on, and Asana ($10.99+) includes AI
+>   (with metered credits). So the deliverable's "$15, AI included, no AI tax" framing holds as a clear
+>   differentiator only vs ClickUp — Monday/Asana bundle AI too. The $15 base is still competitive (mid-range of
+>   $7–25), but position it as "AI-included at a mid-market price + the cross-system diagnostic engine" rather
+>   than "uniquely no AI tax." Honest narrowing of an over-claimed edge (§3.4). (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
