@@ -295,7 +295,10 @@ export function AdaptiveKnowledgePanel() {
                       )}
                     </span>
                     <span className="text-muted font-mono shrink-0">
-                      {new Date(v.createdAt).toISOString().slice(0, 10)}
+                      {/* Local YYYY-MM-DD (en-CA) — NOT toISOString().slice(0,10), which shows the UTC date
+                          and reads a day ahead for an evening edit west of UTC. Matches the toLocaleDateString
+                          convention the rest of the UI uses (FileCard, LiveCoachingPanel; see chats/utils.ts). */}
+                      {new Date(v.createdAt).toLocaleDateString("en-CA")}
                     </span>
                   </li>
                 ))}
