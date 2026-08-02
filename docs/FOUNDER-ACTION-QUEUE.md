@@ -71,7 +71,17 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   the deliverable's "$30–200 / $20–80". So the "commodity-matched" finance positioning holds and is if
 >   anything more favorable (competitors got more expensive; our $49–199 flat sits within/below their range).
 >   No correction — the claim was deliberately a commodity-match, not an undercut. **All 4 module competitor
->   anchors + both cost pillars are now grounded on current external pricing** (coaching Gong · care Intercom/
+>   anchors + both cost pillars are now grounded on current external pricing**
+> - **↳ COMPETITIVE-FRAMING GAP found (web, 2026-08-02) — the deliverable misses the INTEGRATED-platform
+>   category, and it sharpens the real differentiator.** The deliverable compares per-module (Gong/Intercom/
+>   Monday/QuickBooks), but integrated all-in-one platforms exist (HubSpot, Bitrix24, 1CRM, Productive,
+>   Insightly) that already bundle CRM + project mgmt + invoicing + some sales tools — arguably the more direct
+>   threat to a "one platform" pitch. **The differentiation still holds and gets sharper:** NONE of them have
+>   (a) real-time AI sales coaching (live in-call cues) or (b) the cross-system diagnostic/honesty engine
+>   (events→signals→problems→resolutions + the §3.2 understanding gate). So position against integrated
+>   platforms on those TWO things (not "integration" per se — they have that too), and per-module on price.
+>   Recommend adding one line to the deliverable's competitive section acknowledging integrated platforms and
+>   naming the real edge. (Not yet added to the PDF — it's a positioning call; say the word and I add it.) (coaching Gong · care Intercom/
 >   Zendesk · base Monday/ClickUp/Asana · finance QuickBooks/Xero · STT · DeepSeek): mostly exact or
 >   conservative, one differentiator narrowed (base AI tax), finance ranges refreshed. The pricing rests on
 >   verified-current reality on both halves of "competitive + profitable." (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
