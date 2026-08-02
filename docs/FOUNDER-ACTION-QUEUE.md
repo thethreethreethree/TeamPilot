@@ -43,6 +43,12 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   - `"cap live-coaching sessions"` — no idle/max-duration stop → an abandoned tab streams STT uncapped (pilot's 958-min session ≈ $76). Reuses the existing silence detection.
 >   - `"add the integrated-platform line"` — the deliverable compares per-module but misses integrated platforms (HubSpot/Bitrix24); the real edge vs them is real-time coaching + the diagnostic engine (positioning call).
 >
+> **✅ Substrate de-risked (2026-08-02, commits `88e63c65`/`0deac40b`/`d43f61af`):** all three code-touching
+> gated builds were re-verified against the live tree before you greenlight, so none starts on a wrong premise —
+> entitlements (`access_module`/`is_support_agent` real; `tier`/`is_coaching_rep` absent; next mig `0208`),
+> metering (no existing STT substrate; `coaching_sessions` cols + 0070 `ended_at` trigger real), cap-sessions
+> (RMS + client stall-timer already run per-frame → small build). Verification notes appended to each proposal.
+>
 > **GROUNDING — all verified against CURRENT external data (2026-08-02); mostly exact or conservative, one correction:**
 > - **Costs:** STT billing is per-minute (confirmed, not per-character); modeled $0.08/min likely stale-high after ElevenLabs' ~45% 2026 cut → margins conservative. DeepSeek exact ($0.14/$0.0028/$0.28 per 1M).
 > - **Competitors:** Gong $1.2–1.6k/user/yr + $5k–50k platform → undercut UNDERSTATED for small teams · Intercom $0.99/res, Zendesk ~$1.50–2/res + $55–115 seat → per-resolution trap holds · QuickBooks $20–275 / Xero $25–90 → commodity-match holds · **BASE CORRECTION:** "no AI tax" narrowed — Monday/Asana now bundle AI, clear only vs ClickUp's +$9; position on the diagnostic engine at a mid-market price, not "uniquely no AI tax."
