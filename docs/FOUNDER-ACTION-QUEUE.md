@@ -81,7 +81,16 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   (events→signals→problems→resolutions + the §3.2 understanding gate). So position against integrated
 >   platforms on those TWO things (not "integration" per se — they have that too), and per-module on price.
 >   Recommend adding one line to the deliverable's competitive section acknowledging integrated platforms and
->   naming the real edge. (Not yet added to the PDF — it's a positioning call; say the word and I add it.) (coaching Gong · care Intercom/
+>   naming the real edge. (Not yet added to the PDF — it's a positioning call; say the word and I add it.)
+> - **↳ The MODEL itself is market-validated + the suppression risk is CONFIRMED (web, 2026-08-02):** industry
+>   research shows **hybrid pricing dominates** (43% of SaaS now → 61% by end-2026) and usage-based is preferred
+>   (Gartner: 70% over per-seat by 2026) — so the deliverable's base + flat-modules + metered structure is the
+>   winning shape, not a gamble. **AND it externally confirms the metering-suppression red-team flag:** 2026 is
+>   swinging back toward predictability — providers are "tightening caps on usage-based plans," and flat billing
+>   "reduces involuntary churn and support 30–40% vs metered" + wins on trial-to-paid conversion. So the fix I
+>   proposed — **prepaid committed-minute blocks / a cap on the metered portion** — is the market-standard
+>   response, not a nice-to-have. Net: keep the hybrid model (validated), but pair the $0.20 meter with a
+>   predictability mechanism (committed blocks or a monthly cap) to protect conversion + adoption. (coaching Gong · care Intercom/
 >   Zendesk · base Monday/ClickUp/Asana · finance QuickBooks/Xero · STT · DeepSeek): mostly exact or
 >   conservative, one differentiator narrowed (base AI tax), finance ranges refreshed. The pricing rests on
 >   verified-current reality on both halves of "competitive + profitable." (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
