@@ -57,7 +57,16 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   (with metered credits). So the deliverable's "$15, AI included, no AI tax" framing holds as a clear
 >   differentiator only vs ClickUp — Monday/Asana bundle AI too. The $15 base is still competitive (mid-range of
 >   $7–25), but position it as "AI-included at a mid-market price + the cross-system diagnostic engine" rather
->   than "uniquely no AI tax." Honest narrowing of an over-claimed edge (§3.4). (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   than "uniquely no AI tax." Honest narrowing of an over-claimed edge (§3.4).
+> - **↳ FINANCE anchor (web, 2026-08-02) — cited ranges slightly dated, claim holds:** current QuickBooks
+>   $20–275/mo (Plus rose $99→$140 in Aug 2026) and Xero $25–90/mo (rising again Oct 2026) are both HIGHER than
+>   the deliverable's "$30–200 / $20–80". So the "commodity-matched" finance positioning holds and is if
+>   anything more favorable (competitors got more expensive; our $49–199 flat sits within/below their range).
+>   No correction — the claim was deliberately a commodity-match, not an undercut. **All 4 module competitor
+>   anchors + both cost pillars are now grounded on current external pricing** (coaching Gong · care Intercom/
+>   Zendesk · base Monday/ClickUp/Asana · finance QuickBooks/Xero · STT · DeepSeek): mostly exact or
+>   conservative, one differentiator narrowed (base AI tax), finance ranges refreshed. The pricing rests on
+>   verified-current reality on both halves of "competitive + profitable." (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
