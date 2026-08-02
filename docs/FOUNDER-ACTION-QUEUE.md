@@ -159,6 +159,21 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > state-bleed; floating-write discipline; all other service-role/definer reads tenant/owner-scoped. The two items
 > below are what genuinely needs YOU.
 >
+> **🆕 2026-08-02 (pricing session, autonomous) — 2 access-gate hardening fixes shipped + 1 flagged.** Pushed,
+> gated, green (full suite + live 23/23):
+> - (1) **Sales-coach area gate** extracted to a pure, tested predicate `isSalesCoachMember` — it was inline +
+>   untested, so a future weakening passed CI silently; now guarded, matching the care sibling's doctrine
+>   (`0f2d77fa`). Behavior-preserving. Caught myself before a bad refactor (reusing the *manager* predicate would
+>   have locked staff reps out).
+> - (2) **`/dashboard/admin/crm` vendor-CRM shell** now server-gated `notFound()` on the SAME `isVendorAdmin`
+>   predicate the CRM API already uses — it was a client shell any *company* admin could render. Data was already
+>   403-gated (0089), so **no leak**; this closes the shell/existence exposure the route's own comment wants
+>   avoided ("don't confirm a vendor CRM exists"), mirroring `/founder` (`c082b4e1`).
+> - **FLAGGED — needs your call, green-light `"gate the admin dashboard shells"`:** the company-admin admin pages
+>   (`asset-readout` / `coach-readout` / `feedback`) are client shells whose DATA is `isAdmin`-gated (no leak) but
+>   which lack a layout-level redirect for non-admins → a non-admin sees a broken shell instead of a clean
+>   redirect. Mirrors the care gate; it's a multi-page behavior change + a predicate choice, so it's yours.
+>
 > **🆕 2026-08-02 — Coach KPI metrics silently go WRONG at scale (unbounded-query audit; VERIFIED, HIGH, founder-gated):**
 > An adversarial "unbounded list query" audit + my verification found a real honesty-thesis bug. **Confirmed fact:**
 > `supabase/config.toml max_rows = 1000` — PostgREST caps every unbounded `.select()` at 1000 rows (the codebase
