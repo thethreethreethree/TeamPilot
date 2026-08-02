@@ -27,7 +27,13 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > root** (`ELOSTATE-PRICING-STRUCTURE-2026-08-02.pdf` + the Phase 1–2 cost model) — kept out of git as IP.
 > Open decisions, in priority:
 > - **Two dials to finalize the meter:** (a) your actual **ElevenLabs plan tier** (volume discount off the
->   $/min list only *improves* margin); (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   $/min list only *improves* margin). **↳ RE-CONFIRM THE BASE RATE (web check 2026-08-02):** the model uses
+>   $0.08/min realtime STT, but third-party sources report ElevenLabs **cut STT pricing ~45% in May 2026**, and
+>   Scribe is quoted per-CHARACTER on subscription plans ($0.22/1k chars on Starter) — a different unit than the
+>   per-minute realtime rate. I could not confirm the exact CURRENT realtime-Scribe-v2 per-minute rate from
+>   public sources. Net: the modeled $0.08/min is likely STALE-HIGH, so margins are probably even better than
+>   shown (the model stays conservative) — but confirm the exact current realtime rate (from your ElevenLabs
+>   dashboard/contract) to lock the meter precisely. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
