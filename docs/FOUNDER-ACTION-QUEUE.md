@@ -20,6 +20,26 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > (withdrawn); one is real but only MEDIUM hygiene. So the finance security picture is far calmer than my
 > mid-session flags implied — details in the two blocks below.
 >
+> **🆕 2026-08-02 — PRICING STRUCTURE delivered (your directive) + its build path specced. 4 things need you.**
+> The competitive+profitable pricing recommendation is done and grounded in the actual cost model (hybrid:
+> per-seat base + flat size-banded modules + metered realtime-coaching, verified 76–79% gross margin across
+> small/mid/large, undercutting every incumbent). **The numbers live only in the untracked PDFs at the repo
+> root** (`ELOSTATE-PRICING-STRUCTURE-2026-08-02.pdf` + the Phase 1–2 cost model) — kept out of git as IP.
+> Open decisions, in priority:
+> - **Two dials to finalize the meter:** (a) your actual **ElevenLabs plan tier** (volume discount off the
+>   $/min list only *improves* margin); (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
+>   customer-facing pricing page.
+> - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
+>   session wall-clock; no billable-minute substrate exists. Design-ready (append-only, idempotent to prevent
+>   double-bill): `docs/proposals/2026-08-02-coaching-stt-usage-metering.md`.
+> - **`"build the entitlements model"`** — module fees + bundle assume multi-module + a coaching-rep seat, but
+>   `access_module` (0207) is a single-value pilot lock (care/sales_coach only). Design EXTENDS the pilot lock,
+>   never weakens it: `docs/proposals/2026-08-02-company-entitlements-model.md`.
+> - **4 red-team risks to weigh (guardrails, not blockers):** metering can suppress coaching usage → undermines
+>   the §3.4 month-2 intervention (mitigate w/ prepaid minute blocks); single-vendor (ElevenLabs) cost
+>   concentration (index the meter to STT cost); size-band gaming via sub-accounts; no defined trial/entry path.
+>
 > **🆕 2026-08-01 — Sales Coach priority directive + module accounts: SHIPPED (all live on elostate.com).**
 > Diagnosed "edits don't stick" (mode-specific edits + stale PWA/host — the edits WERE live; now mode-universal).
 > Shipped: flat nav (July-28 order) + **Strategy→One Liners** everywhere · **required session naming** on finish
