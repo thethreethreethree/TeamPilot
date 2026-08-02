@@ -39,6 +39,17 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > - **4 red-team risks to weigh (guardrails, not blockers):** metering can suppress coaching usage → undermines
 >   the §3.4 month-2 intervention (mitigate w/ prepaid minute blocks); single-vendor (ElevenLabs) cost
 >   concentration (index the meter to STT cost); size-band gaming via sub-accounts; no defined trial/entry path.
+> - **↳ COST-CONTROL GAP found tracing the data (real, relevant to the meter). `"cap live-coaching sessions"`.**
+>   Realtime coaching STT **is** built (browser streams to ElevenLabs Scribe v2 Realtime via a minted token;
+>   my "deferred" note was stale). The stream correctly stops on tab-close (WebSocket dies) and navigate-away
+>   (unmount → `stop()`), BUT there is **no idle-timeout and no max-session-duration auto-stop** — a rep who
+>   leaves the coaching tab open-and-idle keeps streaming silence to ElevenLabs at $0.08/min with no cap. That
+>   plausibly explains the pilot's 958-min (16-hr) session = **~$76 of STT on ONE abandoned session** if it
+>   streamed throughout. (Caveat to confirm: the ElevenLabs realtime *connection* may impose its own max
+>   duration — worth checking; the single-use token is time-bound for CONNECTING, which likely doesn't cap an
+>   active stream.) Recommend an **idle auto-stop** (e.g., stop after N min of silence, with a UI warning) + a
+>   **hard max-session cap** — you set the thresholds. This also bounds the per-session meter cost, so it
+>   composes with the pricing. `"cap live-coaching sessions"` and I build it + a test.
 > - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
 >   **17 ended coaching sessions across 3 reps in ~4 weeks**, median session **~6 min**, with one **958-min
 >   (16-hr) outlier that is a session left OPEN, not real coaching**. Two takeaways: (a) actual pilot coaching is
