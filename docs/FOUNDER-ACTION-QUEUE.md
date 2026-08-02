@@ -39,6 +39,13 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > - **4 red-team risks to weigh (guardrails, not blockers):** metering can suppress coaching usage → undermines
 >   the §3.4 month-2 intervention (mitigate w/ prepaid minute blocks); single-vendor (ElevenLabs) cost
 >   concentration (index the meter to STT cost); size-band gaming via sub-accounts; no defined trial/entry path.
+> - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
+>   **17 ended coaching sessions across 3 reps in ~4 weeks**, median session **~6 min**, with one **958-min
+>   (16-hr) outlier that is a session left OPEN, not real coaching**. Two takeaways: (a) actual pilot coaching is
+>   FAR below the 15 hrs/rep/mo the example bills assume — too thin to set the dial from data yet, so your
+>   real-world expectation is the input I need; (b) that 16-hr outlier is live proof you **cannot bill on
+>   `ended_at − started_at`** (wall-clock over-counts by orders of magnitude) — it concretely justifies the
+>   `"build the STT metering"` substrate before any usage billing goes live.
 >
 > **🆕 2026-08-02 — KPI metric-correctness finding (LIVE, needs your call). `"fix sessionsPerDay timezone"`.**
 > Auditing the coach KPI crons I found `sessionsPerDay` counts distinct active days by slicing the UTC
