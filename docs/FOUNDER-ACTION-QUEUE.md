@@ -38,6 +38,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   exactly:** DeepSeek-V4-Flash re-confirmed at $0.14/1M input-miss · $0.0028 cache-hit · $0.28/1M output
 >   (web, 2026-08-02) — matches the model to the digit, so the "AI ~free" pillar is grounded on CURRENT pricing
 >   (no change). Both major cost inputs now verified against current external rates.
+> - **↳ STRATEGIC OPTION the STT cut unlocks (connects two findings):** the $0.20/min meter was set at 2.5× the
+>   $0.08 cost. If the current STT rate is ~45% lower (~$0.044), you get a genuine CHOICE: **(a) keep $0.20/min**
+>   → the meter jumps to ~4.5× cost (~78% meter margin, was 60%) = more profit; or **(b) lower the meter** (e.g.
+>   ~$0.12/min, still ~2.7× cost / ~63% margin) → smaller overage bills, which directly mitigates the
+>   metering-SUPPRESSION red-team risk above (customers less likely to cap coaching to control cost), keeping the
+>   §3.4 month-2 intervention un-throttled — the mechanism the whole thesis is measured on. So the cost cut isn't
+>   just "better margin"; it buys down a real risk to the product's core proof. Your call on margin-vs-adoption,
+>   but confirm the current STT rate first (it sizes the choice).
 > - **↳ COMPETITIVE anchor re-confirmed (web, 2026-08-02) — undercut is CONSERVATIVE:** Gong (the coaching
 >   incumbent) is currently $1,200–1,600/user/yr + a $5,000–50,000 platform fee (tiered: ≤49u $5k+$1,600/user;
 >   50–99u $1,520; 100–249u $1,440) — matching the deliverable's "$1,600/user/yr + ~$5k platform." Effective
