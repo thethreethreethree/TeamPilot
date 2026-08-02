@@ -52,3 +52,19 @@ floor).
   forgotten tab).
 
 **Green-light phrase:** `"cap live-coaching sessions"` (± your IDLE_LIMIT / MAX_DURATION choices).
+
+---
+
+## Feasibility verified against the tree (2026-08-02)
+
+The "reuses existing silence detection" claim — the thing that makes this a *small* build — was confirmed in
+`src/lib/coach/v5/useLiveCoaching.ts` (not assumed):
+
+- **Per-frame RMS already computed:** `rms = Math.sqrt(sumSq / …)` at ~1006, gated against `VOICE_NOISE_FLOOR`
+  (~1007) so silence-between-words already reads as non-speech.
+- **A client-side silence/stall timer already exists:** "the client's stall timer fired (long silence)" (~432,
+  ~497) already drives cue behavior. The auto-stop cap is an *additional* consumer of that same signal, plus a
+  wall-clock `MAX_DURATION` — not a new audio-analysis subsystem.
+
+So the effort estimate is honest: an idle/max-duration auto-stop layered on machinery that already runs every
+frame, not a from-scratch build. Green-light phrase and gating unchanged.
