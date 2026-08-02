@@ -167,6 +167,18 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > - `"just disclose the cap for now"` — smaller stopgap: detect when a load hit 1000 and surface a §3.4 `capped:true`
 >   flag the KPI UI renders ("computed over your most recent N sessions"), matching the existing `assetReadout`
 >   pattern. Honest but not correct — turns a silent lie into a disclosed bound until the real fix lands.
+> - **↳ SCOPE EXPANSION (2026-08-02, second pass — the fix must cover more than the reliance metrics):** the same
+>   unbounded read also hits the **`coaching_sessions` parent read**, which feeds the *deal/session* Layer-1/2
+>   metrics (`conversionRate`/`closeRate`/`revenue`/`avgDealSize`/`sessionsPerDay`/`avgSessionDurationMin`) — a
+>   different axis than the transcript/cue reliance metrics above. It's unbounded in **three** places:
+>   `me/route.ts:47`, `team/route.ts:78`, AND the persistence **`kpi/compute-cron` (`:82`)** — the cron was not
+>   named in the original flag. Two things make the session read WORSE than a generic cap: it's
+>   `order(started_at ASC)`, so truncation keeps the **oldest** 1000 sessions and a mature team's KPIs freeze on
+>   their earliest data and never reflect recent performance (the opposite of the trajectory the thesis sells);
+>   and because the cron *persists* those numbers, the frozen-oldest value gets written into `kpi_snapshot` as the
+>   "current" truth. So `"fix the coach KPI aggregation"` should also cover the session-parent read across all
+>   three paths (me/team/cron), not only the transcript/cue child tables. (Verified: `config.toml max_rows=1000`;
+>   all three reads have no `.limit()`/`.range()`.)
 >
 > **🆕 2026-08-02 — Message threads load unbounded (same audit, MEDIUM, needs a "load older" UX decision):**
 > Read paths that load an entire thread with no limit → silently truncate past 1000 messages (order is ascending,
