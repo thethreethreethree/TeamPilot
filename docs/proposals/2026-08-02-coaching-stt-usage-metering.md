@@ -92,3 +92,22 @@ open-but-idle sessions correctly cost nothing.
   technical instrumentation; the meter rate lives only in the founder-held pricing deliverable.
 
 **Green-light phrase:** `"build the STT metering"`.
+
+---
+
+## ADDENDUM (2026-08-02) — under the simplified flat pricing, the PURPOSE shifts (design unchanged)
+
+The pricing pivoted to simple flat tiers (coaching is flat / fair-use, no customer-facing meter). This does
+NOT change the design in this doc — the `coaching_stt_usage_events` table is still exactly what's needed — but
+it changes WHY it exists, and if anything makes it MORE important:
+
+- **Was:** the substrate for *customer billing* (per-minute overage on the metered model).
+- **Now:** the substrate for **internal cost-tracking + fair-use enforcement**. Under flat pricing there is no
+  per-minute revenue recovery, so this is how you (a) spot a runaway-cost customer, (b) enforce the fair-use
+  ceiling the flat margins assume, and (c) measure real coached-minutes to price the coaching seat correctly.
+- **Pairs with `"cap live-coaching sessions"`:** flat pricing shifts cost-protection from the meter to the
+  product. Usage tracking (this doc) + the session cap together ARE the margin protection the flat model needs.
+
+The table, guards (append-only, idempotency, owner-check, tenant-pin) are all unchanged — only the consumer of
+the data changes (internal cost dashboards / fair-use checks, not a customer invoice line). Green-light phrase
+and gating unchanged.
