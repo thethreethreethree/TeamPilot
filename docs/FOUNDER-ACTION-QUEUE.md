@@ -60,7 +60,10 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   cause:** (a) no auto-close — an abandoned session stays 'active' forever; (b) duration metrics need
 >   `ended_at` (null for 85%) and dashboard/team-analytics filter `status='ended'/'reviewed'`, so those views +
 >   `avgSessionDurationMin` reflect only ~15% of sessions (a §3.5 completeness gap DISTINCT from the 1000-row
->   truncation). **CAVEAT (honest):** these span 2026-07-28→31, DURING your active dev of this flow (1 company,
+>   truncation). **SCOPE (checked the parallel):** C.A.R.E support conversations do NOT have this — 73% reach a
+>   terminal state (32 closed + 6 resolved vs 9 open + 5 in-conversation), so the §3.5 support-resolution metric
+>   IS well-grounded and the no-close is coaching-specific (the finish+name step), not a product-wide lifecycle
+>   problem — the fix is scoped to coaching alone. **CAVEAT (honest):** these span 2026-07-28→31, DURING your active dev of this flow (1 company,
 >   3 agents = likely you + testers), so much of the 85% is probably TEST churn, not production behavior — but
 >   the auto-close gap + metric-filtering are real either way. Fix = auto-set `status='ended'` when the live
 >   session stops (and/or a cleanup for stale 'active'); it composes with `"cap live-coaching sessions"` (same
