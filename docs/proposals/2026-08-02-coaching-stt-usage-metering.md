@@ -30,7 +30,9 @@ create table if not exists coaching_stt_usage_events (
   id                uuid primary key default gen_random_uuid(),
   session_id        uuid not null references coaching_sessions(id) on delete cascade,
   company_id        uuid not null references companies(id),   -- tenant scope + billing rollup
-  agent_id          uuid not null references auth.users(id),  -- per-rep attribution
+  agent_id          uuid not null references profiles(id),    -- per-rep attribution; MUST match
+                                                              -- coaching_sessions.agent_id (0070 → profiles),
+                                                              -- NOT auth.users, so joins/RLS stay consistent
   window_seq        int  not null,                            -- client-monotonic per session
   billable_seconds  int  not null check (billable_seconds > 0),
   stream_started_at timestamptz not null,
