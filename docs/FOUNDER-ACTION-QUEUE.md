@@ -40,6 +40,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   the §3.4 month-2 intervention (mitigate w/ prepaid minute blocks); single-vendor (ElevenLabs) cost
 >   concentration (index the meter to STT cost); size-band gaming via sub-accounts; no defined trial/entry path.
 >
+> **🆕 2026-08-02 — KPI metric-correctness finding (LIVE, needs your call). `"fix sessionsPerDay timezone"`.**
+> Auditing the coach KPI crons I found `sessionsPerDay` counts distinct active days by slicing the UTC
+> timestamp (`startedAt.slice(0,10)`), i.e. **UTC calendar days**. A rep working 9–5 in a west-of-UTC zone
+> straddles two UTC dates per workday, which roughly **halves** their reported sessions-per-day. This runs LIVE
+> in the agent's on-read view (not only the dormant cron), so it distorts a §3.5 thesis metric today. It's a
+> FLAG not a silent fix because the right zone is a product call (rep's tz? company's tz? — neither is stored
+> yet). Say `"fix sessionsPerDay timezone"` with which zone defines "a day" and I wire it + a test. (Also fixed
+> this session, no action: the KPI cron no longer silently drops a snapshot on insert-failure — `51cb2250`.)
+>
 > **🆕 2026-08-01 — Sales Coach priority directive + module accounts: SHIPPED (all live on elostate.com).**
 > Diagnosed "edits don't stick" (mode-specific edits + stale PWA/host — the edits WERE live; now mode-universal).
 > Shipped: flat nav (July-28 order) + **Strategy→One Liners** everywhere · **required session naming** on finish
