@@ -45,9 +45,12 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   (unmount → `stop()`), BUT there is **no idle-timeout and no max-session-duration auto-stop** — a rep who
 >   leaves the coaching tab open-and-idle keeps streaming silence to ElevenLabs at $0.08/min with no cap. That
 >   plausibly explains the pilot's 958-min (16-hr) session = **~$76 of STT on ONE abandoned session** if it
->   streamed throughout. (Caveat to confirm: the ElevenLabs realtime *connection* may impose its own max
->   duration — worth checking; the single-use token is time-bound for CONNECTING, which likely doesn't cap an
->   active stream.) Recommend an **idle auto-stop** (e.g., stop after N min of silence, with a UI warning) + a
+>   streamed throughout. **CONFIRMED by reading useLiveCoaching.ts: the client streams CONTINUOUSLY** —
+>   `ws.send(input_audio_chunk)` is outside the RMS gate, so silence IS uploaded and billed; the RMS check is
+>   attribution-only, and `commit_strategy=vad` is server-side (commit boundaries), not upload gating. So the
+>   cost is real, not speculative. (One residual unknown, vendor-side: whether ElevenLabs' realtime *connection*
+>   self-imposes a max duration — not bounded in our code.) Recommend an **idle auto-stop** (e.g., stop after N
+>   min of silence, with a UI warning) + a
 >   **hard max-session cap** — you set the thresholds. This also bounds the per-session meter cost, so it
 >   composes with the pricing. `"cap live-coaching sessions"` and I build it + a test.
 > - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
