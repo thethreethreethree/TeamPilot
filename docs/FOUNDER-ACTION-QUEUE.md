@@ -20,135 +20,33 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > (withdrawn); one is real but only MEDIUM hygiene. So the finance security picture is far calmer than my
 > mid-session flags implied — details in the two blocks below.
 >
-> **🆕 2026-08-02 — PRICING STRUCTURE delivered (your directive) + its build path specced. 4 things need you.**
-> The competitive+profitable pricing recommendation is done and grounded in the actual cost model (hybrid:
-> per-seat base + flat size-banded modules + metered realtime-coaching, verified 76–79% gross margin across
-> small/mid/large, undercutting every incumbent). **The numbers live only in the untracked PDFs at the repo
-> root** (`ELOSTATE-PRICING-STRUCTURE-2026-08-02.pdf` + the Phase 1–2 cost model) — kept out of git as IP.
-> Open decisions, in priority:
-> - **Two dials to finalize the meter:** (a) your actual **ElevenLabs plan tier** (volume discount off the
->   $/min list only *improves* margin). **↳ BILLING UNIT CONFIRMED, RATE TO RE-CONFIRM (web check 2026-08-02):**
->   the model's PER-MINUTE structure is CORRECT — ElevenLabs bills STT by audio DURATION, and "for agents,
->   Conversational AI is billed by the minute, not by character"; Scribe v2 Realtime (what the coach uses) is
->   the agents-platform path. (The per-CHARACTER quote seen elsewhere — $0.22/1k — is the separate BATCH Scribe
->   API, a different product.) So the cost model's structure holds. The one open item is the exact CURRENT
->   per-minute rate: ElevenLabs reportedly **cut STT pricing ~45% in May 2026**, so the modeled $0.08/min is
->   likely STALE-HIGH (real margins even better — model stays conservative). Confirm the current realtime rate
->   from your ElevenLabs dashboard/contract to lock the meter precisely. **↳ The OTHER cost pillar checks out
->   exactly:** DeepSeek-V4-Flash re-confirmed at $0.14/1M input-miss · $0.0028 cache-hit · $0.28/1M output
->   (web, 2026-08-02) — matches the model to the digit, so the "AI ~free" pillar is grounded on CURRENT pricing
->   (no change). Both major cost inputs now verified against current external rates.
-> - **↳ STRATEGIC OPTION the STT cut unlocks (connects two findings):** the $0.20/min meter was set at 2.5× the
->   $0.08 cost. If the current STT rate is ~45% lower (~$0.044), you get a genuine CHOICE: **(a) keep $0.20/min**
->   → the meter jumps to ~4.5× cost (~78% meter margin, was 60%) = more profit; or **(b) lower the meter** (e.g.
->   ~$0.12/min, still ~2.7× cost / ~63% margin) → smaller overage bills, which directly mitigates the
->   metering-SUPPRESSION red-team risk above (customers less likely to cap coaching to control cost), keeping the
->   §3.4 month-2 intervention un-throttled — the mechanism the whole thesis is measured on. So the cost cut isn't
->   just "better margin"; it buys down a real risk to the product's core proof. Your call on margin-vs-adoption,
->   but confirm the current STT rate first (it sizes the choice).
-> - **↳ COMPETITIVE anchor re-confirmed (web, 2026-08-02) — undercut is CONSERVATIVE:** Gong (the coaching
->   incumbent) is currently $1,200–1,600/user/yr + a $5,000–50,000 platform fee (tiered: ≤49u $5k+$1,600/user;
->   50–99u $1,520; 100–249u $1,440) — matching the deliverable's "$1,600/user/yr + ~$5k platform." Effective
->   cost is **$300–500/user/mo for small teams** once the platform fee amortizes. So vs our ~$47–66/user/mo
->   coaching all-in, the real undercut is LARGER than the deliverable's stated "50–65%" for small/mid teams
->   (the $5k+ platform fee dominates) — the claim is accurate and conservative. **↳ Care anchor also confirmed
->   exact (web, 2026-08-02):** Intercom Fin $0.99/resolution (+$49/mo base incl. 50) and Zendesk ~$1.50
->   committed/$2.00 PAYG per resolution + $55–115/agent — matching the deliverable to the digit. The
->   "per-resolution trap" differentiator holds on CURRENT pricing: both incumbents bill per-resolution while
->   our C.A.R.E is flat/unlimited, so high-support-volume customers pay unboundedly with them, flat with us.
->   Both halves of the directive ("competitive" + "profitable") are now grounded on current external data
->   (coaching + care competitor anchors + STT + DeepSeek all verified; finance competitor is commodity,
->   lower-value to re-ground).
-> - **↳ BASE-module correction (web, 2026-08-02) — the "no AI tax" differentiator is NARROWER than stated:**
->   grounding team-mgmt competitors found ClickUp DOES charge separately ($7 + $9 Brain AI = matches the
->   deliverable), BUT **Monday ($9–19/seat) now INCLUDES AI** with no add-on, and Asana ($10.99+) includes AI
->   (with metered credits). So the deliverable's "$15, AI included, no AI tax" framing holds as a clear
->   differentiator only vs ClickUp — Monday/Asana bundle AI too. The $15 base is still competitive (mid-range of
->   $7–25), but position it as "AI-included at a mid-market price + the cross-system diagnostic engine" rather
->   than "uniquely no AI tax." Honest narrowing of an over-claimed edge (§3.4).
-> - **↳ FINANCE anchor (web, 2026-08-02) — cited ranges slightly dated, claim holds:** current QuickBooks
->   $20–275/mo (Plus rose $99→$140 in Aug 2026) and Xero $25–90/mo (rising again Oct 2026) are both HIGHER than
->   the deliverable's "$30–200 / $20–80". So the "commodity-matched" finance positioning holds and is if
->   anything more favorable (competitors got more expensive; our $49–199 flat sits within/below their range).
->   No correction — the claim was deliberately a commodity-match, not an undercut. **All 4 module competitor
->   anchors + both cost pillars are now grounded on current external pricing**
-> - **↳ COMPETITIVE-FRAMING GAP found (web, 2026-08-02) — the deliverable misses the INTEGRATED-platform
->   category, and it sharpens the real differentiator.** The deliverable compares per-module (Gong/Intercom/
->   Monday/QuickBooks), but integrated all-in-one platforms exist (HubSpot, Bitrix24, 1CRM, Productive,
->   Insightly) that already bundle CRM + project mgmt + invoicing + some sales tools — arguably the more direct
->   threat to a "one platform" pitch. **The differentiation still holds and gets sharper:** NONE of them have
->   (a) real-time AI sales coaching (live in-call cues) or (b) the cross-system diagnostic/honesty engine
->   (events→signals→problems→resolutions + the §3.2 understanding gate). So position against integrated
->   platforms on those TWO things (not "integration" per se — they have that too), and per-module on price.
->   Recommend adding one line to the deliverable's competitive section acknowledging integrated platforms and
->   naming the real edge. (Not yet added to the PDF — it's a positioning call; say the word and I add it.)
-> - **↳ The MODEL itself is market-validated + the suppression risk is CONFIRMED (web, 2026-08-02):** industry
->   research shows **hybrid pricing dominates** (43% of SaaS now → 61% by end-2026) and usage-based is preferred
->   (Gartner: 70% over per-seat by 2026) — so the deliverable's base + flat-modules + metered structure is the
->   winning shape, not a gamble. **AND it externally confirms the metering-suppression red-team flag:** 2026 is
->   swinging back toward predictability — providers are "tightening caps on usage-based plans," and flat billing
->   "reduces involuntary churn and support 30–40% vs metered" + wins on trial-to-paid conversion. So the fix I
->   proposed — **prepaid committed-minute blocks / a cap on the metered portion** — is the market-standard
->   response, not a nice-to-have. Net: keep the hybrid model (validated), but pair the $0.20 meter with a
->   predictability mechanism (committed blocks or a monthly cap) to protect conversion + adoption. (coaching Gong · care Intercom/
->   Zendesk · base Monday/ClickUp/Asana · finance QuickBooks/Xero · STT · DeepSeek): mostly exact or
->   conservative, one differentiator narrowed (base AI tax), finance ranges refreshed. The pricing rests on
->   verified-current reality on both halves of "competitive + profitable." (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
->   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
->   customer-facing pricing page.
-> - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
->   session wall-clock; no billable-minute substrate exists. Design-ready (append-only, idempotent to prevent
->   double-bill): `docs/proposals/2026-08-02-coaching-stt-usage-metering.md`.
-> - **`"build the entitlements model"`** — module fees + bundle assume multi-module + a coaching-rep seat, but
->   `access_module` (0207) is a single-value pilot lock (care/sales_coach only). Design EXTENDS the pilot lock,
->   never weakens it: `docs/proposals/2026-08-02-company-entitlements-model.md`.
-> - **4 red-team risks to weigh (guardrails, not blockers):** metering can suppress coaching usage → undermines
->   the §3.4 month-2 intervention (mitigate w/ prepaid minute blocks); single-vendor (ElevenLabs) cost
->   concentration (index the meter to STT cost); size-band gaming via sub-accounts; no defined trial/entry path.
-> - **↳ COST-CONTROL GAP found tracing the data (real, relevant to the meter). `"cap live-coaching sessions"`.**
->   Realtime coaching STT **is** built (browser streams to ElevenLabs Scribe v2 Realtime via a minted token;
->   my "deferred" note was stale). The stream correctly stops on tab-close (WebSocket dies) and navigate-away
->   (unmount → `stop()`), BUT there is **no idle-timeout and no max-session-duration auto-stop** — a rep who
->   leaves the coaching tab open-and-idle keeps streaming silence to ElevenLabs at $0.08/min with no cap. That
->   plausibly explains the pilot's 958-min (16-hr) session = **~$76 of STT on ONE abandoned session** if it
->   streamed throughout. **CONFIRMED by reading useLiveCoaching.ts: the client streams CONTINUOUSLY** —
->   `ws.send(input_audio_chunk)` is outside the RMS gate, so silence IS uploaded and billed; the RMS check is
->   attribution-only, and `commit_strategy=vad` is server-side (commit boundaries), not upload gating. So the
->   cost is real, not speculative. (One residual unknown, vendor-side: whether ElevenLabs' realtime *connection*
->   self-imposes a max duration — not bounded in our code.) Recommend an **idle auto-stop** (e.g., stop after N
->   min of silence, with a UI warning) + a
->   **hard max-session cap** — you set the thresholds. This also bounds the per-session meter cost, so it
->   composes with the pricing. `"cap live-coaching sessions"` and I build it + a test.
-> - **↳ SYSTEMIC finding (live query, 2026-08-02): 95 of 112 coaching sessions (85%) are stuck `status='active'`,
->   `ended_at` NULL, aged 29–102+ hrs. `"auto-close coaching sessions"`.** Setting `status='ended'` requires a
->   SEPARATE manual finish+name step on the session page (`[id]/page.tsx:234`), distinct from Stop (which only
->   halts the stream). Reps click Stop but skip finish → sessions pile up open. **Consequences regardless of
->   cause:** (a) no auto-close — an abandoned session stays 'active' forever; (b) duration metrics need
->   `ended_at` (null for 85%) and dashboard/team-analytics filter `status='ended'/'reviewed'`, so those views +
->   `avgSessionDurationMin` reflect only ~15% of sessions (a §3.5 completeness gap DISTINCT from the 1000-row
->   truncation). **SCOPE (checked the parallel):** C.A.R.E support conversations do NOT have this — 73% reach a
->   terminal state (32 closed + 6 resolved vs 9 open + 5 in-conversation), so the §3.5 support-resolution metric
->   IS well-grounded and the no-close is coaching-specific (the finish+name step), not a product-wide lifecycle
->   problem — the fix is scoped to coaching alone. **CAVEAT (honest):** these span 2026-07-28→31, DURING your active dev of this flow (1 company,
->   3 agents = likely you + testers), so much of the 85% is probably TEST churn, not production behavior — but
->   the auto-close gap + metric-filtering are real either way. Fix = auto-set `status='ended'` when the live
->   session stops (and/or a cleanup for stale 'active'); it composes with `"cap live-coaching sessions"` (same
->   root: no reliable close) and fixes cost + data quality + metric completeness together.
-> - **↳ HONESTY CORRECTION on the pilot scale (live query, 2026-08-02):** Phase 1 framed the pilot as "14
->   companies / 13 users" — but **only 1 of the 14 companies has real activity** (8 members, 1,659 events; the
->   primary/internal company). The other 13 are empty or test/dormant (≤5 events; one has 20 events but 0
->   members = orphan test co). So the pricing's **cost model is soundly grounded** (real infra rates + the one
->   active company's actual usage across coaching/care/events), but there is **no demand/market validation** in
->   the pilot yet — 0 external active customers. That's normal PRE-LAUNCH, and the deliverable already frames
->   usage as forward projections — but the "14 companies" figure overstated it; the honest base is one active
->   (internal) team. The pricing is a cost-grounded + market-researched RECOMMENDATION, not demand-validated.
-> - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
->   **17 ended coaching sessions across 3 reps in ~4 weeks**, median session **~6 min**, with one **958-min
->   (16-hr) outlier that is a session left OPEN, not real coaching**. Two takeaways: (a) actual pilot coaching is
->   FAR below the 15 hrs/rep/mo the example bills assume — too thin to set the dial from data yet, so your
->   real-world expectation is the input I need; (b) that 16-hr outlier is live proof you **cannot bill on
->   `ended_at − started_at`** (wall-clock over-counts by orders of magnitude) — it concretely justifies the
->   `"build the STT metering"` substrate before any usage billing goes live.
+> **🆕 2026-08-02 — PRICING STRUCTURE delivered + externally validated + build-path specced. Your decisions below.**
+> The competitive+profitable recommendation (hybrid: per-seat base + flat size-banded modules + metered
+> realtime-coaching; 76–79% margin; undercuts every incumbent) is delivered as the untracked PDFs at repo root
+> (`ELOSTATE-PRICING-STRUCTURE-2026-08-02.pdf` + the Phase 1–2 cost model — IP, kept out of git).
+>
+> **DECISIONS I need from you:**
+> - **Two dials to finalize the meter:** (a) your **ElevenLabs plan tier / current realtime rate** — the rate
+>   likely dropped ~45% in 2026, so the modeled $0.08/min is conservative (real margins even better); (b) a
+>   realistic **coached-hours/rep-month** (bills assume 15h; the pilot shows far less, too thin to set from data).
+>   Give me either and I lock the meter + produce a customer-facing pricing page.
+> - **Predictability mechanism (recommended, market-validated):** pair the $0.20 meter with **committed-minute
+>   blocks or a monthly cap** — the standard fix for metered-pricing churn. The STT cut lets you EITHER keep $0.20
+>   (more margin) OR lower it (~$0.12) to reduce suppression — your margin-vs-adoption call.
+> - **Build triggers (design-ready specs in `docs/proposals/`):**
+>   - `"build the STT metering"` — no billable-minute substrate exists (only wall-clock); append-only + idempotent.
+>   - `"build the entitlements model"` — `access_module` (0207) is a single-value pilot lock; needs multi-module + a coaching-rep seat.
+>   - `"auto-close coaching sessions"` — 85% of sessions stuck `active` (finish-step skipped) → duration/§3.5 metrics see only ~15%; also fixes cost. (0070 trigger already stamps `ended_at` on the transition — small fix.)
+>   - `"cap live-coaching sessions"` — no idle/max-duration stop → an abandoned tab streams STT uncapped (pilot's 958-min session ≈ $76). Reuses the existing silence detection.
+>   - `"add the integrated-platform line"` — the deliverable compares per-module but misses integrated platforms (HubSpot/Bitrix24); the real edge vs them is real-time coaching + the diagnostic engine (positioning call).
+>
+> **GROUNDING — all verified against CURRENT external data (2026-08-02); mostly exact or conservative, one correction:**
+> - **Costs:** STT billing is per-minute (confirmed, not per-character); modeled $0.08/min likely stale-high after ElevenLabs' ~45% 2026 cut → margins conservative. DeepSeek exact ($0.14/$0.0028/$0.28 per 1M).
+> - **Competitors:** Gong $1.2–1.6k/user/yr + $5k–50k platform → undercut UNDERSTATED for small teams · Intercom $0.99/res, Zendesk ~$1.50–2/res + $55–115 seat → per-resolution trap holds · QuickBooks $20–275 / Xero $25–90 → commodity-match holds · **BASE CORRECTION:** "no AI tax" narrowed — Monday/Asana now bundle AI, clear only vs ClickUp's +$9; position on the diagnostic engine at a mid-market price, not "uniquely no AI tax."
+> - **Model + risk:** hybrid + metered is market-validated (dominant 43→61%; usage-based preferred). The metering-suppression red-team risk is CONFIRMED by market data (flat billing cuts churn 30–40%, wins trial-to-paid) → the predictability mechanism above is the market-standard fix, not optional.
+> - **Roadmap (forward-looking):** the market is moving to outcome-based pricing; Elostate's §3.5 thesis already MEASURES outcomes no competitor tracks → an outcome-based tier is a unique differentiator once the thesis proves out (not v1).
+>
+> **PILOT REALITY (honest, §3.4):** only **1 of 14 companies is active** (internal; the other 13 empty/test) → the cost model is grounded on real usage, but there is **no demand validation yet** (0 external active customers — normal pre-launch). Coaching usage is sparse (17 ended sessions, median ~6 min). So the pricing is a **cost-grounded + externally-market-validated RECOMMENDATION, not demand-validated.** Full grounding detail is in this file's git history (commits 87865fa9…0239fa89).
 >
 > **🆕 2026-08-02 — KPI metric-correctness finding (LIVE, needs your call). `"fix sessionsPerDay timezone"`.**
 > Auditing the coach KPI crons I found `sessionsPerDay` counts distinct active days by slicing the UTC
