@@ -37,7 +37,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   from your ElevenLabs dashboard/contract to lock the meter precisely. **↳ The OTHER cost pillar checks out
 >   exactly:** DeepSeek-V4-Flash re-confirmed at $0.14/1M input-miss · $0.0028 cache-hit · $0.28/1M output
 >   (web, 2026-08-02) — matches the model to the digit, so the "AI ~free" pillar is grounded on CURRENT pricing
->   (no change). Both major cost inputs now verified against current external rates. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   (no change). Both major cost inputs now verified against current external rates.
+> - **↳ COMPETITIVE anchor re-confirmed (web, 2026-08-02) — undercut is CONSERVATIVE:** Gong (the coaching
+>   incumbent) is currently $1,200–1,600/user/yr + a $5,000–50,000 platform fee (tiered: ≤49u $5k+$1,600/user;
+>   50–99u $1,520; 100–249u $1,440) — matching the deliverable's "$1,600/user/yr + ~$5k platform." Effective
+>   cost is **$300–500/user/mo for small teams** once the platform fee amortizes. So vs our ~$47–66/user/mo
+>   coaching all-in, the real undercut is LARGER than the deliverable's stated "50–65%" for small/mid teams
+>   (the $5k+ platform fee dominates) — the claim is accurate and conservative. Both halves of the directive
+>   ("competitive" + "profitable") are now grounded on current external data. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
