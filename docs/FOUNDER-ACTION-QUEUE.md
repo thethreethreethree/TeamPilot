@@ -53,6 +53,18 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   min of silence, with a UI warning) + a
 >   **hard max-session cap** — you set the thresholds. This also bounds the per-session meter cost, so it
 >   composes with the pricing. `"cap live-coaching sessions"` and I build it + a test.
+> - **↳ SYSTEMIC finding (live query, 2026-08-02): 95 of 112 coaching sessions (85%) are stuck `status='active'`,
+>   `ended_at` NULL, aged 29–102+ hrs. `"auto-close coaching sessions"`.** Setting `status='ended'` requires a
+>   SEPARATE manual finish+name step on the session page (`[id]/page.tsx:234`), distinct from Stop (which only
+>   halts the stream). Reps click Stop but skip finish → sessions pile up open. **Consequences regardless of
+>   cause:** (a) no auto-close — an abandoned session stays 'active' forever; (b) duration metrics need
+>   `ended_at` (null for 85%) and dashboard/team-analytics filter `status='ended'/'reviewed'`, so those views +
+>   `avgSessionDurationMin` reflect only ~15% of sessions (a §3.5 completeness gap DISTINCT from the 1000-row
+>   truncation). **CAVEAT (honest):** these span 2026-07-28→31, DURING your active dev of this flow (1 company,
+>   3 agents = likely you + testers), so much of the 85% is probably TEST churn, not production behavior — but
+>   the auto-close gap + metric-filtering are real either way. Fix = auto-set `status='ended'` when the live
+>   session stops (and/or a cleanup for stale 'active'); it composes with `"cap live-coaching sessions"` (same
+>   root: no reliable close) and fixes cost + data quality + metric completeness together.
 > - **↳ DATA CHECK on the coached-hours dial (queried the live pilot read-only, 2026-08-02):** the pilot has only
 >   **17 ended coaching sessions across 3 reps in ~4 weeks**, median session **~6 min**, with one **958-min
 >   (16-hr) outlier that is a session left OPEN, not real coaching**. Two takeaways: (a) actual pilot coaching is
