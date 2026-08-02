@@ -173,6 +173,13 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   (`asset-readout` / `coach-readout` / `feedback`) are client shells whose DATA is `isAdmin`-gated (no leak) but
 >   which lack a layout-level redirect for non-admins → a non-admin sees a broken shell instead of a clean
 >   redirect. Mirrors the care gate; it's a multi-page behavior change + a predicate choice, so it's yours.
+> - **VERIFIED CLEAN (no action) — finance data access:** audited the books (the most sensitive area). Every
+>   finance RLS policy is `company_id = auth_company_id() AND fin_can_view()` (reads) / `fin_can_enter()` /
+>   `fin_can_configure()` (writes) — i.e. **tenant-scoped AND finance-role-scoped**. `fin_effective_role()`
+>   returns null for a member with no finance role (CEO/COO/admin bootstrap to `cfo`), so a junior employee
+>   **cannot** read payroll or the ledger. `/dashboard/finance` is a client shell with no layout gate, but unlike
+>   the admin shells it shows an explicit *"requires a controller/CFO or admin role"* message on the RLS 403 —
+>   reasonable UX. So a finance shell-gate is optional polish, NOT a security need.
 >
 > **🆕 2026-08-02 — Coach KPI metrics silently go WRONG at scale (unbounded-query audit; VERIFIED, HIGH, founder-gated):**
 > An adversarial "unbounded list query" audit + my verification found a real honesty-thesis bug. **Confirmed fact:**
