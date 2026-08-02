@@ -43,8 +43,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 >   50–99u $1,520; 100–249u $1,440) — matching the deliverable's "$1,600/user/yr + ~$5k platform." Effective
 >   cost is **$300–500/user/mo for small teams** once the platform fee amortizes. So vs our ~$47–66/user/mo
 >   coaching all-in, the real undercut is LARGER than the deliverable's stated "50–65%" for small/mid teams
->   (the $5k+ platform fee dominates) — the claim is accurate and conservative. Both halves of the directive
->   ("competitive" + "profitable") are now grounded on current external data. (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
+>   (the $5k+ platform fee dominates) — the claim is accurate and conservative. **↳ Care anchor also confirmed
+>   exact (web, 2026-08-02):** Intercom Fin $0.99/resolution (+$49/mo base incl. 50) and Zendesk ~$1.50
+>   committed/$2.00 PAYG per resolution + $55–115/agent — matching the deliverable to the digit. The
+>   "per-resolution trap" differentiator holds on CURRENT pricing: both incumbents bill per-resolution while
+>   our C.A.R.E is flat/unlimited, so high-support-volume customers pay unboundedly with them, flat with us.
+>   Both halves of the directive ("competitive" + "profitable") are now grounded on current external data
+>   (coaching + care competitor anchors + STT + DeepSeek all verified; base/finance competitors are commodity/
+>   structural claims, lower-value to re-ground). (b) a realistic **coached-hours/rep-month** (the bills assume 15h — it's
 >   the single most valuable thing to measure in the pilot). Give me either and I lock the meter + produce a
 >   customer-facing pricing page.
 > - **`"build the STT metering"`** — the pricing meters realtime-coaching minutes, but the system tracks only
