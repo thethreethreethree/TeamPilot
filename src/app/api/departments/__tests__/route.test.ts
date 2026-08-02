@@ -16,8 +16,8 @@ vi.mock("@/lib/data/departments", () => ({
 }));
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { createDepartment } from "@/lib/data/departments";
-import { POST } from "../route";
+import { createDepartment, renameDepartment } from "@/lib/data/departments";
+import { POST, PATCH } from "../route";
 
 const setAuth = (a: unknown) =>
   (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(a);
@@ -52,5 +52,39 @@ describe("POST /api/departments — admin gate + name validation", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).department).toMatchObject({ id: "d1" });
     expect(createDepartment).toHaveBeenCalledWith({ name: "Sales", description: "The sales team" });
+  });
+});
+
+describe("PATCH /api/departments — rename validation (parity with create)", () => {
+  const patchReq = (body: unknown) =>
+    ({ json: async () => body }) as unknown as Parameters<typeof PATCH>[0];
+
+  it("403 for a non-admin caller (no rename)", async () => {
+    setAuth({ isAdmin: false, companyId: "co1" });
+    expect((await PATCH(patchReq({ id: "d1", name: "New" }))).status).toBe(403);
+    expect(renameDepartment).not.toHaveBeenCalled();
+  });
+
+  it("400 when the rename name is > 80 chars — the fix: rename enforces the SAME 1-80 rule as create", async () => {
+    // Detection test for the parity fix. Before it, the rename path checked only non-empty, so an 81-char
+    // name (which create rejects) would pass straight to renameDepartment. Now it is rejected symmetrically.
+    setAuth({ isAdmin: true, companyId: "co1" });
+    const res = await PATCH(patchReq({ id: "d1", name: "x".repeat(81) }));
+    expect(res.status).toBe(400);
+    expect(renameDepartment).not.toHaveBeenCalled();
+  });
+
+  it("400 when the rename name is empty", async () => {
+    setAuth({ isAdmin: true, companyId: "co1" });
+    expect((await PATCH(patchReq({ id: "d1", name: "   " }))).status).toBe(400);
+    expect(renameDepartment).not.toHaveBeenCalled();
+  });
+
+  it("200 for an admin renaming to a valid name — passes the trimmed name through", async () => {
+    setAuth({ isAdmin: true, companyId: "co1" });
+    (renameDepartment as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ id: "d1", name: "Growth" });
+    const res = await PATCH(patchReq({ id: "d1", name: "  Growth  " }));
+    expect(res.status).toBe(200);
+    expect(renameDepartment).toHaveBeenCalledWith("d1", "Growth", undefined);
   });
 });
