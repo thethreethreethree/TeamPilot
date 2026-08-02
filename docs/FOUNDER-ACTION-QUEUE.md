@@ -20,22 +20,25 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > (withdrawn); one is real but only MEDIUM hygiene. So the finance security picture is far calmer than my
 > mid-session flags implied — details in the two blocks below.
 >
-> **🆕 2026-08-02 — PRICING STRUCTURE delivered + externally validated + build-path specced. Your decisions below.**
-> The competitive+profitable recommendation (hybrid: per-seat base + flat size-banded modules + metered
-> realtime-coaching; 76–79% margin; undercuts every incumbent) is delivered as the untracked PDFs at repo root
-> (`ELOSTATE-PRICING-STRUCTURE-2026-08-02.pdf` + the Phase 1–2 cost model — IP, kept out of git).
+> **🆕 2026-08-02 (LATEST) — PRICING SIMPLIFIED per your request → 2 clean client-facing options delivered, awaiting your pick.**
+> You found the hybrid model too complex; I rebuilt it as simple, market-referenced pricing. **Two options
+> (both untracked PDFs at repo root):**
+> - **A — pure 3 tiers** (`ELOSTATE-PRICING-SIMPLE-3TIER-2026-08-02.pdf`): Starter $15 · Business $39 · Performance
+>   $99, all whole-account per-user. Simplest; best for sales-LED teams (weak for MIXED teams — a 50-user/5-rep
+>   team pays $99×50 to coach 5 people).
+> - **B — 2 tiers + coaching add-on** (`ELOSTATE-PRICING-SIMPLE-OptionB-2026-08-02.pdf`, RECOMMENDED): Starter $15 ·
+>   Business $39 · **+ AI Coach $60/rep**. Coaching priced per actual rep → cheaper than Gong for EVERY team shape.
+> Margins healthy both ways (84–92% on the base tiers; coaching add-on 52–74%). **YOUR DECISION: A vs B + any
+> price/name/feature tuning** (the $60/rep coaching seat is the main tunable — $60–75). The old complex hybrid
+> PDF is superseded for customer-facing use but kept as the internal cost model. All the external grounding
+> below informed BOTH options.
 >
-> **DECISIONS I need from you:**
-> - **Two dials to finalize the meter:** (a) your **ElevenLabs plan tier / current realtime rate** — the rate
->   likely dropped ~45% in 2026, so the modeled $0.08/min is conservative (real margins even better); (b) a
->   realistic **coached-hours/rep-month** (bills assume 15h; the pilot shows far less, too thin to set from data).
->   Give me either and I lock the meter + produce a customer-facing pricing page.
-> - **Predictability mechanism (recommended, market-validated):** pair the $0.20 meter with **committed-minute
->   blocks or a monthly cap** — the standard fix for metered-pricing churn. The STT cut lets you EITHER keep $0.20
->   (more margin) OR lower it (~$0.12) to reduce suppression — your margin-vs-adoption call.
-> - **Build triggers (design-ready specs in `docs/proposals/`):**
->   - `"build the STT metering"` — no billable-minute substrate exists (only wall-clock); append-only + idempotent.
->   - `"build the entitlements model"` — `access_module` (0207) is a single-value pilot lock; needs multi-module + a coaching-rep seat.
+> **Build triggers (design-ready specs in `docs/proposals/`) — still apply; two roles shift under the simple model:**
+> - `"build the entitlements model"` — MORE relevant now: the simple tiers (+ optional coaching seat in B) need
+>   tier-gating; `access_module` (0207) is a single-value pilot lock. `docs/proposals/2026-08-02-company-entitlements-model.md`.
+> - `"build the STT metering"` — role SHIFTS: the customer now sees FLAT / fair-use (no visible meter), so this
+>   substrate is for INTERNAL cost-tracking + fair-use enforcement, not customer billing. Still needed (you can't
+>   enforce fair-use or watch cost without it). `docs/proposals/2026-08-02-coaching-stt-usage-metering.md`.
 >   - `"auto-close coaching sessions"` — 85% of sessions stuck `active` (finish-step skipped) → duration/§3.5 metrics see only ~15%; also fixes cost. (0070 trigger already stamps `ended_at` on the transition — small fix.)
 >   - `"cap live-coaching sessions"` — no idle/max-duration stop → an abandoned tab streams STT uncapped (pilot's 958-min session ≈ $76). Reuses the existing silence detection.
 >   - `"add the integrated-platform line"` — the deliverable compares per-module but misses integrated platforms (HubSpot/Bitrix24); the real edge vs them is real-time coaching + the diagnostic engine (positioning call).
