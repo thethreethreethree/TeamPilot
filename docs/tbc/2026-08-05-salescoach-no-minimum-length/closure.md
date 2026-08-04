@@ -25,6 +25,16 @@ were flipped to always-generate-but-still-grounded, and the engine length floors
   in-call) and `salesWhyPatterns` (multi-session aggregate) have their own minimums for real reasons
   (delta comparison / statistical aggregate), not "minimum time" on a finished call. See check.md's sweep.
 
+## Holistic ripple traced — Sales ELO (§1.5, verified benign 2026-08-05)
+Short sessions now generate dissects, and `salesElo.getAgentEloGames` turns each dissected session into an
+ELO "game". Concern: would a rep's quick CLOSES (short, fewer strengths) now drag their rating down? Traced
+`scoreGame` — NO. The game score is half OUTCOME + half QUALITY, and quality is `quality01 = strengths /
+(strengths + growthAreas)` — a RATIO, not a count. A short winning call (1 strength / 0 growth → quality
+1.0; outcome "sold" → high) scores WELL. So the change does not count-penalize short calls; it correctly
+makes quick wins COUNT toward the rating where they were previously excluded (< the old 3-segment floor) —
+aligned with the founder's "value short calls" intent. The per-agent 500 window (salesElo:233) only
+truncates past ~500 dissects, and ELO is legitimately recency-weighted, so no unfairness there either.
+
 ## Flagged, not fixed (§3.3)
 - None new. (The separately-tracked transcript-collision item in the founder queue is a data issue and is
   unaffected by this change.)
