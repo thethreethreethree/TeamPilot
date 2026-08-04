@@ -26,7 +26,7 @@ vi.mock("@/components/landing/LandingPage", () => ({ LandingPage: () => null }))
 import { createClient } from "@/lib/supabase/server";
 import { resolveUserLanding } from "@/lib/nav/landing";
 import { redirect } from "next/navigation";
-import Home from "../page";
+import Home, { metadata } from "../page";
 
 const asMock = (x: unknown) => x as ReturnType<typeof vi.fn>;
 
@@ -68,5 +68,31 @@ describe("Home (`/`) routing", () => {
     asMock(resolveUserLanding).mockResolvedValue("/dashboard");
     await expect(Home()).rejects.toThrow("NEXT_REDIRECT:/dashboard");
     expect((asMock(resolveUserLanding).mock.calls[0] ?? [])[2]).toBeNull();
+  });
+});
+
+describe("Home metadata — social share card config", () => {
+  // Locks the homepage's OpenGraph/Twitter config so a future edit can't silently break the share
+  // preview (a defect invisible in normal browsing — it only shows when the URL is pasted into a
+  // social/chat surface). Verified live 2026-08-04; this pins it against regression.
+  it("advertises the marketing OG image at the correct 1200x630 dimensions", () => {
+    const og = metadata.openGraph as { images?: Array<{ url?: string; width?: number; height?: number }> };
+    const img = og?.images?.[0];
+    expect(img?.url).toBe("/og-home.png");
+    expect(img?.width).toBe(1200);
+    expect(img?.height).toBe(630);
+  });
+
+  it("uses a summary_large_image Twitter card pointing at the same OG image", () => {
+    const tw = metadata.twitter as { card?: string; images?: string[] };
+    expect(tw?.card).toBe("summary_large_image");
+    expect(tw?.images).toContain("/og-home.png");
+  });
+
+  it("has a non-empty title + description on both the page and the OG/Twitter tags", () => {
+    expect(String(metadata.title ?? "")).toMatch(/\w/);
+    expect(String(metadata.description ?? "")).toMatch(/\w/);
+    expect(String((metadata.openGraph as { title?: string })?.title ?? "")).toMatch(/\w/);
+    expect(String((metadata.twitter as { description?: string })?.description ?? "")).toMatch(/\w/);
   });
 });
