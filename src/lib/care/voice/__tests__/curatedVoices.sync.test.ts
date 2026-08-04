@@ -7,10 +7,10 @@ import { fileURLToPath } from "node:url";
  * Cross-file drift guard for the curated voice list. It's duplicated: curated-client.ts holds a
  * client-importable mirror (so the settings picker doesn't drag the server-only elevenlabs.ts +
  * its API-key code into the client bundle), and elevenlabs.ts holds the canonical list. The
- * client comment says "IF YOU EDIT the curated list here, edit the canonical list in elevenlabs.ts
- * to match. The two lists are kept in sync by convention." Nothing enforced that convention — a
- * drift shows the tenant a voice picker that doesn't match the server's list. elevenlabs.ts is
- * server-only, so this reads both as text and asserts the id + name sequences are identical.
+ * client comment originally said the two lists were "kept in sync by convention" — nothing enforced
+ * that convention, and a drift shows the tenant a voice picker that doesn't match the server's list.
+ * This test IS that enforcement (the client comment now points here). elevenlabs.ts is server-only,
+ * so this reads both as text and asserts the id + name sequences are identical.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), "utf8");

@@ -5,11 +5,13 @@
  * dragging the API key resolution code into the bundle.
  *
  * IF YOU EDIT the curated list here, edit the canonical list
- * in src/lib/care/voice/elevenlabs.ts to match. The two lists
- * are kept in sync by convention; per §A4 (vocabulary-once)
- * the right structural fix is to lift the list into a shared
- * non-server-only module — deferred until a third surface
- * needs the same list.
+ * in src/lib/care/voice/elevenlabs.ts to match. The drift is
+ * ENFORCED — curatedVoices.sync.test.ts reads both files and
+ * asserts the id + name sequences are identical, so a mismatch
+ * fails CI (it is not merely "by convention"). Per §A13
+ * (vocabulary-once) the cleaner structural fix is still to lift
+ * the list into a shared non-server-only module — deferred until
+ * a third surface needs it, and low-risk now that the guard exists.
  */
 
 export type CuratedVoice = {
