@@ -250,3 +250,44 @@ describe("invariant-audit.mjs — data-layer error-as-no-data", () => {
     expect(nameOf("const loadIt = async () => {")).toBe("loadIt"); // arrow IS a boundary
   });
 });
+
+/**
+ * TRANSCRIPT PROMPT-INJECTION FENCE (INVARIANT 23). A Live Sales Coach engine feeds a raw diarized transcript
+ * (untrusted customer speech) into an LLM whose output reaches the rep or a stored review. Every such engine
+ * must apply the shared CONVERSATION_IS_DATA fence (or a documented bespoke inline one). Re-declares the
+ * trigger + fence logic so a weakened matcher fails HERE.
+ */
+describe("invariant-audit.mjs — transcript prompt-injection fence", () => {
+  const isEngineFile = (p: string) => /^src\/lib\/coach\/v5\/[^/]+\.ts$/.test(p);
+  const buildsSystemPrompt = (s: string) => /systemPrompt\s*=/.test(s);
+  const injectsSegments = (s: string) => /\bsegments\b/.test(s);
+  const fenced = (s: string) => /CONVERSATION_IS_DATA/.test(s);
+
+  it("flags a transcript engine that builds a systemPrompt + injects segments but has no fence", () => {
+    const bad = "const systemPrompt = buildX();\n buildXUser({ segments });";
+    expect(buildsSystemPrompt(bad) && injectsSegments(bad) && !fenced(bad)).toBe(true);
+  });
+
+  it("does NOT flag an engine that appends the shared fence", () => {
+    const good = "const systemPrompt = buildX() + CONVERSATION_IS_DATA;\n buildXUser({ segments });";
+    expect(buildsSystemPrompt(good) && injectsSegments(good) && !fenced(good)).toBe(false);
+  });
+
+  it("does NOT flag a pure prompt BUILDER (returns a string; no `systemPrompt =`) or a non-transcript engine", () => {
+    const builder = "export function buildSalesPivotSystemPrompt(){ return `analyze the [n] segments`; }";
+    expect(buildsSystemPrompt(builder)).toBe(false); // returns, never assigns systemPrompt
+    const debriefLike = "const systemPrompt = buildDebrief();\n buildDebriefUser({ messages });";
+    expect(injectsSegments(debriefLike)).toBe(false); // injects OWN messages, not transcript segments
+  });
+
+  it("the path matcher accepts a flat engine and rejects nested/test paths", () => {
+    expect(isEngineFile("src/lib/coach/v5/salesScore.ts")).toBe(true);
+    expect(isEngineFile("src/lib/coach/v5/__tests__/x.ts")).toBe(false);
+    expect(isEngineFile("src/lib/coach/v5/sub/x.ts")).toBe(false);
+  });
+
+  it("liveCue is allowlisted (bespoke inline fence), documented with the reason", () => {
+    expect(SCRIPT).toContain('"src/lib/coach/v5/liveCue.ts"');
+    expect(SCRIPT).toMatch(/liveCue[\s\S]{0,300}bespoke inline fence/);
+  });
+});
