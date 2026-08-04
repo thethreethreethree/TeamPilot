@@ -5,6 +5,7 @@ import {
   TASK_CANONICAL_STATUSES,
   TASK_PRIORITIES,
 } from "@/lib/tasks/statusLabels";
+import { INVITABLE_ROLES } from "@/lib/roles";
 
 /**
  * Shared request-body validator (audit Tier 2 #11).
@@ -51,7 +52,13 @@ export const TitleSchema = z.string().min(1).max(200);
 export const NonEmptyText = z.string().min(1).max(20_000);
 export const OptionalText = z.string().max(20_000).optional().or(z.literal(""));
 export const EmailSchema = z.string().email().max(320);
-export const RoleSchema = z.enum(["CEO", "COO", "Lead", "Member"]);
+// Derived from the single source of truth (roles.ts INVITABLE_ROLES) so the invite
+// API's accepted roles can't drift from team_invitations.role (0008 CHECK) — the same
+// single-source pattern used for TASK_* below. INVITABLE_ROLES is itself pinned to the
+// 0008 CHECK by enumConstraintSync.test.ts, so this transitively stays in sync. Before
+// this, the list was authored twice (here + roles.ts) — the exact §A13 duplication
+// roles.ts exists to remove.
+export const RoleSchema = z.enum(INVITABLE_ROLES);
 
 export const TaskCreateSchema = z.object({
   title: TitleSchema,
