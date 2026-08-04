@@ -1083,6 +1083,32 @@ for (const f of FILES) {
   }
 }
 
+// ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
+//
+// The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid
+// for — fixed ~25 times, and NOT theoretical: a read-only prod count (2026-08-01) found the label double-click
+// had already duplicated 13.8% of coaching_transcript_segments (128 excess rows across 12 sessions, whose
+// after-pitch reviews + KPI scores then ran on 3-5x inflated transcripts). An async handler that appends to an
+// immutable table, guarded ONLY by a React useState flag + a disabled button, double-writes on a double-click
+// or an await-before-the-guard, because setState applies a render too late. The fix is a synchronous useRef
+// latch set before the first await.
+//
+// Why it is NOT gated here (why a regex guard would be worse than none):
+//   1. The trigger is semantic, not textual: it fires only when the awaited call APPENDS a row (each call adds
+//      one) — an idempotent PATCH/upsert double-writes harmlessly. Distinguishing append from upsert requires
+//      knowing what each route / data-layer helper DOES, which a TS-scanning regex cannot (A33). A shape-only
+//      "useState busy-flag on an async fetch handler" match would cry wolf on every loading spinner in the app.
+//   2. No shared primitive to route through (the INV1/csvSafe anchor is absent): each of the ~25 fixes is an
+//      ad-hoc useRef latch, so there is no single import whose presence/absence is the precise signal.
+//   3. The append itself is often HIDDEN behind a data-layer helper (createTopic / postMessage / clearTaskGate),
+//      so even the fetch("...POST") shape misses it.
+// So this class is MEMORY-HUNTED, not gated (see reference_append_only_double_write_react_flag_guard): the
+// definitive method is route-based — for each append route, enumerate every client caller and verify each
+// handler holds a useRef latch. The DURABLE fix is server-side and founder-gated: a `unique (session_id, seq)`
+// constraint on coaching_transcript_segments (still absent as of 0207 — the table has only a NON-unique
+// ordering index, and its `on delete do instead nothing` rule makes the dedup cleanup itself non-trivial; the
+// queue already carries a "proposed fix DESTROYS data" re-diagnosis, so the cleanup stays the founder's call).
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
