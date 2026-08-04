@@ -67,9 +67,12 @@
 > (key-required → cold visitors dead-ended). Now points at **`/login`, which has OPEN signup** (create account →
 > onboarding, no key) — so cold marketing traffic converts. This was a correction within your pre-authorization
 > ("/redeem or /login, as today"; the old homepage used /login), not a new decision, so I made it directly.
-> `/redeem` stays the flow for pilot invitees (direct code link). **Optional richer enhancement still open:**
-> a dedicated waitlist/email-capture ("we'll send you a key") if you want lead capture beyond open signup — say
-> the word and I'll build it.
+> `/redeem` stays the flow for pilot invitees (direct code link).
+> **Completed the path (`0ba25cc4`, live):** the CTA now deep-links to `/login?mode=signup` so a cold visitor
+> lands on "Create your account", not the returning-user "Welcome back" signin default (which required noticing
+> the "Set up ELOSTATE" toggle). Sign-in nav stays bare `/login`. Cold traffic → Request access → signup →
+> onboarding is now smooth end-to-end. **Optional richer enhancement still open:** a dedicated waitlist/
+> email-capture ("we'll send you a key") if you want lead capture beyond open signup — say the word.
 
 > 💲 **Actively working on PRICING?** Your live pricing decisions are in the **PRICING block below** (search `PRICING SIMPLIFIED`): (a) **Option A vs B** for the client-facing tiers, (b) the **$60/rep coaching seat** tuning, and (c) the new **Managed-C.A.R.E "save 15%" VA offer** (answered + in the Phase 1-2 PDF; blocked only on **your fully-loaded VA cost**). Those are business calls, not phrases — decide them when you're ready. The table below is a **separate track**: technical data-integrity items I execute on a phrase.
 
