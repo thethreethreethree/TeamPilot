@@ -1,5 +1,24 @@
 # Founder action queue
 
+## ⚡ DECISIONS NEEDED (2026-08-04 autonomous session — scannable summary; detail in the sections below)
+
+> **Everything you directed this session is DONE, LIVE, and verified** — the new landing (verified excellent on
+> every axis: render, live-authed redirect, mobile 320–390px, desktop, visual QA, performance), the
+> conversion funnel (CTA → signup deep-link, made consistent across landing + /pitch + /redeem), After-Pitch
+> "Your read" always-shows, +13 tests, full CI gate green. Two mobile fixes + several funnel fixes shipped.
+>
+> **The remaining items are all YOUR call / need YOUR environment — in priority order:**
+> 1. **🌍 IP LEAK (highest — active + search-indexable):** `/help` `/privacy` `/terms` publicly quote the
+>    forbidden method-mechanism phrases; the live landing links them; they're `index,follow`. Say
+>    **"rewrite the public IP copy"** (+ your forbidden-phrase list) → I rewrite all three to experience-language
+>    (`/help` draft ready) + harden the guard, one reviewed pass. *(§ "IP LEAK" below.)*
+> 2. **🔐 SECURITY (real but well-mitigated):** Next 16.2.6 has an applicable middleware auth-bypass; the 16.3.0
+>    fix failed the VERCEL build (app RULED OUT — it compiles fine incl. Sentry; it's a Vercel platform issue).
+>    **Try a clear-cache redeploy of a 16.3.0 bump** (high-confidence fix). Defense-in-depth verified, so not a
+>    fire. *(§ "SECURITY" below.)*
+> 3. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
+> 4. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
+
 ## 🔐 SECURITY — applicable Next.js middleware auth-bypass, fix ATTEMPTED + REVERTED (2026-08-04, needs your Vercel)
 > **The vuln is real and applicable.** `npm audit` flags Next.js **16.2.6** (current, live) as vulnerable to
 > **GHSA-6gpp-xcg3-4w24 — middleware/proxy bypass** in App-Router + Turbopack + single-locale apps. This app is
