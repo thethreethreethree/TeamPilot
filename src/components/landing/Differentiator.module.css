@@ -41,7 +41,12 @@
   .section { padding: 90px 20px; }
   .diagram { margin-top: 44px; }
   .card { padding: 18px 18px; }
-  .divider span { font-size: 10px; }
+  /* Two nowrap uppercase labels + a flex rule; at ~390px the .12em letter-spacing pushed the
+     right label's trailing ↓ ~5px past the viewport (clipped by overflow:hidden, no scroll — but
+     the arrow got shaved). Tighter font + spacing on mobile lets both labels fit within a 390px
+     phone with margin, keeping the horizontal design. (CDP-measured 2026-08-04.) */
+  .divider { gap: 10px; }
+  .divider span { font-size: 9px; letter-spacing: .05em; }
   .trace { padding-left: 26px; }
 }
 
