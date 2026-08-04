@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { isMissingRelationError, type PostgrestLikeError } from "@/lib/coach/v5/migrationGuard";
 
 /**
  * Widget load-event telemetry for the tenant's own settings page (was a "Sprint 7" stub).
@@ -9,8 +10,12 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
  * a stolen/guessed token being abused elsewhere. Surfacing it gives the admin security visibility
  * (§3.6 make-the-invisible-visible) rather than logging it into a black hole.
  *
- * The summary is a PURE function so its counting is unit-tested; the fetch degrades to an empty
- * summary on any error (best-effort telemetry, never breaks the settings page).
+ * The summary is a PURE function so its counting is unit-tested. The fetch STAYS LOUD on a genuine
+ * error — it degrades to an empty summary ONLY for a pending-migration (table not yet created). A
+ * transient DB error must NOT masquerade as "0 events / 0 rejected origins": that would hide the
+ * security signal (origin_rejected = a stolen embed token used off-origin, section 3.6) behind a fake
+ * calm, the error-as-no-data violation (section 3.4). The settings page already checks res.ok and renders a
+ * setFailed branch, so a 500 shows an honest "couldn't load" — strictly better than a false zero.
  */
 
 export type WidgetLoadResult =
@@ -61,12 +66,14 @@ export async function fetchWidgetLoadEvents(
 ): Promise<WidgetLoadEventsSummary> {
   try {
     const sb = await createServerClient();
-    const { data } = await sb
+    const { data, error } = await sb
       .from("care_widget_load_events")
       .select("id, origin, result, user_agent, created_at")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .limit(limit);
+    // A PostgREST query error arrives in `error`, not as a throw — surface it so the catch can classify it.
+    if (error) throw error;
     const events: WidgetLoadEvent[] = (data ?? []).map((r) => {
       const row = r as {
         id: string;
@@ -84,7 +91,9 @@ export async function fetchWidgetLoadEvents(
       };
     });
     return summarizeLoadEvents(events);
-  } catch {
-    return summarizeLoadEvents([]);
+  } catch (e) {
+    // Empty ONLY for a not-yet-migrated table; every genuine error stays loud (route → 500 → page setFailed).
+    if (isMissingRelationError(e as PostgrestLikeError)) return summarizeLoadEvents([]);
+    throw e;
   }
 }
