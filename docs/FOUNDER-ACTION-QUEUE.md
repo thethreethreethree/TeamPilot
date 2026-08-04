@@ -14,6 +14,14 @@
 > is in the commit status) OR paste the Vercel build error — then I can fix the bump properly (likely a
 > Node-version / peer-dep / config nuance) and re-ship. Until then prod stays on 16.2.6 with the vuln open.
 > Lesson recorded: local build success ≠ Vercel deploy; verify via the GitHub commit-status API before claiming.
+> **Log-free diagnosis narrowed it (2026-08-04):** RULED OUT — (a) Node version (16.2.6 and 16.3.0 both need
+> `>=20.9.0`, no change), (b) missing/mismatched platform SWC binaries (the failed lockfile had all 8 incl.
+> `@next/swc-linux-x64-gnu`@16.3.0 with correct resolved URLs). The bump's only other changes were a `postcss`
+> dedup (8.4.31 + 8.5.15 → single 8.5.23) + 3 minor transitives. So the failure is Vercel-env-specific: most
+> likely a Next 16.3.0 build regression, the postcss-dedup, or a stale Vercel build cache. **Cheapest next
+> step to try FIRST (you, no logs needed):** in Vercel, redeploy `606894f4` (or a fresh 16.3.0 bump) with
+> **"Clear build cache"** — a stale cache across a framework-minor bump is a common false failure. If it still
+> fails, THEN grab the build error and I'll fix the specific cause.
 
 ## ▶ START HERE
 
