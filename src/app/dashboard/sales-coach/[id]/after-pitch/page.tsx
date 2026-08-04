@@ -943,7 +943,9 @@ function Narrative({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  if (!narrative.hasSignal) return null;
+  // Founder 2026-08-04: show "Your read" on EVERY after-pitch. We no longer hide the section when
+  // the narrative is empty — instead it always renders, with an honest short state on a call too
+  // thin to review (§3.4: present every time, but never a fabricated read).
   return (
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
         <CollapseToggle
@@ -954,6 +956,13 @@ function Narrative({
         />
         {open && (
         <>
+        {!narrative.hasSignal && (
+          <p className="text-xs text-secondary leading-relaxed">
+            This call was too short to read yet — your read builds from what you actually say on the
+            door. Run a full pitch (a few back-and-forth exchanges) and your strengths and next steps
+            will show up here.
+          </p>
+        )}
         {narrative.strengths.length > 0 && (
           <LearningHint
             as="block"

@@ -23,7 +23,7 @@ glance. Implemented as an opt-in `prominent` variant of the shared `CollapseTogg
 ## Residual (A36)
 ```json
 [
-  { "id": "RES-01", "item": "No automated test of the prominent-toggle rendering.", "why_skipped": "Presentational, opt-in variant of an existing component; verified by typecheck + rendered mock. A unit test of the class output has low value.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-04T00:11:02Z", "outcome": "OPENED — verified via typecheck + render." },
+  { "id": "RES-01", "item": "No automated test of the prominent-toggle rendering.", "why_skipped": "Presentational, opt-in variant of an existing component; verified by typecheck + rendered mock. A unit test of the class output has low value.", "confidence_it_does_not_matter": "high", "opened_at": "2026-08-04T00:11:02Z", "outcome": "OPENED — typecheck clean (exit 0); render-confirmed via the delivered mock." },
   { "id": "RES-02", "item": "Live screenshot not produced (auth/RLS-gated surface).", "why_skipped": "The after-pitch screen is owner-private and needs real call data; a faithful mock with the shipped styling was delivered instead.", "confidence_it_does_not_matter": "high", "opened_at": null, "outcome": null }
 ]
 ```
