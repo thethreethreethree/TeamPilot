@@ -23,6 +23,16 @@ segments.*length *< *[0-9]"` + a read of each prompt's honesty block):
   (cross-session aggregate, `MIN_WHYS`), pitchSeparation (audio DSP), debrief (chat-coach, not sales),
   skillAnalytics / useLiveCoaching (live analytics). Recorded so the boundary is on the record, not silent.
 
+**Class boundary across the SIBLING coach (A26 — checked, deliberately NOT changed).** The founder's
+complaint is "a minimum-length gate blocks coaching content on a short-but-real session". The communication/
+C.A.R.E coach has the structurally-same shape — `debrief.ts:75` `messages.length < MIN_AUTHORED_MESSAGES`
+returns `EMPTY_DEBRIEF`. But `MIN_AUTHORED_MESSAGES = 2` is a LOW, defensible bar (you genuinely need ≥2 of
+the user's OWN messages to read a *communication pattern*; one message is not a pattern), in a surface the
+founder explicitly scoped OUT ("all **Sales Coach** related tools"), with NO reported complaint. So the
+founder's actual defect was SALES-coach-specific — the LLM prompt refusing a *substantial* pitch, not a
+codebase-wide minimum-length epidemic. Left unchanged on purpose; recorded so a future audit doesn't
+re-flag the debrief floor as a missed instance of this fix (it isn't).
+
 ## Findings
 no findings — the change is bounded to the per-session content engines; honesty rules intact; the page
 needed no edit (its gates are satisfied once the engines return content); the one test asserting the old
