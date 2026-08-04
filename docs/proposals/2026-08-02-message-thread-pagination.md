@@ -64,8 +64,19 @@ whenever the discarded sentinel row (`rows[limit]`) shares a `created_at` with t
 (`rows[limit-1]`) — the sentinel is dropped from this page AND excluded from the next by the strict `<`. Ties
 happen in real threads (rapid messages, batch/import inserts), and a message thread that silently loses a
 message is exactly the corruption this proposal exists to prevent. The compound cursor gives every row a total
-order so no row can hide in a timestamp tie. Requires a `(topic_id, created_at, id)` composite index per thread
-table for the keyset to stay index-only (add it in the same change; cheap, read-path only).
+order so no row can hide in a timestamp tie. A `(topic_id, created_at, id)` composite index per thread table
+would keep the keyset fully index-only.
+
+> **VERIFIED 2026-08-04 — NO MIGRATION IS ACTUALLY REQUIRED (the DB-migration gate is lifted).** The
+> `(parent, created_at)` indexes the keyset needs ALREADY EXIST: `chat_messages_topic_created_idx`
+> `(topic_id, created_at)` (0010), `support_messages_conversation_idx` `(conversation_id, created_at)` (0034),
+> `task_messages_task_created_idx` `(task_id, created_at DESC)` (0021). Postgres scans an index backward for
+> the newest-first (`created_at DESC`) order, so direction is not a blocker. The only thing the existing
+> indexes lack is the trailing `id` — and that column only matters for rows sharing an EXACT `created_at`,
+> where the `id` tie-break becomes a residual filter over that tiny same-timestamp cluster (typically 1–2
+> rows), not a scan. So the existing indexes already support a correct AND performant keyset; adding `id` to
+> the composite is an optional micro-optimization, NOT a prerequisite. Net: this becomes a **code-only,
+> additive, no-migration** change — the remaining gate is purely the UI-option pick in section 3 below.
 
 Other notes: keyset (not `offset`) so it's stable as new messages arrive; `limit+1` detects `hasMore` without a
 count. The existing full-thread loaders stay until every caller adopts the paged one, then are deleted.
