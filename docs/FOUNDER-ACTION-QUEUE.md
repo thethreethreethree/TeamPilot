@@ -1192,9 +1192,19 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 > quotes the EXACT phrases the IP rule forbids on external surfaces: **"single-variable intervention," "no shadow
 > read," "Month 1 control," "override control… the skip is recorded permanently."** A prospect — or a competitor —
 > can read how the method works.
+> **RE-VERIFIED 2026-08-04 (after the landing rebuild + go-live):** still live, and now MORE exposed. The
+> `/help` link was carried into the NEW landing's footer (`src/components/landing/Footer.tsx:32` — the stale
+> ref here was the old `src/app/page.tsx:562`), so it stays intentionally public; middleware still doesn't gate
+> `/help`; and the forbidden phrases are still in `src/app/help/page.tsx` (lines 64/80/90/159: "Month 1
+> control," "single-variable intervention," "no shadow read," "skip is recorded permanently"). **Escalation:**
+> the landing is now LIVE on elostate.com and actively links cold marketing/competitor traffic straight to this
+> IP-leaking page — this went from latent to actively-driven this session. Fastest interim mitigation entirely
+> within reach: pull the one `/help` link from `Footer.tsx` (stops driving cold traffic; keeps /help for authed
+> users) — but that's a product call, so flagged not done. The real fix is still (B) below.
+>
 > **CORRECTION (verified after first flagging):** I initially assumed /help was ACCIDENTALLY public and recommended
-> auth-gating it. But `/help` is linked from the **public landing page** (`src/app/page.tsx:562`), so it is
-> **intentionally public** — a help link on the marketing site. That flips the fix:
+> auth-gating it. But `/help` is linked from the **public landing page** (now `src/components/landing/Footer.tsx:32`),
+> so it is **intentionally public** — a help link on the marketing site. That flips the fix:
 > - **(A) auth-gate /help is now WRONG** — it would break the public help link a prospect clicks from the landing page.
 > - **(B) rewrite the /help copy** to describe the EXPERIENCE, not the MECHANISM (exactly the sales-demo fix) is the
 >   CORRECT option. The forbidden phrases ("single-variable intervention," "no shadow read," "Month 1 control," the
