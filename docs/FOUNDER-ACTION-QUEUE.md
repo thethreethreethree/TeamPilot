@@ -594,8 +594,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > recovers; the user does NOT see a false "no capture." A route-500 fix would be a NO-OP (load treats 500 and
 > null identically → auto-generate). The only real cost is an unnecessary LLM re-run on a transient read error
 > (minor). So the after-pitch summary read is MITIGATED by design — good that I traced before "fixing" a no-op.
-> Remaining genuinely-suspect candidates to still check: `getSession` (broad blast radius), `fetchAgentInbox`,
-> the customer-widget reads. The other ~24 sites are secondary/best-effort (listTags,
+> **✅ AGENT INBOX — FIXED + LIVE (`9fbd18ec`, 2026-08-04):** `fetchAgentInbox`/`fetchEnrichedInbox` swallowed
+> the error → `[]` → the inbox route returned 200+[] → a transient poll error FLASHED the agent's inbox empty
+> (conversations vanished mid-work). Now the data functions surface the error + the route 500s, and the client's
+> existing `res.ok` check (`care/page.tsx:156`) keeps the prior conversations. Server-side + verifiable (5 route
+> tests, full suite green) — matched the `customers`-route pattern, no client change needed. This was a GENUINE
+> instance (unlike the after-pitch read, which auto-regenerates).
+> Remaining genuinely-suspect candidates to still check: `getSession` (broad blast radius — many consumers, so a
+> throw isn't cleanly contained), the customer-widget reads (`getCareConversationByToken`/`listCareMessagesForCustomer`).
+> The other ~24 sites are secondary/best-effort (listTags,
 > cannedResponses, findSimilarResolutions, detectSupportPatterns, durability/analytics) where empty is fine.
 > **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
 > 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
