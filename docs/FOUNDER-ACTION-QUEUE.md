@@ -613,8 +613,19 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > error. Added a reusable table-level predicate `isMissingRelationError` (sibling of `isMissingColumnError`);
 > `fetchLiveVisitors` now returns [] ONLY for the pending-0192 case and rethrows genuine errors. 5 predicate
 > tests, suite 2203 green.
-> **Audit status: the three cleanly-server-side-fixable primary-display instances are now FIXED** (agent inbox +
-> customer widget + live-visitors monitor). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
+> **✅ WIDGET LOAD-EVENTS TELEMETRY — FIXED + LIVE (`2efbfb57`, 2026-08-04):** re-checking the "~24 best-effort,
+> empty-is-fine" bucket surfaced one that was NOT fine. `fetchWidgetLoadEvents` had the SAME blanket `catch →
+> summarizeLoadEvents([])` — but this surface carries the `origin_rejected` SECURITY signal (a stolen/guessed
+> embed token used off its allowed origins). Swallowing a transient DB error into "0 events / 0 rejected origins"
+> is worse than a plain outage: it can HIDE an active off-origin token-theft attempt behind a fabricated zero.
+> The widget-settings page already has a `setFailed(true)` branch it checks `res.ok` for, so the swallow was
+> defeating an honest error path. Now stays loud (rethrows genuine errors → route 500 → page shows "couldn't
+> load"), degrades to empty ONLY for a pending migration (`isMissingRelationError`); route wraps to a generic
+> 500 (no raw-error leak). 3 new fail-loud tests, suite 2206 green. **Correction to my own prior classification:**
+> I had lumped this into the "empty is fine" bucket — it wasn't, because the surface's job is security VISIBILITY.
+> The lesson: "empty is fine" must be re-checked against what the surface is FOR, not just whether a client shows it.
+> **Audit status: FOUR cleanly-server-side-fixable instances now FIXED** (agent inbox + customer widget +
+> live-visitors monitor + widget load-events telemetry). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
 > `getCareConversationByToken` (broad blast radius — many consumers, a throw isn't contained; each consumer
 > needs its own error handling) and `tasks.ts` + `chats.ts` `fetchTopic`/`fetchParticipants` (client-direct data
 > calls — the chat detail page's `refresh()` has try/finally but NO catch, so the fix needs a client-UI error
