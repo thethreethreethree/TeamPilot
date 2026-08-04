@@ -56,6 +56,15 @@
 > (MEDIUM, design-ready, no migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on
 > foreign entries. None are regressions from this session; all were diagnosed earlier and await your decision.*
 >
+> *💡 **Pricing↔product note (2026-08-05):** the DFY pricing sheet was reframed from token/fair-use to a
+> per-agent **monthly AI-assisted-response allowance** (Small 1,000 / Growing 3,000 — placeholder counts,
+> awaiting your confirmation). The sheet ships fine as-is (an advertised allowance is standard), BUT to
+> HARD-ENFORCE it the product needs per-agent AI-response METERING that doesn't exist yet: there's no
+> responses-used counter/table (only extension-trial entitlements + a sales-coach quota), and the entitlements
+> specs cover seats/modules/STT-minutes, NOT AI-response counts. The raw events to count DO exist
+> (`care.conversation.message_added` + the AI-reply posts). Path: launch advertised now; when ready to enforce,
+> build a per-agent monthly response meter + soft-cap (notify at ~80/100%). New metering dimension, founder-gated.*
+>
 > *📊 **Data-integrity severity check (read-only prod, 2026-08-04) — none of these is an active customer-facing
 > fire:** (a) transcript corruption is BOUNDED + stable (128 excess / 12 sessions, unchanged since baseline, not
 > spreading); (b) onboarding double-create TOCTOU has NOT materialized (0 duplicate tenants of 14 companies →
