@@ -680,7 +680,15 @@ export async function runAiFirstResponder(args: {
     // route uses (buildRecentTurns). Previously this was `recentTurns: []`, so on a multi-email
     // thread the AI replied context-blind (re-introduced itself every time). The just-inserted
     // customer message is excluded (it goes in as newMessage).
-    const priorMessages = await listCareMessagesForCustomer(args.conversationId);
+    // Best-effort context: listCareMessagesForCustomer now THROWS on a fetch failure (so the widget
+    // route can 500 instead of flashing empty). Here that would be wrong — a transient error must not
+    // fail the email reply; degrade to context-blind (the pre-context-feature behavior) instead.
+    let priorMessages: Awaited<ReturnType<typeof listCareMessagesForCustomer>> = [];
+    try {
+      priorMessages = await listCareMessagesForCustomer(args.conversationId);
+    } catch {
+      /* transient read failure — reply without prior-thread context rather than fail the email */
+    }
     const recentTurns = buildRecentTurns(priorMessages, args.customerMessageId);
 
     const userMessage = buildCareUserMessage({

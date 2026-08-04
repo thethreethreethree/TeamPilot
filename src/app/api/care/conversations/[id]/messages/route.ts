@@ -86,7 +86,17 @@ export async function GET(
     return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
   }
 
-  const messages = await listCareMessagesForCustomer(conversation.id);
+  let messages;
+  try {
+    messages = await listCareMessagesForCustomer(conversation.id);
+  } catch {
+    // A swallowed DB error used to return 200 + [] here → the customer's chat flashed empty on a
+    // transient poll error. Surface it as 500 so the widget's res.ok check keeps the prior messages.
+    return NextResponse.json(
+      { error: "Couldn't load messages." },
+      { status: 500 },
+    );
+  }
   const tenant = await getCareTenantConfigByCompanyId(conversation.companyId);
   return NextResponse.json({
     conversation: {

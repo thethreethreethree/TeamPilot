@@ -284,12 +284,16 @@ export async function listCareMessagesForCustomer(
   conversationId: string
 ): Promise<SupportMessage[]> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_messages")
     .select("*")
     .eq("conversation_id", conversationId)
     .eq("is_internal_note", false)
     .order("created_at", { ascending: true });
+  // Surface a fetch FAILURE (throw) rather than swallow it as an empty thread: the widget's messages
+  // route turns this into a 500 so the customer's chat keeps its prior messages instead of flashing
+  // empty on a transient poll error. The best-effort caller (inbound/email context) catches it.
+  if (error) throw error;
   return (data ?? []).map(mapMessage);
 }
 
