@@ -30,6 +30,16 @@
 > genuinely worth trying first (platform-side issues are often transient or cache-related), and (b) if you send
 > the log, I can match it to the known issue + workaround rather than guess. This raises confidence that the fix
 > is a retry/cache-clear, not an app change.
+> **REPRODUCED the build phase locally + RULED OUT the app (2026-08-04):** `next.config.ts` wraps with
+> `withSentryConfig` ONLY when `SENTRY_AUTH_TOKEN` is set (Vercel yes, local no) — that alone explains why local
+> passed and Vercel failed. So I reproduced Vercel's condition locally: bumped to 16.3.0 + set a dummy
+> `SENTRY_AUTH_TOKEN` so the Sentry plugin runs, then `next build`. Result: **✓ Compiled successfully** — 16.3.0
+> + Sentry COMPILES fine. So the app's config/compile (incl. the Sentry plugin) is NOT the cause. Combined with
+> the research ("fails DESPITE successful build"), the failure is in Vercel's POST-COMPILE deployment phase — a
+> platform/integration issue, not our code. **Bottom line: a clear-cache redeploy / retry is very likely the
+> whole fix; no app change needed.** (Reverted the local bump; tree is back on 16.2.6.) Minor forward note for
+> when the bump lands: Sentry's `disableLogger: true` is deprecated + "not supported with Turbopack" on 16.3 —
+> swap to `webpack.treeshake.removeDebugLogging` then (cosmetic, non-blocking).
 > **No "newer patch" escape hatch (checked 2026-08-04):** 16.3.0 is the LATEST STABLE Next (only `16.3.1-canary.0`
 > exists above it — a canary, unfit for prod). So the fix target is specifically 16.3.0; there's no higher stable
 > version to jump to that would sidestep whatever makes 16.3.0 fail on Vercel. Path forward is exactly: (a)
