@@ -73,6 +73,13 @@
 > the "Set up ELOSTATE" toggle). Sign-in nav stays bare `/login`. Cold traffic → Request access → signup →
 > onboarding is now smooth end-to-end. **Optional richer enhancement still open:** a dedicated waitlist/
 > email-capture ("we'll send you a key") if you want lead capture beyond open signup — say the word.
+> **Founder-side dependency (verify once):** the smoothest cold-signup flow (signUp → session → /onboarding,
+> no email step) assumes the hosted Supabase project has `enable_confirmations = false` — which is what
+> `supabase/config.toml` declares (lines 226/261), but that file governs LOCAL dev; prod is the Supabase
+> dashboard setting I can't read here. If prod has confirmations ON, signup still works (the code shows an
+> honest "check your email to confirm" notice and switches to sign-in — no dead-end) BUT then email delivery
+> (SMTP) must actually be configured or the cold visitor stalls. Quick check worth doing now that signup is the
+> default landing for marketing traffic.
 
 > 💲 **Actively working on PRICING?** Your live pricing decisions are in the **PRICING block below** (search `PRICING SIMPLIFIED`): (a) **Option A vs B** for the client-facing tiers, (b) the **$60/rep coaching seat** tuning, and (c) the new **Managed-C.A.R.E "save 15%" VA offer** (answered + in the Phase 1-2 PDF; blocked only on **your fully-loaded VA cost**). Those are business calls, not phrases — decide them when you're ready. The table below is a **separate track**: technical data-integrity items I execute on a phrase.
 
