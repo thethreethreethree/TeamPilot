@@ -68,4 +68,36 @@ describe("Env validation (production rules)", () => {
       Env.safeParse({ NODE_ENV: "development", LLM_PROVIDER: "anthropic" }).success
     ).toBe(true);
   });
+
+  // Regression lock for the 2026-08-04 CI Build-step fix. env.ts must NOT throw at build time when runtime
+  // secrets are absent (CI has none) or `next build` fails; the production checks are deferred to RUNTIME,
+  // where NEXT_PHASE is not the build phase. Removing that guard would silently re-break CI.
+  it("SKIPS the production-secret checks during `next build` (NEXT_PHASE=phase-production-build)", () => {
+    const prior = process.env.NEXT_PHASE;
+    try {
+      process.env.NEXT_PHASE = "phase-production-build";
+      // No LLM key + a mismatched Supabase pair would BOTH fail at runtime — but must pass during the build.
+      const r = Env.safeParse({
+        NODE_ENV: "production",
+        NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co",
+      });
+      expect(r.success).toBe(true);
+    } finally {
+      if (prior === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = prior;
+    }
+  });
+
+  it("STILL enforces the production rules at runtime (NEXT_PHASE not the build phase)", () => {
+    const prior = process.env.NEXT_PHASE;
+    try {
+      process.env.NEXT_PHASE = "phase-production-server";
+      const r = Env.safeParse({ NODE_ENV: "production" });
+      expect(r.success).toBe(false);
+      expect(issuePaths(r)).toContain("DEEPSEEK_API_KEY");
+    } finally {
+      if (prior === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = prior;
+    }
+  });
 });
