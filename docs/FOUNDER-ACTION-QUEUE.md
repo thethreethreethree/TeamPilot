@@ -35,8 +35,16 @@
 >    fix failed the VERCEL build (app RULED OUT — it compiles fine incl. Sentry; it's a Vercel platform issue).
 >    **Try a clear-cache redeploy of a 16.3.0 bump** (high-confidence fix). Defense-in-depth verified, so not a
 >    fire. *(§ "SECURITY" below.)*
-> 4. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
-> 5. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
+> 4. **🔴 CI HAS BEEN RED FOR A LONG TIME (found 2026-08-04 — undermines every guard):** the GitHub Actions
+>    `check` job fails on EVERY commit (chronic, predates this session — even commits before the `theme:audit`
+>    step was added were red). Vercel deploys independently + green, so the app is fine and this went unnoticed.
+>    But it means the invariant guards (INV1-23) are NOT actually gating in CI — the job is red regardless, so a
+>    new violation is invisible. Currently failing at the `theme:audit` step. I could not reproduce it locally
+>    (Windows: even a clean HEAD worktree passes, 1088 files, 0 leaks) and can't read the CI log (403, no `gh`).
+>    **What I need:** `gh run view 30887371831 --log-failed` (or paste the "Theme-leak audit" step output). Then
+>    I can fix it. Interim: guards are enforced only by a manual `npm run check`. *(§ "CI RED" below.)*
+> 5. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
+> 6. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
 >
 > *Also open (pre-existing, founder-gated — detail in the body/table below, not re-surfaced here): coach-KPI
 > aggregation truncation (wrong KPIs past 1000 rows — measurement-integrity), `tasks.ts` error-as-no-data
@@ -44,6 +52,35 @@
 > error-as-no-data"`, established fetchTasks pattern, I can build it on your word), message-thread pagination
 > (MEDIUM, design-ready, no migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on
 > foreign entries. None are regressions from this session; all were diagnosed earlier and await your decision.*
+
+## 🔴 CI RED — GitHub Actions `check` job chronically failing (found 2026-08-04, needs your CI log)
+> **Finding.** The GitHub Actions `check` workflow (`.github/workflows/ci.yml` — typecheck, lint, rls:audit,
+> theme:audit, invariant:audit, test, build) has `conclusion: failure` on EVERY commit I sampled, including
+> ones from BEFORE this session and BEFORE the `theme:audit` step was even added to CI (`0f3cdbcb~1/~2`). So CI
+> has been red for a long time. It went unnoticed because Vercel deploys on a SEPARATE, independent pipeline
+> that is green — the app is live and healthy; only the GitHub Actions gate is red.
+> **Why it matters.** The invariant guards (INV1–23, incl. the error-as-no-data + transcript-fence guards added
+> this session) run in this CI job. A perpetually-red job enforces nothing: a NEW violation doesn't change the
+> already-red signal, and a red X everyone has learned to ignore is worse than no gate (alert fatigue). Until
+> CI is green, those guards are enforced ONLY by a manual `npm run check` — real, but not automatic.
+> **Diagnosis so far (via the Actions jobs API — the per-step conclusions).** The failing step is
+> **#8 Theme-leak audit** (`npm run theme:audit`); steps 1–7 (through rls:audit) pass, 9–11 skip. I could NOT
+> reproduce the failure locally on Windows: `npm run theme:audit` and even a clean detached worktree at HEAD
+> both scan 1088 files and report 0 leaks (exit 0). Ruled out: lockfile desync, missing linux SWC binaries,
+> node version, import casing (0 mismatches, `strict` on), CRLF/LF (the script splits on `/\r?\n/`), a
+> lifecycle/prepare-script failure (none exist), a Windows-uncreatable tracked filename (0 files missing from
+> disk), and working-tree/untracked drift (only `.claude/autonomous-build.flag` differs from HEAD). The cause is
+> Linux-runner-specific and I can't see it — the logs endpoint is 403 without auth and `gh` isn't installed here.
+> **A real latent bug found along the way (independent of the above).** `scripts/theme-audit.mjs:187` lists
+> files with `execSync("git ls-files src -- '*.ts' '*.tsx'")` — a shell-fragile pathspec whose result varies by
+> shell (cmd.exe vs sh) and which, as written, also pulls in 14 non-.ts/.tsx files (globals.css, the landing
+> `*.module.css`, 2 images) the audit was never meant to scan. Robust replacement: `git ls-files src` then
+> filter to `\.tsx?$` in JS. I did NOT apply it yet — section 2 (diagnose before patching): I can't verify a change to
+> the CI-gating script without reproducing the failure, and changing what's scanned could mask a real leak.
+> **What I need from you (any one):** run `gh run view 30887371831 --log-failed` and paste the "Theme-leak audit"
+> step, OR open the run (https://github.com/thethreethreethree/TeamPilot/actions/runs/30887371831) and copy the
+> failing step's output. With the actual leak line I can fix it in one pass + make the file-listing deterministic
+> so this never diverges local-vs-CI again.
 
 ## 🔐 SECURITY — applicable Next.js middleware auth-bypass, fix ATTEMPTED + REVERTED (2026-08-04, needs your Vercel)
 > **The vuln is real and applicable.** `npm audit` flags Next.js **16.2.6** (current, live) as vulnerable to
