@@ -10,10 +10,13 @@ export const BRAND = {
   hair: "rgba(247,247,245,0.22)",
 } as const;
 
-// Where the CTAs point. "Request access" is pilot-honest (no "free" promise); it lands on the
-// redeem/login flow that actually provisions an account today.
+// Where the CTAs point. "Request access" is pilot-honest (no "free" promise).
+// Destination = /login (NOT /redeem): the founder pre-authorized "/redeem or /login, as today", the
+// old homepage used /login, and /login has OPEN signup (create account → /onboarding, no access key) —
+// so a cold marketing visitor can actually convert instead of dead-ending on /redeem's key wall.
+// (/redeem stays the flow for pilot invitees, who arrive via their direct code link.)
 export const CTA = {
-  primaryHref: "/redeem",
+  primaryHref: "/login",
   primaryLabel: "Request access",
   signInHref: "/login",
 } as const;
