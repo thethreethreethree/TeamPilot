@@ -580,6 +580,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > route that 200+empties on a swallowed DB error would also defeat a client `res.ok` error-check. A careful
 > per-caller audit of the 32 sites (which feed a primary display?) is a genuine follow-up — flagged, not
 > blanket-fixed, since most discards are legitimately fine (config-default reads, deliberate degrades).
+> **NARROWED 2026-08-04 — the 32 → ~6 high-risk primary-display reads to audit first:** these swallow errors
+> IDENTICALLY to the confirmed `fetchTask` instance (`const { data } = ...; return data ? map : null`), so a
+> transient failure could read as not-found/empty on a user-facing surface: `getSession` (salesCoach.ts:377),
+> `getSessionTranscript` (:390), `getLatestAfterPitchSummary` (:618) — sales-coach session/after-pitch views;
+> `fetchAgentInbox` (care.ts:680) / `fetchEnrichedInbox` (:1052) — the agent inbox; `getCareConversationByToken`
+> (:270) / `listCareMessagesForCustomer` (:287) — the customer widget. Each still needs its CONSUMER checked
+> (route/client may already 500 or degrade — e.g. the after-pitch READ route strips to `{summary:null}` which a
+> client can't distinguish from a real empty). The other ~24 sites are secondary/best-effort (listTags,
+> cannedResponses, findSimilarResolutions, detectSupportPatterns, durability/analytics) where empty is fine.
 > **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
 > 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
 > returns a `degraded` flag (both correct end-to-end, no change). `"reconsider the RCD list degrade"` (LOW) —
