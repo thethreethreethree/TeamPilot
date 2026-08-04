@@ -53,6 +53,22 @@
 > (MEDIUM, design-ready, no migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on
 > foreign entries. None are regressions from this session; all were diagnosed earlier and await your decision.*
 
+## 🔴 CI RED — theme:audit step FIXED; `build` step now revealed as the next chronic failure (2026-08-04)
+> **UPDATE (`6f871c11`): the theme:audit step is FIXED and CI now advances through the guards.** Root cause
+> was `theme-audit.mjs`'s shell-fragile `git ls-files` pathspec: on Linux CI the quotes stripped and `*.ts`
+> pulled in root config files, so it scanned `tailwind.config.ts` and flagged its palette (`bg-[#0B1620]`,
+> `text-gold-300`) as "leaks." Fixed to a deterministic `git ls-files src` + JS `.tsx?$` filter. Per-step
+> proof on the fix commit: typecheck ✓ lint ✓ rls:audit ✓ **theme:audit ✓** **invariant:audit ✓** (INV1–23
+> now genuinely enforce in CI) **test ✓** — then **build ✗**. So the chronic red was MULTIPLE stacked issues;
+> theme:audit was just the first the job hit. The invariant guards are now live in CI.
+> **Remaining: the `build` step (`npm run build`) fails on Linux CI but passes locally on Windows (exit 0).**
+> A second local-vs-CI divergence. The app itself is fine — Vercel builds + deploys it green on its own
+> pipeline (with full env/secrets); only the secretless GitHub-Actions `npm run build` fails. Likely a
+> build-time env var present on Vercel but absent in CI, or a Linux-only build quirk. Same blocker as before:
+> I can't read the CI log without your `gh`/auth. **What I need:** `gh run view <the check run> --log-failed`
+> for the "Build" step, or paste its error — then I finish it. (Everything below this line is the earlier
+> full write-up of the theme:audit diagnosis, kept for the record.)
+
 ## 🔴 CI RED — GitHub Actions `check` job chronically failing (found 2026-08-04, needs your CI log)
 > **Finding.** The GitHub Actions `check` workflow (`.github/workflows/ci.yml` — typecheck, lint, rls:audit,
 > theme:audit, invariant:audit, test, build) has `conclusion: failure` on EVERY commit I sampled, including
