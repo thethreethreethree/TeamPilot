@@ -79,6 +79,14 @@
 > the "Set up ELOSTATE" toggle). Sign-in nav stays bare `/login`. Cold traffic → Request access → signup →
 > onboarding is now smooth end-to-end. **Optional richer enhancement still open:** a dedicated waitlist/
 > email-capture ("we'll send you a key") if you want lead capture beyond open signup — say the word.
+> **Minor UX inconsistency (your call, found 2026-08-04):** the "See it work" CTA has TWO destinations — the
+> HERO one (`See it work →`) scrolls in-page to `#differentiator`, while the FOOTER one goes to `/pitch` (the
+> actual interactive demo, returns 200). Same label, two behaviours; and the Hero's `→` arrow reads as
+> "navigate" but only scrolls, while "see it WORK" arguably promises the demo, not a jump to the differentiator
+> text. Options: (A) point the Hero one at `/pitch` too (consistent + delivers the real demo, but sends cold
+> visitors off the landing sooner), (B) relabel the Hero one "See how it works ↓" + keep the in-page scroll
+> (honest about what it does), (C) leave as-is. Recommend B (cheapest, kills the promise-mismatch) or A if you
+> want the demo front-and-center. One small landing edit either way — say which.
 > **Founder-side dependency (verify once):** the smoothest cold-signup flow (signUp → session → /onboarding,
 > no email step) assumes the hosted Supabase project has `enable_confirmations = false` — which is what
 > `supabase/config.toml` declares (lines 226/261), but that file governs LOCAL dev; prod is the Supabase
