@@ -46,6 +46,17 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - **read-path:** `npx vitest run` executes them; both pass, locking the new "no minimum time" behavior so a
   future edit can't silently reintroduce the floor.
 
+### Detection guard for the scoreboard floor (salesScore.generate)
+`src/lib/coach/v5/__tests__/salesScore.generate.test.ts` (new).
+
+- **write-path:** a new generate-level test for `generateSalesScores` — the surface the founder's report
+  named directly ("only 2 of the scores"). It asserts a 0-agent-turn capture gap short-circuits before the
+  LLM, and a 2-agent-turn short call (below the OLD floor of 3) now calls the LLM and returns the graded +
+  computed categories; plus suppressed→computed-only (degrade) and LLM-error→empty (never throws).
+- **read-path:** `npx vitest run` executes it. By construction it FAILS if `MIN_AGENT_SEGMENTS` is bumped
+  back above 1 (the 2-turn call would return EMPTY with no LLM call) — the A30 gate that keeps the founder
+  decision from silently regressing on the scores surface specifically.
+
 ### salesIntel prompt — short call keeps its real topics (RES-02 follow-up)
 `src/lib/coach/v5/salesIntelPrompt.ts`.
 
@@ -72,3 +83,4 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - `src/lib/coach/v5/salesIntel.ts`
 - `src/lib/coach/v5/salesIntelPrompt.ts`
 - `src/lib/coach/v5/__tests__/salesReview.generate.test.ts`
+- `src/lib/coach/v5/__tests__/salesScore.generate.test.ts`
