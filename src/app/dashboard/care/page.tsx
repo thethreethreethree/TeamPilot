@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isAdminRole } from "@/lib/roles";
 import Link from "next/link";
 import { MobileHomeRedirect } from "@/components/care/mobile/MobileHomeRedirect";
 import {
@@ -114,10 +115,7 @@ export default function CareHomePage() {
   const [error, setError] = useState<string | null>(null);
   const pollingRef = useRef(false);
 
-  const isLeader =
-    identity?.role === "CEO" ||
-    identity?.role === "COO" ||
-    identity?.role === "admin";
+  const isLeader = isAdminRole(identity?.role);
 
   // Standard mode hides the §3.6 learning-visibility metrics (founder revision 2026-07-27): the two panels
   // "What compounded this week" (patterns/durability catches) and "How the team's replies have read" (Coach

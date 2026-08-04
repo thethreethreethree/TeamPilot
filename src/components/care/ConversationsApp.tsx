@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isAdminRole } from "@/lib/roles";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -1909,11 +1910,7 @@ export function ConversationsApp({
                 acting={acting}
                 team={team}
                 currentUserId={currentUserId}
-                isAdmin={
-                  currentUserRole === "CEO" ||
-                  currentUserRole === "COO" ||
-                  currentUserRole === "admin"
-                }
+                isAdmin={isAdminRole(currentUserRole)}
                 onClaim={claim}
                 onAssign={assignTo}
                 onToggleGuidance={toggleSupervisorGuidance}
@@ -1944,10 +1941,7 @@ export function ConversationsApp({
                   // otherwise sit in the inbox forever if the
                   // visitor never returns. Admins need a clean
                   // close path; the warning is for agents.
-                  const isAdmin =
-                    currentUserRole === "CEO" ||
-                    currentUserRole === "COO" ||
-                    currentUserRole === "admin";
+                  const isAdmin = isAdminRole(currentUserRole);
                   if (isAdmin) {
                     void changeStatus("closed");
                     return;

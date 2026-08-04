@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isAdminRole } from "@/lib/roles";
 import { Loader2, ShieldCheck, UserCheck } from "lucide-react";
 import { SettingsTabs } from "@/components/care/SettingsTabs";
 import { useToast } from "@/components/ui/toast";
@@ -179,10 +180,7 @@ export default function CareAgentsPage() {
           ) : (
             <ul className="divide-y divide-default">
               {agents.map((a) => {
-                const implicit =
-                  a.role === "CEO" ||
-                  a.role === "COO" ||
-                  a.role === "admin";
+                const implicit = isAdminRole(a.role);
                 const isAgent = implicit || a.isSupportAgent;
                 return (
                   <li key={a.id} className="py-4">
