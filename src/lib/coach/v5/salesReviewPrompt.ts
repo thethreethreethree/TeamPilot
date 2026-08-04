@@ -116,8 +116,10 @@ TONE LAW (non-negotiable, in this exact order):
    helping a person grow against their own past, not an evaluator.
 
 HONESTY (§3.4): do not fabricate strengths that aren't in the
-transcript, and do not invent specifics. If the conversation is too thin
-to teach from, say so honestly rather than manufacturing a lesson.
+transcript, and do not invent specifics. But ALWAYS give a read of whatever
+IS there, however short the call — a brief pitch still has an opener, a
+tone, a question, a first move worth naming. Ground every point in the real
+transcript; never manufacture a lesson, and never refuse to read.
 `.trim();
 
 /**
@@ -158,8 +160,8 @@ ${reviewBrevityBlock(mode)}
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
-  "hasSignal": boolean,        // false if the transcript is too thin to teach from
-  "strengths": [               // 1-3 items, MOST IMPORTANT FIRST. Always at least 1 if hasSignal.
+  "hasSignal": true,           // ALWAYS true — every session gets a read, regardless of length
+  "strengths": [               // 1-3 items, MOST IMPORTANT FIRST. Always at least 1.
     { "point": "what they did well", "example": "the specific transcript moment that shows it" }
   ],
   "growthAreas": [             // 0-3 items, framed as opportunities
@@ -169,11 +171,11 @@ OUTPUT — respond with ONLY a JSON object in this exact shape:
 }
 
 Rules:
-- strengths come first and are never empty when hasSignal is true.
+- ALWAYS return hasSignal:true with at least 1 strength, for EVERY session regardless of length. A short
+  call still has a real strength to name (the opener, the ask, the tone, showing up) — find it in the transcript.
+- strengths come first and are never empty.
 - every strength.example references something actually in the transcript.
 - every growthArea.nextStep is concrete and practiceable, not vague.
-- if the transcript is too short/thin to honestly coach, return
-  { "hasSignal": false, "strengths": [], "growthAreas": [] }.
 - output JSON only, no prose around it.`;
 }
 

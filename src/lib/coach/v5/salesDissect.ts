@@ -45,7 +45,9 @@ const EMPTY: SalesDissect = {
   standoutStrategy: null,
 };
 
-const MIN_AGENT_SEGMENTS = 3;
+// Founder 2026-08-05: NO minimum-length gate — every session gets a dissect, however
+// short. Only a genuinely empty rep side (0 agent turns) is excluded (§3.4).
+const MIN_AGENT_SEGMENTS = 1;
 
 export async function generateSalesDissect(args: {
   companyId: string;

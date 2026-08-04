@@ -44,8 +44,8 @@ WHAT TO PRODUCE:
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
-  "hasSignal": boolean,         // false if the transcript is too thin to teach from
-  "strengths": [                // 1-4, MOST IMPORTANT FIRST. At least 1 when hasSignal.
+  "hasSignal": true,            // ALWAYS true — every session gets a dissect, regardless of length
+  "strengths": [                // 1-4, MOST IMPORTANT FIRST. Always at least 1.
     { "point": "what they did well", "example": "the transcript moment", "why": "why it worked, per the methodology" }
   ],
   "growthAreas": [              // 0-4, framed as opportunities
@@ -56,7 +56,9 @@ OUTPUT — respond with ONLY a JSON object in this exact shape:
 }
 
 Rules:
-- strengths come first and are never empty when hasSignal is true.
+- ALWAYS return hasSignal:true with at least 1 strength, for EVERY session regardless of length — a short call
+  still has a real strength to name; find it in the transcript. Never refuse; never fabricate.
+- strengths come first and are never empty.
 - every "example" references something ACTUALLY in the transcript (§3.4 — no fabrication).
 - "standoutStrategy" is null if no single move clearly stood out — do not invent one.
 - NOT a scorecard: no grades, no scores, no ranking against other agents (§A18).`;

@@ -48,7 +48,11 @@ const EMPTY_REVIEW: SalesReview = {
 /** Need at least this many AGENT utterances to honestly coach. Below
  *  this, there isn't enough of the agent's own behaviour to teach from
  *  — fabricating a lesson is the dishonesty the product refuses. */
-const MIN_AGENT_SEGMENTS = 3;
+// Founder 2026-08-05: NO minimum-length gate. Every session gets a read, however
+// short — sales agent feedback was that real 5-7 min pitches were wrongly judged
+// "too short". Only a genuinely empty rep side (0 agent turns, i.e. a capture gap)
+// is excluded, matching the talk-ratio capture-gap honesty (§3.4).
+const MIN_AGENT_SEGMENTS = 1;
 
 export async function generateSalesReview(args: {
   companyId: string;

@@ -46,7 +46,9 @@ const EMPTY_WHY: SessionWhy = {
 
 // F6 (§3.2) — gate on AGENT turns, matching the dissect (MIN_AGENT_SEGMENTS),
 // so a thin or one-sided transcript can't pass a raw total-segment count.
-const MIN_AGENT_SEGMENTS = 3;
+// Founder 2026-08-05: NO minimum-length gate — every session gets a why-read, however
+// short. Only a genuinely empty rep side (0 agent turns) is excluded (§3.4).
+const MIN_AGENT_SEGMENTS = 1;
 
 function buildWhySystemPrompt(): string {
   return `You are a sales coach doing a retrospective root-cause read of ONE
@@ -61,8 +63,11 @@ they missed, ADD it as a perspective — never dismiss theirs.
 from one transcript. Give your best read, grounded in SPECIFIC transcript
 evidence, and hold it loosely — name an alternative if one is plausible.
 
-§3.4 — never fabricate. If the transcript is too thin to read a cause
-honestly, say so (hasSignal false) rather than invent one.
+§3.4 — never fabricate; ground every point in a REAL transcript line. But
+ALWAYS give your best read for EVERY session, however short — a brief call
+still has a most-likely driver (the opener, the customer's first reaction).
+Return hasSignal:true with a grounded driver + at least one evidence quote;
+never refuse to read.
 
 Identify:
 - primaryDriver: the single most likely driver of THIS outcome, one line.
@@ -74,7 +79,7 @@ Identify:
 
 OUTPUT — respond with ONLY this JSON:
 {
-  "hasSignal": boolean,
+  "hasSignal": true,
   "primaryDriver": "one line",
   "evidence": ["…", "…"],
   "repInputReflection": "one line addressing the rep",

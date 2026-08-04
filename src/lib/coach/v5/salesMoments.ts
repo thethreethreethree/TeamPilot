@@ -50,7 +50,10 @@ export type SalesMoments = {
 
 const EMPTY: SalesMoments = { hasSignal: false, moments: [] };
 
-const MIN_SEGMENTS = 4; // fewer than this and there aren't distinct moments
+// Founder 2026-08-05: NO minimum-length gate — every session surfaces its moments,
+// however short (a brief call still has an opener + the customer's reaction). Only a
+// genuinely empty transcript (0 segments) is excluded (§3.4 — ground, never fabricate).
+const MIN_SEGMENTS = 1;
 
 function mmss(deltaMs: number): string {
   const total = Math.max(0, Math.round(deltaMs / 1000));

@@ -60,12 +60,13 @@ HARD HONESTY RULES (§3.4):
   that measured data does not exist. State what the methodology prescribes,
   with no fabricated numbers.
 - Every quote (customerLine/repLine) must be actually in the transcript.
-- If the transcript is too thin to identify honest moments, return
-  { "hasSignal": false, "moments": [] }.
+- ALWAYS identify moments for EVERY session regardless of length — at least 1, up to 3-5. A short call still
+  has real moments (the opener, a question, the customer's reaction). Ground each in the transcript; never
+  fabricate a quote, and never refuse.
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
-  "hasSignal": boolean,
+  "hasSignal": true,
   "moments": [
     {
       "atSeq": number,                         // the segment number this moment anchors on

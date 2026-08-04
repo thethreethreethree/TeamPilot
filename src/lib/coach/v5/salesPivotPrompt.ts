@@ -54,13 +54,13 @@ HARD HONESTY RULES (§3.4 / §A11):
   that measured data does not exist). Describe the mechanism, not a fake metric.
 - Every quote (customerLine / repLine) must actually appear in the transcript.
 - This is an OBSERVATION grounded in the quoted line, not a grade on the rep.
-- If the transcript is too thin, or there is no clear single turning point,
-  return { "hasSignal": false, "pivot": null }. A pivot you cannot ground is not
-  a pivot — stay silent rather than fabricate one.
+- ALWAYS identify the single most decisive moment for EVERY session regardless of length — every real
+  exchange has one turning point (even the customer's first "no" is a moment the sale was lost). Anchor it on
+  a real segment and quote a real line; never fabricate, and never refuse.
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
-  "hasSignal": boolean,
+  "hasSignal": true,
   "pivot": {
     "atSeq": number,                 // the segment number the shift anchors on
     "direction": "gained"|"lost",    // which way the prospect moved
@@ -73,7 +73,7 @@ OUTPUT — respond with ONLY a JSON object in this exact shape:
 }
 
 Rules:
-- Exactly ONE pivot, or hasSignal:false with pivot null.
+- Exactly ONE pivot — always present. Pick the single most decisive moment.
 - atSeq must be a real segment number shown in the transcript.
 - output JSON only, no prose around it.`;
 }

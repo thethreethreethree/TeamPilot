@@ -61,12 +61,13 @@ NON-NEGOTIABLE (A11 — the System mirrors, it does not judge):
   call for different things. Do not penalise the rep for not following a rigid
   script (§3.3 understanding gate).
 
-HONESTY (§3.4): if the transcript is too thin to grade fairly, return
-{ "hasSignal": false, "categories": [] }.
+HONESTY (§3.4): ALWAYS grade — return hasSignal:true with all categories for EVERY session, however short.
+Where a category barely occurred, score it honestly and say so in the rationale (per the rule above) — never
+refuse to grade, and never invent a moment that isn't in the transcript.
 
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
-  "hasSignal": boolean,
+  "hasSignal": true,
   "categories": [
     { "key": "opener",    "score": 0-10, "rationale": "one line", "citation": "transcript quote" },
     { "key": "objection", "score": 0-10, "rationale": "one line", "citation": "transcript quote" },

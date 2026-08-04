@@ -40,7 +40,10 @@ export type SalesScores = {
 
 const EMPTY: SalesScores = { hasSignal: false, categories: [] };
 
-const MIN_AGENT_SEGMENTS = 3; // same bar as the growth review
+// Founder 2026-08-05: NO minimum-length gate (matches the growth review) — every
+// session gets graded, however short. Only a genuinely empty rep side (0 agent
+// turns) is excluded; the computed talk/question scores still degrade honestly.
+const MIN_AGENT_SEGMENTS = 1;
 
 const LABELS: Record<ScoreKey, string> = {
   opener: "Opener",

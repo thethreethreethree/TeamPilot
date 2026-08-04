@@ -43,7 +43,10 @@ export type SalesPivot = {
 
 const EMPTY: SalesPivot = { hasSignal: false, pivot: null };
 
-const MIN_SEGMENTS = 4; // fewer than this and there isn't a distinct turning point
+// Founder 2026-08-05: NO minimum-length gate — every session names its single most
+// decisive moment, however short (even a first "no" is a turning point). Only a
+// genuinely empty transcript (0 segments) is excluded (§3.4 — ground, never fabricate).
+const MIN_SEGMENTS = 1;
 
 function mmss(deltaMs: number): string {
   const total = Math.max(0, Math.round(deltaMs / 1000));

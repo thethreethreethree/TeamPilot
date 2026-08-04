@@ -7,9 +7,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * behaviour to coach at all, and the failure paths that must degrade to the honest empty state instead
  * of fabricating a lesson or throwing.
  *
- * The `< 3 agent turns → empty` case is what drives the After-Pitch "Your read" honest "too short"
- * state (the always-render change 2026-08-04): below the floor there is no real read, and — proven
- * here — the LLM is never even called, so a thin call can't fabricate one.
+ * Founder 2026-08-05 ("don't put a minimum time — every session gets all content"): the length floor
+ * is removed. A read is generated for EVERY session with at least one rep turn, however short — sales
+ * agent feedback was that real 5-7 min pitches were wrongly judged "too short to read". The ONLY input
+ * that short-circuits before the LLM is a genuinely empty rep side (0 agent turns — a capture gap),
+ * matching the talk-ratio capture-gap honesty; a thin-but-real call now gets a real, grounded read.
  *
  * Deps are mocked via the `@/` alias, which vitest resolves to the same module id as salesReview.ts's
  * own relative `./salesReviewPrompt` import, so the mock intercepts the source's import too.
@@ -33,11 +35,28 @@ const gen = (segments: ReturnType<typeof seg>[]) =>
 beforeEach(() => vi.clearAllMocks());
 
 describe("generateSalesReview — honesty gate + never-throws", () => {
-  it("fewer than 3 agent turns → honest empty state, WITHOUT calling the LLM", async () => {
-    // 2 agent turns (one customer turn interleaved) — below MIN_AGENT_SEGMENTS.
-    const out = await gen([seg("agent", 0), seg("customer", 1), seg("agent", 2)]);
+  it("ZERO agent turns (rep-silent capture gap) → honest empty state, WITHOUT calling the LLM", async () => {
+    // No rep turns at all — nothing of the rep's OWN behaviour to read (a one-sided capture).
+    // This is the ONLY input that short-circuits before the LLM (§3.4 — no rep, no rep read).
+    const out = await gen([seg("customer", 0), seg("customer", 1)]);
     expect(out).toEqual({ hasSignal: false, strengths: [], growthAreas: [] });
     expect(debriefCoachV5).not.toHaveBeenCalled(); // short-circuits before spending an LLM call — no fabrication
+  });
+
+  it("a SHORT call (2 agent turns) → now generates a real read (founder 2026-08-05: no minimum time)", async () => {
+    asMock(debriefCoachV5).mockResolvedValue({
+      suppressed: false,
+      text: JSON.stringify({
+        strengths: [{ point: "clear opener", example: "you led with the offer" }],
+        growthAreas: [],
+        closing: "good start",
+      }),
+    });
+    // 2 agent turns — below the OLD floor of 3; must now produce a read, not an empty state.
+    const out = await gen([seg("agent", 0), seg("customer", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(true);
+    expect(out.strengths).toHaveLength(1);
+    expect(debriefCoachV5).toHaveBeenCalledTimes(1); // the LLM IS called for a short-but-real call
   });
 
   it("3+ agent turns with a valid model review → hasSignal, strengths passed through", async () => {

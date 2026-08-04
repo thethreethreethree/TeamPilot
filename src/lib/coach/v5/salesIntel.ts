@@ -21,7 +21,9 @@ import {
 
 const EMPTY: SalesIntel = { competitors: [], topics: [] };
 
-const MIN_SEGMENTS = 3;
+// Founder 2026-08-05: NO minimum-length gate — every session yields its intel, however
+// short. Only a genuinely empty transcript (0 segments) is excluded (§3.4).
+const MIN_SEGMENTS = 1;
 const MAX_ITEMS = 8; // bound pathological model output
 
 export async function generateSalesIntel(args: {
