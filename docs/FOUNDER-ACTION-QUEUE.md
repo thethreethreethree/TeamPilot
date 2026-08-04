@@ -22,6 +22,12 @@
 > step to try FIRST (you, no logs needed):** in Vercel, redeploy `606894f4` (or a fresh 16.3.0 bump) with
 > **"Clear build cache"** — a stale cache across a framework-minor bump is a common false failure. If it still
 > fails, THEN grab the build error and I'll fix the specific cause.
+> **Live-posture check (2026-08-04, reassuring but not a clearance):** verified the middleware confinement
+> HOLDS on prod right now — `/dashboard`, `/dashboard/care`, `/dashboard/sales-coach`, `/onboarding`,
+> `/dashboard/admin/crm` all 307-redirect an unauthenticated request to the (module-appropriate) login. So the
+> app is NOT a trivial open door even on 16.2.6. Caveat: the GHSA-6gpp bypass is a CRAFTED technique that could
+> circumvent middleware for specific requests — normal-path confinement working does not prove the crafted
+> bypass fails, so the patch is still needed; this just means there's no gross exposure while it's pending.
 
 ## ▶ START HERE
 
