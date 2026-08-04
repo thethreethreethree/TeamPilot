@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminRole } from "@/lib/roles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -63,8 +64,7 @@ export function deriveCareAccess(args: {
   // gate is what actually revokes access. Without it a removed person would keep
   // handling live customer conversations (found auditing the 2026-07-07 removal fix).
   if (args.isRemoved) return { isAdmin: false, isAgent: false };
-  const isAdmin =
-    args.role === "CEO" || args.role === "COO" || args.role === "admin";
+  const isAdmin = isAdminRole(args.role);
   const isAgent = !!args.isSupportAgent || isAdmin;
   return { isAdmin, isAgent };
 }

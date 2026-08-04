@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { isAdminRole } from "@/lib/roles";
 import {
   getSession,
   saveAfterPitchSummary,
@@ -30,8 +31,6 @@ import { getExperienceMode } from "@/lib/experience/mode";
  * established sales-coach rule (company CEO/COO/admin OR sales_coach_role admin).
  */
 
-const MANAGER_COMPANY_ROLES = ["CEO", "COO", "admin"];
-
 type Viewer = {
   userId: string;
   isOwner: boolean;
@@ -57,7 +56,7 @@ async function resolveViewer(
   const sameCompany = profile?.company_id === sessionCompanyId;
   const isManager =
     sameCompany &&
-    (MANAGER_COMPANY_ROLES.includes(profile?.role as string) ||
+    (isAdminRole(profile?.role) ||
       profile?.sales_coach_role === "admin");
   const isOwner = auth.user.id === sessionAgentId;
 

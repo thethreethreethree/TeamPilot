@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { isAdminRole } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
@@ -839,7 +840,7 @@ export default function Sidebar() {
               Send feedback
             </button>
           </LearningHint>
-          {(userRole === "admin" || userRole === "CEO" || userRole === "COO") &&
+          {isAdminRole(userRole) &&
             adminNav.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
