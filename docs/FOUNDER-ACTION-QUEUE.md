@@ -63,7 +63,15 @@
 > responses-used counter/table (only extension-trial entitlements + a sales-coach quota), and the entitlements
 > specs cover seats/modules/STT-minutes, NOT AI-response counts. The raw events to count DO exist
 > (`care.conversation.message_added` + the AI-reply posts). Path: launch advertised now; when ready to enforce,
-> build a per-agent monthly response meter + soft-cap (notify at ~80/100%). New metering dimension, founder-gated.*
+> build a per-agent monthly response meter + soft-cap (notify at ~80/100%). New metering dimension, founder-gated.
+> **Feasibility pinned (read-only prod 2026-08-05): the meter is CHEAP + CLEAN.** "AI-assisted response" = one
+> precise shape in `support_messages`: `author_type='ai'` (Jeff auto-replied) OR `co_pilot_invoked=true` (agent
+> used Co-Pilot) — that table already has `author_id`+`created_at`, so a per-agent monthly count is one
+> aggregation, no new event plumbing. Current usage is TINY (pilot): 101 total (95 auto + 6 co-pilot), busiest
+> agent-month = 3. So the 1,000/3,000 allowances are very safe headroom now; they bite only as customers scale.
+> **One definition question for you:** 95 of 101 are AI AUTO-replies (Jeff, company-level, not attributable to an
+> agent); only the 6 co-pilot ones are per-agent. Does a "per-agent allowance" count (a) the agent's own
+> co-pilot-assisted replies only, or (b) a pooled company AI-response budget? That choice sets how the meter attributes.*
 >
 > *📊 **Data-integrity severity check (read-only prod, 2026-08-04) — none of these is an active customer-facing
 > fire:** (a) transcript corruption is BOUNDED + stable (128 excess / 12 sessions, unchanged since baseline, not
