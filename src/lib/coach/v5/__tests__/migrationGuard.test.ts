@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isMissingColumnError } from "../migrationGuard";
+import { isMissingColumnError, isMissingRelationError } from "../migrationGuard";
 
 /**
  * These tests pin the fallback/fail-loud boundary. The guard exists to keep a pending migration from taking a
@@ -66,5 +66,35 @@ describe("isMissingColumnError", () => {
     expect(isMissingColumnError({}, COL)).toBe(false);
     expect(isMissingColumnError({ code: "42703", message: null }, COL)).toBe(false);
     expect(isMissingColumnError({ code: "42703", message: "column x does not exist" }, "")).toBe(false);
+  });
+});
+
+describe("isMissingRelationError", () => {
+  it("fires on an undefined-table SHAPE carrying pg's 42P01", () => {
+    expect(
+      isMissingRelationError({ code: "42P01", message: 'relation "care_live_visitors" does not exist' }),
+    ).toBe(true);
+  });
+
+  it("fires on the canonical phrasing even without a code (code path may be absent)", () => {
+    expect(isMissingRelationError({ message: 'relation "x" does not exist' })).toBe(true);
+    expect(isMissingRelationError({ message: "Could not find the table 'public.x' in the schema cache" })).toBe(true);
+  });
+
+  it("STAYS LOUD (false) for a genuine error — must never masquerade as a pending migration", () => {
+    expect(isMissingRelationError({ code: "42501", message: "permission denied for table x" })).toBe(false);
+    expect(isMissingRelationError({ code: "23505", message: "duplicate key value violates unique constraint" })).toBe(false);
+    expect(isMissingRelationError({ code: "500", message: "internal error" })).toBe(false);
+  });
+
+  it("false on null/undefined/empty error", () => {
+    expect(isMissingRelationError(null)).toBe(false);
+    expect(isMissingRelationError(undefined)).toBe(false);
+    expect(isMissingRelationError({})).toBe(false);
+  });
+
+  it("when a relation name is required, only fires if the message names it", () => {
+    expect(isMissingRelationError({ code: "42P01", message: 'relation "visitors" does not exist' }, "visitors")).toBe(true);
+    expect(isMissingRelationError({ code: "42P01", message: 'relation "other" does not exist' }, "visitors")).toBe(false);
   });
 });

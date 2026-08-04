@@ -52,3 +52,25 @@ export function isMissingColumnError(error: PostgrestLikeError, column: string):
   // Some paths omit the code; the canonical phrasings still identify the case unambiguously.
   return /does not exist|schema cache/i.test(message);
 }
+
+/** Codes Postgres (42P01) / PostgREST (PGRST205) use for "that table/relation isn't in the schema". */
+const MISSING_RELATION_CODES = new Set(["42P01", "PGRST205"]);
+
+/**
+ * Table/relation sibling of isMissingColumnError — true only when `error` says a table isn't in the schema
+ * (its migration is pending), so a guarded fallback can return empty for THAT case while a genuine failure
+ * stays loud. Same defense-in-depth as the column predicate: a known code OR the canonical phrasing
+ * (`relation … does not exist` / `Could not find the table … in the schema cache`). Pass `relation` to also
+ * require the message to name it (stricter). Any other error → false → the caller fails loudly.
+ */
+export function isMissingRelationError(error: PostgrestLikeError, relation?: string): boolean {
+  if (!error) return false;
+
+  const message = typeof error.message === "string" ? error.message : "";
+  if (relation && !message.includes(relation)) return false;
+
+  const code = typeof error.code === "string" ? error.code : "";
+  if (MISSING_RELATION_CODES.has(code)) return true;
+
+  return /relation .* does not exist|could not find the table/i.test(message);
+}

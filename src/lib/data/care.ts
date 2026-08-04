@@ -6,7 +6,11 @@ import { careQualityScore } from "@/lib/care/careQualityGrade";
 import { strictMutate } from "@/lib/supabase/strictUpdate";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
-import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import {
+  isMissingColumnError,
+  isMissingRelationError,
+  type PostgrestLikeError,
+} from "@/lib/coach/v5/migrationGuard";
 import { HANDOFF_NOTICE } from "@/lib/care/handoverNotice";
 import {
   aggregateCustomerPatterns,
@@ -3088,8 +3092,13 @@ export async function fetchLiveVisitors(
         lastSeenAt: row.last_seen_at,
       };
     });
-  } catch {
-    return [];
+  } catch (e) {
+    // Return [] ONLY when the visitors table's migration (0192) is pending — the documented "feature not
+    // enabled yet" state. A genuine fetch failure must stay LOUD (rethrow → the route 500s → the monitor
+    // page's res.ok check keeps the prior visitors + shows an error) instead of masquerading as "no
+    // visitors" (error-as-no-data). The old blanket catch→[] swallowed real errors, defeating that check.
+    if (isMissingRelationError(e as PostgrestLikeError)) return [];
+    throw e;
   }
 }
 
