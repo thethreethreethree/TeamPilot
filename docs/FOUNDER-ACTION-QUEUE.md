@@ -608,8 +608,14 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > **Audit status: the two cleanly-server-side-fixable primary-display instances are now FIXED** (agent inbox +
 > customer widget). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
 > `getCareConversationByToken` (broad blast radius — many consumers, a throw isn't contained; each consumer
-> needs its own error handling) and `tasks.ts` (needs an unverifiable client-UI change). The other ~24 sites are
-> secondary/best-effort (listTags,
+> needs its own error handling) and `tasks.ts` + `chats.ts` `fetchTopic`/`fetchParticipants` (client-direct data
+> calls — the chat detail page's `refresh()` has try/finally but NO catch, so the fix needs a client-UI error
+> state, unverifiable live, same class as tasks.ts). **Audit now comprehensive:** all 6 primary-display
+> candidates traced — 2 FIXED (care routes, cleanly server-side), 1 no-fix (after-pitch auto-regenerates), 3
+> gated (getSession/getCareConversationByToken broad blast radius; tasks.ts + chat-detail need client-UI
+> changes). The pattern: instances behind a ROUTE were cleanly fixable (route 500 + client res.ok); instances
+> called DIRECTLY by a client component need a client-side error state (gated — can't verify authed UI live).
+> The other ~24 sites are secondary/best-effort (listTags,
 > cannedResponses, findSimilarResolutions, detectSupportPatterns, durability/analytics) where empty is fine.
 > **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
 > 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
