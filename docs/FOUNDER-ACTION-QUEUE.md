@@ -12,8 +12,15 @@
 >   honest "too short" state on thin calls — the ≥3-rep-turn floor in `salesReview.ts` still governs a *real* read).
 >
 > **OPEN — your call (not built, would be overtaking):** (1) lower the `MIN_AGENT_SEGMENTS = 3` "Your read"
-> threshold for fuller reads on shorter calls; (2) remove the app chat widget from the public landing (route-group
-> split); (3) any landing copy/section refinement.
+> threshold for fuller reads on shorter calls; (2) any landing copy/section refinement.
+>
+> **RESOLVED-as-intended (verified, not a bug):** the "Jeff" chat bubble on the public landing is *by design* —
+> `CareChatWidget`'s own contract (lines 24-26) renders it on marketing pages "because that's where it serves a
+> real visitor," self-gated off only agent workspaces (`/dashboard/care`, `/dashboard/chats`, `/widget`). So it's
+> your cold-visitor sales/support chat, working as intended — I did **not** remove it. *Minor cosmetic note (your
+> call):* the FAB uses the app's ember/amber (`bg-ember-400`), a hair off the landing's committed signal-yellow
+> (#FFDA03). It's a global color (correct on the dashboard), so I left it — say the word if you want the landing
+> to override the bubble to signal-yellow.
 >
 > ✅ **CONVERSION GAP — FIXED & LIVE (`d7429be1`).** The landing's "Request access" CTA pointed at `/redeem`
 > (key-required → cold visitors dead-ended). Now points at **`/login`, which has OPEN signup** (create account →
