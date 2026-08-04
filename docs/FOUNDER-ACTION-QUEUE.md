@@ -33,6 +33,13 @@
 > already has it. The OPEN advisory (GHSA-6gpp) is a different, newer Turbopack+single-locale technique I don't
 > have the payload for, so it's untested — but the app is confirmed immune to the most famous Next middleware
 > bypass, which further lowers (not eliminates) the practical risk while the 16.3.0 patch is pending.
+> **DEFENSE-IN-DEPTH (the key mitigant, 2026-08-04):** the app does NOT rely on middleware alone for auth. The
+> dashboard layout (`src/app/dashboard/layout.tsx:67-76`) unconditionally re-verifies auth server-side in prod —
+> `getUser()` → `redirect("/login")` if no session — and every data query is RLS-bound (no session = no data);
+> sensitive API routes independently 401. So even a SUCCESSFUL middleware bypass reaching /dashboard hits the
+> layout's own getUser() gate and RLS — it cannot read content or data. Net risk reassessment: the vuln is
+> REAL and the patch is proper hygiene, but its PRACTICAL impact on this app is LOW (middleware is a first-line
+> optimization, not the sole gate). This is important for prioritization: fix it, but it's not a fire.
 
 ## ▶ START HERE
 
