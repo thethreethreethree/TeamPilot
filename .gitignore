@@ -72,3 +72,11 @@ Thinkerthinker Build Key. MD.txt
 
 # Live pilot access codes — never commit
 PILOT-ACCESS-CODES.pdf
+
+# Founder IP — business/pricing/sales docs kept untracked at the repo ROOT (local reference only, never
+# commit). ROOT-level patterns (leading slash) ONLY, so tracked docs/*.pdf repo documents are unaffected.
+# Guards against a `git add -A` (or an explicit add) sweeping founder IP into history — it happened once
+# (861e5ffc). If you ever genuinely need to commit a root PDF, `git add -f <file>` overrides this.
+/*.pdf
+/ELOSTATE-*.png
+/ELOSTATE-*.source.html
