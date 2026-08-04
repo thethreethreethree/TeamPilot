@@ -8,6 +8,7 @@
     "build:extension": "node scripts/build-extension-download.mjs",
     "prebuild": "node scripts/build-extension-download.mjs",
     "build": "next build",
+    "build:ci": "node scripts/build-ci.mjs",
     "start": "next start --port 4321",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
