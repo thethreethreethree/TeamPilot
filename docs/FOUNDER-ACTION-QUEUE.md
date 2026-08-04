@@ -39,7 +39,12 @@
 > platform/integration issue, not our code. **Bottom line: a clear-cache redeploy / retry is very likely the
 > whole fix; no app change needed.** (Reverted the local bump; tree is back on 16.2.6.) Minor forward note for
 > when the bump lands: Sentry's `disableLogger: true` is deprecated + "not supported with Turbopack" on 16.3 —
-> swap to `webpack.treeshake.removeDebugLogging` then (cosmetic, non-blocking).
+> swap to `webpack.treeshake.removeDebugLogging` then (cosmetic, non-blocking). Also: Sentry's build output
+> flags an ACTION-REQUIRED — no `onRouterTransitionStart` export in `instrumentation-client.ts`, so client
+> NAVIGATION transitions aren't instrumented (a pre-existing monitoring gap on BOTH 16.2.6 and 16.3.0, not
+> caused by the bump). Can't fix on the current Sentry 10.57.0 — `Sentry.captureRouterTransitionStart` is
+> undefined there; it needs a Sentry bump (10.69+). So fold a `@sentry/nextjs` bump + adding that hook into the
+> same change whenever you do the Next 16.3.0 upgrade. Low severity (observability completeness, not user-facing).
 > **No "newer patch" escape hatch (checked 2026-08-04):** 16.3.0 is the LATEST STABLE Next (only `16.3.1-canary.0`
 > exists above it — a canary, unfit for prod). So the fix target is specifically 16.3.0; there's no higher stable
 > version to jump to that would sidestep whatever makes 16.3.0 fail on Vercel. Path forward is exactly: (a)
