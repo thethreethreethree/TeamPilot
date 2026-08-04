@@ -57,6 +57,17 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
   back above 1 (the 2-turn call would return EMPTY with no LLM call) — the A30 gate that keeps the founder
   decision from silently regressing on the scores surface specifically.
 
+### Detection guard for the Dissect floor (salesDissect.generate)
+`src/lib/coach/v5/__tests__/salesDissect.generate.test.ts` (new).
+
+- **write-path:** the same generate-level guard for `generateSalesDissect` — the founder's third named
+  deliverable ("<My read> <Summarize> <Dissect>"). Asserts a 0-agent-turn capture gap short-circuits
+  before the LLM; a 2-agent-turn short call is now dissected (LLM called, ≥1 strength); suppressed→empty;
+  LLM-error→empty.
+- **read-path:** `npx vitest run` executes it; fails by construction if the Dissect floor returns. Closes
+  the discipline gap where the review + score floors were guarded but the dissect floor (also changed, also
+  a named deliverable) was not.
+
 ### salesIntel prompt — short call keeps its real topics (RES-02 follow-up)
 `src/lib/coach/v5/salesIntelPrompt.ts`.
 
@@ -84,3 +95,4 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - `src/lib/coach/v5/salesIntelPrompt.ts`
 - `src/lib/coach/v5/__tests__/salesReview.generate.test.ts`
 - `src/lib/coach/v5/__tests__/salesScore.generate.test.ts`
+- `src/lib/coach/v5/__tests__/salesDissect.generate.test.ts`
