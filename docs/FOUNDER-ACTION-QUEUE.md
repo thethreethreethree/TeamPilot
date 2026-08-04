@@ -151,6 +151,15 @@
 > caused by the bump). Can't fix on the current Sentry 10.57.0 — `Sentry.captureRouterTransitionStart` is
 > undefined there; it needs a Sentry bump (10.69+). So fold a `@sentry/nextjs` bump + adding that hook into the
 > same change whenever you do the Next 16.3.0 upgrade. Low severity (observability completeness, not user-facing).
+> **Forward-compat flag — `middleware` → `proxy` rename (Next 16, non-urgent, 2026-08-04):** every build now
+> warns "The 'middleware' file convention is deprecated. Please use 'proxy' instead." It's a WARNING only —
+> 16.2.6 builds + runs middleware fine, so nothing is broken. The migration is mechanical (rename
+> `src/middleware.ts` → `src/proxy.ts`, `export function middleware` → the `proxy` export; matcher/config
+> unchanged), BUT this file is auth-critical (Supabase getUser + the cookie-refresh preservation that stops
+> intermittent logout + the 0207 module hard-lock), so I did NOT do it autonomously — it's a founder-approval
+> change. When you're ready: I can migrate it and verify via `npm run build:ci` + the middleware route-protection
+> tests + a live auth/redirect smoke test, in one reviewed pass. Fold it into the same window as the Next 16.3.0
+> bump. Low priority — Next 16.x still supports `middleware`; it only becomes required when a future major removes it.
 > **No "newer patch" escape hatch (checked 2026-08-04):** 16.3.0 is the LATEST STABLE Next (only `16.3.1-canary.0`
 > exists above it — a canary, unfit for prod). So the fix target is specifically 16.3.0; there's no higher stable
 > version to jump to that would sidestep whatever makes 16.3.0 fail on Vercel. Path forward is exactly: (a)
