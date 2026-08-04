@@ -22,10 +22,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const enriched = req.nextUrl.searchParams.get("enriched") === "1";
-  if (enriched) {
-    const conversations = await fetchEnrichedInbox();
+  try {
+    const conversations = enriched
+      ? await fetchEnrichedInbox()
+      : await fetchAgentInbox();
     return NextResponse.json({ conversations });
+  } catch {
+    // A swallowed DB error used to return 200 + [] here, which flashed the agent's inbox EMPTY on a
+    // transient poll error (conversations vanished mid-work, then reappeared next poll). Surface it
+    // as 500 so the client's res.ok check keeps the prior conversations instead of clearing them.
+    return NextResponse.json(
+      { error: "Couldn't load the inbox." },
+      { status: 500 },
+    );
   }
-  const conversations = await fetchAgentInbox();
-  return NextResponse.json({ conversations });
 }

@@ -677,11 +677,15 @@ export async function fetchCareCommandStats(): Promise<CareCommandStats | null> 
  */
 export async function fetchAgentInbox(): Promise<SupportConversation[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .select("*")
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(200);
+  // Distinguish a genuine empty inbox (no error, no rows) from a FETCH FAILURE (throw): swallowing
+  // the error as [] made a transient poll error flash the agent's inbox empty (conversations vanish
+  // mid-work). The route turns this throw into a 500 so the client keeps the prior conversations.
+  if (error) throw error;
   return (data ?? []).map(mapConversation);
 }
 
@@ -1049,13 +1053,16 @@ function mapEnrichedConversation(
 
 export async function fetchEnrichedInbox(): Promise<EnrichedConversation[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .select(
       `*, support_conversation_tags ( tag_id, support_tags ( id, company_id, name, color ) ), support_customers ( id, company_id, email, name, phone, lifetime_value, signup_date, last_seen_at, metadata, created_at )`
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(500);
+  // Same as fetchAgentInbox: a fetch FAILURE must not read as an empty inbox. Throw so the route
+  // 500s and the client keeps the prior conversations instead of flashing empty.
+  if (error) throw error;
   if (!data) return [];
   return data.map(mapEnrichedConversation);
 }
