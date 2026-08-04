@@ -68,6 +68,19 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
   the discipline gap where the review + score floors were guarded but the dissect floor (also changed, also
   a named deliverable) was not.
 
+### Integration guard for the assembler seam (afterPitch.generate)
+`src/lib/coach/v5/__tests__/afterPitch.generate.test.ts` (new).
+
+- **write-path:** the per-engine floors are guarded above; this guards the INTEGRATION point the founder's
+  bug surfaced through — `generateAfterPitchSummary`'s composite `hasSignal` (narrative || moments || scores
+  || cueLoop) and its one true short-circuit (0 segments). Engines mocked; the real assembly runs. Asserts:
+  0 segments → EMPTY without calling any engine; a short call with content → hasSignal:true assembled; the
+  composite is a LOGICAL OR (scores alone carry the page — the founder's "only the scores" case); every
+  engine empty → EMPTY.
+- **read-path:** `npx vitest run` executes it. Fails by construction if the composite is narrowed to an AND
+  or the 0-segment short-circuit is removed — the seam-level A30 gate. `generateAfterPitchSummary` had NO
+  test before this; the assembler is where the engines' correctness becomes (or fails to become) the page.
+
 ### salesIntel prompt — short call keeps its real topics (RES-02 follow-up)
 `src/lib/coach/v5/salesIntelPrompt.ts`.
 
@@ -96,3 +109,4 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - `src/lib/coach/v5/__tests__/salesReview.generate.test.ts`
 - `src/lib/coach/v5/__tests__/salesScore.generate.test.ts`
 - `src/lib/coach/v5/__tests__/salesDissect.generate.test.ts`
+- `src/lib/coach/v5/__tests__/afterPitch.generate.test.ts`
