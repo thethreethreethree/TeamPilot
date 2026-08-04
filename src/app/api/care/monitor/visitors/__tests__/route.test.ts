@@ -46,4 +46,16 @@ describe("GET /api/care/monitor/visitors — tenant scoping", () => {
     // The scoping guarantee: the DB fetch is bound to the authenticated company, not a client value.
     expect(fetchLiveVisitors).toHaveBeenCalledWith("company-A");
   });
+
+  it("a GENUINE read failure → clean 500 with a generic message (no raw-error leak, no framework-default reliance)", async () => {
+    // fetchLiveVisitors rethrows a real error (it degrades to [] only for a pending migration). The route
+    // must turn that into an explicit generic 500 so the monitor page's res.ok check keeps prior visitors +
+    // shows an error, instead of flashing the live list empty (error-as-no-data).
+    vi.mocked(requireCareAgent).mockResolvedValue({ ok: true, companyId: "company-A", agentId: "a1" } as never);
+    vi.mocked(fetchLiveVisitors).mockRejectedValue(new Error("permission denied for table care_live_visitors"));
+    const res = await GET();
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Couldn't load live visitors."); // generic — not the raw exception
+  });
 });

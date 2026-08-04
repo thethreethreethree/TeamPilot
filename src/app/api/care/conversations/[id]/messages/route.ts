@@ -247,7 +247,16 @@ export async function POST(
   // it has access to — including its own prior replies.
   // Shared with the inbound-email route (buildRecentTurns) so the two customer-facing AI paths
   // can't drift apart again — excludes the just-inserted customer message (it goes in as newMessage).
-  const priorMessages = await listCareMessagesForCustomer(conversation.id);
+  // Best-effort context: listCareMessagesForCustomer now THROWS on a fetch failure (so the GET path can 500
+  // instead of flashing the thread empty). Here that would be WRONG — the customer's message is already saved
+  // (above), so a transient read failure must not 500 the turn: that shows "Couldn't send" for a message that
+  // landed, and invites a duplicate re-send. Degrade to context-blind, exactly like the inbound-email path.
+  let priorMessages: Awaited<ReturnType<typeof listCareMessagesForCustomer>> = [];
+  try {
+    priorMessages = await listCareMessagesForCustomer(conversation.id);
+  } catch {
+    /* transient read failure — reply with reduced context rather than fail the saved-message turn */
+  }
   const recentTurns = buildRecentTurns(priorMessages, customerMsg.id);
 
   const productContext = await getProductContextForTenant(conversation.companyId);

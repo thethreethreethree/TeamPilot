@@ -10,7 +10,10 @@ import { fetchLiveVisitors } from "@/lib/data/care";
  * recent first, for the Live Monitor page. Scoped to the caller's company
  * by requireCareAgent — an agent can only ever see their own tenant's
  * visitors. Returns [] (not an error) if 0192 is unapplied, so the page
- * shows an honest empty state rather than a failure.
+ * shows an honest empty state rather than a failure. A GENUINE read failure
+ * stays loud: fetchLiveVisitors rethrows it, and this route turns it into a
+ * 500 so the monitor page (which checks res.ok) keeps the prior visitors +
+ * shows an error, instead of flashing the live list empty (error-as-no-data).
  */
 export async function GET() {
   const auth = await requireCareAgent();
@@ -24,6 +27,15 @@ export async function GET() {
     );
   }
 
-  const visitors = await fetchLiveVisitors(auth.companyId);
-  return NextResponse.json({ visitors });
+  try {
+    const visitors = await fetchLiveVisitors(auth.companyId);
+    return NextResponse.json({ visitors });
+  } catch {
+    // Explicit generic 500 (not the framework default) — consistent with the agent-inbox and
+    // widget load-events routes, and never leaks a raw error to the client (CWE-209).
+    return NextResponse.json(
+      { error: "Couldn't load live visitors." },
+      { status: 500 }
+    );
+  }
 }
