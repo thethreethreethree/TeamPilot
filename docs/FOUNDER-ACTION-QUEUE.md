@@ -26,6 +26,11 @@
 >    fire. *(§ "SECURITY" below.)*
 > 4. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
 > 5. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
+>
+> *Also open (pre-existing, founder-gated — detail in the body/table below, not re-surfaced here): coach-KPI
+> aggregation truncation (wrong KPIs past 1000 rows — measurement-integrity), message-thread pagination (MEDIUM, design-ready, no
+> migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on foreign entries. None are
+> regressions from this session; all were diagnosed earlier and await your decision or numbers.*
 
 ## 🔐 SECURITY — applicable Next.js middleware auth-bypass, fix ATTEMPTED + REVERTED (2026-08-04, needs your Vercel)
 > **The vuln is real and applicable.** `npm audit` flags Next.js **16.2.6** (current, live) as vulnerable to
