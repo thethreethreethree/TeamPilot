@@ -1256,6 +1256,15 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 > **NOT done unilaterally:** `/terms` + `/privacy` are legal/policy copy (yours), and the phrase list is your IP
 > judgment. Say `"rewrite the public IP copy"` and I do all three pages + harden the guard in one reviewed pass.
 >
+> **⏫ URGENCY ESCALATION (2026-08-04) — the leaking pages are INDEXABLE.** Verified live: `/help`, `/privacy`,
+> `/terms` all carry `<meta name="robots" content="index, follow">`, robots.txt does NOT Disallow them, and the
+> live landing footer links them. So the mechanism phrases aren't just visible on a direct visit — they will be
+> **crawled and indexed by search engines** (searchable by anyone, and cache-persistent even after a later fix).
+> This makes the copy rewrite time-sensitive: every day live = more indexing. NOTE the fix is the copy rewrite,
+> NOT deindexing — these are legitimate marketing pages that SHOULD be indexed; the phrases are the problem, not
+> the pages. (robots.txt + sitemap are otherwise correct: sitemap = `/` + `/login` only, `/landing-preview`
+> correctly absent, gated routes Disallowed.)
+>
 > ---
 >
 > ## 🌍 IP LEAK ON A PUBLIC PAGE — /help is ungated + quotes the forbidden mechanism phrases (found 2026-07-23)
