@@ -22,6 +22,12 @@
 > step to try FIRST (you, no logs needed):** in Vercel, redeploy `606894f4` (or a fresh 16.3.0 bump) with
 > **"Clear build cache"** — a stale cache across a framework-minor bump is a common false failure. If it still
 > fails, THEN grab the build error and I'll fix the specific cause.
+> **No "newer patch" escape hatch (checked 2026-08-04):** 16.3.0 is the LATEST STABLE Next (only `16.3.1-canary.0`
+> exists above it — a canary, unfit for prod). So the fix target is specifically 16.3.0; there's no higher stable
+> version to jump to that would sidestep whatever makes 16.3.0 fail on Vercel. Path forward is exactly: (a)
+> clear-cache redeploy `606894f4` (if it's a stale-cache issue, this fixes it), or (b) share the Vercel build
+> error so I fix the specific cause. Retrying 16.3.0 blind (even on a preview branch) without the error is the
+> constitution's "don't retry a failed approach" rule, so I'm not doing that.
 > **Live-posture check (2026-08-04, reassuring but not a clearance):** verified the middleware confinement
 > HOLDS on prod right now — `/dashboard`, `/dashboard/care`, `/dashboard/sales-coach`, `/onboarding`,
 > `/dashboard/admin/crm` all 307-redirect an unauthenticated request to the (module-appropriate) login. So the
