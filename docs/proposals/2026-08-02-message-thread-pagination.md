@@ -106,5 +106,13 @@ fits; it's lower-growth so lowest priority.
 3. Wire the chosen UI per surface; delete the old full-thread loader once its callers migrate.
 4. Staging check on a seeded >1000-message thread that the newest messages now appear (they currently don't).
 
+> **BUILD-ENVIRONMENT GATE (noted 2026-08-04):** step 4 is not optional polish — it is the ONLY place the
+> keyset's PostgREST `.or()` cursor filter is actually verified against Postgres. Unit tests (step 2) mock the
+> query builder, so they verify the cursor *logic* but NOT that the `.or(...)` string executes correctly
+> against a real DB — a subtly-wrong filter passes every mocked test and still drops rows live. So this feature
+> must be built by an agent/session with LIVE DB access (or a founder running the staging check), not shipped
+> "done" from a sandbox on unit tests alone. This is why the item stays gated even though the code is
+> code-only/no-migration: correctness here is un-verifiable without step 4.
+
 Blast radius: additive data-layer functions + per-surface UI. No schema change, no migration. Sequence by
 severity: support + team chat first (highest message volume), tasks next, decisions last.
