@@ -55,6 +55,15 @@
 > error-as-no-data"`, established fetchTasks pattern, I can build it on your word), message-thread pagination
 > (MEDIUM, design-ready, no migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on
 > foreign entries. None are regressions from this session; all were diagnosed earlier and await your decision.*
+>
+> *📊 **Data-integrity severity check (read-only prod, 2026-08-04) — none of these is an active customer-facing
+> fire:** (a) transcript corruption is BOUNDED + stable (128 excess / 12 sessions, unchanged since baseline, not
+> spreading); (b) onboarding double-create TOCTOU has NOT materialized (0 duplicate tenants of 14 companies →
+> the advisory lock is preventive-only); (c) coach-KPI / false-limit truncation is MATERIALIZED but VENDOR-ONLY —
+> the only >1000-row group is ELOSTATE's OWN `events` (1697, incl. test data); every customer-facing table is
+> well under 1000 (coaching_sessions/co ≤115, chat/topic ≤224, support/conv ≤38). So the wrong aggregates hit
+> only your internal readouts today, no customer. All three stay founder-gated but can be scheduled calmly, not
+> as emergencies.*
 
 ## 🟢 CI RESOLVED — all three chronic failures fixed, check job green (2026-08-04, `5004662b`)
 > **RESOLVED.** The `build` step's failures were also root-caused + fixed: (1) `env.ts` threw at module-eval
