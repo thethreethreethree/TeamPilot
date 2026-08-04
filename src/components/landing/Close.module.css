@@ -10,6 +10,12 @@
 .btn { display: inline-block; background: #FFDA03; color: #0d0d0d; font-weight: 800; font-size: 18px; padding: 18px 40px; border-radius: 100px;
   text-decoration: none; box-shadow: 0 10px 40px rgba(255,218,3,.32); transition: transform .18s, box-shadow .18s; }
 .btn:hover { transform: translateY(-3px); box-shadow: 0 18px 54px rgba(255,218,3,.46); }
+.btn:focus-visible { outline: 2px solid #F7F7F5; outline-offset: 4px; }
 .reassure { margin-top: 20px; color: rgba(247,247,245,.5); font-size: 14px; }
 .reassure b { color: rgba(247,247,245,.8); font-weight: 700; }
 @media (max-width: 640px) { .section { padding: 100px 20px; } .btn { font-size: 16px; padding: 16px 32px; } }
+
+@media (max-width: 640px) {
+  .heading { font-size: clamp(24px, 7.2vw, 36px); max-width: 100%; overflow-wrap: break-word; }
+  .sub { max-width: 100%; }
+}

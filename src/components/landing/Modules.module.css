@@ -1,4 +1,4 @@
-.section { background: #141414; color: #F7F7F5; padding: 120px 24px; }
+.section { overflow-x: hidden; background: #141414; color: #F7F7F5; padding: 120px 24px; }
 .inner { max-width: 1080px; margin: 0 auto; }
 .eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12px; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
 .heading { font-weight: 800; letter-spacing: -.025em; line-height: 1.03; font-size: clamp(32px, 5vw, 60px); text-align: center; margin: 0 auto 12px; max-width: 16ch; }
@@ -27,4 +27,9 @@
   .section { padding: 88px 20px; }
   .grid { grid-template-columns: 1fr; gap: 12px; margin-top: 40px; }
   .card { padding: 24px; }
+}
+
+@media (max-width: 640px) {
+  .heading { font-size: clamp(24px, 7.2vw, 36px); max-width: 100%; overflow-wrap: break-word; }
+  .sub { max-width: 100%; }
 }

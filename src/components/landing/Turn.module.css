@@ -12,3 +12,8 @@
   padding: 13px 24px; font-size: clamp(14px, 1.6vw, 17px); font-weight: 600; color: #F7F7F5; background: rgba(255,218,3,.05); }
 .pledge b { color: #FFDA03; font-weight: 800; }
 @media (max-width: 640px) { .section { padding: 92px 20px; } .pledge { padding: 12px 18px; } }
+
+@media (max-width: 640px) {
+  .heading { font-size: clamp(24px, 7.2vw, 36px); max-width: 100%; overflow-wrap: break-word; }
+  .sub { max-width: 100%; }
+}

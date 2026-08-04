@@ -44,3 +44,8 @@
   .divider span { font-size: 10px; }
   .trace { padding-left: 26px; }
 }
+
+@media (max-width: 640px) {
+  .heading { font-size: clamp(24px, 7.2vw, 36px); max-width: 100%; overflow-wrap: break-word; }
+  .sub { max-width: 100%; }
+}

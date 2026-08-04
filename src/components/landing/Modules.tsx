@@ -76,7 +76,7 @@ export function Modules() {
           {MODULES.map((m, i) => (
             <Reveal key={m.key} delay={140 + i * 90}>
               <div className={styles.card}>
-                <div className={styles.icon}>{m.icon}</div>
+                <div className={styles.icon} aria-hidden>{m.icon}</div>
                 <div className={styles.title}>
                   {m.title}
                   <span>{m.tag}</span>

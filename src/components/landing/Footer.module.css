@@ -10,9 +10,12 @@
 .colHead { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(247,247,245,.4); margin-bottom: 3px; }
 .link { color: rgba(247,247,245,.7); text-decoration: none; font-size: 14px; transition: color .2s; }
 .link:hover { color: #FFDA03; }
+.link:focus-visible, .brand:focus-visible, .pill:focus-visible {
+  outline: 2px solid #FFDA03; outline-offset: 3px; border-radius: 6px;
+}
 .bottom { margin-top: 44px; padding-top: 22px; border-top: 1px solid rgba(247,247,245,.07); display: flex; justify-content: space-between;
   align-items: center; gap: 16px; flex-wrap: wrap; }
-.copy { color: rgba(247,247,245,.4); font-size: 12.5px; }
+.copy { color: rgba(247,247,245,.55); font-size: 12.5px; }
 .pill { background: #FFDA03; color: #0d0d0d; font-weight: 700; font-size: 13px; padding: 9px 18px; border-radius: 100px; text-decoration: none;
   transition: transform .18s; }
 .pill:hover { transform: translateY(-2px); }

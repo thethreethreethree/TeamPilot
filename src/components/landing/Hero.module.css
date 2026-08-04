@@ -13,6 +13,10 @@
 .pill { background: #FFDA03; color: #0d0d0d; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 100px;
   text-decoration: none; transition: transform .18s, box-shadow .18s; }
 .pill:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,218,3,.32); }
+/* keyboard focus — visible ring for every interactive element (a11y) */
+.brand:focus-visible, .navlink:focus-visible, .pill:focus-visible, .btn:focus-visible {
+  outline: 2px solid #FFDA03; outline-offset: 3px; border-radius: 8px;
+}
 .heroBody { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: center;
   text-align: center; padding: 20px 24px 60px; max-width: 1000px; margin: 0 auto; width: 100%; }
 .bulbWrap { margin: 0 auto 26px; }
@@ -30,7 +34,7 @@
 .btnP:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255,218,3,.42); }
 .btnG { color: #F7F7F5; border: 1px solid rgba(247,247,245,.22); font-weight: 600; }
 .btnG:hover { transform: translateY(-2px); border-color: rgba(247,247,245,.5); }
-.tag { margin-top: 60px; color: rgba(247,247,245,.4); font-size: 13.5px; }
+.tag { margin-top: 60px; color: rgba(247,247,245,.52); font-size: 13.5px; }
 .scroll { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); color: rgba(247,247,245,.32); font-size: 11px; letter-spacing: .24em; z-index: 2; }
 .scroll span { display: inline-block; animation: bob 1.8s ease-in-out infinite; }
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
