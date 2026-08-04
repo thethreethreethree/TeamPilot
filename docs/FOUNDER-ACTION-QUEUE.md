@@ -1256,6 +1256,14 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 > (+ optional phrase list you confirm) AND remove the § citations / rewrite the phrases in the same change, else
 > a hardened guard immediately fails on the existing violations. Drafted copy fixes for `/help` are in
 > `docs/proposals/2026-08-04-help-experience-language-rewrite.md`; `/privacy` + `/terms` need the same pass.
+> **Quantified 2026-08-04 (why hardening isn't a clean autonomous fix):** a multi-line-aware scan newly catches
+> ~100+ lines — almost all in AUTHED admin pages' `LearningHint` teaching copy (`asset-readout`, `coach-readout`,
+> `crm`, `team-check`, `brain`), plus JSX `{/* */}` comments (false positives the guard should keep ignoring).
+> KEY DISTINCTION for your cleanup: the PUBLIC `/terms` citations are a clear external leak (fix them), but the
+> ADMIN-page citations are `§`-in-methodology-TEACHING copy shown to the company's own admin — those may be
+> INTENTIONAL (teaching the reasoning), so hardening the guard needs your judgment on which admin citations are
+> teaching vs leak before it can go green. That judgment + the large baseline is why this is founder-cleanup
+> territory, not an autonomous change — but the data is now on the record so the decision is quick.
 > **NOT done unilaterally:** `/terms` + `/privacy` are legal/policy copy (yours), and the phrase list is your IP
 > judgment. Say `"rewrite the public IP copy"` and I do all three pages + harden the guard in one reviewed pass.
 >
