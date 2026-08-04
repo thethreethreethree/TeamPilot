@@ -67,7 +67,15 @@ export const Env = z
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional().or(z.literal("")),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === "production") {
+    // Skip the production-secret checks during `next build`. Build page-data collection evaluates this
+    // module, but runtime secrets (LLM keys, Supabase) are legitimately ABSENT at build time and no LLM
+    // call happens then — the build is CI-safe by design. Throwing here made CI (which has no secrets)
+    // unable to build at all (the chronic red-CI Build-step failure, 2026-08-04). Next sets NEXT_PHASE to
+    // 'phase-production-build' exactly during `next build`; at RUNTIME (dev/prod server start) it is not
+    // that value, so the fail-fast below still fires with the real environment. (Vercel builds WITH the
+    // secrets, so this only ever changes the no-secret build path.)
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+    if (env.NODE_ENV === "production" && !isBuildPhase) {
       const hasDeepseek = Boolean(env.DEEPSEEK_API_KEY);
       const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
       if (!hasDeepseek && !hasAnthropic) {
