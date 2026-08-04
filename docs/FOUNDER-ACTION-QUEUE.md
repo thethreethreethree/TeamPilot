@@ -23,14 +23,17 @@
 >    forbidden method-mechanism phrases; the live landing links them; they're `index,follow`. Say
 >    **"rewrite the public IP copy"** (+ your forbidden-phrase list) → I rewrite all three to experience-language
 >    (`/help` draft ready) + harden the guard, one reviewed pass. *(§ "IP LEAK" below.)*
-> 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH, ongoing — data integrity in the diagnostic core):** Live Coaching reuses
->    one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with divergent text
->    (`useLiveCoaching.ts:744/858`). Every new multi-take session corrupts; **8 of 36 dissects (22%) were already
->    scored on Frankenstein multi-take transcripts.** Diagnosed + proposal-drafted
->    (`docs/proposals/2026-08-01-transcript-dedup-cleanup.md`), but the fix needs YOUR call on multi-take
->    semantics (each take = new session? seq-offset into one session? re-record replaces?) + prod-data cleanup +
->    re-scoring the 8 reviews. Tell me the intended multi-take behaviour and I build the write-path fix (stops
->    NEW corruption) + the cleanup. *(§ table item 2 below.)*
+> 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH but STABLE/bounded — NOT an active fire, re-verified 2026-08-04):** Live
+>    Coaching reuses one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with
+>    divergent text (`useLiveCoaching.ts:744/858`). **Read-only prod re-count 2026-08-04: 128 excess rows across
+>    12 sessions — IDENTICAL to the 2026-08-01 baseline (128/12)**, while total sessions grew 61→66. So the 5 new
+>    sessions added ZERO new corruption: it is NOT actively spreading (latches held / no multi-take ran). The
+>    cleanup is therefore a calm, schedulable **128-row / 12-session** job, not an emergency. Still needs YOUR
+>    call on multi-take semantics (each take = new session? seq-offset into one session? re-record replaces?) +
+>    the prod-data cleanup + re-scoring the affected reviews. Diagnosed + proposal-drafted
+>    (`docs/proposals/2026-08-01-transcript-dedup-cleanup.md`; note the earlier "proposed fix DESTROYS data"
+>    re-diagnosis — why I will NOT run the cleanup autonomously). Tell me the intended multi-take behaviour and I
+>    build the write-path fix (stops any FUTURE corruption) + the careful cleanup. *(§ table item 2 below.)*
 > 3. **🔐 SECURITY (real but well-mitigated):** Next 16.2.6 has an applicable middleware auth-bypass; the 16.3.0
 >    fix failed the VERCEL build (app RULED OUT — it compiles fine incl. Sentry; it's a Vercel platform issue).
 >    **Try a clear-cache redeploy of a 16.3.0 bump** (high-confidence fix). Defense-in-depth verified, so not a
