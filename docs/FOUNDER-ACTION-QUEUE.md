@@ -7,6 +7,17 @@
 > conversion funnel (CTA → signup deep-link, made consistent across landing + /pitch + /redeem), After-Pitch
 > "Your read" always-shows, +13 tests, full CI gate green. Two mobile fixes + several funnel fixes shipped.
 >
+> **Also hardened autonomously (no decision needed — the codebase got more robust while you were away):** the
+> honesty-thesis error-as-no-data class is now CLOSED server-side (4th + final fix: widget load-events was
+> hiding an off-origin token-theft signal behind a false zero — `2efbfb57`, live) AND protected against
+> regression by a new structural guard, **INVARIANT 22** (`73ea5d8b`), which forces every future data-layer
+> error-swallow to rethrow / use a migration guard-predicate / be allowlisted-with-a-reason. The full
+> consumer ripple of making those reads throw was traced and 2 follow-up gaps fixed (`9b046da5`, live). Three
+> other recurring correctness classes were re-verified this session and need nothing: append-only re-entrancy
+> (guard declined-on-record as un-gateable; the durable server fix stays item 2 below), UTC-today-in-browser
+> (clean — 0 client instances), and money float-precision (clean — money math lives in DB `numeric`, JS only
+> formats). Full `check` pipeline green, 2211 tests. *(§ "error-as-no-data audit" below for the detail.)*
+>
 > **The remaining items are all YOUR call / need YOUR environment — in priority order:**
 > 1. **🌍 IP LEAK (highest — active + search-indexable):** `/help` `/privacy` `/terms` publicly quote the
 >    forbidden method-mechanism phrases; the live landing links them; they're `index,follow`. Say
