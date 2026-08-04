@@ -58,6 +58,11 @@ No new defects. Residuals (from the build's closure.md, A36 order):
   and locked by a test; the deliberate out-of-scope boundary is on the record in check.md.
 - **Adversary:** "always generate" can't be abused to fabricate — the grounding rules are intact; a
   0-turn capture gap still returns the honest empty state, so no read is manufactured from silence.
-- **CFO:** every real session now spends one LLM call per engine where a short call previously spent zero.
-  Cost rises only on genuinely-short calls that were being suppressed; bounded by the existing per-caller
-  throttle. No new unbounded path.
+- **CFO:** every real session now spends LLM calls where a genuinely-short call previously short-circuited
+  to zero. The cost ripple is bounded — VERIFIED, not assumed: (1) every generation route carries a
+  per-caller `rateLimit` (after-pitch POST max 20/60s; dissect / summarize / why each their own); (2)
+  after-pitch generation is cached once-per-session — the page GETs the stored summary and only POSTs when
+  none exists, guarded to once per id; (3) session creation is auth-gated (a real rep + transcript), not an
+  open endpoint. So the delta is O(genuinely-short real sessions) × one generation each, under the rate
+  ceiling — no new unbounded path. (Correction: an earlier draft named "the existing per-caller throttle"
+  before confirming it existed; the `rateLimit` on each route is that throttle, now verified.)
