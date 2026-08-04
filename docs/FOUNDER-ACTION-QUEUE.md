@@ -2,6 +2,19 @@
 
 ## ▶ START HERE
 
+> 🚀 **2026-08-04 — SHIPPED LIVE on elostate.com (full CI gate green, 2178 tests):**
+> - **New landing homepage.** `/` is rebuilt (matte-black/signal-yellow, "Make it think", 9-section arc) and is
+>   now a SERVER page: **each signed-in account is redirected to its designated module** (care→/dashboard/care,
+>   sales_coach→/dashboard/sales-coach, else /dashboard, via the canonical `resolveUserLanding`); only logged-out
+>   visitors see marketing. Verified desktop + mobile on production; branded OG social card added; old client
+>   homepage removed (in git history). Components in `src/components/landing/`; preview at `/landing-preview`.
+> - **After-Pitch "Your read"** is now a prominent amber button AND shows on **every** session (real read, or an
+>   honest "too short" state on thin calls — the ≥3-rep-turn floor in `salesReview.ts` still governs a *real* read).
+>
+> **OPEN — your call (not built, would be overtaking):** (1) lower the `MIN_AGENT_SEGMENTS = 3` "Your read"
+> threshold for fuller reads on shorter calls; (2) remove the app chat widget from the public landing (route-group
+> split); (3) any landing copy/section refinement.
+
 > 💲 **Actively working on PRICING?** Your live pricing decisions are in the **PRICING block below** (search `PRICING SIMPLIFIED`): (a) **Option A vs B** for the client-facing tiers, (b) the **$60/rep coaching seat** tuning, and (c) the new **Managed-C.A.R.E "save 15%" VA offer** (answered + in the Phase 1-2 PDF; blocked only on **your fully-loaded VA cost**). Those are business calls, not phrases — decide them when you're ready. The table below is a **separate track**: technical data-integrity items I execute on a phrase.
 
 ### The 4 highest-value open TECHNICAL decisions, ranked (≈30 more UX/hygiene/naming options in the detail below)
