@@ -989,6 +989,100 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 22 — a data-layer catch that SWALLOWS into a value must classify the error ═══════
+//
+// LEARNED: the error-as-no-data class, fixed 6+ times (2026-08-04 alone: agent inbox, customer chat widget,
+// live-visitors monitor, widget load-events telemetry; plus earlier finance/coach instances). A data READ
+// function with a blanket `catch { return [] }` turns a TRANSIENT failure — a network blip, a timeout, an
+// unexpected throw — into a confident "no data". The user sees GONE/empty on an ERROR, and the honesty thesis
+// (a live error is not a live empty) is violated silently, with no error channel to retry from.
+//
+// The fixes converged on one pattern: a caught error is either RETHROWN (the route 500s → the client keeps its
+// prior data / shows an error) or CLASSIFIED by a guard-predicate (isMissingRelationError /
+// isMissingColumnError, from @/lib/coach/v5/migrationGuard) that returns empty ONLY for a pending migration. A
+// bare swallow does neither: it returns a value while hiding why.
+//
+// WHY THIS FORCES rather than auto-decides: "empty on error is fine" depends on what the surface is FOR, not on
+// the syntax. widget load-events LOOKED like a harmless secondary degrade but its empty hid an off-origin
+// token-theft signal. So this guard does not claim to know which swallow is a bug — it makes every NEW
+// data-layer error-swallow CONSCIOUSLY classified: add a guard-predicate, rethrow, or allowlist it here WITH
+// the reason empty-on-error is genuinely safe for THIS surface. A void catch (a best-effort WRITE with no
+// return) is a different shape and is not flagged.
+const DATA_SWALLOW_ALLOWLIST = new Map([
+  [
+    "src/lib/data/care.ts::fetchCareCommandStats",
+    "Supplementary Command-Center stat ROW, not a primary display. It already distinguishes the two states the\n" +
+      "      honesty thesis cares about: null = couldn't-load, { hasActivity:false, ...0 } = genuine zero. The\n" +
+      "      route (api/dashboard/care-stats) returns { stats:null } so a non-C.A.R.E member and a transient blip\n" +
+      "      both hide an OPTIONAL section — no primary data lost, no safety signal hidden. Fail-loud would break a\n" +
+      "      multi-section dashboard for a supplementary count; the degrade is the right call here.",
+  ],
+  [
+    "src/lib/data/chats.ts::readDemoState",
+    "Browser localStorage read for DEMO mode, not a DB read. localStorage legitimately throws (private mode,\n" +
+      "      quota, corrupt JSON); reseeding a fresh demo state is the correct recovery, not error masking. There is\n" +
+      "      no server error to surface and no real user data at stake.",
+  ],
+]);
+
+// Extract each catch block's body + its enclosing function name, so the allowlist keys on file::fn (a
+// file has multiple catches — care.ts alone has a guarded one, a rethrowing one, and this allowlisted one, so
+// a file-level key would mask a future new swallow). Balanced-brace scan; catch bodies here are small and do
+// not carry unbalanced braces inside strings. Exposed for the self-test below.
+function catchBlocks(text) {
+  const out = [];
+  const re = /\}\s*catch\s*(?:\(\s*\w*\s*\))?\s*\{/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    for (; i < text.length && depth > 0; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") depth--;
+    }
+    const body = text.slice(m.index + m[0].length, i - 1);
+    const before = text.slice(0, m.index);
+    // Enclosing FUNCTION only: a named `function foo`, or a `const/let foo =` assigned to a function/arrow.
+    // A `const seeded = seedDemoState()` (assigned to a CALL, not a function literal) must NOT be mistaken for
+    // the enclosing function, or the allowlist key drifts to a local variable name.
+    const decls = [
+      ...before.matchAll(
+        /(?:export\s+)?(?:async\s+)?function\s+(\w+)|(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*(?::[^=]+)?=>|\w+\s*=>)/g
+      ),
+    ];
+    const last = decls[decls.length - 1];
+    out.push({ body, fn: last ? last[1] || last[2] : "(anonymous)" });
+  }
+  return out;
+}
+
+// A catch is an UNCLASSIFIED swallow when it returns a value (swallows) but neither rethrows nor consults a
+// migration guard-predicate. Comments are stripped first so a catch whose comment merely mentions "return" /
+// "throw" (e.g. `/* non-fatal, no return */`) is judged on its CODE, not its prose. Exposed for the self-test.
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+const dataSwallowUnclassified = (body) => {
+  const code = stripComments(body);
+  return /\breturn\b/.test(code) && !/\bthrow\b/.test(code) && !/isMissing(Relation|Column)Error/.test(code);
+};
+
+for (const f of FILES) {
+  if (!f.path.startsWith("src/lib/data/")) continue;
+  for (const { body, fn } of catchBlocks(f.sql)) {
+    if (!dataSwallowUnclassified(body)) continue;
+    if (DATA_SWALLOW_ALLOWLIST.has(`${f.path}::${fn}`)) continue;
+    findings.push({
+      rule: "A data-layer catch that swallows into a value must classify the error (error-as-no-data)",
+      file: f.path,
+      why:
+        `\`${fn}\` catches an error and RETURNS a value without rethrowing or classifying it. A transient failure\n` +
+        "      then reads as \"no data\" — the user sees empty/GONE on an ERROR (the honesty thesis: a live error is\n" +
+        "      not a live empty). Rethrow it (the route 500s → the client keeps prior data / shows an error), or\n" +
+        "      return empty ONLY for a pending migration via isMissingRelationError / isMissingColumnError, or\n" +
+        "      allowlist it in DATA_SWALLOW_ALLOWLIST with the reason empty-on-error is safe for THIS surface.",
+    });
+  }
+}
+
 // ═══ SELF-TEST — the guards must be able to DETECT their own violation ════════════════════════════
 //
 // A guard that silently stops detecting is worse than no guard (it reads as "protected" while protecting
@@ -1128,6 +1222,27 @@ st("INV3 camel() maps snake_case -> camelCase (the src/ reachability name-match)
 st("INV17 vercel-path and route-path normalize to the same cron key",
   "/api/foo/bar-cron".replace(/^\/?api\//, "").replace(/^\//, "") ===
     "src/app/api/foo/bar-cron/route.ts".replace(/^src\/app\/api\//, "").replace(/\/route\.ts$/, ""));
+// INV22 data-layer swallow: the classifier must flag a bare swallow, accept a rethrow and a guard-predicate
+// swallow, and ignore a void (write) catch; the block scanner must isolate a body and name its enclosing fn;
+// and the allowlist must know its two documented degrades. A false-accept here re-opens the error-as-no-data
+// class silently — the exact failure INV22 exists to prevent.
+st("INV22 flags a bare data-layer swallow", dataSwallowUnclassified(" return []; "));
+st("INV22 accepts a rethrow", !dataSwallowUnclassified(" throw e; "));
+st("INV22 accepts a guard-predicate swallow", !dataSwallowUnclassified(" if (isMissingRelationError(e)) return []; throw e; "));
+st("INV22 ignores a void (best-effort write) catch", !dataSwallowUnclassified(" /* non-fatal, no return */ "));
+st("INV22 catchBlocks names the enclosing fn",
+  catchBlocks("async function fooBar(){ try { x(); } catch { return null; } }")[0]?.fn === "fooBar");
+st("INV22 catchBlocks isolates the block body (balanced braces)",
+  /return \{ a: 1 \}/.test(catchBlocks("function f(){ try{}catch{ return { a: 1 }; } }")[0]?.body ?? ""));
+st("INV22 catchBlocks does NOT mistake a local `const x = call()` for the enclosing fn",
+  catchBlocks("function readDemoState(){ const seeded = seedDemoState(); try { x(); } catch { return seeded; } }")[0]?.fn === "readDemoState");
+st("INV22 catchBlocks names an arrow-assigned const fn",
+  catchBlocks("const loadIt = async () => { try { x(); } catch { return null; } };")[0]?.fn === "loadIt");
+st("INV22 allowlist documents the fetchCareCommandStats supplementary section",
+  DATA_SWALLOW_ALLOWLIST.has("src/lib/data/care.ts::fetchCareCommandStats"));
+st("INV22 allowlist documents the readDemoState localStorage reseed",
+  DATA_SWALLOW_ALLOWLIST.has("src/lib/data/chats.ts::readDemoState"));
+
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -1137,7 +1252,7 @@ if (selfTestFailures.length) {
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -1154,7 +1269,8 @@ if (findings.length === 0) {
       " every cron route registered in vercel.json (no silently-dead cron) ·" +
       " every non-public mutation route references a recognised auth/tenant gate (no anon-writable route) ·" +
       " every owner-required service-role append (cue / cue-outcome / transcript) carries a session-owner check (no cross-user injection) ·" +
-      " every auth-middleware redirect preserves rotated session cookies (no intermittent logout)."
+      " every auth-middleware redirect preserves rotated session cookies (no intermittent logout) ·" +
+      " every data-layer catch that swallows into a value classifies the error — rethrow or guard-predicate (no error-as-no-data)."
   );
   process.exit(0);
 }

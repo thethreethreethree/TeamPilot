@@ -199,3 +199,54 @@ describe("invariant-audit.mjs — file-upload validation", () => {
     expect(handlesUpload("const body = await req.json();")).toBe(false);
   });
 });
+
+/**
+ * DATA-LAYER ERROR-AS-NO-DATA (INVARIANT 22). A data READ function with a blanket `catch { return [] }` turns
+ * a transient failure into a confident "no data" — the user sees GONE/empty on an ERROR. Fixed 6+ times
+ * (agent inbox, customer widget, live-visitors monitor, widget load-events telemetry). The gate forces every
+ * data-layer error-swallow to classify: rethrow, use a migration guard-predicate, or allowlist with a reason.
+ *
+ * These re-declare the classifier's logic (as the other blocks do) so a weakened matcher fails HERE, not just
+ * silently in the script's own self-tests.
+ */
+describe("invariant-audit.mjs — data-layer error-as-no-data", () => {
+  const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const swallows = (body: string) => {
+    const code = stripComments(body);
+    return /\breturn\b/.test(code) && !/\bthrow\b/.test(code) && !/isMissing(Relation|Column)Error/.test(code);
+  };
+
+  it("flags a bare swallow, and accepts a rethrow or a guard-predicate", () => {
+    expect(swallows(" return []; ")).toBe(true); // the bug shape
+    expect(swallows(" throw e; ")).toBe(false); // rethrow — the route 500s
+    expect(swallows(" if (isMissingRelationError(e)) return []; throw e; ")).toBe(false); // classified
+  });
+
+  it("does NOT flag a void catch whose comment merely mentions 'return' (comment-stripped)", () => {
+    // The false-positive the script's own self-test caught mid-build: prose is not code.
+    expect(swallows(" /* non-fatal — no return here */ ")).toBe(false);
+    expect(swallows(" // best-effort, do not return early ")).toBe(false);
+  });
+
+  it("keys the allowlist on file::fn and documents each degrade's reason", () => {
+    // A file has multiple catches (care.ts: one guarded, one rethrowing, one allowlisted), so a file-level key
+    // would mask a future new swallow in the same file. The two current degrades must be present WITH reasons.
+    expect(SCRIPT).toContain('"src/lib/data/care.ts::fetchCareCommandStats"');
+    expect(SCRIPT).toContain('"src/lib/data/chats.ts::readDemoState"');
+  });
+
+  it("the enclosing-fn scan does not mistake a local `const x = call()` for the function", () => {
+    // The extraction bug the live run surfaced: `const seeded = seedDemoState()` inside readDemoState was
+    // being read as the fn name. Only a function/arrow declaration is a boundary — a call-assigned const is not.
+    const fnDecl =
+      /(?:export\s+)?(?:async\s+)?function\s+(\w+)|(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*(?::[^=]+)?=>|\w+\s*=>)/g;
+    const nameOf = (src: string) => {
+      const d = [...src.matchAll(fnDecl)];
+      const last = d[d.length - 1];
+      return last ? last[1] || last[2] : "(anonymous)";
+    };
+    expect(nameOf("function readDemoState(){ const seeded = seedDemoState();")).toBe("readDemoState");
+    expect(nameOf("const hasActivity = (totalProbe.count ?? 0) > 0;")).toBe("(anonymous)"); // NOT a fn boundary
+    expect(nameOf("const loadIt = async () => {")).toBe("loadIt"); // arrow IS a boundary
+  });
+});
