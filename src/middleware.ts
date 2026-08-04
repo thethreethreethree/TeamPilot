@@ -15,7 +15,10 @@ import { lockFromPilotModule, redirectForLock } from "@/lib/auth/moduleAccess";
  * (Found by the 2026-08-01 adversarial middleware audit: the module-lock redirect fires on the hot `/dashboard`
  * path, which turned this latent bug into a frequent one.)
  */
-function redirectPreservingCookies(response: NextResponse, url: URL): NextResponse {
+// Exported for unit testing the copy correctness (its USAGE is guarded by INVARIANT 20; this makes the copy
+// LOGIC itself testable — a break that drops cookie ATTRIBUTES would slip INV20 yet still log users out).
+// Next only reads the `middleware`/`config` exports; extra named exports are ignored by the convention.
+export function redirectPreservingCookies(response: NextResponse, url: URL): NextResponse {
   const redirect = NextResponse.redirect(url);
   response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
   return redirect;
