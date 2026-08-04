@@ -27,6 +27,13 @@ id_ed25519.*
 *credentials*.json
 service-account*.json
 
+# Test coverage output (vitest --coverage) — regenerated locally, never committed
+/coverage/
+
+# AppleDouble / dot-underscore scratch files (e.g. transient auth-render scripts) —
+# defensive net so a stray `git add` can't sweep local scratch into history
+._*
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
