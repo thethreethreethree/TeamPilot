@@ -1185,6 +1185,34 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 
 ---
 
+> ## 🌍🌍 SCOPE EXPANDED 2026-08-04 — the IP leak is THREE public pages, and a GUARD BLIND SPOT hid it
+> Tracing the just-launched landing's link surface (Footer links `/help`, `/pitch`, `/privacy`, `/terms`) found
+> the mechanism-phrase leak is NOT only `/help`:
+> - **`/pitch`** — ✅ clean (sales demo already fixed to experience-language).
+> - **`/privacy`** — 🚨 `principle="No shadow read: …"` (`src/app/privacy/page.tsx:45`, user-facing).
+> - **`/terms`** — 🚨 the worst: `single-variable intervention` (71), `"skipped control"` (79), `no shadow read`
+>   (87), `Month 1 control` (137), a `why=` attr (43) — AND bare **constitution-section citations in user-facing
+>   body text** (the literal "§" + a section number): line 94 ("the [section-3.1] chain"), line 121 ("the
+>   [section-4] readout"), line 143.
+> **Two-part distinction for your phrase-list call:** (a) MECHANISM specifics — "single-variable intervention",
+> "Month 1 control", "skipped control" — reveal the experimental DESIGN (higher concern); (b) TRANSPARENCY
+> promises — "no shadow read" — are arguably intentional honesty-brand language you may WANT on a terms/privacy
+> page. The section-citation tokens are unambiguous — they should never render in public UI (that's the guard's
+> whole purpose) and are a safe meaning-preserving cleanup (e.g. "the [section-3.1] chain" → "the event chain").
+>
+> **GUARD BLIND SPOT (why CI stayed green):** `src/__tests__/no-methodology-citations-in-ui.test.ts` scans
+> LINE-BY-LINE and its JSX-text rule `/>[^<>{}]*[section-symbol]/` needs the `>` and the section symbol on the
+> SAME line. In `/terms` the `<Section>` tag and its text are on different lines, so the citations escape. The guard also never scanned
+> for the mechanism PHRASES at all (only `§`/filenames). So the guard gave false confidence on BOTH layers.
+> **Fix plan (interdependent — must ship together or CI breaks):** harden the guard to a multi-line-aware scan
+> (+ optional phrase list you confirm) AND remove the § citations / rewrite the phrases in the same change, else
+> a hardened guard immediately fails on the existing violations. Drafted copy fixes for `/help` are in
+> `docs/proposals/2026-08-04-help-experience-language-rewrite.md`; `/privacy` + `/terms` need the same pass.
+> **NOT done unilaterally:** `/terms` + `/privacy` are legal/policy copy (yours), and the phrase list is your IP
+> judgment. Say `"rewrite the public IP copy"` and I do all three pages + harden the guard in one reviewed pass.
+>
+> ---
+>
 > ## 🌍 IP LEAK ON A PUBLIC PAGE — /help is ungated + quotes the forbidden mechanism phrases (found 2026-07-23)
 > **Higher priority than the dashboard-teaching decision below, because this one is EXTERNAL.** `/help`
 > (`src/app/help/page.tsx`) is NOT in the middleware matcher (which gates only /dashboard, /onboarding, /login,
