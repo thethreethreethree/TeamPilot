@@ -26,11 +26,15 @@
 >    full read of the page is authoritative):** `/help` is the broadest — the methodology VOCABULARY ("Understanding
 >    Gate", "Decision Dialogue", "Requesting Collaboration") + mechanism framing ("provably *the method*, not
 >    luck", "override control", "the skip is recorded permanently", "the *discipline*", "no-shadow-read rule").
->    The ready `/help` rewrite draft (`docs/proposals/2026-08-04-help-experience-language-rewrite.md`, before/after
->    per line) is the authoritative `/help` characterization + fix. `/privacy` = "append-only" ×3, `/terms` =
->    "append-only" ×4 + "the method" (legal pages — the swap preserves the retention MEANING, needs your legal OK);
->    `/extension/privacy` clean. Confirm your phrase list and I ship `/help` immediately + the legal swaps on your
->    sign-off. *(§ "IP LEAK" below.)*
+>    The `/help` rewrite draft (`docs/proposals/2026-08-04-help-experience-language-rewrite.md`, before/after per
+>    line) covers the mechanism passages — BUT has a KNOWN GAP (found 2026-08-05): it does NOT yet address the
+>    **vocabulary section** ("the four terms: Understanding Gate, Decision Dialogue, Coach, Requesting
+>    Collaboration" + "these words carry the product's *discipline*" + "the vocabulary IS the discipline"), which
+>    needs a JUDGMENT only you make — the four labels are the product's real UI vocabulary (users must learn them →
+>    likely KEEP); the framing that reveals they're a deliberate methodology should GO. Give me that call + your
+>    phrase list and I finish the draft (add the vocab passage) + rewrite all three. `/privacy` = "append-only"
+>    ×3, `/terms` = "append-only" ×4 + "the method" (legal pages — swap preserves the retention MEANING, needs your
+>    legal OK); `/extension/privacy` clean. *(§ "IP LEAK" below.)*
 > 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH but STABLE/bounded — NOT an active fire, re-verified 2026-08-04):** Live
 >    Coaching reuses one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with
 >    divergent text (`useLiveCoaching.ts:744/858`). **Read-only prod re-count 2026-08-04: 128 excess rows across
