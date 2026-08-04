@@ -1,5 +1,39 @@
 # Founder action queue
 
+## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
+
+> **Your one request is DONE + verified: Sales Coach now gives EVERY session all content, no minimum length.**
+> Your sales agent's quick 5-7 min closes were being judged "too short to read" (only 2 of the scores, no
+> "Your read"). Root cause was TWO layers — the LLM prompts told the model to refuse thin transcripts, AND
+> the engines had hard 3-4-segment floors. Both removed across every engine; honesty preserved (a short call
+> gets a short REAL read, never a fabricated one). Verified engine→pixels for all four surfaces (Your read /
+> Scores / Summarize / Dissect), the cost ripple confirmed bounded (rate-limited + cached), locked by 4
+> detection tests (unit + integration), CI green. **Action for you: have the agent record one short pitch and
+> confirm it now shows everything.** (`1f20f646` + follow-ups; TBC build `docs/tbc/2026-08-05-salescoach-no-minimum-length/`.)
+>
+> **Also hardened autonomously (no decision needed — the codebase got more robust, no behavior changed):**
+> - **Systemic authz cleanup:** `roles.ts` is the single source for the admin role set, but ~12 gates still
+>   hardcoded `role===CEO||COO||admin` inline — a real drift risk (change the set, those silently keep the old
+>   rule). Migrated ALL of them to `isAdminRole` (each verified behavior-preserving, full suite green) and
+>   locked the boundary with a guard so it can't recur. Same for the invite-role list (`RoleSchema` now derives
+>   from the pinned `INVITABLE_ROLES`).
+> - **Drift guards added:** 6 CRM enum contracts (TS unions ↔ Postgres enum types in migration 0049) had no
+>   guard — the existing one only covered `col in (...)` CHECKs, not `create type … as enum`. Now guarded.
+> - **Fixed:** a comment that misrepresented an enforced sync as "by convention" + a mis-cited axiom; a
+>   low-severity UTC-vs-local date on a "last edited" stamp.
+> - **Verified CLEAN (high-consequence classes, evidence not assumption):** CSV formula-injection defense,
+>   LLM prompt-injection fence (INV23-guarded), fire-and-forget serverless writes (`after()` adopted), the
+>   fence-defang primitive's tests, and localStorage-throws guarding. All comprehensively covered.
+> - **CI confirmed green** via the check-runs API on every commit (the chronic-red is resolved + verified).
+>
+> **The ONE open item that needs YOUR word** (a real correctness finding I surfaced but did not ship, because
+> it changes a manager-facing surface and its coherent fix has a query-approach tradeoff): **coach-assessment
+> derives each rep's dissect count + coaching content from a team-wide `.limit(300)` window**, so a rep whose
+> dissects fall outside the team's 300 most-recent shows "0 / no content" despite having real dissects — and
+> the no-minimum build worsens it (more dissects → shorter effective window). Say **"fix the coach-assessment
+> count"** (accurate per-rep count, migration-free) or **"redo the coach-assessment window, N=<n>"** (per-rep
+> content window). Detail + A26 class-sweep in the "COACH-ASSESSMENT windowed aggregate" section below.
+
 ## ⚡ DECISIONS NEEDED (2026-08-04 autonomous session — scannable summary; detail in the sections below)
 
 > **Everything you directed this session is DONE, LIVE, and verified** — the new landing (verified excellent on
