@@ -606,7 +606,7 @@ export default function PitchPage() {
             />
           </div>
           <Link
-            href="/login"
+            href="/login?mode=signup"
             className="inline-flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-6 py-3 rounded-lg transition-all shadow-glow text-sm"
           >
             Start your first decision <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -633,7 +633,7 @@ export default function PitchPage() {
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link
-              href="/login"
+              href="/login?mode=signup"
               className="flex items-center gap-2 bg-ember-400 hover:bg-ember-500 text-[#09090B] font-semibold px-5 py-3 rounded-lg transition-all shadow-glow text-sm"
             >
               Get started — free preview
