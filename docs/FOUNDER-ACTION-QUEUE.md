@@ -94,6 +94,41 @@
 > only your internal readouts today, no customer. All three stay founder-gated but can be scheduled calmly, not
 > as emergencies.*
 
+## 🟡 COACH-ASSESSMENT windowed aggregate — a SHARPER instance of the truncation class, worsened by the 2026-08-05 no-minimum-length build (found 2026-08-05; confirmed by code-read; founder-gated on APPROACH)
+
+> **What / where.** `src/app/api/coach/sales-session/coach-assessment/route.ts:98-104` fetches the team's
+> `coach.dissect_generated` events with `.order(created_at desc).limit(300)`, then (lines 116, 118-129)
+> derives **each rep's `dissectCount` AND their entire "Doing well / Coaching focus" content by
+> counting/accumulating ONLY the events inside that 300-window.** So a rep whose dissects fall outside the
+> team's 300 most-recent events shows `dissectCount: 0` and **no coaching content despite having real stored
+> dissects** — the manager's page reads "no sessions yet" for a rep who has plenty.
+>
+> **Why it's distinct from the truncation note above (and not covered by "customers under 1000 rows").** That
+> note counts rows PER TABLE (global). This limit is scoped to ONE KIND (`coach.dissect_generated`) for ONE
+> TEAM, capped at **300** — so it truncates far below the 1000 global cap. A team that has generated >300
+> dissects total already loses its older reps' coaching content, on a customer whose `events` table is well
+> under 1000.
+>
+> **Why my 2026-08-05 change worsens it (the honest ripple I owe you).** Before, only substantial sessions
+> generated dissects, so 300 events spanned a long calendar window and most reps were included. Now EVERY
+> session generates a dissect (the no-minimum-length build you directed) → dissect-event volume rises → the
+> fixed 300-window covers a SHORTER span → more reps silently fall out of the coaching view sooner. The build
+> was correct and is what you asked for; this is its downstream ripple on a pre-existing windowed aggregate.
+>
+> **Severity 🟡 MEDIUM, not a fire.** Manager-facing coaching view only; no security/data-integrity/customer
+> impact; it degrades by showing LESS (a rep's real dissects still exist and their own After-Pitch/Dissect
+> surfaces are unaffected — this is only the team roll-up). But it presents `dissectCount` as a true count
+> when it's a windowed one, which is a §3.4 honesty smell (implies "no data" when there is data).
+>
+> **Recommended path (your call on approach — this is why it's not auto-fixed; the aggregation was already
+> founder-gated).** (1) Cheap + safe + migration-free: make `dissectCount` accurate with a per-actor exact
+> count (`select('*', { count: 'exact', head: true })` per rep, or a grouped count) so the NUMBER stops
+> lying — I can ship this on your word. (2) The content window is the judgment call: switch from a team-wide
+> recent-300 to a **per-rep recent-N** (e.g. each rep's last ~20 dissects) so a rep's coaching content no
+> longer depends on teammates' activity volume — decide N. (3) Long-term, the same server-side RPC/counter
+> the coach-KPI truncation item wants. Say **"fix the coach-assessment count"** for (1) alone, or **"redo the
+> coach-assessment window, N=<n>"** for (1)+(2).
+
 ## 🟢 CI RESOLVED — all three chronic failures fixed, check job green (2026-08-04, `5004662b`)
 > **RESOLVED.** The `build` step's failures were also root-caused + fixed: (1) `env.ts` threw at module-eval
 > during `next build` when no LLM key was present (CI has no secrets) → now skipped in the build phase via
