@@ -1,5 +1,20 @@
 # Founder action queue
 
+## 🔐 SECURITY — applicable Next.js middleware auth-bypass, fix ATTEMPTED + REVERTED (2026-08-04, needs your Vercel)
+> **The vuln is real and applicable.** `npm audit` flags Next.js **16.2.6** (current, live) as vulnerable to
+> **GHSA-6gpp-xcg3-4w24 — middleware/proxy bypass** in App-Router + Turbopack + single-locale apps. This app is
+> exactly that, and its auth confinement (module hard-lock, `/dashboard` gating) is MIDDLEWARE-based → a bypass
+> is an **auth bypass**. Also applicable: image-SVG DoS, cache-confusion, rewrite-SSRF. (Server-Actions
+> advisories N/A — no `"use server"`.) `postcss` patch also pending.
+> **Fix attempted (bump → 16.3.0) and REVERTED.** It passed locally 4 ways (`npm ci`, `next build` 301/301,
+> 2188 tests, typecheck) but **the Vercel build FAILED** (`606894f4` status = failure) — a Vercel-env-specific
+> failure I can't diagnose without Vercel log access (`npx vercel inspect <dpl> --logs`, needs your login).
+> Prod was never at risk (Vercel doesn't publish a failed build — stayed on 16.2.6), and I reverted (`76ebd8db`)
+> to keep `main` deployable. **What I need from you:** run `npx vercel inspect <the failed dpl> --logs` (dpl id
+> is in the commit status) OR paste the Vercel build error — then I can fix the bump properly (likely a
+> Node-version / peer-dep / config nuance) and re-ship. Until then prod stays on 16.2.6 with the vuln open.
+> Lesson recorded: local build success ≠ Vercel deploy; verify via the GitHub commit-status API before claiming.
+
 ## ▶ START HERE
 
 > 🚀 **2026-08-04 — SHIPPED LIVE on elostate.com (full CI gate green, 2178 tests):**
