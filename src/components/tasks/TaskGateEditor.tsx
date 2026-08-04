@@ -318,5 +318,7 @@ function formatRelative(date: Date): string {
   if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
-  return date.toISOString().slice(0, 10);
+  // Local YYYY-MM-DD (en-CA), NOT toISOString().slice(0,10) — the latter is UTC, so an
+  // evening edit west of UTC would render tomorrow's date. Matches AdaptiveKnowledgePanel.
+  return date.toLocaleDateString("en-CA");
 }
