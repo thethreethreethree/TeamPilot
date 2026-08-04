@@ -28,6 +28,11 @@
 > app is NOT a trivial open door even on 16.2.6. Caveat: the GHSA-6gpp bypass is a CRAFTED technique that could
 > circumvent middleware for specific requests — normal-path confinement working does not prove the crafted
 > bypass fails, so the patch is still needed; this just means there's no gross exposure while it's pending.
+> **Active pen-test (2026-08-04):** the classic `x-middleware-subrequest` bypass (CVE-2025-29927) is BLOCKED on
+> prod — 4 payload variants all still 307→login. That CVE was patched in Next long before 16.x, so 16.2.6
+> already has it. The OPEN advisory (GHSA-6gpp) is a different, newer Turbopack+single-locale technique I don't
+> have the payload for, so it's untested — but the app is confirmed immune to the most famous Next middleware
+> bypass, which further lowers (not eliminates) the practical risk while the 16.3.0 patch is pending.
 
 ## ▶ START HERE
 
