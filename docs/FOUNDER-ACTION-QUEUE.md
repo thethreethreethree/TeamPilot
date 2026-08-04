@@ -600,9 +600,16 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > existing `res.ok` check (`care/page.tsx:156`) keeps the prior conversations. Server-side + verifiable (5 route
 > tests, full suite green) — matched the `customers`-route pattern, no client change needed. This was a GENUINE
 > instance (unlike the after-pitch read, which auto-regenerates).
-> Remaining genuinely-suspect candidates to still check: `getSession` (broad blast radius — many consumers, so a
-> throw isn't cleanly contained), the customer-widget reads (`getCareConversationByToken`/`listCareMessagesForCustomer`).
-> The other ~24 sites are secondary/best-effort (listTags,
+> **✅ CUSTOMER CHAT WIDGET — FIXED + LIVE (`c7a593be`, 2026-08-04):** `listCareMessagesForCustomer` swallowed the
+> error → the widget messages route returned 200+[] → a transient poll error FLASHED the customer's chat empty
+> (history vanished mid-conversation on the PUBLIC Jeff widget). Now it surfaces the error + the route 500s, so
+> the widget's `loadMessages` (keeps prior messages on any non-ok) holds; the best-effort `inbound/email`
+> consumer catches + degrades to context-blind. Server-side + verifiable (2 route tests, suite 2198 green).
+> **Audit status: the two cleanly-server-side-fixable primary-display instances are now FIXED** (agent inbox +
+> customer widget). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
+> `getCareConversationByToken` (broad blast radius — many consumers, a throw isn't contained; each consumer
+> needs its own error handling) and `tasks.ts` (needs an unverifiable client-UI change). The other ~24 sites are
+> secondary/best-effort (listTags,
 > cannedResponses, findSimilarResolutions, detectSupportPatterns, durability/analytics) where empty is fine.
 > **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
 > 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
