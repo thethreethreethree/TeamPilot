@@ -15,13 +15,13 @@
 > threshold for fuller reads on shorter calls; (2) remove the app chat widget from the public landing (route-group
 > split); (3) any landing copy/section refinement.
 >
-> ⚠️ **CONVERSION GAP found on the new funnel (§1.5.1 L3) — surfaced, not fixed:** the landing's primary CTA
-> **"Request access" → `/redeem`**, which is a key-required page ("Enter your access key", `e.g. ABCD234`) with
-> **no fallback for a cold visitor who has no key** (no waitlist / email-capture / "don't have a code?"). So cold
-> marketing traffic — the whole point of a public homepage — **dead-ends**. Fine while invite-only + private;
-> a real leak now that `/` is public. Options: **(A)** CTA → a waitlist/email-capture; **(B)** relabel CTA to
-> "Redeem invite" (honest for invite-only); **(C)** add a "no key? join the waitlist" link on `/redeem`;
-> **(D)** leave as-is. Recommend A or C. Small change — say which and it's built.
+> ✅ **CONVERSION GAP — FIXED & LIVE (`d7429be1`).** The landing's "Request access" CTA pointed at `/redeem`
+> (key-required → cold visitors dead-ended). Now points at **`/login`, which has OPEN signup** (create account →
+> onboarding, no key) — so cold marketing traffic converts. This was a correction within your pre-authorization
+> ("/redeem or /login, as today"; the old homepage used /login), not a new decision, so I made it directly.
+> `/redeem` stays the flow for pilot invitees (direct code link). **Optional richer enhancement still open:**
+> a dedicated waitlist/email-capture ("we'll send you a key") if you want lead capture beyond open signup — say
+> the word and I'll build it.
 
 > 💲 **Actively working on PRICING?** Your live pricing decisions are in the **PRICING block below** (search `PRICING SIMPLIFIED`): (a) **Option A vs B** for the client-facing tiers, (b) the **$60/rep coaching seat** tuning, and (c) the new **Managed-C.A.R.E "save 15%" VA offer** (answered + in the Phase 1-2 PDF; blocked only on **your fully-loaded VA cost**). Those are business calls, not phrases — decide them when you're ready. The table below is a **separate track**: technical data-integrity items I execute on a phrase.
 
