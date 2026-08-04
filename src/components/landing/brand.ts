@@ -16,7 +16,11 @@ export const BRAND = {
 // so a cold marketing visitor can actually convert instead of dead-ending on /redeem's key wall.
 // (/redeem stays the flow for pilot invitees, who arrive via their direct code link.)
 export const CTA = {
-  primaryHref: "/login",
+  // "Request access" is a COLD visitor with no account → deep-link straight to signup mode so they
+  // land on "Create your account", not the returning-user "Welcome back" signin default. (The login
+  // page reads ?mode=signup; any other value stays signin.) signInHref stays bare /login for
+  // returning users.
+  primaryHref: "/login?mode=signup",
   primaryLabel: "Request access",
   signInHref: "/login",
 } as const;

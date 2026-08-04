@@ -30,7 +30,14 @@ export default function LoginPageWrapper() {
 }
 
 function LoginPage() {
-  const [mode, setMode] = useState<Mode>("signin");
+  const searchParams = useSearchParams();
+  // Deep-link to signup: the landing "Request access" CTA points at /login?mode=signup so a cold
+  // visitor lands on account creation ("Create your account"), not the returning-user "Welcome back"
+  // signin default (which greeted first-time visitors from the marketing CTA). Any other value →
+  // signin (the returning-user default). Lazy init so it's set on first render, no flicker.
+  const [mode, setMode] = useState<Mode>(() =>
+    searchParams?.get("mode") === "signup" ? "signup" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +49,6 @@ function LoginPage() {
   // the post-auth redirect so the dashboard can open the right
   // surface. Without this, /login?intent=feedback was a dead
   // signal — caught in audit 2026-06-19.
-  const searchParams = useSearchParams();
   const intent = searchParams?.get("intent") ?? null;
   // `next` returns the user where they came from after auth — notably the extension connect flow
   // (/login?next=%2Fextension%2Fconnect). Without honoring it, a fresh sign-in dead-ended on the dashboard
