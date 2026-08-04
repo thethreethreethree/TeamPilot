@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import CommandPalette from "@/components/layout/CommandPalette";
 import { ToastProvider } from "@/components/ui/toast";
@@ -129,7 +130,12 @@ export default async function DashboardLayout({
             id="main-content"
             className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden"
           >
-            {children}
+            {/* Catch-all Suspense boundary. Any dashboard page (or a child component it renders) that calls
+                useSearchParams() needs a Suspense boundary above it, or the page fails to prerender at build
+                time (missing-suspense-with-csr-bailout) — which is CI-visible even where a secretless build
+                keeps the route static. This boundary covers every /dashboard/** page, including those whose
+                useSearchParams lives in a nested component and so isn't obvious at the page level. */}
+            <Suspense fallback={null}>{children}</Suspense>
           </main>
           <CommandPalette />
           {/* Lightbulb FAB — renders only when the user's preference is

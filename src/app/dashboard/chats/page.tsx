@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 import { INVITABLE_ROLES } from "@/lib/roles";
@@ -51,7 +51,18 @@ function formatRelative(iso: string | null): string {
   return iso.slice(0, 10);
 }
 
+// useSearchParams() requires a Suspense boundary or the page fails to prerender at build time
+// (missing-suspense-with-csr-bailout). The sales-coach/team-chat route already wraps this same component
+// in Suspense; the direct /dashboard/chats route needs its own boundary too.
 export default function TeamChatListPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeamChatListInner />
+    </Suspense>
+  );
+}
+
+function TeamChatListInner() {
   const companyName = useCompanyName();
   const router = useRouter();
   const searchParams = useSearchParams();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FeedbackPanel } from "@/components/feedback/FeedbackPanel";
 import {
@@ -97,7 +97,16 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   duplicate: "border-default bg-surface-raised text-muted",
 };
 
+// useSearchParams() needs a Suspense boundary or the page fails to prerender (missing-suspense-with-csr-bailout).
 export default function MyFeedbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <MyFeedbackInner />
+    </Suspense>
+  );
+}
+
+function MyFeedbackInner() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<FeedbackRow[]>([]);

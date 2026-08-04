@@ -14,6 +14,7 @@ import { collectMatches, SRC_DIR } from "./_sourceScan";
  */
 const NOT_DEPLOYER_SET = new Set([
   "NODE_ENV",
+  "NEXT_PHASE", // auto-injected by Next.js ('phase-production-build' during `next build`); env.ts reads it to skip runtime-secret validation at build time
   "VERCEL",
   "VERCEL_ENV",
   "VERCEL_URL",

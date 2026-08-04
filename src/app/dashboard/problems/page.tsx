@@ -19,7 +19,7 @@ import {
   Plus,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -30,7 +30,16 @@ const STATUS_BADGE: Record<string, string> = {
   dismissed: "bg-surface-raised text-muted border border-strong",
 };
 
+// useSearchParams() needs a Suspense boundary or the page fails to prerender (missing-suspense-with-csr-bailout).
 export default function ProblemsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProblemsInner />
+    </Suspense>
+  );
+}
+
+function ProblemsInner() {
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
   const [mode, setMode] = useState<ProblemsMode>("live-empty");
   const [loading, setLoading] = useState(true);

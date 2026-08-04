@@ -15,11 +15,20 @@ import {
   UserMinus,
   UserPlus,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 
+// useSearchParams() needs a Suspense boundary or the page fails to prerender (missing-suspense-with-csr-bailout).
 export default function TeamPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeamInner />
+    </Suspense>
+  );
+}
+
+function TeamInner() {
   const companyName = useCompanyName();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);

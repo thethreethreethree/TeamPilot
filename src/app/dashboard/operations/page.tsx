@@ -22,7 +22,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import type { TaskCanonicalStatus } from "@/lib/tasks/statusLabels";
@@ -120,7 +120,16 @@ const emptyDraft: Draft = {
   blockerReason: "",
 };
 
+// useSearchParams() needs a Suspense boundary or the page fails to prerender (missing-suspense-with-csr-bailout).
 export default function OperationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <OperationsInner />
+    </Suspense>
+  );
+}
+
+function OperationsInner() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [mode, setMode] = useState<FetchTasksMode>("demo-fixtures");
   const [loading, setLoading] = useState(true);
