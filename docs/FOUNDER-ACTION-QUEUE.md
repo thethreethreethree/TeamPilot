@@ -605,8 +605,16 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > (history vanished mid-conversation on the PUBLIC Jeff widget). Now it surfaces the error + the route 500s, so
 > the widget's `loadMessages` (keeps prior messages on any non-ok) holds; the best-effort `inbound/email`
 > consumer catches + degrades to context-blind. Server-side + verifiable (2 route tests, suite 2198 green).
-> **Audit status: the two cleanly-server-side-fixable primary-display instances are now FIXED** (agent inbox +
-> customer widget). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
+> **✅ LIVE-VISITORS MONITOR — FIXED + LIVE (`b70626e0`, 2026-08-04):** found by re-checking a classification I'd
+> rushed ("secondary"). `fetchLiveVisitors` had a BLANKET `catch → []` that swallowed EVERY error — a direct
+> violation of migrationGuard's own principle ("a fallback fires ONLY for a pending migration; a real error
+> stays loud"). The monitor page checks `res.ok` (keeps prior visitors + shows an error on non-ok), but the
+> swallow made the route always 200+[], defeating that check → the live list flashed empty on a transient poll
+> error. Added a reusable table-level predicate `isMissingRelationError` (sibling of `isMissingColumnError`);
+> `fetchLiveVisitors` now returns [] ONLY for the pending-0192 case and rethrows genuine errors. 5 predicate
+> tests, suite 2203 green.
+> **Audit status: the three cleanly-server-side-fixable primary-display instances are now FIXED** (agent inbox +
+> customer widget + live-visitors monitor). Remaining suspects are all GATED (not cleanly autonomous): `getSession` +
 > `getCareConversationByToken` (broad blast radius — many consumers, a throw isn't contained; each consumer
 > needs its own error handling) and `tasks.ts` + `chats.ts` `fetchTopic`/`fetchParticipants` (client-direct data
 > calls — the chat detail page's `refresh()` has try/finally but NO catch, so the fix needs a client-UI error
