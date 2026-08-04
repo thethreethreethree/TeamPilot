@@ -963,6 +963,16 @@ if (mwFile) {
 // bigger .limit(). This gate blocks NEW false bounds; the known existing ones are allowlisted with the queue
 // trigger that will fix them ("fix the false limits", FOUNDER-ACTION-QUEUE 2026-08-02). If you set an
 // INTENTIONAL cap, make it <= 1000 (like assetReadout's FILE_SCAN_CAP = 1000, which matches max_rows).
+//
+// BOUNDARY — what this invariant does NOT cover (A26: a green run is not a complete one). It catches only an
+// EXPLICIT `.limit(N>1000)`. It does NOT catch an UNBOUNDED `.select()` (no limit at all) on a growable table
+// whose rows are then COUNTED/aggregated in JS (.length, a Set, a reduce) — that ALSO silently caps at 1000.
+// That is the shape actually MATERIALIZED in prod (verified read-only 2026-08-04): the `events` table has a
+// company at 1697 rows (ELOSTATE's own; no customer >1000 yet), so any unbounded events select that derives a
+// count is wrong for it. It is NOT cleanly regex-guardable — "is the result aggregated vs paginated-for-display"
+// is semantic (A33), and a growable-table full-select is common + usually fine. So it is VERIFIED BEHAVIORALLY
+// (read-only prod max-per-group counts) + tracked as the founder-gated "fix the false limits" / coach-KPI fix,
+// not gated here. See reference_unbounded_select_silent_truncation_1000cap.
 const FALSE_LIMIT_ALLOWLIST = new Map([
   ["src/app/api/finance/bank/accounts/[id]/transactions/route.ts", "Known false bound (register shows newest <=1000 txns). Tracked: 'fix the false limits'."],
   ["src/app/api/admin/coach-readout/route.ts", "Known false bound (analytics undercount, x3). Tracked: 'fix the false limits'."],
