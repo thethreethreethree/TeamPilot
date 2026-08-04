@@ -12,12 +12,20 @@
 >    forbidden method-mechanism phrases; the live landing links them; they're `index,follow`. Say
 >    **"rewrite the public IP copy"** (+ your forbidden-phrase list) → I rewrite all three to experience-language
 >    (`/help` draft ready) + harden the guard, one reviewed pass. *(§ "IP LEAK" below.)*
-> 2. **🔐 SECURITY (real but well-mitigated):** Next 16.2.6 has an applicable middleware auth-bypass; the 16.3.0
+> 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH, ongoing — data integrity in the diagnostic core):** Live Coaching reuses
+>    one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with divergent text
+>    (`useLiveCoaching.ts:744/858`). Every new multi-take session corrupts; **8 of 36 dissects (22%) were already
+>    scored on Frankenstein multi-take transcripts.** Diagnosed + proposal-drafted
+>    (`docs/proposals/2026-08-01-transcript-dedup-cleanup.md`), but the fix needs YOUR call on multi-take
+>    semantics (each take = new session? seq-offset into one session? re-record replaces?) + prod-data cleanup +
+>    re-scoring the 8 reviews. Tell me the intended multi-take behaviour and I build the write-path fix (stops
+>    NEW corruption) + the cleanup. *(§ table item 2 below.)*
+> 3. **🔐 SECURITY (real but well-mitigated):** Next 16.2.6 has an applicable middleware auth-bypass; the 16.3.0
 >    fix failed the VERCEL build (app RULED OUT — it compiles fine incl. Sentry; it's a Vercel platform issue).
 >    **Try a clear-cache redeploy of a 16.3.0 bump** (high-confidence fix). Defense-in-depth verified, so not a
 >    fire. *(§ "SECURITY" below.)*
-> 3. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
-> 4. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
+> 4. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
+> 5. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
 
 ## 🔐 SECURITY — applicable Next.js middleware auth-bypass, fix ATTEMPTED + REVERTED (2026-08-04, needs your Vercel)
 > **The vuln is real and applicable.** `npm audit` flags Next.js **16.2.6** (current, live) as vulnerable to
