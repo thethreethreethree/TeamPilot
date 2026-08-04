@@ -644,12 +644,40 @@ function CollapseToggle({
   icon,
   open,
   onToggle,
+  prominent = false,
 }: {
   title: string;
   icon?: ReactNode;
   open: boolean;
   onToggle: () => void;
+  /** Render as a bold, high-visibility amber button (founder 2026-08-04: make
+   *  "Your read" a button that's easily seen on the after-pitch screen). */
+  prominent?: boolean;
 }) {
+  if (prominent) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 rounded-xl border border-ember-400/60 bg-ember-400/15 px-4 py-3.5 text-left shadow-[0_0_22px_-6px_rgba(250,204,21,0.55)] transition-colors hover:bg-ember-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-300"
+      >
+        <span className="flex items-center gap-2.5">
+          {icon ?? <Lightbulb className="w-5 h-5 text-ember-300" aria-hidden />}
+          <span className="text-base font-bold text-primary">{title}</span>
+        </span>
+        <span className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-ember-200">
+            {open ? "Hide" : "Tap to open"}
+          </span>
+          <ChevronDown
+            className={`w-5 h-5 text-ember-200 transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -920,6 +948,7 @@ function Narrative({
       <section className="rounded-2xl border border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)] p-4 space-y-3">
         <CollapseToggle
           title="Your read"
+          prominent
           open={open}
           onToggle={() => setOpen((v) => !v)}
         />
