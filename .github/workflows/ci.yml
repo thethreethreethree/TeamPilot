@@ -62,5 +62,11 @@ jobs:
       # build-time module-evaluation failures. Verified CI-safe with no Supabase secrets — the
       # client factories fall back to "" (src/lib/supabase/config.ts) and dynamic routes render
       # on demand, so the build needs no live DB. Without this step those errors reach production.
+      #
+      # This runs with NO secrets, so it catches failures a WITH-secrets build (local `npm run build`
+      # or Vercel) can't — a module throwing at build-time on a missing key, a page prerendering
+      # without a Suspense boundary. To reproduce THIS step locally before pushing: `npm run build:ci`
+      # (it hides .env.local + strips secret vars, then restores them). This divergence kept CI
+      # chronically red + unnoticed for weeks (2026-08-04) — see docs/FOUNDER-ACTION-QUEUE.md "CI".
       - name: Build
         run: npm run build
