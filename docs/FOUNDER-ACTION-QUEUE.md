@@ -22,7 +22,12 @@
 > 1. **🌍 IP LEAK (highest — active + search-indexable):** `/help` `/privacy` `/terms` publicly quote the
 >    forbidden method-mechanism phrases; the live landing links them; they're `index,follow`. Say
 >    **"rewrite the public IP copy"** (+ your forbidden-phrase list) → I rewrite all three to experience-language
->    (`/help` draft ready) + harden the guard, one reviewed pass. *(§ "IP LEAK" below.)*
+>    (`/help` draft ready) + harden the guard, one reviewed pass. **Precise surface characterized 2026-08-05
+>    (small + scoped, ~10 term-instances): `/help` = "Understanding Gate" ×2 + "the method"; `/privacy` =
+>    "append-only" ×3; `/terms` = "append-only" ×4 + "the method"; `/extension/privacy` = clean.** So the rewrite
+>    is: swap "append-only"→experience-language ("your history is never deleted / a permanent record"),
+>    "Understanding Gate"→a plain-language readiness phrase, "the method"→"how it works". Confirm these are the
+>    phrases you mean (or give your list) and I rewrite all three + the guard in one pass. *(§ "IP LEAK" below.)*
 > 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH but STABLE/bounded — NOT an active fire, re-verified 2026-08-04):** Live
 >    Coaching reuses one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with
 >    divergent text (`useLiveCoaching.ts:744/858`). **Read-only prod re-count 2026-08-04: 128 excess rows across
