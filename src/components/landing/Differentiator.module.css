@@ -54,3 +54,12 @@
   .heading { font-size: clamp(24px, 7.2vw, 36px); max-width: 100%; overflow-wrap: break-word; }
   .sub { max-width: 100%; }
 }
+
+/* Narrowest phones (≤360px, e.g. iPhone SE): two nowrap labels + a horizontal rule can't fit side
+   by side even tightened (CDP-measured: 3px clip at 320px). Stack them vertically — the rule becomes
+   a full-width line between the two labels. Guarantees zero clipping at ANY phone width. */
+@media (max-width: 360px) {
+  .divider { flex-direction: column; gap: 8px; align-items: stretch; }
+  .divider span { text-align: center; }
+  .divider .rule { flex: none; width: 100%; height: 1px; }
+}
