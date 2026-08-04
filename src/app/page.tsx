@@ -20,10 +20,28 @@ import { LandingPage } from "@/components/landing/LandingPage";
  * accounts (middleware never matched `/`). Founder directive 2026-08-04: each account lands on its
  * module; only logged-out visitors see the marketing page.
  */
+const HOME_TITLE = "Elostate — Make your team think";
+const HOME_DESC =
+  "One platform that sharpens your people, replaces the four tools you're stitching together, and proves the lift in your own data. Built by business owners just like you.";
+const OG_DESC =
+  "One platform that sharpens people, replaces four tools, and proves the lift in your own data.";
+
 export const metadata: Metadata = {
-  title: "Elostate — Make your team think",
-  description:
-    "One platform that sharpens your people, replaces the four tools you're stitching together, and proves the lift in your own data. Built by business owners just like you.",
+  title: HOME_TITLE,
+  description: HOME_DESC,
+  // Marketing-specific share preview (the root layout's OG is the generic app card). Inherits
+  // metadataBase + robots from the layout; overrides the OG/Twitter copy + image for the homepage.
+  openGraph: {
+    title: HOME_TITLE,
+    description: OG_DESC,
+    images: [{ url: "/og-home.png", width: 1200, height: 630, alt: HOME_TITLE }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: OG_DESC,
+    images: ["/og-home.png"],
+  },
 };
 
 export default async function Home() {
