@@ -1189,6 +1189,10 @@ Full record: `docs/closures/2026-07-27-care-extension-audit-remediation.md`.
 > Tracing the just-launched landing's link surface (Footer links `/help`, `/pitch`, `/privacy`, `/terms`) found
 > the mechanism-phrase leak is NOT only `/help`:
 > - **`/pitch`** — ✅ clean (sales demo already fixed to experience-language).
+> - **`/care/demo`** — ✅ clean (its only `[section]` token is inside a JSX comment, not user-facing).
+>   **EXTERNAL SCOPE BOUNDED (2026-08-04):** all public pages checked — exactly THREE leak (`/help`, `/privacy`,
+>   `/terms`). The large residual `[section]`-citation count elsewhere is the already-recorded ~117 INTERNAL
+>   dashboard debt (authed-only, see the "IP hygiene OVERSTATED" note below), not additional external exposure.
 > - **`/privacy`** — 🚨 `principle="No shadow read: …"` (`src/app/privacy/page.tsx:45`, user-facing).
 > - **`/terms`** — 🚨 the worst: `single-variable intervention` (71), `"skipped control"` (79), `no shadow read`
 >   (87), `Month 1 control` (137), a `why=` attr (43) — AND bare **constitution-section citations in user-facing
