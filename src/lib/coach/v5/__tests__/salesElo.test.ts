@@ -55,6 +55,22 @@ describe("gameScoreFromFactors — balanced consequence + performance", () => {
     const lost = gameScoreFromFactors(factors({ outcome: "no_sale" }))!;
     expect(sold).toBeGreaterThan(lost);
   });
+  it("a SHORT winning call is NOT penalized for having fewer observations (founder 2026-08-05 no-minimum build)", () => {
+    // The no-minimum-length build makes short sessions ELO games. quality01 is a RATIO
+    // (strengths/(strengths+growth)), NOT a count — so a short win with 1 strength / 0 growth
+    // has quality 1.0 and, with no after-pitch scores, performance = quality = 1.0.
+    // Half outcome(sold=1) + half performance(1.0) = 1.0 — the TOP of the range, not a penalty.
+    const shortWin = gameScoreFromFactors(
+      factors({ scores: [], strengths: 1, growthAreas: 0, outcome: "sold" })
+    )!;
+    expect(shortWin).toBeCloseTo(1, 4);
+    // And it is NOT dragged below a LONGER win that has MORE strengths (3/1 → quality .75).
+    // Guards against a future count-based quality that would penalize the fast closer.
+    const longerWin = gameScoreFromFactors(
+      factors({ scores: [], strengths: 3, growthAreas: 1, outcome: "sold" })
+    )!;
+    expect(shortWin).toBeGreaterThanOrEqual(longerWin);
+  });
   it("counts on process/quality ALONE when no outcome was recorded (founder 2026-07-07)", () => {
     // no outcome → game = performance = .5*rating(.7)+.5*quality(.75) = .725
     const g = gameScoreFromFactors(factors({ outcome: null }));
