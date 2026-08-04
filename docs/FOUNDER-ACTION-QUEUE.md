@@ -35,14 +35,14 @@
 >    fix failed the VERCEL build (app RULED OUT — it compiles fine incl. Sentry; it's a Vercel platform issue).
 >    **Try a clear-cache redeploy of a 16.3.0 bump** (high-confidence fix). Defense-in-depth verified, so not a
 >    fire. *(§ "SECURITY" below.)*
-> 4. **🔴 CI HAS BEEN RED FOR A LONG TIME (found 2026-08-04 — undermines every guard):** the GitHub Actions
->    `check` job fails on EVERY commit (chronic, predates this session — even commits before the `theme:audit`
->    step was added were red). Vercel deploys independently + green, so the app is fine and this went unnoticed.
->    But it means the invariant guards (INV1-23) are NOT actually gating in CI — the job is red regardless, so a
->    new violation is invisible. Currently failing at the `theme:audit` step. I could not reproduce it locally
->    (Windows: even a clean HEAD worktree passes, 1088 files, 0 leaks) and can't read the CI log (403, no `gh`).
->    **What I need:** `gh run view 30887371831 --log-failed` (or paste the "Theme-leak audit" step output). Then
->    I can fix it. Interim: guards are enforced only by a manual `npm run check`. *(§ "CI RED" below.)*
+> 4. **🟢 CI IS GREEN AGAIN — FIXED end-to-end (2026-08-04, `5004662b`).** CI had been chronically red on EVERY
+>    commit (predating this session); Vercel deploys on a separate green pipeline so it went unnoticed. It was
+>    THREE stacked failures, all now root-caused + fixed + verified: (a) `theme:audit` scanned `tailwind.config.ts`
+>    on Linux via a shell-fragile file list and flagged its palette (`6f871c11`); (b) `env.ts` threw at build
+>    time when no LLM key was set — CI has no secrets (`03b1eda3`); (c) five+ pages called `useSearchParams()`
+>    with no Suspense boundary (`5004662b`). Reproduced each locally by building without `.env.local` (the exact
+>    secretless CI env). **The check job is now green — so INV1-23 (incl. this session's guards) genuinely
+>    enforce on every push again, not just via a manual `npm run check`.** No founder action needed. *(detail below.)*
 > 5. **🎯 "See it work" CTA (small UX call):** Hero scrolls in-page, Footer → /pitch; pick a label/target. *(§ conversion.)*
 > 6. **🛑 To END this autonomous loop:** set line 1 of `.claude/autonomous-build.flag` to `STOP`.
 >
@@ -53,7 +53,15 @@
 > (MEDIUM, design-ready, no migration needed), per-tenant AI-cost cap (awaits your numbers), FX rounding on
 > foreign entries. None are regressions from this session; all were diagnosed earlier and await your decision.*
 
-## 🔴 CI RED — theme:audit step FIXED; `build` step now revealed as the next chronic failure (2026-08-04)
+## 🟢 CI RESOLVED — all three chronic failures fixed, check job green (2026-08-04, `5004662b`)
+> **RESOLVED.** The `build` step's failures were also root-caused + fixed: (1) `env.ts` threw at module-eval
+> during `next build` when no LLM key was present (CI has no secrets) → now skipped in the build phase via
+> NEXT_PHASE, runtime fail-fast intact; (2) 5+ pages used `useSearchParams()` without a Suspense boundary →
+> added a catch-all `<Suspense>` in the dashboard layout + explicit per-page boundaries. Verified by the exact
+> CI reproduction — a full build with `.env.local` removed now exits 0 (all 301 pages generate). CI check job
+> confirmed green on `5004662b`. The historical diagnosis notes below are kept for the record.
+
+## 🟡 CI (historical diagnosis record) — theme:audit step, first of three stacked failures
 > **UPDATE (`6f871c11`): the theme:audit step is FIXED and CI now advances through the guards.** Root cause
 > was `theme-audit.mjs`'s shell-fragile `git ls-files` pathspec: on Linux CI the quotes stripped and `*.ts`
 > pulled in root config files, so it scanned `tailwind.config.ts` and flagged its palette (`bg-[#0B1620]`,
