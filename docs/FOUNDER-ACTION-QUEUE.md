@@ -22,6 +22,14 @@
 > step to try FIRST (you, no logs needed):** in Vercel, redeploy `606894f4` (or a fresh 16.3.0 bump) with
 > **"Clear build cache"** — a stale cache across a framework-minor bump is a common false failure. If it still
 > fails, THEN grab the build error and I'll fix the specific cause.
+> **Web research (2026-08-04) — it matches a KNOWN Next-16-on-Vercel class, likely NOT our code:** multiple
+> reports describe Next.js 16 deployments FAILING ON VERCEL despite a SUCCESSFUL LOCAL BUILD — exactly our
+> symptom (our local `next build` passed 301/301, Vercel failed). Signatures to look for in the build log: a
+> `TypeError: Applying modifyConfig from Vercel`, or an `InvariantError` (vercel/next.js #85251), both
+> Vercel-side integration regressions, not app defects. Implication: (a) a clear-cache redeploy / plain retry is
+> genuinely worth trying first (platform-side issues are often transient or cache-related), and (b) if you send
+> the log, I can match it to the known issue + workaround rather than guess. This raises confidence that the fix
+> is a retry/cache-clear, not an app change.
 > **No "newer patch" escape hatch (checked 2026-08-04):** 16.3.0 is the LATEST STABLE Next (only `16.3.1-canary.0`
 > exists above it — a canary, unfit for prod). So the fix target is specifically 16.3.0; there's no higher stable
 > version to jump to that would sidestep whatever makes 16.3.0 fail on Vercel. Path forward is exactly: (a)
