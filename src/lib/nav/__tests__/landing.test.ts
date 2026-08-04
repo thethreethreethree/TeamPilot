@@ -83,4 +83,34 @@ describe("resolveUserLanding", () => {
     const sb = mockSb({ profiles: { sales_coach_role: null } });
     expect(await resolveUserLanding(sb, "u1", null)).toBe("/dashboard");
   });
+
+  it("null access_module, sales_coach_role set + NO care row → sales_coach (legacy sales lever)", async () => {
+    const sb = mockSb({
+      companies: { access_module: null },
+      profiles: { sales_coach_role: "staff" },
+      // no care_tenant_config row → hasCare false → the sales lever alone decides
+    });
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard/sales-coach");
+  });
+
+  it("null access_module with BOTH levers (care row AND sales_coach_role) → hub, NOT a module", async () => {
+    const sb = mockSb({
+      companies: { access_module: null },
+      care_tenant_config: { company_id: "co1" },
+      profiles: { sales_coach_role: "admin" },
+    });
+    // Both levers present is ambiguous → the documented rule routes to the hub. This is EXACTLY why the
+    // 0207 access_module column exists: 0045 gives every company a care_tenant_config, so a legacy
+    // sales_coach account trips BOTH levers and never reaches its module from the fallback alone — the
+    // "lands on main regardless of module" bug, seen here from the fallback side.
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard");
+  });
+
+  it("null access_module with NEITHER lever → hub", async () => {
+    const sb = mockSb({
+      companies: { access_module: null },
+      profiles: { sales_coach_role: null },
+    });
+    expect(await resolveUserLanding(sb, "u1", "co1")).toBe("/dashboard");
+  });
 });
