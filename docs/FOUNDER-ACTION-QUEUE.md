@@ -587,7 +587,15 @@ These are the only OPEN items that touch data integrity or metric correctness �
 > `fetchAgentInbox` (care.ts:680) / `fetchEnrichedInbox` (:1052) — the agent inbox; `getCareConversationByToken`
 > (:270) / `listCareMessagesForCustomer` (:287) — the customer widget. Each still needs its CONSUMER checked
 > (route/client may already 500 or degrade — e.g. the after-pitch READ route strips to `{summary:null}` which a
-> client can't distinguish from a real empty). The other ~24 sites are secondary/best-effort (listTags,
+> client can't distinguish from a real empty). **Investigated `getLatestAfterPitchSummaryAdmin` → NOT a genuine
+> instance (2026-08-04, traced full flow):** it swallows the error → `{summary:null}` on the after-pitch GET
+> route, BUT the after-pitch page's `load()` checks `apRes.ok` AND **auto-generates** when there's no existing
+> summary (`if (!existing) generate()`). So a swallowed read error → `existing=null` → auto-regenerate →
+> recovers; the user does NOT see a false "no capture." A route-500 fix would be a NO-OP (load treats 500 and
+> null identically → auto-generate). The only real cost is an unnecessary LLM re-run on a transient read error
+> (minor). So the after-pitch summary read is MITIGATED by design — good that I traced before "fixing" a no-op.
+> Remaining genuinely-suspect candidates to still check: `getSession` (broad blast radius), `fetchAgentInbox`,
+> the customer-widget reads. The other ~24 sites are secondary/best-effort (listTags,
 > cannedResponses, findSimilarResolutions, detectSupportPatterns, durability/analytics) where empty is fine.
 > **ROUTE-LEVEL check done for the surfaces I client-fixed:** ✅ customers route was swallowing DB errors into
 > 200+[] (defeated the client fix) — **FIXED** (`095050d6`, now 500s); KPI `/me` already 500s and sessions-list
