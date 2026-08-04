@@ -1008,6 +1008,15 @@ for (const f of FILES) {
 // data-layer error-swallow CONSCIOUSLY classified: add a guard-predicate, rethrow, or allowlist it here WITH
 // the reason empty-on-error is genuinely safe for THIS surface. A void catch (a best-effort WRITE with no
 // return) is a different shape and is not flagged.
+//
+// SCOPE (A26 — name the boundary so a green run is not mistaken for total coverage): this gate covers
+// src/lib/data ONLY — the table-read layer whose empty IS a display of "no data". Catches elsewhere in
+// src/lib were checked (2026-08-04) and are a DIFFERENT class, deliberately out of scope: LLM best-effort
+// dissects (coach/v5/sales*), best-effort writes (emit/observe/sender/careNotify), and preference/routing
+// reads that degrade to a SENSIBLE DEFAULT rather than a false-empty (experience/mode → DEFAULT_EXPERIENCE_MODE,
+// nav/landing → hub). Widening the gate to all of src/lib would dilute it into a large allowlist of legitimate
+// degrades. If a src/lib/care|coach read ever renders a table's rows as a user-facing "no data", move it into
+// scope rather than assuming this gate saw it.
 const DATA_SWALLOW_ALLOWLIST = new Map([
   [
     "src/lib/data/care.ts::fetchCareCommandStats",
