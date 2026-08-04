@@ -128,6 +128,20 @@
 > longer depends on teammates' activity volume — decide N. (3) Long-term, the same server-side RPC/counter
 > the coach-KPI truncation item wants. Say **"fix the coach-assessment count"** for (1) alone, or **"redo the
 > coach-assessment window, N=<n>"** for (1)+(2).
+>
+> **Class sweep (A26 — swept to boundary, not a lone flag).** Checked every `.limit(N)` on
+> events/session aggregations in `src/app/api/coach` + `src/lib/coach`:
+> - **`coach-assessment:104` (300, team-wide)** — the finding above. The one that actually bites, because
+>   the window is SHARED across the whole team so it fills fast.
+> - **`salesElo.ts:233` (500, per-agent)** — SAME shape (an agent's `coach.dissect_generated` events feed
+>   the ELO rating) and also fed more by this build, but **per-agent** + limit 500 + ELO is legitimately
+>   recency-weighted, so it only truncates for a rep past ~500 dissects and "rate on the recent 500" is a
+>   defensible design. LOW — noted for the boundary, not proposed for change.
+> - **`kpi/compute-cron:71` (5000)** — the already-tracked coach-KPI truncation item; unchanged by this.
+> - **`list:80` (300)`, `dashboard:59` (50), `recordings:95` (100), `strategy-library:77` (200)** — DISPLAY
+>   lists (row pagination), not derived counts, and on `coaching_sessions`/recordings which this build does
+>   not grow → not this class. The remaining `.limit(1)` reads are single-row fetches. **Boundary: one real
+>   instance (coach-assessment), one benign same-shape (salesElo), rest clean.**
 
 ## 🟢 CI RESOLVED — all three chronic failures fixed, check job green (2026-08-04, `5004662b`)
 > **RESOLVED.** The `build` step's failures were also root-caused + fixed: (1) `env.ts` threw at module-eval
