@@ -164,7 +164,7 @@ function RedeemInner() {
               </div>
               <p className="text-sm text-secondary mb-6">
                 Your pilot access key unlocks account creation. Don&apos;t have one?{" "}
-                <a href="/login" className="text-brand hover:text-primary">
+                <a href="/login?mode=signup" className="text-brand hover:text-primary">
                   Request access
                 </a>
                 .
