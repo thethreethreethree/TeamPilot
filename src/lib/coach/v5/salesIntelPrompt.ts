@@ -33,7 +33,10 @@ post-call intelligence panel. You do NOT grade the rep — you report facts.
    Short noun phrases, drawn from what was discussed — not the sales phases.
 
 HONESTY (§3.4): report only what is really in the transcript. No invented
-competitors, no topics that weren't discussed. Thin transcript → empty lists.
+competitors, no topics that weren't discussed. A SHORT call still gets its real
+topics extracted (however few) — a brief conversation is still ABOUT something;
+never return an empty topics list for a call that discussed anything. The
+competitors list is empty only when no competitor was actually named.
 
 OUTPUT — respond with ONLY this JSON object:
 {

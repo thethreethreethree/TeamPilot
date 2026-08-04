@@ -46,6 +46,17 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - **read-path:** `npx vitest run` executes them; both pass, locking the new "no minimum time" behavior so a
   future edit can't silently reintroduce the floor.
 
+### salesIntel prompt — short call keeps its real topics (RES-02 follow-up)
+`src/lib/coach/v5/salesIntelPrompt.ts`.
+
+- **write-path:** the "Thin transcript → empty lists" honesty line is replaced with "a SHORT call still gets
+  its real topics extracted (however few) — never return an empty topics list for a call that discussed
+  anything; competitors empty only when none named". No logic change; the extraction stays fact-only.
+- **read-path:** `generateSalesIntel` parses the same JSON; a short-but-real call now yields its actual
+  topics instead of being told "thin → empty", so the intel panel isn't blank on a quick close. The
+  `competitors==[] && topics==[] → null` engine gate still returns null only when genuinely nothing was
+  extracted.
+
 ## Files
 - `src/lib/coach/v5/salesReviewPrompt.ts`
 - `src/lib/coach/v5/salesScorePrompt.ts`
@@ -59,4 +70,5 @@ Match the top-level `docs/tbc/DOC_MANIFEST.json`; no governing-doc change, so no
 - `src/lib/coach/v5/salesPivot.ts`
 - `src/lib/coach/v5/salesWhy.ts`
 - `src/lib/coach/v5/salesIntel.ts`
+- `src/lib/coach/v5/salesIntelPrompt.ts`
 - `src/lib/coach/v5/__tests__/salesReview.generate.test.ts`
