@@ -182,11 +182,19 @@ const FILE_ALLOWLIST = new Map([
   ],
 ]);
 
+// Deterministic, shell-agnostic file list. The old `git ls-files src -- '*.ts' '*.tsx'` was SHELL-FRAGILE
+// and diverged local-vs-CI: under Windows cmd.exe (execSync's default shell) the quoted globs matched
+// nothing, so only the `src` pathspec applied (src-scoped) and every local run passed; under a Linux
+// /bin/sh the quotes strip and `*.ts`/`*.tsx` become OR-pathspecs that ALSO pull in root .ts files —
+// notably tailwind.config.ts, whose palette definitions (`bg-[#0B1620]`, `text-gold-300`) then tripped the
+// leak patterns and failed CI. (Root-caused 2026-08-04: this was the chronic red-CI theme:audit step.)
+// Scope to `src` and filter to .ts/.tsx in JS so the SAME set is scanned on every OS/shell — matching this
+// script's stated scope ("every src .ts / .tsx file") and never scanning config, .css, or images.
 const files = Array.from(
   new Set(
-    execSync("git ls-files src -- '*.ts' '*.tsx'", { encoding: "utf8" })
+    execSync("git ls-files src", { encoding: "utf8" })
       .split("\n")
-      .filter(Boolean)
+      .filter((f) => /\.tsx?$/.test(f))
       // Untracked Phase-1 chat pages still must be audited.
       .concat([
         "src/app/dashboard/chats/page.tsx",
