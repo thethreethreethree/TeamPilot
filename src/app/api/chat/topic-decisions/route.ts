@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/roles";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
@@ -94,10 +95,7 @@ export async function POST(req: NextRequest) {
       .select("role")
       .eq("id", auth.user.id)
       .maybeSingle();
-    const isCompanyAdmin =
-      profile?.role === "CEO" ||
-      profile?.role === "COO" ||
-      profile?.role === "admin";
+    const isCompanyAdmin = isAdminRole(profile?.role);
     if (!isCompanyAdmin) {
       return NextResponse.json(
         { error: "Only topic admins or company admins can open a Decision Dialogue." },

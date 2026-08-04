@@ -8,6 +8,8 @@
  * hits it (self reads need no permission — A10).
  */
 
+import { isAdminRole } from "@/lib/roles";
+
 export type SkillViewer = {
   role: string | null | undefined;
   sales_coach_role: string | null | undefined;
@@ -17,10 +19,7 @@ export type SkillViewer = {
 /** "Manager" for the sales coach = a Sales-Coach admin OR a company leader (CEO/COO/admin). */
 export function isSalesCoachManager(caller: SkillViewer): boolean {
   return (
-    caller.sales_coach_role === "admin" ||
-    caller.role === "CEO" ||
-    caller.role === "COO" ||
-    caller.role === "admin"
+    caller.sales_coach_role === "admin" || isAdminRole(caller.role)
   );
 }
 
@@ -38,10 +37,7 @@ export function isSalesCoachManager(caller: SkillViewer): boolean {
  */
 export function isSalesCoachMember(caller: SkillViewer): boolean {
   return (
-    !!caller.sales_coach_role ||
-    caller.role === "CEO" ||
-    caller.role === "COO" ||
-    caller.role === "admin"
+    !!caller.sales_coach_role || isAdminRole(caller.role)
   );
 }
 

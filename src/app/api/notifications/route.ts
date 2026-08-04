@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 
@@ -72,14 +73,8 @@ export async function GET() {
     .eq("id", userId)
     .maybeSingle();
   const isSupportAgent =
-    Boolean(myProfile?.is_support_agent) ||
-    myProfile?.role === "CEO" ||
-    myProfile?.role === "COO" ||
-    myProfile?.role === "admin";
-  const isCompanyAdmin =
-    myProfile?.role === "CEO" ||
-    myProfile?.role === "COO" ||
-    myProfile?.role === "admin";
+    Boolean(myProfile?.is_support_agent) || isAdminRole(myProfile?.role);
+  const isCompanyAdmin = isAdminRole(myProfile?.role);
 
   // Topics the user is an ACTIVE participant of. We need this to
   // gate decision.* events to rooms the user is actually in. Doing

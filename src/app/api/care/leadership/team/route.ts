@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/roles";
 import { fetchTeamGrowth, fetchTeamPresence } from "@/lib/data/care";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,10 +34,7 @@ export async function GET() {
       { status: 403 }
     );
   }
-  const isLeader =
-    profile.role === "CEO" ||
-    profile.role === "COO" ||
-    profile.role === "admin";
+  const isLeader = isAdminRole(profile.role);
   if (!isLeader) {
     return NextResponse.json(
       { error: "Leadership view is for company admins." },

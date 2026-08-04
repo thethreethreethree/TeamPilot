@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/roles";
 import {
   fetchCoachRubricReadout,
   fetchCoPilotValueReadout,
@@ -45,10 +46,7 @@ export async function GET(req: NextRequest) {
       { status: 403 }
     );
   }
-  const isLeader =
-    profile.role === "CEO" ||
-    profile.role === "COO" ||
-    profile.role === "admin";
+  const isLeader = isAdminRole(profile.role);
   if (!isLeader) {
     return NextResponse.json(
       { error: "Readouts are for company admins." },
