@@ -28,6 +28,21 @@ no findings — the change is bounded to the per-session content engines; honest
 needed no edit (its gates are satisfied once the engines return content); the one test asserting the old
 floor was updated to the new contract.
 
+## Render-side verification (§1.5.1 L2 — does it actually work end-to-end)
+Traced all four founder-named deliverables from engine output to the pixels, confirming no SECOND render
+gate hides the newly-generated content on a real short call (only a genuine 0-turn/0-segment capture gap
+still shows an honest empty state):
+- **My Read** — after-pitch `page.tsx` renders strengths by `.length`; session `[id]/page.tsx` L912 gates
+  on `review.hasSignal` (now always true for a real call); the L966 "Not enough…" empty state now fires
+  only on a 0-agent-turn capture gap.
+- **Scores** — `Scoreboard` L1071/L1108 maps ALL `scores` into both the strip and the Assessment Review
+  (the founder's "only 2 scores" was the empty LLM categories; now 7 cells: 2 computed + 5 graded).
+  `PivotAndScores.tsx` L353 gates on `hasSignal`/`scores.length`, satisfied by the same engine fix.
+- **Summarize** — session summary card L412 renders when `summary || moments || pivot || intel`; summary
+  was never floored and the other three floors are now 1.
+- **Dissect** — `SessionCoachTools.tsx` `DissectPanel` L188/L200 gates on `dissect.hasSignal` (now always
+  true for a real call); the "Not enough of your side…" message now fires only on a 0-turn capture gap.
+
 ## Verification (A38)
 ```
 $ npx tsc --noEmit
