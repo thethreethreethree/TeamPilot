@@ -8,10 +8,17 @@ the migration + object that enforces it, and what a silent DROP would break.
 **Why this exists.** `npm run check` verifies code (tsc / lint / theme / RLS-coverage /
 tests) but does NOT verify these DB triggers/rules stay in place. A future migration that
 drops one would pass the green gate while silently removing a constitutional guarantee (the
-§5 "a protection gets dropped under pressure" risk, at the schema layer). Until CI runs the
-skipped `chain.integration.test.ts` against a live DB (or an order-aware invariant check is
-added to `rls-audit.mjs`), this registry is the **human-review** defense: a reviewer seeing a
-migration touch any object below must confirm the invariant survives.
+§5 "a protection gets dropped under pressure" risk, at the schema layer).
+
+> **AUTOMATED as of 2026-08-06 (`270417a`).** The `§3.1 append-only registry` check in
+> `scripts/verify-invariants-live.mjs` (`npm run verify:live`, run against prod with DB access) now asserts
+> EVERY member of the append-only set below retains its live enforcement — the per-table model (rules for the
+> frozen set; the guard/freeze TRIGGER for chat_messages/support_messages/resolutions; no_delete-only for
+> feedback/smoke_test_versions). A migration that DROPs any rule/trigger now FAILS `verify:live` (detection-
+> tested). This registry remains the **human-review** companion (a reviewer seeing a migration touch any object
+> below should still confirm the invariant survives), but it is no longer the *only* defense. `verify:live`
+> requires `SUPABASE_DB_URL`, so it is NOT part of the secretless CI `npm run check` gate — it runs where the
+> DB is reachable; treat a green `verify:live` as the authoritative live check.
 
 Verified present as of 2026-07-09 (each checked against the actual trigger/rule, not a comment).
 
