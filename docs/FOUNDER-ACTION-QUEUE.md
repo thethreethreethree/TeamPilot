@@ -135,6 +135,10 @@
 > RPC advisory lock"`), NOT applied. The server CAN still double-create.** Bounded harm: the `profiles.id`
 > upsert keeps the USER consistent (one company), so a concurrent double-onboard leaves an ORPHANED company
 > row (cruft), not a broken tenant — which is why it reads as "0 duplicate tenants" even if it fired.
+> **MATERIALIZATION CHECK (live 2026-08-05): 0 REAL orphaned tenants. There ARE 10 companies with no member
+> profile — but all 10 are TEST DATA (`chain-test-*` / "EXECOS Chain Integration Test" CRM accounts, created
+> 2026-06-03 in one integration-test run, 0 coaching sessions), NOT double-create races. So the TOCTOU is
+> unmitigated but has NOT fired. (Aside: those 10 test CRM accounts are prod cruft you may want to purge.)**
 > (c) coach-KPI / false-limit truncation is MATERIALIZED but VENDOR-ONLY — **RE-CONFIRMED live (read-only)
 > 2026-08-05: exactly ZERO customer companies have any >1000-row group.** The only >1000 group is ELOSTATE's
 > OWN `events` (now 1718, incl. test data; the next-highest customer has 20); coaching_sessions ELOSTATE 121 /
