@@ -15,9 +15,18 @@ migration touch any object below must confirm the invariant survives.
 
 Verified present as of 2026-07-09 (each checked against the actual trigger/rule, not a comment).
 
-> **Applied-state caveat.** This registry describes the schema **as defined by the
-> migrations** (i.e. assuming all are applied). A few of the listed rules ship in migrations
-> that were still in the pending-apply queue as of 2026-07-09 — notably
+> **LIVE RE-VERIFICATION 2026-08-06 (read-only prod catalog — `pg_rules` + `pg_trigger`).** Re-checked
+> against the running database, not the migrations. **The three then-pending objects are now LIVE:**
+> `care_widget_load_events` (`care_widget_load_events_no_update` + `_no_delete`) and `crm_activity_events`
+> (`crm_activity_events_no_update` + `_no_delete`) append-only rules are present; the
+> `resolutions_durability_review_trigger` (`0100`, listed UNAPPLIED below) is present on `resolutions`. The
+> applied-state caveat above is therefore RESOLVED for those. The freeze/immutability trigger set is intact
+> (`events`-chain rules present; `decision_dialogues_immutable`, `resolutions_immutable`,
+> `team_invitations_immutable`, `chat_topics_immutable`, and the full `fin_*` freeze set all live).
+
+> **Applied-state caveat (historical — see the 2026-08-06 resolution above).** This registry describes the
+> schema **as defined by the migrations** (i.e. assuming all are applied). A few of the listed rules shipped in
+> migrations that were still in the pending-apply queue as of 2026-07-09 — notably
 > `care_widget_load_events` (`0085`) and `crm_activity_events` (`0086`) append-only. Their
 > protection is live only once those migrations are applied to the environment; see the
 > pending-migration list in `docs/closures/2026-07-09-SESSION-SUMMARY.md`. Migration-defined
@@ -32,6 +41,17 @@ Verified present as of 2026-07-09 (each checked against the actual trigger/rule,
 the FULL current set — 22 tables — not a highlight; a reviewer touching any of them must
 confirm the rule survives. Authoritative always-current check (re-run to detect additions):
 `grep -rhoE "on (update|delete) to [a-z_]+ do instead nothing" supabase/migrations/*.sql | sort -u`.
+
+> **Enforcement-model exceptions (live-verified 2026-08-06 — do NOT "fix" these to a `_no_update` rule).**
+> Three tables in the set are NOT frozen by a `_no_update` rule; a rule-only audit will show a FALSE gap for
+> them (verify the TRIGGER before flagging — behavioral-beats-catalog-string):
+> - `chat_messages` — `_no_delete` rule + `chat_messages_guard_edit_trg` (BEFORE UPDATE) + `chat_messages_emit_edit_event_trg`.
+>   Edits are ALLOWED but *event-sourced* (each edit emits an append-only event) — a richer append-only model
+>   than a freeze. Adding a `_no_update` rule would BREAK message editing.
+> - `support_messages` — `_no_delete` rule + `trg_preserve_support_message_content` (BEFORE UPDATE freezes the
+>   content column; status/read-flags may still change). Content is immutable; the row is not.
+> - `smoke_test_versions` — `_no_delete` only; UPDATE is permitted (test infrastructure, not a constitutional
+>   event-chain table — benign by design).
 
 ```
 after_pitch_summaries      coaching_cues                  smoke_test_results
