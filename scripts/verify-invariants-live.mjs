@@ -226,12 +226,26 @@ async function main() {
     // `resolution.durability_reviewed` event — that's how the §3.5 signal becomes visible (§3.6). It is an
     // EMIT trigger (not a raise): if dropped, durability reviews would SILENTLY stop reaching the event
     // chain — the moat metric vanishes while the fn still exists. Same fn-checked-not-trigger class as §3.4.
-    // Assert the trigger runs the fn on resolutions, firing on UPDATE (tgtype bit 16=UPDATE).
-    const wired = await has(
+    // Assert BOTH durability-emit triggers are wired on UPDATE (tgtype bit 16=UPDATE): resolutions (0100) AND
+    // its sibling chat_topics (0015 — the registry pairs them: "exactly the gap 0015 closed for chat topics").
+    // Dropping EITHER silently severs one half of the §3.5 loop, so both are asserted.
+    const resWired = await has(
       "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
       "where cl.relname='resolutions' and not tg.tgisinternal and p.proname='resolutions_emit_durability_review' " +
       "and (tg.tgtype & 16)=16");
-    return { pass: !!wired, detail: wired ? "durability-review emit trigger wired on UPDATE of resolutions" : "MISSING — §3.5 durability signal would silently stop reaching the event chain" };
+    const topicWired = await has(
+      "select 1 from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid join pg_proc p on p.oid=tg.tgfoid " +
+      "where cl.relname='chat_topics' and not tg.tgisinternal and p.proname='chat_topics_emit_durability_review' " +
+      "and (tg.tgtype & 16)=16");
+    const gaps = [];
+    if (!resWired) gaps.push("resolutions_emit_durability_review");
+    if (!topicWired) gaps.push("chat_topics_emit_durability_review");
+    return {
+      pass: gaps.length === 0,
+      detail: gaps.length === 0
+        ? "both durability-review emit triggers wired on UPDATE (resolutions + chat_topics)"
+        : `MISSING — §3.5 durability signal would silently stop reaching the event chain: ${gaps.join(", ")}`,
+    };
   });
 
   await check("no SECURITY DEFINER function lacks a pinned search_path (search_path-injection / privilege-escalation defense)", async () => {
