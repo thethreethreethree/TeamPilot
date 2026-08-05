@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FileText,
   MessageCircleQuestion,
@@ -150,6 +150,11 @@ function PanelBox({ children }: { children: React.ReactNode }) {
  */
 function DissectPanel({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(false);
+  // Re-entrancy latch: run() POSTs a dissect, which server-side does a RAW append-only events.insert
+  // (runAndStoreDissect → events; no dedup). `loading` state + a disabled button both need a re-render, so
+  // two fast clicks would store TWO dissect events for one session (unrecoverable; they feed ELO). A ref
+  // updates synchronously so the second click short-circuits. See reference_append_only_double_write_react_flag_guard.
+  const runningRef = useRef(false);
   const [dissect, setDissect] = useState<DissectView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -171,6 +176,8 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   const run = async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -194,6 +201,7 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
       setError(e instanceof Error ? e.message : "Couldn't run the dissect.");
     } finally {
       setLoading(false);
+      runningRef.current = false;
     }
   };
 
