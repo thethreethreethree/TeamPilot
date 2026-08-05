@@ -8,8 +8,18 @@
 > on reasoning and return EMPTY, so "Your read" went blank on every call from ~2026-07-30. A prior 256-token
 > "fix" was probed on trivial tasks and under-covered it. FIXED at the provider chokepoint
 > (`REASONING_HEADROOM_TOKENS` → 3500, measured against the real ~9k prompt), floor-guarded, and made
-> loud-on-failure. Live (`build.commit 7d65266f`, all CI green). PAST blank reads AUTO-HEAL on next view
-> (`7d65266f`). New calls work from the start. See [[reference_reasoning_model_token_starvation]].
+> loud-on-failure. Live (`build.commit 7d65266f`, all CI green). New calls work from the start. See
+> [[reference_reasoning_model_token_starvation]].
+>
+> **REPOPULATING THE PAST — the outage broke TWO artifacts, two heal paths, both now work:**
+> 1. **Rep's "Your read"** (after-pitch narrative) → **AUTO-HEALS on next view** (`7d65266f`); nothing to
+>    trigger — the rep opens the session and it regenerates. (Verified: the client's own session `9e783ea6` has
+>    an intact transcript and heals cleanly; it is NOT among the 13 `0208`-damaged sessions.)
+> 2. **Manager coach-assessment view + rep ELO** (fed by `coach.dissect_generated` events, which STOPPED
+>    2026-07-30) → do NOT auto-heal. Click **"Generate missing"** (`backfill-dissects`, manager button); it now
+>    succeeds (same fixed dissectCoachV5 path) and repopulates per-rep coaching content + recomputes ELO.
+>    (Correction to my first note: "Generate missing" is the RIGHT path for the manager view + ELO — it just
+>    doesn't touch the rep's after-pitch narrative, which auto-heals separately.)
 >
 > **🟠 NEEDS YOUR DECISION — the `0208` transcript incident (I caused it; already guarded so it can't recur).**
 > While building the founder-approved transcript dedup, migration `0208` carried an inline `begin;…commit;`;
