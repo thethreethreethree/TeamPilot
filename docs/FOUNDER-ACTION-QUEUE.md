@@ -1,5 +1,30 @@
 # Founder action queue
 
+## 🔴 TOP — 2026-08-06: client "Your read" outage FIXED (live) + a transcript incident I caused that needs YOUR call
+
+> **✅ CLIENT ISSUE RESOLVED + LIVE.** The client's frustration ("9-min call, nothing on Your read + scores")
+> was NOT the no-minimum thing — it was a real 2-week outage: the LLM model rename (2026-07-25 →
+> deepseek-v4-flash, a REASONING model) made the review engine (`debriefCoachV5`) burn its whole token budget
+> on reasoning and return EMPTY, so "Your read" went blank on every call from ~2026-07-30. A prior 256-token
+> "fix" was probed on trivial tasks and under-covered it. FIXED at the provider chokepoint
+> (`REASONING_HEADROOM_TOKENS` → 3500, measured against the real ~9k prompt), floor-guarded, and made
+> loud-on-failure. Live (`build.commit 7d65266f`, all CI green). PAST blank reads AUTO-HEAL on next view
+> (`7d65266f`). New calls work from the start. See [[reference_reasoning_model_token_starvation]].
+>
+> **🟠 NEEDS YOUR DECISION — the `0208` transcript incident (I caused it; already guarded so it can't recur).**
+> While building the founder-approved transcript dedup, migration `0208` carried an inline `begin;…commit;`;
+> `db:verify` (which is supposed to prove-then-roll-back) was defeated by that inline commit and SILENTLY
+> COMMITTED — deleting **132 real take-segments** from `coaching_transcript_segments` and adding a live
+> `unique(session_id,seq)` constraint. Bounded to the 13 already-corrupted (Frankenstein multi-take) sessions.
+> The db:verify hole is now GUARDED (`dc4b50f5` — db-apply rejects inline txn control). **Two calls only you
+> can make, then I finish it with ONE verified change:**
+> 1. **Session/take model** — is a coaching session ONE take (mint a new session per re-record → the
+>    `unique(session_id,seq)` constraint is CORRECT, keep it + I fix the write-path) or MULTI-take (re-record
+>    into the same session → the constraint is wrong, I drop it)?
+> 2. **Recovery** — PITR-restore the 132 deleted rows (Supabase dashboard → Database → Backups, to just before
+>    2026-08-06), or accept the loss (they're all from the 13 already-suspect sessions)?
+> Say e.g. **"one-take, no recovery"** or **"multi-take, PITR first"** and I'll execute + verify by direct inspection.
+
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
 > **Your one request is DONE + verified: Sales Coach now gives EVERY session all content, no minimum length.**
