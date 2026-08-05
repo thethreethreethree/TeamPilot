@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deepseekProvider } from "../deepseek";
+import {
+  deepseekProvider,
+  withReasoningHeadroom,
+  REASONING_HEADROOM_TOKENS,
+} from "../deepseek";
 import { LlmError } from "../errors";
 import { shouldCascade } from "../index";
 
@@ -97,11 +101,12 @@ describe("deepseekProvider error classification (outage regression lock)", () =>
     );
 
     await deepseekProvider.call({ ...CALL, maxTokens: 16 });
-    // 16 (caller's answer budget) + 256 headroom.
-    expect(sentBody.max_tokens).toBe(272);
+    // caller's answer budget + the reasoning headroom (assert via the constant, not a magic number, so this
+    // tracks the value; the separate floor test guards that the constant itself stays high enough).
+    expect(sentBody.max_tokens).toBe(16 + REASONING_HEADROOM_TOKENS);
 
     await deepseekProvider.call(CALL); // no maxTokens → default 900 + headroom
-    expect(sentBody.max_tokens).toBe(1156);
+    expect(sentBody.max_tokens).toBe(900 + REASONING_HEADROOM_TOKENS);
   });
 
   it("still maps 401 to 'auth' (cascades) — non-model failures unchanged", async () => {
@@ -118,5 +123,36 @@ describe("deepseekProvider error classification (outage regression lock)", () =>
     }
     expect((caught as LlmError).kind).toBe("auth");
     expect(shouldCascade(caught)).toBe(true);
+  });
+});
+
+/**
+ * Regression lock for the 2026-07-30 blank-coach-output outage. deepseek-v4-flash is a REASONING model
+ * that spends completion tokens thinking BEFORE it emits content; the request budget must leave room for
+ * that reasoning or the model returns finish_reason:"length" with EMPTY content. A PRIOR fix set the
+ * headroom to 256 — calibrated on trivial tasks (16–34 reasoning tokens) — but complex prompts (the deep
+ * dissect) reason 750–1250 tokens (measured live), so 256 starved them and "Your read" went blank for two
+ * weeks. This pins a floor so a future edit can't silently drop the headroom back below what complex
+ * reasoning needs.
+ */
+describe("reasoning-token headroom (blank-output outage guard)", () => {
+  const OBSERVED_COMPLEX_REASONING_MAX = 1250; // measured live 2026-08-06 on the dissect prompt
+
+  it("headroom covers the observed complex-task reasoning with margin", () => {
+    expect(REASONING_HEADROOM_TOKENS).toBeGreaterThanOrEqual(
+      OBSERVED_COMPLEX_REASONING_MAX
+    );
+  });
+
+  it("withReasoningHeadroom adds the full headroom on top of the caller's answer budget", () => {
+    // The caller budgets maxTokens for the ANSWER; the reasoning headroom is added on top, so a 1100-token
+    // dissect content budget must yield >= 1100 + the complex-reasoning floor of total room.
+    expect(withReasoningHeadroom(1100) - 1100).toBeGreaterThanOrEqual(
+      OBSERVED_COMPLEX_REASONING_MAX
+    );
+    // Undefined budget still gets a sane default plus the headroom (never below the floor).
+    expect(withReasoningHeadroom(undefined)).toBeGreaterThan(
+      OBSERVED_COMPLEX_REASONING_MAX
+    );
   });
 });

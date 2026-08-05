@@ -94,8 +94,11 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * covers the observed complex-task reasoning with margin. It's a CEILING: costs nothing on calls that
  * finish naturally, only rescues ones that would have truncated. Anthropic (non-reasoning) needs no floor.
  */
-const REASONING_HEADROOM_TOKENS = 1500;
-function withReasoningHeadroom(maxTokens: number | undefined): number {
+export const REASONING_HEADROOM_TOKENS = 1500;
+// Exported for the regression guard (deepseek.provider.test.ts): the outage happened because a PRIOR value
+// (256) looked adequate but was calibrated on trivial tasks. The test pins a floor so a future edit can't
+// silently drop it below what complex-task reasoning (750–1250 tokens, measured) needs.
+export function withReasoningHeadroom(maxTokens: number | undefined): number {
   return (maxTokens ?? 900) + REASONING_HEADROOM_TOKENS;
 }
 
