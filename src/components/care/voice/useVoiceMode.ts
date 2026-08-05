@@ -823,6 +823,18 @@ export function useVoiceMode(args: {
       return;
     }
 
+    // Teardown-during-await guard (async-acquire-leak class): the getUserMedia await above can block for
+    // as long as the permission prompt is up. If the user closed the voice surface or navigated away in that
+    // window, the unmount effect already ran teardown() — which cleared callPendingRef and tried to stop
+    // streamRef.current while it was STILL NULL (it's set only just below), so it freed nothing and the
+    // resolved stream would leak: mic stays live (indicator on), and the AudioContext + VAD loop below would
+    // spin up on a dead hook. Stop the orphaned stream and bail before wiring anything up. See
+    // reference_async_acquire_leaks_on_unmount_midawait.
+    if (!callPendingRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
     // Now safe to update state — mic permission already resolved.
     setVoiceMode(true);
     setVoicePhase("connecting");
