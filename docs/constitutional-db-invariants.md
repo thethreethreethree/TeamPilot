@@ -81,12 +81,18 @@ signals
 | `decision_dialogues` | `decision_dialogues_no_update` rule (`0025`) + `decision_dialogues_immutable` column-freeze trigger (`0003`) | `0025` + `0003` | a recorded guide-don't-overtake dialogue + its reasoning be silently altered |
 | `brain_evolution_events` | `brain_evolution_no_update` / `_no_delete` rules | `0007` | the System's own learning record be rewritten |
 
-**Column-freeze triggers** (the row stays, but specific columns can't change) — full set:
-`chat_topic_decisions` (`chat_topic_decisions_immutable`, freezes once `phase='decided'`, `0022`);
-`resolutions` (`check_resolution_immutability`, freezes `action_taken`/`reasoning`/`decided_at`,
-`0005` — but `observed_outcome`/`durability` intentionally mutable-once, see A27);
-`decision_dialogues` (`0003`, freezes the dialogue fields); `chat_topics` + `team_invitations`
-(freeze identity/ownership columns). A DROP lets the frozen column be rewritten after capture.
+**Column-freeze triggers** (the row stays, but specific columns can't change) — full set.
+Live-verified 2026-08-06 (trigger names + wiring) and **now automatically guarded** by the
+`§3.1 column-freeze + authz-column guard triggers WIRED` check in `verify:live` (`fbb3bff8`):
+`chat_topic_decisions` (trigger `chat_topic_decisions_immutable`, freezes once `phase='decided'`, `0022`);
+`resolutions` (trigger **`resolutions_immutable`** → fn `check_resolution_immutability`, `0005`; **extended by
+`0105`** to freeze `action_taken`/`reasoning`/`decided_at` **plus `decided_by`/`company_id`/`problem_id`** —
+6 columns, a tenant/authorship defense — while `observed_outcome`/`durability` stay intentionally mutable-once,
+see A27); `decision_dialogues` (trigger `decision_dialogues_immutable`, `0003`, freezes the dialogue fields);
+`chat_topics` (`chat_topics_immutable`) + `team_invitations` (`team_invitations_immutable`)
+(freeze identity/ownership columns). A DROP lets the frozen column be rewritten after capture — now caught by
+`verify:live`. (The registry previously cited the *function* name `check_resolution_immutability` as the trigger
+and listed only the pre-0105 3-column freeze; corrected here.)
 
 ## §3.2 — Understanding Gate (a problem cannot surface under-supported)
 
@@ -111,7 +117,7 @@ covers `TG_OP='INSERT' AND NEW.status<>'draft'`, so a problem inserted *directly
 |---|---|---|---|
 | Every `SECURITY DEFINER` function pins `search_path` | per-function `set search_path = public` (last gap fixed) | `0088` (task_message_emit_event), `0096` (3 guard fns), all others at definition | search_path-injection: a caller shadowing `public` objects earlier in their path escalates via the definer function |
 | Vendor CRM (all-companies back-office) is admin-of-the-VENDOR-company only | `is_vendor_super_admin()` (role IN admin AND `company_id = <vendor>`) | `0089` | any customer admin read/mutate the entire cross-customer CRM (the 2026-07-07 CRITICAL bug) |
-| Authz-bearing columns frozen against direct end-user writes | `profiles_guard_privileged` (`0090` update + `0091` insert), `chat_participants_guard_privilege` (`0093`), `care_agent_state_guard_admin_cols` (`0095`) | `0090`/`0091`/`0093`/`0095` | a user self-escalate role/company/agent-caps via a direct column write (A23 class). NOTE: `0092` is the role-default-null fix, not a guard trigger. |
+| Authz-bearing columns frozen against direct end-user writes **(now guarded by `verify:live` — `fbb3bff8`; wiring incl. BEFORE INSERT+UPDATE live-verified 2026-08-06)** | `profiles_guard_privileged` (`0090` update + `0091` insert — live: ONE trigger firing BEFORE INSERT+UPDATE), `chat_participants_guard_privilege` (`0093`, BEFORE INSERT+UPDATE), `care_agent_state_guard_admin_cols` (`0095`, BEFORE UPDATE) | `0090`/`0091`/`0093`/`0095` | a user self-escalate role/company/agent-caps via a direct column write (A23 class). NOTE: `0092` is the role-default-null fix, not a guard trigger. |
 
 ---
 
