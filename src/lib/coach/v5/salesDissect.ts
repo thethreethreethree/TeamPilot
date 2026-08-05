@@ -79,8 +79,32 @@ export async function generateSalesDissect(args: {
     });
     if (r.suppressed) return EMPTY;
 
-    return parseDissect(r.text) ?? EMPTY;
-  } catch {
+    // Do NOT swallow an EMPTY LLM response as "honest empty state" — that is the error-dressed-as-no-data
+    // failure (INV22). The 2026-07-30 outage was exactly this: deepseek-v4-flash (a reasoning model) burned
+    // the whole token budget on reasoning and returned empty content, which parseDissect turned into EMPTY
+    // and the bare catch hid — "Your read" went blank for 2 weeks with no signal in the logs. Distinguish the
+    // three outcomes LOUDLY so a regression surfaces immediately.
+    if (!r.text || !r.text.trim()) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[generateSalesDissect] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely token-budget starvation on a reasoning model. Dissect will be blank.`
+      );
+      return EMPTY;
+    }
+    const parsed = parseDissect(r.text);
+    if (!parsed || !parsed.hasSignal) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[generateSalesDissect] parseDissect produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no strengths extracted.`
+      );
+      return EMPTY;
+    }
+    return parsed;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[generateSalesDissect] threw: ${e instanceof Error ? e.message : String(e)}`
+    );
     return EMPTY;
   }
 }

@@ -525,7 +525,16 @@ export async function dissectCoachV5(args: {
   return call({
     companyId: args.companyId,
     expectJson: true,
-    maxTokens: 1100,
+    // 4000, NOT 1100. The active model deepseek-v4-flash (renamed 2026-07-25) is a REASONING model:
+    // it spends completion tokens on internal reasoning BEFORE emitting content (reproduced live: a real
+    // dissect burns ~750–1250 reasoning tokens). At the old 1100 budget the reasoning consumed the ENTIRE
+    // allowance and the model returned finish_reason:"length" with EMPTY content → JSON.parse failed →
+    // parseDissect returned EMPTY → "Your read" went blank on every call from ~2026-07-30. The deep engines
+    // sharing this fn (dissect/moments/pivot) reason hardest and broke first; intel/after-pitch reason less
+    // and survived. 4000 leaves room for reasoning + the full dissect JSON on a long transcript (verified:
+    // 2000 and 4000 both return parseable dissects with strengths; 1100 returns nothing). maxTokens is a CAP,
+    // so this only prevents truncation — it does not lengthen the short engines' output.
+    maxTokens: 4000,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
     controlExempt: true,
