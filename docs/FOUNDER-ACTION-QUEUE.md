@@ -120,8 +120,12 @@
 > co-pilot-assisted replies only, or (b) a pooled company AI-response budget? That choice sets how the meter attributes.*
 >
 > *📊 **Data-integrity severity check (read-only prod, 2026-08-04) — none of these is an active customer-facing
-> fire:** (a) transcript corruption is BOUNDED + stable (128 excess / 12 sessions, unchanged since baseline, not
-> spreading); (b) onboarding double-create TOCTOU has NOT materialized (0 duplicate tenants of 14 companies).
+> fire:** (a) transcript corruption is BOUNDED but SLOWLY ACCRUING — **re-counted live (read-only) 2026-08-05:
+> 132 excess rows / 13 affected sessions (of 1131 rows / 72 sessions total), up from the 128 / 12 baseline
+> (2026-08-04). +4 rows, +1 session** — the multi-take `seq`-collision bug (`useLiveCoaching.ts:744/858`) is
+> STILL LIVE, so each new multi-take session accrues; it is NOT "stable/self-resolving," just growing at a low
+> rate (~18% of sessions carry a collision). Still not an emergency, but the fix is genuinely needed to stop
+> accrual, not just to clean up; (b) onboarding double-create TOCTOU has NOT materialized (0 duplicate tenants of 14 companies).
 > **CORRECTION (verified 2026-08-05): there is NO advisory lock or FOR UPDATE in the onboarding RPC — I read
 > 0046/0047 + grepped every migration; the "advisory lock" is the PROPOSED fix (item 3 / trigger `"onboarding
 > RPC advisory lock"`), NOT applied. The server CAN still double-create.** Bounded harm: the `profiles.id`
