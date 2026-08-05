@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 
 /**
  * GET /api/coach/sales-session/coach-assessment
@@ -121,29 +122,8 @@ export async function GET() {
             .limit(DISSECT_CONTENT_N),
         ]);
         if (countRes.error || contentRes.error) return { error: true };
-        const agg: Agg = {
-          strengths: [],
-          growth: [],
-          strategies: [],
-          count: countRes.count ?? 0,
-          lastAt: null,
-        };
-        for (const e of contentRes.data ?? []) {
-          const p = (e.payload ?? {}) as Record<string, unknown>;
-          if (!agg.lastAt) agg.lastAt = (e.created_at as string) ?? null;
-          const strengths = Array.isArray(p.strengths) ? p.strengths : [];
-          for (const s of strengths) {
-            const pt = (s as Record<string, unknown>)?.point;
-            if (typeof pt === "string") agg.strengths.push(pt);
-          }
-          const growth = Array.isArray(p.growth_areas) ? p.growth_areas : [];
-          for (const g of growth) {
-            const op = (g as Record<string, unknown>)?.opportunity;
-            if (typeof op === "string") agg.growth.push(op);
-          }
-          const strat = p.standout_strategy as Record<string, unknown> | null;
-          if (strat && typeof strat.name === "string") agg.strategies.push(strat.name);
-        }
+        const content = aggregateDissectContent(contentRes.data ?? []);
+        const agg: Agg = { ...content, count: countRes.count ?? 0 };
         return { id: a.id, agg };
       }
     )
