@@ -25,13 +25,18 @@
 >    2026-08-06), or accept the loss (they're all from the 13 already-suspect sessions)?
 > Say e.g. **"one-take, no recovery"** or **"multi-take, PITR first"** and I'll execute + verify by direct inspection.
 >
-> **🟡 PRODUCT CONSIDERATION (not a bug) — CARE voice + the reasoning model.** The 2026-07-25 model rename made
-> `deepseek-v4-flash` (a REASONING model) the active LLM. CARE **voice** replies use a deliberately tiny 80-token
-> budget because "every token is dead air" while the customer waits. A reasoning model spends seconds THINKING
-> before replying (regardless of the cap), so voice replies — while not broken (verified 0 empties in the
-> outage window) — likely carry added latency the tight budget was designed to avoid. If voice feels laggy,
-> the fix is a VENDOR/MODEL choice (route the voice path to a faster non-reasoning model), not a code change I
-> should make autonomously. Flagging for awareness. See [[reference_reasoning_model_token_starvation]].
+> **🟡 PRODUCT CONSIDERATION (not a bug) — the reasoning model adds LATENCY to the REAL-TIME paths.** The
+> 2026-07-25 rename made `deepseek-v4-flash` (a REASONING model) the active LLM. It spends seconds THINKING
+> before answering — fine for the post-call review engines (the coach fix), but a latency cost on the two
+> latency-critical paths:
+> - **LIVE COACHING CUES** (`analyzeCoachV5`, fired DURING a call) — the flagship real-time feature; a cue that
+>   arrives seconds late is useless. Cues still work (545 delivered) but the reasoning step likely slows them.
+> - **CARE VOICE replies** (80-token budget — "every token is dead air" while the customer waits); not broken
+>   (0 empties verified) but likely laggier than the tight budget intended.
+> Neither is a correctness bug (both complete). The fix is a VENDOR/MODEL routing choice — send the real-time
+> paths (live cues + voice) to a FASTER, non-reasoning model while the review engines keep the reasoning model
+> for quality — NOT a code change I should make autonomously (it's a quality/latency/cost tradeoff + a vendor
+> pick). If live coaching or voice feels laggy, this is why. See [[reference_reasoning_model_token_starvation]].
 
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
