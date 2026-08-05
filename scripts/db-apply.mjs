@@ -37,6 +37,30 @@ const REPO = join(__dirname, "..");
 const MIGRATIONS_DIR = join(REPO, "supabase", "migrations");
 const LEDGER = "_agent_migrations";
 
+/**
+ * Read a migration's SQL and REJECT inline transaction control. A migration containing its own
+ * `begin;` / `commit;` / `rollback;` DEFEATS the begin/commit wrapping that --verify and --apply rely on:
+ * an inline `commit;` finalizes the work mid-migration, so --verify's outer ROLLBACK has nothing left to
+ * undo and the "dry run" silently COMMITS. This is exactly the 0208 incident (2026-08-06): a migration
+ * carrying `begin;…commit;` was committed by a `db:verify` that reported "rolled back; nothing committed",
+ * deleting 132 rows. db-apply ALWAYS wraps each migration in its own transaction, so a migration must never
+ * manage its own. Matches statement-level control at line start only, so plpgsql `BEGIN … END;` function
+ * bodies (which never appear as a bare `begin;`) are unaffected.
+ */
+function readMigrationSql(path, name) {
+  const sql = readFileSync(path, "utf8");
+  const m = sql.match(/^[ \t]*(begin|commit|rollback)[ \t]*;/im);
+  if (m) {
+    throw new Error(
+      `${name} contains an inline '${m[1].toLowerCase()};' — migrations must NOT manage their own ` +
+        `transaction. db-apply wraps each in begin/commit, and an inline commit silently defeats --verify's ` +
+        `rollback (the 0208 incident: a "dry run" committed and deleted rows). Remove the begin;/commit;/` +
+        `rollback; lines and let the tool wrap it.`
+    );
+  }
+  return sql;
+}
+
 // ---- tiny .env.local loader (no dependency; we only read, never print, secrets) -----------------------
 function loadEnv() {
   const p = join(REPO, ".env.local");
@@ -298,7 +322,7 @@ async function main() {
         await client.query("begin");
         for (const f of pending) {
           process.stdout.write(`   ${f.name} … `);
-          await client.query(readFileSync(f.path, "utf8"));
+          await client.query(readMigrationSql(f.path, f.name));
           console.log("ok");
         }
         await client.query("rollback");
@@ -326,7 +350,7 @@ async function main() {
 
     // Apply each pending migration in its own transaction — a failure stops the run cleanly.
     for (const f of pending) {
-      const sql = readFileSync(f.path, "utf8");
+      const sql = readMigrationSql(f.path, f.name);
       process.stdout.write(`[db-apply] applying ${f.name} … `);
       try {
         await client.query("begin");
