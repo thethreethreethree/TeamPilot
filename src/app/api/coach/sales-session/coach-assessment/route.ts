@@ -85,58 +85,76 @@ export async function GET() {
     return NextResponse.json({ degraded: true });
   }
   const agents = (profs ?? []) as { id: string; full_name: string | null }[];
-  const byId = new Map(agents.map((a) => [a.id, a.full_name]));
-  const agentIds = agents.map((a) => a.id);
 
-  // Recent dissects across the team (actor-keyed — service role, since
-  // events are actor-scoped under RLS).
-  const acc = new Map<
-    string,
-    { strengths: string[]; growth: string[]; strategies: string[]; count: number; lastAt: string | null }
-  >();
-  if (agentIds.length > 0) {
-    // KNOWN LIMITATION (found 2026-08-05, founder-gated on approach — see FOUNDER-ACTION-QUEUE
-    // "COACH-ASSESSMENT windowed aggregate"): this is a TEAM-WIDE recent-300 window. Both `dissectCount`
-    // (below, cur.count) and each rep's coaching content are derived from ONLY the events inside it — so a
-    // rep whose dissects fall outside the team's 300 most-recent shows count 0 + no content despite having
-    // real dissects, and the no-minimum-length build (more dissects) shrinks the effective window. dissectCount
-    // is NOT a true per-rep count. Do NOT trust it as one; the coherent fix (per-rep window / server-side
-    // count) awaits the founder's approach decision. Do not "optimize" by dropping the limit — an unbounded
-    // select truncates at PostgREST's 1000 cap (same class, worse).
-    const { data: events, error: evErr } = await admin
-      .from("events")
-      .select("actor, payload, created_at")
-      .eq("kind", "coach.dissect_generated")
-      .in("actor", agentIds)
-      .order("created_at", { ascending: false })
-      .limit(300);
-    if (evErr) {
-      return NextResponse.json({ degraded: true });
-    }
-
-    for (const e of events ?? []) {
-      const actor = e.actor as string;
-      if (!byId.has(actor)) continue;
-      const p = (e.payload ?? {}) as Record<string, unknown>;
-      const cur =
-        acc.get(actor) ??
-        { strengths: [], growth: [], strategies: [], count: 0, lastAt: null };
-      cur.count += 1;
-      if (!cur.lastAt) cur.lastAt = (e.created_at as string) ?? null;
-      const strengths = Array.isArray(p.strengths) ? p.strengths : [];
-      for (const s of strengths) {
-        const pt = (s as Record<string, unknown>)?.point;
-        if (typeof pt === "string") cur.strengths.push(pt);
+  // Per-rep coaching signal (founder-approved 2026-08-06 — "per-rep, no migration", replacing the old
+  // TEAM-WIDE recent-300 window). The old window pooled 300 dissects across the whole team, so an active
+  // teammate could starve a quieter rep to count 0 + no content despite real dissects (worsened by the
+  // no-minimum-length build). Fix splits the two concerns the old code conflated:
+  //   • COUNT  — an EXACT per-rep count via `head:true, count:'exact'` (no rows transferred; immune to the
+  //     PostgREST 300/1000 row cap that a `.select()` would silently hit — the trap the old comment warned of).
+  //   • CONTENT — that rep's OWN recent-N dissects for the strengths/growth/strategy themes.
+  // Queried per rep in parallel. §3.4: any failed query degrades the WHOLE page honestly (never renders a
+  // rep as a fake-empty "no sessions yet").
+  const DISSECT_CONTENT_N = 50;
+  type Agg = {
+    strengths: string[];
+    growth: string[];
+    strategies: string[];
+    count: number;
+    lastAt: string | null;
+  };
+  const perRep = await Promise.all(
+    agents.map(
+      async (a): Promise<{ id: string; agg: Agg } | { error: true }> => {
+        const [countRes, contentRes] = await Promise.all([
+          admin
+            .from("events")
+            .select("*", { count: "exact", head: true })
+            .eq("kind", "coach.dissect_generated")
+            .eq("actor", a.id),
+          admin
+            .from("events")
+            .select("payload, created_at")
+            .eq("kind", "coach.dissect_generated")
+            .eq("actor", a.id)
+            .order("created_at", { ascending: false })
+            .limit(DISSECT_CONTENT_N),
+        ]);
+        if (countRes.error || contentRes.error) return { error: true };
+        const agg: Agg = {
+          strengths: [],
+          growth: [],
+          strategies: [],
+          count: countRes.count ?? 0,
+          lastAt: null,
+        };
+        for (const e of contentRes.data ?? []) {
+          const p = (e.payload ?? {}) as Record<string, unknown>;
+          if (!agg.lastAt) agg.lastAt = (e.created_at as string) ?? null;
+          const strengths = Array.isArray(p.strengths) ? p.strengths : [];
+          for (const s of strengths) {
+            const pt = (s as Record<string, unknown>)?.point;
+            if (typeof pt === "string") agg.strengths.push(pt);
+          }
+          const growth = Array.isArray(p.growth_areas) ? p.growth_areas : [];
+          for (const g of growth) {
+            const op = (g as Record<string, unknown>)?.opportunity;
+            if (typeof op === "string") agg.growth.push(op);
+          }
+          const strat = p.standout_strategy as Record<string, unknown> | null;
+          if (strat && typeof strat.name === "string") agg.strategies.push(strat.name);
+        }
+        return { id: a.id, agg };
       }
-      const growth = Array.isArray(p.growth_areas) ? p.growth_areas : [];
-      for (const g of growth) {
-        const op = (g as Record<string, unknown>)?.opportunity;
-        if (typeof op === "string") cur.growth.push(op);
-      }
-      const strat = p.standout_strategy as Record<string, unknown> | null;
-      if (strat && typeof strat.name === "string") cur.strategies.push(strat.name);
-      acc.set(actor, cur);
-    }
+    )
+  );
+  // §3.4 honest degrade: if ANY rep's query failed, don't show a partial team as if complete.
+  if (perRep.some((r) => "error" in r)) {
+    return NextResponse.json({ degraded: true });
+  }
+  const acc = new Map<string, Agg>();
+  for (const r of perRep) {
+    if ("id" in r) acc.set(r.id, r.agg);
   }
 
   const team = agents
