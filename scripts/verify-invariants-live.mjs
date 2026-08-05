@@ -63,6 +63,50 @@ async function main() {
     return { pass: !!rDel && !!rUpd };
   });
 
+  await check("§3.1 append-only registry — EVERY constitutional table retains its live enforcement (rule or trigger)", async () => {
+    // docs/constitutional-db-invariants.md lists the FULL append-only set but is the "human-review defense" —
+    // it explicitly names the gap: "until an order-aware invariant check is added, this registry is the
+    // human-review defense". The `events` check above + the fin_* immutability checks guard a subset; this
+    // closes the rest, so a migration that silently DROPs any member's rule/trigger FAILS CI instead of relying
+    // on a reviewer noticing (the §5 "a protection gets dropped under pressure" risk, at the schema layer).
+    // The enforcement MODEL varies (live-verified 2026-08-06) — encoded per table, NOT a blanket
+    // no_update+no_delete, which would FALSE-FAIL the trigger-guarded members (chat_messages/support_messages/
+    // resolutions freeze via a trigger; feedback/smoke_test_versions are no_delete-only by design).
+    const ruleRows = await c.query(
+      "select tablename, rulename from pg_rules where schemaname='public' and (rulename ilike '%no_update%' or rulename ilike '%no_delete%')");
+    const R = new Set(ruleRows.rows.map((r) => `${r.tablename}.${/no_update/i.test(r.rulename) ? "U" : "D"}`));
+    const trgRows = await c.query(
+      "select cl.relname, tg.tgname from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid " +
+      "join pg_namespace n on n.oid=cl.relnamespace where n.nspname='public' and not tg.tgisinternal");
+    const T = new Set(trgRows.rows.map((r) => `${r.relname}.${r.tgname}`));
+    const hasU = (t) => R.has(`${t}.U`), hasD = (t) => R.has(`${t}.D`), hasT = (t, g) => T.has(`${t}.${g}`);
+    const missing = [];
+    // (a) Fully frozen — both no_update AND no_delete rules:
+    for (const t of ["after_pitch_summaries", "brain_evolution_events", "care_widget_load_events",
+      "coaching_cue_outcomes", "coaching_cues", "coaching_transcript_segments", "crm_activity_events",
+      "decision_dialogues", "problem_signals", "sales_coach_corpus_versions", "signals", "smoke_test_results",
+      "support_ai_co_pilot_edits", "support_conversation_events", "support_resolutions", "task_messages"]) {
+      if (!hasU(t)) missing.push(`${t}: no_update rule DROPPED`);
+      if (!hasD(t)) missing.push(`${t}: no_delete rule DROPPED`);
+    }
+    // (b) Trigger-guarded editables — no_delete rule + a guard/freeze trigger (edits allowed but guarded/
+    //     event-sourced; do NOT "fix" into a no_update rule — it would break the feature):
+    if (!hasD("chat_messages") || !hasT("chat_messages", "chat_messages_guard_edit_trg"))
+      missing.push("chat_messages: no_delete rule + chat_messages_guard_edit_trg");
+    if (!hasD("support_messages") || !hasT("support_messages", "trg_preserve_support_message_content"))
+      missing.push("support_messages: no_delete rule + trg_preserve_support_message_content");
+    if (!hasD("resolutions") || !hasT("resolutions", "resolutions_immutable"))
+      missing.push("resolutions: no_delete rule + resolutions_immutable trigger");
+    // (c) no_delete-only members (delete blocked; UPDATE permitted by design — feedback record / test infra):
+    for (const t of ["feedback", "smoke_test_versions"]) if (!hasD(t)) missing.push(`${t}: no_delete rule DROPPED`);
+    return {
+      pass: missing.length === 0,
+      detail: missing.length === 0
+        ? "all 22 registry tables retain live append-only enforcement (per-table model)"
+        : `DROPPED constitutional append-only enforcement:\n    ${missing.join("\n    ")}`,
+    };
+  });
+
   await check("§3.2 understanding gate (raises + '*' threshold MEANINGFUL + trigger WIRED before insert-or-update)", async () => {
     const gateFn = await has(
       "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
