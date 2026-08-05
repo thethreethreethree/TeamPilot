@@ -107,6 +107,12 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   } | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Re-entrancy latch: `submitting` state + `disabled` both need a re-render to take effect, so two
+  // fast clicks run the SAME render's `submit` closure (which still sees submitting===false) and BOTH
+  // POST → duplicate rows in the append-only `feedback` table (unrecoverable). A ref updates
+  // synchronously, so the second click short-circuits before its first await. See
+  // reference_append_only_double_write_react_flag_guard.
+  const submittingRef = useRef(false);
   const [done, setDone] = useState(false);
   const [editingScreenshot, setEditingScreenshot] = useState(false);
   const [members, setMembers] = useState<MentionMember[]>([]);
@@ -219,7 +225,8 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
   };
 
   const submit = async () => {
-    if (submitting || !title.trim()) return;
+    if (submittingRef.current || !title.trim()) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const viewport = {
@@ -286,6 +293,7 @@ export function FeedbackPanel({ onClose }: { onClose: () => void }) {
       );
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
