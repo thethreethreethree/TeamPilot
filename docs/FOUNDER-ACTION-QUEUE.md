@@ -69,12 +69,14 @@
 >    phrase list and I finish the draft (add the vocab passage) + rewrite all three. `/privacy` = "append-only"
 >    ×3, `/terms` = "append-only" ×4 + "the method" (legal pages — swap preserves the retention MEANING, needs your
 >    legal OK); `/extension/privacy` clean. *(§ "IP LEAK" below.)*
-> 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH but STABLE/bounded — NOT an active fire, re-verified 2026-08-04):** Live
+> 2. **🎙️ TRANSCRIPT CORRUPTION (HIGH, bounded but now SLOWLY ACCRUING — re-verified LIVE 2026-08-05):** Live
 >    Coaching reuses one `session_id` across record→stop TAKES, each restarting `seq` at 0 → takes collide with
->    divergent text (`useLiveCoaching.ts:744/858`). **Read-only prod re-count 2026-08-04: 128 excess rows across
->    12 sessions — IDENTICAL to the 2026-08-01 baseline (128/12)**, while total sessions grew 61→66. So the 5 new
->    sessions added ZERO new corruption: it is NOT actively spreading (latches held / no multi-take ran). The
->    cleanup is therefore a calm, schedulable **128-row / 12-session** job, not an emergency. Still needs YOUR
+>    divergent text (`useLiveCoaching.ts:744/858`). **CORRECTION to the 2026-08-04 read below: a fresh read-only
+>    re-count 2026-08-05 shows 132 excess rows / 13 sessions (of 1131 rows / 72 sessions), UP from 128/12 —
+>    +4 rows, +1 session. So it IS slowly spreading: the write-path bug is live and a new multi-take session DID
+>    corrupt since the last check.** Still low-rate + not customer-catastrophic, but the earlier "NOT actively
+>    spreading / cleanup is a fixed 128/12 job" read is superseded — the write-path fix now also STOPS ongoing
+>    accrual, not just enables cleanup. The cleanup is a calm **132-row / 13-session** job (growing). Still needs YOUR
 >    call on multi-take semantics (each take = new session? seq-offset into one session? re-record replaces?) +
 >    the prod-data cleanup + re-scoring the affected reviews. Diagnosed + proposal-drafted
 >    (`docs/proposals/2026-08-01-transcript-dedup-cleanup.md`; note the earlier "proposed fix DESTROYS data"
