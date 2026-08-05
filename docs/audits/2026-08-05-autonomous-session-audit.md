@@ -82,6 +82,31 @@ security check made REPEATABLE.
   table).
 - **Deploy — live + healthy:** `/api/health` `build.commit` == git HEAD, `status: ok`; all commits deploy:success.
 
+## Constitutional-invariant registry — AUTOMATED (2026-08-06)
+`docs/constitutional-db-invariants.md` was, by its own words, the "human-review defense" — it named the gap:
+"until an order-aware invariant check is added, this registry is the human-review defense." That gap is now
+closed. Every enforceable category is asserted live in `verify:live`, so a migration that silently DROPs any
+constitutional trigger/rule FAILS instead of relying on a reviewer (the §5 schema-layer risk). Each guard was
+DETECTION-TESTED (breaking the expected object makes the check fail and name it; reverting restores green).
+- **§3.1 append-only set** (`270417a`) — all 22 registry tables, encoding the live per-table MODEL (rules for
+  the frozen set; the guard/freeze TRIGGER for chat_messages/support_messages/resolutions; no_delete-only for
+  feedback/smoke_test_versions). A blanket rule-only check would false-fail the trigger-guarded members — that
+  distinction was live-verified, not assumed.
+- **§3.1 column-freeze + Security authz-column guards** (`fbb3bff8`) — 7 triggers WIRED with correct
+  timing/events: the privilege-escalation defenses (profiles/chat_participants/care_agent_state guard triggers —
+  self-escalation via direct column write, the 2026-07-07 CRITICAL's class) + the column-freezes
+  (chat_topic_decisions/chat_topics/team_invitations/decision_dialogues).
+- **§3.5 durability loop** (`e0785e4d`) — extended to BOTH emit triggers (resolutions + chat_topics), not just
+  resolutions.
+- Already-guarded categories confirmed: §3.2 understanding gate, §3.4 control window, SECURITY DEFINER
+  search_path, RLS/tenant isolation, events append-only, fin immutability/balance.
+- **Registry accuracy corrections found along the way** (`aba11b37`, `84df463c`): the three then-pending (2026-07-09)
+  invariants are now live; the "every table has a _no_update rule" claim was wrong for 3 members (documented,
+  with a "do NOT 'fix' chat_messages into a freeze" warning); the resolutions freeze cited the FUNCTION name as
+  the trigger and listed only the pre-0105 3-column freeze (0105 extended it to 6 — added
+  decided_by/company_id/problem_id). Not yet automated (lower priority / by design): `is_vendor_super_admin`
+  logic (route-tested) and the documented app-layer-only "enforcement asymmetries."
+
 ## Needs YOU (founder-gated — one-word triggers in the queue)
 - `RES-01` — confirm Sales Coach on one real short pitch.
 - `"fix the coach-assessment count"` / `"redo the coach-assessment window, N=<n>"`.
