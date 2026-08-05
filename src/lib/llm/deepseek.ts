@@ -87,14 +87,16 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * nothing on calls that finish naturally, and only rescues ones that would have
  * truncated. Without it, tight-cap callers (classifyTurnSpeaker=16 → empty JSON,
  * liveSalesCue=160, care voice=80) return empty/truncated on the reasoning model.
- * The original 256 was probed on TRIVIAL tasks (16–34 reasoning tokens) — but COMPLEX prompts reason far
- * more: measured live 2026-08-06, the deep dissect burns 750–1250 reasoning tokens. So 256 was ~5x too
- * small and STARVED every deep review engine (dissect/moments) — from ~2026-07-30 they hit
- * finish_reason:"length" with EMPTY content and "Your read" went blank, for two weeks, silently. 1500
- * covers the observed complex-task reasoning with margin. It's a CEILING: costs nothing on calls that
- * finish naturally, only rescues ones that would have truncated. Anthropic (non-reasoning) needs no floor.
+ * The original 256 was probed on TRIVIAL tasks (16–34 reasoning tokens). But reasoning SCALES WITH PROMPT
+ * SIZE + COMPLEXITY, and the coach review prompts are large (a ~9k-token methodology knowledge base + the
+ * full transcript): measured live 2026-08-06, they burn 1300–2620 reasoning tokens (variable per run). So
+ * 256 — and even a first-cut 1500 — under-covered them: the tight-budget review engine (debriefCoachV5,
+ * base 700) still hit finish_reason:"length" with EMPTY content → "Your read" blank. 3500 covers the
+ * observed worst case (~2620) plus the answer with real margin, verified across repeated runs on a
+ * ~9k-token prompt. It's a CEILING: costs nothing on calls that finish naturally, only rescues ones that
+ * would have truncated; short engines (attribution=16) are unaffected. Anthropic (non-reasoning) needs none.
  */
-export const REASONING_HEADROOM_TOKENS = 1500;
+export const REASONING_HEADROOM_TOKENS = 3500;
 // Exported for the regression guard (deepseek.provider.test.ts): the outage happened because a PRIOR value
 // (256) looked adequate but was calibrated on trivial tasks. The test pins a floor so a future edit can't
 // silently drop it below what complex-task reasoning (750–1250 tokens, measured) needs.

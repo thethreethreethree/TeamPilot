@@ -136,7 +136,11 @@ describe("deepseekProvider error classification (outage regression lock)", () =>
  * reasoning needs.
  */
 describe("reasoning-token headroom (blank-output outage guard)", () => {
-  const OBSERVED_COMPLEX_REASONING_MAX = 1250; // measured live 2026-08-06 on the dissect prompt
+  // Measured live 2026-08-06 on the REAL-SIZE review prompt (~9k-token knowledge base + full transcript):
+  // reasoning ran 1300–2620 tokens, variable per run. The headroom must cover that worst case, or the tight
+  // engines (debriefCoachV5 base 700) starve. A first-cut 1500 under-covered it — this floor guards against
+  // that under-estimate recurring.
+  const OBSERVED_COMPLEX_REASONING_MAX = 2620;
 
   it("headroom covers the observed complex-task reasoning with margin", () => {
     expect(REASONING_HEADROOM_TOKENS).toBeGreaterThanOrEqual(
