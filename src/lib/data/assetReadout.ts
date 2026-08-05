@@ -123,7 +123,12 @@ export async function fetchAssetReadout(
   ).length;
   const casualUploads = uploads - classifiedUploads;
 
-  // Fetch viewed / downloaded events for these files
+  // Fetch viewed / downloaded events for these files.
+  // KNOWN LIMITATION (found 2026-08-05 — see FOUNDER-ACTION-QUEUE truncation-class boundary): this select
+  // is UNBOUNDED and truncates at PostgREST's 1000-row cap, so the view/download/actor counts below silently
+  // UNDERCOUNT once a company exceeds 1000 asset-retrieval events. LOW risk today (founder-files is internal /
+  // low-volume — latent, not materialized). The right fix is a server-side count/RPC (founder-gated, same
+  // class as the coach-KPI truncation item). Do not assume these counts are exact on a high-volume tenant.
   let filesWithAnyRetrieval = 0;
   let crossActorFiles = 0;
   if (fileIds.length > 0) {
