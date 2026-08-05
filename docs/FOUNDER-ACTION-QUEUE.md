@@ -131,10 +131,11 @@
 > RPC advisory lock"`), NOT applied. The server CAN still double-create.** Bounded harm: the `profiles.id`
 > upsert keeps the USER consistent (one company), so a concurrent double-onboard leaves an ORPHANED company
 > row (cruft), not a broken tenant — which is why it reads as "0 duplicate tenants" even if it fired.
-> (c) coach-KPI / false-limit truncation is MATERIALIZED but VENDOR-ONLY —
-> the only >1000-row group is ELOSTATE's OWN `events` (1697, incl. test data); every customer-facing table is
-> well under 1000 (coaching_sessions/co ≤115, chat/topic ≤224, support/conv ≤38). So the wrong aggregates hit
-> only your internal readouts today, no customer. All three stay founder-gated but can be scheduled calmly, not
+> (c) coach-KPI / false-limit truncation is MATERIALIZED but VENDOR-ONLY — **RE-CONFIRMED live (read-only)
+> 2026-08-05: exactly ZERO customer companies have any >1000-row group.** The only >1000 group is ELOSTATE's
+> OWN `events` (now 1718, incl. test data; the next-highest customer has 20); coaching_sessions ELOSTATE 121 /
+> next customer 2; support/conv max 38. So the wrong aggregates hit only your internal readouts today, no
+> customer. All three stay founder-gated but can be scheduled calmly, not
 > as emergencies.*
 
 ## 🟡 COACH-ASSESSMENT windowed aggregate — a SHARPER instance of the truncation class, worsened by the 2026-08-05 no-minimum-length build (found 2026-08-05; confirmed by code-read; founder-gated on APPROACH)
