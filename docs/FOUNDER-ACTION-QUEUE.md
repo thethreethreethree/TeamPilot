@@ -74,7 +74,9 @@
 >    divergent text (`useLiveCoaching.ts:744/858`). **CORRECTION to the 2026-08-04 read below: a fresh read-only
 >    re-count 2026-08-05 shows 132 excess rows / 13 sessions (of 1131 rows / 72 sessions), UP from 128/12 —
 >    +4 rows, +1 session. So it IS slowly spreading: the write-path bug is live and a new multi-take session DID
->    corrupt since the last check.** Still low-rate + not customer-catastrophic, but the earlier "NOT actively
+>    corrupt since the last check.** RECENCY (live): the newest colliding segment is 2026-08-04 21:47 (≈a day
+>    before this re-count), oldest 2026-06-30 — so it is ACTIVELY hitting (yesterday), not dormant history, just
+>    at a low rate (~1 multi-take session/day). Still low-rate + not customer-catastrophic, but the earlier "NOT actively
 >    spreading / cleanup is a fixed 128/12 job" read is superseded — the write-path fix now also STOPS ongoing
 >    accrual, not just enables cleanup. The cleanup is a calm **132-row / 13-session** job (growing). Still needs YOUR
 >    call on multi-take semantics (each take = new session? seq-offset into one session? re-record replaces?) +
