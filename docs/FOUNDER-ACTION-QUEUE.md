@@ -26,13 +26,13 @@
 >   fence-defang primitive's tests, and localStorage-throws guarding. All comprehensively covered.
 > - **CI confirmed green** via the check-runs API on every commit (the chronic-red is resolved + verified).
 >
-> **The ONE open item that needs YOUR word** (a real correctness finding I surfaced but did not ship, because
-> it changes a manager-facing surface and its coherent fix has a query-approach tradeoff): **coach-assessment
-> derives each rep's dissect count + coaching content from a team-wide `.limit(300)` window**, so a rep whose
-> dissects fall outside the team's 300 most-recent shows "0 / no content" despite having real dissects — and
-> the no-minimum build worsens it (more dissects → shorter effective window). Say **"fix the coach-assessment
-> count"** (accurate per-rep count, migration-free) or **"redo the coach-assessment window, N=<n>"** (per-rep
-> content window). Detail + A26 class-sweep in the "COACH-ASSESSMENT windowed aggregate" section below.
+> **✅ RESOLVED 2026-08-06 (`6bb9145f`) — founder approved "per-rep, no migration".** coach-assessment now
+> derives each rep's count from an EXACT per-rep query (`count:'exact', head:true` — no row cap) + that rep's
+> OWN recent-50 dissects for coaching content, queried in parallel; §3.4 honest-degrade preserved. Typecheck +
+> eslint clean. **Live-verified read-only:** the one company with dissects (36 total across 2 reps) shows
+> new=26/10 == old=26/10 — i.e. the fix is CORRECT and the bug was still LATENT (no team exceeds the 300 window
+> yet), so this is verified-correct preventive hardening that activates as the most-active team's dissects grow
+> past 300 (the no-minimum build accelerates that). Detail in the section below.
 
 ## ⚡ DECISIONS NEEDED (2026-08-04 autonomous session — scannable summary; detail in the sections below)
 
@@ -145,6 +145,8 @@
 > next customer 2; support/conv max 38. So the wrong aggregates hit only your internal readouts today, no
 > customer. All three stay founder-gated but can be scheduled calmly, not
 > as emergencies.*
+
+## ✅ COACH-ASSESSMENT windowed aggregate — RESOLVED 2026-08-06 (`6bb9145f`, founder approved "per-rep, no migration"; live-verified correct, bug was latent). Original write-up preserved below for the record.
 
 ## 🟡 COACH-ASSESSMENT windowed aggregate — a SHARPER instance of the truncation class, worsened by the 2026-08-05 no-minimum-length build (found 2026-08-05; confirmed by code-read; founder-gated on APPROACH)
 
