@@ -95,6 +95,14 @@ export async function GET() {
     { strengths: string[]; growth: string[]; strategies: string[]; count: number; lastAt: string | null }
   >();
   if (agentIds.length > 0) {
+    // KNOWN LIMITATION (found 2026-08-05, founder-gated on approach — see FOUNDER-ACTION-QUEUE
+    // "COACH-ASSESSMENT windowed aggregate"): this is a TEAM-WIDE recent-300 window. Both `dissectCount`
+    // (below, cur.count) and each rep's coaching content are derived from ONLY the events inside it — so a
+    // rep whose dissects fall outside the team's 300 most-recent shows count 0 + no content despite having
+    // real dissects, and the no-minimum-length build (more dissects) shrinks the effective window. dissectCount
+    // is NOT a true per-rep count. Do NOT trust it as one; the coherent fix (per-rep window / server-side
+    // count) awaits the founder's approach decision. Do not "optimize" by dropping the limit — an unbounded
+    // select truncates at PostgREST's 1000 cap (same class, worse).
     const { data: events, error: evErr } = await admin
       .from("events")
       .select("actor, payload, created_at")
