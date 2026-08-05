@@ -29,6 +29,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 import pg from "pg";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -346,11 +347,30 @@ async function main() {
       }
     }
     console.log(`\n[db-apply] applied ${pending.length} migration(s). DB now at ${pending.at(-1).version}.`);
-    console.log(
-      "[db-apply] NEXT → run `npm run verify:live` to confirm the structural invariants still hold. A migration\n" +
-        "           can silently break one (a new table without RLS = cross-tenant leak, a dropped append-only\n" +
-        "           rule, an altered finance trigger, the auth-gate constraint). verify:live catches it now."
-    );
+    // Close the loop AUTOMATICALLY: a migration can silently break a structural invariant (a new table without
+    // RLS = cross-tenant leak, a dropped append-only rule, an altered finance/immutability/authz-guard trigger,
+    // the auth-gate constraint). verify:live is the only thing that catches that, and it needs the same DB env
+    // we already hold — so run it now instead of merely reminding (a reminder relies on the operator
+    // remembering; the guards added 2026-08-06 are only as good as their run cadence). --no-verify opts out.
+    if (process.argv.includes("--no-verify")) {
+      console.log(
+        "[db-apply] --no-verify set → SKIPPING the invariant check. Run `npm run verify:live` yourself before\n" +
+          "           trusting this migration: a dropped RLS/append-only/immutability/authz-guard would pass silently."
+      );
+    } else {
+      console.log("\n[db-apply] NEXT → running `npm run verify:live` to confirm the structural invariants still hold …\n");
+      const res = spawnSync(process.execPath, [join(__dirname, "verify-invariants-live.mjs")], { stdio: "inherit" });
+      if (res.status !== 0) {
+        console.error(
+          `\n[db-apply] ✗ verify:live FAILED (exit ${res.status ?? "signal " + res.signal}). A migration was applied but a\n` +
+            "           structural invariant no longer holds — investigate the FAILED check(s) above BEFORE deploying.\n" +
+            "           (The migration is committed; this is a loud stop, not an auto-rollback.)"
+        );
+        process.exitCode = 1;
+      } else {
+        console.log("\n[db-apply] ✓ verify:live passed — structural invariants intact after the migration.");
+      }
+    }
   } finally {
     await client.end().catch(() => {});
   }
