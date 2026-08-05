@@ -253,7 +253,13 @@ export default function AfterPitchPage() {
       // driveway" (AMD-006 L3). Cheap no-op if the transcript is too thin
       // (assembler returns hasSignal:false). Guarded to fire ONCE per id so a
       // post-mount mode reconcile can't trigger a duplicate LLM generation.
-      if (!existing && autoGenAttemptedFor.current !== id) {
+      //
+      // Auto-HEAL (2026-08-06): ALSO regenerate when the stored summary has NO signal (!hasSignal). Past
+      // sessions whose "Your read" came back blank during the 2026-07-30→08-06 reasoning-starvation outage
+      // cached an EMPTY narrative; now that the token budget is fixed, re-generating on next view fills in the
+      // real read instead of showing a permanent blank. Self-limiting: once a real narrative is stored
+      // (hasSignal:true) this no longer fires, so a healthy session regenerates at most once.
+      if ((!existing || !existing.hasSignal) && autoGenAttemptedFor.current !== id) {
         autoGenAttemptedFor.current = id;
         void generate();
       }
