@@ -176,6 +176,17 @@
 >   lists (row pagination), not derived counts, and on `coaching_sessions`/recordings which this build does
 >   not grow → not this class. The remaining `.limit(1)` reads are single-row fetches. **Boundary: one real
 >   instance (coach-assessment), one benign same-shape (salesElo), rest clean.**
+>
+> **UNBOUNDED-select variant (the OTHER half of the class, swept 2026-08-05).** The above is the `.limit(N)`
+> variant; the sibling is an UNBOUNDED `.select()` that silently truncates at PostgREST's 1000-row cap. New
+> instance found: **`src/lib/data/assetReadout.ts:132/175`** fetches `events` (`asset.file.viewed/downloaded/
+> cited` for the company's `file:*` subjects) with NO limit, then counts views/downloads/citations + unique
+> actors per file in JS. If a company's asset-event volume exceeds 1000, those readout counts silently
+> undercount. **Practical risk LOW** — the founder-files area is internal/low-volume, so this is latent, not
+> materialized (matches the "customer tables under 1000" read above). Proper fix is the same server-side
+> count/RPC this class wants (founder-gated) — surfaced for the boundary, not auto-changed. No customer-facing
+> unbounded-aggregate found in this pass (per-conversation `support_messages` reads are conversation-scoped,
+> ≤38 rows).
 
 ## 🟢 CI RESOLVED — all three chronic failures fixed, check job green (2026-08-04, `5004662b`)
 > **RESOLVED.** The `build` step's failures were also root-caused + fixed: (1) `env.ts` threw at module-eval
