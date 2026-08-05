@@ -152,7 +152,10 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(false);
   // Re-entrancy latch: run() POSTs a dissect, which server-side does a RAW append-only events.insert
   // (runAndStoreDissect → events; no dedup). `loading` state + a disabled button both need a re-render, so
-  // two fast clicks would store TWO dissect events for one session (unrecoverable; they feed ELO). A ref
+  // two fast clicks would store TWO dissect events for one session — unrecoverable append-only rows.
+  // (NOTE, verified in salesElo.getAgentEloGames: ELO dedups by session and takes the LATEST dissect, so a
+  // duplicate does NOT skew the rating — the harm is pollution of the immutable event log, not ELO. Still
+  // worth preventing: duplicate immutable rows are wrong and any per-event analysis must then dedup.) A ref
   // updates synchronously so the second click short-circuits. See reference_append_only_double_write_react_flag_guard.
   const runningRef = useRef(false);
   const [dissect, setDissect] = useState<DissectView | null>(null);
