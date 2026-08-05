@@ -4050,7 +4050,10 @@ function relativeShort(iso: string | null): string {
   if (hr < 24) return `${hr}h`;
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day}d`;
-  return d.toISOString().slice(5, 10);
+  // Local MM-DD (en-CA → YYYY-MM-DD, slice(5) → MM-DD), NOT toISOString().slice(5,10) — the latter is
+  // UTC, so an item from an evening (west-of-UTC) timestamp would render tomorrow's month-day. Matches the
+  // local-date convention in AdaptiveKnowledgePanel / TaskGateEditor (KEY & LABEL share the user's zone).
+  return d.toLocaleDateString("en-CA").slice(5);
 }
 
 function computeSlaPct(c: Conversation): number | null {
