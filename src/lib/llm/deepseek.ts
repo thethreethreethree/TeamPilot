@@ -87,10 +87,14 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * nothing on calls that finish naturally, and only rescues ones that would have
  * truncated. Without it, tight-cap callers (classifyTurnSpeaker=16 → empty JSON,
  * liveSalesCue=160, care voice=80) return empty/truncated on the reasoning model.
- * Probe measured 16–34 reasoning tokens for trivial tasks; 256 covers verbose
- * reasoning with margin. Anthropic (non-reasoning) needs no such floor.
+ * The original 256 was probed on TRIVIAL tasks (16–34 reasoning tokens) — but COMPLEX prompts reason far
+ * more: measured live 2026-08-06, the deep dissect burns 750–1250 reasoning tokens. So 256 was ~5x too
+ * small and STARVED every deep review engine (dissect/moments) — from ~2026-07-30 they hit
+ * finish_reason:"length" with EMPTY content and "Your read" went blank, for two weeks, silently. 1500
+ * covers the observed complex-task reasoning with margin. It's a CEILING: costs nothing on calls that
+ * finish naturally, only rescues ones that would have truncated. Anthropic (non-reasoning) needs no floor.
  */
-const REASONING_HEADROOM_TOKENS = 256;
+const REASONING_HEADROOM_TOKENS = 1500;
 function withReasoningHeadroom(maxTokens: number | undefined): number {
   return (maxTokens ?? 900) + REASONING_HEADROOM_TOKENS;
 }
@@ -148,7 +152,7 @@ export const deepseekProvider: Provider = {
       }
 
       const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string | null }>;
         usage?: {
           prompt_tokens?: number;
           completion_tokens?: number;
@@ -156,6 +160,16 @@ export const deepseekProvider: Provider = {
         };
       };
       const text = json.choices?.[0]?.message?.content ?? "";
+      // Visibility for the reasoning-starvation class — never let it go silent again. If the model returned
+      // NO content because it hit the token ceiling (reasoning consumed the whole budget), say so LOUDLY.
+      // Callers treat empty text as "no signal", so without this the failure is invisible — exactly how the
+      // 2026-07-30 dissect outage hid for two weeks.
+      if (!text.trim() && json.choices?.[0]?.finish_reason === "length") {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[deepseek] EMPTY content with finish_reason:"length" (model=${model}, completion_tokens=${json.usage?.completion_tokens}) — the token budget was consumed by reasoning before any answer was emitted. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS.`
+        );
+      }
       const u = json.usage;
       return {
         text,
