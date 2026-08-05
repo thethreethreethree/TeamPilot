@@ -308,13 +308,20 @@ export async function appendTranscriptSegment(args: {
     })
     .select("*")
     .single();
-  if (error || !data) {
+  if (error) {
+    // 23505 = a segment for this (session_id, seq) already exists (migration 0208's unique constraint).
+    // That means a re-finalize / hook remount replayed the transcript — an idempotent NO-OP (first-take
+    // stands), NOT a failure, so don't log it. The finalize loop counts only newly-inserted segments, so
+    // returning null here correctly reports "0 new" for the replay. (Safe before 0208 applies too: without
+    // the constraint there is no 23505, so the plain insert path is unchanged.)
+    if (error.code === "23505") return null;
     // eslint-disable-next-line no-console
     console.error(
-      `[salesCoach.appendTranscriptSegment] failed session=${args.sessionId}: ${error?.message ?? "no row"}`
+      `[salesCoach.appendTranscriptSegment] failed session=${args.sessionId}: ${error.message}`
     );
     return null;
   }
+  if (!data) return null;
   return mapSegment(data);
 }
 
