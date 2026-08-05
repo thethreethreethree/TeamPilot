@@ -55,9 +55,12 @@ class extended, and ~8 high-consequence classes verified clean.
 - Confirmed CLEAN where it matters: no customer-facing unbounded aggregate (`support_messages` reads are
   conversation-scoped, ≤38 rows).
 
-## Flagged, not done (honest — a safe fix wasn't available under autonomous conditions)
-- `chat/topic-decisions` authz test — compound gate (participant AND (topic-admin OR company-admin)) + full
-  POST flow; deliberately NOT mocked under pressure to avoid a false-confidence test (§5).
+## Initially flagged, then RESOLVED safely
+- `chat/topic-decisions` authz test — first deferred (compound gate + full POST flow → risk of a
+  false-confidence mock). Then done the disciplined way: read EVERY branch of the route first, wrote a
+  faithful table-aware mock, and locked the compound-gate property (a company admin who is NOT a
+  participant is still denied). 7/7 green. The flag was correct while the flow was unread; once read, the
+  faithful test was achievable — that is the §5 concern honored, not skipped.
 
 ## Needs YOU (founder-gated — one-word triggers in the queue)
 - `RES-01` — confirm Sales Coach on one real short pitch.
