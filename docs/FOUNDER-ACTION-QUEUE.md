@@ -24,6 +24,14 @@
 > 2. **Recovery** — PITR-restore the 132 deleted rows (Supabase dashboard → Database → Backups, to just before
 >    2026-08-06), or accept the loss (they're all from the 13 already-suspect sessions)?
 > Say e.g. **"one-take, no recovery"** or **"multi-take, PITR first"** and I'll execute + verify by direct inspection.
+>
+> **🟡 PRODUCT CONSIDERATION (not a bug) — CARE voice + the reasoning model.** The 2026-07-25 model rename made
+> `deepseek-v4-flash` (a REASONING model) the active LLM. CARE **voice** replies use a deliberately tiny 80-token
+> budget because "every token is dead air" while the customer waits. A reasoning model spends seconds THINKING
+> before replying (regardless of the cap), so voice replies — while not broken (verified 0 empties in the
+> outage window) — likely carry added latency the tight budget was designed to avoid. If voice feels laggy,
+> the fix is a VENDOR/MODEL choice (route the voice path to a faster non-reasoning model), not a code change I
+> should make autonomously. Flagging for awareness. See [[reference_reasoning_model_token_starvation]].
 
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
