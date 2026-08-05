@@ -88,22 +88,29 @@ export async function runDissectBackfill(args: {
   const missing = sessions.filter((s) => !dissected.has(s.id as string));
   const batch = missing.slice(0, args.cap);
 
-  let generated = 0;
-  let thinOrFailed = 0;
-  for (const s of batch) {
-    // Service-role transcript read — works with or without a user session.
-    const segments = await getSessionTranscriptAdmin(s.id as string);
-    const dissect = await runAndStoreDissect({
-      companyId: s.company_id as string,
-      actorId: s.agent_id as string,
-      sessionId: s.id as string,
-      segments,
-      sessionTitle: (s.client_label as string | null) ?? undefined,
-      context: s.context as "in_person" | "video",
-    }).catch(() => null);
-    if (dissect?.hasSignal) generated += 1;
-    else thinOrFailed += 1;
-  }
+  // PARALLEL, not sequential. Each dissect is an independent LLM call on a different session (no shared
+  // state), and the active reasoning model (deepseek-v4-flash) now spends ~15–25s PER dissect — so a
+  // sequential batch of `cap` (6) would run ~90–120s and blow the 60s maxDuration, timing out mid-batch.
+  // Running the batch concurrently makes wall-clock ≈ the slowest single dissect (~25s), well under 60s, so
+  // one "Generate missing" click cleanly completes a full batch instead of a timed-out partial one. Failures
+  // are caught per-item (a thin/failed session just isn't counted and reappears in the next batch).
+  const outcomes = await Promise.all(
+    batch.map(async (s) => {
+      // Service-role transcript read — works with or without a user session.
+      const segments = await getSessionTranscriptAdmin(s.id as string);
+      const dissect = await runAndStoreDissect({
+        companyId: s.company_id as string,
+        actorId: s.agent_id as string,
+        sessionId: s.id as string,
+        segments,
+        sessionTitle: (s.client_label as string | null) ?? undefined,
+        context: s.context as "in_person" | "video",
+      }).catch(() => null);
+      return dissect?.hasSignal === true;
+    })
+  );
+  const generated = outcomes.filter(Boolean).length;
+  const thinOrFailed = outcomes.length - generated;
 
   return {
     missingTotal: missing.length,
