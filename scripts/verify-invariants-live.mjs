@@ -221,6 +221,40 @@ async function main() {
     return { pass: n === 0, detail: n === 0 ? "no company_id table has a permissive read policy" : `${n} table(s) with a PERMISSIVE read policy → LEAK: ${r.rows[0].tbls}` };
   });
 
+  await check("tenant isolation BEHAVIORAL: ROLE anon reads 0 from POPULATED tenant tables (RLS actually enforces, not just ON)", async () => {
+    // The structural checks above prove RLS is ON + no permissive read policy. This is the BEHAVIORAL proof —
+    // the memory's lesson (reference_behavioral_verify_beats_catalog_string): a catalog string can read
+    // `reloptions=on` while PG stored it differently, so the only real proof is `SET ROLE anon; SELECT` → 0.
+    // Line ~185 notes that was done BY HAND once; this makes it a repeatable invariant. For each table we FIRST
+    // confirm it is non-empty as the service role (so anon=0 means "RLS blocked", not "table empty"), THEN read
+    // it as anon and require 0. Wrapped per-table in a transaction so `set local role` can never leak into a
+    // later check. Verified 2026-08-05: anon read 0 of ELOSTATE's 121 coaching_sessions, etc.
+    const tables = ["coaching_sessions", "support_messages", "events", "profiles", "companies"];
+    const leaks = [];
+    let proven = 0;
+    for (const t of tables) {
+      const total = (await c.query(`select count(*)::int n from ${t}`)).rows[0].n; // service role
+      if (total === 0) continue; // empty → cannot prove RLS from it; skip
+      await c.query("begin");
+      try {
+        await c.query("set local role anon");
+        const anon = (await c.query(`select count(*)::int n from ${t}`)).rows[0].n;
+        if (anon !== 0) leaks.push(`${t}: anon reads ${anon} of ${total}`);
+        else proven++;
+      } finally {
+        await c.query("rollback"); // resets the role + any state
+      }
+    }
+    return {
+      pass: leaks.length === 0 && proven > 0,
+      detail: leaks.length
+        ? `CROSS-TENANT LEAK: ${leaks.join("; ")}`
+        : proven > 0
+          ? `anon reads 0 from ${proven} populated tenant tables (RLS behaviorally enforced)`
+          : "no populated tenant table to prove against (inconclusive)",
+    };
+  });
+
   await check("auth-gate invariant: profiles.status CHECK is exactly (active, removed)", async () => {
     // The extension auth gate + requireCareAgent DENYLIST 'removed' (block it, allow the rest). That's only
     // safe because status can ONLY be 'active' or 'removed'. If a migration adds a status (e.g. 'suspended'),
