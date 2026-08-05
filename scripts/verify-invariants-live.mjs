@@ -107,6 +107,44 @@ async function main() {
     };
   });
 
+  await check("§3.1 column-freeze + authz-column guard triggers WIRED (frozen columns immutable; no self-escalation)", async () => {
+    // Two registry categories that were human-review-only: §3.1 column-freeze (a captured column can't be
+    // rewritten after the fact) and the Security authz-column guards (a user can't self-escalate
+    // role/company/agent-caps via a DIRECT column write — the A23 privilege-escalation class, the 2026-07-07
+    // CRITICAL's sibling). A DROP of any lets the write through while npm run check stays green (§5 schema-layer
+    // risk). Assert each is WIRED with the right timing/events (live-verified 2026-08-06). `resolutions_immutable`
+    // is already asserted by the append-only registry check above — NOT re-checked here (no duplicate).
+    const q = await c.query(
+      "select cl.relname tbl, tg.tgname, tg.tgtype from pg_trigger tg join pg_class cl on cl.oid=tg.tgrelid " +
+      "join pg_namespace n on n.oid=cl.relnamespace where n.nspname='public' and not tg.tgisinternal");
+    const m = {};
+    for (const r of q.rows) m[`${r.tbl}.${r.tgname}`] = r.tgtype;
+    const BEFORE = 2, INSERT = 4, UPDATE = 16; // tgtype bits
+    const want = [
+      // authz-column guards (privilege-escalation defense) — BEFORE, covering the write path:
+      ["profiles", "profiles_guard_privileged", BEFORE | INSERT | UPDATE],
+      ["chat_participants", "chat_participants_guard_privilege", BEFORE | INSERT | UPDATE],
+      ["care_agent_state", "care_agent_state_guard_admin_cols", BEFORE | UPDATE],
+      // §3.1 column-freeze — BEFORE UPDATE:
+      ["chat_topic_decisions", "chat_topic_decisions_immutable", BEFORE | UPDATE],
+      ["chat_topics", "chat_topics_immutable", BEFORE | UPDATE],
+      ["team_invitations", "team_invitations_immutable", BEFORE | UPDATE],
+      ["decision_dialogues", "decision_dialogues_immutable", BEFORE | UPDATE],
+    ];
+    const bad = [];
+    for (const [tbl, name, bits] of want) {
+      const t = m[`${tbl}.${name}`];
+      if (t === undefined) bad.push(`${tbl}.${name}: MISSING (dropped)`);
+      else if ((t & bits) !== bits) bad.push(`${tbl}.${name}: mis-wired (need timing/event bits ${bits}, got ${t})`);
+    }
+    return {
+      pass: bad.length === 0,
+      detail: bad.length === 0
+        ? `all ${want.length} column-freeze + authz-guard triggers wired correctly`
+        : `DROPPED / mis-wired constitutional guard trigger(s):\n    ${bad.join("\n    ")}`,
+    };
+  });
+
   await check("§3.2 understanding gate (raises + '*' threshold MEANINGFUL + trigger WIRED before insert-or-update)", async () => {
     const gateFn = await has(
       "select 1 from pg_proc where proname ilike '%understanding%' and pg_get_functiondef(oid) ilike '%raise exception%'");
