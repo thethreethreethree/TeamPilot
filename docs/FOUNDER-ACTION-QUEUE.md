@@ -47,6 +47,11 @@
 > paths (live cues + voice) to a FASTER, non-reasoning model while the review engines keep the reasoning model
 > for quality — NOT a code change I should make autonomously (it's a quality/latency/cost tradeoff + a vendor
 > pick). If live coaching or voice feels laggy, this is why. See [[reference_reasoning_model_token_starvation]].
+> **⚠️ Currently UNMEASURABLE (verified 2026-08-06):** cue latency is not instrumented — `latencyMs` is
+> populated on 0 of 81 cues (the "if/when wired" fluidity capture was never wired). So you can't quantify or
+> A/B the cue-latency regression from data today; you'd judge it by feel or wire the instrumentation first.
+> (Correctness is unaffected + separately fixed: finalize/summarize/backfill timeouts raised 25s→40s so slow
+> reasoning runs COMPLETE rather than degrade to empty — `0222f7cd`/`5d6c086a`.)
 
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
