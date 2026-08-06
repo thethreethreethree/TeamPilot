@@ -81,7 +81,11 @@ export async function POST(
   // own result internally before returning, so partial success is real: a failed
   // timeline still leaves the summary + pivot + intel stored and returned. The
   // timeout bounds a hung provider call to the same fallback.
-  const CALL_TIMEOUT_MS = 25_000;
+  // 40s, raised from 25s (2026-08-06) — SAME reason as finalize. This is also the AUTO-HEAL path: a past
+  // blank "Your read" regenerates through here, and at 25s a heavy-reasoning review would re-time-out and
+  // STAY blank, defeating the heal. deepseek-v4-flash (reasoning) spends ~15-40s per deep engine; the engines
+  // run concurrently so wall-clock ≈ the slowest, under the 60s maxDuration. See reference_reasoning_model_token_starvation.
+  const CALL_TIMEOUT_MS = 40_000;
   const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
     Promise.race([
       p,

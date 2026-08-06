@@ -131,7 +131,14 @@ export async function POST(
   //    engine degrades to its empty fallback (same as a failure — the
   //    "Generate missing" backfill covers it) while the rest still persist. The
   //    happy path is unchanged.
-  const CALL_TIMEOUT_MS = 25_000;
+  // 40s, raised from 25s (2026-08-06). The active model deepseek-v4-flash is a REASONING model: it spends
+  // ~15-40s per deep engine (dissect/review) — reasoning + content — vs ~5s on the old model. At 25s a
+  // heavy-reasoning run degraded to the EMPTY fallback, re-blanking "Your read" via TIMEOUT even after the
+  // token-budget fix. The 5 engines run in PARALLEL (Promise.all below), so wall-clock ≈ the slowest engine,
+  // not the sum — 40s stays comfortably under the 60s maxDuration while capturing the observed latency range.
+  // (Deeper: the reasoning model's latency vs a 60s synchronous finalize is tight — see the queue's real-time
+  // /latency product note; the durable fix is Pro maxDuration, a faster model for generation, or async gen.)
+  const CALL_TIMEOUT_MS = 40_000;
   const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
     Promise.race([
       p,
