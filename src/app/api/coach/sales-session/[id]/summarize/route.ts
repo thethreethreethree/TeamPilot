@@ -10,6 +10,7 @@ import {
 } from "@/lib/coach/v5/salesMoments";
 import { runAndStoreIntel, type SalesIntel } from "@/lib/coach/v5/salesIntel";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
+import { withEngineTimeout } from "@/lib/coach/v5/engineTimeout";
 
 // Four LLM engines run concurrently below; each is bounded by an in-code timeout,
 // so the platform must allow the function to run at least that long or it would be
@@ -81,20 +82,11 @@ export async function POST(
   // own result internally before returning, so partial success is real: a failed
   // timeline still leaves the summary + pivot + intel stored and returned. The
   // timeout bounds a hung provider call to the same fallback.
-  // 40s, raised from 25s (2026-08-06) — SAME reason as finalize. This is also the AUTO-HEAL path: a past
-  // blank "Your read" regenerates through here, and at 25s a heavy-reasoning review would re-time-out and
-  // STAY blank, defeating the heal. deepseek-v4-flash (reasoning) spends ~15-40s per deep engine; the engines
-  // run concurrently so wall-clock ≈ the slowest, under the 60s maxDuration. See reference_reasoning_model_token_starvation.
-  const CALL_TIMEOUT_MS = 40_000;
-  const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
-    Promise.race([
-      p,
-      new Promise<T>((resolve) =>
-        setTimeout(() => resolve(fallback), CALL_TIMEOUT_MS)
-      ),
-    ]);
+  // The per-engine timeout (40s) is the shared withEngineTimeout helper, kept in sync with finalize (this is
+  // also the AUTO-HEAL path — at the old 25s a heavy-reasoning review would re-time-out and STAY blank,
+  // defeating the heal). See engineTimeout.ts / reference_reasoning_model_token_starvation.
   const [summary, moments, pivot, intel] = await Promise.all([
-    withTimeout(
+    withEngineTimeout(
       runAndStoreSummary({
         companyId,
         actorId: auth.user.id,
@@ -103,7 +95,7 @@ export async function POST(
       }).catch(() => null),
       null
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStoreMoments({
         companyId,
         actorId: auth.user.id,
@@ -114,7 +106,7 @@ export async function POST(
       }).catch(() => [] as SalesMoment[]),
       [] as SalesMoment[]
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStorePivot({
         companyId,
         actorId: auth.user.id,
@@ -125,7 +117,7 @@ export async function POST(
       }).catch(() => null),
       null
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStoreIntel({
         companyId,
         actorId: auth.user.id,

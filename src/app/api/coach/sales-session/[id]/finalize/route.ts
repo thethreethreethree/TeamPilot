@@ -14,9 +14,10 @@ import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
 import { runAndStorePivot } from "@/lib/coach/v5/salesPivot";
 import { runAndStoreMoments } from "@/lib/coach/v5/salesMoments";
 import { runAndStoreIntel } from "@/lib/coach/v5/salesIntel";
+import { withEngineTimeout } from "@/lib/coach/v5/engineTimeout";
 
-// The five post-call engines run concurrently, each bounded by a 25s in-code
-// timeout (CALL_TIMEOUT_MS below). That timeout is only effective if the platform
+// The five post-call engines run concurrently, each bounded by a 40s (shared) in-code
+// timeout (withEngineTimeout). That timeout is only effective if the platform
 // actually LETS the function run that long — Vercel's default (~10-15s) would kill
 // the function BEFORE the 25s timeout fires, dropping in-flight artifacts AND the
 // response. maxDuration declares the budget the resilience code already assumes.
@@ -131,23 +132,10 @@ export async function POST(
   //    engine degrades to its empty fallback (same as a failure — the
   //    "Generate missing" backfill covers it) while the rest still persist. The
   //    happy path is unchanged.
-  // 40s, raised from 25s (2026-08-06). The active model deepseek-v4-flash is a REASONING model: it spends
-  // ~15-40s per deep engine (dissect/review) — reasoning + content — vs ~5s on the old model. At 25s a
-  // heavy-reasoning run degraded to the EMPTY fallback, re-blanking "Your read" via TIMEOUT even after the
-  // token-budget fix. The 5 engines run in PARALLEL (Promise.all below), so wall-clock ≈ the slowest engine,
-  // not the sum — 40s stays comfortably under the 60s maxDuration while capturing the observed latency range.
-  // (Deeper: the reasoning model's latency vs a 60s synchronous finalize is tight — see the queue's real-time
-  // /latency product note; the durable fix is Pro maxDuration, a faster model for generation, or async gen.)
-  const CALL_TIMEOUT_MS = 40_000;
-  const withTimeout = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
-    Promise.race([
-      p,
-      new Promise<T>((resolve) =>
-        setTimeout(() => resolve(fallback), CALL_TIMEOUT_MS)
-      ),
-    ]);
+  // Per-engine timeout (40s) lives in the shared withEngineTimeout helper so finalize + summarize stay in
+  // sync — the reasoning-model latency dimension required raising it in BOTH; see engineTimeout.ts.
   const [dissect, summary, moments, pivot, intel] = await Promise.all([
-    withTimeout(
+    withEngineTimeout(
       runAndStoreDissect({
         companyId,
         actorId: auth.user.id,
@@ -158,7 +146,7 @@ export async function POST(
       }).catch(() => null),
       null
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStoreSummary({
         companyId,
         actorId: auth.user.id,
@@ -167,7 +155,7 @@ export async function POST(
       }).catch(() => null),
       null
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStoreMoments({
         companyId,
         actorId: auth.user.id,
@@ -178,7 +166,7 @@ export async function POST(
       }).catch(() => []),
       []
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStorePivot({
         companyId,
         actorId: auth.user.id,
@@ -189,7 +177,7 @@ export async function POST(
       }).catch(() => null),
       null
     ),
-    withTimeout(
+    withEngineTimeout(
       runAndStoreIntel({
         companyId,
         actorId: auth.user.id,
