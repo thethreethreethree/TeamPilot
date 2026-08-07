@@ -515,6 +515,7 @@ const NEXT_PUBLIC_ALLOWLIST = new Map([
   ["NEXT_PUBLIC_BOOKING_URL", "A booking URL — public by nature."],
   ["NEXT_PUBLIC_BUILD_COMMIT", "The deployed git commit SHA (VersionWatcher stale-bundle check) — public, not a secret; the repo history is not sensitive."],
   ["NEXT_PUBLIC_CARE_EXTENSION_ID", "The Chrome extension id — a public identifier."],
+  ["NEXT_PUBLIC_SALES_EXTENSION_ID", "The Sales Coach Chrome extension id — a public identifier (same as the C.A.R.E one)."],
   ["NEXT_PUBLIC_SITE_URL", "The app's own origin — public."],
   ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "The Supabase ANON/client key — designed to ship client-side (RLS protects the data)."],
   ["NEXT_PUBLIC_SUPABASE_URL", "The Supabase project URL — public."],

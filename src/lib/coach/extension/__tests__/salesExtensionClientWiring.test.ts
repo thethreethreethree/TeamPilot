@@ -75,3 +75,22 @@ describe("Sales Coach downloadable package — the served zip + wiring", () => {
     expect(scPage).toContain("/extension/download-sales");
   });
 });
+
+describe("Sales Coach connect handoff — message type matches the worker (cross-artifact sync)", () => {
+  const CONNECT = readFileSync(join(ROOT, "src", "app", "extension", "connect", "page.tsx"), "utf-8");
+  const BG = readFileSync(join(ROOT, "extension-sales", "background.js"), "utf-8");
+
+  it("the connect page emits 'sales-connect' and the worker listens for exactly that", () => {
+    // If these ever drift, the panel's Sign in would deliver a token the worker ignores — silent auth failure.
+    expect(CONNECT).toContain("sales-connect");
+    expect(BG).toContain('message.type !== "sales-connect"');
+  });
+
+  it("the connect page still defaults to C.A.R.E (care-connect preserved — no regression)", () => {
+    expect(CONNECT).toContain("care-connect");
+  });
+
+  it("the worker opens the connect page with product=sales (so the page picks the sales branch)", () => {
+    expect(BG).toContain("product=sales");
+  });
+});
