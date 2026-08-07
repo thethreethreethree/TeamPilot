@@ -110,7 +110,8 @@ export default function CoachAssessmentPage() {
       );
       await load();
     } catch {
-      setBackfillMsg("Backfill failed — try again.");
+      // Manager-facing (the "Generate missing" button) — plain English, not "backfill" jargon.
+      setBackfillMsg("Couldn't generate the missing reviews right now — please try again.");
     } finally {
       setBackfilling(false);
     }
