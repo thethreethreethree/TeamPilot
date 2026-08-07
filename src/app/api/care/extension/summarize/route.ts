@@ -67,7 +67,14 @@ export async function POST(req: NextRequest) {
 WHO IS WHO: the C.A.R.E user (the support agent) is ${agentName}. In the conversation, messages from ${agentName} are the agent's side; the other participant is the customer. Attribute who said what on that basis — do not swap the roles.`,
       userMessage: `Product context the agent is grounded in:\n${productContext}\n\nConversation:\n${body.conversation}\n\nWrite the summary.`,
     });
-    return NextResponse.json({ summary: r.text.trim() });
+    const summary = r.text.trim();
+    // Guard an empty summary — a blank "caught up" would read as "nothing to summarize" (§3.4), the exact
+    // false-empty this tool must never emit. Consistent with the copilot/formulate empty-reply guards.
+    if (!summary) {
+      console.error("[care/extension/summarize] model returned an empty summary");
+      return NextResponse.json({ error: "Couldn't generate a summary right now." }, { status: 502 });
+    }
+    return NextResponse.json({ summary });
   } catch (err) {
     // A rate-limit from the model maps to 429 so the client backs off correctly
     // (matching the spawn/coach/copilot/formulate routes); any other failure is a 502.

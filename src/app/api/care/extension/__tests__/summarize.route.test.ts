@@ -64,6 +64,16 @@ describe("POST /api/care/extension/summarize — gate ordering", () => {
     expect(generateCareReply).toHaveBeenCalledOnce();
   });
 
+  it("empty summary (successful call, blank text) → 502, never a false-empty 'caught up' (§3.4)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(generateCareReply).mockResolvedValue({ text: "   " } as never);
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+    expect((await res.json()).summary).toBeUndefined();
+    spy.mockRestore();
+  });
+
   it("passes a WHO-IS-WHO agent anchor to the model (role-attribution fix, founder 2026-07-24)", async () => {
     vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
     vi.mocked(generateCareReply).mockResolvedValue({ text: "summary" } as never);
