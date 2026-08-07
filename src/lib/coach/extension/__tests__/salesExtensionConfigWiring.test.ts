@@ -110,8 +110,9 @@ describe("Sales Coach extension config — input max matches the route's zod cap
       const route = readFileSync(routeFile, "utf-8");
       // `<inputKey>: z.string()....max(N)` — N may use `_` digit separators (e.g. 8_000).
       const m = route.match(new RegExp(`${inputKey}:\\s*z[^,}]*?\\.max\\(([\\d_]+)\\)`));
-      expect(m, `no zod .max() for '${inputKey}' in ${endpoint} route`).not.toBeNull();
-      const routeMax = Number(m![1].replace(/_/g, ""));
+      const captured = m?.[1];
+      expect(captured, `no zod .max() for '${inputKey}' in ${endpoint} route`).toBeDefined();
+      const routeMax = Number((captured ?? "").replace(/_/g, ""));
       // If this fails: the panel textarea limit and the server's validation cap disagree — a rep could type a
       // message the panel accepts but the route 400s. Align the config `max` and the route's zod `.max()`.
       expect(routeMax).toBe(configMax);
