@@ -180,16 +180,16 @@ export async function synthesizeSpeechStream(args: {
 
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    // 401/402/403 → the accurate remedy (scope-missing vs wrong-key vs quota). This is the TTS path
+    // (Jeff's voice + coach cues) — the one that 401s if the key lacks the Text-to-Speech scope, so it
+    // must NOT hardcode "invalid key". Shared with the STT/mint sites via describeElevenLabsAuthError.
+    if (typeof console !== "undefined" && response.status >= 401 && response.status <= 403) {
+      console.error(
+        `[care/voice] ElevenLabs rejected TTS (${response.status}): ` +
+          `${describeElevenLabsAuthError(response.status, err)} Provider: ${err.slice(0, 200)}`
+      );
+    }
     if (response.status === 401) {
-      if (typeof console !== "undefined") {
-        console.error(
-          "[care/voice] ElevenLabs rejected TTS auth (401). " +
-            "ELEVENLABS_API_KEY is set but invalid. Check: " +
-            "no whitespace, no surrounding quotes, key is active " +
-            "in elevenlabs.io → Profile → API Keys. Provider response: " +
-            err.slice(0, 300)
-        );
-      }
       throw new Error("Voice isn't available right now.");
     }
     throw new Error(
@@ -242,16 +242,15 @@ export async function transcribeSpeech(args: {
 
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    // 401/402/403 → the accurate remedy (scope-missing vs wrong-key vs quota) via the shared helper,
+    // instead of hardcoding "invalid key" (which misdiagnoses a scoped key lacking Speech-to-Text).
+    if (typeof console !== "undefined" && response.status >= 401 && response.status <= 403) {
+      console.error(
+        `[care/voice] ElevenLabs rejected STT (${response.status}): ` +
+          `${describeElevenLabsAuthError(response.status, err)} Provider: ${err.slice(0, 200)}`
+      );
+    }
     if (response.status === 401) {
-      if (typeof console !== "undefined") {
-        console.error(
-          "[care/voice] ElevenLabs rejected STT auth (401). " +
-            "ELEVENLABS_API_KEY is set but invalid. Check: " +
-            "no whitespace, no surrounding quotes, key is active " +
-            "in elevenlabs.io → Profile → API Keys. Provider response: " +
-            err.slice(0, 300)
-        );
-      }
       throw new Error("Voice isn't available right now.");
     }
     throw new Error(
