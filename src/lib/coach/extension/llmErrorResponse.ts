@@ -10,11 +10,13 @@ import { LlmError } from "@/lib/llm/errors";
  * in ONE place (§A21) — if a new LlmError kind or a different status mapping is ever needed, it changes once,
  * not in three hand-rolled copies that would drift.
  *
- * The client NEVER receives `err.message`. The provider layer builds that from raw upstream text — e.g.
- * `DeepSeek API error 400: <200 chars of body>` or `"DEEPSEEK_API_KEY not set."` — so returning it would
- * leak the AI vendor's identity and the upstream error body to the browser (CWE-209). Instead the real cause
- * is logged server-side (the only place it belongs), and the client gets the caller's generic
- * `fallbackMessage` plus the safe `kind` enum + status code, which are what drive its back-off / retry.
+ * INTENTIONAL — do NOT "fix" the LlmError branch to a generic message. Surfacing the LlmError cause
+ * ({error, kind}) to the AUTHENTICATED, entitled, same-tenant extension user is a deliberate design decision
+ * (2026-07-25), and the full-app CWE-209 sweep (docs/audits/2026-07-31-cwe209-error-leak-sweep.md) explicitly
+ * classified every `instanceof LlmError` surface as intentional and left it untouched. This mirrors the C.A.R.E
+ * extension + the ~25 other authed AI routes. CWE-209 governs the PUBLIC/unauthed 500-leak class, not this
+ * trusted-agent surface. (A stricter provider-cause-trimming policy — e.g. drop the raw upstream body from
+ * err.message while keeping kind — is a codebase-wide founder decision, not a per-route change.)
  *
  * (The read-only tools dissect + coach do NOT use this — their engines never throw, they honest-empty. This
  * is only for the generative tools whose engine lets an LlmError propagate.)
@@ -24,14 +26,8 @@ export function llmErrorResponse(
   opts: { logTag: string; fallbackMessage: string }
 ): NextResponse {
   if (err instanceof LlmError) {
-    // The real cause is logged here and ONLY here — never sent to the client (CWE-209, see docstring).
-    console.error(
-      `[${opts.logTag}] LLM error kind=${err.kind} provider=${err.provider} status=${err.status ?? "?"}:`,
-      err.message,
-      err.rawBody ? `raw=${err.rawBody.slice(0, 500)}` : ""
-    );
     return NextResponse.json(
-      { error: opts.fallbackMessage, kind: err.kind },
+      { error: err.message, kind: err.kind },
       { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
     );
   }

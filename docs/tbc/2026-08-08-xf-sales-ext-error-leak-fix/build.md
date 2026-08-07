@@ -1,21 +1,26 @@
 # BUILD — what changed
 
-## Production code
-- **`src/lib/coach/extension/llmErrorResponse.ts`** — the LlmError branch now logs the real cause
-  (`kind` + `provider` + `status` + `message` + first 500 chars of `rawBody`) server-side, and returns
-  `{ error: opts.fallbackMessage, kind: err.kind }` instead of `{ error: err.message, kind }`. Status mapping
-  unchanged (rate_limit → 429, else `err.status ?? 502`). Docstring rewritten to state the CWE-209 contract.
-- **`src/app/api/coach/extension/summarize/route.ts`** — added `if (!summary) → 502` (logged) after a
-  successful engine call, mirroring copilot/formulate. An empty model result is now surfaced as a failure,
-  never a blank "caught up".
+> Net effect after the CORRECTION (see closure.md): **F2 kept, F1 reverted.** The two entries below reflect
+> the final shipped state, not the intermediate F1 "fix".
 
-## Tests
-- **`src/lib/coach/extension/__tests__/llmErrorResponse.test.ts`** — corrected the rate-limit test (it had
-  LOCKED the leak by asserting `error === "slow down"`) to assert the generic fallbackMessage + preserved
-  `kind` + that the cause is logged. Added a dedicated CWE-209 test: an LlmError carrying "DeepSeek …" +
-  raw body → the response body contains NEITHER the vendor name NOR the raw detail, but the operator log does.
-- **`src/app/api/coach/extension/__tests__/summarize.route.test.ts`** — added the empty-summary → 502 test.
+### summarize empty-result guard (F2 — kept)
+A successful summary engine call that yields an empty string must surface as a failure, not a blank
+"caught up" (§3.4). Mirrors the copilot/formulate guards.
+- write-path: `src/app/api/coach/extension/summarize/route.ts` — after `generateSalesSummary`, `if (!summary)`
+  logs and returns `502` instead of `200 { summary: "" }`.
+- read-path: the extension panel receives the 502 error state (never a blank success); asserted by
+  `src/app/api/coach/extension/__tests__/summarize.route.test.ts` — the "empty summary → 502" case.
 
-## Not touched (deliberately — §1.5 / §5)
-The 4 C.A.R.E extension routes carrying the identical inline leak. Flagged to the founder in closure.md with
-the one-line fix each; not changed under the continuation guard without explicit go-ahead (shipping product).
+### llmError surface (F1 — reverted to the intentional convention)
+The `{ error: err.message, kind }` LlmError surface is a deliberate authed-agent convention (2026-07-25;
+classified intentional by `docs/audits/2026-07-31-cwe209-error-leak-sweep.md`). The intermediate F1 change that
+genericized it was reverted; the branch is restored and annotated so it isn't re-broken.
+- write-path: `src/lib/coach/extension/llmErrorResponse.ts` — the `instanceof LlmError` branch returns
+  `{ error: err.message, kind: err.kind }` with the rate-limit→429 / else→(status ?? 502) mapping.
+- read-path: the extension client shows the provider cause + `kind`; asserted by
+  `src/lib/coach/extension/__tests__/llmErrorResponse.test.ts` — `error === "slow down"`, `kind` preserved.
+
+## Not touched (deliberately — §1.5 / §3.3)
+The ~25 other authed AI routes (incl. the 5 C.A.R.E extension routes) carry the same intentional LlmError
+surface. Not changed — it is the established convention. The residual (raw upstream body inside `err.message`)
+is surfaced to the founder as a codebase-wide policy question, not resolved unilaterally.

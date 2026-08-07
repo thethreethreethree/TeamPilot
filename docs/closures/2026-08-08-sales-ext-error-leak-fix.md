@@ -1,7 +1,14 @@
-# Closure — 2026-08-08 · Sales Coach extension: error-detail leak (CWE-209) + false-empty summary
+# Closure — 2026-08-08 · Sales Coach extension: error-surface audit (F1 misdiagnosed + reverted, F2 kept)
 
-Session-read manifest (A22) for the audit-driven fix. Full THINK→BUILD→CHECK→CLOSE artifacts live at
+Session-read manifest (A22) for the audit-driven work. Full THINK→BUILD→CHECK→CLOSE artifacts live at
 `docs/tbc/2026-08-08-xf-sales-ext-error-leak-fix/`; this is the A22 citation index the commit references.
+
+> **CORRECTION:** F1 (the "CWE-209 leak fix") was a MISDIAGNOSIS and has been reverted. The
+> `{error: err.message, kind}` LlmError surface is an intentional, codebase-wide convention (2026-07-25
+> decision; classified intentional by the completed sweep `docs/audits/2026-07-31-cwe209-error-leak-sweep.md`,
+> which ruled "keep any `instanceof LlmError` branch UNTOUCHED"). I acted on a confident audit finding under
+> the continuation guard without the §1.2/§0.1 retrospective record-check first. F1 reverted + the branch
+> annotated. **F2 (empty summary → 502) is kept** — a separate, legitimate §3.4 honesty fix.
 
 ## 1. The change
 A ground-up, outside-view audit of the freshly-shipped coach/extension surface (6 auth-bearing routes + 5 LLM

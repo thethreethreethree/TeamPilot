@@ -5,7 +5,7 @@ started_at: 2026-08-08T07:25:00Z
 doc_hashes:
   CLAUDE.md: e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f
   ThinkerThinker.md: 0428b0bb286433cc6d9925db2286127994b9d11d1c4df80de1256f0d3f53e8bc
-manifest_entries: 13
+manifest_entries: 15
 hypotheses: 2
 ---
 
@@ -69,6 +69,7 @@ one-line-each fix offered (closure §residuals). Guiding, not overtaking (§3.3)
 [
   { "id": "§0", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "10-21", "why_it_governs": "Understand before solving — audit + read the provider error construction before touching the mapping.", "how_this_build_will_embody_it": "Section 3 traces err.message to deepseek.ts before proposing the fix." },
   { "id": "§0.1", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "22-45", "why_it_governs": "Precondition gate — methodology in the tree, hashes recomputed not cached.", "how_this_build_will_embody_it": "Section 1 records the sha256 MATCH recomputed this session." },
+  { "id": "§1.2", "read_at": "2026-08-08T07:45:00Z", "source_file": "CLAUDE.md", "line_range": "54-58", "why_it_governs": "Retrospective identification — look BACKWARD at the record before acting. Skipping it is what let F1 override an already-audited intentional convention.", "how_this_build_will_embody_it": "The CORRECTION consults docs/audits/2026-07-31 + the captured memory; F1 reverted on that record." },
   { "id": "§1.5", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "78-96", "why_it_governs": "Holistic — the same leak exists in 4 C.A.R.E routes; trace it, decide scope.", "how_this_build_will_embody_it": "Section 4: fix the sales chokepoint, flag the siblings rather than silently refactor." },
   { "id": "§1.5.1", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "78-138", "why_it_governs": "Four-layer feature gate — L2 (does it actually work end-to-end) is the layer the error path lives in.", "how_this_build_will_embody_it": "The fix restores an honest L2 result on failure (real error, not a leak or a false-empty)." },
   { "id": "§1.5.2", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "139-173", "why_it_governs": "Proactive audit is what found these; and its 'no license to refactor without need' bounds the C.A.R.E scope.", "how_this_build_will_embody_it": "Audit-driven; C.A.R.E left as a founder-gated flag." },
@@ -78,6 +79,7 @@ one-line-each fix offered (closure §residuals). Guiding, not overtaking (§3.3)
   { "id": "§6", "read_at": "2026-08-08T07:34:00Z", "source_file": "CLAUDE.md", "line_range": "352-380", "why_it_governs": "Decision checklist before acting.", "how_this_build_will_embody_it": "think walks the gap, the trace, the hypotheses, the scope call." },
   { "id": "A19", "read_at": "2026-08-08T07:34:00Z", "source_file": "ThinkerThinker.md", "line_range": "453-527", "why_it_governs": "Methodology in the working tree, consulted not cached.", "how_this_build_will_embody_it": "TT.md present (hash MATCH); the cited axioms were opened this build before citation." },
   { "id": "A22", "read_at": "2026-08-08T07:34:00Z", "source_file": "ThinkerThinker.md", "line_range": "592-767", "why_it_governs": "Citations require session-reading.", "how_this_build_will_embody_it": "This manifest pairs each cited id with a read timestamp + line range." },
+  { "id": "A26", "read_at": "2026-08-08T07:45:00Z", "source_file": "ThinkerThinker.md", "line_range": "689-702", "why_it_governs": "A subagent's class-finding is a SUSPECT to verify against the code, NEVER a fix to apply on trust; confirm each intentional exception is intentional (read it). Sweep the boundary BEFORE fixing.", "how_this_build_will_embody_it": "The CORRECTION documents that F1 violated exactly this — applied an audit suspect as a fix without the boundary sweep that revealed the convention." },
   { "id": "A30", "read_at": "2026-08-08T07:34:00Z", "source_file": "ThinkerThinker.md", "line_range": "768-790", "why_it_governs": "A lesson in prose returns — encode it in a gate. The leak fix is locked by a regression test, not just a comment.", "how_this_build_will_embody_it": "The CWE-209 no-leak test fails on regression; closure names the un-gated residual (no invariant forces new routes through the helper)." },
   { "id": "A38", "read_at": "2026-08-08T07:34:00Z", "source_file": "ThinkerThinker.md", "line_range": "999-1038", "why_it_governs": "'Checked' = the canonical command by name, with its exit code.", "how_this_build_will_embody_it": "check.md pastes npm run check exit 0." }
 ]
