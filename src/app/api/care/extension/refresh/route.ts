@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
+import { refreshExtensionSession } from "@/lib/api/extensionRefresh";
 
 /**
  * POST /api/care/extension/refresh — exchange a Supabase refresh token for a fresh session.
@@ -11,7 +12,9 @@ import { readBody } from "@/lib/api/validate";
  * the extension never needs the Supabase host in its permissions and the anon key stays out of the
  * extension bundle. Returns the new { access_token, refresh_token } or 401 if the refresh token is invalid.
  *
- * No auth gate here (the refresh token IS the credential); rate-limited to blunt brute force.
+ * The generic Supabase-refresh logic lives in refreshExtensionSession (shared with the Sales Coach
+ * extension's refresh route — one mechanism, not a fork). No auth gate here (the refresh token IS the
+ * credential); rate-limited to blunt brute force.
  */
 
 export const runtime = "nodejs";
@@ -25,30 +28,12 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Schema);
   if (body instanceof NextResponse) return body;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) {
-    return NextResponse.json({ error: "Auth not configured." }, { status: 500 });
+  const result = await refreshExtensionSession(body.refresh_token);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-
-  try {
-    const res = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: { apikey: anon, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: body.refresh_token }),
-    });
-    const data = (await res.json().catch(() => ({}))) as {
-      access_token?: string;
-      refresh_token?: string;
-    };
-    if (!res.ok || !data.access_token) {
-      return NextResponse.json({ error: "Session could not be refreshed. Sign in again." }, { status: 401 });
-    }
-    return NextResponse.json({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token ?? body.refresh_token,
-    });
-  } catch {
-    return NextResponse.json({ error: "Couldn't reach the auth service." }, { status: 502 });
-  }
+  return NextResponse.json({
+    access_token: result.accessToken,
+    refresh_token: result.refreshToken,
+  });
 }

@@ -17,7 +17,8 @@ draft, catch up on the deal, draft the next message.
 | `adapters.js` (per-site) | **Not yet ported** | — |
 | `permission.html` / `permission.js` | **Not yet ported** | — |
 | `icons/` | **Not yet added** | — |
-| Auth: sales `connect` + `refresh` routes + `/extension/connect` handoff | **Not yet built** | — |
+| Auth: `refresh` route (`/api/coach/extension/refresh`) | **Built** (shared `refreshExtensionSession`) | ✅ route + handler tests |
+| Auth: sales `connect` page + token mint (`/extension/connect` handoff) | **Not yet built** | — |
 
 **This package is NOT yet loadable.** The manifest + config are the sales-specific, verifiable core; the
 browser runtime and the auth handoff are the remaining port (Phase 2b), specced below. Nothing here claims to
@@ -42,9 +43,9 @@ tools only — NOT the RCD capture, media upload, or image-permission machinery 
    (rename `care-tool` → `sales-tool`; `ALLOWED_ENDPOINT` → `/^\/api\/coach\/extension\/[a-z-]+$/`; forward
    only `conversation`, `draft`, `lastSpeaker`), the connect handoff (`onMessageExternal`, message type
    `sales-connect`, store `salesCoachToken`), and the badge. **Drop:** all `care-rcd-*` and `care-image-*`
-   handlers. **Auth:** on 401 either (a) build a sales `refresh` route first, or (b) degrade to "Sign in"
-   (clear token) — do NOT reference `/api/coach/extension/refresh` until it exists (the drift guard would not
-   catch a missing refresh route, so this is a manual must).
+   handlers. **Auth:** on 401, call `POST /api/coach/extension/refresh` (now built — shared
+   `refreshExtensionSession`) with the stored `salesCoachRefreshToken`, then retry once; on refresh failure,
+   clear the token so the panel shows "Sign in".
 2. **`content.js`** — the shadow-DOM panel. Render from `SALES_TOOLS`; the `coach` tool shows the draft
    textarea (its `input` field); `copilot`/`summarize`/`dissect` run on the scanned conversation alone. Send
    `sales-tool` to the worker. Render each tool's result shape: dissect `{dissect}`, coach `{coaching}`,
@@ -52,8 +53,10 @@ tools only — NOT the RCD capture, media upload, or image-permission machinery 
 3. **`adapters.js`** — per-site DOM readers. Copy the C.A.R.E adapters (same platforms, same reasoned-but-
    UNVERIFIED selectors) — they read the same DOM. Add the `lastSpeaker` read where the platform exposes it
    (drives copilot reply-vs-follow-up). Every selector stays labeled UNVERIFIED until confirmed live.
-4. **Auth routes** — a sales `connect` page (`/extension/connect`) + token mint, mirroring the C.A.R.E
-   handoff, so "Sign in" is one click. Until then the extension can't authenticate.
+4. **Auth handoff** — the `refresh` route is built (`/api/coach/extension/refresh`). Still needed: a sales
+   `connect` page (`/extension/connect`) + token mint mirroring the C.A.R.E handoff so "Sign in" is one
+   click, and the background `onMessageExternal` `sales-connect` receiver that stores the token. Until the
+   connect page exists the extension can't obtain its first token.
 5. **`icons/`** — add 16/48/128 px icons.
 
 Each of the above ships reasoned; the founder confirms it live in a real browser per platform.

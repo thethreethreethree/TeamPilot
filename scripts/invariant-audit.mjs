@@ -470,7 +470,9 @@ for (const f of FILES) {
 // LEARNED: the extension tool routes burn LLM/ElevenLabs cost AND read tenant data, on a PUBLIC-internet
 // endpoint (MV3 extensions don't share the app's cookies — they send a Bearer token). A new extension route
 // that forgets guardExtensionRequest (Bearer + entitlement + rate-limit) is an unauthenticated, uncapped
-// cost + data surface. Every route under src/app/api/care/extension/ must authenticate. (Verified 2026-07-27.)
+// cost + data surface. Every route under src/app/api/care/extension/ AND src/app/api/coach/extension/ (the
+// Sales Coach extension, added 2026-08-08) must authenticate. The scope grew when the coach/ namespace was
+// added — an invariant that only watched care/ would have left the 5 sales tool routes unchecked.
 const EXT_AUTH_ALLOWLIST = new Map([
   [
     "src/app/api/care/extension/refresh/route.ts",
@@ -478,19 +480,25 @@ const EXT_AUTH_ALLOWLIST = new Map([
       "      why it's refreshing). It authenticates via the refresh_token itself (required, bounded, rate-limited\n" +
       "      20/min, validated by Supabase's refresh grant → 401 if invalid). Different auth model, not ungated.",
   ],
+  [
+    "src/app/api/coach/extension/refresh/route.ts",
+    "Sales Coach extension token-refresh proxy — same different-auth-model reason as the C.A.R.E refresh route:\n" +
+      "      the refresh_token IS the credential (the access token is expired), required + bounded + rate-limited,\n" +
+      "      validated by Supabase's refresh grant → 401 if invalid. Shares the refreshExtensionSession handler.",
+  ],
 ]);
 const EXT_AUTH_RE = /guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth/;
 for (const f of FILES) {
-  if (!/^src\/app\/api\/care\/extension\/.*route\.(ts|tsx)$/.test(f.path)) continue;
+  if (!/^src\/app\/api\/(care|coach)\/extension\/.*route\.(ts|tsx)$/.test(f.path)) continue;
   if (EXT_AUTH_RE.test(f.sql)) continue;
   if (EXT_AUTH_ALLOWLIST.has(f.path)) continue;
   findings.push({
     rule: "Extension route without authentication",
     file: f.path,
     why:
-      "A route under /api/care/extension/ that references no extension auth (guardExtensionRequest / …) is a\n" +
-      "      PUBLIC, unauthenticated endpoint that burns LLM cost + reads tenant data. Add guardExtensionRequest\n" +
-      "      at the top, or allowlist here WITH the reason (e.g. a different auth model like token refresh).",
+      "A route under /api/care/extension/ or /api/coach/extension/ that references no extension auth\n" +
+      "      (guardExtensionRequest / …) is a PUBLIC, unauthenticated endpoint that burns LLM cost + reads tenant\n" +
+      "      data. Add guardExtensionRequest at the top, or allowlist here WITH the reason (e.g. token refresh).",
   });
 }
 
@@ -873,8 +881,8 @@ const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|r
 const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
 for (const f of FILES) {
   if (!/^src\/app\/api\/.*route\.(ts|tsx)$/.test(f.path)) continue;
-  if (/^src\/app\/api\/admin\//.test(f.path)) continue;            // INV7 (admin gate)
-  if (/^src\/app\/api\/care\/extension\//.test(f.path)) continue;  // INV8 (extension auth)
+  if (/^src\/app\/api\/admin\//.test(f.path)) continue;                     // INV7 (admin gate)
+  if (/^src\/app\/api\/(care|coach)\/extension\//.test(f.path)) continue;   // INV8 (extension auth) — both namespaces
   if (/-cron\/route\.(ts|tsx)$/.test(f.path)) continue;            // INV11 (cron secret)
   if (!MUTATION_EXPORT_RE.test(f.sql)) continue;                   // read-only route — not in scope
   if (ROUTE_AUTH_RE.test(f.sql)) continue;
