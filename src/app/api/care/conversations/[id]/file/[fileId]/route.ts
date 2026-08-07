@@ -45,7 +45,11 @@ export async function GET(
     expiresInSeconds: 600,
   });
   if (!downloadUrl) {
-    return NextResponse.json({ error: "Failed to sign URL." }, { status: 500 });
+    // Customer-facing (support widget) — plain English, not "sign URL" dev jargon.
+    return NextResponse.json(
+      { error: "Couldn't open that file right now — please try again." },
+      { status: 500 }
+    );
   }
   return NextResponse.json({
     downloadUrl,

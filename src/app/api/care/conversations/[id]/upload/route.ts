@@ -134,8 +134,9 @@ export async function POST(
     );
   }
   if (!row) {
+    // Customer-facing (support widget) — plain English, not DB jargon ("file row").
     return NextResponse.json(
-      { error: "Failed to write file row." },
+      { error: "Couldn't attach your file right now — please try again." },
       { status: 500 }
     );
   }
