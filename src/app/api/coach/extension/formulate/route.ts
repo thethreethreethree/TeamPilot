@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveRepName } from "@/lib/coach/extension/repName";
 import { generateSalesFormulate } from "@/lib/coach/extension/salesFormulate";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -38,20 +38,7 @@ export async function POST(req: NextRequest) {
   const { user, body } = guard;
 
   // Rep identity anchor: shape the message in the rep's voice, not addressed to them. Best-effort.
-  let repName = "the sales rep";
-  try {
-    const admin = createAdminClient();
-    const { data: prof } = await admin
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.userId)
-      .maybeSingle();
-    if (typeof prof?.full_name === "string" && prof.full_name.trim()) {
-      repName = prof.full_name.trim();
-    }
-  } catch {
-    /* best-effort; the WHO-IS-WHO rule still applies with the generic label */
-  }
+  const repName = await resolveRepName(user.userId);
 
   try {
     const { reply, reasoning } = await generateSalesFormulate({

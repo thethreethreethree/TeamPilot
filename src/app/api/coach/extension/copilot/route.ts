@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveRepName } from "@/lib/coach/extension/repName";
 import { generateSalesCopilotReply } from "@/lib/coach/extension/salesCopilot";
 import { LlmError } from "@/lib/llm/errors";
 
@@ -39,20 +39,7 @@ export async function POST(req: NextRequest) {
 
   // Rep identity anchor: without naming the rep, an unlabeled thread makes the model guess who's who and can
   // address the draft TO the rep. Best-effort; the draft never blocks on the lookup.
-  let repName = "the sales rep";
-  try {
-    const admin = createAdminClient();
-    const { data: prof } = await admin
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.userId)
-      .maybeSingle();
-    if (typeof prof?.full_name === "string" && prof.full_name.trim()) {
-      repName = prof.full_name.trim();
-    }
-  } catch {
-    /* best-effort; the WHO-IS-WHO discipline still applies with the generic label */
-  }
+  const repName = await resolveRepName(user.userId);
 
   try {
     const { reply, reasoning } = await generateSalesCopilotReply({
