@@ -103,7 +103,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("[care/stt] transcription failed:", e);
-    return NextResponse.json({ error: "STT transcription failed." }, { status: 502 });
+    // Customer-facing (C.A.R.E widget) — plain English, not "STT" dev jargon. Server log keeps the real
+    // cause (usually the shared ElevenLabs key/quota — same root as the coach "Token mint failed").
+    return NextResponse.json(
+      { error: "Couldn't process your voice message right now — please try again." },
+      { status: 502 }
+    );
   }
 
   if (!transcript) {

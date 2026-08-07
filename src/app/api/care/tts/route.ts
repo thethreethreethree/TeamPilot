@@ -86,7 +86,12 @@ export async function POST(req: NextRequest) {
     stream = await synthesizeSpeechStream({ text: body.text, voiceId });
   } catch (e) {
     console.error("[care/tts] synthesis failed:", e);
-    return NextResponse.json({ error: "TTS synthesis failed." }, { status: 502 });
+    // Customer-facing (C.A.R.E widget voice reply) — plain English, not "TTS" dev jargon. The customer
+    // still has the text reply; the voice is supplementary. Server log keeps the real cause (shared key/quota).
+    return NextResponse.json(
+      { error: "Couldn't play the voice reply right now — please try again." },
+      { status: 502 }
+    );
   }
 
   return new NextResponse(stream, {
