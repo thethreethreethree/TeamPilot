@@ -94,6 +94,10 @@ The handoff (#3) depends on decision **#1** (which entitlement the sign-in grant
 
 ## Build trail (for traceability)
 
-Commits `d16c8947` → `3f1d6562` on `main` (2026-08-08): the five tools, the client core + drift guard, session
-refresh, three build-guard scope fixes + an injection-fence guard, a product-label fix, and two internal
-clean-ups. Each carries a `docs/tbc/2026-08-08-*` build record with its reasoning, verification, and residuals.
+Commits `d16c8947` → `01c91174` on `main` (2026-08-08): the five tools, the client core, session refresh, a
+product-label honesty fix, three build-guard scope fixes + an injection-fence guard, two internal clean-ups
+(shared rep-name + error-mapping helpers), the config↔route drift guards (both directions, for BOTH this
+extension and the C.A.R.E one, plus a client↔server input-length sync guard), the platform coverage spec
+([`../extension-sales/PLATFORM-COVERAGE.md`](../extension-sales/PLATFORM-COVERAGE.md)), and this status doc.
+Each substantive build carries a `docs/tbc/2026-08-08-*` record with its reasoning, verification, and
+residuals. All CI-green and deployed.
