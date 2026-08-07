@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { synthesizeSpeechStream } from "../elevenlabs";
+import { synthesizeSpeechStream, describeElevenLabsAuthError } from "../elevenlabs";
 
 /**
  * ElevenLabs TTS client (Jeff's voice). Two genuine properties worth locking: the cost/latency guardrail —
@@ -69,5 +69,30 @@ describe("synthesizeSpeechStream — error mapping", () => {
   it("errors clearly when the response has no body", async () => {
     vi.stubGlobal("fetch", fetchReturning({ ok: true, body: null }));
     await expect(synthesizeSpeechStream({ text: "hi" })).rejects.toThrow(/no response body/);
+  });
+});
+
+describe("describeElevenLabsAuthError — distinguishes the two 401 causes", () => {
+  // The 2026-08-07 lesson: a 401 for a SCOPED key missing a permission needs a different fix
+  // (enable the scope) than a 401 for a wrong/expired key (replace it). The log must not conflate them.
+  it("401 with missing_permissions in the body → points at the SCOPE fix, not 'invalid key'", () => {
+    const msg = describeElevenLabsAuthError(
+      401,
+      '{"detail":{"status":"missing_permissions","message":"missing the permission speech_to_text"}}'
+    );
+    expect(msg).toMatch(/MISSING A PERMISSION SCOPE/);
+    expect(msg).toMatch(/Speech to Text/);
+    expect(msg).not.toMatch(/INVALID/); // must NOT send the operator to replace the key
+  });
+
+  it("401 without missing_permissions → the wrong/expired-key fix", () => {
+    const msg = describeElevenLabsAuthError(401, '{"detail":"invalid api key"}');
+    expect(msg).toMatch(/INVALID/);
+    expect(msg).not.toMatch(/PERMISSION SCOPE/);
+  });
+
+  it("402/403 → quota/billing/plan", () => {
+    expect(describeElevenLabsAuthError(402, "")).toMatch(/quota\/billing\/plan/);
+    expect(describeElevenLabsAuthError(403, "")).toMatch(/quota\/billing\/plan/);
   });
 });

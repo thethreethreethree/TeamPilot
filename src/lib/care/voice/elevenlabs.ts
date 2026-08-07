@@ -66,6 +66,39 @@ function getDefaultVoiceId(): string {
 }
 
 /**
+ * Human-readable CAUSE of an ElevenLabs auth/authorization rejection, for the SERVER LOG.
+ *
+ * A 401 has two DIFFERENT fixes and must not be conflated: a key that is *missing a
+ * permission scope* (fix = enable the scope / regenerate) vs a key that is *wrong or
+ * expired* (fix = replace it). ElevenLabs signals the former with `"missing_permissions"`
+ * in the response body. Distinguishing them stops the log from sending the operator to
+ * the wrong fix — which is exactly what bit us 2026-08-07: the prod key was a freshly
+ * created SCOPED key without the Speech-to-Text / realtime permission, but the log said
+ * "present but INVALID — replace it", pointing at the wrong remedy. Verified live that a
+ * scoped key returns `missing_permissions` (401) for an op it lacks.
+ */
+export function describeElevenLabsAuthError(status: number, body: string): string {
+  const b = (body || "").toLowerCase();
+  if (status === 401 && b.includes("missing_permission")) {
+    return (
+      `the key is present but MISSING A PERMISSION SCOPE (not a wrong key). Enable ` +
+      `"Speech to Text" + the realtime/Scribe permission on this key in elevenlabs.io → ` +
+      `API Keys (or regenerate WITH those scopes), then update Vercel + redeploy.`
+    );
+  }
+  if (status === 401) {
+    return (
+      `the key is present but INVALID — a wrong/expired key or a stray character ` +
+      `(whitespace is auto-trimmed). Re-check the Vercel value against elevenlabs.io → API Keys.`
+    );
+  }
+  if (status === 402 || status === 403) {
+    return `likely a quota/billing/plan limit on the account (${status}). Check elevenlabs.io usage/billing.`;
+  }
+  return `HTTP ${status}.`;
+}
+
+/**
  * Synthesize Jeff's text reply into a STREAMING audio response.
  *
  * 2026-06-17 — switched from buffered synthesizeSpeech (returned
@@ -270,18 +303,11 @@ export async function transcribeWithDiarization(args: {
     const err = await response.text().catch(() => "");
     // Same diagnostic as the token mint + TTS — surface the 401/402/403 cause in the log so "Transcription
     // failed" is debuggable at a glance (both share the ELEVENLABS_API_KEY / account).
-    if (typeof console !== "undefined") {
-      if (response.status === 401) {
-        console.error(
-          `[care/voice] ElevenLabs rejected diarized STT auth (401): ELEVENLABS_API_KEY is present but INVALID. ` +
-            `Re-check the Vercel value (wrong/expired key or stray char). Provider: ${err.slice(0, 200)}`
-        );
-      } else if (response.status === 402 || response.status === 403) {
-        console.error(
-          `[care/voice] ElevenLabs rejected diarized STT (${response.status}): likely a quota/billing/plan limit ` +
-            `on the account. Check elevenlabs.io usage/billing. Provider: ${err.slice(0, 200)}`
-        );
-      }
+    if (typeof console !== "undefined" && response.status >= 401 && response.status <= 403) {
+      console.error(
+        `[care/voice] ElevenLabs rejected diarized STT (${response.status}): ` +
+          `${describeElevenLabsAuthError(response.status, err)} Provider: ${err.slice(0, 200)}`
+      );
     }
     throw new Error(
       `ElevenLabs diarized STT failed: ${response.status} ${err.slice(0, 300)}`
@@ -343,19 +369,11 @@ export async function mintRealtimeSttToken(): Promise<string> {
     const err = await response.text().catch(() => "");
     // Make the cause obvious in the server log (matches synthesizeSpeechStream's 401 diagnostic) so an
     // operator debugging "Token mint failed" reads the reason, not a raw status.
-    if (typeof console !== "undefined") {
-      if (response.status === 401) {
-        console.error(
-          `[care/voice] ElevenLabs rejected realtime-token auth (401): ELEVENLABS_API_KEY is present but INVALID. ` +
-            `Re-check the Vercel value — a wrong/expired key or a stray character (whitespace is auto-trimmed). ` +
-            `Confirm the key is active in elevenlabs.io → API Keys. Provider: ${err.slice(0, 200)}`
-        );
-      } else if (response.status === 402 || response.status === 403) {
-        console.error(
-          `[care/voice] ElevenLabs rejected realtime-token (${response.status}): likely a quota/billing/plan ` +
-            `limit on the account (Scribe v2 Realtime access). Check elevenlabs.io usage/billing. Provider: ${err.slice(0, 200)}`
-        );
-      }
+    if (typeof console !== "undefined" && response.status >= 401 && response.status <= 403) {
+      console.error(
+        `[care/voice] ElevenLabs rejected realtime-token (${response.status}): ` +
+          `${describeElevenLabsAuthError(response.status, err)} Provider: ${err.slice(0, 200)}`
+      );
     }
     throw new Error(
       `ElevenLabs token mint failed: ${response.status} ${err.slice(0, 300)}`
