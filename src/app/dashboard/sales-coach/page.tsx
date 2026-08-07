@@ -227,6 +227,20 @@ export default function SalesCoachHome() {
           </div>
         </div>
 
+        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08). */}
+        <Link
+          href="/extension/download-sales"
+          className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] px-4 py-3 hover:bg-ember-400/[0.1] transition-colors"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Get the Sales Coach extension
+          </span>
+          <span className="text-[11px] text-muted">Install &amp; coach anywhere →</span>
+        </Link>
+
         {/* Start CTA — reveals the existing capture form (a title is required
             before a session can begin, § our rule). */}
         <div className="mt-4">
@@ -313,6 +327,19 @@ export default function SalesCoachHome() {
             </p>
           </DeckCard>
         </LearningHint>
+
+        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08). */}
+        <Link href="/extension/download-sales" className="block">
+          <DeckCard className="p-3.5 flex items-center justify-between gap-2.5 hover:border-strong transition-colors">
+            <span className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Get the Sales Coach browser extension
+            </span>
+            <span className="text-[11px] text-muted">Coach the conversation you&apos;re viewing →</span>
+          </DeckCard>
+        </Link>
 
         {/* Start a session */}
         <DeckCard className="p-4">

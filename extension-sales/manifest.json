@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sales Coach — coach the sales conversation you're viewing",
   "version": "0.1.0",
-  "description": "Read the room, coach your reply, catch up on the deal, and draft the next message — sales coaching on the conversation you're already viewing.",
+  "description": "Sales coaching on the conversation you're viewing: read the room, coach your reply, catch up, and draft the next message.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

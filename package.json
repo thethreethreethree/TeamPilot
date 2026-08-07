@@ -6,7 +6,7 @@
     "predev": "node scripts/build-extension-download.mjs",
     "dev": "next dev --port 4321",
     "build:extension": "node scripts/build-extension-download.mjs",
-    "prebuild": "node scripts/build-extension-download.mjs",
+    "prebuild": "node scripts/build-extension-download.mjs && node scripts/build-sales-extension-download.mjs",
     "build": "next build",
     "build:ci": "node scripts/build-ci.mjs",
     "start": "next start --port 4321",
