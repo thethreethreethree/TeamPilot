@@ -2,6 +2,19 @@
 
 ## 🔴 TOP — 2026-08-06: Live Coaching "Token mint failed" / "Transcription failed" — a PROD ENV FIX YOU must do (~2 min)
 
+> **🎯 LEADING FIX (2026-08-07, direct-evidence re-diagnosis — READ THIS FIRST):** The prod key you added to
+> Vercel is very likely a **freshly-created SCOPED key missing the Speech-to-Text / realtime-scribe
+> permissions** — NOT a quota/missing-key problem. **Proof:** I called ElevenLabs live with the working
+> `.env.local` key — it **succeeds** at both failing ops right now (realtime token mint → HTTP 200,
+> speech-to-text → HTTP 200) but returns **`missing_permissions`** for an unrelated scope (`user_read`). That
+> proves ElevenLabs keys are **permission-scoped**, and a scoped key hitting an op it lacks returns **401
+> `missing_permissions`** = exactly "Token mint failed" + "Transcription failed". New ElevenLabs keys default
+> to RESTRICTED scopes, so "I just added a key" fits. **YOUR FIX (~2 min):** ElevenLabs dashboard → API Keys →
+> your prod key → **enable "Speech to Text" + the realtime/Scribe permission** (or regenerate with those
+> scopes) → paste into Vercel Production → redeploy. The function log now prints the status — **401 confirms
+> this permission cause**; 402 = quota (top up); 403 = plan lacks Scribe. ⬇ original quota-first framing below,
+> now the SECOND hypothesis.
+>
 > **From your screenshot (Live Coaching page): "Token mint failed" + "Transcription failed".** Diagnosed:
 > NOT a code bug. I reproduced the exact ElevenLabs realtime-token mint with the key from `.env.local` →
 > **HTTP 200 + a valid token**, so the code, endpoint (`/v1/single-use-token/realtime_scribe`), request shape,
