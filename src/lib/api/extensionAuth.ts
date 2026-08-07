@@ -71,7 +71,16 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
  * Returns a 402 (Payment Required) with the honest status if locked — so the extension can prompt to
  * start a trial or upgrade.
  */
-export async function requireEntitledExtensionUser(req: NextRequest): Promise<ExtensionGateResult> {
+export async function requireEntitledExtensionUser(
+  req: NextRequest,
+  opts?: { productLabel?: string }
+): Promise<ExtensionGateResult> {
+  // Product name shown in the 402 message. Defaults to "C.A.R.E extension" so every existing C.A.R.E caller
+  // is byte-for-byte unchanged; the Sales Coach extension passes "Sales Coach extension" so a locked sales
+  // user never sees C.A.R.E branding (§3.4 — the message must name the product the user is actually in). The
+  // underlying entitlement SOURCE (shared vs a separate sales SKU) is a founder pricing decision; this label
+  // is correct under either, because it only names the surface the caller is on.
+  const productLabel = opts?.productLabel ?? "C.A.R.E extension";
   const auth = await requireExtensionAuth(req);
   if (!auth.ok) return auth;
 
@@ -90,8 +99,8 @@ export async function requireEntitledExtensionUser(req: NextRequest): Promise<Ex
       response: NextResponse.json(
         {
           error: entitlement.trialEnded
-            ? "Your 14-day C.A.R.E extension trial has ended."
-            : "Your plan doesn't include the C.A.R.E extension.",
+            ? `Your 14-day ${productLabel} trial has ended.`
+            : `Your plan doesn't include the ${productLabel}.`,
           entitlement,
         },
         { status: 402 }

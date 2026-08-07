@@ -33,7 +33,7 @@ const Schema = z
   .strict();
 
 export async function POST(req: NextRequest) {
-  const guard = await guardExtensionRequest(req, { tool: "coach-copilot", perUserMax: 20, schema: Schema });
+  const guard = await guardExtensionRequest(req, { tool: "coach-copilot", perUserMax: 20, schema: Schema, productLabel: "Sales Coach extension" });
   if (!guard.ok) return guard.response;
   const { user, body } = guard;
 

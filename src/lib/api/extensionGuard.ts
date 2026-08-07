@@ -19,14 +19,16 @@ import type { ExtensionUser } from "@/lib/api/extensionAuth";
  */
 export async function guardExtensionRequest<T>(
   req: NextRequest,
-  opts: { tool: string; perUserMax: number; schema: z.ZodType<T> }
+  opts: { tool: string; perUserMax: number; schema: z.ZodType<T>; productLabel?: string }
 ): Promise<{ ok: true; user: ExtensionUser; body: T } | { ok: false; response: NextResponse }> {
   // 1. Coarse per-IP guard BEFORE auth — protects the token-validation round-trip from unauthenticated floods.
   const preAuth = rateLimit(req, { id: "care-ext", windowMs: 60_000, max: 60 });
   if (preAuth) return { ok: false, response: preAuth };
 
-  // 2. Bearer token + pro/enterprise-or-trial entitlement (server-enforced; never trust the client).
-  const gate = await requireEntitledExtensionUser(req);
+  // 2. Bearer token + pro/enterprise-or-trial entitlement (server-enforced; never trust the client). The
+  // optional productLabel names the surface in the 402 message (Sales Coach routes pass their own; C.A.R.E
+  // routes omit it and keep the default).
+  const gate = await requireEntitledExtensionUser(req, { productLabel: opts.productLabel });
   if (!gate.ok) return { ok: false, response: gate.response };
 
   // 3. Per-USER limit (so colleagues on one office IP don't share a bucket on a paid feature).

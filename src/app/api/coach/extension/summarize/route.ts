@@ -23,7 +23,7 @@ export const maxDuration = 60;
 const Schema = z.object({ conversation: z.string().min(1).max(20_000) }).strict();
 
 export async function POST(req: NextRequest) {
-  const guard = await guardExtensionRequest(req, { tool: "coach-summarize", perUserMax: 20, schema: Schema });
+  const guard = await guardExtensionRequest(req, { tool: "coach-summarize", perUserMax: 20, schema: Schema, productLabel: "Sales Coach extension" });
   if (!guard.ok) return guard.response;
   const { user, body } = guard;
 

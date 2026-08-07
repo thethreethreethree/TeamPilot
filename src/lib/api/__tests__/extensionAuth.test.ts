@@ -119,4 +119,34 @@ describe("requireEntitledExtensionUser", () => {
       expect(r.user.entitlement.status).toBe("trial");
     }
   });
+
+  describe("402 product label (§3.4 — name the surface the caller is on)", () => {
+    it("defaults to C.A.R.E branding when no label is passed (existing callers unchanged)", async () => {
+      mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active" } });
+      vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "locked", trialDaysLeft: 0, plan: "pilot", trialEnded: true });
+      const r = await requireEntitledExtensionUser(reqWith("Bearer t"));
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect((await r.response.json()).error).toBe("Your 14-day C.A.R.E extension trial has ended.");
+    });
+
+    it("uses the passed label so a sales user never sees C.A.R.E branding", async () => {
+      mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active" } });
+      vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "locked", trialDaysLeft: 0, plan: "pilot", trialEnded: true });
+      const r = await requireEntitledExtensionUser(reqWith("Bearer t"), { productLabel: "Sales Coach extension" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        const body = await r.response.json();
+        expect(body.error).toBe("Your 14-day Sales Coach extension trial has ended.");
+        expect(body.error).not.toContain("C.A.R.E");
+      }
+    });
+
+    it("uses the label in the not-included message too (trial never started)", async () => {
+      mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active" } });
+      vi.mocked(getExtensionEntitlement).mockResolvedValue({ status: "locked", trialDaysLeft: 0, plan: "pilot", trialEnded: false });
+      const r = await requireEntitledExtensionUser(reqWith("Bearer t"), { productLabel: "Sales Coach extension" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect((await r.response.json()).error).toBe("Your plan doesn't include the Sales Coach extension.");
+    });
+  });
 });
