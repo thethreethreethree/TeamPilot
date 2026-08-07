@@ -79,8 +79,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("[coach/backfill-dissects] failed:", err);
+    // Manager-facing (the "Generate missing" button) — plain English, not "backfill" jargon.
     return NextResponse.json(
-      { error: "Backfill failed." },
+      { error: "Couldn't generate the missing reviews right now — please try again in a moment." },
       { status: 500 }
     );
   }

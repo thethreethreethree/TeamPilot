@@ -73,7 +73,11 @@ export async function POST(req: NextRequest) {
     stream = await synthesizeSpeechStream({ text: body.text, voiceId });
   } catch (e) {
     console.error("[coach/tts] synthesis failed:", e);
-    return NextResponse.json({ error: "TTS synthesis failed." }, { status: 502 });
+    // Rep-facing — plain English, not "TTS synthesis" jargon.
+    return NextResponse.json(
+      { error: "Couldn't play the coach's voice right now — please try again." },
+      { status: 502 }
+    );
   }
 
   return new NextResponse(stream, {
