@@ -88,3 +88,33 @@ describe("Sales Coach extension config — distinct-named from the C.A.R.E exten
     expect(CONFIG).not.toContain("CARE_TOOLS");
   });
 });
+
+describe("Sales Coach extension config — input max matches the route's zod cap (cross-artifact sync)", () => {
+  // Tools that carry an `input` (coach's draft, formulate's intent) expose a `max` the panel textarea will
+  // enforce. That number MUST equal the route's zod `.max()` for the same field — otherwise a rep types a
+  // message the client accepts but the server rejects (a silent, confusing failure). This locks the two
+  // numbers together (the drift-guard-for-comment-only-sync-contracts vein). An `input` immediately follows
+  // its tool's `endpoint`, so pairing endpoint→input this way can't cross tools.
+  const inputTools = Array.from(
+    CONFIG.matchAll(/endpoint:\s*"([^"]+)",\s*input:\s*\{[^}]*?key:\s*"([^"]+)"[^}]*?max:\s*(\d+)/g)
+  ).map((m) => ({ endpoint: m[1]!, inputKey: m[2]!, configMax: Number(m[3]) }));
+
+  it("finds the input-bearing tools (coach draft, formulate intent)", () => {
+    expect(inputTools.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(inputTools)(
+    "$endpoint input '$inputKey' (max $configMax) matches the route's zod cap",
+    ({ endpoint, inputKey, configMax }) => {
+      const routeFile = join(ROOT, "src", "app", endpoint.replace(/^\//, ""), "route.ts");
+      const route = readFileSync(routeFile, "utf-8");
+      // `<inputKey>: z.string()....max(N)` — N may use `_` digit separators (e.g. 8_000).
+      const m = route.match(new RegExp(`${inputKey}:\\s*z[^,}]*?\\.max\\(([\\d_]+)\\)`));
+      expect(m, `no zod .max() for '${inputKey}' in ${endpoint} route`).not.toBeNull();
+      const routeMax = Number(m![1].replace(/_/g, ""));
+      // If this fails: the panel textarea limit and the server's validation cap disagree — a rep could type a
+      // message the panel accepts but the route 400s. Align the config `max` and the route's zod `.max()`.
+      expect(routeMax).toBe(configMax);
+    }
+  );
+});
