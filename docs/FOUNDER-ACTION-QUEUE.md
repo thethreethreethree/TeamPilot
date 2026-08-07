@@ -23,6 +23,19 @@
 > cause). The CONFIG fix above is still needed to restore live coaching + transcription. Optional: I can add
 > a typed "voice not configured" (503) vs provider-error (502) distinction — say the word.
 > See [[reference_verify_env_by_observing_live_prod_output]].
+>
+> **↑ ADDENDUM 2026-08-07 (after your replies "I already added the key to Vercel" + "it was working before"):**
+> Two things changed the diagnosis. (1) I verified the env-var **name is consistent** in all 15 places it's
+> read (src + `env.ts` validator + `.env.example` all = `ELEVENLABS_API_KEY`), and `getApiKey()` reads
+> `process.env` at **runtime**, not a build snapshot — so a name typo / build-timing mismatch is **ruled out**;
+> the key you set is being read. (2) "Worked before → stopped **during active use** (9-min calls burn STT +
+> TTS credits)" is the classic signature of **credit/quota exhaustion → HTTP 402**, NOT a missing key.
+> **So check, in this order:** ① ElevenLabs dashboard → **credit balance / plan usage** (most likely — a
+> depleted balance stops a previously-working key mid-service). ② Vercel → the key is set for **Production**
+> scope specifically (not only Preview), and the deploy that's running is **after** you added it (my recent
+> pushes each triggered a fresh Production deploy, so this is likely already satisfied). ③ The `[elevenlabs.stt]`
+> / `[coach/realtime-token]` function log now prints the exact status — **402** confirms quota, **401** a
+> rotated/wrong key, **403** a plan without Scribe. Paste that line and I'll pinpoint it.
 
 ## 🔴 TOP — 2026-08-06: client "Your read" outage FIXED (live) + a transcript incident I caused that needs YOUR call
 
