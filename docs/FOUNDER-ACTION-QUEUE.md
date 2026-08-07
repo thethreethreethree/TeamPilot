@@ -15,6 +15,14 @@
 > this permission cause**; 402 = quota (top up); 403 = plan lacks Scribe. ⬇ original quota-first framing below,
 > now the SECOND hypothesis.
 >
+> **⚠ ENABLE BOTH SCOPES IN ONE PASS (holistic ripple — verified from code 2026-08-07):** the app hits THREE
+> ElevenLabs endpoints on this ONE key, gated by TWO scopes. Enabling only STT fixes the two on-screen errors
+> but leaves **Jeff's voice + the coach's live cues broken** (both are TTS) — you'd be back here tomorrow.
+> Enable **both**:
+> · **Speech to Text** → `speech-to-text` (recording transcription/diarization) **+** `single-use-token`
+>   (the live realtime-Scribe token = "Token mint"). One scope covers both.
+> · **Text to Speech** → `text-to-speech` (Jeff's C.A.R.E voice **and** the Sales-Coach live cue audio).
+>
 > **From your screenshot (Live Coaching page): "Token mint failed" + "Transcription failed".** Diagnosed:
 > NOT a code bug. I reproduced the exact ElevenLabs realtime-token mint with the key from `.env.local` →
 > **HTTP 200 + a valid token**, so the code, endpoint (`/v1/single-use-token/realtime_scribe`), request shape,
