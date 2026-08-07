@@ -95,8 +95,31 @@ export async function generateSalesReview(args: {
     });
     if (r.suppressed) return EMPTY_REVIEW;
 
-    return parseSalesReview(r.text) ?? EMPTY_REVIEW;
-  } catch {
+    // Do NOT swallow an EMPTY/unparseable LLM response silently — that is the error-dressed-as-no-data failure
+    // (INV22) that hid the 2026-07-30 blank-"Your read" outage for two weeks on THIS engine (debriefCoachV5,
+    // the after-pitch narrative). Log the distinct failure mode so a regression surfaces immediately instead
+    // of going blank. Mirrors generateSalesDissect. See reference_reasoning_model_token_starvation.
+    if (!r.text || !r.text.trim()) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[generateSalesReview] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely reasoning-model token-budget starvation. Review ("Your read") will be blank.`
+      );
+      return EMPTY_REVIEW;
+    }
+    const parsed = parseSalesReview(r.text);
+    if (!parsed || !parsed.hasSignal) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[generateSalesReview] parseSalesReview produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no strengths extracted.`
+      );
+      return EMPTY_REVIEW;
+    }
+    return parsed;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[generateSalesReview] threw: ${e instanceof Error ? e.message : String(e)}`
+    );
     return EMPTY_REVIEW;
   }
 }
