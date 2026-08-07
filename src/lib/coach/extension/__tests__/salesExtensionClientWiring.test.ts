@@ -66,6 +66,49 @@ describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", (
   });
 });
 
+describe("Sales Coach adapters.js — routes hostnames to adapters (behavior, not just presence)", () => {
+  // A string-presence check would still pass if a `match:` predicate had a typo (e.g. "web.telegam.org"),
+  // silently routing nothing. adapters.js only touches `document` inside function bodies, so evaluating it
+  // here (no DOM at load) lets us assert the ACTUAL routing — the seam a rep hits on each platform.
+  type Adapter = { key: string; extract: () => string } | null;
+  const g = globalThis as unknown as { salesAdapterFor?: (h: string) => Adapter };
+  // eslint-disable-next-line no-eval
+  (0, eval)(ADAPTERS);
+  const route = g.salesAdapterFor;
+
+  const HOSTS: Record<string, string> = {
+    "mail.google.com": "gmail",
+    "outlook.office.com": "outlook",
+    "web.whatsapp.com": "whatsapp",
+    "www.instagram.com": "instagram",
+    "www.facebook.com": "messenger",
+    "www.linkedin.com": "linkedin",
+    "app.slack.com": "slack",
+    "web.telegram.org": "telegram",
+    "teams.microsoft.com": "teams",
+    "discord.com": "discord",
+    "x.com": "twitter",
+    "chat.google.com": "googlechat",
+    "voice.google.com": "googlevoice",
+  };
+
+  it("exposes salesAdapterFor after evaluation", () => {
+    expect(typeof route).toBe("function");
+  });
+
+  for (const [host, key] of Object.entries(HOSTS)) {
+    it(`routes ${host} → ${key} with a callable extract()`, () => {
+      const a = route?.(host);
+      expect(a?.key).toBe(key);
+      expect(typeof a?.extract).toBe("function");
+    });
+  }
+
+  it("returns null for an unknown host (→ manual selection fallback)", () => {
+    expect(route?.("example.com")).toBeNull();
+  });
+});
+
 describe("Sales Coach downloadable package — the served zip + wiring", () => {
   it("the built zip exists (public/sales-coach-extension.zip)", () => {
     expect(existsSync(join(ROOT, "public", "sales-coach-extension.zip"))).toBe(true);
