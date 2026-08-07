@@ -48,6 +48,12 @@
 > needed)? It's low-risk (same code path as upload-recording, sourcing bytes from storage) but it's a new
 > user-facing surface, so per AMD-006 I'm surfacing it for your call rather than building it unasked. Say the
 > word and I'll trace the trigger (button on the session's After-Pitch page vs. a manager batch tool) and build it.
+>
+> **↳ VERIFIED 2026-08-07 (read-only storage check):** all 4 orphaned recordings' audio blobs **confirmed
+> present in storage** (`assets-v1`) — so recovery is genuinely possible, not a false promise. **AND all 4
+> are dated TODAY (Aug 7)** — not spread across the 14-day window. That means the ElevenLabs failure is **live
+> right now** and actively losing your client's sessions *today* — the credit-balance check ① above is
+> time-sensitive, not cleanup.
 
 ## 🔴 TOP — 2026-08-06: client "Your read" outage FIXED (live) + a transcript incident I caused that needs YOUR call
 
