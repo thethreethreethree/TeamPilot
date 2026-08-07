@@ -5,6 +5,11 @@ developer-facing port instructions see [`extension-sales/README.md`](../extensio
 
 ---
 
+> **Status (2026-08-08): functionally complete end-to-end.** Download → install → Sign in → run the 5 tools
+> is all built, CI-green, and deployed. Two founder calls remain before a **public** launch: a real Sales
+> Coach **icon** (the toolbar icon is a C.A.R.E placeholder today) and the **entitlement-source** decision
+> (share the C.A.R.E plan vs a separate sales SKU). Neither blocks you testing it yourself now.
+
 ## What it is
 
 A **standalone Chrome extension** (your architecture decision, 2026-08-08) that puts sales coaching on the
