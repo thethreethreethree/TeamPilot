@@ -13,7 +13,8 @@ import { mintRealtimeSttToken } from "@/lib/care/voice/elevenlabs";
  * Auth-gated: only a signed-in user gets a token. The token itself is
  * single-use + ~15-min TTL, so it's low-value if intercepted.
  *
- * UNTESTED against the live ElevenLabs token API.
+ * VERIFIED live 2026-08-06 (HTTP 200 + token). A prod "Token mint failed" is env/deploy/account, not code —
+ * a Vercel env-var change (adding ELEVENLABS_API_KEY) needs a REDEPLOY to take effect. See the server log.
  */
 // Awaits an in-path external ElevenLabs call (mintRealtimeSttToken). A modest ceiling
 // over Vercel's short default so a provider latency spike returns the graceful 502

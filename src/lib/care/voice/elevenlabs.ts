@@ -240,7 +240,8 @@ export type DiarizedSegment = { speakerId: string; text: string; start: number }
  *
  * Response shape verified against the ElevenLabs convert docs
  * (2026-06-27): words[] each carry text + speaker_id + start + type.
- * UNTESTED against a live call — needs a real key + recording.
+ * VERIFIED against the live API 2026-08-06: POST /v1/speech-to-text scribe_v1 diarize → HTTP 200 + a valid
+ * transcription response (silent-audio probe). A prod "Transcription failed" is env/account, not this code.
  */
 export async function transcribeWithDiarization(args: {
   audio: Buffer;
@@ -308,7 +309,11 @@ export async function transcribeWithDiarization(args: {
  *
  * Endpoint verified against the ElevenLabs docs (2026-06-27):
  * POST /v1/single-use-token/realtime_scribe with the xi-api-key header.
- * UNTESTED against the live API.
+ * VERIFIED against the live API 2026-08-06: POST /v1/single-use-token/realtime_scribe with the trimmed
+ * xi-api-key returns HTTP 200 + a single-use `token`. So a prod "Token mint failed" is NOT this code — it is
+ * the deployed environment: ELEVENLABS_API_KEY missing OR present-but-not-yet-live (a Vercel env-var change
+ * needs a REDEPLOY to take effect) OR a key/account problem (401 wrong key, 402/403 quota/plan). Read the
+ * "[realtime-token] mint failed:" server log line for which.
  */
 export async function mintRealtimeSttToken(): Promise<string> {
   const apiKey = getApiKey();
