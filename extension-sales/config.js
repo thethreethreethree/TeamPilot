@@ -25,6 +25,8 @@ if (!globalThis.__salesCoachConfigLoaded) {
     { key: "coach", label: "Coach my reply", desc: "Grade your draft vs the sales books", endpoint: "/api/coach/extension/coach",
       input: { key: "draft", label: "Your draft reply", placeholder: "Paste or type the reply you're about to send…", max: 8000 } },
     { key: "copilot", label: "Draft my reply", desc: "Draft the next message + name the move", endpoint: "/api/coach/extension/copilot" },
+    { key: "formulate", label: "Say it for me", desc: "Shape what you want to say into a strong message", endpoint: "/api/coach/extension/formulate",
+      input: { key: "intent", label: "What do you want to get across?", placeholder: "e.g. I want to acknowledge the price concern but hold the value…", max: 2000 } },
   ];
 
   globalThis.getApiBase = async function getApiBase() {
