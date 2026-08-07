@@ -36,6 +36,18 @@
 > pushes each triggered a fresh Production deploy, so this is likely already satisfied). ③ The `[elevenlabs.stt]`
 > / `[coach/realtime-token]` function log now prints the exact status — **402** confirms quota, **401** a
 > rotated/wrong key, **403** a plan without Scribe. Paste that line and I'll pinpoint it.
+>
+> **↳ RECOVERY finding (read-only prod check, 2026-08-07):** the outage left **4 orphaned recordings** —
+> `coaching_sessions` rows where the **audio IS saved** (`audio_asset_url` stamped) but there are **zero
+> transcript segments** (all 4 created in the last 14 days = the outage window; 4 of 7 total saved
+> recordings). Those reps recorded a call, transcription 502'd, the audio was preserved but never turned into
+> a transcript/coaching. **They ARE recoverable once you fix the key/quota** — but the current retry only
+> works if the rep still has the original file on their device; there is **no re-transcribe-from-stored-audio
+> path**. **Decision for you:** want me to build a small manager-gated "Re-transcribe saved recording" recovery
+> (reads `audio_asset_url` from storage → re-runs the same diarization → produces the transcript, no re-upload
+> needed)? It's low-risk (same code path as upload-recording, sourcing bytes from storage) but it's a new
+> user-facing surface, so per AMD-006 I'm surfacing it for your call rather than building it unasked. Say the
+> word and I'll trace the trigger (button on the session's After-Pitch page vs. a manager batch tool) and build it.
 
 ## 🔴 TOP — 2026-08-06: client "Your read" outage FIXED (live) + a transcript incident I caused that needs YOUR call
 
