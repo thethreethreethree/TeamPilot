@@ -247,6 +247,49 @@ export async function uploadAssetBytes(args: {
  * customer has no auth.users row for RLS to key on). A new caller that signs a path without
  * first proving access is a cross-tenant / cross-conversation file-bytes leak.
  */
+/**
+ * Download an object's raw bytes via the ADMIN storage client (server-side only).
+ * Mirrors uploadAssetBytes. Like signAssetUrl this performs NO authorization of its
+ * own — the ADMIN client bypasses RLS — so EVERY caller MUST have already authorized
+ * the caller's access to THIS object, and must never pass a storagePath derived from
+ * unvalidated caller input. Returns the bytes as a Buffer so callers can hand them
+ * straight to server-side consumers (e.g. transcribeWithDiarization).
+ */
+export async function downloadAssetBytes(args: {
+  storagePath: string;
+}): Promise<{ ok: boolean; bytes?: Buffer; contentType?: string; error?: string }> {
+  const sb = createAdminClient();
+  const { data, error } = await sb.storage
+    .from(ASSETS_BUCKET)
+    .download(args.storagePath);
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Object not found in storage." };
+  }
+  const arrayBuf = await data.arrayBuffer();
+  return {
+    ok: true,
+    bytes: Buffer.from(arrayBuf),
+    contentType: data.type || undefined,
+  };
+}
+
+/**
+ * Parse a stored asset pointer into a bucket-relative storagePath, or null if the
+ * pointer isn't the recognized `${ASSETS_BUCKET}/<path>` shape.
+ *
+ * The audio_asset_url column has THREE writers that do NOT agree on its shape (see
+ * recording-purge-cron): upload-recording writes `${ASSETS_BUCKET}/${storagePath}`,
+ * while the session PATCH route accepts a full URL. An unrecognized pointer means we
+ * cannot know the object's real path, so callers must treat null as "leave it alone",
+ * never as "use the raw string as a path" (that is the false-ok class the cron warns
+ * about). Centralized here so download/sign/purge callers agree on the parse.
+ */
+export function assetUrlToStoragePath(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (!url.startsWith(`${ASSETS_BUCKET}/`)) return null;
+  return url.slice(ASSETS_BUCKET.length + 1);
+}
+
 export async function signAssetUrl(args: {
   storagePath: string;
   expiresInSeconds?: number;

@@ -61,6 +61,9 @@ type Session = {
   offer: string | null;
   outcome: SalesOutcome | null;
   dealValue: number | null;
+  // Present when a recording was saved (getSession returns it). Used to offer the
+  // re-transcribe-from-storage recovery when the transcript is empty.
+  audioAssetUrl: string | null;
 };
 
 type Strength = { point: string; example: string };
@@ -999,6 +1002,12 @@ export default function SessionDetail() {
             <SessionRecordingUpload
               sessionId={id}
               onLabeled={openNaming}
+              // Recovery: the recording saved but the transcript never landed (STT
+              // outage). Offer re-transcribe-from-storage only when a transcript
+              // does NOT already exist — re-labeling would append a duplicate.
+              hasSavedRecording={
+                !!session?.audioAssetUrl && transcript.length === 0
+              }
             />
 
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.

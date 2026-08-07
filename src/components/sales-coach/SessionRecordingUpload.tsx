@@ -24,12 +24,18 @@ export function SessionRecordingUpload({
   sessionId,
   onLabeled,
   initialBlob = null,
+  hasSavedRecording = false,
 }: {
   sessionId: string;
   onLabeled: () => void;
   /** F2: a recording handed in from the live coaching loop. When set,
    *  it's uploaded automatically (no file picker). */
   initialBlob?: Blob | null;
+  /** Recovery: the session already has a saved recording (audio_asset_url) but
+   *  no transcript — the orphaned state left by an STT outage. When true, offer
+   *  "Re-transcribe from the saved recording" so the rep doesn't have to re-find
+   *  and re-upload a file the server already holds. */
+  hasSavedRecording?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const labelingRef = useRef(false);
@@ -39,6 +45,19 @@ export function SessionRecordingUpload({
   const [segments, setSegments] = useState<DiarizedSegment[]>([]);
   const [speakers, setSpeakers] = useState<SpeakerSample[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Shared response handling for both transcription entry points (fresh upload
+  // and re-transcribe-from-storage) — they return the identical {segments,speakers}
+  // shape and feed the same speaker-tap step.
+  const applyTranscribeResponse = async (res: Response) => {
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
+    if (!d.segments?.length) {
+      throw new Error("No speech was transcribed from that recording.");
+    }
+    setSegments(d.segments);
+    setSpeakers(d.speakers ?? []);
+  };
 
   const uploadBlob = async (blob: Blob, name: string) => {
     setPhase("uploading");
@@ -50,19 +69,30 @@ export function SessionRecordingUpload({
         `/api/coach/sales-session/${sessionId}/upload-recording`,
         { method: "POST", body: fd }
       );
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
-      if (!d.segments?.length) {
-        throw new Error("No speech was transcribed from that recording.");
-      }
-      setSegments(d.segments);
-      setSpeakers(d.speakers ?? []);
+      await applyTranscribeResponse(res);
       setPhase("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("idle");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  // Recovery: re-transcribe the recording the server already holds (no re-upload).
+  const retranscribe = async () => {
+    setPhase("uploading");
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/coach/sales-session/${sessionId}/retranscribe`,
+        { method: "POST" }
+      );
+      await applyTranscribeResponse(res);
+      setPhase("idle");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setPhase("idle");
     }
   };
 
@@ -207,6 +237,23 @@ export function SessionRecordingUpload({
           className="hidden"
         />
       </div>
+      {hasSavedRecording && (
+        <div className="mt-3 pt-3 border-t border-default/60">
+          <p className="text-[11px] text-muted mb-2">
+            This call was recorded, but the transcript didn&apos;t save. You can
+            rebuild it straight from the saved recording — no need to find the file.
+          </p>
+          <LoadingButton
+            pending={phase === "uploading"}
+            onClick={() => void retranscribe()}
+            icon={<Loader2 className="w-3.5 h-3.5" aria-hidden />}
+            pendingLabel="Re-transcribing…"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-strong hover:bg-white/[0.04] disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
+          >
+            Re-transcribe from saved recording
+          </LoadingButton>
+        </div>
+      )}
       {error && <p className="text-xs text-red-300 mt-2">{error}</p>}
     </section>
   );
