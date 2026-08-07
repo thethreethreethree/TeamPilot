@@ -37,6 +37,15 @@ export async function POST(req: NextRequest) {
       conversation: body.conversation,
       repName,
     });
+    // A successful call that returns an empty string would render as a blank "caught up" state — the exact
+    // false-empty this route's contract forbids (§3.4). Surface it as a failure, mirroring copilot/formulate.
+    if (!summary) {
+      console.error("[coach/extension/summarize] model returned an empty summary");
+      return NextResponse.json(
+        { error: "Couldn't catch you up right now. Try again." },
+        { status: 502 }
+      );
+    }
     return NextResponse.json({ summary });
   } catch (err) {
     // Rate-limit → 429 (client backs off), other failures → 502 — never a false-empty summary.

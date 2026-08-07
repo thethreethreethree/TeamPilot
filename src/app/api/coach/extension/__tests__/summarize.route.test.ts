@@ -65,6 +65,15 @@ describe("POST /api/coach/extension/summarize — gate ordering + error mapping"
     expect(vi.mocked(generateSalesSummary).mock.calls[0]?.[0]).toMatchObject({ repName: "Dana Rep" });
   });
 
+  it("maps an EMPTY summary (successful call, blank text) to 502 — never a false-empty 'caught up' (§3.4)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(generateSalesSummary).mockResolvedValue("");
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+    expect((await res.json()).summary).toBeUndefined();
+    spy.mockRestore();
+  });
+
   it("maps a provider RATE-LIMIT LlmError to 429 (not a false-empty summary)", async () => {
     vi.mocked(generateSalesSummary).mockRejectedValue(new LlmError({ kind: "rate_limit", message: "slow down", provider: "deepseek" }));
     const res = await POST(req);
