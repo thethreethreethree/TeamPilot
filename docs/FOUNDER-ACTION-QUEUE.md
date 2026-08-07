@@ -8,7 +8,9 @@
 > and that key all work. Both failing paths (live token `realtime-token/route.ts` + upload transcription
 > `upload-recording/route.ts` → `transcribeWithDiarization`) use the SAME ElevenLabs key. So the prod failure
 > is the classic works-locally-missing-in-prod class: **`ELEVENLABS_API_KEY` in Vercel Production is missing,
-> malformed, or a different key lacking Scribe/STT access.**
+> malformed, or a different key lacking Scribe/STT access.** BOTH paths reproduced working locally with the
+> `.env.local` key (realtime mint → 200 + token; batch STT `/v1/speech-to-text` `scribe_v1` → 200 + valid
+> transcription), so neither has a separate code bug — the single prod-key fix restores BOTH at once.
 >
 > **YOUR FIX (~2 min, config not code):** Vercel → Project → Settings → Environment Variables → set/verify
 > **`ELEVENLABS_API_KEY`** (Production) = the working key in `.env.local` (`sk_593…`, len 51). Fixes BOTH
