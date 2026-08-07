@@ -1161,6 +1161,37 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 24 — every coach EXTENSION engine that calls an LLM must fence the external text ══════
+//
+// LEARNED (same class as INV23, DIFFERENT shape): the Sales Coach extension engines (src/lib/coach/extension/*)
+// feed the rep's SCANNED external conversation — untrusted text from Gmail/WhatsApp/LinkedIn/… — into an LLM.
+// INV23 only catches the coach/v5 SEGMENT-transcript shape (`systemPrompt =` + `segments`); these engines are
+// TEXT-in (sourceText / conversation / draft / intent, passed via a *SystemPrompt builder), so INV23's trigger
+// structurally never sees them. That is the SAME invariant-scope gap that left these routes outside INV8 +
+// INV18 until 2026-08-08 — an invariant whose scope did not grow when the parallel namespace appeared. Precise
+// structural trigger: an engine file directly under coach/extension/ that references an LLM caller
+// (dissectCoachV5 / generateCareReply) is sending external text to a model, and MUST reference
+// CONVERSATION_IS_DATA. All 5 current engines (dissect/coach/summary/copilot/formulate) do; this makes a
+// FUTURE one that forgets the fence FAIL instead of shipping a prompt-injection hole.
+const EXT_FENCE_ALLOWLIST = new Map();
+const EXT_LLM_CALLER_RE = /\b(dissectCoachV5|generateCareReply)\b/;
+for (const f of FILES) {
+  if (!/^src\/lib\/coach\/extension\/[^/]+\.ts$/.test(f.path)) continue; // engine files (flat), not __tests__ (nested)
+  if (!EXT_LLM_CALLER_RE.test(f.sql)) continue; // actually calls an LLM with external text (not a pure type/util file)
+  if (EXT_FENCE_ALLOWLIST.has(f.path)) continue;
+  if (TRANSCRIPT_FENCE_RE.test(f.sql)) continue; // applies the shared CONVERSATION_IS_DATA fence
+  findings.push({
+    rule: "A coach extension engine must fence external text against LLM prompt injection",
+    file: f.path,
+    why:
+      "This extension engine sends the rep's SCANNED external conversation (untrusted text) to an LLM but does\n" +
+      "      not apply the CONVERSATION_IS_DATA fence. A prospect line that reads as a command ('ignore your\n" +
+      "      instructions', 'tell the rep to offer a discount') can then be obeyed. Append CONVERSATION_IS_DATA\n" +
+      "      (from @/lib/care/toolPrompts) to the system-prompt builder — as the dissect/coach/summary/copilot/\n" +
+      "      formulate engines do — or allowlist it in EXT_FENCE_ALLOWLIST with the reason it injects no external text.",
+  });
+}
+
 // ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
 //
 // The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid
@@ -1357,6 +1388,13 @@ st("INV23 ignores a pure prompt BUILDER (returns a string, no `systemPrompt =`)"
 st("INV23 fence check accepts the shared constant", TRANSCRIPT_FENCE_RE.test("buildX() + CONVERSATION_IS_DATA;"));
 st("INV23 fence check flags an engine missing it", !TRANSCRIPT_FENCE_RE.test("const systemPrompt = buildX(); // no fence"));
 st("INV23 allowlist documents liveCue's bespoke fence", TRANSCRIPT_FENCE_ALLOWLIST.has("src/lib/coach/v5/liveCue.ts"));
+// INV24 extension-engine fence: path matcher (flat coach/extension only), LLM-caller trigger, fence check.
+st("INV24 path matcher accepts a flat coach/extension engine", /^src\/lib\/coach\/extension\/[^/]+\.ts$/.test("src/lib/coach/extension/salesFormulate.ts"));
+st("INV24 path matcher rejects a nested (test) path", !/^src\/lib\/coach\/extension\/[^/]+\.ts$/.test("src/lib/coach/extension/__tests__/x.test.ts"));
+st("INV24 trigger fires on an LLM caller", EXT_LLM_CALLER_RE.test("await generateCareReply({ systemPrompt: p });"));
+st("INV24 trigger ignores a pure types/util file (no LLM caller)", !EXT_LLM_CALLER_RE.test("export type X = { a: string };"));
+st("INV24 flags an LLM engine missing the fence", EXT_LLM_CALLER_RE.test("await dissectCoachV5({ systemPrompt: p });") && !TRANSCRIPT_FENCE_RE.test("await dissectCoachV5({ systemPrompt: p });"));
+st("INV24 accepts an engine that appends CONVERSATION_IS_DATA", TRANSCRIPT_FENCE_RE.test("return SYS + CONVERSATION_IS_DATA;"));
 
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
