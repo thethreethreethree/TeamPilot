@@ -1,5 +1,27 @@
 # Founder action queue
 
+## 🔴 TOP — 2026-08-06: Live Coaching "Token mint failed" / "Transcription failed" — a PROD ENV FIX YOU must do (~2 min)
+
+> **From your screenshot (Live Coaching page): "Token mint failed" + "Transcription failed".** Diagnosed:
+> NOT a code bug. I reproduced the exact ElevenLabs realtime-token mint with the key from `.env.local` →
+> **HTTP 200 + a valid token**, so the code, endpoint (`/v1/single-use-token/realtime_scribe`), request shape,
+> and that key all work. Both failing paths (live token `realtime-token/route.ts` + upload transcription
+> `upload-recording/route.ts` → `transcribeWithDiarization`) use the SAME ElevenLabs key. So the prod failure
+> is the classic works-locally-missing-in-prod class: **`ELEVENLABS_API_KEY` in Vercel Production is missing,
+> malformed, or a different key lacking Scribe/STT access.**
+>
+> **YOUR FIX (~2 min, config not code):** Vercel → Project → Settings → Environment Variables → set/verify
+> **`ELEVENLABS_API_KEY`** (Production) = the working key in `.env.local` (`sk_593…`, len 51). Fixes BOTH
+> errors at once (shared key). Confirm which cause from the Vercel function log: `ELEVENLABS_API_KEY env var
+> is missing` (not set) · `ElevenLabs token mint failed: 401` (wrong/whitespaced) · `402/403` (plan lacks
+> Scribe realtime). Whitespace is auto-trimmed by `getApiKey`, so a paste-newline is already handled.
+>
+> **Shipped (client-facing):** replaced the leaked dev jargon "Token mint failed" / "Transcription failed"
+> with plain rep-facing messages that point at the Upload-recording fallback (server log keeps the real
+> cause). The CONFIG fix above is still needed to restore live coaching + transcription. Optional: I can add
+> a typed "voice not configured" (503) vs provider-error (502) distinction — say the word.
+> See [[reference_verify_env_by_observing_live_prod_output]].
+
 ## 🔴 TOP — 2026-08-06: client "Your read" outage FIXED (live) + a transcript incident I caused that needs YOUR call
 
 > **✅ CLIENT ISSUE RESOLVED + LIVE.** The client's frustration ("9-min call, nothing on Your read + scores")
