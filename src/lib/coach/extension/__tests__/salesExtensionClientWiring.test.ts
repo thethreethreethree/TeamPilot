@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import vm from "node:vm";
 
 /**
  * Port-completeness guard for the Sales Coach extension CLIENT files that ship in the downloadable package
@@ -66,46 +67,98 @@ describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", (
   });
 });
 
-describe("Sales Coach adapters.js — routes hostnames to adapters (behavior, not just presence)", () => {
+describe("Sales Coach adapters.js — routing + extraction behavior (mirrors the C.A.R.E adapter guard)", () => {
   // A string-presence check would still pass if a `match:` predicate had a typo (e.g. "web.telegam.org"),
-  // silently routing nothing. adapters.js only touches `document` inside function bodies, so evaluating it
-  // here (no DOM at load) lets us assert the ACTUAL routing — the seam a rep hits on each platform.
-  type Adapter = { key: string; extract: () => string } | null;
-  const g = globalThis as unknown as { salesAdapterFor?: (h: string) => Adapter };
-  // eslint-disable-next-line no-eval
-  (0, eval)(ADAPTERS);
-  const route = g.salesAdapterFor;
-
-  const HOSTS: Record<string, string> = {
-    "mail.google.com": "gmail",
-    "outlook.office.com": "outlook",
-    "web.whatsapp.com": "whatsapp",
-    "www.instagram.com": "instagram",
-    "www.facebook.com": "messenger",
-    "www.linkedin.com": "linkedin",
-    "app.slack.com": "slack",
-    "web.telegram.org": "telegram",
-    "teams.microsoft.com": "teams",
-    "discord.com": "discord",
-    "x.com": "twitter",
-    "chat.google.com": "googlechat",
-    "voice.google.com": "googlevoice",
+  // silently routing nothing. adapters.js is a browser global-style script; we load it in a vm with a mocked
+  // `document` (the codebase pattern from src/lib/care/__tests__/extensionAdapters.test.ts) and assert the two
+  // pure pieces verifiable without a real browser: host→adapter routing, and textFrom's extraction contract
+  // (order, hidden-node skip, the §3.4 never-fabricate→empty guarantee, length cap). Live selectors against
+  // real third-party DOMs are necessarily browser-confirmed per platform.
+  type FakeNode = {
+    innerText: string;
+    textContent: string;
+    offsetParent: object | null;
+    getClientRects: () => object[];
+    classList?: { contains: (c: string) => boolean };
   };
-
-  it("exposes salesAdapterFor after evaluation", () => {
-    expect(typeof route).toBe("function");
+  const node = (text: string, hidden = false): FakeNode => ({
+    innerText: text,
+    textContent: text,
+    offsetParent: hidden ? null : {},
+    getClientRects: () => (hidden ? [] : [{}]),
   });
 
-  for (const [host, key] of Object.entries(HOSTS)) {
-    it(`routes ${host} → ${key} with a callable extract()`, () => {
-      const a = route?.(host);
-      expect(a?.key).toBe(key);
-      expect(typeof a?.extract).toBe("function");
-    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function loadAdapters(nodesBySel: Record<string, FakeNode[]> = {}): any {
+    // In a vm context `globalThis` inside the script resolves to the context object itself, so adapters.js's
+    // `globalThis.salesAdapterFor = ...` lands directly on ctx (the C.A.R.E test relies on the same behavior).
+    const ctx: Record<string, unknown> = {
+      document: { querySelectorAll: (s: string) => nodesBySel[s] || [] },
+      console,
+    };
+    vm.createContext(ctx);
+    vm.runInContext(ADAPTERS, ctx);
+    return ctx;
   }
 
+  const routes: Array<[string, string]> = [
+    ["mail.google.com", "gmail"],
+    ["outlook.office.com", "outlook"],
+    ["web.whatsapp.com", "whatsapp"],
+    ["www.instagram.com", "instagram"],
+    ["www.facebook.com", "messenger"],
+    ["www.linkedin.com", "linkedin"],
+    ["app.slack.com", "slack"],
+    ["web.telegram.org", "telegram"],
+    ["teams.microsoft.com", "teams"],
+    ["discord.com", "discord"],
+    ["x.com", "twitter"],
+    ["chat.google.com", "googlechat"],
+    ["voice.google.com", "googlevoice"],
+  ];
+
+  it.each(routes)("routes %s → the %s adapter with a callable extract()", (host, key) => {
+    const a = loadAdapters().salesAdapterFor(host);
+    expect(a?.key).toBe(key);
+    expect(typeof a?.extract).toBe("function");
+  });
+
   it("returns null for an unknown host (→ manual selection fallback)", () => {
-    expect(route?.("example.com")).toBeNull();
+    expect(loadAdapters().salesAdapterFor("example.com")).toBeNull();
+  });
+
+  it("concatenates visible message bodies in document order", () => {
+    const g = loadAdapters({ ".a3s": [node("Interested — what's pricing?"), node("Happy to walk you through it.")] });
+    expect(g.salesAdapterFor("mail.google.com").extract()).toBe(
+      "Interested — what's pricing?\n\nHappy to walk you through it."
+    );
+  });
+
+  it("skips hidden nodes (e.g. collapsed quoted history)", () => {
+    const g = loadAdapters({ ".a3s": [node("live text"), node("QUOTED OLD HISTORY", true)] });
+    expect(g.salesAdapterFor("mail.google.com").extract()).not.toContain("QUOTED");
+  });
+
+  it("returns empty string when selectors match nothing — never fabricates (§3.4)", () => {
+    expect(loadAdapters({}).salesAdapterFor("web.whatsapp.com").extract()).toBe("");
+  });
+
+  it("caps extracted text length to keep payloads bounded", () => {
+    const g = loadAdapters({ "[data-pre-plain-text]": [node("x".repeat(30000))] });
+    expect(g.salesAdapterFor("web.whatsapp.com").extract().length).toBe(20000);
+  });
+
+  it("WhatsApp lastSpeaker reads message direction (message-out = the rep → 'agent')", () => {
+    const withClass = (text: string, out: boolean): FakeNode => ({
+      ...node(text),
+      classList: { contains: (c: string) => (c === "message-out" ? out : !out) },
+    });
+    const g = loadAdapters({ ".message-in, .message-out": [withClass("earlier", false), withClass("their reply", false)] });
+    expect(g.salesAdapterFor("web.whatsapp.com").lastSpeaker()).toBe("customer");
+    const g2 = loadAdapters({ ".message-in, .message-out": [withClass("my last line", true)] });
+    expect(g2.salesAdapterFor("web.whatsapp.com").lastSpeaker()).toBe("agent");
+    const g3 = loadAdapters({});
+    expect(g3.salesAdapterFor("web.whatsapp.com").lastSpeaker()).toBeNull();
   });
 });
 
