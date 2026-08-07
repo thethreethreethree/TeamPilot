@@ -268,6 +268,21 @@ export async function transcribeWithDiarization(args: {
   });
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    // Same diagnostic as the token mint + TTS — surface the 401/402/403 cause in the log so "Transcription
+    // failed" is debuggable at a glance (both share the ELEVENLABS_API_KEY / account).
+    if (typeof console !== "undefined") {
+      if (response.status === 401) {
+        console.error(
+          `[care/voice] ElevenLabs rejected diarized STT auth (401): ELEVENLABS_API_KEY is present but INVALID. ` +
+            `Re-check the Vercel value (wrong/expired key or stray char). Provider: ${err.slice(0, 200)}`
+        );
+      } else if (response.status === 402 || response.status === 403) {
+        console.error(
+          `[care/voice] ElevenLabs rejected diarized STT (${response.status}): likely a quota/billing/plan limit ` +
+            `on the account. Check elevenlabs.io usage/billing. Provider: ${err.slice(0, 200)}`
+        );
+      }
+    }
     throw new Error(
       `ElevenLabs diarized STT failed: ${response.status} ${err.slice(0, 300)}`
     );
@@ -326,6 +341,22 @@ export async function mintRealtimeSttToken(): Promise<string> {
   );
   if (!response.ok) {
     const err = await response.text().catch(() => "");
+    // Make the cause obvious in the server log (matches synthesizeSpeechStream's 401 diagnostic) so an
+    // operator debugging "Token mint failed" reads the reason, not a raw status.
+    if (typeof console !== "undefined") {
+      if (response.status === 401) {
+        console.error(
+          `[care/voice] ElevenLabs rejected realtime-token auth (401): ELEVENLABS_API_KEY is present but INVALID. ` +
+            `Re-check the Vercel value — a wrong/expired key or a stray character (whitespace is auto-trimmed). ` +
+            `Confirm the key is active in elevenlabs.io → API Keys. Provider: ${err.slice(0, 200)}`
+        );
+      } else if (response.status === 402 || response.status === 403) {
+        console.error(
+          `[care/voice] ElevenLabs rejected realtime-token (${response.status}): likely a quota/billing/plan ` +
+            `limit on the account (Scribe v2 Realtime access). Check elevenlabs.io usage/billing. Provider: ${err.slice(0, 200)}`
+        );
+      }
+    }
     throw new Error(
       `ElevenLabs token mint failed: ${response.status} ${err.slice(0, 300)}`
     );
