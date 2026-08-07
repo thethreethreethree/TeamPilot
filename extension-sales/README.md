@@ -53,6 +53,9 @@ tools only — NOT the RCD capture, media upload, or image-permission machinery 
 3. **`adapters.js`** — per-site DOM readers. Copy the C.A.R.E adapters (same platforms, same reasoned-but-
    UNVERIFIED selectors) — they read the same DOM. Add the `lastSpeaker` read where the platform exposes it
    (drives copilot reply-vs-follow-up). Every selector stays labeled UNVERIFIED until confirmed live.
+   **The platform list, hostnames, reachability, and reuse-vs-new mapping are in
+   [`PLATFORM-COVERAGE.md`](./PLATFORM-COVERAGE.md)** — port Tier 1 (all six founder-named platforms, by
+   reuse) first, then Tier 2 by sales relevance.
 4. **Auth handoff** — the `refresh` route is built (`/api/coach/extension/refresh`). Still needed: a sales
    `connect` page (`/extension/connect`) + token mint mirroring the C.A.R.E handoff so "Sign in" is one
    click, and the background `onMessageExternal` `sales-connect` receiver that stores the token. Until the

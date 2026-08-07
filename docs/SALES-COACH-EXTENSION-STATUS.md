@@ -83,9 +83,12 @@ The handoff (#3) depends on decision **#1** (which entitlement the sign-in grant
 - **Nothing here is a shipped end-user feature yet** — no rep can click a tool until the Phase 2 client is
   built. The server side is verified *substrate*; every build record says so plainly rather than dressing it
   up.
-- **"All top 20 platforms"** is bounded by what a browser can reach: iMessage/SMS have no web version an
-  extension can read, and some apps are mobile-only. Realistic reach is the ~15–18 web platforms; true mobile
-  coverage would be a different integration (not an extension), which is a separate future decision.
+- **"All top 20 platforms"** is bounded by what a browser can reach: iMessage/SMS/Signal have no web version
+  an extension can read, and some apps are mobile-only. Realistic reach is ~15 web platforms (+4 reusable
+  support desks); true mobile coverage would be a different integration (not an extension), a separate future
+  decision. The full grounded breakdown — every platform, its hostname, whether it's reachable, and which
+  reuse an existing C.A.R.E adapter — is in
+  [`extension-sales/PLATFORM-COVERAGE.md`](../extension-sales/PLATFORM-COVERAGE.md).
 
 ---
 
