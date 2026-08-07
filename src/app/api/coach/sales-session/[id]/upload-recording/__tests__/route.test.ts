@@ -37,6 +37,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { getSession } from "@/lib/data/salesCoach";
+import { uploadAssetBytes } from "@/lib/storage/assets";
+import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 import { POST } from "../route";
 
 const setAuth = (userId: string | null) =>
@@ -111,5 +113,26 @@ describe("POST /upload-recording", () => {
     expect(res.status).toBe(200);
     expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
     expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" }); // defense-in-depth
+  });
+
+  // The RECOVERY CONTRACT. This path fired 4× in the 2026-08 ElevenLabs outage (orphaned
+  // recordings — audio saved, no transcript). Recovery is only possible because the audio is
+  // PERSISTED and its url STAMPED *before* transcription is attempted, and the response tells
+  // the client the audio survived (audioSaved:true). Locking it so a future refactor can't
+  // reorder persist-after-transcribe (would drop the audio on failure) or silently drop the flag.
+  it("502 + audioSaved:true when transcription fails — audio persisted FIRST (recovery contract)", async () => {
+    setAuth("rep1");
+    (transcribeWithDiarization as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("ElevenLabs STT 402 (quota)")
+    );
+    const res = await POST(reqWith(fileForm(8, "call.webm", "audio/webm")), ctx);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.audioSaved).toBe(true);
+    // Proof the audio survived the transcription failure: it was stored AND the url stamped
+    // (the company-scoped update ran) BEFORE the throw — this is what makes the 4 orphans recoverable.
+    expect(uploadAssetBytes).toHaveBeenCalled();
+    expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
+    expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" });
   });
 });
