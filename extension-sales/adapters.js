@@ -83,6 +83,41 @@ if (!globalThis.__salesCoachAdaptersLoaded) {
           '[data-qa="message_content"] .p-rich_text_section, .c-message_kit__blocks .p-rich_text_section, .c-virtual_list__item .p-rich_text_section'
         ),
     },
+
+    // ── Tier 2 (PLATFORM-COVERAGE.md): reachable, NEW adapters. Selectors are REASONED from each platform's
+    // DOM, NOT confirmed live — more likely to need tightening than the C.A.R.E-proven Tier-1 ones above. A
+    // wrong selector returns "" and content.js falls back to the rep's manual highlight, so a miss is safe.
+    {
+      key: "telegram",
+      match: (h) => h === "web.telegram.org",
+      extract: () => textFrom(".message .text-content, .Message .text-content, .text-content"),
+    },
+    {
+      key: "teams",
+      match: (h) => h === "teams.microsoft.com",
+      extract: () => textFrom('[data-tid="messageBodyContent"], .fui-ChatMessage__body, [id^="content-"]'),
+    },
+    {
+      key: "discord",
+      match: (h) => h === "discord.com" || h === "canary.discord.com" || h === "ptb.discord.com",
+      extract: () => textFrom('[id^="message-content-"], div[class*="messageContent"]'),
+    },
+    {
+      key: "twitter",
+      match: (h) => h === "x.com" || h === "twitter.com" || h === "mobile.twitter.com",
+      extract: () =>
+        textFrom('[data-testid="messageEntry"] [data-testid="tweetText"], [data-testid="messageEntry"]'),
+    },
+    {
+      key: "googlechat",
+      match: (h) => h === "chat.google.com",
+      extract: () => textFrom("div[data-message-text], [jsname] div[dir='auto']"),
+    },
+    {
+      key: "googlevoice",
+      match: (h) => h === "voice.google.com",
+      extract: () => textFrom("div.content, .gv-message-text, div[gv-test-id='message-text']"),
+    },
   ];
 
   // Return the adapter whose match(hostname) is true, or null (→ content.js uses manual selection).

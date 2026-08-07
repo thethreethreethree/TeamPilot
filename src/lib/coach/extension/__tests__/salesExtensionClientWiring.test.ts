@@ -47,8 +47,14 @@ describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", (
     expect(ADAPTERS).toContain("globalThis.textFrom");
   });
 
-  it("covers the 7 Tier-1 platforms", () => {
+  it("covers the 7 Tier-1 platforms (reuse the C.A.R.E selectors)", () => {
     for (const key of ["gmail", "outlook", "instagram", "messenger", "whatsapp", "linkedin", "slack"]) {
+      expect(ADAPTERS).toContain(`key: "${key}"`);
+    }
+  });
+
+  it("covers the 6 Tier-2 platforms (new adapters, reasoned selectors)", () => {
+    for (const key of ["telegram", "teams", "discord", "twitter", "googlechat", "googlevoice"]) {
       expect(ADAPTERS).toContain(`key: "${key}"`);
     }
   });

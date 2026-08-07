@@ -27,18 +27,21 @@ per platform; the sales port inherits that posture (degrade to manual selection 
 These seven cover all six founder-named platforms and are the highest-value sales surfaces — the port starts
 here (copy the adapter, keep the same selectors, add the `lastSpeaker` read for the co-pilot).
 
-## Tier 2 — reachable, NEW adapter needed (build after Tier 1)
+## Tier 2 — reachable, NEW adapters (BUILT 2026-08-08; selectors reasoned, awaiting live confirmation)
 
-| # | Platform | Web hostname(s) | Notes |
-|---|---|---|---|
-| 8 | Telegram Web | `web.telegram.org` | Full web client; high DX-sales usage. |
-| 9 | Microsoft Teams | `teams.microsoft.com` | Web client; B2B sales. |
-| 10 | Discord | `discord.com` (`/app`) | Community-led sales. |
-| 11 | Twitter / X DMs | `x.com`, `twitter.com` | Social selling. |
-| 12 | Google Chat | `chat.google.com`, `mail.google.com` (chat) | Distinct DOM from Gmail mail. |
-| 13 | Google Voice | `voice.google.com` | The one web-reachable path to SMS threads. |
-| 14 | Reddit (chat/DMs) | `reddit.com` | Community sales; lower priority. |
-| 15 | Zoom Team Chat | `zoom.us` (web chat) | Partial; confirm the web surface exists before building. |
+Adapters #8–13 are now in `adapters.js` with reasoned selectors — more likely to need tightening than the
+C.A.R.E-proven Tier-1 ones, so confirm each live and adjust. #14–15 are not built yet.
+
+| # | Platform | Web hostname(s) | Adapter | Notes |
+|---|---|---|---|---|
+| 8 | Telegram Web | `web.telegram.org` | `telegram` ✅ | Full web client; high usage. |
+| 9 | Microsoft Teams | `teams.microsoft.com` | `teams` ✅ | Web client; B2B sales. |
+| 10 | Discord | `discord.com` (+canary/ptb) | `discord` ✅ | Community-led sales. |
+| 11 | Twitter / X DMs | `x.com`, `twitter.com` | `twitter` ✅ | Social selling. |
+| 12 | Google Chat | `chat.google.com` | `googlechat` ✅ | Distinct DOM from Gmail mail. |
+| 13 | Google Voice | `voice.google.com` | `googlevoice` ✅ | The one web-reachable path to SMS threads. |
+| 14 | Reddit (chat/DMs) | `reddit.com` | — | Community sales; lower priority, not built. |
+| 15 | Zoom Team Chat | `zoom.us` (web chat) | — | Partial; confirm the web surface exists first. |
 
 ## Tier 3 — reachable support desks, REUSE C.A.R.E adapter (sales-adjacent, low priority)
 
