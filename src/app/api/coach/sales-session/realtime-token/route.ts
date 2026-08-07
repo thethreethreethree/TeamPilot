@@ -38,7 +38,17 @@ export async function POST(req: NextRequest) {
     const token = await mintRealtimeSttToken();
     return NextResponse.json({ token });
   } catch (err) {
+    // Log the real cause server-side (missing ELEVENLABS_API_KEY vs a provider 401/402/403 — see
+    // elevenlabs.ts getApiKey + mintRealtimeSttToken), but never show the rep developer jargon like
+    // "Token mint failed". Give them a plain, actionable message: the Upload-recording fallback is rendered
+    // right below, so point them at it.
     console.error("[realtime-token] mint failed:", err);
-    return NextResponse.json({ error: "Token mint failed." }, { status: 502 });
+    return NextResponse.json(
+      {
+        error:
+          "Live coaching's audio couldn't start right now. Upload the call recording below to still get your transcript — or try again in a moment.",
+      },
+      { status: 502 }
+    );
   }
 }

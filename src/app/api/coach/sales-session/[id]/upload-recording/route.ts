@@ -151,8 +151,10 @@ export async function POST(
     console.error("[upload-recording] processing failed:", err);
     return NextResponse.json(
       {
-        error: "Transcription failed.",
-        // The audio was still saved, so the agent can retry processing.
+        // Rep-facing: plain + actionable, no jargon. The server log above carries the real cause (usually the
+        // ElevenLabs STT key/plan — same root as the live "Token mint failed"). The audio IS saved, so retry works.
+        error:
+          "Couldn't process the recording right now — your audio is saved, so please try again in a moment.",
         audioSaved: true,
       },
       { status: 502 }
