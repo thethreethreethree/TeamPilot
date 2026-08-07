@@ -3,7 +3,7 @@ import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { resolveRepName } from "@/lib/coach/extension/repName";
 import { generateSalesCopilotReply } from "@/lib/coach/extension/salesCopilot";
-import { LlmError } from "@/lib/llm/errors";
+import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
 
 /**
  * POST /api/coach/extension/copilot — AI Co-Pilot ("draft my reply"), for the Sales Coach browser extension.
@@ -57,16 +57,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ reply, reasoning });
   } catch (err) {
-    if (err instanceof LlmError) {
-      return NextResponse.json(
-        { error: err.message, kind: err.kind },
-        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
-      );
-    }
-    console.error("[coach/extension/copilot] non-LLM failure:", err);
-    return NextResponse.json(
-      { error: "The Co-Pilot couldn't draft a reply right now." },
-      { status: 502 }
-    );
+    return llmErrorResponse(err, {
+      logTag: "coach/extension/copilot",
+      fallbackMessage: "The Co-Pilot couldn't draft a reply right now.",
+    });
   }
 }

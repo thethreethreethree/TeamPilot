@@ -3,7 +3,7 @@ import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { resolveRepName } from "@/lib/coach/extension/repName";
 import { generateSalesFormulate } from "@/lib/coach/extension/salesFormulate";
-import { LlmError } from "@/lib/llm/errors";
+import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
 
 /**
  * POST /api/coach/extension/formulate — "Say it for me", for the Sales Coach browser extension.
@@ -55,16 +55,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ reply, reasoning });
   } catch (err) {
-    if (err instanceof LlmError) {
-      return NextResponse.json(
-        { error: err.message, kind: err.kind },
-        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
-      );
-    }
-    console.error("[coach/extension/formulate] non-LLM failure:", err);
-    return NextResponse.json(
-      { error: "Couldn't shape a message right now." },
-      { status: 502 }
-    );
+    return llmErrorResponse(err, {
+      logTag: "coach/extension/formulate",
+      fallbackMessage: "Couldn't shape a message right now.",
+    });
   }
 }

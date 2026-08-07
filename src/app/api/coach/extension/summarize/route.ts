@@ -3,7 +3,7 @@ import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
 import { resolveRepName } from "@/lib/coach/extension/repName";
 import { generateSalesSummary } from "@/lib/coach/extension/salesSummary";
-import { LlmError } from "@/lib/llm/errors";
+import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
 
 /**
  * POST /api/coach/extension/summarize — "Catch me up", for the Sales Coach browser extension.
@@ -39,15 +39,10 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ summary });
   } catch (err) {
-    // A model rate-limit maps to 429 so the client backs off (matching the sibling routes); any other
-    // failure is a 502. An empty summary is NOT returned — that would read as "nothing to summarize".
-    if (err instanceof LlmError) {
-      return NextResponse.json(
-        { error: err.message, kind: err.kind },
-        { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
-      );
-    }
-    console.error("[coach/extension/summarize] non-LLM failure:", err);
-    return NextResponse.json({ error: "Couldn't summarize that right now." }, { status: 502 });
+    // Rate-limit → 429 (client backs off), other failures → 502 — never a false-empty summary.
+    return llmErrorResponse(err, {
+      logTag: "coach/extension/summarize",
+      fallbackMessage: "Couldn't summarize that right now.",
+    });
   }
 }
