@@ -68,13 +68,17 @@ describe("Sales Coach extension config — reverse drift: no orphan tool route (
   );
 });
 
-describe("Sales Coach extension config — isolation from the C.A.R.E extension", () => {
-  it("stores its auth token under a DISTINCT key (salesCoachToken, not careToken)", () => {
+// The browser already isolates each extension (own isolated world + own chrome.storage), so these DISTINCT
+// names are NOT what keeps the two from colliding — the runtime does that. Their value here is catching a
+// COPY-PASTE that left C.A.R.E names in the sales config (a real risk, since this file was cloned from it):
+// a stray careToken / __careConfigLoaded / CARE_TOOLS would mean the port was half-done.
+describe("Sales Coach extension config — distinct-named from the C.A.R.E extension (copy-paste guard)", () => {
+  it("stores its auth token under its own key (salesCoachToken; no stray careToken)", () => {
     expect(CONFIG).toContain("salesCoachToken");
     expect(CONFIG).not.toContain("careToken");
   });
 
-  it("uses a DISTINCT idempotency guard so both extensions can inject side by side", () => {
+  it("uses its own idempotency guard (no stray __careConfigLoaded left from the clone)", () => {
     expect(CONFIG).toContain("__salesCoachConfigLoaded");
     expect(CONFIG).not.toContain("__careConfigLoaded");
   });

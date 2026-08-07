@@ -2,11 +2,12 @@
 //
 // SEPARATE standalone extension (founder decision 2026-08-08), sibling to the C.A.R.E extension in
 // ../extension. Injected (with adapters.js + content.js) on every toolbar-icon click so the panel can
-// toggle. Chrome injects into ONE persistent global scope per frame that survives across executeScript
-// calls, so a bare top-level `const` would throw "already declared" on the SECOND injection. We publish to
-// globalThis behind an idempotency guard (a DISTINCT key from the C.A.R.E extension's, so the two can run
-// side by side without clobbering each other's globals): safe to re-inject; content.js reads these as bare
-// names via the shared global.
+// toggle. Chrome re-injects into THIS extension's isolated world (which persists across executeScript calls)
+// on every click, so a bare top-level `const` would throw "already declared" on re-injection — the
+// idempotency guard below prevents that. The token / guard / tools names are deliberately DISTINCT from the
+// C.A.R.E extension's — NOT because the two could otherwise collide (each extension runs in its OWN isolated
+// world with its OWN chrome.storage, so it can't) but as defensive clarity and to catch a copy-paste that
+// left C.A.R.E names in this file. content.js reads these as bare names via the shared (per-extension) global.
 
 if (!globalThis.__salesCoachConfigLoaded) {
   globalThis.__salesCoachConfigLoaded = true;
