@@ -262,6 +262,8 @@
           <textarea class="sc-in" id="sc-inval" maxlength="${Number(tool.input.max) || 8000}"
             placeholder="${esc(tool.input.placeholder || "")}"></textarea>
           <button class="sc-run" id="sc-run">${esc(tool.label)}</button>`;
+        const inval = root.getElementById("sc-inval");
+        if (inval) inval.focus(); // auto-focus so the rep types immediately, no extra click (C.A.R.E parity)
         root.getElementById("sc-run").addEventListener("click", () => {
           // Don't fire a call with an empty draft/intent — the server would 400 on the missing required field
           // and the rep would see a confusing "something went wrong". Refocus instead (mirrors C.A.R.E).
