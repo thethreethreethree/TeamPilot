@@ -68,6 +68,35 @@ describe("Sales Coach extension config — reverse drift: no orphan tool route (
   );
 });
 
+describe("Sales Coach extension routes — every tool route is entitlement-gated (security drift guard, A30)", () => {
+  const ROUTES_DIR = join(ROOT, "src", "app", "api", "coach", "extension");
+  // Routes that intentionally do NOT pass through guardExtensionRequest. `refresh` is unauthenticated BY
+  // DESIGN — the access token is expired (that's the whole reason it's refreshing), so the refresh_token
+  // itself IS the credential (src/lib/api/extensionRefresh.ts). Listed EXPLICITLY so a new unauthenticated
+  // route forces a conscious decision here rather than silently slipping past the gate.
+  const UNGATED_BY_DESIGN = new Set(["refresh"]);
+
+  const routeDirs = readdirSync(ROUTES_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(join(ROUTES_DIR, d.name, "route.ts")))
+    .map((d) => d.name);
+
+  // Locks the invariant verified by reading every route this session: all 5 tool routes go through
+  // guardExtensionRequest (IP guard → server-side entitlement → per-user rate limit). The per-route tests
+  // cover TODAY's routes individually; this guard covers the NEXT one — a new tool route added without the
+  // gate would let anyone holding a valid Supabase token, entitled or not, burn the paid AI tools. That is a
+  // billing/security hole, and prose ("remember to gate it") is not a gate (A30).
+  it.each(routeDirs)(
+    "route %s calls guardExtensionRequest (auth + entitlement) or is ungated-by-design",
+    (dir) => {
+      const src = readFileSync(join(ROUTES_DIR, dir, "route.ts"), "utf-8");
+      const gated = src.includes("guardExtensionRequest");
+      // If this fails on a NEW route: gate it through guardExtensionRequest, or — if it is genuinely
+      // unauthenticated like refresh — add it to UNGATED_BY_DESIGN above WITH the reason it needs no gate.
+      expect(gated || UNGATED_BY_DESIGN.has(dir)).toBe(true);
+    }
+  );
+});
+
 // The browser already isolates each extension (own isolated world + own chrome.storage), so these DISTINCT
 // names are NOT what keeps the two from colliding — the runtime does that. Their value here is catching a
 // COPY-PASTE that left C.A.R.E names in the sales config (a real risk, since this file was cloned from it):
