@@ -49,7 +49,10 @@ memory `reference_error_dressed_as_no_data_class`.
    `coaching_sessions`. The originally-flagged tables (`elo_ratings`, `sales_corpus`, `assessments`) turn out to
    have **no direct app writes at all** (grep-confirmed) — they're computed/derived from `events` or were
    speculative names — so there's no admin-write cross-tenant surface on them to audit. The actual admin-write
-   path is `events` (append-only): spot-checked writes (why-route, v5 salesDissect, etc.) pin `company_id` from
+   path is `events` (append-only): ALL Sales Coach event-write routes verified (review/decision/v5-analyze/
+   v5-debrief/v5-grade-sent → `getCurrentCompanyId()`; voice → profile.company_id+gate; after-pitch →
+   session.companyId+same-company; why → getSession/INV19; v5 lib fns → args.companyId from these auth contexts)
+   — all pin `company_id` from
    **server-derived context** (session/getSession — INV19 owner-checked — or the calling route's auth context),
    never from client input (client supplies only payload content). `coach-assessment` computes from `events`
    tenant-scoped (`.eq("company_id", ctx.companyId)`). A *complete* every-event-insert provenance audit across
