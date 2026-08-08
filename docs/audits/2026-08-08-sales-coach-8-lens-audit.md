@@ -1,4 +1,4 @@
-# Sales Coach — multi-lens audit (2026-08-08, 11 lenses)
+# Sales Coach — multi-lens audit (2026-08-08, 13 lenses)
 
 Ground-up, on-the-record audit of the Sales Coach directive surface (the browser extension + the in-app Sales Coach
 product), run across every recorded audit lens relevant to this domain. Every lens was checked against the
@@ -20,6 +20,8 @@ actual code (not grep verdicts): a suspect is verified before it's fixed, and "c
 | Tenant-scope (cross-tenant writes) | clean | INV15 gates coaching_sessions; `why`→events + `compute-cron`→kpi_snapshot both pin company_id |
 | Signed-URL bearer capability + INV19 | clean | `retranscribe` proves company + owner/manager access before signing audio (INV19 owner-check applied by name); recordings list returns no URL, manager+same-company gated |
 | CSV formula-injection (CWE-1236) | clean | `toCsv` neutralizes every cell; the KPI/team exports (incl. user-controlled rep names) route through it |
+| Bare `void` write dropped on serverless freeze | clean | no fire-and-forget `void asyncWrite()` in any Sales Coach route — every write is awaited |
+| On-mount auto-POST double-fire | clean | SessionCoachTools' mount effect has stable deps + a `cancelled` guard |
 
 ## The honest-empty sweep (the session's largest thread) — 7 gaps
 
