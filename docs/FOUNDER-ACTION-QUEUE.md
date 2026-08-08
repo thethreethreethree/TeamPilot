@@ -1,31 +1,41 @@
 # Founder action queue
 
-## 🔴 TOP — 2026-08-08: LIVE C.A.R.E extension token-handoff is UNPINNED in prod — a PROD ENV FIX YOU must do (~2 min)
+## 🟡 KNOWN RISK — 2026-08-08: extension token-handoff is UNPINNED in prod — close it AT Web Store launch (NOT a set-it-now fix)
 
-> **Confirmed by direct prod observation, not inference.** `NEXT_PUBLIC_CARE_EXTENSION_ID` is **not set** in
-> production, so `/extension/connect` **fail-opens**: it hands the signed-in user's session **+ refresh token**
-> to *any* extension id supplied in the URL (`/extension/connect?ext=<anything>`), with only a silent
-> `console.warn`. That is an open token-hand-off vector on the LIVE, in-customer-use C.A.R.E extension right now.
+> **⚠️ CORRECTION (2026-08-08, later same session): do NOT just "set the env var now" — that would break
+> sign-in.** My first write-up of this called it an urgent 2-min env fix. That was wrong: I hadn't traced that
+> C.A.R.E is currently **sideloaded** (load-unpacked), so every install has a DIFFERENT extension id. Setting
+> `NEXT_PUBLIC_CARE_EXTENSION_ID` to one id would make the connect page **refuse every other install → break
+> C.A.R.E sign-in for those users.** The unpinned state is *why* sign-in works across all sideloaded installs
+> today. Evidence C.A.R.E is sideloaded: the download page says "Load unpacked"/"Developer mode", `care-
+> extension.zip` is served, and the manifest has no `key` (→ per-install id). This matches
+> `OPERATOR-CONFIG-CHECKLIST.md`: "set to the Web Store id **in production**; unset is only acceptable for
+> unpacked."
 >
-> **Proof (how I know it's unset, not just unverifiable):** I `curl`ed the deployed connect page + its JS
-> bundle. Next.js inlines *set* `NEXT_PUBLIC_` vars into the client bundle — proved by the Supabase URL, whose
-> value **is** inlined. `NEXT_PUBLIC_CARE_EXTENSION_ID`'s value appears **nowhere** in the connect HTML or its
-> handoff chunk → it is unset → the pin expression `d = ""` → the handoff accepts any `?ext=` id. (Control-tested
-> against a known-set var to rule out a runtime-env false positive.)
+> **What's true (confirmed by prod observation).** `NEXT_PUBLIC_CARE_EXTENSION_ID` is unset in prod, so
+> `/extension/connect` fail-opens: it hands the signed-in user's session **+ refresh token** to any `?ext=` id in
+> the URL (silent `console.warn` only). Proof it's unset: Next inlines *set* `NEXT_PUBLIC_` vars into the client
+> bundle (the Supabase URL value IS inlined); the ext-id value appears nowhere → unset → pin `d=""` → any id
+> accepted. (Control-tested to rule out a runtime-env false positive.)
 >
-> **Exploitability — real but multi-precondition** (not remote/mass): a victim must be logged in, be lured to a
-> crafted `?ext=` connect URL, **and** already have a malicious extension installed whose `externally_connectable`
-> lists elostate.com. Still a genuine credential-theft vector worth closing. **Severity is bounded** — I verified
-> `/extension/connect` sends `X-Frame-Options: SAMEORIGIN` in prod, so the handoff **cannot be clickjacked**
-> (can't be framed cross-origin to trick the click); the vector is a direct-lure only, not a stealth overlay.
+> **Why it's a 🟡 not a 🔴.** The vector is real but (a) **inherent to the pre-publication sideload phase** —
+> variable ids make pinning impossible until there's ONE stable id; (b) **multi-precondition** (victim logged in
+> + lured to a crafted `?ext=` URL + already has a malicious extension whose `externally_connectable` lists
+> elostate.com); (c) **not clickjackable** — `/extension/connect` sends `X-Frame-Options: SAMEORIGIN` (verified),
+> so it's a direct-lure only, not a stealth overlay; (d) the pre-launch user base is small/trusted.
 >
-> **YOUR FIX (~2 min):** Vercel → Production env → set **`NEXT_PUBLIC_CARE_EXTENSION_ID`** to the published
-> C.A.R.E Chrome Web Store extension id → redeploy. Then the handoff pins to your extension only (a lure to a
-> different `?ext=` is refused — the code already does this correctly; it's just running with an empty pin).
-> Same var for Sales at launch (`NEXT_PUBLIC_SALES_EXTENSION_ID`); for a sideloaded pilot, ids vary per install
-> so either accept unpinned in a small trusted group or add a manifest `key`. The `.env.example` already
-> documents both with this security note. Do NOT ask me to make the code fail-CLOSED when unset — that would
-> instantly break C.A.R.E sign-in for everyone until the env is set; set the env first.
+> **The actual close (coupled to launch, not a standalone 2-min task):**
+> 1. **At Chrome Web Store publication** — the store assigns ONE stable id; set `NEXT_PUBLIC_CARE_EXTENSION_ID`
+>    to it in Vercel + redeploy. The handoff then pins to your extension only (a lure to a different `?ext=` is
+>    refused — the code already does this correctly; it's just running with an empty pin today). **This is the
+>    real fix and it belongs in the Web Store launch checklist, not before it.**
+> 2. **If you want it closed BEFORE Web Store launch** (e.g. a wider pilot) — add a fixed `key` to the extension
+>    manifest so all sideloads share ONE id, re-distribute the zip, then set the env var to that id. More work;
+>    only worth it if the pilot is large/untrusted.
+> 3. Until then, unpinned is the **correct** state for sideload sign-in to work — leave it unset; accept the
+>    bounded risk. Same applies to Sales (`NEXT_PUBLIC_SALES_EXTENSION_ID`) at its launch.
+>
+> (Do NOT make the code fail-CLOSED when unset — that would instantly break sign-in for every sideloaded install.)
 >
 > Detail + method: memory `reference_extension_token_handoff_unpinned_until_ext_id_set`.
 
@@ -183,9 +193,12 @@
 > words. (Open, minor, your call: the extension is now surfaced 3× on the dashboard — nav item + 2 inline cards;
 > C.A.R.E uses only the nav item. Say the word and I'll drop the inline cards for tighter parity.)
 >
-> **🔴 The one thing that needs YOU is a 2-minute prod fix — see the TOP item above.** I confirmed by observing
-> prod that `NEXT_PUBLIC_CARE_EXTENSION_ID` is unset, so the LIVE C.A.R.E extension's token-handoff is unpinned
-> (severity-bounded: not clickjackable, needs a direct lure — but real). Set it in Vercel + redeploy.
+> **🟡 A confirmed-but-bounded security item — corrected, see the top item.** I confirmed prod has
+> `NEXT_PUBLIC_CARE_EXTENSION_ID` unset, so the C.A.R.E extension's token-handoff is unpinned. I first called
+> this an urgent 2-min env fix — **that was wrong**; C.A.R.E is currently sideloaded (per-install ids), so setting
+> the var now would BREAK sign-in for other installs. The real close is coupled to Chrome Web Store publication
+> (set it to the store id then). Until launch, leave it unset — the unpinned state is what makes sideload sign-in
+> work, and the risk is bounded (multi-precondition, not clickjackable). No standalone action right now.
 >
 > **Also flagged (no action forced):** prod runs single-LLM-provider (DeepSeek only, `anthropic:false` on
 > `/api/health`), so the DeepSeek→Anthropic failover you built is currently inert — confirm that's intentional
