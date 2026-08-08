@@ -6,6 +6,7 @@ import {
   EXTENSION_TRIAL_DAYS,
 } from "@/lib/care/extensionEntitlement";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOwnTenantId } from "@/lib/care/config";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
@@ -158,6 +159,27 @@ describe("getExtensionEntitlement (IO branches)", () => {
  * previously had NO writer → every non-paid tenant was permanently locked ("the extension doesn't work").
  * The fix opens the 14-day trial on first contact, exactly once per tenant.
  */
+/**
+ * Vendor / home-tenant exemption (founder-reported 2026-08-09): the founder saw "your 14-day trial has ended"
+ * on the vendor tenant they dogfood the product from. The deployment's OWN tenant is always entitled to its own
+ * product, exempted by identity BEFORE the plan/trial read — but ONLY the home tenant, never a blanket unlock.
+ */
+describe("getExtensionEntitlement — vendor/home-tenant exemption", () => {
+  it("the OWN (home) tenant is ALWAYS active, even with an expired trial + non-paid plan", async () => {
+    // Detection-true: the mocked read says pilot + long-expired trial (pre-fix → locked/trialEnded). The
+    // exemption returns active by identity before that read is consulted.
+    mockAdmin([{ data: { plan: "pilot", extension_trial_started_at: "2020-01-01T00:00:00Z" }, error: null }]);
+    const r = await getExtensionEntitlement(getOwnTenantId());
+    expect(r.status).toBe("active");
+    expect(r.trialEnded).toBe(false);
+  });
+
+  it("a CUSTOMER tenant (not the home id) is NOT exempted — normal rules apply (blast-radius guard)", async () => {
+    mockAdmin([{ data: { plan: "pilot", extension_trial_started_at: "2020-01-01T00:00:00Z" }, error: null }]);
+    expect((await getExtensionEntitlement("some-customer-company-id")).status).toBe("locked");
+  });
+});
+
 describe("shouldAutoStartTrial (pure predicate)", () => {
   const ent = (status: "active" | "trial" | "locked"): ReturnType<typeof computeExtensionEntitlement> =>
     ({ status, trialDaysLeft: 0, plan: "x", trialEnded: false });

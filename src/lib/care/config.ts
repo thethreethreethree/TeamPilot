@@ -36,6 +36,17 @@ function ownTenantId(): string {
 }
 
 /**
+ * The deployment's OWN (vendor / home) tenant id, exported for the layers beyond product-knowledge that must
+ * recognize "our own company" — notably extension entitlement, which exempts the vendor tenant from the
+ * customer trial/paywall (the founder's team dogfoods the product from this tenant and must never be locked
+ * out of it). Same env-override-wins resolution as the rest of this module; kept in sync with the
+ * crm/vendorAuth copy of the UUID by ownTenantId.sync.test.ts.
+ */
+export function getOwnTenantId(): string {
+  return ownTenantId();
+}
+
+/**
  * Whether a tenant's product context is AUTHORITATIVELY maintained in code
  * (ELOSTATE_PRODUCT_KNOWLEDGE) rather than from the editable `ai_product_context`
  * config. This is the SAME predicate getProductContextForTenant uses to decide the

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { getOwnTenantId } from "@/lib/care/config";
 
 /**
  * C.A.R.E browser-extension entitlement (spec docs/feature-specs/CARE-BROWSER-EXTENSION.md, D2).
@@ -97,6 +98,18 @@ export function computeExtensionEntitlement(args: {
 export async function getExtensionEntitlement(
   companyId: string
 ): Promise<ExtensionEntitlement> {
+  // VENDOR/HOME-TENANT EXEMPTION (founder-reported 2026-08-09). The deployment's own tenant is ALWAYS entitled
+  // to its OWN product: the founder and their team dogfood the extension from the vendor tenant (getOwnTenantId
+  // → CARE_DEFAULT_TENANT_ID ?? ELOSTATE), whose care_tenant_config commonly carries an EXPIRED pilot-trial as
+  // a dogfooding artifact — which made the FOUNDER see "your 14-day trial has ended" on the product they build.
+  // Entitlement had no notion of "us", only the customer plan/trial. Exempt by IDENTITY, BEFORE the plan/trial
+  // read, using the same "our own company" source as the CRM vendor gate and the C.A.R.E tenant layer. Customers
+  // are unaffected — a customer tenant never equals the home id. (No early createAdminClient, so this path is
+  // pure/DB-free and unit-testable.)
+  if (companyId === getOwnTenantId()) {
+    return { status: "active", trialDaysLeft: 0, plan: "vendor", trialEnded: false };
+  }
+
   const admin = createAdminClient();
 
   const { data, error } = await admin
