@@ -421,6 +421,21 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
           {summary}
         </p>
       )}
+      {/* A null summary after a completed run is ALWAYS a model failure/timeout here — the route 400s an empty
+          transcript, so a reachable summary is never genuinely empty. Signal it (§3.4 honest-empty) instead of
+          a blank panel with no error; the timeline/scores below still render if THEY succeeded (partial success). */}
+      {loaded && !loading && !error && !summary && (
+        <p className="text-xs text-amber-300">
+          The summary couldn&apos;t be generated (the model may have timed out).{" "}
+          <button
+            type="button"
+            onClick={() => void generate()}
+            className="underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </p>
+      )}
       {/* Founder 2026-07-07: the Conversation Timeline + Pivot Moment + private
           scores at the END of the summary, via the shared component (§A13/§A21). */}
       {loaded && (
