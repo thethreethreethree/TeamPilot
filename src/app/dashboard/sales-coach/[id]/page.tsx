@@ -467,6 +467,7 @@ export default function SessionDetail() {
                   scores are owner-only (the component's /summary-scores fetch
                   returns 403 to a manager and renders nothing, §A18). */}
               <PivotAndScores
+                key={id}
                 sessionId={id}
                 pivot={pivot}
                 moments={moments}
@@ -1003,6 +1004,7 @@ export default function SessionDetail() {
             {/* S1b — live coaching during the call. context drives attribution:
                 video is mic-only (agent), in-person splits both voices. */}
             <LiveCoachingPanel
+              key={id}
               sessionId={id}
               context={session?.context}
               // Founder 2026-07-31 (urgent): the moment the live recording's transcript is saved, the
