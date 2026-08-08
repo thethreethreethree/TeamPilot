@@ -1,5 +1,32 @@
 # Founder action queue
 
+## 🔴 TOP — 2026-08-08: LIVE C.A.R.E extension token-handoff is UNPINNED in prod — a PROD ENV FIX YOU must do (~2 min)
+
+> **Confirmed by direct prod observation, not inference.** `NEXT_PUBLIC_CARE_EXTENSION_ID` is **not set** in
+> production, so `/extension/connect` **fail-opens**: it hands the signed-in user's session **+ refresh token**
+> to *any* extension id supplied in the URL (`/extension/connect?ext=<anything>`), with only a silent
+> `console.warn`. That is an open token-hand-off vector on the LIVE, in-customer-use C.A.R.E extension right now.
+>
+> **Proof (how I know it's unset, not just unverifiable):** I `curl`ed the deployed connect page + its JS
+> bundle. Next.js inlines *set* `NEXT_PUBLIC_` vars into the client bundle — proved by the Supabase URL, whose
+> value **is** inlined. `NEXT_PUBLIC_CARE_EXTENSION_ID`'s value appears **nowhere** in the connect HTML or its
+> handoff chunk → it is unset → the pin expression `d = ""` → the handoff accepts any `?ext=` id. (Control-tested
+> against a known-set var to rule out a runtime-env false positive.)
+>
+> **Exploitability — real but multi-precondition** (not remote/mass): a victim must be logged in, be lured to a
+> crafted `?ext=` connect URL, **and** already have a malicious extension installed whose `externally_connectable`
+> lists elostate.com. Still a genuine credential-theft vector worth closing.
+>
+> **YOUR FIX (~2 min):** Vercel → Production env → set **`NEXT_PUBLIC_CARE_EXTENSION_ID`** to the published
+> C.A.R.E Chrome Web Store extension id → redeploy. Then the handoff pins to your extension only (a lure to a
+> different `?ext=` is refused — the code already does this correctly; it's just running with an empty pin).
+> Same var for Sales at launch (`NEXT_PUBLIC_SALES_EXTENSION_ID`); for a sideloaded pilot, ids vary per install
+> so either accept unpinned in a small trusted group or add a manifest `key`. The `.env.example` already
+> documents both with this security note. Do NOT ask me to make the code fail-CLOSED when unset — that would
+> instantly break C.A.R.E sign-in for everyone until the env is set; set the env first.
+>
+> Detail + method: memory `reference_extension_token_handoff_unpinned_until_ext_id_set`.
+
 ## 🔴 TOP — 2026-08-06: Live Coaching "Token mint failed" / "Transcription failed" — a PROD ENV FIX YOU must do (~2 min)
 
 > **🎯 LEADING FIX (2026-08-07, direct-evidence re-diagnosis — READ THIS FIRST):** The prod key you added to
