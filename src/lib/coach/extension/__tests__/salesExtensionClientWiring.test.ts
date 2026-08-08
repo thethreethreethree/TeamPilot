@@ -235,3 +235,28 @@ describe("Sales Coach connect handoff — message type matches the worker (cross
     expect(BG).toContain("product=sales");
   });
 });
+
+describe("Sales Coach manifest — least privilege (no copied-unused permissions from the C.A.R.E port)", () => {
+  // A port copies the parent's manifest; C.A.R.E declares *.supabase.co + optional *://*/* ONLY for its RCD
+  // image-capture flow, which sales dropped (text-only). An unused permission is the #1 Web Store rejection
+  // reason. These lock the minimal surface so a future copy-paste re-adding one fails the build.
+  const MANIFEST = JSON.parse(
+    readFileSync(join(ROOT, "extension-sales", "manifest.json"), "utf-8")
+  ) as { permissions: string[]; host_permissions?: string[]; optional_host_permissions?: string[] };
+
+  it("requests only the API permissions it uses: activeTab, scripting, storage", () => {
+    expect([...MANIFEST.permissions].sort()).toEqual(["activeTab", "scripting", "storage"]);
+  });
+
+  it("host_permissions are only the backend + localhost — no supabase, no all-hosts", () => {
+    const hosts = MANIFEST.host_permissions ?? [];
+    expect(hosts.length).toBeGreaterThan(0);
+    for (const h of hosts) expect(h).toMatch(/(elostate\.com|localhost)/);
+    expect(hosts.some((h) => /supabase/.test(h))).toBe(false);
+    expect(hosts.some((h) => h === "<all_urls>" || /\*:\/\/\*/.test(h))).toBe(false);
+  });
+
+  it("declares NO optional_host_permissions (adapters run under activeTab; sales never calls chrome.permissions)", () => {
+    expect(MANIFEST.optional_host_permissions ?? []).toEqual([]);
+  });
+});
