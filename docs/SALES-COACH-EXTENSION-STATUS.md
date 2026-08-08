@@ -25,7 +25,7 @@ coaching back in an on-page panel.
 
 ## What is built and verified (the whole server side)
 
-Everything below is live on `main`, passes the full gate (`npm run check`, 2469 tests), and is documented with
+Everything below is live on `main`, passes the full gate (`npm run check`, 2530 tests), and is documented with
 its own build record under `docs/tbc/`.
 
 **Five coaching tools** — each is text-in (the rep's viewed conversation), grounded in the sales methodology
@@ -134,14 +134,25 @@ Fixed this session:
 **Net:** the extension is now store-*submittable* pending the three decisions above (icon, entitlement, error
 policy) + your privacy-policy review + screenshots + the `NEXT_PUBLIC_SALES_EXTENSION_ID` pin.
 
+**Proposed follow-up (your call — not actioned):** the capture-preview safety fix shipped to the Sales panel
+this session has a **sibling gap in the shipped C.A.R.E extension** — same scrape model, same count-only capture
+UI, and C.A.R.E has a *documented* history of a wrong-scrape bug (the "Hi John" mis-address, A39). Porting the
+same preview affordance would de-risk it identically. I did **not** change the live C.A.R.E product under the
+build guard without your sign-off (guide-don't-overtake); it's a ~one-line-each change if you want it.
+
 ---
 
 ## Honest boundaries
 
 - **The client is built but not yet a *public* product** — you can sideload and use it today (per the test
   runbook), but a public store listing still needs the icon (decision 2) and the prod extension-id env var.
-  The per-platform selectors are "reasoned + confirm live" until you verify each in a real browser; a miss
-  fails safe to manual highlight, never a wrong reading.
+  The per-platform selectors are "reasoned + confirm live" until you verify each in a real browser. Two failure
+  modes, both now safe: an **empty** match falls back to manual highlight (was already handled); a **wrong**
+  non-empty match (a broad selector grabbing the wrong nodes) is now **visible** — the panel previews a snippet
+  of what it captured, not just a character count, so you can see it grabbed the wrong thing and re-highlight
+  (shipped this session, `fe985bb3`). The extension package itself was integrity-verified this session (valid
+  manifest, all icons/injected-scripts present and correctly ordered, all 6 called routes exist, endpoint
+  allowlist enforced) and the download/install page was re-verified accurate against the final manifest.
 - **"All top 20 platforms"** is bounded by what a browser can reach: iMessage/SMS/Signal have no web version
   an extension can read, and some apps are mobile-only. Realistic reach is ~15 web platforms (+4 reusable
   support desks); true mobile coverage would be a different integration (not an extension), a separate future
