@@ -36,7 +36,8 @@
     "db:baseline": "node scripts/db-apply.mjs --baseline",
     "db:dry": "node scripts/db-apply.mjs --dry-run",
     "db:apply": "node scripts/db-apply.mjs --apply",
-    "db:verify": "node scripts/db-apply.mjs --verify"
+    "db:verify": "node scripts/db-apply.mjs --verify",
+    "db:reconcile": "node scripts/db-reconcile.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
