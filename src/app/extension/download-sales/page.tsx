@@ -138,7 +138,11 @@ export default function SalesExtensionDownloadPage() {
             </li>
             <li>
               It reads only the conversation you have open, when you ask it to. Nothing is captured in the
-              background.
+              background, and the tools process that text without storing it — see the{" "}
+              <a href="/extension/privacy-sales" className="text-brand hover:opacity-80">
+                privacy policy
+              </a>
+              .
             </li>
             <li>
               On supported sites (Gmail, Outlook, Instagram, Messenger, WhatsApp&nbsp;Web, LinkedIn, Slack) it
