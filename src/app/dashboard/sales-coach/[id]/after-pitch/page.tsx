@@ -177,8 +177,15 @@ export default function AfterPitchPage() {
   // re-selecting records a correction, never erases the earlier read. This is the
   // consequence the coach grades itself against (§3.5), so in the Standard flow —
   // where this screen replaces the session page — it must be capturable right here.
+  // useRef latch — same append-only double-write class as the session page's recordOutcome (build xl). /outcome
+  // appends an immutable coach.session_outcome_recorded event per call; setSavingOutcome (useState) only disables
+  // the button on the next render, so a fast double-click would append two identical events. Checked+set before
+  // the first await, released in finally (a deliberate later re-record still works).
+  const outcomeSubmitRef = useRef(false);
   const recordOutcome = useCallback(
     async (outcome: SalesOutcome) => {
+      if (outcomeSubmitRef.current) return;
+      outcomeSubmitRef.current = true;
       setSavingOutcome(outcome);
       try {
         const res = await fetch(`/api/coach/sales-session/${id}/outcome`, {
@@ -189,6 +196,7 @@ export default function AfterPitchPage() {
         if (res.ok) setSession((await res.json()).session);
       } finally {
         setSavingOutcome(null);
+        outcomeSubmitRef.current = false;
       }
     },
     [id]
