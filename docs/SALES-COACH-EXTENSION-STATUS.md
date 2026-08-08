@@ -84,10 +84,14 @@ convention** across ~25 authed AI routes (a 2026-07-25 decision; classified inte
 `docs/audits/2026-07-31-cwe209-error-leak-sweep.md`), so the sales extension follows it rather than diverging.
 
 The open question is whether surfacing the **raw upstream body** (which can name the vendor) to a *customer's*
-rep is still what you want, now that the product markets "C.A.R.E AI / ELOSTATE". Trimming just the raw body
-while keeping the structured error kind is a **one-place, codebase-wide** change if you want it — but it
-changes what every AI surface shows on an error, so it's your call, not a unilateral one. (I attempted this as
-a "fix" mid-build, then reverted it on realizing it was an intentional convention — the honest path is to ask.)
+rep is still what you want, now that the product markets "C.A.R.E AI / ELOSTATE". If yes, the fix is small and
+centralized at the **provider layer**, not 25 route edits: the raw body is interpolated into the error
+*message* at 2 sites in `src/lib/llm/deepseek.ts` (lines ~153/235) and is *also* kept in a separate `rawBody`
+field — so dropping it from the message at those 2 sites trims it from every route's response at once **while
+keeping it in the server logs** (the Anthropic provider uses the SDK's own `e.message` and would need its own
+quick review). It changes what every AI surface shows on an error, so it's your call, not a unilateral one. (I
+attempted a broader version as a "fix" mid-build, then reverted it on realizing the surface is an intentional
+convention — the honest path is to ask, with the accurate scope.)
 
 ---
 
