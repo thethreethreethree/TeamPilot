@@ -5,10 +5,13 @@ developer-facing port instructions see [`extension-sales/README.md`](../extensio
 
 ---
 
-> **Status (2026-08-08): functionally complete end-to-end.** Download → install → Sign in → run the 5 tools
-> is all built, CI-green, and deployed. Two founder calls remain before a **public** launch: a real Sales
-> Coach **icon** (the toolbar icon is a C.A.R.E placeholder today) and the **entitlement-source** decision
-> (share the C.A.R.E plan vs a separate sales SKU). Neither blocks you testing it yourself now.
+> **Status (2026-08-08): functionally complete end-to-end, incl. the browser client.** Download → install →
+> Sign in → run the 5 tools across **13 web platforms** is all built, CI-green, and deployed — the server, the
+> on-page panel, the per-site readers, the connect handoff, the download page, and a founder test runbook
+> ([`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md)). Three founder calls remain before a
+> **public** launch (none block you testing it yourself now): a real Sales Coach **icon** (toolbar icon is a
+> C.A.R.E placeholder today), the **entitlement-source** decision (share the C.A.R.E plan vs a separate sales
+> SKU), and the **error-detail policy** (see decision 3). Prod also needs `NEXT_PUBLIC_SALES_EXTENSION_ID` set.
 
 ## What it is
 
@@ -45,13 +48,14 @@ fit an external-conversation tool.)*
 - **Auth + rate limiting** — reused from the C.A.R.E extension (the same server gate; never trust the client).
 - **Prompt-injection defense** on every tool (a prospect line that reads as a command is treated as data,
   never obeyed) — and a build-time guard (INVARIANT 24) that fails the build if a future tool forgets it.
-- **Client package skeleton** (`extension-sales/`) — the extension's manifest and its tool list, wired to the
-  five routes above, with a drift guard that fails the build if a tool ever points at a missing route (or a
-  route is built but never surfaced).
+- **Complete browser client** (`extension-sales/`) — MV3 service worker + on-page shadow-DOM panel + 13
+  per-site readers (7 Tier-1 reused from C.A.R.E, 6 Tier-2 new), the product-aware Sign-in handoff, the
+  download page, and a drift guard that fails the build if a tool points at a missing route. Adapter routing +
+  the extraction contract (incl. the §3.4 never-fabricate → manual-fallback) are locked by tests.
 
 ---
 
-## Two decisions I need from you
+## Three decisions I need from you
 
 ### 1. Entitlement — does Sales Coach share the C.A.R.E extension plan, or get its own?
 
@@ -66,28 +70,42 @@ a **pricing decision, not an engineering one**, so I didn't guess it:
 work). The plumbing is ready either way — I already made the "trial ended" message name the correct product,
 so whichever you choose is a small wiring change, not a rebuild.
 
-### 2. Go-ahead for Phase 2 (the browser client)
+### 2. A real Sales Coach icon
 
-The **server** is done. The **browser client** (the actual installable extension the rep clicks) is the
-remaining half. It **cannot be tested in this build environment** (there's no browser here), so it ships
-"reasoned + confirmed live by you per platform" — exactly how the existing C.A.R.E extension's per-site
-readers work. It's a well-scoped, mostly-mechanical port from the C.A.R.E extension; the full spec is in
-[`extension-sales/README.md`](../extension-sales/README.md). It needs, roughly:
+The toolbar icon today is the **C.A.R.E placeholder**. It works, but it should be its own mark before a public
+listing. This is a design asset, not an engineering task — give me the icon (or the go-ahead to commission
+one) and I'll wire the 16/48/128px set into `extension-sales/icons/` and rebuild the download.
 
-1. The on-page panel that shows the five tools and their results.
-2. The per-site readers that pull the open conversation from each platform's page.
-3. The "Sign in" handoff that gives the extension its first token.
-4. Icons + a store listing.
+### 3. Error-detail policy (a codebase-wide call, surfaced honestly)
 
-The handoff (#3) depends on decision **#1** (which entitlement the sign-in grants).
+When an AI call fails, the extension currently returns the provider's error cause — including the AI vendor's
+name and up to 200 chars of the upstream error body — to the signed-in rep. That is a **deliberate, existing
+convention** across ~25 authed AI routes (a 2026-07-25 decision; classified intentional by the completed sweep
+`docs/audits/2026-07-31-cwe209-error-leak-sweep.md`), so the sales extension follows it rather than diverging.
+
+The open question is whether surfacing the **raw upstream body** (which can name the vendor) to a *customer's*
+rep is still what you want, now that the product markets "C.A.R.E AI / ELOSTATE". Trimming just the raw body
+while keeping the structured error kind is a **one-place, codebase-wide** change if you want it — but it
+changes what every AI surface shows on an error, so it's your call, not a unilateral one. (I attempted this as
+a "fix" mid-build, then reverted it on realizing it was an intentional convention — the honest path is to ask.)
+
+---
+
+**Phase 2 (the browser client) is DONE** — this was an open go-ahead in the prior version of this doc. The
+on-page panel, the per-site readers (13 platforms), and the Sign-in handoff are all built and CI-green. What
+remains is the icon (decision 2) and setting `NEXT_PUBLIC_SALES_EXTENSION_ID` in prod before a public listing.
+The per-platform selectors ship "reasoned + confirm live per platform" (the same model as the C.A.R.E
+extension) — the runbook [`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md) walks the
+30-seconds-per-platform confirm loop.
 
 ---
 
 ## Honest boundaries
 
-- **Nothing here is a shipped end-user feature yet** — no rep can click a tool until the Phase 2 client is
-  built. The server side is verified *substrate*; every build record says so plainly rather than dressing it
-  up.
+- **The client is built but not yet a *public* product** — you can sideload and use it today (per the test
+  runbook), but a public store listing still needs the icon (decision 2) and the prod extension-id env var.
+  The per-platform selectors are "reasoned + confirm live" until you verify each in a real browser; a miss
+  fails safe to manual highlight, never a wrong reading.
 - **"All top 20 platforms"** is bounded by what a browser can reach: iMessage/SMS/Signal have no web version
   an extension can read, and some apps are mobile-only. Realistic reach is ~15 web platforms (+4 reusable
   support desks); true mobile coverage would be a different integration (not an extension), a separate future
