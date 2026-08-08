@@ -1011,8 +1011,12 @@ export default function SessionDetail() {
             />
 
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.
-                Spawn task + Decision dialogue removed here (founder 2026-07-03). */}
-            <SessionCoachTools sessionId={id} />
+                Spawn task + Decision dialogue removed here (founder 2026-07-03).
+                key={id} forces a fresh mount when the rep switches sessions — otherwise React preserves the
+                component's per-session state (summary/moments/error) across the params-only [id] change, and
+                the sessionId-effect refetches WITHOUT resetting it → the previous session's summary shows
+                during the refetch (and persists if it fails). Context-switch state-bleed guard. */}
+            <SessionCoachTools key={id} sessionId={id} />
 
             {/* Transcript */}
             <section>
