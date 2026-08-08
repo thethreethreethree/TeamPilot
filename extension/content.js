@@ -416,9 +416,21 @@
       lastSpeaker === "agent" || lastSpeaker === "customer" ? lastSpeaker : "unknown";
     const info = $("selInfo");
     if (info) {
-      info.textContent = currentSelection
-        ? `Read ${currentSelection.length.toLocaleString()} characters${capped ? " (trimmed to fit)" : ""}. Pick a tool.`
-        : note || "Nothing selected — highlight the conversation on the page, then click again.";
+      if (currentSelection) {
+        // Show a bounded PREVIEW of what was captured, not just the count. readAdapter() auto-extracts via a
+        // per-site selector that is reasoned, not runtime-verified — a wrong match returns plausible non-empty
+        // garbage (sidebar chrome instead of the thread), and a bare "Read 47 characters" looks identical for a
+        // right grab and a wrong one, so the user would act on garbage without knowing. A preview makes a wrong
+        // grab self-evident → the user re-highlights manually (the always-correct path). The honesty thesis
+        // applied to INPUT: never let the user act on wrongly-captured context believing it's right. textContent
+        // (below), so the page's own text can't inject markup. (Mirrors the Sales Coach extension's capture-
+        // preview fix; the RCD multi-message capture already previews per message.)
+        const preview = currentSelection.replace(/\s+/g, " ").trim().slice(0, 90);
+        info.textContent =
+          `Read ${currentSelection.length.toLocaleString()} characters${capped ? " (trimmed to fit)" : ""} — “${preview}${currentSelection.length > 90 ? "…" : ""}”. Pick a tool.`;
+      } else {
+        info.textContent = note || "Nothing selected — highlight the conversation on the page, then click again.";
+      }
     }
     root.querySelectorAll(".tool[data-endpoint]").forEach((b) => { b.disabled = !currentSelection; });
   }
