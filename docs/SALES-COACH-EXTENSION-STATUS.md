@@ -62,13 +62,19 @@ fit an external-conversation tool.)*
 Right now the sales tools gate on the **same** entitlement as the C.A.R.E extension. Whether that's correct is
 a **pricing decision, not an engineering one**, so I didn't guess it:
 
-- **Share it** — one "extension access" covers both C.A.R.E and Sales Coach. Simplest for customers; nothing
-  more to build.
+- **Share it** — one "extension access" covers both C.A.R.E and Sales Coach. Simplest for customers, and it's
+  **zero code** — the current behavior. Both extensions already gate on the same `getExtensionEntitlement`.
 - **Separate** — Sales Coach is its own SKU / trial (its own price, its own 14-day trial).
 
 **My recommendation:** decide this alongside the overall pricing/module structure (it's part of that same
-work). The plumbing is ready either way — I already made the "trial ended" message name the correct product,
-so whichever you choose is a small wiring change, not a rebuild.
+work). **Accurate cost (I checked the code, correcting an earlier over-optimistic "small either way"):**
+- *Share* = **nothing to build** (it's how it works today).
+- *Separate SKU* = a **moderate** change, not just wiring: `getExtensionEntitlement` (`src/lib/care/extensionEntitlement.ts`)
+  is a single flat check today — it would need a `product: "care" | "sales"` param, its own sales trial-start
+  column + sales plan/module check, and `product` threaded through `requireEntitledExtensionUser` →
+  `guardExtensionRequest` → the routes. The user-facing **message** is already product-aware either way (a
+  locked sales user never sees C.A.R.E branding), so no rebuild — but "separate" is a real (small-to-medium)
+  build, not a config flip.
 
 ### 2. A Sales Coach icon (distinct mark, or keep the shared brand?)
 
