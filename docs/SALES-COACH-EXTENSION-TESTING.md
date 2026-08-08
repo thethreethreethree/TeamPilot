@@ -35,29 +35,46 @@ You don't need the zip for testing — load the folder directly so a fix is just
 
 ## 3. The per-platform confirm loop (30 seconds each)
 
-For each platform, open a **real conversation**, click the toolbar icon, then click **Read the room**:
+For each platform, open a **real conversation**, click the toolbar icon, then click **Capture conversation**
+(or just **Read the room**, which captures first). The panel shows a short **preview** of what it grabbed —
+use it:
 
-- **It shows the actual conversation back to you** → the adapter works on that platform. ✅ Done — tell me
-  "X confirmed" and I'll drop the UNVERIFIED label for X.
+- **The preview shows the start of the real conversation, and Read the room reflects it** → the adapter works
+  on that platform. ✅ Done — tell me "X confirmed" and I'll drop the UNVERIFIED label for X.
 - **It's empty, or asks you to highlight the text manually** → the adapter's selector missed. That's a
   *safe* miss (it never fabricates — see "Why a miss is safe" below), but the selector needs tightening.
   See "When a platform misses" below.
+- **The preview shows the WRONG text** (a sidebar, another thread, some page chrome — not the conversation) →
+  the selector matched the wrong element. Also safe — just highlight the real messages and press Capture — but
+  tell me, and hand me the selector (section 5 below) so I can point the adapter at the right element.
 
 **Start here (Tier 1 — reused from the live C.A.R.E extension, most likely to just work):**
 Gmail, Outlook, WhatsApp Web, Instagram DMs, Messenger/Facebook, LinkedIn, Slack.
 
-**Then the new ones (Tier 2 — reasoned selectors, most likely to need a tighten):**
+**Then the reasoned ones (Tier 2 — most likely to need a tighten):**
 Telegram Web, Microsoft Teams, Discord, Twitter/X DMs, Google Chat, Google Voice.
+
+**Then the support desks (Tier 3 — reused C.A.R.E selectors; only if your reps sell through them):**
+Zendesk, Intercom, Front, Gorgias.
 
 Once **Read the room** works on a platform, the other four tools (Coach my reply, Catch me up, Draft my reply,
 Say it for me) use the same reader — so confirming one confirms all five for that platform.
 
 ## 4. Why a miss is safe (not a bug to panic over)
 
-Every adapter is built to **return nothing rather than guess**. If its selector doesn't match, it hands back an
-empty string and the panel falls back to *"highlight the conversation yourself."* It never invents text for the
-coach to work from — that honesty rule is enforced by a test (`salesExtensionClientWiring.test.ts`, the §3.4
-never-fabricate guarantee). So a Tier-2 miss degrades to manual selection; it doesn't produce a wrong reading.
+There are two ways an unverified selector can miss, and both are safe:
+
+1. **Empty miss** — the selector matches nothing. The adapter **returns nothing rather than guess**: it hands
+   back an empty string and the panel falls back to *"highlight the conversation yourself."* It never invents
+   text for the coach — that honesty rule is enforced by a test (`salesExtensionClientWiring.test.ts`, the
+   never-fabricate guarantee).
+2. **Wrong grab** — the selector matches the *wrong* element and returns some other text (a sidebar, another
+   thread). This is why the panel shows a **preview** of what it captured, not just a character count: a wrong
+   grab is visible to you, so you catch it and re-highlight instead of coaching on the wrong text. Without the
+   preview a wrong grab would look identical to a right one — the preview is what makes this failure mode safe.
+
+So neither miss produces a *silent* wrong reading: an empty miss degrades to manual selection, and a wrong grab
+is shown to you before you act on it. Either way you can always highlight the real messages and press Capture.
 
 ## 5. When a platform misses — hand me the selector (2 minutes)
 
