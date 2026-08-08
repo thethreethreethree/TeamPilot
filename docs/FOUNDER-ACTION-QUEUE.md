@@ -1,5 +1,28 @@
 # Founder action queue
 
+## 🟡 COST DECISION — 2026-08-09: elostate.com's OWN care widget is throttled at 200 conversations/month (vendor not exempt)
+
+> **Verified live from the record, surfaced while fixing the extension-entitlement bug (`9f846350`).** Same
+> class as that bug — the vendor/home tenant subject to a customer-facing limit on its own product — but a
+> DIFFERENT safety profile, so I did NOT auto-fix it.
+>
+> **The finding:** `care_tenant_config.monthly_conversation_quota` defaults to **200** (migration 0038), with no
+> seed overriding it for the ELOSTATE tenant (`c3e7f389…`). The gate (`care/conversations/route.ts:110`) enforces
+> when `quota > 0`, and the ELOSTATE-hosted widget (no embed token) resolves to this tenant (`route.ts:28`). So
+> elostate.com's own care widget 429s real prospects past 200 conversations/month with *"contact the site
+> owner"* — and you ARE the site owner.
+>
+> **Why NOT auto-fixed (the holistic catch):** unlike the extension entitlement (a PAYWALL → exempting the vendor is
+> pure access upside, done in `9f846350`), the care quota is a COST-ABUSE GUARD on a PUBLIC widget. Blindly
+> exempting the vendor removes the spend ceiling on elostate.com's widget → unbounded care LLM cost if it's
+> hammered/abused. That's a real tradeoff tied to the still-open per-tenant AI-cost-cap decision
+> (`AI-COST-CAP.md`), not a safe unilateral fix. Class boundary is proven: exactly these two members (extension
+> paywall FIXED; this quota), no third instance in care/coach routes.
+>
+> **Your call (I'll execute whichever):** (1) raise ELOSTATE's quota to a high ceiling (data change — simplest,
+> keeps a cap); (2) exempt the vendor but add a per-hour/IP rate-limit abuse guard (bounded cost, no monthly
+> wall); (3) leave it if 200/mo is fine for now.
+
 ## 🟡 LEGAL/PRIVACY — 2026-08-08: extension privacy pages overclaim "no third-party sharing" — fix BEFORE promoting
 
 > **Found in an audit (A27).** Both extension privacy pages —
