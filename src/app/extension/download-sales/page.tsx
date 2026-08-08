@@ -146,6 +146,33 @@ export default function SalesExtensionDownloadPage() {
             </li>
           </ul>
         </div>
+
+        <div className="mt-8">
+          <h2 className="text-sm font-bold text-primary mb-2">Having trouble?</h2>
+          <ul className="list-disc pl-5 space-y-1.5 text-sm text-secondary leading-relaxed">
+            <li>
+              <strong className="text-primary">Panel didn&apos;t appear?</strong> It doesn&apos;t open on its
+              own — click the Sales Coach icon in your toolbar. It also can&apos;t open on browser system pages
+              (like <code>chrome://</code> settings), the Web Store, or PDFs — try it on a normal website.
+            </li>
+            <li>
+              <strong className="text-primary">Says your plan doesn&apos;t include it?</strong> The tools check
+              your workspace entitlement when you sign in. If you should have access, ask your workspace admin to
+              enable the Sales Coach extension for your account.
+            </li>
+            <li>
+              <strong className="text-primary">Signed in but it still says &quot;session expired&quot; or
+              asks you to sign in?</strong> Click <strong className="text-primary">Sign in</strong> in the panel
+              again and finish — you should land back on the connect page, which hands your session to the
+              extension.
+            </li>
+            <li>
+              <strong className="text-primary">&quot;Couldn&apos;t reach the Sales Coach&quot;</strong> but your
+              internet is fine? Make sure you&apos;re using the app at its official web address — not a preview or
+              temporary link. If your team runs it at a custom address, ask your admin to point the extension at it.
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
