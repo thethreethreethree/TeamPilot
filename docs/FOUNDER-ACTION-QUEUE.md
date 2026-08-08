@@ -15,7 +15,9 @@
 >
 > **Exploitability — real but multi-precondition** (not remote/mass): a victim must be logged in, be lured to a
 > crafted `?ext=` connect URL, **and** already have a malicious extension installed whose `externally_connectable`
-> lists elostate.com. Still a genuine credential-theft vector worth closing.
+> lists elostate.com. Still a genuine credential-theft vector worth closing. **Severity is bounded** — I verified
+> `/extension/connect` sends `X-Frame-Options: SAMEORIGIN` in prod, so the handoff **cannot be clickjacked**
+> (can't be framed cross-origin to trick the click); the vector is a direct-lure only, not a stealth overlay.
 >
 > **YOUR FIX (~2 min):** Vercel → Production env → set **`NEXT_PUBLIC_CARE_EXTENSION_ID`** to the published
 > C.A.R.E Chrome Web Store extension id → redeploy. Then the handoff pins to your extension only (a lure to a
