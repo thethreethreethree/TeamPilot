@@ -1,4 +1,4 @@
-# Sales Coach — multi-lens audit (2026-08-08, 10 lenses)
+# Sales Coach — multi-lens audit (2026-08-08, 11 lenses)
 
 Ground-up, on-the-record audit of the Sales Coach directive surface (the browser extension + the in-app Sales Coach
 product), run across every recorded audit lens relevant to this domain. Every lens was checked against the
@@ -12,6 +12,7 @@ actual code (not grep verdicts): a suspect is verified before it's fixed, and "c
 | C.A.R.E → sales extension port-gaps | **13 gaps FIXED** | UX guards + 2 unused permissions + privacy/submission artifacts |
 | Browser-APIs-that-throw + async-acquire-leak | clean | `useLiveCoaching` guards getUserMedia/AudioContext/unmountedRef/MediaRecorder |
 | Context-switch state-bleed | **guarded** | `key={id}` on SessionCoachTools (`717be56e`) |
+| Append-only double-write | **2 FIXED** | useRef latch on `submitWhy` (`9463f709`) + `generateReview` (`63b13084`) — both button-triggered submits inserting append-only events without a re-entrancy latch; other [id]-page POSTs are idempotent updates / answer-returns |
 | Unbounded `.select()` 1000-cap | live, **founder-gated** | `kpi/me` + `compute-cron:71` (.limit(5000)=false bound); fix = RPC in the founder-gated KPI subsystem |
 | UTC-today-in-browser | clean | no browser day-truncation in the sales-coach client |
 | Money float-precision | clean | `sumDollarsExact` (integer-cent staging); no money `a*b` |
