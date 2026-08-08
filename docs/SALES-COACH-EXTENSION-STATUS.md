@@ -11,7 +11,8 @@ developer-facing port instructions see [`extension-sales/README.md`](../extensio
 > ([`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md)). Three founder calls remain before a
 > **public** launch (none block you testing it yourself now): a distinct Sales Coach **icon** (the toolbar icon
 > today is the shared ELOSTATE brand logo — fine as a placeholder), the **entitlement-source** decision (share the C.A.R.E plan vs a separate sales
-> SKU), and the **error-detail policy** (see decision 3). Prod also needs `NEXT_PUBLIC_SALES_EXTENSION_ID` set.
+> SKU), and the **error-detail policy** (see decision 3). Prod also needs `NEXT_PUBLIC_SALES_EXTENSION_ID` set —
+a **security** item (it pins the token-handoff; see the boxed note below), not just listing config.
 
 ## What it is
 
@@ -106,7 +107,17 @@ convention — the honest path is to ask, with the accurate scope.)
 
 **Phase 2 (the browser client) is DONE** — this was an open go-ahead in the prior version of this doc. The
 on-page panel, the per-site readers (17 platforms), and the Sign-in handoff are all built and CI-green. What
-remains is the icon (decision 2) and setting `NEXT_PUBLIC_SALES_EXTENSION_ID` in prod before a public listing.
+remains is the icon (decision 2) and setting `NEXT_PUBLIC_SALES_EXTENSION_ID` in prod.
+
+> **`NEXT_PUBLIC_SALES_EXTENSION_ID` is a SECURITY item, not just listing config.** The connect page hands the
+> session + refresh token to the extension id in the URL's `?ext=`. When this env var is set, the handoff is
+> *pinned* — only the official id gets the token, so a lure to `/extension/connect?ext=<malicious-id>` is
+> refused (verified this session in `isExtensionHandoffAllowed`, locked by `extensionHandoff.test.ts`). While it
+> is UNSET, the handoff is unpinned (hands to whatever id is in the URL, with only a console warning). So set it
+> to the Web Store id **for public launch — it closes a token-handoff vector.** Caveat for a *sideloaded pilot*:
+> load-unpacked installs get a different id per user (the manifest has no fixed `key`), so one pinned id can't
+> match them all — either run the pilot unpinned within a small trusted group (accept the vector) or add a fixed
+> `key` to the manifest so every sideload shares one pinnable id. Your call; flagged, not decided.
 The per-platform selectors ship "reasoned + confirm live per platform" (the same model as the C.A.R.E
 extension) — the runbook [`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md) walks the
 30-seconds-per-platform confirm loop.
