@@ -74,6 +74,18 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).toMatch(/characters captured[\s\S]{0,120}preview/);
   });
 
+  it("keeps the RECENT tail of a long conversation, not the oldest head (port-gap from C.A.R.E)", () => {
+    // A conversation runs oldest→newest and the coach tools need the LATEST turns ("what's the next move").
+    // The C.A.R.E parent trims from the front (slice(-SELECTION_MAX)); the sales port shipped slice(0, MAX_CHARS),
+    // which coaches on the OLDEST 20k and drops the recent messages — worst for an uploaded full-history file.
+    // Detection-true: fails on the pre-fix head-trim.
+    expect(CONTENT).toMatch(/currentSelection = raw\.slice\(-MAX_CHARS\)/);
+    expect(CONTENT).not.toMatch(/currentSelection = raw\.slice\(0, MAX_CHARS\)/);
+    // and the parent we mirror still tail-trims (guards the reference from silently changing under us)
+    const CARE_CONTENT = readFileSync(join(ROOT, "extension", "content.js"), "utf-8");
+    expect(CARE_CONTENT).toMatch(/slice\(-SELECTION_MAX\)/);
+  });
+
   it("gives a signed-out rep an explicit Sign-in button, not just text (retry affordance)", () => {
     // If the connect tab is closed or the handoff fails, a bare "Sign in to use" text leaves no visible way to
     // retry (only the non-obvious re-click-a-tool). A button wired to open-connect is the clear path.

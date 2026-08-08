@@ -34,7 +34,11 @@
   const setSelection = (text, who) => {
     const raw = String(text || "");
     const wasTrimmed = raw.length > MAX_CHARS; // tell the rep if we truncated — never silently coach on a cut thread (§3.4)
-    currentSelection = raw.slice(0, MAX_CHARS);
+    // Keep the RECENT TAIL, not the oldest head (mirrors the C.A.R.E parent + the adapters): a conversation runs
+    // oldest → newest and the tools need the most recent context ("what's the next move" reads the latest turns).
+    // Matters most for an UPLOADED long conversation (a full exported chat) — head-trimming would coach on the
+    // oldest 20k and drop the recent messages. slice(0,…) was a port-gap from C.A.R.E (which uses slice(-MAX)).
+    currentSelection = raw.slice(-MAX_CHARS);
     lastSpeaker = who === "agent" || who === "customer" ? who : null;
     const el = root.getElementById("sc-selinfo");
     if (el) {
