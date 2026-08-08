@@ -41,6 +41,11 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("extractRCD");
   });
 
+  it("does not fire an input-bearing tool with an empty draft/intent (refocuses instead of a 400)", () => {
+    // A blank Run would 400 on the missing required field → confusing "something went wrong". Guard + refocus.
+    expect(CONTENT).toMatch(/if \(!v\) \{ if \(ta\) ta\.focus\(\); return; \}/);
+  });
+
   it("tells the rep when a captured conversation was truncated (honest, not silent — §3.4)", () => {
     expect(CONTENT).toContain("trimmed to fit");
     expect(CONTENT).toMatch(/raw\.length > MAX_CHARS/);

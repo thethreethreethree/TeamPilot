@@ -253,7 +253,12 @@
             placeholder="${esc(tool.input.placeholder || "")}"></textarea>
           <button class="sc-run" id="sc-run">${esc(tool.label)}</button>`;
         root.getElementById("sc-run").addEventListener("click", () => {
-          runTool(tool, root.getElementById("sc-inval").value);
+          // Don't fire a call with an empty draft/intent — the server would 400 on the missing required field
+          // and the rep would see a confusing "something went wrong". Refocus instead (mirrors C.A.R.E).
+          const ta = root.getElementById("sc-inval");
+          const v = ((ta && ta.value) || "").trim();
+          if (!v) { if (ta) ta.focus(); return; }
+          runTool(tool, v);
         });
       } else {
         wrap.innerHTML = "";
