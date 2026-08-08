@@ -26,8 +26,5 @@
   "host_permissions": [
     "http://localhost:4321/*",
     "https://elostate.com/*"
-  ],
-  "optional_host_permissions": [
-    "*://*/*"
   ]
 }
