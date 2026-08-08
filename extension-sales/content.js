@@ -144,7 +144,14 @@
     const out = root.getElementById("sc-out");
     const token = typeof getToken === "function" ? await getToken() : null;
     if (!token) {
-      out.innerHTML = `<p class="sc-muted">Sign in to use the Sales Coach.</p>`;
+      // Signed-out state: an explicit Sign-in button (not just text) so the rep can (re)connect if the connect
+      // tab was closed or the handoff failed — the auto-open below covers the happy path, the button the retry.
+      // The one-line explanation names what sign-in is for (transparency for a conversation-reading tool).
+      out.innerHTML =
+        `<p class="sc-muted">Sign in with your account to coach the conversation on this page — after you sign in, come back to this tab.</p>` +
+        `<button class="sc-run" id="sc-signin">Sign in</button>`;
+      const signinBtn = root.getElementById("sc-signin");
+      if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
       chrome.runtime.sendMessage({ type: "open-connect" });
       return;
     }

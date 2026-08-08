@@ -41,6 +41,13 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("extractRCD");
   });
 
+  it("gives a signed-out rep an explicit Sign-in button, not just text (retry affordance)", () => {
+    // If the connect tab is closed or the handoff fails, a bare "Sign in to use" text leaves no visible way to
+    // retry (only the non-obvious re-click-a-tool). A button wired to open-connect is the clear path.
+    expect(CONTENT).toContain('id="sc-signin"');
+    expect(CONTENT).toMatch(/sc-signin[\s\S]{0,200}open-connect/);
+  });
+
   it("gives the rep a Copy affordance on drafted output (workflow continuity, §1.5.1)", () => {
     // A drafted reply the rep must retype by hand is a dead-end; the C.A.R.E panel copies out and the sales
     // port must too. The copy is wired via a closure (copyTextFor → wireCopy), and the clipboard call is
