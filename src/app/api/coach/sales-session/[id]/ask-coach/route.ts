@@ -92,7 +92,15 @@ export async function POST(
     if (r.suppressed) {
       return NextResponse.json({ answer: null, suppressed: true });
     }
-    return NextResponse.json({ answer: r.text.trim() });
+    const answer = r.text.trim();
+    // Empty text WITHOUT suppression is a model failure, not a deliberate no-answer (that's the suppressed
+    // path above). Rendering it as { answer: "" } 200 would show the rep a blank coaching answer as if the
+    // coach said nothing — the §3.4 false-empty. Fail loud so they can retry (mirrors copilot/formulate).
+    if (!answer) {
+      console.error("[coach/sales-session/ask-coach] empty answer from model (not suppressed)");
+      return NextResponse.json({ error: "Ask-coach failed." }, { status: 502 });
+    }
+    return NextResponse.json({ answer });
   } catch (err) {
     console.error("[coach/sales-session/ask-coach] failed:", err);
     return NextResponse.json({ error: "Ask-coach failed." }, { status: 502 });
