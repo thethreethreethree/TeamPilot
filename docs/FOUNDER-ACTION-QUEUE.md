@@ -158,6 +158,32 @@
 > (Correctness is unaffected + separately fixed: finalize/summarize/backfill timeouts raised 25s→40s so slow
 > reasoning runs COMPLETE rather than degrade to empty — `0222f7cd`/`5d6c086a`.)
 
+## 🟢 RETURN-BRIEFING — 2026-08-08 autonomous session (what happened while you were away)
+
+> **The Sales Coach browser extension is complete, hardened, and live** — ten commits this session, all deployed
+> (I confirmed prod serves the latest commit, which means CI + build passed). What shipped on top of the
+> already-built extension:
+> - **Capture-preview safety fix** — the panel now previews a snippet of what it grabbed, not just a char count,
+>   so a wrong-node scrape on an unverified platform is visible to the rep instead of silently coached on.
+> - **Coverage 13→17 platforms** — added the 4 support-desk adapters (Zendesk/Intercom/Front/Gorgias), reusing
+>   the proven C.A.R.E selectors; each self-gates by hostname (zero downside). Left Reddit/Zoom unbuilt (would be
+>   speculative new selectors, not reuse).
+> - **Two security drift-guards** — CI now fails if any extension route ships without entitlement gating, or if
+>   the connect handoff's sales branch pins to the wrong extension id. Both lock invariants I verified by reading.
+> - Every load-bearing path traced end-to-end (capture, adapters, textFrom, token refresh, per-request
+>   entitlement, package wiring, download page, auth handoff) — all solid; every claim above read-confirmed.
+>
+> **🔴 The one thing that needs YOU is a 2-minute prod fix — see the TOP item above.** I confirmed by observing
+> prod that `NEXT_PUBLIC_CARE_EXTENSION_ID` is unset, so the LIVE C.A.R.E extension's token-handoff is unpinned
+> (severity-bounded: not clickjackable, needs a direct lure — but real). Set it in Vercel + redeploy.
+>
+> **Also flagged (no action forced):** prod runs single-LLM-provider (DeepSeek only, `anthropic:false` on
+> `/api/health`), so the DeepSeek→Anthropic failover you built is currently inert — confirm that's intentional
+> (cost) vs an unset-key oversight. And the Sales Coach launch still needs your calls: icon, entitlement source
+> (share the C.A.R.E plan vs a separate SKU), error-detail policy, `NEXT_PUBLIC_SALES_EXTENSION_ID`, privacy
+> review, screenshots — all in `docs/SALES-COACH-EXTENSION-STATUS.md`. Optional: port the capture-preview fix to
+> the shipped C.A.R.E extension (same scrape model, documented "Hi John" history).
+
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
 > **Your one request is DONE + verified: Sales Coach now gives EVERY session all content, no minimum length.**
