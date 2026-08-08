@@ -360,9 +360,18 @@ export default function SessionDetail() {
   const [whyBusy, setWhyBusy] = useState(false);
   // Accepts an explicit hypothesis so a retry / post-reload regeneration can
   // reuse the already-recorded read (F3) without the draft box being present.
+  // useRef latch (NOT just whyBusy/useState + a disabled button): setWhyBusy(true) doesn't take effect
+  // synchronously, so a fast double-click — or the programmatic hypothesisArg retry racing a click — can call
+  // submitWhy twice before the re-render disables the button. The /why route inserts the rep hypothesis
+  // UNCONDITIONALLY (append-only, "always"), so a double-fire writes DUPLICATE immutable events. The ref is
+  // checked+set synchronously before the first await; released in finally, so a deliberate re-submit (a new
+  // hypothesis, after the first completes) is still allowed. (append-only double-write class.)
+  const whySubmitRef = useRef(false);
   const submitWhy = async (hypothesisArg?: string) => {
     const h = (hypothesisArg ?? whyDraft).trim();
     if (h.length < 3) return;
+    if (whySubmitRef.current) return;
+    whySubmitRef.current = true;
     setWhyBusy(true);
     setError(null);
     try {
@@ -385,6 +394,7 @@ export default function SessionDetail() {
       setError("Couldn't generate the why.");
     } finally {
       setWhyBusy(false);
+      whySubmitRef.current = false;
     }
   };
 
