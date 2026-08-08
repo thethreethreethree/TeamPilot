@@ -4,9 +4,17 @@ The founder's brief: work across "facebook, instagram, whatsapp, gmail, outlook,
 communication platforms." This is the honest, grounded answer — the definitive list the Phase 2b
 `adapters.js` port works from.
 
-**The hard constraint:** a browser extension can only read a platform that has a **web app** a content script
-can reach. Native-mobile-only apps (iMessage, SMS, Signal) are **uncoverable by any extension** — they'd need
-a different integration entirely. So "top 20" resolves to ~15 web-reachable platforms, not literally 20.
+**What "coverage" means here — read this first.** The extension is **usable on ANY website**: clicking the
+toolbar icon injects the panel on the current tab (`activeTab`), and the rep can always **highlight the
+conversation manually** and press Capture. So a rep can coach a thread on *any* of the top-20 platforms today.
+What the per-platform adapters below add is **automatic** reading — the panel grabs the open thread with no
+highlighting. So the honest coverage statement is: *usable everywhere with a manual highlight; auto-reads the
+13 platforms with an adapter.* The list below is the **auto-read** list, not the "works here at all" list.
+
+**The hard constraint (on AUTO-READ):** a content script can only *automatically* read a platform that has a
+**web app** it can reach. Native-mobile-only apps (iMessage, SMS, Signal) have no web surface to auto-read —
+and, being mobile-only, a browser extension can't run there at all. So auto-read "top 20" resolves to ~15
+web-reachable platforms, not literally 20. (Manual coaching still works on any web page a rep can open.)
 
 **Reuse column is factual** — verified against the 11 adapters in `../extension/adapters.js` (their `match()`
 hostnames are quoted). Selectors in that file are labeled reasoned-but-UNVERIFIED and must be confirmed live
