@@ -256,6 +256,17 @@ describe("Sales Coach connect handoff — message type matches the worker (cross
   it("the worker opens the connect page with product=sales (so the page picks the sales branch)", () => {
     expect(BG).toContain("product=sales");
   });
+
+  it("pins the sales handoff to the SALES extension id, not C.A.R.E's (a crossed branch misdirects the token)", () => {
+    // The message type is guarded above; this guards the security-critical OTHER half — the id the handoff
+    // PINS TO. isExtensionHandoffAllowed is only as safe as allowedExtId, and the sales branch must derive it
+    // from NEXT_PUBLIC_SALES_EXTENSION_ID. If a refactor crossed the ternary and pinned sales to
+    // NEXT_PUBLIC_CARE_EXTENSION_ID, a sales sign-in would pin the session + refresh token to the wrong
+    // extension. The regex asserts the exact branch ordering (sales ? SALES : CARE), so a swap fails CI.
+    expect(CONNECT).toMatch(
+      /sales\s*\?\s*process\.env\.NEXT_PUBLIC_SALES_EXTENSION_ID\s*:\s*process\.env\.NEXT_PUBLIC_CARE_EXTENSION_ID/
+    );
+  });
 });
 
 describe("Sales Coach manifest — least privilege (no copied-unused permissions from the C.A.R.E port)", () => {
