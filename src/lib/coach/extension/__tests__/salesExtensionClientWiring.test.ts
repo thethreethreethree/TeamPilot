@@ -30,11 +30,12 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
   });
 
   it("renders each tool's server result shape", () => {
-    // dissect → {dissect}, coach → {coaching}, summarize → {summary}, copilot/formulate → {reply, reasoning}
+    // Post-merge tools: dissect → {dissect}, summarize → {summary}, suggested → {reply, reasoning}.
+    // (coach's {coaching} branch was removed in the 2026-08-09 cleanup when the coach route was deleted.)
     expect(CONTENT).toContain("data.dissect");
-    expect(CONTENT).toContain("data.coaching");
     expect(CONTENT).toContain("data.summary");
     expect(CONTENT).toContain("data.reply");
+    expect(CONTENT).not.toContain("data.coaching"); // dead branch removed
   });
 
   it("dropped the C.A.R.E RCD/media capture UI", () => {

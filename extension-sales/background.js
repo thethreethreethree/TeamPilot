@@ -131,12 +131,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return; // sync response
     }
     // Forward only the known tool inputs (defence in depth — never relay arbitrary keys): every tool takes
-    // `conversation`; Suggested Response also takes the optional `guidance` (the rep's draft/intent), and the
-    // co-pilot path uses `lastSpeaker`. (`draft`/`intent` retained for any legacy caller of the old routes.)
+    // `conversation`; Suggested Response also takes the optional `guidance` (the rep's draft/intent); the
+    // co-pilot path (blank guidance) uses `lastSpeaker`.
     const payload = { conversation: String(message.conversation || "") };
     if (typeof message.guidance === "string" && message.guidance) payload.guidance = message.guidance;
-    if (typeof message.draft === "string" && message.draft) payload.draft = message.draft;
-    if (typeof message.intent === "string" && message.intent) payload.intent = message.intent;
     // Co-Pilot response-mode signal: who sent the last message. Only the schema-valid values are relayed
     // (the route defaults a missing value to reply).
     if (message.lastSpeaker === "agent" || message.lastSpeaker === "customer") {

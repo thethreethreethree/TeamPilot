@@ -15,10 +15,7 @@ import {
   generateSalesTextDissect,
   EMPTY_SALES_TEXT_DISSECT,
 } from "@/lib/coach/extension/salesTextDissect";
-import {
-  generateSalesReplyCoaching,
-  EMPTY_SALES_REPLY_COACHING,
-} from "@/lib/coach/extension/salesReplyCoach";
+// (generateSalesReplyCoaching's guard test was removed with the coach engine in the 2026-08-09 cleanup.)
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 
@@ -47,33 +44,5 @@ describe("generateSalesTextDissect — length guard (<40 chars)", () => {
     expect(dissectCoachV5).toHaveBeenCalledTimes(1);
     expect(out.hasSignal).toBe(true);
     expect(out.opportunity).toBe("quantify the pain");
-  });
-});
-
-describe("generateSalesReplyCoaching — draft length guard (<10 chars)", () => {
-  it("returns EMPTY without calling the LLM on a trivial draft", async () => {
-    const out = await generateSalesReplyCoaching({ conversation: "a full sales thread here", draft: "ok" });
-    expect(out).toEqual(EMPTY_SALES_REPLY_COACHING);
-    expect(dissectCoachV5).not.toHaveBeenCalled();
-  });
-
-  it("calls the LLM on a real draft", async () => {
-    asMock(dissectCoachV5).mockResolvedValue({
-      text: JSON.stringify({
-        hasSignal: true,
-        assessment: "leads with the product",
-        strengths: ["courteous"],
-        improvements: [{ point: "name the problem first", why: "SPIN" }],
-        suggestedRevision: "What does the delay cost you weekly?",
-        guidingQuestion: "what do they care about?",
-      }),
-    });
-    const out = await generateSalesReplyCoaching({
-      conversation: "a full sales thread here",
-      draft: "Hi, I wanted to follow up on our pricing conversation from last week.",
-    });
-    expect(dissectCoachV5).toHaveBeenCalledTimes(1);
-    expect(out.hasSignal).toBe(true);
-    expect(out.improvements[0]?.point).toContain("name the problem");
   });
 });

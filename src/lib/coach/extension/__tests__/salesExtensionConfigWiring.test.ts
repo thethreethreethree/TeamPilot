@@ -50,12 +50,8 @@ describe("Sales Coach extension config — reverse drift: no orphan tool route (
   const NON_TOOL_ROUTES = new Set([
     "/api/coach/extension/refresh", // infra: silent session refresh (extensionRefresh.ts)
     "/api/coach/extension/extract", // infra: conversation file → text ingestion helper (no LLM; feeds capture)
-    // SUPERSEDED by /suggest (2026-08-09): the merged "Suggested Response" reuses these two routes' ENGINES
-    // (generateSalesCopilotReply / generateSalesFormulate) directly, so no client button points here anymore.
-    // Retained (live, gated, harmless) rather than deleted — flagged for a founder cleanup decision.
-    "/api/coach/extension/copilot",
-    "/api/coach/extension/formulate",
-    "/api/coach/extension/coach", // superseded: grading isn't part of the merged action's chosen behavior
+    // (The superseded coach/copilot/formulate routes were DELETED in the 2026-08-09 cleanup — /suggest reuses
+    // their engines directly. No entry needed here now that the route files are gone.)
   ]);
 
   // Every built route.ts under coach/extension → its endpoint path.
@@ -63,8 +59,9 @@ describe("Sales Coach extension config — reverse drift: no orphan tool route (
     .filter((d) => d.isDirectory() && existsSync(join(ROUTES_DIR, d.name, "route.ts")))
     .map((d) => `/api/coach/extension/${d.name}`);
 
-  it("finds the built routes (5 tools + refresh)", () => {
-    expect(routeEndpoints.length).toBeGreaterThanOrEqual(6);
+  it("finds the built routes (summarize, dissect, suggest tools + extract + refresh infra)", () => {
+    // Post-cleanup: summarize, dissect, suggest (tools) + extract, refresh (non-tool infra) = 5.
+    expect(routeEndpoints.length).toBeGreaterThanOrEqual(5);
   });
 
   it.each(routeEndpoints)(

@@ -170,29 +170,13 @@
         ${d.nextMove ? `<p class="sc-h">Next move</p><p>${esc(d.nextMove)}</p>` : ""}
         ${d.guidingQuestion ? `<p class="sc-q">${esc(d.guidingQuestion)}</p>` : ""}`;
     }
-    if (toolKey === "coach") {
-      const c = data.coaching || {};
-      if (!c.hasSignal) return `<p class="sc-muted">Nothing to coach on that draft yet.</p>`;
-      const strengths = (c.strengths || []).map((s) => `<li>${esc(s)}</li>`).join("");
-      const improvements = (c.improvements || [])
-        .map((i) => `<li><b>${esc(i.point)}</b> — ${esc(i.why)}</li>`)
-        .join("");
-      return `
-        ${c.assessment ? `<p>${esc(c.assessment)}</p>` : ""}
-        ${strengths ? `<p class="sc-h">Strengths</p><ul>${strengths}</ul>` : ""}
-        ${improvements ? `<p class="sc-h">Improve</p><ul>${improvements}</ul>` : ""}
-        ${c.suggestedRevision ? `<div class="sc-rhead"><span class="sc-h">Stronger version</span><button class="sc-copy" id="sc-copy">Copy</button></div><p class="sc-rev">${esc(c.suggestedRevision)}</p>` : ""}
-        ${c.guidingQuestion ? `<p class="sc-q">${esc(c.guidingQuestion)}</p>` : ""}`;
-    }
-    // suggested (and the legacy copilot/formulate) share { reply, reasoning }. The reply is the copyable,
-    // customer-facing output; the "Move" reasoning is an internal note shown but DELIBERATELY excluded from the
-    // copy so it never lands in the prospect's inbox (mirrors the C.A.R.E panel — copying out is the
-    // workflow-continuity step, §1.5.1).
-    if (toolKey === "suggested" || toolKey === "copilot" || toolKey === "formulate") {
+    // Suggested Response returns { reply, reasoning }. The reply is the copyable, customer-facing output; the
+    // "Move" reasoning is an internal note shown but DELIBERATELY excluded from the copy so it never lands in the
+    // prospect's inbox (mirrors the C.A.R.E panel — copying out is the workflow-continuity step).
+    if (toolKey === "suggested") {
       if (!data.reply) return `<p class="sc-muted">Couldn't draft a suggested response. Try again.</p>`;
-      const head = toolKey === "suggested" ? "Suggested response" : "Draft";
       return `
-        <div class="sc-rhead"><span class="sc-h">${head}</span><button class="sc-copy" id="sc-copy">Copy</button></div>
+        <div class="sc-rhead"><span class="sc-h">Suggested response</span><button class="sc-copy" id="sc-copy">Copy</button></div>
         <p class="sc-rev">${esc(data.reply)}</p>
         ${data.reasoning ? `<p class="sc-q">Move: ${esc(data.reasoning)}</p>` : ""}`;
     }
@@ -204,10 +188,7 @@
   // reasoning is intentionally NOT copyable (internal note only).
   function copyTextFor(toolKey, data) {
     if (!data) return "";
-    if ((toolKey === "suggested" || toolKey === "copilot" || toolKey === "formulate") && typeof data.reply === "string")
-      return data.reply;
-    if (toolKey === "coach" && data.coaching && typeof data.coaching.suggestedRevision === "string")
-      return data.coaching.suggestedRevision;
+    if (toolKey === "suggested" && typeof data.reply === "string") return data.reply;
     return "";
   }
 
