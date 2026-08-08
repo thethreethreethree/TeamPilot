@@ -45,9 +45,16 @@ memory `reference_error_dressed_as_no_data_class`.
    founder-gated KPI/measurement subsystem; the corrected metric can't be validated without live data
    (guide-don't-overtake + distrust-unverified), so
    not auto-fixed. Bites at ~5 reps × 200 calls = 1000 sessions/company.
-2. **Full per-table tenant-scope sweep.** INV15 gates `coaching_sessions`; the two other admin writes were
-   verified pinned. A *complete* per-table admin-write audit (elo_ratings, sales_corpus, assessments) is the
-   `/code-review ultra` scope.
+2. **Full per-table tenant-scope sweep — VERIFIED CLEAN (2026-08-08, later pass).** INV15 gates
+   `coaching_sessions`. The originally-flagged tables (`elo_ratings`, `sales_corpus`, `assessments`) turn out to
+   have **no direct app writes at all** (grep-confirmed) — they're computed/derived from `events` or were
+   speculative names — so there's no admin-write cross-tenant surface on them to audit. The actual admin-write
+   path is `events` (append-only): spot-checked writes (why-route, v5 salesDissect, etc.) pin `company_id` from
+   **server-derived context** (session/getSession — INV19 owner-checked — or the calling route's auth context),
+   never from client input (client supplies only payload content). `coach-assessment` computes from `events`
+   tenant-scoped (`.eq("company_id", ctx.companyId)`). A *complete* every-event-insert provenance audit across
+   the whole app remains the `/code-review ultra` scope, but the Sales Coach admin-write surface is read-confirmed
+   clean here — no cross-tenant write gap.
 3. **Extension launch decisions** (entitlement source, icon, error-detail policy, privacy review, screenshots,
    `NEXT_PUBLIC_SALES_EXTENSION_ID`) — see `SALES-COACH-EXTENSION-STATUS.md`.
 
