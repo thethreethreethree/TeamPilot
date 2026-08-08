@@ -40,6 +40,21 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("care-rcd");
     expect(CONTENT).not.toContain("extractRCD");
   });
+
+  it("gives the rep a Copy affordance on drafted output (workflow continuity, §1.5.1)", () => {
+    // A drafted reply the rep must retype by hand is a dead-end; the C.A.R.E panel copies out and the sales
+    // port must too. The copy is wired via a closure (copyTextFor → wireCopy), and the clipboard call is
+    // guarded (it can throw). These lock the affordance since the browser behavior can't be run here.
+    expect(CONTENT).toContain('id="sc-copy"');
+    expect(CONTENT).toContain("function wireCopy");
+    expect(CONTENT).toContain("function copyTextFor");
+    expect(CONTENT).toContain("navigator.clipboard.writeText");
+    // the clipboard call is inside a try/catch (never crashes the panel on a blocked page)
+    expect(CONTENT).toMatch(/try\s*\{[\s\S]*navigator\.clipboard\.writeText[\s\S]*\}\s*catch/);
+    // copyTextFor returns the reply/revision but NOT the internal "Move" reasoning (never copied to the inbox)
+    expect(CONTENT).toMatch(/copyTextFor[\s\S]*data\.reply/);
+    expect(CONTENT).not.toMatch(/copyTextFor[\s\S]*data\.reasoning/);
+  });
 });
 
 describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", () => {

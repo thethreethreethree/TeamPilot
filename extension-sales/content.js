@@ -97,17 +97,47 @@
         ${c.assessment ? `<p>${esc(c.assessment)}</p>` : ""}
         ${strengths ? `<p class="sc-h">Strengths</p><ul>${strengths}</ul>` : ""}
         ${improvements ? `<p class="sc-h">Improve</p><ul>${improvements}</ul>` : ""}
-        ${c.suggestedRevision ? `<p class="sc-h">Stronger version</p><p class="sc-rev">${esc(c.suggestedRevision)}</p>` : ""}
+        ${c.suggestedRevision ? `<div class="sc-rhead"><span class="sc-h">Stronger version</span><button class="sc-copy" id="sc-copy">Copy</button></div><p class="sc-rev">${esc(c.suggestedRevision)}</p>` : ""}
         ${c.guidingQuestion ? `<p class="sc-q">${esc(c.guidingQuestion)}</p>` : ""}`;
     }
-    // copilot + formulate share { reply, reasoning }
+    // copilot + formulate share { reply, reasoning }. The reply is the copyable, customer-facing output; the
+    // "Move" reasoning is an internal note shown but DELIBERATELY excluded from the copy so it never lands in
+    // the prospect's inbox (mirrors the C.A.R.E panel — copying out is the workflow-continuity step, §1.5.1).
     if (toolKey === "copilot" || toolKey === "formulate") {
       if (!data.reply) return `<p class="sc-muted">Couldn't draft that. Try again.</p>`;
       return `
-        <p class="sc-h">Draft</p><p class="sc-rev">${esc(data.reply)}</p>
+        <div class="sc-rhead"><span class="sc-h">Draft</span><button class="sc-copy" id="sc-copy">Copy</button></div>
+        <p class="sc-rev">${esc(data.reply)}</p>
         ${data.reasoning ? `<p class="sc-q">Move: ${esc(data.reasoning)}</p>` : ""}`;
     }
     return `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+  }
+
+  // The copyable, customer-facing text for a result (or "" if none). Held in a JS closure and passed to
+  // wireCopy — never placed in an HTML attribute, so quotes in the draft can't break escaping. The "Move"
+  // reasoning is intentionally NOT copyable (internal note only).
+  function copyTextFor(toolKey, data) {
+    if (!data) return "";
+    if ((toolKey === "copilot" || toolKey === "formulate") && typeof data.reply === "string") return data.reply;
+    if (toolKey === "coach" && data.coaching && typeof data.coaching.suggestedRevision === "string")
+      return data.coaching.suggestedRevision;
+    return "";
+  }
+
+  // Wire the result's Copy button. navigator.clipboard can throw (page blocks it / not focused) — guard it and
+  // fall back to a "select + Ctrl+C" hint; the text stays selectable either way. (browser-APIs-that-throw lens.)
+  function wireCopy(out, text) {
+    const btn = out.querySelector("#sc-copy");
+    if (!btn || !text) return;
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      } catch {
+        btn.textContent = "Press Ctrl+C";
+      }
+    });
   }
 
   async function runTool(tool, inputValue) {
@@ -142,6 +172,7 @@
       return;
     }
     out.innerHTML = renderResult(tool.key, resp.data);
+    wireCopy(out, copyTextFor(tool.key, resp.data));
   }
 
   // Build the panel UI from SALES_TOOLS.
@@ -172,6 +203,10 @@
       .sc-out { font-size:12.5px; line-height:1.45; }
       .sc-out p { margin:6px 0; } .sc-out ul { margin:6px 0; padding-left:18px; }
       .sc-h { font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#f59e0b; margin-top:10px; }
+      .sc-rhead { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+      .sc-rhead .sc-h { margin-top:0; }
+      .sc-copy { font-size:10px; font-weight:600; color:#a1a1aa; background:transparent; border:1px solid #2a2a30; border-radius:6px; padding:2px 8px; cursor:pointer; }
+      .sc-copy:hover { color:#fafafa; border-color:#3a3a42; }
       .sc-q { font-style:italic; color:#c9c9cf; border-left:2px solid #3a3a42; padding-left:8px; }
       .sc-rev { background:#141418; border:1px solid #2a2a30; border-radius:8px; padding:8px; white-space:pre-wrap; }
       .sc-muted { color:#9a9aa2; } .sc-err { color:#fca5a5; }
