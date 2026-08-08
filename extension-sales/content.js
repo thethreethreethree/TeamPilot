@@ -76,6 +76,70 @@
     setSelection(window.getSelection ? window.getSelection().toString() : "", null);
   }
 
+  // Upload a conversation FILE (PDF/DOCX/TXT the rep exported from a chat) when the page can't be auto-scanned.
+  // The server extracts the text; we then treat it exactly like a captured conversation. A File can't cross
+  // chrome.runtime.sendMessage, so we base64 the bytes and the worker rebuilds a multipart upload.
+  const UPLOAD_MAX_BYTES = 4 * 1024 * 1024; // mirror the server's 4 MB cap — reject early, before the round-trip
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error("read failed"));
+      reader.onload = () => {
+        // readAsDataURL → "data:<mime>;base64,<b64>"; strip the prefix to the bare base64.
+        const s = String(reader.result || "");
+        const comma = s.indexOf(",");
+        resolve(comma >= 0 ? s.slice(comma + 1) : s);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  async function handleUpload(ev) {
+    const input = ev.target;
+    const file = input && input.files && input.files[0];
+    const info = root.getElementById("sc-selinfo");
+    if (!file) return;
+    if (file.size > UPLOAD_MAX_BYTES) {
+      if (info) info.textContent = "That file is larger than 4 MB — upload a smaller file or paste the text.";
+      input.value = "";
+      return;
+    }
+    if (info) info.textContent = `Reading “${file.name}”…`;
+    let b64;
+    try {
+      b64 = await fileToBase64(file);
+    } catch {
+      if (info) info.textContent = "Couldn't read that file.";
+      input.value = "";
+      return;
+    }
+    let resp;
+    try {
+      resp = await chrome.runtime.sendMessage({
+        type: "sales-extract",
+        endpoint: "/api/coach/extension/extract",
+        filename: file.name,
+        mime: file.type,
+        b64,
+      });
+    } catch {
+      if (info) info.textContent = "Couldn't reach the Sales Coach to read that file.";
+      input.value = "";
+      return;
+    }
+    input.value = ""; // let the rep re-upload the same file if needed
+    if (resp && resp.status === 401) {
+      if (info) info.textContent = "Your session expired — sign in again, then re-upload.";
+      chrome.runtime.sendMessage({ type: "open-connect" });
+      return;
+    }
+    if (!resp || resp.status < 200 || resp.status >= 300 || !resp.data || !resp.data.text) {
+      if (info) info.textContent = (resp && resp.data && resp.data.error) || "Couldn't read that file.";
+      return;
+    }
+    // Uploaded conversation → lastSpeaker unknown (server determines). setSelection shows the preview + trims.
+    setSelection(resp.data.text, null);
+  }
+
   const esc = (s) =>
     String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
@@ -116,13 +180,15 @@
         ${c.suggestedRevision ? `<div class="sc-rhead"><span class="sc-h">Stronger version</span><button class="sc-copy" id="sc-copy">Copy</button></div><p class="sc-rev">${esc(c.suggestedRevision)}</p>` : ""}
         ${c.guidingQuestion ? `<p class="sc-q">${esc(c.guidingQuestion)}</p>` : ""}`;
     }
-    // copilot + formulate share { reply, reasoning }. The reply is the copyable, customer-facing output; the
-    // "Move" reasoning is an internal note shown but DELIBERATELY excluded from the copy so it never lands in
-    // the prospect's inbox (mirrors the C.A.R.E panel — copying out is the workflow-continuity step, §1.5.1).
-    if (toolKey === "copilot" || toolKey === "formulate") {
-      if (!data.reply) return `<p class="sc-muted">Couldn't draft that. Try again.</p>`;
+    // suggested (and the legacy copilot/formulate) share { reply, reasoning }. The reply is the copyable,
+    // customer-facing output; the "Move" reasoning is an internal note shown but DELIBERATELY excluded from the
+    // copy so it never lands in the prospect's inbox (mirrors the C.A.R.E panel — copying out is the
+    // workflow-continuity step, §1.5.1).
+    if (toolKey === "suggested" || toolKey === "copilot" || toolKey === "formulate") {
+      if (!data.reply) return `<p class="sc-muted">Couldn't draft a suggested response. Try again.</p>`;
+      const head = toolKey === "suggested" ? "Suggested response" : "Draft";
       return `
-        <div class="sc-rhead"><span class="sc-h">Draft</span><button class="sc-copy" id="sc-copy">Copy</button></div>
+        <div class="sc-rhead"><span class="sc-h">${head}</span><button class="sc-copy" id="sc-copy">Copy</button></div>
         <p class="sc-rev">${esc(data.reply)}</p>
         ${data.reasoning ? `<p class="sc-q">Move: ${esc(data.reasoning)}</p>` : ""}`;
     }
@@ -134,7 +200,8 @@
   // reasoning is intentionally NOT copyable (internal note only).
   function copyTextFor(toolKey, data) {
     if (!data) return "";
-    if ((toolKey === "copilot" || toolKey === "formulate") && typeof data.reply === "string") return data.reply;
+    if ((toolKey === "suggested" || toolKey === "copilot" || toolKey === "formulate") && typeof data.reply === "string")
+      return data.reply;
     if (toolKey === "coach" && data.coaching && typeof data.coaching.suggestedRevision === "string")
       return data.coaching.suggestedRevision;
     return "";
@@ -252,6 +319,8 @@
       <div class="sc-body">
         <div class="sc-row">
           <button class="sc-cap" id="sc-capture">Capture conversation</button>
+          <button class="sc-cap" id="sc-upload" title="Upload a PDF/DOCX/TXT export of the conversation">Upload conversation</button>
+          <input type="file" id="sc-file" accept=".pdf,.txt,.docx,.md" style="display:none" />
         </div>
         <div class="sc-selinfo" id="sc-selinfo">No conversation captured yet</div>
         <div class="sc-row" id="sc-tools">${toolButtons}</div>
@@ -262,6 +331,9 @@
 
   root.getElementById("sc-close").addEventListener("click", () => host.remove());
   root.getElementById("sc-capture").addEventListener("click", captureConversation);
+  // Upload conversation: a hidden file input opened by the button; the change handler does the extract round-trip.
+  root.getElementById("sc-upload").addEventListener("click", () => root.getElementById("sc-file").click());
+  root.getElementById("sc-file").addEventListener("change", handleUpload);
 
   // Tool buttons: input-bearing tools (coach draft, formulate intent) reveal a textarea + Run; the others run
   // straight on the captured conversation.
@@ -277,11 +349,12 @@
         const inval = root.getElementById("sc-inval");
         if (inval) inval.focus(); // auto-focus so the rep types immediately, no extra click (C.A.R.E parity)
         root.getElementById("sc-run").addEventListener("click", () => {
-          // Don't fire a call with an empty draft/intent — the server would 400 on the missing required field
-          // and the rep would see a confusing "something went wrong". Refocus instead (mirrors C.A.R.E).
+          // A REQUIRED-input tool must not fire on empty (the server would 400 on the missing field → confusing
+          // "something went wrong") — refocus instead. An OPTIONAL input (Suggested Response's guidance) IS
+          // allowed empty: a blank Run means "draft from the conversation", which the server handles.
           const ta = root.getElementById("sc-inval");
           const v = ((ta && ta.value) || "").trim();
-          if (!v) { if (ta) ta.focus(); return; }
+          if (!v && !tool.input.optional) { if (ta) ta.focus(); return; }
           runTool(tool, v);
         });
       } else {

@@ -31,32 +31,28 @@ chrome.action.onClicked.addListener(async (tab) => {
 // service worker. So the panel sends "sales-tool" here; the worker holds the token, calls the API, refreshes.
 const ALLOWED_ENDPOINT = /^\/api\/coach\/extension\/[a-z]+$/; // no arbitrary paths/hosts (defence in depth)
 
-async function salesFetch(endpoint, payload) {
+async function readJson(res) {
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON body */
+  }
+  return data;
+}
+
+// Shared token load + silent one-shot refresh-retry around a caller-provided `call(base, token)`. Both the JSON
+// tool path and the multipart upload path go through this, so the 401→refresh→retry logic lives in ONE place
+// (re-inlining it per call site is exactly how the two drift). Runs in the CORS-free worker context.
+async function withAuthRetry(call) {
   const { salesCoachToken, salesCoachRefreshToken, apiBase } = await chrome.storage.local.get([
     "salesCoachToken",
     "salesCoachRefreshToken",
     "apiBase",
   ]);
   const base = apiBase || "https://elostate.com";
-  const call = async (token) => {
-    const res = await fetch(base + endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    });
-    let data = {};
-    try {
-      data = await res.json();
-    } catch {
-      /* non-JSON body */
-    }
-    return { status: res.status, data };
-  };
+  let out = await call(base, salesCoachToken);
 
-  let out = await call(salesCoachToken);
-
-  // Silent refresh on expiry, then retry once — via the coach refresh route (built; shares
-  // refreshExtensionSession with the C.A.R.E route). Runs here (CORS-free worker context).
   if (out.status === 401 && salesCoachRefreshToken) {
     try {
       const rr = await fetch(base + "/api/coach/extension/refresh", {
@@ -71,7 +67,7 @@ async function salesFetch(endpoint, payload) {
             salesCoachToken: rd.access_token,
             salesCoachRefreshToken: rd.refresh_token || salesCoachRefreshToken,
           });
-          out = await call(rd.access_token);
+          out = await call(base, rd.access_token);
         }
       } else {
         // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in, drop the badge.
@@ -83,6 +79,37 @@ async function salesFetch(endpoint, payload) {
     }
   }
   return out;
+}
+
+// JSON tool call (summarize/dissect/suggest).
+async function salesFetch(endpoint, payload) {
+  return withAuthRetry(async (base, token) => {
+    const res = await fetch(base + endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    return { status: res.status, data: await readJson(res) };
+  });
+}
+
+// Multipart file call — the conversation-upload path (server extracts the text). A File cannot cross
+// chrome.runtime.sendMessage, so the panel base64-encodes the bytes and we rebuild them into a FormData File
+// here. Do NOT set Content-Type — fetch adds the multipart boundary itself; setting it breaks the upload.
+async function salesExtractFetch(endpoint, filename, mime, b64) {
+  return withAuthRetry(async (base, token) => {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const form = new FormData();
+    form.append("file", new File([bytes], filename || "conversation", { type: mime || "application/octet-stream" }));
+    const res = await fetch(base + endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    return { status: res.status, data: await readJson(res) };
+  });
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -104,8 +131,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return; // sync response
     }
     // Forward only the known tool inputs (defence in depth — never relay arbitrary keys): every tool takes
-    // `conversation`; coach also takes the rep's `draft`, formulate their `intent`, copilot the `lastSpeaker`.
+    // `conversation`; Suggested Response also takes the optional `guidance` (the rep's draft/intent), and the
+    // co-pilot path uses `lastSpeaker`. (`draft`/`intent` retained for any legacy caller of the old routes.)
     const payload = { conversation: String(message.conversation || "") };
+    if (typeof message.guidance === "string" && message.guidance) payload.guidance = message.guidance;
     if (typeof message.draft === "string" && message.draft) payload.draft = message.draft;
     if (typeof message.intent === "string" && message.intent) payload.intent = message.intent;
     // Co-Pilot response-mode signal: who sent the last message. Only the schema-valid values are relayed
@@ -114,6 +143,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       payload.lastSpeaker = message.lastSpeaker;
     }
     salesFetch(message.endpoint, payload)
+      .then((r) => sendResponse(r))
+      .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
+    return true; // async
+  }
+
+  // Upload a conversation file (PDF/DOCX/TXT) → server extracts the text. The panel base64-encodes the bytes
+  // (a File can't cross sendMessage); we rebuild + POST multipart here (CORS-free). Same endpoint allowlist.
+  if (message?.type === "sales-extract") {
+    if (typeof message.endpoint !== "string" || !ALLOWED_ENDPOINT.test(message.endpoint)) {
+      sendResponse?.({ status: 400, data: { error: "Unknown endpoint." } });
+      return; // sync
+    }
+    if (typeof message.b64 !== "string" || !message.b64) {
+      sendResponse?.({ status: 400, data: { error: "No file data." } });
+      return; // sync
+    }
+    salesExtractFetch(message.endpoint, String(message.filename || ""), String(message.mime || ""), message.b64)
       .then((r) => sendResponse(r))
       .catch(() => sendResponse({ status: 0, data: { error: "network" } }));
     return true; // async

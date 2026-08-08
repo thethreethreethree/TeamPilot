@@ -23,11 +23,13 @@ if (!globalThis.__salesCoachConfigLoaded) {
   globalThis.SALES_TOOLS = [
     { key: "summarize", label: "Catch me up", desc: "Where this deal stands", endpoint: "/api/coach/extension/summarize" },
     { key: "dissect", label: "Read the room", desc: "What's working + the next move", endpoint: "/api/coach/extension/dissect" },
-    { key: "coach", label: "Coach my reply", desc: "Grade your draft vs the sales books", endpoint: "/api/coach/extension/coach",
-      input: { key: "draft", label: "Your draft reply", placeholder: "Paste or type the reply you're about to send…", max: 8000 } },
-    { key: "copilot", label: "Draft my reply", desc: "Draft the next message + name the move", endpoint: "/api/coach/extension/copilot" },
-    { key: "formulate", label: "Say it for me", desc: "Shape what you want to say into a strong message", endpoint: "/api/coach/extension/formulate",
-      input: { key: "intent", label: "What do you want to get across?", placeholder: "e.g. I want to acknowledge the price concern but hold the value…", max: 2000 } },
+    // "Suggested Response" (2026-08-09) merges the former Coach-my-reply / Draft-my-reply / Say-it-for-me into
+    // ONE action. The guidance box is OPTIONAL (`optional: true`): blank → the server drafts from the
+    // conversation (co-pilot engine); filled → it shapes your draft/intent (formulate engine). Both return a
+    // ready-to-send reply + the move. content.js honors `optional` so a blank Run is allowed here (unlike the
+    // required-input tools, which refocus on empty).
+    { key: "suggested", label: "Suggested Response", desc: "A strong reply to send — optionally guided by your draft or intent", endpoint: "/api/coach/extension/suggest",
+      input: { key: "guidance", label: "Optional — your draft, or what you want to get across", placeholder: "Leave blank to draft from the conversation, or type your draft / intent…", max: 8000, optional: true } },
   ];
 
   globalThis.getApiBase = async function getApiBase() {

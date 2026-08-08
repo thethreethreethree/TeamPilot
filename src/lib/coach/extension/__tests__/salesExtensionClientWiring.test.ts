@@ -14,6 +14,7 @@ import vm from "node:vm";
 const ROOT = process.cwd();
 const CONTENT = readFileSync(join(ROOT, "extension-sales", "content.js"), "utf-8");
 const ADAPTERS = readFileSync(join(ROOT, "extension-sales", "adapters.js"), "utf-8");
+const CONFIG = readFileSync(join(ROOT, "extension-sales", "config.js"), "utf-8");
 
 describe("Sales Coach extension content.js — clean port + correct protocol", () => {
   it("reads the sales shared globals, not the C.A.R.E ones", () => {
@@ -48,9 +49,14 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).toContain("Your session expired");
   });
 
-  it("does not fire an input-bearing tool with an empty draft/intent (refocuses instead of a 400)", () => {
-    // A blank Run would 400 on the missing required field → confusing "something went wrong". Guard + refocus.
-    expect(CONTENT).toMatch(/if \(!v\) \{ if \(ta\) ta\.focus\(\); return; \}/);
+  it("does not fire a REQUIRED-input tool on empty (refocuses), but ALLOWS an optional-input tool to run blank", () => {
+    // A required input fired blank would 400 → confusing "something went wrong", so refocus. But Suggested
+    // Response's guidance is OPTIONAL (blank = "draft from the conversation"), so the guard must exempt it —
+    // otherwise the merged button could never run without typed guidance. The `&& !tool.input.optional` is the
+    // load-bearing half; this fails on the pre-merge unconditional guard.
+    expect(CONTENT).toMatch(/if \(!v && !tool\.input\.optional\) \{ if \(ta\) ta\.focus\(\); return; \}/);
+    // and the config actually marks the suggested tool's input optional (so the exemption is reachable)
+    expect(CONFIG).toMatch(/key:\s*"suggested"[\s\S]*optional:\s*true/);
   });
 
   it("tells the rep when a captured conversation was truncated (honest, not silent — §3.4)", () => {

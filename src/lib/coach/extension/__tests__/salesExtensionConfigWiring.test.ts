@@ -23,8 +23,10 @@ const endpoints = Array.from(CONFIG.matchAll(/endpoint:\s*"([^"]+)"/g))
   .filter((x): x is string => Boolean(x));
 
 describe("Sales Coach extension config — tool→route wiring", () => {
-  it("declares at least the four Phase-1 tools", () => {
-    expect(endpoints.length).toBeGreaterThanOrEqual(4);
+  it("declares the core tools (summarize, dissect, suggested)", () => {
+    // Was 5 tools; Coach-my-reply / Draft-my-reply / Say-it-for-me merged into one "Suggested Response"
+    // (2026-08-09), so the surfaced set is summarize + dissect + suggested = 3.
+    expect(endpoints.length).toBeGreaterThanOrEqual(3);
   });
 
   it.each(endpoints)("endpoint %s maps to a built route.ts (no dead tool)", (endpoint) => {
@@ -43,9 +45,18 @@ describe("Sales Coach extension config — tool→route wiring", () => {
 
 describe("Sales Coach extension config — reverse drift: no orphan tool route (A31 both directions)", () => {
   const ROUTES_DIR = join(ROOT, "src", "app", "api", "coach", "extension");
-  // Routes under coach/extension that are NOT client tools. Listed EXPLICITLY so adding a new non-tool route
-  // forces a conscious "is this a tool?" decision here, rather than silently exempting it.
-  const NON_TOOL_ROUTES = new Set(["/api/coach/extension/refresh"]);
+  // Routes under coach/extension that are NOT client tool buttons. Listed EXPLICITLY so adding a new non-tool
+  // route forces a conscious "is this a tool?" decision here, rather than silently exempting it.
+  const NON_TOOL_ROUTES = new Set([
+    "/api/coach/extension/refresh", // infra: silent session refresh (extensionRefresh.ts)
+    "/api/coach/extension/extract", // infra: conversation file → text ingestion helper (no LLM; feeds capture)
+    // SUPERSEDED by /suggest (2026-08-09): the merged "Suggested Response" reuses these two routes' ENGINES
+    // (generateSalesCopilotReply / generateSalesFormulate) directly, so no client button points here anymore.
+    // Retained (live, gated, harmless) rather than deleted — flagged for a founder cleanup decision.
+    "/api/coach/extension/copilot",
+    "/api/coach/extension/formulate",
+    "/api/coach/extension/coach", // superseded: grading isn't part of the merged action's chosen behavior
+  ]);
 
   // Every built route.ts under coach/extension → its endpoint path.
   const routeEndpoints = readdirSync(ROUTES_DIR, { withFileTypes: true })
@@ -128,8 +139,10 @@ describe("Sales Coach extension config — input max matches the route's zod cap
     CONFIG.matchAll(/endpoint:\s*"([^"]+)",\s*input:\s*\{[^}]*?key:\s*"([^"]+)"[^}]*?max:\s*(\d+)/g)
   ).map((m) => ({ endpoint: m[1]!, inputKey: m[2]!, configMax: Number(m[3]) }));
 
-  it("finds the input-bearing tools (coach draft, formulate intent)", () => {
-    expect(inputTools.length).toBeGreaterThanOrEqual(2);
+  it("finds the input-bearing tool(s) (Suggested Response's guidance)", () => {
+    // Post-merge there is one input-bearing tool: Suggested Response's optional `guidance` box. (Was 2 —
+    // coach's draft + formulate's intent — before those merged into /suggest.)
+    expect(inputTools.length).toBeGreaterThanOrEqual(1);
   });
 
   it.each(inputTools)(

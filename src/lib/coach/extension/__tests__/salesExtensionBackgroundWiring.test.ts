@@ -50,7 +50,7 @@ describe("Sales Coach extension worker — endpoint allowlist (security)", () =>
     expect(allow).not.toBeNull();
   });
 
-  const tools = ["dissect", "coach", "summarize", "copilot", "formulate"].map(
+  const tools = ["dissect", "summarize", "suggest", "extract"].map(
     (k) => `/api/coach/extension/${k}`
   );
   it.each(tools)("allows the real tool endpoint %s", (endpoint) => {
@@ -61,5 +61,29 @@ describe("Sales Coach extension worker — endpoint allowlist (security)", () =>
     expect(allow!.test("/api/coach/extension/../secret")).toBe(false);
     expect(allow!.test("https://evil.example.com/x")).toBe(false);
     expect(allow!.test("/api/care/extension/spawn")).toBe(false); // can't reach the C.A.R.E namespace either
+  });
+});
+
+describe("Sales Coach worker — Suggested Response + Upload additions (2026-08-09)", () => {
+  it("forwards the optional `guidance` key to /suggest (the merged action's steer)", () => {
+    // Without this, a rep's typed draft/intent would be dropped and Suggested Response could only ever draft
+    // from the conversation. Guards the payload-forwarding allowlist keeps `guidance`.
+    expect(BG).toMatch(/message\.guidance[\s\S]{0,80}payload\.guidance/);
+  });
+
+  it("has a multipart 'sales-extract' upload handler that reuses the shared auth-retry", () => {
+    expect(BG).toContain('"sales-extract"');
+    expect(BG).toContain("salesExtractFetch");
+    // the file path and the JSON tool path share ONE refresh-retry (no drift — the whole reason it was factored)
+    expect(BG).toContain("function withAuthRetry");
+    expect(BG).toMatch(/salesFetch[\s\S]*withAuthRetry/);
+    expect(BG).toMatch(/salesExtractFetch[\s\S]*withAuthRetry/);
+  });
+
+  it("does NOT set Content-Type on the multipart upload (fetch must add the boundary itself)", () => {
+    // A hardcoded application/json (or any Content-Type) on a FormData body breaks multipart parsing server-side.
+    // Assert the extract fetch builds FormData and relies on fetch's own boundary.
+    expect(BG).toContain("new FormData()");
+    expect(BG).toMatch(/salesExtractFetch[\s\S]*FormData/);
   });
 });

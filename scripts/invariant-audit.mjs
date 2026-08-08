@@ -358,6 +358,15 @@ const UPLOAD_VALIDATE_ALLOWLIST = new Map([
     "CONSTRUCTION (stronger than the BLOCKED_EXTENSIONS blocklist), and the browser MIME is irrelevant " +
     "because nothing is served. 15MB cap + a 500k extracted-char cap bound the blast radius; a spoofed " +
     "executable renamed .docx fails the format parser rather than executing. Manager-gated (isSalesCoachManager)."],
+  ["src/app/api/coach/extension/extract/route.ts",
+    "SAME shape as coach/sales-session/extract (its sibling): the uploaded conversation file is NEVER STORED " +
+    "or served — extracted to text IN MEMORY and discarded, so the stored-XSS / signed-URL concerns " +
+    "validateUploadCandidate defends do not apply. Validation is the same strict EXTENSION ALLOWLIST via " +
+    "formatFor() (txt/md/html/rtf/docx/odt/epub/pdf) — an allowlist rejects every executable BY CONSTRUCTION " +
+    "and the browser MIME is irrelevant because nothing is served; a spoofed executable renamed .pdf fails the " +
+    "format parser rather than executing. 4MB cap (under Vercel's serverless body limit) + the 500k " +
+    "extracted-char cap bound the blast radius. Entitlement-gated via guardExtensionRequest (the Sales Coach " +
+    "extension surface), same gate as every tool route here."],
   ["src/app/api/care/agent/tenant/logo/route.ts",
     "Own inline validation, stronger than the generic path for its use case: strict image-ONLY MIME allow-list " +
     "(png/jpg/svg/webp/ico), 2MB cap, and the stored extension is DERIVED FROM THE VALIDATED MIME (never the " +
