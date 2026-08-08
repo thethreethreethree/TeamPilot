@@ -18,7 +18,7 @@ draft, catch up on the deal, draft the next message, or shape what the rep wants
 | `adapters.js` (per-site) | **Built** — 17 platforms (7 Tier-1 reused + 6 Tier-2 + 4 Tier-3 support desks reused); routing + extraction tested |
 | Connect handoff (product-aware `/extension/connect?product=sales`) | **Built** |
 | Download page + zip (`/extension/download-sales`, `public/sales-coach-extension.zip`) | **Built + served live** |
-| `icons/` | ELOSTATE brand placeholder (a distinct Sales Coach mark is a founder decision) |
+| `icons/` | **Distinct Sales Coach mark** (2026-08-09): amber speech bubble + upward growth arrow, 16/48/128 — rendered from SVG via `sharp`, no longer the shared C.A.R.E placeholder |
 
 **This package is complete, loadable, CI-green, and deployed** — it's downloadable at
 `/extension/download-sales` and installable per [`../docs/SALES-COACH-EXTENSION-TESTING.md`](../docs/SALES-COACH-EXTENSION-TESTING.md).
