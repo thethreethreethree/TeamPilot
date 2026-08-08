@@ -178,6 +178,16 @@
       out.innerHTML = `<p class="sc-err">${esc(resp.data?.error || "Your plan doesn't include the Sales Coach extension.")}</p>`;
       return;
     }
+    if (resp && resp.status === 401) {
+      // Session expired AND the worker's silent refresh failed (it cleared the token). "Try again" wouldn't
+      // help — the rep needs to re-authenticate, so say that and give the button, not a generic error.
+      out.innerHTML =
+        `<p class="sc-muted">Your session expired. Sign in again to keep coaching.</p>` +
+        `<button class="sc-run" id="sc-signin">Sign in</button>`;
+      const signinBtn = root.getElementById("sc-signin");
+      if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
+      return;
+    }
     if (!resp || resp.status < 200 || resp.status >= 300) {
       out.innerHTML = `<p class="sc-err">${esc(resp?.data?.error || "Something went wrong. Try again.")}</p>`;
       return;

@@ -41,6 +41,13 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("extractRCD");
   });
 
+  it("shows a distinct 'session expired → Sign in' state on a 401, not a generic error", () => {
+    // After the worker's refresh fails it clears the token and returns 401; a generic "try again" is wrong
+    // (retrying can't help). The panel must guide the rep to re-authenticate.
+    expect(CONTENT).toMatch(/status === 401/);
+    expect(CONTENT).toContain("Your session expired");
+  });
+
   it("does not fire an input-bearing tool with an empty draft/intent (refocuses instead of a 400)", () => {
     // A blank Run would 400 on the missing required field → confusing "something went wrong". Guard + refocus.
     expect(CONTENT).toMatch(/if \(!v\) \{ if \(ta\) ta\.focus\(\); return; \}/);
