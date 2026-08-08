@@ -130,8 +130,16 @@ export async function POST(
             limit: 3,
           })
         : [];
+    const summary = r.text.trim();
+    // Empty text WITHOUT suppression is a model failure, not the control-window no-summary (handled above).
+    // Returning { summary: "" } 200 would show the agent a blank summary as if the thread has nothing to read
+    // — the §3.4 false-empty. Fail loud so they retry (mirrors the extension summarize + copilot/formulate).
+    if (!summary) {
+      console.error("[care/agent/summarize] empty summary from model (not suppressed)");
+      return NextResponse.json({ error: "Couldn't generate a summary right now." }, { status: 502 });
+    }
     return NextResponse.json({
-      summary: r.text.trim(),
+      summary,
       priorSimilar: priorSimilar.map((p) => ({
         id: p.id,
         issueSummary: p.issueSummary,

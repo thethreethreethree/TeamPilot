@@ -241,6 +241,17 @@ Draft the next reply.`;
   const draft = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
   const reasoning = idx >= 0 ? raw.slice(idx + marker.length).trim() : "";
 
+  // Guard an empty draft (e.g. the model emitted the ===REASONING=== marker first, or returned blank) — never
+  // render { draft: "" } as if the Co-Pilot drafted nothing. Fail loud so the agent retries (§3.4; mirrors the
+  // extension co-pilot's if(!reply) guard).
+  if (!draft) {
+    console.error("[care.co-pilot] empty draft after parsing (marker-first or blank generation)");
+    return NextResponse.json(
+      { error: "The Co-Pilot couldn't draft a reply right now. Type your own and we'll learn from it." },
+      { status: 502 }
+    );
+  }
+
   // Per TT.md A21 audit (2026-06-18) MED finding — until this,
   // we returned only `precedentsUsed: precedents.length` (a count).
   // The agent had no way to see WHICH past resolutions the System
