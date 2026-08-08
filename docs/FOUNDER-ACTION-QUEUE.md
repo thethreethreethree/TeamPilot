@@ -247,6 +247,26 @@
 > (share the C.A.R.E plan vs a separate SKU), error-detail policy, `NEXT_PUBLIC_SALES_EXTENSION_ID`, privacy
 > review, screenshots — all in `docs/SALES-COACH-EXTENSION-STATUS.md`. Optional: port the capture-preview fix to
 > the shipped C.A.R.E extension (same scrape model, documented "Hi John" history).
+>
+> **── Addendum (later same session): your rigorous audit + two follow-ons ──**
+> - **Your 14-lens audit ran to completion.** 20+ real gaps fixed, every false fix prevented (full record:
+>   `docs/audits/2026-08-08-sales-coach-8-lens-audit.md`). The highest-value catch: an A29 class-sweep found that an
+>   earlier under-pressure fix had left **4 real defects unswept** — 2 append-only double-write `recordOutcome`
+>   instances (they feed the downstream-consequence KPI, so a fast double-click could inflate it) and 2
+>   context-switch state-bleed instances. All 4 fixed (useRef latches + `key={id}`), gate-green, deployed CI-green.
+> - **F1 (privacy overclaim) swept to its true boundary — 4 surfaces, not 2.** The new one is the MAIN app privacy
+>   policy (`src/app/privacy/page.tsx:175`, ALL users): it names **"Anthropic Claude"** as the AI sub-processor
+>   while prod verifiably runs **DeepSeek** — an inaccurate disclosure that also contradicts your own settings page.
+>   Flagged, not auto-fixed (it's live legal copy AND the provider name is your open decision — see the F1 item up
+>   top). The store-submission data disclosure had the same gap; I corrected its *facts* (`005f5948`) and left the
+>   certification to you.
+> - **Your requested marketing PDF is delivered + committed** (`246f5ee3`, `docs/marketing/Sales-Coach-Extension.pdf`
+>   + HTML source). Verified F1-clean (its only data claims are about storage — accurate for the ephemeral
+>   extension — with no third-party overclaim). Draft in your voice; edit/replace freely.
+> - **Whole open backlog re-verified: every item is founder-gated with analysis already done** — coach-KPI
+>   truncation (vendor-only today), onboarding advisory-lock (re-confirmed not-materialized: 0 of 14 companies),
+>   RCD dedup, message pagination. Nothing un-gated remains; I held at the line rather than manufacture or apply
+>   gated DDL. Tree green (2545 tests), all work pushed.
 
 ## 🟢 RETURN-BRIEFING — 2026-08-05 autonomous session (what happened while you were away)
 
