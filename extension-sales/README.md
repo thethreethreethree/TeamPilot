@@ -3,63 +3,59 @@
 A **separate standalone** Chrome extension (MV3) — founder decision 2026-08-08 — sibling to the C.A.R.E
 extension in [`../extension`](../extension). It puts sales coaching on the conversation the rep is already
 viewing (Gmail, Outlook, Instagram, Messenger, WhatsApp Web, LinkedIn, Slack, …): read the room, coach the
-draft, catch up on the deal, draft the next message.
+draft, catch up on the deal, draft the next message, or shape what the rep wants to say.
 
-## Status (honest)
+## Status (honest) — complete and shipping
 
-| Piece | State | Verified? |
-| --- | --- | --- |
-| Server routes (`/api/coach/extension/{dissect,coach,summarize,copilot}`) | **Built** (Phase 1) | ✅ `npm run check`, per-route tests |
-| `manifest.json` | Built | declarative |
-| `config.js` (`SALES_TOOLS`) | Built + wired to the 4 routes | ✅ drift-guard test (below) |
-| `background.js` (service worker) | **Not yet ported** | — |
-| `content.js` (panel) | **Not yet ported** | — |
-| `adapters.js` (per-site) | **Not yet ported** | — |
-| `permission.html` / `permission.js` | **Not yet ported** | — |
-| `icons/` | **Not yet added** | — |
-| Auth: `refresh` route (`/api/coach/extension/refresh`) | **Built** (shared `refreshExtensionSession`) | ✅ route + handler tests |
-| Auth: sales `connect` page + token mint (`/extension/connect` handoff) | **Not yet built** | — |
+| Piece | State |
+| --- | --- |
+| Server routes (`/api/coach/extension/{dissect,coach,summarize,copilot,formulate}`) | **Built + tested** |
+| Auth: `refresh` route (`/api/coach/extension/refresh`, shared `refreshExtensionSession`) | **Built + tested** |
+| `manifest.json` | **Built** — least-privilege (activeTab/scripting/storage + host `elostate.com` only), gated |
+| `config.js` (`SALES_TOOLS`) | **Built + wired** — drift-guard test |
+| `background.js` (service worker) | **Built** — inject-on-click, tool proxy, 401→refresh→retry, connect handoff |
+| `content.js` (panel) | **Built** — shadow-DOM panel, 5 tools, Copy, sign-in/401 states, empty-input guard |
+| `adapters.js` (per-site) | **Built** — 13 platforms (7 Tier-1 reused + 6 Tier-2); routing + extraction tested |
+| Connect handoff (product-aware `/extension/connect?product=sales`) | **Built** |
+| Download page + zip (`/extension/download-sales`, `public/sales-coach-extension.zip`) | **Built + served live** |
+| `icons/` | ELOSTATE brand placeholder (a distinct Sales Coach mark is a founder decision) |
 
-**This package is NOT yet loadable.** The manifest + config are the sales-specific, verifiable core; the
-browser runtime and the auth handoff are the remaining port (Phase 2b), specced below. Nothing here claims to
-be a working extension — the runtime cannot be exercised in the build sandbox (no browser), so those files
-ship reasoned and **founder-live-verified per platform**, the same honesty posture as the existing 11 C.A.R.E
-adapters.
+**This package is complete, loadable, CI-green, and deployed** — it's downloadable at
+`/extension/download-sales` and installable per [`../docs/SALES-COACH-EXTENSION-TESTING.md`](../docs/SALES-COACH-EXTENSION-TESTING.md).
+The RCD capture / media upload / image-permission machinery from C.A.R.E is **intentionally dropped** (sales is
+text-only) — there is no `permission.html`/`permission.js`. The per-platform selectors ship reasoned and
+**founder-confirmed live per platform** (the browser runtime can't be exercised in the build sandbox), the same
+honesty posture as the C.A.R.E adapters.
 
-## What is verified in-sandbox
+## How it's built (the C.A.R.E → Sales port)
 
-`src/lib/coach/extension/__tests__/salesExtensionConfigWiring.test.ts` asserts, on every `npm run check`:
-- every `SALES_TOOLS` endpoint maps to a real `route.ts` (no dead/soon tool shipped as a live button — A31);
-- every endpoint is under `/api/coach/extension/` (not the C.A.R.E namespace);
-- the token key (`salesCoachToken`), the injection guard (`__salesCoachConfigLoaded`), and the tools global
-  (`SALES_TOOLS`) are all DISTINCT from the C.A.R.E extension, so both can be installed side by side.
+Ported from `../extension`, adapting C.A.R.E → Sales, simpler (text-only, 5 tools, no media):
 
-## Phase 2b — the runtime port (well-scoped, mechanical)
+- **`background.js`** — toolbar-click inject (`config.js, adapters.js, content.js`); tool proxy (`sales-tool`;
+  `ALLOWED_ENDPOINT = /^\/api\/coach\/extension\/[a-z-]+$/`; forwards `conversation`, `draft`/`intent`,
+  `lastSpeaker`); on 401, `POST /api/coach/extension/refresh` + retry once, clearing the token + badge on
+  failure; connect handoff (`onMessageExternal`, `sales-connect`). All `care-rcd-*`/`care-image-*` handlers
+  dropped.
+- **`content.js`** — shadow-DOM panel rendered from `SALES_TOOLS`. Input tools (coach/formulate) reveal a
+  textarea (auto-focused, empty-guarded); the rest run on the captured conversation. Renders each result shape,
+  with **Copy** on drafted output (excludes the internal reasoning), a distinct **session-expired** state, and a
+  **truncation** notice when a capture is cut to the 20k cap.
+- **`adapters.js`** — per-site DOM readers; reasoned-but-UNVERIFIED selectors, degrade to manual selection on a
+  miss (never fabricate). Platform list + hostnames + reuse mapping in [`PLATFORM-COVERAGE.md`](./PLATFORM-COVERAGE.md).
 
-Port from `../extension`, adapting C.A.R.E → Sales. The sales extension is **simpler**: it has the 4 text
-tools only — NOT the RCD capture, media upload, or image-permission machinery (drop those handlers entirely).
+## Related docs
 
-1. **`background.js`** — keep: toolbar-click inject (`config.js, adapters.js, content.js`), the tool proxy
-   (rename `care-tool` → `sales-tool`; `ALLOWED_ENDPOINT` → `/^\/api\/coach\/extension\/[a-z-]+$/`; forward
-   only `conversation`, `draft`, `lastSpeaker`), the connect handoff (`onMessageExternal`, message type
-   `sales-connect`, store `salesCoachToken`), and the badge. **Drop:** all `care-rcd-*` and `care-image-*`
-   handlers. **Auth:** on 401, call `POST /api/coach/extension/refresh` (now built — shared
-   `refreshExtensionSession`) with the stored `salesCoachRefreshToken`, then retry once; on refresh failure,
-   clear the token so the panel shows "Sign in".
-2. **`content.js`** — the shadow-DOM panel. Render from `SALES_TOOLS`; the `coach` tool shows the draft
-   textarea (its `input` field); `copilot`/`summarize`/`dissect` run on the scanned conversation alone. Send
-   `sales-tool` to the worker. Render each tool's result shape: dissect `{dissect}`, coach `{coaching}`,
-   summarize `{summary}`, copilot `{reply, reasoning}`.
-3. **`adapters.js`** — per-site DOM readers. Copy the C.A.R.E adapters (same platforms, same reasoned-but-
-   UNVERIFIED selectors) — they read the same DOM. Add the `lastSpeaker` read where the platform exposes it
-   (drives copilot reply-vs-follow-up). Every selector stays labeled UNVERIFIED until confirmed live.
-   **The platform list, hostnames, reachability, and reuse-vs-new mapping are in
-   [`PLATFORM-COVERAGE.md`](./PLATFORM-COVERAGE.md)** — port Tier 1 (all six founder-named platforms, by
-   reuse) first, then Tier 2 by sales relevance.
-4. **Auth handoff** — the `refresh` route is built (`/api/coach/extension/refresh`). Still needed: a sales
-   `connect` page (`/extension/connect`) + token mint mirroring the C.A.R.E handoff so "Sign in" is one
-   click, and the background `onMessageExternal` `sales-connect` receiver that stores the token. Until the
-   connect page exists the extension can't obtain its first token.
-5. **`icons/`** — add 16/48/128 px icons.
+- [`PLATFORM-COVERAGE.md`](./PLATFORM-COVERAGE.md) — every platform, its hostname, reachability, and adapter.
+- [`CHROME-WEB-STORE-SUBMISSION.md`](./CHROME-WEB-STORE-SUBMISSION.md) — paste-ready store-listing package.
+- [`../docs/SALES-COACH-EXTENSION-TESTING.md`](../docs/SALES-COACH-EXTENSION-TESTING.md) — the founder test runbook.
+- [`../docs/SALES-COACH-EXTENSION-STATUS.md`](../docs/SALES-COACH-EXTENSION-STATUS.md) — status + the open founder decisions.
+- Privacy policy: [`../src/app/extension/privacy-sales/page.tsx`](../src/app/extension/privacy-sales/page.tsx).
 
-Each of the above ships reasoned; the founder confirms it live in a real browser per platform.
+## What is guarded on every `npm run check`
+
+`src/lib/coach/extension/__tests__/salesExtensionClientWiring.test.ts` +
+`salesExtensionConfigWiring.test.ts` + `salesExtensionBackgroundWiring.test.ts` assert: every `SALES_TOOLS`
+endpoint maps to a real route; the token/config/tools globals are DISTINCT from C.A.R.E (both installable side
+by side); adapter routing + the extraction contract (order, hidden-skip, never-fabricate, 20k cap); the panel's
+Copy / sign-in / session-expired / empty-input guards; and the manifest's least-privilege surface (no unused
+supabase/all-hosts/optional-host permissions).
