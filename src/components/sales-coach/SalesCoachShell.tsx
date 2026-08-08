@@ -23,6 +23,7 @@ import {
   Library,
   MessageSquare,
   Mic,
+  Puzzle,
   Settings,
   Target,
   TrendingUp,
@@ -54,6 +55,10 @@ type NavItem = {
   /** Manager-only destination (server-gated: sales_coach_role='admin' OR company admin). Hidden from
    *  the nav for reps so a staff user never clicks a nav item that bounces them (AMD-006 L3). */
   managerOnly?: boolean;
+  /** Destination OUTSIDE this fixed-overlay shell (e.g. the extension download page). Opens in a new tab
+   *  (target=_blank) so the Sales Coach app stays open behind it, and is excluded from active-state —
+   *  mirrors the C.A.R.E "Browser extension" nav entry (CareShell.tsx). */
+  external?: boolean;
 };
 
 /** A grouped run of nav items under an optional section header. */
@@ -78,6 +83,10 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
+      // Browser extension — mirrors the C.A.R.E sidebar's "Browser extension" nav entry (founder request:
+      // surface the Sales Coach extension the same way C.A.R.E does, not only as inline page cards). Opens the
+      // download + install page in a new tab (external → leaves this fixed-overlay shell cleanly).
+      { label: "Browser extension", href: "/extension/download-sales", icon: Puzzle, external: true },
       { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
     ],
   },
@@ -172,13 +181,17 @@ export function SalesCoachShell({
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const active =
-                    pathname === item.href ||
-                    (item.href !== "/dashboard/sales-coach" &&
-                      pathname.startsWith(item.href + "/"));
+                    !item.external &&
+                    (pathname === item.href ||
+                      (item.href !== "/dashboard/sales-coach" &&
+                        pathname.startsWith(item.href + "/")));
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
+                      {...(item.external
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         active
                           ? "bg-white/10 text-white"
