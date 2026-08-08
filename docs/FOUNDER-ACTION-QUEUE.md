@@ -1,5 +1,26 @@
 # Founder action queue
 
+## 🟡 LEGAL/PRIVACY — 2026-08-08: extension privacy pages overclaim "no third-party sharing" — fix BEFORE promoting
+
+> **Found in an audit (A27).** Both extension privacy pages —
+> `src/app/extension/privacy-sales/page.tsx:79` and `src/app/extension/privacy/page.tsx:85` (C.A.R.E) — state
+> *"We don't sell or share your data with third parties."* But every coaching tool sends the conversation text to
+> a **third-party AI provider** (DeepSeek, `api.deepseek.com`) to generate the result. So the claim is misleading:
+> the text IS transmitted to a third party (a sub-processor). Both pages are **live + public + indexable** and
+> linked from the download page. Real-world reliance is low today (extension not Web-Store-distributed), but
+> **you just started building marketing** — fix this before any promotional push puts eyes on it.
+>
+> **Why I didn't auto-fix it:** it's legal copy on a public document (both pages already say "founder owns the
+> final text"), and the accurate wording depends on facts only you have — does DeepSeek retain the text, and
+> under what DPA? A claim like "processed and not retained" would be a NEW false statement if that's not what
+> your DeepSeek contract says.
+>
+> **Recommended fix (your legal finalizes):** replace the bare line with an accurate sub-processor disclosure,
+> e.g. *"To produce your result, the conversation is sent to our AI provider for processing and then discarded on
+> our side; we don't store it, and we don't sell it or share it for any other purpose."* Tell me DeepSeek's
+> retention terms (retains: y/n + window) and I'll draft precise copy for both pages for your review. Gate:
+> declined — semantic/legal, no precise detector (A33); enforcement is legal review.
+
 ## 🟡 KNOWN RISK — 2026-08-08: extension token-handoff is UNPINNED in prod — close it AT Web Store launch (NOT a set-it-now fix)
 
 > **⚠️ CORRECTION (2026-08-08, later same session): do NOT just "set the env var now" — that would break
