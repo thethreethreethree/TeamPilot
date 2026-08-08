@@ -85,6 +85,23 @@ real chokepoint would be server-side event idempotency (a §3.1 event-model deci
   tracing each cross-product trigger (button vs auto) is genuinely low-value given the cache semantics —
   `/code-review ultra` scope if ever a cross-product event starts feeding a counted metric.
 
+## Context-switch state-bleed — swept boundary (A29, 2026-08-08)
+
+Class: *a component rendered `<X sessionId={id}>` holding per-item mutable state that isn't reset when the id
+changes (App Router reuses the page component on an in-place `/[id]`→`/[otherId]` nav) → the previous item's
+state bleeds until (or unless) a refetch overwrites it.* Anchor: `717be56e` keyed `SessionCoachTools`.
+
+- **FIXED (2 more, `3f771112`):** `PivotAndScores` (CONFIRMED bleed — child `ScoresSection` holds `result` +
+  `showReview` with no reset on `sessionId` change; the `cancelled` guard stops a stale FETCH but not the stale
+  RENDER) and `LiveCoachingPanel` (session-isolation hardening for the live mic/socket/cue state — `key={id}`
+  makes clean teardown-on-switch true by construction). Both `key={id}`, remounting only on a genuine switch.
+- **[id] page fully swept:** its three bleed-capable children (`SessionCoachTools`, `PivotAndScores`,
+  `LiveCoachingPanel`) are all keyed now. The after-pitch page renders none of them (clean).
+- **Cross-product boundary (`/code-review ultra` scope):** C.A.R.E `ConversationsApp` switches conversations
+  in-place and holds per-conversation state; it carries `selectedIdRef`/`inboxSeenRef` guards (suggests the
+  author already resets on change) but was NOT audited here — a dedicated sweep should confirm each per-item
+  child resets or is keyed. Same lower severity (stale UI, not data loss).
+
 ## Method note
 
 The through-line: **distrust every "done"/"clean"/"defer," run the definitive check, but diagnose each
