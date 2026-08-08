@@ -185,7 +185,14 @@ export default function SessionDetail() {
     }
   }, [isStandard, session, id, router]);
 
+  // useRef latch (same append-only double-write class as submitWhy): the button-triggered generateReview
+  // guarded only with `generating` (useState), so a fast double-click can POST twice before the re-render —
+  // and /review inserts an append-only event per run. Synchronous latch before the first await, released in
+  // finally (a deliberate re-run after completion is still allowed).
+  const reviewSubmitRef = useRef(false);
   const generateReview = async () => {
+    if (reviewSubmitRef.current) return;
+    reviewSubmitRef.current = true;
     setGenerating(true);
     setError(null);
     try {
@@ -200,6 +207,7 @@ export default function SessionDetail() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
+      reviewSubmitRef.current = false;
     }
   };
 
