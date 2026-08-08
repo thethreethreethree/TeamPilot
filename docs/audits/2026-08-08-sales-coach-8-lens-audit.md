@@ -12,7 +12,7 @@ actual code (not grep verdicts): a suspect is verified before it's fixed, and "c
 | C.A.R.E → sales extension port-gaps | **13 gaps FIXED** | UX guards + 2 unused permissions + privacy/submission artifacts |
 | Browser-APIs-that-throw + async-acquire-leak | clean | `useLiveCoaching` guards getUserMedia/AudioContext/unmountedRef/MediaRecorder |
 | Context-switch state-bleed | **guarded** | `key={id}` on SessionCoachTools (`717be56e`) |
-| Append-only double-write | **2 FIXED** | useRef latch on `submitWhy` (`9463f709`) + `generateReview` (`63b13084`) — both button-triggered submits inserting append-only events without a re-entrancy latch; other [id]-page POSTs are idempotent updates / answer-returns |
+| Append-only double-write | **4 FIXED** (was reported 2; A29 re-sweep 2026-08-08 found 2 more — the earlier "other POSTs are idempotent" claim was UNDER-SWEPT) | useRef latch on `submitWhy` (`9463f709`), `generateReview` (`63b13084`), **`[id]`-page `recordOutcome` (`24bf8ecc`, build xl)**, and **after-pitch-page `recordOutcome` (`bbe22e06`)** — all button-triggered submits that POST append-only §3.1 events (`/why`, `/review`, `/outcome`) with only a `useState` guard (bypassable by a fast double-click before re-render). See the swept-boundary baseline below. |
 | Unbounded `.select()` 1000-cap | live, **founder-gated** | `kpi/me` + `compute-cron:71` (.limit(5000)=false bound); fix = RPC in the founder-gated KPI subsystem |
 | UTC-today-in-browser | clean | no browser day-truncation in the sales-coach client |
 | Money float-precision | clean | `sumDollarsExact` (integer-cent staging); no money `a*b` |
@@ -60,6 +60,25 @@ memory `reference_error_dressed_as_no_data_class`.
    clean here — no cross-tenant write gap.
 3. **Extension launch decisions** (entitlement source, icon, error-detail policy, privacy review, screenshots,
    `NEXT_PUBLIC_SALES_EXTENSION_ID`) — see `SALES-COACH-EXTENSION-STATUS.md`.
+
+## Append-only double-write — swept boundary (A29/A26 baseline, 2026-08-08)
+
+Class: *a button-triggered handler POSTs to a route that appends an immutable §3.1 event, guarded only by a
+`useState` busy flag (which disables the button on the NEXT render) — a fast double-click appends duplicate
+immutable events.* The precise gate is semantic (which handlers append? call-graph) so it's ungated (A33); the
+real chokepoint would be server-side event idempotency (a §3.1 event-model decision, founder-gated).
+
+- **FIXED (4):** `submitWhy`, `generateReview`, `[id]`-page `recordOutcome` (xl), after-pitch `recordOutcome`
+  (`bbe22e06`) — all `useRef`-latched. The outcome ones are the highest-impact (they feed the downstream-
+  consequence KPI).
+- **RECORDED, LOW impact, not fixed:** `sessions`-page `refreshPatterns` → `/why-patterns` → `storeWhyPatterns`
+  appends a `PATTERNS_KIND` event per call, guarded only by `patternsBusy` (useState). It's a **cache** (reader
+  takes the latest set), so a duplicate is harmless unless a metric ever COUNTS pattern-set events. Same
+  `useRef`-latch fix if desired.
+- **UNASSESSED (cross-product — `/code-review ultra` scope):** the v5 in-app coach + C.A.R.E surfaces
+  (`CoachPanelV5`, `ReviewSentMessageModal`, `dashboard/chats/[id]`, `ConversationsApp`) POST to `/v5/analyze`,
+  `/v5/debrief` which append events; their client re-entrancy guards were NOT audited here (different products).
+  Same class likely applies — a dedicated sweep should check each for a `useRef` latch vs a `useState` flag.
 
 ## Method note
 
