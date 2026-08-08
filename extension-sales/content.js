@@ -38,10 +38,22 @@
     lastSpeaker = who === "agent" || who === "customer" ? who : null;
     const el = root.getElementById("sc-selinfo");
     if (el) {
-      const n = currentSelection.trim().length;
-      el.textContent = n
-        ? `${n} characters captured${wasTrimmed ? " (trimmed to fit)" : ""}`
-        : "No conversation captured yet";
+      const trimmed = currentSelection.trim();
+      const n = trimmed.length;
+      if (!n) {
+        el.textContent = "No conversation captured yet";
+      } else {
+        // Show a short preview, not just the count. A Tier-2 adapter selector can match the WRONG nodes and
+        // return plausible non-empty garbage (the selectors are reasoned, not runtime-verified). A bare count
+        // ("47 characters captured") looks the same for a right grab and a wrong one — so the rep can't tell the
+        // panel captured sidebar chrome instead of the thread, and would coach on garbage (the §3.4 honesty rule
+        // applied to INPUT: never let the rep act on wrongly-captured context believing it's right). A preview
+        // makes a wrong grab self-evident → the rep re-highlights manually (the always-correct path). textContent,
+        // so the page's own text can't inject markup.
+        const preview = trimmed.replace(/\s+/g, " ").slice(0, 90);
+        el.textContent =
+          `${n} characters captured${wasTrimmed ? " (trimmed to fit)" : ""} — “${preview}${trimmed.length > 90 ? "…" : ""}”`;
+      }
     }
   };
 

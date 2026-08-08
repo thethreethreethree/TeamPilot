@@ -58,6 +58,16 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).toMatch(/raw\.length > MAX_CHARS/);
   });
 
+  it("previews the captured text, not just a count, so a wrong Tier-2 grab is self-evident (§3.4 for input)", () => {
+    // A reasoned-but-unverified Tier-2 selector can match the wrong nodes and return plausible non-empty
+    // garbage; a bare "N characters captured" looks identical for a right and a wrong grab, so the rep would
+    // coach on garbage without knowing. The selinfo line must show a bounded preview of the actual captured
+    // text so the mismatch is visible → the rep re-highlights manually. (Detection-tested: this fails on the
+    // pre-fix count-only string.)
+    expect(CONTENT).toMatch(/slice\(0,\s*90\)/);
+    expect(CONTENT).toMatch(/characters captured[\s\S]{0,120}preview/);
+  });
+
   it("gives a signed-out rep an explicit Sign-in button, not just text (retry affordance)", () => {
     // If the connect tab is closed or the handoff fails, a bare "Sign in to use" text leaves no visible way to
     // retry (only the non-obvious re-click-a-tool). A button wired to open-connect is the clear path.
