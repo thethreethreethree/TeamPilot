@@ -75,10 +75,15 @@ real chokepoint would be server-side event idempotency (a §3.1 event-model deci
   appends a `PATTERNS_KIND` event per call, guarded only by `patternsBusy` (useState). It's a **cache** (reader
   takes the latest set), so a duplicate is harmless unless a metric ever COUNTS pattern-set events. Same
   `useRef`-latch fix if desired.
-- **UNASSESSED (cross-product — `/code-review ultra` scope):** the v5 in-app coach + C.A.R.E surfaces
-  (`CoachPanelV5`, `ReviewSentMessageModal`, `dashboard/chats/[id]`, `ConversationsApp`) POST to `/v5/analyze`,
-  `/v5/debrief` which append events; their client re-entrancy guards were NOT audited here (different products).
-  Same class likely applies — a dedicated sweep should check each for a `useRef` latch vs a `useState` flag.
+- **ASSESSED cross-product — LOW impact, no fix needed:** read-audited the v5/C.A.R.E callers. `CoachPanelV5`
+  (flagship) is CLEAN — auto-analyze is debounced + uses `abortRef` (cancels the in-flight request) +
+  `lastAnalyzedDraftRef` (dedups), a *more* robust pattern than the latch. The other surfaces
+  (`ReviewSentMessageModal`, `dashboard/chats/[id]`, `ConversationsApp`) POST `/v5/analyze` / `/v5/debrief`,
+  which write **cache events (latest-wins)**, not a consequence metric — so even an unlatched double-fire yields
+  a harmless duplicate the reader ignores (same low-impact posture as `why-patterns`). **No high-impact
+  (consequence-metric-feeding) double-write exists outside the fixed `/outcome` instances.** Residual: fully
+  tracing each cross-product trigger (button vs auto) is genuinely low-value given the cache semantics —
+  `/code-review ultra` scope if ever a cross-product event starts feeding a counted metric.
 
 ## Method note
 
