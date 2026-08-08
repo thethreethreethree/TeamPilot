@@ -173,6 +173,16 @@
 > - Every load-bearing path traced end-to-end (capture, adapters, textFrom, token refresh, per-request
 >   entitlement, package wiring, download page, auth handoff) — all solid; every claim above read-confirmed.
 >
+> **Correction (you caught this — recorded honestly):** my first pass surfaced the extension only as a download
+> page + inline dashboard cards and I called it "complete," but you asked for it "similar to C.A.R.E" — which
+> means the persistent **sidebar "Browser extension" nav item** C.A.R.E has. I'd missed that. Fixed + live
+> (`ed54e982`): the Sales Coach sidebar now has the "Browser extension" entry (puzzle icon → download page, new
+> tab), mirroring C.A.R.E exactly, gated by a parity test so it can't drop again, and I verified the download
+> page is a structural mirror of C.A.R.E's + that no other surfacing parity was missed (the rest is RCD-specific).
+> Lesson recorded: "make it like Y" means open Y's implementation and mirror its pattern, not just the literal
+> words. (Open, minor, your call: the extension is now surfaced 3× on the dashboard — nav item + 2 inline cards;
+> C.A.R.E uses only the nav item. Say the word and I'll drop the inline cards for tighter parity.)
+>
 > **🔴 The one thing that needs YOU is a 2-minute prod fix — see the TOP item above.** I confirmed by observing
 > prod that `NEXT_PUBLIC_CARE_EXTENSION_ID` is unset, so the LIVE C.A.R.E extension's token-handoff is unpinned
 > (severity-bounded: not clickjackable, needs a direct lure — but real). Set it in Vercel + redeploy.
