@@ -320,7 +320,16 @@ export default function SessionDetail() {
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
   const [dealDraft, setDealDraft] = useState("");
   const [savingDeal, setSavingDeal] = useState(false);
+  // useRef latch (same append-only double-write class as submitWhy/generateReview): /outcome →
+  // setSessionOutcome APPENDS an immutable `coach.session_outcome_recorded` §3.1 event per call. setSavingOutcome
+  // is useState (disables the button only on the next render), so a fast double-click fires two POSTs → two
+  // identical outcome events, skewing any downstream-consequence metric that counts them. recordOutcome is the chokepoint (the
+  // outcome buttons AND saveDealValue route through it), so the latch here guards all of them by construction.
+  // Released in finally, so a deliberate later re-record (a real correction) still works.
+  const outcomeSubmitRef = useRef(false);
   const recordOutcome = async (outcome: SalesOutcome, dealValue?: number | null) => {
+    if (outcomeSubmitRef.current) return;
+    outcomeSubmitRef.current = true;
     setSavingOutcome(outcome);
     setError(null);
     try {
@@ -338,6 +347,7 @@ export default function SessionDetail() {
       setError("Couldn't record the outcome.");
     } finally {
       setSavingOutcome(null);
+      outcomeSubmitRef.current = false;
     }
   };
   // Deal value — only meaningful on a 'sold' outcome (Layer-1 KPI, 0205).
