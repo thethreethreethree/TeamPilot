@@ -147,7 +147,15 @@ export async function POST(req: NextRequest) {
         { status: 200 }
       );
     }
-    return NextResponse.json({ answer: r.text.trim() });
+    const answer = r.text.trim();
+    // Empty text WITHOUT suppression is a model failure, not the control-window refusal (handled above).
+    // { answer: "" } 200 would show the user a blank answer as if Jeff said nothing — the §3.4 false-empty.
+    // Fail loud so they retry (mirrors ask-coach / the extension guards).
+    if (!answer) {
+      console.error("[me/ask-jeff] empty answer from model (not suppressed)");
+      return NextResponse.json({ error: "Couldn't answer that right now. Try again." }, { status: 502 });
+    }
+    return NextResponse.json({ answer });
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
