@@ -20,6 +20,26 @@
 > our side; we don't store it, and we don't sell it or share it for any other purpose."* Tell me DeepSeek's
 > retention terms (retains: y/n + window) and I'll draft precise copy for both pages for your review. Gate:
 > declined — semantic/legal, no precise detector (A33); enforcement is legal review.
+>
+> **F1 boundary — full sweep (2026-08-08, A26).** The class is *a privacy/data surface that misrepresents the
+> third-party AI processing.* Completing the sweep found FOUR surfaces, not two:
+> 1. `extension/privacy-sales/page.tsx:79` + `extension/privacy/page.tsx:85` (C.A.R.E) — "no third-party
+>    sharing," **omits** the AI sub-processor entirely (above).
+> 2. `extension-sales/CHROME-WEB-STORE-SUBMISSION.md` (data-use section) — the disclosure omitted the sub-processor +
+>    said "no transfer." **Facts corrected by me** (`005f5948`); final certification is yours.
+> 3. **`src/app/privacy/page.tsx:175` (MAIN app privacy policy — ALL users, not just the extension).** This one
+>    is the opposite failure: it *does* disclose an AI sub-processor, but names the **WRONG one** — it says
+>    *"Anthropic Claude — the LLM behind the Coach; your draft text passes through Anthropic's API… Anthropic
+>    does not train on API content."* But prod actually runs **DeepSeek** (verified: `curl /api/health` →
+>    `activeProvider:deepseek`, `anthropic:false`; `chooseProvider` prefers DeepSeek when the key is set). So a
+>    user reading the live policy is told their data goes to Anthropic when it goes to DeepSeek — an inaccurate
+>    sub-processor disclosure on the main legal document, and the "does not train on content" assurance is
+>    Anthropic's term, not necessarily DeepSeek's. **Not auto-fixed:** which provider you name is itself your
+>    gated decision (DeepSeek-primary vs the Anthropic-cascade veto still open), and this is live legal copy.
+>    Whichever provider you settle on, this section must name it and carry *that* provider's training/retention
+>    terms. Same fix moment as items 1-2. (The main policy's structure is otherwise sound — the "no third
+>    parties" at :157 is correctly scoped by a dedicated "Third-party services we use" section; only the named
+>    provider is stale.)
 
 ## 🟡 KNOWN RISK — 2026-08-08: extension token-handoff is UNPINNED in prod — close it AT Web Store launch (NOT a set-it-now fix)
 
