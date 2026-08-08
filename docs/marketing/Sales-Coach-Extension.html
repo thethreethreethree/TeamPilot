@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ELOSTATE Sales Coach — Browser Extension</title>
+<style>
+  :root{
+    --ink:#0a0a0d; --ink2:#101016; --card:#14141a; --line:#26262f;
+    --ember:#f59e0b; --ember2:#fbbf24; --ember-soft:rgba(245,158,11,.10);
+    --text:#ececed; --sub:#b7b7c0; --muted:#8a8a95;
+  }
+  @page{ size:Letter; margin:0; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--ink); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .page{ width:8.5in; min-height:11in; padding:0.72in 0.7in 0.62in; position:relative;
+    background:
+      radial-gradient(120% 60% at 100% 0%, rgba(245,158,11,.10), transparent 55%),
+      radial-gradient(90% 50% at 0% 100%, rgba(245,158,11,.05), transparent 60%),
+      var(--ink);
+    page-break-after:always; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+
+  /* ---------- brand + type ---------- */
+  .brand{ display:flex; align-items:center; gap:11px; }
+  .logo{ width:38px; height:38px; border-radius:10px; flex:none;
+    background:linear-gradient(150deg,var(--ember2),var(--ember)); color:#1a1206;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 6px 18px rgba(245,158,11,.28); }
+  .brand .bt{ font-weight:800; font-size:15px; letter-spacing:.2px; }
+  .brand .bs{ font-size:9.5px; letter-spacing:2.4px; color:var(--muted); text-transform:uppercase; margin-top:1px; }
+  .eyebrow{ font-size:10.5px; letter-spacing:3px; text-transform:uppercase; color:var(--ember); font-weight:700; }
+  h1{ font-size:44px; line-height:1.03; letter-spacing:-1.2px; font-weight:800; text-wrap:balance; }
+  h1 .g{ background:linear-gradient(100deg,var(--ember2),var(--ember)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lede{ font-size:14.5px; line-height:1.55; color:var(--sub); max-width:6.2in; }
+  h2{ font-size:22px; letter-spacing:-.4px; font-weight:800; }
+  h2 .g{ color:var(--ember); }
+  .kicker{ font-size:11px; letter-spacing:2.2px; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:14px; }
+
+  .rule{ height:1px; background:linear-gradient(90deg,var(--ember),transparent); margin:18px 0; opacity:.5; }
+  .foot{ position:absolute; left:0.7in; right:0.7in; bottom:0.42in;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:9px; color:var(--muted); letter-spacing:.4px; border-top:1px solid var(--line); padding-top:8px; }
+
+  /* ---------- page 1 ---------- */
+  .hero-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .pill{ font-size:9.5px; font-weight:700; letter-spacing:.4px; color:var(--ember2);
+    border:1px solid rgba(245,158,11,.35); background:var(--ember-soft); border-radius:999px; padding:5px 11px; }
+  .hero{ margin-top:30px; }
+  .hero h1{ margin-top:12px; }
+  .hero .lede{ margin-top:16px; }
+  .whatrow{ display:flex; gap:12px; margin-top:20px; }
+  .whatcard{ flex:1; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 14px; }
+  .whatcard .t{ font-size:12px; font-weight:800; color:var(--text); margin-bottom:4px; }
+  .whatcard .d{ font-size:10.5px; line-height:1.45; color:var(--sub); }
+  .whatcard .ic{ color:var(--ember); font-size:15px; margin-bottom:7px; }
+
+  /* ---------- demo mock ---------- */
+  .demo{ margin-top:30px; position:relative; background:
+      linear-gradient(180deg,#0e1016,#0b0c11);
+    border:1px solid var(--line); border-radius:16px; padding:18px; min-height:4.35in; overflow:hidden; }
+  .demo-label{ position:absolute; top:12px; left:16px; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .chat{ position:absolute; left:16px; top:40px; width:3.5in; }
+  .chat .who{ font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin:0 0 8px 2px; }
+  .bub{ max-width:84%; padding:9px 12px; border-radius:13px; font-size:11px; line-height:1.4; margin-bottom:8px; }
+  .bub.them{ background:#1c1f27; color:#d9dbe2; border-top-left-radius:4px; }
+  .bub.me{ background:linear-gradient(135deg,#2b6cf6,#2559d6); color:#fff; margin-left:auto; border-top-right-radius:4px; }
+
+  /* the panel overlay — faithful to the real extension shadow-DOM card */
+  .panel{ position:absolute; right:16px; top:24px; width:3.05in;
+    background:#0b0b0e; border:1px solid #2a2a30; border-radius:14px;
+    box-shadow:0 20px 55px rgba(0,0,0,.6); overflow:hidden; }
+  .panel .hd{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #22222a; }
+  .panel .hd .ti{ font-weight:800; font-size:12px; display:flex; align-items:center; gap:7px; }
+  .panel .hd .dot{ width:16px;height:16px;border-radius:5px;background:linear-gradient(150deg,var(--ember2),var(--ember)); }
+  .panel .hd .x{ color:#8a8a95; font-size:13px; }
+  .panel .bd{ padding:11px 12px; }
+  .cap{ font-size:9px; color:#e7e7ea; background:transparent; border:1px solid #3a3a42; border-radius:8px; padding:5px 8px; display:inline-block; }
+  .selinfo{ font-size:8.5px; color:#8a8a95; margin:7px 0 9px; }
+  .tools{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+  .tool{ font-size:9px; font-weight:700; color:#09090b; background:var(--ember); border-radius:7px; padding:5px 8px; }
+  .tool.alt{ background:#1a1a20; color:#e7e7ea; border:1px solid #2a2a30; }
+  .out .h{ font-size:8.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--ember); margin:9px 0 3px; }
+  .out p{ font-size:9.5px; line-height:1.42; color:#d4d4d9; margin-bottom:2px; }
+  .out .q{ font-size:9px; font-style:italic; color:#c9c9cf; border-left:2px solid #3a3a42; padding-left:7px; margin-top:8px; }
+  .out li{ font-size:9px; line-height:1.4; color:#d4d4d9; margin-left:13px; margin-bottom:2px; }
+
+  /* ---------- tools grid (page 2) ---------- */
+  .grid5{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px; }
+  .tcard{ background:var(--card); border:1px solid var(--line); border-radius:13px; padding:18px 19px; position:relative; }
+  .tcard .num{ position:absolute; top:12px; right:14px; font-size:11px; font-weight:800; color:var(--line); }
+  .tcard .tl{ font-size:14px; font-weight:800; color:var(--ember2); margin-bottom:4px; }
+  .tcard .td{ font-size:11px; line-height:1.45; color:var(--sub); }
+  .tcard.wide{ grid-column:1 / -1; background:linear-gradient(120deg,var(--ember-soft),transparent); }
+  .tcard.wide .tl{ color:var(--text); }
+
+  /* platforms */
+  .plat-wrap{ margin-top:30px; }
+  .tier{ font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); font-weight:700; margin:20px 0 10px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ font-size:11px; font-weight:600; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 13px; }
+  .chip.core{ border-color:rgba(245,158,11,.4); color:var(--ember2); }
+  .anychip{ font-size:10.5px; font-weight:700; color:#09090b; background:var(--ember); border-radius:8px; padding:6px 12px; }
+
+  /* how to use (page 3) */
+  .steps{ margin-top:12px; }
+  .step{ display:flex; gap:16px; margin-bottom:22px; align-items:flex-start; }
+  .step .n{ width:34px; height:34px; border-radius:10px; flex:none; background:var(--ember-soft); border:1px solid rgba(245,158,11,.4);
+    color:var(--ember2); font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; }
+  .step .st{ font-size:14px; font-weight:800; margin-bottom:3px; }
+  .step .sd{ font-size:11.5px; line-height:1.5; color:var(--sub); }
+  .step code{ background:#1a1a20; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:10.5px; color:var(--ember2); }
+  .cta{ margin-top:22px; background:linear-gradient(120deg,var(--ember),var(--ember2)); color:#1a1206; border-radius:14px; padding:20px 22px; }
+  .cta .ct{ font-size:19px; font-weight:800; letter-spacing:-.3px; }
+  .cta .cd{ font-size:12px; margin-top:5px; opacity:.85; font-weight:600; }
+  .honest{ margin-top:16px; background:var(--card); border:1px solid var(--line); border-left:3px solid var(--ember); border-radius:10px; padding:13px 15px; }
+  .honest .ht{ font-size:11px; font-weight:800; color:var(--ember2); margin-bottom:5px; }
+  .honest p{ font-size:10.5px; line-height:1.5; color:var(--sub); }
+  .statcard{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 14px; text-align:center; }
+  .statcard .sv{ font-size:26px; font-weight:800; letter-spacing:-1px;
+    background:linear-gradient(100deg,var(--ember2),var(--ember)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .statcard .sl{ font-size:9.5px; color:var(--sub); margin-top:3px; letter-spacing:.3px; }
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1 — WHAT IT IS + DEMO ============ -->
+<div class="page">
+  <div class="hero-top">
+    <div class="brand">
+      <div class="logo">🎓</div>
+      <div><div class="bt">ELOSTATE Sales Coach</div><div class="bs">Live Coaching · Growth Reviews</div></div>
+    </div>
+    <div class="pill">Chrome · Edge · Brave</div>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">The Browser Extension</div>
+    <h1>Coach every sales conversation — <span class="g">right where it happens.</span></h1>
+    <p class="lede">ELOSTATE Sales Coach is a browser extension that puts an AI sales coach on the
+      conversation you're <em>already</em> looking at. Reading a prospect's reply in Gmail, WhatsApp,
+      LinkedIn or Slack? Click the icon and — without leaving the thread — read the room, grade your draft
+      against the sales playbook, catch up on where the deal stands, or have the next message drafted for you.</p>
+  </div>
+
+  <div class="whatrow">
+    <div class="whatcard"><div class="ic">◎</div><div class="t">What it is</div>
+      <div class="d">A lightweight browser extension. No new app to learn — it works on the sites your reps already sell in.</div></div>
+    <div class="whatcard"><div class="ic">↗</div><div class="t">What it's for</div>
+      <div class="d">Turning a real, live conversation into a coached one — in the moment, before the reply is sent.</div></div>
+    <div class="whatcard"><div class="ic">⛭</div><div class="t">How it works</div>
+      <div class="d">It reads the open thread on the page, sends the text to your ELOSTATE workspace, and shows the coaching in a panel.</div></div>
+  </div>
+
+  <!-- VISUAL DEMO -->
+  <div class="demo">
+    <div class="demo-label">See it in action</div>
+    <div class="chat">
+      <div class="who">WhatsApp · Prospect — "Dana @ Northwind"</div>
+      <div class="bub them">Thanks for the demo! Honestly the price came in higher than we'd budgeted for this quarter.</div>
+      <div class="bub me">Totally understand, Dana. Can I ask — is it the total number, or the timing within the quarter?</div>
+      <div class="bub them">Bit of both. My CFO will want to see the ROI before signing off.</div>
+    </div>
+
+    <div class="panel">
+      <div class="hd"><div class="ti"><span class="dot"></span>Sales Coach</div><div class="x">✕</div></div>
+      <div class="bd">
+        <span class="cap">Capture conversation</span>
+        <div class="selinfo">412 characters captured — “Thanks for the demo! Honestly the price…”</div>
+        <div class="tools">
+          <span class="tool">Read the room</span>
+          <span class="tool">Coach my reply</span>
+          <span class="tool">Catch me up</span>
+          <span class="tool alt">Draft my reply</span>
+          <span class="tool alt">Say it for me</span>
+        </div>
+        <div class="out">
+          <div class="h">What's working</div>
+          <ul><li>You isolated the objection (number vs. timing) instead of discounting.</li></ul>
+          <div class="h">The opportunity</div>
+          <p>Dana named the real buyer — the CFO — and the real gate: ROI. Shift from price to proof.</p>
+          <div class="h">Next move</div>
+          <p>Offer a one-page ROI framed to the CFO; anchor to their budgeted number, not yours.</p>
+          <p class="q">What outcome would make your CFO call this a win by Q3?</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>ELOSTATE Sales Coach — Browser Extension</span><span>elostate.com · 1 / 3</span></div>
+</div>
+
+<!-- ============ PAGE 2 — TOOLS + PLATFORMS ============ -->
+<div class="page">
+  <div class="brand" style="margin-bottom:26px">
+    <div class="logo">🎓</div>
+    <div><div class="bt">ELOSTATE Sales Coach</div><div class="bs">Live Coaching · Growth Reviews</div></div>
+  </div>
+
+  <div class="kicker">Five tools · one click away</div>
+  <h2>Everything a rep needs, <span class="g">on the conversation itself.</span></h2>
+  <div class="rule"></div>
+
+  <div class="grid5">
+    <div class="tcard"><div class="num">01</div><div class="tl">Read the room</div>
+      <div class="td">What's working, the real opportunity, and the next move — read from the thread as it stands.</div></div>
+    <div class="tcard"><div class="num">02</div><div class="tl">Coach my reply</div>
+      <div class="td">Paste your draft. It grades it against the sales books (SPIN · Challenger · Voss) and hands back a stronger version — with the <em>why</em>.</div></div>
+    <div class="tcard"><div class="num">03</div><div class="tl">Catch me up</div>
+      <div class="td">Where this deal stands — the state, the open objection, the next step — in a two-line brief.</div></div>
+    <div class="tcard"><div class="num">04</div><div class="tl">Draft my reply</div>
+      <div class="td">Drafts the next message for you and names the sales move it used, so you learn while you send.</div></div>
+    <div class="tcard wide"><div class="num">05</div><div class="tl">Say it for me</div>
+      <div class="td">Tell it what you want to get across in plain words — it shapes that intent into a strong, ready-to-send message.</div></div>
+  </div>
+
+  <div class="plat-wrap">
+    <div class="kicker" style="margin-bottom:4px">Where you can use it</div>
+    <h2 style="font-size:19px">17 platforms auto-read — <span class="g">plus any site by highlight.</span></h2>
+
+    <div class="tier">Core sales channels</div>
+    <div class="chips">
+      <span class="chip core">Gmail</span><span class="chip core">Outlook</span><span class="chip core">WhatsApp Web</span>
+      <span class="chip core">LinkedIn</span><span class="chip core">Instagram DMs</span><span class="chip core">Messenger</span><span class="chip core">Slack</span>
+    </div>
+    <div class="tier">More conversations</div>
+    <div class="chips">
+      <span class="chip">Telegram</span><span class="chip">Microsoft Teams</span><span class="chip">Discord</span>
+      <span class="chip">X / Twitter DMs</span><span class="chip">Google Chat</span><span class="chip">Google Voice</span>
+    </div>
+    <div class="tier">Support desks</div>
+    <div class="chips">
+      <span class="chip">Zendesk</span><span class="chip">Intercom</span><span class="chip">Front</span><span class="chip">Gorgias</span>
+    </div>
+    <div class="tier">Everywhere else</div>
+    <div class="chips">
+      <span class="anychip">Any website → highlight the messages &amp; press Capture</span>
+    </div>
+  </div>
+
+  <div class="foot"><span>Five tools · 17 platforms</span><span>elostate.com · 2 / 3</span></div>
+</div>
+
+<!-- ============ PAGE 3 — HOW TO USE + CTA ============ -->
+<div class="page">
+  <div class="brand" style="margin-bottom:26px">
+    <div class="logo">🎓</div>
+    <div><div class="bt">ELOSTATE Sales Coach</div><div class="bs">Live Coaching · Growth Reviews</div></div>
+  </div>
+
+  <div class="kicker">Up and running in about a minute</div>
+  <h2>How to use it</h2>
+  <div class="rule"></div>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div><div class="st">Install it</div>
+      <div class="sd">From your ELOSTATE dashboard → <em>Browser extension</em>, download the package and unzip it. On <code>chrome://extensions</code>, turn on <em>Developer mode</em> and click <em>Load unpacked</em>. (A one-click Chrome Web Store install is coming.)</div></div></div>
+    <div class="step"><div class="n">2</div><div><div class="st">Pin it &amp; sign in</div>
+      <div class="sd">Pin the Sales Coach icon to your toolbar. Click it on any page and press <em>Sign in</em> — it connects to your workspace in one click.</div></div></div>
+    <div class="step"><div class="n">3</div><div><div class="st">Open a conversation</div>
+      <div class="sd">Open a real thread — Gmail, WhatsApp Web, LinkedIn, Slack, or any of the 17 supported platforms. On other sites, just highlight the messages.</div></div></div>
+    <div class="step"><div class="n">4</div><div><div class="st">Click the icon → pick a tool</div>
+      <div class="sd">The panel reads the thread and previews what it captured. Choose <em>Read the room</em>, <em>Coach my reply</em>, <em>Catch me up</em>, <em>Draft my reply</em>, or <em>Say it for me</em> — and copy the result straight into your reply.</div></div></div>
+  </div>
+
+  <div class="cta">
+    <div class="ct">Coach the deal before you hit send.</div>
+    <div class="cd">Available now for your team — find it under “Browser extension” in the Sales Coach sidebar.</div>
+  </div>
+
+  <div class="honest">
+    <div class="ht">Private by design</div>
+    <p>The extension reads only the conversation you have open, only when you ask it to. Nothing is captured in the
+      background, and the coaching tools process that text without storing it. Your workspace plan controls access.</p>
+  </div>
+
+  <div style="margin-top:20px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+    <div class="statcard"><div class="sv">5</div><div class="sl">coaching tools</div></div>
+    <div class="statcard"><div class="sv">17</div><div class="sl">platforms auto-read</div></div>
+    <div class="statcard"><div class="sv">Any</div><div class="sl">site by highlight</div></div>
+    <div class="statcard"><div class="sv">0</div><div class="sl">conversations stored</div></div>
+  </div>
+
+  <div class="foot"><span>Install · Pin · Sign in · Coach</span><span>elostate.com · 3 / 3</span></div>
+</div>
+
+</body>
+</html>
