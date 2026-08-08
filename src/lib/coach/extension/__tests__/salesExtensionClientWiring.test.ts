@@ -41,6 +41,11 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("extractRCD");
   });
 
+  it("tells the rep when a captured conversation was truncated (honest, not silent — §3.4)", () => {
+    expect(CONTENT).toContain("trimmed to fit");
+    expect(CONTENT).toMatch(/raw\.length > MAX_CHARS/);
+  });
+
   it("gives a signed-out rep an explicit Sign-in button, not just text (retry affordance)", () => {
     // If the connect tab is closed or the handoff fails, a bare "Sign in to use" text leaves no visible way to
     // retry (only the non-obvious re-click-a-tool). A button wired to open-connect is the clear path.

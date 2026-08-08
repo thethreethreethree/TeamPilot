@@ -32,12 +32,16 @@
 
   const MAX_CHARS = 20000;
   const setSelection = (text, who) => {
-    currentSelection = String(text || "").slice(0, MAX_CHARS);
+    const raw = String(text || "");
+    const wasTrimmed = raw.length > MAX_CHARS; // tell the rep if we truncated — never silently coach on a cut thread (§3.4)
+    currentSelection = raw.slice(0, MAX_CHARS);
     lastSpeaker = who === "agent" || who === "customer" ? who : null;
     const el = root.getElementById("sc-selinfo");
     if (el) {
       const n = currentSelection.trim().length;
-      el.textContent = n ? `${n} characters captured` : "No conversation captured yet";
+      el.textContent = n
+        ? `${n} characters captured${wasTrimmed ? " (trimmed to fit)" : ""}`
+        : "No conversation captured yet";
     }
   };
 
