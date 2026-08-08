@@ -21,8 +21,9 @@ upload (it's also what `/extension/download-sales` serves).
 - [x] Description 121 chars (< 132)
 - [x] icon16/48/128 present and declared (128 declared)
 - [x] Every declared permission used in code — `activeTab`, `scripting`, `storage`, host `elostate.com`
-- [x] No unused host permission — the copied `*.supabase.co` grant was removed (the extension never calls
-      Supabase directly; it's text-only and talks only to `elostate.com`)
+- [x] No unused permissions — the copied `*.supabase.co` host grant AND the `optional_host_permissions`
+      `*://*/*` all-hosts grant were both removed (both were RCD-only in C.A.R.E; the text-only sales extension
+      never calls Supabase and never requests optional hosts — it talks only to `elostate.com` under `activeTab`)
 - [x] No `eval()` / `new Function()` / remotely-hosted code (MV3-compliant)
 - [x] Production manifest is localhost-free (stripped at build; verified in the shipped zip)
 - [ ] Loads via Load-unpacked without errors ← **founder confirms** (see the test runbook)
@@ -41,8 +42,9 @@ upload (it's also what `/extension/download-sales` serves).
 | `storage` | Stores the user's session token (and its refresh token) in `chrome.storage.local` so they stay signed in between page visits, plus an optional API-base override. No conversation content is ever stored. |
 | Host `https://elostate.com/*` | The extension's own backend. The background service worker calls it to run the tools with the user's token. It is the only network destination. |
 
-We deliberately do **not** request `<all_urls>`, `tabs`, `history`, per-site host permissions, or Supabase host
-access: adapters run under `activeTab` on the user's click, and all network traffic goes to `elostate.com`.
+We deliberately do **not** request `<all_urls>`, `tabs`, `history`, per-site host permissions, optional host
+permissions, or Supabase host access: adapters run under `activeTab` on the user's click, and all network
+traffic goes to `elostate.com`.
 
 ## 4. Data usage disclosure (certify in the dashboard)
 - **What is sent:** only the conversation text the user selects (or points an adapter at) on the current page,
