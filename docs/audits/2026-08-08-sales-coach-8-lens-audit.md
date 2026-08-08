@@ -97,10 +97,11 @@ state bleeds until (or unless) a refetch overwrites it.* Anchor: `717be56e` keye
   makes clean teardown-on-switch true by construction). Both `key={id}`, remounting only on a genuine switch.
 - **[id] page fully swept:** its three bleed-capable children (`SessionCoachTools`, `PivotAndScores`,
   `LiveCoachingPanel`) are all keyed now. The after-pitch page renders none of them (clean).
-- **Cross-product boundary (`/code-review ultra` scope):** C.A.R.E `ConversationsApp` switches conversations
-  in-place and holds per-conversation state; it carries `selectedIdRef`/`inboxSeenRef` guards (suggests the
-  author already resets on change) but was NOT audited here — a dedicated sweep should confirm each per-item
-  child resets or is keyed. Same lower severity (stale UI, not data loss).
+- **Cross-product — ASSESSED CLEAN:** C.A.R.E `ConversationsApp` switches conversations in-place, and was
+  read-audited here: it explicitly RESETS per-conversation state on switch — `setDraft("")` (line 999),
+  `setMessages(...)` (978), `aiDrafting` (1556) — keys the coach/review component `key={selected.id}` (2065),
+  and documents the pieces it intentionally persists across the switch (line 1017). Deliberate reset + documented
+  persist, not a bleed. No cross-product state-bleed found.
 
 ## Method note
 
