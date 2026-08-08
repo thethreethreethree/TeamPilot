@@ -1,4 +1,4 @@
-# Sales Coach — 8-lens audit (2026-08-08)
+# Sales Coach — multi-lens audit (2026-08-08, 10 lenses)
 
 Ground-up, on-the-record audit of the Sales Coach directive surface (the browser extension + the in-app Sales Coach
 product), run across every recorded audit lens relevant to this domain. Every lens was checked against the
@@ -17,6 +17,8 @@ actual code (not grep verdicts): a suspect is verified before it's fixed, and "c
 | Money float-precision | clean | `sumDollarsExact` (integer-cent staging); no money `a*b` |
 | LLM injection-fence | clean | every transcript engine fenced (CONVERSATION_IS_DATA or bespoke inline); debrief reads the user's OWN messages |
 | Tenant-scope (cross-tenant writes) | clean | INV15 gates coaching_sessions; `why`→events + `compute-cron`→kpi_snapshot both pin company_id |
+| Signed-URL bearer capability + INV19 | clean | `retranscribe` proves company + owner/manager access before signing audio (INV19 owner-check applied by name); recordings list returns no URL, manager+same-company gated |
+| CSV formula-injection (CWE-1236) | clean | `toCsv` neutralizes every cell; the KPI/team exports (incl. user-controlled rep names) route through it |
 
 ## The honest-empty sweep (the session's largest thread) — 7 gaps
 
