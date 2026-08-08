@@ -104,6 +104,29 @@ extension) — the runbook [`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTE
 
 ---
 
+## Store-launch readiness (brought up to parity this session)
+
+A close comparison against the C.A.R.E extension found the port had silently dropped several launch-critical
+things (a UI/extension port copies the happy path but drops the parent's accumulated guards and artifacts).
+Fixed this session:
+
+- **Privacy policy** — the sales extension had none (a Chrome Web Store listing *requires* one). Added
+  [`/extension/privacy-sales`](../src/app/extension/privacy-sales/page.tsx), stating the sales extension's
+  *actual* behavior (fully ephemeral — no "save", unlike C.A.R.E's Capture). **⚠️ It needs your legal review
+  before it's the official policy** — it describes verified behavior, but the wording is yours.
+- **Two unused permissions removed** — the manifest had inherited C.A.R.E's `*.supabase.co` host grant and its
+  `*://*/*` optional-host grant (both exist only for C.A.R.E's image-capture flow, which sales doesn't have). An
+  unused permission is the #1 store-rejection reason; the manifest now requests only what it uses.
+- **Submission guide** — added [`extension-sales/CHROME-WEB-STORE-SUBMISSION.md`](../extension-sales/CHROME-WEB-STORE-SUBMISSION.md):
+  paste-ready permission justifications, data disclosure, and a **draft** store description (yours to
+  review/replace).
+- **Download-page troubleshooting** + the privacy link were also dropped in the port; both restored.
+
+**Net:** the extension is now store-*submittable* pending the three decisions above (icon, entitlement, error
+policy) + your privacy-policy review + screenshots + the `NEXT_PUBLIC_SALES_EXTENSION_ID` pin.
+
+---
+
 ## Honest boundaries
 
 - **The client is built but not yet a *public* product** — you can sideload and use it today (per the test
