@@ -9,8 +9,8 @@ developer-facing port instructions see [`extension-sales/README.md`](../extensio
 > Sign in → run the 5 tools across **13 web platforms** is all built, CI-green, and deployed — the server, the
 > on-page panel, the per-site readers, the connect handoff, the download page, and a founder test runbook
 > ([`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md)). Three founder calls remain before a
-> **public** launch (none block you testing it yourself now): a real Sales Coach **icon** (toolbar icon is a
-> C.A.R.E placeholder today), the **entitlement-source** decision (share the C.A.R.E plan vs a separate sales
+> **public** launch (none block you testing it yourself now): a distinct Sales Coach **icon** (the toolbar icon
+> today is the shared ELOSTATE brand logo — fine as a placeholder), the **entitlement-source** decision (share the C.A.R.E plan vs a separate sales
 > SKU), and the **error-detail policy** (see decision 3). Prod also needs `NEXT_PUBLIC_SALES_EXTENSION_ID` set.
 
 ## What it is
@@ -70,11 +70,14 @@ a **pricing decision, not an engineering one**, so I didn't guess it:
 work). The plumbing is ready either way — I already made the "trial ended" message name the correct product,
 so whichever you choose is a small wiring change, not a rebuild.
 
-### 2. A real Sales Coach icon
+### 2. A Sales Coach icon (distinct mark, or keep the shared brand?)
 
-The toolbar icon today is the **C.A.R.E placeholder**. It works, but it should be its own mark before a public
-listing. This is a design asset, not an engineering task — give me the icon (or the go-ahead to commission
-one) and I'll wire the 16/48/128px set into `extension-sales/icons/` and rebuild the download.
+The toolbar icon today is the **ELOSTATE company logo** (the lightbulb + wordmark) — the same icon the C.A.R.E
+extension uses. So it's the *correct* parent brand, not a wrong-product logo; it's a fine placeholder. The only
+question is whether Sales Coach should get its **own distinct mark** so a rep who has both extensions can tell
+them apart at a glance. That's a brand/design decision, not an engineering one — give me the icon (or the
+go-ahead to commission one) and I'll wire the 16/48/128px set into `extension-sales/icons/` and rebuild. Until
+then the ELOSTATE logo is a reasonable stand-in.
 
 ### 3. Error-detail policy (a codebase-wide call, surfaced honestly)
 
