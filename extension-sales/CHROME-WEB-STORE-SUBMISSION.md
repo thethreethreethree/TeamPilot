@@ -47,14 +47,23 @@ permissions, or Supabase host access: adapters run under `activeTab` on the user
 traffic goes to `elostate.com`.
 
 ## 4. Data usage disclosure (certify in the dashboard)
-- **What is sent:** only the conversation text the user selects (or points an adapter at) on the current page,
-  sent to `elostate.com` to run the requested tool, authenticated by the user's own session token.
+> ⚠️ **Accuracy note (verified 2026-08-08):** the conversation text IS transmitted to a THIRD-PARTY AI provider
+> (currently DeepSeek, `api.deepseek.com`) to generate the result — the server relays it. Your Google data-use
+> certification and the privacy policy must disclose that sub-processor; do NOT certify "no data transferred to
+> third parties" without it. Facts below are verified from the code; you make the final certification (and see
+> the F1 item in the founder action queue — same sub-processor point on the live privacy pages).
+- **What is sent, and where:** only the conversation text the user selects (or points an adapter at) on the
+  current page, sent to `elostate.com` (authenticated by the user's own session token) to run the requested
+  tool — and from there **transmitted to our AI provider (currently DeepSeek) to generate the result.**
 - **What is stored:** the session token + refresh token (auth) and an optional API-base setting, in
-  `chrome.storage.local`. **Conversation text is processed to produce the result and then discarded — never
-  persisted.** The Sales Coach extension has NO save path (unlike C.A.R.E's Capture) — it is fully ephemeral.
-- **Not collected:** no browsing history, no analytics, no selling/transfer of data, no use for ads. Handled
-  only to provide the single stated purpose.
-- **Privacy policy URL:** `https://elostate.com/extension/privacy-sales` (live).
+  `chrome.storage.local`. **Conversation text is processed to produce the result and then discarded — not
+  persisted by us.** The Sales Coach extension has NO save path (unlike C.A.R.E's Capture) — it is ephemeral
+  on our side. (Whether the AI provider retains it is governed by their terms — confirm your DeepSeek DPA.)
+- **Not collected / not done:** no browsing history, no analytics, no ads, and we don't SELL your data or
+  transfer it to any third party for that party's OWN purposes. The only transmission is to our AI provider,
+  solely to produce the result you asked for.
+- **Privacy policy URL:** `https://elostate.com/extension/privacy-sales` (live) — see F1: its "no third-party
+  sharing" line needs the same sub-processor disclosure before launch.
 
 ## 5. Store listing copy — DRAFT (founder to review/replace)
 **Name:** Sales Coach — coach the sales conversation you're viewing
