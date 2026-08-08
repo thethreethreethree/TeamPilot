@@ -118,6 +118,32 @@ if (!globalThis.__salesCoachAdaptersLoaded) {
       match: (h) => h === "voice.google.com",
       extract: () => textFrom("div.content, .gv-message-text, div[gv-test-id='message-text']"),
     },
+
+    // ── Tier 3 (PLATFORM-COVERAGE.md #16-19): support-desk platforms, REUSING the live C.A.R.E adapters'
+    // selectors verbatim (../extension/adapters.js) minus the RCD/media path (sales reads text only). Each
+    // self-gates by hostname, so a rep who never sells through a given desk is entirely unaffected — the
+    // adapter simply never fires. Same reasoned-then-confirm-live posture as every adapter here; a wrong grab
+    // now degrades to a VISIBLE preview (content.js) → manual highlight, never a silent wrong reading.
+    {
+      key: "gorgias",
+      match: (h) => h.endsWith(".gorgias.com") || h === "gorgias.com",
+      extract: () => textFrom('[data-testid="message-body"], .message-body, article'),
+    },
+    {
+      key: "zendesk",
+      match: (h) => h.endsWith(".zendesk.com"),
+      extract: () => textFrom(".zd-comment, [data-comment-body], .event .comment"),
+    },
+    {
+      key: "intercom",
+      match: (h) => h === "app.intercom.com" || h.endsWith(".intercom.com"),
+      extract: () => textFrom('.conversation__body, [class*="conversationPart"], [class*="comment__body"]'),
+    },
+    {
+      key: "front",
+      match: (h) => h === "app.frontapp.com",
+      extract: () => textFrom('[class*="messageBody"], [class*="message-body"], .message'),
+    },
   ];
 
   // Return the adapter whose match(hostname) is true, or null (→ content.js uses manual selection).

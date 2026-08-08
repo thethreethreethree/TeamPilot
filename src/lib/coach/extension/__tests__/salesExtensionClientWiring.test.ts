@@ -109,6 +109,12 @@ describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", (
     }
   });
 
+  it("covers the 4 Tier-3 support-desk platforms (reuse the C.A.R.E desk selectors)", () => {
+    for (const key of ["gorgias", "zendesk", "intercom", "front"]) {
+      expect(ADAPTERS).toContain(`key: "${key}"`);
+    }
+  });
+
   it("dropped the C.A.R.E RCD/media helpers (text-only for sales)", () => {
     expect(ADAPTERS).not.toContain("rcdFrom");
     expect(ADAPTERS).not.toContain("rcdOrText");
@@ -164,6 +170,12 @@ describe("Sales Coach adapters.js — routing + extraction behavior (mirrors the
     ["x.com", "twitter"],
     ["chat.google.com", "googlechat"],
     ["voice.google.com", "googlevoice"],
+    // Tier-3 support desks. The subdomain cases genuinely exercise the `.endsWith()` wildcard predicates —
+    // a typo'd match (e.g. ".zendsk.com") would route null here, which a substring check could never catch.
+    ["acme.zendesk.com", "zendesk"],
+    ["shop.gorgias.com", "gorgias"],
+    ["app.intercom.com", "intercom"],
+    ["app.frontapp.com", "front"],
   ];
 
   it.each(routes)("routes %s → the %s adapter with a callable extract()", (host, key) => {

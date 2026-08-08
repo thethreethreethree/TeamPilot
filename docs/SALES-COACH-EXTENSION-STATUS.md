@@ -6,7 +6,7 @@ developer-facing port instructions see [`extension-sales/README.md`](../extensio
 ---
 
 > **Status (2026-08-08): functionally complete end-to-end, incl. the browser client.** Download → install →
-> Sign in → run the 5 tools across **13 web platforms** is all built, CI-green, and deployed — the server, the
+> Sign in → run the 5 tools across **17 web platforms** is all built, CI-green, and deployed — the server, the
 > on-page panel, the per-site readers, the connect handoff, the download page, and a founder test runbook
 > ([`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md)). Three founder calls remain before a
 > **public** launch (none block you testing it yourself now): a distinct Sales Coach **icon** (the toolbar icon
@@ -105,7 +105,7 @@ convention — the honest path is to ask, with the accurate scope.)
 ---
 
 **Phase 2 (the browser client) is DONE** — this was an open go-ahead in the prior version of this doc. The
-on-page panel, the per-site readers (13 platforms), and the Sign-in handoff are all built and CI-green. What
+on-page panel, the per-site readers (17 platforms), and the Sign-in handoff are all built and CI-green. What
 remains is the icon (decision 2) and setting `NEXT_PUBLIC_SALES_EXTENSION_ID` in prod before a public listing.
 The per-platform selectors ship "reasoned + confirm live per platform" (the same model as the C.A.R.E
 extension) — the runbook [`SALES-COACH-EXTENSION-TESTING.md`](SALES-COACH-EXTENSION-TESTING.md) walks the

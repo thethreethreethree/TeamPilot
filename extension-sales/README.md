@@ -15,7 +15,7 @@ draft, catch up on the deal, draft the next message, or shape what the rep wants
 | `config.js` (`SALES_TOOLS`) | **Built + wired** — drift-guard test |
 | `background.js` (service worker) | **Built** — inject-on-click, tool proxy, 401→refresh→retry, connect handoff |
 | `content.js` (panel) | **Built** — shadow-DOM panel, 5 tools, Copy, sign-in/401 states, empty-input guard |
-| `adapters.js` (per-site) | **Built** — 13 platforms (7 Tier-1 reused + 6 Tier-2); routing + extraction tested |
+| `adapters.js` (per-site) | **Built** — 17 platforms (7 Tier-1 reused + 6 Tier-2 + 4 Tier-3 support desks reused); routing + extraction tested |
 | Connect handoff (product-aware `/extension/connect?product=sales`) | **Built** |
 | Download page + zip (`/extension/download-sales`, `public/sales-coach-extension.zip`) | **Built + served live** |
 | `icons/` | ELOSTATE brand placeholder (a distinct Sales Coach mark is a founder decision) |

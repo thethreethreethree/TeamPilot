@@ -9,7 +9,7 @@ toolbar icon injects the panel on the current tab (`activeTab`), and the rep can
 conversation manually** and press Capture. So a rep can coach a thread on *any* of the top-20 platforms today.
 What the per-platform adapters below add is **automatic** reading — the panel grabs the open thread with no
 highlighting. So the honest coverage statement is: *usable everywhere with a manual highlight; auto-reads the
-13 platforms with an adapter.* The list below is the **auto-read** list, not the "works here at all" list.
+17 platforms with an adapter.* The list below is the **auto-read** list, not the "works here at all" list.
 
 **The hard constraint (on AUTO-READ):** a content script can only *automatically* read a platform that has a
 **web app** it can reach. Native-mobile-only apps (iMessage, SMS, Signal) have no web surface to auto-read —
@@ -51,17 +51,20 @@ C.A.R.E-proven Tier-1 ones, so confirm each live and adjust. #14–15 are not bu
 | 14 | Reddit (chat/DMs) | `reddit.com` | — | Community sales; lower priority, not built. |
 | 15 | Zoom Team Chat | `zoom.us` (web chat) | — | Partial; confirm the web surface exists first. |
 
-## Tier 3 — reachable support desks, REUSE C.A.R.E adapter (sales-adjacent, low priority)
+## Tier 3 — reachable support desks, REUSE C.A.R.E adapter (BUILT 2026-08-08)
 
-| # | Platform | Web hostname(s) | Reuse adapter |
-|---|---|---|---|
-| 16 | Zendesk | `*.zendesk.com` (per the `zendesk` adapter) | `zendesk` |
-| 17 | Intercom | `app.intercom.com`, `*.intercom.com` | `intercom` |
-| 18 | Front | `app.frontapp.com` | `front` |
-| 19 | Gorgias | `*.gorgias.com` | `gorgias` |
+| # | Platform | Web hostname(s) | Adapter | Notes |
+|---|---|---|---|---|
+| 16 | Zendesk | `*.zendesk.com` | `zendesk` ✅ | Selectors reused verbatim from the C.A.R.E `zendesk` adapter (RCD path dropped). |
+| 17 | Intercom | `app.intercom.com`, `*.intercom.com` | `intercom` ✅ | Same reuse. |
+| 18 | Front | `app.frontapp.com` | `front` ✅ | Same reuse. |
+| 19 | Gorgias | `*.gorgias.com`, `gorgias.com` | `gorgias` ✅ | Same reuse. |
 
-These are support-desk tools, not primary sales channels — include only if reps actually sell through them.
-The adapters already exist, so the cost is near-zero.
+These are support-desk tools, not primary sales channels. They're now built because each **self-gates by
+hostname** — an adapter only fires on its own domain, so a rep who never sells through a given desk is entirely
+unaffected (the adapter simply never runs). That makes inclusion pure additive optionality with zero downside,
+and the selectors reuse the existing C.A.R.E desk adapters (near-zero cost). Same reasoned-then-confirm-live
+posture as every adapter here; routing is execution-tested (subdomain cases exercise the `.endsWith()` match).
 
 ## Uncoverable by a browser extension (out of scope — needs a different integration)
 
@@ -77,10 +80,12 @@ future decision, flagged honestly rather than promised.
 
 ## Summary
 
-- **Reachable by the extension:** ~15 platforms (Tiers 1+2), plus 4 reusable support desks (Tier 3).
-- **Reuse-ready (zero new selector work, just confirm live):** 7 core + 4 desks = 11 (the existing adapters).
-- **New adapters to write:** ~8 (Tier 2), reasoned then founder-confirmed live per platform.
+- **Auto-read adapters built:** 17 — 7 Tier-1 (reuse C.A.R.E) + 6 Tier-2 (new, reasoned) + 4 Tier-3 support
+  desks (reuse C.A.R.E). All degrade to manual highlight on a miss; all confirm-live per platform.
+- **Still unbuilt (reachable, lower priority):** #14 Reddit (new selectors) and #15 Zoom Team Chat (confirm the
+  web chat surface exists first) — 2 platforms.
 - **Genuinely uncoverable:** iMessage, SMS, Signal, WeChat — not an extension's job.
+- Usable on **any** site via manual highlight regardless of adapter coverage.
 
 The port order that maximizes value per unit of unverifiable work: **Tier 1 first** (covers every founder-named
 platform by reuse), then **Tier 2** by sales relevance, then **Tier 3** only if reps sell through those desks.
