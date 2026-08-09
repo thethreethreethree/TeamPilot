@@ -127,6 +127,41 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
   });
 });
 
+describe("Sales Coach content.js — streaming Suggested Response + honest progress (2026-08-09)", () => {
+  it("streams Suggested Response over a Port and progressively renders the forming reply", () => {
+    // The reply forms word-by-word (perceived-speed fix, no quality change). content.js opens the worker Port
+    // and renders everything BEFORE the marker as the forming reply. Fails if the streaming path is dropped.
+    expect(CONTENT).toContain("runToolStreaming");
+    expect(CONTENT).toMatch(/chrome\.runtime\.connect\(\{\s*name:\s*"sales-suggest-stream"/);
+    expect(CONTENT).toContain('type: "start"');
+    // splits on the SAME marker the server/worker use (wire contract — must not drift)
+    expect(CONTENT).toContain("===REASONING===");
+    expect(CONTENT).toContain("replyBeforeMarker");
+  });
+
+  it("shows an honest staged progress state while the model works (not a frozen spinner)", () => {
+    // "it takes a long time" was a dead spinner; startProgress cycles the REAL phases so the wait reads as work.
+    expect(CONTENT).toContain("function startProgress");
+    expect(CONTENT).toContain("Reading the conversation…");
+    expect(CONTENT).toContain("Drafting your response…");
+  });
+
+  it("strips AI-tell dashes from the streaming view so none flash before the final render (founder no-dash rule)", () => {
+    // The server sanitizes the FINAL reply; the live view must match so an em dash doesn't appear then vanish.
+    expect(CONTENT).toContain("stripDashesLive");
+    expect(CONTENT).toMatch(/stripDashesLive\(replyBeforeMarker/);
+  });
+
+  it("falls back to the proven non-stream request path on any stream failure (can't break the working flow)", () => {
+    // Streaming is runtime-unverifiable here; the guarantee is that a connect throw, an error event, or a port
+    // disconnect degrades to runToolRequest — which renders the result OR the real error honestly.
+    expect(CONTENT).toContain("runToolRequest");
+    expect(CONTENT).toMatch(/onDisconnect[\s\S]{0,120}fallback/);
+    expect(CONTENT).toMatch(/type === "error"[\s\S]{0,120}fallback/);
+    expect(CONTENT).toMatch(/fallback[\s\S]{0,200}runToolRequest/);
+  });
+});
+
 describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", () => {
   it("exposes salesAdapterFor + textFrom", () => {
     expect(ADAPTERS).toContain("globalThis.salesAdapterFor");

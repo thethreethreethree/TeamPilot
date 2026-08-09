@@ -43,9 +43,41 @@ async function readJson(res) {
   }
 }
 
+// Silent refresh of the access token, shared by the JSON/upload path (withAuthRetry) AND the streaming path so
+// the 401→refresh logic lives in ONE place (re-inlining it per call site is exactly how the two drift). Returns
+// the new access token on success, or null — and on a hard failure clears the session so the panel shows Sign
+// in and the badge drops. `currentRefresh` is the refresh token we hold; a successful refresh may rotate it.
+async function refreshSalesAccessToken(base, currentRefresh) {
+  if (!currentRefresh) return null;
+  try {
+    const rr = await fetch(base + "/api/coach/extension/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: currentRefresh }),
+    });
+    if (rr.ok) {
+      const rd = await rr.json().catch(() => ({}));
+      if (rd.access_token) {
+        await chrome.storage.local.set({
+          salesCoachToken: rd.access_token,
+          salesCoachRefreshToken: rd.refresh_token || currentRefresh,
+        });
+        return rd.access_token;
+      }
+      return null;
+    }
+    // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in, drop the badge.
+    await chrome.storage.local.remove(["salesCoachToken", "salesCoachRefreshToken"]);
+    chrome.action.setBadgeText({ text: "" });
+    return null;
+  } catch {
+    return null; // network hiccup on refresh; caller leaves the 401 to surface Sign in
+  }
+}
+
 // Shared token load + silent one-shot refresh-retry around a caller-provided `call(base, token)`. Both the JSON
-// tool path and the multipart upload path go through this, so the 401→refresh→retry logic lives in ONE place
-// (re-inlining it per call site is exactly how the two drift). Runs in the CORS-free worker context.
+// tool path and the multipart upload path go through this, so the 401→refresh→retry logic lives in ONE place.
+// Runs in the CORS-free worker context.
 async function withAuthRetry(call) {
   const { salesCoachToken, salesCoachRefreshToken, apiBase } = await chrome.storage.local.get([
     "salesCoachToken",
@@ -56,29 +88,8 @@ async function withAuthRetry(call) {
   let out = await call(base, salesCoachToken);
 
   if (out.status === 401 && salesCoachRefreshToken) {
-    try {
-      const rr = await fetch(base + "/api/coach/extension/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: salesCoachRefreshToken }),
-      });
-      if (rr.ok) {
-        const rd = await rr.json().catch(() => ({}));
-        if (rd.access_token) {
-          await chrome.storage.local.set({
-            salesCoachToken: rd.access_token,
-            salesCoachRefreshToken: rd.refresh_token || salesCoachRefreshToken,
-          });
-          out = await call(base, rd.access_token);
-        }
-      } else {
-        // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in, drop the badge.
-        await chrome.storage.local.remove(["salesCoachToken", "salesCoachRefreshToken"]);
-        chrome.action.setBadgeText({ text: "" });
-      }
-    } catch {
-      /* leave out as the 401; the panel will prompt Sign in */
-    }
+    const fresh = await refreshSalesAccessToken(base, salesCoachRefreshToken);
+    if (fresh) out = await call(base, fresh);
   }
   return out;
 }
@@ -113,6 +124,118 @@ async function salesExtractFetch(endpoint, filename, mime, b64) {
     return { status: res.status, data: await readJson(res) };
   });
 }
+
+// ── Streaming Suggested Response ─────────────────────────────────────────────────────────────────────────
+// A chrome.runtime.sendMessage is single-response, so streaming uses a long-lived Port instead: the panel
+// connects "sales-suggest-stream", posts {type:"start", …}, and we relay each SSE event back as a port message
+// (delta → append to the forming reply; done → final split; error → panel falls back to the non-stream path).
+// WHY here and not the content script: same reason as the JSON tools — a content-script fetch is subject to
+// CORS; only the worker (holding host_permissions) can read the cross-origin stream body.
+
+// Parse ONE SSE event block ("event: X\ndata: {json}") and relay it to the panel as a typed port message.
+function relaySalesSseEvent(rawEvent, port) {
+  let event = "message";
+  let data = "";
+  for (const line of rawEvent.split("\n")) {
+    const t = line.replace(/^\s+/, "");
+    if (t.startsWith("event:")) event = t.slice(6).trim();
+    else if (t.startsWith("data:")) data += t.slice(5).trim();
+  }
+  if (!data) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return; // skip a malformed event
+  }
+  if (event === "delta") port.postMessage({ type: "delta", text: String(parsed.text || "") });
+  else if (event === "done") port.postMessage({ type: "done", reply: parsed.reply, reasoning: parsed.reasoning });
+  else if (event === "error") port.postMessage({ type: "error", error: parsed.error, kind: parsed.kind });
+}
+
+async function streamSalesSuggest(endpoint, payload, port) {
+  const { salesCoachToken, salesCoachRefreshToken, apiBase } = await chrome.storage.local.get([
+    "salesCoachToken",
+    "salesCoachRefreshToken",
+    "apiBase",
+  ]);
+  const base = apiBase || "https://elostate.com";
+  const doFetch = (tok) =>
+    fetch(base + endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        Authorization: `Bearer ${tok}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+  let res;
+  try {
+    res = await doFetch(salesCoachToken);
+    // A 401 comes back as the response status BEFORE the body streams, so we can silently refresh + retry once
+    // here (a mid-stream 401 is not a thing). Same one-shot refresh the JSON path uses.
+    if (res.status === 401 && salesCoachRefreshToken) {
+      const fresh = await refreshSalesAccessToken(base, salesCoachRefreshToken);
+      if (fresh) res = await doFetch(fresh);
+    }
+  } catch {
+    port.postMessage({ type: "error", status: 0, error: "network" });
+    return;
+  }
+
+  if (res.status === 401) {
+    port.postMessage({ type: "error", status: 401, error: "Your session expired." });
+    return;
+  }
+  if (!res.ok || !res.body) {
+    // Non-2xx or no stream body → surface the status; the panel falls back to the non-stream request, which
+    // renders the real error (§3.4 honesty — never a silent empty).
+    const snippet = await res.text().catch(() => "");
+    port.postMessage({ type: "error", status: res.status, error: snippet.slice(0, 300) || `HTTP ${res.status}` });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf("\n\n")) !== -1) {
+        relaySalesSseEvent(buffer.slice(0, idx), port);
+        buffer = buffer.slice(idx + 2);
+      }
+    }
+    if (buffer.trim()) relaySalesSseEvent(buffer, port); // flush a trailing event with no final blank line
+  } catch {
+    port.postMessage({ type: "error", error: "stream interrupted" });
+  }
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "sales-suggest-stream") return;
+  port.onMessage.addListener((message) => {
+    if (!message || message.type !== "start") return;
+    // Same endpoint allowlist as the JSON path — never a caller-supplied URL/host (open-proxy hygiene).
+    if (typeof message.endpoint !== "string" || !ALLOWED_ENDPOINT.test(message.endpoint)) {
+      port.postMessage({ type: "error", status: 400, error: "Unknown tool." });
+      return;
+    }
+    const payload = { conversation: String(message.conversation || ""), stream: true };
+    if (typeof message.guidance === "string" && message.guidance) payload.guidance = message.guidance;
+    if (message.lastSpeaker === "agent" || message.lastSpeaker === "customer") {
+      payload.lastSpeaker = message.lastSpeaker;
+    }
+    streamSalesSuggest(message.endpoint, payload, port).catch(() => {
+      port.postMessage({ type: "error", error: "stream failed" });
+    });
+  });
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // The on-page panel can't open tabs itself. When its "Sign in" button asks, open the one-click connect page.

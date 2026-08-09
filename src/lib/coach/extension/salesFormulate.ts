@@ -2,8 +2,8 @@ import "server-only";
 import { generateCareReply } from "@/lib/claude";
 import { MAX_SOURCE_CHARS } from "@/lib/dissect/constants";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import { coerceJsonText } from "@/lib/llm/coerceJson";
 import { methodologyBlock } from "@/lib/coach/v5/salesReviewPrompt";
+import { reasoningInstruction, finalizeSuggestion, salesVoiceRule } from "@/lib/coach/extension/salesSuggestFormat";
 
 /**
  * Text-in SALES formulate for the Sales Coach browser extension ("say it for me").
@@ -31,27 +31,35 @@ ${methodologyBlock()}
 
 You are shaping the message AS: ${name}. In the conversation, messages from ${name} are the rep's own words — continue ${name}'s side; never address the message to ${name}.
 
-Return STRICT JSON, no prose outside it:
-{ "reply": "the shaped message the rep can send", "reasoning": "one short line naming the sales move you used to phrase it" }
+${salesVoiceRule()}
+
+Output the shaped message the rep can send FIRST, as plain text (no JSON, no preamble). ${reasoningInstruction()}
 
 GROUNDING (§3.4, non-negotiable): phrase the rep's OWN intent. Never invent a product capability, a price, a discount, a statistic, or a commitment that is not in the rep's intent or the conversation. If the intent is unclear, shape the best faithful version rather than inventing a new claim.${CONVERSATION_IS_DATA}`;
 }
 
 /**
- * Parse the formulate output into {reply, reasoning}. Exported for tests. Uses coerceJsonText to survive a
- * ```json fence / preamble; falls back to the raw text as the reply (never errors the rep out over
- * formatting), which the route then guards for emptiness.
+ * Parse the formulate output into {reply, reasoning}. Now shares the marker split with the co-pilot engine
+ * (§A21) — was STRICT JSON, changed 2026-08-09 so the reply streams cleanly (a human can't watch JSON form).
+ * Format change only; the reply CONTENT is unchanged. Exported for tests.
  */
 export function parseFormulateReply(rawText: string): { reply: string; reasoning: string } {
-  try {
-    const parsed = JSON.parse(coerceJsonText(rawText)) as { reply?: unknown; reasoning?: unknown };
-    return {
-      reply: typeof parsed.reply === "string" ? parsed.reply.trim() : "",
-      reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "",
-    };
-  } catch {
-    return { reply: rawText.trim(), reasoning: "" };
-  }
+  return finalizeSuggestion(rawText);
+}
+
+/**
+ * Build the formulate {systemPrompt, userMessage} pair. Exported so BOTH the non-streaming engine below and
+ * the streaming route assemble the request from ONE place (§A21). Pure; no LLM call.
+ */
+export function buildSalesFormulateRequest(args: {
+  conversation: string;
+  intent: string;
+  repName?: string;
+}): { systemPrompt: string; userMessage: string } {
+  return {
+    systemPrompt: salesFormulateSystemPrompt(args.repName),
+    userMessage: `Conversation so far:\n${args.conversation.slice(0, MAX_SOURCE_CHARS)}\n\nThe rep's intent (what they want to get across):\n${args.intent.slice(0, 2_000)}\n\nShape the rep's intent into their next message. Output the message first, then the marker line.`,
+  };
 }
 
 /**
@@ -64,10 +72,7 @@ export async function generateSalesFormulate(args: {
   intent: string;
   repName?: string;
 }): Promise<{ reply: string; reasoning: string }> {
-  const r = await generateCareReply({
-    companyId: args.companyId,
-    systemPrompt: salesFormulateSystemPrompt(args.repName),
-    userMessage: `Conversation so far:\n${args.conversation.slice(0, MAX_SOURCE_CHARS)}\n\nThe rep's intent (what they want to get across):\n${args.intent.slice(0, 2_000)}\n\nShape the rep's intent into their next message. Return STRICT JSON.`,
-  });
+  const { systemPrompt, userMessage } = buildSalesFormulateRequest(args);
+  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage });
   return parseFormulateReply(r.text);
 }

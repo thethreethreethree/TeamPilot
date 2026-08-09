@@ -228,6 +228,42 @@
     });
   }
 
+  // Wire contract with the server + worker: the Suggested Response reply and its move-naming line are separated
+  // by this marker (must match salesSuggestFormat.REASONING_MARKER). The streaming reader shows everything
+  // BEFORE it as the forming reply; the move arrives after. Guarded by a wiring test.
+  const REASONING_MARKER = "===REASONING===";
+  // Everything before the marker, hiding a PARTIAL marker tail mid-stream so the rep never sees "===REAS".
+  function replyBeforeMarker(text) {
+    const idx = text.indexOf(REASONING_MARKER);
+    if (idx >= 0) return text.slice(0, idx).replace(/\s+$/, "");
+    for (let n = Math.min(REASONING_MARKER.length - 1, text.length); n > 0; n--) {
+      if (text.endsWith(REASONING_MARKER.slice(0, n))) return text.slice(0, text.length - n);
+    }
+    return text;
+  }
+
+  // Progressive dash cleanup so no em/en dash flashes while streaming (the server sanitizes the FINAL reply via
+  // stripAiDashes; must stay in sync with it). Targets only the AI-tell dashes — a normal hyphen is left alone.
+  function stripDashesLive(text) {
+    return text.replace(/\s*-{2,}\s*/g, ", ").replace(/\s*[—–]\s*/g, ", ");
+  }
+
+  // Honest staged progress: cycles the REAL phases while the model works, so the wait reads as active work,
+  // not a frozen screen (founder 2026-08-09 — the fix for "it takes a long time" without touching quality).
+  // Returns stop(). Shared by the streaming and the request paths.
+  function startProgress(el, phases) {
+    let i = 0;
+    const paint = () => {
+      el.innerHTML = `<p class="sc-muted sc-prog">${esc(phases[i % phases.length])}</p>`;
+    };
+    paint();
+    const timer = setInterval(() => {
+      i += 1;
+      paint();
+    }, 1500);
+    return () => clearInterval(timer);
+  }
+
   async function runTool(tool, inputValue) {
     const out = root.getElementById("sc-out");
     const token = typeof getToken === "function" ? await getToken() : null;
@@ -254,7 +290,95 @@
       out.innerHTML = `<p class="sc-muted">Couldn't read the conversation on this page. Highlight the thread, or use “Upload conversation”.</p>`;
       return;
     }
-    out.innerHTML = `<p class="sc-muted">Thinking…</p>`;
+    // Suggested Response streams the reply as it forms (perceived-speed fix). Other tools use the request path.
+    // Both show the staged progress state. If streaming isn't available or fails, we fall back to the request
+    // path — so this can never break the working flow.
+    if (tool.key === "suggested" && chrome.runtime && typeof chrome.runtime.connect === "function") {
+      runToolStreaming(tool, inputValue, out);
+      return;
+    }
+    runToolRequest(tool, inputValue, out);
+  }
+
+  // Streaming path (Suggested Response): open a Port to the worker, show progress until the first token, then
+  // render the reply as it forms. On done → final split render; on error/empty/disconnect → fall back to the
+  // proven request path (which renders the real error honestly). settled guards against double-handling.
+  function runToolStreaming(tool, inputValue, out) {
+    const stopProgress = startProgress(out, ["Reading the conversation…", "Drafting your response…"]);
+    let port;
+    try {
+      port = chrome.runtime.connect({ name: "sales-suggest-stream" });
+    } catch {
+      stopProgress();
+      runToolRequest(tool, inputValue, out);
+      return;
+    }
+    let acc = "";
+    let started = false;
+    let settled = false;
+    const cleanup = () => {
+      stopProgress();
+      try {
+        port.disconnect();
+      } catch {
+        /* already gone */
+      }
+    };
+    const finishWith = (reply, reasoning) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const data = { reply: reply || replyBeforeMarker(acc), reasoning: reasoning || "" };
+      out.innerHTML = renderResult(tool.key, data);
+      wireCopy(out, copyTextFor(tool.key, data));
+    };
+    const fallback = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      runToolRequest(tool, inputValue, out); // proven path renders the result or the real error
+    };
+    port.onDisconnect.addListener(() => {
+      if (!settled) fallback();
+    });
+    port.onMessage.addListener((m) => {
+      if (settled || !m) return;
+      if (m.type === "delta") {
+        if (!started) started = true;
+        acc += m.text || "";
+        const shown = stripDashesLive(replyBeforeMarker(acc));
+        if (shown) {
+          stopProgress();
+          out.innerHTML =
+            `<div class="sc-rhead"><span class="sc-h">Suggested response</span></div>` +
+            `<p class="sc-rev">${esc(shown)}<span class="sc-caret">▍</span></p>`;
+        }
+      } else if (m.type === "done") {
+        finishWith(m.reply, m.reasoning);
+      } else if (m.type === "error") {
+        // Empty/failed stream → let the non-stream path surface the real cause (status, quota, session).
+        fallback();
+      }
+    });
+    const start = { type: "start", endpoint: tool.endpoint, conversation: currentSelection };
+    if (tool.input && inputValue) start[tool.input.key] = inputValue;
+    if (lastSpeaker) start.lastSpeaker = lastSpeaker;
+    try {
+      port.postMessage(start);
+    } catch {
+      fallback();
+    }
+  }
+
+  // Request path (all other tools + the streaming fallback): single request/response with the staged progress
+  // state. This is the proven flow — the streaming path degrades to it on any failure.
+  async function runToolRequest(tool, inputValue, out) {
+    const stopProgress = startProgress(
+      out,
+      tool.key === "suggested"
+        ? ["Reading the conversation…", "Drafting your response…"]
+        : ["Reading the conversation…", "Analyzing…"]
+    );
     const msg = { type: "sales-tool", endpoint: tool.endpoint, conversation: currentSelection };
     if (tool.input && inputValue) msg[tool.input.key] = inputValue;
     if (lastSpeaker) msg.lastSpeaker = lastSpeaker;
@@ -262,9 +386,11 @@
     try {
       resp = await chrome.runtime.sendMessage(msg);
     } catch {
+      stopProgress();
       out.innerHTML = `<p class="sc-err">Couldn't reach the Sales Coach. Try again.</p>`;
       return;
     }
+    stopProgress();
     if (resp && resp.status === 402) {
       out.innerHTML = `<p class="sc-err">${esc(resp.data?.error || "Your plan doesn't include the Sales Coach extension.")}</p>`;
       return;
@@ -330,6 +456,11 @@
       .sc-q { font-style:italic; color:#c9c9cf; border-left:2px solid #3a3a42; padding-left:8px; }
       .sc-rev { background:#141418; border:1px solid #2a2a30; border-radius:8px; padding:8px; white-space:pre-wrap; }
       .sc-muted { color:#9a9aa2; } .sc-err { color:#fca5a5; }
+      .sc-prog::after { content:""; animation:sc-dots 1.4s steps(4,end) infinite; }
+      @keyframes sc-dots { 0%{content:"";} 25%{content:".";} 50%{content:"..";} 75%{content:"...";} 100%{content:"";} }
+      .sc-caret { color:#f59e0b; animation:sc-blink 1s step-start infinite; }
+      @keyframes sc-blink { 50% { opacity:0; } }
+      @media (prefers-reduced-motion: reduce) { .sc-prog::after, .sc-caret { animation:none; } }
     </style>
     <div class="sc-card">
       <div class="sc-hd">

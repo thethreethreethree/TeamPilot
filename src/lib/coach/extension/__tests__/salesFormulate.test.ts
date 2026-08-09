@@ -6,8 +6,10 @@ import {
 
 /**
  * Two contracts: (1) the prompt grounds in the sales methodology, anchors the rep, forbids fabrication, and
- * carries the injection fence; (2) parseFormulateReply survives a ```json fence and never errors the rep out
- * on non-JSON (falls back to raw text as the reply, which the route guards for emptiness). LLM not tested.
+ * carries the injection fence; (2) parseFormulateReply splits the shared ===REASONING=== marker format (unified
+ * with the co-pilot engine 2026-08-09 so the reply streams cleanly — was STRICT JSON) and never errors the rep
+ * out when the marker is absent (the whole output is the reply, which the route guards for emptiness). LLM not
+ * tested.
  */
 
 describe("salesFormulateSystemPrompt — methodology + anchor + fence", () => {
@@ -31,29 +33,35 @@ describe("salesFormulateSystemPrompt — methodology + anchor + fence", () => {
     expect(salesFormulateSystemPrompt("Dana")).toContain("Untrusted input: the conversation");
     expect(salesFormulateSystemPrompt()).toContain("Untrusted input: the conversation");
   });
+
+  it("instructs the marker format (plain reply first, no JSON) so the reply streams cleanly", () => {
+    const p = salesFormulateSystemPrompt();
+    expect(p).toContain("===REASONING===");
+    expect(p).not.toMatch(/STRICT JSON/i);
+  });
+
+  it("carries the charismatic voice rule + the no-dash punctuation rule (founder 2026-08-09)", () => {
+    const p = salesFormulateSystemPrompt();
+    expect(p).toMatch(/charisma/i);
+    expect(p).toMatch(/do NOT use em dashes/i);
+  });
 });
 
-describe("parseFormulateReply", () => {
-  it("parses clean JSON {reply, reasoning}", () => {
-    const out = parseFormulateReply('{"reply":"Happy to walk you through pricing.","reasoning":"anchored on value"}');
+describe("parseFormulateReply — shared marker split", () => {
+  it("splits the reply from the ===REASONING=== move line", () => {
+    const out = parseFormulateReply("Happy to walk you through pricing.\n===REASONING===\nanchored on value");
     expect(out.reply).toBe("Happy to walk you through pricing.");
     expect(out.reasoning).toBe("anchored on value");
   });
 
-  it("survives a ```json fence / preamble", () => {
-    const out = parseFormulateReply('Here you go:\n```json\n{"reply":"Let me address the cost.","reasoning":"labeled the concern"}\n```');
-    expect(out.reply).toBe("Let me address the cost.");
-    expect(out.reasoning).toBe("labeled the concern");
-  });
-
-  it("falls back to the raw text as the reply on non-JSON (never errors the rep out)", () => {
+  it("treats the whole output as the reply when the marker is absent (never errors the rep out)", () => {
     const out = parseFormulateReply("Let me acknowledge the price concern and hold the value.");
     expect(out.reply).toBe("Let me acknowledge the price concern and hold the value.");
     expect(out.reasoning).toBe("");
   });
 
-  it("yields an empty reply when the JSON has no reply string (route will 502)", () => {
-    const out = parseFormulateReply('{"reasoning":"only reasoning, no reply"}');
+  it("yields an empty reply when the marker leads (route will 502)", () => {
+    const out = parseFormulateReply("===REASONING===\nonly reasoning, no reply");
     expect(out.reply).toBe("");
   });
 });

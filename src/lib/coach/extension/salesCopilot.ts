@@ -4,6 +4,12 @@ import { MAX_SOURCE_CHARS } from "@/lib/dissect/constants";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { methodologyBlock } from "@/lib/coach/v5/salesReviewPrompt";
 import { copilotModeInstruction, type LastSpeaker } from "@/lib/care/copilotMode";
+import {
+  REASONING_MARKER,
+  splitReplyReasoning,
+  finalizeSuggestion,
+  salesVoiceRule,
+} from "@/lib/coach/extension/salesSuggestFormat";
 
 /**
  * Text-in SALES co-pilot for the Sales Coach browser extension ("draft my reply").
@@ -24,18 +30,9 @@ import { copilotModeInstruction, type LastSpeaker } from "@/lib/care/copilotMode
  * not in the conversation.
  */
 
-export const REASONING_MARKER = "===REASONING===";
-
-/**
- * Split the model output into the drafted reply and its one-line move-naming reasoning. Pure + exported so
- * the split (and the marker-first / no-marker edge cases) is unit-tested directly.
- */
-export function splitReplyReasoning(raw: string): { reply: string; reasoning: string } {
-  const idx = raw.indexOf(REASONING_MARKER);
-  const reply = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
-  const reasoning = idx >= 0 ? raw.slice(idx + REASONING_MARKER.length).trim() : "";
-  return { reply, reasoning };
-}
+// REASONING_MARKER + splitReplyReasoning now live in the shared salesSuggestFormat module (§A21) so the
+// streaming reader and both engines split output identically. Re-exported here for existing importers.
+export { REASONING_MARKER, splitReplyReasoning };
 
 /**
  * The sales co-pilot system prompt: the shared sales methodology + WHO-IS-WHO anchor + the reply/follow-up
@@ -55,9 +52,28 @@ You are drafting AS: ${repName}. Messages from ${repName} in the conversation ar
 
 ${copilotModeInstruction(args.lastSpeaker ?? "unknown", repName)}
 
+${salesVoiceRule()}
+
 Then, on a new line, output the marker ${REASONING_MARKER} followed by ONE short line naming the sales MOVE you used (e.g. "labeled the objection", "asked a SPIN implication question", "traded a small concession for a commitment") — for the rep's learning, not for the prospect.
 
 GROUNDING (§3.4, non-negotiable): draft only from what the conversation supports. Never invent a product capability, a price, a discount, a statistic, or a commitment the rep has not actually made. If the conversation is too thin to draft responsibly, say so in the reply rather than inventing a pitch.${CONVERSATION_IS_DATA}`;
+}
+
+/**
+ * Build the co-pilot {systemPrompt, userMessage} pair. Exported so BOTH the non-streaming engine below and the
+ * streaming route (/suggest with stream:true) assemble the request from ONE place — the prompt can't drift
+ * between the two surfaces (§A21). Pure; no LLM call.
+ */
+export function buildSalesCopilotRequest(args: {
+  conversation: string;
+  repName?: string;
+  lastSpeaker?: LastSpeaker;
+}): { systemPrompt: string; userMessage: string } {
+  const repName = args.repName?.trim() || "the sales rep";
+  return {
+    systemPrompt: salesCopilotSystemPrompt({ repName, lastSpeaker: args.lastSpeaker }),
+    userMessage: `Conversation so far:\n${args.conversation.slice(0, MAX_SOURCE_CHARS)}\n\nDraft ${repName}'s next message to the prospect, following the RESPONSE MODE above, then the ${REASONING_MARKER} line.`,
+  };
 }
 
 /**
@@ -70,11 +86,7 @@ export async function generateSalesCopilotReply(args: {
   repName?: string;
   lastSpeaker?: LastSpeaker;
 }): Promise<{ reply: string; reasoning: string }> {
-  const repName = args.repName?.trim() || "the sales rep";
-  const r = await generateCareReply({
-    companyId: args.companyId,
-    systemPrompt: salesCopilotSystemPrompt({ repName, lastSpeaker: args.lastSpeaker }),
-    userMessage: `Conversation so far:\n${args.conversation.slice(0, MAX_SOURCE_CHARS)}\n\nDraft ${repName}'s next message to the prospect, following the RESPONSE MODE above, then the ${REASONING_MARKER} line.`,
-  });
-  return splitReplyReasoning(r.text);
+  const { systemPrompt, userMessage } = buildSalesCopilotRequest(args);
+  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage });
+  return finalizeSuggestion(r.text);
 }

@@ -58,4 +58,10 @@ describe("salesCopilotSystemPrompt — methodology + anchor + mode + fence", () 
     expect(salesCopilotSystemPrompt({ repName: "Dana" })).toContain("Untrusted input: the conversation");
     expect(salesCopilotSystemPrompt({})).toContain("Untrusted input: the conversation");
   });
+
+  it("carries the charismatic voice rule + the no-dash punctuation rule (founder 2026-08-09)", () => {
+    const p = salesCopilotSystemPrompt({ repName: "Dana" });
+    expect(p).toMatch(/charisma/i);
+    expect(p).toMatch(/do NOT use em dashes/i);
+  });
 });

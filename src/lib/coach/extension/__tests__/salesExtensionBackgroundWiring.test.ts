@@ -87,3 +87,35 @@ describe("Sales Coach worker — Suggested Response + Upload additions (2026-08-
     expect(BG).toMatch(/salesExtractFetch[\s\S]*FormData/);
   });
 });
+
+describe("Sales Coach worker — streaming Suggested Response (2026-08-09)", () => {
+  it("relays a streaming Port named 'sales-suggest-stream' through the worker (CORS-free stream body)", () => {
+    // A content-script fetch can't read a cross-origin stream body (CORS) — only the worker can, same reason as
+    // the JSON tools. Guards that the onConnect relay + the SSE reader exist.
+    expect(BG).toContain("onConnect");
+    expect(BG).toContain('"sales-suggest-stream"');
+    expect(BG).toContain("streamSalesSuggest");
+    expect(BG).toContain("getReader()"); // reads the SSE body chunk-by-chunk
+  });
+
+  it("requests the stream (stream:true) and relays delta/done/error events to the panel", () => {
+    expect(BG).toMatch(/stream:\s*true/);
+    expect(BG).toContain("relaySalesSseEvent");
+    expect(BG).toMatch(/type:\s*"delta"/);
+    expect(BG).toMatch(/type:\s*"done"/);
+    expect(BG).toMatch(/type:\s*"error"/);
+  });
+
+  it("shares ONE refresh-token step between the JSON path and the stream path (no drift)", () => {
+    // The 401→refresh logic was factored into refreshSalesAccessToken so both withAuthRetry AND the streaming
+    // fetch call it — re-inlining per site is exactly how the two drift (memory: shared-refresh discipline).
+    expect(BG).toContain("function refreshSalesAccessToken");
+    expect(BG).toMatch(/withAuthRetry[\s\S]*refreshSalesAccessToken/);
+    expect(BG).toMatch(/streamSalesSuggest[\s\S]*refreshSalesAccessToken/);
+  });
+
+  it("stream path enforces the SAME endpoint allowlist (no open proxy on the port)", () => {
+    // The onConnect handler must gate message.endpoint on ALLOWED_ENDPOINT just like the JSON path.
+    expect(BG).toMatch(/onConnect[\s\S]*ALLOWED_ENDPOINT/);
+  });
+});
