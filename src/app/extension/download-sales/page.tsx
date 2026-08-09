@@ -146,7 +146,8 @@ export default function SalesExtensionDownloadPage() {
             </li>
             <li>
               On supported sites (Gmail, Outlook, Instagram, Messenger, WhatsApp&nbsp;Web, LinkedIn, Slack) it
-              reads the thread automatically; anywhere else, highlight the messages and press Capture.
+              reads the thread with a tuned reader; anywhere else it reads the visible conversation automatically —
+              or you can highlight the messages, or use &ldquo;Upload conversation&rdquo; to add a chat export.
             </li>
           </ul>
         </div>
