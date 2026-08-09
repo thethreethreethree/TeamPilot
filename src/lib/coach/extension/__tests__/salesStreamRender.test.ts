@@ -59,3 +59,18 @@ describe("content.js streaming render — stripDashesLive", () => {
     expect(stripDashesLive("Our day-to-day is 9-5")).toBe("Our day-to-day is 9-5");
   });
 });
+
+describe("content.js streaming render — C.A.R.E twin shares the same partial-marker logic (coverage covers both)", () => {
+  it("replyBeforeMarkerCare (C.A.R.E) is logic-identical to replyBeforeMarker (Sales)", () => {
+    // C.A.R.E's co-pilot stream renders with replyBeforeMarkerCare; it must hide a partial marker the same way,
+    // so the behavioral cases above cover both. Detection-true: a change to one not mirrored to the other fails.
+    const care = readFileSync(join(process.cwd(), "extension", "content.js"), "utf-8");
+    const salesFn = CONTENT.match(/function replyBeforeMarker\(text\) \{[\s\S]*?\n {2}\}/)?.[0] ?? "";
+    const careFn = care.match(/function replyBeforeMarkerCare\(text\) \{[\s\S]*?\n {2}\}/)?.[0] ?? "";
+    const norm = (s: string, name: string) =>
+      s.replace(new RegExp(name, "g"), "X").replace(/_CARE\b/g, "").replace(/\/\/[^\n]*/g, "").replace(/\s+/g, " ").trim();
+    expect(salesFn).not.toBe("");
+    expect(careFn).not.toBe("");
+    expect(norm(careFn, "replyBeforeMarkerCare")).toBe(norm(salesFn, "replyBeforeMarker"));
+  });
+});
