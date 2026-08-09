@@ -449,9 +449,14 @@
       :host { all: initial; }
       .sc-card { font-family: system-ui, sans-serif; background:#0b0b0e; color:#e7e7ea; border:1px solid #2a2a30;
         border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.5); overflow:hidden; }
-      .sc-hd { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #22222a; }
-      .sc-title { font-weight:700; font-size:13px; }
-      .sc-x { cursor:pointer; color:#9a9aa2; background:none; border:none; font-size:16px; }
+      .sc-hd { display:flex; align-items:center; gap:6px; padding:10px 12px; border-bottom:1px solid #22222a; cursor:move; }
+      .sc-title { font-weight:700; font-size:13px; flex:1; }
+      .sc-x { cursor:pointer; color:#9a9aa2; background:none; border:none; font-size:16px; line-height:1; padding:0 4px; }
+      .sc-x:hover { color:#fafafa; }
+      .sc-hide { display:none !important; }
+      .sc-bubble { position:fixed; top:16px; right:16px; width:44px; height:44px; border-radius:50%; background:#f59e0b;
+        color:#09090b; border:none; font-weight:800; font-size:15px; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.5); }
+      .sc-bubble:hover { background:#fbbf24; }
       .sc-body { padding:12px; max-height:70vh; overflow:auto; }
       .sc-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
       .sc-tool { cursor:pointer; font-size:12px; font-weight:600; color:#09090b; background:#f59e0b; border:none; border-radius:8px; padding:6px 9px; }
@@ -476,9 +481,10 @@
       @keyframes sc-blink { 50% { opacity:0; } }
       @media (prefers-reduced-motion: reduce) { .sc-prog::after, .sc-caret { animation:none; } }
     </style>
-    <div class="sc-card">
-      <div class="sc-hd">
+    <div class="sc-card" id="sc-panel">
+      <div class="sc-hd" id="sc-hd">
         <span class="sc-title">Sales Coach</span>
+        <button class="sc-x" id="sc-min" title="Minimize">–</button>
         <button class="sc-x" id="sc-close" title="Close">✕</button>
       </div>
       <div class="sc-body">
@@ -491,9 +497,51 @@
         <div id="sc-inputwrap"></div>
         <div class="sc-out" id="sc-out"></div>
       </div>
-    </div>`;
+    </div>
+    <button class="sc-bubble sc-hide" id="sc-bubble" title="Open Sales Coach">S</button>`;
 
   root.getElementById("sc-close").addEventListener("click", () => host.remove());
+
+  // ── Minimize / restore + drag (ported from the C.A.R.E panel; parity, founder 2026-08-09) ────────────────
+  // Minimize collapses the card to a small bubble the rep can click to restore — so the panel gets out of the
+  // way without losing it (close is a full unmount). Drag by the header repositions the panel so it never traps
+  // the conversation underneath it. The C.A.R.E client has both; the sales fork had dropped them.
+  const scPanel = root.getElementById("sc-panel");
+  const scBubble = root.getElementById("sc-bubble");
+  root.getElementById("sc-min").addEventListener("click", (e) => {
+    e.stopPropagation(); // don't let the header's drag-mousedown treat this as a drag start
+    scPanel.classList.add("sc-hide");
+    scBubble.classList.remove("sc-hide");
+  });
+  scBubble.addEventListener("click", () => {
+    scBubble.classList.add("sc-hide");
+    scPanel.classList.remove("sc-hide");
+  });
+  (() => {
+    const hd = root.getElementById("sc-hd");
+    let sx = 0, sy = 0, ox = 0, oy = 0, dragging = false;
+    hd.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".sc-x")) return; // clicks on the min/close buttons are not a drag
+      dragging = true;
+      const r = host.getBoundingClientRect();
+      // Switch from right-anchored to left/top-anchored so dragging is absolute.
+      host.style.left = r.left + "px";
+      host.style.top = r.top + "px";
+      host.style.right = "auto";
+      sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      // Clamp so at least a header's-worth stays on-screen (the drag handle + min/close), always recoverable.
+      const KEEP = 44;
+      const maxLeft = Math.max(0, window.innerWidth - KEEP);
+      const maxTop = Math.max(0, window.innerHeight - KEEP);
+      host.style.left = Math.min(maxLeft, Math.max(0, ox + (e.clientX - sx))) + "px";
+      host.style.top = Math.min(maxTop, Math.max(0, oy + (e.clientY - sy))) + "px";
+    });
+    window.addEventListener("mouseup", () => { dragging = false; });
+  })();
   // Upload conversation: a hidden file input opened by the button; the change handler does the extract round-trip.
   root.getElementById("sc-upload").addEventListener("click", () => root.getElementById("sc-file").click());
   root.getElementById("sc-file").addEventListener("change", handleUpload);

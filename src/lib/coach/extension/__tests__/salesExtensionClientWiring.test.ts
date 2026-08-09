@@ -68,6 +68,16 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toMatch(/\["keydown"[\s\S]{0,220}preventDefault/);
   });
 
+  it("has minimize-to-bubble + a draggable header (C.A.R.E parity — panel no longer close-only/fixed)", () => {
+    // Two more dropped parent features, ported 2026-08-09: minimize collapses the card to a bubble the rep can
+    // restore; the header drag repositions the panel so it doesn't trap the conversation underneath it.
+    expect(CONTENT).toContain('id="sc-bubble"');
+    expect(CONTENT).toContain('id="sc-min"');
+    expect(CONTENT).toMatch(/sc-min[\s\S]{0,260}sc-hide/); // minimize hides the panel, shows the bubble
+    expect(CONTENT).toContain('host.style.right = "auto"'); // drag switches to absolute anchoring
+    expect(CONTENT).toMatch(/mousemove[\s\S]{0,420}host\.style\.left/); // drag repositions on move
+  });
+
   it("dropped the C.A.R.E RCD/media capture UI", () => {
     expect(CONTENT).not.toContain("care-rcd");
     expect(CONTENT).not.toContain("extractRCD");
