@@ -30,25 +30,25 @@ Using the attached reference as the exact UI, produce a crisp 1280x800 product s
 ### Screenshot 2 — Prospect Intel
 
 ```
-Same reference + UI. Show the panel's "Prospect Intel" result instead: 3 short sections, "Where the deal stands", "What's working", "The next move", in the same dark/amber style, over a LinkedIn-style message thread (generic). 1280x800, no alpha.
+Using the attached reference as the exact UI, produce a 1280x800 product screenshot: the dark "Sales Coach" side panel (two amber buttons "Prospect Intel" and "Suggested Response") docked top-right over a generic LinkedIn-style message thread. The panel shows the "Prospect Intel" result: three short sections titled "Where the deal stands", "What's working", and "The next move", in the same dark card with amber accents. Sharp, high-contrast, no people, no watermark, 24-bit, no alpha. Match the reference colors (#09090B panel, #f59e0b buttons).
 ```
 
 ### Screenshot 3 — Works anywhere
 
 ```
-Same reference + UI. Same panel over an Instagram-DM-style dark chat (generic, no logos) to show it works on any site. Keep the panel identical. 1280x800, no alpha.
+Using the attached reference as the exact UI, produce a 1280x800 product screenshot: the same dark "Sales Coach" panel (two amber buttons "Prospect Intel" and "Suggested Response") docked top-right over a generic Instagram-DM-style dark chat with no real logos, to show it works on any site. Keep the panel identical to the reference. Sharp, high-contrast, no people, no watermark, 24-bit, no alpha. Match the reference colors (#09090B panel, #f59e0b buttons).
 ```
 
 ### Screenshot 4 — Upload a conversation
 
 ```
-Same reference + UI. Emphasize the "Upload conversation" button (subtle amber glow) with a small PDF file icon being dropped onto the panel. Caption space top-left: "Paste, or upload a chat export." 1280x800, no alpha.
+Using the attached reference as the exact UI, produce a 1280x800 product screenshot: the dark "Sales Coach" side panel docked top-right, emphasizing its "Upload conversation" button with a subtle amber glow and a small PDF file icon being dropped onto the panel. Top-left caption space reads "Paste, or upload a chat export." Sharp, high-contrast, no people, no watermark, 24-bit, no alpha. Match the reference colors (#09090B panel, #f59e0b buttons).
 ```
 
 ### Screenshot 5 — The move, explained
 
 ```
-Same reference + UI. Close-up composition on the reply and the italic "Move:" line, with a soft callout arrow pointing to it and the words "...and why it works." Dark background, amber accent. 1280x800, no alpha.
+Using the attached reference as the exact UI, produce a 1280x800 product screenshot: a close-up of the dark "Sales Coach" panel focused on a drafted reply and the italic "Move:" line beneath it, with a soft callout arrow pointing to it and the words "...and why it works." Dark background, amber accent. Sharp, high-contrast, no people, no watermark, 24-bit, no alpha. Match the reference colors (#09090B panel, #f59e0b buttons).
 ```
 
 ---
