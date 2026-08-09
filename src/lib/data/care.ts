@@ -271,11 +271,16 @@ export async function getCareConversationByToken(
 ): Promise<SupportConversation | null> {
   if (!token) return null;
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .select("*")
     .eq("session_token", token)
     .maybeSingle();
+  // Classify: `null` means the token genuinely matches no conversation (the routes 404). A transient query
+  // error must NOT collapse to null → a false 404 ("Conversation not found") that makes the customer's
+  // conversation look deleted (error-as-no-data, INV22 / §3.4). Throw so the routes surface a 500 and the
+  // widget keeps its state. Fail-closed: a throw denies the request, it never grants access.
+  if (error) throw new Error(`Failed to load the conversation: ${error.message}`);
   return data ? mapConversation(data) : null;
 }
 
