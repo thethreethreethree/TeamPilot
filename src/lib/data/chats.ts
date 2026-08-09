@@ -620,13 +620,16 @@ export async function fetchTopic(id: string): Promise<ChatTopic | null> {
   }
   const supabase = createClient();
   // Same view migration (0048) — single-row variant.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("chat_topic_with_counts")
     .select(
       "id, title, description, status, problem_id, created_by, created_at, closed_at, closed_by, close_summary, close_durability, tags, coach_enabled, locked, participant_count, message_count, last_message_at"
     )
     .eq("id", id)
     .maybeSingle();
+  // Classify: a transient read error must not look like a deleted topic (error-as-no-data, INV22 / §3.4). `null`
+  // is reserved for a genuine not-found; an error throws so the page shows an honest error, not "not found".
+  if (error) throw new Error(`Failed to load the topic: ${error.message}`);
   if (!data) return null;
   return {
     id: data.id,
@@ -715,6 +718,10 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
       .select("message_id")
       .eq("topic_id", topicId),
   ]);
+  // Classify the messages read — an empty thread on a transient error is error-as-no-data (INV22 / §3.4): the
+  // conversation would look wiped. Throw so the page shows an honest error. (A pins-read error is tolerated —
+  // pins just don't render — since the messages are the load-bearing content.)
+  if (msgRes.error) throw new Error(`Failed to load the messages: ${msgRes.error.message}`);
   const data = msgRes.data;
   if (!data) return [];
 
@@ -758,10 +765,12 @@ export async function fetchParticipants(
     return readDemoState().participants[topicId] ?? [];
   }
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("chat_participants")
     .select("user_id, role, joined_at, left_at, message_count, last_seen_at")
     .eq("topic_id", topicId);
+  // Throw on a transient read error — an empty participant list on error is error-as-no-data (INV22 / §3.4).
+  if (error) throw new Error(`Failed to load the participants: ${error.message}`);
   if (!data) return [];
 
   const nameById = await resolveAuthorNames(

@@ -95,6 +95,9 @@ export default function TeamChatTopicPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [participants, setParticipants] = useState<ChatParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  // Distinct from "not found": a transient READ failure. Without it, a failed load left topic=null → "Topic not
+  // found", making a live topic look deleted (error-as-no-data, §3.4). Now it shows an honest retry.
+  const [loadError, setLoadError] = useState(false);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [topicDecision, setTopicDecision] = useState<TopicDecision | null>(null);
@@ -185,6 +188,7 @@ export default function TeamChatTopicPage() {
   const refresh = async () => {
     const token = ++loadTokenRef.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const [t, m, p, d, grades] = await Promise.all([
         fetchTopic(topicId),
@@ -199,6 +203,11 @@ export default function TeamChatTopicPage() {
       setParticipants(p);
       setTopicDecision(d);
       setMessageGrades(grades);
+    } catch (e) {
+      // A read failed — surface it as an honest error, NOT a false "topic not found" (§3.4).
+      if (token !== loadTokenRef.current) return;
+      console.error("[chats/topic] load failed:", e);
+      setLoadError(true);
     } finally {
       if (token === loadTokenRef.current) setLoading(false);
     }
@@ -717,6 +726,30 @@ export default function TeamChatTopicPage() {
         <div className="flex items-center gap-2 text-xs text-muted">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
           Loading topic…
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    // Honest error state — a read failed, so we don't claim the topic is gone. Offer a retry.
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Couldn’t load" subtitle="" />
+        <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-3">
+          <Link
+            href="/dashboard/chats"
+            className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-primary"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+            Back to all topics
+          </Link>
+          <p className="text-sm text-primary">
+            Couldn’t load this topic right now — that’s a connection issue on our side, not a deleted topic.
+          </p>
+          <button onClick={() => void refresh()} className="text-xs text-brand">
+            Try again
+          </button>
         </div>
       </div>
     );
