@@ -31,6 +31,7 @@ vi.mock("@/lib/llm", () => ({ llmStream: vi.fn(async function* () { yield ""; })
 
 import { POST } from "../route";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { runBrainStream } from "@/lib/brain";
 import { generateSalesCopilotReply } from "@/lib/coach/extension/salesCopilot";
 import { generateSalesFormulate } from "@/lib/coach/extension/salesFormulate";
 
@@ -106,5 +107,19 @@ describe("POST /api/coach/extension/suggest — streaming delivery (stream:true)
     const res = await POST(req());
     expect((res as Response).headers.get("Content-Type")).not.toBe("text/event-stream");
     expect((await (res as Response).json()).reply).toBe("copilot reply");
+  });
+
+  it("empty reply after a full stream → an error event, never a silent done (§3.4 honesty)", async () => {
+    // The model spent its whole budget on reasoning and emitted no answer (marker-first). The stream must NOT
+    // send a done with an empty reply — the client would render nothing. It sends an error so the panel falls
+    // back / shows the real failure. Detection-true: fails if the empty-reply guard on the stream path is dropped.
+    vi.mocked(runBrainStream).mockImplementationOnce(async function* () {
+      yield "===REASONING===\nnamed the move but drafted nothing";
+    } as never);
+    guardOk({ conversation: "we're evaluating tools", stream: true });
+    const res = (await POST(req())) as unknown as Response;
+    const text = await res.text();
+    expect(text).toContain("event: error");
+    expect(text).not.toContain("event: done");
   });
 });

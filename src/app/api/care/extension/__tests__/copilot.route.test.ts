@@ -35,6 +35,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
 import { generateCareReply } from "@/lib/claude";
+import { llmStream } from "@/lib/llm";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const entitled = { ok: true, user: { userId: "u", companyId: "c" } };
@@ -114,6 +115,20 @@ describe("POST /api/care/extension/copilot", () => {
     expect(done.reply).toBe("Hi Sam, your refund is approved.");
     expect(done.reasoning).toBe("Led with the concrete answer.");
     expect(generateCareReply).not.toHaveBeenCalled();
+  });
+
+  it("empty reply after a full stream → an error event, never a silent done (§3.4 honesty)", async () => {
+    // Marker-first / reasoning-starved stream: must send error, not a done with an empty reply the panel would
+    // render blank. Detection-true: fails if the stream's empty-reply guard is dropped.
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(readBody).mockResolvedValueOnce({ conversation: "a customer thread", stream: true } as never);
+    vi.mocked(llmStream).mockImplementationOnce(async function* () {
+      yield "===REASONING===\nnamed the move but drafted nothing";
+    } as never);
+    const res = (await POST(req)) as unknown as Response;
+    const text = await res.text();
+    expect(text).toContain("event: error");
+    expect(text).not.toContain("event: done");
   });
 
   // Role-attribution anchor (Fix 2b, the founder-reported "Hi John" inversion). Co-Pilot was the ONLY one of
