@@ -29,6 +29,64 @@ if (!globalThis.__salesCoachAdaptersLoaded) {
     }
   };
 
+  // UNIVERSAL fallback capture — reads the visible conversation like a human, with NO site-specific selector.
+  // Runs when a per-site adapter matches nothing (e.g. Instagram after it reshuffles its obfuscated markup, or
+  // any unsupported chat site). This is a TARGETING solution, not a reading one: the extension can already read
+  // any rendered DOM (same Chrome mechanism as Gmail) — the hard part is knowing WHICH nodes are the messages.
+  // Heuristic: user-message text on chat platforms is overwhelmingly in [dir="auto"] (Meta apps, WhatsApp, and
+  // many others). We group the visible dir="auto" nodes by their nearest SCROLLABLE ancestor and return the
+  // densest region's text — the message thread scrolls and holds the most text, while the sidebar/nav hold less,
+  // so this isolates the thread from the conversation list. Falls back to the largest scrollable text region if
+  // a site doesn't use dir="auto". Noisier than an exact adapter, but robust + self-verifying via the capture
+  // preview. Tail-capped at 20k (recent context), matching textFrom.
+  globalThis.universalExtract = function universalExtract() {
+    try {
+      const visible = (n) => !(n.offsetParent === null && n.getClientRects().length === 0);
+      const clean = (s) => (s || "").replace(/\s+\n/g, "\n").replace(/[ \t]{2,}/g, " ").trim();
+      const cap = (s) => (s.length > 20000 ? s.slice(-20000) : s);
+      const scrollAncestor = (el) => {
+        let p = el.parentElement;
+        while (p && p !== document.body) {
+          const st = getComputedStyle(p);
+          if ((st.overflowY === "auto" || st.overflowY === "scroll") && p.scrollHeight > p.clientHeight + 40) return p;
+          p = p.parentElement;
+        }
+        return document.body;
+      };
+
+      // 1) dir="auto" grouped by scroll region → the densest region is the thread.
+      const autos = Array.from(document.querySelectorAll('[dir="auto"]')).filter(visible);
+      if (autos.length) {
+        const byRegion = new Map();
+        for (const el of autos) {
+          const t = clean(el.innerText || el.textContent);
+          if (!t) continue;
+          const region = scrollAncestor(el);
+          const arr = byRegion.get(region) || [];
+          arr.push(t);
+          byRegion.set(region, arr);
+        }
+        let best = "";
+        for (const parts of byRegion.values()) {
+          const joined = parts.join("\n\n");
+          if (joined.length > best.length) best = joined;
+        }
+        if (best.trim().length >= 40) return cap(best.trim());
+      }
+
+      // 2) No dir="auto" → the largest visible scrollable text region on the page.
+      let best = "";
+      for (const el of document.querySelectorAll("div, main, section, ul, ol")) {
+        if (!(el.scrollHeight > el.clientHeight + 40) || !visible(el)) continue;
+        const t = clean(el.innerText || "");
+        if (t.length > best.length) best = t;
+      }
+      return best.trim().length >= 40 ? cap(best.trim()) : "";
+    } catch {
+      return "";
+    }
+  };
+
   const ADAPTERS = [
     {
       key: "gmail",

@@ -38,6 +38,15 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).not.toContain("data.coaching"); // dead branch removed
   });
 
+  it("has a universal fallback extractor wired into capture (auto-capture works on ANY site, e.g. Instagram)", () => {
+    // The site adapters are precise but brittle (IG reshuffles its obfuscated markup). universalExtract reads
+    // the visible conversation generically when no adapter matches, so auto-capture doesn't depend on a fixed
+    // selector. Order MUST be: try the site adapter → universalExtract → manual selection (last resort).
+    expect(ADAPTERS).toContain("globalThis.universalExtract");
+    expect(CONTENT).toMatch(/universalExtract\(\)/);
+    expect(CONTENT).toMatch(/adapter\.extract[\s\S]{0,1200}universalExtract[\s\S]{0,600}getSelection/);
+  });
+
   it("dropped the C.A.R.E RCD/media capture UI", () => {
     expect(CONTENT).not.toContain("care-rcd");
     expect(CONTENT).not.toContain("extractRCD");

@@ -73,10 +73,22 @@
           return;
         }
       } catch {
-        /* fall through to manual */
+        /* fall through to the universal reader, then manual */
       }
     }
-    // Manual selection: highlight the thread, then click Capture. lastSpeaker unknown → server determines it.
+    // No site adapter matched (e.g. Instagram after a markup change, or any unsupported chat site): read the
+    // visible conversation generically. This is what makes auto-capture "always work" — the Chrome DOM read is
+    // universal; only the targeting was site-specific. lastSpeaker unknown → the server determines it.
+    try {
+      const uni = typeof universalExtract === "function" ? universalExtract() : "";
+      if (uni && uni.trim()) {
+        setSelection(uni, null);
+        return;
+      }
+    } catch {
+      /* fall through to manual */
+    }
+    // Last resort: the user's manual highlight (always correct, never fabricated).
     setSelection(window.getSelection ? window.getSelection().toString() : "", null);
   }
 
