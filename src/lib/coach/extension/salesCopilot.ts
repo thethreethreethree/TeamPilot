@@ -87,6 +87,9 @@ export async function generateSalesCopilotReply(args: {
   lastSpeaker?: LastSpeaker;
 }): Promise<{ reply: string; reasoning: string }> {
   const { systemPrompt, userMessage } = buildSalesCopilotRequest(args);
-  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage });
+  // controlExempt: the Sales Coach runs DAY-1 (founder decision) — like salesReview/salesSummary/ask-coach,
+  // and because this acts on the rep's EXTERNAL conversation, not the team's internal month-1 baseline. Without
+  // it, a customer in their month-1 control window got an empty 502 instead of a draft (review Finding, Area 3).
+  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage, controlExempt: true });
   return finalizeSuggestion(r.text);
 }

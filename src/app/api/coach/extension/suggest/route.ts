@@ -68,6 +68,9 @@ async function* streamSuggestDeltas(args: {
       basePrompt: args.systemPrompt,
       messages,
       maxTokens: 600,
+      // Sales Coach runs day-1 (founder decision) — the stream path must be exempt like the non-stream engines,
+      // or a month-1 customer's Suggested Response streams empty → error (review Finding, Area 3).
+      controlExempt: true,
     });
     return;
   }

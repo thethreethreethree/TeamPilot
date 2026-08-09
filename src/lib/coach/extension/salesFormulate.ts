@@ -73,6 +73,9 @@ export async function generateSalesFormulate(args: {
   repName?: string;
 }): Promise<{ reply: string; reasoning: string }> {
   const { systemPrompt, userMessage } = buildSalesFormulateRequest(args);
-  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage });
+  // controlExempt: Sales Coach runs DAY-1 (founder decision), and this shapes the rep's EXTERNAL-conversation
+  // message, not the team's internal month-1 baseline — same exemption as the co-pilot + every other sales
+  // surface. Without it, a month-1 customer got an empty 502 (review Finding, Area 3).
+  const r = await generateCareReply({ companyId: args.companyId, systemPrompt, userMessage, controlExempt: true });
   return parseFormulateReply(r.text);
 }

@@ -330,6 +330,11 @@ export async function* runBrainStream(args: {
   messages: LlmCallArgs["messages"];
   maxTokens?: number;
   expectJson?: boolean;
+  /** Exempt from the §3.4 month-1 control gate (mirrors runBrainCall). The Sales Coach extension sets this so
+   *  its streaming Suggested Response runs day-1, exactly like the non-stream path and every other sales
+   *  surface — the stream path had no way to express the exemption before, so a month-1 customer got an empty
+   *  stream → error (review Finding, Area 3). Care/Elostate streaming callers leave it unset (stay gated). */
+  controlExempt?: boolean;
   /** The acting user's Experience Mode (0110), forwarded to llmStream (§A16). */
   experienceMode?: ExperienceMode;
 }): AsyncGenerator<string, { gate: ControlGate; brainVersion: number }, void> {
@@ -338,7 +343,7 @@ export async function* runBrainStream(args: {
     loadControlGate(args.companyId),
   ]);
 
-  if (!gate.guidanceEnabled) {
+  if (!gate.guidanceEnabled && !args.controlExempt) {
     return { gate, brainVersion: brain.version };
   }
 

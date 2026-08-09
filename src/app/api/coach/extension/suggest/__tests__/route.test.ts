@@ -100,6 +100,8 @@ describe("POST /api/coach/extension/suggest — streaming delivery (stream:true)
     expect(done.reasoning).toBe("asked a SPIN implication question");
     // The non-stream engines are NOT called on the stream path.
     expect(generateSalesCopilotReply).not.toHaveBeenCalled();
+    // Day-1 exemption reaches the stream path too (review Finding, Area 3): runBrainStream gets controlExempt.
+    expect(vi.mocked(runBrainStream).mock.calls[0]?.[0]?.controlExempt).toBe(true);
   });
 
   it("does not stream when stream is absent (JSON path still returns a reply)", async () => {
