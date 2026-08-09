@@ -713,17 +713,22 @@ export async function fetchAgentConversation(
   messages: SupportMessage[];
 } | null> {
   const sb = await createServerClient();
-  const { data: c } = await sb
+  const { data: c, error: cErr } = await sb
     .from("support_conversations")
     .select("*")
     .eq("id", id)
     .maybeSingle();
+  // Classify: null = genuine not-found; a transient error must not make a live conversation look deleted
+  // (error-as-no-data, INV22 / §3.4). Throw so the route 500s (fail-closed) instead of a false 404.
+  if (cErr) throw new Error(`Failed to load the conversation: ${cErr.message}`);
   if (!c) return null;
-  const { data: msgs } = await sb
+  const { data: msgs, error: mErr } = await sb
     .from("support_messages")
     .select("*")
     .eq("conversation_id", id)
     .order("created_at", { ascending: true });
+  // Same: an empty thread on a transient error would look wiped — throw rather than show the conversation blank.
+  if (mErr) throw new Error(`Failed to load the conversation messages: ${mErr.message}`);
   return {
     conversation: mapConversation(c),
     messages: (msgs ?? []).map(mapMessage),
@@ -1084,13 +1089,15 @@ export async function fetchEnrichedConversation(
   id: string
 ): Promise<EnrichedConversation | null> {
   const sb = await createServerClient();
-  const { data: row } = await sb
+  const { data: row, error } = await sb
     .from("support_conversations")
     .select(
       `*, support_conversation_tags ( tag_id, support_tags ( id, company_id, name, color ) ), support_customers ( id, company_id, email, name, phone, lifetime_value, signup_date, last_seen_at, metadata, created_at )`
     )
     .eq("id", id)
     .maybeSingle();
+  // Throw on a transient error rather than collapse to null → a false "not found" on a live conversation (§3.4).
+  if (error) throw new Error(`Failed to load the conversation: ${error.message}`);
   if (!row) return null;
   return mapEnrichedConversation(row);
 }
