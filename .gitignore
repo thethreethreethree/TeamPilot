@@ -80,3 +80,6 @@ PILOT-ACCESS-CODES.pdf
 /*.pdf
 /ELOSTATE-*.png
 /ELOSTATE-*.source.html
+
+# Microsoft Office lock/owner files (appear in OneDrive when a doc is open)
+~$*
