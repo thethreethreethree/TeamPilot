@@ -65,6 +65,9 @@ export function TaskStepChecklist({
   const { enabled: coachEnabled } = useCoachEnabled();
   const [steps, setSteps] = useState<TaskStep[]>([]);
   const [loading, setLoading] = useState(true);
+  // Distinct from "no steps yet": a transient read failure. Without it, a failed load rendered an empty list,
+  // making the steps look deleted (error-as-no-data, §3.4). Now it shows an honest retry.
+  const [loadError, setLoadError] = useState(false);
   const [adding, setAdding] = useState(false);
   const addingRef = useRef(false);
   const [newBody, setNewBody] = useState("");
@@ -73,9 +76,17 @@ export function TaskStepChecklist({
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const next = await fetchTaskSteps(taskId);
-    setSteps(next);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const next = await fetchTaskSteps(taskId);
+      setSteps(next);
+      setLoading(false);
+    } catch (e) {
+      // A read failed — don't render an empty checklist as if the steps were deleted (§3.4).
+      console.error("[TaskStepChecklist] load failed:", e);
+      setLoadError(true);
+      setLoading(false);
+    }
   }, [taskId]);
 
   useEffect(() => {
@@ -180,6 +191,18 @@ export function TaskStepChecklist({
       <div className="glass-card p-5 flex items-center justify-center gap-2 text-xs text-muted">
         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
         Loading steps…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    // Honest error — a read failed, so we don't render an empty checklist as if the steps were deleted.
+    return (
+      <div className="glass-card p-5 space-y-2 text-xs">
+        <p className="text-primary">Couldn’t load the steps right now (a connection issue, not deleted steps).</p>
+        <button onClick={() => void refresh()} className="text-brand">
+          Try again
+        </button>
       </div>
     );
   }

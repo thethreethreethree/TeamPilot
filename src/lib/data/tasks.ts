@@ -164,7 +164,7 @@ export async function fetchTask(id: string): Promise<Task | null> {
     return fromMock().find((t) => t.id === id) ?? null;
   }
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
     .select(
       "id, title, description, department, assignee, assignee_user_id, status, priority, ai_priority_score, impact_level, blocker_reason, due_date, gate_cleared, gate_mode, gate_what, gate_resources, gate_roles, gate_last_edited_at"
@@ -172,6 +172,10 @@ export async function fetchTask(id: string): Promise<Task | null> {
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
+  // Classify the error — a transient read failure must NOT look like a deleted/not-found task (error-as-no-data,
+  // INV22 / the §3.4 honesty thesis). `null` means genuinely-not-found; a query error throws so the page shows an
+  // honest error state instead of "task not found". Mirrors fetchTasks' live-error handling.
+  if (error) throw new Error(`Failed to load the task: ${error.message}`);
   if (!data) return null;
   return {
     id: data.id,
@@ -271,11 +275,14 @@ export async function fetchTaskMessages(
 ): Promise<TaskMessage[]> {
   if (!supabaseEnabled) return [];
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("task_messages")
     .select("id, task_id, author_id, kind, body, payload, created_at")
     .eq("task_id", taskId)
     .order("created_at", { ascending: true });
+  // A transient read failure must not silently render an empty thread (messages look deleted) — throw so the
+  // page shows an honest error, not a false-empty (INV22 / §3.4).
+  if (error) throw new Error(`Failed to load the task messages: ${error.message}`);
   if (!data) return [];
 
   const authorIds = Array.from(
@@ -419,10 +426,12 @@ export async function fetchTaskParticipants(
 ): Promise<TaskParticipant[]> {
   if (!supabaseEnabled) return [];
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("task_participants")
     .select("task_id, user_id, role, joined_at, left_at, last_engaged_at, engagement_count")
     .eq("task_id", taskId);
+  // Throw on a transient read failure — an empty participants list on error is error-as-no-data (INV22 / §3.4).
+  if (error) throw new Error(`Failed to load the task participants: ${error.message}`);
   if (!data) return [];
   return data.map((p) => ({
     taskId: p.task_id,
@@ -469,11 +478,13 @@ export async function recordEngagement(taskId: string): Promise<void> {
 export async function fetchTaskSteps(taskId: string): Promise<TaskStep[]> {
   if (!supabaseEnabled) return [];
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("task_steps")
     .select("id, task_id, step_order, body, completed_at, completed_by, created_at")
     .eq("task_id", taskId)
     .order("step_order", { ascending: true });
+  // Throw on a transient read failure — an empty step list on error is error-as-no-data (INV22 / §3.4).
+  if (error) throw new Error(`Failed to load the task steps: ${error.message}`);
   if (!data) return [];
   return data.map((r) => ({
     id: r.id,

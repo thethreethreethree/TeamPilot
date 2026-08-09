@@ -89,6 +89,9 @@ export default function TaskDetailPage() {
   const [messages, setMessages] = useState<TaskMessage[]>([]);
   const [participants, setParticipants] = useState<TaskParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  // Distinct from "not found": a transient READ failure. Without this, a failed load rendered `task=null` →
+  // "Task not found", making an active task look deleted (error-as-no-data). Now it shows an honest retry.
+  const [loadError, setLoadError] = useState(false);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -121,16 +124,25 @@ export default function TaskDetailPage() {
   const load = async () => {
     loadReqIdRef.current = id;
     setLoading(true);
-    const [t, msgs, parts] = await Promise.all([
-      fetchTask(id),
-      fetchTaskMessages(id),
-      fetchTaskParticipants(id),
-    ]);
-    if (loadReqIdRef.current !== id) return; // superseded by a newer task
-    setTask(t);
-    setMessages(msgs);
-    setParticipants(parts);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const [t, msgs, parts] = await Promise.all([
+        fetchTask(id),
+        fetchTaskMessages(id),
+        fetchTaskParticipants(id),
+      ]);
+      if (loadReqIdRef.current !== id) return; // superseded by a newer task
+      setTask(t);
+      setMessages(msgs);
+      setParticipants(parts);
+      setLoading(false);
+    } catch (e) {
+      // A read failed — surface it as an honest error, NOT a false "not found" (error-as-no-data, §3.4).
+      if (loadReqIdRef.current !== id) return;
+      console.error("[operations/task] load failed:", e);
+      setLoadError(true);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -206,6 +218,34 @@ export default function TaskDetailPage() {
         <TopBar title="Task" subtitle="Loading…" />
         <div className="p-6 flex items-center gap-2 text-xs text-muted">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    // Honest error state — a read failed, so we DON'T claim the task is gone. Offer a retry.
+    return (
+      <div className="min-h-screen bg-base">
+        <TopBar title="Task" subtitle="Couldn’t load" />
+        <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4">
+          <p className="text-sm text-primary">
+            Couldn’t load this task right now — that’s a connection issue on our side, not a deleted task.
+          </p>
+          <button
+            onClick={() => void load()}
+            className="inline-flex items-center gap-1 text-xs text-brand"
+          >
+            Try again
+          </button>
+          <div>
+            <Link
+              href="/dashboard/operations"
+              className="inline-flex items-center gap-1 text-xs text-muted"
+            >
+              <ArrowLeft className="w-3 h-3" aria-hidden /> Back to tasks
+            </Link>
+          </div>
         </div>
       </div>
     );
