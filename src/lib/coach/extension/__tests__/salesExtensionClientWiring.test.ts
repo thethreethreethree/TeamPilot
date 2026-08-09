@@ -47,6 +47,14 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).toMatch(/adapter\.extract[\s\S]{0,1200}universalExtract[\s\S]{0,600}getSelection/);
   });
 
+  it("has a manual escape hatch: snapshots the page selection on mousedown and prefers it over auto-capture", () => {
+    // With no Capture button, a click deselects page text — so we snapshot on mousedown (fires first) and a tool
+    // run uses the rep's highlight when present, else auto-captures. Fails if the snapshot or the preference is dropped.
+    expect(CONTENT).toContain("selectionAtMousedown");
+    expect(CONTENT).toMatch(/"mousedown"[\s\S]{0,220}getSelection/);
+    expect(CONTENT).toMatch(/if \(selectionAtMousedown\) setSelection[\s\S]{0,120}else captureConversation/);
+  });
+
   it("dropped the C.A.R.E RCD/media capture UI", () => {
     expect(CONTENT).not.toContain("care-rcd");
     expect(CONTENT).not.toContain("extractRCD");

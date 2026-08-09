@@ -33,6 +33,10 @@
   // running (so there's no manual "Capture" button — capture is automatic + fresh), but MUST NOT clobber an
   // upload with the page content, so the re-capture is skipped while this is set.
   let capturedFromUpload = false;
+  // MANUAL escape hatch: the page text selection captured at the instant the rep presses a tool button. A click
+  // deselects page text, so we snapshot on mousedown (which fires first). If the rep had highlighted something,
+  // the tool coaches THAT exact text instead of auto-capturing — the recourse when auto grabs the wrong thing.
+  let selectionAtMousedown = "";
 
   const MAX_CHARS = 20000;
   const setSelection = (text, who) => {
@@ -239,9 +243,13 @@
       chrome.runtime.sendMessage({ type: "open-connect" });
       return;
     }
-    // Auto-capture is seamless (no manual Capture button): refresh the PAGE read on every run so the tool acts
-    // on the CURRENT conversation. Skip when the rep uploaded a file, so we don't clobber their upload.
-    if (!capturedFromUpload) captureConversation();
+    // Capture for this run (no manual Capture button): if the rep HIGHLIGHTED text, coach exactly that (the
+    // manual escape hatch); otherwise refresh the PAGE read so the tool acts on the CURRENT conversation. Skip
+    // entirely when the rep uploaded a file, so we don't clobber their upload.
+    if (!capturedFromUpload) {
+      if (selectionAtMousedown) setSelection(selectionAtMousedown, null);
+      else captureConversation();
+    }
     if (!currentSelection.trim()) {
       out.innerHTML = `<p class="sc-muted">Couldn't read the conversation on this page. Highlight the thread, or use “Upload conversation”.</p>`;
       return;
@@ -344,6 +352,20 @@
   // Upload conversation: a hidden file input opened by the button; the change handler does the extract round-trip.
   root.getElementById("sc-upload").addEventListener("click", () => root.getElementById("sc-file").click());
   root.getElementById("sc-file").addEventListener("change", handleUpload);
+  // Snapshot the rep's PAGE selection the instant they press ANY panel button (mousedown fires before the click
+  // clears the page selection), so a tool can coach exactly what they highlighted (the manual escape hatch).
+  root.addEventListener(
+    "mousedown",
+    () => {
+      try {
+        const s = (window.getSelection ? window.getSelection().toString() : "") || "";
+        selectionAtMousedown = s.trim().length >= 20 ? s : "";
+      } catch {
+        selectionAtMousedown = "";
+      }
+    },
+    true
+  );
 
   // Tool buttons: input-bearing tools (coach draft, formulate intent) reveal a textarea + Run; the others run
   // straight on the captured conversation.
