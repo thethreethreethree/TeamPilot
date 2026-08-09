@@ -43,7 +43,7 @@ function loadWorker(store: Store, fetchImpl: (...a: any[]) => Promise<any>): any
       onChanged: noop,
     },
     action: { onClicked: noop, setBadgeText: () => {}, setBadgeBackgroundColor: () => {} },
-    runtime: { onMessage: noop, onMessageExternal: noop, id: "extid" },
+    runtime: { onMessage: noop, onMessageExternal: noop, onConnect: noop, id: "extid" },
     tabs: { create: () => {} },
     scripting: {},
   };
@@ -133,5 +133,40 @@ describe("extension CORS architecture invariant", () => {
     const src = read("background.js");
     expect(src).toMatch(/ALLOWED_ENDPOINT|\/\^\\\/api\\\/care\\\/extension/);
     expect(src).toMatch(/\bfetch\s*\(/); // the worker is where fetch legitimately lives
+  });
+
+  // ── Streaming Co-Pilot (2026-08-09, mirrors Sales Coach) ──────────────────────────────────────────────
+  it("background.js relays a streaming Port ('care-copilot-stream') and reads the SSE body in the worker", () => {
+    const src = read("background.js");
+    expect(src).toContain("onConnect");
+    expect(src).toContain('"care-copilot-stream"');
+    expect(src).toContain("streamCareCopilot");
+    expect(src).toContain("getReader()");
+    expect(src).toMatch(/stream:\s*true/);
+    expect(src).toContain("relayCareSseEvent");
+  });
+
+  it("background.js shares ONE refresh step between the JSON path and the stream path (no drift)", () => {
+    const src = read("background.js");
+    expect(src).toContain("function refreshCareAccessToken");
+    expect(src).toMatch(/careFetch[\s\S]*refreshCareAccessToken/);
+    expect(src).toMatch(/streamCareCopilot[\s\S]*refreshCareAccessToken/);
+  });
+
+  it("background.js stream port enforces the SAME endpoint allowlist (no open proxy on the port)", () => {
+    expect(read("background.js")).toMatch(/onConnect[\s\S]*ALLOWED_ENDPOINT/);
+  });
+
+  it("content.js streams the Co-Pilot and falls back to the request path on any failure", () => {
+    const code = read("content.js");
+    expect(code).toContain("runCopilotStreaming");
+    expect(code).toMatch(/chrome\.runtime\.connect\(\{\s*name:\s*"care-copilot-stream"/);
+    expect(code).toContain("===REASONING===");
+    // fallback re-runs the proven request path with noStream=true; guards it can't break the working flow
+    expect(code).toMatch(/onDisconnect[\s\S]{0,120}fallback/);
+    expect(code).toMatch(/fallback[\s\S]{0,200}runTool\(tool, undefined, true\)/);
+    // honest staged progress (mirrors Sales Coach), C.A.R.E's OWN care phrasing
+    expect(code).toContain("function startProgressCare");
+    expect(code).toContain("Reading the conversation…");
   });
 });

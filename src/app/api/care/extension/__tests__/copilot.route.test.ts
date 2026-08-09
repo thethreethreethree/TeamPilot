@@ -12,6 +12,15 @@ vi.mock("@/lib/api/validate", () => ({ readBody: vi.fn(async () => ({ conversati
 vi.mock("@/lib/api/extensionAuth", () => ({ requireEntitledExtensionUser: vi.fn() }));
 vi.mock("@/lib/care/config", () => ({ getProductContextForTenant: vi.fn(async () => "PRODUCT CONTEXT") }));
 vi.mock("@/lib/claude", () => ({ generateCareReply: vi.fn() }));
+// Stream path: yield marker-format deltas so the SSE branch is exercised without a live model.
+vi.mock("@/lib/llm", () => ({
+  // eslint-disable-next-line require-yield
+  llmStream: vi.fn(async function* () {
+    yield "Hi Sam, ";
+    yield "your refund is approved.";
+    yield "\n===REASONING===\nLed with the concrete answer.";
+  }),
+}));
 // Default: the name lookup yields nothing → the route falls back to the generic label (this matches the
 // prior behaviour, where createAdminClient wasn't mocked at all and threw → caught → generic). Individual
 // tests override to return a real name.
@@ -23,6 +32,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { POST } from "@/app/api/care/extension/copilot/route";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { readBody } from "@/lib/api/validate";
 import { requireEntitledExtensionUser } from "@/lib/api/extensionAuth";
 import { generateCareReply } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -87,6 +97,23 @@ describe("POST /api/care/extension/copilot", () => {
     vi.mocked(generateCareReply).mockRejectedValue(new Error("upstream"));
     const res = await POST(req);
     expect(res.status).toBe(502);
+  });
+
+  it("stream:true → text/event-stream with content deltas + a done event carrying the marker-split reply", async () => {
+    // Mirrors the Sales Coach fix (2026-08-09): the reply forms word-by-word. C.A.R.E's output is UNCHANGED —
+    // no sanitizer/voice change — only the delivery. The non-stream engine is NOT called on the stream path.
+    vi.mocked(requireEntitledExtensionUser).mockResolvedValue(entitled as never);
+    vi.mocked(readBody).mockResolvedValueOnce({ conversation: "a customer thread", stream: true } as never);
+    const res = (await POST(req)) as unknown as Response;
+    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+    const text = await res.text();
+    expect(text).toContain("event: delta");
+    expect(text).toContain("Hi Sam, ");
+    const doneLine = text.split("\n").find((l) => l.startsWith("data:") && l.includes('"reply"'));
+    const done = JSON.parse(doneLine!.slice(5));
+    expect(done.reply).toBe("Hi Sam, your refund is approved.");
+    expect(done.reasoning).toBe("Led with the concrete answer.");
+    expect(generateCareReply).not.toHaveBeenCalled();
   });
 
   // Role-attribution anchor (Fix 2b, the founder-reported "Hi John" inversion). Co-Pilot was the ONLY one of

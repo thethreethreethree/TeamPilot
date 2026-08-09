@@ -6,6 +6,7 @@ import { generateCareReply } from "@/lib/claude";
 import { CO_PILOT_SYSTEM } from "@/lib/care/toolPrompts";
 import { copilotModeInstruction } from "@/lib/care/copilotMode";
 import { LlmError } from "@/lib/llm/errors";
+import { llmStream } from "@/lib/llm";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -38,10 +39,26 @@ const Schema = z
     // response MODE: agent-last → follow-up, customer-last → reply, absent → determine + default
     // to reply (see copilotMode.ts). Optional so any caller that can't determine it still works.
     lastSpeaker: z.enum(["agent", "customer", "unknown"]).optional(),
+    // When true, respond as a text/event-stream (the reply forms word-by-word in the panel) instead of one
+    // JSON blob. Same prompt, same output — only the delivery differs. The client falls back to the non-stream
+    // request on any stream failure, so this can never break the working path. Mirrors the Sales Coach fix
+    // (2026-08-09); C.A.R.E keeps its OWN care voice — no sales charisma, no dash sanitizer.
+    stream: z.boolean().optional(),
   })
   .strict();
 
 const REASONING_MARKER = "===REASONING===";
+
+function sse(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function splitCopilot(raw: string): { reply: string; reasoning: string } {
+  const idx = raw.indexOf(REASONING_MARKER);
+  const reply = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
+  const reasoning = idx >= 0 ? raw.slice(idx + REASONING_MARKER.length).trim() : "";
+  return { reply, reasoning };
+}
 
 export async function POST(req: NextRequest) {
   const guard = await guardExtensionRequest(req, { tool: "copilot", perUserMax: 20, schema: Schema });
@@ -74,22 +91,64 @@ export async function POST(req: NextRequest) {
   // below (TT.md A16 — both reference the same ${agentName}).
   const modeInstruction = copilotModeInstruction(body.lastSpeaker ?? "unknown", agentName);
 
-  try {
-    const r = await generateCareReply({
-      systemPrompt: `${CO_PILOT_SYSTEM}
+  // Built once so the stream and non-stream deliveries send the SAME prompt (the co-pilot draft discipline
+  // is identical; only the transport differs).
+  const systemPrompt = `${CO_PILOT_SYSTEM}
 
 You are drafting AS: ${agentName}. Messages from ${agentName} in the conversation are the agent's own words — write the next message from ${agentName}'s side, never addressed to ${agentName}.
 
 ${modeInstruction}
 
 Product context the customer is reaching out about:
-${productContext}`,
-      userMessage: `Conversation so far:\n${body.conversation}\n\nDraft ${agentName}'s next message to the customer, following the RESPONSE MODE above.`,
+${productContext}`;
+  const userMessage = `Conversation so far:\n${body.conversation}\n\nDraft ${agentName}'s next message to the customer, following the RESPONSE MODE above.`;
+
+  // ── Streaming delivery ────────────────────────────────────────────────────────────────────────────────
+  // The reply forms word-by-word in the panel. We stream raw content deltas; the client shows everything
+  // before the ===REASONING=== marker as the forming reply, and on done we send the clean marker-split.
+  // Company-less like the non-stream path (generateCareReply is called without companyId here), so this uses
+  // llmStream directly. No sanitizer / voice change — C.A.R.E's output is unchanged, only streamed.
+  if (body.stream) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: string, data: unknown) => controller.enqueue(encoder.encode(sse(event, data)));
+        try {
+          let collected = "";
+          for await (const delta of llmStream({
+            systemPrompt,
+            messages: [{ role: "user", content: userMessage }],
+            maxTokens: 600,
+          })) {
+            collected += delta;
+            send("delta", { text: delta });
+          }
+          const { reply, reasoning } = splitCopilot(collected);
+          if (!reply) send("error", { error: "The Co-Pilot couldn't draft a reply right now. Try again." });
+          else send("done", { reply, reasoning });
+          controller.close();
+        } catch (err) {
+          const kind = err instanceof LlmError ? err.kind : undefined;
+          if (!(err instanceof LlmError)) console.error("[care/extension/copilot stream] non-LLM failure:", err);
+          send("error", { error: "The Co-Pilot couldn't draft a reply right now.", kind });
+          controller.close();
+        }
+      },
     });
-    const raw = r.text;
-    const idx = raw.indexOf(REASONING_MARKER);
-    const reply = (idx >= 0 ? raw.slice(0, idx) : raw).trim();
-    const reasoning = idx >= 0 ? raw.slice(idx + REASONING_MARKER.length).trim() : "";
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  }
+
+  // ── Non-streaming delivery (unchanged) ────────────────────────────────────────────────────────────────
+  try {
+    const r = await generateCareReply({ systemPrompt, userMessage });
+    const { reply, reasoning } = splitCopilot(r.text);
     // Guard an empty draft (e.g. the model emitted the ===REASONING=== marker first) — consistent with the
     // formulate route. Without this the panel would fall through to rendering the raw JSON.
     if (!reply) {

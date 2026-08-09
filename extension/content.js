@@ -216,7 +216,93 @@
   // runTool(tool, inputValue): inputValue is the agent's own text for tools that need it (Coach: a draft to
   // grade; Formulate: an intent to shape). For those tools, the first call (inputValue undefined) renders an
   // input form; its Run button re-invokes runTool with the typed value. The other tools run on the selection.
-  async function runTool(tool, inputValue) {
+  // Streaming Co-Pilot (2026-08-09, mirrors Sales Coach). Wire contract with the server + worker: reply and the
+  // move-naming line are separated by this marker; the streaming reader shows everything BEFORE it as the forming
+  // reply. C.A.R.E's output is UNCHANGED — no dash sanitizer, no voice change; only the delivery streams.
+  const REASONING_MARKER_CARE = "===REASONING===";
+  function replyBeforeMarkerCare(text) {
+    const idx = text.indexOf(REASONING_MARKER_CARE);
+    if (idx >= 0) return text.slice(0, idx).replace(/\s+$/, "");
+    for (let n = Math.min(REASONING_MARKER_CARE.length - 1, text.length); n > 0; n--) {
+      if (text.endsWith(REASONING_MARKER_CARE.slice(0, n))) return text.slice(0, text.length - n);
+    }
+    return text;
+  }
+  // Honest staged progress (mirrors Sales Coach): cycles the real phases so the wait reads as work, not a hang.
+  function startProgressCare(out, label, phases) {
+    let i = 0;
+    const paint = () => {
+      out.innerHTML = `<div class="rlabel">${esc(label)}</div><span class="spin"></span>${esc(phases[i % phases.length])}`;
+    };
+    paint();
+    const timer = setInterval(() => {
+      i += 1;
+      paint();
+    }, 1500);
+    return () => clearInterval(timer);
+  }
+  // Stream the Co-Pilot reply over a Port, rendering it as it forms; on any failure fall back to the proven
+  // non-stream request path (runTool with noStream=true), which renders the result OR the real error honestly.
+  function runCopilotStreaming(tool, out) {
+    const stopProgress = startProgressCare(out, tool.label, ["Reading the conversation…", "Drafting your reply…"]);
+    let port;
+    try {
+      port = chrome.runtime.connect({ name: "care-copilot-stream" });
+    } catch {
+      stopProgress();
+      runTool(tool, undefined, true);
+      return;
+    }
+    let acc = "";
+    let settled = false;
+    const cleanup = () => {
+      stopProgress();
+      try {
+        port.disconnect();
+      } catch {
+        /* already gone */
+      }
+    };
+    const finishWith = (reply, reasoning) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      renderResult(out, tool.label, reply || replyBeforeMarkerCare(acc), reasoning ? `<div class="rnote">Move: ${esc(reasoning)}</div>` : "");
+    };
+    const fallback = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      runTool(tool, undefined, true);
+    };
+    port.onDisconnect.addListener(() => {
+      if (!settled) fallback();
+    });
+    port.onMessage.addListener((m) => {
+      if (settled || !m) return;
+      if (m.type === "delta") {
+        acc += m.text || "";
+        const shown = replyBeforeMarkerCare(acc);
+        if (shown) {
+          stopProgress();
+          out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>${esc(shown)}<span class="spin"></span>`;
+        }
+      } else if (m.type === "done") {
+        finishWith(m.reply, m.reasoning);
+      } else if (m.type === "error") {
+        fallback();
+      }
+    });
+    const start = { type: "start", endpoint: tool.endpoint, conversation: currentSelection };
+    if (currentLastSpeaker === "agent" || currentLastSpeaker === "customer") start.lastSpeaker = currentLastSpeaker;
+    try {
+      port.postMessage(start);
+    } catch {
+      fallback();
+    }
+  }
+
+  async function runTool(tool, inputValue, noStream) {
     const out = $("result");
     if (!out) return;
     out.classList.remove("hide");
@@ -231,6 +317,12 @@
     // Tools that grade/shape the AGENT's OWN words ask for them first (Coach: draft, Formulate: intent).
     if (tool.input && inputValue == null) {
       renderInputForm(out, tool);
+      return;
+    }
+    // Co-Pilot streams the reply as it forms (perceived-speed fix). Falls back to the request path below on any
+    // failure, so streaming can never break the working flow. Other tools use the request path directly.
+    if (tool.key === "copilot" && !noStream && chrome.runtime && typeof chrome.runtime.connect === "function") {
+      runCopilotStreaming(tool, out);
       return;
     }
     out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div><span class="spin"></span>Running…`;

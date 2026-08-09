@@ -28,6 +28,38 @@ chrome.action.onClicked.addListener(async (tab) => {
 // CORS. So the panel sends "care-tool" here; the worker holds the token, calls the API, and handles refresh.
 const ALLOWED_ENDPOINT = /^\/api\/care\/extension\/[a-z]+$/; // no arbitrary paths/hosts (defence in depth)
 
+// Silent refresh of the access token, shared by the JSON tool path (careFetch) AND the streaming path so the
+// 401→refresh logic lives in ONE place (re-inlining per call site is exactly how the two drift). Returns the new
+// access token on success, or null — and on a hard failure clears the session so the panel shows Sign in and the
+// badge drops. `currentRefresh` may be rotated by a successful refresh.
+async function refreshCareAccessToken(base, currentRefresh) {
+  if (!currentRefresh) return null;
+  try {
+    const rr = await fetch(base + "/api/care/extension/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: currentRefresh }),
+    });
+    if (rr.ok) {
+      const rd = await rr.json().catch(() => ({}));
+      if (rd.access_token) {
+        await chrome.storage.local.set({
+          careToken: rd.access_token,
+          careRefreshToken: rd.refresh_token || currentRefresh,
+        });
+        return rd.access_token;
+      }
+      return null;
+    }
+    // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in and drop the badge.
+    await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
+    chrome.action.setBadgeText({ text: "" });
+    return null;
+  } catch {
+    return null; // network hiccup on refresh; caller leaves the 401 to surface Sign in
+  }
+}
+
 async function careFetch(endpoint, payload) {
   const { careToken, careRefreshToken, apiBase } = await chrome.storage.local.get([
     "careToken",
@@ -54,32 +86,116 @@ async function careFetch(endpoint, payload) {
 
   // Silent refresh on expiry (audit A4), then retry once. Refresh runs here too (same CORS-free worker context).
   if (out.status === 401 && careRefreshToken) {
-    try {
-      const rr = await fetch(base + "/api/care/extension/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: careRefreshToken }),
-      });
-      if (rr.ok) {
-        const rd = await rr.json().catch(() => ({}));
-        if (rd.access_token) {
-          await chrome.storage.local.set({
-            careToken: rd.access_token,
-            careRefreshToken: rd.refresh_token || careRefreshToken,
-          });
-          out = await call(rd.access_token);
-        }
-      } else {
-        // Refresh itself failed → the session is truly gone; clear so the panel shows Sign in and drop the badge.
-        await chrome.storage.local.remove(["careToken", "careRefreshToken"]);
-        chrome.action.setBadgeText({ text: "" });
-      }
-    } catch {
-      /* leave out as the 401; the panel will prompt Sign in */
-    }
+    const fresh = await refreshCareAccessToken(base, careRefreshToken);
+    if (fresh) out = await call(fresh);
   }
   return out;
 }
+
+// ── Streaming AI Co-Pilot ────────────────────────────────────────────────────────────────────────────────
+// Mirrors the Sales Coach streaming (2026-08-09). chrome.runtime.sendMessage is single-response, so streaming
+// uses a long-lived Port: the panel connects "care-copilot-stream", posts {type:"start", …}, and we relay each
+// SSE event back (delta → append to the forming reply; done → final split; error → panel falls back to the
+// non-stream path). Only the Co-Pilot streams; the other tools keep their request path. C.A.R.E's output is
+// unchanged — only the delivery.
+
+function relayCareSseEvent(rawEvent, port) {
+  let event = "message";
+  let data = "";
+  for (const line of rawEvent.split("\n")) {
+    const t = line.replace(/^\s+/, "");
+    if (t.startsWith("event:")) event = t.slice(6).trim();
+    else if (t.startsWith("data:")) data += t.slice(5).trim();
+  }
+  if (!data) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return;
+  }
+  if (event === "delta") port.postMessage({ type: "delta", text: String(parsed.text || "") });
+  else if (event === "done") port.postMessage({ type: "done", reply: parsed.reply, reasoning: parsed.reasoning });
+  else if (event === "error") port.postMessage({ type: "error", error: parsed.error, kind: parsed.kind });
+}
+
+async function streamCareCopilot(endpoint, payload, port) {
+  const { careToken, careRefreshToken, apiBase } = await chrome.storage.local.get([
+    "careToken",
+    "careRefreshToken",
+    "apiBase",
+  ]);
+  const base = apiBase || "https://elostate.com";
+  const doFetch = (tok) =>
+    fetch(base + endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        Authorization: `Bearer ${tok}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+  let res;
+  try {
+    res = await doFetch(careToken);
+    if (res.status === 401 && careRefreshToken) {
+      const fresh = await refreshCareAccessToken(base, careRefreshToken);
+      if (fresh) res = await doFetch(fresh);
+    }
+  } catch {
+    port.postMessage({ type: "error", status: 0, error: "network" });
+    return;
+  }
+
+  if (res.status === 401) {
+    port.postMessage({ type: "error", status: 401, error: "Your session expired." });
+    return;
+  }
+  if (!res.ok || !res.body) {
+    const snippet = await res.text().catch(() => "");
+    port.postMessage({ type: "error", status: res.status, error: snippet.slice(0, 300) || `HTTP ${res.status}` });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf("\n\n")) !== -1) {
+        relayCareSseEvent(buffer.slice(0, idx), port);
+        buffer = buffer.slice(idx + 2);
+      }
+    }
+    if (buffer.trim()) relayCareSseEvent(buffer, port);
+  } catch {
+    port.postMessage({ type: "error", error: "stream interrupted" });
+  }
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "care-copilot-stream") return;
+  port.onMessage.addListener((message) => {
+    if (!message || message.type !== "start") return;
+    if (typeof message.endpoint !== "string" || !ALLOWED_ENDPOINT.test(message.endpoint)) {
+      port.postMessage({ type: "error", status: 400, error: "Unknown tool." });
+      return;
+    }
+    const payload = { conversation: String(message.conversation || ""), stream: true };
+    if (message.lastSpeaker === "agent" || message.lastSpeaker === "customer") {
+      payload.lastSpeaker = message.lastSpeaker;
+    }
+    streamCareCopilot(message.endpoint, payload, port).catch(() => {
+      port.postMessage({ type: "error", error: "stream failed" });
+    });
+  });
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // The on-page panel can't open tabs itself. When its "Sign in" button asks, open the one-click connect page.
