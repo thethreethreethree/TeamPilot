@@ -114,9 +114,20 @@ function relayCareSseEvent(rawEvent, port) {
   } catch {
     return;
   }
-  if (event === "delta") port.postMessage({ type: "delta", text: String(parsed.text || "") });
-  else if (event === "done") port.postMessage({ type: "done", reply: parsed.reply, reasoning: parsed.reasoning });
-  else if (event === "error") port.postMessage({ type: "error", error: parsed.error, kind: parsed.kind });
+  if (event === "delta") safePost(port, { type: "delta", text: String(parsed.text || "") });
+  else if (event === "done") safePost(port, { type: "done", reply: parsed.reply, reasoning: parsed.reasoning });
+  else if (event === "error") safePost(port, { type: "error", error: parsed.error, kind: parsed.kind });
+}
+
+// Post to a Port that may already be disconnected (the agent closed/minimized the panel mid-stream) without
+// throwing — review Finding 1.1 Consequence B: a raw postMessage to a dead port throws, cascading through the
+// reader's catch into more throws. A closed port just means nobody's listening; no-op.
+function safePost(port, msg) {
+  try {
+    port.postMessage(msg);
+  } catch {
+    /* port closed — nobody listening */
+  }
 }
 
 async function streamCareCopilot(endpoint, payload, port) {
@@ -126,6 +137,20 @@ async function streamCareCopilot(endpoint, payload, port) {
     "apiBase",
   ]);
   const base = apiBase || "https://elostate.com";
+  // Cancel the upstream LLM stream if the agent closes/minimizes the panel mid-generation (review Finding 1.1):
+  // otherwise the worker reads the SSE body to EOF and the server keeps generating — real wasted metered AI
+  // spend for output no one will see. onDisconnect → abort the fetch → reader rejects → stop. `aborted` also
+  // suppresses the terminal error-post / disconnect (the client is already gone).
+  const controller = new AbortController();
+  let aborted = false;
+  port.onDisconnect.addListener(() => {
+    aborted = true;
+    try {
+      controller.abort();
+    } catch {
+      /* already aborted */
+    }
+  });
   const doFetch = (tok) =>
     fetch(base + endpoint, {
       method: "POST",
@@ -135,6 +160,7 @@ async function streamCareCopilot(endpoint, payload, port) {
         Authorization: `Bearer ${tok}`,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
 
   let res;
@@ -145,17 +171,18 @@ async function streamCareCopilot(endpoint, payload, port) {
       if (fresh) res = await doFetch(fresh);
     }
   } catch {
-    port.postMessage({ type: "error", status: 0, error: "network" });
+    if (!aborted) safePost(port, { type: "error", status: 0, error: "network" });
     return;
   }
+  if (aborted) return; // agent closed the panel during the fetch/refresh — nothing to stream to
 
   if (res.status === 401) {
-    port.postMessage({ type: "error", status: 401, error: "Your session expired." });
+    safePost(port, { type: "error", status: 401, error: "Your session expired." });
     return;
   }
   if (!res.ok || !res.body) {
     const snippet = await res.text().catch(() => "");
-    port.postMessage({ type: "error", status: res.status, error: snippet.slice(0, 300) || `HTTP ${res.status}` });
+    safePost(port, { type: "error", status: res.status, error: snippet.slice(0, 300) || `HTTP ${res.status}` });
     return;
   }
 
@@ -164,6 +191,7 @@ async function streamCareCopilot(endpoint, payload, port) {
   let buffer = "";
   try {
     while (true) {
+      if (aborted) break; // agent closed/minimized mid-stream → stop reading (the fetch is already aborting)
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -173,18 +201,20 @@ async function streamCareCopilot(endpoint, payload, port) {
         buffer = buffer.slice(idx + 2);
       }
     }
-    if (buffer.trim()) relayCareSseEvent(buffer, port);
+    if (!aborted && buffer.trim()) relayCareSseEvent(buffer, port);
   } catch {
-    port.postMessage({ type: "error", error: "stream interrupted" });
+    if (!aborted) safePost(port, { type: "error", error: "stream interrupted" });
   } finally {
     // Terminal guarantee: when the reader loop ends for ANY reason — normal done, a throw, OR a clean EOF where
     // the server was killed before emitting done (e.g. the 60s function cap) — disconnect the port so the
-    // panel's onDisconnect fires the fallback. Without this, a stream that ends without a done/error event hangs
-    // the panel on "Drafting…" forever. If the client already got done + disconnected, this is a harmless no-op.
-    try {
-      port.disconnect();
-    } catch {
-      /* already gone */
+    // panel's onDisconnect fires the fallback. Skipped when `aborted` (the client already disconnected, so this
+    // would only throw). If the client already got done + disconnected, this is a harmless no-op.
+    if (!aborted) {
+      try {
+        port.disconnect();
+      } catch {
+        /* already gone */
+      }
     }
   }
 }
@@ -194,7 +224,7 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((message) => {
     if (!message || message.type !== "start") return;
     if (typeof message.endpoint !== "string" || !ALLOWED_ENDPOINT.test(message.endpoint)) {
-      port.postMessage({ type: "error", status: 400, error: "Unknown tool." });
+      safePost(port, { type: "error", status: 400, error: "Unknown tool." });
       return;
     }
     const payload = { conversation: String(message.conversation || ""), stream: true };
@@ -202,7 +232,7 @@ chrome.runtime.onConnect.addListener((port) => {
       payload.lastSpeaker = message.lastSpeaker;
     }
     streamCareCopilot(message.endpoint, payload, port).catch(() => {
-      port.postMessage({ type: "error", error: "stream failed" });
+      safePost(port, { type: "error", error: "stream failed" });
     });
   });
 });

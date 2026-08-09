@@ -126,4 +126,17 @@ describe("Sales Coach worker — streaming Suggested Response (2026-08-09)", () 
     // is dropped.
     expect(BG).toMatch(/getReader\(\)[\s\S]*finally[\s\S]*port\.disconnect\(\)/);
   });
+
+  it("cancels the upstream LLM stream when the panel disconnects (no wasted metered spend; review 1.1)", () => {
+    // Closing/minimizing the panel mid-generation must abort the fetch — else the server keeps generating and
+    // metering AI cost for output no one sees. onDisconnect → controller.abort(); the fetch carries the signal.
+    expect(BG).toContain("new AbortController()");
+    expect(BG).toMatch(/onDisconnect[\s\S]{0,160}\.abort\(\)/);
+    expect(BG).toContain("signal: controller.signal");
+  });
+
+  it("posts to the Port defensively (safePost) so a relay to a closed port can't throw a cascade (review 1.1)", () => {
+    expect(BG).toContain("function safePost");
+    expect(BG).not.toMatch(/relaySalesSseEvent[\s\S]{0,400}\bport\.postMessage\(/); // relay routes through safePost
+  });
 });

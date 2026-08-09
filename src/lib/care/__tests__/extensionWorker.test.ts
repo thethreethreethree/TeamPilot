@@ -164,6 +164,16 @@ describe("extension CORS architecture invariant", () => {
     expect(read("background.js")).toMatch(/getReader\(\)[\s\S]*finally[\s\S]*port\.disconnect\(\)/);
   });
 
+  it("background.js cancels the upstream stream on panel disconnect + posts defensively (review 1.1)", () => {
+    // Closing/minimizing mid-generation must abort the fetch (no wasted metered AI spend), and relays must not
+    // throw when posting to a closed port.
+    const src = read("background.js");
+    expect(src).toContain("new AbortController()");
+    expect(src).toMatch(/onDisconnect[\s\S]{0,160}\.abort\(\)/);
+    expect(src).toContain("signal: controller.signal");
+    expect(src).toContain("function safePost");
+  });
+
   it("content.js streams the Co-Pilot and falls back to the request path on any failure", () => {
     const code = read("content.js");
     expect(code).toContain("runCopilotStreaming");
