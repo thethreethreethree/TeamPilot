@@ -6,8 +6,10 @@ import {
   extensionOf,
   UnsupportedFormatError,
   EmptyExtractionError,
+  DecompressionLimitError,
   SUPPORTED_EXTENSIONS,
   MAX_EXTRACTED_CHARS,
+  MAX_DECOMPRESSED_BYTES,
 } from "../extractText";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -89,6 +91,26 @@ describe("extractText — honest failure (A27 / §6)", () => {
     await expect(extractText(enc("   \n  "), "blank.txt")).rejects.toBeInstanceOf(EmptyExtractionError);
     const emptyDocx = await zip({ "word/document.xml": "<w:document><w:body></w:body></w:document>" });
     await expect(extractText(emptyDocx, "blank.docx")).rejects.toBeInstanceOf(EmptyExtractionError);
+  });
+});
+
+describe("extractText — decompression-bomb guard (ZIP formats)", () => {
+  it("rejects a docx whose declared uncompressed size exceeds the cap, BEFORE inflating it", async () => {
+    // A tiny compressed ZIP that declares a huge uncompressed entry (repeated char → compresses to ~nothing).
+    // The guard must throw from the DECLARED size, not OOM by inflating. Detection-true: fails if the guard is
+    // removed (the extract would instead inflate the whole entry).
+    const huge = "<w:p>" + "a".repeat(MAX_DECOMPRESSED_BYTES + 1024) + "</w:p>";
+    const z = new JSZip();
+    z.file("word/document.xml", huge);
+    const bomb = await z.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+    expect(bomb.length).toBeLessThan(200_000); // repeated char DEFLATEs to ~nothing — small compressed, huge declared
+    await expect(extractText(bomb, "bomb.docx")).rejects.toBeInstanceOf(DecompressionLimitError);
+  });
+
+  it("still extracts a normal-sized docx (the cap is invisible to real docs)", async () => {
+    const ok = await zip({ "word/document.xml": "<w:p>Interested — what's pricing?</w:p>" });
+    const { text } = await extractText(ok, "ok.docx");
+    expect(text).toContain("Interested");
   });
 });
 

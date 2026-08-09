@@ -6,6 +6,7 @@ import {
   SUPPORTED_EXTENSIONS,
   UnsupportedFormatError,
   EmptyExtractionError,
+  DecompressionLimitError,
   MAX_EXTRACTED_CHARS,
 } from "@/lib/documents/extractText";
 
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Couldn't find any text in that file (a scanned image PDF has no text layer). Paste the text instead." },
         { status: 422 }
+      );
+    }
+    if (e instanceof DecompressionLimitError) {
+      // A ZIP doc (docx/odt/epub) that expands to far more than any real conversation export — reject cleanly
+      // (a 413) instead of letting it OOM/time out the function.
+      return NextResponse.json(
+        { error: "That document expands to too much content to process. Upload a smaller file (or paste the text)." },
+        { status: 413 }
       );
     }
     // Malformed/corrupt file — log server-side, return a generic message (CWE-209, no raw parser internals).

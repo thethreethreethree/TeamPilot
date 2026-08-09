@@ -50,6 +50,16 @@ const KNOWN_UNSUPPORTED: Record<string, string> = {
  */
 export const MAX_EXTRACTED_CHARS = 100_000;
 
+/**
+ * Decompression-bomb guard for the ZIP formats (docx/odt/epub). A small ZIP can declare a huge uncompressed
+ * entry — `file.async(...)` would inflate the WHOLE entry into memory BEFORE the char cap applies, OOM/timeout
+ * the function. jszip exposes the DECLARED uncompressed size (`_data.uncompressedSize`) from the central
+ * directory, so we reject an oversized entry BEFORE inflating it. 25 MB is ~10× the largest real doc's XML (a
+ * 200k-char doc's document.xml is a few MB), so legit files are never affected; a bomb fails fast + clean. The
+ * timeout/isolation remain the backstop for a malformed ZIP that lies about its declared size.
+ */
+export const MAX_DECOMPRESSED_BYTES = 25 * 1024 * 1024;
+
 export class UnsupportedFormatError extends Error {
   constructor(public readonly ext: string, message: string) {
     super(message);
@@ -61,6 +71,18 @@ export class EmptyExtractionError extends Error {
     super(message);
     this.name = "EmptyExtractionError";
   }
+}
+export class DecompressionLimitError extends Error {
+  constructor(message = "The document expands to too much content to process safely.") {
+    super(message);
+    this.name = "DecompressionLimitError";
+  }
+}
+
+/** Declared uncompressed size of a jszip entry (central-directory metadata), 0 if unavailable. */
+function declaredSize(file: unknown): number {
+  const d = (file as { _data?: { uncompressedSize?: number } })?._data;
+  return typeof d?.uncompressedSize === "number" ? d.uncompressedSize : 0;
 }
 
 export function extensionOf(filename: string): string {
@@ -206,6 +228,8 @@ async function unzipEntry(buffer: Uint8Array, path: string): Promise<string> {
   const zip = await loadZip(buffer);
   const file = zip.file(path);
   if (!file) throw new EmptyExtractionError("The document is missing its text content.");
+  // Decompression-bomb guard: reject an oversized entry from its DECLARED size before inflating it.
+  if (declaredSize(file) > MAX_DECOMPRESSED_BYTES) throw new DecompressionLimitError();
   return file.async("string");
 }
 
@@ -217,8 +241,15 @@ async function extractEpub(buffer: Uint8Array, maxChars: number = MAX_EXTRACTED_
     .sort((a, b) => a.name.localeCompare(b.name));
   const parts: string[] = [];
   let total = 0;
+  let declaredTotal = 0;
   for (const f of htmlFiles) {
-    if (total >= maxChars) break; // bound zip-bomb / huge books
+    if (total >= maxChars) break; // bound huge books by extracted-char budget
+    // Decompression-bomb guard: reject before inflating an entry whose declared size — or the running total —
+    // exceeds the cap (a single huge entry, or many entries summing to a bomb).
+    declaredTotal += declaredSize(f);
+    if (declaredSize(f) > MAX_DECOMPRESSED_BYTES || declaredTotal > MAX_DECOMPRESSED_BYTES) {
+      throw new DecompressionLimitError();
+    }
     const text = stripHtml(await f.async("string"));
     parts.push(text);
     total += text.length;
