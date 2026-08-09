@@ -32,20 +32,34 @@ permission is the #1 rejection reason) and excludes `popup.*`, `README.md`, and 
 | `activeTab` | The panel is injected only when the user clicks the C.A.R.E toolbar icon, and only into that one active tab. This grants access to the page the user explicitly invoked us on — nothing in the background, no other tabs. |
 | `scripting` | Used to inject the panel (`chrome.scripting.executeScript`) into the active tab on the icon click. No programmatic injection happens without that user gesture. |
 | `storage` | Stores the user's C.A.R.E session token (and its refresh token) in `chrome.storage.local` so they stay signed in between page visits, plus an optional API base override. No conversation content is ever stored. |
-| Host `https://elostate.com/*` | The extension's own backend. The background service worker calls it to run the C.A.R.E tools with the user's token. It is the only network destination. |
+| Host `https://elostate.com/*` | The extension's own backend. The background service worker calls it to run the C.A.R.E tools with the user's token. It is the primary network destination. |
+| Host `https://*.supabase.co/*` | Capture only. When the user saves a conversation's media (images) to their workspace, the worker uploads the bytes DIRECTLY to a per-file **signed URL** on the workspace's storage (Supabase), so large media never traverses our API's request-body limit. The URL is pinned to `*.supabase.co` in code so it can't be turned into an open PUT proxy. |
+| `optional_host_permissions: *://*/*` (OPTIONAL, not requested at install) | Capture only. To include a conversation's **cross-origin images** in a Capture, the worker must fetch those image bytes, which requires host access to the image's origin. This is an **optional** permission the user explicitly grants via a permission page, only when they first Capture media — it is NOT requested on install and the tools work without it (media then stays metadata-only). |
 
-We deliberately do **not** request `<all_urls>`, `tabs`, `history`, or per-site host permissions: adapters run
-under `activeTab` on the user's click, so no broad host access is needed.
+We do **not** request `<all_urls>`, `tabs`, or `history` at install: the tools run under `activeTab` on the
+user's click. The all-hosts permission above is **optional and user-granted at runtime**, solely to fetch
+cross-origin image bytes for the Capture-to-workspace feature.
 
 ## 4. Data usage disclosure (certify in the dashboard)
-- **What is sent:** only the conversation text the user selects (or points an adapter at) on the current page,
-  sent to `elostate.com` to run the requested tool, authenticated by the user's own session token.
-- **What is stored:** the session token + refresh token (auth) and an optional API-base setting, in
-  `chrome.storage.local`. **Conversation text is processed to produce the result and then discarded — never
-  persisted** (ephemeral by design).
-- **Not collected:** no browsing history, no analytics, no selling/transfer of data, no use for ads or
-  creditworthiness. Handled only to provide the single stated purpose.
-- **Privacy policy URL:** `https://elostate.com/extension/privacy` (already live).
+> ⚠️ **Accuracy note (verified 2026-08-09):** the conversation text IS transmitted to a THIRD-PARTY AI provider
+> (currently DeepSeek, `api.deepseek.com`) to generate the tool result — the server relays it. Your Google
+> data-use certification and the privacy policy must disclose that sub-processor; do NOT certify "no data
+> transferred to third parties" without it. The live privacy page (`/extension/privacy`) was updated to disclose
+> this. Facts below are verified from the code; you make the final certification.
+- **What is sent, and where:** the conversation text the user selects (or points an adapter at) on the current
+  page, sent to `elostate.com` (authenticated by the user's own session token) to run the requested tool — and
+  from there **transmitted to our AI provider (currently DeepSeek) to generate the result.**
+- **Capture (the one save-path):** when the user explicitly clicks *Capture conversation → C.A.R.E*, the
+  messages **and any attached media (images)** are saved to their own C.A.R.E workspace (media bytes uploaded
+  directly to a signed Supabase URL). This is opt-in per action, stored privately in the user's workspace, never
+  sold, never used to train models.
+- **What is stored by the extension itself:** only the session token + refresh token (auth) and an optional
+  API-base setting, in `chrome.storage.local`. **Tool conversation text is processed to produce the result and
+  then discarded by our backend — not persisted** (Capture is the only save, and it's user-initiated).
+- **Not done:** no browsing history, no analytics, no selling of data, no use for ads or creditworthiness, no
+  use to train our own models. Handled only to provide the single stated purpose.
+- **Privacy policy URL:** `https://elostate.com/extension/privacy` (live; updated 2026-08-09 to disclose the AI
+  sub-processor + Capture).
 
 ## 5. Store listing copy
 **Name:** C.A.R.E — assist the conversation you're viewing

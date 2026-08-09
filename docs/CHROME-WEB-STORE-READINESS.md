@@ -8,7 +8,7 @@ dashboard content already exists — this points to it and tells you what's actu
 | Extension | Verdict | The file you upload | One-line reason |
 |---|---|---|---|
 | **Sales Coach** | 🟢 **Nearly ready** — 1 founder step + assets | `public/sales-coach-extension.zip` | Lean, least-privilege, submission copy complete + accurate. Only non-code items remain (smoke test, screenshots). |
-| **C.A.R.E** | 🟡 **Not ready** — 1 permissions decision + doc fix | `extension/store/care-extension.zip` (built by its packager) | Its manifest requests an all-hosts `*://*/*` optional permission (top rejection reason) with no code that uses it, and its submission doc understates that. |
+| **C.A.R.E** | 🟡 **Not ready** — needs justification + heavier review | `extension/store/care-extension.zip` (built by its packager) | It requests an all-hosts `*://*/*` **optional** permission (functional — cross-origin media capture) + a Supabase host + captures media, which its submission doc doesn't justify and draws a heavier review. |
 
 **Recommendation: submit Sales Coach FIRST.** It's lean (text-only, 3 permissions, one host) → fastest,
 lowest-risk review. That derisks your first pass through the CWS process before the heavier C.A.R.E review
@@ -50,21 +50,20 @@ per-permission justifications, data-use certification, privacy-policy URL) is **
   sub-processor and say only what's verifiable (we don't sell / advertise / train on it; the backend doesn't
   retain it). **No unverifiable claim about DeepSeek's own retention was added** — see the founder item below.
 
-### 🔴 Founder decision — C.A.R.E only (the real blocker)
-- **`optional_host_permissions: ["*://*/*"]` in `extension/manifest.json`.** An all-hosts permission is the #1
-  Web Store rejection reason. I grepped the C.A.R.E client (`extension/*.js`) and found **no
-  `chrome.permissions.request` / no runtime use of it** — it looks like a dead copied artifact (the same one the
-  Sales port already removed). Its media-upload path uses the separate `https://*.supabase.co/*` host in the
-  worker, not this. **Decision: (a) remove it** (recommended, if the RCD media-capture path genuinely doesn't
-  request it — I'll verify the capture flow and remove on your word), **or (b) keep + justify it precisely**
-  (e.g. reading cross-origin image bytes). Until this is resolved, C.A.R.E should not be submitted.
-
-### 🟠 Me — can do on your word
-- **C.A.R.E submission doc is understated vs its real manifest.** `extension/store/CHROME-WEB-STORE-SUBMISSION.md`
-  doesn't justify the `https://*.supabase.co/*` host (real — direct media upload to signed URLs) or the `*://*/*`
-  optional, and its data-use section omits both the third-party AI (DeepSeek) and the media Capture. The Sales
-  doc already discloses the AI sub-processor; the C.A.R.E doc must match its own manifest before submission. I'll
-  update it once the `*://*/*` decision above is made (its content depends on keep-vs-remove).
+### 🟠 C.A.R.E — heavier review, now documented (blocker downgraded after verification)
+- **`optional_host_permissions: ["*://*/*"]` is FUNCTIONAL — keep + justify, do NOT remove.** Verified 2026-08-09:
+  it's an **optional** (not install-time) all-hosts permission that the RCD media-capture flow requests at
+  runtime, user-gestured, only to fetch **cross-origin image bytes** for Capture (`permission.js` requests it;
+  `background.js:329` checks it via `.contains`; `content.js:698` uses it). The Web Store treats an *optional*,
+  user-granted, purpose-clear host permission far more leniently than a *required* broad `host_permissions` — but
+  it still needs a clear justification + a media data-use disclosure. _(My first pass mis-called this "likely
+  dead" from a too-narrow grep — corrected here before it could break Capture.)_
+- **C.A.R.E submission doc updated to match its real manifest** (`extension/store/CHROME-WEB-STORE-SUBMISSION.md`,
+  done this session): now justifies `https://*.supabase.co/*` (direct media upload to signed URLs) and the
+  `*://*/*` optional (user-granted cross-origin image bytes), and its data-use section now discloses the
+  third-party AI (DeepSeek) + the media Capture save-path. Sales was already accurate.
+- **Expect a heavier review than Sales.** "Captures conversations (text + media)" + a Supabase host + an
+  all-hosts optional = more data-use questions and possibly a manual review. That's why Sales goes first.
 
 ### 🟡 Founder — non-code, required for BOTH before submit
 - **Load-unpacked smoke test.** Load each unpacked build in Chrome (`chrome://extensions` → Developer mode →
