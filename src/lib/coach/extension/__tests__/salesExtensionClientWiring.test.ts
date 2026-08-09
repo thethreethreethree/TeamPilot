@@ -55,6 +55,19 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
     expect(CONTENT).toMatch(/if \(selectionAtMousedown\) setSelection[\s\S]{0,120}else captureConversation/);
   });
 
+  it("keeps keystrokes inside the panel so host keyboard-shortcut sites don't fire (IG 'n' refresh; dropped-port guard)", () => {
+    // Port gap (memory: a UI port drops the parent's UX guards): the C.A.R.E client stops keyboard/input events
+    // at the shadow root so host shortcut sites (Instagram, Gmail) never see a bare keystroke; the sales fork
+    // dropped it → typing "n" in the guidance box refreshed Instagram's dashboard (founder 2026-08-09). This
+    // guards BOTH halves so the class can't reopen on either side. stopPropagation only — never preventDefault
+    // (the textarea must still type).
+    expect(CONTENT).toMatch(/\["keydown"[\s\S]{0,220}stopPropagation/);
+    const CARE_CONTENT = readFileSync(join(ROOT, "extension", "content.js"), "utf-8");
+    expect(CARE_CONTENT).toMatch(/\["keydown"[\s\S]{0,220}stopPropagation/);
+    // never preventDefault on these (would block typing) — the exact bug the C.A.R.E comment warns about
+    expect(CONTENT).not.toMatch(/\["keydown"[\s\S]{0,220}preventDefault/);
+  });
+
   it("dropped the C.A.R.E RCD/media capture UI", () => {
     expect(CONTENT).not.toContain("care-rcd");
     expect(CONTENT).not.toContain("extractRCD");

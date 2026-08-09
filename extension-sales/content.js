@@ -26,6 +26,20 @@
   const root = host.attachShadow({ mode: "closed" });
   document.documentElement.appendChild(host);
 
+  // ── Keep keystrokes INSIDE the panel (port of the C.A.R.E guard; founder IG report 2026-08-09) ───────────
+  // The panel lives in a shadow DOM injected into the host page. Keyboard/input events are composed:true, so
+  // without this they bubble OUT of the shadow to the host document — where shadow retargeting makes the target
+  // our host <div>, so keyboard-shortcut sites do NOT exempt it. On Instagram a bare "n" typed in the guidance
+  // box reached IG's document handler and refreshed the message dashboard (founder-reported); on Gmail/Outlook
+  // the parent C.A.R.E extension hit the same class ("can't type"). Fix: stop these events leaving the shadow
+  // root so the host never sees them. We ONLY stopPropagation — NEVER preventDefault — so the textarea still
+  // types normally. This is the SALES half of the guard the C.A.R.E client already has (a dropped-port-guard).
+  ["keydown", "keypress", "keyup", "beforeinput", "input", "paste", "cut"].forEach((type) => {
+    root.addEventListener(type, (e) => {
+      e.stopPropagation();
+    });
+  });
+
   // Working text for the tools + who spoke last (drives the co-pilot reply/follow-up mode).
   let currentSelection = "";
   let lastSpeaker = null; // "agent" | "customer" | null(unknown)
