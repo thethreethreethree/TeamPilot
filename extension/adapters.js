@@ -39,6 +39,59 @@ if (!globalThis.__careAdaptersLoaded) {
     }
   };
 
+  // UNIVERSAL fallback capture — reads the visible conversation like a human, with NO site-specific selector.
+  // Runs when a per-site adapter matches nothing (e.g. Instagram after it reshuffles its obfuscated markup).
+  // A targeting solution, not a reading one: the content script can already read any rendered DOM (same Chrome
+  // mechanism as Gmail) — the hard part is knowing WHICH nodes are the messages. Heuristic: user-message text on
+  // chat platforms is overwhelmingly [dir="auto"] (Meta apps, WhatsApp, many others); group the visible
+  // dir="auto" nodes by their nearest SCROLLABLE ancestor and return the densest region (the thread scrolls and
+  // holds the most text; the sidebar/nav hold less). Falls back to the largest scrollable text region. Noisier
+  // than an exact adapter, but robust + self-verifying via the capture preview. Tail-capped at 20k, like textFrom.
+  // (Identical to the Sales Coach extension's universalExtract — the two clients stay in sync, per founder.)
+  globalThis.universalExtract = function universalExtract() {
+    try {
+      const visible = (n) => !(n.offsetParent === null && n.getClientRects().length === 0);
+      const clean = (s) => (s || "").replace(/\s+\n/g, "\n").replace(/[ \t]{2,}/g, " ").trim();
+      const cap = (s) => (s.length > 20000 ? s.slice(-20000) : s);
+      const scrollAncestor = (el) => {
+        let p = el.parentElement;
+        while (p && p !== document.body) {
+          const st = getComputedStyle(p);
+          if ((st.overflowY === "auto" || st.overflowY === "scroll") && p.scrollHeight > p.clientHeight + 40) return p;
+          p = p.parentElement;
+        }
+        return document.body;
+      };
+      const autos = Array.from(document.querySelectorAll('[dir="auto"]')).filter(visible);
+      if (autos.length) {
+        const byRegion = new Map();
+        for (const el of autos) {
+          const t = clean(el.innerText || el.textContent);
+          if (!t) continue;
+          const region = scrollAncestor(el);
+          const arr = byRegion.get(region) || [];
+          arr.push(t);
+          byRegion.set(region, arr);
+        }
+        let best = "";
+        for (const parts of byRegion.values()) {
+          const joined = parts.join("\n\n");
+          if (joined.length > best.length) best = joined;
+        }
+        if (best.trim().length >= 40) return cap(best.trim());
+      }
+      let best = "";
+      for (const el of document.querySelectorAll("div, main, section, ul, ol")) {
+        if (!(el.scrollHeight > el.clientHeight + 40) || !visible(el)) continue;
+        const t = clean(el.innerText || "");
+        if (t.length > best.length) best = t;
+      }
+      return best.trim().length >= 40 ? cap(best.trim()) : "";
+    } catch {
+      return "";
+    }
+  };
+
   // labeledFrom — like textFrom, but PER MESSAGE: prefixes each message with a role/sender label when
   // roleOf(node) can resolve one, so the tools can tell the AGENT's turns from the CUSTOMER's (founder audit
   // 2026-07-23, Finding 2 — the model was addressing the reply TO the agent because the thread was an unlabeled

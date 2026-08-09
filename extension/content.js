@@ -442,13 +442,24 @@
   // Per-site adapter: pull the open conversation from the DOM. Empty result → tell the user to select manually
   // (§3.4 — never fabricate; degrade to the universal path).
   function readAdapter(adapter) {
-    const text = adapter.extract();
+    let text = adapter.extract();
     // Capture who spoke last where the adapter can tell (best-effort; missing method → "unknown").
     let last = "unknown";
     try {
       if (typeof adapter.lastSpeaker === "function") last = adapter.lastSpeaker();
     } catch {
       /* never let a role-signal miss break the read (§3.4 degrade, never fabricate) */
+    }
+    // UNIVERSAL fallback: if the site adapter matched nothing (e.g. Instagram after it reshuffled its obfuscated
+    // markup), read the visible conversation generically before asking the user to highlight manually. Keeps
+    // C.A.R.E in sync with the Sales Coach extension (founder: don't differ from the original system).
+    if (!text || !text.trim()) {
+      try {
+        const uni = typeof universalExtract === "function" ? universalExtract() : "";
+        if (uni && uni.trim()) { text = uni; last = "unknown"; }
+      } catch {
+        /* degrade to the manual-highlight note below */
+      }
     }
     setSelection(
       text,

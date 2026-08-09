@@ -34,3 +34,14 @@ describe("C.A.R.E extension content.js — capture status previews, not count-on
     expect(CARE_CONTENT).toMatch(/characters[\s\S]{0,160}\$\{preview\}/);
   });
 });
+
+describe("C.A.R.E extension — universal capture fallback (aligned with Sales Coach, 2026-08-09)", () => {
+  const CARE_ADAPTERS = readFileSync(join(process.cwd(), "extension", "adapters.js"), "utf-8");
+  it("defines universalExtract and readAdapter falls back to it when the site adapter is empty", () => {
+    // Auto-capture must work on any site (e.g. IG after a markup change), not only where a fixed selector matches.
+    // readAdapter must try universalExtract when adapter.extract() returns nothing, BEFORE the manual-highlight
+    // note. Keeps C.A.R.E in sync with the sales client. Fails if the fallback is dropped or reordered.
+    expect(CARE_ADAPTERS).toContain("globalThis.universalExtract");
+    expect(CARE_CONTENT).toMatch(/adapter\.extract\(\)[\s\S]{0,1000}universalExtract\(\)[\s\S]{0,300}setSelection/);
+  });
+});
