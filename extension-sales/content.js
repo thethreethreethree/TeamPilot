@@ -253,7 +253,15 @@
       return;
     }
     if (!resp || resp.status < 200 || resp.status >= 300) {
-      out.innerHTML = `<p class="sc-err">${esc(resp?.data?.error || "Something went wrong. Try again.")}</p>`;
+      // Surface the REAL cause: our routes return { error } for handled failures; a framework 500/504 has no
+      // such field, so show the status (+ any non-JSON body snippet) instead of a generic message, and log the
+      // full response so DevTools has it. (§3.4 honesty — don't hide the failure behind "something went wrong".)
+      // eslint-disable-next-line no-console
+      console.error("[sales-coach] tool request failed:", tool.endpoint, "→ HTTP", resp?.status, resp?.data);
+      const detail =
+        resp?.data?.error ||
+        (resp?.data?._nonjson ? `HTTP ${resp?.status}: ${resp.data._nonjson}` : `HTTP ${resp?.status ?? "no response"}`);
+      out.innerHTML = `<p class="sc-err">Request failed — ${esc(detail)}. Try again.</p>`;
       return;
     }
     out.innerHTML = renderResult(tool.key, resp.data);

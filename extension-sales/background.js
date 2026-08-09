@@ -32,13 +32,15 @@ chrome.action.onClicked.addListener(async (tab) => {
 const ALLOWED_ENDPOINT = /^\/api\/coach\/extension\/[a-z]+$/; // no arbitrary paths/hosts (defence in depth)
 
 async function readJson(res) {
-  let data = {};
+  // Read the body ONCE as text, then try JSON. On a framework error (500/504) the body is an HTML/text page,
+  // not our JSON {error} — capture a snippet as `_nonjson` so the panel/console can show the REAL cause instead
+  // of a generic "something went wrong". (res.json() would consume the body and lose it on a parse failure.)
+  const text = await res.text().catch(() => "");
   try {
-    data = await res.json();
+    return text ? JSON.parse(text) : {};
   } catch {
-    /* non-JSON body */
+    return { _nonjson: text.slice(0, 300) };
   }
-  return data;
 }
 
 // Shared token load + silent one-shot refresh-retry around a caller-provided `call(base, token)`. Both the JSON
