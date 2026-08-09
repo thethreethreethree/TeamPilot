@@ -278,7 +278,18 @@
     return () => clearInterval(timer);
   }
 
+  // One run at a time. runTool is async (it awaits getToken before doing anything) and the Run button is never
+  // disabled, so a rep double-clicking a slow tool — the exact reflex on a "takes a long time" button — would
+  // spawn two Ports, two concurrent LLM streams racing on #sc-out, AND double the metered AI spend (the same
+  // wasted-spend class as Finding 1.1). Latch BEFORE the first await; a flag set after an await still lets both
+  // clicks pass the check. Every terminal path calls release().
+  let toolBusy = false;
   async function runTool(tool, inputValue) {
+    if (toolBusy) return;
+    toolBusy = true;
+    const release = () => {
+      toolBusy = false;
+    };
     const out = root.getElementById("sc-out");
     const token = typeof getToken === "function" ? await getToken() : null;
     if (!token) {
@@ -291,6 +302,7 @@
       const signinBtn = root.getElementById("sc-signin");
       if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
       chrome.runtime.sendMessage({ type: "open-connect" });
+      release();
       return;
     }
     // Capture for this run (no manual Capture button): if the rep HIGHLIGHTED text, coach exactly that (the
@@ -302,29 +314,30 @@
     }
     if (!currentSelection.trim()) {
       out.innerHTML = `<p class="sc-muted">Couldn't read the conversation on this page. Highlight the thread, or use “Upload conversation”.</p>`;
+      release();
       return;
     }
     // Suggested Response streams the reply as it forms (perceived-speed fix). Other tools use the request path.
     // Both show the staged progress state. If streaming isn't available or fails, we fall back to the request
     // path — so this can never break the working flow.
     if (tool.key === "suggested" && chrome.runtime && typeof chrome.runtime.connect === "function") {
-      runToolStreaming(tool, inputValue, out);
+      runToolStreaming(tool, inputValue, out, release);
       return;
     }
-    runToolRequest(tool, inputValue, out);
+    runToolRequest(tool, inputValue, out, release);
   }
 
   // Streaming path (Suggested Response): open a Port to the worker, show progress until the first token, then
   // render the reply as it forms. On done → final split render; on error/empty/disconnect → fall back to the
   // proven request path (which renders the real error honestly). settled guards against double-handling.
-  function runToolStreaming(tool, inputValue, out) {
+  function runToolStreaming(tool, inputValue, out, onDone) {
     const stopProgress = startProgress(out, ["Reading the conversation…", "Drafting your response…"]);
     let port;
     try {
       port = chrome.runtime.connect({ name: "sales-suggest-stream" });
     } catch {
       stopProgress();
-      runToolRequest(tool, inputValue, out);
+      runToolRequest(tool, inputValue, out, onDone);
       return;
     }
     let acc = "";
@@ -345,12 +358,15 @@
       const data = { reply: reply || replyBeforeMarker(acc), reasoning: reasoning || "" };
       out.innerHTML = renderResult(tool.key, data);
       wireCopy(out, copyTextFor(tool.key, data));
+      if (onDone) onDone(); // terminal success → release the run latch
     };
     const fallback = () => {
       if (settled) return;
       settled = true;
       cleanup();
-      runToolRequest(tool, inputValue, out); // proven path renders the result or the real error
+      // Hand the latch to the request path — it releases when IT settles, so the latch stays held across the
+      // whole stream→fallback→request chain (never released early, so a mid-fallback re-click still can't race).
+      runToolRequest(tool, inputValue, out, onDone); // proven path renders the result or the real error
     };
     port.onDisconnect.addListener(() => {
       if (!settled) fallback();
@@ -386,53 +402,59 @@
 
   // Request path (all other tools + the streaming fallback): single request/response with the staged progress
   // state. This is the proven flow — the streaming path degrades to it on any failure.
-  async function runToolRequest(tool, inputValue, out) {
-    const stopProgress = startProgress(
-      out,
-      tool.key === "suggested"
-        ? ["Reading the conversation…", "Drafting your response…"]
-        : ["Reading the conversation…", "Analyzing…"]
-    );
-    const msg = { type: "sales-tool", endpoint: tool.endpoint, conversation: currentSelection };
-    if (tool.input && inputValue) msg[tool.input.key] = inputValue;
-    if (lastSpeaker) msg.lastSpeaker = lastSpeaker;
-    let resp;
+  async function runToolRequest(tool, inputValue, out, onDone) {
+    // try/finally guarantees the run latch releases on EVERY exit (network catch, 402/401/non-2xx, success),
+    // so a failed request never wedges the panel into a permanent "busy" that ignores the next click.
     try {
-      resp = await chrome.runtime.sendMessage(msg);
-    } catch {
+      const stopProgress = startProgress(
+        out,
+        tool.key === "suggested"
+          ? ["Reading the conversation…", "Drafting your response…"]
+          : ["Reading the conversation…", "Analyzing…"]
+      );
+      const msg = { type: "sales-tool", endpoint: tool.endpoint, conversation: currentSelection };
+      if (tool.input && inputValue) msg[tool.input.key] = inputValue;
+      if (lastSpeaker) msg.lastSpeaker = lastSpeaker;
+      let resp;
+      try {
+        resp = await chrome.runtime.sendMessage(msg);
+      } catch {
+        stopProgress();
+        out.innerHTML = `<p class="sc-err">Couldn't reach the Sales Coach. Try again.</p>`;
+        return;
+      }
       stopProgress();
-      out.innerHTML = `<p class="sc-err">Couldn't reach the Sales Coach. Try again.</p>`;
-      return;
+      if (resp && resp.status === 402) {
+        out.innerHTML = `<p class="sc-err">${esc(resp.data?.error || "Your plan doesn't include the Sales Coach extension.")}</p>`;
+        return;
+      }
+      if (resp && resp.status === 401) {
+        // Session expired AND the worker's silent refresh failed (it cleared the token). "Try again" wouldn't
+        // help — the rep needs to re-authenticate, so say that and give the button, not a generic error.
+        out.innerHTML =
+          `<p class="sc-muted">Your session expired. Sign in again to keep coaching.</p>` +
+          `<button class="sc-run" id="sc-signin">Sign in</button>`;
+        const signinBtn = root.getElementById("sc-signin");
+        if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
+        return;
+      }
+      if (!resp || resp.status < 200 || resp.status >= 300) {
+        // Surface the REAL cause: our routes return { error } for handled failures; a framework 500/504 has no
+        // such field, so show the status (+ any non-JSON body snippet) instead of a generic message, and log the
+        // full response so DevTools has it. (§3.4 honesty — don't hide the failure behind "something went wrong".)
+        // eslint-disable-next-line no-console
+        console.error("[sales-coach] tool request failed:", tool.endpoint, "→ HTTP", resp?.status, resp?.data);
+        const detail =
+          resp?.data?.error ||
+          (resp?.data?._nonjson ? `HTTP ${resp?.status}: ${resp.data._nonjson}` : `HTTP ${resp?.status ?? "no response"}`);
+        out.innerHTML = `<p class="sc-err">Request failed — ${esc(detail)}. Try again.</p>`;
+        return;
+      }
+      out.innerHTML = renderResult(tool.key, resp.data);
+      wireCopy(out, copyTextFor(tool.key, resp.data));
+    } finally {
+      if (onDone) onDone();
     }
-    stopProgress();
-    if (resp && resp.status === 402) {
-      out.innerHTML = `<p class="sc-err">${esc(resp.data?.error || "Your plan doesn't include the Sales Coach extension.")}</p>`;
-      return;
-    }
-    if (resp && resp.status === 401) {
-      // Session expired AND the worker's silent refresh failed (it cleared the token). "Try again" wouldn't
-      // help — the rep needs to re-authenticate, so say that and give the button, not a generic error.
-      out.innerHTML =
-        `<p class="sc-muted">Your session expired. Sign in again to keep coaching.</p>` +
-        `<button class="sc-run" id="sc-signin">Sign in</button>`;
-      const signinBtn = root.getElementById("sc-signin");
-      if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
-      return;
-    }
-    if (!resp || resp.status < 200 || resp.status >= 300) {
-      // Surface the REAL cause: our routes return { error } for handled failures; a framework 500/504 has no
-      // such field, so show the status (+ any non-JSON body snippet) instead of a generic message, and log the
-      // full response so DevTools has it. (§3.4 honesty — don't hide the failure behind "something went wrong".)
-      // eslint-disable-next-line no-console
-      console.error("[sales-coach] tool request failed:", tool.endpoint, "→ HTTP", resp?.status, resp?.data);
-      const detail =
-        resp?.data?.error ||
-        (resp?.data?._nonjson ? `HTTP ${resp?.status}: ${resp.data._nonjson}` : `HTTP ${resp?.status ?? "no response"}`);
-      out.innerHTML = `<p class="sc-err">Request failed — ${esc(detail)}. Try again.</p>`;
-      return;
-    }
-    out.innerHTML = renderResult(tool.key, resp.data);
-    wireCopy(out, copyTextFor(tool.key, resp.data));
   }
 
   // Build the panel UI from SALES_TOOLS.

@@ -183,6 +183,27 @@ describe("Sales Coach content.js — streaming Suggested Response + honest progr
     expect(CONTENT).toMatch(/type === "error"[\s\S]{0,120}fallback/);
     expect(CONTENT).toMatch(/fallback[\s\S]{0,200}runToolRequest/);
   });
+
+  it("guards double-fire: a second run can't start while one is in flight (no racing streams / doubled metered spend)", () => {
+    // runTool is async (awaits getToken) and the Run button isn't disabled, so a rep double-clicking the slow
+    // Suggested Response — the exact reflex on a "takes a long time" button — would open TWO Ports → two LLM
+    // streams racing on #sc-out AND double the metered spend (the Finding 1.1 wasted-spend class). A re-entrancy
+    // latch set BEFORE the first await stops the 2nd entry. Detection-true: fails on the pre-fix (no latch) code.
+    expect(CONTENT).toMatch(/if \(toolBusy\) return;\s*toolBusy = true;/);
+    // set BEFORE the first await — a flag set AFTER an await still lets both clicks pass the check
+    expect(CONTENT).toMatch(/toolBusy = true;[\s\S]{0,400}await getToken/);
+    // released on the request path's finally so a failure never wedges the panel into a permanent "busy"
+    expect(CONTENT).toMatch(/finally \{\s*if \(onDone\) onDone\(\);/);
+  });
+
+  it("mirrors the double-fire guard in the C.A.R.E panel (primary-entry latch, released via the request finally)", () => {
+    // C.A.R.E's stream falls back by RE-CALLING runTool(noStream=true), so the latch must engage on the PRIMARY
+    // entry only — re-latching the fallback continuation would deadlock it. Released via the request-path finally,
+    // which covers both the primary-direct request and the fallback continuation. Detection-true on the pre-fix.
+    const CARE_CONTENT = readFileSync(join(ROOT, "extension", "content.js"), "utf-8");
+    expect(CARE_CONTENT).toMatch(/const primary = !noStream;[\s\S]{0,140}if \(careToolBusy\) return;\s*careToolBusy = true;/);
+    expect(CARE_CONTENT).toMatch(/\} finally \{\s*release\(\);/);
+  });
 });
 
 describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", () => {

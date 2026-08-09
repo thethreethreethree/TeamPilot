@@ -243,7 +243,7 @@
   }
   // Stream the Co-Pilot reply over a Port, rendering it as it forms; on any failure fall back to the proven
   // non-stream request path (runTool with noStream=true), which renders the result OR the real error honestly.
-  function runCopilotStreaming(tool, out) {
+  function runCopilotStreaming(tool, out, onDone) {
     const stopProgress = startProgressCare(out, tool.label, ["Reading the conversation…", "Drafting your reply…"]);
     let port;
     try {
@@ -268,6 +268,7 @@
       settled = true;
       cleanup();
       renderResult(out, tool.label, reply || replyBeforeMarkerCare(acc), reasoning ? `<div class="rnote">Move: ${esc(reasoning)}</div>` : "");
+      if (onDone) onDone(); // terminal success → release the run latch (the fallback path releases via the request finally)
     };
     const fallback = () => {
       if (settled) return;
@@ -302,33 +303,53 @@
     }
   }
 
+  // One run at a time (mirror of the sales-panel fix). runTool is async and the tool buttons aren't disabled,
+  // so a rep double-clicking a slow tool would spawn two Ports / two concurrent LLM streams racing on #result
+  // AND double the metered spend. Latch on the PRIMARY entry only — the streaming fallback re-calls
+  // runTool(..., noStream=true) as a continuation of the same run, so it must NOT re-latch (that would deadlock
+  // the fallback); the request-path finally releases the latch the primary took.
+  let careToolBusy = false;
   async function runTool(tool, inputValue, noStream) {
     const out = $("result");
     if (!out) return;
+    const primary = !noStream;
+    if (primary) {
+      if (careToolBusy) return;
+      careToolBusy = true;
+    }
+    const release = () => {
+      careToolBusy = false;
+    };
     out.classList.remove("hide");
     if (!tool.endpoint) {
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>This tool isn't wired up yet — it's shipping in a later build phase.`;
+      if (primary) release();
       return;
     }
     if (!currentSelection) {
       out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div>Highlight the conversation on the page first, then click “Read my selected text”.`;
+      if (primary) release();
       return;
     }
     // Tools that grade/shape the AGENT's OWN words ask for them first (Coach: draft, Formulate: intent).
     if (tool.input && inputValue == null) {
       renderInputForm(out, tool);
+      if (primary) release(); // showing the form isn't a run — release so the form's submit can re-enter
       return;
     }
     // Co-Pilot streams the reply as it forms (perceived-speed fix). Falls back to the request path below on any
     // failure, so streaming can never break the working flow. Other tools use the request path directly.
     if (tool.key === "copilot" && !noStream && chrome.runtime && typeof chrome.runtime.connect === "function") {
-      runCopilotStreaming(tool, out);
+      runCopilotStreaming(tool, out, release); // stream owns the release (finishWith; or fallback → request finally)
       return;
     }
     out.innerHTML = `<div class="rlabel">${esc(tool.label)}</div><span class="spin"></span>Running…`;
 
-    let resp;
+    // Request path (primary-direct OR the noStream fallback continuation): the finally releases the run latch on
+    // EVERY exit (network catch, no-resp, 401/402/non-2xx, success), so a failure never wedges the panel busy.
     try {
+      let resp;
+      try {
       const msg = { type: "care-tool", endpoint: tool.endpoint, conversation: currentSelection };
       if (tool.input && inputValue) msg[tool.input.key] = inputValue;
       // Co-Pilot only: tell the server who spoke last so it picks reply-vs-follow-up mode. Scoped to
@@ -394,6 +415,9 @@
       renderResult(out, tool.label, data.reply, data.reasoning ? `<div class="rnote">Move: ${esc(data.reasoning)}</div>` : "");
     } else {
       renderResult(out, tool.label, data.summary || data.result || JSON.stringify(data, null, 2));
+    }
+    } finally {
+      release();
     }
   }
 
