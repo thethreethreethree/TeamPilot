@@ -157,6 +157,13 @@ describe("extension CORS architecture invariant", () => {
     expect(read("background.js")).toMatch(/onConnect[\s\S]*ALLOWED_ENDPOINT/);
   });
 
+  it("background.js ALWAYS disconnects the port when the reader loop ends (no hang on a done-less stream end)", () => {
+    // A stream that ends without a done/error event (server killed at the 60s cap, clean EOF) must still resolve
+    // the panel — the worker disconnects in a finally so the client's onDisconnect fires the fallback. Without
+    // this the panel hangs on "Drafting…" forever.
+    expect(read("background.js")).toMatch(/getReader\(\)[\s\S]*finally[\s\S]*port\.disconnect\(\)/);
+  });
+
   it("content.js streams the Co-Pilot and falls back to the request path on any failure", () => {
     const code = read("content.js");
     expect(code).toContain("runCopilotStreaming");

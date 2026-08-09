@@ -118,4 +118,12 @@ describe("Sales Coach worker — streaming Suggested Response (2026-08-09)", () 
     // The onConnect handler must gate message.endpoint on ALLOWED_ENDPOINT just like the JSON path.
     expect(BG).toMatch(/onConnect[\s\S]*ALLOWED_ENDPOINT/);
   });
+
+  it("ALWAYS disconnects the port when the reader loop ends (no hang on a done-less stream end)", () => {
+    // Terminal guarantee: a stream that ends without a done/error event (server killed at the 60s cap, clean
+    // EOF) must still resolve the panel — the worker disconnects in a finally so the client's onDisconnect fires
+    // the fallback. Without this the panel hangs on "Drafting…" forever. Detection: fails if the finally-disconnect
+    // is dropped.
+    expect(BG).toMatch(/getReader\(\)[\s\S]*finally[\s\S]*port\.disconnect\(\)/);
+  });
 });

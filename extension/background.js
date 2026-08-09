@@ -176,6 +176,16 @@ async function streamCareCopilot(endpoint, payload, port) {
     if (buffer.trim()) relayCareSseEvent(buffer, port);
   } catch {
     port.postMessage({ type: "error", error: "stream interrupted" });
+  } finally {
+    // Terminal guarantee: when the reader loop ends for ANY reason — normal done, a throw, OR a clean EOF where
+    // the server was killed before emitting done (e.g. the 60s function cap) — disconnect the port so the
+    // panel's onDisconnect fires the fallback. Without this, a stream that ends without a done/error event hangs
+    // the panel on "Drafting…" forever. If the client already got done + disconnected, this is a harmless no-op.
+    try {
+      port.disconnect();
+    } catch {
+      /* already gone */
+    }
   }
 }
 
