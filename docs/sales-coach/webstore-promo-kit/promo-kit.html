@@ -14,6 +14,7 @@
   .figcap { font-size:8.5pt; color:#6b6b74; margin-top:4px; font-family:ui-monospace,Consolas,monospace; }
   .prompt { background:#0f0f13; color:#e9e9ee; border-radius:10px; padding:14px 16px; font-family:ui-monospace,Consolas,"Courier New",monospace; font-size:9pt; line-height:1.55; white-space:pre-wrap; margin:8px 0; }
   .prompt .k { color:#f59e0b; font-weight:700; }
+  .plabel { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#b3760a; margin:8px 0 3px; }
   .card { border:1px solid #e6e6ea; border-radius:12px; padding:14px 16px; margin:12px 0; page-break-inside:avoid; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .lead { font-size:12pt; color:#3a3a42; }
@@ -41,7 +42,11 @@ used. Goal: a punchy 30-second promo + the store's required image assets.</p>
 <div class="note"><b>How the two tools split the work.</b> <span class="pill nb">Nano Banana 2</span> generates the
 still <b>store images</b> (screenshots + promo tiles) — feed it the matching reference image + its prompt.
 <span class="pill veo">VEO 3.1</span> generates the <b>video clips</b> — feed it the matching storyboard frame as
-a reference and its prompt, one clip per scene, then stitch the six clips into the 30-second promo.</p>
+a reference and its prompt, one clip per scene, then stitch the six clips into the 30-second promo.</div>
+
+<div class="note" style="border-color:#f59e0b;background:#fff2d6;"><b>➡ To copy-paste any prompt, open <span class="tag">prompts.md</span> in this folder.</b>
+It has every prompt below as plain text, one clean block each — far easier to select and copy than pulling text out
+of this PDF. Use this PDF to see each prompt beside its reference image; use <span class="tag">prompts.md</span> to copy.</div>
 
 <h3>What's in the <span class="tag">assets/</span> folder (your ingredients)</h3>
 <table>
@@ -107,37 +112,61 @@ Change only the background app and the highlighted feature.</p>
 
 <!-- ===================== VEO 3.1 ===================== -->
 <h2 class="pb"><span class="pill veo">VEO 3.1</span>&nbsp;&nbsp;4 · 30-second promo video (6 × 5s)</h2>
-<p>Generate <b>one ~5-second clip per scene</b> using the matching storyboard frame as a reference, then stitch
-the six in order. Consistent look every scene: dark, cinematic, amber accent, shallow depth of field, subtle
-motion. One music bed; a calm confident voice-over; on-screen text as specified. <b>No em dashes in any text.</b></p>
+<p><b>Each scene below is one complete prompt.</b> The shared style is already written into every block, so there's
+nothing to assemble: <b>copy a whole block, paste it into VEO 3.1, attach that scene's storyboard frame as the
+reference, and generate.</b> Do all six, then stitch them in order. <b>No em dashes in any text.</b></p>
 
-<div class="note"><b>Global style block</b> (prepend to every VEO prompt): <i>Modern, premium software promo. Clean
-desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle
-camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies.</i></div>
+<div class="note"><b>Easiest way to copy-paste:</b> open <span class="tag">prompts.md</span> in this same folder. It has
+these exact prompts as plain text (one clean block per scene) so you can select and copy without fighting PDF text
+selection. This page is the visual reference; <span class="tag">prompts.md</span> is the copy source.</div>
 
-<h3>Scene 1 — Hook <span class="muted">(0–5s)</span> · frame: <span class="tag">assets/veo-scene-1-storyboard.png</span></h3>
-<img src="assets/veo-scene-1-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>A salesperson at a laptop mid-conversation, leaning back, thinking about how to reply. Slow push-in on the screen showing an unanswered sales chat. Warm, human. <span class="k">On-screen text</span> (clean sans, fades in): "Every conversation has a next move." <span class="k">Audio:</span> soft ambient pad begins; a single warm piano note. <span class="k">VO:</span> "Every sales conversation has a next move."</div>
+<div class="card">
+  <h3>Scene 1 — Hook <span class="muted">(0–5s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-1-storyboard.png</span></p>
+  <img src="assets/veo-scene-1-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. A salesperson at a laptop mid-conversation, leaning back, thinking about how to reply. Slow push-in on the screen showing an unanswered sales chat. Warm, human. On-screen text (clean sans, fades in): "Every conversation has a next move." Audio: soft ambient pad begins; a single warm piano note. VO: "Every sales conversation has a next move."</div>
+</div>
 
-<h3>Scene 2 — Reveal <span class="muted">(5–10s)</span> · frame: <span class="tag">assets/veo-scene-2-storyboard.png</span></h3>
-<img src="assets/veo-scene-2-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>The dark "Sales Coach" panel slides in smoothly from the right and docks over the conversation on the laptop screen. Amber tool buttons catch the light. Confident, snappy motion. <span class="k">On-screen text:</span> "Meet Sales Coach." <span class="k">Audio:</span> a soft whoosh as the panel appears; the music adds a light beat. <span class="k">VO:</span> "Meet Sales Coach."</div>
+<div class="card">
+  <h3>Scene 2 — Reveal <span class="muted">(5–10s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-2-storyboard.png</span></p>
+  <img src="assets/veo-scene-2-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. The dark "Sales Coach" panel slides in smoothly from the right and docks over the conversation on the laptop screen. Amber tool buttons catch the light. Confident, snappy motion. On-screen text: "Meet Sales Coach." Audio: a soft whoosh as the panel appears; the music adds a light beat. VO: "Meet Sales Coach."</div>
+</div>
 
-<h3>Scene 3 — Read the room <span class="muted">(10–15s)</span> · frame: <span class="tag">assets/veo-scene-3-storyboard.png</span></h3>
-<img src="assets/veo-scene-3-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>Close-up on the panel. The "Prospect Intel" button highlights; a short read appears: where the deal stands, what's working, the next move. Gentle amber glow. <span class="k">On-screen text:</span> "See where the deal stands." <span class="k">VO:</span> "It reads the room, so you know exactly where the deal stands."</div>
+<div class="card">
+  <h3>Scene 3 — Read the room <span class="muted">(10–15s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-3-storyboard.png</span></p>
+  <img src="assets/veo-scene-3-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. Close-up on the panel. The "Prospect Intel" button highlights; a short read appears: where the deal stands, what's working, the next move. Gentle amber glow. On-screen text: "See where the deal stands." VO: "It reads the room, so you know exactly where the deal stands."</div>
+</div>
 
-<h3>Scene 4 — The reply <span class="muted">(15–22s)</span> · frame: <span class="tag">assets/veo-scene-4-storyboard.png</span></h3>
-<img src="assets/veo-scene-4-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>Tight on the panel as a charismatic reply <b>types itself in word by word</b>, an amber caret blinking, then the italic "Move:" line appears beneath it. The single most important shot: linger on the streaming text. <span class="k">On-screen text:</span> "A ready-to-send reply, in seconds." <span class="k">Audio:</span> soft key-click texture as it types; music lifts. <span class="k">VO:</span> "and hands you a reply that sounds like your best self, in seconds."</div>
+<div class="card">
+  <h3>Scene 4 — The reply <span class="muted">(15–22s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-4-storyboard.png</span></p>
+  <img src="assets/veo-scene-4-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1 (the hero shot — let it run a touch longer)</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. Tight on the panel as a charismatic reply types itself in word by word, an amber caret blinking, then the italic "Move:" line appears beneath it. The single most important shot: linger on the streaming text. On-screen text: "A ready-to-send reply, in seconds." Audio: soft key-click texture as it types; music lifts. VO: "and hands you a reply that sounds like your best self, in seconds."</div>
+</div>
 
-<h3>Scene 5 — Send <span class="muted">(22–27s)</span> · frame: <span class="tag">assets/veo-scene-5-storyboard.png</span></h3>
-<img src="assets/veo-scene-5-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>The rep copies the reply and sends it; a satisfied smile; a positive reply bubble appears. Momentum, warmth. <span class="k">On-screen text:</span> "Close with confidence." <span class="k">VO:</span> "Send with confidence, and keep the conversation moving."</div>
+<div class="card">
+  <h3>Scene 5 — Send <span class="muted">(22–27s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-5-storyboard.png</span></p>
+  <img src="assets/veo-scene-5-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. The rep copies the reply and sends it; a satisfied smile; a positive reply bubble appears. Momentum, warmth. On-screen text: "Close with confidence." VO: "Send with confidence, and keep the conversation moving."</div>
+</div>
 
-<h3>Scene 6 — CTA <span class="muted">(27–30s)</span> · frame: <span class="tag">assets/veo-scene-6-storyboard.png</span></h3>
-<img src="assets/veo-scene-6-storyboard.png" style="max-width:70%;">
-<div class="prompt"><span class="k">[Global style] </span>Clean end card on dark: the amber coach icon and "Sales Coach" animate in, then the line "Add to Chrome, free." An amber button pulses once. <span class="k">On-screen text:</span> "Sales Coach · Add to Chrome, free." <span class="k">Audio:</span> music resolves on a warm chord. <span class="k">VO:</span> "Sales Coach. Coach the conversation you're viewing."</div>
+<div class="card">
+  <h3>Scene 6 — CTA <span class="muted">(27–30s)</span></h3>
+  <p class="figcap">▸ Attach this frame as the reference in VEO 3.1: <span class="tag">assets/veo-scene-6-storyboard.png</span></p>
+  <img src="assets/veo-scene-6-storyboard.png" style="max-width:48%;">
+  <div class="plabel">Copy this whole block → VEO 3.1</div>
+  <div class="prompt">Modern, premium software promo. Clean desk, soft warm key light, dark moody background with a single amber accent. Shallow depth of field, gentle camera push-ins, smooth UI motion. 16:9, high detail, no text artifacts, no logos of real companies. Clean end card on dark: the amber coach icon and "Sales Coach" animate in, then the line "Add to Chrome, free." An amber button pulses once. On-screen text: "Sales Coach · Add to Chrome, free." Audio: music resolves on a warm chord. VO: "Sales Coach. Coach the conversation you're viewing."</div>
+</div>
 
 <h2 class="pb">5 · Assembly checklist</h2>
 <ul>
