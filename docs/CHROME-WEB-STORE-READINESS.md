@@ -112,3 +112,40 @@ per-permission justifications, data-use certification, privacy-policy URL) is **
    set the privacy-policy URL to `https://elostate.com/extension/privacy-sales`; submit.
 4. In parallel: decide the C.A.R.E `*://*/*` permission → I remove-or-justify + update the C.A.R.E doc → then
    submit C.A.R.E the same way (privacy URL `https://elostate.com/extension/privacy`).
+
+---
+
+## Post-publish: pin the extension IDs (exact steps, per extension)
+
+Do this **only after** the item is published and has a permanent Web Store ID. Each extension is
+independent — pin Sales when Sales publishes; pin C.A.R.E when C.A.R.E publishes.
+
+**Why the order matters (do NOT set the env early).** The `/extension/connect` page hands the session +
+long-lived refresh token to the extension that opens it. When the env id is **unset** (today), it hands off to
+*whatever* extension id opens the page — fine for sideloaded dev (per-install ids we can't predict), but
+unpinned. When the env id is **set**, the page hands off **only** to that exact id and refuses any other
+(`?ext=<malicious-id>` lures can't exfiltrate the token). So: set it to the published id and the handoff is
+locked; set it while still sideloading and every sideloaded install's id ≠ the pinned id → **sign-in breaks**.
+
+Steps (Sales shown; C.A.R.E identical with the C.A.R.E env var + id):
+
+1. **Publish** the item in the CWS Developer Dashboard. After review, it gets a permanent 32-char ID
+   (`abcdefghijklmnopabcdefghijklmnop`), shown on the item's dashboard page and in its store URL.
+2. **Copy that ID.**
+3. In **Vercel → Project → Settings → Environment Variables (Production)**, set:
+   - Sales: `NEXT_PUBLIC_SALES_EXTENSION_ID = <the published Sales id>`
+   - C.A.R.E: `NEXT_PUBLIC_CARE_EXTENSION_ID = <the published C.A.R.E id>`
+4. **Redeploy.** These are `NEXT_PUBLIC_*` vars → Next.js inlines them at **build time**, so the change does
+   **nothing** until a fresh production build ships. Trigger a redeploy (push, or Vercel → Redeploy).
+5. **Verify the pin (2 checks):**
+   - Install the **published** extension from the Web Store → click **Sign in** → it should connect silently
+     (token handoff succeeds because the opener id now matches the pinned id).
+   - Negative check: the connect page must **refuse** a mismatched id. In DevTools on `/extension/connect`,
+     a handoff attempt from any id other than the pinned one logs a refusal warning and does not send the token.
+6. **Leave the OTHER product's env var unset** until that product publishes — a set-but-wrong id refuses its
+   handoff. (The connect page keys each product to its own var; they don't interfere.)
+
+> Reference: the pin lives in [`src/app/extension/connect/page.tsx`](../src/app/extension/connect/page.tsx)
+> (`allowedExtId` from the per-product env var → `isExtensionHandoffAllowed`), guarded by the cross-artifact
+> test in `salesExtensionClientWiring.test.ts` (asserts the sales branch reads `NEXT_PUBLIC_SALES_EXTENSION_ID`,
+> not C.A.R.E's — a crossed ternary would misdirect the token).
