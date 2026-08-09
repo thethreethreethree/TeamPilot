@@ -87,4 +87,23 @@ describe("stripAiDashes — deterministic no-em-dash guarantee (founder 'make su
     expect(out.reasoning).toBe("warm open, built rapport");
     expect(out.reply).not.toMatch(/[—–]/);
   });
+
+  it("does NOT corrupt legitimate single-hyphen content (compounds, ranges, URLs, list markers, negatives)", () => {
+    // The corruption risk: an over-eager dash strip mangling real text. These MUST pass through untouched — only
+    // em/en/2+ dashes are AI-tells. Detection-true: fails if the regex ever widens to a single "-".
+    for (const s of [
+      "It's state-of-the-art, works Mon-Fri 9-5.",
+      "Save $5-10/mo on the pro-rated plan.",
+      "Check https://acme.com/a-b-c for the case-study.",
+      "- First point\n- Second point",
+      "Temp dropped to -5 overnight.",
+    ]) {
+      expect(stripAiDashes(s)).toBe(s);
+    }
+  });
+
+  it("collapses MULTIPLE em/en dashes in one message (all become commas)", () => {
+    expect(stripAiDashes("Option A — Option B — Option C")).toBe("Option A, Option B, Option C");
+    expect(stripAiDashes("A win-win — trust me, you'll love it.")).toBe("A win-win, trust me, you'll love it.");
+  });
 });
