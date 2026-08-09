@@ -9,6 +9,10 @@ straight into the tool, no PDF text-selection needed.
 - **Nano Banana 2 (images):** attach the named reference image from `assets/`, paste the prompt.
 - **VEO 3.1 (video):** attach the named storyboard frame from `assets/`, paste the prompt (the Global style block is already prepended to each scene). Generate one ~5s clip per scene, then stitch 1→6.
 
+**Two global reference ingredients** (attach alongside the per-asset reference wherever it helps hold the look):
+- `assets/nano-banana-ref-icon-512.png` — the amber coach icon lockup. Attach it for the small tile, the marquee, and VEO Scene 6 (end card) so the mark stays exact.
+- `assets/nano-banana-ref-brandkit.png` — the palette / voice / type sheet. Attach it to any generation you want kept on-brand.
+
 Reference images live in `assets/`. Keep everything on-brand: ink `#09090B`, surface `#141418`, amber `#f59e0b`, gold icon `#FACC15`, text `#e7e7ea`. Voice: charismatic, warm, confident. No em dashes in any generated copy.
 
 ---
