@@ -87,17 +87,17 @@ export async function POST(req: NextRequest) {
   const repName = await resolveRepName(user.userId);
   const guidance = (body.guidance ?? "").trim();
 
-  // Both deliveries assemble the request from the SAME buildRequest helpers the engines use (§A21) — the
-  // prompt can't drift between the stream and non-stream surfaces.
-  const { systemPrompt, userMessage } = guidance
-    ? buildSalesFormulateRequest({ conversation: body.conversation, intent: guidance, repName })
-    : buildSalesCopilotRequest({ conversation: body.conversation, repName, lastSpeaker: body.lastSpeaker });
-
   // ── Streaming delivery ────────────────────────────────────────────────────────────────────────────────
   // The reply forms word-by-word in the panel. We stream the raw content deltas; the client shows everything
   // before the ===REASONING=== marker as the forming reply and captures the move after it. On done we also
   // send the server-split {reply, reasoning} so the client has a clean final render even if it split loosely.
   if (body.stream) {
+    // Assembled from the SAME buildRequest helpers the engines use (§A21) so the prompt can't drift between
+    // the stream and non-stream surfaces. Built HERE (not above) so the non-stream path — which rebuilds the
+    // prompt inside its engine — doesn't assemble the ~5k-token prompt twice on its hot path.
+    const { systemPrompt, userMessage } = guidance
+      ? buildSalesFormulateRequest({ conversation: body.conversation, intent: guidance, repName })
+      : buildSalesCopilotRequest({ conversation: body.conversation, repName, lastSpeaker: body.lastSpeaker });
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
