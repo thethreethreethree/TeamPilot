@@ -61,6 +61,13 @@ export async function fetchWithTimeout(
         kind: "timeout",
         message: `Request to ${args.provider} timed out after ${args.timeoutMs}ms`,
         provider: args.provider,
+        // NON-retryable (founder decision 2026-08-09): this is OUR client-side AbortController firing because the
+        // provider is already slow — retrying just restarts the full timeout, and timeout(45s) × 2 attempts
+        // exceeds a 60s function maxDuration, so the serverless function is KILLED mid-retry → a cryptic 504 the
+        // caller can't parse ("something went wrong") instead of a graceful "timed out, try again". Failing on
+        // the first timeout returns a real LlmError message within budget. (Provider-RETURNED 408/504 timeouts,
+        // mapped in kindFromStatus, stay retryable — those can be transient; only our own abort is futile to retry.)
+        retryable: false,
       });
     }
     throw new LlmError({

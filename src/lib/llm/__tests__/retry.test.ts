@@ -1,6 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { withRetry } from "../retry";
+import { withRetry, fetchWithTimeout } from "../retry";
 import { LlmError } from "../errors";
+
+describe("fetchWithTimeout — client-side timeout is NON-retryable", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("a client-abort timeout throws kind='timeout' with retryable=false", async () => {
+    // WHY (founder decision 2026-08-09): our AbortController firing means the provider is already slow; retrying
+    // just restarts the full timeout, and timeout(45s) x 2 attempts overruns a 60s function maxDuration → the
+    // serverless fn is killed mid-retry → a cryptic 504 the client can't parse. Failing on the first timeout
+    // returns a graceful LlmError instead. Detection-true: fails on the pre-fix default (timeout → retryable=true).
+    const abortErr = Object.assign(new Error("aborted"), { name: "AbortError" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abortErr));
+    await expect(
+      fetchWithTimeout("https://api.example.com", {}, { timeoutMs: 10, provider: "deepseek" })
+    ).rejects.toMatchObject({ kind: "timeout", retryable: false });
+  });
+
+  it("a NON-timeout fetch rejection maps to a retryable 'network' error (unchanged)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNRESET")));
+    await expect(
+      fetchWithTimeout("https://api.example.com", {}, { timeoutMs: 10, provider: "deepseek" })
+    ).rejects.toMatchObject({ kind: "network", retryable: true });
+  });
+});
 
 describe("withRetry", () => {
   beforeEach(() => {
