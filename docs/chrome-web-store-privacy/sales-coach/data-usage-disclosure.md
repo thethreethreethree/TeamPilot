@@ -19,7 +19,8 @@ certification. Check ONLY the categories below; leave the rest unchecked._
   DeepSeek, `api.deepseek.com`)** to generate the coaching result, then returns the result.
 - **Stored:** **not stored.** Processed to produce the result and discarded. The Sales Coach extension has no
   save/Capture feature — every tool is processed-and-discarded.
-- **Shared with:** the AI sub-processor (DeepSeek) only, and only to generate the requested result.
+- **Shared with:** the AI sub-processor (DeepSeek) only, and only to generate the requested result; the
+  sub-processor does not retain the text.
 
 ### ☑ Website content
 - **What:** the on-page text the user selects or the site adapter reads on the active tab (this is how the

@@ -28,8 +28,9 @@ you have not selected and submitted to a tool.
 ## How it's used, and who it's shared with
 The conversation text is sent to our backend (`elostate.com`, authenticated by your session token) and from
 there **transmitted to our third-party AI provider (currently DeepSeek) — a sub-processor — solely to generate
-the coaching result.** It is used for no other purpose. We do **not** sell your data, use it for advertising,
-use it for creditworthiness decisions, transfer it to data brokers, or use it to train our own models.
+the coaching result. The provider does not retain the text.** It is used for no other purpose. We do **not** sell
+your data, use it for advertising, use it for creditworthiness decisions, transfer it to data brokers, or use it
+to train our own models.
 
 ## How it's stored and secured
 The session/refresh token lives only in on-device extension storage. Conversation text is **processed to produce
@@ -37,8 +38,8 @@ the result and then discarded** — the Sales Coach extension has no save path; 
 persisted by us. Traffic is over HTTPS.
 
 ## Retention
-Conversation text: not retained (processed and discarded per request). Auth tokens: retained on your device
-until you sign out or remove the extension.
+Conversation text: not retained — neither by us (processed and discarded per request) nor by our AI provider.
+Auth tokens: retained on your device until you sign out or remove the extension.
 
 ## Your choices — access, correction, deletion
 Because conversation text is not stored, there is nothing to access, correct, or delete for it. To remove the

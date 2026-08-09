@@ -81,7 +81,7 @@ export default function SalesExtensionPrivacyPage() {
               <li>We don&apos;t sell your data, use it for advertising, or use it to train models.</li>
               <li>
                 The only third party your submitted text reaches is our AI provider (a sub-processor), and only to
-                generate the result you asked for.
+                generate the result you asked for — the provider does not retain it.
               </li>
               <li>We don&apos;t track your browsing history or the sites you visit.</li>
               <li>We don&apos;t read or collect anything you haven&apos;t submitted to a tool.</li>

@@ -32,7 +32,8 @@ background, and we do not read anything you have not selected and submitted.
 ## How it's used, and who it's shared with
 Conversation text is sent to our backend (`elostate.com`, authenticated by your session token) and from there
 **transmitted to our third-party AI provider (currently DeepSeek) — a sub-processor — solely to generate the
-result.** Captured conversations are saved to **your own C.A.R.E workspace**, visible only to your team; captured
+result. The provider does not retain the text.** Captured conversations are saved to **your own C.A.R.E
+workspace**, visible only to your team; captured
 image bytes are uploaded directly to a signed storage URL on your workspace's storage provider (Supabase). We do
 **not** sell your data, use it for advertising, use it for creditworthiness decisions, transfer it to data
 brokers, or use it to train our own models.
@@ -44,9 +45,9 @@ stored privately in your workspace. Traffic is over HTTPS; media uploads use per
 storage host.
 
 ## Retention
-Tool conversation text: not retained (processed and discarded per request). Captured conversations: kept in your
-workspace per your workspace's retention policy. Auth tokens: retained on your device until you sign out or
-remove the extension.
+Tool conversation text: not retained — neither by us (processed and discarded per request) nor by our AI
+provider. Captured conversations: kept in your workspace per your workspace's retention policy. Auth tokens:
+retained on your device until you sign out or remove the extension.
 
 ## Your choices — access, correction, deletion
 Tool conversation text isn't stored, so there is nothing to access or delete for it. Captured conversations live

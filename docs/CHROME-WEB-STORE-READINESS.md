@@ -48,7 +48,8 @@ per-permission justifications, data-use certification, privacy-policy URL) is **
   pages ([`/extension/privacy`](../src/app/extension/privacy/page.tsx),
   [`/extension/privacy-sales`](../src/app/extension/privacy-sales/page.tsx)) now accurately disclose the AI
   sub-processor and say only what's verifiable (we don't sell / advertise / train on it; the backend doesn't
-  retain it). **No unverifiable claim about DeepSeek's own retention was added** — see the founder item below.
+  retain it). The docs also state the **AI provider does not retain the text** (founder-confirmed 2026-08-09:
+  DeepSeek does not retain data).
 
 ### 🟠 C.A.R.E — heavier review, now documented (blocker downgraded after verification)
 - **`optional_host_permissions: ["*://*/*"]` is FUNCTIONAL — keep + justify, do NOT remove.** Verified 2026-08-09:
@@ -72,8 +73,9 @@ per-permission justifications, data-use certification, privacy-policy URL) is **
 - **Store listing assets (images — must be created, can't be code):** at least **one screenshot** (1280×800 or
   640×400) per extension; the 128×128 icon is already in the package; a 440×280 promo tile is optional but helps.
 - **Legal sign-off on the privacy wording.** I made the copy *accurate* (removed the false claim, disclosed the
-  sub-processor). You own the final legal call — in particular, do NOT add any claim that DeepSeek itself does
-  not retain the text unless your DeepSeek DPA says so. The current wording deliberately avoids that.
+  sub-processor, and — per your 2026-08-09 confirmation — stated the AI provider does not retain the text). You
+  own the final legal call; if you ever switch AI providers, re-confirm the non-retention claim holds for the new
+  provider before keeping it.
 - **Version bump on each re-upload** (both are `0.1.0` / `0.3.0` today; CWS rejects a re-upload with an
   unchanged version).
 

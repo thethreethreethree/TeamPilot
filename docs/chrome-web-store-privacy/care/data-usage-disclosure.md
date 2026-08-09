@@ -18,7 +18,8 @@ certification. C.A.R.E collects one more category than Sales Coach because of th
   DeepSeek, `api.deepseek.com`)** to generate the result.
 - **Stored:** **not stored for the tools** (processed to produce the result, then discarded) — UNLESS the user
   uses **Capture** (see User-generated content).
-- **Shared with:** the AI sub-processor (DeepSeek) only, to generate the requested result.
+- **Shared with:** the AI sub-processor (DeepSeek) only, to generate the requested result; the sub-processor
+  does not retain the text.
 
 ### ☑ Website content
 - **What:** the on-page text and, for Capture, images the user selects/points the panel at on the active tab.
