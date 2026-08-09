@@ -58,11 +58,13 @@ export default function ExtensionPrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-primary mb-2">What we do with it</h2>
             <p>
-              For the <strong className="text-primary">tools</strong>, the text is sent to the C.A.R.E backend to
-              generate the output, grounded in your own workspace. It is <strong className="text-primary">not
-              written to any database, not used to train models, and not retained after the request
-              completes</strong> — unless you explicitly choose to save a result (for example, spawning a task, or
-              using Capture), in which case what you saved is stored in your own C.A.R.E workspace.
+              For the <strong className="text-primary">tools</strong>, the text is sent to the C.A.R.E backend,
+              which uses a <strong className="text-primary">third-party AI provider (a sub-processor)</strong> to
+              generate the output, grounded in your own workspace. C.A.R.E does <strong className="text-primary">not
+              write it to any database and does not retain it after the request completes</strong>, and it is not
+              used to train C.A.R.E&apos;s own models — unless you explicitly choose to save a result (for example,
+              spawning a task, or using Capture), in which case what you saved is stored in your own C.A.R.E
+              workspace.
             </p>
           </section>
 
@@ -82,7 +84,11 @@ export default function ExtensionPrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-primary mb-2">What we don&apos;t do</h2>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li>We don&apos;t sell or share your data with third parties.</li>
+              <li>We don&apos;t sell your data, use it for advertising, or use it to train models.</li>
+              <li>
+                The only third party your submitted text reaches is our AI provider (a sub-processor), and only to
+                generate the result you asked for.
+              </li>
               <li>We don&apos;t track your browsing history or the sites you visit.</li>
               <li>We don&apos;t read or collect anything you haven&apos;t selected and submitted to a tool.</li>
             </ul>

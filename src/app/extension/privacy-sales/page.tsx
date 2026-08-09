@@ -65,9 +65,11 @@ export default function SalesExtensionPrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-primary mb-2">What we do with it</h2>
             <p>
-              The conversation text is sent to the backend to generate the coaching output, grounded in the sales
-              methodology. It is <strong className="text-primary">not written to any database, not used to train
-              models, and not retained after the request completes</strong>. The Sales Coach extension has no
+              The conversation text is sent to the backend, which uses a{" "}
+              <strong className="text-primary">third-party AI provider (a sub-processor)</strong> to generate the
+              coaching output, grounded in the sales methodology. The backend does{" "}
+              <strong className="text-primary">not write it to any database and does not retain it after the request
+              completes</strong>, and it is not used to train our own models. The Sales Coach extension has no
               feature that saves your conversations — every tool is processed-and-discarded.
             </p>
           </section>
@@ -76,7 +78,11 @@ export default function SalesExtensionPrivacyPage() {
             <h2 className="text-lg font-bold text-primary mb-2">What we don&apos;t do</h2>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>We don&apos;t store the conversations you run through the tools.</li>
-              <li>We don&apos;t sell or share your data with third parties.</li>
+              <li>We don&apos;t sell your data, use it for advertising, or use it to train models.</li>
+              <li>
+                The only third party your submitted text reaches is our AI provider (a sub-processor), and only to
+                generate the result you asked for.
+              </li>
               <li>We don&apos;t track your browsing history or the sites you visit.</li>
               <li>We don&apos;t read or collect anything you haven&apos;t submitted to a tool.</li>
             </ul>
