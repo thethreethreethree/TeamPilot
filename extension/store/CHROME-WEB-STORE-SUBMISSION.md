@@ -84,14 +84,17 @@ screen, powered by your C.A.R.E account.*
 the strongest single shot. (At least one is required.)
 
 ## 5b. Security hardening before Public (do at publish time)
-Once the extension has a **fixed published id**, pin it in the connect handoff. Today `/extension/connect?ext=<id>`
-auto-sends the user's session to whatever extension id is in the URL. Attack (high bar): a malicious extension
-that (a) is already installed and (b) declared `externally_connectable` for elostate.com could receive the token
-if a logged-in user is lured to a crafted `?ext=<attacker_id>` URL. Since a malicious installed extension is
-already a severe compromise, this is low marginal risk — but the fix is cheap and a reviewer may flag it:
-- After publishing, add the published extension id to an allowlist in `src/app/extension/connect/page.tsx`, and
-  only auto-send when `ext` matches (unknown ids → show the manual copy fallback instead of auto-sending).
-- The id is random for the unpacked dev build, so this can only be pinned once the store id exists.
+The pin is **already built** — you do NOT write code. `/extension/connect` reads `allowedExtId` from
+`NEXT_PUBLIC_CARE_EXTENSION_ID` and, when it's set, hands the token off **only** to that exact extension id
+(`isExtensionHandoffAllowed` refuses any other, so a lure to `?ext=<attacker_id>` cannot exfiltrate the token).
+When the env id is unset (unpacked dev, per-install ids we can't predict), it hands off + warns (dev posture).
+So the only publish-time action is to set the env var to the published id:
+- After publishing, set `NEXT_PUBLIC_CARE_EXTENSION_ID` = the store id in production, then **redeploy** (it's a
+  `NEXT_PUBLIC_*` var, inlined at build time, so it takes effect only on a fresh build).
+- Do this only AFTER publishing — a set-but-wrong id makes the connect page REFUSE the handoff, breaking sign-in
+  on every sideloaded install (their id ≠ the pinned id).
+- Full ordered steps + the positive/negative verify checks: see
+  [`docs/CHROME-WEB-STORE-READINESS.md`](../../docs/CHROME-WEB-STORE-READINESS.md) → "Post-publish: pin the extension IDs".
 
 ## 6. Visibility
 Start **Unlisted** for beta (installable by direct link, no public search) until the load-test + a real-account
