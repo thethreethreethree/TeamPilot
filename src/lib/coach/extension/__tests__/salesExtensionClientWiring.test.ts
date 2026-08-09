@@ -30,12 +30,12 @@ describe("Sales Coach extension content.js — clean port + correct protocol", (
   });
 
   it("renders each tool's server result shape", () => {
-    // Post-merge tools: dissect → {dissect}, summarize → {summary}, suggested → {reply, reasoning}.
-    // (coach's {coaching} branch was removed in the 2026-08-09 cleanup when the coach route was deleted.)
+    // Post-merge tools: dissect (Prospect Intel) → {dissect}, suggested → {reply, reasoning}.
+    // The coach {coaching} and summarize {summary} branches were removed with their routes (2026-08-09).
     expect(CONTENT).toContain("data.dissect");
-    expect(CONTENT).toContain("data.summary");
     expect(CONTENT).toContain("data.reply");
     expect(CONTENT).not.toContain("data.coaching"); // dead branch removed
+    expect(CONTENT).not.toContain("data.summary"); // summarize tool removed (merged into Prospect Intel)
   });
 
   it("has a universal fallback extractor wired into capture (auto-capture works on ANY site, e.g. Instagram)", () => {

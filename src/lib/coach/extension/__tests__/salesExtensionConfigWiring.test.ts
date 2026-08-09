@@ -23,10 +23,10 @@ const endpoints = Array.from(CONFIG.matchAll(/endpoint:\s*"([^"]+)"/g))
   .filter((x): x is string => Boolean(x));
 
 describe("Sales Coach extension config — tool→route wiring", () => {
-  it("declares the core tools (summarize, dissect, suggested)", () => {
-    // Was 5 tools; Coach-my-reply / Draft-my-reply / Say-it-for-me merged into one "Suggested Response"
-    // (2026-08-09), so the surfaced set is summarize + dissect + suggested = 3.
-    expect(endpoints.length).toBeGreaterThanOrEqual(3);
+  it("declares the core tools (Prospect Intel + Suggested Response)", () => {
+    // 2026-08-09 merges: Coach/Draft/Say-it-for-me → "Suggested Response"; Catch-me-up + Read-the-room →
+    // "Prospect Intel" (the dissect engine). Surfaced set is dissect(Prospect Intel) + suggested = 2.
+    expect(endpoints.length).toBeGreaterThanOrEqual(2);
   });
 
   it.each(endpoints)("endpoint %s maps to a built route.ts (no dead tool)", (endpoint) => {
@@ -59,9 +59,9 @@ describe("Sales Coach extension config — reverse drift: no orphan tool route (
     .filter((d) => d.isDirectory() && existsSync(join(ROUTES_DIR, d.name, "route.ts")))
     .map((d) => `/api/coach/extension/${d.name}`);
 
-  it("finds the built routes (summarize, dissect, suggest tools + extract + refresh infra)", () => {
-    // Post-cleanup: summarize, dissect, suggest (tools) + extract, refresh (non-tool infra) = 5.
-    expect(routeEndpoints.length).toBeGreaterThanOrEqual(5);
+  it("finds the built routes (dissect, suggest tools + extract, refresh infra)", () => {
+    // Post-merge: dissect(Prospect Intel), suggest (tools) + extract, refresh (non-tool infra) = 4.
+    expect(routeEndpoints.length).toBeGreaterThanOrEqual(4);
   });
 
   it.each(routeEndpoints)(

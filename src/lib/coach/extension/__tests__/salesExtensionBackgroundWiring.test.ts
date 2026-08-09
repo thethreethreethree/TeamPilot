@@ -50,7 +50,7 @@ describe("Sales Coach extension worker — endpoint allowlist (security)", () =>
     expect(allow).not.toBeNull();
   });
 
-  const tools = ["dissect", "summarize", "suggest", "extract"].map(
+  const tools = ["dissect", "suggest", "extract"].map(
     (k) => `/api/coach/extension/${k}`
   );
   it.each(tools)("allows the real tool endpoint %s", (endpoint) => {

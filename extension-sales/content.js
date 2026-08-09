@@ -29,6 +29,10 @@
   // Working text for the tools + who spoke last (drives the co-pilot reply/follow-up mode).
   let currentSelection = "";
   let lastSpeaker = null; // "agent" | "customer" | null(unknown)
+  // True when the current text came from an UPLOADED file (not the page). Tools re-capture the page before
+  // running (so there's no manual "Capture" button — capture is automatic + fresh), but MUST NOT clobber an
+  // upload with the page content, so the re-capture is skipped while this is set.
+  let capturedFromUpload = false;
 
   const MAX_CHARS = 20000;
   const setSelection = (text, who) => {
@@ -61,8 +65,10 @@
     }
   };
 
-  // Read the open conversation: prefer a per-site adapter (adapters.js), else the user's manual selection.
+  // Read the open conversation: prefer a per-site adapter (adapters.js), else the universal reader, else the
+  // user's manual selection. Always a PAGE capture → clear the upload flag.
   function captureConversation() {
+    capturedFromUpload = false;
     const adapter =
       typeof salesAdapterFor === "function" ? salesAdapterFor(location.hostname) : null;
     if (adapter && typeof adapter.extract === "function") {
@@ -154,6 +160,7 @@
     }
     // Uploaded conversation → lastSpeaker unknown (server determines). setSelection shows the preview + trims.
     setSelection(resp.data.text, null);
+    capturedFromUpload = true; // so a tool run won't re-capture the PAGE over this upload
   }
 
   const esc = (s) =>
@@ -166,9 +173,6 @@
     if (!data) return `<p class="sc-muted">No response.</p>`;
     if (data.error) return `<p class="sc-err">${esc(data.error)}</p>`;
 
-    if (toolKey === "summarize") {
-      return data.summary ? `<p>${esc(data.summary)}</p>` : `<p class="sc-muted">Nothing to summarize.</p>`;
-    }
     if (toolKey === "dissect") {
       const d = data.dissect || {};
       if (!d.hasSignal) return `<p class="sc-muted">Not enough here to read yet.</p>`;
@@ -235,8 +239,11 @@
       chrome.runtime.sendMessage({ type: "open-connect" });
       return;
     }
+    // Auto-capture is seamless (no manual Capture button): refresh the PAGE read on every run so the tool acts
+    // on the CURRENT conversation. Skip when the rep uploaded a file, so we don't clobber their upload.
+    if (!capturedFromUpload) captureConversation();
     if (!currentSelection.trim()) {
-      out.innerHTML = `<p class="sc-muted">Highlight the conversation (or open a supported site) and press Capture first.</p>`;
+      out.innerHTML = `<p class="sc-muted">Couldn't read the conversation on this page. Highlight the thread, or use “Upload conversation”.</p>`;
       return;
     }
     out.innerHTML = `<p class="sc-muted">Thinking…</p>`;
@@ -323,11 +330,10 @@
       </div>
       <div class="sc-body">
         <div class="sc-row">
-          <button class="sc-cap" id="sc-capture">Capture conversation</button>
           <button class="sc-cap" id="sc-upload" title="Upload a PDF/DOCX/TXT export of the conversation">Upload conversation</button>
           <input type="file" id="sc-file" accept=".pdf,.txt,.docx,.md" style="display:none" />
         </div>
-        <div class="sc-selinfo" id="sc-selinfo">No conversation captured yet</div>
+        <div class="sc-selinfo" id="sc-selinfo">Reading the conversation…</div>
         <div class="sc-row" id="sc-tools">${toolButtons}</div>
         <div id="sc-inputwrap"></div>
         <div class="sc-out" id="sc-out"></div>
@@ -335,7 +341,6 @@
     </div>`;
 
   root.getElementById("sc-close").addEventListener("click", () => host.remove());
-  root.getElementById("sc-capture").addEventListener("click", captureConversation);
   // Upload conversation: a hidden file input opened by the button; the change handler does the extract round-trip.
   root.getElementById("sc-upload").addEventListener("click", () => root.getElementById("sc-file").click());
   root.getElementById("sc-file").addEventListener("change", handleUpload);

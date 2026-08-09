@@ -21,8 +21,11 @@ if (!globalThis.__salesCoachConfigLoaded) {
   // textarea for those before running; the others run on the scanned conversation alone. The
   // salesExtensionConfigWiring test asserts every endpoint here maps to a real route.ts (no dead tool).
   globalThis.SALES_TOOLS = [
-    { key: "summarize", label: "Catch me up", desc: "Where this deal stands", endpoint: "/api/coach/extension/summarize" },
-    { key: "dissect", label: "Read the room", desc: "What's working + the next move", endpoint: "/api/coach/extension/dissect" },
+    // "Prospect Intel" (2026-08-09) merges the former Catch-me-up + Read-the-room into ONE read tool. It uses
+    // the dissect engine, which already returns where-the-deal-stands (its `summary`) PLUS what's-working, the
+    // opportunity, the next move, and a guiding question — the fullest single read. The separate summarize tool
+    // (+ its route/engine) was removed as redundant.
+    { key: "dissect", label: "Prospect Intel", desc: "Where the deal stands + what's working + the next move", endpoint: "/api/coach/extension/dissect" },
     // "Suggested Response" (2026-08-09) merges the former Coach-my-reply / Draft-my-reply / Say-it-for-me into
     // ONE action. The guidance box is OPTIONAL (`optional: true`): blank → the server drafts from the
     // conversation (co-pilot engine); filled → it shapes your draft/intent (formulate engine). Both return a
