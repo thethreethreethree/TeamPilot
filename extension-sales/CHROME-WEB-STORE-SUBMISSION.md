@@ -58,12 +58,12 @@ traffic goes to `elostate.com`.
 - **What is stored:** the session token + refresh token (auth) and an optional API-base setting, in
   `chrome.storage.local`. **Conversation text is processed to produce the result and then discarded — not
   persisted by us.** The Sales Coach extension has NO save path (unlike C.A.R.E's Capture) — it is ephemeral
-  on our side. (Whether the AI provider retains it is governed by their terms — confirm your DeepSeek DPA.)
+  on our side. The AI provider does not retain it either (founder-confirmed 2026-08-09).
 - **Not collected / not done:** no browsing history, no analytics, no ads, and we don't SELL your data or
   transfer it to any third party for that party's OWN purposes. The only transmission is to our AI provider,
   solely to produce the result you asked for.
-- **Privacy policy URL:** `https://elostate.com/extension/privacy-sales` (live) — see F1: its "no third-party
-  sharing" line needs the same sub-processor disclosure before launch.
+- **Privacy policy URL:** `https://elostate.com/extension/privacy-sales` (live; corrected 2026-08-09 — it now
+  discloses the AI sub-processor and provider non-retention, and the old "no third-party sharing" line is gone).
 
 ## 5. Store listing copy — DRAFT (founder to review/replace)
 **Name:** Sales Coach — coach the sales conversation you're viewing

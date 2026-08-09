@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "How the C.A.R.E browser extension handles your data: it processes only the text you select, to run a tool, and does not store it.",
 };
 
-const UPDATED = "July 22, 2026";
+const UPDATED = "August 9, 2026";
 
 export default function ExtensionPrivacyPage() {
   return (
@@ -62,9 +62,9 @@ export default function ExtensionPrivacyPage() {
               which uses a <strong className="text-primary">third-party AI provider (a sub-processor)</strong> to
               generate the output, grounded in your own workspace. C.A.R.E does <strong className="text-primary">not
               write it to any database and does not retain it after the request completes</strong>, and it is not
-              used to train C.A.R.E&apos;s own models — unless you explicitly choose to save a result (for example,
-              spawning a task, or using Capture), in which case what you saved is stored in your own C.A.R.E
-              workspace.
+              used to train C.A.R.E&apos;s own models — unless you explicitly use <strong className="text-primary">Capture</strong>,
+              which saves the conversation to your own C.A.R.E workspace. (Other tools, including drafting a task
+              to spawn, only return a result for you to act on; they do not save anything.)
             </p>
           </section>
 

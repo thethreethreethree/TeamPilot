@@ -73,7 +73,7 @@ screen, powered by your C.A.R.E account.*
 > Click the C.A.R.E icon and a panel opens on the page. Point it at the open thread (or highlight any text) and:
 > • **Summarize** — catch up on a long thread in seconds.
 > • **Dissect** — surface the real underlying problem, not just the last message.
-> More tools (Ask Coach, AI Co-pilot) are rolling out.
+> • **Ask Coach** — grade a draft reply against the books. • **AI Co-Pilot** — draft the next reply, with the move named.
 >
 > The panel stays open while you work, minimizes to a bubble, and closes with one click. We only read the text
 > you point us at, and we don't store your conversations.

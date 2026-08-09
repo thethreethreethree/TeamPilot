@@ -22,8 +22,9 @@ or the panel read from the page is sent to our backend to generate the result.
 
 ## How it's collected
 Only when you act: the panel reads the active page's conversation when you click the toolbar icon and run a tool
-(or when you highlight text and run a tool). We do not read pages in the background, and we do not read anything
-you have not selected and submitted to a tool.
+(or when you highlight text and run a tool), or it reads a chat export (PDF/DOCX/TXT) you choose to submit via
+**Upload conversation** — the service extracts that file's text to run the tool. We do not read pages in the
+background, and we do not read anything you have not selected and submitted to a tool.
 
 ## How it's used, and who it's shared with
 The conversation text is sent to our backend (`elostate.com`, authenticated by your session token) and from

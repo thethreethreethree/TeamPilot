@@ -7,9 +7,10 @@ import type { Metadata } from "next";
  * chrome-web-store-publishing.md, section 5). Mirrors the C.A.R.E extension privacy page's approved structure, but
  * states the Sales Coach extension's ACTUAL behavior, which is FULLY ephemeral: unlike C.A.R.E (whose Capture
  * saves to the workspace), the Sales Coach extension has no save/store path — every tool processes the text
- * and discards it. Verified 2026-08-08: all 5 tool routes are documented "processed and NOT stored", the
- * engines persist nothing (the only DB read is the rep's own profile name for attribution), and the extension
- * stores only the auth token locally. Public + indexable (a store-linked policy must be reachable).
+ * and discards it. Verified 2026-08-09: the tool routes (Prospect Intel / Suggested Response) plus the
+ * conversation-upload route are all documented "processed and NOT stored", the engines persist nothing (the only
+ * DB read is the rep's own profile name for attribution), and the extension stores only the auth token locally.
+ * Public + indexable (a store-linked policy must be reachable).
  *
  * FOUNDER/LEGAL REVIEW: this is a legally-significant document — review the wording before it is the official
  * store-listing policy. It describes verified behavior, but the founder owns the final text.
@@ -37,8 +38,8 @@ export default function SalesExtensionPrivacyPage() {
             <h2 className="text-lg font-bold text-primary mb-2">The short version</h2>
             <p>
               The Sales Coach extension reads a conversation only when you click a tool, and only the
-              conversation you point it at. The <strong className="text-primary">tools</strong> (Read the room,
-              Coach my reply, Catch me up, Draft my reply, Say it for me) send that text to the service to produce
+              conversation you point it at. The <strong className="text-primary">tools</strong> (Prospect Intel and
+              Suggested Response) send that text to the service to produce
               the result you asked for and <strong className="text-primary">do not store it</strong> — it&apos;s
               processed and discarded when the request completes. There is no &ldquo;save&rdquo; step: nothing you
               run through the extension is kept.
@@ -51,8 +52,10 @@ export default function SalesExtensionPrivacyPage() {
               <li>
                 <strong className="text-primary">The open conversation, only when you ask.</strong> When you run
                 a tool, the extension reads the conversation on the active tab — either the open thread on a
-                supported site, or the text you highlighted. It does not read pages in the background, does not
-                track your browsing, and does not scan anything you haven&apos;t asked it to.
+                supported site, or the text you highlighted — or, if you use{" "}
+                <strong className="text-primary">Upload conversation</strong>, a chat export (PDF/DOCX/TXT) you
+                choose to upload, whose text the service extracts to run the tool. It does not read pages in the
+                background, does not track your browsing, and does not scan anything you haven&apos;t asked it to.
               </li>
               <li>
                 <strong className="text-primary">Your account session.</strong> A sign-in token is stored locally
