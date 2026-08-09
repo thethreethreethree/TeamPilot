@@ -381,11 +381,15 @@ export async function appendCue(args: {
 /** Read a session (RLS-scoped — caller must be in the same company). */
 export async function getSession(sessionId: string): Promise<SalesSession | null> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_sessions")
     .select("*")
     .eq("id", sessionId)
     .maybeSingle();
+  // Classify: `null` means the session genuinely doesn't exist (routes 404). A transient error must NOT collapse
+  // to null → a false 404 that makes a live coaching session look deleted (error-as-no-data, INV22 / §3.4).
+  // Throw so the route surfaces a 500. Fail-closed: a throw denies, never grants.
+  if (error) throw new Error(`Failed to load the coaching session: ${error.message}`);
   return data ? mapSession(data) : null;
 }
 
@@ -394,11 +398,14 @@ export async function getSessionTranscript(
   sessionId: string
 ): Promise<TranscriptSegment[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_transcript_segments")
     .select("*")
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });
+  // Throw on a transient read error — an EMPTY transcript on error is error-as-no-data (INV22 / §3.4), and it's
+  // acute here: review/dissect/summarize routes would generate a coaching review from NOTHING and persist it.
+  if (error) throw new Error(`Failed to load the session transcript: ${error.message}`);
   return (data ?? []).map(mapSegment);
 }
 
@@ -410,11 +417,14 @@ export async function getSessionTranscriptAdmin(
   sessionId: string
 ): Promise<TranscriptSegment[]> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_transcript_segments")
     .select("*")
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });
+  // Same as the RLS variant: throw on error so the skills/backfill caller doesn't compute over an empty
+  // transcript and persist a false result (error-as-no-data, INV22 / §3.4).
+  if (error) throw new Error(`Failed to load the session transcript: ${error.message}`);
   return (data ?? []).map(mapSegment);
 }
 
