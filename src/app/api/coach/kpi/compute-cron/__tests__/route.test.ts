@@ -45,6 +45,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         const chain: Record<string, unknown> = {};
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.in = () => chain;
         chain.limit = () => chain;
         chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
@@ -65,6 +66,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         let limited = false;
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.eq = () => chain;
         chain.in = () => chain;
         chain.delete = () => chain;
@@ -126,6 +128,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         let limited = false;
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.eq = () => chain;
         chain.in = () => chain;
         chain.delete = () => chain;
@@ -190,6 +193,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         let deleteHasPeriodFilter = false;
         chain.select = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.in = () => chain;
         chain.limit = () => {
           limited = true;

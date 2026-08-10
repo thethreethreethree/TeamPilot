@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   conversionRate,
   closeRate,
@@ -43,17 +44,23 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // The caller's own sessions (agent_id = self). RLS also permits same-company reads, so pin to self.
-  const { data, error } = await sb
-    .from("coaching_sessions")
-    .select("id, outcome, deal_value, started_at, ended_at, client_label")
-    .eq("agent_id", ctx.userId)
-    .order("started_at", { ascending: true });
+  // Paged so a high-volume rep past 1000 lifetime sessions doesn't silently truncate their KPIs.
+  const data = await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("coaching_sessions")
+        .select("id, outcome, deal_value, started_at, ended_at, client_label")
+        .eq("agent_id", ctx.userId)
+        .order("started_at", { ascending: true })
+        .range(from, to),
+    { label: "my KPI sessions" },
+  ).catch(() => null);
 
-  if (error) {
+  if (data === null) {
     return NextResponse.json({ error: "Couldn't load your sessions." }, { status: 500 });
   }
 
-  const rows: KpiSessionRow[] = (data ?? []).map((r) => ({
+  const rows: KpiSessionRow[] = data.map((r) => ({
     sessionId: r.id as string,
     outcome: (r.outcome as KpiSessionRow["outcome"]) ?? null,
     dealValue:

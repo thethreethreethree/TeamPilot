@@ -53,6 +53,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
         chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [] }); // awaited query → empty list
         return chain;
@@ -91,6 +92,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;
@@ -135,6 +137,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;
@@ -181,6 +184,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" } });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;
@@ -221,6 +225,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         // companies quota read (maybeSingle) → target 10; profiles manager check → admin.
         chain.maybeSingle = async () =>
           t === "companies"
@@ -269,6 +274,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;
@@ -315,6 +321,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;
@@ -373,6 +380,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         chain.not = () => chain;
         chain.in = () => chain;
         chain.order = () => chain;
+        chain.range = () => chain;
         chain.maybeSingle = async () => ({ data: { role: "admin", sales_coach_role: null, company_id: "co1" }, error: null });
         chain.then = (resolve: (v: unknown) => unknown) => resolve(tables[t] ?? { data: [] });
         return chain;

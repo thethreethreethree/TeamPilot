@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   conversionRate,
   closeRate,
@@ -79,11 +80,18 @@ export async function GET(req: NextRequest) {
   // Batch the whole batch's sessions in ONE read, grouped by agent in memory — avoids an N+1 (a
   // separate coaching_sessions query per agent), mirroring how the /team rollup reads its team. The
   // global started_at order is preserved within each agent's subgroup (the metric fns assume ascending).
-  const { data: allSessRows } = await admin
-    .from("coaching_sessions")
-    .select("id, agent_id, outcome, deal_value, started_at, ended_at")
-    .in("agent_id", agents)
-    .order("started_at", { ascending: true });
+  // Paged: this cron aggregates every agent's sessions company-wide — the set crosses the 1000-row
+  // cap fastest here, and a truncated read would bake wrong numbers into the persisted KPI history.
+  const allSessRows = await fetchAllPaged(
+    (from, to) =>
+      admin
+        .from("coaching_sessions")
+        .select("id, agent_id, outcome, deal_value, started_at, ended_at")
+        .in("agent_id", agents)
+        .order("started_at", { ascending: true })
+        .range(from, to),
+    { label: "cron KPI sessions" },
+  );
   const rowsByAgent = new Map<string, KpiSessionRow[]>();
   for (const s of allSessRows ?? []) {
     const aid = s.agent_id as string;

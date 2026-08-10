@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   conversionRate,
   quotaAttainment,
@@ -74,11 +75,18 @@ export async function GET() {
   const monthPrefix = monthKeyUtc(new Date());
 
   // One query for all the team's sessions; then compute per agent in memory (cheap, no per-agent round-trips).
-  const { data: sessRows } = await sb
-    .from("coaching_sessions")
-    .select("id, agent_id, outcome, deal_value, started_at, ended_at")
-    .in("agent_id", memberIds)
-    .order("started_at", { ascending: true });
+  // Paged: a team's sessions cross PostgREST's 1000-row cap within ~a year; an unbounded read
+  // would silently truncate and undercount every downstream KPI. Fetch the full set (throws on error).
+  const sessRows = await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("coaching_sessions")
+        .select("id, agent_id, outcome, deal_value, started_at, ended_at")
+        .in("agent_id", memberIds)
+        .order("started_at", { ascending: true })
+        .range(from, to),
+    { label: "team KPI sessions" },
+  );
 
   // Cue counts per session (for reliance) — one query for the team's sessions.
   const sessionIds = (sessRows ?? []).map((s) => s.id as string);
