@@ -99,6 +99,107 @@ export function describeElevenLabsAuthError(status: number, body: string): strin
 }
 
 /**
+ * probeElevenLabsVoice — a live, read-only health probe for the voice provider, so an operator can
+ * get the EXACT cause of a "live coaching won't start / recording won't process" outage in one call
+ * instead of digging Vercel logs. Both of those surfaces auth against ElevenLabs STT, so a single
+ * provider problem breaks both — this probe pins which one:
+ *   - key not set        → set ELEVENLABS_API_KEY in the deploy env + redeploy
+ *   - account 401        → wrong/expired key (or scope) — see the detail string
+ *   - quota exhausted    → top up credits / upgrade the plan (the "worked yesterday, dead today" cause)
+ *   - STT scope missing  → 401 missing_permission — enable "Speech to Text" + realtime/Scribe on the key
+ *   - network/outage     → transient; check status.elevenlabs.io
+ * Read-only: it lists the subscription and mints a single-use token (the exact live-coaching op); it
+ * neither transcribes nor synthesizes, so it costs no characters.
+ */
+export async function probeElevenLabsVoice(): Promise<{
+  ok: boolean;
+  summary: string;
+  checks: { name: string; ok: boolean; detail: string }[];
+}> {
+  const key = process.env.ELEVENLABS_API_KEY?.trim();
+  const checks: { name: string; ok: boolean; detail: string }[] = [];
+  if (!key) {
+    return {
+      ok: false,
+      summary: "ELEVENLABS_API_KEY is NOT set in this environment — set it in the deploy env (Vercel) and redeploy.",
+      checks: [{ name: "api-key-present", ok: false, detail: "process.env.ELEVENLABS_API_KEY is empty." }],
+    };
+  }
+  checks.push({ name: "api-key-present", ok: true, detail: "Key is set." });
+
+  // 1) Account + quota (also catches a wrong/expired key via 401).
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": key } });
+    const body = await res.text().catch(() => "");
+    if (res.status >= 401 && res.status <= 403) {
+      checks.push({ name: "account", ok: false, detail: describeElevenLabsAuthError(res.status, body) });
+    } else if (!res.ok) {
+      checks.push({ name: "account", ok: false, detail: `HTTP ${res.status}: ${body.slice(0, 160)}` });
+    } else {
+      let used: number | null = null;
+      let limit: number | null = null;
+      try {
+        const j = JSON.parse(body) as { character_count?: number; character_limit?: number };
+        used = j.character_count ?? null;
+        limit = j.character_limit ?? null;
+      } catch {
+        /* quota fields unavailable */
+      }
+      const remaining = used !== null && limit !== null ? limit - used : null;
+      const exhausted = remaining !== null && remaining <= 0;
+      checks.push({
+        name: "quota",
+        ok: !exhausted,
+        detail:
+          limit !== null
+            ? `characters ${used}/${limit} used${remaining !== null ? `, ${remaining} remaining` : ""}${exhausted ? " — EXHAUSTED: top up credits or upgrade the plan." : "."}`
+            : "subscription reachable (quota fields unavailable).",
+      });
+    }
+  } catch (e) {
+    checks.push({
+      name: "account",
+      ok: false,
+      detail: `couldn't reach ElevenLabs (network/outage): ${e instanceof Error ? e.message : "unknown"}`,
+    });
+  }
+
+  // 2) Realtime STT token — the EXACT op live coaching + transcription auth needs; pins a missing STT scope.
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe", {
+      method: "POST",
+      headers: { "xi-api-key": key, Accept: "application/json" },
+    });
+    if (res.ok) {
+      checks.push({ name: "stt-scope", ok: true, detail: "realtime STT token minted — Speech-to-Text scope is present." });
+    } else {
+      const body = await res.text().catch(() => "");
+      checks.push({
+        name: "stt-scope",
+        ok: false,
+        detail: `${describeElevenLabsAuthError(res.status, body)} (raw ${res.status})`,
+      });
+    }
+  } catch (e) {
+    checks.push({
+      name: "stt-scope",
+      ok: false,
+      detail: `couldn't reach ElevenLabs: ${e instanceof Error ? e.message : "unknown"}`,
+    });
+  }
+
+  const failed = checks.filter((c) => !c.ok);
+  return {
+    ok: failed.length === 0,
+    summary:
+      failed.length === 0
+        ? "ElevenLabs voice is healthy: key set, quota available, Speech-to-Text scope present."
+        : `Voice is FAILING — ${failed.map((c) => `[${c.name}] ${c.detail}`).join("  |  ")}`,
+    checks,
+  };
+}
+
+/**
  * Synthesize Jeff's text reply into a STREAMING audio response.
  *
  * 2026-06-17 — switched from buffered synthesizeSpeech (returned
