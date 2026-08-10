@@ -22,8 +22,20 @@ describe("probeElevenLabsVoice", () => {
     expect(fetchSpy).not.toHaveBeenCalled(); // no key → no wasted provider call
   });
 
+  it("flags a key ID (no sk_ prefix) up front via the format guard — the 2026-08-09 trap", async () => {
+    process.env.ELEVENLABS_API_KEY = "ddfd9b9dae200120370ed2787fab80ddc16bb6eaeba20245f9ffa10d3e31349a";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"detail":{"status":"api_key_id_used_as_api_key"}}', { status: 400 }),
+    );
+    const r = await probeElevenLabsVoice();
+    expect(r.ok).toBe(false);
+    const fmt = r.checks.find((c) => c.name === "key-format");
+    expect(fmt?.ok).toBe(false);
+    expect(fmt?.detail).toMatch(/does NOT start with "sk_"/);
+  });
+
   it("classifies a 401 missing-permission as a SCOPE problem (not a wrong key)", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk-test";
+    process.env.ELEVENLABS_API_KEY = "sk_test";
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response('{"detail":{"status":"missing_permissions"}}', { status: 401 }),
     );
@@ -34,7 +46,7 @@ describe("probeElevenLabsVoice", () => {
   });
 
   it("flags EXHAUSTED quota when characters used >= limit and STT still works", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk-test";
+    process.env.ELEVENLABS_API_KEY = "sk_test";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/user/subscription")) {
@@ -49,7 +61,7 @@ describe("probeElevenLabsVoice", () => {
   });
 
   it("reports healthy when quota remains and STT scope is present", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk-test";
+    process.env.ELEVENLABS_API_KEY = "sk_test";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/user/subscription")) {
@@ -63,7 +75,7 @@ describe("probeElevenLabsVoice", () => {
   });
 
   it("flags a missing TTS scope even when STT + quota are fine (full blast radius)", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk-test";
+    process.env.ELEVENLABS_API_KEY = "sk_test";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/user/subscription")) {

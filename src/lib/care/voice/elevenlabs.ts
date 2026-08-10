@@ -137,6 +137,21 @@ export async function probeElevenLabsVoice(): Promise<{
   }
   checks.push({ name: "api-key-present", ok: true, detail: "Key is set." });
 
+  // Format guard (the trap behind the 2026-08-09 outage): a real ElevenLabs key starts with "sk_".
+  // The 64-char hex shown next to a key in the dashboard is its ID — pasting THAT into ELEVENLABS_API_KEY
+  // is the #1 mistake, and it fails EVERY op with "api_key_id_used_as_api_key". Catch it up front so the
+  // verdict names it before spending three API round-trips.
+  if (!key.startsWith("sk_")) {
+    checks.push({
+      name: "key-format",
+      ok: false,
+      detail:
+        `the value does NOT start with "sk_" — it looks like a key ID (the hex shown next to the key in ` +
+        `elevenlabs.io), not the usable key. The real key starts with "sk_" and is shown once at creation. ` +
+        `Replace ELEVENLABS_API_KEY with the "sk_…" value and redeploy.`,
+    });
+  }
+
   // 1) Account + quota (also catches a wrong/expired key via 401).
   try {
     const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": key } });
