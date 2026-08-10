@@ -133,11 +133,14 @@ export async function fetchAssetReadout(
   let crossActorFiles = 0;
   if (fileIds.length > 0) {
     const subjects = fileIds.map((id) => `file:${id}`);
-    const { data: retrievalEvents } = await sb
+    const { data: retrievalEvents, error: reErr } = await sb
       .from("events")
       .select("subject, actor")
       .in("kind", ["asset.file.viewed", "asset.file.downloaded"])
       .in("subject", subjects);
+    // Error-as-no-data guard: derived counts must not silently read zero on a read error (consistent with the
+    // headline files read, which throws). Fail closed rather than undercount.
+    if (reErr) throw new Error(`Failed to load asset retrieval events: ${reErr.message}`);
     const byFileActors = new Map<string, Set<string | null>>();
     for (const e of retrievalEvents ?? []) {
       const sub = e.subject as string;
@@ -176,11 +179,12 @@ export async function fetchAssetReadout(
   let citedFiles = 0;
   if (fileIds.length > 0) {
     const subjects = fileIds.map((id) => `file:${id}`);
-    const { data: citationEvents } = await sb
+    const { data: citationEvents, error: ceErr } = await sb
       .from("events")
       .select("subject")
       .eq("kind", "asset.file.cited")
       .in("subject", subjects);
+    if (ceErr) throw new Error(`Failed to load asset citation events: ${ceErr.message}`);
     const citedSet = new Set<string>();
     for (const e of citationEvents ?? []) {
       const sub = e.subject as string;
@@ -199,10 +203,11 @@ export async function fetchAssetReadout(
   let rejected = 0;
   let pending = 0;
   if (fileIds.length > 0) {
-    const { data: suggestions } = await sb
+    const { data: suggestions, error: sErr } = await sb
       .from("file_classification_suggestions")
       .select("user_action")
       .in("file_id", fileIds);
+    if (sErr) throw new Error(`Failed to load file classification suggestions: ${sErr.message}`);
     for (const s of suggestions ?? []) {
       const action = s.user_action as string;
       if (action === "accepted_as_is") {

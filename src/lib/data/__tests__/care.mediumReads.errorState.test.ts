@@ -85,7 +85,7 @@ describe("C.A.R.E MEDIUM reads — classify the error (no error-as-no-data)", ()
   });
   it("detectSupportPatterns THROWS on error (not 'no recurring problems')", async () => {
     SERVER = ERR;
-    await expect(detectSupportPatterns({ companyId: "co1" })).rejects.toThrow(
+    await expect(detectSupportPatterns({})).rejects.toThrow(
       /Failed to load resolutions for pattern detection/i
     );
   });

@@ -678,10 +678,16 @@ async function resolveAuthorNames(
     new Set(authorIds.filter((x): x is string => typeof x === "string"))
   );
   if (ids.length === 0) return new Map();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, avatar_color, avatar_initials")
     .in("id", ids);
+  // Enrichment read (author display names): a hard throw here would nuke the whole message list on a name-lookup
+  // blip, so LOG the error (non-silent) and fall back to blank names — the messages themselves still render.
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error(`[chats.resolveAuthorNames] failed to resolve author names: ${error.message}`);
+  }
   return new Map(
     (data ?? []).map((p) => [
       p.id as string,

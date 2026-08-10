@@ -98,7 +98,7 @@ export async function fetchTopicDecision(
   if (!supabaseEnabled) return null;
   const supabase = createClient();
 
-  const { data: open } = await supabase
+  const { data: open, error: openErr } = await supabase
     .from("chat_topic_decisions")
     .select(
       "id, company_id, topic_id, opened_by, opened_at, phase, situation, user_diagnosis, user_proposal, system_response, chosen_path, chosen_note, decided_at, persisted_decision_id, updated_at"
@@ -106,9 +106,12 @@ export async function fetchTopicDecision(
     .eq("topic_id", topicId)
     .neq("phase", "decided")
     .maybeSingle();
+  // Error-as-no-data guard: on error, a missing open dialogue would fall through and the topic could render as
+  // "no decision yet" when one exists. Fail closed; reserve the fall-through for a genuinely absent open dialogue.
+  if (openErr) throw new Error(`Failed to load the topic decision: ${openErr.message}`);
   if (open) return rowToDecision(open as TopicDecisionRow);
 
-  const { data: latest } = await supabase
+  const { data: latest, error: latestErr } = await supabase
     .from("chat_topic_decisions")
     .select(
       "id, company_id, topic_id, opened_by, opened_at, phase, situation, user_diagnosis, user_proposal, system_response, chosen_path, chosen_note, decided_at, persisted_decision_id, updated_at"
@@ -117,6 +120,8 @@ export async function fetchTopicDecision(
     .order("decided_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
+  // Error-as-no-data guard: on error, null would read as "never decided" and hide a real decided dialogue.
+  if (latestErr) throw new Error(`Failed to load the topic decision: ${latestErr.message}`);
   return latest ? rowToDecision(latest as TopicDecisionRow) : null;
 }
 
