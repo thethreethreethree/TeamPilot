@@ -61,4 +61,24 @@ describe("probeElevenLabsVoice", () => {
     expect(r.ok).toBe(true);
     expect(r.summary).toMatch(/healthy/i);
   });
+
+  it("flags a missing TTS scope even when STT + quota are fine (full blast radius)", async () => {
+    process.env.ELEVENLABS_API_KEY = "sk-test";
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/user/subscription")) {
+        return new Response(JSON.stringify({ character_count: 10, character_limit: 100000 }), { status: 200 });
+      }
+      if (url.includes("/single-use-token")) {
+        return new Response(JSON.stringify({ token: "t" }), { status: 200 });
+      }
+      // text-to-speech synthesis → scope missing (Jeff's voice + cues would stay broken)
+      return new Response('{"detail":{"status":"missing_permissions"}}', { status: 401 });
+    });
+    const r = await probeElevenLabsVoice();
+    expect(r.ok).toBe(false); // NOT reported healthy on an STT-only fix
+    const tts = r.checks.find((c) => c.name === "tts-scope");
+    expect(tts?.ok).toBe(false);
+    expect(tts?.detail).toMatch(/Jeff's voice/i);
+  });
 });

@@ -188,6 +188,42 @@ export async function probeElevenLabsVoice(): Promise<{
     });
   }
 
+  // 3) Text-to-Speech scope — Jeff's voice + coach cues need it, and it drops on key rotation JUST like
+  // STT. A 1-character synthesis is the cheapest definitive test (~1 char, negligible). Without this check
+  // the probe could report "healthy" on an STT-only fix while Jeff's voice + cues stayed broken.
+  try {
+    const res = await fetch(`${TTS_ENDPOINT}/${getDefaultVoiceId()}/stream`, {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
+      body: JSON.stringify({
+        text: ".",
+        model_id: "eleven_flash_v2_5",
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      }),
+    });
+    if (res.ok) {
+      try {
+        await res.body?.cancel();
+      } catch {
+        /* discard the audio without reading it */
+      }
+      checks.push({ name: "tts-scope", ok: true, detail: "1-char synthesis succeeded — Text-to-Speech scope is present." });
+    } else {
+      const body = await res.text().catch(() => "");
+      checks.push({
+        name: "tts-scope",
+        ok: false,
+        detail: `${describeElevenLabsAuthError(res.status, body)} (raw ${res.status}) — affects Jeff's voice + coach cues.`,
+      });
+    }
+  } catch (e) {
+    checks.push({
+      name: "tts-scope",
+      ok: false,
+      detail: `couldn't reach ElevenLabs: ${e instanceof Error ? e.message : "unknown"}`,
+    });
+  }
+
   const failed = checks.filter((c) => !c.ok);
   return {
     ok: failed.length === 0,
