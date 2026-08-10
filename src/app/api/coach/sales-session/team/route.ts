@@ -59,20 +59,40 @@ export async function GET() {
   if (!ctx.companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
-  const { data } = await ctx.sb
-    .from("profiles")
-    .select("id, full_name, role, sales_coach_role")
-    .eq("company_id", ctx.companyId)
-    .is("removed_at", null)
-    .order("full_name", { ascending: true });
+  // Members + pending invites in one round-trip. The pending list lets the Team page show who's been invited but
+  // hasn't joined yet, so the two-step (invite → assign Staff once they accept) is visible and trackable.
+  const [membersRes, invitesRes] = await Promise.all([
+    ctx.sb
+      .from("profiles")
+      .select("id, full_name, role, sales_coach_role")
+      .eq("company_id", ctx.companyId)
+      .is("removed_at", null)
+      .order("full_name", { ascending: true }),
+    ctx.sb
+      .from("team_invitations")
+      .select("id, email, invited_at, expires_at")
+      .eq("company_id", ctx.companyId)
+      .is("accepted_at", null)
+      .is("revoked_at", null)
+      .order("invited_at", { ascending: false }),
+  ]);
+  // Error-as-no-data guard: don't render an empty team / no-invites as if the company were empty on a read error.
+  if (membersRes.error || invitesRes.error) {
+    return NextResponse.json({ error: "Couldn't load the team." }, { status: 500 });
+  }
+  const now = Date.now();
+  const pending = (invitesRes.data ?? [])
+    .filter((i) => new Date(i.expires_at as string).getTime() > now) // hide expired (still occupy the slot until revoked)
+    .map((i) => ({ id: i.id as string, email: i.email as string, invitedAt: i.invited_at as string }));
   return NextResponse.json({
     isManager: ctx.isManager,
-    members: (data ?? []).map((m) => ({
+    members: (membersRes.data ?? []).map((m) => ({
       id: m.id,
       fullName: m.full_name,
       companyRole: m.role,
       salesCoachRole: m.sales_coach_role ?? null,
     })),
+    pendingInvites: pending,
   });
 }
 

@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { POST } from "../route";
+import { GET, POST } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -81,5 +81,64 @@ describe("POST /team — role-grant gate", () => {
     setCaller("boss", MANAGER);
     mockAdmin([]); // company-scoped update matched nothing → cross-company target
     expect((await POST(postReq({ id: ID, salesCoachRole: "admin" }))).status).toBe(404);
+  });
+});
+
+/**
+ * GET returns the roster + PENDING invites so the Team page can make the two-step (invite → assign Staff) visible.
+ * Guards: expired invitations are hidden (they still occupy the unique slot until revoked), and a read error is an
+ * honest 500 (never an empty team as if the company had no members — the error-as-no-data discipline).
+ */
+function getClient(opts: {
+  profile: unknown;
+  members: Array<Record<string, unknown>>;
+  invites: Array<Record<string, unknown>>;
+  membersErr?: unknown;
+  invitesErr?: unknown;
+}) {
+  return {
+    auth: { getUser: async () => ({ data: { user: { id: "boss" } } }) },
+    from: (table: string) => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "is", "order"]) q[m] = () => q;
+      (q as { maybeSingle: unknown }).maybeSingle = async () => ({ data: opts.profile });
+      (q as { then: unknown }).then = (res: (v: unknown) => void) =>
+        res(
+          table === "team_invitations"
+            ? { data: opts.invites, error: opts.invitesErr ?? null }
+            : { data: opts.members, error: opts.membersErr ?? null }
+        );
+      return q;
+    },
+  };
+}
+
+describe("GET /team — roster + pending invites", () => {
+  it("returns members and only NON-expired pending invites", async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      getClient({
+        profile: MANAGER,
+        members: [{ id: ID, full_name: "Rep One", role: "member", sales_coach_role: "staff" }],
+        invites: [
+          { id: "i1", email: "new@co.com", invited_at: "2026-08-01T00:00:00Z", expires_at: "2099-01-01T00:00:00Z" },
+          { id: "i2", email: "old@co.com", invited_at: "2026-07-01T00:00:00Z", expires_at: "2000-01-01T00:00:00Z" },
+        ],
+      }) as never
+    );
+    const res = await GET();
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.members).toHaveLength(1);
+    // the live invite is surfaced; the expired one (i2) is hidden
+    expect(body.pendingInvites).toEqual([
+      { id: "i1", email: "new@co.com", invitedAt: "2026-08-01T00:00:00Z" },
+    ]);
+  });
+
+  it("500 on a read error — an honest failure, not an empty team", async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      getClient({ profile: MANAGER, members: [], invites: [], membersErr: { message: "timeout" } }) as never
+    );
+    expect((await GET()).status).toBe(500);
   });
 });

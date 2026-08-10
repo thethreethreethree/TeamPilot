@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, ShieldCheck, Lock, Users, UserPlus } from "lucide-react";
+import { Loader2, ShieldCheck, Lock, Users, UserPlus, Clock } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
@@ -30,6 +30,9 @@ const OPTIONS: { value: "admin" | "staff" | null; label: string }[] = [
 export default function SalesCoachTeamPage() {
   const toast = useToast();
   const [members, setMembers] = useState<Member[] | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<
+    { id: string; email: string; invitedAt: string }[]
+  >([]);
   const [isManager, setIsManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -41,8 +44,10 @@ export default function SalesCoachTeamPage() {
         const d = await res.json();
         setIsManager(!!d.isManager);
         setMembers(d.members ?? []);
+        setPendingInvites(d.pendingInvites ?? []);
       } else {
         setMembers([]);
+        setPendingInvites([]);
       }
     } finally {
       setLoading(false);
@@ -130,7 +135,7 @@ export default function SalesCoachTeamPage() {
               <LearningHint
                 as="inline-block"
                 category="Sales Coach · Team"
-                title="Add member"
+                title="Add agent"
                 whatItIs="Sends an Elostate invite to bring a new person into the company, after which you can assign them a Sales Coach role."
                 why="You can only coach people the system knows about. This is the on-ramp — it adds the person once, then their role is yours to set here."
                 how="Click it, invite the person by email, and once they join assign their Sales Coach role on their row."
@@ -142,7 +147,7 @@ export default function SalesCoachTeamPage() {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
               >
                 <UserPlus className="w-3.5 h-3.5" aria-hidden />
-                Add member
+                Add agent
               </button>
               </LearningHint>
             </div>
@@ -152,7 +157,7 @@ export default function SalesCoachTeamPage() {
               title="How roles work"
               whatItIs="An explainer: Sales Coach roles (staff or admin) are set here and are independent of a person's Elostate company role."
               why="People assume the two roles are the same and get confused about who can do what. Separating them lets you decide Sales Coach access on its own terms — a company admin isn't automatically a coaching admin, and vice versa."
-              how="Read this once to understand the model: invite via Add member, then assign a Sales Coach role on the person's row."
+              how="Read this once to understand the model: invite via Add agent, then assign a Sales Coach role on the person's row."
               principle="Access should follow the responsibility you intend, not inherit whatever role someone happened to already have."
             >
             <div className="flex items-start gap-2 rounded-lg border border-ember-400/30 bg-ember-400/5 p-3">
@@ -162,7 +167,7 @@ export default function SalesCoachTeamPage() {
                 or <span className="text-primary">admin</span>. This sets who the
                 product is for and who can manage it — independent of their
                 Elostate role. New people join via{" "}
-                <span className="text-primary">Add member</span> (an Elostate
+                <span className="text-primary">Add agent</span> (an Elostate
                 invite), then you assign their Sales Coach role here.
               </p>
             </div>
@@ -200,6 +205,13 @@ export default function SalesCoachTeamPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {m.salesCoachRole === null && (
+                      // Joined the company but has no Sales Coach role yet → can't use the coach. Surface it so
+                      // the "invite → forgot to assign Staff" gap is visible, not silent.
+                      <span className="text-[10px] font-semibold text-ember-300 bg-ember-400/10 border border-ember-400/30 rounded px-1.5 py-0.5 whitespace-nowrap">
+                        No access yet
+                      </span>
+                    )}
                     {m.salesCoachRole === "admin" && (
                       mi === 0 ? (
                         <LearningHint
@@ -270,10 +282,43 @@ export default function SalesCoachTeamPage() {
               )}
             </div>
 
+            {pendingInvites.length > 0 && (
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-default">
+                  <Clock className="w-3.5 h-3.5 text-muted" aria-hidden />
+                  <h3 className="text-xs font-semibold text-secondary">Invited — waiting to accept</h3>
+                </div>
+                <div className="divide-y divide-default">
+                  {pendingInvites.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5"
+                    >
+                      <p className="text-xs text-secondary truncate">{inv.email}</p>
+                      <span className="text-[10px] text-muted whitespace-nowrap">Pending</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted px-4 py-2.5 border-t border-default leading-relaxed">
+                  Once they accept, they move to the list above — set them to{" "}
+                  <span className="text-primary">Staff</span> to give them the coach.
+                </p>
+              </div>
+            )}
+
             <InviteMemberDialog
               open={inviteOpen}
               onClose={() => setInviteOpen(false)}
-              onInvited={() => void load()}
+              onInvited={() => {
+                // Reminder for the load-bearing second step: an invited agent can't use the coach until they
+                // accept AND are set to Staff. The toast + the pending list + the "no access yet" row badge all
+                // point at this so it isn't forgotten.
+                toast.success(
+                  "Agent invited",
+                  "Once they accept, set them to Staff on their row to give them the coach."
+                );
+                void load();
+              }}
             />
           </>
         )}
