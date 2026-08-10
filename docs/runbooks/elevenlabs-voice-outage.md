@@ -44,6 +44,15 @@ account-side, not outages).
 >
 > **⚠️ Key ID vs. key secret:** the long hex string shown next to a key in elevenlabs.io → API Keys is the key's **ID**, not the usable secret (the real key, `sk_...`, is shown only once at creation). If a call returns `"api_key_id_used_as_api_key"`, someone pasted the ID. The app's `ELEVENLABS_API_KEY` must be the **secret**, not the ID. **The instant tell:** a real key **starts with `sk_`**; a 64-char hex with no prefix is the ID. `voice-health`'s `key-format` check now flags this up front — if it says *"value doesn't start with sk_"*, it's the ID.
 >
+> **⚠️ MULTIPLE Vercel projects (2026-08-09, cost the most hours of all):** this repo deploys to MORE
+> THAN ONE Vercel project (e.g. `team-pilot` AND `team-pilot-6wlo`). Only one serves `elostate.com`.
+> If you set `ELEVENLABS_API_KEY` in the *wrong* project, prod never sees it no matter how many times
+> you delete/recreate/redeploy — the symptom is "I fixed the value and redeployed and it's STILL the
+> ID." **Confirm which project is prod:** `curl https://elostate.com/api/health` → the `deploymentUrl`
+> field names the project (`team-pilot-…`), OR check each Vercel project's **Domains** for `elostate.com`.
+> Set the key in THAT project. (Diagnostic: `GET /api/coach/sales-session/voice-key-shape` returns
+> `{startsWithSk}` for what the LIVE deployment actually loaded — hit it with `curl` after any change.)
+>
 > **⚠️ The Vercel value that "won't save" (2026-08-09, cost hours):** if you edit `ELEVENLABS_API_KEY` and `voice-health` *still* reports the old value after a redeploy, the save isn't reaching the running app. Causes: (a) it was saved to **Preview** but not **Production**; (b) a **Shared/Team** env var of the same name overrides the Project one — check the **Shared** tab and fix it there too; (c) the edit silently reverted. **Foolproof fix:** delete `ELEVENLABS_API_KEY` in *both* Project and Shared tabs, then re-create it fresh (`sk_...`, all environments incl. Production), save, and trigger a **fresh** deploy (a git push, or Redeploy with **Build Cache unchecked** — a cached redeploy can reuse the old env snapshot).
 | a plain **401** (no `missing_permission`) | Wrong/expired key, or a stray character | Re-check the Vercel `ELEVENLABS_API_KEY` value against elevenlabs.io. Redeploy. |
 | `quota` **EXHAUSTED** (402/403) | Out of credits / plan limit | Top up credits or upgrade the plan at elevenlabs.io → Billing. **No redeploy needed.** |
