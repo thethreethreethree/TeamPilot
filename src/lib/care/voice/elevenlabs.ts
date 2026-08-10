@@ -141,10 +141,16 @@ export async function probeElevenLabsVoice(): Promise<{
   try {
     const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": key } });
     const body = await res.text().catch(() => "");
-    if (res.status >= 401 && res.status <= 403) {
-      checks.push({ name: "account", ok: false, detail: describeElevenLabsAuthError(res.status, body) });
-    } else if (!res.ok) {
-      checks.push({ name: "account", ok: false, detail: `HTTP ${res.status}: ${body.slice(0, 160)}` });
+    if (!res.ok) {
+      // Route EVERY non-2xx through the classifier — it recognizes the key-ID case (a 400) and the 4xx
+      // auth cases and returns the plain remedy; only if it can't classify do we fall back to the raw body
+      // (which would otherwise truncate the useful part, as observed live 2026-08-09).
+      const described = describeElevenLabsAuthError(res.status, body);
+      checks.push({
+        name: "account",
+        ok: false,
+        detail: described === `HTTP ${res.status}.` ? `HTTP ${res.status}: ${body.slice(0, 200)}` : described,
+      });
     } else {
       let used: number | null = null;
       let limit: number | null = null;
