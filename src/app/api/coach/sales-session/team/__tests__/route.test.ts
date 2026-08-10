@@ -141,4 +141,21 @@ describe("GET /team — roster + pending invites", () => {
     );
     expect((await GET()).status).toBe(500);
   });
+
+  it("does NOT disclose pending-invite emails to a non-manager (least-disclosure)", async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      getClient({
+        profile: REP,
+        members: [{ id: ID, full_name: "Rep One", role: "member", sales_coach_role: "staff" }],
+        invites: [
+          { id: "i1", email: "new@co.com", invited_at: "2026-08-01T00:00:00Z", expires_at: "2099-01-01T00:00:00Z" },
+        ],
+      }) as never
+    );
+    const res = await GET();
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.isManager).toBe(false);
+    expect(body.pendingInvites).toEqual([]); // invitee emails withheld from non-managers
+  });
 });

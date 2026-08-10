@@ -92,7 +92,9 @@ export async function GET() {
       companyRole: m.role,
       salesCoachRole: m.sales_coach_role ?? null,
     })),
-    pendingInvites: pending,
+    // Least-disclosure: invitee emails go only to a manager (who can act on them), matching the UI gate that
+    // hides the pending section from non-managers. Don't expose pending-invite emails via a direct API call.
+    pendingInvites: ctx.isManager ? pending : [],
   });
 }
 
