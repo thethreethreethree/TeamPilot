@@ -457,11 +457,14 @@ export async function getSessionCues(sessionId: string): Promise<Cue[]> {
  *  gated upstream by the route (caller must be the session's agent). */
 export async function getSessionCuesAdmin(sessionId: string): Promise<Cue[]> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_cues")
     .select("*")
     .eq("session_id", sessionId)
     .order("delivered_at", { ascending: true });
+  // Error-as-no-data guard: the After Pitch assembler must not build a summary from ZERO cues because a
+  // transient read failed (that would silently understate the call). Fail closed; reserve [] for a cue-less session.
+  if (error) throw new Error(`Failed to load session cues: ${error.message}`);
   return (data ?? []).map(mapCue);
 }
 
@@ -507,11 +510,14 @@ export async function getSessionCueOutcomesAdmin(
   sessionId: string
 ): Promise<CueOutcome[]> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_cue_outcomes")
     .select("*")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: false });
+  // Error-as-no-data guard: an error here would read as "every cue had no outcome" and understate the followed
+  // cues in the summary. Fail closed; reserve [] for a session with genuinely no recorded outcomes.
+  if (error) throw new Error(`Failed to load cue outcomes: ${error.message}`);
   const rows = (data ?? []).map(mapCueOutcome);
   // Collapse to the current determination per cue: prefer a rep_marked
   // confirmation; otherwise the most recent (rows are newest-first).
@@ -650,13 +656,16 @@ export async function getLatestAfterPitchSummaryAdmin(
   sessionId: string
 ): Promise<unknown | null> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("after_pitch_summaries")
     .select("payload")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Error-as-no-data guard: on error, null would read as "no summary yet" and the route would regenerate or
+  // show blank over an existing one. Fail closed; reserve null for a session that genuinely has no summary.
+  if (error) throw new Error(`Failed to load the after-pitch summary: ${error.message}`);
   return data?.payload ?? null;
 }
 
@@ -668,12 +677,15 @@ export async function getRecentAfterPitchSummariesAdmin(
   limit = 20
 ): Promise<{ sessionId: string; payload: unknown }[]> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("after_pitch_summaries")
     .select("session_id, payload")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
     .limit(limit);
+  // Error-as-no-data guard: the personal skills/analytics aggregation must not read a transient error as the
+  // rep having "no history yet". Fail closed; reserve [] for a rep with genuinely no summaries.
+  if (error) throw new Error(`Failed to load the rep's after-pitch summaries: ${error.message}`);
   return (data ?? []).map((r) => ({
     sessionId: r.session_id as string,
     payload: r.payload,
@@ -686,13 +698,16 @@ export async function getRecentAfterPitchSummariesAdmin(
  *  Service-role: the cue route authorizes the session before using this. */
 export async function getAgentCoachStart(agentId: string): Promise<string | null> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_sessions")
     .select("started_at")
     .eq("agent_id", agentId)
     .order("started_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  // Error-as-no-data guard: null legitimately means "no sessions yet" (anchors the 3-day observe window). An
+  // error masked as null would RESET that window — the coach would treat a veteran rep as brand new. Fail closed.
+  if (error) throw new Error(`Failed to load the agent's coach start: ${error.message}`);
   return (data?.started_at as string | null) ?? null;
 }
 
@@ -702,12 +717,15 @@ export async function listAgentSessions(
   limit = 50
 ): Promise<SalesSession[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("coaching_sessions")
     .select("*")
     .eq("agent_id", agentId)
     .order("started_at", { ascending: false })
     .limit(limit);
+  // Error-as-no-data guard: on error, [] would render the rep's ENTIRE session history as empty ("your data is
+  // gone"). Fail closed so the route surfaces it; reserve [] for a rep who genuinely has no sessions.
+  if (error) throw new Error(`Failed to load the agent's sessions: ${error.message}`);
   return (data ?? []).map(mapSession);
 }
 
