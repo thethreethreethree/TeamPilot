@@ -438,6 +438,16 @@
         if (signinBtn) signinBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
         return;
       }
+      if (resp && resp.status === 0 && resp.data?.error === "network") {
+        // The worker's fetch never reached a server. Name the host so a stale local-dev `apiBase` override is
+        // self-evident instead of a mystery "network" (an actionable failure, not a vague one).
+        const host = resp.data.host || "the backend";
+        const hint = resp.data.custom
+          ? ` A custom API address is set (${host}) — make sure that dev server is running, or clear the apiBase override.`
+          : " Check your connection, then try again.";
+        out.innerHTML = `<p class="sc-err">Couldn't reach ${esc(host)}.${esc(hint)}</p>`;
+        return;
+      }
       if (!resp || resp.status < 200 || resp.status >= 300) {
         // Surface the REAL cause: our routes return { error } for handled failures; a framework 500/504 has no
         // such field, so show the status (+ any non-JSON body snippet) instead of a generic message, and log the

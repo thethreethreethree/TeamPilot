@@ -204,6 +204,18 @@ describe("Sales Coach content.js — streaming Suggested Response + honest progr
     expect(CARE_CONTENT).toMatch(/const primary = !noStream;[\s\S]{0,140}if \(careToolBusy\) return;\s*careToolBusy = true;/);
     expect(CARE_CONTENT).toMatch(/\} finally \{\s*release\(\);/);
   });
+
+  it("names the unreachable HOST on a network failure so a stale apiBase override is self-diagnosing", () => {
+    // A bare "Request failed - network" hid WHICH host the worker couldn't reach, so a stale local-dev apiBase
+    // override (localhost server not running) looked identical to a real outage. The worker now returns the host
+    // + whether a custom override is set; the panel renders it with an actionable hint. Detection-true.
+    const BG = readFileSync(join(ROOT, "extension-sales", "background.js"), "utf-8");
+    expect(BG).toContain("function hostLabel");
+    expect(BG).toMatch(/error: "network", host: hostLabel\(base\), custom: !!apiBase/);
+    expect(CONTENT).toMatch(/resp\.status === 0 && resp\.data\?\.error === "network"/);
+    expect(CONTENT).toMatch(/Couldn't reach \$\{esc\(host\)\}/);
+    expect(CONTENT).toMatch(/apiBase override/);
+  });
 });
 
 describe("Sales Coach extension adapters.js — Tier-1 coverage + clean port", () => {

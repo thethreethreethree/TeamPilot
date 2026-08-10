@@ -78,6 +78,15 @@ async function refreshSalesAccessToken(base, currentRefresh) {
 // Shared token load + silent one-shot refresh-retry around a caller-provided `call(base, token)`. Both the JSON
 // tool path and the multipart upload path go through this, so the 401→refresh→retry logic lives in ONE place.
 // Runs in the CORS-free worker context.
+// Readable host (a dev-server host, or "elostate.com") from a base URL, for actionable network errors.
+function hostLabel(base) {
+  try {
+    return new URL(base).host;
+  } catch {
+    return String(base || "");
+  }
+}
+
 async function withAuthRetry(call) {
   const { salesCoachToken, salesCoachRefreshToken, apiBase } = await chrome.storage.local.get([
     "salesCoachToken",
@@ -85,13 +94,20 @@ async function withAuthRetry(call) {
     "apiBase",
   ]);
   const base = apiBase || "https://elostate.com";
-  let out = await call(base, salesCoachToken);
-
-  if (out.status === 401 && salesCoachRefreshToken) {
-    const fresh = await refreshSalesAccessToken(base, salesCoachRefreshToken);
-    if (fresh) out = await call(base, fresh);
+  try {
+    let out = await call(base, salesCoachToken);
+    if (out.status === 401 && salesCoachRefreshToken) {
+      const fresh = await refreshSalesAccessToken(base, salesCoachRefreshToken);
+      if (fresh) out = await call(base, fresh);
+    }
+    return out;
+  } catch {
+    // The fetch never reached a server (offline, DNS, connection refused, or a stale `apiBase` dev override whose
+    // local server isn't running). Name the host + whether a custom override is in play so the panel shows an
+    // ACTIONABLE failure instead of a mystery "network" (an honest failure the user can act on). This is
+    // the exact confusion that made a stale local-dev override look like an outage.
+    return { status: 0, data: { error: "network", host: hostLabel(base), custom: !!apiBase } };
   }
-  return out;
 }
 
 // JSON tool call (summarize/dissect/suggest).
