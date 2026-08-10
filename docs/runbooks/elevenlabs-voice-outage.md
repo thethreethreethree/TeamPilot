@@ -38,7 +38,11 @@ account-side, not outages).
 
 | Probe says | Cause | Fix |
 |---|---|---|
-| `stt-scope` and/or `tts-scope` failing with **`missing_permission`** | Key lacks a permission scope (usual cause; happens when a key is **regenerated**) | In elevenlabs.io → **API Keys**, enable **BOTH** "Speech to Text" **and** "Text to Speech" (+ the realtime/Scribe permission) on the key. If you **regenerated** the key, update `ELEVENLABS_API_KEY` in Vercel and **redeploy**. |
+| `stt-scope` and/or `tts-scope` failing with **`missing_permission`** | Key lacks a permission scope (usual cause; happens when a key is **regenerated** or a **Restrict Key** toggle is on with the wrong endpoints granted) | Edit the key → under **Endpoints**, set **BOTH** of these to **Access**: **"Speech to Text"** *and* **"Text to Speech"**. If you **regenerated** the key, update `ELEVENLABS_API_KEY` in Vercel and **redeploy**; if you only toggled endpoints on the same key, it's live immediately. |
+
+> **⚠️ The exact trap (2026-08-09):** the endpoint is **"Speech to Text"** — **NOT "Speech to Speech."** They're two adjacent rows. "Speech to Speech" is voice-*conversion* and this app does not use it; enabling it does nothing for the outage. Live coaching + transcription need **Speech to Text**; Jeff's voice + cues need **Text to Speech**. Enable exactly those two.
+>
+> **⚠️ Key ID vs. key secret:** the long hex string shown next to a key in elevenlabs.io → API Keys is the key's **ID**, not the usable secret (the real key, `sk_...`, is shown only once at creation). If a call returns `"api_key_id_used_as_api_key"`, someone pasted the ID. The app's `ELEVENLABS_API_KEY` must be the **secret**, not the ID.
 | a plain **401** (no `missing_permission`) | Wrong/expired key, or a stray character | Re-check the Vercel `ELEVENLABS_API_KEY` value against elevenlabs.io. Redeploy. |
 | `quota` **EXHAUSTED** (402/403) | Out of credits / plan limit | Top up credits or upgrade the plan at elevenlabs.io → Billing. **No redeploy needed.** |
 | `api-key-present` false | Key not set in this environment | Set `ELEVENLABS_API_KEY` in Vercel → **redeploy** (the key is read at runtime but the deploy must have the env var). |

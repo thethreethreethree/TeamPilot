@@ -95,6 +95,16 @@ export function describeElevenLabsAuthError(status: number, body: string): strin
   if (status === 402 || status === 403) {
     return `likely a quota/billing/plan limit on the account (${status}). Check elevenlabs.io usage/billing.`;
   }
+  // The value in ELEVENLABS_API_KEY is the key's ID, not the usable key. ElevenLabs returns this
+  // (typically 400/401 authentication_error) when someone copies the key ID shown in the dashboard
+  // instead of the actual key value (shown only once at creation). Observed live 2026-08-09.
+  if (b.includes("api_key_id_used_as_api_key") || b.includes("api_key_id used as api_key")) {
+    return (
+      `the value set for the key is a key ID, NOT the usable key. The long hex string listed next ` +
+      `to a key in elevenlabs.io is its ID; the real key is shown only once at creation. Regenerate ` +
+      `the key, copy the value it shows you, and put THAT in ELEVENLABS_API_KEY (then redeploy).`
+    );
+  }
   return `HTTP ${status}.`;
 }
 

@@ -95,4 +95,14 @@ describe("describeElevenLabsAuthError — distinguishes the two 401 causes", () 
     expect(describeElevenLabsAuthError(402, "")).toMatch(/quota\/billing\/plan/);
     expect(describeElevenLabsAuthError(403, "")).toMatch(/quota\/billing\/plan/);
   });
+
+  it("api_key_id_used_as_api_key → the value is a key ID, not the key (regenerate + copy the real value)", () => {
+    const msg = describeElevenLabsAuthError(
+      400,
+      '{"detail":{"type":"authentication_error","status":"api_key_id_used_as_api_key"}}',
+    );
+    expect(msg).toMatch(/key ID, NOT the usable key/);
+    expect(msg).toMatch(/Regenerate/);
+    expect(msg).not.toMatch(/PERMISSION SCOPE/); // must NOT send them chasing scopes
+  });
 });
