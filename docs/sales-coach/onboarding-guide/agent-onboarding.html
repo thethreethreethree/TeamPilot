@@ -1,0 +1,180 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sales Coach — Onboarding Your Sales Agents</title><style>
+  @page { size: A4; margin: 15mm 15mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif; color:#1a1a1e; font-size:11pt; line-height:1.5; margin:0; }
+  h1 { font-size:26pt; font-weight:800; letter-spacing:-.02em; margin:0 0 4px; }
+  h2 { font-size:14.5pt; font-weight:800; color:#09090b; margin:22px 0 8px; }
+  h3 { font-size:11.5pt; font-weight:700; margin:0 0 3px; color:#111; }
+  p { margin:5px 0; } .muted { color:#6b6b74; }
+  .amber { color:#b3760a; font-weight:700; }
+  .lead { font-size:11.5pt; color:#3a3a42; }
+  b, strong { color:#111; }
+  code, .ui { font-family:ui-monospace,Consolas,"Courier New",monospace; font-size:9.2pt; background:#f1f1f4; padding:1px 5px; border-radius:4px; color:#222; }
+  .btn { display:inline-block; font-family:"Segoe UI",sans-serif; font-size:9.2pt; font-weight:700; background:#f59e0b; color:#09090b; padding:2px 8px; border-radius:5px; }
+  .route { font-family:ui-monospace,Consolas,monospace; font-size:8.6pt; color:#8a5a00; background:#fff2d6; padding:1px 6px; border-radius:4px; }
+  .cover { display:flex; align-items:center; gap:14px; border-bottom:3px solid #f59e0b; padding-bottom:14px; margin-bottom:6px; }
+  .icon { width:56px; height:56px; border-radius:14px; background:#09090b; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+  .who { background:#fff8ea; border:1px solid #f2d79a; border-radius:8px; padding:11px 14px; margin:14px 0 4px; font-size:10pt; }
+  .step { display:flex; gap:14px; padding:12px 0; border-top:1px solid #ececf0; page-break-inside:avoid; }
+  .step:first-of-type { border-top:none; }
+  .num { flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:#09090b; color:#FACC15; font-weight:800; font-size:13pt; display:flex; align-items:center; justify-content:center; }
+  .step .body { flex:1; }
+  ul { margin:6px 0 4px 0; padding-left:18px; } li { margin:3px 0; }
+  .note { background:#f7f9fc; border:1px solid #e3e6ea; border-radius:8px; padding:11px 14px; margin:10px 0; font-size:10pt; }
+  .note.warn { background:#fff5f5; border-color:#f0c9c9; }
+  .note h3 { margin-bottom:5px; }
+  table { border-collapse:collapse; width:100%; font-size:9.6pt; margin:6px 0; }
+  td,th { border:1px solid #e6e6ea; padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#faf7f0; }
+  .pb { page-break-before: always; }
+  .foot { margin-top:22px; padding-top:10px; border-top:1px solid #ececf0; font-size:8.6pt; color:#8a8a93; }
+</style></head><body>
+
+<div class="cover">
+  <span class="icon"><svg viewBox="0 0 512 512" width="34" height="34"><g fill="none" stroke="#FACC15" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"><path d="M256 152 L112 210 L256 268 L400 210 Z"/><path d="M164 236 V318 C164 318 202 352 256 352 C310 352 348 318 348 318 V236"/></g></svg></span>
+  <div>
+    <div style="font-size:11pt;font-weight:700;color:#b3760a;">Sales Coach · Setup Guide</div>
+    <h1>Onboarding your sales agents</h1>
+  </div>
+</div>
+<p class="lead">A step-by-step guide for a new client admin: how to bring your sales reps into the Sales Coach,
+give them access, and get them running the browser extension on their own conversations.</p>
+
+<div class="who"><b>Who this is for:</b> the person who set up your company's Sales Coach account (the admin).
+<b>Time:</b> about 5 minutes for you, plus a minute per agent for them to install the extension.
+<b>The short version:</b> create your account → add each agent by email → they accept the invite → you give them
+the <b>Staff</b> role → they install the extension and sign in.</div>
+
+<h2>Before you start: your admin account</h2>
+<p>Your company's Sales Coach account is created once, by whoever redeems your access key:</p>
+<div class="step">
+  <span class="num">0</span>
+  <div class="body">
+    <h3>Redeem your access key</h3>
+    <p>Go to <span class="route">elostate.com/redeem</span>, enter the access key ELOSTATE gave you, and confirm
+    it shows <b>Sales Coach</b>. Then enter your <b>Company name</b>, <b>email</b>, and a <b>password</b> (a name is
+    optional). This creates your company and makes you its <b>admin</b>. You only do this once — your agents do
+    <b>not</b> each need a key; you invite them (below).</p>
+  </div>
+</div>
+
+<h2>Add your sales agents</h2>
+
+<div class="step">
+  <span class="num">1</span>
+  <div class="body">
+    <h3>Open the Team page</h3>
+    <p>Sign in at <span class="route">elostate.com</span>, then go to <b>Sales Coach → Team</b>
+    (<span class="route">/dashboard/sales-coach/team</span>). This page is admin-only — it's where you grant and
+    manage who uses the Sales Coach.</p>
+  </div>
+</div>
+
+<div class="step">
+  <span class="num">2</span>
+  <div class="body">
+    <h3>Invite each agent by email</h3>
+    <p>Click <span class="btn">+ Add member</span>. In the <b>Invite member</b> dialog:</p>
+    <ul>
+      <li>Enter the agent's <b>work email</b>.</li>
+      <li>Pick a <b>Role</b>. For a sales rep, choose <b>Member</b>. <span class="muted">(This is their company-wide
+      role. Only a company admin can invite someone as CEO/COO.)</span></li>
+      <li>Click <span class="btn">Create invitation</span>. This generates a unique, expiring invite link.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="step">
+  <span class="num">3</span>
+  <div class="body">
+    <h3>Send the invite link</h3>
+    <p>The system does <b>not</b> auto-send email — you deliver the link so it comes from a real, trusted address.
+    After the invite is created you get two options:</p>
+    <ul>
+      <li><span class="btn">Send by email</span> — opens your own mail app with the agent's address, subject, and
+      link already filled in. Just hit send.</li>
+      <li><span class="btn">Copy link</span> — copies the invite URL (<span class="route">elostate.com/invite/&lt;code&gt;</span>)
+      so you can paste it into Slack, a DM, or a text.</li>
+    </ul>
+    <p>Click <b>Invite another</b> to add more agents, or <b>Done</b> when finished. Invite links expire in about
+    two weeks; you can revoke or reissue one from the Team page.</p>
+  </div>
+</div>
+
+<div class="step">
+  <span class="num">4</span>
+  <div class="body">
+    <h3>Your agent activates their account</h3>
+    <p>When the agent opens the invite link, they'll:</p>
+    <ul>
+      <li><b>New to ELOSTATE:</b> enter their email + a password (at least 6 characters), optionally their name,
+      and click <span class="btn">Create account &amp; accept</span>.</li>
+      <li><b>Already have an ELOSTATE login</b> on that email: choose <b>Sign in instead</b>, then
+      <span class="btn">Sign in &amp; accept</span>.</li>
+    </ul>
+    <p>On accept, they're attached to your company and land in the dashboard. <span class="muted">(If their email
+    provider requires confirmation, they confirm via the email link, then reopen the invite.)</span></p>
+  </div>
+</div>
+
+<div class="step">
+  <span class="num">5</span>
+  <div class="body">
+    <h3>Give each agent the Sales Coach role</h3>
+    <p>Back on <b>Sales Coach → Team</b>, each agent now appears in the roster. On their row, tap the role button:</p>
+    <ul>
+      <li><b>Staff</b> — can use the Sales Coach (this is what a rep needs).</li>
+      <li><b>Admin</b> — can also manage the team and roles.</li>
+      <li><b>—</b> (dash) — removes Sales Coach access.</li>
+    </ul>
+    <p>It saves immediately. <b>This step is required:</b> being a company member is not enough — an agent must be
+    set to <b>Staff</b> (or Admin) here before the extension will work for them.</p>
+  </div>
+</div>
+
+<div class="note"><h3>Two roles, kept separate (why there are two)</h3>
+The <b>Elostate role</b> (Member / Lead / CEO / COO) is a company-wide access level set at invite time. The
+<b>Sales Coach role</b> (Staff / Admin) is set on the Team page and controls the coach specifically. They're
+independent on purpose — a company admin is not automatically a coaching user, and vice-versa. For a normal rep:
+invite as <b>Member</b>, then assign <b>Staff</b>.</div>
+
+<h2 class="pb">Your agents: install the extension &amp; sign in</h2>
+<p>Once an agent has an account with the <b>Staff</b> role, they install the browser extension. Send them to
+<span class="route">elostate.com/extension/download-sales</span> — it has these five steps (about a minute):</p>
+
+<table>
+<tr><th style="width:26px;">#</th><th>Step</th><th>What they do</th></tr>
+<tr><td>1</td><td>Download &amp; unzip</td><td>Click <b>Download the extension</b>, then unzip it into a folder they'll keep (e.g. <span class="ui">Documents/sales-coach-extension</span>). Don't delete the folder — the browser loads from it.</td></tr>
+<tr><td>2</td><td>Open the extensions page</td><td>Go to <span class="ui">chrome://extensions</span> (Chrome/Brave) or <span class="ui">edge://extensions</span> (Edge).</td></tr>
+<tr><td>3</td><td>Turn on Developer mode</td><td>Flip the <b>Developer mode</b> switch, top-right.</td></tr>
+<tr><td>4</td><td>Load unpacked</td><td>Click <b>Load unpacked</b> and select the unzipped folder (the one with <span class="ui">manifest.json</span>). The Sales Coach icon appears in the toolbar.</td></tr>
+<tr><td>5</td><td>Pin it &amp; sign in</td><td>Pin <b>Sales Coach</b> (puzzle-piece icon), open any conversation (Gmail, WhatsApp Web, LinkedIn, Slack…), click the Sales Coach icon, then <b>Sign in</b> — it connects to their workspace in one click.</td></tr>
+</table>
+<p class="muted">A one-click Chrome Web Store install is coming; until then this download-and-load takes about a
+minute. Works in Chrome, Edge, and Brave.</p>
+
+<div class="note warn"><h3>If an agent gets stuck</h3>
+<ul style="margin-bottom:0;">
+  <li><b>"Your plan doesn't include it"</b> on a tool → they haven't been given access. Assign them <b>Staff</b> on
+  the Team page (Step 5).</li>
+  <li><b>Panel didn't appear?</b> It doesn't open on its own — click the Sales Coach toolbar icon. It also can't open
+  on browser system pages (<span class="ui">chrome://</span>), the Web Store, or PDFs — try a normal website.</li>
+  <li><b>Asked to sign in again / "session expired"?</b> Click <b>Sign in</b> in the panel again and finish on the
+  connect page — it hands the session back to the extension.</li>
+  <li><b>"Couldn't reach &lt;host&gt;"?</b> Make sure they're on the official web address, not a preview link. If your
+  team runs a custom address, they can clear it or point the extension at the right one.</li>
+</ul></div>
+
+<h2>Quick reference</h2>
+<table>
+<tr><th>To…</th><th>Go to</th></tr>
+<tr><td>Set up your company (once)</td><td><span class="route">elostate.com/redeem</span> → enter your access key</td></tr>
+<tr><td>Add / invite an agent</td><td><b>Sales Coach → Team</b> → <b>Add member</b></td></tr>
+<tr><td>Give an agent access to the coach</td><td><b>Sales Coach → Team</b> → set their row to <b>Staff</b></td></tr>
+<tr><td>Remove an agent's access</td><td><b>Sales Coach → Team</b> → set their row to <b>—</b></td></tr>
+<tr><td>Agent installs the extension</td><td><span class="route">elostate.com/extension/download-sales</span></td></tr>
+</table>
+
+<div class="foot">Sales Coach — agent onboarding guide. Labels and routes reflect the live product. Need help? Contact your ELOSTATE representative.</div>
+
+</body></html>
