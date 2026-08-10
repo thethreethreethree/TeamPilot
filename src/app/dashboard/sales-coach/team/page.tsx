@@ -84,6 +84,25 @@ export default function SalesCoachTeamPage() {
     }
   };
 
+  const revokeInvite = async (inv: { id: string; email: string }) => {
+    // Cancel a pending invite (wrong email, changed mind). Optimistic drop; on failure, reload the true state.
+    // Uses the shared /api/team DELETE revoke path (which asserts a row was actually revoked).
+    setPendingInvites((ps) => ps.filter((p) => p.id !== inv.id));
+    try {
+      const res = await fetch(`/api/team?invitationId=${encodeURIComponent(inv.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.error ?? "failed");
+      }
+      toast.success("Invite canceled", `The invite to ${inv.email} was canceled.`);
+    } catch (e) {
+      void load(); // restore the real list — the revoke didn't land
+      toast.error("Couldn't cancel the invite", e instanceof Error ? e.message : undefined);
+    }
+  };
+
   return (
     <>
       <TopBar title="Team" subtitle="Sales Coach access & roles" />
@@ -295,7 +314,14 @@ export default function SalesCoachTeamPage() {
                       className="flex items-center justify-between gap-3 px-4 py-2.5"
                     >
                       <p className="text-xs text-secondary truncate">{inv.email}</p>
-                      <span className="text-[10px] text-muted whitespace-nowrap">Pending</span>
+                      <button
+                        type="button"
+                        onClick={() => void revokeInvite(inv)}
+                        className="text-[10px] text-muted hover:text-red-400 border border-default hover:border-red-400/40 rounded px-2 py-0.5 whitespace-nowrap transition-colors"
+                        title="Cancel this invite"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ))}
                 </div>
