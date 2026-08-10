@@ -1106,20 +1106,24 @@ export async function fetchConversationEvents(
   conversationId: string
 ): Promise<ConversationEvent[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversation_events")
     .select("*")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
+  // Error-as-no-data guard: an error would render the audit/event timeline as "nothing happened". Fail closed; reserve [] for a genuinely event-less conversation.
+  if (error) throw new Error(`Failed to load the conversation events: ${error.message}`);
   return (data ?? []).map(mapEvent);
 }
 
 export async function listTags(): Promise<SupportTag[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_tags")
     .select("*")
     .order("name", { ascending: true });
+  // Error-as-no-data guard: an empty tag list on error invites the agent to recreate existing tags. Fail closed; reserve [] for a company with no tags.
+  if (error) throw new Error(`Failed to load the support tags: ${error.message}`);
   return (data ?? []).map(mapTag);
 }
 
@@ -1438,7 +1442,10 @@ export async function listKnowledgeResolutions(args: {
   if (args.category) query = query.eq("category", args.category);
   if (args.capturedBy) query = query.eq("captured_by", args.capturedBy);
 
-  const { data: rows } = await query;
+  const { data: rows, error: rowsErr } = await query;
+  // Error-as-no-data guard: an error would blank the institutional-memory knowledge base (false "no memory yet").
+  // Fail closed; reserve [] for a genuinely empty corpus. (The durability/category joins below degrade gracefully.)
+  if (rowsErr) throw new Error(`Failed to load the knowledge resolutions: ${rowsErr.message}`);
   type Row = {
     id: string;
     conversation_id: string;
@@ -1576,13 +1583,15 @@ export async function fetchCustomerPriorConversations(args: {
   }>
 > {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_conversations")
     .select("id, subject, status, created_at")
     .eq("customer_id", args.customerId)
     .neq("id", args.excludeConversationId)
     .order("created_at", { ascending: false })
     .limit(args.limit ?? 5);
+  // Error-as-no-data guard: an error would make a RETURNING customer look like a first-timer (the "has been here before" panel blanks). Fail closed; reserve [] for a genuine first contact.
+  if (error) throw new Error(`Failed to load the customer's prior conversations: ${error.message}`);
   return (data ?? []).map((r) => ({
     id: r.id as string,
     subject: (r.subject as string | null) ?? null,
@@ -1613,13 +1622,15 @@ export async function listDueDurabilityChecks(
   companyId: string
 ): Promise<SupportDurabilityCheck[]> {
   const sb = await createServerClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_durability_checks")
     .select("*")
     .eq("company_id", companyId)
     .is("checked_at", null)
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: true });
+  // Error-as-no-data guard: an error would silently show the consequence-loop review queue as empty ("nothing due"). Fail closed; reserve [] for genuinely nothing due.
+  if (error) throw new Error(`Failed to load the due durability checks: ${error.message}`);
   return (data ?? []).map(mapDurability);
 }
 
@@ -2838,11 +2849,13 @@ export async function fetchAgentPresence(
   agentId: string
 ): Promise<AgentPresence | null> {
   const sb = await createServerClient();
-  const { data: state } = await sb
+  const { data: state, error } = await sb
     .from("care_agent_state")
     .select("*")
     .eq("agent_id", agentId)
     .maybeSingle();
+  // Error-as-no-data guard: an error masked as null would read as the agent being offline / not set up. Fail closed; reserve null for an agent with genuinely no presence row.
+  if (error) throw new Error(`Failed to load the agent's presence: ${error.message}`);
   if (!state) return null;
 
   const { count } = await sb
@@ -2884,10 +2897,12 @@ export async function fetchTeamPresence(
   companyId: string
 ): Promise<TeamPresenceSnapshot> {
   const sb = await createServerClient();
-  const { data: states } = await sb
+  const { data: states, error } = await sb
     .from("care_agent_state")
     .select("agent_id, status, max_concurrent, channels")
     .eq("company_id", companyId);
+  // Error-as-no-data guard: an error would show the leader an empty team ("no one online / no coverage"). Fail closed; reserve the empty snapshot for a company with genuinely no agents.
+  if (error) throw new Error(`Failed to load the team presence: ${error.message}`);
 
   type StateRow = {
     agent_id: string;
@@ -3440,13 +3455,15 @@ export async function detectSupportPatterns(args: {
     Date.now() - windowDays * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  const { data } = await sb
+  const { data, error } = await sb
     .from("support_resolutions")
     .select("category, conversation_id, created_at")
     .not("category", "is", null)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(2000);
+  // Error-as-no-data guard: an error would read as "no recurring problems" (the problem-surfacing gate never fires). Fail closed; reserve [] for genuinely no patterns.
+  if (error) throw new Error(`Failed to load resolutions for pattern detection: ${error.message}`);
 
   const byCategory = new Map<
     string,
@@ -3548,7 +3565,7 @@ export async function detectCoachRiskPatterns(args: {
   // company. The query joins through support_conversations so
   // we can scope by company_id (support_messages itself doesn't
   // have a company_id column).
-  const { data: rows } = await sb
+  const { data: rows, error } = await sb
     .from("support_messages")
     .select(
       "conversation_id, coach_counts, created_at, support_conversations!inner(company_id)"
@@ -3560,6 +3577,9 @@ export async function detectCoachRiskPatterns(args: {
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(5000);
+  // Error-as-no-data guard: an error would read as "no coach-risk patterns" (a false clean bill). Fail closed;
+  // reserve [] for genuinely no risk patterns.
+  if (error) throw new Error(`Failed to load messages for coach-risk detection: ${error.message}`);
 
   type Row = {
     conversation_id: string;
