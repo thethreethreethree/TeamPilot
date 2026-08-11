@@ -90,6 +90,69 @@ describe("invariant-audit.mjs", () => {
     expect(SCRIPT).toContain("[A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)?\\s*\\.\\s*message");
   });
 
+  // INVARIANT 13 (PostgREST .or(...ilike...) injection). Flags an INTERPOLATED raw ilike filter; a
+  // parameterized .ilike(col, term) or a non-interpolated literal is safe and must NOT fire.
+  it("the raw-ilike detector flags an interpolated filter string, not a parameterized or literal ilike", () => {
+    const RAW_ILIKE_FILTER_RE = /`[^`]*ilike\.[^`]*\$\{/;
+    expect(RAW_ILIKE_FILTER_RE.test("supabase.or(`name.ilike.${term},email.ilike.${term}`)")).toBe(true);
+    expect(RAW_ILIKE_FILTER_RE.test('supabase.ilike("name", term)')).toBe(false); // parameterized (escaped)
+    expect(RAW_ILIKE_FILTER_RE.test("supabase.or(`name.ilike.fixedword`)")).toBe(false); // literal, no ${}
+    expect(SCRIPT).toContain("const RAW_ILIKE_FILTER_RE = /`[^`]*ilike\\.[^`]*\\$\\{/");
+  });
+
+  // INVARIANT 16 (LLM/transcription route needs maxDuration). The chokepoint names + known wrappers must
+  // match; an ordinary call must not. A silent narrowing of this list = a route times out in prod undetected.
+  it("the LLM-call detector matches the chokepoints + known wrappers, not an ordinary call", () => {
+    const LLM_CALL_RE =
+      /\b(llmCall|llmStream|generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken|runLearningCycle|runBrainCall|analyzeCoachV5|followUpCoachV5|gradeCoachV5|debriefCoachV5|liveSalesCue|proposeDecisionDialogue|generateDailyQuestions|generateDailyBriefing|proposeCoachPatterns|generateOutsideViews|traceRipples)\s*\(/;
+    expect(LLM_CALL_RE.test("await llmCall({ ... })")).toBe(true); // the shared chokepoint
+    expect(LLM_CALL_RE.test("const r = await runLearningCycle(input)")).toBe(true); // the wrapper that slipped once
+    expect(LLM_CALL_RE.test("await transcribeWithDiarization({ audio })")).toBe(true);
+    expect(LLM_CALL_RE.test("generateSalesPivot(ctx)")).toBe(true); // generateSales\w+
+    expect(LLM_CALL_RE.test("await fetchTopics(scope)")).toBe(false); // an ordinary call
+    expect(SCRIPT).toContain("llmCall|llmStream|generateCareReply");
+  });
+
+  // INVARIANT 18 (non-public mutation must reference a recognised auth/tenant gate). The mutation-export and
+  // the auth-reference detectors must each match their real shapes and reject a gate-less mutation.
+  it("the anon-writable detector matches a mutation export + a recognised gate, and rejects a gate-less one", () => {
+    const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
+    const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
+    expect(MUTATION_EXPORT_RE.test("export async function POST(req: NextRequest) {")).toBe(true);
+    expect(MUTATION_EXPORT_RE.test("export const DELETE = async () => {")).toBe(true);
+    expect(MUTATION_EXPORT_RE.test("export async function GET() {")).toBe(false); // read-only, out of scope
+    expect(ROUTE_AUTH_RE.test("const { data } = await supabase.auth.getUser();")).toBe(true);
+    expect(ROUTE_AUTH_RE.test("const conv = await getCareConversationByToken(token);")).toBe(true); // capability token
+    expect(ROUTE_AUTH_RE.test("const body = await req.json();")).toBe(false); // no recognised gate → flagged
+    expect(SCRIPT).toContain("const MUTATION_EXPORT_RE = /export\\s+(?:async\\s+function|const)\\s+(?:POST|PATCH|PUT|DELETE)\\b/");
+  });
+
+  // INVARIANT 19 (owner-required service-role append needs a session-owner check). The append detector must
+  // match the three private-append fns; the owner-check detector must require the `!==` guard shape (an
+  // `===` comparison does NOT satisfy it — the guard is "reject when not the owner").
+  it("the owner-append detector matches the private appends and requires the !== owner guard", () => {
+    const OWNER_REQUIRED_APPEND_RE = /\bappend(Cue|CueOutcome|TranscriptSegment)\s*\(/;
+    const SESSION_OWNER_CHECK_RE = /\.agentId\s*!==/;
+    expect(OWNER_REQUIRED_APPEND_RE.test("await appendCue({ sessionId, text })")).toBe(true);
+    expect(OWNER_REQUIRED_APPEND_RE.test("await appendTranscriptSegment(seg)")).toBe(true);
+    expect(OWNER_REQUIRED_APPEND_RE.test("await appendMessage(m)")).toBe(false); // not an owner-required table
+    expect(SESSION_OWNER_CHECK_RE.test("if (session.agentId !== auth.user.id) return forbidden();")).toBe(true);
+    expect(SESSION_OWNER_CHECK_RE.test("if (session.agentId === auth.user.id) ok();")).toBe(false); // === is not the guard
+    expect(SCRIPT).toContain("const OWNER_REQUIRED_APPEND_RE = /\\bappend(Cue|CueOutcome|TranscriptSegment)\\s*\\(/");
+  });
+
+  // INVARIANT 21 (.limit(N) > 1000 is a false bound). The detector must capture a literal N and the caller
+  // flags only N > 1000; a variable limit or a <=1000 literal must not fire.
+  it("the false-limit detector captures a literal N and the > 1000 threshold, not a variable or a small limit", () => {
+    const FALSE_LIMIT_RE = /\.limit\(\s*(\d+)\s*\)/g;
+    const grab = (s: string) => [...s.matchAll(FALSE_LIMIT_RE)].map((m) => Number(m[1]));
+    expect(grab(".limit(5000)").some((n) => n > 1000)).toBe(true); // false bound
+    expect(grab(".limit(50)").some((n) => n > 1000)).toBe(false); // real, small bound
+    expect(grab(".limit(pageSize)")).toEqual([]); // variable — not a literal false bound
+    expect(SCRIPT).toContain("const FALSE_LIMIT_RE = /\\.limit\\(\\s*(\\d+)\\s*\\)/g");
+    expect(SCRIPT).toContain("Number(m[1]) > 1000");
+  });
+
   // Every exception must carry a REASON. An allowlist of bare paths is just a disabled check — it records
   // that someone silenced the audit, not why it was safe to.
   it("every allowlisted exception states its reason", () => {

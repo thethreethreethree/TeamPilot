@@ -1,6 +1,10 @@
 # Proposal — close the detection-test coverage gap on the invariant audit
 
-**Status:** proposed (awaiting founder greenlight). **Trigger phrase:** *"detection-test the invariants"*.
+**Status:** PARTIALLY SHIPPED 2026-08-11 — the recommended **top-5 security-critical** (INV18, INV13, INV19,
+INV16, INV21) now have detection-tests (test-only, no production change). **Remaining 10** still open:
+INV7 (admin gate), INV8 (extension auth), INV9 (NEXT_PUBLIC), INV10 (dangerouslySetInnerHTML), INV11 (cron
+secret), INV12 (constitution version), INV15 (coaching_sessions company_id), INV17 (cron in vercel.json),
+INV20 (middleware cookies), INV24 (extension LLM fence). **Trigger phrase:** *"detection-test the invariants"*.
 **Origin:** surfaced 2026-08-11 while adding a detection-test for invariant 14 (CWE-209, build xj). The test
 file's own header states its purpose: *"A gate that cannot FAIL is not a gate — it is a green light with extra
 steps. I shipped exactly that bug… the rls-audit's SELECT rule had a regex that could never match, so the
