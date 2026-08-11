@@ -1,5 +1,33 @@
 # Founder action queue
 
+## 🟡 AUDIT FLAG — 2026-08-12: rep Sales-Coach dashboard stats silently truncate at 1000 sessions (known class, new instance)
+
+> Found in a ground-up sweep of the Sales Coach data layer for the unbounded-`.select()` truncation class (the
+> one that hit the CARE readouts + Coach KPI). **This is a flag, not a fix** — I did NOT touch it, because the
+> class is founder-gated (audit-provenance 2026-08-02) and I handled the CARE-readout instance the same way
+> (surface for your call, not unilateral fix).
+>
+> **Where:** [`src/app/api/coach/sales-session/dashboard/route.ts:25-28`](src/app/api/coach/sales-session/dashboard/route.ts#L25-L28) — `.from("coaching_sessions").select("id, status, started_at").eq("agent_id", agentId)` with NO limit/range. `sessionsTotal`, `activeCount`, `reviewedCount`, `awaitingReview` are then counted in JS from those rows, and `cuesTotal` keys `.in("session_id", ids)` on them.
+>
+> **The bug:** PostgREST caps that select at 1000 rows. So a rep who has ever run **>1000 sessions** (a
+> long-tenured door-to-door rep, one session per door, is plausible over months) sees a dashboard where the
+> total caps at 1000 and every pipeline count + the cue total is computed over only the first 1000 — a
+> section-3.5 "measure-wrong" that silently understates their real activity. No security/data-loss; analytics correctness
+> on high-volume reps only.
+>
+> **Severity 🟡 MEDIUM** — same truncation class + urgency as the CARE-readout item; bites only reps past 1000 sessions.
+>
+> **The clean fix (mirror the sibling that got it right):** `team-analytics/route.ts` right next door computes
+> its totals with `count: "exact", head: true` (an exact Postgres count, no row fetch, no cap) + a bounded
+> `.limit(SESSION_WINDOW)` window with a `capped` disclosure flag. The dashboard should do the same: exact head
+> counts for the 5 pipeline stats (with the status filter on each), and the company/agent-scoped exact cue
+> count `team-analytics` already uses. Say **"fix the dashboard truncation"** and I apply it + test; or fold it
+> into the broader truncation-class decision (the CARE `c5fbd454` keep/revert + the 3 remaining readouts).
+>
+> **Swept clean in the same pass:** `team-analytics` (exact head counts ✓), `list` (intentional 300-cap with a
+> disclosed "showing 300 most recent" notice ✓), and the finance bank-import dedup (upsert + ignoreDuplicates,
+> not a self-join count ✓). The dashboard route is the one real instance found.
+
 ## 🔴 SECURITY — 2026-08-12: 5 high-severity dependency CVEs, incl. an APPLICABLE Next.js auth-bypass — patch available
 
 > **Found via `npm audit` (prod deps), then applicability-assessed per the record's posture (a CVE's generic
