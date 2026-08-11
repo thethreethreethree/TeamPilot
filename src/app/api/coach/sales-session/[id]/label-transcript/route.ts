@@ -72,13 +72,19 @@ export async function POST(
     );
   }
 
-  // Structural guard for the APPEND-ONLY double-write class (§A30 — gate the class, don't leave it
-  // to the UI). This route only ever appends, so a SECOND upload — or an upload on top of a live
-  // transcript that already saved — would double the exact record the after-pitch review + coaching
-  // scores run on (§A18 data-integrity). The [id]-page UI now hides the file-pick upload once a
-  // transcript exists, but the UI is not the gate: refuse here if the session already has one. Live
-  // coaching writes its transcript via /finalize + /segments (NOT this route), so this can never block
-  // a live save; the recovery re-transcribe only fires when the transcript is empty, so it's unaffected.
+  // APPEND-ONLY double-write class (§A18 data-integrity): this route only ever appends, so a SECOND
+  // upload — or an upload on top of a live transcript that already saved — must not double the exact
+  // record the after-pitch review + coaching scores run on.
+  //
+  // WHERE THE INVARIANT ACTUALLY HOLDS (audit 2026-08-11, F5 — don't mislead the next reader): the
+  // STRUCTURAL gate is migration 0208's `unique(session_id, seq)` constraint — a concurrent double-label
+  // both pass the read below, but the second's inserts hit 23505 and appendTranscriptSegment treats it as
+  // an idempotent no-op, so the transcript cannot double even under a true race. The `getSessionTranscript`
+  // check here is a NON-atomic fast-fail (TOCTOU) that gives a clean 409 for the common sequential/stale-
+  // client case + a readable message; it is defense-in-depth on top of the constraint, NOT the sole gate.
+  // The [id]-page UI hiding the picker once a transcript exists is a third, purely-UX layer. Live coaching
+  // writes via /finalize + /segments (NOT this route), so none of this blocks a live save; the recovery
+  // re-transcribe only fires when the transcript is empty, so it's unaffected.
   const existing = await getSessionTranscript(id);
   if (existing.length > 0) {
     return NextResponse.json(
