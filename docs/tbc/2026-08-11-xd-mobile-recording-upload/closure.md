@@ -11,6 +11,11 @@
 3. **Voice-memo formats (Android + Apple)** — `accept` broadened (`.m4a/.caf/.amr/.3gp/.ogg/.wav/…`);
    the sign + finalize gates accept any `audio/`|`video/` and tolerate an empty stored content-type
    (a memo picked from Files); copy says "voice memo or call recording."
+4. **Append-only double-write guard** (proactive §1.5.2 fix) — widening the upload surface exposed a
+   double-append: `label-transcript` appends with no already-has-a-transcript check. Closed at two layers —
+   the file-pick upload hides once `transcript.length === 0` is false, and `label-transcript` now returns 409
+   `alreadyHasTranscript` if a transcript exists (§A30). Live coaching's `/finalize`+`/segments` untouched.
+   See check.md + remediate.md.
 
 ## Un-named reliances this build silently rests on (A35 — name them so they're not a surprise later)
 - **The ~4.5 MB Vercel serverless request-body limit is the load-bearing fact.** The entire fix exists
@@ -53,7 +58,7 @@ $ npm run check
 typecheck ✓ · lint ✓ · theme:audit ✓ · rls:audit ✓
 invariant:audit ✓ — Files scanned: 766 · Violations: 0
 tbc ✓ — tbc:docs · tbc:manifest · tbc:artifacts · tbc:residual · tbc:freshness all ✓
-test ✓ — Test Files 385 passed | 1 skipped (386); Tests 2658 passed | 15 skipped (2673)
+test ✓ — Test Files 385 passed | 1 skipped (386); Tests 2659 passed | 15 skipped (2674)
 CHECK_EXIT=0
 ```
 

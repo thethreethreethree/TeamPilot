@@ -5,7 +5,7 @@ started_at: 2026-08-11T12:00:00Z
 doc_hashes:
   CLAUDE.md: e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f
   ThinkerThinker.md: 0428b0bb286433cc6d9925db2286127994b9d11d1c4df80de1256f0d3f53e8bc
-manifest_entries: 14
+manifest_entries: 19
 hypotheses: 3
 ---
 
@@ -88,10 +88,15 @@ their phone.
   { "id": "§3.2", "read_at": "2026-08-11T12:04:30Z", "source_file": "CLAUDE.md", "line_range": "230-240", "why_it_governs": "Build the spec as written.", "how_this_build_will_embody_it": "Upload on Standard live + After-Pitch (both modes); direct-to-storage; voice-memo formats." },
   { "id": "§3.4", "read_at": "2026-08-11T12:07:00Z", "source_file": "CLAUDE.md", "line_range": "270-295", "why_it_governs": "Honesty — no silent empties.", "how_this_build_will_embody_it": "Oversized/empty/unreadable uploads error with an actionable message; the audio is persisted before transcription so a failed STT is recoverable." },
   { "id": "§6", "read_at": "2026-08-11T12:08:00Z", "source_file": "CLAUDE.md", "line_range": "352-395", "why_it_governs": "Pre-action checklist forces precedent + ripple-trace + gate-or-promise.", "how_this_build_will_embody_it": "Section 7 answers each item; drove reusing Files + gating owner-or-manager." },
+  { "id": "A18", "read_at": "2026-08-11T13:10:00Z", "source_file": "ThinkerThinker.md", "line_range": "429-451", "why_it_governs": "The transcript is the human-behavior record a coach/manager reviews; its integrity is the structural defense — a doubled/mixed transcript corrupts every downstream read + score.", "how_this_build_will_embody_it": "The append-only double-write guard (UI gate + label-transcript 409) keeps the reviewed record single and trustworthy." },
   { "id": "A19", "read_at": "2026-08-11T12:02:30Z", "source_file": "ThinkerThinker.md", "line_range": "453-468", "why_it_governs": "The governing methodology must be consulted from the working tree this session, not cached memory.", "how_this_build_will_embody_it": "Re-read the upload route + assets.ts + the Files precedent in-tree this session before mirroring; doc hashes verified present." },
   { "id": "A22", "read_at": "2026-08-11T12:06:00Z", "source_file": "ThinkerThinker.md", "line_range": "585-610", "why_it_governs": "Constitutional citations require in-session reads.", "how_this_build_will_embody_it": "This manifest reflects this build's actual reads; the minimum set (§0, A19, A22) is present." },
   { "id": "A28", "read_at": "2026-08-11T12:03:00Z", "source_file": "ThinkerThinker.md", "line_range": "735-760", "why_it_governs": "Reuse precedent before inventing.", "how_this_build_will_embody_it": "Mirrored the Files signed-URL upload (sign → uploadToSignedUrl → finalize w/ getAssetObjectInfo)." },
-  { "id": "A30", "read_at": "2026-08-11T12:07:30Z", "source_file": "ThinkerThinker.md", "line_range": "768-775", "why_it_governs": "Gate the class, don't leave it in prose.", "how_this_build_will_embody_it": "sign route + finalize branch covered by vitest (auth/validation/owner-gate/oversize)." },
+  { "id": "A30", "read_at": "2026-08-11T12:07:30Z", "source_file": "ThinkerThinker.md", "line_range": "768-775", "why_it_governs": "Gate the class, don't leave it in prose.", "how_this_build_will_embody_it": "sign route + finalize branch covered by vitest (auth/validation/owner-gate/oversize); the double-write class gated by the label-transcript 409 test, not just the UI." },
+  { "id": "A31", "read_at": "2026-08-11T12:09:00Z", "source_file": "ThinkerThinker.md", "line_range": "791-820", "why_it_governs": "Schema-complete is not built — the DB↔surface seam must be gated, both paths asserted.", "how_this_build_will_embody_it": "build.md asserts write-path AND read-path for each of the 3 features." },
+  { "id": "A33", "read_at": "2026-08-11T13:12:00Z", "source_file": "ThinkerThinker.md", "line_range": "850-896", "why_it_governs": "When a gate can't be precise, name the hole and decline rather than fake precision.", "how_this_build_will_embody_it": "The label-transcript TOCTOU self-race is named + declined in remediate.md/closure.md (single-writer reality), not row-locked." },
+  { "id": "A35", "read_at": "2026-08-11T13:00:00Z", "source_file": "ThinkerThinker.md", "line_range": "898-919", "why_it_governs": "Name the un-headlined reliance; silence dodges the citation hook.", "how_this_build_will_embody_it": "closure.md names the 4.5MB-cap / getAssetObjectInfo / Scribe-decode / plan-tier / mobile-client reliances." },
+  { "id": "A36", "read_at": "2026-08-11T13:05:00Z", "source_file": "ThinkerThinker.md", "line_range": "921-945", "why_it_governs": "The residual is the highest-yield queue; the top-confidence entry must be OPENED, not disclaimed.", "how_this_build_will_embody_it": "closure.md residual R1 (highest confidence) was actually opened (grepped for multipart callers) with a recorded outcome." },
   { "id": "A38", "read_at": "2026-08-11T12:20:00Z", "source_file": "ThinkerThinker.md", "line_range": "999-1018", "why_it_governs": "'Verified' = the canonical command + its output.", "how_this_build_will_embody_it": "check.md pastes the vitest + typecheck runs with exit codes." }
 ]
 ```

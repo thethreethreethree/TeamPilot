@@ -1022,17 +1022,22 @@ export default function SessionDetail() {
                 earlier Standard p4/p5 removal ("door-to-door people won't use this"). The door-to-door rep
                 who recorded the call on their phone (iPhone Voice Memos / Android) can bring it in right here.
                 Founder 2026-07-31/08-01: on label-complete we open the required naming gate → ends the session
-                (duration + KPI populate) + names it → lands on After-Pitch. */}
-            <SessionRecordingUpload
-              sessionId={id}
-              onLabeled={openNaming}
-              // Recovery: the recording saved but the transcript never landed (STT
-              // outage). Offer re-transcribe-from-storage only when a transcript
-              // does NOT already exist — re-labeling would append a duplicate.
-              hasSavedRecording={
-                !!session?.audioAssetUrl && transcript.length === 0
-              }
-            />
+                (duration + KPI populate) + names it → lands on After-Pitch.
+
+                Gated to transcript.length === 0: once a transcript EXISTS (live coaching saved one, or a
+                prior upload landed), hide the file-pick upload. label-transcript is APPEND-ONLY (§3.1) with
+                no already-has-a-transcript guard, so a second upload would double-append a mixed transcript
+                onto the exact record the after-pitch review + coaching scores run on (§A18 data-integrity;
+                the append-only double-write class). Widening the upload to both modes widened that exposure,
+                so it's closed here. The recovery re-transcribe is already within this guard (it only makes
+                sense when the transcript is empty), so hasSavedRecording collapses to just the saved pointer. */}
+            {transcript.length === 0 && (
+              <SessionRecordingUpload
+                sessionId={id}
+                onLabeled={openNaming}
+                hasSavedRecording={!!session?.audioAssetUrl}
+              />
+            )}
 
             {/* Coach tools + the raw transcript wall stay Expert only (spec p7: a Standard
                 door-to-door rep relives the call from the After-Pitch summary + timeline, not the

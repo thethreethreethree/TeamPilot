@@ -3,7 +3,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
-import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import {
+  getSession,
+  getSessionTranscript,
+  appendTranscriptSegment,
+} from "@/lib/data/salesCoach";
 
 /**
  * POST /api/coach/sales-session/[id]/label-transcript (Live Sales Coach S1a)
@@ -65,6 +69,25 @@ export async function POST(
     return NextResponse.json(
       { error: "Only the session's rep can label its transcript." },
       { status: 403 }
+    );
+  }
+
+  // Structural guard for the APPEND-ONLY double-write class (§A30 — gate the class, don't leave it
+  // to the UI). This route only ever appends, so a SECOND upload — or an upload on top of a live
+  // transcript that already saved — would double the exact record the after-pitch review + coaching
+  // scores run on (§A18 data-integrity). The [id]-page UI now hides the file-pick upload once a
+  // transcript exists, but the UI is not the gate: refuse here if the session already has one. Live
+  // coaching writes its transcript via /finalize + /segments (NOT this route), so this can never block
+  // a live save; the recovery re-transcribe only fires when the transcript is empty, so it's unaffected.
+  const existing = await getSessionTranscript(id);
+  if (existing.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "This session already has a transcript — start a new session to log a different call.",
+        alreadyHasTranscript: true,
+      },
+      { status: 409 }
     );
   }
 

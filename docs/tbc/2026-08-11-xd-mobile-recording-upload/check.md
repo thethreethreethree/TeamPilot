@@ -38,8 +38,20 @@ exit code are recorded in closure.md.
 
 ## Findings
 
-**No findings** — no open defects surfaced by verification. Known NON-defect limitations (honest scope
-boundaries, not bugs):
+### Append-only double-write — upload on top of an existing transcript
+class: append-only double-write (transcript) — same family as the React-flag double-write latches
+(`reference_append_only_double_write_react_flag_guard`).
+severity: medium
+sweep: `grep -rn "appendTranscriptSegment" src/app/api` — every append writer must be single-entry OR guard
+against an already-populated transcript. Result: `/finalize` + `/segments` are the live single-save path;
+`/label-transcript` is the upload path, now guarded.
+Discovered by the §1.5.2 proactive scan while WIDENING the upload surface: `label-transcript` appends with
+only an owner check, and the `[id]`-page file-pick upload rendered unconditionally — so uploading to a
+session that already had a transcript (live coaching saved one, or a prior upload) double-appended a mixed
+transcript onto the exact record the after-pitch review + coaching scores run on (§A18). Latent for Expert
+already; this build widened it to Standard. Fixed at two layers — see remediate.md.
+
+## Known limitations (NON-defect) — honest scope boundaries, not bugs:
 
 1. **Exotic Android formats.** ElevenLabs Scribe decodes the common voice-memo formats (`.m4a`, `.mp3`,
    `.wav`, `.ogg`, `.mp4`/`.webm`); a rare `.amr`/`.3gp` may upload but fail to transcribe — which surfaces

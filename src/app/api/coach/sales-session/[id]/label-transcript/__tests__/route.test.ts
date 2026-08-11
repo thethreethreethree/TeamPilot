@@ -11,11 +11,12 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/data/salesCoach", () => ({
   getSession: vi.fn(),
+  getSessionTranscript: vi.fn(async () => []),
   appendTranscriptSegment: vi.fn(async () => ({})),
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import { getSession, getSessionTranscript, appendTranscriptSegment } from "@/lib/data/salesCoach";
 import { POST } from "../route";
 
 const setAuth = (userId: string | null) =>
@@ -29,6 +30,8 @@ const req = (body: unknown) => ({ json: async () => body }) as unknown as Parame
 beforeEach(() => {
   vi.clearAllMocks();
   (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "sess1", agentId: "rep1" });
+  // Default: no transcript yet, so the append-only double-write guard lets the first label through.
+  (getSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 const BODY = {
@@ -65,6 +68,20 @@ describe("POST /label-transcript", () => {
   it("400 on an invalid body (no segments)", async () => {
     setAuth("rep1");
     expect((await POST(req({ agentSpeakerId: "spk_A", segments: [] }), ctx)).status).toBe(400);
+  });
+
+  it("409 when the session already has a transcript (append-only double-write guard, A30)", async () => {
+    // A second upload — or an upload on top of a live transcript that already saved — must NOT
+    // double-append onto the record the after-pitch review runs on. Live coaching writes via
+    // /finalize + /segments, not this route, so this guard can't block a live save.
+    setAuth("rep1");
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { speaker: "agent", text: "existing", seq: 0 },
+    ]);
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(409);
+    expect((await res.json()).alreadyHasTranscript).toBe(true);
+    expect(appendTranscriptSegment).not.toHaveBeenCalled();
   });
 
   it("labels the tapped speaker 'agent' and every other speaker 'customer'", async () => {
