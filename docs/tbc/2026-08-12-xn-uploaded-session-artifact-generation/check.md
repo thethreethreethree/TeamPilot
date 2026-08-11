@@ -23,6 +23,17 @@ The live flow (`useLiveCoaching` → `/finalize`) already generated the full set
 just calls the shared helper). The manual `/summarize` POST and the dissect-backfill cron are separate,
 intentional paths — left untouched. The finalize refactor is behavior-preserving (its existing tests are unchanged and still pass in the run below).
 
+## Audit-clean (post-ship class sweep) — every transcript-producing path is covered
+Completing the F1 class (A26) across ALL transcript-producing paths, not just the one that surfaced it:
+- **Live** → `useLiveCoaching` → `/finalize` — generates (unchanged).
+- **Fresh upload** → `/upload-recording` → `/label-transcript` — generates (F1 fix).
+- **Orphan recovery** → `/retranscribe` → `/label-transcript` — generates (F1 fix). `retranscribe` (like
+  `upload-recording`) does NOT append the transcript itself; it returns diarized segments that funnel through
+  `/label-transcript` (route comment, lines 29-32), so it inherits the fix — verified, NOT a second gap.
+- **`/segments`** → dev/manual insert with NO client caller (route comment) — not a user path.
+So the two upload entry points both route through the single fixed route, and no transcript-producing path is
+left without a generation trigger. Class closed.
+
 ## Targeted tests
 ```
 $ npx vitest run src/app/api/coach/sales-session/[id]/label-transcript src/app/api/coach/sales-session/[id]/finalize
