@@ -19,11 +19,20 @@
 > confusion — moderate, validation path).
 >
 > **The fix is low-friction:** a **non-`--force`** `npm audit fix` reports **0 vulnerabilities** afterward
-> (semver-compatible updates, incl. a Next.js minor patch — no major bumps). **Recommended:** run
-> `npm audit fix`, then VERIFY the Vercel deploy succeeded (`curl /api/health` build.commit == HEAD, or the
-> commit-status `.state`) and REVERT if the framework bump breaks the build/runtime — the exact discipline the
-> record prescribes for a framework bump. I can do all of this on your word (trigger *"patch the CVEs"*); I held
-> off only because it's a framework change to live prod.
+> (semver-compatible updates, incl. a Next.js minor patch — no major bumps).
+>
+> **✅ PREPARED + LOCALLY VERIFIED (2026-08-12) — branch `security/patch-cves-2026-08-12` (prod/main UNTOUCHED):**
+> I ran the non-force `npm audit fix` there (lockfile-only, `package.json` unchanged; Next.js 16.2.6 → **16.3.0**,
+> a minor within `^16`) and verified it in isolation:
+> - `npm audit` → **0 vulnerabilities**
+> - `npm run check` → **green** (2715 tests, 0 invariant violations)
+> - `npm run build` (real `next build`) → **compiles + generates all 308 static pages** — the definitive
+>   pre-Vercel check the record demands for a framework bump.
+> - Pushed → Vercel builds a **PREVIEW** (final Vercel-build confirmation) without touching prod.
+>
+> **To ship:** merge `security/patch-cves-2026-08-12` into main (or trigger *"patch the CVEs"* and I'll merge it),
+> then confirm the prod deploy (`/api/health` build.commit == HEAD). Prod stays on 16.2.6 until you do. This is
+> as de-risked as a framework bump gets — the only thing I did NOT do autonomously is put it on prod.
 
 ## 🟢 DECISIONS — 2026-08-11/12 autonomous session (hero + security/quality sweep, 19 commits, all gate-green)
 
