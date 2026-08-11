@@ -36,7 +36,7 @@ vi.mock("@/lib/storage/assets", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/care/conversations/[id]/upload/route";
-import { getCareConversationByToken } from "@/lib/data/care";
+import { getCareConversationByToken, postCustomerMessage } from "@/lib/data/care";
 import { createFileRecord } from "@/lib/data/files";
 import { getAssetObjectInfo } from "@/lib/storage/assets";
 
@@ -134,5 +134,23 @@ describe("POST customer upload — direct-to-storage finalize gates", () => {
     expect(arg.sizeBytes).toBe(6_000_000);
     expect(arg.mimeType).toBe("image/jpeg");
     expect(arg.storagePath).toBe(`${COMPANY}/2026/08/photo.jpg`);
+  });
+
+  it("502 (not a silent 200) when the inline attachment message fails to post — §3.4 honesty, matches the agent tail", async () => {
+    vi.mocked(getAssetObjectInfo).mockResolvedValue({
+      sizeBytes: 6_000_000,
+      contentType: "image/jpeg",
+    });
+    // The file uploads + the row is created, but the attachment message no-ops (RLS / write failure).
+    vi.mocked(postCustomerMessage).mockResolvedValueOnce(null as never);
+    const res = await POST(
+      jsonReq("tok", { storagePath: `${COMPANY}/2026/08/photo.jpg`, filename: "photo.jpg" }),
+      ctx("conv-1")
+    );
+    expect(res.status).toBe(502);
+    // The file row is still returned (recoverable) — the caller is told honestly it wasn't fully sent.
+    const body = await res.json();
+    expect(body.file).toBeTruthy();
+    expect(createFileRecord).toHaveBeenCalledTimes(1);
   });
 });

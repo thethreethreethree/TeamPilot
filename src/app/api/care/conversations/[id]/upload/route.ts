@@ -97,13 +97,28 @@ async function attachCustomerFile(args: {
   // agent sees the file inline in the conversation thread, not
   // only via the library filter. Body = filename; media_url
   // carries the file pointer for the inline render path.
-  await postCustomerMessage({
+  const posted = await postCustomerMessage({
     conversationId: conv.id,
     body: row.title,
     kind: "attachment",
     mediaUrl: `assets-v1://${row.id}`,
     mediaType: row.mimeType,
   });
+  if (!posted) {
+    // §3.4 honesty (A16 — the agent tail already does this; the customer tail must match, not
+    // silently 200): the file uploaded and is in the library, but the inline attachment message
+    // did NOT post — so the AGENT won't see it in the thread. Surface it as a partial + let the
+    // widget offer a retry, instead of returning success the customer reads as "they got it".
+    // The file row persists (recoverable). postCustomerMessage already logged the cause.
+    return NextResponse.json(
+      {
+        error:
+          "Your file was saved but couldn't be attached to the conversation — please try sending it again.",
+        file: row,
+      },
+      { status: 502 }
+    );
+  }
   // §3.1 chain event. Per migration 0054 lesson, actor is null
   // for customer uploads (visitor is not an auth.users row); the
   // events table actor column is nullable.
