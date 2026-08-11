@@ -265,17 +265,21 @@ export function SalesCoachShell({
                         setOpenGroups((m) => ({ ...m, [header]: !(m[header] ?? false) }))
                       }
                       aria-expanded={open}
-                      className={`w-full flex items-center gap-2 px-3 pt-2 pb-1 rounded-md text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                      // Founder revision 2026-08-12: these headers gate whole tool GROUPS, so make them clearly
+                      // more apparent than a normal nav item — bumped from a tiny 10px label to text-sm bold
+                      // uppercase, brighter, with a bit more vertical presence. Still uppercase + tracked so they
+                      // read as section headers, not clickable items.
+                      className={`w-full flex items-center gap-2 px-3 pt-3 pb-1.5 rounded-md text-sm font-bold uppercase tracking-wide transition-colors ${
                         groupActive
-                          ? "text-white/90"
-                          : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                          ? "text-white"
+                          : "text-white/80 hover:text-white hover:bg-white/5"
                       }`}
                     >
                       <span className="flex-1 text-left">{header}</span>
                       {open ? (
-                        <ChevronDown className="w-3 h-3 shrink-0" aria-hidden />
+                        <ChevronDown className="w-4 h-4 shrink-0" aria-hidden />
                       ) : (
-                        <ChevronRight className="w-3 h-3 shrink-0" aria-hidden />
+                        <ChevronRight className="w-4 h-4 shrink-0" aria-hidden />
                       )}
                     </button>
                     {open && (
