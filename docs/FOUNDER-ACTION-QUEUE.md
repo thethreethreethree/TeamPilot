@@ -7,6 +7,35 @@
 > in the build closure): a rep past ~1000 SESSIONS makes `sessionIds` a >1000-value `.in()` list — a separate
 > concern whose real fix is a server-side aggregate RPC.
 
+## 🟡 WORKFLOW FLAG — 2026-08-12: After-Pitch "Replay conversation" / "Back to session" link is a NO-OP LOOP in Standard mode
+
+> Found tracing the manager team-review flow end-to-end (AMD-006 Layer 3 — the seam-continuity dimension that
+> class-sweeps miss). A UX break in the DEFAULT (Standard) flow, affecting reps AND managers.
+>
+> **The loop:** [`[id]/after-pitch/page.tsx:658-659`](src/app/dashboard/sales-coach/[id]/after-pitch/page.tsx#L658) —
+> the prominent "Replay conversation" (rep) / "Back to session" (manager) link navigates to
+> `/dashboard/sales-coach/${id}`. But [`[id]/page.tsx:182-186`](src/app/dashboard/sales-coach/[id]/page.tsx#L182)
+> redirects any Standard user off an ended session STRAIGHT BACK to `/after-pitch`. So in Standard the link
+> round-trips to the page you're already on — a no-op. Its own Learning Hint promises "returns you to the full
+> session so you can re-read the exchange line by line," which it never does for Standard users.
+> **Also redundant:** the transcript it promises is ALREADY on the after-pitch page (the expandable
+> "Conversation transcript" recap, ~line 538), so Standard users have the content inline; the link adds nothing.
+> **Works in Expert:** the redirect keys on `isStandard`, so in Expert mode `[id]` doesn't redirect and the link
+> reaches the full detail correctly. The break is Standard-only.
+>
+> **Why it exists:** the `[id]` redirect was built for the rep's simplified flow ("After-Pitch IS the post-call
+> screen") assuming Standard=rep / Expert=manager; the later Standard MANAGER view + this back-link cross that
+> assumption. Two features from different dates meeting at a seam.
+>
+> **Severity 🟡 MEDIUM** — default flow, a prominent CTA that silently does nothing; not stranding (content is
+> inline, browser-back works). **Fix (Standard only, Expert untouched):** since the transcript is already inline,
+> either drop the link in Standard, or repoint it to expand/scroll to the inline transcript instead of navigating
+> to `[id]`. Say **"fix the after-pitch replay link"**.
+>
+> (Adjacent, same root: a Standard MANAGER reviewing a rep is confined to the after-pitch summary — they get the
+> transcript there, but not the dense Expert `[id]` detail: dissect/pivot/moments. Likely by-design for Standard,
+> but flagging in case managers should reach the full detail. Same redirect is the cause.)
+
 ## 🟡 AUDIT FLAG — 2026-08-12: CARE agent analytics truncates at 5000 windowed conversations (no disclosure)
 
 > Found widening the truncation sweep to CARE (you chose "widen the audit"). Lower severity than the KPI one —
