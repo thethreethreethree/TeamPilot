@@ -1,5 +1,42 @@
 # Founder action queue
 
+## 🟠 AUDIT FLAG (HIGH) — 2026-08-12: the KPI "Reliance Reduction" HEADLINE metric truncates at 1000 rows — the Coach-KPI fix was INCOMPLETE
+
+> Found extending the truncation sweep into the KPI compute layer (the recorded-open "KPI agg" item). This is
+> **more severe than the dashboard flag below** and likely **already wrong in production for most active reps**.
+> Still a flag, not a fix (same founder-gated class), but flagged HIGH because it hits the metric the whole
+> section-3.4/3.5 honesty thesis rests on.
+>
+> **Where:**
+> - [`kpi/me/route.ts:135-137`](src/app/api/coach/kpi/me/route.ts#L135-L137) — after paging the rep's sessions
+>   correctly, it reads `coaching_transcript_segments`, `coaching_cues`, AND `coaching_cue_outcomes` with
+>   `.in("session_id", sessionIds)` and **NO `.range`/`.limit`** → each capped at 1000.
+> - [`kpi/team/route.ts:113,129`](src/app/api/coach/kpi/team/route.ts#L113) — the same unbounded cues + segments
+>   reads feeding the manager's team rollup.
+>
+> **Why it's the incomplete-fix shape:** the sessions query (me:48) is carefully `fetchAllPaged` with the
+> comment *"so a high-volume rep past 1000 LIFETIME sessions doesn't silently truncate their KPIs."* But the
+> dependent reads it feeds were left unbounded — so the metric truncates anyway, one query later, defeating the
+> fix's own stated purpose. My audit record even said "Coach KPI FIXED (fetchAllPaged)" — that was only the
+> sessions half.
+>
+> **The bug:** `coaching_transcript_segments` is the highest-volume table (~40+ rows per coached session).
+> `sessionIds` is ALL-TIME (no period filter), so total segments cross 1000 at roughly **25-30 coached
+> sessions** — most active reps past their first month or two. Past the cap, `coachedSessions` (the set of
+> sessions with ≥1 segment) silently loses sessions, so **Reliance Reduction is computed over the wrong session
+> set**, and `cueAcceptanceRate` undercounts. It hits BOTH the rep's own view and the manager's team view —
+> and the team route's own comment says cross-view consistency "is the whole honesty thesis; a rep seeing a
+> different figure than their manager erodes it." A truncation breaks the number AND that consistency.
+>
+> **Severity 🟠 HIGH** — headline section-3.5 metric, low trigger threshold (≈25-30 sessions, all-time), likely live
+> now, undermines the core thesis. (The dashboard flag below is 🟡: rarer trigger, non-headline stats.)
+>
+> **The fix:** wrap those three sub-reads in `fetchAllPaged` (stable `id` order + `.range`), exactly as the
+> sessions read already is — in BOTH routes. Small, mechanical, mirrors the in-file pattern. This is the
+> completion of the Coach-KPI truncation fix. Say **"fix the KPI truncation"** and I apply it + a test; I'd
+> recommend prioritizing this one over the broader class decision given it's likely miscomputing a live
+> headline metric.
+
 ## 🟡 AUDIT FLAG — 2026-08-12: rep Sales-Coach dashboard stats silently truncate at 1000 sessions (known class, new instance)
 
 > Found in a ground-up sweep of the Sales Coach data layer for the unbounded-`.select()` truncation class (the
