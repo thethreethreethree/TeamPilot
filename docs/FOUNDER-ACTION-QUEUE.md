@@ -1,5 +1,30 @@
 # Founder action queue
 
+## 🔴 SECURITY — 2026-08-12: 5 high-severity dependency CVEs, incl. an APPLICABLE Next.js auth-bypass — patch available
+
+> **Found via `npm audit` (prod deps), then applicability-assessed per the record's posture (a CVE's generic
+> severity ≠ it applies to THIS config; never auto-`--force` on live prod). Surfaced, NOT auto-applied — the fix
+> bumps the FRAMEWORK (Next.js minor), which is the "local-passes / Vercel-fails" class; a framework bump on
+> your live production is a consequential change I won't make autonomously.**
+>
+> **The one that genuinely applies — Next.js (currently 16.2.6):**
+> - **Middleware / proxy AUTH BYPASS** in App Router with **Turbopack + a single locale** (GHSA-6gpp-xcg3-4w24,
+>   CWE-285). `/api/health` confirms this app runs **Next 16.2.6 (Turbopack)**, single-locale (en) — so the
+>   preconditions MATCH. An auth-middleware bypass is serious (the middleware is the tenant/auth gate).
+> - **SSRF in Server Actions** (GHSA-89xv-2m56-2m9x, CWE-918) + **DoS in Server Actions** (CWE-834).
+>
+> **The other four — LOW real-world applicability (build-time / app-controlled), still worth clearing:**
+> `brace-expansion` (glob DoS — build-time only), `postcss` (XSS/path-traversal — processes TRUSTED build CSS,
+> not runtime input), `nanoid` (loops on negative/zero size — the app controls the size), `fast-uri` (host
+> confusion — moderate, validation path).
+>
+> **The fix is low-friction:** a **non-`--force`** `npm audit fix` reports **0 vulnerabilities** afterward
+> (semver-compatible updates, incl. a Next.js minor patch — no major bumps). **Recommended:** run
+> `npm audit fix`, then VERIFY the Vercel deploy succeeded (`curl /api/health` build.commit == HEAD, or the
+> commit-status `.state`) and REVERT if the framework bump breaks the build/runtime — the exact discipline the
+> record prescribes for a framework bump. I can do all of this on your word (trigger *"patch the CVEs"*); I held
+> off only because it's a framework change to live prod.
+
 ## 🟢 DECISIONS — 2026-08-11/12 autonomous session (hero + security/quality sweep, 19 commits, all gate-green)
 
 > A long autonomous session shipped the hero rewrite you asked for (across every surface) plus a self-directed
