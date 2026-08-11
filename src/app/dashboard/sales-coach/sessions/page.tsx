@@ -111,7 +111,10 @@ function duration(
     if (Number.isFinite(ms) && ms > 0) sec = ms / 1000;
   }
   if (sec === null) return "—";
-  const min = Math.round(sec / 60);
+  // floor, not round (audit F9): rounding UP showed a 4m30s call as "5m" here while After-Pitch shows
+  // "4m 30s" — the same call, two lengths, and the list overstated. floor matches After-Pitch's minute
+  // floor and never overstates (§3.5); the list stays compact (minutes only).
+  const min = Math.floor(sec / 60);
   return min < 1 ? "<1m" : `${min}m`;
 }
 

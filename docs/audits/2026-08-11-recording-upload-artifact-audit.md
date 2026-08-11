@@ -133,9 +133,9 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 
 ## 9. Remediation plan
 
-**Remediation applied 2026-08-11 (this session):** F1, F5, then the batch F3/F6/F7/F11/F12 — all shipped (npm
-run check green). Still deferred: F2 (proposal), F4 (latent, moderate retry), F8/F9 (shared-helper refactor),
-F10 (rare edge), F13 (your decision).
+**Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, then F9 — all shipped
+(npm run check green). Still deferred: F2 (proposal), F4 (latent, moderate retry), F8 (shared-helper refactor —
+no current need), F10 (rare edge), F13 (your decision).
 
 | # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
@@ -146,7 +146,8 @@ F10 (rare edge), F13 (your decision).
 | F5 | correct the label-transcript comment | A27 | none (comment) | **✅ shipped** (`0faa2650`) |
 | F6 | generic client message + log raw (sign + multipart) | CWE-209 | none | **✅ shipped** |
 | F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none — mirrors the proven `label()` latch | **✅ shipped** |
-| F8/F9 | extract tested `conversationDurationSeconds()` + align rounding | A30/§3.5 | redeploys 3 display surfaces; refactor-without-current-need | PROMISE |
+| F8 | extract tested `conversationDurationSeconds()` (dedup the 3 copies) | A30/§3.5 | refactor of working, verified-consistent code — §1.5.2 no-need | PROMISE |
+| F9 | Sessions-list rounding round→floor (stop overstating 4m30s as 5m) | §3.5 | none (one operator) | **✅ shipped** |
 | F10 | include audio-populated null-`ended_at` sessions in the avg | §3.5 | rare edge (trigger stamps ended_at) | PROMISE |
 | F11 | log the best-effort duration-stamp failures (3 sites) | §3.4 | none (log-only) | **✅ shipped** |
 | F12 | finite/`>0` guard on the KPI wall-clock fallback | §3.5 | none | **✅ shipped** |
