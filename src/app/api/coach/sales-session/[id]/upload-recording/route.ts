@@ -200,12 +200,15 @@ export async function POST(
       );
     }
     let jsonSegments;
+    let jsonDurationSeconds = 0;
     try {
-      jsonSegments = await transcribeWithDiarization({
+      const t = await transcribeWithDiarization({
         audio: dl.bytes,
         mimeType: dl.contentType || storedType || "audio/webm",
         numSpeakers: 2,
       });
+      jsonSegments = t.segments;
+      jsonDurationSeconds = t.durationSeconds;
     } catch (err) {
       console.error("[upload-recording] json processing failed:", err);
       return NextResponse.json(
@@ -216,6 +219,15 @@ export async function POST(
         },
         { status: 502 }
       );
+    }
+    // Stamp the REAL audio length so the After-Pitch/KPI duration shows the recording's length, not the
+    // session wall-clock (§3.5 — the 62m-for-a-4m-clip bug). Best-effort: the transcript already landed.
+    if (jsonDurationSeconds > 0) {
+      await admin
+        .from("coaching_sessions")
+        .update({ audio_duration_seconds: jsonDurationSeconds })
+        .eq("id", id)
+        .eq("company_id", companyId);
     }
     return NextResponse.json(buildSpeakerResponse(jsonSegments));
   }
@@ -291,12 +303,15 @@ export async function POST(
 
   // 2. Batch diarization.
   let segments;
+  let durationSeconds = 0;
   try {
-    segments = await transcribeWithDiarization({
+    const t = await transcribeWithDiarization({
       audio: Buffer.from(bytes),
       mimeType,
       numSpeakers: 2,
     });
+    segments = t.segments;
+    durationSeconds = t.durationSeconds;
   } catch (err) {
     console.error("[upload-recording] processing failed:", err);
     return NextResponse.json(
@@ -309,6 +324,16 @@ export async function POST(
       },
       { status: 502 }
     );
+  }
+
+  // Stamp the REAL audio length (§3.5) so an uploaded recording shows its length, not the session
+  // wall-clock. Best-effort second update — the transcript already succeeded above.
+  if (durationSeconds > 0) {
+    await admin
+      .from("coaching_sessions")
+      .update({ audio_duration_seconds: durationSeconds })
+      .eq("id", id)
+      .eq("company_id", companyId);
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap UI.

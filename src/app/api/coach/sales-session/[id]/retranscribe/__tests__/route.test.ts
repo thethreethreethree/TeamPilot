@@ -8,11 +8,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * after the human tap). This locks the seam that matters:
  *   - owner-OR-manager gate (INV19): a colleague can't pull another rep's call content;
  *   - 409 when there's no saved recording; 422 when the pointer isn't the purgeable shape;
- *   - the happy path returns the diarized segments + speaker samples, and NEVER writes.
+ *   - the happy path returns the diarized segments + speaker samples, and stamps ONLY the recording's
+ *     audio duration (best-effort, so an upload shows its real length) — never the transcript.
  * downloadAssetBytes + transcribeWithDiarization are mocked; assetUrlToStoragePath is real.
  */
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({
   getCurrentCompanyId: vi.fn(async () => "co1"),
 }));
@@ -27,6 +29,7 @@ vi.mock("@/lib/care/voice/elevenlabs", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/data/salesCoach";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { downloadAssetBytes } from "@/lib/storage/assets";
@@ -56,15 +59,28 @@ const VALID_POINTER = "assets-v1/co1/rec.webm";
 beforeEach(() => {
   vi.clearAllMocks();
   setManager(false);
+  // The route stamps the audio duration via the admin client (best-effort) — an awaitable no-op chain.
+  asMock(createAdminClient).mockReturnValue({
+    from: () => {
+      const chain: Record<string, unknown> = {};
+      chain.update = () => chain;
+      chain.eq = () => chain;
+      chain.then = (r: (v: unknown) => unknown) => r({ data: null, error: null });
+      return chain;
+    },
+  });
   asMock(downloadAssetBytes).mockResolvedValue({
     ok: true,
     bytes: Buffer.from("audio"),
     contentType: "audio/webm",
   });
-  asMock(transcribeWithDiarization).mockResolvedValue([
-    { speakerId: "speaker_0", text: "Hi, thanks for the time." },
-    { speakerId: "speaker_1", text: "Sure, what's this about?" },
-  ]);
+  asMock(transcribeWithDiarization).mockResolvedValue({
+    segments: [
+      { speakerId: "speaker_0", text: "Hi, thanks for the time.", start: 0 },
+      { speakerId: "speaker_1", text: "Sure, what's this about?", start: 2 },
+    ],
+    durationSeconds: 184,
+  });
 });
 
 describe("POST /retranscribe — recovery, owner-or-manager, read-only", () => {

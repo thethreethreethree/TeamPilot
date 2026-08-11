@@ -53,6 +53,8 @@ type Row = {
   status: "active" | "ended" | "reviewed";
   startedAt: string;
   endedAt: string | null;
+  // Real audio length (seconds) for an UPLOADED recording; null for live sessions (use the wall-clock).
+  audioDurationSeconds: number | null;
   territory: string | null;
   offer: string | null;
   outcome: string | null;
@@ -93,11 +95,23 @@ type WhyPatternSet = {
   failed: boolean;
 };
 
-function duration(start: string, end: string | null): string {
-  if (!end) return "—";
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (!Number.isFinite(ms) || ms <= 0) return "—";
-  const min = Math.round(ms / 60000);
+function duration(
+  audioSeconds: number | null,
+  start: string,
+  end: string | null
+): string {
+  // Prefer the recording's REAL audio length for uploads (the session wall-clock is just how long the
+  // session sat open — it showed "62m" for a 4m clip); live sessions have no audio length and fall back to
+  // the wall-clock, which is correct there (§3.5). Kept in sync with the After-Pitch durationLabel.
+  let sec: number | null = null;
+  if (typeof audioSeconds === "number" && audioSeconds > 0) {
+    sec = audioSeconds;
+  } else if (end) {
+    const ms = new Date(end).getTime() - new Date(start).getTime();
+    if (Number.isFinite(ms) && ms > 0) sec = ms / 1000;
+  }
+  if (sec === null) return "—";
+  const min = Math.round(sec / 60);
   return min < 1 ? "<1m" : `${min}m`;
 }
 
@@ -715,7 +729,7 @@ export default function SalesCoachSessionsPage() {
                       </span>
                       <span className="block text-[10px] text-muted">
                         {new Date(s.startedAt).toLocaleString()} ·{" "}
-                        {duration(s.startedAt, s.endedAt)} · {s.status}
+                        {duration(s.audioDurationSeconds, s.startedAt, s.endedAt)} · {s.status}
                         {s.territory ? ` · ${s.territory}` : ""}
                         {isManager && s.agentName ? ` · ${s.agentName}` : ""}
                       </span>

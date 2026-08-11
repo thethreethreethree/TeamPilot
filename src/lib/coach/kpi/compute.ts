@@ -21,6 +21,9 @@ export type KpiSessionRow = {
   dealValue: number | null; // dollars (numeric(14,2)); may be null even when sold
   startedAt: string; // ISO
   endedAt: string | null; // ISO
+  // Real audio length (whole seconds) of an UPLOADED recording (0210); null for live sessions. The
+  // duration metric prefers this so an upload's length isn't the session wall-clock (§3.5).
+  audioDurationSeconds: number | null;
   sessionId: string;
 };
 
@@ -132,7 +135,15 @@ export function avgSessionDurationMin(sessions: KpiSessionRow[]): MetricResult {
   const ended = sessions.filter((s) => s.endedAt !== null);
   const ids = ended.map((s) => s.sessionId);
   if (ended.length < MIN_SESSIONS) return gated(ended.length, ids);
-  const totalMs = ended.reduce((acc, s) => acc + (Date.parse(s.endedAt as string) - Date.parse(s.startedAt)), 0);
+  // Prefer the recording's REAL audio length for uploads over the session wall-clock (which is just how long
+  // an uploaded session sat open — it showed 62m for a 4m clip). Live sessions have no audio length and use
+  // the wall-clock, which is correct there. §3.5: a meeting-duration metric that doesn't match the audio is a
+  // dishonest metric, exactly what the constitution forbids.
+  const totalMs = ended.reduce((acc, s) => {
+    const audioMs =
+      s.audioDurationSeconds && s.audioDurationSeconds > 0 ? s.audioDurationSeconds * 1000 : null;
+    return acc + (audioMs ?? Date.parse(s.endedAt as string) - Date.parse(s.startedAt));
+  }, 0);
   return { value: round1(totalMs / ended.length / 60000), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
 }
 

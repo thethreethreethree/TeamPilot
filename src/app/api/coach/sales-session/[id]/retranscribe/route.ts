@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
@@ -120,12 +121,15 @@ export async function POST(
 
   // 2. Batch diarization (same engine as upload-recording).
   let segments;
+  let durationSeconds = 0;
   try {
-    segments = await transcribeWithDiarization({
+    const t = await transcribeWithDiarization({
       audio: dl.bytes,
       mimeType: dl.contentType || "audio/webm",
       numSpeakers: 2,
     });
+    segments = t.segments;
+    durationSeconds = t.durationSeconds;
   } catch (err) {
     console.error("[retranscribe] processing failed:", err);
     return NextResponse.json(
@@ -138,6 +142,16 @@ export async function POST(
       },
       { status: 502 }
     );
+  }
+
+  // Stamp the REAL audio length (§3.5) so a recovered recording shows its length, not the session
+  // wall-clock. Best-effort — the transcript already succeeded above.
+  if (durationSeconds > 0) {
+    await createAdminClient()
+      .from("coaching_sessions")
+      .update({ audio_duration_seconds: durationSeconds })
+      .eq("id", id)
+      .eq("company_id", companyId);
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap labeling UI — the

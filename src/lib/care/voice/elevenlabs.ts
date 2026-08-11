@@ -447,7 +447,7 @@ export async function transcribeWithDiarization(args: {
   audio: Buffer;
   mimeType: string;
   numSpeakers?: number;
-}): Promise<DiarizedSegment[]> {
+}): Promise<{ segments: DiarizedSegment[]; durationSeconds: number }> {
   const apiKey = getApiKey();
   const form = new FormData();
   form.append(
@@ -486,6 +486,7 @@ export async function transcribeWithDiarization(args: {
       text?: string;
       speaker_id?: string;
       start?: number;
+      end?: number;
       type?: string;
     }>;
   };
@@ -494,10 +495,14 @@ export async function transcribeWithDiarization(args: {
   // Group consecutive words by speaker into readable segments. Skip
   // non-word tokens (spacing / audio_event).
   const segments: DiarizedSegment[] = [];
+  let maxEnd = 0; // the real audio length: the end (or start) of the last spoken word.
   for (const w of words) {
     if (w.type && w.type !== "word") continue;
     const text = (w.text ?? "").trim();
     if (!text) continue;
+    const t =
+      typeof w.end === "number" ? w.end : typeof w.start === "number" ? w.start : 0;
+    if (t > maxEnd) maxEnd = t;
     const speakerId = w.speaker_id ?? "speaker_0";
     const last = segments[segments.length - 1];
     if (last && last.speakerId === speakerId) {
@@ -506,7 +511,9 @@ export async function transcribeWithDiarization(args: {
       segments.push({ speakerId, text, start: w.start ?? 0 });
     }
   }
-  return segments;
+  // durationSeconds is the ACTUAL conversation length from the audio timestamps — used to show an
+  // uploaded recording's real length instead of the session wall-clock (§3.5 measurement honesty).
+  return { segments, durationSeconds: Math.round(maxEnd) };
 }
 
 /**

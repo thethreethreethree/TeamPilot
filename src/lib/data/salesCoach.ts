@@ -48,6 +48,10 @@ export type SalesSession = {
   clientLabel: string | null;
   status: SalesSessionStatus;
   audioAssetUrl: string | null;
+  // Real audio length (whole seconds) of an UPLOADED recording, captured from the transcription word
+  // timestamps (0210). NULL for live-coaching sessions — their conversation length is the started..ended
+  // wall-clock, which is correct. Consumers prefer this when present so an upload shows its true length.
+  audioDurationSeconds: number | null;
   startedAt: string;
   endedAt: string | null;
   // Phase 2 capture (all optional). when = startedAt; why = derived (Phase 3).
@@ -101,6 +105,7 @@ function mapSession(row: Record<string, unknown>): SalesSession {
     clientLabel: (row.client_label as string | null) ?? null,
     status: row.status as SalesSessionStatus,
     audioAssetUrl: (row.audio_asset_url as string | null) ?? null,
+    audioDurationSeconds: (row.audio_duration_seconds as number | null) ?? null,
     startedAt: row.started_at as string,
     endedAt: (row.ended_at as string | null) ?? null,
     territory: (row.territory as string | null) ?? null,

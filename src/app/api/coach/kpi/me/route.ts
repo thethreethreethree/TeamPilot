@@ -49,7 +49,7 @@ export async function GET() {
     (from, to) =>
       sb
         .from("coaching_sessions")
-        .select("id, outcome, deal_value, started_at, ended_at, client_label")
+        .select("id, outcome, deal_value, started_at, ended_at, audio_duration_seconds, client_label")
         .eq("agent_id", ctx.userId)
         .order("started_at", { ascending: true })
         .range(from, to),
@@ -67,6 +67,7 @@ export async function GET() {
       r.deal_value === null || r.deal_value === undefined ? null : Number(r.deal_value),
     startedAt: r.started_at as string,
     endedAt: (r.ended_at as string | null) ?? null,
+    audioDurationSeconds: (r.audio_duration_seconds as number | null) ?? null,
   }));
 
   const metrics: Record<string, MetricResult> = {

@@ -73,7 +73,7 @@ export async function GET(req: Request) {
   let query = admin
     .from("coaching_sessions")
     .select(
-      "id, agent_id, client_label, context, status, started_at, ended_at, territory, offer, outcome"
+      "id, agent_id, client_label, context, status, started_at, ended_at, audio_duration_seconds, territory, offer, outcome"
     )
     .eq("company_id", ctx.companyId)
     .order("started_at", { ascending: false })
@@ -199,6 +199,7 @@ export async function GET(req: Request) {
       status: s.status as "active" | "ended" | "reviewed",
       startedAt: s.started_at as string,
       endedAt: (s.ended_at as string | null) ?? null,
+      audioDurationSeconds: (s.audio_duration_seconds as number | null) ?? null,
       territory: (s.territory as string | null) ?? null,
       offer: (s.offer as string | null) ?? null,
       outcome: (s.outcome as string | null) ?? null,

@@ -35,11 +35,19 @@ import {
  * and exact-decimal money (no float accumulation). Plus the Layer-1/2 metric math.
  */
 
-const S = (o: KpiSessionRow["outcome"], deal: number | null, day: string, durMin = 30, i = 0): KpiSessionRow => ({
+const S = (
+  o: KpiSessionRow["outcome"],
+  deal: number | null,
+  day: string,
+  durMin = 30,
+  i = 0,
+  audioSec: number | null = null,
+): KpiSessionRow => ({
   outcome: o,
   dealValue: deal,
   startedAt: `${day}T10:00:00.000Z`,
   endedAt: durMin === 0 ? null : new Date(Date.parse(`${day}T10:00:00.000Z`) + durMin * 60000).toISOString(),
+  audioDurationSeconds: audioSec,
   sessionId: `${day}-${o}-${i}`,
 });
 
@@ -137,6 +145,16 @@ describe("Layer 2 math", () => {
     const r = avgSessionDurationMin(rows);
     expect(r.sampleSize).toBe(5);
     expect(r.value).toBe(30); // (20+40+30+30+30)/5
+  });
+
+  it("avgSessionDurationMin prefers the recording's REAL audio length over the wall-clock (upload fix, §3.5)", () => {
+    // Uploaded 4-min recordings into sessions that each sat open ~62 min. The metric must read 4, not 62 —
+    // the wall-clock is meaningless for an upload. Live sessions (audioDurationSeconds null) keep the wall-clock.
+    const rows = Array.from({ length: MIN_SESSIONS }, (_, i) =>
+      S("sold", 100, "2026-07-01", 62, i, 240), // durMin=62 wall-clock, audioSec=240 (4m)
+    );
+    const r = avgSessionDurationMin(rows);
+    expect(r.value).toBe(4); // 240s = 4m, NOT the 62m session open-time
   });
 });
 

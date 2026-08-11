@@ -24,10 +24,13 @@ vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async
 vi.mock("@/lib/data/salesCoach", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/coach/v5/skillAccess", () => ({ isSalesCoachManager: vi.fn(() => false) }));
 vi.mock("@/lib/care/voice/elevenlabs", () => ({
-  transcribeWithDiarization: vi.fn(async () => [
-    { speakerId: "speaker_0", text: "Hi there, thanks for the time." },
-    { speakerId: "speaker_1", text: "Sure, what are you selling?" },
-  ]),
+  transcribeWithDiarization: vi.fn(async () => ({
+    segments: [
+      { speakerId: "speaker_0", text: "Hi there, thanks for the time.", start: 0 },
+      { speakerId: "speaker_1", text: "Sure, what are you selling?", start: 3 },
+    ],
+    durationSeconds: 247,
+  })),
 }));
 // Keep EXECUTABLE_EXTENSIONS real (the .exe list under test) but stub the storage side and
 // shrink the size cap so an oversize case doesn't need a giant buffer.
@@ -65,11 +68,15 @@ const setAuth = (userId: string | null) =>
   });
 
 const updateEqs: Array<{ col: string; val: unknown }> = [];
+const updatePayloads: Array<Record<string, unknown>> = [];
 const mockAdmin = () =>
   (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     from: () => {
       const chain: Record<string, unknown> = {};
-      chain.update = () => chain;
+      chain.update = (payload: Record<string, unknown>) => {
+        updatePayloads.push(payload);
+        return chain;
+      };
       chain.eq = (col: string, val: unknown) => {
         updateEqs.push({ col, val });
         return chain;
@@ -102,6 +109,7 @@ const fileForm = (bytes: number, name: string, type: string) => {
 beforeEach(() => {
   vi.clearAllMocks();
   updateEqs.length = 0;
+  updatePayloads.length = 0;
   mockAdmin();
   (getCurrentCompanyId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("co1");
   // Owner-path default: the caller (rep1) owns the session, so the INV19 gate passes.
@@ -150,6 +158,8 @@ describe("POST /upload-recording (multipart)", () => {
     expect(res.status).toBe(200);
     expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
     expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" }); // defense-in-depth
+    // The real audio length (from transcription) is stamped so an upload shows its length, not wall-clock.
+    expect(updatePayloads).toContainEqual({ audio_duration_seconds: 247 });
   });
 
   // The RECOVERY CONTRACT. This path fired 4× in the 2026-08 ElevenLabs outage (orphaned
@@ -207,6 +217,8 @@ describe("POST /upload-recording (direct-to-storage finalize, JSON)", () => {
     expect(body.segments).toHaveLength(2);
     expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
     expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" });
+    // The real audio length is stamped (§3.5) — a memo shows its length, not the session open-time.
+    expect(updatePayloads).toContainEqual({ audio_duration_seconds: 247 });
   });
 
   it("200 tolerates an empty stored content-type (memo picked from Files)", async () => {

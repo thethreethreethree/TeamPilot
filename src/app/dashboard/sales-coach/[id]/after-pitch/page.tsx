@@ -87,6 +87,7 @@ type Session = {
   id: string;
   context: "in_person" | "video";
   clientLabel: string | null;
+  audioDurationSeconds: number | null;
   territory: string | null;
   approach: string | null;
   offer: string | null;
@@ -95,13 +96,24 @@ type Session = {
   outcome?: SalesOutcome | null;
 };
 
-/** Conversation length for the header ("2m 43s"). Null until the call has
- *  ended (start + end both known) — no fabricated duration (§3.4). */
-function durationLabel(start?: string, end?: string | null): string | null {
-  if (!start || !end) return null;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (!Number.isFinite(ms) || ms <= 0) return null;
-  const total = Math.round(ms / 1000);
+/** Conversation length for the header ("2m 43s"). Prefers the recording's REAL audio length when the
+ *  session was populated by an UPLOAD (audioDurationSeconds) over the session wall-clock — for an upload
+ *  the started..ended span is just how long the session sat open, not the call, which showed "62m 47s" for
+ *  a 4-minute clip (§3.5 measurement honesty). Live sessions have no audio length, so they fall back to the
+ *  wall-clock, which is correct there. Null until a real duration is known — no fabricated number (§3.4). */
+function durationLabel(
+  audioSeconds?: number | null,
+  start?: string,
+  end?: string | null
+): string | null {
+  let total: number | null = null;
+  if (typeof audioSeconds === "number" && audioSeconds > 0) {
+    total = audioSeconds;
+  } else if (start && end) {
+    const ms = new Date(end).getTime() - new Date(start).getTime();
+    if (Number.isFinite(ms) && ms > 0) total = Math.round(ms / 1000);
+  }
+  if (total === null) return null;
   const m = Math.floor(total / 60);
   const s = total % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
@@ -332,7 +344,11 @@ export default function AfterPitchPage() {
       ? "Online video"
       : "In-person"
     : "";
-  const dur = durationLabel(session?.startedAt, session?.endedAt);
+  const dur = durationLabel(
+    session?.audioDurationSeconds,
+    session?.startedAt,
+    session?.endedAt
+  );
   // Standard sessions are created as "New session" (placeholder) — treat that
   // (or an empty label) as UNNAMED so we prompt the rep to name the pitch
   // prominently, not with a tiny "rename" link (founder 2026-07-26, image 5).

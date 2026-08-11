@@ -81,7 +81,7 @@ export async function GET() {
     (from, to) =>
       sb
         .from("coaching_sessions")
-        .select("id, agent_id, outcome, deal_value, started_at, ended_at")
+        .select("id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds")
         .in("agent_id", memberIds)
         .order("started_at", { ascending: true })
         .range(from, to),
@@ -139,6 +139,7 @@ export async function GET() {
       dealValue: s.deal_value === null || s.deal_value === undefined ? null : Number(s.deal_value),
       startedAt: s.started_at as string,
       endedAt: (s.ended_at as string | null) ?? null,
+      audioDurationSeconds: (s.audio_duration_seconds as number | null) ?? null,
     });
     byAgent.set(aid, list);
   }
