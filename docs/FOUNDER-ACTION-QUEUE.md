@@ -12,12 +12,18 @@
 > Found tracing the manager team-review flow end-to-end (AMD-006 Layer 3 — the seam-continuity dimension that
 > class-sweeps miss). A UX break in the DEFAULT (Standard) flow, affecting reps AND managers.
 >
-> **The loop:** [`[id]/after-pitch/page.tsx:658-659`](src/app/dashboard/sales-coach/[id]/after-pitch/page.tsx#L658) —
-> the prominent "Replay conversation" (rep) / "Back to session" (manager) link navigates to
-> `/dashboard/sales-coach/${id}`. But [`[id]/page.tsx:182-186`](src/app/dashboard/sales-coach/[id]/page.tsx#L182)
-> redirects any Standard user off an ended session STRAIGHT BACK to `/after-pitch`. So in Standard the link
-> round-trips to the page you're already on — a no-op. Its own Learning Hint promises "returns you to the full
-> session so you can re-read the exchange line by line," which it never does for Standard users.
+> **The loop (BOTH back-links on the page, found by attempting the fix):**
+> - [`after-pitch/page.tsx:369-370`](src/app/dashboard/sales-coach/[id]/after-pitch/page.tsx#L369) — the HEADER
+>   "← Back to session" link, and
+> - [`after-pitch/page.tsx:658-659`](src/app/dashboard/sales-coach/[id]/after-pitch/page.tsx#L658) — the bottom
+>   "Replay conversation" (rep) / "Back to session" (manager) link.
+>
+> Both navigate to `/dashboard/sales-coach/${id}`, and [`[id]/page.tsx:182-186`](src/app/dashboard/sales-coach/[id]/page.tsx#L182)
+> redirects any Standard user off an ended session STRAIGHT BACK to `/after-pitch`. So in Standard, **neither
+> back-link works** — a Standard user on After-Pitch has NO working in-page back navigation (both round-trip to
+> the page they're on). The bottom link's own Learning Hint promises "returns you to the full session to re-read
+> the exchange line by line," which it never does for Standard users. (Rep can still go forward via "Start Next
+> Door" + the nav sidebar; a Standard MANAGER has neither and relies on browser-back.)
 > **Also redundant:** the transcript it promises is ALREADY on the after-pitch page (the expandable
 > "Conversation transcript" recap, ~line 538), so Standard users have the content inline; the link adds nothing.
 > **Works in Expert:** the redirect keys on `isStandard`, so in Expert mode `[id]` doesn't redirect and the link
@@ -27,10 +33,19 @@
 > screen") assuming Standard=rep / Expert=manager; the later Standard MANAGER view + this back-link cross that
 > assumption. Two features from different dates meeting at a seam.
 >
-> **Severity 🟡 MEDIUM** — default flow, a prominent CTA that silently does nothing; not stranding (content is
-> inline, browser-back works). **Fix (Standard only, Expert untouched):** since the transcript is already inline,
-> either drop the link in Standard, or repoint it to expand/scroll to the inline transcript instead of navigating
-> to `[id]`. Say **"fix the after-pitch replay link"**.
+> **Severity 🟡 MEDIUM** — default flow, two back-affordances that silently no-op; not stranding (content inline,
+> browser-back works). **Fix is a back-DESTINATION decision (yours), not a one-liner** — the same call you made
+> for the `[id]` page's "Back to sessions" (`19d4f356`, → sessions list). Options, Standard-only (Expert works
+> as-is, no redirect there):
+> - **(a)** Point the HEADER back-link at the **Sessions list** (rep) / **Team roster** (manager) — a real
+>   "back" that matches where they came from; and DROP the redundant bottom "Replay conversation" link (its
+>   transcript is already inline on the page). *Recommended — mirrors 19d4f356, gives managers a real back.*
+> - **(b)** Just drop both links in Standard (simplest; leaves rep on Start-Next-Door + nav, manager on
+>   browser-back only).
+> - **(c)** Repoint the bottom link to expand/scroll the inline transcript (keeps the "replay" affordance).
+>
+> I attempted the naive one-line fix and stopped when it revealed this design choice — flagging for your call.
+> Say **"fix the after-pitch back links (a/b/c)"**.
 >
 > (Adjacent, same root: a Standard MANAGER reviewing a rep is confined to the after-pitch summary — they get the
 > transcript there, but not the dense Expert `[id]` detail: dissect/pivot/moments. Likely by-design for Standard,
