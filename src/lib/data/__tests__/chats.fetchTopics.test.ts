@@ -71,8 +71,13 @@ describe("fetchTopics (outage-class guard)", () => {
       calls
     );
     const out = await fetchTopics("elostate");
-    expect(out.mode).toBe("live-error"); // the outage bug was this returning live-empty
-    expect(out.error).toBe("42P01: view is stale"); // real cause surfaced, not hidden
+    expect(out.mode).toBe("live-error"); // the outage bug was this returning live-empty (INV22 — error ≠ empty)
+    // CWE-209 (2026-08-11): the live-error MODE — not the string — is what carries the error-vs-empty signal;
+    // the client-surfaced string is now GENERIC so a raw Postgres code/relation never reaches the member's chat
+    // UI. The raw cause still goes to console.error for diagnosis. (This assertion previously locked the leak.)
+    expect(out.error).not.toContain("view is stale");
+    expect(out.error).not.toContain("42P01");
+    expect(out.error).toBe("please try again in a moment");
     expect(out.topics).toEqual([]);
   });
 

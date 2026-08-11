@@ -539,7 +539,12 @@ export async function fetchTopics(scope: ChatScope = "elostate"): Promise<{
     return {
       topics: [],
       mode: "live-error",
-      error: `${code}: ${error.message}`,
+      // CWE-209: the raw Postgres code + message is logged above (diagnostic). The CLIENT-surfaced string stays
+      // generic — the `live-error` MODE is what carries the error-vs-empty signal INV22 needs, so returning the
+      // raw `${code}: ${error.message}` only leaks schema/relation names into an authed member's chat UI
+      // (rendered at chats/page.tsx as "Could not load topics — <error>"). A generic retry string keeps the
+      // honest error-vs-empty distinction without the leak.
+      error: "please try again in a moment",
     };
   }
   if (!data) return { topics: [], mode: "live-empty" };
