@@ -36,6 +36,39 @@
 > then confirm the prod deploy (`/api/health` build.commit == HEAD). Prod stays on 16.2.6 until you do. This is
 > as de-risked as a framework bump gets — the only thing I did NOT do autonomously is put it on prod.
 
+## 🟢 SHIPPED + OPEN — 2026-08-12 (your live Sales Coach revisions)
+
+> Three revisions you asked for this session — all shipped to `main`, gate-green, pushed:
+>
+> - **Sidebar grouping** (`34926cee`) — Manager Dashboard (Coach Assessment/Analytics/Sessions) + Team Tools
+>   (Roleplay/One Liners/Team) are now COLLAPSIBLE groups; Home + Team Chat/KPI/extension/Settings stay
+>   top-level. Then **collapse-by-default** (`71fb95d2`) per your follow-up — each group starts collapsed
+>   except the one you're currently in (so it never hides your location). Mirrors the C.A.R.E Tools expander.
+> - **"Back to sessions" bug** (`19d4f356`, earlier) — now goes to the Sessions list, not the coach home.
+> - **Uploaded sessions had no summary** (`87321c4f`) — ROOT CAUSE: the post-call summary/dissect/pivot are
+>   generated only by `/finalize` (LIVE sessions, on Stop). Your new mobile-recording/voice-memo UPLOAD feature
+>   transcribes + labels but never triggered generation — so every UPLOADED call had a transcript and no
+>   summary ("old" = live, "new" = uploaded). Fixed: the upload path now runs the same generation after
+>   labeling. All NEW uploads generate correctly going forward.
+>
+> **Open items for YOUR call:**
+>
+> 1. **Existing uploaded sessions (made BEFORE the fix) won't fully self-heal.** They have a transcript but no
+>    summary; the backfill cron regenerates only the *dissect*, not the full summary set. Two options: (a) say
+>    *"backfill the old uploaded summaries"* → I extend the cron/one-time script to run full generation for
+>    every session with a transcript but no summary event (costs 5 LLM calls × N old sessions); or (b) just
+>    re-open each old one and hit the manual summarize/dissect tool. New ones are already handled.
+> 2. **Reps see a group titled "Manager Dashboard"** containing (for them) only Analytics + Sessions — Coach
+>    Assessment is correctly hidden. Faithful to your mockup's labels. If you'd rather reps not see that
+>    heading, say so and I'll make the whole group manager-only (reps get ungrouped Analytics/Sessions). Purely
+>    a wording call.
+> 3. **Minor polish (not urgent): a `GET /api/me/theme` 401 logs to the browser console on the PUBLIC landing.**
+>    Benign — the theme-loader fires for logged-out visitors to pick up a cross-device saved theme; there is
+>    none, so it 401s and the theme falls back cleanly (no user impact). It's just console noise on your
+>    marketing page. Fix if you want a clean console: either have that endpoint return a 200 default for
+>    anonymous visitors, or skip the fetch when there's no session. I did NOT touch it unprompted (it's
+>    auth-adjacent client code). Say *"quiet the theme 401"* and I'll do the low-risk version.
+
 ## 🟢 DECISIONS — 2026-08-11/12 autonomous session (hero + security/quality sweep, 19 commits, all gate-green)
 
 > A long autonomous session shipped the hero rewrite you asked for (across every surface) plus a self-directed
