@@ -563,6 +563,11 @@ const XSS_ALLOWLIST = new Map([
     "The no-flash theme script: __html is NO_FLASH_THEME_SCRIPT, a STATIC build-time string constant (sets the\n" +
       "      theme before hydration to avoid a flash). No user/DB interpolation, so no XSS surface.",
   ],
+  [
+    "src/components/landing/LandingPage.tsx",
+    "Organization JSON-LD structured data: __html is JSON.stringify of a STATIC trusted object (name/url/logo\n" +
+      "      from siteUrl() constants — no user/DB data). The standard schema.org injection pattern; no XSS surface.",
+  ],
 ]);
 for (const f of FILES) {
   if (!/dangerouslySetInnerHTML/.test(f.sql)) continue;
