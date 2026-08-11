@@ -1,0 +1,65 @@
+<!doctype html>
+<!--
+  SOURCE for public/og-home.png — the home page's social/share preview card (1200x630).
+  Committed 2026-08-12 so the asset is REPRODUCIBLE: the previous og-home.png was an opaque
+  hand-made binary with no source, so when the hero copy changed it went stale unnoticed and had
+  to be reverse-engineered. Edit THIS file, then regenerate (see scripts/og/README.md).
+
+  Keep the copy in sync with the hero (src/components/landing/Hero.tsx) + the SEO metadata
+  (src/app/page.tsx HOME_TITLE/HOME_DESC). Sora is pulled from Google Fonts so the type matches
+  the brand; the render step must allow the webfont to load (virtual-time budget).
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    font-family: 'Sora', system-ui, sans-serif;
+    background:
+      radial-gradient(120% 90% at 78% 42%, rgba(250,204,21,.14) 0%, rgba(250,204,21,0) 42%),
+      #0b0b0c;
+    position: relative;
+    overflow: hidden;
+  }
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .wrap {
+    position: relative; z-index: 1;
+    height: 100%; padding: 62px 68px;
+    display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .word { color: #F7F7F5; font-weight: 700; font-size: 26px; letter-spacing: .34em; }
+  .eyebrow { color: #FFDA03; font-weight: 700; font-size: 20px; letter-spacing: .28em; text-transform: uppercase; }
+  h1 {
+    color: #F7F7F5; font-weight: 800; letter-spacing: -.02em; line-height: 1.02;
+    font-size: 66px; max-width: 1050px; text-wrap: balance;
+  }
+  h1 .y { color: #FFDA03; }
+  .sub { color: rgba(247,247,245,.60); font-weight: 400; font-size: 27px; }
+  .foot { color: rgba(247,247,245,.42); font-weight: 600; font-size: 21px; letter-spacing: .02em; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <svg width="46" height="46" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 8 C69 8 84 22 84 42 C84 55 76 63 70 71 L30 71 C24 63 16 55 16 42 C16 22 31 8 50 8 Z" fill="rgba(250,204,21,.06)" stroke="rgba(247,247,245,.30)" stroke-width="2.4" />
+        <path d="M39 75 H61 M41 81 H59 M44 88 H56" stroke="rgba(247,247,245,.38)" stroke-width="2.6" stroke-linecap="round" />
+        <path d="M64 40 A16 16 0 1 0 56 55 M33 40 H64" fill="none" stroke="#FFDA03" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="word">ELOSTATE</span>
+    </div>
+    <div class="eyebrow">Where simplicity meets productivity</div>
+    <h1>Finally, an AI system that makes your productivity tools <span class="y">actually productive.</span></h1>
+    <div class="sub">A system that helps your team evolve.</div>
+    <div class="foot">elostate.com</div>
+  </div>
+</body>
+</html>
