@@ -21,8 +21,8 @@
   text-align: center; padding: 20px 24px 60px; max-width: 1000px; margin: 0 auto; width: 100%; }
 .bulbWrap { margin: 0 auto 26px; }
 .eyebrow { color: #FFDA03; font-weight: 700; letter-spacing: .32em; font-size: 12.5px; margin-bottom: 24px; text-transform: uppercase; }
-.headline { font-weight: 800; letter-spacing: -.03em; line-height: .98; font-size: clamp(44px, 7.2vw, 102px); margin: 0; overflow-wrap: break-word; }
-.line { display: block; }
+.headline { font-weight: 800; letter-spacing: -.03em; line-height: 1.0; font-size: clamp(32px, 4.6vw, 62px); margin: 0; overflow-wrap: break-word; }
+.line { display: block; text-wrap: balance; }
 .line2 { margin-top: .05em; }
 .think { position: relative; color: #FFDA03; display: inline-block; }
 .ul { position: absolute; left: 0; right: 0; bottom: -.09em; height: .075em; background: #FFDA03; border-radius: 4px;

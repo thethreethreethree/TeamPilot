@@ -45,17 +45,16 @@ export function Hero() {
         </div>
         <div className={`${styles.eyebrow} ${styles.rise} ${styles.d1}`}>Where simplicity meets productivity</div>
         <h1 className={styles.headline}>
-          <span className={`${styles.line} ${styles.rise} ${styles.d2}`}>Don&apos;t just manage your team.</span>
+          <span className={`${styles.line} ${styles.rise} ${styles.d2}`}>Finally, an AI system that makes your productivity tools</span>
           <span className={`${styles.line} ${styles.line2} ${styles.rise} ${styles.d3}`}>
             <span className={styles.think}>
-              Make it think.
+              actually productive.
               <span className={styles.ul} aria-hidden />
             </span>
           </span>
         </h1>
         <p className={`${styles.sub} ${styles.rise} ${styles.d5}`}>
-          One platform that sharpens people, replaces the four tools you&apos;re stitching together, and
-          measures the lift — in your own data.
+          A system that helps your team evolve.
         </p>
         <div className={`${styles.cta} ${styles.rise} ${styles.d6}`}>
           <Link href={CTA.primaryHref} className={`${styles.btn} ${styles.btnP}`}>{CTA.primaryLabel}</Link>

@@ -20,11 +20,11 @@ import { LandingPage } from "@/components/landing/LandingPage";
  * accounts (middleware never matched `/`). Founder directive 2026-08-04: each account lands on its
  * module; only logged-out visitors see the marketing page.
  */
-const HOME_TITLE = "Elostate — Make your team think";
+const HOME_TITLE = "Elostate — Make your productivity tools actually productive";
 const HOME_DESC =
-  "One platform that sharpens your people, replaces the four tools you're stitching together, and proves the lift in your own data. Built by business owners just like you.";
+  "Finally, an AI system that makes your productivity tools actually productive — a system that helps your team evolve. Built by business owners just like you.";
 const OG_DESC =
-  "One platform that sharpens people, replaces four tools, and proves the lift in your own data.";
+  "Finally, an AI system that makes your productivity tools actually productive. A system that helps your team evolve.";
 
 export const metadata: Metadata = {
   title: HOME_TITLE,
