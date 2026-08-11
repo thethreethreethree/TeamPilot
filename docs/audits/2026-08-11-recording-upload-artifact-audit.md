@@ -96,7 +96,9 @@ callers beyond the four listed, and every test file's assertion coverage beyond 
 - **F12 missing finite/>0 guard:** `compute.ts:145` wall-clock fallback omits the `>0`/`isFinite` guard the two client helpers apply — a negative/skewed wall-clock silently drags the average. PROMISE.
 
 ### F13 — outcome route: manager can write outcome/deal_value to another rep's session — **DESIGN LINE** (founder judgment)
-- `outcome/route.ts:~51` gates on getSession only (no owner check), so a same-company manager can set another rep's outcome + deal_value (service-role, event-logged). Consistent with the manager-oversight model and distinct from the transcript routes tightened to owner-only — **not filed as a hole; flagged for your confirmation** that manager write-access to outcome is intended.
+- **Verified** (read `outcome/route.ts`): the gate is getSession-only, and the route comment (`:18-20`) states the intent explicitly — *"if the caller can see the session (its agent, or their manager), they can record it — coaching data, never a gate."* `setSessionOutcome` appends an immutable event (§3.1), so every write is auditable. This is a **documented, deliberate** choice, not an undiscovered hole.
+- **The tension worth your ruling:** outcome + deal_value feed the KPIs (conversion rate, deal size, quota attainment), and the transcript routes WERE tightened to owner-only — so a manager can't fabricate a rep's transcript but *can* set their deal outcome. The defensible distinction: a transcript is the rep's AUTHORED content (owner-only), whereas an outcome is a FACTUAL result a manager may legitimately record on a rep's behalf (and it's logged).
+- **Recommendation:** **keep as-is** — documented intent, event-logged, a reasonable manager-oversight action. Tighten to owner-only ONLY if you want each rep to be the sole authority over their own KPI inputs (add a `session.agentId === auth.user.id` gate, mirroring the transcript routes). Either way it is not a security defect — it is a policy choice about who may record a result.
 
 ## 4. Class sweep (boundaries recorded as baselines)
 1. **INV19 content-route gate** — swept all `sales-session/[id]/*` routes; every upload/transcript route is owner-or-manager gated; the only open line is F13 (outcome manager-write, by design). Boundary command in F1's sweep.
@@ -155,7 +157,7 @@ ended-sessions-only; an incomplete session is correctly excluded). Your decision
 | F10 | (reconsidered) include audio-populated null-`ended_at` sessions in the avg | §3.5 | n/a | **DECLINED** — the metric is by definition "average over ENDED sessions"; an uploaded-but-not-named session is genuinely incomplete, so excluding it is a reasonable scope, not a defect. The audit's "include it" was a suggestion, not a bug. |
 | F11 | log the best-effort duration-stamp failures (3 sites) | §3.4 | none (log-only) | **✅ shipped** |
 | F12 | finite/`>0` guard on the KPI wall-clock fallback | §3.5 | none | **✅ shipped** |
-| F13 | confirm manager-write to outcome is intended | INV19 | n/a | founder decision |
+| F13 | (policy) manager-write to outcome/deal_value | INV19 | n/a | **founder decision** — verified documented + event-logged; recommend KEEP AS-IS; tighten to owner-only only if each rep should solely own their KPI inputs |
 
 **No CRITICAL finding — nothing blocks.** F1 (the only security finding) is fixed + gated. The rest are
 specified and batched for greenlight rather than deployed piecemeal into a live client test.
