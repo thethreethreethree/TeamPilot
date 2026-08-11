@@ -190,6 +190,15 @@ describe("POST /upload-recording (direct-to-storage finalize, JSON)", () => {
     expect((await POST(jsonReq({}), ctx)).status).toBe(400);
   });
 
+  it("403 when storagePath is outside the caller's company — no admin read of a foreign object (audit 2026-08-11)", async () => {
+    setAuth("rep1"); // company is co1
+    // buildStoragePath mints "<companyId>/...", so a path under a DIFFERENT company must be refused BEFORE
+    // any admin getAssetObjectInfo/downloadAssetBytes runs — closes the cross-company object-read vector.
+    const res = await POST(jsonReq({ storagePath: "co2/2026/08/someone-elses.m4a" }), ctx);
+    expect(res.status).toBe(403);
+    expect(getAssetObjectInfo).not.toHaveBeenCalled();
+  });
+
   it("404 when the uploaded object isn't in storage", async () => {
     setAuth("rep1");
     (getAssetObjectInfo as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);

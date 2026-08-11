@@ -133,6 +133,19 @@ export async function POST(
         { status: 400 }
       );
     }
+    // SECURITY (audit 2026-08-11): storagePath is UNTRUSTED caller input, and getAssetObjectInfo +
+    // downloadAssetBytes below use the ADMIN client (RLS bypass) — downloadAssetBytes's own contract is
+    // "never pass a storagePath derived from unvalidated caller input." buildStoragePath mints
+    // "<companyId>/<yyyy>/<mm>/<uuid>.ext", so a legitimate path for THIS caller starts with their own
+    // companyId. Require that prefix so a finalize can't be pointed at ANOTHER company's object — closes
+    // cross-company by CONSTRUCTION (no reliance on the random uuid being unguessable, the
+    // "safe-only-because-downstream" trap). Same-company is further bounded by getSession's owner-or-manager RLS.
+    if (!storagePath.startsWith(`${companyId}/`)) {
+      return NextResponse.json(
+        { error: "That recording doesn't belong to your company." },
+        { status: 403 }
+      );
+    }
     // The client-claimed size/type is untrusted — read the REAL object from storage.
     const info = await getAssetObjectInfo(storagePath);
     if (!info) {
