@@ -227,10 +227,13 @@ export default function SalesCoachHome() {
           </div>
         </div>
 
-        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08). */}
+        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08).
+            Hidden on mobile (founder 2026-08-11): the extension is a Chrome/desktop-only install, so promoting
+            it on a phone is a dead end — a link the mobile user can't act on. `hidden sm:flex` shows it only at
+            the ≥640px widths where installing it is possible. */}
         <Link
           href="/extension/download-sales"
-          className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] px-4 py-3 hover:bg-ember-400/[0.1] transition-colors"
+          className="mt-3 hidden sm:flex items-center justify-between gap-2 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] px-4 py-3 hover:bg-ember-400/[0.1] transition-colors"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -328,8 +331,10 @@ export default function SalesCoachHome() {
           </DeckCard>
         </LearningHint>
 
-        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08). */}
-        <Link href="/extension/download-sales" className="block">
+        {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08).
+            Hidden on mobile (founder 2026-08-11): the extension is a Chrome/desktop-only install, so it's a
+            dead end on a phone. `hidden sm:block` shows it only at ≥640px widths where installing it works. */}
+        <Link href="/extension/download-sales" className="hidden sm:block">
           <DeckCard className="p-3.5 flex items-center justify-between gap-2.5 hover:border-strong transition-colors">
             <span className="flex items-center gap-2 text-sm font-semibold text-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
