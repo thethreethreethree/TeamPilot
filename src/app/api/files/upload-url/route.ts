@@ -65,7 +65,16 @@ export async function POST(req: NextRequest) {
     originalFilename: body.filename,
   });
   if (!target.ok) {
-    return NextResponse.json({ error: target.error }, { status: 500 });
+    // Log the raw cause; return a generic message (CWE-209 — don't echo the backend/storage-config string to
+    // the client). The three sibling sign endpoints (upload-recording/sign + the two C.A.R.E …/sign routes)
+    // already do this; this older route was the un-updated instance of the same class (A16). The
+    // "no raw error to client" invariant misses it because it keys on `.message`, not a custom `{error}` field.
+    // eslint-disable-next-line no-console
+    console.error(`[files/upload-url] target mint failed company=${auth.companyId}: ${target.error}`);
+    return NextResponse.json(
+      { error: "Couldn't start the upload right now — please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
