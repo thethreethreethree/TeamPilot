@@ -157,15 +157,18 @@ export function SalesCoachShell({
   // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
   const visibleSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
 
-  // Collapsible-group open state, keyed by section header. Default OPEN (the founder's mockup shows both groups
-  // expanded) — the chevron then lets a user tidy the sidebar by collapsing either. A group AUTO-re-opens when
-  // the active route is inside it, because collapsing must never hide the user's OWN location (AMD-006 L3). Not
-  // persisted — mirrors CareShell's toolsOpen (a fresh load restores the expanded default). SalesCoachShell is a
-  // persistent App-Router LAYOUT, so the initializer fires once; the effect handles later navigation INTO a
-  // collapsed group (Cmd+K, an in-page link, browser back).
+  // Collapsible-group open state, keyed by section header. Default COLLAPSED (founder follow-up 2026-08-12:
+  // "make it collapse by default") — EXCEPT the group containing the current route, which starts OPEN so a
+  // collapse never hides the user's OWN location (AMD-006 L3). This mirrors CareShell's `useState(toolsActive)`
+  // exactly. The chevron lets a user open either group; the effect below re-opens the active group on later
+  // navigation INTO it. Not persisted — a fresh load restores the collapsed-except-active default.
+  // SalesCoachShell is a persistent App-Router LAYOUT, so the initializer fires once (with the initial route);
+  // the effect handles subsequent navigation (Cmd+K, an in-page link, browser back).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
-    for (const s of NAV_SECTIONS) if (s.collapsible && s.header) init[s.header] = true;
+    for (const s of NAV_SECTIONS)
+      if (s.collapsible && s.header)
+        init[s.header] = s.items.some((i) => isNavItemActive(i, pathname));
     return init;
   });
   const activeGroupHeader = visibleSections.find(
