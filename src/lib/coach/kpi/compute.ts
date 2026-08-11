@@ -14,6 +14,8 @@
  *   sold → won · no_sale → lost · follow_up/undecided → open · no_contact → not an opportunity (no reach).
  */
 
+import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
+
 export const MIN_SESSIONS = 5;
 
 export type KpiSessionRow = {
@@ -139,16 +141,15 @@ export function avgSessionDurationMin(sessions: KpiSessionRow[]): MetricResult {
   // an uploaded session sat open — it showed 62m for a 4m clip). Live sessions have no audio length and use
   // the wall-clock, which is correct there. §3.5: a meeting-duration metric that doesn't match the audio is a
   // dishonest metric, exactly what the constitution forbids.
-  const totalMs = ended.reduce((acc, s) => {
-    const audioMs =
-      s.audioDurationSeconds && s.audioDurationSeconds > 0 ? s.audioDurationSeconds * 1000 : null;
-    if (audioMs !== null) return acc + audioMs;
-    // Wall-clock fallback — guard a NaN/negative span (clock skew, bad timestamps) from silently dragging
-    // the average (audit F12; matches the >0 guard the client duration helpers already apply).
-    const wall = Date.parse(s.endedAt as string) - Date.parse(s.startedAt);
-    return acc + (Number.isFinite(wall) && wall > 0 ? wall : 0);
-  }, 0);
-  return { value: round1(totalMs / ended.length / 60000), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
+  // Sum the shared per-session length (audit F8): the prefer-audio + wall-clock + finite-guard rule now lives
+  // in ONE tested helper, conversationDurationSeconds — the After-Pitch header + Sessions list read the same
+  // rule, so they can't drift (the vein that let the "62m for a 4m clip" bug span three surfaces).
+  const totalSec = ended.reduce(
+    (acc, s) =>
+      acc + (conversationDurationSeconds(s.audioDurationSeconds, s.startedAt, s.endedAt) ?? 0),
+    0,
+  );
+  return { value: round1(totalSec / ended.length / 60), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
 }
 
 // ---- Layer 3: Conversation quality (from the existing after-pitch evidenced scores) ------------------

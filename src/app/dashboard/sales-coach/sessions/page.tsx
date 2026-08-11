@@ -23,6 +23,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import Modal from "@/components/ui/Modal";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import type { SessionFlag } from "@/lib/coach/v5/sessionFlag";
 import {
   DeckCard,
@@ -100,20 +101,12 @@ function duration(
   start: string,
   end: string | null
 ): string {
-  // Prefer the recording's REAL audio length for uploads (the session wall-clock is just how long the
-  // session sat open — it showed "62m" for a 4m clip); live sessions have no audio length and fall back to
-  // the wall-clock, which is correct there (§3.5). Kept in sync with the After-Pitch durationLabel.
-  let sec: number | null = null;
-  if (typeof audioSeconds === "number" && audioSeconds > 0) {
-    sec = audioSeconds;
-  } else if (end) {
-    const ms = new Date(end).getTime() - new Date(start).getTime();
-    if (Number.isFinite(ms) && ms > 0) sec = ms / 1000;
-  }
+  // Shared prefer-audio-else-wall-clock rule (audit F8) — the same helper the After-Pitch header + KPI read,
+  // so the three surfaces can't drift on the §3.5-critical length calculation.
+  const sec = conversationDurationSeconds(audioSeconds, start, end);
   if (sec === null) return "—";
-  // floor, not round (audit F9): rounding UP showed a 4m30s call as "5m" here while After-Pitch shows
-  // "4m 30s" — the same call, two lengths, and the list overstated. floor matches After-Pitch's minute
-  // floor and never overstates (§3.5); the list stays compact (minutes only).
+  // floor, not round (audit F9): rounding UP showed a 4m30s call as "5m" while After-Pitch shows "4m 30s";
+  // floor matches After-Pitch's minute floor and never overstates (§3.5). The list stays compact (minutes).
   const min = Math.floor(sec / 60);
   return min < 1 ? "<1m" : `${min}m`;
 }

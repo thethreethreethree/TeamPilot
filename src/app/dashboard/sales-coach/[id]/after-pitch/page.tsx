@@ -23,6 +23,7 @@ import {
 import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
+import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -110,14 +111,12 @@ function durationLabel(
   start?: string,
   end?: string | null
 ): string | null {
-  let total: number | null = null;
-  if (typeof audioSeconds === "number" && audioSeconds > 0) {
-    total = audioSeconds;
-  } else if (start && end) {
-    const ms = new Date(end).getTime() - new Date(start).getTime();
-    if (Number.isFinite(ms) && ms > 0) total = Math.round(ms / 1000);
-  }
-  if (total === null) return null;
+  // Shared prefer-audio-else-wall-clock rule (audit F8); this surface shows exact m + s, so round the
+  // (possibly fractional) wall-clock to whole seconds — audio lengths are already whole, so round is a no-op
+  // there, preserving the prior behaviour exactly.
+  const secs = conversationDurationSeconds(audioSeconds, start, end);
+  if (secs === null) return null;
+  const total = Math.round(secs);
   const m = Math.floor(total / 60);
   const s = total % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;

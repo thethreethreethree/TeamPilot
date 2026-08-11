@@ -86,11 +86,11 @@ callers beyond the four listed, and every test file's assertion coverage beyond 
 ### F7 — `uploadBlob` lacks the synchronous re-entrancy latch its sibling `label()` has — **LOW** (FLAG)
 - **file+line:** `SessionRecordingUpload.tsx:74-128` (uploadBlob, only `phase` flag) vs `164-198` (label(), which latches with `labelingRef`). **clause:** the component's own §L169-171 rationale (button-disable is a render late). **evidence:** uploadBlob relies on `pending={phase === "uploading"}`; a second entry (reopen picker + reselect) mints a second signed upload + finalize = double STT/transcription spend. **class:** re-entrancy-latch asymmetry across sibling handlers on a PAID path. **severity:** LOW (trigger is a multi-step modal, not a fast double-tap). **GATE:** add `uploadingRef`. **PROMISE**.
 
-### F8 — three hand-maintained copies of "prefer audio>0 else wall-clock" — **LOW** (FLAG, drift)
-- **file+line:** `compute.ts:143`, `after-pitch/page.tsx:~110`, `sessions/page.tsx:~103` (comment says *"Kept in sync"*). **clause:** A31 (seam gated, not watched) + A30. **evidence:** three independent implementations of the same rule; a comment claims sync, no test asserts the three agree. Currently agree → drift risk, not a live bug. **class:** comment-only cross-artifact sync contract. **severity:** LOW. **GATE/PROMISE:** the post-test cleanup already logged — extract `conversationDurationSeconds()` + unit-test it. **PROMISE**.
+### F8 — three hand-maintained copies of "prefer audio>0 else wall-clock" — **LOW** (FLAG, drift) — **SHIPPED**
+- **file+line:** `compute.ts:143`, `after-pitch/page.tsx:~110`, `sessions/page.tsx:~103` (comment said *"Kept in sync"*). **clause:** A31 (seam gated, not watched) + A30. **evidence:** three independent implementations of the same rule; a comment claimed sync, no test asserted the three agree. Currently agree → drift risk, not a live bug. **class:** comment-only cross-artifact sync contract. **severity:** LOW. **SHIPPED:** extracted `src/lib/coach/conversationDuration.ts` (raw seconds, per-surface formatters untouched → no display change) + 6 boundary tests; all three surfaces now call it; the "keep in sync" comments are replaced by a real gate.
 
 ### F9–F12 (LOW, FLAG)
-- **F9 rounding divergence:** `sessions/page.tsx:~114` rounds to nearest minute (UP: "5m" for 4m30s) vs `after-pitch` exact "4m 30s" — same call, two labels. §3.5 cross-surface consistency. PROMISE (align on the shared helper of F8).
+- **F9 rounding divergence:** `sessions/page.tsx:~114` rounds to nearest minute (UP: "5m" for 4m30s) vs `after-pitch` exact "4m 30s" — same call, two labels. §3.5 cross-surface consistency. **SHIPPED** (`Math.floor`, never overstates).
 - **F10 metric proxy:** `compute.ts:135` gates `avgSessionDurationMin` on `endedAt !== null`, dropping an audio-populated session with null `ended_at` despite a known length. Low likelihood (trigger stamps ended_at). Fix `s.endedAt !== null || (s.audioDurationSeconds ?? 0) > 0`. PROMISE.
 - **F11 silent best-effort write:** the three `audio_duration_seconds` updates (`upload-recording` ×2, `retranscribe`) never check their result — a failed update silently reverts every surface to wall-clock with no log. Add `console.error` on error. PROMISE.
 - **F12 missing finite/>0 guard:** `compute.ts:145` wall-clock fallback omits the `>0`/`isFinite` guard the two client helpers apply — a negative/skewed wall-clock silently drags the average. PROMISE.
@@ -108,7 +108,7 @@ callers beyond the four listed, and every test file's assertion coverage beyond 
 5. **Direct-to-storage body-cap** — 8 `formData()` routes; 2 real unswept siblings (F2). Boundary: `grep -rn "req.formData()" src/app/api`.
 
 ## 5. Gate the lesson (A30/A33)
-- F1 → **GATE shipped** (prefix check + test). F4/F5/F6/F7/F8–F12 → **PROMISE** (specified fixes; batched for founder greenlight — no CRITICAL, and the client is mid-test). F2 → **PROMISE** + a proposed invariant (formData-cap>4.5MB detector); declining an immediate gate because a precise detector needs the cap-constant lookup (A33 — name the hole, don't ship a noisy gate).
+- F1 → **GATE shipped** (prefix check + test). F4/F5/F6/F7/F9/F11/F12 → **shipped**. F8 → **GATE shipped** (`conversationDuration.test.ts` locks the shared rule the three surfaces now import). F2 → **PROMISE** + a proposed invariant (formData-cap>4.5MB detector); declining an immediate gate because a precise detector needs the cap-constant lookup (A33 — name the hole, don't ship a noisy gate).
 
 ## 6. Empty-findings note (§1.7.3)
 No layer returned an empty flag list that I trusted silently. The CLEAN verdicts are stated with what was looked
@@ -135,13 +135,15 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 
 ## 9. Remediation plan
 
-**Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, F9, then F4 — all
-shipped (npm run check green). Still deferred: F2 (proposal, greenlight), F8 (shared-helper refactor — no
-current need + behavior-changing). DECLINED as not-a-defect on reconsideration: F10 (the avg is by definition
-ended-sessions-only; an incomplete session is correctly excluded). Your decision: F13.
+**Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, F9, F4, then F8 — all
+shipped (npm run check green). F8's earlier "behavior-changing" deferral was wrong on reconsideration: the
+divergence lives in the per-surface formatters, not the shared rule, so sharing only the core seconds-calc
+changes no display (proven — the existing compute tests still yield 30 and 4). Still deferred: F2 (proposal,
+greenlight). DECLINED as not-a-defect on reconsideration: F10 (the avg is by definition ended-sessions-only;
+an incomplete session is correctly excluded). Your decision: F13.
 
-**Tally: of 13 findings — 9 shipped (F1/F3/F4/F5/F6/F7/F9/F11/F12), 1 declined (F10), 2 deferred with reasons
-(F2 greenlight, F8 behavior-changing), 1 your decision (F13).**
+**Tally: of 13 findings — 10 shipped (F1/F3/F4/F5/F6/F7/F8/F9/F11/F12), 1 declined (F10), 1 deferred with a
+reason (F2 greenlight), 1 your decision (F13).**
 
 | # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
@@ -152,7 +154,7 @@ ended-sessions-only; an incomplete session is correctly excluded). Your decision
 | F5 | correct the label-transcript comment | A27 | none (comment) | **✅ shipped** (`0faa2650`) |
 | F6 | generic client message + log raw (sign + multipart) | CWE-209 | none | **✅ shipped** |
 | F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none — mirrors the proven `label()` latch | **✅ shipped** |
-| F8 | extract tested `conversationDurationSeconds()` (dedup the 3 copies) | A30/§3.5 | NOT a pure extraction — the 3 surfaces round the wall-clock differently (After-Pitch rounds ms→s then floors; Sessions floors raw s → a 119.6s live session resolves to 2m vs 1m). Unifying forces a display-rounding DECISION (behavior change) + boundary tests; do it deliberately outside a live test | PROMISE |
+| F8 | extract tested `conversationDurationSeconds()` (dedup the 3 copies) | A30/§3.5 | **SHIPPED.** Correction of my earlier "behavior-changing" deferral: the display divergence lives in the per-surface FORMATTERS, not the core rule. Shared only the CORE seconds calc (raw fractional seconds), left each formatter untouched (After-Pitch "Xm Ys", Sessions floor "Xm", KPI sum) → zero display change, proven by the existing compute tests still yielding 30 and 4. Helper + 6 boundary tests added; 3 surfaces wired; `npm run check` green | **SHIPPED** |
 | F9 | Sessions-list rounding round→floor (stop overstating 4m30s as 5m) | §3.5 | none (one operator) | **✅ shipped** |
 | F10 | (reconsidered) include audio-populated null-`ended_at` sessions in the avg | §3.5 | n/a | **DECLINED** — the metric is by definition "average over ENDED sessions"; an uploaded-but-not-named session is genuinely incomplete, so excluding it is a reasonable scope, not a defect. The audit's "include it" was a suggestion, not a bug. |
 | F11 | log the best-effort duration-stamp failures (3 sites) | §3.4 | none (log-only) | **✅ shipped** |
