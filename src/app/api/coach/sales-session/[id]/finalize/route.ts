@@ -9,12 +9,7 @@ import {
   getSessionTranscript,
   appendTranscriptSegment,
 } from "@/lib/data/salesCoach";
-import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
-import { runAndStoreSummary } from "@/lib/coach/v5/salesSummary";
-import { runAndStorePivot } from "@/lib/coach/v5/salesPivot";
-import { runAndStoreMoments } from "@/lib/coach/v5/salesMoments";
-import { runAndStoreIntel } from "@/lib/coach/v5/salesIntel";
-import { withEngineTimeout } from "@/lib/coach/v5/engineTimeout";
+import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 
 // The five post-call engines run concurrently, each bounded by a 40s (shared) in-code
 // timeout (withEngineTimeout). That timeout is only effective if the platform
@@ -132,62 +127,16 @@ export async function POST(
   //    engine degrades to its empty fallback (same as a failure — the
   //    "Generate missing" backfill covers it) while the rest still persist. The
   //    happy path is unchanged.
-  // Per-engine timeout (40s) lives in the shared withEngineTimeout helper so finalize + summarize stay in
-  // sync — the reasoning-model latency dimension required raising it in BOTH; see engineTimeout.ts.
-  const [dissect, summary, moments, pivot, intel] = await Promise.all([
-    withEngineTimeout(
-      runAndStoreDissect({
-        companyId,
-        actorId: auth.user.id,
-        sessionId: id,
-        segments,
-        sessionTitle: session.clientLabel ?? undefined,
-        context: session.context,
-      }).catch(() => null),
-      null
-    ),
-    withEngineTimeout(
-      runAndStoreSummary({
-        companyId,
-        actorId: auth.user.id,
-        sessionId: id,
-        segments,
-      }).catch(() => null),
-      null
-    ),
-    withEngineTimeout(
-      runAndStoreMoments({
-        companyId,
-        actorId: auth.user.id,
-        sessionId: id,
-        context: session.context,
-        outcome: session.outcome,
-        segments,
-      }).catch(() => []),
-      []
-    ),
-    withEngineTimeout(
-      runAndStorePivot({
-        companyId,
-        actorId: auth.user.id,
-        sessionId: id,
-        context: session.context,
-        outcome: session.outcome,
-        segments,
-      }).catch(() => null),
-      null
-    ),
-    withEngineTimeout(
-      runAndStoreIntel({
-        companyId,
-        actorId: auth.user.id,
-        sessionId: id,
-        context: session.context,
-        segments,
-      }).catch(() => null),
-      null
-    ),
-  ]);
+  // Per-engine timeout (40s) lives in the shared withEngineTimeout helper; the five-engine generation itself
+  // is the shared generateSessionArtifacts (A16 drift-guard) so the UPLOADED-recording path (/label-transcript)
+  // produces the identical artifact set from ONE definition — no copy-paste to drift.
+  const { dissect, summary, moments, pivot, intel } = await generateSessionArtifacts({
+    companyId,
+    actorId: auth.user.id,
+    sessionId: id,
+    session,
+    segments,
+  });
 
   return NextResponse.json({
     appended,
