@@ -153,6 +153,80 @@ describe("invariant-audit.mjs", () => {
     expect(SCRIPT).toContain("Number(m[1]) > 1000");
   });
 
+  // INVARIANT 7 (admin route needs an admin gate). Matches each admin-gate reference; a bare authenticated
+  // read is NOT an admin gate.
+  it("the admin-gate detector matches the admin guards, not a bare auth check", () => {
+    const ADMIN_GATE_RE = /isAdmin|requireAdmin|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin/;
+    expect(ADMIN_GATE_RE.test("if (!requireVendorAdmin(ctx).ok) return forbidden();")).toBe(true);
+    expect(ADMIN_GATE_RE.test("if (!auth.isAdmin) return forbidden();")).toBe(true);
+    expect(ADMIN_GATE_RE.test("const { data } = await supabase.auth.getUser();")).toBe(false); // authed ≠ admin
+    expect(SCRIPT).toContain("const ADMIN_GATE_RE = /isAdmin|requireAdmin|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin/");
+  });
+
+  // INVARIANT 8 (extension route must be authenticated). Matches the three extension guards; a bare handler
+  // does not.
+  it("the extension-auth detector matches the extension guards, not an ungated handler", () => {
+    const EXT_AUTH_RE = /guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth/;
+    expect(EXT_AUTH_RE.test("const g = await guardExtensionRequest(req);")).toBe(true);
+    expect(EXT_AUTH_RE.test("const u = await requireEntitledExtensionUser(req);")).toBe(true);
+    expect(EXT_AUTH_RE.test("export async function POST(req) { const b = await req.json();")).toBe(false);
+    expect(SCRIPT).toContain("const EXT_AUTH_RE = /guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth/");
+  });
+
+  // INVARIANT 20 (auth middleware redirects preserve rotated cookies). The gate strips comments then counts
+  // raw `NextResponse.redirect(` — > 1 means a second redirect bypasses the cookie-preserving helper. A
+  // comment naming the API must NOT count; the single helper call must.
+  it("the middleware-redirect counter strips comments and flags a SECOND raw redirect", () => {
+    const stripAndCount = (src: string) =>
+      (src
+        .split("\n")
+        .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+        .join("\n")
+        .match(/NextResponse\.redirect\(/g) ?? []).length;
+    expect(stripAndCount("return NextResponse.redirect(u1);\nreturn NextResponse.redirect(u2);")).toBe(2); // > 1 → flagged
+    expect(stripAndCount("  // NextResponse.redirect(x) is only via the helper\n  return doStuff();")).toBe(0); // comment stripped
+    expect(stripAndCount("return redirectPreservingCookies(response, url); // wraps NextResponse.redirect")).toBe(0); // helper, not raw
+    expect(SCRIPT).toContain("const rawRedirects = (codeOnly.match(/NextResponse\\.redirect\\(/g) ?? []).length");
+  });
+
+  // INVARIANT 24 (coach EXTENSION engine calling an LLM must fence external text). Matches the extension LLM
+  // callers + the shared fence token; a pure util engine (no LLM call) is out of scope.
+  it("the extension-fence detector matches an LLM-calling engine + the fence token, not a pure util", () => {
+    const EXT_LLM_CALLER_RE = /\b(dissectCoachV5|generateCareReply)\b/;
+    const TRANSCRIPT_FENCE_RE = /CONVERSATION_IS_DATA/;
+    expect(EXT_LLM_CALLER_RE.test("const r = await dissectCoachV5(input);")).toBe(true);
+    expect(EXT_LLM_CALLER_RE.test("export function formatSegments(s) { return s.join(''); }")).toBe(false); // pure util
+    expect(TRANSCRIPT_FENCE_RE.test("const fenced = CONVERSATION_IS_DATA + text;")).toBe(true);
+    expect(TRANSCRIPT_FENCE_RE.test("const p = systemPrompt + text;")).toBe(false); // no fence
+    expect(SCRIPT).toContain("const EXT_LLM_CALLER_RE = /\\b(dissectCoachV5|generateCareReply)\\b/");
+  });
+
+  // INVARIANT 15 (coaching_sessions write pins company_id). Re-declares the statement-bounded scan: a
+  // `.from("coaching_sessions").update(...)` WITHOUT an `.eq("company_id")` in the same statement is a latent
+  // cross-tenant write; a scoped write or a read (.select) is fine.
+  it("the coaching_sessions-write scan flags an unscoped update, not a scoped one or a read", () => {
+    const unscoped = (sql: string) => {
+      const lines = sql.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (!/\.from\(["']coaching_sessions["']\)/.test(lines[i])) continue;
+        let stmt = "";
+        for (let j = i; j < lines.length && j < i + 20; j++) {
+          stmt += lines[j] + "\n";
+          if (lines[j].includes(";")) break;
+        }
+        if (!/\.update\(/.test(stmt)) continue;
+        if (/\.eq\(["']company_id["']/.test(stmt)) continue;
+        return true;
+      }
+      return false;
+    };
+    expect(unscoped('await admin.from("coaching_sessions").update({ x: 1 }).eq("id", id);')).toBe(true); // id-only → flagged
+    expect(unscoped('await admin.from("coaching_sessions").update({ x: 1 }).eq("id", id).eq("company_id", c);')).toBe(false); // scoped
+    expect(unscoped('await sb.from("coaching_sessions").select("*").eq("id", id);')).toBe(false); // a read is not a write
+    // Bind to the script so a later weakening (e.g. dropping the company_id check) trips this test.
+    expect(SCRIPT).toContain('.eq\\(["\']company_id["\']');
+  });
+
   // Every exception must carry a REASON. An allowlist of bare paths is just a disabled check — it records
   // that someone silenced the audit, not why it was safe to.
   it("every allowlisted exception states its reason", () => {

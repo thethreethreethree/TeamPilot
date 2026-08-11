@@ -1,10 +1,17 @@
 # Proposal — close the detection-test coverage gap on the invariant audit
 
-**Status:** PARTIALLY SHIPPED 2026-08-11 — the recommended **top-5 security-critical** (INV18, INV13, INV19,
-INV16, INV21) now have detection-tests (test-only, no production change). **Remaining 10** still open:
-INV7 (admin gate), INV8 (extension auth), INV9 (NEXT_PUBLIC), INV10 (dangerouslySetInnerHTML), INV11 (cron
-secret), INV12 (constitution version), INV15 (coaching_sessions company_id), INV17 (cron in vercel.json),
-INV20 (middleware cookies), INV24 (extension LLM fence). **Trigger phrase:** *"detection-test the invariants"*.
+**Status:** SHIPPED for every FRAGILE gate 2026-08-11 — **19 of 24 invariants now have a detection-test**
+(test-only, no production change): the pre-existing 1–6/22/23, plus INV14 (build xj) and the 11 added this
+session: INV7, INV8, INV13, INV15, INV16, INV18, INV19, INV20, INV21, INV24. Each re-declares the detector +
+asserts positive/negative shapes + binds to the script via `expect(SCRIPT).toContain(...)` so a silent
+narrowing fails the test.
+
+**Remaining 5 DELIBERATELY LEFT (low silent-break risk):** INV9 (NEXT_PUBLIC allowlist), INV10
+(dangerouslySetInnerHTML justification), INV11 (`/CRON_SECRET/` presence), INV12 (constitution-version match),
+INV17 (cron registered in vercel.json — set membership). These are presence / set-membership checks, not
+fragile regexes — a detection-test for `/CRON_SECRET/.test(sql)` only asserts a literal matches itself, which
+is near-zero value. Add them only if desired (trigger *"detection-test the invariants"*); the fragile-gate
+coverage is complete.
 **Origin:** surfaced 2026-08-11 while adding a detection-test for invariant 14 (CWE-209, build xj). The test
 file's own header states its purpose: *"A gate that cannot FAIL is not a gate — it is a green light with extra
 steps. I shipped exactly that bug… the rls-audit's SELECT rule had a regex that could never match, so the
