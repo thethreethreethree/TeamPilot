@@ -1,5 +1,32 @@
 # Founder action queue
 
+## ✅ RESOLVED — 2026-08-12: KPI Reliance-Reduction truncation FIXED (`46a83f68`, you authorized "Fix it now")
+
+> The HIGH finding below is now fixed + shipped: all seven usage-growth reads in kpi/me + kpi/team page via
+> fetchAllPaged (guard-tested, gate-green). The write-up is preserved below for the record. Residual (documented
+> in the build closure): a rep past ~1000 SESSIONS makes `sessionIds` a >1000-value `.in()` list — a separate
+> concern whose real fix is a server-side aggregate RPC.
+
+## 🟡 AUDIT FLAG — 2026-08-12: CARE agent analytics truncates at 5000 windowed conversations (no disclosure)
+
+> Found widening the truncation sweep to CARE (you chose "widen the audit"). Lower severity than the KPI one —
+> flag, not fix (same founder-gated class).
+>
+> **Where:** [`care/agent/analytics/route.ts:29-34`](src/app/api/care/agent/analytics/route.ts#L29-L34) —
+> `support_conversations.select(...).eq(company).gte(created_at, since).limit(5000)`, then resolution-rate +
+> first-response-time median/avg/buckets are computed in JS over the returned rows.
+> **The bug:** a company with **>5000 conversations in the window** (e.g. a busy team, >166/day over 30d) has
+> its resolution-rate + FRT analytics computed over only the first 5000 — silently, with **no "capped"
+> disclosure** (unlike Sales Coach's team-analytics, which discloses its window cap). Section-3.4/3.5 measure-wrong
+> for high-volume teams.
+> **Severity 🟡 MEDIUM-LOW** — much higher threshold than the KPI (5000 windowed vs 1000 all-time); bites only
+> large/busy support operations. **Fix:** either an exact/paged read, or (better, mirroring finance) a
+> server-side aggregate RPC that computes the rate + percentiles in SQL. Say **"fix the CARE analytics truncation"**.
+>
+> **CARE truncation picture (bounded):** the section-3.5 readouts were swept in build xl (4 fixed, 3 flagged); this
+> analytics route is the one NEW instance; `agent/settings/agents` open-load count is naturally bounded (clean);
+> the rest of the CARE reads are single-conversation (thread/getConversation), not aggregations.
+
 ## 🟠 AUDIT FLAG (HIGH) — 2026-08-12: the KPI "Reliance Reduction" HEADLINE metric truncates at 1000 rows — the Coach-KPI fix was INCOMPLETE
 
 > Found extending the truncation sweep into the KPI compute layer (the recorded-open "KPI agg" item). This is
