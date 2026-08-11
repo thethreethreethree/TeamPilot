@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
 import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
@@ -15,6 +15,7 @@ import {
 import {
   ArrowLeft,
   BarChart3,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -61,26 +62,45 @@ type NavItem = {
   external?: boolean;
 };
 
-/** A grouped run of nav items under an optional section header. */
-type NavSection = { header?: string; items: NavItem[] };
+/** A grouped run of nav items under an optional section header. A `collapsible` section renders its header as a
+ *  toggle button (chevron) that shows/hides its items — see CareShell's "C.A.R.E Tools" expander (A28). */
+type NavSection = { header?: string; items: NavItem[]; collapsible?: boolean };
 
-// Founder decision 2026-08-01: the sidebar is a FLAT list in the founder's July-28 PDF order (the earlier
-// 2026-07-31 grouping into "Manager Dashboard"/"Team Tools" was reverted at the founder's request). One
-// headerless section renders as a flat list — no section headers, no per-item numbering. Item gating is
-// unchanged (Coach Assessment + Team stay server-gated / manager-only; hidden from a rep's nav — AMD-006 L3).
-// "One Liners" is the universal label now (was a Standard-only relabel of "Strategy"); route path kept as
-// /strategy so existing links don't break. Team Chat + KPI Analytics are kept (real features built AFTER the
-// July-28 list) after Team, before Settings.
+// Founder decision 2026-08-12 (annotated mockup): the sidebar groups Coach Assessment / Analytics / Sessions
+// under a COLLAPSIBLE "Manager Dashboard", and Roleplay / One Liners / Team under a COLLAPSIBLE "Team Tools".
+// Home stays top-level ABOVE the groups; Team Chat / KPI Analytics / Browser extension / Settings stay top-level
+// BELOW them. This re-introduces the grouping that was briefly flattened on 2026-08-01 — the material difference
+// the founder now asked for is that the two groups are COLLAPSIBLE (the 07-31 grouping wasn't), mirroring
+// CareShell's "C.A.R.E Tools" expander (A28 — align to the existing affordance, don't invent a new one).
+// Item gating is unchanged: Coach Assessment + Team stay managerOnly (server-gated), so a rep never sees them;
+// a group filtered down to zero visible items for a rep is dropped whole (filterManagerNavSections) so no bare
+// header shows (AMD-006 L3). The mockup's "1. / 2. / 3." denote ORDER, not literal numbering — items are not
+// number-prefixed (consistent with the rest of the product's nav). "One Liners" is the universal label; route
+// path kept as /strategy so existing links don't break.
 const NAV_SECTIONS: NavSection[] = [
   {
+    items: [{ label: "Home", href: "/dashboard/sales-coach", icon: Home }],
+  },
+  {
+    header: "Manager Dashboard",
+    collapsible: true,
     items: [
-      { label: "Home", href: "/dashboard/sales-coach", icon: Home },
       { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
       { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
       { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
+    ],
+  },
+  {
+    header: "Team Tools",
+    collapsible: true,
+    items: [
       { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
       { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
+    ],
+  },
+  {
+    items: [
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
       // Browser extension — mirrors the C.A.R.E sidebar's "Browser extension" nav entry (founder request:
@@ -91,6 +111,16 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+/** Active-state for a nav item: exact match, or a child route under it (except Home, which would match
+ *  everything). External items never show active (they open a new tab). Shared by the sidebar sections. */
+function isNavItemActive(item: NavItem, pathname: string): boolean {
+  return (
+    !item.external &&
+    (pathname === item.href ||
+      (item.href !== "/dashboard/sales-coach" && pathname.startsWith(item.href + "/")))
+  );
+}
 
 // Mobile bottom tab bar (founder 2026-07-04 PWA design). Per the founder's
 // annotated mockup: the "Practice" slot → Analytics, "Feedback" slot → Team
@@ -126,6 +156,25 @@ export function SalesCoachShell({
   // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
   // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
   const visibleSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
+
+  // Collapsible-group open state, keyed by section header. Default OPEN (the founder's mockup shows both groups
+  // expanded) — the chevron then lets a user tidy the sidebar by collapsing either. A group AUTO-re-opens when
+  // the active route is inside it, because collapsing must never hide the user's OWN location (AMD-006 L3). Not
+  // persisted — mirrors CareShell's toolsOpen (a fresh load restores the expanded default). SalesCoachShell is a
+  // persistent App-Router LAYOUT, so the initializer fires once; the effect handles later navigation INTO a
+  // collapsed group (Cmd+K, an in-page link, browser back).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const s of NAV_SECTIONS) if (s.collapsible && s.header) init[s.header] = true;
+    return init;
+  });
+  const activeGroupHeader = visibleSections.find(
+    (s) => s.collapsible && s.header && s.items.some((i) => isNavItemActive(i, pathname))
+  )?.header;
+  useEffect(() => {
+    if (activeGroupHeader)
+      setOpenGroups((m) => (m[activeGroupHeader] ? m : { ...m, [activeGroupHeader]: true }));
+  }, [activeGroupHeader]);
   return (
     <NavProgressProvider>
     <div className="fixed inset-0 z-[60] flex flex-col md:flex-row bg-base overflow-hidden">
@@ -167,45 +216,86 @@ export function SalesCoachShell({
             </div>
           </div>
 
-          {/* Nav — grouped into sections (founder mockup 2026-07-31). Each section renders its header (when
-              present) then its items; an ungrouped section (Home; the Team Chat/KPI/Settings run) has no
-              header. */}
+          {/* Nav — grouped into sections (founder mockup 2026-08-12). An ungrouped section (Home; the
+              Team Chat/KPI/extension/Settings run) renders its items flat. A `collapsible` section (Manager
+              Dashboard, Team Tools) renders its header as a toggle button with a chevron, and shows its items —
+              indented under a left rule — only when open. Mirrors CareShell's "C.A.R.E Tools" expander (A28). */}
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
-            {visibleSections.map((section, si) => (
-              <div key={section.header ?? `group-${si}`} className="space-y-0.5">
-                {section.header && (
-                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    {section.header}
-                  </p>
-                )}
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const active =
-                    !item.external &&
-                    (pathname === item.href ||
-                      (item.href !== "/dashboard/sales-coach" &&
-                        pathname.startsWith(item.href + "/")));
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      {...(item.external
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {})}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        active
-                          ? "bg-white/10 text-white"
-                          : "text-white/70 hover:text-white hover:bg-white/5"
+            {visibleSections.map((section, si) => {
+              const renderedItems = section.items.map((item) => {
+                const Icon = item.icon;
+                const active = isNavItemActive(item, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    {...(item.external
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : {})}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-white/10 text-white"
+                        : "text-white/70 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    <LinkProgress />
+                    <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                    {item.label}
+                  </Link>
+                );
+              });
+
+              // Collapsible group — header toggle + chevron; items shown only when open. The header reads as
+              // active (brighter) when the current route is inside the group, so a collapsed group still signals
+              // "you are in here" (AMD-006 L3).
+              if (section.collapsible && section.header) {
+                const header = section.header;
+                const open = openGroups[header] ?? false;
+                const groupActive = section.items.some((i) =>
+                  isNavItemActive(i, pathname)
+                );
+                return (
+                  <div key={header} className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenGroups((m) => ({ ...m, [header]: !(m[header] ?? false) }))
+                      }
+                      aria-expanded={open}
+                      className={`w-full flex items-center gap-2 px-3 pt-2 pb-1 rounded-md text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                        groupActive
+                          ? "text-white/90"
+                          : "text-white/50 hover:text-white/80 hover:bg-white/5"
                       }`}
                     >
-                      <LinkProgress />
-                      <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+                      <span className="flex-1 text-left">{header}</span>
+                      {open ? (
+                        <ChevronDown className="w-3 h-3 shrink-0" aria-hidden />
+                      ) : (
+                        <ChevronRight className="w-3 h-3 shrink-0" aria-hidden />
+                      )}
+                    </button>
+                    {open && (
+                      <div className="ml-2 mt-0.5 mb-1 space-y-0.5 border-l border-white/10 pl-2">
+                        {renderedItems}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // Ungrouped section — flat list (Home; the bottom Team Chat/KPI/extension/Settings run).
+              return (
+                <div key={section.header ?? `group-${si}`} className="space-y-0.5">
+                  {section.header && (
+                    <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      {section.header}
+                    </p>
+                  )}
+                  {renderedItems}
+                </div>
+              );
+            })}
           </nav>
 
           {/* Back to ELOSTATE — hidden for a module-locked account (it can't reach the hub; the middleware

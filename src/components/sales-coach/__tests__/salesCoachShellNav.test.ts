@@ -34,3 +34,45 @@ describe("SalesCoachShell — Browser extension nav parity with C.A.R.E", () => 
     expect(CARE_SHELL).toContain('href: "/extension/download"');
   });
 });
+
+/**
+ * Guards the collapsible-group nav structure (founder mockup 2026-08-12). This grouping was tried on
+ * 2026-07-31, REVERTED to a flat list on 2026-08-01, then re-requested WITH a collapse affordance on
+ * 2026-08-12 (see docs/tbc/2026-08-12-xm-…). Because it has flip-flopped before, this test locks the current
+ * founder-desired shape so it can't silently regress to a flat list (or lose the collapsibility) — A30. Same
+ * source-substring form as the extension-parity guard above (client component, unrenderable in node env).
+ */
+describe("SalesCoachShell — collapsible Manager Dashboard + Team Tools groups", () => {
+  it("declares both groups as collapsible sections", () => {
+    expect(SHELL).toMatch(/header:\s*"Manager Dashboard"[\s\S]{0,120}collapsible:\s*true/);
+    expect(SHELL).toMatch(/header:\s*"Team Tools"[\s\S]{0,120}collapsible:\s*true/);
+  });
+
+  it("Manager Dashboard groups Coach Assessment, Analytics, Sessions (in order)", () => {
+    expect(SHELL).toMatch(
+      /header:\s*"Manager Dashboard"[\s\S]{0,400}coach-assessment[\s\S]{0,200}\/analytics[\s\S]{0,200}\/sessions/
+    );
+  });
+
+  it("Team Tools groups Roleplay, One Liners, Team (in order)", () => {
+    // "One Liners" is rendered via the ONE_LINERS_LABEL constant; assert on the stable /strategy route instead.
+    expect(SHELL).toMatch(
+      /header:\s*"Team Tools"[\s\S]{0,400}\/roleplay[\s\S]{0,200}\/strategy[\s\S]{0,200}\/team"/
+    );
+  });
+
+  it("Coach Assessment + Team remain manager-only inside their groups", () => {
+    expect(SHELL).toMatch(/coach-assessment[\s\S]{0,140}managerOnly:\s*true/);
+    expect(SHELL).toMatch(/\/team"[\s\S]{0,140}managerOnly:\s*true/);
+  });
+
+  it("renders collapsible groups as a toggle button with aria-expanded + a chevron", () => {
+    expect(SHELL).toContain("aria-expanded={open}");
+    expect(SHELL).toContain("setOpenGroups");
+    expect(SHELL).toMatch(/ChevronDown|ChevronRight/);
+  });
+
+  it("auto-re-opens the active group so a collapse never hides the user's own location (AMD-006 L3)", () => {
+    expect(SHELL).toContain("activeGroupHeader");
+  });
+});
