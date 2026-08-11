@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Upload, Loader2, UserCheck } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { createClient } from "@/lib/supabase/client";
+
+// Voice-memo + recording formats a phone actually produces — Apple Voice Memos (.m4a/.caf),
+// Android recorders (.m4a/.amr/.3gp/.ogg/.wav), plus the universal ones. Listed explicitly (on
+// top of the audio/* + video/* wildcards) because some mobile file pickers filter by extension
+// when a memo arrives with an empty or unusual MIME type.
+const RECORDING_ACCEPT =
+  "audio/*,video/*,.m4a,.m4b,.mp3,.wav,.aac,.amr,.3gp,.3gpp,.ogg,.oga,.caf,.mp4,.webm,.aiff,.flac";
 
 /**
  * SessionRecordingUpload — Live Sales Coach S1a.
@@ -63,11 +71,44 @@ export function SessionRecordingUpload({
     setPhase("uploading");
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", blob, name);
+      // 1. Mint a signed upload target — the server validates access (owner/manager),
+      //    size, and type up front. The bytes never pass through this request.
+      const signRes = await fetch(
+        `/api/coach/sales-session/${sessionId}/upload-recording/sign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: name,
+            sizeBytes: blob.size,
+            mimeType: blob.type || "audio/webm",
+          }),
+        }
+      );
+      if (!signRes.ok) {
+        const d = await signRes.json().catch(() => null);
+        throw new Error(
+          d?.error ?? `Couldn't start the upload (HTTP ${signRes.status}).`
+        );
+      }
+      const { bucket, storagePath, token } = await signRes.json();
+      // 2. Upload the bytes DIRECT to Storage. This is the whole point: it bypasses the
+      //    ~4.5 MB Vercel serverless request-body limit, so a real phone recording / voice
+      //    memo (5-25 MB) uploads where the old through-function path silently failed.
+      const supabase = createClient();
+      const { error: upErr } = await supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(storagePath, token, blob);
+      if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
+      // 3. Finalize: the server reads the real stored object, stamps the pointer, and
+      //    transcribes from storage — returning the same { segments, speakers } shape.
       const res = await fetch(
         `/api/coach/sales-session/${sessionId}/upload-recording`,
-        { method: "POST", body: fd }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storagePath }),
+        }
       );
       await applyTranscribeResponse(res);
       setPhase("idle");
@@ -204,19 +245,20 @@ export function SessionRecordingUpload({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-primary">
-            Upload the call recording
+            Upload a recording or voice memo
           </h2>
           <p className="text-[11px] text-muted mt-0.5">
-            We separate the two voices, then you tap which one is you.
+            From your phone — iPhone Voice Memos or Android. We separate the two
+            voices, then you tap which one is you.
           </p>
         </div>
         <LearningHint
           as="inline-block"
           category="Sales Coach · Recording"
           title="Upload recording"
-          whatItIs="Uploads a saved call recording so the coach can transcribe it and separate the two voices."
+          whatItIs="Uploads a saved call recording or phone voice memo (iPhone or Android) so the coach can transcribe it and separate the two voices."
           why="If you didn't run live coaching — or the live transcript didn't save — this is how the conversation still becomes something you can review and learn from. No recording, no review."
-          how="Tap it, pick the audio or video file, and wait while it transcribes. Then you'll tap which voice is you."
+          how="Tap it, pick a voice memo or call recording from your phone, and wait while it transcribes. Then you'll tap which voice is you."
           principle="A call you don't capture is a lesson that evaporates."
         >
         <LoadingButton
@@ -232,7 +274,7 @@ export function SessionRecordingUpload({
         <input
           ref={fileRef}
           type="file"
-          accept="audio/*,video/*"
+          accept={RECORDING_ACCEPT}
           onChange={onPick}
           className="hidden"
         />

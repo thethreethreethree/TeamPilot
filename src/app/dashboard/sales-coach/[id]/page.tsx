@@ -1017,18 +1017,12 @@ export default function SessionDetail() {
               active={session?.status === "active"}
             />
 
-            {/* Upload / Coach tools / raw Transcript — Expert only. Spec p4/p5
-                remove "Upload the call recording" ("door-to-door people won't use
-                this") and p7 removes the raw transcript + coach tools from Standard.
-                The conversation summary + timeline (kept at the top of this page) are
-                what a Standard rep or manager relives the call from — not the raw
-                transcript wall. */}
-            {!isStandard && (
-              <>
-            {/* S1a — upload a recording → diarize → one-tap label. Founder 2026-07-31 (urgent): after the
-                recording is processed, the After-Pitch must show up. Founder 2026-08-01 (Phase 4): finishing
-                REQUIRES naming — on label-complete we open the required naming gate; submitting it ends the
-                session (duration + KPI populate) AND names it, then lands on After-Pitch. */}
+            {/* S1a — upload a recording / phone voice memo → diarize → one-tap label. Founder 2026-08-11:
+                available in BOTH modes now ("upload on every session, and even after") — this REVERSES the
+                earlier Standard p4/p5 removal ("door-to-door people won't use this"). The door-to-door rep
+                who recorded the call on their phone (iPhone Voice Memos / Android) can bring it in right here.
+                Founder 2026-07-31/08-01: on label-complete we open the required naming gate → ends the session
+                (duration + KPI populate) + names it → lands on After-Pitch. */}
             <SessionRecordingUpload
               sessionId={id}
               onLabeled={openNaming}
@@ -1040,6 +1034,11 @@ export default function SessionDetail() {
               }
             />
 
+            {/* Coach tools + the raw transcript wall stay Expert only (spec p7: a Standard
+                door-to-door rep relives the call from the After-Pitch summary + timeline, not the
+                raw transcript). The upload above is the one thing lifted out to both modes. */}
+            {!isStandard && (
+              <>
             {/* Coach tools on this session: Summarize, Ask coach, Dissect.
                 Spawn task + Decision dialogue removed here (founder 2026-07-03).
                 key={id} forces a fresh mount when the rep switches sessions — otherwise React preserves the

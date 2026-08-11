@@ -5,14 +5,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   buildStoragePath,
   uploadAssetBytes,
+  getAssetObjectInfo,
+  downloadAssetBytes,
   AGENT_MAX_BYTES,
   ASSETS_BUCKET,
   EXECUTABLE_EXTENSIONS,
 } from "@/lib/storage/assets";
 import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
+
+/** Distinct speakers + a sample line each, for the one-tap "which voice is you?" UI.
+ *  Shared by both entry points (multipart upload + direct-to-storage finalize) so their
+ *  response shape can't drift. */
+function buildSpeakerResponse(
+  segments: Array<{ speakerId: string; text: string }>
+) {
+  const speakerIds = Array.from(new Set(segments.map((s) => s.speakerId)));
+  const speakers = speakerIds.map((sid) => ({
+    speakerId: sid,
+    sample: segments.find((s) => s.speakerId === sid)?.text.slice(0, 140) ?? "",
+  }));
+  return {
+    segments: segments.map((s, i) => ({
+      speakerId: s.speakerId,
+      text: s.text,
+      seq: i,
+    })),
+    speakers,
+  };
+}
 
 /**
  * POST /api/coach/sales-session/[id]/upload-recording (Live Sales Coach S1a)
@@ -71,6 +95,132 @@ export async function POST(
     );
   }
 
+  // INV19: getSession is COMPANY-scoped, not owner-scoped. Attaching a recording writes to —
+  // and the response returns — the call's content, so gate it to the session's OWNER or a Sales
+  // Coach MANAGER; a colleague sharing the company must not attach/pull another rep's call.
+  // Mirrors /retranscribe's owner gate; applied to BOTH entry points below (multipart + JSON).
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, sales_coach_role")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+  const isManager = isSalesCoachManager({
+    role: (profile?.role as string | null) ?? null,
+    sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+    company_id: null,
+  });
+  if (session.agentId !== auth.user.id && !isManager) {
+    return NextResponse.json(
+      { error: "You can only upload a recording to your own sessions." },
+      { status: 403 }
+    );
+  }
+
+  // ── Direct-to-storage finalize (JSON branch) ────────────────────────────────
+  // The browser already PUT the bytes straight to Storage via a signed target
+  // (/upload-recording/sign), bypassing the ~4.5 MB Vercel serverless body limit that
+  // killed real phone recordings on the multipart path below. Here we get only the
+  // { storagePath } and transcribe FROM storage (same work as /retranscribe).
+  if ((req.headers.get("content-type") ?? "").includes("application/json")) {
+    const body = (await req.json().catch(() => null)) as
+      | { storagePath?: string }
+      | null;
+    const storagePath =
+      typeof body?.storagePath === "string" ? body.storagePath.trim() : "";
+    if (!storagePath) {
+      return NextResponse.json(
+        { error: "Missing 'storagePath' — upload via the signed URL first." },
+        { status: 400 }
+      );
+    }
+    // The client-claimed size/type is untrusted — read the REAL object from storage.
+    const info = await getAssetObjectInfo(storagePath);
+    if (!info) {
+      return NextResponse.json(
+        {
+          error:
+            "The uploaded recording wasn't found in storage — please try the upload again.",
+        },
+        { status: 404 }
+      );
+    }
+    if (info.sizeBytes === 0) {
+      return NextResponse.json({ error: "Empty recording." }, { status: 400 });
+    }
+    if (info.sizeBytes > AGENT_MAX_BYTES) {
+      return NextResponse.json(
+        {
+          error: `Recording too large (max ${Math.floor(
+            AGENT_MAX_BYTES / 1024 / 1024
+          )}MB).`,
+        },
+        { status: 413 }
+      );
+    }
+    // A voice memo picked from the Files app can arrive with an empty or generic
+    // content-type; the sign step already blocked executable extensions before the
+    // object existed, so treat empty/octet-stream as audio and only reject a clearly
+    // non-media type.
+    const storedType = info.contentType ?? "";
+    if (
+      storedType &&
+      storedType !== "application/octet-stream" &&
+      !storedType.startsWith("audio/") &&
+      !storedType.startsWith("video/")
+    ) {
+      return NextResponse.json(
+        { error: "Please upload an audio (or video) recording." },
+        { status: 400 }
+      );
+    }
+
+    // Stamp the pointer FIRST (recovery contract: the audio survives a transcription
+    // failure, so the rep can re-transcribe from storage — same ordering as the
+    // multipart branch). Service-role write scoped to the company (defense-in-depth).
+    const admin = createAdminClient();
+    await admin
+      .from("coaching_sessions")
+      .update({ audio_asset_url: `${ASSETS_BUCKET}/${storagePath}` })
+      .eq("id", id)
+      .eq("company_id", companyId);
+
+    // Download the bytes we just confirmed exist, then diarize.
+    const dl = await downloadAssetBytes({ storagePath });
+    if (!dl.ok || !dl.bytes) {
+      console.error(
+        `[upload-recording] json download failed session=${id}: ${dl.error ?? "no bytes"}`
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Couldn't read the uploaded recording right now — your audio is saved, so please try again in a moment.",
+          audioSaved: true,
+        },
+        { status: 502 }
+      );
+    }
+    let jsonSegments;
+    try {
+      jsonSegments = await transcribeWithDiarization({
+        audio: dl.bytes,
+        mimeType: dl.contentType || storedType || "audio/webm",
+        numSpeakers: 2,
+      });
+    } catch (err) {
+      console.error("[upload-recording] json processing failed:", err);
+      return NextResponse.json(
+        {
+          error:
+            "Couldn't process the recording right now — your audio is saved, so please try again in a moment.",
+          audioSaved: true,
+        },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json(buildSpeakerResponse(jsonSegments));
+  }
+
+  // ── Multipart branch (legacy / small-file fallback) ─────────────────────────
   let form: FormData;
   try {
     form = await req.formData();
@@ -162,14 +312,5 @@ export async function POST(
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap UI.
-  const speakerIds = Array.from(new Set(segments.map((s) => s.speakerId)));
-  const samples = speakerIds.map((sid) => ({
-    speakerId: sid,
-    sample: segments.find((s) => s.speakerId === sid)?.text.slice(0, 140) ?? "",
-  }));
-
-  return NextResponse.json({
-    segments: segments.map((s, i) => ({ speakerId: s.speakerId, text: s.text, seq: i })),
-    speakers: samples,
-  });
+  return NextResponse.json(buildSpeakerResponse(segments));
 }

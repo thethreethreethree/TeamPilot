@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -455,16 +456,24 @@ export default function AfterPitchPage() {
             <p className="text-[11px] text-muted leading-relaxed">
               Live coaching has to be{" "}
               <span className="text-secondary">recording during the call</span>{" "}
-              to capture it. On your next call, tap{" "}
-              <span className="text-brand font-semibold">Start live coaching</span>{" "}
-              on the session screen before you begin
-              {/* Expert also has an Upload-a-recording path on the session screen;
-                  Standard is live-only (that upload was removed for door-to-door
-                  reps), so only mention it in Expert. */}
-              {!isStandard && ", or upload a recording there afterward"} — opening
-              the session isn&apos;t the same as recording it. If you did record and
-              still see this, tap Rebuild.
+              to capture it — opening the session isn&apos;t the same as recording
+              it. Recorded the call on your phone instead? Upload it below and the
+              coach will build your review from it. If you did record here and still
+              see this, tap Rebuild.
             </p>
+            {/* Founder 2026-08-11: "even after the session so they can go back to upload."
+                The upload now lives right here on the After-Pitch screen — the ONE place a
+                Standard door-to-door rep lands after a call — so a phone recording / voice
+                memo turns this dead end into a built review. onLabeled rebuilds the summary
+                from the freshly-appended transcript (AMD-006 L3 continuity). Left-aligned
+                because the card is a form, not centered prose. */}
+            <div className="text-left">
+              <SessionRecordingUpload
+                sessionId={id}
+                onLabeled={() => void generate()}
+                hasSavedRecording={false}
+              />
+            </div>
             <button
               type="button"
               onClick={() => void generate()}
