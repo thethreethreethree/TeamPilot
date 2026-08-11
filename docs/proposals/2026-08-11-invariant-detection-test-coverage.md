@@ -1,17 +1,15 @@
 # Proposal — close the detection-test coverage gap on the invariant audit
 
-**Status:** SHIPPED for every FRAGILE gate 2026-08-11 — **19 of 24 invariants now have a detection-test**
-(test-only, no production change): the pre-existing 1–6/22/23, plus INV14 (build xj) and the 11 added this
-session: INV7, INV8, INV13, INV15, INV16, INV18, INV19, INV20, INV21, INV24. Each re-declares the detector +
-asserts positive/negative shapes + binds to the script via `expect(SCRIPT).toContain(...)` so a silent
-narrowing fails the test.
+**Status:** ✅ FULLY SHIPPED 2026-08-11 — **all 24 invariants now have a detection-test** (test-only, no
+production change). The pre-existing 1–6/22/23, plus INV14 (build xj) and the 16 added this session: INV7, INV8,
+INV9, INV10, INV11, INV12, INV13, INV15, INV16, INV17, INV18, INV19, INV20, INV21, INV24. Each re-declares the
+detector + asserts positive/negative shapes + binds to the script via `expect(SCRIPT).toContain(...)` so a
+silent narrowing of the real detector fails the test. 41 detection tests total.
 
-**Remaining 5 DELIBERATELY LEFT (low silent-break risk):** INV9 (NEXT_PUBLIC allowlist), INV10
-(dangerouslySetInnerHTML justification), INV11 (`/CRON_SECRET/` presence), INV12 (constitution-version match),
-INV17 (cron registered in vercel.json — set membership). These are presence / set-membership checks, not
-fragile regexes — a detection-test for `/CRON_SECRET/.test(sql)` only asserts a literal matches itself, which
-is near-zero value. Add them only if desired (trigger *"detection-test the invariants"*); the fragile-gate
-coverage is complete.
+For the fragile/security-critical gates (regexes) the tests assert real match/no-match behavior; for the low-
+fragility presence/set-membership gates (INV9/10/11/12/17) they lock the extraction/cross-reference logic
+(NEXT_PUBLIC name extraction, AMD-number + padded-id formatting, route↔vercel.json cron-key derivation) — the
+parts that CAN silently break — rather than the trivial literal presence. Coverage gap CLOSED.
 **Origin:** surfaced 2026-08-11 while adding a detection-test for invariant 14 (CWE-209, build xj). The test
 file's own header states its purpose: *"A gate that cannot FAIL is not a gate — it is a green light with extra
 steps. I shipped exactly that bug… the rls-audit's SELECT rule had a regex that could never match, so the

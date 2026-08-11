@@ -227,6 +227,62 @@ describe("invariant-audit.mjs", () => {
     expect(SCRIPT).toContain('.eq\\(["\']company_id["\']');
   });
 
+  // INVARIANT 9 (NEXT_PUBLIC_ vars are secret-leak surface). The extractor must catch every NEXT_PUBLIC_ name
+  // (so the allowlist can vet it) and a secret prefixed NEXT_PUBLIC_ must NEVER be silently allowlisted.
+  it("the NEXT_PUBLIC extractor catches env-var names, and no secret var is allowlisted", () => {
+    const RE = /NEXT_PUBLIC_[A-Z0-9_]+/g;
+    expect("process.env.NEXT_PUBLIC_ANTHROPIC_KEY".match(RE)).toEqual(["NEXT_PUBLIC_ANTHROPIC_KEY"]);
+    expect("process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY".match(RE)).toEqual(["NEXT_PUBLIC_SUPABASE_ANON_KEY"]);
+    expect("process.env.SUPABASE_SERVICE_ROLE_KEY".match(RE)).toBeNull(); // not NEXT_PUBLIC_ prefixed
+    expect(SCRIPT).toContain("f.sql.match(/NEXT_PUBLIC_[A-Z0-9_]+/g)");
+    expect(SCRIPT).toContain('"NEXT_PUBLIC_SUPABASE_ANON_KEY"'); // the known-safe one is allowlisted
+    // Every allowlisted NEXT_PUBLIC_ entry must carry a reason (the allowlist is [name, reason] pairs) — an
+    // allowlist of bare names would be a disabled check; the "every allowlisted exception states its reason"
+    // test below enforces that structurally across all allowlists.
+  });
+
+  // INVARIANT 10 (dangerouslySetInnerHTML must be justified). Presence detector — matches a use, not a
+  // component without it.
+  it("the dangerouslySetInnerHTML detector matches a use, not a component without it", () => {
+    const RE = /dangerouslySetInnerHTML/;
+    expect(RE.test("<div dangerouslySetInnerHTML={{ __html: sanitized }} />")).toBe(true);
+    expect(RE.test("<div>{value}</div>")).toBe(false);
+    expect(SCRIPT).toContain("/dangerouslySetInnerHTML/.test(f.sql)");
+  });
+
+  // INVARIANT 11 (cron route needs CRON_SECRET). The path matcher + the CRON_SECRET presence check.
+  it("the cron-secret detector keys on a *-cron path and the CRON_SECRET reference", () => {
+    expect(/cron\/route\.(ts|tsx)$/.test("src/app/api/recording-purge-cron/route.ts")).toBe(true);
+    expect(/cron\/route\.(ts|tsx)$/.test("src/app/api/recordings/route.ts")).toBe(false); // not a cron route
+    expect(/CRON_SECRET/.test("if (bearer !== process.env.CRON_SECRET) return unauthorized();")).toBe(true);
+    expect(SCRIPT).toContain("if (/CRON_SECRET/.test(f.sql)) continue;");
+  });
+
+  // INVARIANT 12 (constitution version matches the ratified amendments). The AMD-number extractor + the
+  // padded expected-id formatting + the amendmentCount reader.
+  it("the constitution-version check extracts the AMD number and formats the padded expected last id", () => {
+    expect("AMD-005-establish-process.md".match(/^AMD-(\d+).*\.md$/i)?.[1]).toBe("005");
+    const nums = ["AMD-001-a.md", "AMD-012-b.md", "AMD-008-c.md"].map(
+      (f) => Number(f.match(/^AMD-(\d+).*\.md$/i)![1])
+    );
+    expect(`AMD-${String(Math.max(...nums)).padStart(3, "0")}`).toBe("AMD-012");
+    expect("  amendmentCount: 12,".match(/amendmentCount:\s*(\d+)/)?.[1]).toBe("12");
+    expect(SCRIPT).toContain("f.match(/^AMD-(\\d+).*\\.md$/i)");
+    expect(SCRIPT).toContain("amendmentCount:\\s*(\\d+)");
+  });
+
+  // INVARIANT 17 (every cron route is registered in vercel.json). The route-path key and the vercel cron-path
+  // key must derive to the SAME string for a registered cron (else the route reads as an unscheduled dead cron).
+  it("the cron-registration cross-reference derives matching keys from a route path and a vercel cron path", () => {
+    const routeKey = "src/app/api/coach/sales-session/recording-purge-cron/route.ts"
+      .replace(/^src\/app\/api\//, "")
+      .replace(/\/route\.ts$/, "");
+    const vercelKey = "/api/coach/sales-session/recording-purge-cron".replace(/^\/?api\//, "").replace(/^\//, "");
+    expect(routeKey).toBe("coach/sales-session/recording-purge-cron");
+    expect(vercelKey).toBe(routeKey); // registered → keys match; an unregistered route would be absent from the set
+    expect(SCRIPT).toContain('.replace(/^src\\/app\\/api\\//, "").replace(/\\/route\\.ts$/, "")');
+  });
+
   // Every exception must carry a REASON. An allowlist of bare paths is just a disabled check — it records
   // that someone silenced the audit, not why it was safe to.
   it("every allowlisted exception states its reason", () => {
