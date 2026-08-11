@@ -70,6 +70,10 @@ type NavItem = {
   /** Manager-only destination (server-gated CEO/COO/admin). Hidden from the nav for non-managers so a
    *  regular agent never clicks a nav item that bounces them (AMD-006 L3 — nav must not stall the user). */
   managerOnly?: boolean;
+  /** Desktop-only destination — hidden in the mobile drawer (founder 2026-08-11). Used for the browser
+   *  extension: it's a Chrome/desktop-only install, so a nav link to it is a dead end on a phone (AMD-006 L3
+   *  — nav must not stall the user). Mirrors the Sales Coach shell, whose MOBILE_TABS already omit it. */
+  desktopOnly?: boolean;
 };
 
 // Top-level, always-visible destinations — the agent's day-to-day surfaces (the inbox workflow).
@@ -119,8 +123,9 @@ const TOOLS_NAV: NavItem[] = [
 const SECONDARY_NAV: NavItem[] = [
   // Download + install the browser extension. Promoted to PRIMARY (always-visible) from the Settings sub-nav
   // 2026-07-22 — the founder couldn't find it buried behind the collapsed Settings expander (§1.5.1
-  // discoverability). Links out to the public /extension/download page.
-  { label: "Browser extension", href: "/extension/download", icon: Puzzle, external: true },
+  // discoverability). Links out to the public /extension/download page. desktopOnly (founder 2026-08-11):
+  // the extension is a Chrome/desktop install, so this link is a dead end in the mobile drawer.
+  { label: "Browser extension", href: "/extension/download", icon: Puzzle, external: true, desktopOnly: true },
 ];
 
 // Shared active-route test (a tool route has no common prefix, so the group checks each item).
@@ -437,7 +442,9 @@ function NavLink({
     <Link
       href={item.href}
       {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+      className={`${
+        item.desktopOnly ? "hidden md:flex" : "flex"
+      } items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
         active
           ? "bg-white/10 text-white"
           : "text-white/70 hover:text-white hover:bg-white/5"
