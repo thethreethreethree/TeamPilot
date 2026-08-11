@@ -67,6 +67,29 @@ describe("invariant-audit.mjs", () => {
     expect(sr.test('const sb = await createClient();')).toBe(false); // the RLS-bound client is fine
   });
 
+  // INVARIANT 14 (CWE-209). The detector must catch a raw `.message` returned in an `error:` field — INCLUDING
+  // the NESTED-access form `error: fc.error.message` (fc = a Supabase result; fc.error is the PostgrestError).
+  // That nested form slipped the original one-hop regex and let finance/forecast leak the raw RPC error
+  // (build xi, 2026-08-11). It must ALSO stay narrow: controlled result fields (`auth.error`/`result.error`,
+  // which don't end in `.message`), Zod `parsed.error.issues[0]?.message`, and string literals must NOT match.
+  it("the CWE-209 detector catches nested AND direct raw .message, but not controlled error fields", () => {
+    const RAW_ERR_MSG_RE =
+      /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
+    // LEAKS — must match
+    expect(RAW_ERR_MSG_RE.test("return NextResponse.json({ error: fc.error.message }, { status: 500 });")).toBe(true); // the nested regression
+    expect(RAW_ERR_MSG_RE.test("{ error: err.message }")).toBe(true); // the original one-hop form
+    expect(RAW_ERR_MSG_RE.test("{ error: `failed: ${e.message}` }")).toBe(true); // interpolated
+    expect(RAW_ERR_MSG_RE.test("{ error: err instanceof Error ? err.message : \"x\" }")).toBe(true); // catch fallback
+    // CONTROLLED — must NOT match (no crying wolf)
+    expect(RAW_ERR_MSG_RE.test("{ error: auth.error }")).toBe(false);
+    expect(RAW_ERR_MSG_RE.test("{ error: result.error }")).toBe(false);
+    expect(RAW_ERR_MSG_RE.test('{ error: parsed.error.issues[0]?.message ?? "Invalid." }')).toBe(false);
+    expect(RAW_ERR_MSG_RE.test('{ error: "Not authenticated." }')).toBe(false);
+    // Bind the test to the SCRIPT: the nested-access group must remain, so the widening can't be silently
+    // reverted (which would re-open the finance/forecast blind spot while this test still passed on its copy).
+    expect(SCRIPT).toContain("[A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)?\\s*\\.\\s*message");
+  });
+
   // Every exception must carry a REASON. An allowlist of bare paths is just a disabled check — it records
   // that someone silenced the audit, not why it was safe to.
   it("every allowlisted exception states its reason", () => {

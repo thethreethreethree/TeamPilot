@@ -685,8 +685,18 @@ for (const f of FILES) {
 // NEW `{ error: err.message }` at a 5xx with no LlmError structure is the leak shape and nothing else.
 // Deliberate agent-facing `{ error: "generic", detail: err.message }` (co-pilot/summarize/formulate, doc'd
 // 2026-07-25) is NOT matched — the `error:` value there is a string; `.message` rides a separate `detail:` key.
+//
+// NESTED-ACCESS BLIND SPOT (added 2026-08-11, build xi): the original regex matched only `error: X.message`
+// (one property hop). A raw `.message` reached through ONE MORE hop — `error: fc.error.message`, where
+// `fc = sb.rpc(...)` and `fc.error` is the PostgrestError — slipped the gate, and finance/forecast leaked the
+// raw RPC/Postgres message (fixed same build). So the direct alternative now allows an OPTIONAL intermediate
+// property: `X.message` OR `X.Y.message`. This stays low-noise BECAUSE it still requires the terminal
+// `.message` — controlled result fields (`auth.error`, `result.error`) don't end in `.message`, and
+// `parsed.error.issues[0]?.message` (Zod, array-indexed) doesn't match the plain-property shape (and is
+// 400-excluded anyway). The interpolated `` `${...message}` `` alternative already allowed nested access via
+// its `[^}]*`, so only the direct form needed widening.
 const RAW_ERR_MSG_RE =
-  /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
+  /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
 const INTENTIONAL_ERR_STATUS_RE = /status:\s*(?:400|403|415|422|429)\b/;
 const RAW_ERR_ALLOWLIST = new Map([
   // A diagnostic ping whose PURPOSE is to report the LLM provider's connectivity error to the caller — the
