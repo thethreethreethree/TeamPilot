@@ -77,16 +77,33 @@ export async function GET() {
   // One query for all the team's sessions; then compute per agent in memory (cheap, no per-agent round-trips).
   // Paged: a team's sessions cross PostgREST's 1000-row cap within ~a year; an unbounded read
   // would silently truncate and undercount every downstream KPI. Fetch the full set (throws on error).
-  const sessRows = await fetchAllPaged(
-    (from, to) =>
-      sb
-        .from("coaching_sessions")
-        .select("id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds")
-        .in("agent_id", memberIds)
-        .order("started_at", { ascending: true })
-        .range(from, to),
-    { label: "team KPI sessions" },
-  );
+  // A34 (audit F4): audio_duration_seconds (0210) can be absent on a code-ahead-of-migration deploy. If so,
+  // retry WITHOUT it and fall back to the wall-clock (the mapper reads `?? null`) — serve the whole team KPI
+  // rather than 500 it all. Mirrors the monthlyTarget guard above. fetchAllPaged wraps the error but keeps the
+  // column-named "does not exist" message, which isMissingColumnError matches (verified).
+  const loadSessRows = (durCol: string) =>
+    fetchAllPaged(
+      (from, to) =>
+        sb
+          .from("coaching_sessions")
+          // Cast the dynamic select to the with-column literal so the typed client infers the row shape; at
+          // runtime the without-column variant simply omits it and the mapper reads `?? null` (A34 degrade).
+          .select(
+            `id, agent_id, outcome, deal_value, started_at, ended_at${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds",
+          )
+          .in("agent_id", memberIds)
+          .order("started_at", { ascending: true })
+          .range(from, to),
+      { label: "team KPI sessions" },
+    );
+  let sessRows;
+  try {
+    sessRows = await loadSessRows(", audio_duration_seconds");
+  } catch (e) {
+    if (isMissingColumnError(e as Parameters<typeof isMissingColumnError>[0], "audio_duration_seconds")) {
+      sessRows = await loadSessRows("");
+    } else throw e;
+  }
 
   // Cue counts per session (for reliance) — one query for the team's sessions.
   const sessionIds = (sessRows ?? []).map((s) => s.id as string);

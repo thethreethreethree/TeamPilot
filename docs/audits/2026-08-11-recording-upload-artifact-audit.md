@@ -133,16 +133,16 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 
 ## 9. Remediation plan
 
-**Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, then F9 — all shipped
-(npm run check green). Still deferred: F2 (proposal), F4 (latent, moderate retry), F8 (shared-helper refactor —
-no current need), F10 (rare edge), F13 (your decision).
+**Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, F9, then F4 — all
+shipped (npm run check green). Still deferred: F2 (proposal), F8 (shared-helper refactor — no current need +
+behavior-changing), F10 (rare edge), F13 (your decision).
 
 | # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
 | F1 | storagePath `startsWith(companyId)` guard | INV19 | none — legit paths start with companyId (assets.ts:194); verified test | **✅ shipped + GATE** (`eb749c92`) |
 | F2 | port signed-URL upload to the 2 CARE routes | A29 | a real refactor; touches customer-facing upload | PROMISE — proposal `docs/proposals/2026-08-11-care-upload-body-cap-port.md` |
 | F3 | pass real `audioAssetUrl` to After-Pitch upload | §1.5.1 | none — common no-recording case unchanged; only enables recovery when audio saved | **✅ shipped** |
-| F4 | `isMissingColumnError` retry on team+cron selects | A34 | a try-retry-without-column, not a one-liner | PROMISE — latent (0210 applied); moderate |
+| F4 | team+cron KPI selects degrade to wall-clock on a missing 0210 column | A34 | dynamic select needed a cast to the with-column literal (typed client can't parse a template); common case byte-identical; route-ungated, matching the sibling deal-target guard + the tested isMissingColumnError predicate | **✅ shipped** |
 | F5 | correct the label-transcript comment | A27 | none (comment) | **✅ shipped** (`0faa2650`) |
 | F6 | generic client message + log raw (sign + multipart) | CWE-209 | none | **✅ shipped** |
 | F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none — mirrors the proven `label()` latch | **✅ shipped** |

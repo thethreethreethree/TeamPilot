@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import {
   conversionRate,
   closeRate,
@@ -82,16 +83,31 @@ export async function GET(req: NextRequest) {
   // global started_at order is preserved within each agent's subgroup (the metric fns assume ascending).
   // Paged: this cron aggregates every agent's sessions company-wide — the set crosses the 1000-row
   // cap fastest here, and a truncated read would bake wrong numbers into the persisted KPI history.
-  const allSessRows = await fetchAllPaged(
-    (from, to) =>
-      admin
-        .from("coaching_sessions")
-        .select("id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds")
-        .in("agent_id", agents)
-        .order("started_at", { ascending: true })
-        .range(from, to),
-    { label: "cron KPI sessions" },
-  );
+  // A34 (audit F4): degrade to wall-clock if audio_duration_seconds (0210) isn't applied yet, rather than
+  // aborting the cron with 0 snapshots. Same guard as the team route; the mapper reads `?? null`.
+  const loadAllSess = (durCol: string) =>
+    fetchAllPaged(
+      (from, to) =>
+        admin
+          .from("coaching_sessions")
+          // Cast the dynamic select to the with-column literal so the typed client infers the row shape; the
+          // without-column variant omits it at runtime and the mapper reads `?? null` (A34 degrade).
+          .select(
+            `id, agent_id, outcome, deal_value, started_at, ended_at${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds",
+          )
+          .in("agent_id", agents)
+          .order("started_at", { ascending: true })
+          .range(from, to),
+      { label: "cron KPI sessions" },
+    );
+  let allSessRows;
+  try {
+    allSessRows = await loadAllSess(", audio_duration_seconds");
+  } catch (e) {
+    if (isMissingColumnError(e as Parameters<typeof isMissingColumnError>[0], "audio_duration_seconds")) {
+      allSessRows = await loadAllSess("");
+    } else throw e;
+  }
   const rowsByAgent = new Map<string, KpiSessionRow[]>();
   for (const s of allSessRows ?? []) {
     const aid = s.agent_id as string;
