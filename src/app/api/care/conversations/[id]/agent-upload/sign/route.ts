@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAgentConversation } from "@/lib/data/care";
-import {
-  createSignedUploadTarget,
-  validateUploadCandidate,
-  ASSETS_BUCKET,
-} from "@/lib/storage/assets";
+import { mintCareUploadTarget } from "@/lib/care/uploadSign";
 
 /**
  * POST /api/care/conversations/[id]/agent-upload/sign
@@ -51,56 +46,13 @@ export async function POST(
     return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
   }
 
-  const body = (await req.json().catch(() => null)) as {
-    filename?: string;
-    sizeBytes?: number;
-    mimeType?: string;
-  } | null;
-  const filename = typeof body?.filename === "string" ? body.filename.trim() : "";
-  const sizeBytes = typeof body?.sizeBytes === "number" ? body.sizeBytes : NaN;
-  const mimeType =
-    typeof body?.mimeType === "string" && body.mimeType.trim()
-      ? body.mimeType.trim()
-      : "application/octet-stream";
-  if (!filename) {
-    return NextResponse.json({ error: "Missing 'filename'." }, { status: 400 });
-  }
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    return NextResponse.json({ error: "Missing or empty file." }, { status: 400 });
-  }
-
-  // Same allow-list + cap + executable-extension block the multipart branch
-  // enforces (agent_dashboard: images/pdf/docs, 25 MB). Client-claimed size/type
-  // is untrusted — this is a fast reject; the /agent-upload finalize re-validates
-  // the REAL stored object before creating any record (the authoritative gate).
-  const v = validateUploadCandidate({
-    sizeBytes,
-    mimeType,
-    filename,
-    uploadedVia: "agent_dashboard",
-  });
-  if (!v.ok) {
-    return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });
-  }
-
-  const target = await createSignedUploadTarget({
+  // Shared validate → mint → response tail (agent_dashboard: images/pdf/docs, 25 MB). The requireCareAgent +
+  // company-match gate above is the security boundary; the helper only mints under auth.companyId (server-
+  // derived) and never echoes a raw backend string (CWE-209).
+  return mintCareUploadTarget({
+    req,
     companyId: auth.companyId,
-    fileId: randomUUID(),
-    originalFilename: filename,
-  });
-  if (!target.ok) {
-    // Log the raw cause; return a generic message (CWE-209 — don't echo the backend string).
-    // eslint-disable-next-line no-console
-    console.error(`[care.agent-upload/sign] target mint failed conv=${id}: ${target.error}`);
-    return NextResponse.json(
-      { error: "Couldn't start the upload right now — please try again in a moment." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    bucket: ASSETS_BUCKET,
-    storagePath: target.storagePath,
-    token: target.token,
+    uploadedVia: "agent_dashboard",
+    logTag: "care.agent-upload/sign",
   });
 }

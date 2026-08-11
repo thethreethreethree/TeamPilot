@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getCareConversationByToken } from "@/lib/data/care";
-import {
-  createSignedUploadTarget,
-  validateUploadCandidate,
-  ASSETS_BUCKET,
-} from "@/lib/storage/assets";
+import { mintCareUploadTarget } from "@/lib/care/uploadSign";
 
 /**
  * POST /api/care/conversations/[id]/upload/sign
@@ -49,57 +44,13 @@ export async function POST(
     return NextResponse.json({ error: "Conversation closed." }, { status: 410 });
   }
 
-  const body = (await req.json().catch(() => null)) as {
-    filename?: string;
-    sizeBytes?: number;
-    mimeType?: string;
-  } | null;
-  const filename = typeof body?.filename === "string" ? body.filename.trim() : "";
-  const sizeBytes = typeof body?.sizeBytes === "number" ? body.sizeBytes : NaN;
-  const mimeType =
-    typeof body?.mimeType === "string" && body.mimeType.trim()
-      ? body.mimeType.trim()
-      : "application/octet-stream";
-  if (!filename) {
-    return NextResponse.json({ error: "Missing 'filename'." }, { status: 400 });
-  }
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    return NextResponse.json({ error: "Missing or empty file." }, { status: 400 });
-  }
-
-  // Same allow-list + cap + executable-extension block the multipart branch
-  // enforces (customer_widget: images/pdf, 10 MB). The client-claimed size/type
-  // is untrusted — this is a fast reject; the /upload finalize re-validates the
-  // REAL stored object before creating any record (the authoritative gate).
-  const v = validateUploadCandidate({
-    sizeBytes,
-    mimeType,
-    filename,
-    uploadedVia: "customer_widget",
-  });
-  if (!v.ok) {
-    return NextResponse.json({ error: v.detail, reason: v.reason }, { status: 400 });
-  }
-
-  const target = await createSignedUploadTarget({
+  // Shared validate → mint → response tail (customer_widget: images/pdf, 10 MB). The auth (token) +
+  // conversation gate above is the security boundary; the helper only mints under conv.companyId (server-
+  // derived) and never echoes a raw backend string to this PUBLIC endpoint (CWE-209).
+  return mintCareUploadTarget({
+    req,
     companyId: conv.companyId,
-    fileId: randomUUID(),
-    originalFilename: filename,
-  });
-  if (!target.ok) {
-    // PUBLIC customer endpoint — log the raw cause for the operator, return a generic
-    // message (CWE-209: never echo a backend string to an unauthenticated visitor).
-    // eslint-disable-next-line no-console
-    console.error(`[care.upload/sign] target mint failed conv=${id}: ${target.error}`);
-    return NextResponse.json(
-      { error: "Couldn't start the upload right now — please try again in a moment." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    bucket: ASSETS_BUCKET,
-    storagePath: target.storagePath,
-    token: target.token,
+    uploadedVia: "customer_widget",
+    logTag: "care.upload/sign",
   });
 }
