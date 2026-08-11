@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Asset System v1 — drag/drop + click-to-pick zone.
@@ -80,6 +81,7 @@ export function FileDropzone({
   linkedConversationId,
   linkedTaskId,
   endpoint,
+  signEndpoint,
   onFileSelected,
   onFilesSelected,
 }: {
@@ -97,6 +99,15 @@ export function FileDropzone({
    *  combine the file row + an attachment-kind support_messages
    *  row in a single network round-trip. */
   endpoint?: string;
+  /** When set, upload DIRECT to Storage via a signed target instead of POSTing
+   *  the bytes through the function body — the only way past Vercel's ~4.5 MB
+   *  serverless request-body limit for a real large file. The flow is
+   *  sign (`signEndpoint`) → uploadToSignedUrl → finalize (`endpoint`, JSON
+   *  `{ storagePath, filename, linked_* }`). Opt-in per caller: omitted → the
+   *  multipart path below is unchanged (every other dropzone keeps working as-is).
+   *  The finalize `endpoint` MUST expose a JSON branch (the C.A.R.E agent-upload
+   *  route does). */
+  signEndpoint?: string;
   /** Pre-upload classify hook (2026-06-26 audit Finding B). When
    *  provided, picking a file calls this with the File INSTEAD of
    *  uploading immediately — the parent opens a classify-before-upload
@@ -135,18 +146,66 @@ export function FileDropzone({
       setError(null);
       setUploading(true);
       setProgress(10);
-      const form = new FormData();
-      form.append("file", file);
-      form.append("title", file.name);
-      if (linkedTopicId) form.append("linked_topic_id", linkedTopicId);
-      if (linkedConversationId)
-        form.append("linked_conversation_id", linkedConversationId);
-      if (linkedTaskId) form.append("linked_task_id", linkedTaskId);
       try {
-        const res = await fetch(endpoint ?? "/api/files", {
-          method: "POST",
-          body: form,
-        });
+        // Direct-to-storage path (opt-in): sign → upload bytes straight to Storage →
+        // finalize with only { storagePath }. This is the ONLY path that gets a real
+        // >4.5 MB file past Vercel's serverless body limit; the multipart path below
+        // silently fails on it. Used by the C.A.R.E agent composer.
+        let res: Response;
+        if (signEndpoint) {
+          const signRes = await fetch(signEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              sizeBytes: file.size,
+              mimeType: file.type || "application/octet-stream",
+            }),
+          });
+          if (!signRes.ok) {
+            const d = await signRes.json().catch(() => null);
+            setError(d?.error ?? `Upload failed (${signRes.status}).`);
+            onUploadComplete?.({ ok: false, error: d?.error });
+            setUploading(false);
+            return;
+          }
+          const { bucket, storagePath, token } = await signRes.json();
+          setProgress(50);
+          const supabase = createClient();
+          const { error: upErr } = await supabase.storage
+            .from(bucket)
+            .uploadToSignedUrl(storagePath, token, file);
+          if (upErr) {
+            setError("Upload failed — please try again.");
+            onUploadComplete?.({ ok: false, error: upErr.message });
+            setUploading(false);
+            return;
+          }
+          setProgress(80);
+          res = await fetch(endpoint ?? "/api/files", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              storagePath,
+              filename: file.name,
+              linked_topic_id: linkedTopicId,
+              linked_conversation_id: linkedConversationId,
+              linked_task_id: linkedTaskId,
+            }),
+          });
+        } else {
+          const form = new FormData();
+          form.append("file", file);
+          form.append("title", file.name);
+          if (linkedTopicId) form.append("linked_topic_id", linkedTopicId);
+          if (linkedConversationId)
+            form.append("linked_conversation_id", linkedConversationId);
+          if (linkedTaskId) form.append("linked_task_id", linkedTaskId);
+          res = await fetch(endpoint ?? "/api/files", {
+            method: "POST",
+            body: form,
+          });
+        }
         setProgress(90);
         const data = await res.json();
         if (!res.ok) {
@@ -189,6 +248,7 @@ export function FileDropzone({
       linkedTaskId,
       onUploadComplete,
       endpoint,
+      signEndpoint,
       toast,
     ]
   );

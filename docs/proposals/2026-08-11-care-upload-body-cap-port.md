@@ -1,6 +1,7 @@
 # Proposal — port the two C.A.R.E conversation upload routes off the ~4.5 MB Vercel body cap
 
-**Status:** proposed (awaiting founder greenlight). **Trigger phrase:** *"port the CARE uploads"*.
+**Status:** ✅ SHIPPED 2026-08-11 (founder-greenlit). Build: `docs/tbc/2026-08-11-xf-care-upload-body-cap-port`.
+**Trigger phrase:** *"port the CARE uploads"*.
 **Origin:** finding **F2** of `docs/audits/2026-08-11-recording-upload-artifact-audit.md` — the class-sweep
 (A29) of the Sales-Coach recording-upload fix caught two unswept siblings of the same class.
 

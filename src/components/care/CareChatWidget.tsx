@@ -15,6 +15,7 @@ import { useVoiceMode } from "./voice/useVoiceMode";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { HandoffCard, type HandoffCardPayload } from "./HandoffCard";
 import { DEFAULT_BUSINESS_TYPE, type BusinessType } from "@/lib/care/handoverTopics";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Route prefixes where the customer-facing Care widget MUST NOT
@@ -1017,6 +1018,10 @@ function CustomerUploadButton({
   onUploaded: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // Synchronous re-entrancy latch (recording-upload F7 lesson): the `uploading`
+  // button-disable lands a render late, so a second pick could mint a second signed
+  // upload + finalize. Checked/set before the first await, released in finally.
+  const uploadingRef = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1025,17 +1030,57 @@ function CustomerUploadButton({
       return;
     const f = files[0];
     if (!f) return;
+    if (uploadingRef.current) return; // latch before the first await — no double-spend
+    uploadingRef.current = true;
     setErr(null);
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", f);
+      // 1. Mint a signed upload target — the server validates the conversation,
+      //    size, and type up front. The bytes never pass through this request, so a
+      //    5–10 MB phone photo / scanned PDF uploads where the old through-function
+      //    path silently failed at the ~4.5 MB Vercel body limit.
+      const signRes = await fetch(
+        `/api/care/conversations/${conversationId}/upload/sign`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": sessionToken,
+          },
+          body: JSON.stringify({
+            filename: f.name,
+            sizeBytes: f.size,
+            mimeType: f.type || "application/octet-stream",
+          }),
+        }
+      );
+      if (!signRes.ok) {
+        const data = await signRes.json().catch(() => null);
+        setErr(data?.error ?? `Upload failed (${signRes.status})`);
+        return;
+      }
+      const { bucket, storagePath, token } = await signRes.json();
+      // 2. Upload the bytes DIRECT to Storage via the signed token (anon client is
+      //    fine — the token authorizes this one object, no visitor session needed).
+      const supabase = createClient();
+      const { error: upErr } = await supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(storagePath, token, f);
+      if (upErr) {
+        setErr("Upload failed — please try again.");
+        return;
+      }
+      // 3. Finalize: the server re-reads the REAL stored object (untrusted client
+      //    size/type) and attaches it to the conversation.
       const res = await fetch(
         `/api/care/conversations/${conversationId}/upload`,
         {
           method: "POST",
-          headers: { "x-care-session": sessionToken },
-          body: form,
+          headers: {
+            "Content-Type": "application/json",
+            "x-care-session": sessionToken,
+          },
+          body: JSON.stringify({ storagePath, filename: f.name }),
         }
       );
       if (!res.ok) {
@@ -1047,7 +1092,9 @@ function CustomerUploadButton({
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Network error.");
     } finally {
+      uploadingRef.current = false;
       setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
     }
   };
 

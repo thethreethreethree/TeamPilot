@@ -3446,6 +3446,7 @@ function Composer({
             <FileDropzone
               hiddenLabel
               endpoint={`/api/care/conversations/${conversationId}/agent-upload`}
+              signEndpoint={`/api/care/conversations/${conversationId}/agent-upload/sign`}
               onUploadComplete={(r) => {
                 if (r.ok) onAssetUploaded?.();
               }}

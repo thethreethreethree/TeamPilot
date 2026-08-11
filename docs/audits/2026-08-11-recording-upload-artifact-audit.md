@@ -55,7 +55,7 @@ callers beyond the four listed, and every test file's assertion coverage beyond 
 - **sweep:** `rg -n "downloadAssetBytes|getAssetObjectInfo|signAssetUrl" src/app | rg -v "assetUrlToStoragePath|buildStoragePath"` — every hit must derive storagePath server-side or check the company prefix.
 - **GATE:** ✅ shipped — `if (!storagePath.startsWith(\`${companyId}/\`)) return 403` + test *"403 when storagePath is outside the caller's company"* (asserts `getAssetObjectInfo` NOT called). Fails without the guard.
 
-### F2 — two unswept siblings of the direct-to-storage fix (CARE uploads still hit the ~4.5MB body cap) — **MEDIUM** (FLAG)
+### F2 — two unswept siblings of the direct-to-storage fix (CARE uploads still hit the ~4.5MB body cap) — **MEDIUM** (FLAG) — **SHIPPED** (2026-08-11, founder-greenlit; build `docs/tbc/2026-08-11-xf-care-upload-body-cap-port`)
 - **file+line:** `src/app/api/care/conversations/[id]/agent-upload/route.ts:~72` (25MB cap) and `care/conversations/[id]/upload/route.ts:~60` (10MB cap)
 - **clause:** A29 (a fix leaves the class); the same body-cap class this session fixed for the recording.
 - **evidence:** both do pure `req.formData()` with no signed-URL branch, but advertise 25MB / 10MB caps. A file between ~4.5MB and the cap (a high-res phone photo/PDF) dies at the Vercel body layer before the handler — the exact failure the recording bug had.
@@ -108,7 +108,7 @@ callers beyond the four listed, and every test file's assertion coverage beyond 
 5. **Direct-to-storage body-cap** — 8 `formData()` routes; 2 real unswept siblings (F2). Boundary: `grep -rn "req.formData()" src/app/api`.
 
 ## 5. Gate the lesson (A30/A33)
-- F1 → **GATE shipped** (prefix check + test). F4/F5/F6/F7/F9/F11/F12 → **shipped**. F8 → **GATE shipped** (`conversationDuration.test.ts` locks the shared rule the three surfaces now import). F2 → **PROMISE** + a proposed invariant (formData-cap>4.5MB detector); declining an immediate gate because a precise detector needs the cap-constant lookup (A33 — name the hole, don't ship a noisy gate).
+- F1 → **GATE shipped** (prefix check + test). F4/F5/F6/F7/F9/F11/F12 → **shipped**. F8 → **GATE shipped** (`conversationDuration.test.ts` locks the shared rule the three surfaces now import). F2 → **SHIPPED** (both CARE routes ported; per-route cross-company + real-object tests). The structural formData-cap>4.5MB invariant stays A33-declined — the cap is applied three heterogeneous ways, so a precise detector can't be written without false-flagging /api/files' legitimate small-file multipart path; the hole is named in the F2 build's residual R2.
 
 ## 6. Empty-findings note (§1.7.3)
 No layer returned an empty flag list that I trusted silently. The CLEAN verdicts are stated with what was looked
@@ -138,17 +138,18 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 **Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, F9, F4, then F8 — all
 shipped (npm run check green). F8's earlier "behavior-changing" deferral was wrong on reconsideration: the
 divergence lives in the per-surface formatters, not the shared rule, so sharing only the core seconds-calc
-changes no display (proven — the existing compute tests still yield 30 and 4). Still deferred: F2 (proposal,
-greenlight). DECLINED as not-a-defect on reconsideration: F10 (the avg is by definition ended-sessions-only;
-an incomplete session is correctly excluded). Your decision: F13.
+changes no display (proven — the existing compute tests still yield 30 and 4). Then F2 shipped
+(founder-greenlit) — both CARE upload routes ported off the body cap. DECLINED as not-a-defect on
+reconsideration: F10 (the avg is by definition ended-sessions-only; an incomplete session is correctly
+excluded). Your decision: F13.
 
-**Tally: of 13 findings — 10 shipped (F1/F3/F4/F5/F6/F7/F8/F9/F11/F12), 1 declined (F10), 1 deferred with a
-reason (F2 greenlight), 1 your decision (F13).**
+**Tally: of 13 findings — 11 shipped (F1/F2/F3/F4/F5/F6/F7/F8/F9/F11/F12), 1 declined (F10), 1 your
+decision (F13). None deferred.**
 
 | # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
 | F1 | storagePath `startsWith(companyId)` guard | INV19 | none — legit paths start with companyId (assets.ts:194); verified test | **✅ shipped + GATE** (`eb749c92`) |
-| F2 | port signed-URL upload to the 2 CARE routes | A29 | a real refactor; touches customer-facing upload | PROMISE — proposal `docs/proposals/2026-08-11-care-upload-body-cap-port.md` |
+| F2 | port signed-URL upload to the 2 CARE routes | A29 | a real refactor; touches customer-facing upload | **SHIPPED** — both routes now expose a sign endpoint + JSON finalize branch (multipart kept as fallback); cross-company + real-object gates tested on each. Build `docs/tbc/2026-08-11-xf-care-upload-body-cap-port` |
 | F3 | pass real `audioAssetUrl` to After-Pitch upload | §1.5.1 | none — common no-recording case unchanged; only enables recovery when audio saved | **✅ shipped** |
 | F4 | team+cron KPI selects degrade to wall-clock on a missing 0210 column | A34 | dynamic select needed a cast to the with-column literal (typed client can't parse a template); common case byte-identical; route-ungated, matching the sibling deal-target guard + the tested isMissingColumnError predicate | **✅ shipped** |
 | F5 | correct the label-transcript comment | A27 | none (comment) | **✅ shipped** (`0faa2650`) |
