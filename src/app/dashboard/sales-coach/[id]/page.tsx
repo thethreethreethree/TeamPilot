@@ -428,7 +428,7 @@ export default function SessionDetail() {
       />
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-md mx-auto w-full space-y-5 bg-base">
         <Link
-          href="/dashboard/sales-coach"
+          href="/dashboard/sales-coach/sessions"
           className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary"
         >
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
