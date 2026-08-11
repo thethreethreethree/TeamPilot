@@ -87,13 +87,26 @@ export async function GET() {
   // other on the agent), so fetch them concurrently instead of serially. apRows feeds the Layer-3
   // block below; the quota computation right after uses only monthlyTarget. Each read's error is
   // handled exactly as before (A34-guarded target; apRows ?? []).
-  const [{ data: co, error: coErr }, { data: apRows }] = await Promise.all([
+  const [{ data: co, error: coErr }, apRows] = await Promise.all([
     sb
       .from("companies")
       .select("sales_coach_monthly_deal_target")
       .eq("id", ctx.companyId)
       .maybeSingle(),
-    sb.from("after_pitch_summaries").select("session_id, payload").eq("agent_id", ctx.userId),
+    // Paged (was an unbounded .select capped at 1000): after_pitch_summaries has ONE row per session, and the
+    // Layer-3 quality/talk/skill/consistency metrics below aggregate ALL of them — a rep past ~1000 sessions
+    // would silently lose their older calls from every Layer-3 number. Ordered by the uuid `id` PK (unique,
+    // stable) so range paging returns each row once. Error handled as before (swallowed → apRows ?? [] below).
+    fetchAllPaged(
+      (from, to) =>
+        sb
+          .from("after_pitch_summaries")
+          .select("session_id, payload")
+          .eq("agent_id", ctx.userId)
+          .order("id")
+          .range(from, to),
+      { label: "my KPI after-pitch summaries" },
+    ).catch(() => null),
   ]);
   if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
   const monthPrefix = monthKeyUtc(new Date());
@@ -131,10 +144,28 @@ export async function GET() {
   // Layer 4 — cues + outcomes (from the agent's sessions). Reliance Reduction is the headline.
   const sessionIds = rows.map((r) => r.sessionId);
   if (sessionIds.length > 0) {
-    const [{ data: cueRows }, { data: outcomeRows }, { data: segRows }] = await Promise.all([
-      sb.from("coaching_cues").select("id, session_id").in("session_id", sessionIds),
-      sb.from("coaching_cue_outcomes").select("cue_id, determination").in("session_id", sessionIds),
-      sb.from("coaching_transcript_segments").select("session_id").in("session_id", sessionIds),
+    // Paged (were unbounded .selects capped at 1000): these feed the RELIANCE REDUCTION headline metric +
+    // cueAcceptanceRate. transcript_segments is the highest-volume table (~dozens per session), so the 1000-cap
+    // was crossed at ~25-30 coached sessions — most active reps — silently dropping sessions from
+    // `coachedSessions` and computing reliance over the wrong set. Ordered by each table's uuid `id` PK.
+    // (Residual: a rep past ~1000 SESSIONS makes `sessionIds` itself a >1000-value .in() list — a separate,
+    // rarer concern flagged in fetchAllPaged's own doc; the real fix there is a server-side aggregate RPC.)
+    const [cueRows, outcomeRows, segRows] = await Promise.all([
+      fetchAllPaged(
+        (from, to) =>
+          sb.from("coaching_cues").select("id, session_id").in("session_id", sessionIds).order("id").range(from, to),
+        { label: "my KPI cues" },
+      ).catch(() => null),
+      fetchAllPaged(
+        (from, to) =>
+          sb.from("coaching_cue_outcomes").select("cue_id, determination").in("session_id", sessionIds).order("id").range(from, to),
+        { label: "my KPI cue outcomes" },
+      ).catch(() => null),
+      fetchAllPaged(
+        (from, to) =>
+          sb.from("coaching_transcript_segments").select("session_id").in("session_id", sessionIds).order("id").range(from, to),
+        { label: "my KPI segments" },
+      ).catch(() => null),
     ]);
     // "Coach ran this session" = it produced ≥1 transcript segment. A session with no segments is a
     // no-coaching call (rep didn't use the live coach) — its 0 cues are not a reliance signal, so exclude it.

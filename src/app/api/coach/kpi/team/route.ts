@@ -109,10 +109,13 @@ export async function GET() {
   const sessionIds = (sessRows ?? []).map((s) => s.id as string);
   const cueCountBySession = new Map<string, number>();
   if (sessionIds.length > 0) {
-    const { data: cueRows } = await sb
-      .from("coaching_cues")
-      .select("session_id")
-      .in("session_id", sessionIds);
+    // Paged (was unbounded, capped at 1000) — cue rows across the team's sessions feed per-session reliance;
+    // a cap silently zeroed cues for sessions past the first 1000 rows. Ordered by the uuid `id` PK.
+    const cueRows = await fetchAllPaged(
+      (from, to) =>
+        sb.from("coaching_cues").select("id, session_id").in("session_id", sessionIds).order("id").range(from, to),
+      { label: "team KPI cues" },
+    ).catch(() => null);
     for (const c of cueRows ?? []) {
       const sid = c.session_id as string;
       cueCountBySession.set(sid, (cueCountBySession.get(sid) ?? 0) + 1);
@@ -125,10 +128,14 @@ export async function GET() {
   // no-coaching call whose 0 cues are not a reliance signal.
   const coachedSessions = new Set<string>();
   if (sessionIds.length > 0) {
-    const { data: segRows } = await sb
-      .from("coaching_transcript_segments")
-      .select("session_id")
-      .in("session_id", sessionIds);
+    // Paged (was unbounded, capped at 1000) — this is the SAME reliance-critical read as /me: transcript_segments
+    // is the highest-volume table, so the cap dropped whole sessions from `coachedSessions`, breaking the
+    // rep-vs-manager reliance consistency this block's own comment calls the whole honesty thesis. Order by `id`.
+    const segRows = await fetchAllPaged(
+      (from, to) =>
+        sb.from("coaching_transcript_segments").select("id, session_id").in("session_id", sessionIds).order("id").range(from, to),
+      { label: "team KPI segments" },
+    ).catch(() => null);
     for (const s of segRows ?? []) coachedSessions.add(s.session_id as string);
   }
 
@@ -136,10 +143,13 @@ export async function GET() {
   // query for the team; a session with no scored after-pitch simply has no entry (isSlippingSeries drops it).
   const qualityBySession = new Map<string, number | null>();
   if (memberIds.length > 0) {
-    const { data: apRows } = await sb
-      .from("after_pitch_summaries")
-      .select("session_id, payload")
-      .in("agent_id", memberIds);
+    // Paged (was unbounded, capped at 1000) — one after-pitch summary per session across the team crosses 1000
+    // fast, silently dropping sessions from the quality-slippage trigger. Order by the uuid `id` PK.
+    const apRows = await fetchAllPaged(
+      (from, to) =>
+        sb.from("after_pitch_summaries").select("session_id, payload").in("agent_id", memberIds).order("id").range(from, to),
+      { label: "team KPI after-pitch summaries" },
+    ).catch(() => null);
     for (const r of apRows ?? []) {
       const input = layer3InputFromPayload(r.session_id as string, r.payload);
       qualityBySession.set(r.session_id as string, overallQualityForSession(input));
