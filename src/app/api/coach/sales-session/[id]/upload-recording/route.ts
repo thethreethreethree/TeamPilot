@@ -236,11 +236,17 @@ export async function POST(
     // Stamp the REAL audio length so the After-Pitch/KPI duration shows the recording's length, not the
     // session wall-clock (§3.5 — the 62m-for-a-4m-clip bug). Best-effort: the transcript already landed.
     if (jsonDurationSeconds > 0) {
-      await admin
+      // Best-effort, but LOG a failure (audit F11): if this silently fails, every duration surface reverts
+      // to the wall-clock (the 62m-for-a-4m bug) with no signal — so surface it for diagnosis.
+      const { error: durErr } = await admin
         .from("coaching_sessions")
         .update({ audio_duration_seconds: jsonDurationSeconds })
         .eq("id", id)
         .eq("company_id", companyId);
+      if (durErr)
+        console.error(
+          `[upload-recording] failed to stamp audio_duration_seconds session=${id}: ${durErr.message}`
+        );
     }
     return NextResponse.json(buildSpeakerResponse(jsonSegments));
   }
@@ -296,8 +302,11 @@ export async function POST(
   });
   const up = await uploadAssetBytes({ storagePath, bytes, contentType: mimeType });
   if (!up.ok) {
+    // Log the raw storage error server-side; return a GENERIC message (audit F6 / CWE-209 — don't echo the
+    // backend exception string to the client, matching the transcription branches below).
+    console.error(`[upload-recording] storage write failed session=${id}: ${up.error ?? "unknown"}`);
     return NextResponse.json(
-      { error: `Couldn't store the recording: ${up.error ?? "storage error"}` },
+      { error: "Couldn't save the recording right now — please try again in a moment." },
       { status: 500 }
     );
   }
@@ -342,11 +351,15 @@ export async function POST(
   // Stamp the REAL audio length (§3.5) so an uploaded recording shows its length, not the session
   // wall-clock. Best-effort second update — the transcript already succeeded above.
   if (durationSeconds > 0) {
-    await admin
+    const { error: durErr } = await admin
       .from("coaching_sessions")
       .update({ audio_duration_seconds: durationSeconds })
       .eq("id", id)
       .eq("company_id", companyId);
+    if (durErr)
+      console.error(
+        `[upload-recording] failed to stamp audio_duration_seconds session=${id}: ${durErr.message}`
+      );
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap UI.

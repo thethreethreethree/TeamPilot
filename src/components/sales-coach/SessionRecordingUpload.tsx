@@ -47,6 +47,10 @@ export function SessionRecordingUpload({
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const labelingRef = useRef(false);
+  // Synchronous latch for uploadBlob (audit F7): the `pending` button-disable lands a render late, so a
+  // second entry (reselect a file, or the auto-upload racing a pick) would mint a SECOND signed upload +
+  // finalize = double metered STT spend. Checked/set before the first await, released in finally.
+  const uploadingRef = useRef(false);
   const [phase, setPhase] = useState<"idle" | "uploading" | "labeling" | "done">(
     "idle"
   );
@@ -72,6 +76,8 @@ export function SessionRecordingUpload({
   };
 
   const uploadBlob = async (blob: Blob, name: string) => {
+    if (uploadingRef.current) return; // F7 latch — before the first await, so a double-entry can't double-spend
+    uploadingRef.current = true;
     setPhase("uploading");
     setStage("sending");
     setError(null);
@@ -123,6 +129,7 @@ export function SessionRecordingUpload({
       setError(err instanceof Error ? err.message : String(err));
       setPhase("idle");
     } finally {
+      uploadingRef.current = false;
       if (fileRef.current) fileRef.current.value = "";
     }
   };

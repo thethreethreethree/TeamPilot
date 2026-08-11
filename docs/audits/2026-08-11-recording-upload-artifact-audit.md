@@ -132,16 +132,24 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 (A36 read-from-top: R1 is the entry I'm most sure is fine — and therefore the one to open first next pass, because the `company_id: null` argument is exactly the kind of cached-as-harmless call that hides a real mis-grant.)
 
 ## 9. Remediation plan
-| # | Fix | Clause | Risk the fix introduces | Gate/Promise |
+
+**Remediation applied 2026-08-11 (this session):** F1, F5, then the batch F3/F6/F7/F11/F12 — all shipped (npm
+run check green). Still deferred: F2 (proposal), F4 (latent, moderate retry), F8/F9 (shared-helper refactor),
+F10 (rare edge), F13 (your decision).
+
+| # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
-| F1 | storagePath `startsWith(companyId)` guard | INV19 | none — legit paths start with companyId (assets.ts:194); verified test | **GATE ✅ shipped** |
-| F2 | port signed-URL upload to the 2 CARE routes | A29 | a real refactor; touches customer-facing upload | PROMISE (founder greenlight) |
-| F3 | pass real `audioAssetUrl` to After-Pitch upload | §1.5.1 | adds a column to the After-Pitch GET | PROMISE |
-| F4 | `isMissingColumnError` on team+cron selects | A34 | none (matches existing guard) | PROMISE |
-| F5 | correct the label-transcript comment | A27 | none (docs) | PROMISE |
-| F6 | generic client message + log raw | CWE-209 | none | PROMISE |
-| F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none | PROMISE |
-| F8–F12 | extract tested `conversationDurationSeconds()` + guards | A30/§3.5 | redeploys 3 display surfaces | PROMISE |
+| F1 | storagePath `startsWith(companyId)` guard | INV19 | none — legit paths start with companyId (assets.ts:194); verified test | **✅ shipped + GATE** (`eb749c92`) |
+| F2 | port signed-URL upload to the 2 CARE routes | A29 | a real refactor; touches customer-facing upload | PROMISE — proposal `docs/proposals/2026-08-11-care-upload-body-cap-port.md` |
+| F3 | pass real `audioAssetUrl` to After-Pitch upload | §1.5.1 | none — common no-recording case unchanged; only enables recovery when audio saved | **✅ shipped** |
+| F4 | `isMissingColumnError` retry on team+cron selects | A34 | a try-retry-without-column, not a one-liner | PROMISE — latent (0210 applied); moderate |
+| F5 | correct the label-transcript comment | A27 | none (comment) | **✅ shipped** (`0faa2650`) |
+| F6 | generic client message + log raw (sign + multipart) | CWE-209 | none | **✅ shipped** |
+| F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none — mirrors the proven `label()` latch | **✅ shipped** |
+| F8/F9 | extract tested `conversationDurationSeconds()` + align rounding | A30/§3.5 | redeploys 3 display surfaces; refactor-without-current-need | PROMISE |
+| F10 | include audio-populated null-`ended_at` sessions in the avg | §3.5 | rare edge (trigger stamps ended_at) | PROMISE |
+| F11 | log the best-effort duration-stamp failures (3 sites) | §3.4 | none (log-only) | **✅ shipped** |
+| F12 | finite/`>0` guard on the KPI wall-clock fallback | §3.5 | none | **✅ shipped** |
 | F13 | confirm manager-write to outcome is intended | INV19 | n/a | founder decision |
 
 **No CRITICAL finding — nothing blocks.** F1 (the only security finding) is fixed + gated. The rest are

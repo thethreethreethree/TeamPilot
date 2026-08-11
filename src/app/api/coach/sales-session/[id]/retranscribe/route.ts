@@ -147,11 +147,15 @@ export async function POST(
   // Stamp the REAL audio length (§3.5) so a recovered recording shows its length, not the session
   // wall-clock. Best-effort — the transcript already succeeded above.
   if (durationSeconds > 0) {
-    await createAdminClient()
+    const { error: durErr } = await createAdminClient()
       .from("coaching_sessions")
       .update({ audio_duration_seconds: durationSeconds })
       .eq("id", id)
       .eq("company_id", companyId);
+    if (durErr)
+      console.error(
+        `[retranscribe] failed to stamp audio_duration_seconds session=${id}: ${durErr.message}`
+      );
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap labeling UI — the

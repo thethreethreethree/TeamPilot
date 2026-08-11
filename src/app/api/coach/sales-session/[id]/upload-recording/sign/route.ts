@@ -134,7 +134,12 @@ export async function POST(
     originalFilename: body.filename,
   });
   if (!target.ok) {
-    return NextResponse.json({ error: target.error }, { status: 500 });
+    // Log the raw cause; return a generic message (audit F6 / CWE-209 — don't echo the backend string).
+    console.error(`[upload-recording/sign] target mint failed session=${id}: ${target.error}`);
+    return NextResponse.json(
+      { error: "Couldn't start the upload right now — please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

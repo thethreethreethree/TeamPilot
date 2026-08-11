@@ -142,7 +142,11 @@ export function avgSessionDurationMin(sessions: KpiSessionRow[]): MetricResult {
   const totalMs = ended.reduce((acc, s) => {
     const audioMs =
       s.audioDurationSeconds && s.audioDurationSeconds > 0 ? s.audioDurationSeconds * 1000 : null;
-    return acc + (audioMs ?? Date.parse(s.endedAt as string) - Date.parse(s.startedAt));
+    if (audioMs !== null) return acc + audioMs;
+    // Wall-clock fallback — guard a NaN/negative span (clock skew, bad timestamps) from silently dragging
+    // the average (audit F12; matches the >0 guard the client duration helpers already apply).
+    const wall = Date.parse(s.endedAt as string) - Date.parse(s.startedAt);
+    return acc + (Number.isFinite(wall) && wall > 0 ? wall : 0);
   }, 0);
   return { value: round1(totalMs / ended.length / 60000), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
 }

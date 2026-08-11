@@ -88,6 +88,10 @@ type Session = {
   context: "in_person" | "video";
   clientLabel: string | null;
   audioDurationSeconds: number | null;
+  // The saved-recording pointer (audit F3): the [id] GET already returns it (getSession → mapSession);
+  // typing it here lets After-Pitch offer the one-tap re-transcribe when the audio saved but the transcript
+  // didn't land — the exact STT-outage recovery scenario that produces this screen's empty state.
+  audioAssetUrl: string | null;
   territory: string | null;
   approach: string | null;
   offer: string | null;
@@ -487,7 +491,7 @@ export default function AfterPitchPage() {
               <SessionRecordingUpload
                 sessionId={id}
                 onLabeled={() => void generate()}
-                hasSavedRecording={false}
+                hasSavedRecording={!!session?.audioAssetUrl}
               />
             </div>
             <button
