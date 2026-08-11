@@ -24,9 +24,23 @@
 > count `team-analytics` already uses. Say **"fix the dashboard truncation"** and I apply it + test; or fold it
 > into the broader truncation-class decision (the CARE `c5fbd454` keep/revert + the 3 remaining readouts).
 >
-> **Swept clean in the same pass:** `team-analytics` (exact head counts ✓), `list` (intentional 300-cap with a
-> disclosed "showing 300 most recent" notice ✓), and the finance bank-import dedup (upsert + ignoreDuplicates,
-> not a self-join count ✓). The dashboard route is the one real instance found.
+> **Rest of the sweep (honest completeness — the dashboard is the clear high-risk one, but not the ONLY
+> unbounded read):**
+> - `team-analytics` — exact head counts + a disclosed `.limit(SESSION_WINDOW)` window ✓ clean.
+> - `coach-assessment` — exact head count + `.limit(DISSECT_CONTENT_N)` content read ✓ clean.
+> - `list` session rows — intentional 300-cap with a disclosed "showing 300 most recent" notice ✓.
+> - finance bank-import dedup — upsert + `ignoreDuplicates` on a unique key, not a self-join count ✓ clean.
+> - **`list` badge query (`list/route.ts:113-125`) — LOWER-LIKELIHOOD SECONDARY instance.** It reads the
+>   badge events `.in("subject", subjects)` (≤300 sessions) with NO `.limit`, and only flags an ERROR (not the
+>   silent 1000-cap). Typical volume is ~3 events/session → ~900 for 300 sessions (under the cap), but heavy
+>   per-session regeneration (re-running dissect/summary) could push it over 1000 and silently drop some
+>   sessions' badges (a session that HAS a summary shows none). Much lower likelihood than the dashboard
+>   (bounded by 300 sessions, not by an ever-growing session count), but same class. Fold into the same fix
+>   decision if you address the class.
+>
+> So: **dashboard = the clear high-risk instance; the list badge query = a bounded lower-likelihood sibling.**
+> (Correcting my first draft of this flag, which said "the one instance" — the same incomplete-sweep overclaim
+> I've been caught on before; the badge query is a real, if lower-probability, second instance.)
 
 ## 🔴 SECURITY — 2026-08-12: 5 high-severity dependency CVEs, incl. an APPLICABLE Next.js auth-bypass — patch available
 
