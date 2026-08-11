@@ -1,5 +1,39 @@
 # Founder action queue
 
+## 🟢 DECISIONS — 2026-08-11/12 autonomous session (hero + security/quality sweep, 19 commits, all gate-green)
+
+> A long autonomous session shipped the hero rewrite you asked for (across every surface) plus a self-directed
+> security/quality arc. These items need YOUR input; everything else is shipped + verified on `main`.
+>
+> 1. **Hero copy wording** — I lightly cleaned your dictated catch: *"makes Productivity tool be actually
+>    productive"* → *"makes your productivity tools actually productive."* (dropped "be", pluralized, added
+>    "your"). Live now (`25715db5`), verified desktop + mobile, SEO + OG share-card regenerated to match.
+>    **Your call:** keep the cleaned wording, set it verbatim, or reword. And: the old *"One platform that
+>    sharpens people, replaces the four tools…"* line was REPLACED by *"A system that helps your team evolve."*
+>    — want the four-tools value-prop restored as a supporting line?
+>
+> 2. **⚠️ CARE readout truncation fix — KEEP or REVERT? (`c5fbd454`)** — I fixed 4 CARE §3.5 analytics readouts
+>    (coach-rubric/voice/co-pilot/durability cohorts) that silently truncated their cross-conversation message
+>    aggregation at PostgREST's 1000-row cap → misclassified conversations past it. The fix is genuine,
+>    low-risk, tested, behaviour-preserving. **BUT** the audit-provenance record pinned this 1000-truncation
+>    class (2026-08-04) as LOW external urgency + founder-gated-adjacent, and my discipline says record-check
+>    BEFORE fixing — I checked after. It doesn't match a specific gated trigger (those were "coach KPI
+>    aggregation" = already fixed, and "paginate the message threads" = the thread loads, left open), and the
+>    08-04 LOW-urgency evidence measured per-conversation counts (max 38), NOT the cross-conversation
+>    aggregation total these readouts sum — which can exceed 1000 with small per-conv counts. **Your call:**
+>    keep it, or I revert `c5fbd454` to honour the deferral.
+>
+> 3. **Internal-upload port** — `docs/proposals/2026-08-11-internal-upload-body-cap-sweep.md`. Task-asset +
+>    topic-chat uploads still hit the ~4.5 MB Vercel body cap (same class F2 fixed for C.A.R.E). You chose
+>    "leave as proposal" earlier. Trigger *"port the internal uploads"* when you want it.
+>
+> 4. **Thread-load pagination** — the single-conversation message thread loads (care ~297/~726) are unbounded
+>    too; a >1000-message thread would hide the newest messages. Needs a UX-pagination design (load latest N +
+>    "load older"), not a bulk fetch. Trigger *"paginate the message threads"*. (Build `xl` closure R1.)
+>
+> 5. **Infra (yours to set)** — `ANTHROPIC_API_KEY` (LLM failover), Postmark (email), VAPID (web-push) env
+>    vars; and the two-Vercel-projects consolidation (env-drift risk).
+
 ## 🟡 COST DECISION — 2026-08-09: elostate.com's OWN care widget is throttled at 200 conversations/month (vendor not exempt)
 
 > **Verified live from the record, surfaced while fixing the extension-entitlement bug (`9f846350`).** Same
