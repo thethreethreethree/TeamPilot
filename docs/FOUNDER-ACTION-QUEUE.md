@@ -26,9 +26,11 @@
 > a minor within `^16`) and verified it in isolation:
 > - `npm audit` → **0 vulnerabilities**
 > - `npm run check` → **green** (2715 tests, 0 invariant violations)
-> - `npm run build` (real `next build`) → **compiles + generates all 308 static pages** — the definitive
->   pre-Vercel check the record demands for a framework bump.
-> - Pushed → Vercel builds a **PREVIEW** (final Vercel-build confirmation) without touching prod.
+> - `npm run build` (real `next build`, with env) → **compiles + generates all 308 static pages**.
+> - `next build` **SECRETLESS** (`.env.local` moved aside — reproduces Vercel's build env, the record's exact
+>   de-risking technique for the "local-passes/Vercel-fails" class) → **compiles successfully**. This closes the
+>   one gap I can't otherwise check (I can't read the private-repo Vercel status from the sandbox).
+> - Pushed → Vercel also builds its own **PREVIEW** without touching prod (visible in your Vercel dashboard).
 >
 > **To ship:** merge `security/patch-cves-2026-08-12` into main (or trigger *"patch the CVEs"* and I'll merge it),
 > then confirm the prod deploy (`/api/health` build.commit == HEAD). Prod stays on 16.2.6 until you do. This is
