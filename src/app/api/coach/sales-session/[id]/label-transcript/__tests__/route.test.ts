@@ -142,4 +142,18 @@ describe("POST /label-transcript", () => {
     expect(res.status).toBe(200); // the transcript still saves
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
+
+  it("still returns 200 (the transcript is saved) if the post-append read for generation throws", async () => {
+    // The append already succeeded; scheduling generation is best-effort. A transient DB read error while
+    // gathering the transcript for generation must NOT 500 the label — else the rep's retry hits the 409
+    // already-has-transcript guard, a hard trap. (Bug found + fixed in adversarial self-review of the xn fix.)
+    setAuth("rep1");
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // pre-append 409 guard passes
+      .mockRejectedValueOnce(new Error("transient db read error")); // post-append read for generation throws
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ appended: 3, requested: 3 });
+    expect(generateSessionArtifacts).not.toHaveBeenCalled(); // scheduling failed, but the label stands
+  });
 });

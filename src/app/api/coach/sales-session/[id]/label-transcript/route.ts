@@ -133,28 +133,42 @@ export async function POST(
   // the label. Only fires when we actually appended a fresh transcript (the 409 above already blocks a second
   // label), so it can't double-generate. The full transcript is read HERE (request scope — getSessionTranscript
   // is the RLS user client) and captured, since after() runs after the response.
+  //
+  // The ENTIRE scheduling block is wrapped so it is truly best-effort: getCurrentCompanyId() and
+  // getSessionTranscript() can THROW (the latter rethrows a DB read error by contract — INV22), and they run
+  // AFTER the append already succeeded. Without this guard, a transient read error here would 500 a label whose
+  // transcript is saved — and the rep's retry would then hit the 409 already-has-transcript guard, a hard trap.
+  // The append is the load-bearing result; generation is a bonus that a re-summarize / the backfill cron can
+  // still supply, so a hiccup scheduling it must NEVER fail the label.
   if (appended > 0) {
-    const companyId = (await getCurrentCompanyId()) ?? undefined;
-    if (companyId) {
-      const actorId = auth.user.id;
-      const fullTranscript = await getSessionTranscript(id);
-      after(async () => {
-        try {
-          await generateSessionArtifacts({
-            companyId,
-            actorId,
-            sessionId: id,
-            session,
-            segments: fullTranscript,
-          });
-        } catch (err) {
-          // The transcript is already saved; a failed generation is recoverable (re-summarize / backfill cron).
-          console.error(
-            `[label-transcript] post-call artifact generation failed session=${id}:`,
-            err
-          );
-        }
-      });
+    try {
+      const companyId = (await getCurrentCompanyId()) ?? undefined;
+      if (companyId) {
+        const actorId = auth.user.id;
+        const fullTranscript = await getSessionTranscript(id);
+        after(async () => {
+          try {
+            await generateSessionArtifacts({
+              companyId,
+              actorId,
+              sessionId: id,
+              session,
+              segments: fullTranscript,
+            });
+          } catch (err) {
+            // The transcript is saved; a failed generation is recoverable (re-summarize / backfill cron).
+            console.error(
+              `[label-transcript] post-call artifact generation failed session=${id}:`,
+              err
+            );
+          }
+        });
+      }
+    } catch (err) {
+      console.error(
+        `[label-transcript] could not schedule post-call generation session=${id}:`,
+        err
+      );
     }
   }
 

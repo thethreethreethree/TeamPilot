@@ -12,6 +12,12 @@ class: a transcript-append entry point that does not trigger the post-call gener
 severity: high — the summary the user opens a session to see was silently empty for EVERY uploaded call (a core surface), while live sessions worked; presents as a missing feature, not an error.
 sweep-command: `grep -rln "appendTranscriptSegment" src/app/api/coach/sales-session --include=*.ts | grep -v __tests__` — the transcript-append entry points: `/finalize` (generates), `/segments` (feeds finalize's body), `/label-transcript` (the uploaded path — MISSING, fixed here). No other append route lacks the trigger.
 
+### F2 — the F1 generation-scheduling could 500 a label whose transcript already saved (found in post-ship adversarial self-review)
+file+line: `src/app/api/coach/sales-session/[id]/label-transcript/route.ts` — the post-append `getCurrentCompanyId()` + `getSessionTranscript(id)` ran UNGUARDED before the 200 response.
+class: best-effort follow-on work that can throw BEFORE the load-bearing response — turning a bonus failure (generation) into a primary failure (the label). `getSessionTranscript` rethrows DB read errors by contract (INV22).
+severity: medium — a transient DB read blip would 500 a label whose transcript is saved; the rep's retry then hits the 409 already-has-transcript guard (a hard trap). No data loss, but a stuck user.
+sweep-command: `grep -n "after(\|getSessionTranscript\|getCurrentCompanyId" src/app/api/coach/sales-session/[id]/label-transcript/route.ts` — the scheduling block is now wholly inside a try/catch; the append + 200 response are outside it. See remediate.md F2.
+
 ## Audit-clean (non-defect) — the live flow + the manual/cron paths
 The live flow (`useLiveCoaching` → `/finalize`) already generated the full set and is unchanged (finalize now
 just calls the shared helper). The manual `/summarize` POST and the dissect-backfill cron are separate,
