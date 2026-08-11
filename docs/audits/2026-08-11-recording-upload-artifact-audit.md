@@ -134,8 +134,12 @@ inflate. Did not omit the LOWs. F1 was a genuine defect in my own freshly-shippe
 ## 9. Remediation plan
 
 **Remediation applied 2026-08-11 (this session):** F1, F5, the batch F3/F6/F7/F11/F12, F9, then F4 — all
-shipped (npm run check green). Still deferred: F2 (proposal), F8 (shared-helper refactor — no current need +
-behavior-changing), F10 (rare edge), F13 (your decision).
+shipped (npm run check green). Still deferred: F2 (proposal, greenlight), F8 (shared-helper refactor — no
+current need + behavior-changing). DECLINED as not-a-defect on reconsideration: F10 (the avg is by definition
+ended-sessions-only; an incomplete session is correctly excluded). Your decision: F13.
+
+**Tally: of 13 findings — 9 shipped (F1/F3/F4/F5/F6/F7/F9/F11/F12), 1 declined (F10), 2 deferred with reasons
+(F2 greenlight, F8 behavior-changing), 1 your decision (F13).**
 
 | # | Fix | Clause | Risk the fix introduces | Status |
 |---|---|---|---|---|
@@ -148,7 +152,7 @@ behavior-changing), F10 (rare edge), F13 (your decision).
 | F7 | `uploadingRef` latch on uploadBlob | re-entrancy | none — mirrors the proven `label()` latch | **✅ shipped** |
 | F8 | extract tested `conversationDurationSeconds()` (dedup the 3 copies) | A30/§3.5 | NOT a pure extraction — the 3 surfaces round the wall-clock differently (After-Pitch rounds ms→s then floors; Sessions floors raw s → a 119.6s live session resolves to 2m vs 1m). Unifying forces a display-rounding DECISION (behavior change) + boundary tests; do it deliberately outside a live test | PROMISE |
 | F9 | Sessions-list rounding round→floor (stop overstating 4m30s as 5m) | §3.5 | none (one operator) | **✅ shipped** |
-| F10 | include audio-populated null-`ended_at` sessions in the avg | §3.5 | rare edge (trigger stamps ended_at) | PROMISE |
+| F10 | (reconsidered) include audio-populated null-`ended_at` sessions in the avg | §3.5 | n/a | **DECLINED** — the metric is by definition "average over ENDED sessions"; an uploaded-but-not-named session is genuinely incomplete, so excluding it is a reasonable scope, not a defect. The audit's "include it" was a suggestion, not a bug. |
 | F11 | log the best-effort duration-stamp failures (3 sites) | §3.4 | none (log-only) | **✅ shipped** |
 | F12 | finite/`>0` guard on the KPI wall-clock fallback | §3.5 | none | **✅ shipped** |
 | F13 | confirm manager-write to outcome is intended | INV19 | n/a | founder decision |
