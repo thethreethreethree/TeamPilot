@@ -1,5 +1,17 @@
 # CLOSURE — CARE readout unbounded-select paging
 
+> **⚠️ CORRECTION appended 2026-08-12 (verify-then-correct honesty):** this build claimed it "swept all four
+> cross-conversation aggregations" — that was WRONG. The check.md sweep command keyed on `.in("conversation_id")`
+> and so MISSED the sibling `.in("id", conversationIds)` pattern on `support_conversations`. THREE more unbounded
+> aggregations of the same class remain UNFIXED — `fetchRoutingReadout` (~2302), `fetchSlaWithDurabilityReadout`
+> (~2446), `fetchPatternResolutionReadout` (~2628), each fetching conversation metadata for the durability-checked
+> set. They were left deliberately (the whole truncation-fix class is pending a founder keep/revert on this
+> commit; fixing more compounds acting on a deferred class). The complete class = 7 aggregations, 4 fixed here,
+> 3 remaining. Surfaced in FOUNDER-ACTION-QUEUE.md. Lesson: a sweep grep that keys on ONE spelling of the
+> pattern (`.in("conversation_id")`) silently excludes the other (`.in("id")`) — re-derive the pattern across
+> column-name variants before claiming completeness (the same A38 recipe-verify lesson as the CWE-209 sweeps).
+
+
 ## What shipped
 Four CARE §3.5 analytics readouts (coach-rubric cohort, voice-value cohort, co-pilot-usage cohort, durability
 buckets) aggregated messages/checks across many conversations with an unbounded `.select()`, silently capped

@@ -23,6 +23,17 @@
 >    aggregation total these readouts sum — which can exceed 1000 with small per-conv counts. **Your call:**
 >    keep it, or I revert `c5fbd454` to honour the deferral.
 >
+>    **⚠️ CORRECTION (my xl sweep was INCOMPLETE — surfaced honestly):** `c5fbd454` fixed the 4
+>    `.in("conversation_id")` aggregations on `support_messages`/`support_durability_checks`, and its build doc
+>    claimed "swept all four." That claim was wrong: the sweep grep keyed on `.in("conversation_id")` and so
+>    MISSED the sibling `.in("id", conversationIds)` pattern on `support_conversations` — **3 more unbounded
+>    aggregations of the same class remain**, in `fetchRoutingReadout`, `fetchSlaWithDurabilityReadout`, and
+>    `fetchPatternResolutionReadout` (each fetches conversation metadata for the durability-checked set → same
+>    1000-truncation → misclassification past the cap). I did NOT fix these (fixing more compounds acting on the
+>    deferred class). So the decision is cleaner than it looked: **REVERT** keeps the whole class consistently
+>    deferred; **KEEP + "port the internal uploads"-style greenlight** → I finish the class (all 7 aggregations)
+>    properly with a complete sweep. Either way, the class is BROADER than the 4 commits touched.
+>
 > 3. **Internal-upload port** — `docs/proposals/2026-08-11-internal-upload-body-cap-sweep.md`. Task-asset +
 >    topic-chat uploads still hit the ~4.5 MB Vercel body cap (same class F2 fixed for C.A.R.E). You chose
 >    "leave as proposal" earlier. Trigger *"port the internal uploads"* when you want it.
