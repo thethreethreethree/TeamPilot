@@ -4,6 +4,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { careQualityScore } from "@/lib/care/careQualityGrade";
 import { strictMutate } from "@/lib/supabase/strictUpdate";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { notifyAssignedAgentOfCustomerMessage } from "@/lib/notifications/careNotify";
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
 import {
@@ -1882,22 +1883,28 @@ export async function fetchCoachRubricReadout(args: {
 
   // 2. Look at agent messages on those conversations to classify
   // each conversation's rubric version.
-  const { data: msgs, error: eMsgs } = await sb
-    .from("support_messages")
-    .select("conversation_id, coach_counts, coach_grade")
-    .in("conversation_id", conversationIds)
-    .eq("author_type", "agent")
-    .eq("is_internal_note", false);
-  if (eMsgs) {
-    throw new Error(`care coach-rubric readout: message classification read failed — ${eMsgs.message}`);
-  }
-
+  // Page the FULL set: this is unbounded across MANY conversations, and PostgREST caps a single response at
+  // 1000 rows — which would silently drop agent messages on an active account and misclassify every
+  // conversation past the cap as "ungraded" (a §3.5 measure-the-wrong-thing bug on exactly the readout that
+  // grades the method). Stable `id` order → range pagination returns every row exactly once; fetchAllPaged
+  // throws on a read error (same fail-loud posture as the previous eMsgs throw).
   type MsgRow = {
     conversation_id: string;
     coach_counts: unknown | null;
     coach_grade: string | null;
   };
-  const msgRows = (msgs ?? []) as MsgRow[];
+  const msgRows = (await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("support_messages")
+        .select("conversation_id, coach_counts, coach_grade")
+        .in("conversation_id", conversationIds)
+        .eq("author_type", "agent")
+        .eq("is_internal_note", false)
+        .order("id", { ascending: true })
+        .range(from, to),
+    { label: "care coach-rubric message classification read" }
+  )) as MsgRow[];
 
   type Bucket = "v6" | "v5" | "ungraded";
   const cohortByConv = new Map<string, Bucket>();
@@ -2055,15 +2062,23 @@ export async function fetchVoiceValueReadout(args: {
 
   // Classify each conversation: voiceUsed = ANY customer message
   // had medium='voice'.
-  const { data: msgs } = await sb
-    .from("support_messages")
-    .select("conversation_id, medium")
-    .in("conversation_id", conversationIds)
-    .eq("author_type", "customer");
-
+  // Page the FULL set (see fetchCoachRubricReadout): unbounded across many conversations truncates at 1000,
+  // misclassifying every conversation past the cap as voiceNotUsed. Stable `id` order → complete; fetchAllPaged
+  // also fails loud on a read error (the previous read swallowed the error into an empty result — §3.4).
   type MsgRow = { conversation_id: string; medium: string | null };
+  const msgs = (await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("support_messages")
+        .select("conversation_id, medium")
+        .in("conversation_id", conversationIds)
+        .eq("author_type", "customer")
+        .order("id", { ascending: true })
+        .range(from, to),
+    { label: "care voice-value message read" }
+  )) as MsgRow[];
   const voiceByConv = new Set<string>();
-  for (const m of (msgs ?? []) as MsgRow[]) {
+  for (const m of msgs) {
     if (m.medium === "voice") voiceByConv.add(m.conversation_id);
   }
 
@@ -2161,20 +2176,27 @@ export async function fetchCoPilotValueReadout(args: {
     new Set(checkRows.map((c) => c.conversation_id))
   );
 
-  // Classify by ANY agent reply with co_pilot_invoked=true.
-  const { data: msgs } = await sb
-    .from("support_messages")
-    .select("conversation_id, co_pilot_invoked")
-    .in("conversation_id", conversationIds)
-    .eq("author_type", "agent")
-    .eq("is_internal_note", false);
-
+  // Classify by ANY agent reply with co_pilot_invoked=true. Page the FULL set (see fetchCoachRubricReadout):
+  // unbounded across many conversations truncates at 1000, misclassifying conversations past the cap as
+  // coPilotNotUsed. Stable `id` order → complete; fetchAllPaged fails loud on a read error.
   type MsgRow = {
     conversation_id: string;
     co_pilot_invoked: boolean | null;
   };
+  const msgs = (await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("support_messages")
+        .select("conversation_id, co_pilot_invoked")
+        .in("conversation_id", conversationIds)
+        .eq("author_type", "agent")
+        .eq("is_internal_note", false)
+        .order("id", { ascending: true })
+        .range(from, to),
+    { label: "care co-pilot-usage message read" }
+  )) as MsgRow[];
   const coPilotByConv = new Set<string>();
-  for (const m of (msgs ?? []) as MsgRow[]) {
+  for (const m of msgs) {
     if (m.co_pilot_invoked) coPilotByConv.add(m.conversation_id);
   }
 
@@ -2615,19 +2637,27 @@ export async function fetchPatternResolutionReadout(args: {
     convById.set(c.id, c);
   }
 
-  // 4. Pull durability checks for the same conversations.
-  const { data: durs } = await sb
-    .from("support_durability_checks")
-    .select("conversation_id, outcome")
-    .in("conversation_id", conversationIds)
-    .not("outcome", "is", null);
-
+  // 4. Pull durability checks for the same conversations. Page the FULL set (see fetchCoachRubricReadout):
+  // unbounded across many conversations truncates at 1000, so conversations past the cap would drop out of
+  // durByConv and read as "no durability" — undercounting held/reopened in the before/after buckets. Stable
+  // `id` order → complete; fetchAllPaged fails loud on a read error.
   type DurRow = {
     conversation_id: string;
     outcome: "held" | "reopened" | "inconclusive";
   };
+  const durs = (await fetchAllPaged(
+    (from, to) =>
+      sb
+        .from("support_durability_checks")
+        .select("conversation_id, outcome")
+        .in("conversation_id", conversationIds)
+        .not("outcome", "is", null)
+        .order("id", { ascending: true })
+        .range(from, to),
+    { label: "care durability-checks read" }
+  )) as DurRow[];
   const durByConv = new Map<string, DurRow>();
-  for (const d of (durs ?? []) as DurRow[]) {
+  for (const d of durs) {
     durByConv.set(d.conversation_id, d);
   }
 
