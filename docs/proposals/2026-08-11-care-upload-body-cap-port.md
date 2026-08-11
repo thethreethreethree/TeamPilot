@@ -41,15 +41,26 @@ Per route:
 
 ## The gate (A30) — so the class can't silently return
 
-Add an invariant to `scripts/invariant-audit.mjs`: **an upload route that calls `req.formData()` AND whose
-cap constant is `> 4.5 MB` MUST also expose a signed-URL / `storagePath` JSON branch** (or be explicitly
-allow-listed with a reason). Detection sketch: match route files containing `req.formData()`; if the same
-file references `AGENT_MAX_BYTES`/`CUSTOMER_MAX_BYTES`/a numeric `* 1024 * 1024` cap `> 4.5`, require a
-`storagePath`/`application/json` branch in the same file. **A33 caveat:** the cap-constant lookup makes a
-precise detector non-trivial; if it proves noisy, keep the routes allow-listed-with-reason and rely on this
-proposal + the shared primitives rather than ship a gate that false-positives on the deliberately-≤4 MB
-text-extract routes (`sales-session/extract`, `coach/extension/extract`, `care/agent/acms/extract`,
-`tenant/logo`). Ship a quiet gate or none — not a noisy one.
+Intended invariant: **an upload route that calls `req.formData()` AND whose effective cap is `> 4.5 MB` MUST
+also expose a signed-URL / `storagePath` JSON branch** (or be explicitly allow-listed with a reason).
+
+**A33 — VERIFIED infeasible as a standalone grep (2026-08-11), so the gate is DECLINED at this altitude, not
+merely cautioned.** I checked the actual detection surface before proposing the gate:
+- The two CARE routes do **not** reference `AGENT_MAX_BYTES`/`CUSTOMER_MAX_BYTES` by name — their cap comes
+  from `validateUploadCandidate(uploadedVia)`, which resolves the constant *internally*. So a detector keyed
+  on the constant NAMES **misses the very routes this is about**.
+- The deliberately-≤4 MB text-extract routes (`sales-session/extract`, `coach/extension/extract`,
+  `care/agent/acms/extract`) use a `4 * 1024` literal + `MAX_EXTRACT`, a THIRD cap mechanism.
+- So the cap is applied three heterogeneous ways (direct constant / `validateUploadCandidate` / literal); a
+  grep that catches the CARE routes (via `validateUploadCandidate` + `formData` + no-branch) risks
+  false-positives on any small `validateUploadCandidate` route, and one that keys on the constant names is
+  incomplete. Per A33, a gate that resists precise detection is NAMED-AND-DECLINED, not shipped noisy.
+
+**The gate the port SHOULD ship instead (structural, not grep):** once these routes are ported, the natural
+key is *uniform* — a route that does `req.formData()` to write to the ASSETS bucket without also handling a
+`storagePath` finalize branch. Add the invariant THEN, when the pattern is uniform and the 2 routes are fixed
+(no grandfather needed), rather than shipping a grandfathered detector against a heterogeneous surface now.
+Until then the hole is named here + the proposal is the record.
 
 ## Risk + effort
 
