@@ -56,14 +56,22 @@ const ctx = { params: Promise.resolve({ id: "sess1" }) };
 const req = () => ({}) as unknown as Parameters<typeof POST>[0];
 const VALID_POINTER = "assets-v1/co1/rec.webm";
 
+// Captures the admin update payloads so we can assert the real audio length gets stamped (§3.5).
+const durationUpdates: Array<Record<string, unknown>> = [];
+
 beforeEach(() => {
   vi.clearAllMocks();
+  durationUpdates.length = 0;
   setManager(false);
-  // The route stamps the audio duration via the admin client (best-effort) — an awaitable no-op chain.
+  // The route stamps the audio duration via the admin client (best-effort) — an awaitable chain that
+  // records the update payload.
   asMock(createAdminClient).mockReturnValue({
     from: () => {
       const chain: Record<string, unknown> = {};
-      chain.update = () => chain;
+      chain.update = (payload: Record<string, unknown>) => {
+        durationUpdates.push(payload);
+        return chain;
+      };
       chain.eq = () => chain;
       chain.then = (r: (v: unknown) => unknown) => r({ data: null, error: null });
       return chain;
@@ -138,6 +146,9 @@ describe("POST /retranscribe — recovery, owner-or-manager, read-only", () => {
     expect(body.speakers).toHaveLength(2);
     // downloadAssetBytes got the stripped storage path, not the raw pointer.
     expect(downloadAssetBytes).toHaveBeenCalledWith({ storagePath: "co1/rec.webm" });
+    // Recovery re-transcribe also stamps the REAL audio length (§3.5) so a recovered upload shows its
+    // length, not the session wall-clock — same contract as the upload route, locked here too.
+    expect(durationUpdates).toContainEqual({ audio_duration_seconds: 184 });
   });
 
   it("200 for a MANAGER on another rep's session (owner-OR-manager)", async () => {
