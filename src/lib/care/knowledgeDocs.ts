@@ -144,7 +144,11 @@ export async function addKnowledgeVersion(args: {
     if (error?.code === "23505") {
       return { ok: false, error: "Another upload just landed — try again." };
     }
-    return { ok: false, error: error?.message ?? "Couldn't save the document." };
+    // CWE-209: don't return the raw Postgres message (table/column/constraint names) to the caller — the
+    // acms/documents route surfaces this .error to an agent. Log the raw cause, return a generic message.
+    // eslint-disable-next-line no-console
+    console.error(`[knowledgeDocs.addKnowledgeVersion] insert failed company=${args.companyId}: ${error?.message ?? "no row returned"}`);
+    return { ok: false, error: "Couldn't save the document. Please try again." };
   }
   return { ok: true, version: mapRow(data) };
 }
@@ -177,7 +181,10 @@ export async function retractKnowledge(args: {
     .select("id, company_id, version, title, filename, byte_size, status, created_at")
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message ?? "Couldn't retract." };
+    // CWE-209: log the raw cause, return a generic message (same as addKnowledgeVersion above).
+    // eslint-disable-next-line no-console
+    console.error(`[knowledgeDocs.retractKnowledge] insert failed company=${args.companyId}: ${error?.message ?? "no row returned"}`);
+    return { ok: false, error: "Couldn't retract the document. Please try again." };
   }
   return { ok: true, version: mapRow(data) };
 }

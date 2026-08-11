@@ -33,7 +33,16 @@ export async function GET(req: NextRequest) {
       .limit(200),
   ]);
 
-  if (fc.error) return NextResponse.json({ error: fc.error.message }, { status: 403 });
+  if (fc.error) {
+    // CWE-209: fc.error.message is the raw Postgres/RPC error — log it, return a generic message. Also a
+    // query error is a 500, not a 403 (403 wrongly implied a permission problem the caller could act on).
+    // eslint-disable-next-line no-console
+    console.error(`[finance/forecast] fin_cash_forecast failed user=${auth.user.id}: ${fc.error.message}`);
+    return NextResponse.json(
+      { error: "Couldn't compute the forecast right now — please try again in a moment." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     days: fc.data ?? [],
