@@ -26,7 +26,7 @@ export async function GET() {
   ).toISOString();
 
   // Defense-in-depth: explicit company_id filter at the route layer. RLS on support_conversations also enforces it.
-  // Paged (was a fixed .limit(5000) with NO disclosure): resolution-rate + first-response-time median/buckets are
+  // Paged (was a fixed 5000-row cap with NO disclosure): resolution-rate + first-response-time median/buckets are
   // computed in JS over these rows, so a busy team with >5000 conversations in the window had those analytics
   // silently truncated (truncation-class fix, founder-authorized 2026-08-12). The median/percentiles need every
   // row, so this pages the full windowed set (stable uuid `id` order) rather than an exact-count. fetchAllPaged
