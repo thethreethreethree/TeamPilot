@@ -158,6 +158,11 @@ export function LiveCoachingPanel({
     }, 30_000);
     return () => clearTimeout(timer);
   }, [live]);
+  // Clear the stall warning the instant ANY transcription arrives — the feed recovered, so don't leave a stale
+  // amber banner up once words start flowing (post-ship review, 2026-08-12).
+  useEffect(() => {
+    if (captureStalled && (turns.length > 0 || partial)) setCaptureStalled(false);
+  }, [captureStalled, turns.length, partial]);
 
   // Build 5 — earpiece tap control (§3.3, rep-controlled). A tap → coach me;
   // triple-tap → quiet toggle. Device-dependent + unverifiable (§3.4).

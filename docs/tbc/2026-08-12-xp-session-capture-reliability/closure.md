@@ -36,8 +36,10 @@ indication). Founder-authorized approach (AskUserQuestion 2026-08-12: block + al
   advance before the persist blocks. Low-harm: the audio still persists in the background, and the required
   naming gate (several seconds) masks the race in practice so the save almost always completes first. Harden
   only if the device test shows a real gap.
-- **Dead-feed warning** doesn't auto-clear if the feed recovers AFTER the 30s mark (only resets on the next
-  live start). Cosmetic; a brief stale amber banner at worst.
+- **Dead-feed warning** auto-clear — FIXED: a small effect now clears the warning the instant any transcription
+  (turn or partial) arrives, so a recovered feed doesn't leave a stale amber banner.
+- **Block-race** (transcriptSaved before the blob): left as-is — low-harm (the audio still persists in the
+  background, and the required naming gate masks it), harden only if the device test shows a real gap.
 
 ## Gate result (`npm run check`)
 ```
