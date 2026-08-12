@@ -29,6 +29,29 @@ All three shipped, gate-green, and confirmed on `elostate.com` (`/api/health` bu
 - **D. Wording** — the empty-read copy now honestly says "the full written read isn't ready yet" instead of "short
   exchange". Say **"lower it further"** if you want it softer, else it stays.
 
+## 🔐 SECURITY — 5 high-sev prod dependency vulns (2026-08-13 audit) — needs a controlled upgrade window
+
+`npm audit --omit=dev` reports 5 high-severity vulns in production deps. Assessed for applicability (per the
+CVE-applicability discipline — CVSS severity is generic; what matters is whether it applies HERE):
+
+- **Next.js `16.2.6` → the real one.** Advisories that apply to this App Router app: SSRF in Server Actions,
+  cache confusion of response bodies, middleware/proxy bypass, **unauthenticated disclosure of internal Server
+  Function endpoints**, image-optimization DoS via SVG. Fix = minor bump to **`16.3.0`** (current latest; the
+  vuln range ends at `16.3.0-preview.10`, so 16.3.0 stable is the first fixed release).
+- The other four (**brace-expansion, postcss, nanoid, fast-uri**) are low-applicability here — build-time
+  tooling or need a specific trigger (nanoid needs a user-controlled size we don't pass) — AND several are
+  Next.js transitive deps, so the 16.3.0 bump likely clears most of the batch in one move.
+
+**Why I did NOT just fix it:** a framework minor bump on a LIVE product with a first client actively testing is
+exactly the change that can pass `npm run build` locally and still fail the Vercel deploy (recorded lesson) — and
+a broken deploy right now is worse than vulns that require an *attacker* (your pilot is trusted). This needs a
+controlled window: a branch, `npm i next@16.3.0`, full gate, **a Vercel PREVIEW deploy verified green**, and
+revert-ready — not a mid-incident unilateral push.
+
+**Your call:** say **"upgrade Next.js"** and I'll do it on a branch + run the full gate so you can verify the
+Vercel preview before merging, OR **"hold the upgrade"** to schedule it post-incident. Not urgent (needs active
+exploitation), but shouldn't sit indefinitely.
+
 ## 🔴 CAPTURE INCIDENT (first client) — ROOT CAUSE + COST QUERY — 2026-08-12
 
 > **Reason the live sessions kept failing (two compounding causes):**
