@@ -54,6 +54,14 @@ middleware/proxy bypass or an unauthenticated endpoint hit still faces DB-level 
 client's transcript data is NOT one bug away from exposure. This is why the urgency is moderate, not critical:
 a small pilot (low attacker interest) + RLS backstop. Still worth fixing, just not an emergency.
 
+**Upgrade scope (researched 2026-08-13, 16.2.6→16.3.0 — a feature release, not a pure patch):** this app's actual
+exposure to its deprecations is SMALL — it uses `moduleResolution:"bundler"` (no `baseUrl`, so it DODGES the main
+tsconfig deprecation) and does not use `useCache`. The only touchpoints: 2 routes on the now-deprecated edge
+runtime (`coach/extension/extract`, `coach/sales-session/extract`) and the middleware (possible codemod). Edge is
+DEPRECATED, not removed — so those build + run with a warning, to migrate before a future major. Net: likely a
+**clean build with deprecation warnings, not a breaking migration** — lower-risk than a typical minor bump. Final
+check is still the Vercel preview (Vercel-specific build issues aren't caught locally).
+
 **Your call:** say **"upgrade Next.js"** and I'll do it on a branch + run the full gate so you can verify the
 Vercel preview before merging, OR **"hold the upgrade"** to schedule it post-incident. Not urgent (moderate risk,
 RLS-backstopped), but shouldn't sit indefinitely.
