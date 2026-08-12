@@ -516,6 +516,7 @@
     <div class="sc-card" id="sc-panel">
       <div class="sc-hd" id="sc-hd">
         <span class="sc-title">Sales Coach</span>
+        <button class="sc-x" id="sc-restart" title="Restart — re-check your sign-in &amp; reload the panel (no need to close it)">↻</button>
         <button class="sc-x" id="sc-min" title="Minimize">–</button>
         <button class="sc-x" id="sc-close" title="Close">✕</button>
       </div>
@@ -533,6 +534,32 @@
     <button class="sc-bubble sc-hide" id="sc-bubble" title="Open Sales Coach">S</button>`;
 
   root.getElementById("sc-close").addEventListener("click", () => host.remove());
+
+  // Restart / refresh (founder 2026-08-13): after a re-login you shouldn't have to CLOSE and REOPEN the panel.
+  // This re-reads your session in place (getToken re-reads chrome.storage.local, so a fresh sign-in is picked up),
+  // re-scans the conversation on the page, and returns the panel to a clean ready state. Kept in-place (no
+  // executeScript re-inject) because host_permissions only covers elostate.com — a re-inject on the rep's CRM/
+  // email tab would depend on activeTab surviving a message-triggered call, which isn't reliable.
+  root.getElementById("sc-restart").addEventListener("click", async () => {
+    const out = root.getElementById("sc-out");
+    if (out) out.innerHTML = `<p class="sc-muted sc-prog">Refreshing</p>`;
+    const token = typeof getToken === "function" ? await getToken() : null;
+    if (!token) {
+      if (out) {
+        out.innerHTML =
+          `<p class="sc-muted">You're signed out. Click Sign in, finish signing in in the tab that opens, then hit ↻ again — no need to close the panel.</p>` +
+          `<button class="sc-run" id="sc-signin-refresh">Sign in</button>`;
+        const b = root.getElementById("sc-signin-refresh");
+        if (b) b.addEventListener("click", () => chrome.runtime.sendMessage({ type: "open-connect" }));
+      }
+      return;
+    }
+    // Signed in → clear the last result, re-scan the page, and show the ready state.
+    if (out) out.innerHTML = `<p class="sc-muted">Refreshed ✓ — pick a tool.</p>`;
+    const info = root.getElementById("sc-selinfo");
+    if (info) info.textContent = "Reading the conversation…";
+    try { captureConversation(); } catch { /* capture is best-effort; a tool run re-captures anyway */ }
+  });
 
   // ── Minimize / restore + drag (ported from the C.A.R.E panel; parity, founder 2026-08-09) ────────────────
   // Minimize collapses the card to a small bubble the rep can click to restore — so the panel gets out of the

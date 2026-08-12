@@ -32,8 +32,24 @@ const ALLOWED_ENDPOINT = /^\/api\/care\/extension\/[a-z]+$/; // no arbitrary pat
 // 401→refresh logic lives in ONE place (re-inlining per call site is exactly how the two drift). Returns the new
 // access token on success, or null — and on a hard failure clears the session so the panel shows Sign in and the
 // badge drops. `currentRefresh` may be rotated by a successful refresh.
-async function refreshCareAccessToken(base, currentRefresh) {
-  if (!currentRefresh) return null;
+//
+// SINGLE-FLIGHT (repeated-sign-out fix, 2026-08-13): Supabase ROTATES the refresh token per use and has
+// REUSE-DETECTION — reusing a consumed token invalidates the ENTIRE session. Concurrent 401s (a tool + the
+// streaming fallback, or multiple tools after the ~1h access token expires) each fired their own refresh with
+// the same token; the first rotated it, the rest reused the consumed one → Supabase killed the session →
+// "kicked out again and again". Coalesce concurrent refreshes into ONE grant they all share.
+let careRefreshInFlight = null;
+function refreshCareAccessToken(base, currentRefresh) {
+  if (!currentRefresh) return Promise.resolve(null);
+  if (!careRefreshInFlight) {
+    careRefreshInFlight = doCareRefresh(base, currentRefresh).finally(() => {
+      careRefreshInFlight = null; // only one runs at a time, so this always clears the current in-flight refresh
+    });
+  }
+  return careRefreshInFlight;
+}
+
+async function doCareRefresh(base, currentRefresh) {
   try {
     const rr = await fetch(base + "/api/care/extension/refresh", {
       method: "POST",

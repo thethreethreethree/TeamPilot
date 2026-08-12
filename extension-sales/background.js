@@ -47,8 +47,25 @@ async function readJson(res) {
 // the 401→refresh logic lives in ONE place (re-inlining it per call site is exactly how the two drift). Returns
 // the new access token on success, or null — and on a hard failure clears the session so the panel shows Sign
 // in and the badge drops. `currentRefresh` is the refresh token we hold; a successful refresh may rotate it.
-async function refreshSalesAccessToken(base, currentRefresh) {
-  if (!currentRefresh) return null;
+//
+// SINGLE-FLIGHT (repeated-sign-out fix, 2026-08-13): Supabase ROTATES the refresh token on each use and has
+// REUSE-DETECTION — using a consumed refresh token invalidates the ENTIRE session. When the ~1h access token
+// expires and the panel fires several calls at once (a tool + the streaming suggestion's non-stream fallback, or
+// multiple tools), each 401 used to fire its OWN refresh with the same token; the first rotated it, the rest
+// reused the now-consumed one → Supabase killed the session → "kicked out again and again". We now coalesce
+// concurrent refreshes into ONE grant: while a refresh is in flight, every caller shares its result.
+let salesRefreshInFlight = null;
+function refreshSalesAccessToken(base, currentRefresh) {
+  if (!currentRefresh) return Promise.resolve(null);
+  if (!salesRefreshInFlight) {
+    salesRefreshInFlight = doSalesRefresh(base, currentRefresh).finally(() => {
+      salesRefreshInFlight = null; // only one runs at a time, so this always clears the current in-flight refresh
+    });
+  }
+  return salesRefreshInFlight;
+}
+
+async function doSalesRefresh(base, currentRefresh) {
   try {
     const rr = await fetch(base + "/api/coach/extension/refresh", {
       method: "POST",
