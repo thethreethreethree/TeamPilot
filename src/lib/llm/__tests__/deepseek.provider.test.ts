@@ -173,3 +173,74 @@ describe("reasoning-token headroom (blank-output outage guard)", () => {
     expect(withReasoningHeadroom(160)).toBe(160 + REASONING_HEADROOM_TOKENS);
   });
 });
+
+/**
+ * The UNIVERSAL starvation detector: the provider logs LOUDLY whenever the model returns finish_reason:"length"
+ * (reasoning ate the budget) — for EVERY engine, not just the dissect. This is the visibility that ended the
+ * 2026-07-30 two-week silent outage; a regression removing it re-blinds the whole system. These lock it: it fires
+ * on empty AND truncated length-responses (with completion_tokens, to size a fix), and NOT on a healthy stop.
+ */
+describe("deepseek starvation visibility — finish_reason:'length' logs loudly (never silent again)", () => {
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = "test-key";
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.DEEPSEEK_API_KEY;
+  });
+
+  it("EMPTY content + finish_reason:length → logs the starvation warning with completion_tokens", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, {
+          choices: [{ message: { content: "" }, finish_reason: "length" }],
+          usage: { prompt_tokens: 20000, completion_tokens: 8000, total_tokens: 28000 },
+        })
+      )
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await deepseekProvider.call(CALL);
+    expect(out.text).toBe("");
+    expect(spy).toHaveBeenCalledTimes(1);
+    const msg = String(spy.mock.calls[0]?.[0]);
+    expect(msg).toMatch(/finish_reason.*length/);
+    expect(msg).toMatch(/EMPTY content/);
+    expect(msg).toMatch(/completion_tokens=8000/);
+    spy.mockRestore();
+  });
+
+  it("TRUNCATED answer + finish_reason:length → logs the TRUNCATED shape (partial JSON that fails to parse)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, {
+          choices: [{ message: { content: '{"strengths": [' }, finish_reason: "length" }],
+          usage: { prompt_tokens: 20000, completion_tokens: 8000, total_tokens: 28000 },
+        })
+      )
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await deepseekProvider.call(CALL);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/TRUNCATED answer/);
+    spy.mockRestore();
+  });
+
+  it("finish_reason:stop → does NOT log (no false alarm on a healthy call)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, {
+          choices: [{ message: { content: '{"ok":true}' }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+        })
+      )
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await deepseekProvider.call(CALL);
+    expect(out.text).toBe('{"ok":true}');
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
