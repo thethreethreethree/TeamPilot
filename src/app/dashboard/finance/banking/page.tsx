@@ -35,7 +35,10 @@ export default function BankingPage() {
   const [txns, setTxns] = useState<Txn[]>([]);
   // Honest-truncation disclosure (§3.4): the register shows the most recent 1,000 lines; if the account has more,
   // say so rather than silently hiding older history. `total` is the exact count from the API's head-count.
-  const [txnTrunc, setTxnTrunc] = useState<{ truncated: boolean; total: number }>({ truncated: false, total: 0 });
+  const [txnTrunc, setTxnTrunc] = useState<{ truncated: boolean; total: number | null }>({
+    truncated: false,
+    total: 0,
+  });
   // per-unmatched-line: which account the clerk says this money was FOR (never a direction)
   const [entryAcct, setEntryAcct] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export default function BankingPage() {
   const loadTxns = useCallback(async (bankId: string) => {
     const r = await fetch(`/api/finance/bank/accounts/${bankId}/transactions`).then((x) => x.json());
     setTxns(r.transactions ?? []);
-    setTxnTrunc({ truncated: !!r.truncated, total: typeof r.total === "number" ? r.total : 0 });
+    setTxnTrunc({ truncated: !!r.truncated, total: typeof r.total === "number" ? r.total : null });
   }, []);
   useEffect(() => {
     if (sel) void loadTxns(sel);
@@ -290,8 +293,17 @@ export default function BankingPage() {
               // both themes, and text-amber-300 on the light-mode cream ground is ~1.4:1 (near-invisible). The
               // page's convention for readable informational text is the secondary token.
               <p className="text-[11px] text-secondary mb-2">
-                Showing the most recent {txns.length.toLocaleString()} of{" "}
-                {txnTrunc.total.toLocaleString()} transactions — older lines aren&apos;t listed here yet.
+                {txnTrunc.total !== null ? (
+                  <>
+                    Showing the most recent {txns.length.toLocaleString()} of{" "}
+                    {txnTrunc.total.toLocaleString()} transactions — older lines aren&apos;t listed here yet.
+                  </>
+                ) : (
+                  <>
+                    Showing the most recent {txns.length.toLocaleString()} transactions — there may be older
+                    lines not listed here.
+                  </>
+                )}
               </p>
             )}
             {txns.length === 0 ? (

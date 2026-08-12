@@ -390,7 +390,15 @@ export default function AfterPitchPage() {
               <div className="mt-1 space-y-1.5">
                 <p className="text-[11px] text-brand">
                   {unnamed ? ctxLabel : session.clientLabel}
-                  {dur ? ` · ${dur} conversation` : unnamed ? "" : ` · ${ctxLabel}`}
+                  {/* Only call it a "conversation" when one was actually CAPTURED — real audio (an upload) or a
+                      transcript with signal. Otherwise `dur` is just the session's idle wall-clock open-time, and
+                      labelling that "Xm Ys conversation" contradicts the "No conversation was captured" body below
+                      (§3.4 — don't claim a conversation that wasn't captured). Founder screenshot 2026-08-13. */}
+                  {dur && (session.audioDurationSeconds || summary?.hasSignal)
+                    ? ` · ${dur} conversation`
+                    : unnamed
+                      ? ""
+                      : ` · ${ctxLabel}`}
                 </p>
                 {/* Spec 1b + founder image 5: name the pitch here, once the rep
                     knows what the call was. When still UNNAMED, this is a

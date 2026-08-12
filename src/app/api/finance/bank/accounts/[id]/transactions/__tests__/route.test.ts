@@ -24,6 +24,7 @@ function fakeSb(o: {
   rows?: Array<Record<string, unknown>> | null;
   error?: { message: string } | null;
   count?: number | null;
+  countError?: boolean;
 }) {
   const state = { fromCalls: 0 };
   const sb = {
@@ -43,7 +44,11 @@ function fakeSb(o: {
       chain.order = () => chain;
       chain.limit = () => chain;
       chain.then = (resolve: (v: unknown) => unknown) =>
-        resolve(isCount ? { count: o.count ?? null } : { data: o.rows ?? null, error: o.error ?? null });
+        resolve(
+          isCount
+            ? { count: o.countError ? null : (o.count ?? null), error: o.countError ? { message: "count boom" } : null }
+            : { data: o.rows ?? null, error: o.error ?? null },
+        );
       return chain;
     },
   };
@@ -86,6 +91,24 @@ describe("GET /finance/bank/accounts/[id]/transactions — honest truncation", (
     expect(body.transactions).toHaveLength(1000);
     // Two reads: the data page AND the head count.
     expect((sb as { _state: { fromCalls: number } })._state.fromCalls).toBe(2);
+  });
+
+  it("at the cap but the count read FAILS: still discloses truncation, with total=null (never silently re-hides)", async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ id: `t${i}`, amount: 1 }));
+    mock(fakeSb({ rows, countError: true }));
+    const body = await (await run()).json();
+    // §3.4: a full page with an unknown total is STILL truncated — reverting to complete would silently re-hide.
+    expect(body.truncated).toBe(true);
+    expect(body.total).toBeNull();
+    expect(body.transactions).toHaveLength(1000);
+  });
+
+  it("exactly at the cap (count === 1000): NOT truncated — the register holds exactly 1,000", async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ id: `t${i}`, amount: 1 }));
+    mock(fakeSb({ rows, count: 1000 }));
+    const body = await (await run()).json();
+    expect(body.truncated).toBe(false);
+    expect(body.total).toBe(1000);
   });
 
   it("a read error yields the honest empty shape (no leak)", async () => {

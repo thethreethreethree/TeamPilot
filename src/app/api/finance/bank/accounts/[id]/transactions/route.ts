@@ -24,14 +24,20 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .limit(PAGE_MAX);
   if (error) return NextResponse.json({ transactions: [] });
   const rows = data ?? [];
-  // Only pay for the exact count when the page is full (otherwise the returned rows ARE the total).
-  let total = rows.length;
-  if (rows.length >= PAGE_MAX) {
+  const pageFull = rows.length >= PAGE_MAX;
+  // Only pay for the exact count when the page is full (otherwise the returned rows ARE the total). If that count
+  // read FAILS, `total` is null — and we STILL disclose truncation (a full page means PostgREST capped it), just
+  // without the exact figure. Reverting to "complete" on a count hiccup would silently re-hide older lines — the
+  // §3.4 failure the whole disclosure exists to prevent.
+  let total: number | null = rows.length;
+  if (pageFull) {
     const { count } = await sb
       .from("fin_bank_transactions")
       .select("id", { count: "exact", head: true })
       .eq("bank_account_id", id);
-    if (typeof count === "number") total = count;
+    total = typeof count === "number" ? count : null;
   }
-  return NextResponse.json({ transactions: rows, total, truncated: total > rows.length });
+  // Truncated whenever the page is full AND (the count is unknown OR it exceeds what we returned). An exact count
+  // of PAGE_MAX means the register holds exactly 1000 — full page, not truncated.
+  return NextResponse.json({ transactions: rows, total, truncated: pageFull && (total === null || total > rows.length) });
 }
