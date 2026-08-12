@@ -9,6 +9,7 @@
   older lines" when null. Pinned by 6 route tests (incl. the count-failure + exactly-1000 edges), mutation-checked.
 
 ### F2 — after-pitch header stops calling an un-captured session a "conversation"
+- write-path: none (read-only header render). N/A.
 - read-path: the subtitle renders "· {dur} conversation" only when `session.audioDurationSeconds` (real uploaded
   audio) OR `summary?.hasSignal` (a captured transcript) is truthy; otherwise `dur` is just idle wall-clock and the
   header falls through to the context label — no "conversation" claim over a "No conversation was captured" body.

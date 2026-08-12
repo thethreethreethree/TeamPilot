@@ -5,7 +5,7 @@ started_at: 2026-08-13T10:00:00Z
 doc_hashes:
   CLAUDE.md: e08874ebce63f41eacdfbadcd46b0a6fa8f15fcb79edafde9a7af52e8ebe261f
   ThinkerThinker.md: 0428b0bb286433cc6d9925db2286127994b9d11d1c4df80de1256f0d3f53e8bc
-manifest_entries: 10
+manifest_entries: 11
 hypotheses: 2
 ---
 
@@ -60,6 +60,7 @@ load-bearing route logic IS tested.
   { "id": "§3.4", "read_at": "2026-08-13T10:01:15Z", "source_file": "CLAUDE.md", "line_range": "282-292", "why_it_governs": "THE rule for both — a surface must not claim completeness (F1) or a conversation (F2) that isn't real.", "how_this_build_will_embody_it": "F1 discloses truncation even on a count-failure; F2 drops the 'conversation' claim when nothing was captured." },
   { "id": "§6", "read_at": "2026-08-13T10:01:20Z", "source_file": "CLAUDE.md", "line_range": "352-395", "why_it_governs": "Checklist — confirm the common cases hold before shipping to live finance + the founder's incident surface.", "how_this_build_will_embody_it": "H1/H2 + the finance route tests." },
   { "id": "A19", "read_at": "2026-08-13T10:00:50Z", "source_file": "ThinkerThinker.md", "line_range": "453-468", "why_it_governs": "Consult each surface + its data source in-tree before changing it.", "how_this_build_will_embody_it": "Read the finance route/UI/test + conversationDuration.ts + the after-pitch subtitle/summary state in-tree." },
+  { "id": "A22", "read_at": "2026-08-13T10:01:30Z", "source_file": "ThinkerThinker.md", "line_range": "585-610", "why_it_governs": "Citations require in-session reads.", "how_this_build_will_embody_it": "Manifest reflects this build's reads; minimum set present." },
   { "id": "A30", "read_at": "2026-08-13T10:01:40Z", "source_file": "ThinkerThinker.md", "line_range": "768-775", "why_it_governs": "Gate the lesson where testable; be honest where not.", "how_this_build_will_embody_it": "F1: +2 route tests, mutation-checked. F2: React display — node-untestable (honest), a display-gate on an existing value." },
   { "id": "A38", "read_at": "2026-08-13T10:01:50Z", "source_file": "ThinkerThinker.md", "line_range": "999-1018", "why_it_governs": "'Verified' = the command + output.", "how_this_build_will_embody_it": "check/closure paste the full-gate output with its exit code." }
 ]
