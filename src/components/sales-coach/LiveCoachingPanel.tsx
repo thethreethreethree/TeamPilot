@@ -88,11 +88,15 @@ export function LiveCoachingPanel({
   //   'saved'    — audio safely in storage (audio_asset_url stamped)
   //   'failed'   — save didn't complete; audio may be lost, but don't trap the rep
   const [savingState, setSavingState] = useState<"pending" | "saving" | "saved" | "failed">("pending");
-  const persistStartedRef = useRef(false);
+  // Keyed on the BLOB IDENTITY (not a one-time latch) so a stop→restart→stop WITHIN one session persists the
+  // SECOND recording's audio too — a one-time latch would drop it (post-ship review, 2026-08-12). Behaviour-
+  // identical for the primary stop-once flow: recordingBlob keeps a stable identity until a new setRecordingBlob.
+  const persistedBlobRef = useRef<Blob | null>(null);
   const persistSettledRef = useRef(false);
   useEffect(() => {
-    if (!recordingBlob || live || persistStartedRef.current) return;
-    persistStartedRef.current = true;
+    if (!recordingBlob || live || persistedBlobRef.current === recordingBlob) return;
+    persistedBlobRef.current = recordingBlob;
+    persistSettledRef.current = false; // a fresh blob — its persist is in-flight again
     setSavingState("saving");
     let done = false;
     const settle = (s: "saved" | "failed") => {
@@ -120,11 +124,11 @@ export function LiveCoachingPanel({
   // Advance to naming / After-Pitch once the transcript saved AND the audio persist has SETTLED — so the
   // recording is safely in Storage before we navigate (founder chose "block with Saving recording…"). Fire
   // EXACTLY ONCE (onRecordingSaved is often an inline callback with a new identity each render). If there is no
-  // blob to persist (recorder unavailable), persistStartedRef stays false and we don't wait on it.
+  // blob to persist (recorder unavailable), persistedBlobRef stays null and we don't wait on it.
   const savedFiredRef = useRef(false);
   useEffect(() => {
     if (!transcriptSaved || savedFiredRef.current) return;
-    if (persistStartedRef.current && !persistSettledRef.current) return; // still saving the audio — wait
+    if (persistedBlobRef.current && !persistSettledRef.current) return; // still saving the audio — wait
     savedFiredRef.current = true;
     onRecordingSaved?.();
   }, [transcriptSaved, savingState, onRecordingSaved]);

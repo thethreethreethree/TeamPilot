@@ -27,11 +27,11 @@ indication). Founder-authorized approach (AskUserQuestion 2026-08-12: block + al
 ```
 
 ## Post-ship self-review (adversarial, 2026-08-12) — no critical bug; edge cases for the device-tested pass
-- **Stop→restart within one session** (Expert can restart): the persist latches once per session
-  (`persistStartedRef`), so a SECOND recording's audio wouldn't persist. The Standard incident flow is
-  stop-once (handled); the restart case is an Expert edge. Fix: key the persist on the blob identity
-  (`persistedBlobRef === recordingBlob`) instead of a one-time latch. Not changed in-context to avoid a rushed
-  core-flow edit; slated for the device-tested pass.
+- **Stop→restart within one session** (Expert can restart): the persist latched once per session, so a SECOND
+  recording's audio wouldn't persist. FIXED — the persist is now keyed on the blob IDENTITY
+  (`persistedBlobRef === recordingBlob`), so each distinct recording persists. Behaviour-identical for the
+  primary stop-once flow (recordingBlob keeps a stable identity until a new setRecordingBlob) — typecheck +
+  the full gate below pass.
 - **Block-race**: if `transcriptSaved` fires BEFORE the MediaRecorder blob is ready, `onRecordingSaved` can
   advance before the persist blocks. Low-harm: the audio still persists in the background, and the required
   naming gate (several seconds) masks the race in practice so the save almost always completes first. Harden
