@@ -28,11 +28,17 @@ function conv(status: string, resolvedAt: string | null): Conv {
 }
 
 function fakeSb(convs: Conv[]) {
+  // The route now pages the windowed conversations via fetchAllPaged (was a fixed .limit(5000)) — so the chain
+  // ends on .order().range(): page 0 returns the rows, page 1+ returns [] (a short page ends fetchAllPaged).
   return {
     from: () => ({
       select: () => ({
         eq: () => ({
-          gte: () => ({ limit: async () => ({ data: convs, error: null }) }),
+          gte: () => ({
+            order: () => ({
+              range: async (from: number) => ({ data: from > 0 ? [] : convs, error: null }),
+            }),
+          }),
         }),
       }),
     }),

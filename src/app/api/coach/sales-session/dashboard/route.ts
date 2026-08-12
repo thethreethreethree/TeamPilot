@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCueRelianceSeries } from "@/lib/data/salesCoach";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * GET /api/coach/sales-session/dashboard
@@ -22,10 +23,22 @@ export async function GET() {
   }
   const agentId = auth.user.id;
 
-  const { data: sessionsData, error: eSessions } = await supabase
-    .from("coaching_sessions")
-    .select("id, status, started_at")
-    .eq("agent_id", agentId);
+  // Paged (was an unbounded .select capped at 1000): sessionsTotal + the pipeline counts + cue-total are
+  // derived from this set in JS, so a rep past 1000 lifetime sessions had every dashboard stat silently capped
+  // (truncation-class fix, founder-authorized 2026-08-12). Stable uuid `id` order → range paging reads each row
+  // once. fetchAllPaged throws on a read error → the §3.4 fail-loud below (a failed read must not read as zero
+  // activity). (Residual: a rep past ~1000 SESSIONS makes the cue-count `.in(session_id, ids)` list itself a
+  // >1000 filter — the same rarer concern flagged on the KPI fix; a server-side aggregate is the fix there.)
+  const sessionsData = await fetchAllPaged<{ id: string; status: string; started_at: string }>(
+    (from, to) =>
+      supabase
+        .from("coaching_sessions")
+        .select("id, status, started_at")
+        .eq("agent_id", agentId)
+        .order("id")
+        .range(from, to),
+    { label: "dashboard sessions" },
+  ).catch(() => null);
   const sessions = sessionsData ?? [];
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -75,9 +88,9 @@ export async function GET() {
   // no activity. Return 500 so the sessions page (which sets stats only on res.ok,
   // and hides the stat cards when stats is null) shows nothing rather than a
   // misleading empty readout. Happy path unchanged (fires only on a real error).
-  if (eSessions || eReviews) {
+  if (sessionsData === null || eReviews) {
     return NextResponse.json(
-      { error: (eSessions ?? eReviews)!.message },
+      { error: "Couldn't load your dashboard right now — try again." },
       { status: 500 }
     );
   }

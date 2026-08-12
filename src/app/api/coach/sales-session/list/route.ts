@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   classifySession,
   extractSessionSignals,
@@ -111,16 +112,26 @@ export async function GET(req: Request) {
   // status is unavailable rather than asserting a false "nothing generated".
   let badgesAvailable = true;
   if (subjects.length > 0) {
-    const { data: events, error: eErr } = await admin
-      .from("events")
-      .select("kind, subject")
-      .in("kind", [
-        "coach.dissect_generated",
-        "coach.session_summary_generated",
-        "coach.sales_review_generated",
-      ])
-      .in("subject", subjects);
-    if (eErr) badgesAvailable = false;
+    // Paged (was unbounded, capped at 1000): with regeneration a session can have several badge events, so
+    // ~300 sessions × 3 kinds could cross 1000 rows and silently drop badges for the sessions past the cap
+    // (truncation-class fix, founder-authorized 2026-08-12). Order by the uuid `id` PK. On a read error →
+    // badgesAvailable=false (the existing §3.4 honest-unavailable state), never a false "nothing generated".
+    const events = await fetchAllPaged<{ kind: string; subject: string }>(
+      (from, to) =>
+        admin
+          .from("events")
+          .select("kind, subject, id")
+          .in("kind", [
+            "coach.dissect_generated",
+            "coach.session_summary_generated",
+            "coach.sales_review_generated",
+          ])
+          .in("subject", subjects)
+          .order("id")
+          .range(from, to),
+      { label: "list badge events" },
+    ).catch(() => null);
+    if (events === null) badgesAvailable = false;
     for (const e of events ?? []) {
       const sid = String(e.subject ?? "").replace("sales_session:", "");
       if (e.kind === "coach.dissect_generated") dissect.add(sid);
@@ -139,15 +150,24 @@ export async function GET(req: Request) {
   const pivotPayloadBySession = new Map<string, unknown>();
   const momentsPayloadBySession = new Map<string, unknown>();
   if (subjects.length > 0) {
-    const { data: sig } = await admin
-      .from("events")
-      .select("kind, subject, payload, created_at")
-      .in("kind", [
-        "coach.session_pivot_generated",
-        "coach.session_moments_generated",
-      ])
-      .in("subject", subjects)
-      .order("created_at", { ascending: false });
+    // Paged (was unbounded, capped at 1000). "Latest event per (session,kind) wins" needs the created_at-desc
+    // order PRESERVED across pages, so page by (created_at desc, id desc) — id is the stable tiebreaker that
+    // makes range paging deterministic when created_at ties. Order by `id` alone would break the latest-wins rule.
+    const sig = await fetchAllPaged<{ kind: string; subject: string; payload: unknown; created_at: string }>(
+      (from, to) =>
+        admin
+          .from("events")
+          .select("kind, subject, payload, created_at, id")
+          .in("kind", [
+            "coach.session_pivot_generated",
+            "coach.session_moments_generated",
+          ])
+          .in("subject", subjects)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      { label: "list signal events" },
+    ).catch(() => null);
     for (const e of sig ?? []) {
       const sid = String(e.subject ?? "").replace("sales_session:", "");
       if (e.kind === "coach.session_pivot_generated" && !pivotPayloadBySession.has(sid)) {

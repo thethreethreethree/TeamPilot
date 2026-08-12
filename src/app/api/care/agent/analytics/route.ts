@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * GET /api/care/agent/analytics
@@ -24,14 +25,29 @@ export async function GET() {
     Date.now() - windowDays * 24 * 60 * 60 * 1000
   ).toISOString();
 
-  // Defense-in-depth: explicit company_id filter at the route
-  // layer. RLS on support_conversations also enforces it.
-  const { data: convs } = await auth.sb
-    .from("support_conversations")
-    .select("status, resolved_at, first_message_at, first_response_at")
-    .eq("company_id", auth.companyId)
-    .gte("created_at", since)
-    .limit(5000);
+  // Defense-in-depth: explicit company_id filter at the route layer. RLS on support_conversations also enforces it.
+  // Paged (was a fixed .limit(5000) with NO disclosure): resolution-rate + first-response-time median/buckets are
+  // computed in JS over these rows, so a busy team with >5000 conversations in the window had those analytics
+  // silently truncated (truncation-class fix, founder-authorized 2026-08-12). The median/percentiles need every
+  // row, so this pages the full windowed set (stable uuid `id` order) rather than an exact-count. fetchAllPaged
+  // throws on a read error + its 200k backstop bounds an extreme window — the honest ceiling at which a
+  // server-side aggregate RPC (percentiles in SQL) becomes the right tool.
+  const convs = await fetchAllPaged<{
+    status: string;
+    resolved_at: string | null;
+    first_message_at: string | null;
+    first_response_at: string | null;
+  }>(
+    (from, to) =>
+      auth.sb
+        .from("support_conversations")
+        .select("id, status, resolved_at, first_message_at, first_response_at")
+        .eq("company_id", auth.companyId)
+        .gte("created_at", since)
+        .order("id")
+        .range(from, to),
+    { label: "CARE analytics conversations" },
+  ).catch(() => null);
 
   const all = convs ?? [];
   // Resolution rate must count conversations that were EVER resolved, not those

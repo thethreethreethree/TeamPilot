@@ -29,8 +29,19 @@ function fakeSb(o: {
     },
     from: (t: string) => {
       if (t === "coaching_sessions") {
+        // The route now pages the agent's sessions via fetchAllPaged (was an unbounded .select) — the chain
+        // ends on .order().range(): page 0 returns the rows (or throws via `error`), page 1+ returns [].
         return {
-          select: () => ({ eq: async () => ({ data: o.sessions ?? null, error: o.sessionsErr ?? null }) }),
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                range: async (from: number) => ({
+                  data: from > 0 ? [] : (o.sessions ?? null),
+                  error: o.sessionsErr ?? null,
+                }),
+              }),
+            }),
+          }),
         };
       }
       if (t === "coaching_cues") {
