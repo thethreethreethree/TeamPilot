@@ -1007,13 +1007,13 @@ if (mwFile) {
 // (read-only prod max-per-group counts) + tracked as the founder-gated "fix the false limits" / coach-KPI fix,
 // not gated here. See reference_unbounded_select_silent_truncation_1000cap.
 const FALSE_LIMIT_ALLOWLIST = new Map([
-  ["src/app/api/finance/bank/accounts/[id]/transactions/route.ts", "Known false bound (register shows newest <=1000 txns). DISPLAY truncation — real fix is a load-older register UI, not a silent swap. Tracked: 'fix the false limits'."],
   ["src/lib/data/care.ts", "Known false bound (voice-value readout durability read). Founder-gated (the c5fbd454 CARE readout KEEP/REVERT decision). Tracked: 'fix the false limits'."],
-  // REMOVED from this allowlist 2026-08-12 as their .limit(N>1000) was replaced by fetchAllPaged: care/agent/
-  // analytics (xr), coach/kpi/compute-cron (xv), admin/coach-readout ×3 + brain/learning-summary (xw). Keeping a
-  // fixed file allowlisted leaves a blind spot (a re-introduced false limit would be silently skipped) — the
-  // self-cleaning check below flags exactly that, so these routes are guarded like any other. Only the two above
-  // remain: the finance register (needs a UI) and care.ts (founder KEEP/REVERT) — both genuinely still-open.
+  // REMOVED from this allowlist 2026-08-12 as their >1000 false bound was resolved: care/agent/analytics (xr),
+  // coach/kpi/compute-cron (xv), admin/coach-readout ×3 + brain/learning-summary (xw) — all paged via
+  // fetchAllPaged; and the finance bank register (xx) — capped honestly at max_rows (1000) with a disclosed
+  // truncation + total count, so it is no longer a false >1000 bound. Keeping a fixed file allowlisted leaves a
+  // blind spot (a re-introduced false limit would be silently skipped) — the self-cleaning check below flags
+  // exactly that. Only care.ts remains (the founder KEEP/REVERT), so it is the sole genuine exception left.
 ]);
 const FALSE_LIMIT_RE = /\.limit\(\s*(\d+)\s*\)/g;
 for (const f of FILES) {

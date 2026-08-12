@@ -33,6 +33,9 @@ export default function BankingPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [txns, setTxns] = useState<Txn[]>([]);
+  // Honest-truncation disclosure (§3.4): the register shows the most recent 1,000 lines; if the account has more,
+  // say so rather than silently hiding older history. `total` is the exact count from the API's head-count.
+  const [txnTrunc, setTxnTrunc] = useState<{ truncated: boolean; total: number }>({ truncated: false, total: 0 });
   // per-unmatched-line: which account the clerk says this money was FOR (never a direction)
   const [entryAcct, setEntryAcct] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<string | null>(null);
@@ -60,10 +63,14 @@ export default function BankingPage() {
   const loadTxns = useCallback(async (bankId: string) => {
     const r = await fetch(`/api/finance/bank/accounts/${bankId}/transactions`).then((x) => x.json());
     setTxns(r.transactions ?? []);
+    setTxnTrunc({ truncated: !!r.truncated, total: typeof r.total === "number" ? r.total : 0 });
   }, []);
   useEffect(() => {
     if (sel) void loadTxns(sel);
-    else setTxns([]);
+    else {
+      setTxns([]);
+      setTxnTrunc({ truncated: false, total: 0 });
+    }
   }, [sel, loadTxns]);
 
   // Cash-like GL accounts to link (asset type; the 1000-range).
@@ -278,6 +285,12 @@ export default function BankingPage() {
                 </button>
               </div>
             </div>
+            {txnTrunc.truncated && (
+              <p className="text-[11px] text-amber-300/90 mb-2">
+                Showing the most recent {txns.length.toLocaleString()} of{" "}
+                {txnTrunc.total.toLocaleString()} transactions — older lines aren&apos;t listed here yet.
+              </p>
+            )}
             {txns.length === 0 ? (
               <p className="text-xs text-muted">No transactions imported yet. Import a CSV statement to start.</p>
             ) : (
