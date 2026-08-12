@@ -60,6 +60,50 @@ export function shouldForceReload(args: {
   return true;
 }
 
+/**
+ * Loop-guard READ: has this exact deployed commit already been auto-reloaded for? sessionStorage survives a
+ * reload, so after we reload for commit X we record X; if we come back STILL stale for X (the reload didn't take —
+ * persistent commit/env drift like the multi-Vercel-project skew) this returns true and we stop instead of looping.
+ * Storage absent OR access/read throws (private mode) → treat as ALREADY tried, i.e. DON'T auto-reload (safe: the
+ * manual banner still shows). Pure + injectable so the loop-prevention is unit-testable (the decision in
+ * shouldForceReload was already tested; this is the execution that feeds it).
+ */
+export function hasTriedCommit(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+  key: string,
+  live: string,
+): boolean {
+  if (!storage) return true;
+  try {
+    return storage.getItem(key) === live;
+  } catch {
+    return true;
+  }
+}
+
+/** Loop-guard WRITE: record that we auto-reloaded for this commit. Best-effort — no storage / a throw is a no-op. */
+export function markTriedCommit(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  key: string,
+  live: string,
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(key, live);
+  } catch {
+    /* best-effort; the caller's other guards already gated the reload */
+  }
+}
+
+/** sessionStorage that never throws on access (the property getter itself throws in some privacy modes). */
+function safeSessionStorage(): Storage | undefined {
+  try {
+    return typeof sessionStorage !== "undefined" ? sessionStorage : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function VersionWatcher() {
   const [stale, setStale] = useState(false);
   const [reloading, setReloading] = useState(false);
@@ -75,20 +119,12 @@ export function VersionWatcher() {
     // update the fresh bundle's BAKED === live → not stale → we never get here again. If we DO get here again for
     // the same live commit, the reload didn't take (persistent commit/env drift) → stop, don't loop. Storage
     // unavailable (private mode) → treat as already-tried so we DON'T auto-reload (safe: manual banner remains).
-    let alreadyTried: boolean;
-    try {
-      alreadyTried = sessionStorage.getItem(RELOAD_KEY) === live;
-    } catch {
-      alreadyTried = true;
-    }
+    const storage = safeSessionStorage();
+    const alreadyTried = hasTriedCommit(storage, RELOAD_KEY, live);
     if (!shouldForceReload({ baked: BAKED, live, alreadyTriedThisCommit: alreadyTried, recordingActive: isRecordingActive() })) {
       return; // held for a recording, already tried, or nothing to do — the banner (manual) stays
     }
-    try {
-      sessionStorage.setItem(RELOAD_KEY, live);
-    } catch {
-      /* best-effort; the recording/commit guards above already gated us */
-    }
+    markTriedCommit(storage, RELOAD_KEY, live);
     setReloading(true);
     // A short beat so the "Updating…" banner is visible and any in-flight tap settles.
     reloadTimerRef.current = window.setTimeout(() => {
