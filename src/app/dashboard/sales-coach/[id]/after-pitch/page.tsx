@@ -366,13 +366,18 @@ export default function AfterPitchPage() {
       <div className="mx-auto w-full max-w-md px-4 py-6 space-y-5">
         {/* Header */}
         <div className="space-y-2">
+          {/* Back-link (founder 2026-08-12, opt-a). In STANDARD the session detail page redirects ended
+              sessions straight back HERE, so a link to [id] just loops — send the rep to the Sessions list
+              instead (a real "back", role-aware: the tab shows the rep's history or the manager's team roster),
+              mirroring the [id]-page "Back to sessions" fix (19d4f356). In EXPERT [id] doesn't redirect, so
+              "Back to session" correctly returns to the full detail they came from. */}
           <Link
-            href={`/dashboard/sales-coach/${id}`}
+            href={isStandard ? "/dashboard/sales-coach/sessions" : `/dashboard/sales-coach/${id}`}
             className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary"
           >
             <LinkProgress />
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
-            Back to session
+            {isStandard ? "Back to sessions" : "Back to session"}
           </Link>
           <div className="text-center pt-1">
             <div className="flex items-center justify-center gap-2">
@@ -670,23 +675,30 @@ export default function AfterPitchPage() {
                 </p>
               )
             )}
-            <LearningHint
-              as="block"
-              category="Sales Coach · After Pitch"
-              title={isOwner ? "Replay conversation" : "Back to session"}
-              whatItIs="Returns you to the full session so you can re-read the exchange line by line."
-              why="A summary compresses; sometimes the fix is in an exact phrase. Going back to the source keeps your read honest instead of relying on the condensed version."
-              how="Use this when a moment in the breakdown or cue loop above needs the surrounding context to make sense."
-              principle="When the summary and your memory disagree, the transcript is the tiebreaker."
-            >
-              <Link
-                href={`/dashboard/sales-coach/${id}`}
-                className="block text-center text-xs text-secondary hover:text-primary py-1"
+            {/* This "Replay conversation" / "Back to session" link goes to [id] to re-read the full transcript.
+                In STANDARD that loops (the redirect sends ended sessions back to After-Pitch) AND is redundant —
+                the transcript is already inline on this page (the "Conversation transcript" recap) — so hide it in
+                Standard. In EXPERT [id] doesn't redirect, so it correctly opens the full session. (Founder opt-a
+                2026-08-12; the header back-link above is the real "back" for Standard.) */}
+            {!isStandard && (
+              <LearningHint
+                as="block"
+                category="Sales Coach · After Pitch"
+                title={isOwner ? "Replay conversation" : "Back to session"}
+                whatItIs="Returns you to the full session so you can re-read the exchange line by line."
+                why="A summary compresses; sometimes the fix is in an exact phrase. Going back to the source keeps your read honest instead of relying on the condensed version."
+                how="Use this when a moment in the breakdown or cue loop above needs the surrounding context to make sense."
+                principle="When the summary and your memory disagree, the transcript is the tiebreaker."
               >
-                <LinkProgress />
-                {isOwner ? "Replay conversation" : "Back to session"}
-              </Link>
-            </LearningHint>
+                <Link
+                  href={`/dashboard/sales-coach/${id}`}
+                  className="block text-center text-xs text-secondary hover:text-primary py-1"
+                >
+                  <LinkProgress />
+                  {isOwner ? "Replay conversation" : "Back to session"}
+                </Link>
+              </LearningHint>
+            )}
           </div>
         )}
 
