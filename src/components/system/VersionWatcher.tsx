@@ -227,7 +227,10 @@ export function VersionWatcher() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="rounded-md bg-[#09090B] text-ember-300 px-3 py-1 font-bold hover:bg-black transition-colors"
+        // Comfortable mobile tap target (founder 2026-08-13: agents are mobile-first, and this banner is the
+        // PRIMARY update path). min-h ~44px = the iOS/Android recommended touch size; touch-manipulation kills the
+        // 300ms tap delay; active: gives tap feedback since there's no hover on touch.
+        className="rounded-md bg-[#09090B] text-ember-300 px-4 py-2 min-h-[40px] text-[13px] font-bold shrink-0 hover:bg-black active:bg-black/80 transition-colors touch-manipulation"
       >
         Reload
       </button>
