@@ -39,13 +39,15 @@ describe("persistRecording", () => {
     ]);
     await persistRecording("sess1", blob);
 
+    const calls = fetchMock().mock.calls;
+    expect(calls).toHaveLength(2);
     // 1. signed the upload for this session
-    expect(fetchMock().mock.calls[0][0]).toContain("/api/coach/sales-session/sess1/upload-recording/sign");
+    expect(calls[0]?.[0]).toContain("/api/coach/sales-session/sess1/upload-recording/sign");
     // 2. PUT the bytes direct to storage with the minted path + token
     expect(uploadToSignedUrl).toHaveBeenCalledWith("co1/x/live.webm", "tok", blob);
     // 3. finalized with persistOnly (save the audio, skip transcription)
-    expect(fetchMock().mock.calls[1][0]).toContain("/api/coach/sales-session/sess1/upload-recording");
-    const finBody = JSON.parse(fetchMock().mock.calls[1][1].body as string);
+    expect(calls[1]?.[0]).toContain("/api/coach/sales-session/sess1/upload-recording");
+    const finBody = JSON.parse((calls[1]?.[1]?.body as string) ?? "{}");
     expect(finBody).toEqual({ storagePath: "co1/x/live.webm", persistOnly: true });
   });
 
