@@ -27,9 +27,12 @@
 > WHERE s.company_id = '<COMPANY_ID>' AND s.status IN ('ended','reviewed');
 > ```
 > `failed_captures / total_ended` = the failure rate (the cost). `lost` = sessions gone forever (only those from
-> BEFORE the xp fix — going forward the audio is always saved, so new failures land in `recoverable`). Want it
-> as an in-app manager number instead of a manual query? Say **"build the capture-cost dashboard"** (needs a
-> small server-side aggregate RPC to count correctly at scale).
+> BEFORE the xp fix — going forward the audio is always saved, so new failures land in `recoverable`).
+>
+> **✅ NOW IN-APP (build xq, `3137e98b`):** Settings → Coaching → **"Capture health"** → Check shows the same
+> numbers (Ended · Failed to capture · Recoverable · Lost) without running SQL — manager-only, read-only. It
+> counts in-app (correct at your scale, fails loud past the backstop); the SQL above stays valid at any scale,
+> and a server-side aggregate RPC is the clean fix if you ever outgrow the in-app count.
 
 ## ✅ RESOLVED — 2026-08-12: KPI Reliance-Reduction truncation FIXED (`46a83f68`, you authorized "Fix it now")
 
