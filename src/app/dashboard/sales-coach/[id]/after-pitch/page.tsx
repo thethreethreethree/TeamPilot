@@ -511,6 +511,10 @@ export default function AfterPitchPage() {
                 sessionId={id}
                 onLabeled={() => void generate()}
                 hasSavedRecording={!!session?.audioAssetUrl}
+                // Auto-recover (#2): if the audio was saved (live capture failed but the recording is safe),
+                // re-transcribe it automatically so the rep lands on the one-tap "which voice is you?" instead
+                // of having to tap "Re-transcribe" first.
+                autoRetranscribe={!!session?.audioAssetUrl}
               />
             </div>
             <button
@@ -1019,10 +1023,16 @@ function Narrative({
         {open && (
         <>
         {!narrative.hasSignal && (
+          // Short-call feedback (founder priority 2026-08-12: "as long as there's audio conversation there needs
+          // to be a system feedback"). This section only renders when the after-pitch HAS signal (scores /
+          // moments / cue loop all co-exist with a thin narrative — see afterPitch.ts hasSignal gate), so a thin
+          // narrative NEVER means "nothing to learn". Don't dead-end on "too short"; point to the real feedback
+          // that IS on this screen. A full authored read still needs a fuller pitch (§3.4 — don't fabricate one).
           <p className="text-xs text-secondary leading-relaxed">
-            This call was too short to read yet — your read builds from what you actually say on the
-            door. Run a full pitch (a few back-and-forth exchanges) and your strengths and next steps
-            will show up here.
+            This was a short exchange, so there isn&apos;t a full written read yet — but your scores
+            and your <span className="text-primary">Next Door Focus</span> below are built from what
+            happened on this call, so there&apos;s still something to work on. Run a fuller pitch and
+            your detailed strengths and next steps will fill in here too.
           </p>
         )}
         {narrative.strengths.length > 0 && (

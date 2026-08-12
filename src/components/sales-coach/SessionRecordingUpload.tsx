@@ -33,6 +33,7 @@ export function SessionRecordingUpload({
   onLabeled,
   initialBlob = null,
   hasSavedRecording = false,
+  autoRetranscribe = false,
 }: {
   sessionId: string;
   onLabeled: () => void;
@@ -44,6 +45,11 @@ export function SessionRecordingUpload({
    *  "Re-transcribe from the saved recording" so the rep doesn't have to re-find
    *  and re-upload a file the server already holds. */
   hasSavedRecording?: boolean;
+  /** Auto-recover (founder priority 2026-08-12 #2): when a live capture failed but the audio was persisted on
+   *  Stop, kick off the re-transcribe AUTOMATICALLY on mount so the rep lands directly on the one-tap "which
+   *  voice is you?" step instead of a manual "Re-transcribe" button. Fires once. Only the After-Pitch empty
+   *  state passes it (with hasSavedRecording), so it never auto-fires on the live session page. */
+  autoRetranscribe?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const labelingRef = useRef(false);
@@ -161,6 +167,17 @@ export function SessionRecordingUpload({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBlob]);
+
+  // Auto-recover (#2): re-transcribe the saved recording on mount so a failed live capture self-heals to the
+  // one-tap label step. Fires ONCE; only when explicitly enabled AND there's a saved recording to work from.
+  const autoRetranscribedRef = useRef(false);
+  useEffect(() => {
+    if (autoRetranscribe && hasSavedRecording && !autoRetranscribedRef.current) {
+      autoRetranscribedRef.current = true;
+      void retranscribe();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRetranscribe, hasSavedRecording]);
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
