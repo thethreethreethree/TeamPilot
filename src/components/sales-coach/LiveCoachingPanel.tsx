@@ -77,6 +77,27 @@ export function LiveCoachingPanel({
 
   const live = status === "live";
 
+  // Recording-active signal for the VersionWatcher's forced auto-update (founder 2026-08-13: force every client
+  // onto the latest build). A stale client MUST NOT be auto-reloaded mid-call — that would destroy the recording,
+  // the exact failure the capture fix prevents. While recording is live we flag it on <body> so the watcher holds
+  // its reload until the call ends (then it updates on the next safe check/resume). Cleared on stop/unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (live) {
+      document.body.dataset.recording = "1";
+    } else if (document.body.dataset.recording) {
+      // Recording just ended → clear the flag and tell the watcher it's now SAFE to apply a held update.
+      delete document.body.dataset.recording;
+      window.dispatchEvent(new Event("elostate:recording-ended"));
+    }
+    return () => {
+      if (typeof document !== "undefined" && document.body.dataset.recording) {
+        delete document.body.dataset.recording;
+        window.dispatchEvent(new Event("elostate:recording-ended"));
+      }
+    };
+  }, [live]);
+
   // ── "Never lose the audio" (founder priority 2026-08-12, first-client incident) ────────────────────────────
   // The instant recording stops, PERSIST the recorded audio to Storage — BEFORE anything navigates away — so a
   // call whose live STT captured nothing is always recoverable (previously the blob lived only in browser memory

@@ -106,6 +106,26 @@ export function useVoiceMode(args: {
 }) {
   const [voiceMode, setVoiceMode] = useState(false);
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
+
+  // Recording-active signal for the VersionWatcher's forced auto-update (founder 2026-08-13): a stale client must
+  // NOT be auto-reloaded during a live CARE voice call — that would drop the call. While voice mode is on we flag
+  // it on <body>; the watcher holds any update until the call ends (then applies it via 'elostate:recording-ended'
+  // or the next safe check). Same signal the sales-coach live panel uses; only one voice surface is active at once.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (voiceMode) {
+      document.body.dataset.recording = "1";
+    } else if (document.body.dataset.recording) {
+      delete document.body.dataset.recording;
+      window.dispatchEvent(new Event("elostate:recording-ended"));
+    }
+    return () => {
+      if (typeof document !== "undefined" && document.body.dataset.recording) {
+        delete document.body.dataset.recording;
+        window.dispatchEvent(new Event("elostate:recording-ended"));
+      }
+    };
+  }, [voiceMode]);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [permissionDeniedSteps, setPermissionDeniedSteps] = useState<
     string[] | null
