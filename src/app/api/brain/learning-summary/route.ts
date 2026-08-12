@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * GET /api/brain/learning-summary
@@ -109,14 +110,27 @@ export async function GET() {
     { count: chainPrior7, error: eChainP },
     { count: chainTotalAllTime, error: eChainTotal },
   ] = await Promise.all([
-    supabase
-      .from("events")
-      .select("kind, payload, occurred_at")
-      .eq("company_id", companyId)
-      .in("kind", coachKinds)
-      .gte("occurred_at", prior7Start)
-      .order("occurred_at", { ascending: false })
-      .limit(2000),
+    // Paged (was a fixed 2000-row cap → PostgREST returns <=1000, truncating the coach-event aggregation for a
+    // busy team past 1000 events in the ~14-day window). Order by the uuid `id` (stable, unique) — aggregateCoach
+    // filters by window + counts, so it is order-independent. Adapted to the {data,error} shape the Promise.all +
+    // §3.4 chainReadError combine expect; fetchAllPaged throws on a read error → mapped to `error`.
+    fetchAllPaged<{ kind: string; payload: unknown; occurred_at: string }>(
+      (from, to) =>
+        supabase
+          .from("events")
+          .select("kind, payload, occurred_at")
+          .eq("company_id", companyId)
+          .in("kind", coachKinds)
+          .gte("occurred_at", prior7Start)
+          .order("id")
+          .range(from, to),
+      { label: "learning-summary coach events" },
+    )
+      .then((data) => ({ data, error: null as Error | null }))
+      .catch((error: unknown) => ({
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      })),
     supabase
       .from("events")
       .select("id", { count: "exact", head: true })

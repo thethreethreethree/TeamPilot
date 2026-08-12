@@ -80,12 +80,12 @@
 > mechanical fixes — they are founder-gated subsystems, settled KEEP/REVERT decisions, or display-loaders needing
 > a UI. I am **holding** on all of them rather than overstep (§3.3 / A24). Your options, by group:
 >
-> 1. **KPI compute-cron agent-enumeration** (`coach/kpi/compute-cron/route.ts:69-73`) — the cron's *session* read
->    is already paged, but the read that ENUMERATES which agents to process still `.limit(5000)` (caps at 1000),
->    ordered by `agent_id`. On a company past 1000 total sessions it would see only the alphabetically-first
->    agents. **Low urgency:** the cron is DORMANT (no `CRON_SECRET` set) and carries an honest `bounded` flag. The
->    real fix pairs paging with agent-rotation across runs (a design choice), not just `fetchAllPaged`. Say
->    **"fix the KPI cron enumeration"** to have me design + propose it.
+> 1. ✅ **KPI compute-cron agent-enumeration — FIXED (build xv, `ea0d1284`).** The enumeration read is now paged
+>    (`fetchAllPaged`), so every distinct agent is seen before the deterministic first-BATCH_AGENTS slice — no
+>    agent dropped past 1000 sessions. Its FALSE_LIMIT_ALLOWLIST entry was removed (the xu self-cleaning check
+>    flagged it). **Still your call (a DESIGN decision, not a bug):** BATCH_AGENTS=100 with no cross-run rotation
+>    means agents past the first 100 never get a snapshot. Say **"add KPI agent rotation"** (a cursor across runs,
+>    or raise the batch) if/when you have >100 agents; the durable scale fix is a `SELECT DISTINCT agent_id` RPC.
 > 2. **CARE cohort/durability analytics** (`lib/data/care.ts` ×8 `.limit(5000)`) — this is the `c5fbd454`
 >    KEEP/REVERT territory already open below; several were swept in build xl. Folded into that existing decision.
 > 3. **Admin coach-readout** (×3 `.limit(2000)`) + **brain/learning-summary** (`.limit(2000)`) — founder-only /

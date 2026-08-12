@@ -5,7 +5,22 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { summarizeTopicDurability } from "@/lib/coach/readoutSummary";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { NextRequest } from "next/server";
+
+/** Page a windowed event read that was a fixed >1000-row cap (PostgREST truncates at max_rows=1000, so the
+ *  in-memory count was wrong past the cap), adapting fetchAllPaged's throw-on-error back to the {data,error}
+ *  shape this route's secondary-read §3.4 combine expects. Order-independent: every caller only counts. */
+async function pagedEventCount<T>(
+  makePage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<{ data: T[] | null; error: Error | null }> {
+  try {
+    return { data: await fetchAllPaged<T>(makePage, { label }), error: null };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
+}
 
 /**
  * GET /api/admin/coach-readout
@@ -308,12 +323,21 @@ export async function GET(req: NextRequest) {
   const stepWindowStart = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: stepEvents, error: eSteps } = await supabase
-    .from("events")
-    .select("kind, subject, created_at")
-    .in("kind", ["task.step_completed", "task.step_reopened"])
-    .gte("created_at", stepWindowStart)
-    .limit(2000);
+  const { data: stepEvents, error: eSteps } = await pagedEventCount<{
+    kind: string;
+    subject: string;
+    created_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("kind, subject, created_at")
+        .in("kind", ["task.step_completed", "task.step_reopened"])
+        .gte("created_at", stepWindowStart)
+        .order("id")
+        .range(from, to),
+    "coach-readout step events",
+  );
   let stepsCompleted30d = 0;
   let stepsReopened30d = 0;
   for (const e of stepEvents ?? []) {
@@ -338,12 +362,20 @@ export async function GET(req: NextRequest) {
   const last30 = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: gradeEvents, error: eGrade } = await supabase
-    .from("events")
-    .select("payload, created_at")
-    .eq("kind", "coach.message_graded")
-    .gte("created_at", last30)
-    .limit(2000);
+  const { data: gradeEvents, error: eGrade } = await pagedEventCount<{
+    payload: Record<string, unknown> | null;
+    created_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("payload, created_at")
+        .eq("kind", "coach.message_graded")
+        .gte("created_at", last30)
+        .order("id")
+        .range(from, to),
+    "coach-readout grade events",
+  );
   const gradeMix = { productive: 0, neutral: 0, needsGuidance: 0 };
   let gradeTotal = 0;
   for (const e of gradeEvents ?? []) {
@@ -367,12 +399,20 @@ export async function GET(req: NextRequest) {
   // Analyze patterns — top principles cited across the company in
   // the last 30 days. Surfaces what the Coach has been TEACHING,
   // not whether the team is accepting.
-  const { data: analyzeEvents, error: eAnalyze } = await supabase
-    .from("events")
-    .select("payload, created_at")
-    .eq("kind", "coach.analyze_returned")
-    .gte("created_at", last30)
-    .limit(2000);
+  const { data: analyzeEvents, error: eAnalyze } = await pagedEventCount<{
+    payload: Record<string, unknown> | null;
+    created_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("payload, created_at")
+        .eq("kind", "coach.analyze_returned")
+        .gte("created_at", last30)
+        .order("id")
+        .range(from, to),
+    "coach-readout analyze events",
+  );
   const principleAgg = new Map<
     string,
     {
