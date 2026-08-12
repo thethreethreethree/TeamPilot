@@ -129,6 +129,32 @@ export function LiveCoachingPanel({
     onRecordingSaved?.();
   }, [transcriptSaved, savingState, onRecordingSaved]);
 
+  // ── In-call dead-feed DETECTION (founder priority 2026-08-12 #2, proactive half) ────────────────────────────
+  // If the live session has been recording for a while and NOTHING has been transcribed at all (no committed
+  // turns, no partial), the live STT feed is almost certainly dead (service down / token / mic) — the exact
+  // "constantly failing to record" incident. Warn the rep DURING the call so they know NOW (and that the audio
+  // is still being recorded, so it's recoverable), instead of discovering an empty transcript at After-Pitch.
+  // Kept at the COMPONENT level (observing the hook's already-exposed turns/partial via refs) so it does NOT
+  // touch the core capture/message-handling — additive, low-risk. Refs read the live values inside the timer.
+  const turnsCountRef = useRef(0);
+  turnsCountRef.current = turns.length;
+  const partialRef = useRef("");
+  partialRef.current = partial;
+  const [captureStalled, setCaptureStalled] = useState(false);
+  useEffect(() => {
+    if (!live) {
+      setCaptureStalled(false);
+      return;
+    }
+    // 30s live with zero transcription is well past a normal walk-up silence, but not so long the rep loses a
+    // big chunk of the call before being told. A soft warning: if the feed then recovers, it clears on the next
+    // live start; it never blocks recording.
+    const timer = setTimeout(() => {
+      if (turnsCountRef.current === 0 && !partialRef.current) setCaptureStalled(true);
+    }, 30_000);
+    return () => clearTimeout(timer);
+  }, [live]);
+
   // Build 5 — earpiece tap control (§3.3, rep-controlled). A tap → coach me;
   // triple-tap → quiet toggle. Device-dependent + unverifiable (§3.4).
   const toggleQuiet = useCallback(
@@ -337,6 +363,19 @@ export function LiveCoachingPanel({
                 ? ` (${new Date(observeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })})`
                 : ""}
               . You can still tap for help any time.
+            </p>
+          </div>
+        )}
+        {/* In-call dead-feed warning (#2, proactive): the live feed has produced NOTHING ~30s in — tell the rep
+            NOW, and that the recording still survives, so a dead STT feed isn't discovered only at After-Pitch. */}
+        {live && captureStalled && (
+          <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/[0.08] p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+            <p className="text-xs text-secondary leading-relaxed">
+              <strong className="text-amber-300">Not picking up the conversation.</strong> The live
+              transcription isn&apos;t receiving any audio — check your mic permission and that your earpiece
+              is connected. Your call is still being recorded, so you can recover the review afterward even if
+              this doesn&apos;t clear.
             </p>
           </div>
         )}
