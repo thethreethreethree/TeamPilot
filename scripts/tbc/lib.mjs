@@ -100,10 +100,45 @@ export function currentBuildDir() {
     return exists(p) ? p : null;
   }
   if (!exists(TBC_DIR)) return null;
-  const dirs = readdirSync(TBC_DIR)
-    .filter((d) => statSync(join(TBC_DIR, d)).isDirectory())
-    .sort();
-  return dirs.length ? join(TBC_DIR, dirs[dirs.length - 1]) : null;
+  const dirs = readdirSync(TBC_DIR).filter((d) =>
+    statSync(join(TBC_DIR, d)).isDirectory(),
+  );
+  if (!dirs.length) return null;
+  // Pick the most-recently-STARTED build by its think.md `started_at`, NOT the lexicographically-last NAME.
+  // The name sort silently skips a newer dir whose name sorts earlier on the same day — e.g. "display-honesty" <
+  // "forced-client-update" on 2026-08-13 meant the gate validated the wrong build and shipped an UNVALIDATED
+  // record (found 2026-08-13; reference_tbc_build_dir_lexicographic_sort). `started_at` is an ISO instant, so it
+  // orders builds by real time. Fallback: a dir without a parseable started_at keys on its name and can only win
+  // if NO dir has a started_at (the "1:" prefix makes any real timestamp beat a name), so a malformed dir can't
+  // hijack the selection away from a real build.
+  const entries = dirs.map((d) => {
+    let started = "";
+    try {
+      const fm = frontMatter(read(join(TBC_DIR, d, "think.md")));
+      started = fm && typeof fm.started_at === "string" ? fm.started_at.trim() : "";
+    } catch {
+      /* no/unreadable think.md → fall back to the dir name */
+    }
+    return { name: d, started };
+  });
+  const name = pickLatestBuildName(entries);
+  return name ? join(TBC_DIR, name) : null;
+}
+
+/**
+ * Pure selection: from `[{ name, started }]` return the name of the most-recently-STARTED build. Extracted +
+ * exported so the regression (a newer dir whose NAME sorts earlier on the same day) is a tested unit, not a
+ * blind spot. `started` (an ISO instant) orders builds by real time; a dir without one keys on its name and can
+ * only win if NO dir has a started_at (the "1:" prefix makes any timestamp beat a bare name).
+ */
+export function pickLatestBuildName(entries) {
+  if (!entries.length) return null;
+  const keyed = entries.map((e) => ({
+    name: e.name,
+    sortKey: e.started ? `1:${e.started}` : `0:${e.name}`,
+  }));
+  keyed.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  return keyed[keyed.length - 1].name;
 }
 
 /**
