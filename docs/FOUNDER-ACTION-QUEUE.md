@@ -22,6 +22,11 @@ All three shipped, gate-green, and confirmed on `elostate.com` (`/api/health` bu
 - **B. Corpus trade-off (only if A still fails)** — for a corpus so huge it starves even at the 8192 model ceiling,
   pick: auto-trim your methodology/product corpus so a (slightly less-grounded) read ALWAYS generates, or keep
   failing loud so you trim it yourself. Say **"auto-trim the corpus"** or **"keep it fail-loud"**.
+  *Sizing (measured 2026-08-13):* the fixed prompt template is tiny (~858 tokens), so the read can absorb a total
+  prompt of ROUGHLY ~24k tokens (~60 pages of methodology + product corpora + transcript) before starving at the
+  8000 clamp — a rough extrapolation from one data point (9k prompt → 2620 reasoning), but even pessimistically
+  it's tens of pages. A realistic methodology corpus is far smaller, so **B is very unlikely to be needed** — the
+  7000/8000 fix should cover any real corpus. Only revisit if A actually still blanks.
 - **C. Self-service read diagnostic (proposal)** — you've had to screenshot + ask me to diagnose read failures
   twice. I can add a founder/admin "read generation health" probe (like the existing Capture-health + Voice-health
   cards) so you see *why* a read failed (starvation / provider / parse) without server logs. Say **"add read
