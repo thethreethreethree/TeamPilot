@@ -34,6 +34,41 @@
 > counts in-app (correct at your scale, fails loud past the backstop); the SQL above stays valid at any scale,
 > and a server-side aggregate RPC is the clean fix if you ever outgrow the in-app count.
 
+## ✅ RESOLVED — 2026-08-12: the truncation class you authorized ("Fix them all") is COMPLETE + hardened (`760cc644`, `aae87850`)
+
+> You chose **"Fix them all (keep everything)"**. All three surfaced instances now page via `fetchAllPaged`,
+> shipped + deployed green:
+> - **rep dashboard** (`sales-session/dashboard`) — sessions read paged; also genericized its raw-error 500 (CWE-209).
+> - **CARE agent analytics** (`care/agent/analytics`) — dropped the silent `.limit(5000)`; resolution-rate + FRT now see every row.
+> - **sales-session list** — badge events paged; signal events paged on `(created_at desc, id desc)` to preserve latest-per-session-wins.
+> - **hardening:** added 4 detection tests on the list route (the subtlest fix); mutation-checked that regressing
+>   the signal order to `.order("id")` fails the guard. Full gate green, Tests 2744 passed.
+>
+> ### 🟢 Remaining false-limit sites (a broader sweep — NONE is a clean autofix; each needs your call or a migration)
+> A `grep .limit(N>1000)` sweep confirms the class is bigger than the three you authorized. The rest are **NOT**
+> mechanical fixes — they are founder-gated subsystems, settled KEEP/REVERT decisions, or display-loaders needing
+> a UI. I am **holding** on all of them rather than overstep (§3.3 / A24). Your options, by group:
+>
+> 1. **KPI compute-cron agent-enumeration** (`coach/kpi/compute-cron/route.ts:69-73`) — the cron's *session* read
+>    is already paged, but the read that ENUMERATES which agents to process still `.limit(5000)` (caps at 1000),
+>    ordered by `agent_id`. On a company past 1000 total sessions it would see only the alphabetically-first
+>    agents. **Low urgency:** the cron is DORMANT (no `CRON_SECRET` set) and carries an honest `bounded` flag. The
+>    real fix pairs paging with agent-rotation across runs (a design choice), not just `fetchAllPaged`. Say
+>    **"fix the KPI cron enumeration"** to have me design + propose it.
+> 2. **CARE cohort/durability analytics** (`lib/data/care.ts` ×8 `.limit(5000)`) — this is the `c5fbd454`
+>    KEEP/REVERT territory already open below; several were swept in build xl. Folded into that existing decision.
+> 3. **Admin coach-readout** (×3 `.limit(2000)`) + **brain/learning-summary** (`.limit(2000)`) — founder-only /
+>    internal diagnostics; low blast radius. Fixable but low value.
+> 4. **finance bank register** (`finance/bank/accounts/[id]/transactions:17` `.limit(2000)`) — this is a
+>    **display** truncation (a busy account shows only the first 1000 txns), not a wrong aggregate. Needs a
+>    load-older / paginated register UI, not a silent swap.
+> 5. **message-thread loaders** (chats / care / decisions / tasks) — the separate pagination class; needs a
+>    load-older UI. Already queued as "paginate the message threads".
+>
+> **My recommendation:** the authorized class is done; of the rest, only #1 (dormant, low-urgency) and #4 (real
+> but display, needs UI) are worth a near-term decision. #2/#5 are already-open decisions; #3 is low value. Tell
+> me which, if any, to pick up — I'm not touching founder-gated subsystems without your word.
+
 ## ✅ RESOLVED — 2026-08-12: KPI Reliance-Reduction truncation FIXED (`46a83f68`, you authorized "Fix it now")
 
 > The HIGH finding below is now fixed + shipped: all seven usage-growth reads in kpi/me + kpi/team page via
