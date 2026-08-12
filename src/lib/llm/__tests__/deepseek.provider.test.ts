@@ -3,6 +3,7 @@ import {
   deepseekProvider,
   withReasoningHeadroom,
   REASONING_HEADROOM_TOKENS,
+  MAX_TOTAL_TOKENS,
 } from "../deepseek";
 import { LlmError } from "../errors";
 import { shouldCascade } from "../index";
@@ -158,5 +159,17 @@ describe("reasoning-token headroom (blank-output outage guard)", () => {
     expect(withReasoningHeadroom(undefined)).toBeGreaterThan(
       OBSERVED_COMPLEX_REASONING_MAX
     );
+  });
+
+  it("clamps the TOTAL max_tokens to the model ceiling — a large budget + headroom can't 400 the call", () => {
+    // The raised headroom (7000) + a big answer budget (dissect 1100, review 1500) would exceed the model's
+    // 8192 output limit without the clamp — which would 400 EVERY deepseek call. Lock that the total never
+    // exceeds MAX_TOTAL_TOKENS, and that MAX_TOTAL_TOKENS stays safely under the known 8192 model limit.
+    expect(withReasoningHeadroom(1500)).toBe(MAX_TOTAL_TOKENS); // 1500 + 7000 = 8500 → clamped
+    expect(withReasoningHeadroom(1100)).toBe(MAX_TOTAL_TOKENS); // 1100 + 7000 = 8100 → clamped
+    expect(withReasoningHeadroom(9999)).toBe(MAX_TOTAL_TOKENS); // never above the ceiling
+    expect(MAX_TOTAL_TOKENS).toBeLessThanOrEqual(8192);
+    // A small live-engine budget is BELOW the clamp — it still gets the full headroom (not truncated to 8000).
+    expect(withReasoningHeadroom(160)).toBe(160 + REASONING_HEADROOM_TOKENS);
   });
 });

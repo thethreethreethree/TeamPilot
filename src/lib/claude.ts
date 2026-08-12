@@ -525,11 +525,12 @@ export async function dissectCoachV5(args: {
   return call({
     companyId: args.companyId,
     expectJson: true,
-    // maxTokens is the ANSWER budget only. The reasoning overhead of deepseek-v4-flash (a reasoning model,
-    // ~1300–2620 tokens on the large review prompts) is added on TOP by the provider's REASONING_HEADROOM_TOKENS
-    // (deepseek.ts), so the deep dissect gets 1100 + 3500 = 4600 total — ample for reasoning + the full dissect
-    // JSON. (The 2026-07-30 blank-"Your read" outage was reasoning starving too-tight budgets; the fix lives at
-    // the provider chokepoint so it covers EVERY engine, not just this one — see reference_reasoning_model_token_starvation.)
+    // maxTokens is the ANSWER budget only. The reasoning overhead of the deepseek reasoning model is added on TOP
+    // by the provider's REASONING_HEADROOM_TOKENS (deepseek.ts), clamped to MAX_TOTAL_TOKENS. After the 2026-08-13
+    // first-client incident (blank "Your read" on a real call — a bigger custom corpus starved even the 3500
+    // headroom), the headroom is 7000 clamped to 8000, so the deep dissect gets 1100 → clamped to 8000 total —
+    // ~6900 reasoning room + the answer. (The 2026-07-30 blank-"Your read" outage was the same class; the fix
+    // lives at the provider chokepoint so it covers EVERY engine — see reference_reasoning_model_token_starvation.)
     maxTokens: 1100,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,

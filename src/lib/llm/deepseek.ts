@@ -96,12 +96,22 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * ~9k-token prompt. It's a CEILING: costs nothing on calls that finish naturally, only rescues ones that
  * would have truncated; short engines (attribution=16) are unaffected. Anthropic (non-reasoning) needs none.
  */
-export const REASONING_HEADROOM_TOKENS = 3500;
+// Raised 3500 → 7000 (founder incident 2026-08-13): a first-client rep's "Your read" went blank on a real 4–5
+// min call — the after-pitch AUTO-HEAL already re-ran the dissect and it STILL came back empty, i.e. PERSISTENT,
+// which is the starvation signature on a prompt LARGER than the ~9k-token calibration (a bigger custom
+// methodology corpus + product knowledge + the full transcript → reasoning scales past 3500). 7000 covers a
+// prompt ~2.6× the calibration. It stays a CEILING (costs nothing on calls that finish naturally).
+export const REASONING_HEADROOM_TOKENS = 7000;
+// Hard ceiling on the TOTAL max_tokens we ever send, so a large answer budget + the raised headroom can't exceed
+// the model's output limit (deepseek-v4 = 8192) and 400 EVERY call. 8000 leaves margin under 8192; the current
+// confirmed-working total was 5000, so 8000 is safely within the model's range. The big engines (dissect 1100,
+// review 1500) clamp to 8000 (≈6900/6500 reasoning room); the tiny live engines are far below the clamp.
+export const MAX_TOTAL_TOKENS = 8000;
 // Exported for the regression guard (deepseek.provider.test.ts): the outage happened because a PRIOR value
 // (256) looked adequate but was calibrated on trivial tasks. The test pins a floor so a future edit can't
-// silently drop it below what complex-task reasoning (750–1250 tokens, measured) needs.
+// silently drop it below what complex-task reasoning needs.
 export function withReasoningHeadroom(maxTokens: number | undefined): number {
-  return (maxTokens ?? 900) + REASONING_HEADROOM_TOKENS;
+  return Math.min((maxTokens ?? 900) + REASONING_HEADROOM_TOKENS, MAX_TOTAL_TOKENS);
 }
 
 export const deepseekProvider: Provider = {
@@ -165,14 +175,19 @@ export const deepseekProvider: Provider = {
         };
       };
       const text = json.choices?.[0]?.message?.content ?? "";
-      // Visibility for the reasoning-starvation class — never let it go silent again. If the model returned
-      // NO content because it hit the token ceiling (reasoning consumed the whole budget), say so LOUDLY.
-      // Callers treat empty text as "no signal", so without this the failure is invisible — exactly how the
-      // 2026-07-30 dissect outage hid for two weeks.
-      if (!text.trim() && json.choices?.[0]?.finish_reason === "length") {
+      const finishReason = json.choices?.[0]?.finish_reason;
+      // Visibility for the reasoning-starvation class — never let it go silent again. If the model hit the token
+      // ceiling (reasoning consumed the budget), say so LOUDLY. Callers treat empty/unparseable text as "no
+      // signal", so without this the failure is invisible — exactly how the 2026-07-30 dissect outage hid for two
+      // weeks. Fires on BOTH shapes: EMPTY content (reasoning ate everything) AND a TRUNCATED answer (reasoning
+      // ate most, a partial answer emitted then cut — which then fails JSON parse as a vague "no signal"). The
+      // completion_tokens tells us how much headroom the real prompt actually needs (to size a fix precisely).
+      if (finishReason === "length") {
         // eslint-disable-next-line no-console
         console.error(
-          `[deepseek] EMPTY content with finish_reason:"length" (model=${model}, completion_tokens=${json.usage?.completion_tokens}) — the token budget was consumed by reasoning before any answer was emitted. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS.`
+          `[deepseek] finish_reason:"length" — ${
+            text.trim() ? `TRUNCATED answer (${text.length} chars, likely fails JSON parse)` : "EMPTY content"
+          } (model=${model}, prompt_tokens=${json.usage?.prompt_tokens}, completion_tokens=${json.usage?.completion_tokens}, budget=${withReasoningHeadroom(args.maxTokens)}) — reasoning consumed the token budget. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS above completion_tokens.`
         );
       }
       const u = json.usage;
