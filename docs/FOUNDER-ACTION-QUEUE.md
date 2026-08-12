@@ -1,5 +1,34 @@
 # Founder action queue
 
+## 🟩 2026-08-13 — THREE first-client incidents FIXED + deployed (verified live on elostate.com); your open items
+
+All three shipped, gate-green, and confirmed on `elostate.com` (`/api/health` build.commit = HEAD). Details in
+`docs/tbc/2026-08-13-*`.
+
+1. **Blank "Your read"** (agent screenshot: scores generated, read empty on a 4-5 min call) — the DeepSeek
+   reasoning model starved the read's token budget on your client's larger custom corpus. FIXED: headroom
+   3500→7000 + an 8000 clamp (can't exceed the model's 8192 limit) + the after-pitch no longer falsely calls a
+   real call a "short exchange". `53192455`.
+2. **Clients stuck on old builds** — FIXED: the app now auto-updates on reopen/revisit (not just a banner),
+   guarded so it never interrupts a live call and never loops. `e6f17db3`/`24efc1ad`.
+3. **Capture (empty transcript)** — the persist + honest recovery are shipped; the ROOT is your **ElevenLabs
+   STT-scope env fix** (below/2026-08-12). Your last screenshot's scores show the transcript DID capture, so this
+   may already be working for you.
+
+### YOUR decisions (I did NOT act on these — they're yours):
+- **A. Confirm the read** — have the agent run another call (or reopen that session to rebuild); the read should
+  fill in. If it STILL blanks, send me the `[deepseek] finish_reason:"length" … completion_tokens=N` server log
+  line (or say **"the read still fails"**) and I size the exact next step.
+- **B. Corpus trade-off (only if A still fails)** — for a corpus so huge it starves even at the 8192 model ceiling,
+  pick: auto-trim your methodology/product corpus so a (slightly less-grounded) read ALWAYS generates, or keep
+  failing loud so you trim it yourself. Say **"auto-trim the corpus"** or **"keep it fail-loud"**.
+- **C. Self-service read diagnostic (proposal)** — you've had to screenshot + ask me to diagnose read failures
+  twice. I can add a founder/admin "read generation health" probe (like the existing Capture-health + Voice-health
+  cards) so you see *why* a read failed (starvation / provider / parse) without server logs. Say **"add read
+  health"** to have me build it. (Not built unprompted — it's a new surface, your call.)
+- **D. Wording** — the empty-read copy now honestly says "the full written read isn't ready yet" instead of "short
+  exchange". Say **"lower it further"** if you want it softer, else it stays.
+
 ## 🔴 CAPTURE INCIDENT (first client) — ROOT CAUSE + COST QUERY — 2026-08-12
 
 > **Reason the live sessions kept failing (two compounding causes):**
