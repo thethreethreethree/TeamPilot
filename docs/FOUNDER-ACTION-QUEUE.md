@@ -48,9 +48,15 @@ a broken deploy right now is worse than vulns that require an *attacker* (your p
 controlled window: a branch, `npm i next@16.3.0`, full gate, **a Vercel PREVIEW deploy verified green**, and
 revert-ready — not a mid-incident unilateral push.
 
+**Mitigating factor (verified 2026-08-13):** the app has DEFENSE-IN-DEPTH — `npm run verify:live` confirms RLS
+is behaviorally enforced on prod (anon reads 0 from populated tenant tables, 26/26 invariants). So even a Next.js
+middleware/proxy bypass or an unauthenticated endpoint hit still faces DB-level tenant isolation — the first
+client's transcript data is NOT one bug away from exposure. This is why the urgency is moderate, not critical:
+a small pilot (low attacker interest) + RLS backstop. Still worth fixing, just not an emergency.
+
 **Your call:** say **"upgrade Next.js"** and I'll do it on a branch + run the full gate so you can verify the
-Vercel preview before merging, OR **"hold the upgrade"** to schedule it post-incident. Not urgent (needs active
-exploitation), but shouldn't sit indefinitely.
+Vercel preview before merging, OR **"hold the upgrade"** to schedule it post-incident. Not urgent (moderate risk,
+RLS-backstopped), but shouldn't sit indefinitely.
 
 ## 🔴 CAPTURE INCIDENT (first client) — ROOT CAUSE + COST QUERY — 2026-08-12
 
