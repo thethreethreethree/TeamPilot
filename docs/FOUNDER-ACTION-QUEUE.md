@@ -92,12 +92,13 @@
 >
 > **After xv + xw, the `.limit(N>1000)` false-limit class is DONE except two genuinely-gated sites — these need
 > YOUR decision, not a mechanical fix, so I'm holding:**
-> 3. **finance bank register** (`finance/bank/accounts/[id]/transactions:17` `.limit(2000)`) — a **display**
->    truncation (a busy account shows only ~1000 txns), on LIVE finance. Real fix is a load-older / paginated
->    register UI — a UX decision (load-more button vs infinite scroll vs date-range filter). Say **"paginate the
->    finance register"** + your preferred shape, or **"just disclose the cap"** for the minimal honest-truncation
->    notice (like assetReadout's `bounded` flag) as a stopgap.
+> 3. ✅ **finance bank register — DISCLOSURE shipped (build xx, `bbb41bab`).** Capped honestly at max_rows(1000)
+>    + head-count total + a UI notice ("Showing the most recent 1,000 of N transactions — older lines aren't
+>    listed here yet"). The rows shown are unchanged; the hidden history is now visible instead of silent. **Still
+>    your call:** actually RETRIEVING older lines needs a load-older / paginated register UI — say **"paginate the
+>    finance register"** + your preferred shape (load-more button vs infinite scroll vs date-range filter).
 > 4. **CARE cohort/durability** (`lib/data/care.ts` `.limit(5000)`) — the `c5fbd454` KEEP/REVERT decision below.
+>    **This is now the SOLE remaining `.limit(N>1000)` false-limit** — every other site is fixed.
 > 5. **message-thread loaders** (chats / care / decisions / tasks) — the separate pagination class; needs a
 >    load-older UI. Already queued as "paginate the message threads".
 > 6. **Lower-severity (NOT false bounds):** brain's decisionEvents `.limit(1000)` + topicRows `.limit(500)` are
