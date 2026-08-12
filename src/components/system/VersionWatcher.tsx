@@ -107,13 +107,15 @@ export function VersionWatcher() {
   //   SECONDARY — on a REOPEN/REVISIT (the app was hidden, then made visible again — the exact iOS-PWA-resume
   //               moment): if they didn't hit Reload, apply the update automatically.
   const check = useCallback(
-    async (autoReload: boolean) => {
+    async (autoReload: boolean, bypassThrottle = false) => {
       // No baked commit (local/off-Vercel) → nothing to compare against; stay silent.
       if (!BAKED) return;
       if (checkingRef.current) return;
-      // Throttle: at most once per 30s regardless of visibility churn.
+      // Throttle background/focus churn to at most once per 30s — but a GENUINE reopen/revisit bypasses it, so the
+      // secondary auto-update reliably fires on reopen even if the last check was <30s ago (otherwise a quick
+      // background→return would be throttled and the update would silently not apply — the founder's exact goal).
       const now = Date.now();
-      if (now - lastCheckRef.current < 30_000) return;
+      if (!bypassThrottle && now - lastCheckRef.current < 30_000) return;
       lastCheckRef.current = now;
       checkingRef.current = true;
       try {
@@ -144,10 +146,11 @@ export function VersionWatcher() {
         wasHidden.current = true;
         return;
       }
-      // Became visible. A true REOPEN/REVISIT is visible-after-hidden — apply the secondary auto-update there.
+      // Became visible. A true REOPEN/REVISIT is visible-after-hidden — apply the secondary auto-update there,
+      // bypassing the throttle so a quick return still checks fresh + updates.
       const revisited = wasHidden.current;
       wasHidden.current = false;
-      void check(revisited);
+      void check(revisited, revisited);
     };
     // A recording that was holding a revisit-triggered update has ended → apply it now.
     const onRecordingEnded = () => scheduleReload();
