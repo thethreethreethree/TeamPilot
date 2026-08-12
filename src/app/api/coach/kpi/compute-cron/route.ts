@@ -65,18 +65,30 @@ export async function GET(req: NextRequest) {
   const monthKey = monthKeyUtc(new Date());
   const periods = [PERIOD, monthKey];
 
-  // Agents who have at least one session (a bounded batch of distinct agent_ids).
-  const { data: agentRows, error } = await admin
-    .from("coaching_sessions")
-    .select("company_id, agent_id")
-    .order("agent_id", { ascending: true })
-    .limit(5000);
-  if (error) {
+  // Distinct agents with >=1 session. PAGED (was a fixed 5000-row cap → PostgREST returned <=1000, so a company
+  // past 1000 sessions had agents whose sessions sort LATE dropped from the batch entirely — and this bites even
+  // with far fewer than BATCH_AGENTS agents: heavy per-agent session counts (e.g. 100 agents × 11 sessions =
+  // 1100 rows) push the 100th agent past the 1000-row cutoff, so it silently never gets a KPI snapshot. Page by
+  // the uuid `id` (stable unique key) to enumerate EVERY distinct agent, then take the first BATCH_AGENTS by a
+  // deterministic agent_id sort — same batch semantics as before, minus the truncation. (Durable fix if this
+  // grows costly: a `SELECT DISTINCT agent_id` RPC — fetches nothing but the agent list. Tracked for when live.)
+  let agentRows;
+  try {
+    agentRows = await fetchAllPaged<{ company_id: string; agent_id: string }>(
+      (from, to) =>
+        admin
+          .from("coaching_sessions")
+          .select("company_id, agent_id")
+          .order("id")
+          .range(from, to),
+      { label: "cron KPI agent enumeration" },
+    );
+  } catch {
     return NextResponse.json({ computed: 0, note: "no coaching_sessions or read error" });
   }
   const agentToCompany = new Map<string, string>();
-  for (const r of agentRows ?? []) agentToCompany.set(r.agent_id as string, r.company_id as string);
-  const agents = [...agentToCompany.keys()].slice(0, BATCH_AGENTS);
+  for (const r of agentRows) agentToCompany.set(r.agent_id, r.company_id);
+  const agents = [...agentToCompany.keys()].sort().slice(0, BATCH_AGENTS);
 
   // Batch the whole batch's sessions in ONE read, grouped by agent in memory — avoids an N+1 (a
   // separate coaching_sessions query per agent), mirroring how the /team rollup reads its team. The

@@ -43,7 +43,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: () => {
         const chain: Record<string, unknown> = {};
-        chain.select = () => chain;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
         chain.order = () => chain;
         chain.range = () => chain;
         chain.in = () => chain;
@@ -63,17 +63,12 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: (t: string) => {
         const chain: Record<string, unknown> = {};
-        let limited = false;
-        chain.select = () => chain;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
         chain.order = () => chain;
         chain.range = () => chain;
         chain.eq = () => chain;
         chain.in = () => chain;
         chain.delete = () => chain;
-        chain.limit = () => {
-          limited = true;
-          return chain;
-        };
         chain.insert = (obj: { metric: string; period: string }) => {
           inserts.push({ metric: obj.metric, period: obj.period });
           return Promise.resolve({ error: null });
@@ -81,7 +76,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         chain.then = (resolve: (v: unknown) => unknown) => {
           if (t === "coaching_sessions") {
             return resolve(
-              limited
+              chain._enum
                 ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null } // distinct-agents scan
                 : {
                     // one agent's sessions (agent_id needed — the cron batches the read then groups by it)
@@ -125,24 +120,19 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: (t: string) => {
         const chain: Record<string, unknown> = {};
-        let limited = false;
-        chain.select = () => chain;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
         chain.order = () => chain;
         chain.range = () => chain;
         chain.eq = () => chain;
         chain.in = () => chain;
         chain.delete = () => chain;
-        chain.limit = () => {
-          limited = true;
-          return chain;
-        };
         // Every insert FAILS — the delete already ran, so this is the silent-drop scenario. Pre-fix the
         // failure was swallowed (no counter, no log); it must now be surfaced.
         chain.insert = () => Promise.resolve({ error: { message: "insert failed" } });
         chain.then = (resolve: (v: unknown) => unknown) => {
           if (t === "coaching_sessions") {
             return resolve(
-              limited
+              chain._enum
                 ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null }
                 : {
                     data: [
@@ -187,18 +177,13 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: (t: string) => {
         const chain: Record<string, unknown> = {};
-        let limited = false;
         let isDelete = false;
         let deletePeriod: string | null = null;
         let deleteHasPeriodFilter = false;
-        chain.select = () => chain;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
         chain.order = () => chain;
         chain.range = () => chain;
         chain.in = () => chain;
-        chain.limit = () => {
-          limited = true;
-          return chain;
-        };
         chain.delete = () => {
           isDelete = true;
           return chain;
@@ -214,7 +199,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         chain.then = (resolve: (v: unknown) => unknown) => {
           if (t === "coaching_sessions") {
             return resolve(
-              limited
+              chain._enum
                 ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null }
                 : {
                     data: [

@@ -1010,10 +1010,10 @@ const FALSE_LIMIT_ALLOWLIST = new Map([
   ["src/app/api/finance/bank/accounts/[id]/transactions/route.ts", "Known false bound (register shows newest <=1000 txns). Tracked: 'fix the false limits'."],
   ["src/app/api/admin/coach-readout/route.ts", "Known false bound (analytics undercount, x3). Tracked: 'fix the false limits'."],
   ["src/app/api/brain/learning-summary/route.ts", "Known false bound (coach-events aggregation undercount). Tracked: 'fix the false limits'."],
-  // care/agent/analytics REMOVED from the allowlist 2026-08-12 (build xr): its .limit(5000) was replaced by
-  // fetchAllPaged, so the false bound is gone. Keeping it allowlisted would leave a blind spot — a future
-  // re-introduced false limit on that route would be silently skipped. The route is now guarded like any other.
-  ["src/app/api/coach/kpi/compute-cron/route.ts", "Known false bound (KPI cron processes <=1000). Tracked: 'fix the false limits'."],
+  // care/agent/analytics (build xr) and coach/kpi/compute-cron (build xv) REMOVED from this allowlist 2026-08-12:
+  // both had their .limit(N>1000) replaced by fetchAllPaged, so the false bound is gone. Keeping a fixed file
+  // allowlisted leaves a blind spot (a re-introduced false limit would be silently skipped) — the self-cleaning
+  // check below now flags exactly that, so these routes are guarded like any other.
   ["src/lib/data/care.ts", "Known false bound (voice-value readout durability read). Tracked: 'fix the false limits'."],
 ]);
 const FALSE_LIMIT_RE = /\.limit\(\s*(\d+)\s*\)/g;
