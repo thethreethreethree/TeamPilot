@@ -286,7 +286,10 @@ export default function BankingPage() {
               </div>
             </div>
             {txnTrunc.truncated && (
-              <p className="text-[11px] text-amber-300/90 mb-2">
+              // text-secondary (theme-aware) not a raw accent: this honest-truncation notice MUST stay legible in
+              // both themes, and text-amber-300 on the light-mode cream ground is ~1.4:1 (near-invisible). The
+              // page's convention for readable informational text is the secondary token.
+              <p className="text-[11px] text-secondary mb-2">
                 Showing the most recent {txns.length.toLocaleString()} of{" "}
                 {txnTrunc.total.toLocaleString()} transactions — older lines aren&apos;t listed here yet.
               </p>
