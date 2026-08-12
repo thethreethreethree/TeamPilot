@@ -86,4 +86,27 @@ describe("generateSalesReview — honesty gate + never-throws", () => {
     const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
     expect(out).toEqual({ hasSignal: false, strengths: [], growthAreas: [] });
   });
+
+  // INV22 / starvation VISIBILITY on the ORIGINAL outage engine: generateSalesReview → debriefCoachV5 was the
+  // actual engine whose "Your read" went blank for 2 weeks in 2026-07-30 (a reasoning-model finish_reason:"length"
+  // empty response swallowed silently). It must LOG loudly, not swallow the empty as an honest state. Lock it.
+  it("EMPTY-but-successful LLM response (the outage symptom) → empty AND logs loudly (Your read blank warning)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    asMock(debriefCoachV5).mockResolvedValue({ suppressed: false, text: "", model: "deepseek-v4-flash", provider: "deepseek" });
+    const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/EMPTY text|starvation/i);
+    spy.mockRestore();
+  });
+
+  it("a successful-but-unparseable LLM response → empty AND logs the no-signal reason (not a silent blank)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    asMock(debriefCoachV5).mockResolvedValue({ suppressed: false, text: "not json at all", model: "deepseek-v4-flash", provider: "deepseek" });
+    const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/no signal|parse/i);
+    spy.mockRestore();
+  });
 });
