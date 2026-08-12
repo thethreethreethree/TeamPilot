@@ -157,7 +157,26 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
-        {state === "ready" && token && !autoConnected && (
+        {/* SALES has no manual-paste path — it connects ONLY via the one-click handoff. Showing C.A.R.E's
+            "Copy token → Developer connect → paste" flow here is a dead end for a Sales rep (there's nowhere to
+            paste it) AND the copied ACCESS token carries no refresh token, so even if pasted it drops after ~1h.
+            So for Sales, guide back to the one-click Sign in instead of offering a token to copy. (2026-08-13) */}
+        {state === "ready" && token && !autoConnected && isSales && (
+          <div className="glass-card p-6">
+            <p className="text-sm text-secondary leading-relaxed mb-2">
+              The one-click connect didn&apos;t complete. The Sales Coach extension signs in{" "}
+              <strong className="text-primary">automatically</strong> — there is no manual token step.
+            </p>
+            <p className="text-sm text-secondary leading-relaxed">
+              Reopen the Sales Coach panel on your conversation tab and click{" "}
+              <strong className="text-primary">Sign in</strong> again (or hit the panel&apos;s{" "}
+              <strong className="text-primary">↻ Restart</strong> button). If it keeps failing, your extension may
+              not be the one this site is pinned to — tell the person who set it up.
+            </p>
+          </div>
+        )}
+
+        {state === "ready" && token && !autoConnected && !isSales && (
           <div className="glass-card p-6">
             <label className="text-[10px] uppercase tracking-widest text-muted font-semibold">Your session token</label>
             <textarea
