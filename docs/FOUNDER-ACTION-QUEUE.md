@@ -34,6 +34,28 @@
 > counts in-app (correct at your scale, fails loud past the backstop); the SQL above stays valid at any scale,
 > and a server-side aggregate RPC is the clean fix if you ever outgrow the in-app count.
 
+## 🟢 AUDIT (capture→recover seam) — 2026-08-12: seam is SOLID; one honest-messaging finding on the incident surface
+
+> Proactive §1.5.2 audit of the pipeline PAST the persist fix (does a failed live capture actually recover?).
+> **Verdict: the seam is well-built + complete.** Recovery is reachable from all three entry points — the live
+> panel right after Stop, the session detail page, and the After-Pitch empty state — each with honest "your audio
+> was saved, nothing is lost" copy, and After-Pitch AUTO-retranscribes (fires once, no error-loop; the manual
+> "Re-transcribe from saved recording" button is always the fallback). No dead end. `fetchAllPaged` linchpin +
+> the three shipped fixes verified solid this pass too.
+>
+> **One finding (L4 — user-facing copy, low severity, your call — I did NOT edit incident copy unilaterally):**
+> [`SessionRecordingUpload.tsx:78`](src/components/sales-coach/SessionRecordingUpload.tsx#L78) — when transcription
+> returns 200 with ZERO segments (exactly the reported symptom: STT connects but captures no turns), the rep sees
+> **"No speech was transcribed from that recording."** That blames the RECORDING (reads as "your audio was silent")
+> when the real cause is the STT SERVICE not processing good audio. For a call the rep knows had speech, it's
+> misleading — and it slightly undercuts your priority #3 (indicate WHY it failed). A rep could abandon a good
+> recording thinking it was empty.
+> **Proposed fix (one line, client copy only, no backend/founder-gated risk):** reword to distinguish the two —
+> e.g. *"The transcription service couldn't read this recording right now — your audio is saved, so try Recover
+> again in a bit."* Say **"fix the zero-segment message"** and I apply it + keep it aligned with the After-Pitch
+> "didn't connect" wording. (Root cause remains the STT scope env fix — that's the actual cure; this is just
+> honest signage until then.)
+
 ## ✅ RESOLVED — 2026-08-12: the truncation class you authorized ("Fix them all") is COMPLETE + hardened (`760cc644`, `aae87850`)
 
 > You chose **"Fix them all (keep everything)"**. All three surfaced instances now page via `fetchAllPaged`,
