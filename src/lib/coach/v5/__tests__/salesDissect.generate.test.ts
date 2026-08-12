@@ -68,4 +68,29 @@ describe("generateSalesDissect — length behaviour + never-throws", () => {
     expect(out.hasSignal).toBe(false);
     expect(out.strengths).toEqual([]);
   });
+
+  // INV22 / starvation VISIBILITY: an EMPTY-but-successful LLM response (finish_reason:"length" → blank content)
+  // is the exact 2026-07-30 reasoning-starvation symptom that went silent for 2 weeks. The engine must NOT
+  // swallow it as an honest empty state — it must LOG loudly so a recurrence surfaces immediately (salesDissect.ts
+  // deliberately distinguishes the three outcomes for this reason). These lock that instrumentation.
+  it("EMPTY-but-successful LLM response (starvation symptom) → empty AND logs loudly (never silent again)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "", model: "deepseek-v4-flash", provider: "deepseek" });
+    const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(false);
+    expect(out.strengths).toEqual([]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/EMPTY text|starvation/i);
+    spy.mockRestore();
+  });
+
+  it("a successful-but-unparseable LLM response → empty AND logs the no-signal reason (not a silent blank)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "not json at all", model: "deepseek-v4-flash", provider: "deepseek" });
+    const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/no signal|parse/i);
+    spy.mockRestore();
+  });
 });
