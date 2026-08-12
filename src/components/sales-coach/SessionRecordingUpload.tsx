@@ -75,7 +75,14 @@ export function SessionRecordingUpload({
     const d = await res.json();
     if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
     if (!d.segments?.length) {
-      throw new Error("No speech was transcribed from that recording.");
+      // Honest cause, not a misattribution (capture priority #3): a zero-segment result on a call the rep KNOWS
+      // had speech is the transcription SERVICE failing to read good audio (the reported STT symptom) — NOT a
+      // silent recording. Word it so it's true for both a genuinely-silent file AND a service miss, and never
+      // reads as "your recording was empty" (which would make a rep abandon a good recording). Mirrors the
+      // founder-approved After-Pitch "didn't connect / your audio was saved" framing.
+      throw new Error(
+        "The transcription came back empty. If this call had talking, that's usually a brief service issue — your audio is saved, so try again in a moment."
+      );
     }
     setSegments(d.segments);
     setSpeakers(d.speakers ?? []);

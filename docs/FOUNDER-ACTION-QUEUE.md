@@ -34,6 +34,15 @@
 > counts in-app (correct at your scale, fails loud past the backstop); the SQL above stays valid at any scale,
 > and a server-side aggregate RPC is the clean fix if you ever outgrow the in-app count.
 
+## ✅ RESOLVED — 2026-08-12: zero-segment recovery message now indicates the real cause (capture #3) — build xs
+
+> The L4 finding below is FIXED (`SessionRecordingUpload.tsx`, build xs): the message no longer reads as "your
+> recording was empty" for what is usually a transcription-SERVICE miss on good audio. Reworded to one honest
+> sentence true for both a silent upload and a service failure, mirroring the After-Pitch "didn't connect / audio
+> saved" framing you already approved. Copy only; full gate green; one-line revert if you'd word it differently.
+> The CURE for the underlying failures is still the STT-scope env fix on the ElevenLabs key (below) — this only
+> makes the failure honest, per your priority #3.
+
 ## 🟢 AUDIT (capture→recover seam) — 2026-08-12: seam is SOLID; one honest-messaging finding on the incident surface
 
 > Proactive §1.5.2 audit of the pipeline PAST the persist fix (does a failed live capture actually recover?).
