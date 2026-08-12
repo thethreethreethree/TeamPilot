@@ -44,3 +44,26 @@ export async function fetchAllPaged<T>(
   }
   return all;
 }
+
+/**
+ * fetchAllPaged adapted back to Supabase's `{ data, error }` result shape.
+ *
+ * fetchAllPaged FAILS HONESTLY by throwing (so a truncated set can never masquerade as complete). But some call
+ * sites page a read INSIDE a Promise.all, or feed a §3.4 error-combine (e.g. `chainReadError = eA ?? eB ?? …`)
+ * that expects the Supabase `{ data, error }` shape. This maps the throw to `{ data: null, error }` and a success
+ * to `{ data, error: null }`, so those sites keep their existing honest-error handling unchanged. The `error` is
+ * always a real Error (a non-Error throw is wrapped), so a truthiness/`.message` check behaves.
+ */
+export async function fetchAllPagedResult<T>(
+  makePage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  opts: { pageSize?: number; label?: string; maxRows?: number } = {},
+): Promise<{ data: T[] | null; error: Error | null }> {
+  try {
+    return { data: await fetchAllPaged<T>(makePage, opts), error: null };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
+}

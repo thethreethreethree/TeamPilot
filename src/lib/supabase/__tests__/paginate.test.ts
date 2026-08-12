@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fetchAllPaged } from "../paginate";
+import { fetchAllPaged, fetchAllPagedResult } from "../paginate";
 
 /**
  * Guards the 1000-row-truncation fix (Coach KPI): an unbounded read is capped at 1000 by
@@ -45,5 +45,23 @@ describe("fetchAllPaged", () => {
     await expect(
       fetchAllPaged<number>(makeSource(rows), { pageSize: 1000, maxRows: 2000 }),
     ).rejects.toThrow(/exceeded 2000/);
+  });
+});
+
+describe("fetchAllPagedResult (throw → {data,error} adapter for Promise.all / §3.4 combines)", () => {
+  it("success → { data: <all rows>, error: null } (paged past the cap)", async () => {
+    const rows = Array.from({ length: 2500 }, (_, i) => i);
+    const res = await fetchAllPagedResult<number>(makeSource(rows), { pageSize: 1000 });
+    expect(res.error).toBeNull();
+    expect(res.data).not.toBeNull();
+    expect(res.data?.length).toBe(2500); // does NOT truncate, same as fetchAllPaged
+  });
+
+  it("a read error → { data: null, error: <Error> } — never throws, so a Promise.all sibling isn't rejected", async () => {
+    const src = () => Promise.resolve({ data: null, error: { message: "boom" } });
+    const res = await fetchAllPagedResult(src, { label: "readout events" });
+    expect(res.data).toBeNull();
+    expect(res.error).toBeInstanceOf(Error);
+    expect(res.error?.message).toMatch(/readout events failed: boom/);
   });
 });

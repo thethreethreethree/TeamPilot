@@ -5,22 +5,8 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { summarizeTopicDurability } from "@/lib/coach/readoutSummary";
-import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import type { NextRequest } from "next/server";
-
-/** Page a windowed event read that was a fixed >1000-row cap (PostgREST truncates at max_rows=1000, so the
- *  in-memory count was wrong past the cap), adapting fetchAllPaged's throw-on-error back to the {data,error}
- *  shape this route's secondary-read §3.4 combine expects. Order-independent: every caller only counts. */
-async function pagedEventCount<T>(
-  makePage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-  label: string,
-): Promise<{ data: T[] | null; error: Error | null }> {
-  try {
-    return { data: await fetchAllPaged<T>(makePage, { label }), error: null };
-  } catch (error) {
-    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
-  }
-}
 
 /**
  * GET /api/admin/coach-readout
@@ -323,7 +309,7 @@ export async function GET(req: NextRequest) {
   const stepWindowStart = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: stepEvents, error: eSteps } = await pagedEventCount<{
+  const { data: stepEvents, error: eSteps } = await fetchAllPagedResult<{
     kind: string;
     subject: string;
     created_at: string;
@@ -336,7 +322,7 @@ export async function GET(req: NextRequest) {
         .gte("created_at", stepWindowStart)
         .order("id")
         .range(from, to),
-    "coach-readout step events",
+    { label: "coach-readout step events" },
   );
   let stepsCompleted30d = 0;
   let stepsReopened30d = 0;
@@ -362,7 +348,7 @@ export async function GET(req: NextRequest) {
   const last30 = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
-  const { data: gradeEvents, error: eGrade } = await pagedEventCount<{
+  const { data: gradeEvents, error: eGrade } = await fetchAllPagedResult<{
     payload: Record<string, unknown> | null;
     created_at: string;
   }>(
@@ -374,7 +360,7 @@ export async function GET(req: NextRequest) {
         .gte("created_at", last30)
         .order("id")
         .range(from, to),
-    "coach-readout grade events",
+    { label: "coach-readout grade events" },
   );
   const gradeMix = { productive: 0, neutral: 0, needsGuidance: 0 };
   let gradeTotal = 0;
@@ -399,7 +385,7 @@ export async function GET(req: NextRequest) {
   // Analyze patterns — top principles cited across the company in
   // the last 30 days. Surfaces what the Coach has been TEACHING,
   // not whether the team is accepting.
-  const { data: analyzeEvents, error: eAnalyze } = await pagedEventCount<{
+  const { data: analyzeEvents, error: eAnalyze } = await fetchAllPagedResult<{
     payload: Record<string, unknown> | null;
     created_at: string;
   }>(
@@ -411,7 +397,7 @@ export async function GET(req: NextRequest) {
         .gte("created_at", last30)
         .order("id")
         .range(from, to),
-    "coach-readout analyze events",
+    { label: "coach-readout analyze events" },
   );
   const principleAgg = new Map<
     string,
