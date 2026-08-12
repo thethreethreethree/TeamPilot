@@ -1034,6 +1034,31 @@ for (const f of FILES) {
   }
 }
 
+// Self-cleaning allowlist (added 2026-08-12, build xu — close the loop on the xt drift): an entry that no longer
+// corresponds to a LIVE `.limit(N>1000)` is STALE. Because the loop above `continue`s on any allowlisted file,
+// a stale entry silences INVARIANT 21 for a file that has SINCE been fixed — a blind spot where a re-introduced
+// false limit would be skipped unseen. That is exactly what happened in build xr→xt: care/agent/analytics's
+// `.limit(5000)` became fetchAllPaged but its entry lingered, and only a manual re-audit caught it. This flags
+// such an entry so the allowlist stays a LIVE ledger of real exceptions, not a graveyard. (Raw-text scan: a file
+// whose only `.limit(N>1000)` is inside a comment reads as "live" here — the same documented property as the main
+// check; keep fix-history comments off the literal pattern.)
+const hasLiveFalseLimit = (sql) =>
+  [...sql.matchAll(FALSE_LIMIT_RE)].some((m) => Number(m[1]) > 1000);
+const FILE_BY_PATH = new Map(FILES.map((f) => [f.path, f]));
+for (const [path] of FALSE_LIMIT_ALLOWLIST) {
+  const f = FILE_BY_PATH.get(path);
+  if (!f || !hasLiveFalseLimit(f.sql)) {
+    findings.push({
+      rule: "stale FALSE_LIMIT_ALLOWLIST entry (no live .limit(N>1000) remains)",
+      file: path,
+      why:
+        "This file is allowlisted for a false `.limit(N>1000)` bound, but no such limit remains in it — the\n" +
+        "      entry is STALE and now BLINDS INVARIANT 21 for this file (a re-introduced false limit would be\n" +
+        "      silently skipped). Remove this entry from FALSE_LIMIT_ALLOWLIST.",
+    });
+  }
+}
+
 // ═══ INVARIANT 22 — a data-layer catch that SWALLOWS into a value must classify the error ═══════
 //
 // LEARNED: the error-as-no-data class, fixed 6+ times (2026-08-04 alone: agent inbox, customer chat widget,
@@ -1287,6 +1312,11 @@ st("INV12 parses amendmentCount", /amendmentCount:\s*(\d+)/.exec("amendmentCount
 st("INV12 parses lastAmendmentId", /lastAmendmentId:\s*["']([^"']+)["']/.exec('lastAmendmentId: "AMD-006",')?.[1] === "AMD-006");
 st("INV12 counts a ratified status", "ratified" === ("- **Status:** ratified".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
 st("INV12 excludes a proposed status", "ratified" !== ("- **Status:** **PROPOSED — not ratified.**".match(/\*\*Status:\*\*\s*(\S+)/i)?.[1] ?? "").toLowerCase());
+// INV21 false-limit matcher + the self-cleaning-allowlist check, both directions.
+st("INV21 stale-check sees a live .limit(5000) as live", hasLiveFalseLimit("await q.select('x').limit(5000)"));
+st("INV21 stale-check sees a fetchAllPaged'd file (no >1000 limit) as stale", !hasLiveFalseLimit("await q.select('x').range(from, to) // was .limit(5,000)"));
+st("INV21 stale-check treats .limit(300) as no false bound", !hasLiveFalseLimit("await q.select('x').limit(300)"));
+st("INV21 every current FALSE_LIMIT_ALLOWLIST entry still has a live false bound", [...FALSE_LIMIT_ALLOWLIST.keys()].every((p) => { const f = FILE_BY_PATH.get(p); return f && hasLiveFalseLimit(f.sql); }));
 // INV13 raw ilike .or() injection: must flag an interpolated raw ilike filter, must ignore parameterized .ilike().
 st("INV13 flags an interpolated raw ilike filter", RAW_ILIKE_FILTER_RE.test("q.or(`title.ilike.%${t}%,description.ilike.%${t}%`)"));
 st("INV13 ignores a parameterized .ilike()", !RAW_ILIKE_FILTER_RE.test('sb.ilike("body", term).eq("kind","message")'));
