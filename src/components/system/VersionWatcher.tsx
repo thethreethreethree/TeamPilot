@@ -95,6 +95,17 @@ export function markTriedCommit(
   }
 }
 
+/**
+ * Background/focus health checks are throttled to once per HEALTH_CHECK_THROTTLE_MS, but a genuine reopen/revisit
+ * (document hidden→visible) BYPASSES the throttle so the secondary auto-update fires on the reopen ITSELF — the
+ * founder's stated goal — instead of being deferred to a later visibility change. Pure so the bypass (the
+ * reliability-critical half) is unit-testable.
+ */
+export const HEALTH_CHECK_THROTTLE_MS = 30_000;
+export function shouldRunCheck(nowMs: number, lastCheckAtMs: number, bypassThrottle: boolean): boolean {
+  return bypassThrottle || nowMs - lastCheckAtMs >= HEALTH_CHECK_THROTTLE_MS;
+}
+
 /** sessionStorage that never throws on access (the property getter itself throws in some privacy modes). */
 function safeSessionStorage(): Storage | undefined {
   try {
@@ -151,7 +162,7 @@ export function VersionWatcher() {
       // secondary auto-update reliably fires on reopen even if the last check was <30s ago (otherwise a quick
       // background→return would be throttled and the update would silently not apply — the founder's exact goal).
       const now = Date.now();
-      if (!bypassThrottle && now - lastCheckRef.current < 30_000) return;
+      if (!shouldRunCheck(now, lastCheckRef.current, bypassThrottle)) return;
       lastCheckRef.current = now;
       checkingRef.current = true;
       try {

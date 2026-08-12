@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { shouldForceReload, hasTriedCommit, markTriedCommit } from "../VersionWatcher";
+import {
+  shouldForceReload,
+  hasTriedCommit,
+  markTriedCommit,
+  shouldRunCheck,
+  HEALTH_CHECK_THROTTLE_MS,
+} from "../VersionWatcher";
 
 /**
  * shouldForceReload is the safety-critical core of the forced auto-update (founder 2026-08-13). The component
@@ -94,5 +100,29 @@ describe("recording/reload loop-guard execution (hasTriedCommit / markTriedCommi
       },
     };
     expect(() => markTriedCommit(throwing, "k", "commitA")).not.toThrow();
+  });
+});
+
+/**
+ * shouldRunCheck gates the health poll. The load-bearing property is the BYPASS: a genuine reopen/revisit must
+ * check NOW even if the last check was seconds ago, so the secondary auto-update fires on the reopen itself
+ * (the founder's goal) — not deferred to a later visibility change. A regression dropping the bypass would
+ * silently make "update on reopen" unreliable.
+ */
+describe("shouldRunCheck — throttle with revisit bypass", () => {
+  const T = HEALTH_CHECK_THROTTLE_MS;
+
+  it("throttles a background/focus check that arrives within the window (bypass off)", () => {
+    expect(shouldRunCheck(1000 + T - 1, 1000, false)).toBe(false);
+  });
+
+  it("allows a check once the throttle window has elapsed (bypass off)", () => {
+    expect(shouldRunCheck(1000 + T, 1000, false)).toBe(true);
+    expect(shouldRunCheck(1000 + T + 5000, 1000, false)).toBe(true);
+  });
+
+  it("BYPASS — a genuine revisit checks NOW even inside the throttle window (the founder's reopen goal)", () => {
+    expect(shouldRunCheck(1000 + 50, 1000, true)).toBe(true);
+    expect(shouldRunCheck(1000, 1000, true)).toBe(true); // zero elapsed, still runs on revisit
   });
 });
