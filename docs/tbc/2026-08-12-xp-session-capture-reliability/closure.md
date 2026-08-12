@@ -26,6 +26,19 @@ indication). Founder-authorized approach (AskUserQuestion 2026-08-12: block + al
 ]
 ```
 
+## Post-ship self-review (adversarial, 2026-08-12) — no critical bug; edge cases for the device-tested pass
+- **Stop→restart within one session** (Expert can restart): the persist latches once per session
+  (`persistStartedRef`), so a SECOND recording's audio wouldn't persist. The Standard incident flow is
+  stop-once (handled); the restart case is an Expert edge. Fix: key the persist on the blob identity
+  (`persistedBlobRef === recordingBlob`) instead of a one-time latch. Not changed in-context to avoid a rushed
+  core-flow edit; slated for the device-tested pass.
+- **Block-race**: if `transcriptSaved` fires BEFORE the MediaRecorder blob is ready, `onRecordingSaved` can
+  advance before the persist blocks. Low-harm: the audio still persists in the background, and the required
+  naming gate (several seconds) masks the race in practice so the save almost always completes first. Harden
+  only if the device test shows a real gap.
+- **Dead-feed warning** doesn't auto-clear if the feed recovers AFTER the 30s mark (only resets on the next
+  live start). Cosmetic; a brief stale amber banner at worst.
+
 ## Gate result (`npm run check`)
 ```
 $ npm run check
