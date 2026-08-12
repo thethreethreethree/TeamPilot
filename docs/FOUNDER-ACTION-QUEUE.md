@@ -1,5 +1,36 @@
 # Founder action queue
 
+## 🔴 CAPTURE INCIDENT (first client) — ROOT CAUSE + COST QUERY — 2026-08-12
+
+> **Reason the live sessions kept failing (two compounding causes):**
+> 1. **Trigger (frequency):** ElevenLabs realtime **Speech-to-Text captured zero turns** — the STT connection
+>    is failing. Most likely the API key is **missing the Speech-to-Text scope** (or the token mint fails); the
+>    same provider auth backs live coaching AND recording transcription, so one problem breaks both. Secondary:
+>    websocket drops on weak mobile. **Confirm in one click:** Settings → Coaching → "Voice provider health" →
+>    Check (new card). This is an ENV issue — yours to fix (enable the STT scope on the key).
+> 2. **Amplifier (why each failure was total):** the recorded audio was **never persisted** — it lived only in
+>    browser memory and was lost on the After-Pitch redirect, so every STT hiccup became a *lost* session.
+>    **FIXED (build xp):** audio is now saved to storage on Stop before any navigation; failures are survivable
+>    + honest + auto-recover.
+>
+> **Cost of the issue — run this in Supabase SQL (replace the company id) to count affected sessions:**
+> ```sql
+> SELECT
+>   count(*)                                                          AS total_ended,
+>   count(*) FILTER (WHERE seg.n IS NULL)                             AS failed_captures,
+>   count(*) FILTER (WHERE seg.n IS NULL AND s.audio_asset_url IS NOT NULL) AS recoverable,
+>   count(*) FILTER (WHERE seg.n IS NULL AND s.audio_asset_url IS NULL)     AS lost
+> FROM coaching_sessions s
+> LEFT JOIN (
+>   SELECT session_id, count(*) AS n FROM coaching_transcript_segments GROUP BY session_id
+> ) seg ON seg.session_id = s.id
+> WHERE s.company_id = '<COMPANY_ID>' AND s.status IN ('ended','reviewed');
+> ```
+> `failed_captures / total_ended` = the failure rate (the cost). `lost` = sessions gone forever (only those from
+> BEFORE the xp fix — going forward the audio is always saved, so new failures land in `recoverable`). Want it
+> as an in-app manager number instead of a manual query? Say **"build the capture-cost dashboard"** (needs a
+> small server-side aggregate RPC to count correctly at scale).
+
 ## ✅ RESOLVED — 2026-08-12: KPI Reliance-Reduction truncation FIXED (`46a83f68`, you authorized "Fix it now")
 
 > The HIGH finding below is now fixed + shipped: all seven usage-growth reads in kpi/me + kpi/team page via
