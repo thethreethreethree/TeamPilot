@@ -1026,7 +1026,9 @@ for (const f of FILES) {
         why:
           `\`.limit(${m[1]})\` silently returns <=1000 rows — max_rows=1000 (supabase/config.toml) caps it\n` +
           "      regardless of the client limit. Use .range() pagination or a server-side aggregate; if this is\n" +
-          "      an intentional cap, set it to <=1000. Allowlist with a reason if it's a known/tracked exception.",
+          "      an intentional cap, set it to <=1000. Allowlist with a reason if it's a known/tracked exception.\n" +
+          "      → docs/pre-merge-checklists/LARGE-READS.md — the correct pattern per read shape (aggregate /\n" +
+          "        Promise.all / display / exact-count).",
       });
       break; // one finding per file is enough
     }
