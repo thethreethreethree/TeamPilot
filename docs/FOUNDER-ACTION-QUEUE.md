@@ -86,19 +86,27 @@
 >    flagged it). **Still your call (a DESIGN decision, not a bug):** BATCH_AGENTS=100 with no cross-run rotation
 >    means agents past the first 100 never get a snapshot. Say **"add KPI agent rotation"** (a cursor across runs,
 >    or raise the batch) if/when you have >100 agents; the durable scale fix is a `SELECT DISTINCT agent_id` RPC.
-> 2. **CARE cohort/durability analytics** (`lib/data/care.ts` ×8 `.limit(5000)`) — this is the `c5fbd454`
->    KEEP/REVERT territory already open below; several were swept in build xl. Folded into that existing decision.
-> 3. **Admin coach-readout** (×3 `.limit(2000)`) + **brain/learning-summary** (`.limit(2000)`) — founder-only /
->    internal diagnostics; low blast radius. Fixable but low value.
-> 4. **finance bank register** (`finance/bank/accounts/[id]/transactions:17` `.limit(2000)`) — this is a
->    **display** truncation (a busy account shows only the first 1000 txns), not a wrong aggregate. Needs a
->    load-older / paginated register UI, not a silent swap.
+> 2. ✅ **Admin coach-readout ×3 + brain/learning-summary — FIXED (build xw, `ea64bf52`).** Both now page their
+>    windowed-event aggregations via `fetchAllPaged`; §3.4 error combines preserved; their allowlist entries
+>    removed (self-cleaning check required it). Executed under your standing "fix the false limits" item.
+>
+> **After xv + xw, the `.limit(N>1000)` false-limit class is DONE except two genuinely-gated sites — these need
+> YOUR decision, not a mechanical fix, so I'm holding:**
+> 3. **finance bank register** (`finance/bank/accounts/[id]/transactions:17` `.limit(2000)`) — a **display**
+>    truncation (a busy account shows only ~1000 txns), on LIVE finance. Real fix is a load-older / paginated
+>    register UI — a UX decision (load-more button vs infinite scroll vs date-range filter). Say **"paginate the
+>    finance register"** + your preferred shape, or **"just disclose the cap"** for the minimal honest-truncation
+>    notice (like assetReadout's `bounded` flag) as a stopgap.
+> 4. **CARE cohort/durability** (`lib/data/care.ts` `.limit(5000)`) — the `c5fbd454` KEEP/REVERT decision below.
 > 5. **message-thread loaders** (chats / care / decisions / tasks) — the separate pagination class; needs a
 >    load-older UI. Already queued as "paginate the message threads".
+> 6. **Lower-severity (NOT false bounds):** brain's decisionEvents `.limit(1000)` + topicRows `.limit(500)` are
+>    ≤ max_rows (honest single-page max) but can still truncate a very busy 28-day window. Say **"page the small
+>    windowed reads"** to close them too.
 >
-> **My recommendation:** the authorized class is done; of the rest, only #1 (dormant, low-urgency) and #4 (real
-> but display, needs UI) are worth a near-term decision. #2/#5 are already-open decisions; #3 is low value. Tell
-> me which, if any, to pick up — I'm not touching founder-gated subsystems without your word.
+> **Recommendation:** the mechanical remainder is all shipped. Of what's left, #3 (finance register) is the
+> highest user value but is a UX decision on live finance — tell me the shape and I build it. #4/#5 are open
+> decisions; #6 is a low-severity nicety.
 
 ## ✅ RESOLVED — 2026-08-12: KPI Reliance-Reduction truncation FIXED (`46a83f68`, you authorized "Fix it now")
 
