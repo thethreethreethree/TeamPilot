@@ -171,6 +171,8 @@ export default function SalesCoachSettingsPage() {
                 <VoicePicker />
 
                 <VoiceHealthCard />
+
+                <CaptureHealthCard />
               </div>
             )}
           </>
@@ -871,6 +873,90 @@ function VoiceHealthCard() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+type CaptureHealthData = {
+  total: number;
+  failed: number;
+  recoverable: number;
+  lost: number;
+  failureRate: number;
+};
+
+/**
+ * CaptureHealthCard — the "cost of the capture issue" (founder 2026-08-12: "determine the cost"). Counts ended
+ * sessions that failed to capture a transcript, split into recoverable (audio saved) vs lost (no audio — only
+ * from before the build-xp persist fix). Manager-only; read-only. See /capture-health for the scale caveat.
+ */
+function CaptureHealthCard() {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<CaptureHealthData | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const check = async () => {
+    setLoading(true);
+    setFailed(false);
+    setData(null);
+    try {
+      const res = await fetch("/api/coach/sales-session/capture-health");
+      if (res.ok) setData((await res.json()) as CaptureHealthData);
+      else setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const Stat = ({ label, value, tone }: { label: string; value: string | number; tone?: "amber" | "emerald" }) => (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+      <p className="text-[10px] text-muted">{label}</p>
+      <p
+        className={`text-sm font-semibold ${
+          tone === "amber" ? "text-amber-300" : tone === "emerald" ? "text-emerald-300" : "text-primary"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+
+  return (
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold text-primary">Capture health</h3>
+        <p className="text-[11px] text-muted leading-relaxed mt-1">
+          How many ended sessions failed to capture a transcript — the cost of the recording issue.
+          <span className="text-secondary"> Recoverable</span> = the audio was saved (re-transcribable);
+          <span className="text-secondary"> Lost</span> = no audio at all (only sessions from before the fix).
+        </p>
+      </div>
+      <LoadingButton
+        pending={loading}
+        onClick={() => void check()}
+        className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-white/15 hover:border-white/30 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+      >
+        Check capture health
+      </LoadingButton>
+      {failed && (
+        <p className="text-[11px] text-amber-300">
+          Couldn&apos;t compute capture health — the volume may be too large for an in-app count.
+        </p>
+      )}
+      {data && (
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label="Ended sessions" value={data.total} />
+          <Stat
+            label="Failed to capture"
+            value={`${data.failed} (${data.failureRate}%)`}
+            tone={data.failed > 0 ? "amber" : "emerald"}
+          />
+          <Stat label="Recoverable (audio saved)" value={data.recoverable} />
+          <Stat label="Lost (no audio)" value={data.lost} tone={data.lost > 0 ? "amber" : "emerald"} />
         </div>
       )}
     </section>
