@@ -123,8 +123,15 @@ export async function POST(
   // { storagePath } and transcribe FROM storage (same work as /retranscribe).
   if ((req.headers.get("content-type") ?? "").includes("application/json")) {
     const body = (await req.json().catch(() => null)) as
-      | { storagePath?: string }
+      | { storagePath?: string; persistOnly?: boolean }
       | null;
+    // persistOnly (2026-08-12): the LIVE-coaching path calls this on Stop just to SAVE the recorded audio to
+    // storage (stamp audio_asset_url) WITHOUT transcribing — so a call whose live transcript failed to capture
+    // is never lost and can always be re-transcribed. The transcription (which returns speaker segments for the
+    // one-tap label) still happens on demand via the recovery flow. Without this, a failed live capture had its
+    // audio only in browser memory, lost the moment the page navigated to After-Pitch (founder-reported
+    // "sessions constantly failing to record", tester = first client).
+    const persistOnly = body?.persistOnly === true;
     const storagePath =
       typeof body?.storagePath === "string" ? body.storagePath.trim() : "";
     if (!storagePath) {
@@ -196,6 +203,13 @@ export async function POST(
       .update({ audio_asset_url: `${ASSETS_BUCKET}/${storagePath}` })
       .eq("id", id)
       .eq("company_id", companyId);
+
+    // persistOnly: the audio is now safely in storage + pointed to by the session. Done — no transcription
+    // (the live path already tried live STT; recovery re-transcribes on demand). This is the "never lose the
+    // audio" guarantee: even if everything downstream fails, the recording survives for re-transcribe.
+    if (persistOnly) {
+      return NextResponse.json({ ok: true, audioSaved: true, persisted: true });
+    }
 
     // Download the bytes we just confirmed exist, then diarize.
     const dl = await downloadAssetBytes({ storagePath });

@@ -249,4 +249,23 @@ describe("POST /upload-recording (direct-to-storage finalize, JSON)", () => {
     expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
     expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" });
   });
+
+  // persistOnly — the LIVE-coaching "never lose the audio" save (founder priority 2026-08-12). On Stop the
+  // live path calls this JUST to persist the recorded audio (stamp audio_asset_url), skipping transcription,
+  // so a call whose live STT captured nothing is always recoverable. Locking BOTH halves: it stamps the
+  // pointer (company-scoped) AND does NOT spend the STT/LLM (the whole point — cheap, always-runs-on-Stop save).
+  it("persistOnly: stamps the pointer (company-scoped) + returns persisted, WITHOUT transcribing", async () => {
+    setAuth("rep1");
+    const res = await POST(jsonReq({ storagePath: "co1/x/live.webm", persistOnly: true }), ctx);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.persisted).toBe(true);
+    expect(body.audioSaved).toBe(true);
+    // Audio pointer stamped (company-scoped) — the recording is now safe in storage.
+    expect(updateEqs).toContainEqual({ col: "id", val: "sess1" });
+    expect(updateEqs).toContainEqual({ col: "company_id", val: "co1" });
+    expect(updatePayloads).toContainEqual({ audio_asset_url: "assets/co1/x/live.webm" });
+    // But transcription was SKIPPED — persistOnly saves the audio, it does not spend STT.
+    expect(transcribeWithDiarization).not.toHaveBeenCalled();
+  });
 });

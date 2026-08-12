@@ -469,17 +469,37 @@ export default function AfterPitchPage() {
                 "Start live coaching" on the session screen. Name that, and point
                 to the fix, so the rep isn't stuck re-trying the same empty step
                 (§2 no error loops; AMD-006 L3 — a dead end becomes a next step). */}
-            <p className="text-xs text-primary font-medium">
-              No conversation was captured for this call yet.
-            </p>
-            <p className="text-[11px] text-muted leading-relaxed">
-              Live coaching has to be{" "}
-              <span className="text-secondary">recording during the call</span>{" "}
-              to capture it — opening the session isn&apos;t the same as recording
-              it. Recorded the call on your phone instead? Upload it below and the
-              coach will build your review from it. If you did record here and still
-              see this, tap Rebuild.
-            </p>
+            {/* Indication #3 (founder priority 2026-08-12): tell the rep WHY, and distinguish the two states.
+                If audio WAS saved (the live path now persists it on Stop), this is a TRANSCRIPTION failure, not a
+                lost call — say so, and that the audio is safe + recoverable. Only when there's genuinely no saved
+                audio do we point to the "you have to be recording" cause. */}
+            {session?.audioAssetUrl ? (
+              <>
+                <p className="text-xs text-primary font-medium">
+                  Live transcription didn&apos;t connect for this call.
+                </p>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Your audio <span className="text-secondary">was saved</span>, so nothing is lost —
+                  the transcription service just didn&apos;t capture the words during the call (usually
+                  a temporary connection issue). Recover your full review from the saved recording
+                  below, or tap Rebuild.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-primary font-medium">
+                  No conversation was captured for this call yet.
+                </p>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Live coaching has to be{" "}
+                  <span className="text-secondary">recording during the call</span>{" "}
+                  to capture it — opening the session isn&apos;t the same as recording
+                  it. Recorded the call on your phone instead? Upload it below and the
+                  coach will build your review from it. If you did record here and still
+                  see this, tap Rebuild.
+                </p>
+              </>
+            )}
             {/* Founder 2026-08-11: "even after the session so they can go back to upload."
                 The upload now lives right here on the After-Pitch screen — the ONE place a
                 Standard door-to-door rep lands after a call — so a phone recording / voice

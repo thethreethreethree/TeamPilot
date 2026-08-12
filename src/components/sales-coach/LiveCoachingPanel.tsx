@@ -9,6 +9,7 @@ import { SessionRecordingUpload } from "./SessionRecordingUpload";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { persistRecording } from "@/lib/coach/v5/persistRecording";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -74,19 +75,59 @@ export function LiveCoachingPanel({
   // instruction, not a false guarantee).
   const [earpieceOk, setEarpieceOk] = useState(false);
 
-  // When the live transcript is saved, notify the parent (which now NAVIGATES to the After-Pitch Summary —
-  // founder 2026-07-31). Fire EXACTLY ONCE: onRecordingSaved is often an inline callback (new identity every
-  // render), so without this ref guard the effect would re-run each render while transcriptSaved stays true and
-  // re-fire the navigation during the transition. The ref latches on the first true.
+  const live = status === "live";
+
+  // ── "Never lose the audio" (founder priority 2026-08-12, first-client incident) ────────────────────────────
+  // The instant recording stops, PERSIST the recorded audio to Storage — BEFORE anything navigates away — so a
+  // call whose live STT captured nothing is always recoverable (previously the blob lived only in browser memory
+  // and was lost on the After-Pitch redirect → "No conversation was captured", unrecoverable). Runs once per
+  // recording. Best-effort + timeout-bounded: if the save fails or hangs, we still let the rep proceed (the
+  // manual upload UI + re-transcribe remain), never trapping them on "Saving…". `savingState`:
+  //   'pending'  — recording not yet stopped / no blob
+  //   'saving'   — uploading the audio to storage (the "block with Saving recording…" state the founder chose)
+  //   'saved'    — audio safely in storage (audio_asset_url stamped)
+  //   'failed'   — save didn't complete; audio may be lost, but don't trap the rep
+  const [savingState, setSavingState] = useState<"pending" | "saving" | "saved" | "failed">("pending");
+  const persistStartedRef = useRef(false);
+  const persistSettledRef = useRef(false);
+  useEffect(() => {
+    if (!recordingBlob || live || persistStartedRef.current) return;
+    persistStartedRef.current = true;
+    setSavingState("saving");
+    let done = false;
+    const settle = (s: "saved" | "failed") => {
+      if (done) return;
+      done = true;
+      persistSettledRef.current = true;
+      setSavingState(s);
+    };
+    // 60s ceiling so a stalled upload on a flaky mobile connection can't trap the rep forever.
+    const timer = setTimeout(() => settle("failed"), 60_000);
+    void (async () => {
+      try {
+        await persistRecording(sessionId, recordingBlob);
+        clearTimeout(timer);
+        settle("saved");
+      } catch (e) {
+        clearTimeout(timer);
+        // eslint-disable-next-line no-console
+        console.error("[live-coaching] audio persist failed", e);
+        settle("failed");
+      }
+    })();
+  }, [recordingBlob, live, sessionId]);
+
+  // Advance to naming / After-Pitch once the transcript saved AND the audio persist has SETTLED — so the
+  // recording is safely in Storage before we navigate (founder chose "block with Saving recording…"). Fire
+  // EXACTLY ONCE (onRecordingSaved is often an inline callback with a new identity each render). If there is no
+  // blob to persist (recorder unavailable), persistStartedRef stays false and we don't wait on it.
   const savedFiredRef = useRef(false);
   useEffect(() => {
-    if (transcriptSaved && !savedFiredRef.current) {
-      savedFiredRef.current = true;
-      onRecordingSaved?.();
-    }
-  }, [transcriptSaved, onRecordingSaved]);
-
-  const live = status === "live";
+    if (!transcriptSaved || savedFiredRef.current) return;
+    if (persistStartedRef.current && !persistSettledRef.current) return; // still saving the audio — wait
+    savedFiredRef.current = true;
+    onRecordingSaved?.();
+  }, [transcriptSaved, savingState, onRecordingSaved]);
 
   // Build 5 — earpiece tap control (§3.3, rep-controlled). A tap → coach me;
   // triple-tap → quiet toggle. Device-dependent + unverifiable (§3.4).
@@ -631,11 +672,22 @@ export function LiveCoachingPanel({
         </p>
       )}
 
+      {/* "Saving recording…" — the audio is being persisted to Storage so a failed live capture is never lost
+          (founder priority 2026-08-12). This is the blocking state: the advance to After-Pitch waits for it. */}
+      {savingState === "saving" && (
+        <div className="mt-3 rounded-lg border border-ember-400/30 bg-ember-400/[0.06] p-3 flex items-start gap-2">
+          <Radio className="w-4 h-4 text-brand shrink-0 mt-0.5 animate-pulse" aria-hidden />
+          <p className="text-xs text-secondary leading-relaxed">
+            Saving your recording… keeping your call safe so nothing is lost.
+          </p>
+        </div>
+      )}
+
       {/* #1 fix: after Stop, the LIVE attributed turns are saved as the
           speaker-separated transcript (volume+content). Batch diarization
           can't separate a single far mic, so this is the canonical path
           in-person. */}
-      {transcriptSaved && !live && (
+      {transcriptSaved && !live && savingState !== "saving" && (
         <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 flex items-start gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" aria-hidden />
           <p className="text-xs text-secondary leading-relaxed">
@@ -645,16 +697,22 @@ export function LiveCoachingPanel({
         </div>
       )}
 
-      {/* Fallback: only if the live transcript didn't save (e.g. nothing was
-          captured) do we offer the recording-upload + diarization path. */}
-      {!transcriptSaved && recordingBlob && !live && (
+      {/* Fallback: the live transcript didn't save (e.g. STT captured nothing). The recorded audio has now been
+          persisted to Storage on Stop (savingState), so recovery is a re-transcribe from the SAVED recording —
+          no re-upload of the in-memory blob (which would double-upload against the auto-persist above). Only if
+          the auto-persist FAILED do we fall back to re-uploading the client-held blob. */}
+      {!transcriptSaved && !live && savingState !== "saving" && (recordingBlob || savingState === "saved") && (
         <div className="mt-3">
           <p className="text-[11px] text-muted mb-2">
-            Live transcript didn&apos;t save — recover it from the recording:
+            {savingState === "saved"
+              ? "Live transcription didn't capture this call — but your audio was saved. Recover the transcript from it:"
+              : "Live transcript didn't save — recover it from the recording:"}
           </p>
           <SessionRecordingUpload
             sessionId={sessionId}
-            initialBlob={recordingBlob}
+            {...(savingState === "saved"
+              ? { hasSavedRecording: true }
+              : { initialBlob: recordingBlob ?? undefined })}
             onLabeled={() => {
               clearRecording();
               onRecordingSaved?.();
