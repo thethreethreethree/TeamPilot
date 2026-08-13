@@ -26,6 +26,25 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+/** An SSE (text/event-stream) response — `data: {json}\n\n` per event, terminated by `[DONE]`. */
+function sseResponse(events: unknown[]): Response {
+  const body =
+    events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("") +
+    "data: [DONE]\n\n";
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
+/** Invoke the provider's (optional-in-type) stream, drain it to a string. */
+async function drainStream(args: typeof CALL): Promise<string> {
+  if (!deepseekProvider.stream) throw new Error("deepseekProvider.stream missing");
+  let out = "";
+  for await (const chunk of deepseekProvider.stream(args)) out += chunk;
+  return out;
+}
+
 const CALL = {
   systemPrompt: "You are a helper.",
   messages: [{ role: "user" as const, content: "hi" }],
@@ -240,6 +259,61 @@ describe("deepseek starvation visibility — finish_reason:'length' logs loudly 
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const out = await deepseekProvider.call(CALL);
     expect(out.text).toBe('{"ok":true}');
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  /**
+   * STREAM-path parity (audit 2026-08-13): the streaming engines (suggest/copilot/formulate/briefing)
+   * used to drop finish_reason entirely, so a starved streaming response truncated SILENTLY — the same
+   * class the `call`-path log above closed. These lock the stream path to the same "never silent" bar.
+   */
+  it("stream EMPTY + finish_reason:length → logs the stream starvation warning", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => sseResponse([{ choices: [{ delta: {}, finish_reason: "length" }] }]))
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await drainStream(CALL);
+    expect(out).toBe("");
+    expect(spy).toHaveBeenCalledTimes(1);
+    const msg = String(spy.mock.calls[0]?.[0]);
+    expect(msg).toMatch(/stream finish_reason.*length/);
+    expect(msg).toMatch(/EMPTY content/);
+    spy.mockRestore();
+  });
+
+  it("stream TRUNCATED + finish_reason:length → logs the TRUNCATED shape (partial content then cut)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          { choices: [{ delta: { content: '{"partial":' } }] },
+          { choices: [{ delta: {}, finish_reason: "length" }] },
+        ])
+      )
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await drainStream(CALL);
+    expect(out).toBe('{"partial":');
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toMatch(/TRUNCATED answer/);
+    spy.mockRestore();
+  });
+
+  it("stream finish_reason:stop → does NOT log (no false alarm on a healthy stream)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          { choices: [{ delta: { content: "ok" } }] },
+          { choices: [{ delta: {}, finish_reason: "stop" }] },
+        ])
+      )
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await drainStream(CALL);
+    expect(out).toBe("ok");
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });

@@ -24,6 +24,7 @@ import { DeckCard } from "@/components/sales-coach/ui/deck";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
+import { afterPitchNeedsHeal } from "@/lib/coach/v5/afterPitchHeal";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -283,7 +284,17 @@ export default function AfterPitchPage() {
       // cached an EMPTY narrative; now that the token budget is fixed, re-generating on next view fills in the
       // real read instead of showing a permanent blank. Self-limiting: once a real narrative is stored
       // (hasSignal:true) this no longer fires, so a healthy session regenerates at most once.
-      if ((!existing || !existing.hasSignal) && autoGenAttemptedFor.current !== id) {
+      //
+      // Auto-HEAL, part 2 (2026-08-13, audit e828f0e9+1): the composite `hasSignal` above is
+      // `narrative.hasSignal || moments || scores || cueLoop` (afterPitch.ts). The scores are DETERMINISTIC —
+      // computeQuestionRate returns a category for ANY session with agent turns — so a session with a BLANK
+      // read but present scores stored `hasSignal:true` and this heal NEVER re-fired: the read stayed
+      // permanently blank while the composite claimed signal (INV22 "error dressed as no-data", surviving at
+      // the UI). We now ALSO heal when the NARRATIVE specifically came back blank. This is targeted, not
+      // wasteful: scores-present ⟺ agent-turns-present, and a call with real agent turns that produced NO
+      // narrative can only be a starved/errored read (the genuine-thin, no-agent-turns case has no scores →
+      // composite false → the first clause already handles it). Bounded once-per-mount by the ref below.
+      if (afterPitchNeedsHeal(existing) && autoGenAttemptedFor.current !== id) {
         autoGenAttemptedFor.current = id;
         void generate();
       }

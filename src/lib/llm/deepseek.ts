@@ -9,12 +9,19 @@ import { fetchWithTimeout, withRetry } from "./retry";
  * with `data: [DONE]\n\n`.
  */
 async function* parseSseDeltas(
-  response: Response
+  response: Response,
+  ctx: { model: string; budget: number }
 ): AsyncGenerator<string, void, void> {
   if (!response.body) return;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  // Reasoning-starvation visibility on the STREAM path (audit 2026-08-13). The non-stream `call` path logs
+  // finish_reason:"length" loudly; the stream path used to parse finish_reason into the type but never read it,
+  // so a starved streaming engine (suggest/copilot/formulate/briefing) truncated SILENTLY — the same class the
+  // 2026-07-30 outage hid in, just on the streaming callers. Track it and log at end-of-stream.
+  let finishReason: string | null = null;
+  let sawContent = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -38,8 +45,13 @@ async function* parseSseDeltas(
                 finish_reason?: string | null;
               }>;
             };
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) yield delta;
+            const choice = parsed.choices?.[0];
+            if (choice?.finish_reason) finishReason = choice.finish_reason;
+            const delta = choice?.delta?.content;
+            if (delta) {
+              sawContent = true;
+              yield delta;
+            }
           } catch {
             /* skip malformed event */
           }
@@ -51,6 +63,14 @@ async function* parseSseDeltas(
       reader.releaseLock();
     } catch {
       /* already released */
+    }
+    if (finishReason === "length") {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[deepseek] stream finish_reason:"length" — ${
+          sawContent ? "TRUNCATED answer (cut mid-stream)" : "EMPTY content"
+        } (model=${ctx.model}, budget=${ctx.budget}) — reasoning consumed the token budget. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS.`
+      );
     }
   }
 }
@@ -253,6 +273,9 @@ export const deepseekProvider: Provider = {
       });
     }
 
-    yield* parseSseDeltas(res);
+    yield* parseSseDeltas(res, {
+      model,
+      budget: withReasoningHeadroom(args.maxTokens),
+    });
   },
 };
