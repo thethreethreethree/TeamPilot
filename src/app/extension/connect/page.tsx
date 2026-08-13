@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { isExtensionHandoffAllowed } from "@/lib/care/extensionHandoff";
+import { selectConnectPanel } from "@/lib/care/connectPanelState";
 
 // Minimal typing for the extension-messaging bridge that externally_connectable exposes on this origin.
 type ChromeRuntime = {
@@ -125,6 +126,10 @@ export default function ExtensionConnectPage() {
     }
   }
 
+  // ONE decision for which panel to show (see selectConnectPanel) — the security invariant (never offer the
+  // token on a refused/connected state) lives in that pure, tested function instead of six inline conditions.
+  const panel = selectConnectPanel({ state, token, autoConnected, refusedExtId, isSales });
+
   return (
     <div className="min-h-screen bg-base text-primary px-6 py-16">
       <div className="max-w-xl mx-auto">
@@ -136,9 +141,9 @@ export default function ExtensionConnectPage() {
           the token below is a manual fallback.
         </p>
 
-        {state === "loading" && <p className="text-sm text-muted">Checking your session…</p>}
+        {panel === "loading" && <p className="text-sm text-muted">Checking your session…</p>}
 
-        {state === "signedout" && (
+        {panel === "signedout" && (
           <div className="glass-card p-6">
             <p className="text-sm text-secondary mb-4">You&apos;re not signed in. Sign in first, then come back here.</p>
             <a
@@ -150,7 +155,7 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
-        {state === "ready" && autoConnected && (
+        {panel === "connected" && (
           <div className="glass-card p-6 border border-emerald-500/30">
             <p className="text-lg font-bold text-primary mb-1 flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" /> Connected
@@ -165,7 +170,7 @@ export default function ExtensionConnectPage() {
         {/* Handoff REFUSED — the extension that opened this page isn't the pinned official id. Show WHY on-screen
             (founder-approved 2026-08-13) instead of a silent drop to the fallback, so an id-pin mismatch is
             diagnosable. Replaces both product fallbacks when it's the reason the auto-connect didn't fire. */}
-        {state === "ready" && !autoConnected && refusedExtId && (
+        {panel === "refused" && (
           <div className="glass-card p-6 border border-amber-500/40">
             <p className="text-lg font-bold text-primary mb-1 flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" /> Extension not recognized
@@ -189,7 +194,7 @@ export default function ExtensionConnectPage() {
             "Copy token → Developer connect → paste" flow here is a dead end for a Sales rep (there's nowhere to
             paste it) AND the copied ACCESS token carries no refresh token, so even if pasted it drops after ~1h.
             So for Sales, guide back to the one-click Sign in instead of offering a token to copy. (2026-08-13) */}
-        {state === "ready" && token && !autoConnected && !refusedExtId && isSales && (
+        {panel === "sales-guidance" && (
           <div className="glass-card p-6">
             <p className="text-sm text-secondary leading-relaxed mb-2">
               The one-click connect didn&apos;t complete. The Sales Coach extension signs in{" "}
@@ -204,12 +209,12 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
-        {state === "ready" && token && !autoConnected && !refusedExtId && !isSales && (
+        {panel === "care-token" && (
           <div className="glass-card p-6">
             <label className="text-[10px] uppercase tracking-widest text-muted font-semibold">Your session token</label>
             <textarea
               readOnly
-              value={token}
+              value={token ?? ""}
               onFocus={(e) => e.currentTarget.select()}
               className="w-full mt-2 h-28 bg-base border border-default rounded-lg p-3 text-[11px] font-mono text-secondary resize-none break-all"
             />
