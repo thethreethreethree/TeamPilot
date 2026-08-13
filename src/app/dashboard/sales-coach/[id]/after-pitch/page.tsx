@@ -569,6 +569,12 @@ export default function AfterPitchPage() {
                 ("…then next door focus, thats it"). CueLoop is kept (existing
                 component, not asked to be removed) with the review content, above
                 the final focus card. */}
+            <BlankReadRecovery
+              sessionId={id}
+              hasSavedRecording={!!session?.audioAssetUrl}
+              narrativeBlank={!summary.narrative.hasSignal}
+              onRecovered={() => void generate()}
+            />
             <Scoreboard scores={summary.scores} />
             <Narrative narrative={summary.narrative} defaultOpen />
             <CueLoop entries={summary.cueLoop} />
@@ -576,6 +582,12 @@ export default function AfterPitchPage() {
           </>
         ) : (
           <>
+            <BlankReadRecovery
+              sessionId={id}
+              hasSavedRecording={!!session?.audioAssetUrl}
+              narrativeBlank={!summary.narrative.hasSignal}
+              onRecovered={() => void generate()}
+            />
             <Timeline moments={summary.moments} />
             {whatHappened && (
               <LearningHint
@@ -1024,6 +1036,45 @@ function CorrectLineCard({ moments }: { moments: Moment[] }) {
         </div>
       </section>
     </LearningHint>
+  );
+}
+
+/* ─── BlankReadRecovery (founder 2026-08-13 — the composite-masking recovery gap) ───────────────────
+   A one-sided session (customer captured, the agent's turns missed by live STT/attribution) still has
+   COMPOSITE signal (moments / cue-loop), so the whole-summary-empty recovery affordance never renders —
+   the agent is left with a blank "Your read" and NO way to recover it. Show a re-transcribe path here too,
+   whenever the NARRATIVE specifically is blank AND the audio was saved. A batch re-transcribe (diarization)
+   re-does the transcription cleanly offline (no 700ms live constraint), recovering the agent turns → the
+   read regenerates via onRecovered. Renders nothing when the read is fine or there's no saved audio. */
+function BlankReadRecovery({
+  sessionId,
+  hasSavedRecording,
+  narrativeBlank,
+  onRecovered,
+}: {
+  sessionId: string;
+  hasSavedRecording: boolean;
+  narrativeBlank: boolean;
+  onRecovered: () => void;
+}) {
+  if (!narrativeBlank || !hasSavedRecording) return null;
+  return (
+    <section className="rounded-2xl border border-ember-400/30 bg-ember-400/[0.05] p-4 space-y-3">
+      <div>
+        <p className="text-xs text-primary font-medium">Your written read didn&apos;t generate for this call.</p>
+        <p className="text-[11px] text-muted leading-relaxed mt-1">
+          Your scores and Next Door Focus below are real — but the full written read came back blank, usually
+          because your side of the call wasn&apos;t transcribed live. Your audio{" "}
+          <span className="text-secondary">was saved</span>, so recover the full read from the recording:
+        </p>
+      </div>
+      <SessionRecordingUpload
+        sessionId={sessionId}
+        onLabeled={onRecovered}
+        hasSavedRecording={hasSavedRecording}
+        autoRetranscribe={hasSavedRecording}
+      />
+    </section>
   );
 }
 
