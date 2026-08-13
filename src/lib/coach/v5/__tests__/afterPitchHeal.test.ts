@@ -2,16 +2,25 @@ import { describe, it, expect } from "vitest";
 import { afterPitchNeedsHeal } from "../afterPitchHeal";
 
 /**
- * Regression guard for the 2026-08-13 audit finding: a BLANK "Your read" narrative was masked by
- * the composite `hasSignal` (deterministic scores keep it true), so the auto-heal — which used to
- * key on the composite — never re-fired and the read stayed permanently blank. The heal must key on
- * the NARRATIVE's signal. The `masked-blank-read` case below is the detection test: the OLD predicate
- * (`!existing || !existing.hasSignal`) returns FALSE here, so a revert to it fails this file.
+ * Regression guard for the 2026-08-13 audit finding AND the follow-up convergence fix:
+ *
+ *  - A BLANK "Your read" narrative masked by the composite `hasSignal` (deterministic scores keep it true)
+ *    must re-heal when the read is RECOVERABLE (agent turns present → scores present → a starved read).
+ *  - But it must NOT re-heal a STRUCTURALLY-blank narrative — a one-sided / customer-only recording (0 agent
+ *    turns → scores EMPTY, narrative deterministically blank) whose composite is kept true by moments/cueLoop.
+ *    Healing that case re-fires a full generation on every mount and never converges. This is the exact
+ *    regression an adversarial review caught: `moments` (any-speaker) and `cueLoop` (transcript-independent)
+ *    drive the composite independently of agent turns, so "scores ⟺ agent turns" is the gate, not the composite.
  */
 describe("afterPitchNeedsHeal", () => {
-  const withNarrative = (narrativeSignal: boolean, composite: boolean) => ({
-    hasSignal: composite,
-    narrative: { hasSignal: narrativeSignal },
+  const summary = (opts: {
+    narrativeSignal: boolean;
+    composite: boolean;
+    scores: number; // count of score categories present
+  }) => ({
+    hasSignal: opts.composite,
+    narrative: { hasSignal: opts.narrativeSignal },
+    scores: Array.from({ length: opts.scores }, (_, i) => i),
   });
 
   it("heals when there is no stored summary at all", () => {
@@ -19,21 +28,28 @@ describe("afterPitchNeedsHeal", () => {
   });
 
   it("heals when the composite has no signal (thin, no agent turns)", () => {
-    // narrative blank AND composite false — the genuine-thin case the first clause always caught.
-    expect(afterPitchNeedsHeal(withNarrative(false, false))).toBe(true);
+    expect(afterPitchNeedsHeal(summary({ narrativeSignal: false, composite: false, scores: 0 }))).toBe(true);
   });
 
-  it("heals a BLANK narrative masked by a true composite (the audit regression)", () => {
-    // narrative blank but composite TRUE (deterministic scores present). The OLD composite-only
-    // predicate returned false here → the read stayed blank forever. Must now heal.
-    const masked = withNarrative(false, true);
-    expect(afterPitchNeedsHeal(masked)).toBe(true);
-    // Prove this is the case the composite-only check missed:
-    const compositeOnly = !masked || !masked.hasSignal;
-    expect(compositeOnly).toBe(false);
+  it("heals a STARVED read: blank narrative masked by a true composite, WITH scores (agent turns present)", () => {
+    // The recoverable case — agent turns → scores present, but the reasoning model returned an empty read.
+    const starved = summary({ narrativeSignal: false, composite: true, scores: 2 });
+    expect(afterPitchNeedsHeal(starved)).toBe(true);
+    // Prove this is the case the ORIGINAL composite-only predicate missed:
+    expect(!starved || !starved.hasSignal).toBe(false);
+  });
+
+  it("does NOT heal a one-sided recording: blank narrative + composite true but NO scores (0 agent turns)", () => {
+    // THE CONVERGENCE REGRESSION: composite true via moments/cueLoop, narrative deterministically blank,
+    // scores empty (0 agent turns). salesReview can never produce a read here → healing would loop forever.
+    const oneSided = summary({ narrativeSignal: false, composite: true, scores: 0 });
+    expect(afterPitchNeedsHeal(oneSided)).toBe(false);
+    // And prove the naive narrative-only check WOULD have looped on it:
+    const narrativeOnlyCheck = !oneSided.narrative.hasSignal; // the pre-fix trigger
+    expect(narrativeOnlyCheck).toBe(true);
   });
 
   it("does NOT heal a healthy summary with a real narrative", () => {
-    expect(afterPitchNeedsHeal(withNarrative(true, true))).toBe(false);
+    expect(afterPitchNeedsHeal(summary({ narrativeSignal: true, composite: true, scores: 2 }))).toBe(false);
   });
 });
