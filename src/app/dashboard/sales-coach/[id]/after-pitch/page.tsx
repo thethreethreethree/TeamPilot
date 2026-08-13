@@ -180,6 +180,10 @@ export default function AfterPitchPage() {
   const autoRecoverAttemptedFor = useRef<string | null>(null);
   const [autoRecovering, setAutoRecovering] = useState(false);
   const [autoRecoverResolved, setAutoRecoverResolved] = useState(false);
+  // The auto-recover terminal status, kept so the UI can be honest per outcome. In particular "still-one-sided"
+  // (the audio genuinely holds ONE voice) must NOT show the re-transcribe card — re-transcribing reproduces the
+  // same one-sided result (a false-promise loop). The API returns the distinct status precisely so we can say so.
+  const [autoRecoverOutcome, setAutoRecoverOutcome] = useState<string | null>(null);
   // "What happened" is the longest block; collapsed by default so it doesn't
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
@@ -280,9 +284,13 @@ export default function AfterPitchPage() {
         // rebuild + display the After-Pitch read from it. Mirrors the manual recovery's onRecovered.
         await generate();
       } else {
+        // Non-recovered terminal. Record WHICH one so the card can be honest — still-one-sided renders a
+        // terminal message instead of a re-transcribe card that would only reproduce the one-sided result.
+        setAutoRecoverOutcome(d.status ?? "failed");
         setAutoRecoverResolved(true);
       }
     } catch {
+      setAutoRecoverOutcome("failed");
       setAutoRecoverResolved(true);
     } finally {
       setAutoRecovering(false);
@@ -382,6 +390,7 @@ export default function AfterPitchPage() {
     setWhatHappened(null);
     setError(null);
     setAutoRecoverResolved(false);
+    setAutoRecoverOutcome(null);
   }, [id]);
 
   useEffect(() => {
@@ -644,6 +653,7 @@ export default function AfterPitchPage() {
               hasSavedRecording={!!session?.audioAssetUrl}
               autoRecovering={autoRecovering}
               autoRecoverResolved={autoRecoverResolved}
+              autoRecoverOutcome={autoRecoverOutcome}
               onRecovered={() => void generate()}
             />
             <Scoreboard scores={summary.scores} />
@@ -659,6 +669,7 @@ export default function AfterPitchPage() {
               hasSavedRecording={!!session?.audioAssetUrl}
               autoRecovering={autoRecovering}
               autoRecoverResolved={autoRecoverResolved}
+              autoRecoverOutcome={autoRecoverOutcome}
               onRecovered={() => void generate()}
             />
             <Timeline moments={summary.moments} />
@@ -1132,6 +1143,7 @@ function BlankReadRecovery({
   hasSavedRecording,
   autoRecovering,
   autoRecoverResolved,
+  autoRecoverOutcome,
   onRecovered,
 }: {
   sessionId: string;
@@ -1139,6 +1151,7 @@ function BlankReadRecovery({
   hasSavedRecording: boolean;
   autoRecovering: boolean;
   autoRecoverResolved: boolean;
+  autoRecoverOutcome: string | null;
   onRecovered: () => void;
 }) {
   // Automatic recovery in flight — a working state, not the manual tap card.
@@ -1149,6 +1162,21 @@ function BlankReadRecovery({
         <p className="text-[11px] text-muted leading-relaxed mt-1">
           One side of the call wasn&apos;t captured live, so we&apos;re re-transcribing the saved audio to rebuild
           the full read. This only takes a moment.
+        </p>
+      </section>
+    );
+  }
+  // Auto-recover found only ONE voice in the recording — re-transcribing it again would reproduce the same
+  // one-sided result, so DON'T offer the re-transcribe card (a false-promise loop). Say honestly what happened
+  // (§3.4). This is the terminal the API's distinct "still-one-sided" status exists to enable.
+  if (autoRecoverOutcome === "still-one-sided") {
+    return (
+      <section className="rounded-2xl border border-default bg-surface/60 p-4">
+        <p className="text-xs text-primary font-medium">Only one side of this call was recorded.</p>
+        <p className="text-[11px] text-muted leading-relaxed mt-1">
+          The saved audio only picked up one voice, so there&apos;s no second side to recover — the scores and
+          focus below are built from what was captured. For the full written read next time, make sure both
+          voices reach the mic.
         </p>
       </section>
     );
