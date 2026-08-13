@@ -6,6 +6,7 @@ import {
   shouldRunCheck,
   HEALTH_CHECK_THROTTLE_MS,
   IDLE_AUTO_UPDATE_MS,
+  FOREGROUND_POLL_MS,
 } from "../VersionWatcher";
 
 /**
@@ -141,5 +142,21 @@ describe("IDLE_AUTO_UPDATE_MS — idle auto-update threshold sanity", () => {
   });
   it("fires within <= 5 min (still catches a parked stale tab)", () => {
     expect(IDLE_AUTO_UPDATE_MS).toBeLessThanOrEqual(300_000);
+  });
+});
+
+/**
+ * FOREGROUND_POLL_MS (audit 2026-08-13) is the detect-only poll that lets a NEVER-BACKGROUNDED client discover a
+ * new deploy — without it, `stale` only flips on mount/revisit, so a foregrounded agent never triggers the banner
+ * OR the idle-update (the exact gap the audit caught). It must be comfortably above the 30s health-check throttle
+ * (so the poll actually runs, not swallowed) and not so frequent it hammers /api/health.
+ */
+describe("FOREGROUND_POLL_MS — foreground detection poll sanity", () => {
+  it("is above the health-check throttle so the poll actually fires", () => {
+    expect(FOREGROUND_POLL_MS).toBeGreaterThan(HEALTH_CHECK_THROTTLE_MS);
+  });
+  it("polls at least every few minutes (a foregrounded agent detects a deploy promptly) but not sub-minute (load)", () => {
+    expect(FOREGROUND_POLL_MS).toBeGreaterThanOrEqual(60_000);
+    expect(FOREGROUND_POLL_MS).toBeLessThanOrEqual(300_000);
   });
 });

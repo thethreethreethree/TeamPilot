@@ -7,15 +7,21 @@ app foregrounded and ignores the banner stayed on a stale bundle (founder: "auto
 trigger funnels through the existing guarded `scheduleReload`, so the recording-guard + once-per-commit loop-guard
 apply unchanged. Threshold locked to [60s, 5min] by a unit test.
 
+**F2 (full-build audit follow-up):** the idle-update was inert for its OWN target case — `stale` only flipped on
+mount/revisit, so a never-backgrounded agent never re-detected a deploy. Added a detect-only foreground poll
+(`FOREGROUND_POLL_MS = 120s`) so a foregrounded client discovers staleness → banner + arms the idle-update. The
+poll never auto-reloads (an active session is never yanked); the reload still happens via the idle path. Now the
+detection fires on mount + revisit + periodic poll, all through the one guarded `check()`.
+
 ## Verification (A38) — full gate output
 `npm run check` — full gate, exit 0:
 ```
 typecheck ✓ · lint ✓ · theme:audit ✓ · rls:audit ✓
 invariant:audit ✓ — Violations 0
 tbc ✓ — docs · manifest · artifacts · residual · freshness — all ✓
-Test Files 403 passed | 1 skipped (404); Tests 2788 passed | 15 skipped (2803)
+Test Files 404 passed | 1 skipped (405); Tests 2792 passed | 15 skipped (2807)
 ```
-VersionWatcher suite: 18 passed (incl. the 2 new IDLE_AUTO_UPDATE_MS sanity tests).
+VersionWatcher suite: 20 passed (idle + F2 foreground-poll sanity tests included).
 
 ## Residual (A36)
 ```json

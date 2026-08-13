@@ -112,6 +112,14 @@ export function shouldRunCheck(nowMs: number, lastCheckAtMs: number, bypassThrot
 // signal — any tap/scroll/keypress resets it, so active work is never interrupted.
 export const IDLE_AUTO_UPDATE_MS = 90_000;
 
+// Foreground detection poll (audit 2026-08-13). `check()` otherwise runs ONLY on mount + revisit
+// (visibilitychange→visible), so a mobile agent who keeps the app FOREGROUNDED and never backgrounds it would
+// never RE-DETECT a new deploy → `stale` never flips → neither the banner nor the idle auto-update ever fires for
+// them (the exact foregrounded case the idle-update targets). Poll /api/health this often so a foregrounded client
+// discovers staleness → banner shows + the idle-update arms. Detect-ONLY (never auto-reloads an active session);
+// /api/health is a cheap env read, and background tabs throttle setInterval so this is effectively foreground-only.
+export const FOREGROUND_POLL_MS = 120_000;
+
 /** sessionStorage that never throws on access (the property getter itself throws in some privacy modes). */
 function safeSessionStorage(): Storage | undefined {
   try {
@@ -193,6 +201,10 @@ export function VersionWatcher() {
   useEffect(() => {
     // Initial view → detect + banner only (no auto-reload of the current session).
     void check(false);
+    // Foreground poll so a never-backgrounded client still DETECTS a new deploy (sets stale → banner + arms the
+    // idle-update). Detect-only (autoReload=false) — the idle path does the actual reload when the tab goes idle,
+    // so an ACTIVE foregrounded session is never yanked. Cheap env-read endpoint; background tabs throttle this.
+    const pollId = window.setInterval(() => void check(false), FOREGROUND_POLL_MS);
     const wasHidden = { current: false };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
@@ -210,6 +222,7 @@ export function VersionWatcher() {
     window.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("elostate:recording-ended", onRecordingEnded);
     return () => {
+      window.clearInterval(pollId);
       window.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("elostate:recording-ended", onRecordingEnded);
     };
