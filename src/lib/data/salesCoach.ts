@@ -331,31 +331,6 @@ export async function appendTranscriptSegment(args: {
 }
 
 /**
- * Delete a session's transcript segments — the NARROW, gated exception to the append-only transcript rule
- * (§A18). Used ONLY to overwrite a BROKEN (zero-agent-turns) transcript on a recovery re-transcribe: a one-sided
- * / all-`unknown` transcript has no "Your read" value and isn't canonical data worth preserving, so replacing it
- * with a cleanly re-diarized one is a CORRECTION, not a double-write. The CALLER must gate this on "existing has
- * 0 agent turns" + owner-only; this function does not re-check (it's a mechanism). Service-role.
- */
-export async function deleteSessionTranscriptSegments(
-  sessionId: string
-): Promise<boolean> {
-  const sb = createServiceRoleClient();
-  const { error } = await sb
-    .from("coaching_transcript_segments")
-    .delete()
-    .eq("session_id", sessionId);
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `[salesCoach.deleteSessionTranscriptSegments] failed session=${sessionId}: ${error.message}`
-    );
-    return false;
-  }
-  return true;
-}
-
-/**
  * ATOMICALLY replace a session's transcript — delete all existing segments + insert `segments` in ONE
  * transaction (the `replace_session_transcript` RPC, migration 0212). Use this for the RECOVERY OVERWRITE of a
  * broken/one-sided transcript instead of a delete-then-append pair: a delete-then-append can destroy the
