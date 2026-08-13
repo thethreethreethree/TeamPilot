@@ -36,6 +36,10 @@ export default function ExtensionConnectPage() {
   const [state, setState] = useState<"loading" | "ready" | "signedout">("loading");
   const [copied, setCopied] = useState(false);
   const [autoConnected, setAutoConnected] = useState(false);
+  // The ext id that was REFUSED, if any — set when the URL's ?ext= id doesn't match the configured official
+  // extension id. Surfaced on-screen (not just console) so an id-pin mismatch reads as a clear message instead
+  // of a silent drop to the manual/copy fallback (founder-approved 2026-08-13).
+  const [refusedExtId, setRefusedExtId] = useState<string | null>(null);
   // Which extension this page is connecting. Default C.A.R.E (no `product` param) → the C.A.R.E behavior is
   // byte-for-byte unchanged; the Sales Coach extension opens /extension/connect?product=sales. One page,
   // both extensions (A21) — each gets its own message type + its own pinned extension id.
@@ -82,6 +86,7 @@ export default function ExtensionConnectPage() {
       const connectType = sales ? "sales-connect" : "care-connect";
       const extAllowed = isExtensionHandoffAllowed(ext, allowedExtId);
       if (ext && allowedExtId && !extAllowed) {
+        setRefusedExtId(ext);
         // eslint-disable-next-line no-console
         console.warn(
           `[${connectType}] refused token hand-off: ext id "${ext}" is not the configured official extension id.`
@@ -157,11 +162,34 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
+        {/* Handoff REFUSED — the extension that opened this page isn't the pinned official id. Show WHY on-screen
+            (founder-approved 2026-08-13) instead of a silent drop to the fallback, so an id-pin mismatch is
+            diagnosable. Replaces both product fallbacks when it's the reason the auto-connect didn't fire. */}
+        {state === "ready" && !autoConnected && refusedExtId && (
+          <div className="glass-card p-6 border border-amber-500/40">
+            <p className="text-lg font-bold text-primary mb-1 flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" /> Extension not recognized
+            </p>
+            <p className="text-sm text-secondary leading-relaxed mb-2">
+              This site is set to connect only to the official {productLabel} extension, and the one that opened
+              this page isn&apos;t it, so the sign-in was refused for your safety.
+            </p>
+            <p className="text-[11px] text-muted leading-relaxed break-all mb-2">
+              Extension id seen: <span className="font-mono text-secondary">{refusedExtId}</span>
+            </p>
+            <p className="text-sm text-secondary leading-relaxed">
+              If you&apos;re running a <strong className="text-primary">development / unpacked</strong> build, the
+              pinned id needs to be cleared for it to connect — tell the person who set it up. Otherwise, install
+              the official {productLabel} extension and try again.
+            </p>
+          </div>
+        )}
+
         {/* SALES has no manual-paste path — it connects ONLY via the one-click handoff. Showing C.A.R.E's
             "Copy token → Developer connect → paste" flow here is a dead end for a Sales rep (there's nowhere to
             paste it) AND the copied ACCESS token carries no refresh token, so even if pasted it drops after ~1h.
             So for Sales, guide back to the one-click Sign in instead of offering a token to copy. (2026-08-13) */}
-        {state === "ready" && token && !autoConnected && isSales && (
+        {state === "ready" && token && !autoConnected && !refusedExtId && isSales && (
           <div className="glass-card p-6">
             <p className="text-sm text-secondary leading-relaxed mb-2">
               The one-click connect didn&apos;t complete. The Sales Coach extension signs in{" "}
@@ -176,7 +204,7 @@ export default function ExtensionConnectPage() {
           </div>
         )}
 
-        {state === "ready" && token && !autoConnected && !isSales && (
+        {state === "ready" && token && !autoConnected && !refusedExtId && !isSales && (
           <div className="glass-card p-6">
             <label className="text-[10px] uppercase tracking-widest text-muted font-semibold">Your session token</label>
             <textarea
