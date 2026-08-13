@@ -19,6 +19,7 @@ type Tables = {
   profile?: unknown;
   ended?: { id: string; audio_asset_url: string | null; agent_id?: string | null }[];
   segments?: { session_id: string; speaker?: string }[];
+  agentNames?: { id: string; full_name: string | null }[];
   total?: number;
   userId?: string | null;
 };
@@ -46,9 +47,12 @@ function setClient(t: Tables) {
               : (t.ended ?? []),
         error: null,
       });
-      // awaited directly (the exact-count head query on coaching_sessions).
-      chain.then = (resolve: (v: unknown) => unknown) =>
-        resolve(chain._head ? { count: t.total ?? 0, error: null } : { data: t.ended ?? [], error: null });
+      // awaited directly: the head count + ended-sessions read on coaching_sessions, and the agent-name
+      // lookup on profiles (.in(ids) → the affected reps' names).
+      chain.then = (resolve: (v: unknown) => unknown) => {
+        if (table === "profiles") return resolve({ data: t.agentNames ?? [], error: null });
+        return resolve(chain._head ? { count: t.total ?? 0, error: null } : { data: t.ended ?? [], error: null });
+      };
       return chain;
     },
   });
@@ -98,6 +102,10 @@ describe("GET /capture-health", () => {
         { session_id: "s2", speaker: "agent" },
         { session_id: "s3", speaker: "customer" }, // one-sided — customer only, no agent
       ],
+      agentNames: [
+        { id: "B", full_name: "Bianca Reyes" },
+        { id: "C", full_name: "Carlos Diaz" },
+      ],
     });
     const body = await (await GET()).json();
     expect(body.total).toBe(5);
@@ -117,5 +125,8 @@ describe("GET /capture-health", () => {
     expect(B).toMatchObject({ ended: 2, noFeedback: 2, oneSided: 1, empty: 1, rate: 100 });
     expect(C).toMatchObject({ ended: 1, noFeedback: 1, empty: 1, rate: 100 });
     expect(byAgent[byAgent.length - 1]?.agentId).toBe("A"); // lowest rate last
+    // Names resolved for the affected reps (find WHO). A (no no-feedback) isn't looked up → null.
+    expect((B as unknown as { agentName: string | null }).agentName).toBe("Bianca Reyes");
+    expect((A as unknown as { agentName: string | null }).agentName).toBeNull();
   });
 });

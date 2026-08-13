@@ -144,6 +144,20 @@ export async function GET() {
     }
     const noFeedback = failed + oneSided;
 
+    // Resolve NAMES for the affected agents (a UUID isn't actionable — the founder wants to know WHO). Only the
+    // reps with no-feedback sessions, company-scoped via RLS. Best-effort: a lookup miss just leaves the id.
+    const affectedIds = Array.from(byAgent.values())
+      .filter((b) => b.noFeedback > 0 && b.agentId !== "unassigned")
+      .map((b) => b.agentId);
+    const nameById = new Map<string, string>();
+    if (affectedIds.length > 0) {
+      const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", affectedIds);
+      for (const p of profs ?? []) {
+        const n = (p.full_name as string | null)?.trim();
+        if (n) nameById.set(p.id as string, n);
+      }
+    }
+
     return NextResponse.json({
       total,
       noFeedback, // TRUE cost: sessions with 0 agent turns → no "Your read" (empty + one-sided)
@@ -155,7 +169,11 @@ export async function GET() {
       failureRate: total > 0 ? Math.round((failed / total) * 1000) / 10 : 0, // legacy (empty-only)
       // Which agents are most affected (highest no-feedback rate first), for targeting the capture problem.
       byAgent: Array.from(byAgent.values())
-        .map((b) => ({ ...b, rate: b.ended > 0 ? Math.round((b.noFeedback / b.ended) * 1000) / 10 : 0 }))
+        .map((b) => ({
+          ...b,
+          agentName: nameById.get(b.agentId) ?? null,
+          rate: b.ended > 0 ? Math.round((b.noFeedback / b.ended) * 1000) / 10 : 0,
+        }))
         .sort((a, b) => b.rate - a.rate),
     });
   } catch (e) {

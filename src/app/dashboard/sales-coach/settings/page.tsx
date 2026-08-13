@@ -881,6 +881,7 @@ function VoiceHealthCard() {
 
 type CaptureHealthAgent = {
   agentId: string;
+  agentName: string | null;
   ended: number;
   noFeedback: number;
   oneSided: number;
@@ -988,8 +989,11 @@ function CaptureHealthCard() {
                   .slice(0, 8)
                   .map((a) => (
                     <li key={a.agentId} className="flex items-center justify-between text-[11px]">
-                      <span className="font-mono text-secondary">
-                        {a.agentId === "unassigned" ? "unassigned" : a.agentId.slice(0, 8)}
+                      <span className="text-secondary">
+                        {a.agentName ??
+                          (a.agentId === "unassigned" ? "unassigned" : (
+                            <span className="font-mono">{a.agentId.slice(0, 8)}</span>
+                          ))}
                       </span>
                       <span className="text-muted">
                         {a.noFeedback}/{a.ended}
