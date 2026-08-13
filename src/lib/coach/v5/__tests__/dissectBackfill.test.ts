@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
  * runDissectBackfill regenerates missing Sales-Coach dissects in a CAPPED, BOUNDED batch (§5 cost bound, §3.4
- * honest scan bound). The properties that matter: it only processes sessions with NO dissect event; it never
+ * honest scan bound). The properties that matter: it only processes sessions with NO dissect event AND not
+ * recently ATTEMPTED (the backoff that stops a no-signal session re-running a full LLM call forever); it never
  * exceeds the cap (a backlog drains over runs); one failing/thin session doesn't sink the batch; and it reports
  * scanBounded honestly when the scan hit its limit. IO-heavy but the control flow is the point.
  */
@@ -10,20 +11,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 type Session = { id: string; agent_id: string; company_id: string; client_label: string | null; context: string; status: string };
 const state = vi.hoisted(() => ({
   sessions: [] as Session[],
-  events: [] as Array<{ subject: string }>,
+  dissectEvents: [] as Array<{ subject: string }>, // coach.dissect_generated
+  attemptEvents: [] as Array<{ subject: string }>, // coach.dissect_attempted (backoff)
   dissect: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
-  const q = (rows: unknown) => {
-    const b: Record<string, unknown> = {};
-    for (const m of ["select", "in", "order", "limit", "eq"]) b[m] = () => b;
-    b.then = (resolve: (v: unknown) => void) => resolve({ data: rows, error: null });
+  // A builder that records the `kind` filter so the two events queries (dissect_generated vs dissect_attempted)
+  // resolve to different rows, and supports the `.gte(occurred_at)` the backoff query adds.
+  const q = (table: string) => {
+    const b: Record<string, unknown> = { _kind: null };
+    for (const m of ["select", "in", "order", "limit", "gte"]) b[m] = () => b;
+    b.eq = (col: string, val: string) => {
+      if (col === "kind") (b as { _kind: string | null })._kind = val;
+      return b;
+    };
+    b.then = (resolve: (v: unknown) => void) => {
+      let data: unknown;
+      if (table === "coaching_sessions") data = state.sessions;
+      else if ((b as { _kind: string | null })._kind === "coach.dissect_attempted") data = state.attemptEvents;
+      else data = state.dissectEvents;
+      resolve({ data, error: null });
+    };
     return b;
   };
-  return {
-    createAdminClient: () => ({ from: (t: string) => (t === "coaching_sessions" ? q(state.sessions) : q(state.events)) }),
-  };
+  return { createAdminClient: () => ({ from: (t: string) => q(t) }) };
 });
 vi.mock("@/lib/data/salesCoach", () => ({ getSessionTranscriptAdmin: async () => [] }));
 vi.mock("@/lib/coach/v5/salesDissect", () => ({ runAndStoreDissect: (...a: unknown[]) => state.dissect(...a) }));
@@ -41,7 +53,8 @@ const session = (id: string): Session => ({
 
 beforeEach(() => {
   state.sessions = [];
-  state.events = [];
+  state.dissectEvents = [];
+  state.attemptEvents = [];
   state.dissect.mockReset();
   state.dissect.mockResolvedValue({ hasSignal: true });
 });
@@ -55,10 +68,28 @@ describe("runDissectBackfill", () => {
 
   it("only processes sessions that have NO dissect event", async () => {
     state.sessions = [session("s1"), session("s2"), session("s3")];
-    state.events = [{ subject: "sales_session:s2" }]; // s2 already dissected
+    state.dissectEvents = [{ subject: "sales_session:s2" }]; // s2 already dissected
     const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
     expect(r.missingTotal).toBe(2); // s1, s3
     expect(state.dissect).toHaveBeenCalledTimes(2);
+  });
+
+  it("SKIPS a session attempted (LLM ran, no signal) within the backoff window — no forever re-run", async () => {
+    // The cost-loop fix: s2 ran the LLM and produced no signal, so it carries a coach.dissect_attempted marker.
+    // It must NOT be re-run (a full ~20s LLM call) every pass — it's backed off until the window elapses.
+    state.sessions = [session("s1"), session("s2"), session("s3")];
+    state.attemptEvents = [{ subject: "sales_session:s2" }]; // s2 recently attempted → backoff
+    const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
+    expect(r.missingTotal).toBe(2); // s1, s3 only (s2 backed off)
+    expect(state.dissect).toHaveBeenCalledTimes(2); // s2 NOT re-run → no wasted LLM call
+  });
+
+  it("a session that is BOTH dissected and attempted is simply excluded (no double-count)", async () => {
+    state.sessions = [session("s1"), session("s2")];
+    state.dissectEvents = [{ subject: "sales_session:s2" }];
+    state.attemptEvents = [{ subject: "sales_session:s2" }];
+    const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
+    expect(r.missingTotal).toBe(1); // s1 only
   });
 
   it("never exceeds the cap; the rest is reported as remaining (drains over runs)", async () => {

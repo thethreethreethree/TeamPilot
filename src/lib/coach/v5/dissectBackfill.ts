@@ -26,6 +26,14 @@ import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
 const SCAN_LIMIT_SCOPED = 300;
 const SCAN_LIMIT_ALL = 1000;
 
+// Backoff window for a session that RAN the LLM but produced no signal (starved / tone-law / empty-with-turns).
+// It never gets a coach.dissect_generated marker, so without a backoff it would be re-run with a full LLM call
+// every pass forever (cron cap burn + the manual button's "remaining" frozen above 0). We emit a
+// coach.dissect_attempted marker (salesDissect.runAndStoreDissect) and skip such a session for this many days —
+// long enough to bound cost, short enough that a corpus-trim can recover it on the next window. (Founder-chosen
+// N=14, 2026-08-14.)
+const ATTEMPT_BACKOFF_DAYS = 14;
+
 export type DissectBackfillResult = {
   missingTotal: number;
   processed: number;
@@ -85,7 +93,28 @@ export async function runDissectBackfill(args: {
     )
   );
 
-  const missing = sessions.filter((s) => !dissected.has(s.id as string));
+  // Which of these were ATTEMPTED (LLM ran, no signal) within the backoff window — skip them so a persistently
+  // no-signal session isn't re-run with a full LLM call every pass. They re-enter the set after the window, so a
+  // later corpus-trim can still recover them. Same bounded-diff discipline as the dissect-event query above.
+  const attemptCutoff = new Date(
+    Date.now() - ATTEMPT_BACKOFF_DAYS * 86_400_000
+  ).toISOString();
+  const { data: attemptEvents, error: aErr } = await admin
+    .from("events")
+    .select("subject")
+    .eq("kind", "coach.dissect_attempted")
+    .in("subject", subjects)
+    .gte("occurred_at", attemptCutoff);
+  if (aErr) throw new Error(`attempt events: ${aErr.message}`);
+  const recentlyAttempted = new Set(
+    (attemptEvents ?? []).map((e) =>
+      String(e.subject ?? "").replace("sales_session:", "")
+    )
+  );
+
+  const missing = sessions.filter(
+    (s) => !dissected.has(s.id as string) && !recentlyAttempted.has(s.id as string)
+  );
   const batch = missing.slice(0, args.cap);
 
   // PARALLEL, not sequential. Each dissect is an independent LLM call on a different session (no shared

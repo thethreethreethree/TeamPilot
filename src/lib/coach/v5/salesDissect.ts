@@ -148,6 +148,27 @@ export async function runAndStoreDissect(args: {
     } catch {
       /* best-effort — the dissect still returns */
     }
+  } else if (
+    args.segments.filter((s) => s.speaker === "agent").length >= MIN_AGENT_SEGMENTS
+  ) {
+    // The LLM RAN (agent turns present → past generateSalesDissect's MIN gate; dissect is controlExempt, never
+    // suppressed) but produced NO signal — starved (F3 corpus), tone-law-rejected (growth but no strengths), or
+    // genuinely empty-with-turns. Emit an ATTEMPTED marker so the backfill BACKS OFF (14d) instead of re-running
+    // a full ~20s LLM call on this stuck session every cron pass / button click forever (the dissect-cron cost
+    // loop, 2026-08-14). Without it the session never gets a dissect_generated marker, stays "missing", burns the
+    // daily cap, and freezes the manual button's "remaining" above 0. Best-effort — a missed emit just re-checks.
+    try {
+      const admin = createAdminClient();
+      await admin.from("events").insert({
+        company_id: args.companyId,
+        actor: args.actorId,
+        kind: "coach.dissect_attempted",
+        subject: `sales_session:${args.sessionId}`,
+        payload: { reason: "no_signal", coach_version: "dissect-v1" },
+      });
+    } catch {
+      /* best-effort — the backoff just doesn't apply this run */
+    }
   }
   return dissect;
 }
