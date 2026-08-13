@@ -63,9 +63,11 @@ export async function GET() {
         oneSided: 0,
         undecided: 0,
         customerLabeled: 0,
+        customerMissing: 0,
         recoverable: 0,
         lost: 0,
         noFeedbackRate: 0,
+        customerMissingRate: 0,
         failureRate: 0,
         byAgent: [],
       });
@@ -98,6 +100,7 @@ export async function GET() {
     // in code); all-`customer` = mis-attribution OR true one-sided; no segments = the STT captured nothing.
     const withAnySegment = new Set<string>();
     const withAgentSegment = new Set<string>();
+    const withCustomerSegment = new Set<string>();
     const withUnknownSegment = new Set<string>();
     for (let i = 0; i < endedIds.length; i += CHUNK) {
       const batch = endedIds.slice(i, i + CHUNK);
@@ -114,6 +117,7 @@ export async function GET() {
       for (const r of rows) {
         withAnySegment.add(r.session_id);
         if (r.speaker === "agent") withAgentSegment.add(r.session_id);
+        else if (r.speaker === "customer") withCustomerSegment.add(r.session_id);
         else if (r.speaker === "unknown") withUnknownSegment.add(r.session_id);
       }
     }
@@ -124,17 +128,21 @@ export async function GET() {
     let failed = 0; // no transcript at all (== `empty`; legacy name kept for continuity)
     let undecided = 0; // segments present, 0 agent, ≥1 `unknown` → attribution failed to decide (fixable)
     let customerLabeled = 0; // segments present, 0 agent, all customer → mis-attribution or true one-sided
+    // agent present but the CUSTOMER side absent → the written read is blank DESPITE scores (the 2026-08-14
+    // customer-missing capture class). It's NOT in the 0-agent `noFeedback` population — the metric was blind to
+    // it before (it only counted 0-agent sessions), undercounting the capture cost. Now surfaced as its own bucket.
+    let customerMissing = 0;
     let recoverable = 0; // any no-feedback session whose audio was saved → re-transcribable
     let lost = 0; // no-feedback + no audio saved
     const byAgent = new Map<
       string,
-      { agentId: string; ended: number; noFeedback: number; oneSided: number; empty: number; undecided: number; customerLabeled: number }
+      { agentId: string; ended: number; noFeedback: number; oneSided: number; empty: number; undecided: number; customerLabeled: number; customerMissing: number }
     >();
     const agentBucket = (id: string | null) => {
       const key = id ?? "unassigned";
       let b = byAgent.get(key);
       if (!b) {
-        b = { agentId: key, ended: 0, noFeedback: 0, oneSided: 0, empty: 0, undecided: 0, customerLabeled: 0 };
+        b = { agentId: key, ended: 0, noFeedback: 0, oneSided: 0, empty: 0, undecided: 0, customerLabeled: 0, customerMissing: 0 };
         byAgent.set(key, b);
       }
       return b;
@@ -143,7 +151,16 @@ export async function GET() {
     for (const s of ended) {
       const bucket = agentBucket(s.agent_id);
       bucket.ended += 1;
-      if (withAgentSegment.has(s.id)) continue; // has agent turns → gets after-pitch feedback
+      if (withAgentSegment.has(s.id)) {
+        // Has agent turns → the scores compute. But if the CUSTOMER side is absent, the written read is blank
+        // despite the scores (talk/listen "—") — the customer-missing capture class auto-recover targets. Count
+        // it here so the metric sees it; it's outside the 0-agent `noFeedback` population by construction.
+        if (!withCustomerSegment.has(s.id)) {
+          customerMissing += 1;
+          bucket.customerMissing += 1;
+        }
+        continue; // has agent turns → not in the 0-agent no-feedback population below
+      }
       // No agent turns → no "Your read".
       bucket.noFeedback += 1;
       if (!withAnySegment.has(s.id)) {
@@ -167,7 +184,7 @@ export async function GET() {
     // Resolve NAMES for the affected agents (a UUID isn't actionable — the founder wants to know WHO). Only the
     // reps with no-feedback sessions, company-scoped via RLS. Best-effort: a lookup miss just leaves the id.
     const affectedIds = Array.from(byAgent.values())
-      .filter((b) => b.noFeedback > 0 && b.agentId !== "unassigned")
+      .filter((b) => (b.noFeedback > 0 || b.customerMissing > 0) && b.agentId !== "unassigned")
       .map((b) => b.agentId);
     const nameById = new Map<string, string>();
     if (affectedIds.length > 0) {
@@ -185,9 +202,11 @@ export async function GET() {
       oneSided, // segments present, 0 agent turns (= undecided + customerLabeled)
       undecided, // segments present, ≥1 `unknown` → attribution failed → FIXABLE IN CODE (no STT swap needed)
       customerLabeled, // segments present, all customer → mis-attribution or true one-sided
+      customerMissing, // agent present but customer side absent → blank read DESPITE scores (auto-recover class)
       recoverable, // no-feedback session with audio saved → re-transcribable
       lost, // no-feedback + no audio
       noFeedbackRate: total > 0 ? Math.round((noFeedback / total) * 1000) / 10 : 0,
+      customerMissingRate: total > 0 ? Math.round((customerMissing / total) * 1000) / 10 : 0,
       failureRate: total > 0 ? Math.round((failed / total) * 1000) / 10 : 0, // legacy (empty-only)
       // Which agents are most affected (highest no-feedback rate first), for targeting the capture problem.
       byAgent: Array.from(byAgent.values())

@@ -888,6 +888,7 @@ type CaptureHealthAgent = {
   empty: number;
   undecided: number;
   customerLabeled: number;
+  customerMissing: number;
   rate: number;
 };
 type CaptureHealthData = {
@@ -897,9 +898,11 @@ type CaptureHealthData = {
   oneSided: number;
   undecided: number;
   customerLabeled: number;
+  customerMissing: number;
   recoverable: number;
   lost: number;
   noFeedbackRate: number;
+  customerMissingRate: number;
   failureRate: number;
   byAgent: CaptureHealthAgent[];
 };
@@ -986,6 +989,11 @@ function CaptureHealthCard() {
               tone={data.undecided > 0 ? "emerald" : undefined}
             />
             <Stat label="Customer-labeled" value={data.customerLabeled} tone={data.customerLabeled > 0 ? "amber" : "emerald"} />
+            <Stat
+              label="Customer side missing (blank read despite scores)"
+              value={`${data.customerMissing} (${data.customerMissingRate}%)`}
+              tone={data.customerMissing > 0 ? "amber" : "emerald"}
+            />
             <Stat label="Empty (STT captured nothing)" value={data.failed} tone={data.failed > 0 ? "amber" : "emerald"} />
             <Stat label="Recoverable (audio saved)" value={data.recoverable} />
             <Stat label="Lost (no audio)" value={data.lost} tone={data.lost > 0 ? "amber" : "emerald"} />

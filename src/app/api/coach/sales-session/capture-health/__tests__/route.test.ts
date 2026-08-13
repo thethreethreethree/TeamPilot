@@ -81,9 +81,10 @@ describe("GET /capture-health", () => {
     expect(body).toMatchObject({ total: 0, noFeedback: 0, failed: 0, oneSided: 0, undecided: 0, customerLabeled: 0, recoverable: 0, lost: 0 });
   });
 
-  it("splits no-feedback by CAUSE (empty / undecided / customerLabeled) + per agent + names", async () => {
+  it("splits no-feedback by CAUSE + counts CUSTOMER-MISSING (agent present, customer absent) + per agent + names", async () => {
     // 5 ended. captured-fine = has an AGENT segment; no-feedback = 0 agent turns, split by cause:
-    //   s1,s2 (agent A): have agent turns → captured fine.
+    //   s1 (agent A): agent + customer → two-sided, captured fine (NOT customer-missing).
+    //   s2 (agent A): agent ONLY, no customer → CUSTOMER-MISSING (blank read despite scores — auto-recover class).
     //   s3 (agent B): segments, ONLY customer → customerLabeled (mis-attribution or true one-sided). audio → recoverable.
     //   s4 (agent B): segments, an `unknown` → UNDECIDED (attribution failed → fixable). audio → recoverable.
     //   s5 (agent C): no segments → EMPTY (STT captured nothing). no audio → lost.
@@ -115,6 +116,8 @@ describe("GET /capture-health", () => {
     expect(body.undecided).toBe(1); // s4 (unknown segment) — fixable in code
     expect(body.customerLabeled).toBe(1); // s3
     expect(body.oneSided).toBe(2); // undecided + customerLabeled (s3, s4)
+    expect(body.customerMissing).toBe(1); // s2: agent present, customer absent (widening 2026-08-14)
+    expect(body.customerMissingRate).toBe(20); // 1/5
     expect(body.recoverable).toBe(2); // s3, s4 have audio
     expect(body.lost).toBe(1); // s5 no audio
     expect(body.noFeedbackRate).toBe(60); // 3/5
@@ -126,7 +129,7 @@ describe("GET /capture-health", () => {
     const A = byAgent.find((x) => x.agentId === "A");
     const B = byAgent.find((x) => x.agentId === "B");
     const C = byAgent.find((x) => x.agentId === "C");
-    expect(A).toMatchObject({ ended: 2, noFeedback: 0, rate: 0 });
+    expect(A).toMatchObject({ ended: 2, noFeedback: 0, customerMissing: 1, rate: 0 }); // s2 customer-missing
     expect(B).toMatchObject({ ended: 2, noFeedback: 2, undecided: 1, customerLabeled: 1, empty: 0, rate: 100 });
     expect(C).toMatchObject({ ended: 1, noFeedback: 1, empty: 1, rate: 100 });
     expect(byAgent[byAgent.length - 1]?.agentId).toBe("A"); // lowest rate last
