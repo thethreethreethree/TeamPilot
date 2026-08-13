@@ -89,6 +89,15 @@ bounds cost, allows eventual retry — recommended, e.g. N=14); (c) cap at K att
 (cheap deduped event emit, tested), `care/rcd/retention` + `recording-purge` (deletions — converge by nature),
 `kpi/compute` (idempotent recompute — converges). Class swept comprehensively, not a found-one-and-stopped.
 
+**Client-side sweep (on-mount / on-show auto-generate effects) — also complete.** after-pitch was the ONLY
+client instance (fixed, `c7921692`). Structurally, it was uniquely vulnerable because it RE-READ A PERSISTED
+result and re-triggered generation off that result's shape (deterministically stuck). The others generate into
+LOCAL state per trigger, so they can't loop: `TaskRefinementPanel` (effect keyed on `[open]` → one gen per
+open), `CoachAffirmation` (one gen per show transition), `FormulateResponseModal` (user-triggered re-compose;
+cleanup-only effect), `SessionCoachTools` (composite gate but honest display + manual retry, generate() once
+per mount), `coach-assessment` (leaderboard read, not a generator). So the convergence class = exactly ONE
+client instance (fixed) + ONE server instance (dissect-backfill, above). Both surfaces swept.
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
