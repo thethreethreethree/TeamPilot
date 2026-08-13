@@ -17,6 +17,16 @@ intentional; per the "an audit finding is a suspect, not a fix" discipline they 
 7. **C.A.R.E ↻ restart-button parity** (Sales has it, C.A.R.E doesn't) → rec: add it. Small.
 8. Earlier queue: blank-read self-heal check (revisit a session), STT scope env, corpus-trim, read wording, Next.js 16.3.0.
 
+**🔗 ROOT-CAUSE SYNTHESIS (§1.5 holistic — read before triaging the fixes above):** Several findings share ONE
+root: the reasoning model starves when the ~9k-token knowledge-base corpus overloads the 8000-token output
+clamp (reasoning + answer). The STARVATION-driven symptoms are — your original **blank read**, the **read-heal
+residual** (persistent-blank per-visit re-heal, queue #8's tail), and the **starved subset of the dissect-cron
+stuck sessions** (#4). So **corpus-trim is not just queue item #8 — it's the leveraged fix** that shrinks all
+three at once. Prioritize it accordingly. Caveat: corpus-trim fixes the *starvation* subset; the dissect-cron's
+tone-law-no-strengths + genuinely-empty stuck sessions are separate and still need the backoff-marker fix (#4).
+Net: do **corpus-trim first** (leveraged), then the dissect-cron marker (#4) for the residual non-starvation
+cases. The read-heal + convergence fix already shipped catch whatever still starves, per-view.
+
 **Quick founder actions (no build needed):**
 - Reload both extensions from the SOURCE folders (`extension\`, `extension-sales\`), NOT `dist`/`.zip`, then ↻ reload → confirms C.A.R.E connects + sign-outs stop.
 
