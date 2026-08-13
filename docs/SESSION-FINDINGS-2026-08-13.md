@@ -64,8 +64,19 @@ cron run, forever**, consuming the 12/day cap so real backlog never drains. The 
 (`dissectBackfill.ts:16-17`) accounts for THIN sessions (cheap short-circuit before the LLM) but missed the
 LLM-ran-but-failed case (expensive re-check). This is the server-side twin of the after-pitch heal loop
 (`c7921692`) — same "regenerate a persistently-empty output on a still-true trigger" class, but with real
-recurring metered spend. Severity: MEDIUM (bounded to 12/day; the 7000-budget fix shrank the starved
-population, but F3-corpus + tone-law-no-strengths sessions stay stuck). **Fix options (retry policy — founder
+recurring metered spend. Severity: MEDIUM→HIGH once the MANUAL path is included (see below; bounded to 12/day on the cron, but the
+7000-budget fix shrank the starved population — F3-corpus + tone-law-no-strengths sessions stay stuck).
+
+**MANUAL-PATH AMPLIFIER (worse than the cron).** The "Generate missing" button (coach-assessment page →
+`/api/coach/sales-session/backfill-dissects`) uses the same `runDissectBackfill`, and the route's comment
+(line 13) tells the admin to "run it until remaining = 0." But `remaining = missing.length − batch.length`
+with `missing` RE-QUERIED each call and sessions ordered `started_at DESC`. When stuck no-signal sessions
+EXCEED the batch size (6), they are always the first `cap` in `missing`, never get a done-marker, so
+`remaining` FREEZES above 0 — the admin clicks repeatedly (each click = a full ~6× LLM batch, immediate metered
+spend), the counter never moves, and completion is UNREACHABLE. This is user-triggered + immediate (not just
+the 4am cron) and actively misleading ("run until remaining=0" can't be satisfied). The fix (backoff marker)
+closes both paths: an attempted session leaves the `missing` set, so `remaining` reaches 0 and the button
+completes honestly. **Fix options (retry policy — founder
 call):** (a) store an "attempted, no-signal" marker so a stuck session is skipped PERMANENTLY (loses retry
 after a future corpus-trim); (b) store an attempt timestamp + backoff (skip if attempted in the last N days —
 bounds cost, allows eventual retry — recommended, e.g. N=14); (c) cap at K attempts then give up. Recommend
