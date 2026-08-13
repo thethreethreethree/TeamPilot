@@ -4,6 +4,24 @@ Consolidated so nothing is lost between sessions. Shipped work is context; the l
 **pending founder decisions** and the **open suspects** (suspects are NOT auto-fixed — several may be
 intentional; per the "an audit finding is a suspect, not a fix" discipline they wait for a decision).
 
+## ▶ DECISION QUEUE (start here — ranked by impact × reachability)
+**Voice project (your directive — begin together):**
+1. **Voice: new sales agent vs. evolve the existing C.A.R.E support voice?** — reshapes Phases 0–2. Blocks everything.
+2. **Voice: same-repo vs. separate `voice-agent/` repo?** — governance (this repo's rules+TBC vs. the plan's).
+3. Voice prerequisites (human): GPU pod host, managed alt providers, field audio corpus, counsel, voice pick.
+
+**Bugs/decisions surfaced this session (each has a scoped fix ready):**
+4. **Dissect-backfill cron/button re-runs LLM on stuck sessions forever** (HIGH, real recurring $) → pick retry policy (rec: backoff marker). ~1hr.
+5. **Message pagination — 2 confirmed unbounded readers truncate long convos at 1000** (team-chat HIGH: shows oldest/hides newest) → pick fix-shape (rec: recent-N + load-older). 
+6. **`care.ts` team-growth metrics under-report past 1000/window** (KPI-agg, MEDIUM, silent wrong number) → behavior-preserving count-query fix.
+7. **C.A.R.E ↻ restart-button parity** (Sales has it, C.A.R.E doesn't) → rec: add it. Small.
+8. Earlier queue: blank-read self-heal check (revisit a session), STT scope env, corpus-trim, read wording, Next.js 16.3.0.
+
+**Quick founder actions (no build needed):**
+- Reload both extensions from the SOURCE folders (`extension\`, `extension-sales\`), NOT `dist`/`.zip`, then ↻ reload → confirms C.A.R.E connects + sign-outs stop.
+
+Details for every item are in the sections below.
+
 ---
 
 ## Shipped & live on prod this session
