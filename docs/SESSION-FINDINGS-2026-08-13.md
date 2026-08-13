@@ -128,6 +128,17 @@ participants, files-by-id → safe) vs unbounded-growing (messages, events, all-
 `fetchAllPaged` or a windowed query). Class is SWEPT (candidates enumerated) but only 2 message-reader
 instances are CONFIRMED-and-characterized; the aggregation candidates need consumer-verification before rating.
 
+**AGGREGATION CANDIDATE NOW CONFIRMED (care.ts team-growth reads, ~line 3320-3346) — the "KPI agg" item is
+REAL.** These parallel reads compute a company's team-growth snapshot: `support_conversations` counts
+(3320 assigned-since, 3326 open/in-conversation), `support_messages` agent-reply count (3332), and a
+`coach_counts` aggregation (3341) — all by SELECTing rows (then `.length`/sum), all UNBOUNDED, all `.gte("created_at", since)`-windowed. Once a company crosses 1000 rows in the window the metric silently CAPS at 1000
+→ under-reported growth. `agentReplies` (3332) is the reachable one: an active support team easily sends >1000
+agent messages in a window. Severity: MEDIUM (silent wrong metric; honesty-thesis §3.4 — a guessed-low number).
+**Fix (behavior-preserving, NOT a design decision):** the pure COUNTS (3320/3326/3332) → `.select("id", { count: "exact", head: true })` (server-side count, no 1000-cap, no row transfer — the pattern ALREADY used at
+care.ts:224/637). The `coach_counts` SUM (3341) → needs the actual values, so `fetchAllPaged` or a server-side
+SUM (RPC). NOT auto-fixed: touches founder-facing metrics + needs a TBC + tests; surfaced for the founder to
+sequence (it's a clear bug fix, not a preference, but unrequested and non-urgent — reachable only past 1000/window).
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
