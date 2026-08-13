@@ -53,6 +53,24 @@ intentional; per the "an audit finding is a suspect, not a fix" discipline they 
    when the cause was starvation; reword? (transient now that F1 self-heals, low priority).
 7. **Next.js 16.2.6 → 16.3.0** — upgrade decision (verify Vercel deploy on a framework bump before trusting).
 
+## NEW FINDING (verified, needs a policy decision) — dissect-backfill cron re-runs the LLM on stuck sessions forever
+The dissect-backfill cron (`/api/coach/sales-session/backfill-dissects-cron`, daily `0 4 * * *`, cap 12,
+CRON_SECRET-gated) and the manual "Generate missing" button both mark a session "missing" when it has no
+`coach.dissect_generated` event (`dissectBackfill.ts:88`). But `runAndStoreDissect` (`salesDissect.ts:132`)
+stores that event **only when `hasSignal` is true**. So a session with agent turns (≥ MIN_AGENT_SEGMENTS → it
+RUNS the ~20s LLM) that yields NO signal — starved (F3 corpus), tone-law-rejected (growth but no strengths),
+or genuinely empty-with-turns — stores nothing, stays "missing", and is **re-run with a full LLM call every
+cron run, forever**, consuming the 12/day cap so real backlog never drains. The code comment
+(`dissectBackfill.ts:16-17`) accounts for THIN sessions (cheap short-circuit before the LLM) but missed the
+LLM-ran-but-failed case (expensive re-check). This is the server-side twin of the after-pitch heal loop
+(`c7921692`) — same "regenerate a persistently-empty output on a still-true trigger" class, but with real
+recurring metered spend. Severity: MEDIUM (bounded to 12/day; the 7000-budget fix shrank the starved
+population, but F3-corpus + tone-law-no-strengths sessions stay stuck). **Fix options (retry policy — founder
+call):** (a) store an "attempted, no-signal" marker so a stuck session is skipped PERMANENTLY (loses retry
+after a future corpus-trim); (b) store an attempt timestamp + backoff (skip if attempted in the last N days —
+bounds cost, allows eventual retry — recommended, e.g. N=14); (c) cap at K attempts then give up. Recommend
+(b): a `coach.dissect_attempted` event with a timestamp, backfill excludes sessions attempted within N days.
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
