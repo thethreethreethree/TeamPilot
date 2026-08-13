@@ -126,6 +126,23 @@ describe("POST /label-transcript", () => {
     expect(await res.json()).toEqual({ appended: 3, requested: 3 });
   });
 
+  it("500s and does NOT append when clearing the broken transcript fails (no Frankenstein merge)", async () => {
+    // Audit 2026-08-14: if the delete of the broken 0-agent transcript FAILS (deleteSessionTranscriptSegments
+    // returns false — it logs, never throws), the route must NOT fall into the append loop. Otherwise the
+    // surviving old seqs 23505-no-op and only the new non-colliding seqs insert → a transcript mixing two
+    // diarizations that can end up "canonical" (has an agent turn) → permanently 409-locked to a corrupt read.
+    setAuth("rep1");
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { speaker: "customer", text: "old customer turn", seq: 0 },
+      { speaker: "unknown", text: "old undecided turn", seq: 1 },
+    ]); // broken, 0 agent turns → tries to overwrite
+    (deleteSessionTranscriptSegments as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(500);
+    expect(appendTranscriptSegment).not.toHaveBeenCalled(); // the load-bearing guard: no partial re-save
+    expect(generateSessionArtifacts).not.toHaveBeenCalled();
+  });
+
   it("labels the tapped speaker 'agent' and every other speaker 'customer'", async () => {
     setAuth("rep1");
     const res = await POST(req(BODY), ctx);

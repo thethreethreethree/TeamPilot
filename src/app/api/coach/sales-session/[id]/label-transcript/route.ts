@@ -123,8 +123,24 @@ export async function POST(
   // session is a manual, single-agent action; the unique(session_id, seq) constraint still prevents a doubled
   // transcript, and whichever completes last yields a valid one (low-risk TOCTOU, same posture as the prior
   // fast-fail check this replaces).
+  //
+  // MUST check the delete result before appending (audit 2026-08-14). deleteSessionTranscriptSegments returns
+  // false + logs (never throws) on failure. If we ignored it and the delete FAILED, the append loop below would
+  // 23505-no-op on the surviving old seqs and insert only the non-colliding new ones — a Frankenstein transcript
+  // mixing two diarizations. If a surviving/new agent seq results, the record becomes "canonical" → every future
+  // label 409s → the session is permanently locked to a corrupt read. So: on a failed clear, 500 and DON'T
+  // append. The audio is saved, so the rep can retry the recovery cleanly.
   if (existing.length > 0) {
-    await deleteSessionTranscriptSegments(id);
+    const cleared = await deleteSessionTranscriptSegments(id);
+    if (!cleared) {
+      return NextResponse.json(
+        {
+          error:
+            "Couldn't clear the previous transcript to re-save this call. Please try recovering it again.",
+        },
+        { status: 500 }
+      );
+    }
   }
 
   let appended = 0;

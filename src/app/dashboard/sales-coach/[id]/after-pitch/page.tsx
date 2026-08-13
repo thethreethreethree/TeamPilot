@@ -25,6 +25,12 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { afterPitchNeedsHeal } from "@/lib/coach/v5/afterPitchHeal";
+import { shouldOfferBlankReadRecovery } from "@/lib/coach/v5/blankReadRecovery";
+import {
+  detectCaptureGap,
+  afterPitchNeedsAutoRecover,
+  type CaptureGap,
+} from "@/lib/coach/v5/captureGap";
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -166,6 +172,14 @@ export default function AfterPitchPage() {
   // LLM cost + double DB write + a duplicate after_pitch_summary_generated event polluting the
   // KPI stream. Keying the guard on id (not a bare bool) lets a genuine session switch re-arm it.
   const autoGenAttemptedFor = useRef<string | null>(null);
+  // Automatic post-call recovery for a one-sided (customer-missing) transcript (2026-08-14). Fires at most
+  // ONCE per id on the client (this latch); the durable at-most-once is the server auto_recover_attempted_at
+  // marker, since a reload re-mounts. Ordered BEFORE the auto-heal in load(): a customer-missing session must
+  // re-transcribe cleanly (recovering the missing side) rather than waste an LLM heal on the one-sided
+  // transcript that produced the blank read.
+  const autoRecoverAttemptedFor = useRef<string | null>(null);
+  const [autoRecovering, setAutoRecovering] = useState(false);
+  const [autoRecoverResolved, setAutoRecoverResolved] = useState(false);
   // "What happened" is the longest block; collapsed by default so it doesn't
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
@@ -251,6 +265,30 @@ export default function AfterPitchPage() {
     }
   }, [id]);
 
+  // Automatic recovery of a one-sided (customer-missing) transcript: re-diarize the saved audio server-side,
+  // auto-assign the agent, replace the broken transcript, then rebuild + display the read. On any non-recovered
+  // outcome (couldn't decide, still one-sided, already attempted, failed) fall back to the manual one-tap card.
+  const autoRecover = useCallback(async () => {
+    setAutoRecovering(true);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${id}/auto-recover`, {
+        method: "POST",
+      });
+      const d = (await res.json().catch(() => ({}))) as { status?: string };
+      if (res.ok && d.status === "recovered") {
+        // The corrected two-sided transcript is saved (the server after() regenerates the other artifacts);
+        // rebuild + display the After-Pitch read from it. Mirrors the manual recovery's onRecovered.
+        await generate();
+      } else {
+        setAutoRecoverResolved(true);
+      }
+    } catch {
+      setAutoRecoverResolved(true);
+    } finally {
+      setAutoRecovering(false);
+    }
+  }, [id, generate]);
+
   const load = useCallback(async () => {
     try {
       const [sRes, apRes, sumRes] = await Promise.all([
@@ -263,7 +301,12 @@ export default function AfterPitchPage() {
           ? Promise.resolve(null)
           : fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
       ]);
-      if (sRes && sRes.ok) setSession((await sRes.json()).session);
+      let hasSavedRecording = false;
+      if (sRes && sRes.ok) {
+        const s = (await sRes.json()).session;
+        setSession(s);
+        hasSavedRecording = !!s?.audioAssetUrl;
+      }
       if (sumRes && sumRes.ok)
         setWhatHappened((await sumRes.json()).summary ?? null);
       let existing: Summary | null = null;
@@ -294,14 +337,26 @@ export default function AfterPitchPage() {
       // wasteful: scores-present ⟺ agent-turns-present, and a call with real agent turns that produced NO
       // narrative can only be a starved/errored read (the genuine-thin, no-agent-turns case has no scores →
       // composite false → the first clause already handles it). Bounded once-per-mount by the ref below.
-      if (afterPitchNeedsHeal(existing) && autoGenAttemptedFor.current !== id) {
+      //
+      // Auto-RECOVER takes precedence over the heal (2026-08-14). The customer-missing capture gap (talk_ratio
+      // caveat present, agent turns scored) ALSO satisfies afterPitchNeedsHeal (scores>0 && blank narrative) —
+      // but a heal just re-runs the LLM on the SAME one-sided transcript and stays blank. Re-transcribing first
+      // recovers the missing customer side, so the rebuilt read has both sides. Only when auto-recover does not
+      // apply (no capture gap / no saved audio) do we fall through to the LLM heal.
+      if (
+        afterPitchNeedsAutoRecover(existing, hasSavedRecording) &&
+        autoRecoverAttemptedFor.current !== id
+      ) {
+        autoRecoverAttemptedFor.current = id;
+        void autoRecover();
+      } else if (afterPitchNeedsHeal(existing) && autoGenAttemptedFor.current !== id) {
         autoGenAttemptedFor.current = id;
         void generate();
       }
     } catch {
       setLoading(false);
     }
-  }, [id, generate, isStandard]);
+  }, [id, generate, autoRecover, isStandard]);
 
   // Reset per-session view state when the id changes, so one rep's private scoreboard/summary
   // can't flash into another session's view. Latent today (After-Pitch is only reached by a fresh
@@ -313,6 +368,7 @@ export default function AfterPitchPage() {
     setSummary(null);
     setWhatHappened(null);
     setError(null);
+    setAutoRecoverResolved(false);
   }, [id]);
 
   useEffect(() => {
@@ -571,8 +627,10 @@ export default function AfterPitchPage() {
                 the final focus card. */}
             <BlankReadRecovery
               sessionId={id}
+              gap={detectCaptureGap(summary)}
               hasSavedRecording={!!session?.audioAssetUrl}
-              narrativeBlank={!summary.narrative.hasSignal}
+              autoRecovering={autoRecovering}
+              autoRecoverResolved={autoRecoverResolved}
               onRecovered={() => void generate()}
             />
             <Scoreboard scores={summary.scores} />
@@ -584,8 +642,10 @@ export default function AfterPitchPage() {
           <>
             <BlankReadRecovery
               sessionId={id}
+              gap={detectCaptureGap(summary)}
               hasSavedRecording={!!session?.audioAssetUrl}
-              narrativeBlank={!summary.narrative.hasSignal}
+              autoRecovering={autoRecovering}
+              autoRecoverResolved={autoRecoverResolved}
               onRecovered={() => void generate()}
             />
             <Timeline moments={summary.moments} />
@@ -1039,33 +1099,61 @@ function CorrectLineCard({ moments }: { moments: Moment[] }) {
   );
 }
 
-/* ─── BlankReadRecovery (founder 2026-08-13 — the composite-masking recovery gap) ───────────────────
-   A one-sided session (customer captured, the agent's turns missed by live STT/attribution) still has
-   COMPOSITE signal (moments / cue-loop), so the whole-summary-empty recovery affordance never renders —
-   the agent is left with a blank "Your read" and NO way to recover it. Show a re-transcribe path here too,
-   whenever the NARRATIVE specifically is blank AND the audio was saved. A batch re-transcribe (diarization)
-   re-does the transcription cleanly offline (no 700ms live constraint), recovering the agent turns → the
-   read regenerates via onRecovered. Renders nothing when the read is fine or there's no saved audio. */
+/* ─── BlankReadRecovery (founder 2026-08-13; automatic recovery 2026-08-14) ───────────────────────────
+   A one-sided session (one voice missed by live STT/attribution) still has COMPOSITE signal (moments /
+   cue-loop), so the whole-summary-empty recovery never renders — the rep is left with a blank "Your read".
+
+   AUTOMATIC first (2026-08-14): for the customer-missing gap the page auto-fires the server /auto-recover,
+   which re-diarizes the saved audio cleanly, auto-assigns the agent, and rebuilds the read — no rep action.
+   While that's in flight this shows a working state. The MANUAL one-tap card below is the FALLBACK, shown
+   only when auto-recover resolved WITHOUT recovering (couldn't separate the voices / already attempted /
+   failed), or for the agent-missing direction auto-recover doesn't own.
+
+   HONESTY GATE (§3.4): visibility + the missing-side wording are driven by the capture-gap DIRECTION
+   (detectCaptureGap), never a blank narrative alone — a two-sided STARVED read (no capture gap) must never
+   see a re-transcribe affordance, because re-transcribing reproduces the same transcript and the copy would
+   assert a capture failure that didn't happen. shouldOfferBlankReadRecovery is pure + detection-tested. */
 function BlankReadRecovery({
   sessionId,
+  gap,
   hasSavedRecording,
-  narrativeBlank,
+  autoRecovering,
+  autoRecoverResolved,
   onRecovered,
 }: {
   sessionId: string;
+  gap: CaptureGap;
   hasSavedRecording: boolean;
-  narrativeBlank: boolean;
+  autoRecovering: boolean;
+  autoRecoverResolved: boolean;
   onRecovered: () => void;
 }) {
-  if (!narrativeBlank || !hasSavedRecording) return null;
+  // Automatic recovery in flight — a working state, not the manual tap card.
+  if (autoRecovering) {
+    return (
+      <section className="rounded-2xl border border-ember-400/30 bg-ember-400/[0.05] p-4">
+        <p className="text-xs text-primary font-medium">Recovering your read from the recording…</p>
+        <p className="text-[11px] text-muted leading-relaxed mt-1">
+          One side of the call wasn&apos;t captured live, so we&apos;re re-transcribing the saved audio to rebuild
+          the full read. This only takes a moment.
+        </p>
+      </section>
+    );
+  }
+  if (!shouldOfferBlankReadRecovery({ gap, hasSavedRecording, autoRecoverResolved })) return null;
+  // Name the missing side honestly (never assert the wrong one).
+  const missing =
+    gap === "agent-missing"
+      ? "your side of the call wasn't transcribed live"
+      : "the other side of the call wasn't captured live";
   return (
     <section className="rounded-2xl border border-ember-400/30 bg-ember-400/[0.05] p-4 space-y-3">
       <div>
         <p className="text-xs text-primary font-medium">Your written read didn&apos;t generate for this call.</p>
         <p className="text-[11px] text-muted leading-relaxed mt-1">
-          Your scores and Next Door Focus below are real — but the full written read came back blank, usually
-          because your side of the call wasn&apos;t transcribed live. Your audio{" "}
-          <span className="text-secondary">was saved</span>, so recover the full read from the recording:
+          The full written read came back blank because {missing} — so the breakdown below is built from only
+          one side. Your audio <span className="text-secondary">was saved</span>, so recover the full read from
+          the recording:
         </p>
       </div>
       <SessionRecordingUpload
