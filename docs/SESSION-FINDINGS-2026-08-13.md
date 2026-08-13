@@ -98,6 +98,27 @@ cleanup-only effect), `SessionCoachTools` (composite gate but honest display + m
 per mount), `coach-assessment` (leaderboard read, not a generator). So the convergence class = exactly ONE
 client instance (fixed) + ONE server instance (dissect-backfill, above). Both surfaces swept.
 
+## NEW FINDING (verified) — unbounded message read truncates long C.A.R.E conversations at 1000
+`listCareMessagesForCustomer` (`src/lib/data/care.ts:297-302`) selects a conversation's messages with NO
+`.limit()`/`.range()`, ordered `created_at ASC`. PostgREST silently caps at 1000 rows, so a conversation
+exceeding 1000 messages returns only the OLDEST 1000 and drops the MOST RECENT — the messages the agent (and
+the AI copilot/dissect reading the thread) actually need. This is the flagged-open "msg pagination" provenance
+item, confirmed. Severity: MEDIUM (latent — support threads rarely exceed 1000 soon, but the truncation is
+silent + drops the newest, and it feeds the AI). The sibling `support_messages` writes (postAiMessage:373,
+postSystemMessage:398, postCustomerMessage:326) are single-row inserts — not affected. Fix: paginate
+(`fetchAllPaged`) if the AI needs full history, OR load most-recent-N descending + "load older" for the view —
+a pagination-shape decision.
+
+**SWEEP COMPLETE — a SECOND, worse instance in team chat.** `src/lib/data/chats.ts:717-723` loads a chat
+topic's messages with `.eq("topic_id", topicId).order("created_at", {ascending:true})` and NO limit/range —
+same 1000-cap truncation. Because it's ASCENDING, a topic exceeding 1000 messages shows the OLDEST 1000 and
+HIDES every recent message → an active channel appears frozen in the past (worse than the C.A.R.E case, and
+more reachable — team channels realistically cross 1000 over time). Both readers share the fix shape:
+most-recent-N descending + "load older" for the view (chat/conversation UIs read newest-first anyway), or
+`fetchAllPaged` where full history feeds the AI. Two confirmed instances (care support + team chat); a broader
+`grep -rn "\.select(" src/lib/data | grep -v "limit\|range\|single\|count"` would find any others — recommend
+that as the definitive sweep before the fix. Severity: team-chat instance MEDIUM→HIGH for sustained use.
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
