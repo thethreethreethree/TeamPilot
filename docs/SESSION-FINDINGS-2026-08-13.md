@@ -71,6 +71,13 @@ after a future corpus-trim); (b) store an attempt timestamp + backoff (skip if a
 bounds cost, allows eventual retry — recommended, e.g. N=14); (c) cap at K attempts then give up. Recommend
 (b): a `coach.dissect_attempted` event with a timestamp, backfill excludes sessions attempted within N days.
 
+**Full cron sweep (all 7 in vercel.json) for this non-convergence class — completeness on the record:**
+`backfill-dissects-cron` is the ONLY expensive instance (above). The other six are sound: `durability-sweep`
+(cheap deduped reminder RPC — re-emit is intentional until the agent responds, `checked_at` set on outcome),
+`finance/reports/deliver` (cheap push, period-bounded, `tag`-deduped so no stacking), `task-overrun-sweep`
+(cheap deduped event emit, tested), `care/rcd/retention` + `recording-purge` (deletions — converge by nature),
+`kpi/compute` (idempotent recompute — converges). Class swept comprehensively, not a found-one-and-stopped.
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
