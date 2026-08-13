@@ -1,4 +1,5 @@
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { loadUserContext } from "./userContext";
 
 /**
@@ -705,36 +706,53 @@ async function resolveAuthorNames(
   );
 }
 
+type ChatMessageRow = {
+  id: string;
+  topic_id: string;
+  author_id: string | null;
+  kind: string;
+  body: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  reply_to_id: string | null;
+  ai_assisted: boolean | null;
+  created_at: string;
+  edited_at: string | null;
+};
+
 export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
   if (!supabaseEnabled) {
     return readDemoState().messages[topicId] ?? [];
   }
   const supabase = createClient();
-  // Fetch messages, pins, and the name index in parallel — they don't
-  // depend on each other. Three queries, one round trip's worth of
-  // wall-clock time.
-  const [msgRes, pinRes] = await Promise.all([
-    supabase
-      .from("chat_messages")
-      .select(
-        "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at, edited_at"
-      )
-      .eq("topic_id", topicId)
-      .order("created_at", { ascending: true }),
+  // Fetch messages + pins in parallel — they don't depend on each other.
+  // Messages are PAGED (fetchAllPaged): a raw .select() is silently capped at 1000 rows by PostgREST, and with
+  // the ascending order that dropped the NEWEST messages of a >1000-message channel — the active channel looked
+  // frozen in the past (audit 2026-08-14). Paging past the cap preserves the "load the whole thread" behavior
+  // without the truncation. The secondary `.order("id")` makes the order deterministic so range paging can't
+  // skip/duplicate a row when two messages share a created_at at a page boundary. fetchAllPaged THROWS on a read
+  // error (its contract) — an empty thread on a transient error is error-as-no-data (INV22 / §3.4), which would
+  // look like a wiped conversation, so the throw surfaces an honest error instead.
+  const [data, pinRes] = await Promise.all([
+    fetchAllPaged<ChatMessageRow>(
+      (from, to) =>
+        supabase
+          .from("chat_messages")
+          .select(
+            "id, topic_id, author_id, kind, body, media_url, media_type, reply_to_id, ai_assisted, created_at, edited_at"
+          )
+          .eq("topic_id", topicId)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      { label: "chat topic messages" }
+    ),
     // Pins join — without this, every reload shows messages as
     // unpinned even when the row exists in chat_pins. §1.7 audit
     // caught this when the optimistic pin UI exposed the bug.
-    supabase
-      .from("chat_pins")
-      .select("message_id")
-      .eq("topic_id", topicId),
+    supabase.from("chat_pins").select("message_id").eq("topic_id", topicId),
   ]);
-  // Classify the messages read — an empty thread on a transient error is error-as-no-data (INV22 / §3.4): the
-  // conversation would look wiped. Throw so the page shows an honest error. (A pins-read error is tolerated —
-  // pins just don't render — since the messages are the load-bearing content.)
-  if (msgRes.error) throw new Error(`Failed to load the messages: ${msgRes.error.message}`);
-  const data = msgRes.data;
-  if (!data) return [];
+  if (data.length === 0) return [];
 
   const nameById = await resolveAuthorNames(
     supabase,
@@ -756,12 +774,12 @@ export async function fetchMessages(topicId: string): Promise<ChatMessage[]> {
         : profile?.name || "Unknown",
       authorAvatarColor: profile?.avatarColor ?? null,
       authorAvatarInitials: profile?.avatarInitials ?? null,
-      kind: m.kind,
+      kind: m.kind as ChatMessage["kind"],
       body: m.body,
       mediaUrl: m.media_url,
       mediaType: m.media_type,
       replyToId: m.reply_to_id,
-      aiAssisted: m.ai_assisted,
+      aiAssisted: m.ai_assisted ?? false,
       createdAt: m.created_at,
       editedAt: (m.edited_at as string | null) ?? null,
       pinned: pinnedIds.has(m.id),

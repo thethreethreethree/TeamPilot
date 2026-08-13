@@ -294,17 +294,26 @@ export async function listCareMessagesForCustomer(
   conversationId: string
 ): Promise<SupportMessage[]> {
   const sb = createServiceRoleClient();
-  const { data, error } = await sb
-    .from("support_messages")
-    .select("*")
-    .eq("conversation_id", conversationId)
-    .eq("is_internal_note", false)
-    .order("created_at", { ascending: true });
-  // Surface a fetch FAILURE (throw) rather than swallow it as an empty thread: the widget's messages
-  // route turns this into a 500 so the customer's chat keeps its prior messages instead of flashing
-  // empty on a transient poll error. The best-effort caller (inbound/email context) catches it.
-  if (error) throw error;
-  return (data ?? []).map(mapMessage);
+  // PAGED (fetchAllPaged): a raw .select() is silently capped at 1000 rows by PostgREST, and with the ascending
+  // order that dropped the NEWEST messages of a >1000-message thread — the customer + the AI copilot/dissect
+  // reading the thread would see stale, truncated history (audit 2026-08-14). Paging past the cap preserves the
+  // full-thread behavior. The secondary `.order("id")` keeps range paging deterministic across a created_at tie
+  // at a page boundary. fetchAllPaged THROWS on a read error (its contract) — surfacing the failure rather than
+  // swallowing it as an empty thread (INV22 / §3.4): the widget's messages route turns the throw into a 500 so
+  // the customer's chat keeps its prior messages instead of flashing empty on a transient poll error.
+  const data = await fetchAllPaged<Record<string, unknown>>(
+    (from, to) =>
+      sb
+        .from("support_messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .eq("is_internal_note", false)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    { label: "care conversation messages" }
+  );
+  return data.map(mapMessage);
 }
 
 /**

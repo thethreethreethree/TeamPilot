@@ -12,7 +12,7 @@ let RESULT: { data: unknown; error: { message: string } | null } = { data: null,
 
 vi.mock("@/lib/supabase/client", () => {
   const b: Record<string, unknown> = {};
-  for (const m of ["from", "select", "eq", "is", "in", "order", "maybeSingle"]) b[m] = () => b;
+  for (const m of ["from", "select", "eq", "is", "in", "order", "range", "maybeSingle"]) b[m] = () => b;
   (b as { then: unknown }).then = (resolve: (v: unknown) => void) => resolve(RESULT);
   return { supabaseEnabled: true, createClient: () => b };
 });
@@ -30,8 +30,10 @@ describe("chat detail reads — classify the error (no error-as-no-data)", () =>
   });
 
   it("fetchMessages THROWS on a read error (not [] → empty thread / looks wiped)", async () => {
+    // Messages now page via fetchAllPaged (past the 1000-cap), which FAILS HONESTLY by throwing — the INV22
+    // guard (never swallow a read error as an empty thread) is preserved; only the message wording changed.
     RESULT = { data: null, error: { message: "timeout" } };
-    await expect(fetchMessages("c1")).rejects.toThrow(/Failed to load the messages/i);
+    await expect(fetchMessages("c1")).rejects.toThrow(/chat topic messages failed/i);
   });
 
   it("fetchParticipants THROWS on a read error (not [])", async () => {
