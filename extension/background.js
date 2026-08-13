@@ -50,18 +50,24 @@ function refreshCareAccessToken(base, currentRefresh) {
 }
 
 async function doCareRefresh(base, currentRefresh) {
+  // Re-read the LATEST refresh token at refresh time (audit fix, 2026-08-13) — same fast/slow reuse-race fix as
+  // the sales extension: callers capture their token at call-start, so a slow call that 401s after a fast call
+  // already rotated it would replay the consumed token → Supabase reuse-detection → session killed. Read storage
+  // HERE so a late refresher uses the freshly-rotated token.
+  const latest = await chrome.storage.local.get("careRefreshToken");
+  const refresh = latest.careRefreshToken || currentRefresh;
   try {
     const rr = await fetch(base + "/api/care/extension/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: currentRefresh }),
+      body: JSON.stringify({ refresh_token: refresh }),
     });
     if (rr.ok) {
       const rd = await rr.json().catch(() => ({}));
       if (rd.access_token) {
         await chrome.storage.local.set({
           careToken: rd.access_token,
-          careRefreshToken: rd.refresh_token || currentRefresh,
+          careRefreshToken: rd.refresh_token || refresh,
         });
         return rd.access_token;
       }

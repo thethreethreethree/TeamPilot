@@ -66,18 +66,25 @@ function refreshSalesAccessToken(base, currentRefresh) {
 }
 
 async function doSalesRefresh(base, currentRefresh) {
+  // Re-read the LATEST refresh token at refresh time (audit fix, 2026-08-13). The single-flight coalesces
+  // TIME-OVERLAPPING refreshes, but callers capture their refresh token at call-START — so a SLOW call (a big
+  // upload / a stream) that 401s LATER, after a FAST call already rotated the token, would replay the CONSUMED
+  // token → Supabase reuse-detection → whole session killed → "kicked out again and again". Reading storage HERE
+  // means a late refresher uses the freshly-rotated token, closing the fast/slow variant the latch alone missed.
+  const latest = await chrome.storage.local.get("salesCoachRefreshToken");
+  const refresh = latest.salesCoachRefreshToken || currentRefresh;
   try {
     const rr = await fetch(base + "/api/coach/extension/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: currentRefresh }),
+      body: JSON.stringify({ refresh_token: refresh }),
     });
     if (rr.ok) {
       const rd = await rr.json().catch(() => ({}));
       if (rd.access_token) {
         await chrome.storage.local.set({
           salesCoachToken: rd.access_token,
-          salesCoachRefreshToken: rd.refresh_token || currentRefresh,
+          salesCoachRefreshToken: rd.refresh_token || refresh,
         });
         return rd.access_token;
       }

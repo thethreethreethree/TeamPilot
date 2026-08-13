@@ -136,6 +136,7 @@ export function VersionWatcher() {
   const lastCheckRef = useRef(0);
   const reloadTimerRef = useRef<number | null>(null);
   const liveCommitRef = useRef<string>("");
+  const unmountedRef = useRef(false); // guards the 1.5s reload beat + async check() setState against a torn-down mount
 
   const scheduleReload = useCallback(() => {
     if (reloadTimerRef.current !== null) return; // already scheduled
@@ -149,15 +150,24 @@ export function VersionWatcher() {
     if (!shouldForceReload({ baked: BAKED, live, alreadyTriedThisCommit: alreadyTried, recordingActive: isRecordingActive() })) {
       return; // held for a recording, already tried, or nothing to do — the banner (manual) stays
     }
-    markTriedCommit(storage, RELOAD_KEY, live);
     setReloading(true);
     // A short beat so the "Updating…" banner is visible and any in-flight tap settles.
     reloadTimerRef.current = window.setTimeout(() => {
+      if (unmountedRef.current) {
+        reloadTimerRef.current = null; // component torn down during the beat — never reload a dead mount
+        return;
+      }
       if (isRecordingActive()) {
         reloadTimerRef.current = null; // started recording during the beat — abort, wait for recording-ended
         setReloading(false);
         return;
       }
+      // Spend the once-per-commit budget ONLY on an ACTUAL reload (audit finding, HIGH). If we wrote it before the
+      // beat and the beat then aborted for a recording, the budget would be gone and EVERY later trigger
+      // (recording-ended, next idle, revisit) would see alreadyTried=true → the auto-update would be dead for this
+      // commit, stranding the stale client on the manual banner. Writing it here — right before the reload — keeps
+      // the loop guard intact (it still persists across the reload) while an aborted attempt costs nothing.
+      markTriedCommit(storage, RELOAD_KEY, live);
       window.location.reload();
     }, 1500);
   }, []);
@@ -183,6 +193,7 @@ export function VersionWatcher() {
         const res = await fetch("/api/health", { cache: "no-store" });
         if (!res.ok) return;
         const d = await res.json();
+        if (unmountedRef.current) return; // torn down during the fetch — don't setState on a dead mount
         const live = String(d?.build?.commit ?? "").trim();
         if (live && live !== BAKED) {
           liveCommitRef.current = live;
@@ -219,11 +230,15 @@ export function VersionWatcher() {
     };
     // A recording that was holding a revisit-triggered update has ended → apply it now.
     const onRecordingEnded = () => scheduleReload();
-    window.addEventListener("visibilitychange", onVisibility);
+    // visibilitychange fires on `document`; attach there (not `window`) — it's the load-bearing iOS-PWA-resume
+    // revisit path and matches the rest of the codebase's usage (audit consistency finding).
+    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("elostate:recording-ended", onRecordingEnded);
     return () => {
+      unmountedRef.current = true;
       window.clearInterval(pollId);
-      window.removeEventListener("visibilitychange", onVisibility);
+      if (reloadTimerRef.current !== null) window.clearTimeout(reloadTimerRef.current); // don't reload after teardown (audit leak finding)
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("elostate:recording-ended", onRecordingEnded);
     };
   }, [check, scheduleReload]);
@@ -269,7 +284,20 @@ export function VersionWatcher() {
           is held then) or if the once-per-commit loop guard stopped the auto-reload. */}
       <button
         type="button"
-        onClick={() => window.location.reload()}
+        onClick={() => {
+          // The AUTOMATIC paths are recording-guarded; this MANUAL tap was not (audit finding). A reflexive tap
+          // mid-call would reload the page and DESTROY the in-progress recording — the exact capture-loss failure
+          // the guards exist to prevent. Confirm during a live call so it can't happen accidentally; the mic keeps
+          // recording while they decide, and the auto-update still applies the moment the call ends.
+          if (
+            isRecordingActive() &&
+            typeof window.confirm === "function" &&
+            !window.confirm("A call is recording — updating now will end it and lose the recording. Update anyway?")
+          ) {
+            return;
+          }
+          window.location.reload();
+        }}
         // Comfortable mobile tap target (founder 2026-08-13: agents are mobile-first, and this banner is the
         // PRIMARY update path). min-h ~44px = the iOS/Android recommended touch size; touch-manipulation kills the
         // 300ms tap delay; active: gives tap feedback since there's no hover on touch.

@@ -542,6 +542,13 @@
   // email tab would depend on activeTab surviving a message-triggered call, which isn't reliable.
   root.getElementById("sc-restart").addEventListener("click", async () => {
     const out = root.getElementById("sc-out");
+    // A tool is mid-run (audit finding): restarting now would race the live stream on #sc-out and show a false
+    // "pick a tool" while the run's toolBusy latch is still set (the next click would be silently ignored). Don't
+    // reset while a run is in flight — tell the rep to wait; the run clears the latch when it settles.
+    if (toolBusy) {
+      if (out) out.innerHTML = `<p class="sc-muted">A tool is still running — let it finish, then hit ↻ again.</p>`;
+      return;
+    }
     if (out) out.innerHTML = `<p class="sc-muted sc-prog">Refreshing</p>`;
     const token = typeof getToken === "function" ? await getToken() : null;
     if (!token) {
