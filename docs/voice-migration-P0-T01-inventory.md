@@ -63,3 +63,29 @@ new architecture.
 5. **D4 tension:** the C.A.R.E voice routes audio **through Vercel** (`/api/care/stt|tts`), contradicting the
    plan's D4 ("audio never through Vercel"). The coaching path already satisfies D4 (browser-direct WS). Whether
    the migration keeps turn-based-HTTP for C.A.R.E or moves it to the WebRTC model is a design decision.
+
+## PREMISE CHECK (outside-view §1.3 — validate BEFORE the build, not after)
+The plan is an excellent execution runbook, but it assumes the migration is justified. Two premise questions it
+doesn't answer, worth resolving before committing weeks of build:
+
+1. **Is self-hosting actually CHEAPER at your scale?** The usual cost driver of an AI voice stack is the LLM —
+   but **yours is already DeepSeek** (cheap, self-directed), NOT ElevenLabs. So this migration only moves the
+   **STT+TTS** spend, which is *variable* (per-minute / per-char, scales with usage). A GPU pod is a **fixed**
+   cost (US-region, ~8h/day ≈ hundreds–low-thousands $/mo whether or not it's busy). At **pilot scale** (a few
+   agents), fixed-pod > variable-ElevenLabs is the likely outcome — self-hosting **costs more** until you cross
+   a break-even volume. Action: compute today's ElevenLabs STT+TTS $/month vs the pod's fixed $/month; find the
+   break-even agent-count. If the pilot is below it, cost is NOT the reason to migrate now.
+2. **So which motivation actually drives this — cost, reliability, or data-control?** The plan bundles all three,
+   but they imply different timing:
+   - **Cost** → defer until past the break-even scale (#1).
+   - **Reliability** → real and present now (the "STT sometimes captures zero turns" first-client incident). A
+     cheaper win might be a MANAGED-STT swap (the plan's own Phase-2 fallback) WITHOUT the GPU build — test
+     whether a different managed STT fixes zero-turns before self-hosting.
+   - **Data-control / compliance** (audio never leaves your infra; a short data-flow diagram for client security
+     review) → a genuine commercial asset that can justify the build **regardless of cost**, if you sell into
+     security-conscious buyers. Strongest standalone reason; if it's the driver, the cost math is secondary.
+
+   **Recommendation:** name the primary motivation explicitly (belongs in DECISIONS.md). If it's *reliability*
+   alone → try the managed-STT swap first (far less work). If *data-control* → the full build is justified and
+   the plan's sequencing is right. If *cost* → verify the break-even first. Not a reason to skip the build — a
+   check that the reason to build is the real one before the effort lands.
