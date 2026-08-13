@@ -115,9 +115,18 @@ same 1000-cap truncation. Because it's ASCENDING, a topic exceeding 1000 message
 HIDES every recent message → an active channel appears frozen in the past (worse than the C.A.R.E case, and
 more reachable — team channels realistically cross 1000 over time). Both readers share the fix shape:
 most-recent-N descending + "load older" for the view (chat/conversation UIs read newest-first anyway), or
-`fetchAllPaged` where full history feeds the AI. Two confirmed instances (care support + team chat); a broader
-`grep -rn "\.select(" src/lib/data | grep -v "limit\|range\|single\|count"` would find any others — recommend
-that as the definitive sweep before the fix. Severity: team-chat instance MEDIUM→HIGH for sustained use.
+`fetchAllPaged` where full history feeds the AI. Two confirmed instances (care support + team chat). Severity: team-chat instance MEDIUM→HIGH for sustained use.
+
+**Definitive sweep run (`grep .select( src/lib/data` minus limit/range/single/count) — NOT fully closed, more
+candidates to verify:** (a) `tasks.ts:280,351` per-task message reads — same class, lower reach (a task rarely
+exceeds 1000 messages); (b) `care.ts:3334,3341` + `careCoachAssessment.ts:81` — coach-count AGGREGATIONS across
+a company's conversations: if unbounded, a company with >1000 conversations computes a WRONG derived metric —
+this is the distinct "unbounded aggregation → wrong count" class and matches the provenance-flagged **"KPI agg"**
+open item; verify the consumer (a truncated COUNT is worse than a truncated list because it silently reports a
+low number). Recommend a focused follow-up audit: for EACH candidate, classify bounded-by-parent (steps,
+participants, files-by-id → safe) vs unbounded-growing (messages, events, all-company aggregations → fix via
+`fetchAllPaged` or a windowed query). Class is SWEPT (candidates enumerated) but only 2 message-reader
+instances are CONFIRMED-and-characterized; the aggregation candidates need consumer-verification before rating.
 
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
