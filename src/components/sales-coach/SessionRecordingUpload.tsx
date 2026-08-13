@@ -148,7 +148,13 @@ export function SessionRecordingUpload({
   };
 
   // Recovery: re-transcribe the recording the server already holds (no re-upload).
+  const retranscribingRef = useRef(false);
   const retranscribe = async () => {
+    // Synchronous latch (same class as label() / uploadBlob, which are already ref-guarded): the phase-based
+    // button disable lands a render too late to stop a fast double-click, and it doesn't stop the auto-fire
+    // racing a manual click. A second /retranscribe is a whole extra batch diarization — a duplicate STT charge.
+    if (retranscribingRef.current) return;
+    retranscribingRef.current = true;
     setPhase("uploading");
     setStage("transcribing"); // no upload here — the audio is already in storage.
     setError(null);
@@ -162,6 +168,8 @@ export function SessionRecordingUpload({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("idle");
+    } finally {
+      retranscribingRef.current = false;
     }
   };
 
