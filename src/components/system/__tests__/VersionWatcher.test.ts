@@ -5,6 +5,7 @@ import {
   markTriedCommit,
   shouldRunCheck,
   HEALTH_CHECK_THROTTLE_MS,
+  IDLE_AUTO_UPDATE_MS,
 } from "../VersionWatcher";
 
 /**
@@ -124,5 +125,21 @@ describe("shouldRunCheck — throttle with revisit bypass", () => {
   it("BYPASS — a genuine revisit checks NOW even inside the throttle window (the founder's reopen goal)", () => {
     expect(shouldRunCheck(1000 + 50, 1000, true)).toBe(true);
     expect(shouldRunCheck(1000, 1000, true)).toBe(true); // zero elapsed, still runs on revisit
+  });
+});
+
+/**
+ * IDLE_AUTO_UPDATE_MS gates the idle auto-update (founder 2026-08-13: "auto update is a must"). The idle EFFECT
+ * itself is a React timer (not node-testable), but the threshold is a footgun if mis-set: a tiny value would
+ * reload-storm an idle-but-being-read screen; a huge value defeats the "catch the parked stale tab" purpose.
+ * The actual reload still funnels through the already-tested shouldForceReload (recording + loop guards). Lock
+ * the threshold to a sane band so a future edit can't turn it into a reload loop.
+ */
+describe("IDLE_AUTO_UPDATE_MS — idle auto-update threshold sanity", () => {
+  it("waits >= 1 min of NO interaction (never storms an active/reading user)", () => {
+    expect(IDLE_AUTO_UPDATE_MS).toBeGreaterThanOrEqual(60_000);
+  });
+  it("fires within <= 5 min (still catches a parked stale tab)", () => {
+    expect(IDLE_AUTO_UPDATE_MS).toBeLessThanOrEqual(300_000);
   });
 });

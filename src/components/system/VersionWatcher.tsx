@@ -106,6 +106,12 @@ export function shouldRunCheck(nowMs: number, lastCheckAtMs: number, bypassThrot
   return bypassThrottle || nowMs - lastCheckAtMs >= HEALTH_CHECK_THROTTLE_MS;
 }
 
+// Idle auto-update threshold (founder 2026-08-13, mobile-first team): a stale agent who keeps the app foregrounded
+// and never taps the banner or backgrounds the app would stay on the old build. After this long with NO
+// interaction (while stale + not recording), we apply the held update. 90s is a strong "not actively using it"
+// signal — any tap/scroll/keypress resets it, so active work is never interrupted.
+export const IDLE_AUTO_UPDATE_MS = 90_000;
+
 /** sessionStorage that never throws on access (the property getter itself throws in some privacy modes). */
 function safeSessionStorage(): Storage | undefined {
   try {
@@ -208,6 +214,30 @@ export function VersionWatcher() {
       window.removeEventListener("elostate:recording-ended", onRecordingEnded);
     };
   }, [check, scheduleReload]);
+
+  // Idle auto-update (founder 2026-08-13, mobile-first team). The banner + revisit-auto-reload miss the agent who
+  // keeps the app FOREGROUNDED and never taps — they'd stay stale indefinitely. So once stale, if the page sees NO
+  // interaction for IDLE_AUTO_UPDATE_MS, apply the held update via the SAME guarded scheduleReload (recording-guard
+  // + once-per-commit loop-guard still apply). Any tap/scroll/keypress re-arms the timer, so active work (typing,
+  // reading-while-scrolling, running a tool) is NEVER interrupted — only a genuinely-parked stale tab reloads.
+  useEffect(() => {
+    if (!stale) return;
+    let idleTimer: number | null = null;
+    const arm = () => {
+      if (idleTimer !== null) window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        // Re-check recording at fire time; scheduleReload re-checks every other guard (stale/loop/already-reloaded).
+        if (!isRecordingActive()) scheduleReload();
+      }, IDLE_AUTO_UPDATE_MS);
+    };
+    const events: (keyof WindowEventMap)[] = ["pointerdown", "keydown", "touchstart", "scroll", "wheel"];
+    events.forEach((e) => window.addEventListener(e, arm, { passive: true }));
+    arm(); // start the idle countdown as soon as the banner goes up
+    return () => {
+      if (idleTimer !== null) window.clearTimeout(idleTimer);
+      events.forEach((e) => window.removeEventListener(e, arm));
+    };
+  }, [stale, scheduleReload]);
 
   if (!stale) return null;
 
