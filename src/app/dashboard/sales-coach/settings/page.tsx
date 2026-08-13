@@ -879,12 +879,24 @@ function VoiceHealthCard() {
   );
 }
 
+type CaptureHealthAgent = {
+  agentId: string;
+  ended: number;
+  noFeedback: number;
+  oneSided: number;
+  empty: number;
+  rate: number;
+};
 type CaptureHealthData = {
   total: number;
+  noFeedback: number;
   failed: number;
+  oneSided: number;
   recoverable: number;
   lost: number;
+  noFeedbackRate: number;
   failureRate: number;
+  byAgent: CaptureHealthAgent[];
 };
 
 /**
@@ -930,9 +942,13 @@ function CaptureHealthCard() {
       <div>
         <h3 className="text-sm font-semibold text-primary">Capture health</h3>
         <p className="text-[11px] text-muted leading-relaxed mt-1">
-          How many ended sessions failed to capture a transcript — the cost of the recording issue.
-          <span className="text-secondary"> Recoverable</span> = the audio was saved (re-transcribable);
-          <span className="text-secondary"> Lost</span> = no audio at all (only sessions from before the fix).
+          How many ended sessions produced <span className="text-secondary">no after-pitch feedback</span> — a
+          session gives no &ldquo;Your read&rdquo; when it captured <span className="text-secondary">zero agent
+          turns</span>. Two ways that happens: <span className="text-secondary">Empty</span> (no transcript at
+          all) and <span className="text-secondary">One-sided</span> (the customer was captured but the
+          agent&apos;s mic wasn&apos;t). <span className="text-secondary">Recoverable</span> = audio was saved
+          (re-transcribable); <span className="text-secondary">Lost</span> = no audio. The per-agent list shows
+          who&apos;s most affected — the signal for a device/mic capture problem.
         </p>
       </div>
       <LoadingButton
@@ -948,15 +964,43 @@ function CaptureHealthCard() {
         </p>
       )}
       {data && (
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label="Ended sessions" value={data.total} />
-          <Stat
-            label="Failed to capture"
-            value={`${data.failed} (${data.failureRate}%)`}
-            tone={data.failed > 0 ? "amber" : "emerald"}
-          />
-          <Stat label="Recoverable (audio saved)" value={data.recoverable} />
-          <Stat label="Lost (no audio)" value={data.lost} tone={data.lost > 0 ? "amber" : "emerald"} />
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Ended sessions" value={data.total} />
+            <Stat
+              label="No after-pitch feedback"
+              value={`${data.noFeedback} (${data.noFeedbackRate}%)`}
+              tone={data.noFeedback > 0 ? "amber" : "emerald"}
+            />
+            <Stat label="One-sided (agent not captured)" value={data.oneSided} tone={data.oneSided > 0 ? "amber" : "emerald"} />
+            <Stat label="Empty (no transcript)" value={data.failed} tone={data.failed > 0 ? "amber" : "emerald"} />
+            <Stat label="Recoverable (audio saved)" value={data.recoverable} />
+            <Stat label="Lost (no audio)" value={data.lost} tone={data.lost > 0 ? "amber" : "emerald"} />
+          </div>
+          {data.byAgent.some((a) => a.noFeedback > 0) && (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] px-3 py-2">
+              <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-semibold mb-1.5">
+                Most-affected agents (no-feedback rate)
+              </p>
+              <ul className="space-y-1">
+                {data.byAgent
+                  .filter((a) => a.noFeedback > 0)
+                  .slice(0, 8)
+                  .map((a) => (
+                    <li key={a.agentId} className="flex items-center justify-between text-[11px]">
+                      <span className="font-mono text-secondary">
+                        {a.agentId === "unassigned" ? "unassigned" : a.agentId.slice(0, 8)}
+                      </span>
+                      <span className="text-muted">
+                        {a.noFeedback}/{a.ended}
+                        {a.oneSided > 0 ? ` · ${a.oneSided} one-sided` : ""}{" "}
+                        <span className="text-amber-300 font-semibold">{a.rate}%</span>
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </section>

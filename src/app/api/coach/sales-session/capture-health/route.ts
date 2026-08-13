@@ -56,16 +56,27 @@ export async function GET() {
     if (totalRes.error) throw new Error(totalRes.error.message);
     const total = totalRes.count ?? 0;
     if (total === 0) {
-      return NextResponse.json({ total: 0, failed: 0, recoverable: 0, lost: 0, failureRate: 0 });
+      return NextResponse.json({
+        total: 0,
+        noFeedback: 0,
+        failed: 0,
+        oneSided: 0,
+        recoverable: 0,
+        lost: 0,
+        noFeedbackRate: 0,
+        failureRate: 0,
+        byAgent: [],
+      });
     }
 
-    // The ended sessions + whether each has a saved recording. Paged (stable uuid id order) so a high-volume
-    // company doesn't silently truncate the set the counts are derived from.
-    const ended = await fetchAllPaged<{ id: string; audio_asset_url: string | null }>(
+    // The ended sessions + saved-recording pointer + the AGENT (2026-08-13: to break the failure down BY AGENT,
+    // so a manager can see WHICH reps get no feedback). Paged (stable uuid id order) so a high-volume company
+    // doesn't silently truncate the set the counts are derived from.
+    const ended = await fetchAllPaged<{ id: string; audio_asset_url: string | null; agent_id: string | null }>(
       (from, to) =>
         sb
           .from("coaching_sessions")
-          .select("id, audio_asset_url")
+          .select("id, audio_asset_url, agent_id")
           .eq("company_id", companyId)
           .in("status", ["ended", "reviewed"])
           .order("id")
@@ -74,40 +85,78 @@ export async function GET() {
     );
     const endedIds = ended.map((s) => s.id);
 
-    // Which of those sessions have a transcript (≥1 segment). Batch the ids to respect the .in() ceiling,
-    // and page each batch's rows. A Set of session_ids-with-transcript; the rest are failed captures.
-    const withTranscript = new Set<string>();
+    // For each session: does it have ANY segment, and does it have an AGENT segment? (2026-08-13 extension.)
+    // The true "no after-pitch feedback" population is sessions with ZERO AGENT turns — the review engine
+    // short-circuits to EMPTY at agentSegments < MIN_AGENT_SEGMENTS. The prior version counted only "no
+    // transcript at all" and so MISSED the ONE-SIDED case (customer captured, agent's mic not) — which renders
+    // no "Your read" yet was counted "captured fine", undercounting the cost. We now split both modes.
+    const withAnySegment = new Set<string>();
+    const withAgentSegment = new Set<string>();
     for (let i = 0; i < endedIds.length; i += CHUNK) {
       const batch = endedIds.slice(i, i + CHUNK);
-      const rows = await fetchAllPaged<{ session_id: string }>(
+      const rows = await fetchAllPaged<{ session_id: string; speaker: string }>(
         (from, to) =>
           sb
             .from("coaching_transcript_segments")
-            .select("session_id, id")
+            .select("session_id, speaker, id")
             .in("session_id", batch)
             .order("id")
             .range(from, to),
         { label: "capture-health transcript segments" }
       );
-      for (const r of rows) withTranscript.add(r.session_id);
+      for (const r of rows) {
+        withAnySegment.add(r.session_id);
+        if (r.speaker === "agent") withAgentSegment.add(r.session_id);
+      }
     }
 
-    let failed = 0;
-    let recoverable = 0;
-    let lost = 0;
+    // Per-company + per-agent tallies. `noFeedback` = the true count (empty OR one-sided → no "Your read").
+    let failed = 0; // no transcript at all (unchanged legacy metric, for continuity)
+    let oneSided = 0; // segments present but 0 agent turns (customer captured, agent not)
+    let recoverable = 0; // any no-feedback session whose audio was saved → re-transcribable
+    let lost = 0; // no-feedback + no audio saved
+    const byAgent = new Map<string, { agentId: string; ended: number; noFeedback: number; oneSided: number; empty: number }>();
+    const agentBucket = (id: string | null) => {
+      const key = id ?? "unassigned";
+      let b = byAgent.get(key);
+      if (!b) {
+        b = { agentId: key, ended: 0, noFeedback: 0, oneSided: 0, empty: 0 };
+        byAgent.set(key, b);
+      }
+      return b;
+    };
+
     for (const s of ended) {
-      if (withTranscript.has(s.id)) continue; // captured fine
-      failed += 1;
+      const bucket = agentBucket(s.agent_id);
+      bucket.ended += 1;
+      if (withAgentSegment.has(s.id)) continue; // has agent turns → gets after-pitch feedback
+      // No agent turns → no "Your read".
+      bucket.noFeedback += 1;
+      if (withAnySegment.has(s.id)) {
+        oneSided += 1;
+        bucket.oneSided += 1;
+      } else {
+        failed += 1; // truly empty transcript
+        bucket.empty += 1;
+      }
       if (s.audio_asset_url) recoverable += 1;
       else lost += 1;
     }
+    const noFeedback = failed + oneSided;
 
     return NextResponse.json({
       total,
-      failed,
-      recoverable, // audio saved → re-transcribable
-      lost, // no audio (gone) — only sessions from before the build-xp fix
-      failureRate: total > 0 ? Math.round((failed / total) * 1000) / 10 : 0, // % to 1dp
+      noFeedback, // TRUE cost: sessions with 0 agent turns → no "Your read" (empty + one-sided)
+      failed, // legacy: no transcript at all
+      oneSided, // NEW: customer captured, agent's mic not — the missed class
+      recoverable, // no-feedback session with audio saved → re-transcribable
+      lost, // no-feedback + no audio
+      noFeedbackRate: total > 0 ? Math.round((noFeedback / total) * 1000) / 10 : 0,
+      failureRate: total > 0 ? Math.round((failed / total) * 1000) / 10 : 0, // legacy (empty-only)
+      // Which agents are most affected (highest no-feedback rate first), for targeting the capture problem.
+      byAgent: Array.from(byAgent.values())
+        .map((b) => ({ ...b, rate: b.ended > 0 ? Math.round((b.noFeedback / b.ended) * 1000) / 10 : 0 }))
+        .sort((a, b) => b.rate - a.rate),
     });
   } catch (e) {
     // §3.4: a failed count must not read as "zero failures". Say the count couldn't be computed (e.g. the

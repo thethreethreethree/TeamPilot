@@ -17,8 +17,8 @@ import { GET } from "../route";
 
 type Tables = {
   profile?: unknown;
-  ended?: { id: string; audio_asset_url: string | null }[];
-  segments?: { session_id: string }[];
+  ended?: { id: string; audio_asset_url: string | null; agent_id?: string | null }[];
+  segments?: { session_id: string; speaker?: string }[];
   total?: number;
   userId?: string | null;
 };
@@ -74,27 +74,48 @@ describe("GET /capture-health", () => {
   it("honest zero when there are no ended sessions", async () => {
     setClient({ total: 0, ended: [], segments: [] });
     const body = await (await GET()).json();
-    expect(body).toMatchObject({ total: 0, failed: 0, recoverable: 0, lost: 0 });
+    expect(body).toMatchObject({ total: 0, noFeedback: 0, failed: 0, oneSided: 0, recoverable: 0, lost: 0 });
   });
 
-  it("counts failed captures, split into recoverable (audio saved) vs lost (no audio)", async () => {
-    // 5 ended; s1-s3 captured (have segments); s4 failed but audio saved → recoverable; s5 failed, no audio → lost.
+  it("counts no-feedback captures — empty AND one-sided (0 agent turns) — split + per agent", async () => {
+    // 5 ended. captured-fine = has an AGENT segment; no-feedback = 0 agent turns (empty OR one-sided).
+    //   s1,s2 (agent A): have agent turns → captured fine.
+    //   s3 (agent B): has segments but ONLY customer → ONE-SIDED (0 agent turns); audio saved → recoverable.
+    //   s4 (agent B): no segments → EMPTY; audio saved → recoverable.
+    //   s5 (agent C): no segments → EMPTY; no audio → lost.
     setClient({
       total: 5,
       ended: [
-        { id: "s1", audio_asset_url: "assets/a1" },
-        { id: "s2", audio_asset_url: "assets/a2" },
-        { id: "s3", audio_asset_url: null },
-        { id: "s4", audio_asset_url: "assets/a4" },
-        { id: "s5", audio_asset_url: null },
+        { id: "s1", audio_asset_url: "assets/a1", agent_id: "A" },
+        { id: "s2", audio_asset_url: "assets/a2", agent_id: "A" },
+        { id: "s3", audio_asset_url: "assets/a3", agent_id: "B" },
+        { id: "s4", audio_asset_url: "assets/a4", agent_id: "B" },
+        { id: "s5", audio_asset_url: null, agent_id: "C" },
       ],
-      segments: [{ session_id: "s1" }, { session_id: "s2" }, { session_id: "s3" }],
+      segments: [
+        { session_id: "s1", speaker: "agent" },
+        { session_id: "s1", speaker: "customer" },
+        { session_id: "s2", speaker: "agent" },
+        { session_id: "s3", speaker: "customer" }, // one-sided — customer only, no agent
+      ],
     });
     const body = await (await GET()).json();
     expect(body.total).toBe(5);
-    expect(body.failed).toBe(2); // s4, s5
-    expect(body.recoverable).toBe(1); // s4 has audio
-    expect(body.lost).toBe(1); // s5 has no audio
-    expect(body.failureRate).toBe(40); // 2/5
+    expect(body.noFeedback).toBe(3); // s3 (one-sided) + s4, s5 (empty)
+    expect(body.oneSided).toBe(1); // s3
+    expect(body.failed).toBe(2); // legacy no-transcript: s4, s5
+    expect(body.recoverable).toBe(2); // s3, s4 have audio
+    expect(body.lost).toBe(1); // s5 no audio
+    expect(body.noFeedbackRate).toBe(60); // 3/5
+    expect(body.failureRate).toBe(40); // legacy 2/5
+    // Per-agent: B is worst (2/2 = 100%), C (1/1 = 100%), A (0/2 = 0%). Sorted by rate desc.
+    const byAgent = body.byAgent as { agentId: string; ended: number; noFeedback: number; rate: number }[];
+    const A = byAgent.find((x) => x.agentId === "A");
+    const B = byAgent.find((x) => x.agentId === "B");
+    const C = byAgent.find((x) => x.agentId === "C");
+    expect(A).toMatchObject({ ended: 2, noFeedback: 0, rate: 0 });
+    expect(B).toMatchObject({ ended: 2, noFeedback: 2, oneSided: 1, empty: 1, rate: 100 });
+    expect(C).toMatchObject({ ended: 1, noFeedback: 1, empty: 1, rate: 100 });
+    expect(byAgent[byAgent.length - 1]?.agentId).toBe("A"); // lowest rate last
   });
 });

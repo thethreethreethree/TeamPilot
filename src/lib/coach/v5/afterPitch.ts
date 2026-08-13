@@ -124,6 +124,24 @@ export async function generateAfterPitchSummary(args: {
 }): Promise<AfterPitchSummary> {
   try {
     const segments = await getSessionTranscriptAdmin(args.sessionId);
+
+    // STT-CAPTURE INSTRUMENTATION (founder 2026-08-13 — "some agents have no after-pitch feedback").
+    // Leading hypothesis: ElevenLabs Scribe realtime STT sometimes captures zero/few AGENT turns (mic/device/
+    // network), so the saved transcript is empty or one-sided → the review engine has nothing → EMPTY feedback.
+    // This is the "STT captures zero turns" reliability failure that persistRecording.ts already documents, and
+    // the reliability driver behind the voice migration. Logging only (no behavior change): quantify the empty /
+    // one-sided rate and identify affected sessions (→ agent via a join) BEFORE any STT swap, so we can prove a
+    // replacement actually improved it. `oneSided` = the customer was captured but the AGENT wasn't — the exact
+    // shape that yields no "Your read" while scores/moments may still render.
+    const agentTurns = segments.filter((s) => s.speaker === "agent").length;
+    const customerTurns = segments.filter((s) => s.speaker === "customer").length;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[stt-capture] session=${args.sessionId} company=${args.companyId} context=${args.context ?? "?"} ` +
+        `segments=${segments.length} agentTurns=${agentTurns} customerTurns=${customerTurns} ` +
+        `empty=${segments.length === 0} oneSided=${segments.length > 0 && agentTurns === 0}`
+    );
+
     if (segments.length === 0) return EMPTY;
 
     // The four engines are independent — run them concurrently.
