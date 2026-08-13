@@ -8,7 +8,7 @@ import {
   getSession,
   getSessionTranscript,
   appendTranscriptSegment,
-  deleteSessionTranscriptSegments,
+  replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 
@@ -124,35 +124,38 @@ export async function POST(
   // transcript, and whichever completes last yields a valid one (low-risk TOCTOU, same posture as the prior
   // fast-fail check this replaces).
   //
-  // MUST check the delete result before appending (audit 2026-08-14). deleteSessionTranscriptSegments returns
-  // false + logs (never throws) on failure. If we ignored it and the delete FAILED, the append loop below would
-  // 23505-no-op on the surviving old seqs and insert only the non-colliding new ones — a Frankenstein transcript
-  // mixing two diarizations. If a surviving/new agent seq results, the record becomes "canonical" → every future
-  // label 409s → the session is permanently locked to a corrupt read. So: on a failed clear, 500 and DON'T
-  // append. The audio is saved, so the rep can retry the recovery cleanly.
+  // The overwrite is ATOMIC (replace_session_transcript RPC, 0212 — audit 2026-08-14 finding ①): delete-all +
+  // insert-new in ONE transaction, rolled back together on any failure. A delete-then-append pair could delete
+  // the old segments then fail the re-insert (appendTranscriptSegment swallows errors), leaving the transcript
+  // destroyed-and-unreplaced or a locked partial. The atomic replace leaves the original intact on any failure.
+  const labeled = body.segments.map((seg) => ({
+    speaker: (seg.speakerId === body.agentSpeakerId ? "agent" : "customer") as "agent" | "customer",
+    text: seg.text,
+    seq: seg.seq,
+  }));
+
+  let appended = 0;
   if (existing.length > 0) {
-    const cleared = await deleteSessionTranscriptSegments(id);
-    if (!cleared) {
+    const replaced = await replaceSessionTranscript(id, labeled);
+    if (!replaced.ok) {
       return NextResponse.json(
-        {
-          error:
-            "Couldn't clear the previous transcript to re-save this call. Please try recovering it again.",
-        },
+        { error: "Couldn't re-save this call's transcript. Your recording is safe — please try again." },
         { status: 500 }
       );
     }
-  }
-
-  let appended = 0;
-  for (const seg of body.segments) {
-    const speaker = seg.speakerId === body.agentSpeakerId ? "agent" : "customer";
-    const r = await appendTranscriptSegment({
-      sessionId: id,
-      speaker,
-      text: seg.text,
-      seq: seg.seq,
-    });
-    if (r) appended += 1;
+    appended = replaced.count;
+  } else {
+    // First-ever label of a still-empty transcript — plain append, whose 23505 idempotency (the
+    // unique(session_id, seq) constraint, 0208) makes a concurrent double-label a safe no-op.
+    for (const seg of labeled) {
+      const r = await appendTranscriptSegment({
+        sessionId: id,
+        speaker: seg.speaker,
+        text: seg.text,
+        seq: seg.seq,
+      });
+      if (r) appended += 1;
+    }
   }
 
   // Post-call generation for the UPLOADED-recording flow. /finalize does this for LIVE sessions on Stop; the

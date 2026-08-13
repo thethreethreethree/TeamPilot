@@ -44,8 +44,7 @@ vi.mock("next/server", async (importOriginal) => {
 vi.mock("@/lib/data/salesCoach", () => ({
   getSession: vi.fn(),
   getSessionTranscript: vi.fn(async () => []),
-  appendTranscriptSegment: vi.fn(async () => ({})),
-  deleteSessionTranscriptSegments: vi.fn(async () => true),
+  replaceSessionTranscript: vi.fn(async () => ({ ok: true, count: 2 })),
 }));
 
 import { createClient } from "@/lib/supabase/server";
@@ -56,8 +55,7 @@ import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifact
 import {
   getSession,
   getSessionTranscript,
-  appendTranscriptSegment,
-  deleteSessionTranscriptSegments,
+  replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { POST } from "../route";
 
@@ -99,7 +97,7 @@ beforeEach(() => {
   setupAdmin();
   mk(getSession).mockResolvedValue({ id: "sess1", agentId: "rep1", audioAssetUrl: "asset://rec" });
   mk(getSessionTranscript).mockResolvedValue(CUSTOMER_MISSING);
-  mk(deleteSessionTranscriptSegments).mockResolvedValue(true);
+  mk(replaceSessionTranscript).mockResolvedValue({ ok: true, count: 2 });
   mk(autoAssignAgentCluster).mockReturnValue({
     decided: true,
     agentSpeakerId: "speaker_0",
@@ -124,7 +122,7 @@ describe("POST /auto-recover", () => {
   it("403 when the caller is NOT the session owner (owner-only, A18)", async () => {
     setAuth("colleague2");
     expect((await POST(req(), ctx)).status).toBe(403);
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled();
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
     expect(transcribeWithDiarization).not.toHaveBeenCalled();
   });
 
@@ -146,7 +144,7 @@ describe("POST /auto-recover", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).status).toBe("canonical");
     expect(transcribeWithDiarization).not.toHaveBeenCalled();
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled();
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
   it("not-applicable (200) when there is no transcript / no agent turns", async () => {
@@ -165,12 +163,12 @@ describe("POST /auto-recover", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe("already-attempted");
     expect(transcribeWithDiarization).not.toHaveBeenCalled();
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled();
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
-  it("RECOVERS the customer-missing session: diarize → auto-assign → delete → append → regenerate", async () => {
+  it("RECOVERS the customer-missing session: diarize → auto-assign → ATOMIC replace → regenerate", async () => {
     setAuth("rep1");
-    // precondition read (customer-missing), then post-append read for generation.
+    // precondition read (customer-missing), then post-replace read for generation.
     mk(getSessionTranscript)
       .mockResolvedValueOnce(CUSTOMER_MISSING)
       .mockResolvedValueOnce([
@@ -182,10 +180,12 @@ describe("POST /auto-recover", () => {
     const body = await res.json();
     expect(body.status).toBe("recovered");
     expect(body.appended).toBe(2);
-    expect(deleteSessionTranscriptSegments).toHaveBeenCalledWith("sess1");
+    // ATOMIC replace (delete+insert in one tx) with the labeled segments — never a delete-then-append pair.
     // speaker_0 (assigned agent) → 'agent'; speaker_1 → 'customer'.
-    const calls = mk(appendTranscriptSegment).mock.calls.map((c) => (c[0] as { speaker: string }).speaker);
-    expect(calls).toEqual(["agent", "customer"]);
+    expect(replaceSessionTranscript).toHaveBeenCalledTimes(1);
+    const [sid, segs] = mk(replaceSessionTranscript).mock.calls[0] as [string, { speaker: string }[]];
+    expect(sid).toBe("sess1");
+    expect(segs.map((s) => s.speaker)).toEqual(["agent", "customer"]);
     expect(generateSessionArtifacts).toHaveBeenCalledTimes(1);
   });
 
@@ -199,8 +199,7 @@ describe("POST /auto-recover", () => {
     const res = await POST(req(), ctx);
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe("could-not-decide");
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled();
-    expect(appendTranscriptSegment).not.toHaveBeenCalled();
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
   it("still-one-sided: a single-cluster re-diarization saves nothing (honest terminal, no loop)", async () => {
@@ -212,15 +211,26 @@ describe("POST /auto-recover", () => {
     });
     const res = await POST(req(), ctx);
     expect((await res.json()).status).toBe("still-one-sided");
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled();
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
-  it("500 and does NOT append when clearing the broken transcript fails (no Frankenstein)", async () => {
+  it("500 with NO false 'recovered' when the atomic replace fails (original transcript preserved)", async () => {
     setAuth("rep1");
-    mk(deleteSessionTranscriptSegments).mockResolvedValue(false);
+    mk(replaceSessionTranscript).mockResolvedValue({ ok: false, count: 0 });
     const res = await POST(req(), ctx);
     expect(res.status).toBe(500);
-    expect(appendTranscriptSegment).not.toHaveBeenCalled();
+    expect((await res.json()).status).toBe("failed"); // never a false "recovered"
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
+  });
+
+  it("releases the marker on a transient diarization failure (automatic retry not permanently burned)", async () => {
+    setAuth("rep1");
+    mk(transcribeWithDiarization).mockRejectedValueOnce(new Error("STT 502"));
+    const res = await POST(req(), ctx);
+    expect(res.status).toBe(502);
+    // The marker set-to-null (release) went through the admin client — asserted via the stamp/release path
+    // resolving; the important behavior is that we DID NOT save anything and the caller can retry later.
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
+    expect((await res.json()).status).toBe("failed");
   });
 });

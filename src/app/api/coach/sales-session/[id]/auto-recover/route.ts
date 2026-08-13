@@ -6,8 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import {
   getSession,
   getSessionTranscript,
-  appendTranscriptSegment,
-  deleteSessionTranscriptSegments,
+  replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { computeTalkRatio } from "@/lib/coach/v5/salesScore";
 import { autoAssignAgentCluster } from "@/lib/coach/v5/autoSpeakerAssign";
@@ -127,6 +126,19 @@ export async function POST(
     return NextResponse.json({ status: "already-attempted" });
   }
 
+  // The marker is claimed BEFORE the STT so a concurrent reload can't double-diarize. But a TRANSIENT infra
+  // failure (STT/download 502) must not PERMANENTLY burn the automatic path — release the marker on those so
+  // the next open retries. A DEFINITIVE outcome (recovered / declined / bad-pointer) keeps it set. (Audit
+  // 2026-08-14 finding ④.)
+  const releaseMarker = async () => {
+    const { error } = await admin
+      .from("coaching_sessions")
+      .update({ auto_recover_attempted_at: null })
+      .eq("id", id)
+      .eq("company_id", companyId);
+    if (error) console.error(`[auto-recover] failed to release marker session=${id}: ${error.message}`);
+  };
+
   // ── Re-diarize the saved audio (same body as /retranscribe). ──
   const storagePath = assetUrlToStoragePath(session.audioAssetUrl);
   if (!storagePath) {
@@ -141,6 +153,7 @@ export async function POST(
   const dl = await downloadAssetBytes({ storagePath });
   if (!dl.ok || !dl.bytes) {
     console.error(`[auto-recover] download failed session=${id}: ${dl.error ?? "no bytes"}`);
+    await releaseMarker(); // transient — allow a later retry
     return NextResponse.json(
       { status: "failed", audioSaved: true, error: "Couldn't read the saved recording right now." },
       { status: 502 }
@@ -159,6 +172,7 @@ export async function POST(
     durationSeconds = t.durationSeconds;
   } catch (err) {
     console.error("[auto-recover] diarization failed:", err);
+    await releaseMarker(); // transient — allow a later retry
     return NextResponse.json(
       { status: "failed", audioSaved: true, error: "Couldn't process the recording right now." },
       { status: 502 }
@@ -187,22 +201,25 @@ export async function POST(
       console.error(`[auto-recover] failed to stamp audio_duration_seconds session=${id}: ${durErr.message}`);
   }
 
-  // ── Overwrite: clear the broken one-sided transcript, then append the re-diarized + labeled one. MUST check
-  // the clear result before appending — a failed delete then a partial append would 23505-collide on the
-  // surviving seqs and produce a Frankenstein transcript (the exact class fixed in /label-transcript). ──
-  const cleared = await deleteSessionTranscriptSegments(id);
-  if (!cleared) {
+  // ── Overwrite ATOMICALLY (audit 2026-08-14 finding ①). The re-diarized transcript replaces the broken
+  // one-sided one in ONE transaction (replace_session_transcript RPC, 0212): delete-all + insert-new, rolled
+  // back together on any failure. A delete-then-append pair could destroy the original — which here holds REAL
+  // live-captured agent speech — and then fail the re-insert, leaving it destroyed-and-unreplaced or a locked
+  // partial. With the atomic replace, a failed write leaves the original intact and we return "failed", never a
+  // false "recovered". ──
+  const labeled = diarized.map((seg) => ({
+    speaker: (seg.speakerId === assign.agentSpeakerId ? "agent" : "customer") as "agent" | "customer",
+    text: seg.text,
+    seq: seg.seq,
+  }));
+  const replaced = await replaceSessionTranscript(id, labeled);
+  if (!replaced.ok) {
     return NextResponse.json(
-      { status: "failed", error: "Couldn't clear the previous transcript to re-save this call." },
+      { status: "failed", error: "Couldn't re-save this call's transcript — your recording is safe, please try again." },
       { status: 500 }
     );
   }
-  let appended = 0;
-  for (const seg of diarized) {
-    const speaker = seg.speakerId === assign.agentSpeakerId ? "agent" : "customer";
-    const r = await appendTranscriptSegment({ sessionId: id, speaker, text: seg.text, seq: seg.seq });
-    if (r) appended += 1;
-  }
+  const appended = replaced.count;
 
   // Regenerate the artifacts from the now two-sided transcript, via after() so the response returns
   // immediately and the write survives the serverless freeze (bare void would be dropped). Best-effort: the

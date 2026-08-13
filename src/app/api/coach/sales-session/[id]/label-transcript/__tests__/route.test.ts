@@ -22,7 +22,7 @@ vi.mock("@/lib/data/salesCoach", () => ({
   getSession: vi.fn(),
   getSessionTranscript: vi.fn(async () => []),
   appendTranscriptSegment: vi.fn(async () => ({})),
-  deleteSessionTranscriptSegments: vi.fn(async () => true),
+  replaceSessionTranscript: vi.fn(async () => ({ ok: true, count: 3 })),
 }));
 
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,7 @@ import {
   getSession,
   getSessionTranscript,
   appendTranscriptSegment,
-  deleteSessionTranscriptSegments,
+  replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { POST } from "../route";
 
@@ -99,47 +99,50 @@ describe("POST /label-transcript", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).alreadyHasTranscript).toBe(true);
     expect(appendTranscriptSegment).not.toHaveBeenCalled();
-    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled(); // never clobber a canonical (has-agent) transcript
+    expect(replaceSessionTranscript).not.toHaveBeenCalled(); // never clobber a canonical (has-agent) transcript
     // Nothing appended → no post-call generation (can't double-generate on a re-label).
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
 
-  it("OVERWRITES a broken 0-agent-turns transcript (recovery re-transcribe), not 409", async () => {
+  it("OVERWRITES a broken 0-agent-turns transcript ATOMICALLY (recovery re-transcribe), not 409", async () => {
     // The recovery case (2026-08-13): the existing transcript has segments but ZERO agent turns (one-sided /
-    // all-`unknown` → no "Your read"). It's broken, not canonical, so the re-transcribe REPLACES it: delete the
-    // broken segments, then save the re-diarized ones. Contrast with the 409 test above (that one has an agent
-    // segment → canonical → never clobbered).
+    // all-`unknown` → no "Your read"). It's broken, not canonical, so the re-transcribe REPLACES it via the
+    // ATOMIC replace RPC (delete+insert in one tx — audit 2026-08-14 finding ①), never a delete-then-append
+    // pair. Contrast with the 409 test above (that one has an agent segment → canonical → never clobbered).
     setAuth("rep1");
     (getSessionTranscript as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([
         { speaker: "customer", text: "old customer turn", seq: 0 },
         { speaker: "unknown", text: "old undecided turn", seq: 1 },
-      ]) // pre-append: broken, 0 agent turns → overwrite
+      ]) // pre-write: broken, 0 agent turns → overwrite
       .mockResolvedValueOnce([
         { speaker: "agent", text: "Hi, I'm from Acme.", seq: 0 },
         { speaker: "customer", text: "Not interested.", seq: 1 },
-      ]); // post-append read for generation
+      ]); // post-write read for generation
     const res = await POST(req(BODY), ctx);
     expect(res.status).toBe(200);
-    expect(deleteSessionTranscriptSegments).toHaveBeenCalledWith("sess1"); // broken transcript cleared first
-    expect(appendTranscriptSegment).toHaveBeenCalledTimes(3); // the re-diarized segments saved
+    // Atomic replace with the 3 labeled segments; NOT a plain append onto surviving rows.
+    expect(replaceSessionTranscript).toHaveBeenCalledTimes(1);
+    const [sid, segs] = (replaceSessionTranscript as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, unknown[]];
+    expect(sid).toBe("sess1");
+    expect(segs).toHaveLength(3);
+    expect(appendTranscriptSegment).not.toHaveBeenCalled(); // overwrite uses the atomic RPC, not append
     expect(await res.json()).toEqual({ appended: 3, requested: 3 });
   });
 
-  it("500s and does NOT append when clearing the broken transcript fails (no Frankenstein merge)", async () => {
-    // Audit 2026-08-14: if the delete of the broken 0-agent transcript FAILS (deleteSessionTranscriptSegments
-    // returns false — it logs, never throws), the route must NOT fall into the append loop. Otherwise the
-    // surviving old seqs 23505-no-op and only the new non-colliding seqs insert → a transcript mixing two
-    // diarizations that can end up "canonical" (has an agent turn) → permanently 409-locked to a corrupt read.
+  it("500 and NO false success when the atomic replace of the broken transcript fails (original preserved)", async () => {
+    // Audit 2026-08-14 finding ①: the overwrite is one atomic RPC. If it fails, the original transcript is
+    // rolled back intact and the route 500s — never a partial/destroyed record, never a false 200.
     setAuth("rep1");
     (getSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
       { speaker: "customer", text: "old customer turn", seq: 0 },
       { speaker: "unknown", text: "old undecided turn", seq: 1 },
     ]); // broken, 0 agent turns → tries to overwrite
-    (deleteSessionTranscriptSegments as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+    (replaceSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false, count: 0 });
     const res = await POST(req(BODY), ctx);
     expect(res.status).toBe(500);
-    expect(appendTranscriptSegment).not.toHaveBeenCalled(); // the load-bearing guard: no partial re-save
+    expect(appendTranscriptSegment).not.toHaveBeenCalled();
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
 

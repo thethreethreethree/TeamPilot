@@ -29,6 +29,7 @@ A session's canonical transcript (`coaching_transcript_segments`, append-only, s
 |---|---|---|
 | Live STT captures ZERO turns (dead feed / missing STT scope) | "No conversation was captured" | **Now survivable**: `LiveCoachingPanel` persists `recordingBlob` to Storage on Stop (`persistRecording` → `/upload-recording {persistOnly}`) BEFORE navigating, so the audio is never lost + is re-transcribable. In-call amber warning after ~30s of no turns. |
 | Audio was saved but transcript empty | After-pitch empty state | `after-pitch/page.tsx`: if `session.audioAssetUrl` present → "transcription didn't connect, audio saved, recover it" + `SessionRecordingUpload autoRetranscribe` auto-recovers. Else → "nothing recorded". |
+| ONE-SIDED transcript — customer side missing (agent captured, `custW===0` → talk/listen "—"), blank "Your read" despite scores | After-pitch shows scores but no written read | **Now auto-recovered (build 2026-08-14):** `after-pitch/page.tsx` detects it via `afterPitchNeedsAutoRecover` (`captureGap.ts`: the `talk_ratio` caveat) and POSTs `/auto-recover` (once per id) BEFORE the LLM heal. The server re-diarizes the saved audio, `autoAssignAgentCluster` (`autoSpeakerAssign.ts`) picks the agent cluster — or DECLINES to the manual one-tap card rather than guess — ATOMICALLY replaces the broken transcript (`replace_session_transcript` RPC, 0212: delete+insert in one transaction, so a failed re-save leaves the original intact — never a false "recovered"), and regenerates. At-most-once across reloads via the `auto_recover_attempted_at` marker (migration 0211), claimed atomically before any STT + released on a transient STT failure so a later retry isn't burned. |
 | ElevenLabs key/scope/quota problem (the FREQUENCY driver) | Captures fail often | Diagnose via **`/voice-health`** (`probeElevenLabsVoice`: key present → `sk_` format → account/quota → **realtime STT token mint** = the STT-scope check). Surfaced in Settings → Coaching → "Voice provider health" card. ENV fix (enable STT scope) is the operator's. |
 | Transcription throws mid-finalize | Partial artifacts | Each engine in `generateSessionArtifacts` is `.catch(fallback)` + `withEngineTimeout` — one failing never drops the others. Audio persisted BEFORE transcription in the upload path (recovery contract). |
 | Short but successful call | "too short to read" | `after-pitch`: the "Your read" points to scores + Next Door Focus instead of dead-ending (a thin narrative co-exists with real score signal). |
@@ -49,6 +50,11 @@ now: persist the audio to Storage the moment recording stops, before anything el
 ## Tests
 - `upload-recording/__tests__/route.test.ts` — the multipart + JSON(persistOnly) branches + the recovery contract.
 - `persistRecording.test.ts` — the client sign→upload→finalize orchestration + throw-on-failure.
-- `label-transcript/__tests__/route.test.ts` — append + the `generateSessionArtifacts` trigger.
+- `label-transcript/__tests__/route.test.ts` — append + the `generateSessionArtifacts` trigger + the
+  delete-guard (a failed clear → 500, never a partial re-save).
 - `generateSessionArtifacts.test.ts` — the five-engine resilience (one fails ≠ all drop).
+- `auto-recover/__tests__/route.test.ts` — owner-only, canonical-never-clobbered, at-most-once marker (no STT
+  on a repeat), decline-vs-guess, delete-guard.
+- `autoSpeakerAssign.test.ts` / `captureGap.test.ts` / `blankReadRecovery.test.ts` — the pure recovery logic:
+  agent-cluster decision (declines when unsure), capture-gap direction detection, fallback-card visibility.
 - React glue (LiveCoachingPanel effects) is not unit-testable in the node env — device confirmation required.

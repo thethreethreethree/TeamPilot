@@ -302,10 +302,15 @@ export default function AfterPitchPage() {
           : fetch(`/api/coach/sales-session/${id}/summarize`).catch(() => null),
       ]);
       let hasSavedRecording = false;
+      let isVideoSession = false;
       if (sRes && sRes.ok) {
         const s = (await sRes.json()).session;
         setSession(s);
         hasSavedRecording = !!s?.audioAssetUrl;
+        // A video session's mic is agent-only by design (the prospect is on the far end), so its transcript is
+        // EXPECTED one-sided and its audio holds one voice — auto-recover would just burn a guaranteed-to-decline
+        // diarization. Skip it. (Audit 2026-08-14 finding ⑤.)
+        isVideoSession = s?.context === "video";
       }
       if (sumRes && sumRes.ok)
         setWhatHappened((await sumRes.json()).summary ?? null);
@@ -344,12 +349,20 @@ export default function AfterPitchPage() {
       // recovers the missing customer side, so the rebuilt read has both sides. Only when auto-recover does not
       // apply (no capture gap / no saved audio) do we fall through to the LLM heal.
       if (
+        !isVideoSession &&
         afterPitchNeedsAutoRecover(existing, hasSavedRecording) &&
         autoRecoverAttemptedFor.current !== id
       ) {
         autoRecoverAttemptedFor.current = id;
         void autoRecover();
-      } else if (afterPitchNeedsHeal(existing) && autoGenAttemptedFor.current !== id) {
+      } else if (
+        afterPitchNeedsHeal(existing) &&
+        autoGenAttemptedFor.current !== id &&
+        // Share the auto-recover latch: on a mode-reconcile re-run of load(), auto-recover's `if` is skipped
+        // (its latch is set) and we must NOT then fall into a heal that re-runs the LLM on the same one-sided
+        // transcript (double cost + duplicate KPI event). (Audit 2026-08-14 finding ②.)
+        autoRecoverAttemptedFor.current !== id
+      ) {
         autoGenAttemptedFor.current = id;
         void generate();
       }

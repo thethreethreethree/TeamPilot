@@ -138,7 +138,18 @@ export function autoAssignAgentCluster(args: {
         secondSim = sim;
       }
     }
-    if (top && top.sim >= CROSS_MIN_SIM && top.sim - secondSim >= CROSS_MIN_MARGIN) {
+    // Decide only when the winner clears the floor AND no OTHER cluster also clears it. If TWO clusters both
+    // strongly overlap the known agent turns, the agent identity is ambiguous — e.g. the live attribution
+    // itself was polluted (customer speech mislabeled `agent`), so `knownAgentTurns` mixes both voices and both
+    // re-diarized clusters match it. Writing a confident label there risks INVERTING agent/customer. So require
+    // separation (runner-up below the floor) and decline otherwise → the content-tell / manual-tap fallback.
+    // (Audit 2026-08-14 finding ③.)
+    if (
+      top &&
+      top.sim >= CROSS_MIN_SIM &&
+      secondSim < CROSS_MIN_SIM &&
+      top.sim - secondSim >= CROSS_MIN_MARGIN
+    ) {
       return {
         decided: true,
         agentSpeakerId: top.id,

@@ -44,11 +44,13 @@ describe("autoAssignAgentCluster", () => {
       "let me walk you through the managed protection plan and how the coverage works",
       "our pricing is a flat monthly rate with no setup fee whatsoever included",
     ];
+    // The customer's lines deliberately DON'T echo the agent's vocabulary, so only spk_0 overlaps the known
+    // agent turns (a clean, separated cross-match — spk_1 stays below the floor).
     const diarized = [
-      seg("spk_1", "So how much does the coverage actually cost me each month?", 0),
+      seg("spk_1", "Yeah, honestly my neighbor mentioned something like that last week.", 0),
       seg("spk_0", "Let me walk you through the managed protection plan and how coverage works.", 1),
-      seg("spk_1", "Is there a setup fee on top of the monthly rate?", 2),
-      seg("spk_0", "Our pricing is a flat monthly rate, no setup fee at all included.", 3),
+      seg("spk_1", "Okay, and does my dog need to be around for the appointment itself?", 2),
+      seg("spk_0", "Our pricing is a flat monthly rate, no setup fee whatsoever included.", 3),
     ];
     const r = autoAssignAgentCluster({ diarized, knownAgentTurns });
     expect(r.decided).toBe(true);
@@ -112,6 +114,20 @@ describe("autoAssignAgentCluster", () => {
     ];
     const r = autoAssignAgentCluster({ diarized, knownAgentTurns: known });
     // No separation → no confident cross-match; no content tells → ambiguous.
+    expect(r.decided).toBe(false);
+    if (!r.decided) expect(r.reason).toBe("ambiguous");
+  });
+
+  it("DECLINES when TWO distinct clusters both clear the similarity floor (polluted known-agent → inversion risk)", () => {
+    // Finding ③: if the live labels themselves were polluted (customer speech mislabeled `agent`), knownAgentTurns
+    // mixes both voices, so BOTH re-diarized clusters overlap it. Picking one would risk INVERTING agent/customer,
+    // so require the runner-up to be BELOW the floor — otherwise decline.
+    const known = ["managed plan pricing coverage monthly onboarding migration timeline"];
+    const diarized = [
+      seg("spk_0", "managed plan pricing coverage today", 0), // strongly overlaps
+      seg("spk_1", "monthly onboarding migration timeline setup", 1), // also strongly overlaps
+    ];
+    const r = autoAssignAgentCluster({ diarized, knownAgentTurns: known });
     expect(r.decided).toBe(false);
     if (!r.decided) expect(r.reason).toBe("ambiguous");
   });

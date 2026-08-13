@@ -355,6 +355,34 @@ export async function deleteSessionTranscriptSegments(
   return true;
 }
 
+/**
+ * ATOMICALLY replace a session's transcript — delete all existing segments + insert `segments` in ONE
+ * transaction (the `replace_session_transcript` RPC, migration 0212). Use this for the RECOVERY OVERWRITE of a
+ * broken/one-sided transcript instead of a delete-then-append pair: a delete-then-append can destroy the
+ * original and then fail the re-insert (appendTranscriptSegment swallows errors), leaving the transcript
+ * destroyed-and-unreplaced (or a locked partial). The RPC rolls the whole thing back on any error, so the
+ * original always survives a failed replace. Service-role; the CALLER gates owner + the one-sided precondition.
+ * Returns { ok, count } — ok:false means nothing changed (the original stands).
+ */
+export async function replaceSessionTranscript(
+  sessionId: string,
+  segments: { speaker: TranscriptSpeaker; text: string; seq: number }[]
+): Promise<{ ok: boolean; count: number }> {
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb.rpc("replace_session_transcript", {
+    p_session_id: sessionId,
+    p_segments: segments.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq })),
+  });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[salesCoach.replaceSessionTranscript] failed session=${sessionId}: ${error.message}`
+    );
+    return { ok: false, count: 0 };
+  }
+  return { ok: true, count: typeof data === "number" ? data : segments.length };
+}
+
 /** Append one delivered cue (immutable record of live coaching). */
 export async function appendCue(args: {
   sessionId: string;
