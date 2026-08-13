@@ -13,7 +13,14 @@ intentional; per the "an audit finding is a suspect, not a fix" discipline they 
 - **Forced auto-update** — VersionWatcher idle/foreground paths + audit fixes A1/A3/A4/A5. `e828f0e9`.
 - **Read-heal F1 (HIGH)** — after-pitch auto-heal now keys on `narrative.hasSignal`, not the composite
   that deterministic scores kept true; a blank "Your read" now re-generates instead of sticking blank.
-  `3b44945b`.
+  `3b44945b`. **Follow-up (`c7921692`):** an adversarial review of my OWN fix caught a HIGH regression —
+  F1 keyed on `!narrative.hasSignal`, but `moments`/`cueLoop` drive the composite independently of agent
+  turns, so a one-sided recording (0 agent turns, rep mic not captured — realistic on mobile) looped a full
+  4-engine generation on every mount, never converging. Fixed by gating the heal on `scores.length > 0` (an
+  exact proxy for "agent turns present" → the recoverable case only). Residual (accepted, rare): a call WITH
+  agent turns whose review yields growth-but-no-strengths (tone-law → blank), or persistent F3-corpus
+  starvation, still re-heals per visit — bounded per-visit, tied to the founder-gated corpus-trim. A durable
+  once-per-session heal marker would close it; deferred as over-reach for a rare case.
 - **Read-heal F2 (MED)** — DeepSeek stream path now logs `finish_reason:"length"` (was silent). `3b44945b`.
 - **Connect refusal-surface** — connect page shows "Extension not recognized" (with the id) on a refused
   handoff instead of a silent drop to copy-token. `9bbf55e4`.
