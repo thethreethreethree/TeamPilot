@@ -886,6 +886,8 @@ type CaptureHealthAgent = {
   noFeedback: number;
   oneSided: number;
   empty: number;
+  undecided: number;
+  customerLabeled: number;
   rate: number;
 };
 type CaptureHealthData = {
@@ -893,6 +895,8 @@ type CaptureHealthData = {
   noFeedback: number;
   failed: number;
   oneSided: number;
+  undecided: number;
+  customerLabeled: number;
   recoverable: number;
   lost: number;
   noFeedbackRate: number;
@@ -943,13 +947,16 @@ function CaptureHealthCard() {
       <div>
         <h3 className="text-sm font-semibold text-primary">Capture health</h3>
         <p className="text-[11px] text-muted leading-relaxed mt-1">
-          How many ended sessions produced <span className="text-secondary">no after-pitch feedback</span> — a
-          session gives no &ldquo;Your read&rdquo; when it captured <span className="text-secondary">zero agent
-          turns</span>. Two ways that happens: <span className="text-secondary">Empty</span> (no transcript at
-          all) and <span className="text-secondary">One-sided</span> (the customer was captured but the
-          agent&apos;s mic wasn&apos;t). <span className="text-secondary">Recoverable</span> = audio was saved
-          (re-transcribable); <span className="text-secondary">Lost</span> = no audio. The per-agent list shows
-          who&apos;s most affected — the signal for a device/mic capture problem.
+          How many ended sessions produced <span className="text-secondary">no after-pitch feedback</span> (zero
+          agent turns → no &ldquo;Your read&rdquo;), split by CAUSE so the fix is the right one:
+          <span className="text-secondary"> Undecided</span> = the transcript exists but the agent&apos;s turns
+          were labeled &ldquo;unknown&rdquo; — a <span className="text-emerald-300">fixable labeling</span> issue,
+          NOT a capture failure (an STT swap wouldn&apos;t help);
+          <span className="text-secondary"> Customer-labeled</span> = all turns tagged customer (mis-attribution
+          or the mic truly missed the agent); <span className="text-secondary">Empty</span> = the STT captured
+          nothing. <span className="text-secondary">Recoverable</span> = audio saved (re-transcribable). If most
+          are <span className="text-emerald-300">Undecided/Customer-labeled</span>, the fix is attribution;
+          if <span className="text-secondary">Empty</span>, it&apos;s capture/STT.
         </p>
       </div>
       <LoadingButton
@@ -973,8 +980,13 @@ function CaptureHealthCard() {
               value={`${data.noFeedback} (${data.noFeedbackRate}%)`}
               tone={data.noFeedback > 0 ? "amber" : "emerald"}
             />
-            <Stat label="One-sided (agent not captured)" value={data.oneSided} tone={data.oneSided > 0 ? "amber" : "emerald"} />
-            <Stat label="Empty (no transcript)" value={data.failed} tone={data.failed > 0 ? "amber" : "emerald"} />
+            <Stat
+              label="Undecided (fixable labeling)"
+              value={data.undecided}
+              tone={data.undecided > 0 ? "emerald" : undefined}
+            />
+            <Stat label="Customer-labeled" value={data.customerLabeled} tone={data.customerLabeled > 0 ? "amber" : "emerald"} />
+            <Stat label="Empty (STT captured nothing)" value={data.failed} tone={data.failed > 0 ? "amber" : "emerald"} />
             <Stat label="Recoverable (audio saved)" value={data.recoverable} />
             <Stat label="Lost (no audio)" value={data.lost} tone={data.lost > 0 ? "amber" : "emerald"} />
           </div>
@@ -997,7 +1009,11 @@ function CaptureHealthCard() {
                       </span>
                       <span className="text-muted">
                         {a.noFeedback}/{a.ended}
-                        {a.oneSided > 0 ? ` · ${a.oneSided} one-sided` : ""}{" "}
+                        {a.undecided > 0 ? (
+                          <span className="text-emerald-300"> · {a.undecided} fixable</span>
+                        ) : (
+                          ""
+                        )}{" "}
                         <span className="text-amber-300 font-semibold">{a.rate}%</span>
                       </span>
                     </li>

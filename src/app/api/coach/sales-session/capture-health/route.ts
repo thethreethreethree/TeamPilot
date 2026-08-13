@@ -61,6 +61,8 @@ export async function GET() {
         noFeedback: 0,
         failed: 0,
         oneSided: 0,
+        undecided: 0,
+        customerLabeled: 0,
         recoverable: 0,
         lost: 0,
         noFeedbackRate: 0,
@@ -90,8 +92,13 @@ export async function GET() {
     // short-circuits to EMPTY at agentSegments < MIN_AGENT_SEGMENTS. The prior version counted only "no
     // transcript at all" and so MISSED the ONE-SIDED case (customer captured, agent's mic not) — which renders
     // no "Your read" yet was counted "captured fine", undercounting the cost. We now split both modes.
+    // Speaker distribution per session (2026-08-13 refine — distinguish a fixable LABELING failure from a true
+    // capture failure, so we don't rebuild the STT for a mislabeling bug). speaker ∈ agent|customer|unknown
+    // (migration 0070). A no-feedback session with `unknown` segments = the attribution FAILED TO DECIDE (fixable
+    // in code); all-`customer` = mis-attribution OR true one-sided; no segments = the STT captured nothing.
     const withAnySegment = new Set<string>();
     const withAgentSegment = new Set<string>();
+    const withUnknownSegment = new Set<string>();
     for (let i = 0; i < endedIds.length; i += CHUNK) {
       const batch = endedIds.slice(i, i + CHUNK);
       const rows = await fetchAllPaged<{ session_id: string; speaker: string }>(
@@ -107,20 +114,27 @@ export async function GET() {
       for (const r of rows) {
         withAnySegment.add(r.session_id);
         if (r.speaker === "agent") withAgentSegment.add(r.session_id);
+        else if (r.speaker === "unknown") withUnknownSegment.add(r.session_id);
       }
     }
 
-    // Per-company + per-agent tallies. `noFeedback` = the true count (empty OR one-sided → no "Your read").
-    let failed = 0; // no transcript at all (unchanged legacy metric, for continuity)
-    let oneSided = 0; // segments present but 0 agent turns (customer captured, agent not)
+    // Per-company + per-agent tallies. `noFeedback` = the true count (0 agent turns → no "Your read"), split by
+    // CAUSE so the fix can be chosen correctly: empty (STT captured nothing), undecided (attribution left turns
+    // `unknown` → FIXABLE in code), customerLabeled (all customer → mis-attribution OR true one-sided).
+    let failed = 0; // no transcript at all (== `empty`; legacy name kept for continuity)
+    let undecided = 0; // segments present, 0 agent, ≥1 `unknown` → attribution failed to decide (fixable)
+    let customerLabeled = 0; // segments present, 0 agent, all customer → mis-attribution or true one-sided
     let recoverable = 0; // any no-feedback session whose audio was saved → re-transcribable
     let lost = 0; // no-feedback + no audio saved
-    const byAgent = new Map<string, { agentId: string; ended: number; noFeedback: number; oneSided: number; empty: number }>();
+    const byAgent = new Map<
+      string,
+      { agentId: string; ended: number; noFeedback: number; oneSided: number; empty: number; undecided: number; customerLabeled: number }
+    >();
     const agentBucket = (id: string | null) => {
       const key = id ?? "unassigned";
       let b = byAgent.get(key);
       if (!b) {
-        b = { agentId: key, ended: 0, noFeedback: 0, oneSided: 0, empty: 0 };
+        b = { agentId: key, ended: 0, noFeedback: 0, oneSided: 0, empty: 0, undecided: 0, customerLabeled: 0 };
         byAgent.set(key, b);
       }
       return b;
@@ -132,16 +146,22 @@ export async function GET() {
       if (withAgentSegment.has(s.id)) continue; // has agent turns → gets after-pitch feedback
       // No agent turns → no "Your read".
       bucket.noFeedback += 1;
-      if (withAnySegment.has(s.id)) {
-        oneSided += 1;
+      if (!withAnySegment.has(s.id)) {
+        failed += 1; // truly empty transcript — STT captured nothing
+        bucket.empty += 1;
+      } else if (withUnknownSegment.has(s.id)) {
+        undecided += 1; // has `unknown` segments → attribution failed to decide → FIXABLE in code
+        bucket.undecided += 1;
         bucket.oneSided += 1;
       } else {
-        failed += 1; // truly empty transcript
-        bucket.empty += 1;
+        customerLabeled += 1; // all customer → mis-attribution or true one-sided
+        bucket.customerLabeled += 1;
+        bucket.oneSided += 1;
       }
       if (s.audio_asset_url) recoverable += 1;
       else lost += 1;
     }
+    const oneSided = undecided + customerLabeled;
     const noFeedback = failed + oneSided;
 
     // Resolve NAMES for the affected agents (a UUID isn't actionable — the founder wants to know WHO). Only the
@@ -160,9 +180,11 @@ export async function GET() {
 
     return NextResponse.json({
       total,
-      noFeedback, // TRUE cost: sessions with 0 agent turns → no "Your read" (empty + one-sided)
-      failed, // legacy: no transcript at all
-      oneSided, // NEW: customer captured, agent's mic not — the missed class
+      noFeedback, // TRUE cost: sessions with 0 agent turns → no "Your read"
+      failed, // == empty: no transcript at all (STT captured nothing)
+      oneSided, // segments present, 0 agent turns (= undecided + customerLabeled)
+      undecided, // segments present, ≥1 `unknown` → attribution failed → FIXABLE IN CODE (no STT swap needed)
+      customerLabeled, // segments present, all customer → mis-attribution or true one-sided
       recoverable, // no-feedback session with audio saved → re-transcribable
       lost, // no-feedback + no audio
       noFeedbackRate: total > 0 ? Math.round((noFeedback / total) * 1000) / 10 : 0,

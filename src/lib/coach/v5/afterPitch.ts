@@ -135,11 +135,16 @@ export async function generateAfterPitchSummary(args: {
     // shape that yields no "Your read" while scores/moments may still render.
     const agentTurns = segments.filter((s) => s.speaker === "agent").length;
     const customerTurns = segments.filter((s) => s.speaker === "customer").length;
+    const unknownTurns = segments.filter((s) => s.speaker === "unknown").length;
     // eslint-disable-next-line no-console
     console.log(
       `[stt-capture] session=${args.sessionId} company=${args.companyId} context=${args.context ?? "?"} ` +
         `segments=${segments.length} agentTurns=${agentTurns} customerTurns=${customerTurns} ` +
-        `empty=${segments.length === 0} oneSided=${segments.length > 0 && agentTurns === 0}`
+        `unknownTurns=${unknownTurns} empty=${segments.length === 0} ` +
+        // oneSided = 0 agent turns despite segments. cause=undecided (unknown present → attribution FIXABLE) vs
+        // customerLabeled (all customer → mis-attribution or true one-sided) vs empty.
+        `oneSided=${segments.length > 0 && agentTurns === 0} ` +
+        `cause=${segments.length === 0 ? "empty" : agentTurns > 0 ? "ok" : unknownTurns > 0 ? "undecided" : "customerLabeled"}`
     );
 
     if (segments.length === 0) return EMPTY;
