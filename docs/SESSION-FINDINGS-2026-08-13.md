@@ -157,6 +157,15 @@ care.ts:224/637). The `coach_counts` SUM (3341) → needs the actual values, so 
 SUM (RPC). NOT auto-fixed: touches founder-facing metrics + needs a TBC + tests; surfaced for the founder to
 sequence (it's a clear bug fix, not a preference, but unrequested and non-urgent — reachable only past 1000/window).
 
+## LOW-CONFIDENCE OBSERVATION (rate-limit parity — needs a real cost calc)
+`/api/care/tts` is rate-limited at **30/min** while its sibling `/api/care/stt` was deliberately tightened to
+**8/min** for cost-attack (per that route's own comments). Both are Vercel-proxied voice routes with a per-IP
+cost dimension. A rough estimate suggests care/tts (flash TTS, 2000-char cap × 30/min = 60k chars/min) may be a
+HIGHER $/min cost-attack surface than care/stt (batch Scribe, 2MB × 8/min), yet it carries the looser limit —
+so the cost-hardening applied to STT wasn't applied with equal weight to TTS. LOW confidence (my per-unit cost
+figures are rough; both routes ARE auth+cap+rate-limited, so this is tuning, not a hole). Action: do a real
+ElevenLabs cost-per-request calc for both and align the TTS limit if it's the higher surface. Founder/tuning call.
+
 ## OPEN SUSPECTS (evidence-based, NOT auto-fixed — may be intentional)
 - **Sales download zip is git-TRACKED while the C.A.R.E zip is git-IGNORED.** `public/sales-coach-extension.zip`
   is tracked and shows perpetually "modified" after any dev/prebuild run (jszip is not byte-deterministic
