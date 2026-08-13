@@ -22,12 +22,18 @@ vi.mock("@/lib/data/salesCoach", () => ({
   getSession: vi.fn(),
   getSessionTranscript: vi.fn(async () => []),
   appendTranscriptSegment: vi.fn(async () => ({})),
+  deleteSessionTranscriptSegments: vi.fn(async () => true),
 }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
-import { getSession, getSessionTranscript, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import {
+  getSession,
+  getSessionTranscript,
+  appendTranscriptSegment,
+  deleteSessionTranscriptSegments,
+} from "@/lib/data/salesCoach";
 import { POST } from "../route";
 
 const setAuth = (userId: string | null) =>
@@ -93,8 +99,31 @@ describe("POST /label-transcript", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).alreadyHasTranscript).toBe(true);
     expect(appendTranscriptSegment).not.toHaveBeenCalled();
+    expect(deleteSessionTranscriptSegments).not.toHaveBeenCalled(); // never clobber a canonical (has-agent) transcript
     // Nothing appended → no post-call generation (can't double-generate on a re-label).
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
+  });
+
+  it("OVERWRITES a broken 0-agent-turns transcript (recovery re-transcribe), not 409", async () => {
+    // The recovery case (2026-08-13): the existing transcript has segments but ZERO agent turns (one-sided /
+    // all-`unknown` → no "Your read"). It's broken, not canonical, so the re-transcribe REPLACES it: delete the
+    // broken segments, then save the re-diarized ones. Contrast with the 409 test above (that one has an agent
+    // segment → canonical → never clobbered).
+    setAuth("rep1");
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([
+        { speaker: "customer", text: "old customer turn", seq: 0 },
+        { speaker: "unknown", text: "old undecided turn", seq: 1 },
+      ]) // pre-append: broken, 0 agent turns → overwrite
+      .mockResolvedValueOnce([
+        { speaker: "agent", text: "Hi, I'm from Acme.", seq: 0 },
+        { speaker: "customer", text: "Not interested.", seq: 1 },
+      ]); // post-append read for generation
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(200);
+    expect(deleteSessionTranscriptSegments).toHaveBeenCalledWith("sess1"); // broken transcript cleared first
+    expect(appendTranscriptSegment).toHaveBeenCalledTimes(3); // the re-diarized segments saved
+    expect(await res.json()).toEqual({ appended: 3, requested: 3 });
   });
 
   it("labels the tapped speaker 'agent' and every other speaker 'customer'", async () => {

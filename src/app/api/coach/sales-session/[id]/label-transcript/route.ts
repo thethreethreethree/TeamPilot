@@ -8,6 +8,7 @@ import {
   getSession,
   getSessionTranscript,
   appendTranscriptSegment,
+  deleteSessionTranscriptSegments,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 
@@ -16,9 +17,12 @@ import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifact
  *
  * After the agent one-taps which diarized speaker is them, append the
  * labeled transcript: the agent's speaker → 'agent', everyone else →
- * 'customer'. Append-only (§3.1) — this is the canonical stored
- * transcript the review runs on. The raw live 'unknown' segments (if
- * any) stay untouched; nothing is mutated.
+ * 'customer'. Append-only (§3.1) for a CANONICAL transcript — this is
+ * the record the review runs on, and one WITH agent turns is never
+ * clobbered (409). The one narrow exception (2026-08-13, founder-
+ * approved): a BROKEN, zero-agent-turns transcript (one-sided /
+ * all-'unknown' — the "no after-pitch feedback" case) IS replaced on a
+ * recovery re-transcribe, since it has no read value and isn't canonical.
  *
  * Then, for an UPLOADED-recording session, generate the post-call
  * artifacts (summary/dissect/pivot/moments/intel) from the labeled
@@ -93,14 +97,15 @@ export async function POST(
   // WHERE THE INVARIANT ACTUALLY HOLDS (audit 2026-08-11, F5 — don't mislead the next reader): the
   // STRUCTURAL gate is migration 0208's `unique(session_id, seq)` constraint — a concurrent double-label
   // both pass the read below, but the second's inserts hit 23505 and appendTranscriptSegment treats it as
-  // an idempotent no-op, so the transcript cannot double even under a true race. The `getSessionTranscript`
-  // check here is a NON-atomic fast-fail (TOCTOU) that gives a clean 409 for the common sequential/stale-
-  // client case + a readable message; it is defense-in-depth on top of the constraint, NOT the sole gate.
+  // an idempotent no-op, so a CANONICAL transcript cannot double even under a true race. The
+  // `getSessionTranscript` check here is a NON-atomic fast-fail (TOCTOU) that 409s the double-label of a
+  // transcript that HAS agent turns; it is defense-in-depth on top of the constraint, NOT the sole gate.
   // The [id]-page UI hiding the picker once a transcript exists is a third, purely-UX layer. Live coaching
-  // writes via /finalize + /segments (NOT this route), so none of this blocks a live save; the recovery
-  // re-transcribe only fires when the transcript is empty, so it's unaffected.
+  // writes via /finalize + /segments (NOT this route). EXCEPTION (2026-08-13): a BROKEN 0-agent-turns
+  // transcript is replaceable by the recovery re-transcribe — see the gated delete just below.
   const existing = await getSessionTranscript(id);
-  if (existing.length > 0) {
+  // A transcript WITH agent turns is CANONICAL — never clobber it (append-only, §A18): 409 the double-label.
+  if (existing.some((s) => s.speaker === "agent")) {
     return NextResponse.json(
       {
         error:
@@ -109,6 +114,17 @@ export async function POST(
       },
       { status: 409 }
     );
+  }
+  // Recovery overwrite (2026-08-13, founder-approved): if the existing transcript has ZERO agent turns it's a
+  // BROKEN read (one-sided / all-`unknown` — the "no after-pitch feedback" case), not canonical data. The
+  // re-transcribe is CORRECTING it, so delete the broken segments first so the re-diarized ones don't collide on
+  // (session_id, seq) and no-op. Narrow, gated exception to append-only: only a 0-agent-turns transcript is
+  // replaceable, and only the session's own rep reaches here (owner gate above). Concurrent recovery on ONE
+  // session is a manual, single-agent action; the unique(session_id, seq) constraint still prevents a doubled
+  // transcript, and whichever completes last yields a valid one (low-risk TOCTOU, same posture as the prior
+  // fast-fail check this replaces).
+  if (existing.length > 0) {
+    await deleteSessionTranscriptSegments(id);
   }
 
   let appended = 0;
