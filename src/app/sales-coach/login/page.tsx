@@ -145,6 +145,15 @@ export default function SalesCoachLoginPage() {
             </div>
             </LearningHint>
 
+            <div className="-mt-1 text-right">
+              <Link
+                href="/auth/forgot"
+                className="text-xs text-muted hover:text-brand transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             {error && <p className="text-xs text-red-400">{error}</p>}
 
             <LearningHint
