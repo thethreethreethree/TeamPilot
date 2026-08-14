@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import {
+  activateAccountGuidance,
   fetchActiveSubscription,
   generateInvoiceStub,
   updateSubscription,
@@ -103,6 +104,12 @@ export async function PATCH(
       { error: "Update failed." },
       { status: 500 }
     );
+  }
+  // Setting an account ACTIVE must make it TRULY active — open the AI gate + advance the stage out of the
+  // control month — so "active" means every AI feature is available + functional, not just the day-1 Sales Coach
+  // engines (founder 2026-08-14). Best-effort: the subscription status is already saved.
+  if (body.status === "active") {
+    await activateAccountGuidance(id);
   }
   return NextResponse.json({ subscription: updated });
 }

@@ -249,6 +249,43 @@ export async function updateSubscription(
   return mapSubscription(data);
 }
 
+/**
+ * When a vendor admin sets an account to ACTIVE, make it TRULY active (founder 2026-08-14): advance its
+ * lifecycle stage OUT of the control month AND open the AI gate (companies.ai_guidance_enabled) so EVERY AI
+ * feature works — not only the day-1 `controlExempt` Sales Coach engines. This is a deliberate vendor override of
+ * the month-1 control window, on the record via the lifecycle-change event (0049 trigger) + the
+ * ai_guidance_enabled_at timestamp — analogous to the leadership /api/brain/unlock. Runs on the SERVICE-ROLE
+ * client, which the 0111 guard passes untouched (definer/service context) and which bypasses RLS to reach the
+ * target company. Best-effort: the subscription status was already saved by the caller.
+ */
+export async function activateAccountGuidance(accountId: string): Promise<boolean> {
+  const sb = createAdminClient();
+  const { data: acct } = await sb
+    .from("crm_accounts")
+    .select("company_id, lifecycle_stage")
+    .eq("id", accountId)
+    .maybeSingle();
+  const companyId = acct?.company_id as string | undefined;
+  if (!companyId) return false;
+
+  // Open the AI gate for the whole company (the core of "all AI features available and functional").
+  const { error: gErr } = await sb
+    .from("companies")
+    .update({ ai_guidance_enabled: true, ai_guidance_enabled_at: new Date().toISOString() })
+    .eq("id", companyId);
+  if (gErr) {
+    // eslint-disable-next-line no-console
+    console.error(`[crm.activate] failed to enable ai_guidance company=${companyId}: ${gErr.message}`);
+  }
+
+  // Advance the STAGE out of the baseline so the dashboard reflects an active account (the lifecycle-change
+  // trigger records it). Only from a baseline stage — never downgrade a further-along account.
+  if (acct?.lifecycle_stage === "control_month" || acct?.lifecycle_stage === "trial") {
+    await sb.from("crm_accounts").update({ lifecycle_stage: "activated" }).eq("id", accountId);
+  }
+  return !gErr;
+}
+
 // ─── Invoices ────────────────────────────────────────────────
 
 export async function listInvoices(accountId: string): Promise<CrmInvoice[]> {
