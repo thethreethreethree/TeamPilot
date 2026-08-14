@@ -33,6 +33,14 @@ for the LLM call. Guidance-on accounts (your admin, Moses) sailed through; that'
   can't resolve without you. Your recording still saves either way — the Upload fallback gives the transcript.
 - **B. (unchanged, still open)** the founder-gated items below — coach-KPI aggregation, onboarding RPC advisory
   lock, message-thread pagination, and the Next.js `16.3.0` security bump — all still awaiting your go-ahead.
+- **C. Retranscribe concurrency gap (LOW severity, flagged from a 2026-08-14 audit).** The STT double-charge
+  protection (client `useRef` latch `16ed8fae` + server cache `0213`) covers double-click / reload / 2nd-tab, but
+  there's no server-side atomic claim — so two *truly-concurrent* re-transcribe fires for the SAME session (from
+  different tabs/devices, both within the STT window, both past the still-empty cache) would each charge a full
+  batch STT. The sibling `auto-recover` route guards this with an atomic `update…is(null)…select` claim;
+  retranscribe is the weaker (cache-only) guard. Impact: ONE extra STT charge (a few cents), narrow window — not
+  a loop. Say **"close the retranscribe concurrency gap"** and I'll mirror auto-recover's atomic claim; else it
+  stays a documented low-severity edge.
 
 ## 🟩 2026-08-13 — THREE first-client incidents FIXED + deployed (verified live on elostate.com); your open items
 
