@@ -39,11 +39,35 @@ export async function POST(req: NextRequest) {
     const token = await mintRealtimeSttToken();
     return NextResponse.json({ token });
   } catch (err) {
-    // Log the real cause server-side (missing ELEVENLABS_API_KEY vs a provider 401/402/403 — see
+    // Log the real cause server-side (missing ELEVENLABS_API_KEY vs a provider 401/402/403/429 — see
     // elevenlabs.ts getApiKey + mintRealtimeSttToken), but never show the rep developer jargon like
-    // "Token mint failed". Give them a plain, actionable message: the Upload-recording fallback is rendered
-    // right below, so point them at it.
+    // "Token mint failed". Give them a plain, actionable message + always point at the Upload-recording
+    // fallback rendered below.
     console.error("[realtime-token] mint failed:", err);
+    const status = (err as { status?: number })?.status;
+    // 429 = too many token requests AT ONCE (concurrent load) — TRANSIENT, retrying works. Say so honestly so a
+    // rep in a busy hour doesn't read a capacity blip as "the app is broken" (2026-08-14 concurrency hardening).
+    if (status === 429) {
+      return NextResponse.json(
+        {
+          error:
+            "Live coaching is busy right now — too many sessions starting at once. Wait a few seconds and try again, or upload the recording below to still get your transcript.",
+          retryable: true,
+        },
+        { status: 503 }
+      );
+    }
+    // 402/403 = account quota/billing/plan limit — retrying WON'T fix it; the fallback still gets the transcript.
+    if (status === 402 || status === 403) {
+      return NextResponse.json(
+        {
+          error:
+            "Live coaching's audio is temporarily unavailable on this account. Upload the call recording below to still get your transcript.",
+          retryable: false,
+        },
+        { status: 502 }
+      );
+    }
     return NextResponse.json(
       {
         error:

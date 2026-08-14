@@ -549,9 +549,15 @@ export async function mintRealtimeSttToken(): Promise<string> {
           `${describeElevenLabsAuthError(response.status, err)} Provider: ${err.slice(0, 200)}`
       );
     }
-    throw new Error(
+    // Attach the HTTP status so the caller can classify the failure HONESTLY — a 429 (too many token requests
+    // at once, under concurrent load) reads differently to the rep than a 402/403 (account quota/billing) or a
+    // config error. Without the status the route could only show one generic message. (2026-08-14 concurrency
+    // hardening.)
+    const e = new Error(
       `ElevenLabs token mint failed: ${response.status} ${err.slice(0, 300)}`
-    );
+    ) as Error & { status?: number };
+    e.status = response.status;
+    throw e;
   }
   const result = (await response.json()) as { token?: string };
   if (!result.token) {
