@@ -74,7 +74,11 @@ function forViewer(summary: unknown, isOwner: boolean): unknown {
 }
 
 // LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
-export const maxDuration = 60;
+// Raised 60→300 (2026-08-14): over a 5–10 minute call's transcript the DeepSeek generation can run past 60s, and
+// the function was being KILLED at the ceiling → a 504 the rep sees on the After-Pitch screen. 300s is the Pro
+// plan max (the STT routes already use it). If a generation ever genuinely HANGS, the fix is an LLM-call timeout,
+// not more ceiling — flagged.
+export const maxDuration = 300;
 
 export async function POST(
   req: NextRequest,

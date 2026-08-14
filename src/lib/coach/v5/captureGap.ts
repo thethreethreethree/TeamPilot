@@ -22,7 +22,7 @@
  */
 
 type ScoreLike = { key: string; caveat?: boolean };
-type SummaryLike = {
+export type SummaryLike = {
   narrative: { hasSignal: boolean };
   scores: ScoreLike[];
 };

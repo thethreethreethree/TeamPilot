@@ -27,6 +27,10 @@ import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { afterPitchNeedsHeal } from "@/lib/coach/v5/afterPitchHeal";
 import { shouldOfferBlankReadRecovery } from "@/lib/coach/v5/blankReadRecovery";
 import {
+  diagnoseAfterPitchRead,
+  explainAfterPitchError,
+} from "@/lib/coach/v5/afterPitchDiagnosis";
+import {
   detectCaptureGap,
   afterPitchNeedsAutoRecover,
   type CaptureGap,
@@ -164,6 +168,10 @@ export default function AfterPitchPage() {
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // The EXACT cause of a generation failure (incl. a 504 timeout), rendered as a rep-facing explanation instead
+  // of a raw "HTTP 504" (founder request 2026-08-14). Set only by generate(); kept separate from `error` (which
+  // other flows like Start Next Door also use) so those keep their own messages.
+  const [genError, setGenError] = useState<{ title: string; detail: string } | null>(null);
   // Auto-generate fires at most ONCE per session id. Its only other guard is the load()
   // dependency array, which includes `isStandard` — a value ExperienceModeProvider mutates
   // AFTER mount (the server-rendered initialMode can default to "standard" then reconcile to
@@ -248,24 +256,24 @@ export default function AfterPitchPage() {
     generatingRef.current = true;
     setGenerating(true);
     setError(null);
+    setGenError(null);
     try {
       const res = await fetch(`/api/coach/sales-session/${id}/after-pitch`, {
         method: "POST",
       });
-      if (res.status === 403) {
-        setError("This summary is private to the rep who ran the call.");
-        return null;
-      }
       if (!res.ok) {
-        setError(`Couldn't build the summary (HTTP ${res.status}).`);
+        // Name the EXACT cause (a 504 timeout, an STT hiccup, a private read, …) instead of a raw HTTP code.
+        setGenError(explainAfterPitchError(res.status));
         return null;
       }
       const d = await res.json();
       setSummary(d.summary);
       setIsOwner(d.isOwner ?? true);
       return (d.summary ?? null) as Summary | null;
-    } catch {
-      setError("Couldn't build the summary.");
+    } catch (e) {
+      // Network drop / fetch abort — no HTTP status. explainAfterPitchError picks a timeout message when the
+      // failure text says so, else a friendly generic hiccup.
+      setGenError(explainAfterPitchError(null, e instanceof Error ? e.message : String(e)));
       return null;
     } finally {
       generatingRef.current = false;
@@ -577,6 +585,25 @@ export default function AfterPitchPage() {
               {generating ? "Building your summary…" : "Loading…"}
             </p>
           </div>
+        ) : genError ? (
+          /* The EXACT cause of a generation failure — a 504 timeout, an STT hiccup, a private read — in plain
+             language, so the rep knows WHAT went wrong and that their recording is safe (founder 2026-08-14). */
+          <div className="rounded-xl border border-ember-500/40 bg-ember-500/[0.06] p-4 text-center space-y-2">
+            <p className="text-xs text-primary font-medium">{genError.title}</p>
+            {genError.detail && (
+              <p className="text-[11px] text-muted leading-relaxed">{genError.detail}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setGenError(null);
+                void generate();
+              }}
+              className="text-xs font-semibold text-[#09090B] bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Try again
+            </button>
+          </div>
         ) : error ? (
           <div className="rounded-xl border border-ember-500/40 bg-ember-500/[0.06] p-4 text-center space-y-3">
             <p className="text-xs text-primary">{error}</p>
@@ -681,6 +708,7 @@ export default function AfterPitchPage() {
               autoRecoverOutcome={autoRecoverOutcome}
               onRecovered={() => void generate()}
             />
+            <EmptyReadBanner summary={summary} />
             <Scoreboard scores={summary.scores} />
             <Narrative narrative={summary.narrative} defaultOpen />
             <CueLoop entries={summary.cueLoop} />
@@ -697,6 +725,7 @@ export default function AfterPitchPage() {
               autoRecoverOutcome={autoRecoverOutcome}
               onRecovered={() => void generate()}
             />
+            <EmptyReadBanner summary={summary} />
             <Timeline moments={summary.moments} />
             {whatHappened && (
               <LearningHint
@@ -1228,6 +1257,21 @@ function BlankReadRecovery({
         hasSavedRecording={hasSavedRecording}
         autoRetranscribe={hasSavedRecording}
       />
+    </section>
+  );
+}
+
+/* EMPTY-READ banner (founder 2026-08-14 "show the exact issue"): a TWO-SIDED call whose coaching write-up came
+   back empty (no capture gap → BlankReadRecovery stays silent) otherwise shows a blank "Your read" with no
+   reason. Name it honestly (the honesty thesis). Returns null for a healthy read or a one-sided gap (owned by
+   BlankReadRecovery) — the classification is the pure, tested diagnoseAfterPitchRead. */
+function EmptyReadBanner({ summary }: { summary: Summary | null }) {
+  const issue = diagnoseAfterPitchRead({ summary });
+  if (!issue) return null;
+  return (
+    <section className="rounded-2xl border border-default bg-surface/60 p-4">
+      <p className="text-xs text-primary font-medium">{issue.title}</p>
+      <p className="text-[11px] text-muted leading-relaxed mt-1">{issue.detail}</p>
     </section>
   );
 }

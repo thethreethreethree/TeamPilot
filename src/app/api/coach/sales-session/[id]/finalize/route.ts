@@ -18,7 +18,10 @@ import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifact
 // response. maxDuration declares the budget the resilience code already assumes.
 // (Reliability completion of the 2026-07-07 AMD-006 L2 audit — the timeout was
 // added but the matching duration budget was never declared.)
-export const maxDuration = 60;
+// Raised 60→300 (2026-08-14): five concurrent engines over a long call's transcript, plus provider latency, can
+// push the route past 60s → the function is killed → a 504. 300s (the Pro max, already used by the STT routes)
+// gives the resilience code the headroom it assumes.
+export const maxDuration = 300;
 
 /**
  * POST /api/coach/sales-session/[id]/finalize

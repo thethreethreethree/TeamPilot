@@ -46,7 +46,9 @@ const BodySchema = z.union([
 ]);
 
 // LLM route: longer serverless budget than Vercel's short default (awaits an LLM call via a lib helper).
-export const maxDuration = 60;
+// Raised 60→300 (2026-08-14): a growth review over a long call's transcript can run past 60s and get killed at
+// the ceiling → a 504. 300s is the Pro plan max (the STT routes already use it).
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, {
