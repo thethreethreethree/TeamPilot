@@ -77,44 +77,62 @@ export async function generateSalesReview(args: {
       // Product/brand details (founder 2026-07-31) — the review critiques against what the team sells.
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt =
-      buildSalesReviewSystemPrompt(corpus?.content, args.mode, product?.content) +
-      CONVERSATION_IS_DATA;
     const userMessage = buildSalesReviewUserMessage({
       sessionTitle: args.sessionTitle,
       context: args.context,
       segments: args.segments,
     });
 
-    const r = await debriefCoachV5({
-      companyId: args.companyId,
-      systemPrompt,
-      userMessage,
-      // Sales Coach runs day-1 — exempt from the §3.4 control window.
-      controlExempt: true,
-    });
-    if (r.suppressed) return EMPTY_REVIEW;
+    // One generation attempt. Returns the parsed review on success, EMPTY_REVIEW if the call was intentionally
+    // suppressed (not a retry case), or null if the LLM came back EMPTY / no-signal — the reasoning-model
+    // token-starvation failure worth RETRYING leaner. We NEVER swallow an empty response silently (INV22 — the
+    // error-dressed-as-no-data class that hid the 2026-07-30 blank-"Your read" outage for two weeks); each miss
+    // is logged. See reference_reasoning_model_token_starvation.
+    const runOnce = async (systemPrompt: string): Promise<SalesReview | null> => {
+      const r = await debriefCoachV5({
+        companyId: args.companyId,
+        systemPrompt,
+        userMessage,
+        // Sales Coach runs day-1 — exempt from the no-instant-results control window.
+        controlExempt: true,
+      });
+      if (r.suppressed) return EMPTY_REVIEW;
+      if (!r.text || !r.text.trim()) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[generateSalesReview] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely reasoning-model token-budget starvation.`
+        );
+        return null;
+      }
+      const parsed = parseSalesReview(r.text);
+      if (!parsed || !parsed.hasSignal) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[generateSalesReview] parseSalesReview produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no strengths extracted.`
+        );
+        return null;
+      }
+      return parsed;
+    };
 
-    // Do NOT swallow an EMPTY/unparseable LLM response silently — that is the error-dressed-as-no-data failure
-    // (INV22) that hid the 2026-07-30 blank-"Your read" outage for two weeks on THIS engine (debriefCoachV5,
-    // the after-pitch narrative). Log the distinct failure mode so a regression surfaces immediately instead
-    // of going blank. Mirrors generateSalesDissect. See reference_reasoning_model_token_starvation.
-    if (!r.text || !r.text.trim()) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `[generateSalesReview] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely reasoning-model token-budget starvation. Review ("Your read") will be blank.`
-      );
-      return EMPTY_REVIEW;
-    }
-    const parsed = parseSalesReview(r.text);
-    if (!parsed || !parsed.hasSignal) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `[generateSalesReview] parseSalesReview produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no strengths extracted.`
-      );
-      return EMPTY_REVIEW;
-    }
-    return parsed;
+    // Attempt 1 — the full prompt (the company's saved corpus + product methodology, if any).
+    const first = await runOnce(
+      buildSalesReviewSystemPrompt(corpus?.content, args.mode, product?.content) + CONVERSATION_IS_DATA
+    );
+    if (first) return first;
+
+    // Attempt 2 — STARVATION RECOVERY (founder 2026-08-14: every call must get a read, no exceptions).
+    // deepseek-v4 is a REASONING model with an ~8k output ceiling; reasoning_content is emitted before the
+    // answer and counts against that ceiling. A large company corpus in the system prompt drives MORE reasoning,
+    // so on a longer call it can burn the whole budget and return an EMPTY "Your read" (the exact 2-device test
+    // failure: a big-corpus company's 3-min call went blank while a lean-corpus company's call did not). Retry
+    // with the LEAN built-in prompt (no corpus/product) so the answer isn't starved — the TRANSCRIPT (the actual
+    // call) is unchanged, so a real read still comes through. When there's no corpus/product to drop, the lean
+    // prompt equals the full one, so this is simply a fresh attempt (the reasoning model is non-deterministic).
+    const retry = await runOnce(buildSalesReviewSystemPrompt(undefined, args.mode, undefined) + CONVERSATION_IS_DATA);
+    if (retry) return retry;
+
+    return EMPTY_REVIEW;
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(

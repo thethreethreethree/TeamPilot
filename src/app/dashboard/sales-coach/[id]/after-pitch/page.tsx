@@ -1309,10 +1309,9 @@ function Narrative({
           // narrative NEVER means "nothing to learn". Don't dead-end on "too short"; point to the real feedback
           // that IS on this screen. A full authored read still needs a fuller pitch (§3.4 — don't fabricate one).
           <p className="text-xs text-secondary leading-relaxed">
-            The full written read for this call isn&apos;t ready yet — but your scores and your{" "}
+            Your written read is being rebuilt — your scores and your{" "}
             <span className="text-primary">Next Door Focus</span> below are built from what actually
-            happened, so there&apos;s still something to work on. A very short exchange may not have
-            enough to write a full read.
+            happened, so there&apos;s something to work on right now. Tap Rebuild if it doesn&apos;t fill in.
           </p>
         )}
         {narrative.strengths.length > 0 && (

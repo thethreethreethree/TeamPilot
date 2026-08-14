@@ -90,23 +90,43 @@ describe("generateSalesReview — honesty gate + never-throws", () => {
   // INV22 / starvation VISIBILITY on the ORIGINAL outage engine: generateSalesReview → debriefCoachV5 was the
   // actual engine whose "Your read" went blank for 2 weeks in 2026-07-30 (a reasoning-model finish_reason:"length"
   // empty response swallowed silently). It must LOG loudly, not swallow the empty as an honest state. Lock it.
-  it("EMPTY-but-successful LLM response (the outage symptom) → empty AND logs loudly (Your read blank warning)", async () => {
+  it("EMPTY-but-successful LLM response → RETRIES (starvation recovery) then empty AND logs loudly", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Empty on BOTH attempts → after the leaner retry also starves, the honest empty state (logged each time).
     asMock(debriefCoachV5).mockResolvedValue({ suppressed: false, text: "", model: "deepseek-v4-flash", provider: "deepseek" });
     const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
     expect(out.hasSignal).toBe(false);
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(String(spy.mock.calls[0]?.[0])).toMatch(/EMPTY text|starvation/i);
+    expect(debriefCoachV5).toHaveBeenCalledTimes(2); // starvation → one leaner retry before giving up
+    expect(spy.mock.calls.some((c) => /EMPTY text|starvation/i.test(String(c[0])))).toBe(true);
     spy.mockRestore();
   });
 
-  it("a successful-but-unparseable LLM response → empty AND logs the no-signal reason (not a silent blank)", async () => {
+  it("a successful-but-unparseable LLM response → RETRIES then empty AND logs the no-signal reason", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     asMock(debriefCoachV5).mockResolvedValue({ suppressed: false, text: "not json at all", model: "deepseek-v4-flash", provider: "deepseek" });
     const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
     expect(out.hasSignal).toBe(false);
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(String(spy.mock.calls[0]?.[0])).toMatch(/no signal|parse/i);
+    expect(debriefCoachV5).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls.some((c) => /no signal|parse/i.test(String(c[0])))).toBe(true);
     spy.mockRestore();
+  });
+
+  it("STARVATION RECOVERY (2026-08-14): a first EMPTY attempt is RETRIED leaner and the valid retry returns the read", async () => {
+    // The exact 2-device test failure: attempt 1 (full corpus prompt) starves → empty; the leaner retry succeeds.
+    // Every call must get a read — a starved first pass no longer leaves the rep with a blank "Your read".
+    asMock(debriefCoachV5)
+      .mockResolvedValueOnce({ suppressed: false, text: "", model: "deepseek-v4-flash", provider: "deepseek" })
+      .mockResolvedValueOnce({
+        suppressed: false,
+        text: JSON.stringify({
+          strengths: [{ point: "recovered read", example: "you asked a discovery question" }],
+          growthAreas: [],
+          closing: "solid",
+        }),
+      });
+    const out = await gen([seg("agent", 0), seg("agent", 1), seg("agent", 2)]);
+    expect(out.hasSignal).toBe(true);
+    expect(out.strengths[0]?.point).toBe("recovered read");
+    expect(debriefCoachV5).toHaveBeenCalledTimes(2);
   });
 });
