@@ -1,5 +1,39 @@
 # Founder action queue
 
+## 🟩 2026-08-14 — Account-based EMPTY-AI outage FIXED + prod-verified + amended; ONE open item (yours)
+
+The real cause of "other users get an incomplete after-pitch / empty Your read" was **NOT** token starvation
+(my earlier call, twice — wrong). It was an **account/company-based gate bug**, exactly as you diagnosed
+("my admin works, theirs doesn't"; the same-device Deeznuts→Moses A/B nailed it).
+
+**Root cause:** every Sales Coach engine is meant to be exempt from the §3.4 "control month" gate, and the gate
+authority (`runBrainCall`) honored that — it ran the LLM and returned the real answer. But a shared wrapper one
+layer up (`call()`) **re-derived** the gate decision and dropped the exemption term, **discarding the real
+answer** for any company with `ai_guidance_enabled=false` — a 100%-empty read + 0 live cues while still paying
+for the LLM call. Guidance-on accounts (your admin, Moses) sailed through; that's why it looked account-based.
+
+**Fixed, shipped, and PROD-VERIFIED (HEAD `c7d0259e` = live):**
+- Root fix (`c7e719f6`) — the wrapper now consumes the gate's verdict; **all AI works for every account,
+  guidance flag or not.** Prod-verified: Deeznuts (was 13/13 empty) now produces FULL reads.
+- Existing blank reads **self-heal the instant a rep reopens the session** (you chose on-view heal, no mass
+  backfill).
+- CRM activation seams (`63761801`+`af9f5255`) — flipping an account to active OR advancing its lifecycle
+  stage now opens the AI gate too.
+- Durable structural fix (`c7d0259e`, AMD-010 R1) — the gate decision now lives in ONE place; the term can't
+  drift into two copies again. Amended into the constitution: **AMD-010 / CLAUDE.md §2.2 / ThinkerThinker A40**.
+- `npm run verify:live` → **all 26 live-prod invariants still hold** after these gate changes. Nothing regressed.
+
+### YOUR decisions:
+- **A. Live-coaching WS error ("Recording stopped — nothing is being captured. Realtime connection error").**
+  I PROVED the ElevenLabs backend is healthy from the server (token mints, the realtime WS opens at every sample
+  rate) and there's no CSP blocking it — so the failure is **browser/device-side**, and the browser's error is
+  opaque. I shipped instrumentation (`65bd5c3a`) that now prints the **exact WS close code** on your screen.
+  **Please retry live coaching on that phone and screenshot the coded error** (e.g. "…code 1006…"). The number
+  tells us the cause — my bet is a **network block on that device (1006)**, not the app. That's the one thing I
+  can't resolve without you. Your recording still saves either way — the Upload fallback gives the transcript.
+- **B. (unchanged, still open)** the founder-gated items below — coach-KPI aggregation, onboarding RPC advisory
+  lock, message-thread pagination, and the Next.js `16.3.0` security bump — all still awaiting your go-ahead.
+
 ## 🟩 2026-08-13 — THREE first-client incidents FIXED + deployed (verified live on elostate.com); your open items
 
 All three shipped, gate-green, and confirmed on `elostate.com` (`/api/health` build.commit = HEAD). Details in
