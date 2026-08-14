@@ -114,6 +114,17 @@ const ALLOWLIST = new Map([
   ["pilot_codes.update", "0197 redeem_pilot_code() (DEFINER) marks single-use; a client update could un-redeem a code."],
   ["pilot_codes.delete", "0197 redemption history is the record of who onboarded; never client-deletable."],
 
+  // 0213 coaching_retranscribe_cache — a CACHE of the /retranscribe diarization result (avoids a duplicate STT
+  // charge on reload / 2nd tab / auto-fire). RLS ENABLED with NO policies BY DESIGN: every access is via the
+  // retranscribe route's admin (service-role) client, which authorizes owner-or-manager (INV19) and scopes by
+  // company_id in code. A member must never read the cache (it holds call content) or write it (a forged
+  // diarization) directly. Not append-only — it is REPLACED on a forced re-diarize and DELETED when a new
+  // recording is uploaded, so update/delete are legitimate service-role operations, not an append-only gap.
+  ["coaching_retranscribe_cache.select", "0213 service-role-only cache read via the retranscribe route (owner-or-manager gated in code, company_id-scoped); a direct member read would leak call content."],
+  ["coaching_retranscribe_cache.insert", "0213 service-role-only cache write by the retranscribe route after STT; a client insert could forge a diarization."],
+  ["coaching_retranscribe_cache.update", "0213 service-role-only cache refresh (upsert on session_id) by the retranscribe route on a forced re-diarize."],
+  ["coaching_retranscribe_cache.delete", "0213 service-role / FK-cascade only (removed when the session is deleted); a stale cache self-invalidates via the audio_asset_url compare, so no member delete path is needed."],
+
   ["events.update", "§3.1 events are immutable historical record."],
   ["events.delete", "§3.1 events are immutable; cascades via FK only."],
   ["signals.update", "§3.1 signals are immutable derived facts."],

@@ -109,6 +109,34 @@ export async function POST(
     );
   }
 
+  const admin = createAdminClient();
+
+  // CACHE (2026-08-14 finding ④): the audio for a session is fixed, so its diarization is effectively fixed.
+  // Return a previously-cached result WITHOUT re-running a full batch STT, so a reload / 2nd tab / on-mount
+  // auto-fire / manual re-click no longer each re-charge STT for the SAME recording. `?force=1` forces a fresh
+  // re-diarize (rare — e.g. the first pass came back garbled). The cache is invalidated when a new recording is
+  // uploaded (upload-recording clears it).
+  const force = new URL(req.url).searchParams.get("force") === "1";
+  if (!force) {
+    const { data: cached } = await admin
+      .from("coaching_retranscribe_cache")
+      .select("result, audio_asset_url")
+      .eq("session_id", id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    const cachedResult = cached?.result as { segments?: unknown[] } | null | undefined;
+    // Serve the cache ONLY if it was produced from the CURRENT recording — a re-upload changes audio_asset_url,
+    // so a stale cache is ignored and re-diarized (self-invalidating; no invalidation hook needed elsewhere).
+    if (
+      cached?.audio_asset_url === session.audioAssetUrl &&
+      cachedResult &&
+      Array.isArray(cachedResult.segments) &&
+      cachedResult.segments.length > 0
+    ) {
+      return NextResponse.json(cachedResult);
+    }
+  }
+
   // 1. Download the stored audio bytes (caller already authorized above).
   const dl = await downloadAssetBytes({ storagePath });
   if (!dl.ok || !dl.bytes) {
@@ -147,7 +175,7 @@ export async function POST(
   // Stamp the REAL audio length (§3.5) so a recovered recording shows its length, not the session
   // wall-clock. Best-effort — the transcript already succeeded above.
   if (durationSeconds > 0) {
-    const { error: durErr } = await createAdminClient()
+    const { error: durErr } = await admin
       .from("coaching_sessions")
       .update({ audio_duration_seconds: durationSeconds })
       .eq("id", id)
@@ -166,8 +194,29 @@ export async function POST(
     sample: segments.find((s) => s.speakerId === sid)?.text.slice(0, 140) ?? "",
   }));
 
-  return NextResponse.json({
+  const responsePayload = {
     segments: segments.map((s, i) => ({ speakerId: s.speakerId, text: s.text, seq: i })),
     speakers: samples,
-  });
+  };
+
+  // Cache the diarization so any repeat (reload / 2nd tab / auto-fire / manual re-click) returns it without a
+  // second STT charge (finding ④). Upsert on the session PK — a `?force=1` re-diarize replaces it. Best-effort:
+  // the response returns regardless of a cache-write error.
+  const { error: cacheErr } = await admin
+    .from("coaching_retranscribe_cache")
+    .upsert(
+      {
+        session_id: id,
+        company_id: companyId,
+        audio_asset_url: session.audioAssetUrl,
+        result: responsePayload,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "session_id" }
+    );
+  if (cacheErr) {
+    console.error(`[retranscribe] failed to cache result session=${id}: ${cacheErr.message}`);
+  }
+
+  return NextResponse.json(responsePayload);
 }

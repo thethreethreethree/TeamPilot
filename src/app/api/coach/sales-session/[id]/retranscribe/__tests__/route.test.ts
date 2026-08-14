@@ -53,20 +53,35 @@ const setSession = (s: unknown) => asMock(getSession).mockResolvedValue(s);
 const setManager = (v: boolean) => asMock(isSalesCoachManager).mockReturnValue(v);
 
 const ctx = { params: Promise.resolve({ id: "sess1" }) };
-const req = () => ({}) as unknown as Parameters<typeof POST>[0];
+const req = (url = "https://x/api/coach/sales-session/sess1/retranscribe") =>
+  ({ url }) as unknown as Parameters<typeof POST>[0];
 const VALID_POINTER = "assets-v1/co1/rec.webm";
 
 // Captures the admin update payloads so we can assert the real audio length gets stamped (§3.5).
 const durationUpdates: Array<Record<string, unknown>> = [];
+// The retranscribe CACHE (finding ④): the row a read returns (null = miss) + the writes an upsert records.
+let cacheRow: { result: unknown; audio_asset_url: string } | null = null;
+const cacheWrites: Array<Record<string, unknown>> = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
   durationUpdates.length = 0;
+  cacheRow = null; // default: cache MISS
+  cacheWrites.length = 0;
   setManager(false);
-  // The route stamps the audio duration via the admin client (best-effort) — an awaitable chain that
-  // records the update payload.
+  // The admin client serves two tables: coaching_sessions (duration stamp) and coaching_retranscribe_cache
+  // (the diarization cache read + upsert).
   asMock(createAdminClient).mockReturnValue({
-    from: () => {
+    from: (t: string) => {
+      if (t === "coaching_retranscribe_cache") {
+        return {
+          select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: cacheRow }) }) }) }),
+          upsert: (payload: Record<string, unknown>) => {
+            cacheWrites.push(payload);
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
       const chain: Record<string, unknown> = {};
       chain.update = (payload: Record<string, unknown>) => {
         durationUpdates.push(payload);
@@ -149,6 +164,48 @@ describe("POST /retranscribe — recovery, owner-or-manager, read-only", () => {
     // Recovery re-transcribe also stamps the REAL audio length (§3.5) so a recovered upload shows its
     // length, not the session wall-clock — same contract as the upload route, locked here too.
     expect(durationUpdates).toContainEqual({ audio_duration_seconds: 184 });
+    // On a cache MISS it runs STT then CACHES the result keyed on the current audio pointer (finding ④).
+    expect(transcribeWithDiarization).toHaveBeenCalledTimes(1);
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]).toMatchObject({ session_id: "sess1", audio_asset_url: VALID_POINTER });
+  });
+
+  it("CACHE HIT (finding 4): a cached diarization for the CURRENT recording returns without re-running STT", async () => {
+    setAuth("rep1");
+    setSession({ agentId: "rep1", audioAssetUrl: VALID_POINTER });
+    cacheRow = {
+      audio_asset_url: VALID_POINTER, // matches the session's current recording
+      result: { segments: [{ speakerId: "speaker_0", text: "cached", seq: 0 }], speakers: [] },
+    };
+    const res = await POST(req(), ctx);
+    expect(res.status).toBe(200);
+    expect((await res.json()).segments[0].text).toBe("cached");
+    // No STT re-charge, no download — the whole point of the fix.
+    expect(transcribeWithDiarization).not.toHaveBeenCalled();
+    expect(downloadAssetBytes).not.toHaveBeenCalled();
+  });
+
+  it("STALE cache (a new recording was uploaded) is ignored → re-diarizes", async () => {
+    setAuth("rep1");
+    setSession({ agentId: "rep1", audioAssetUrl: VALID_POINTER });
+    cacheRow = {
+      audio_asset_url: "assets-v1/co1/OLD.webm", // produced from a DIFFERENT (old) recording
+      result: { segments: [{ speakerId: "speaker_0", text: "stale", seq: 0 }], speakers: [] },
+    };
+    const res = await POST(req(), ctx);
+    expect(res.status).toBe(200);
+    // The pointer mismatch self-invalidates → fresh STT, and the body is the fresh diarization, not "stale".
+    expect(transcribeWithDiarization).toHaveBeenCalledTimes(1);
+    expect((await res.json()).segments[0].text).not.toBe("stale");
+  });
+
+  it("?force=1 bypasses a valid cache and re-diarizes (deliberate refresh)", async () => {
+    setAuth("rep1");
+    setSession({ agentId: "rep1", audioAssetUrl: VALID_POINTER });
+    cacheRow = { audio_asset_url: VALID_POINTER, result: { segments: [{ speakerId: "s", text: "cached", seq: 0 }] } };
+    const res = await POST(req("https://x/api/coach/sales-session/sess1/retranscribe?force=1"), ctx);
+    expect(res.status).toBe(200);
+    expect(transcribeWithDiarization).toHaveBeenCalledTimes(1); // forced: STT ran despite the cache
   });
 
   it("200 for a MANAGER on another rep's session (owner-OR-manager)", async () => {
