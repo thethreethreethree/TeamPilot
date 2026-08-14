@@ -3305,14 +3305,17 @@ export async function fetchTeamGrowth(
     agentReplies,
     coachCountsRows,
   ] = await Promise.all([
+    // Pure COUNTS → server-side exact head count (audit 2026-08-14): a plain .select().length silently caps at
+    // PostgREST's 1000 rows, so an active team's growth metrics under-reported past 1000/window. head:true
+    // returns the true count with no rows transferred + no cap. (Same pattern already used at care.ts:224/637.)
     sb
       .from("profiles")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .or("is_support_agent.eq.true,role.in.(CEO,COO,admin)"),
     sb
       .from("support_resolutions")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .gte("created_at", since),
     sb
@@ -3328,19 +3331,19 @@ export async function fetchTeamGrowth(
       .gte("created_at", since),
     sb
       .from("support_conversations")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .not("assigned_agent_id", "is", null)
       .gte("created_at", since),
     sb
       .from("support_conversations")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .not("assigned_agent_id", "is", null)
       .in("status", ["open", "in_conversation"]),
     sb
       .from("support_messages")
-      .select("id, support_conversations!inner(company_id)")
+      .select("id, support_conversations!inner(company_id)", { count: "exact", head: true })
       .eq("author_type", "agent")
       .eq("is_internal_note", false)
       .eq("support_conversations.company_id", companyId)
@@ -3371,22 +3374,18 @@ export async function fetchTeamGrowth(
     throw new Error(`care team-growth readout: read failed — ${teamGrowthReadError.message}`);
   }
 
-  // §3.4 honest-bound: each read above is an unbounded select (PostgREST caps at
-  // ~1000). If any aggregation feed hit the cap, every count/rate below undercounts.
+  // §3.4 honest-bound: the pure COUNTS above are now exact server-side head-counts (no cap). The remaining
+  // reads still fetch ROWS because they need the VALUES (durability outcomes, edit magnitudes, coach_counts
+  // sums), so they still cap at PostgREST's ~1000 — if one hits the cap the value-derived rates undercount.
+  // Flag it honestly (the full fix for those is fetchAllPaged / a server-side aggregate — a noted follow-up).
   const GROWTH_SCAN_CAP = 1000;
-  const bounded = [
-    resolutions,
-    durability,
-    edits,
-    claimedConvs,
-    awaitingConvs,
-    agentReplies,
-    coachCountsRows,
-  ].some((r) => (r.data?.length ?? 0) >= GROWTH_SCAN_CAP);
+  const bounded = [durability, edits, coachCountsRows].some(
+    (r) => (r.data?.length ?? 0) >= GROWTH_SCAN_CAP
+  );
   if (bounded) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[fetchTeamGrowth] a growth read hit the ${GROWTH_SCAN_CAP}-row cap — team-growth metrics undercount. Full fix is the row-bound decision (closure item 8).`
+      `[fetchTeamGrowth] a VALUE read (durability / edits / coach_counts) hit the ${GROWTH_SCAN_CAP}-row cap — those value-derived rates undercount. Follow-up: fetchAllPaged / server-side aggregate for the value reads.`
     );
   }
 
@@ -3431,8 +3430,8 @@ export async function fetchTeamGrowth(
     companyId,
     windowDays: 30,
     bounded,
-    agentCount: agents.data?.length ?? 0,
-    resolutions: resolutions.data?.length ?? 0,
+    agentCount: agents.count ?? 0,
+    resolutions: resolutions.count ?? 0,
     durabilityHeld: durRows.filter((r) => r.outcome === "held").length,
     durabilityReopened: durRows.filter((r) => r.outcome === "reopened").length,
     durabilityInconclusive: durRows.filter((r) => r.outcome === "inconclusive")
@@ -3444,9 +3443,9 @@ export async function fetchTeamGrowth(
     copilotRewrite: editRows.filter((r) => r.edit_magnitude === "rewrite")
       .length,
     presence: {
-      conversationsClaimed: claimedConvs.data?.length ?? 0,
-      repliesSent: agentReplies.data?.length ?? 0,
-      awaitingResponse: awaitingConvs.data?.length ?? 0,
+      conversationsClaimed: claimedConvs.count ?? 0,
+      repliesSent: agentReplies.count ?? 0,
+      awaitingResponse: awaitingConvs.count ?? 0,
     },
     coachAggregate: {
       repliesGraded: coachRows.length,
@@ -3717,9 +3716,12 @@ export async function fetchAgentGrowth(
     agentReplies,
     coachCountsRows,
   ] = await Promise.all([
+    // Pure COUNTS → exact server-side head count (audit 2026-08-14): a plain .select().length caps at
+    // PostgREST's 1000, under-reporting an active agent's growth past 1000/window. head:true = true count,
+    // no cap, no rows transferred.
     sb
       .from("support_resolutions")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("captured_by", agentId)
       .gte("created_at", since),
     sb
@@ -3737,7 +3739,7 @@ export async function fetchAgentGrowth(
     // window. Includes already-resolved and still-open.
     sb
       .from("support_conversations")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("assigned_agent_id", agentId)
       .gte("created_at", since),
     // §A6 Pillar 2 — current load — conversations claimed by
@@ -3746,13 +3748,13 @@ export async function fetchAgentGrowth(
     // is with the customer, not the agent.
     sb
       .from("support_conversations")
-      .select("id, status")
+      .select("id", { count: "exact", head: true })
       .eq("assigned_agent_id", agentId)
       .in("status", ["open", "in_conversation"]),
     // §A6 — public replies sent by this agent in the window.
     sb
       .from("support_messages")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("author_id", agentId)
       .eq("author_type", "agent")
       .eq("is_internal_note", false)
@@ -3877,7 +3879,7 @@ export async function fetchAgentGrowth(
   return {
     agentId,
     windowDays: 30,
-    resolutions: resolutions.data?.length ?? 0,
+    resolutions: resolutions.count ?? 0,
     durabilityHeld: durRows.filter((r) => r.outcome === "held").length,
     durabilityReopened: durRows.filter((r) => r.outcome === "reopened").length,
     durabilityInconclusive: durRows.filter(
@@ -3892,9 +3894,9 @@ export async function fetchAgentGrowth(
       (r) => r.edit_magnitude === "rewrite"
     ).length,
     presence: {
-      conversationsClaimed: claimedConvs.data?.length ?? 0,
-      repliesSent: agentReplies.data?.length ?? 0,
-      awaitingResponse: awaitingConvs.data?.length ?? 0,
+      conversationsClaimed: claimedConvs.count ?? 0,
+      repliesSent: agentReplies.count ?? 0,
+      awaitingResponse: awaitingConvs.count ?? 0,
     },
     coachAggregate: {
       repliesGraded,
