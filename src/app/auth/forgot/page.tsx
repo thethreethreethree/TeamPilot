@@ -7,7 +7,7 @@ import { createClient, supabaseEnabled } from "@/lib/supabase/client";
 import { LearningHint } from "@/components/learning/LearningHint";
 import {
   looksLikeEmail,
-  recoverRedirectUrl,
+  canonicalRecoverUrl,
   RECOVERY_REQUESTED_MESSAGE,
 } from "@/lib/auth/passwordRecovery";
 
@@ -54,7 +54,9 @@ export default function ForgotPasswordPage() {
     setPhase({ kind: "submitting" });
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: recoverRedirectUrl(window.location.origin),
+      // CANONICAL app URL, not window.location.origin — a reset requested from a preview/marketing domain must
+      // still target the ONE allow-listed /auth/recover, or Supabase falls back to the Site URL (2026-08-14).
+      redirectTo: canonicalRecoverUrl(),
     });
     // Anti-enumeration: on success we show the neutral "sent" state. A returned error here is a transport/
     // rate-limit failure (not "no such account"), so it's honest to surface it for a retry.

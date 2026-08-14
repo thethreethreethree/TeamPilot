@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -6,6 +6,8 @@ import {
   RECOVERY_REQUESTED_MESSAGE,
   looksLikeEmail,
   recoverRedirectUrl,
+  canonicalRecoverUrl,
+  signupConfirmRedirectUrl,
 } from "../passwordRecovery";
 
 describe("recoverRedirectUrl", () => {
@@ -16,6 +18,33 @@ describe("recoverRedirectUrl", () => {
   it("strips trailing slashes so the URL never doubles up", () => {
     expect(recoverRedirectUrl("https://elostate.com/")).toBe("https://elostate.com/auth/recover");
     expect(recoverRedirectUrl("http://localhost:3000//")).toBe("http://localhost:3000/auth/recover");
+  });
+});
+
+describe("canonical auth-redirect URLs pin to siteUrl(), never the browser origin (2026-08-14 drift guard)", () => {
+  // The marketing-page incident: reset links used window.location.origin, so a request from a preview/marketing
+  // domain produced a redirectTo Supabase couldn't allow-list → it fell back to the Site URL. These helpers take
+  // NO origin argument, so the target is always the ONE configured app origin — a drifting origin cannot leak in.
+  const OLD = process.env.NEXT_PUBLIC_SITE_URL;
+  afterEach(() => {
+    if (OLD === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+    else process.env.NEXT_PUBLIC_SITE_URL = OLD;
+  });
+
+  it("canonicalRecoverUrl = configured site origin + /auth/recover", () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://elostate.com";
+    expect(canonicalRecoverUrl()).toBe("https://elostate.com/auth/recover");
+  });
+
+  it("signupConfirmRedirectUrl = configured site origin + /login", () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://elostate.com";
+    expect(signupConfirmRedirectUrl()).toBe("https://elostate.com/login");
+  });
+
+  it("a trailing slash on the configured origin never doubles the path", () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://elostate.com/";
+    expect(canonicalRecoverUrl()).toBe("https://elostate.com/auth/recover");
+    expect(signupConfirmRedirectUrl()).toBe("https://elostate.com/login");
   });
 });
 

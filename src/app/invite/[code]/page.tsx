@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { signupConfirmRedirectUrl } from "@/lib/auth/passwordRecovery";
 import { Activity, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -55,7 +56,11 @@ export default function InviteAcceptPage() {
     try {
       const supabase = createClient();
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: signupConfirmRedirectUrl() },
+        });
         if (error) throw error;
         if (!data.session) {
           throw new Error(

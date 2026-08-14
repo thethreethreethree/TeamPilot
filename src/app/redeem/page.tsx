@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { signupConfirmRedirectUrl } from "@/lib/auth/passwordRecovery";
 import { Activity, CheckCircle2, Loader2, ArrowRight, KeyRound } from "lucide-react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 
@@ -109,6 +110,7 @@ function RedeemInner() {
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email,
           password,
+          options: { emailRedirectTo: signupConfirmRedirectUrl() },
         });
         if (signUpErr) {
           // A pre-existing account on this email lands here. Guide them to sign in

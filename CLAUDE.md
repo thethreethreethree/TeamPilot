@@ -171,6 +171,30 @@ The discipline this codifies: the agent co-owns system quality rather than only
 executing founder commands. Defects, structural risks, and improvements get caught
 earlier because both parties are looking.
 
+### 1.5.3 External-config completeness
+
+> Added by [AMD-011](docs/amendments/AMD-011-external-config-preconditions.md), ratified 2026-08-14. Operational lesson: ThinkerThinker.md A41.
+
+A feature whose correctness depends on configuration that lives **outside the repository** — third-party
+dashboard settings (Supabase Site URL / Redirect-URLs allowlist, a Postmark webhook, an OAuth callback
+registry), environment variables, DNS, or webhook secrets — is **not operationally complete (§1.5.1 layer 2)**
+until that precondition is either:
+
+1. **verified working end-to-end** against the live config, or
+2. **documented as a blocking setup step** — its required values and a verification procedure recorded on the
+   record (e.g. `docs/AUTH-REDIRECTS.md`) AND surfaced to the founder as a precondition, not buried.
+
+"The code is correct and it builds" is **not** "it works" when an external precondition is unmet. Prefer making
+the dependency **fail LOUD** (a visible 5xx / health-flag / empty-with-notice a human will see) over failing
+**silently**; silent dependence on unverified external config is the defect this clause exists to catch.
+
+This gate exists because the password-recovery outage (2026-08-14) shipped with correct code and a green build,
+yet was dead end-to-end: reset links fell back to the marketing project because the Supabase Redirect-URLs
+allowlist — config the repo cannot hold — was never verified. §1.5.1's layer-2 effectivity was read as "the code
+path works" and stopped short of "the config the feature depends on is in place." Silent external-config
+dependence is invisible to typecheck/lint/unit-tests by construction (the §5 confident-well-formed-failure at the
+configuration boundary). The class was swept in `docs/CONFIG-PRECONDITIONS-AUDIT.md`.
+
 ### 1.7 Ground-up auditing
 
 > Added by [AMD-004](docs/amendments/AMD-004-ground-up-audit.md), ratified 2026-06-02.
@@ -385,6 +409,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 4. Is this constraint real, or incidental? If real → respect it, find a better destination.
 5a. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.)** For user-facing features: have I traced the user's workflow *before AND after* this feature, and does the completed feature leave them in a flowing state? Or does it stall them — empty state, dead end, unnecessary intermediate steps?
 5b. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md) second addendum, ratified 2026-06-18.)** While doing this task, have I *thought first* about what could fail or improve in the surrounding system, *then* searched and applied the four-layer framework to confirm? Proactive THINK + search is the default; mechanical grep alone doesn't satisfy the rule.
+5c. **(Added by [AMD-011](docs/amendments/AMD-011-external-config-preconditions.md), ratified 2026-08-14.)** Does this feature depend on config *outside the repo* (a third-party dashboard setting, an allowlist, env, DNS, a webhook secret)? If so, have I *verified* that precondition end-to-end, or *documented + flagged* it as a blocking setup step? "The code is correct" ≠ "it works" when an external precondition is unmet (§1.5.3).
 5. Have I traced what else this change affects (holistic), and am I proposing iteratively
    (organic)?
 6. Am I explaining the WHY, not just the WHAT?

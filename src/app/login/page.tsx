@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { signupConfirmRedirectUrl } from "@/lib/auth/passwordRecovery";
 import { safeRelativePath } from "@/lib/nav/safeRedirect";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { fetchLanding } from "@/lib/nav/landing";
@@ -88,7 +89,12 @@ function LoginPage() {
 
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          // Canonical app URL so a confirmation link lands on the app, not Supabase's Site-URL default.
+          options: { emailRedirectTo: signupConfirmRedirectUrl() },
+        });
         if (error) throw error;
         if (!data.session) {
           // Signup needs email confirmation — surface the notice and
