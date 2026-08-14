@@ -15,6 +15,7 @@ vi.mock("@/lib/brain", () => ({
     provider: "p",
     gate: { guidanceEnabled: true },
     brainVersion: 1,
+    suppressed: false,
   })),
 }));
 vi.mock("@/lib/llm", () => ({

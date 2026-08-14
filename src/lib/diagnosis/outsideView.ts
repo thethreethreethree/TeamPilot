@@ -66,7 +66,7 @@ Generate ${count} outside-view alternatives.`;
       maxTokens: 900,
       expectJson: true,
     });
-    if (!r.gate.guidanceEnabled) return [];
+    if (r.suppressed) return []; // consume the verdict, don't re-derive the gate (§2.2/AMD-010)
     text = r.text;
   } else {
     const r = await llmCall({

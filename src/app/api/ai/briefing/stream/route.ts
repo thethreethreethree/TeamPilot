@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
           next = await gen.next();
         }
         const gate = next.value.gate;
-        if (!gate.guidanceEnabled) {
+        if (next.value.suppressed) {
+          // consume the verdict, don't re-derive the gate (§2.2/AMD-010)
           send("gate", { suppressed: true, reason: gate.reason });
           send("done", { suppressed: true });
           controller.close();

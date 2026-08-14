@@ -59,7 +59,9 @@ function clientFor(companyRow: Record<string, unknown>) {
 }
 
 /** Drain the generator: collect yielded deltas + the returned gate value. */
-async function drain(gen: AsyncGenerator<string, { gate: { guidanceEnabled: boolean } }, void>) {
+async function drain(
+  gen: AsyncGenerator<string, { gate: { guidanceEnabled: boolean }; suppressed: boolean }, void>
+) {
   const chunks: string[] = [];
   let res = await gen.next();
   while (!res.done) {
@@ -82,13 +84,14 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
     expect(chunks).toEqual([]);
     expect(llmStream).not.toHaveBeenCalled(); // the moat: no leaked stream into the control baseline
     expect(ret.gate.guidanceEnabled).toBe(false);
+    expect(ret.suppressed).toBe(true); // the single-source verdict stream routes branch on (§2.2/AMD-010)
   });
 
   it("controlExempt (Sales Coach) STREAMS real deltas EVEN while suppressed", async () => {
     vi.mocked(createClient).mockResolvedValue(
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null })
     );
-    const { chunks } = await drain(
+    const { chunks, ret } = await drain(
       runBrainStream({
         companyId: "co1",
         basePrompt: "p",
@@ -99,6 +102,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
     // The exemption must survive here exactly as it does in runBrainCall — real content, not an empty stream.
     expect(llmStream).toHaveBeenCalledTimes(1);
     expect(chunks.join("")).toBe("Suggestion");
+    expect(ret.suppressed).toBe(false); // verdict: NOT suppressed → stream routes emit the deltas, not a gate event
   });
 
   it("streams once guidance is enabled (window elapsed), no exemption needed", async () => {

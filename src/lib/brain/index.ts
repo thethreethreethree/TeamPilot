@@ -286,12 +286,16 @@ export async function runBrainCall(args: {
   /** The acting user's Experience Mode (0110). Forwarded to llmCall so the
    *  brain-routed AI simplifies for Standard users (§A16). */
   experienceMode?: ExperienceMode;
-}): Promise<LlmResult & { gate: ControlGate; brainVersion: number }> {
+}): Promise<LlmResult & { gate: ControlGate; brainVersion: number; suppressed: boolean }> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
     loadControlGate(args.companyId),
   ]);
 
+  // The §3.4 suppression DECISION is computed here, once, and returned as an explicit `suppressed` verdict
+  // (CLAUDE.md §2.2 / AMD-010). Consumers MUST branch on `r.suppressed` — never re-derive `!guidanceEnabled`
+  // (± controlExempt) themselves, which is the drift that blanked every guidance-off account on 2026-08-14
+  // (A40): the term lived in two places and one copy dropped it.
   if (!gate.guidanceEnabled && !args.controlExempt) {
     // §3.4 honesty: the System refuses to speak during the control window.
     // The "response" is a placeholder that surfaces honestly upstream.
@@ -301,6 +305,7 @@ export async function runBrainCall(args: {
       provider: "(suppressed)",
       gate,
       brainVersion: brain.version,
+      suppressed: true,
     };
   }
 
@@ -313,7 +318,7 @@ export async function runBrainCall(args: {
     experienceMode: args.experienceMode,
   });
 
-  return { ...result, gate, brainVersion: brain.version };
+  return { ...result, gate, brainVersion: brain.version, suppressed: false };
 }
 
 /**
@@ -337,14 +342,16 @@ export async function* runBrainStream(args: {
   controlExempt?: boolean;
   /** The acting user's Experience Mode (0110), forwarded to llmStream (§A16). */
   experienceMode?: ExperienceMode;
-}): AsyncGenerator<string, { gate: ControlGate; brainVersion: number }, void> {
+}): AsyncGenerator<string, { gate: ControlGate; brainVersion: number; suppressed: boolean }, void> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
     loadControlGate(args.companyId),
   ]);
 
+  // Single-source §3.4 verdict, same as runBrainCall (CLAUDE.md §2.2 / AMD-010): the return carries
+  // `suppressed`; stream consumers branch on it, never re-derive `!guidanceEnabled`.
   if (!gate.guidanceEnabled && !args.controlExempt) {
-    return { gate, brainVersion: brain.version };
+    return { gate, brainVersion: brain.version, suppressed: true };
   }
 
   const composedPrompt = composeSystemPrompt(args.basePrompt, brain);
@@ -357,5 +364,5 @@ export async function* runBrainStream(args: {
   })) {
     yield delta;
   }
-  return { gate, brainVersion: brain.version };
+  return { gate, brainVersion: brain.version, suppressed: false };
 }

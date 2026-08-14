@@ -75,6 +75,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
     expect(r.provider).toBe("(suppressed)");
     expect(r.text).toBe("");
     expect(r.gate.guidanceEnabled).toBe(false);
+    expect(r.suppressed).toBe(true); // the single-source verdict consumers branch on (§2.2/AMD-010)
     // THE moat: no provider call during Month 1, or the control baseline is contaminated.
     expect(llmCall).not.toHaveBeenCalled();
   });
@@ -94,6 +95,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
     expect(llmCall).toHaveBeenCalledTimes(1);
     expect(r.text).toBe("REAL");
     expect(r.gate.guidanceEnabled).toBe(true);
+    expect(r.suppressed).toBe(false);
   });
 
   it("controlExempt (Sales Coach) calls the provider EVEN while suppressed", async () => {
@@ -109,8 +111,10 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
       messages: [{ role: "user", content: "hi" }],
       controlExempt: true,
     });
-    // Exemption bypasses SUPPRESSION only — still a real provider call.
+    // Exemption bypasses SUPPRESSION only — still a real provider call, and the verdict says NOT suppressed
+    // so consumers (call(), rippleTrace, …) pass the real text through instead of discarding it (A40).
     expect(llmCall).toHaveBeenCalledTimes(1);
     expect(r.text).toBe("REAL");
+    expect(r.suppressed).toBe(false);
   });
 });

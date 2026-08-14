@@ -61,7 +61,7 @@ ${args.contextSummary}`;
       maxTokens: 1000,
       expectJson: true,
     });
-    if (!r.gate.guidanceEnabled) return [];
+    if (r.suppressed) return []; // consume the verdict, don't re-derive the gate (§2.2/AMD-010)
     text = r.text;
   } else {
     const r = await llmCall({

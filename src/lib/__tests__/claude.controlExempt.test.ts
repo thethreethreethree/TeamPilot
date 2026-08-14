@@ -1,20 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * REGRESSION LOCK — controlExempt must survive the call() gate re-check (2026-08-14).
+ * REGRESSION LOCK — call() must CONSUME runBrainCall's `suppressed` verdict, not re-derive the gate
+ * (CLAUDE.md §2.2 / AMD-010 / A40, 2026-08-14).
  *
- * The bug: runBrainCall correctly honors controlExempt (it RUNS the LLM and returns the real
- * text with gate.guidanceEnabled=false). But call() in claude.ts re-checked ONLY
- * `!gate.guidanceEnabled` — dropping the controlExempt term — and DISCARDED that real answer,
- * returning text:"" suppressed:true. Effect: every control-exempt Sales Coach engine
- * (review/dissect/moments/live-cue/ask-coach) returned EMPTY for any company whose §3.4
- * guidance gate was off — a 100%-empty "Your read" while still burning the LLM call. Confirmed
- * in prod: guidance=false companies were 13/13, 8/8, 6/6 empty; guidance=true companies worked
- * (the founder's "logout of Deeznuts → into an admin account → full after-pitch" A/B).
+ * The bug: runBrainCall correctly honored controlExempt (ran the LLM, returned the real text), but call()
+ * re-derived the §3.4 decision itself and checked `!gate.guidanceEnabled` ALONE — dropping the controlExempt
+ * term — and DISCARDED the real answer. Effect: every control-exempt engine (review/dissect/moments/live-cue/
+ * ask-coach) returned EMPTY for any company with guidance off — 100% empty "Your read" while still burning the
+ * LLM call (prod: guidance=false companies 13/13, 8/8, 6/6 empty; guidance=true worked). The durable fix
+ * (AMD-010 R1): runBrainCall returns an explicit `suppressed` verdict and call() branches on THAT — the gate
+ * decision now lives in exactly one place and cannot drift.
  *
- * These pin the fix at the chokepoint: with controlExempt the real text passes through even when
- * guidance is off; WITHOUT it the §3.4 control window still suppresses. Detection-verified by
- * dropping the `&& !args.controlExempt` term → the first test fails.
+ * These pin the contract: call() returns the real text iff runBrainCall did NOT suppress. Detection-verified
+ * by making call() ignore `r.suppressed` (re-derive the gate) → these fail. The controlExempt LOGIC itself is
+ * tested at the authority in runBrainCall.gate.test.ts / runBrainStream.gate.test.ts.
  */
 vi.mock("server-only", () => ({}));
 
@@ -28,15 +28,16 @@ import { debriefCoachV5 } from "../claude";
 
 beforeEach(() => runBrainCall.mockReset());
 
-describe("controlExempt bypasses the §3.4 gate re-check in call() (root of the empty 'Your read')", () => {
-  it("guidance OFF + controlExempt → returns the REAL text, NOT suppressed", async () => {
-    // runBrainCall ran the LLM (controlExempt) and returned real text with the gate still closed.
+describe("call() consumes runBrainCall's suppressed verdict (root of the empty 'Your read')", () => {
+  it("authority did NOT suppress (controlExempt ran the LLM) → returns the REAL text", async () => {
+    // runBrainCall, given controlExempt, ran the LLM and returned suppressed:false with the gate still closed.
     runBrainCall.mockResolvedValue({
       text: '{"strengths":[]}',
       model: "deepseek",
       provider: "deepseek",
       gate: { guidanceEnabled: false },
       brainVersion: 1,
+      suppressed: false,
     });
     const r = await debriefCoachV5({
       companyId: "deeznuts",
@@ -48,14 +49,14 @@ describe("controlExempt bypasses the §3.4 gate re-check in call() (root of the 
     expect(r.text).toBe('{"strengths":[]}'); // the real answer is NOT discarded
   });
 
-  it("guidance OFF + NOT exempt → still suppressed (the §3.4 control window holds)", async () => {
-    // runBrainCall suppressed: it did NOT run the LLM (non-exempt, gate closed).
+  it("authority suppressed (non-exempt, control window) → call() reports suppressed + empty", async () => {
     runBrainCall.mockResolvedValue({
       text: "",
       model: "(suppressed)",
       provider: "(suppressed)",
       gate: { guidanceEnabled: false, reason: "control window" },
       brainVersion: 1,
+      suppressed: true,
     });
     const r = await debriefCoachV5({
       companyId: "elostate-diag",
@@ -66,13 +67,14 @@ describe("controlExempt bypasses the §3.4 gate re-check in call() (root of the 
     expect(r.text).toBe("");
   });
 
-  it("guidance ON → returns the real text regardless of exemption", async () => {
+  it("guidance ON (not suppressed) → returns the real text", async () => {
     runBrainCall.mockResolvedValue({
       text: "REAL",
       model: "deepseek",
       provider: "deepseek",
       gate: { guidanceEnabled: true },
       brainVersion: 1,
+      suppressed: false,
     });
     const r = await debriefCoachV5({ companyId: "moses-admin", systemPrompt: "S", userMessage: "U" });
     expect(r.suppressed).toBe(false);
