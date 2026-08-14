@@ -70,17 +70,26 @@ const setAuth = (userId: string | null) =>
 // .eq() directly (→ the builder resolves via .then to stampResult).
 let claimResult: { data: unknown[] | null; error: unknown };
 let stampResult: { error: unknown };
+let updateCalls: Array<Record<string, unknown>>;
 function setupAdmin() {
   claimResult = { data: [{ id: "sess1" }], error: null };
   stampResult = { error: null };
+  updateCalls = []; // capture every .update({...}) payload so marker claim vs release is assertable
   const builder: Record<string, unknown> = {};
-  builder.update = () => builder;
+  builder.update = (payload: Record<string, unknown>) => {
+    updateCalls.push(payload);
+    return builder;
+  };
   builder.eq = () => builder;
   builder.is = () => builder;
   builder.select = () => Promise.resolve(claimResult);
   builder.then = (onF: (v: unknown) => unknown) => Promise.resolve(stampResult).then(onF);
   mk(createAdminClient).mockReturnValue({ from: () => builder });
 }
+
+/** Did the route RELEASE the at-most-once marker (set it back to null)? The release is the transient-retry guard. */
+const markerWasReleased = () =>
+  updateCalls.some((u) => "auto_recover_attempted_at" in u && u.auto_recover_attempted_at === null);
 
 const ctx = { params: Promise.resolve({ id: "sess1" }) };
 const req = () => ({}) as unknown as Parameters<typeof POST>[0];
@@ -214,13 +223,16 @@ describe("POST /auto-recover", () => {
     expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
-  it("500 with NO false 'recovered' when the atomic replace fails (original transcript preserved)", async () => {
+  it("500 with NO false 'recovered' when the atomic replace fails, AND releases the marker (transient — retry not burned)", async () => {
     setAuth("rep1");
     mk(replaceSessionTranscript).mockResolvedValue({ ok: false, count: 0 });
     const res = await POST(req(), ctx);
     expect(res.status).toBe(500);
     expect((await res.json()).status).toBe("failed"); // never a false "recovered"
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
+    // 2026-08-14 finding: a DB write failure is transient (the atomic replace rolled back, transcript intact),
+    // so the marker MUST be released — otherwise one momentary blip permanently burns automatic recovery.
+    expect(markerWasReleased()).toBe(true);
   });
 
   it("releases the marker on a transient diarization failure (automatic retry not permanently burned)", async () => {

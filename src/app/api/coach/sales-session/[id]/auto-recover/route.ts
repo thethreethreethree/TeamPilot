@@ -214,6 +214,12 @@ export async function POST(
   }));
   const replaced = await replaceSessionTranscript(id, labeled);
   if (!replaced.ok) {
+    // TRANSIENT (2026-08-14 finding): a DB write failure here is exactly as transient as the STT/download 502s
+    // above — the atomic replace rolled back, so the transcript is still the original one-sided one and a retry
+    // is legitimate. Release the marker (matching this route's transient-vs-definitive doctrine — the same
+    // releaseMarker the download/STT 502 paths use) so the next open re-attempts, instead of permanently
+    // burning recovery on a momentary blip.
+    await releaseMarker();
     return NextResponse.json(
       { status: "failed", error: "Couldn't re-save this call's transcript — your recording is safe, please try again." },
       { status: 500 }

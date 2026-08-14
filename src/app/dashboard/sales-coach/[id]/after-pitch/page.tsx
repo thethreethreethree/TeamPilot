@@ -237,12 +237,14 @@ export default function AfterPitchPage() {
     [id]
   );
 
-  const generate = useCallback(async () => {
+  // Returns the freshly-built summary so a caller can decide what to do next (e.g. route a first-visit
+  // customer-missing read into auto-recover — 2026-08-14 finding ②). Null on latch-skip / error / 403.
+  const generate = useCallback(async (): Promise<Summary | null> => {
     // Synchronous latch: /after-pitch runs the LLM and appends a
     // coach.after_pitch_summary_generated event with no already-generated
     // guard, so a double-fire (manual click racing the auto-gen effect, or a
     // double-click) wastes an LLM call and duplicates the event.
-    if (generatingRef.current) return;
+    if (generatingRef.current) return null;
     generatingRef.current = true;
     setGenerating(true);
     setError(null);
@@ -252,17 +254,19 @@ export default function AfterPitchPage() {
       });
       if (res.status === 403) {
         setError("This summary is private to the rep who ran the call.");
-        return;
+        return null;
       }
       if (!res.ok) {
         setError(`Couldn't build the summary (HTTP ${res.status}).`);
-        return;
+        return null;
       }
       const d = await res.json();
       setSummary(d.summary);
       setIsOwner(d.isOwner ?? true);
+      return (d.summary ?? null) as Summary | null;
     } catch {
       setError("Couldn't build the summary.");
+      return null;
     } finally {
       generatingRef.current = false;
       setGenerating(false);
@@ -372,7 +376,20 @@ export default function AfterPitchPage() {
         autoRecoverAttemptedFor.current !== id
       ) {
         autoGenAttemptedFor.current = id;
-        void generate();
+        // FIRST-VISIT recovery (2026-08-14 hole-hunt): on a customer-missing session's first view `existing` is
+        // null, so afterPitchNeedsAutoRecover(existing,…) above was false and only a BLANK read was generated —
+        // Standard reps, who get no mode-reconcile re-render to re-run load(), were then stranded on it (the
+        // exact incident + user this recovery exists for). Generate first, then if the FRESH summary is the
+        // recoverable customer-missing gap, engage auto-recover from it — no second mount required.
+        const fresh = await generate();
+        if (
+          !isVideoSession &&
+          afterPitchNeedsAutoRecover(fresh, hasSavedRecording) &&
+          autoRecoverAttemptedFor.current !== id
+        ) {
+          autoRecoverAttemptedFor.current = id;
+          void autoRecover();
+        }
       }
     } catch {
       setLoading(false);
