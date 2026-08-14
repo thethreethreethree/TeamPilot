@@ -33,14 +33,16 @@ for the LLM call. Guidance-on accounts (your admin, Moses) sailed through; that'
   can't resolve without you. Your recording still saves either way — the Upload fallback gives the transcript.
 - **B. (unchanged, still open)** the founder-gated items below — coach-KPI aggregation, onboarding RPC advisory
   lock, message-thread pagination, and the Next.js `16.3.0` security bump — all still awaiting your go-ahead.
-- **C. Retranscribe concurrency gap (LOW severity, flagged from a 2026-08-14 audit).** The STT double-charge
-  protection (client `useRef` latch `16ed8fae` + server cache `0213`) covers double-click / reload / 2nd-tab, but
-  there's no server-side atomic claim — so two *truly-concurrent* re-transcribe fires for the SAME session (from
-  different tabs/devices, both within the STT window, both past the still-empty cache) would each charge a full
-  batch STT. The sibling `auto-recover` route guards this with an atomic `update…is(null)…select` claim;
-  retranscribe is the weaker (cache-only) guard. Impact: ONE extra STT charge (a few cents), narrow window — not
-  a loop. Say **"close the retranscribe concurrency gap"** and I'll mirror auto-recover's atomic claim; else it
-  stays a documented low-severity edge.
+- **C. STT concurrent-double-charge gap — a CLASS across 2 routes (LOW severity, 2026-08-14 audit + A26 sweep).**
+  The batch-STT recording routes guard concurrency INCONSISTENTLY: `auto-recover` uses a server-side atomic claim
+  (`update…is(null)…select`, row-locked → two concurrent fires can't both charge). But `retranscribe` (cache
+  `0213` + client `useRef` latch `16ed8fae`) and `upload-recording` (client `uploadingRef` latch only) have NO
+  server atomic claim — so two *truly-concurrent* fires for the same session from different tabs/devices (both
+  within the STT window, both past the still-empty cache/latch, which are per-tab) would each charge a full batch
+  STT. Impact: ONE extra STT charge (a few cents), narrow window (needs simultaneous cross-tab fires) — not a
+  loop. The common cases (double-click, reload, 2nd-tab-later) ARE covered by the client latch + cache. Say
+  **"close the STT concurrency gap"** and I'll mirror auto-recover's atomic claim on both retranscribe +
+  upload-recording; else it stays a documented low-severity edge.
 
 ## 🟩 2026-08-13 — THREE first-client incidents FIXED + deployed (verified live on elostate.com); your open items
 
