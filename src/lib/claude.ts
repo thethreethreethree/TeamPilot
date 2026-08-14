@@ -47,7 +47,15 @@ async function call(args: CallArgs): Promise<CallResult> {
       controlExempt: args.controlExempt,
       experienceMode: args.experienceMode,
     });
-    if (!r.gate.guidanceEnabled) {
+    // Report "suppressed" ONLY when the gate ACTUALLY suppressed the call. This MUST mirror
+    // runBrainCall's own condition (brain/index.ts) — `!guidanceEnabled && !controlExempt`. With
+    // controlExempt set, runBrainCall already RAN the LLM and `r.text` holds the real answer; re-checking
+    // guidanceEnabled ALONE here dropped the controlExempt term and DISCARDED that answer. That drift blanked
+    // every control-exempt Sales Coach engine (review/dissect/moments/live-cue) for any company whose guidance
+    // gate was off: a 100%-empty "Your read" (+ 0 live cues) while still burning the LLM call — the founder's
+    // "other users get incomplete after-pitch", 2026-08-14. The admin's company worked only because ITS gate
+    // happened to be on. Control-exempt callers must pass through with the real text.
+    if (!r.gate.guidanceEnabled && !args.controlExempt) {
       return {
         text: "",
         suppressed: true,
