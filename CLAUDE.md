@@ -248,6 +248,32 @@ Skipping the protocol because a change seems small is the §5 failure mode and
 is forbidden. If the protocol conflicts with this constitution, the
 constitution wins and BUILD-PROTOCOL.md is amended under §7.
 
+### 2.2 Single-source decisions — consume the verdict, don't re-derive the gate
+
+> Added by [AMD-010](docs/amendments/AMD-010-single-source-gate-decisions.md), ratified 2026-08-14. Operational lesson: ThinkerThinker.md A40.
+
+When an authority (a gate loader, an auth check, an eligibility/visibility resolver)
+computes a decision, it MUST return that decision as an explicit **verdict** — a
+boolean/enum such as `suppressed`, `allowed`, `visible` — and every downstream consumer
+MUST branch on the returned verdict. A consumer MUST NOT re-derive the same decision from
+the raw inputs the authority already judged. Re-deriving a decision duplicates its
+condition, and duplicated conditions **drift**: a term added to one copy and not the other
+silently defeats the gate, with every automated check green.
+
+Where a re-derivation is genuinely unavoidable, it MUST mirror the authority's condition
+term-for-term with a comment pointing at the source, AND a drift-guard test MUST exercise
+BOTH branches of every term — especially exemption/override terms, which are added late
+and forgotten in the copy. This is most dangerous when the authority runs an expensive
+side effect (an LLM call, a charge, a write) before returning: a consumer that discards
+the result on a re-derived gate burns that cost and emits an empty-but-billed result.
+
+This rule exists because the account-based empty-AI outage (2026-08-14) had exactly this
+shape: the §3.4 control gate was authored correctly in `runBrainCall` (it honored the
+Sales-Coach `controlExempt` exemption and ran the LLM), but the `call()` wrapper re-derived
+the decision and checked `!guidanceEnabled` alone — the dropped `controlExempt` term made
+it discard the real answer for every guidance-off account. The structural defense is a
+single source of truth for the decision, consumed as a verdict, never re-computed.
+
 ---
 
 ## 3. How to Build the System (the in-product AI)
