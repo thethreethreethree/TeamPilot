@@ -47,8 +47,6 @@ export async function GET() {
     (s) => new Date(s.started_at as string).getTime() >= weekAgo
   ).length;
   const activeCount = sessions.filter((s) => s.status === "active").length;
-  const reviewedCount = sessions.filter((s) => s.status === "reviewed").length;
-  const awaitingReview = sessions.filter((s) => s.status === "ended").length;
 
   // Total cues delivered across the agent's sessions.
   let cuesTotal = 0;
@@ -61,19 +59,46 @@ export async function GET() {
     cuesTotal = count ?? 0;
   }
 
-  // Reviews generated + recent growth opportunities (real text, not
-  // clustered "themes" we'd be inventing).
-  const { data: reviewEvents, error: eReviews } = await supabase
-    .from("events")
-    .select("payload, created_at")
-    .eq("actor", agentId)
-    .eq("kind", "coach.sales_review_generated")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  const reviews = reviewEvents ?? [];
-  const reviewsGenerated = reviews.length;
+  // Reviews are identified by the DURABLE coach.sales_review_generated EVENT (subject = sales_session:<id>),
+  // NOT session.status='reviewed' — which NO code path ever writes (2026-08-14 finding: "Reviewed" was
+  // permanently 0, "Awaiting review" never drained, the Sessions "Reviewed" filter was always empty). This is
+  // the same signal the list route already uses for its `hasReview` badge. Paged (was `.limit(50)`) so the count
+  // is UNCAPPED and keyed on DISTINCT sessions — a rep who REGENERATED a review can no longer show reviews >
+  // sessions (2026-08-14 finding). Filtered by `actor` only (an agent's review events are all their own
+  // sessions), so no >1000-subject `.in` filter. Throws → caught to null → the honest fail-loud below.
+  const reviewEventsAll = await fetchAllPaged<{
+    subject: string;
+    payload: Record<string, unknown> | null;
+    created_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("events")
+        .select("subject, payload, created_at")
+        .eq("actor", agentId)
+        .eq("kind", "coach.sales_review_generated")
+        .order("id")
+        .range(from, to),
+    { label: "dashboard reviews" },
+  ).catch(() => null);
+  const reviewEvents = reviewEventsAll ?? [];
+  const reviewedSubjects = new Set(reviewEvents.map((e) => String(e.subject ?? "")));
+  const isReviewed = (sid: string) => reviewedSubjects.has(`sales_session:${sid}`);
+
+  const reviewedCount = sessions.filter((s) => isReviewed(s.id as string)).length;
+  // Awaiting = ended but not yet reviewed (so generating a review actually DRAINS this number).
+  const awaitingReview = sessions.filter(
+    (s) => s.status === "ended" && !isReviewed(s.id as string)
+  ).length;
+  // "Reviews generated" = distinct reviewed sessions (uncapped; can never exceed sessions).
+  const reviewsGenerated = reviewedCount;
+
+  // Recent growth opportunities from the most recent reviews (paged by id above, so sort by recency here).
   const recentGrowth: string[] = [];
-  for (const e of reviews) {
+  const sortedReviews = [...reviewEvents].sort((a, b) =>
+    String(b.created_at).localeCompare(String(a.created_at))
+  );
+  for (const e of sortedReviews) {
     const ga = (e.payload as Record<string, unknown> | null)?.growth_areas;
     if (Array.isArray(ga)) {
       for (const g of ga) {
@@ -81,6 +106,7 @@ export async function GET() {
         if (typeof opp === "string" && opp.trim()) recentGrowth.push(opp.trim());
       }
     }
+    if (recentGrowth.length >= 5) break; // only the top 5 are shown
   }
 
   // §3.4 honest-error-state (audit 2026-07-09): sessionsData drives EVERY stat —
@@ -88,7 +114,7 @@ export async function GET() {
   // no activity. Return 500 so the sessions page (which sets stats only on res.ok,
   // and hides the stat cards when stats is null) shows nothing rather than a
   // misleading empty readout. Happy path unchanged (fires only on a real error).
-  if (sessionsData === null || eReviews) {
+  if (sessionsData === null || reviewEventsAll === null) {
     return NextResponse.json(
       { error: "Couldn't load your dashboard right now — try again." },
       { status: 500 }

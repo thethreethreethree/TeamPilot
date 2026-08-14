@@ -215,6 +215,22 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
     expect(body.sessions[0].hasReview).toBe(false);
   });
 
+  it("REGRESSION (finding 3): the 'reviewed' filter returns ended sessions WITH a review event (status='reviewed' is never written)", async () => {
+    setCaller("rep1", REP);
+    const reqReviewed = () =>
+      ({ url: "https://x/api/coach/sales-session/list?status=reviewed" }) as unknown as Parameters<typeof GET>[0];
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({
+        // Two ENDED sessions; only s1 has a review event. Old code filtered on status='reviewed' (never
+        // written) → zero rows for everyone. New code fetches ended + keeps only those with a review event.
+        sessions: [session({ id: "s1", status: "ended" }), session({ id: "s2", status: "ended" })],
+        badgeEvents: [{ kind: "coach.sales_review_generated", subject: "sales_session:s1", id: "b1" }],
+      }),
+    );
+    const body = await (await GET(reqReviewed())).json();
+    expect(body.sessions.map((r: { id: string }) => r.id)).toEqual(["s1"]); // s1 kept, s2 dropped, NOT empty
+  });
+
   it("(2) a badge-read error sets badgesAvailable=false (§3.4 honest-unavailable, not a false 'nothing generated')", async () => {
     setCaller("rep1", REP);
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(

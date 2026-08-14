@@ -87,8 +87,14 @@ export async function GET(req: Request) {
   if (fContext === "in_person" || fContext === "video") {
     query = query.eq("context", fContext);
   }
-  if (fStatus === "active" || fStatus === "ended" || fStatus === "reviewed") {
+  if (fStatus === "active" || fStatus === "ended") {
     query = query.eq("status", fStatus);
+  } else if (fStatus === "reviewed") {
+    // "reviewed" is NOT a stored status — nothing ever writes status='reviewed' (2026-08-14 finding: this
+    // filter returned zero rows for everyone). A reviewed session is an ENDED one WITH a
+    // coach.sales_review_generated event, so fetch ended sessions here and keep only the reviewed ones via the
+    // hasReview post-filter on the response below (the review set is computed from the badge events).
+    query = query.eq("status", "ended");
   }
   if (fPeriod === "7d" || fPeriod === "30d") {
     const days = fPeriod === "7d" ? 7 : 30;
@@ -253,9 +259,13 @@ export async function GET(req: Request) {
     }
   }
 
+  // "Reviewed" filter: keep only ended sessions that actually carry a review event (see the status-filter note
+  // above). hasReview is already computed per row, so this is the exact set the filter promises.
+  const visibleRows = fStatus === "reviewed" ? rows.filter((r) => r.hasReview) : rows;
+
   return NextResponse.json({
     isManager: ctx.isManager,
-    sessions: rows,
+    sessions: visibleRows,
     badgesAvailable,
   });
 }
