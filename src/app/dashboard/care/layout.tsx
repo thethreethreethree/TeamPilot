@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { deriveCareAccess } from "@/lib/api/careAgentAuth";
-import { lockFromPilotModule } from "@/lib/auth/moduleAccess";
+import { lockFromPilotModule, moduleGateDecision } from "@/lib/auth/moduleAccess";
+import { ModuleNoAccess } from "@/components/auth/ModuleNoAccess";
 
 /**
  * Layout for every route under /dashboard/care/*.
@@ -53,11 +54,15 @@ export default async function CareLayout({
         isSupportAgent: profile?.is_support_agent as boolean | null | undefined,
         isRemoved: (profile?.status as string | null) === "removed",
       });
-      if (!isAgent) {
-        redirect("/dashboard");
-      }
       const company = (profile?.companies ?? null) as { access_module?: string | null } | null;
-      locked = !!lockFromPilotModule(company?.access_module ?? null);
+      const lockedBool = !!lockFromPilotModule(company?.access_module ?? null);
+      // A LOCKED non-agent must HOLD on an honest in-module screen — redirecting to /dashboard loops forever
+      // via the middleware module-lock (ERR_TOO_MANY_REDIRECTS). A non-locked non-agent is safely sent to the
+      // hub. (moduleGateDecision is pure + tested; same fix as the sales-coach layout.)
+      const gate = moduleGateDecision(isAgent, lockedBool);
+      if (gate === "hub") redirect("/dashboard");
+      if (gate === "hold") return <ModuleNoAccess module="care" />;
+      locked = lockedBool;
     }
   }
 

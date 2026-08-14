@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { SalesCoachShell } from "@/components/sales-coach/SalesCoachShell";
-import { lockFromPilotModule } from "@/lib/auth/moduleAccess";
+import { lockFromPilotModule, moduleGateDecision } from "@/lib/auth/moduleAccess";
 import { isSalesCoachMember } from "@/lib/coach/v5/skillAccess";
+import { ModuleNoAccess } from "@/components/auth/ModuleNoAccess";
 
 // Sales Coach gets its OWN installable PWA identity (founder 2026-07-04):
 // installing from any Sales Coach page uses this manifest — name "Sales Coach",
@@ -64,11 +65,15 @@ export default async function SalesCoachLayout({
         sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
         company_id: null,
       });
-      if (!member) {
-        redirect("/dashboard");
-      }
       const company = (profile?.companies ?? null) as { access_module?: string | null } | null;
-      locked = !!lockFromPilotModule(company?.access_module ?? null);
+      const lockedBool = !!lockFromPilotModule(company?.access_module ?? null);
+      // A LOCKED non-member must HOLD on an honest in-module screen — redirecting to /dashboard loops forever
+      // via the middleware module-lock (ERR_TOO_MANY_REDIRECTS), bricking a freshly-invited rep before role
+      // assignment. A non-locked non-member is safely sent to the hub. (moduleGateDecision is pure + tested.)
+      const gate = moduleGateDecision(member, lockedBool);
+      if (gate === "hub") redirect("/dashboard");
+      if (gate === "hold") return <ModuleNoAccess module="sales_coach" />;
+      locked = lockedBool;
     }
   }
 

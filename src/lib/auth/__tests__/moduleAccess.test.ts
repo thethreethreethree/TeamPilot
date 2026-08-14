@@ -5,6 +5,7 @@ import {
   isPathAllowed,
   redirectForLock,
   lockFromPilotModule,
+  moduleGateDecision,
 } from "../moduleAccess";
 
 describe("moduleForPath", () => {
@@ -81,5 +82,22 @@ describe("moduleHome + lockFromPilotModule", () => {
     expect(lockFromPilotModule("elostate")).toBeNull();
     expect(lockFromPilotModule(null)).toBeNull();
     expect(lockFromPilotModule("whatever")).toBeNull();
+  });
+});
+
+describe("moduleGateDecision", () => {
+  it("a member always enters (locked or not)", () => {
+    expect(moduleGateDecision(true, true)).toBe("enter");
+    expect(moduleGateDecision(true, false)).toBe("enter");
+  });
+
+  it("REGRESSION: a LOCKED non-member HOLDS, never redirects to the hub", () => {
+    // This is the redirect-loop fix. A locked non-member sent to /dashboard is bounced back into the module by
+    // the middleware lock → ERR_TOO_MANY_REDIRECTS, bricking a freshly-invited rep. It MUST hold in-module.
+    expect(moduleGateDecision(false, true)).toBe("hold");
+  });
+
+  it("a non-locked non-member is sent to the hub (no lock, no loop)", () => {
+    expect(moduleGateDecision(false, false)).toBe("hub");
   });
 });

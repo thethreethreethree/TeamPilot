@@ -64,3 +64,25 @@ export function redirectForLock(lock: LockedModule | null, pathname: string): st
 export function lockFromPilotModule(module: string | null | undefined): LockedModule | null {
   return module === "care" || module === "sales_coach" ? module : null;
 }
+
+/** A module layout's access decision. `enter` = render the module; `hold` = show an honest in-module
+ *  "no access yet" screen; `hub` = redirect to /dashboard. */
+export type ModuleGate = "enter" | "hold" | "hub";
+
+/**
+ * Decide how a module layout (sales-coach / care) should treat a caller, given whether they're a MEMBER of the
+ * module and whether their account is LOCKED to it.
+ *
+ * The critical rule: a LOCKED non-member must NOT be redirected to the hub. The middleware module-lock (0207)
+ * bounces `/dashboard` straight back into the locked module, so a layout that `redirect('/dashboard')`s a locked
+ * non-member creates an infinite `ERR_TOO_MANY_REDIRECTS` loop — which bricks a freshly-invited rep in the
+ * NORMAL window between invite-accept (role=Member, sales_coach_role=null) and the admin assigning Staff. So a
+ * locked non-member `hold`s on an honest terminal INSIDE the module instead. A non-locked non-member is safely
+ * sent to the `hub` (no lock, so no bounce, no loop). A member always `enter`s.
+ *
+ * Pure + tested so re-introducing the loop (redirecting a locked non-member) fails CI, not just review.
+ */
+export function moduleGateDecision(isMember: boolean, isLocked: boolean): ModuleGate {
+  if (isMember) return "enter";
+  return isLocked ? "hold" : "hub";
+}
