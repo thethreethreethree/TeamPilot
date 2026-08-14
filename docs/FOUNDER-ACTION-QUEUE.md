@@ -1,5 +1,35 @@
 # Founder action queue
 
+## 🔐 2026-08-14 — Password-recovery links land on the MARKETING project — a CONFIG fix (yours)
+
+User feedback (Anthony Aguilar): the "Reset your password" email link opens the marketing "Request access"
+page (`…-iota.vercel.app`) instead of the set-new-password form, so he's locked out.
+
+**Root cause — config, NOT code (diagnosed from the record):** the recovery code is correct on both ends
+(`/auth/forgot` requests `redirectTo: <origin>/auth/recover`; `/auth/recover` consumes the token + sets the
+password). The break is Supabase's **URL Configuration**, compounded by your two Vercel projects: `elostate.com`
+is the app (`team-pilot-…vercel.app`), but the reset link fell back to the **`…-iota.vercel.app` marketing
+project** — which happens when the **Site URL** points there AND `/auth/recover` isn't in the **Redirect URLs
+allowlist** (Supabase then ignores `redirectTo` and uses the Site URL). Same root reason means **signup email-
+confirmation** links (the 3 signup flows pass no `emailRedirectTo`) also land on the marketing page if
+"Confirm email" is on.
+
+**THE FIX (Supabase Dashboard → Authentication → URL Configuration — ~2 min, no deploy):**
+1. **Site URL** → `https://elostate.com` (the app, not the `…-iota.vercel.app` marketing project).
+2. **Redirect URLs** → add `https://elostate.com/auth/recover` and `https://elostate.com/**`.
+3. Ensure the marketing site's Sign-in / Request-access buttons point at `https://elostate.com`.
+
+### Your 6-character-code suggestion — verdict
+Good UX instinct, but the fault was cross-project **config**, not Supabase being unreliable — and a hand-rolled
+6-char reset code adds account-takeover risk (secure gen, hashing, atomic one-time-use, brute-force lockout) and
+still needs email. The safe way to get the type-a-code UX you want is **Supabase's built-in email OTP recovery**
+(6-digit `verifyOtp`), which also sidesteps the redirect entirely.
+
+### Offered builds (I will NOT touch the prod auth flow until you pick one):
+- **"harden the auth redirects"** — `/auth/forgot` uses the canonical `siteUrl()` (not `window.location.origin`);
+  the 3 signup flows pass an explicit `emailRedirectTo`. Small, safe, makes this class structurally robust.
+- **"build the OTP recovery"** — the 6-digit-code recovery flow on Supabase OTP (your desired UX, done safely).
+
 ## 🟩 2026-08-14 — Account-based EMPTY-AI outage FIXED + prod-verified + amended; ONE open item (yours)
 
 The real cause of "other users get an incomplete after-pitch / empty Your read" was **NOT** token starvation
