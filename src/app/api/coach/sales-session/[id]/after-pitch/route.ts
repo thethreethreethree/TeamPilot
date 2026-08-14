@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { isAdminRole } from "@/lib/roles";
+import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   getSession,
   saveAfterPitchSummary,
@@ -54,10 +54,17 @@ async function resolveViewer(
     .maybeSingle();
 
   const sameCompany = profile?.company_id === sessionCompanyId;
+  // Consume the isSalesCoachManager AUTHORITY (skillAccess.ts) — do NOT re-derive the manager decision inline
+  // (§2.2 / AMD-010 / A40). Every other sales-session route resolves "manager" through this one function; a
+  // re-derived copy here would DRIFT — add a manager role to the authority and this after-pitch read would
+  // silently withhold it, granting inconsistent visibility. Same-company scoping stays the route's own guard.
   const isManager =
     sameCompany &&
-    (isAdminRole(profile?.role) ||
-      profile?.sales_coach_role === "admin");
+    isSalesCoachManager({
+      role: (profile?.role as string | null) ?? null,
+      sales_coach_role: (profile?.sales_coach_role as string | null) ?? null,
+      company_id: null,
+    });
   const isOwner = auth.user.id === sessionAgentId;
 
   if (!isOwner && !isManager) return null;
