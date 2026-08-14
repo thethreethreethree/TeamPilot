@@ -114,6 +114,26 @@ export async function POST(
   //    earlier streamed segments).
   const segments = await getSessionTranscript(id);
 
+  // SERVER IDEMPOTENCY (2026-08-14 finding): the five LLM engines below were run UNCONDITIONALLY — the only
+  // guard was the client `finalizedRef`, which is per-mount, so a second POST (a 2nd tab, a retry, a future
+  // caller) re-charged all five. Skip regeneration when the dissect already landed — the same
+  // `coach.dissect_generated` marker the backfill cron keys on (readable via RLS as the owner's own session
+  // event). A FAILED first generation leaves NO marker, so a legitimate retry still runs. The transcript append
+  // above is independently idempotent (unique (session_id, seq)).
+  const { data: priorDissect } = await supabase
+    .from("events")
+    .select("id")
+    .eq("kind", "coach.dissect_generated")
+    .eq("subject", `sales_session:${id}`)
+    .limit(1);
+  if ((priorDissect?.length ?? 0) > 0) {
+    return NextResponse.json({
+      appended,
+      transcriptSegments: segments.length,
+      alreadyGenerated: true,
+    });
+  }
+
   // 3. Generate + store the Dissect, Summary, Timeline, Pivot, and Intel
   //    SERVER-SIDE, in parallel. One failing does not block the others (each
   //    .catch); the pivot/timeline are stored alongside the summary so the
