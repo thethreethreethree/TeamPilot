@@ -1040,7 +1040,14 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         }
       };
 
+      // Track whether the socket ever opened. A close WITHOUT a prior open = the handshake itself failed,
+      // and the browser's onerror event is intentionally opaque (no code/reason for security). The CLOSE
+      // code is the only real signal, so surface it to the rep — otherwise "Realtime connection error" is a
+      // black box on a phone with no console (2026-08-14: backend proven healthy from the server, so a
+      // browser-only failure needs its close code to diagnose).
+      let wsOpened = false;
       ws.onopen = () => {
+        wsOpened = true;
         // eslint-disable-next-line no-console
         console.info("[live-coaching] ws OPEN");
         setStatus("live");
@@ -1048,6 +1055,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       ws.onerror = (ev) => {
         // eslint-disable-next-line no-console
         console.warn("[live-coaching] ws ERROR", ev);
+        // Generic fallback only — the onclose below refines it with the actual close code. onerror carries
+        // no usable detail in browsers, so we never rely on it for the cause.
         setError("Realtime connection error.");
         setStatus("error");
       };
@@ -1056,11 +1065,22 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         console.warn(
           `[live-coaching] ws CLOSE code=${ev.code} reason=${ev.reason || "(none)"}`
         );
-        // Bug fix (2026-07-06 read-audit): use the FUNCTIONAL form so we read the
-        // CURRENT status, not the stale `status` captured in start's closure
-        // (which was ~"idle" when the user clicked Start). Without this, a socket
-        // close AFTER going live left the UI stuck on "live" — the surface lying
-        // about a dead connection (§3.4). Don't stomp an "error" already set.
+        if (!wsOpened) {
+          // Never opened → handshake failed. Name the exact close code so the rep can report it and we can
+          // pinpoint the cause (1006 = network/dropped/blocked, 1008/4401 = auth/policy, 1011 = server) instead
+          // of guessing from an opaque "connection error." The recording is still saving locally, so always
+          // point at the upload fallback (§3.4 — honest error + a way forward).
+          const detail = ev.reason ? ` — ${ev.reason}` : "";
+          setError(
+            `Realtime connection couldn't start (code ${ev.code}${detail}). Your recording is still saving — you can upload it below to get your transcript.`
+          );
+          setStatus("error");
+          return;
+        }
+        // Opened then closed = a mid-session drop. Bug fix (2026-07-06 read-audit): use the FUNCTIONAL form so
+        // we read the CURRENT status, not the stale `status` captured in start's closure (which was ~"idle"
+        // when the user clicked Start). Without this, a socket close AFTER going live left the UI stuck on
+        // "live" — the surface lying about a dead connection (§3.4). Don't stomp an "error" already set.
         setStatus((prev) => (prev === "live" ? "idle" : prev));
       };
       ws.onmessage = (ev) => {
