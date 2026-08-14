@@ -122,7 +122,19 @@ export async function POST(
     );
   }
   if (!claimed || claimed.length === 0) {
-    // Already attempted (or a concurrent claim won) — do NOT spend STT again.
+    // Already attempted (or a concurrent claim won) — do NOT spend STT again. But if the PRIOR attempt DECLINED
+    // because the audio genuinely holds ONE voice, report that honestly: a reload should render the
+    // still-one-sided terminal, NOT the generic "already-attempted" that offers a re-transcribe card which only
+    // reproduces the one voice and dead-ends at /label-transcript (2026-08-14 finding ⑧).
+    const { data: declined } = await admin
+      .from("events")
+      .select("id")
+      .eq("kind", "coach.auto_recover_declined")
+      .eq("subject", `sales_session:${id}`)
+      .limit(1);
+    if ((declined?.length ?? 0) > 0) {
+      return NextResponse.json({ status: "still-one-sided", reason: "single-cluster" });
+    }
     return NextResponse.json({ status: "already-attempted" });
   }
 
@@ -187,6 +199,23 @@ export async function POST(
     // single-cluster → the audio itself is one-voice (honest terminal). ambiguous/no-signal → the rep can
     // still tap manually. Either way: NO delete, NO append — leave the existing partial transcript intact.
     const status = assign.reason === "single-cluster" ? "still-one-sided" : "could-not-decide";
+    // Persist a genuine single-voice decline so a RELOAD (marker already set → the "already-attempted" branch
+    // above) instead reports "still-one-sided" and shows the honest terminal — never a re-transcribe card that
+    // reproduces the one voice and dead-ends at /label-transcript (2026-08-14 finding ⑧). Best-effort: the
+    // decline still returns either way. Not written for ambiguous/no-signal — those CAN be retried manually.
+    if (assign.reason === "single-cluster") {
+      try {
+        await admin.from("events").insert({
+          company_id: companyId,
+          actor: auth.user.id,
+          kind: "coach.auto_recover_declined",
+          subject: `sales_session:${id}`,
+          payload: { reason: "single-cluster", coach_version: "auto-recover-v1" },
+        });
+      } catch {
+        /* best-effort — the decline response still returns */
+      }
+    }
     return NextResponse.json({ status, reason: assign.reason });
   }
 

@@ -287,6 +287,14 @@ export default function AfterPitchPage() {
         // The corrected two-sided transcript is saved (the server after() regenerates the other artifacts);
         // rebuild + display the After-Pitch read from it. Mirrors the manual recovery's onRecovered.
         await generate();
+      } else if (d.status === "canonical") {
+        // The transcript is ALREADY two-sided — a prior recovery succeeded, but this session's STORED After-Pitch
+        // is still the OLD blank customer-missing read (the post-recovery client generate() was lost: the rep
+        // navigated away or dropped network in that window). Regenerate from the now-canonical transcript so the
+        // reload HEALS the stale blank instead of showing it forever (2026-08-14 finding ⑥). This fires at most
+        // once — the regenerated read is two-sided, so the next visit no longer detects a capture gap.
+        await generate();
+        setAutoRecoverResolved(true);
       } else {
         // Non-recovered terminal. Record WHICH one so the card can be honest — still-one-sided renders a
         // terminal message instead of a re-transcribe card that would only reproduce the one-sided result.

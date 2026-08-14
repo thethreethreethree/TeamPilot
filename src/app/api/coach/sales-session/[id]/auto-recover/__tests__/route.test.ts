@@ -66,25 +66,39 @@ const setAuth = (userId: string | null) =>
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
   });
 
-// The admin client builder: the claim path ends in .select() (→ claimResult); the duration stamp path awaits
-// .eq() directly (→ the builder resolves via .then to stampResult).
+// The admin client, per table:
+//   coaching_sessions — the claim path ends in .select() (→ claimResult); the stamp/release path awaits .eq()
+//                       directly (→ resolves via .then to stampResult). Update payloads are captured.
+//   events            — .insert() (decline record, captured) and .select().eq().eq().limit() (→ declineResult,
+//                       the prior-decline check for the reload path).
 let claimResult: { data: unknown[] | null; error: unknown };
 let stampResult: { error: unknown };
+let declineResult: { data: unknown[] };
 let updateCalls: Array<Record<string, unknown>>;
+let insertCalls: Array<Record<string, unknown>>;
 function setupAdmin() {
   claimResult = { data: [{ id: "sess1" }], error: null };
   stampResult = { error: null };
-  updateCalls = []; // capture every .update({...}) payload so marker claim vs release is assertable
-  const builder: Record<string, unknown> = {};
-  builder.update = (payload: Record<string, unknown>) => {
+  declineResult = { data: [] }; // no prior single-voice decline by default
+  updateCalls = [];
+  insertCalls = [];
+  const sessions: Record<string, unknown> = {};
+  sessions.update = (payload: Record<string, unknown>) => {
     updateCalls.push(payload);
-    return builder;
+    return sessions;
   };
-  builder.eq = () => builder;
-  builder.is = () => builder;
-  builder.select = () => Promise.resolve(claimResult);
-  builder.then = (onF: (v: unknown) => unknown) => Promise.resolve(stampResult).then(onF);
-  mk(createAdminClient).mockReturnValue({ from: () => builder });
+  sessions.eq = () => sessions;
+  sessions.is = () => sessions;
+  sessions.select = () => Promise.resolve(claimResult);
+  sessions.then = (onF: (v: unknown) => unknown) => Promise.resolve(stampResult).then(onF);
+  const events = {
+    insert: (payload: Record<string, unknown>) => {
+      insertCalls.push(payload);
+      return Promise.resolve({ error: null });
+    },
+    select: () => ({ eq: () => ({ eq: () => ({ limit: async () => declineResult }) }) }),
+  };
+  mk(createAdminClient).mockReturnValue({ from: (t: string) => (t === "events" ? events : sessions) });
 }
 
 /** Did the route RELEASE the at-most-once marker (set it back to null)? The release is the transient-retry guard. */
@@ -211,7 +225,7 @@ describe("POST /auto-recover", () => {
     expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
-  it("still-one-sided: a single-cluster re-diarization saves nothing (honest terminal, no loop)", async () => {
+  it("still-one-sided: a single-cluster re-diarization saves nothing AND persists the decline (finding 8)", async () => {
     setAuth("rep1");
     mk(autoAssignAgentCluster).mockReturnValue({
       decided: false,
@@ -220,6 +234,27 @@ describe("POST /auto-recover", () => {
     });
     const res = await POST(req(), ctx);
     expect((await res.json()).status).toBe("still-one-sided");
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
+    // The single-voice decline is recorded so a RELOAD stays honest (see the next test).
+    expect(insertCalls.some((p) => p.kind === "coach.auto_recover_declined")).toBe(true);
+  });
+
+  it("does NOT persist a decline for an AMBIGUOUS assignment — that one CAN be retried manually", async () => {
+    setAuth("rep1");
+    mk(autoAssignAgentCluster).mockReturnValue({ decided: false, reason: "ambiguous", clusterIds: ["a", "b"] });
+    await POST(req(), ctx);
+    expect(insertCalls.some((p) => p.kind === "coach.auto_recover_declined")).toBe(false);
+  });
+
+  it("RELOAD after a single-voice decline returns still-one-sided, NOT already-attempted (finding 8: no false re-transcribe card)", async () => {
+    setAuth("rep1");
+    claimResult = { data: [], error: null }; // marker already set (this is a reload)
+    declineResult = { data: [{ id: "d1" }] }; // a prior single-cluster decline exists
+    const res = await POST(req(), ctx);
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("still-one-sided");
+    // No STT re-charge on the reload, and the client renders the terminal instead of a re-transcribe card.
+    expect(transcribeWithDiarization).not.toHaveBeenCalled();
     expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
