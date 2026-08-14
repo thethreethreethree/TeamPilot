@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import {
+  activateAccountGuidance,
   fetchAccount,
   fetchActiveSubscription,
   listActivity,
@@ -146,6 +147,13 @@ export async function PATCH(
       { error: "Account not found or update failed." },
       { status: 404 }
     );
+  }
+  // The lifecycle-stage control is the OTHER way to activate an account (the founder's
+  // "6 in Control month" view flips THIS, not the subscription status). Advancing an account
+  // to a live stage must open the AI gate too, so "activated" means all AI is functional — the
+  // same guarantee the subscription-status PATCH gives. Best-effort; the stage is already saved.
+  if (body.lifecycleStage === "activated" || body.lifecycleStage === "paying") {
+    await activateAccountGuidance(id);
   }
   return NextResponse.json({ account: updated });
 }
