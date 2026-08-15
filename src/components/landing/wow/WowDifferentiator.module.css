@@ -1,0 +1,122 @@
+/* Differentiator — the scrubbable before/after. `--pos` is set inline from React and drives the
+   clip on the AFTER layer plus the divider position, so one value moves everything together. */
+
+.wrap {
+  --ink: #141414;
+  --signal: #FFDA03;
+  --white: #F7F7F5;
+  --mut: rgba(247, 247, 245, 0.58);
+  --hair: rgba(247, 247, 245, 0.14);
+  background: var(--ink);
+  color: var(--white);
+  padding: clamp(70px, 12vh, 130px) clamp(20px, 5vw, 64px);
+}
+.inner { max-width: 1080px; margin: 0 auto; }
+
+.head { text-align: center; margin-bottom: clamp(30px, 5vh, 52px); }
+.eyebrow {
+  display: inline-block; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--signal); margin-bottom: 16px;
+}
+.title {
+  font-size: clamp(30px, 4.6vw, 60px); line-height: 1.04; letter-spacing: -.035em;
+  font-weight: 800; margin: 0 0 14px;
+}
+.dim { color: rgba(247,247,245,.34); }
+.accent { color: var(--signal); }
+.lede { font-size: 14.5px; color: var(--mut); margin: 0; }
+
+/* ---------- the comparison ---------- */
+.frame {
+  position: relative; isolation: isolate;
+  border: 1px solid var(--hair); border-radius: 18px; overflow: hidden;
+  background: linear-gradient(170deg, #191919, #101010);
+  box-shadow: 0 46px 100px rgba(0,0,0,.6);
+  min-height: 340px;
+}
+
+.before, .after { position: absolute; inset: 0; padding: clamp(26px, 4vw, 46px); }
+
+.before { display: flex; flex-direction: column; justify-content: center; }
+.label {
+  font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(247,247,245,.36); font-weight: 700; margin-bottom: 20px;
+}
+.labelOn { color: var(--signal); }
+
+.stat { display: flex; align-items: baseline; gap: 14px; }
+.statNum { font-size: clamp(44px, 7vw, 84px); font-weight: 800; letter-spacing: -.04em; color: rgba(247,247,245,.5); }
+.statLbl { font-size: 13.5px; color: rgba(247,247,245,.34); }
+.flatline { margin: 22px 0 20px; max-width: 330px; }
+.flatline svg { width: 100%; height: 56px; display: block; }
+.verdict { font-size: 15px; color: rgba(247,247,245,.34); font-style: italic; }
+
+/* AFTER is clipped to the right of the handle — dragging wipes it in */
+.after {
+  clip-path: inset(0 0 0 var(--pos));
+  padding-left: calc(var(--pos) + 46px);
+  background: linear-gradient(170deg, #1c1a12, #131210);
+  display: flex; align-items: center;
+}
+.afterInner { max-width: 620px; }
+.diagnosis {
+  font-size: clamp(17px, 2.1vw, 26px); line-height: 1.42; letter-spacing: -.015em;
+  margin: 0 0 20px; font-weight: 500;
+}
+.diagnosis strong { color: var(--signal); font-weight: 700; }
+
+.evidence { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.chip {
+  font-size: 11.5px; color: var(--mut);
+  border: 1px solid var(--hair); border-radius: 999px; padding: 6px 13px;
+  background: rgba(247,247,245,.04); white-space: nowrap;
+}
+.gate {
+  display: flex; gap: 9px; align-items: flex-start;
+  font-size: 12px; line-height: 1.55; color: rgba(247,247,245,.46);
+  border-left: 2px solid rgba(255,218,3,.34); padding-left: 12px; max-width: 520px;
+}
+.gateDot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--signal);
+  margin-top: 6px; flex: none; box-shadow: 0 0 10px rgba(255,218,3,.7);
+}
+
+/* ---------- the handle ---------- */
+.divider {
+  position: absolute; top: 0; bottom: 0; left: var(--pos);
+  width: 2px; background: linear-gradient(transparent, var(--signal) 12%, var(--signal) 88%, transparent);
+  z-index: 3; pointer-events: none; transform: translateX(-1px);
+  box-shadow: 0 0 22px rgba(255,218,3,.5);
+}
+.knob {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--signal); color: #111;
+  display: flex; align-items: center; justify-content: center; gap: 1px;
+  font-size: 17px; font-weight: 800; line-height: 1;
+  box-shadow: 0 6px 24px rgba(0,0,0,.5);
+}
+.chev { opacity: .75; }
+
+/* the real control, laid transparently over the frame */
+.range {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 4; margin: 0; opacity: 0; cursor: ew-resize;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.range:focus-visible { opacity: 1; outline: none; }
+.range:focus-visible + .divider { outline: 2px solid var(--white); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 46px; height: 340px; cursor: ew-resize; }
+.range::-moz-range-thumb { width: 46px; height: 340px; border: 0; background: transparent; cursor: ew-resize; }
+
+.foot {
+  margin: 26px auto 0; max-width: 640px; text-align: center;
+  font-size: 13px; line-height: 1.6; color: rgba(247,247,245,.42);
+}
+.foot em { color: var(--mut); font-style: italic; }
+
+@media (max-width: 720px) {
+  .frame { min-height: 400px; }
+  .afterInner { margin-left: 0; }
+  .range::-webkit-slider-thumb { height: 400px; }
+}

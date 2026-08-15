@@ -1,0 +1,121 @@
+/* Hero v2 — Apple-keynote treatment. One idea, one light source, huge type, nothing competing.
+   Brand tokens mirror ../brand.ts. */
+
+.wrap {
+  --ink: #141414;
+  --signal: #FFDA03;
+  --white: #F7F7F5;
+  --mut: rgba(247, 247, 245, 0.58);
+  --hair: rgba(247, 247, 245, 0.14);
+  position: relative;
+  min-height: min(100svh, 1080px);
+  background: var(--ink);
+  color: var(--white);
+  overflow: hidden;
+  padding: 0 clamp(20px, 5vw, 64px);
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* the room falls away at the edges so the lamp is the only light */
+.vignette {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 62% 52% at 50% 40%, rgba(255,218,3,.055), transparent 70%);
+}
+.wrap::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 45%, rgba(0,0,0,.72) 100%);
+}
+
+/* ---------- nav ---------- */
+.nav {
+  position: relative; z-index: 3;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 26px 0 0; max-width: 1280px; margin: 0 auto; width: 100%;
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--white); }
+.word { font-weight: 800; letter-spacing: .18em; font-size: 14px; }
+.navr { display: flex; align-items: center; gap: 28px; }
+.navlink { color: var(--mut); text-decoration: none; font-size: 14px; transition: color .18s ease; }
+.navlink:hover { color: var(--white); }
+.pill {
+  background: var(--signal); color: #111; text-decoration: none;
+  font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 999px;
+  transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease;
+}
+.pill:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,218,3,.32); }
+
+/* ---------- the one idea ---------- */
+.stage {
+  position: relative; z-index: 2;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 1000px; margin: 0 auto; width: 100%;
+  padding-bottom: 60px;
+}
+
+.lamp { position: relative; margin-bottom: clamp(18px, 3vh, 34px); }
+.mark { display: block; }
+.markBig { display: block; filter: drop-shadow(0 0 22px rgba(255,218,3,.45)); }
+.halo {
+  position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%);
+  width: 620px; height: 620px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,218,3,.26), rgba(255,218,3,.07) 34%, transparent 66%);
+  filter: blur(18px);
+}
+
+/* The headline is revealed BY the light: a radial mask expands from the lamp above it.
+   This is the hook — the type does not fade in, it is lit. */
+.headline {
+  font-size: clamp(44px, 8.4vw, 118px);
+  line-height: .96;
+  letter-spacing: -.045em;
+  font-weight: 800;
+  margin: 0 0 clamp(18px, 2.6vh, 30px);
+  text-wrap: balance;
+}
+/* Each line rides in its own clip. Only `transform` animates, so a failure mode leaves the
+   sentence visible rather than blank — see the note in WowHero.tsx. */
+.lineClip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: .06em; /* room for descenders so the clip never shaves the 'p' and 'g' */
+}
+.line { display: block; will-change: transform; }
+
+.sub {
+  font-size: clamp(15px, 1.45vw, 19px);
+  line-height: 1.6; color: var(--mut);
+  max-width: 620px; margin: 0 0 clamp(26px, 4vh, 40px);
+}
+
+.ctaRow { display: flex; gap: 13px; flex-wrap: wrap; justify-content: center; margin-bottom: clamp(22px, 4vh, 38px); }
+.btnPrimary {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--signal); color: #111; text-decoration: none;
+  font-weight: 700; font-size: 15.5px; padding: 15px 30px; border-radius: 999px;
+  transition: transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s ease;
+}
+.btnPrimary:hover { transform: translateY(-2px); box-shadow: 0 16px 44px rgba(255,218,3,.36); }
+.arrow { transition: transform .22s cubic-bezier(.16,1,.3,1); }
+.btnPrimary:hover .arrow { transform: translateX(5px); }
+.btnGhost {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--hair); color: var(--white); text-decoration: none;
+  font-weight: 600; font-size: 15.5px; padding: 15px 28px; border-radius: 999px;
+  transition: border-color .2s ease, background .2s ease;
+}
+.btnGhost:hover { border-color: rgba(247,247,245,.4); background: rgba(247,247,245,.05); }
+
+.tagline { font-size: 12.5px; color: rgba(247,247,245,.4); letter-spacing: .01em; }
+
+.scroll {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding-bottom: 26px; font-size: 10px; letter-spacing: .22em; color: rgba(247,247,245,.34);
+}
+.scroll i { display: block; width: 1px; height: 26px; background: linear-gradient(var(--hair), transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .halo { opacity: .5 !important; }
+}
