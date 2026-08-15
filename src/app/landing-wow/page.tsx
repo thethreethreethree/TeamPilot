@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { sora } from "@/components/landing/sora";
 import { WowHero } from "@/components/landing/wow/WowHero";
 import { WowDifferentiator } from "@/components/landing/wow/WowDifferentiator";
+import { WowSections, WowSectionsAfter } from "@/components/landing/wow/WowSections";
 
 // Preview-only route for the landing rebuild (2026-08-15). The LIVE landing at `/` and the
 // existing `/landing-preview` are untouched — this exists so the founder can judge the two
@@ -16,7 +17,9 @@ export default function LandingWow() {
   return (
     <div className={sora.className} style={{ background: "#141414", minHeight: "100vh", overflowX: "hidden" }}>
       <WowHero />
+      <WowSections />
       <WowDifferentiator />
+      <WowSectionsAfter />
     </div>
   );
 }

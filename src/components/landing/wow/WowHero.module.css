@@ -8,6 +8,7 @@
   --mut: rgba(247, 247, 245, 0.58);
   --hair: rgba(247, 247, 245, 0.14);
   position: relative;
+  min-height: min(100vh, 1080px);
   min-height: min(100svh, 1080px);
   background: var(--ink);
   color: var(--white);
