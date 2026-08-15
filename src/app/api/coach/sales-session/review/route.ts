@@ -160,6 +160,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
+  // Owner-or-manager gate BEFORE the events readback. `events` RLS is company-wide
+  // (0004/0103), so filtering by subject alone would let a same-company PEER rep read
+  // another rep's private growth review (IDOR). getSession is RLS-scoped to
+  // owner-or-manager (0083/0084) — a null result means the caller may not read this
+  // session's coaching artifacts. Mirrors this route's own POST gate.
+  const session = await getSession(sessionId);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Session not found or not accessible." },
+      { status: 404 }
+    );
+  }
+
   const { data } = await supabase
     .from("events")
     .select("payload")

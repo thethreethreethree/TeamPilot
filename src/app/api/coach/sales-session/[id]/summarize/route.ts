@@ -147,6 +147,18 @@ export async function GET(
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
+  // Owner-or-manager gate BEFORE the events readback. `events` RLS is company-wide
+  // (0004/0103), so filtering by subject alone would let a same-company PEER rep read
+  // another rep's private summary/moments/pivot/intel (IDOR). getSession is RLS-scoped
+  // to owner-or-manager (0083/0084) — a null result means the caller may not read this
+  // session's coaching artifacts. Mirrors this route's own POST gate.
+  const session = await getSession(id);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Session not found or not accessible." },
+      { status: 404 }
+    );
+  }
   // Read back the latest factual summary AND the latest Pivot Moment (both are
   // manager-visible observations, stored append-only in `events`). No LLM cost.
   // Owner-private SCORES are NOT here — they come from the owner-gated
