@@ -35,6 +35,10 @@
   min-height: 340px;
 }
 
+/* Rise owns the outer .frame element now, so --pos lives on this inner layer. It must fill the
+   frame and establish nothing new: .before/.after position against it, and it against .frame. */
+.frameInner { position: absolute; inset: 0; }
+
 .before, .after { position: absolute; inset: 0; padding: clamp(26px, 4vw, 46px); }
 
 .before { display: flex; flex-direction: column; justify-content: center; }

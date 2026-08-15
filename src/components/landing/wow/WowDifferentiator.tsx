@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { Rise } from "./Rise";
 import styles from "./WowDifferentiator.module.css";
 
 /**
@@ -19,19 +19,12 @@ import styles from "./WowDifferentiator.module.css";
  * That is the argument made as behaviour rather than as a claim, which is what the brief asked for.
  */
 export function WowDifferentiator() {
-  const reduce = useReducedMotion();
   const [pos, setPos] = useState(34);
 
   return (
     <section className={styles.wrap} id="differentiator">
       <div className={styles.inner}>
-        <motion.div
-          className={styles.head}
-          initial={reduce ? {} : { y: 20 }}
-          whileInView={{ y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
+        <Rise className={styles.head} y={20}>
           <div className={styles.eyebrow}>The difference</div>
           <h2 className={styles.title}>
             Every tool tells you <span className={styles.dim}>that</span>.
@@ -41,16 +34,10 @@ export function WowDifferentiator() {
           <p className={styles.lede}>
             Drag it. This is the whole product in one gesture.
           </p>
-        </motion.div>
+        </Rise>
 
-        <motion.div
-          className={styles.frame}
-          initial={reduce ? {} : { y: 28 }}
-          whileInView={{ y: 0 }}
-          viewport={{ once: true, amount: 0.15 }}
-          transition={{ duration: 0.9, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-          style={{ ["--pos" as string]: `${pos}%` }}
-        >
+        <Rise className={styles.frame} y={28} delay={0.12}>
+        <div className={styles.frameInner} style={{ ["--pos" as string]: `${pos}%` }}>
           {/* BEFORE — the flat number */}
           <div className={styles.before}>
             <div className={styles.label}>Every other tool</div>
@@ -106,7 +93,8 @@ export function WowDifferentiator() {
             onChange={(e) => setPos(Number(e.target.value))}
             aria-label="Reveal the diagnosis: drag to compare a plain metric against Elostate's explanation"
           />
-        </motion.div>
+        </div>
+        </Rise>
 
         <p className={styles.foot}>
           That threshold is enforced in the database, not in a prompt. A problem that

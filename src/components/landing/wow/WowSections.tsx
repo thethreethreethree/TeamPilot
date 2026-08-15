@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { CTA } from "../brand";
+import { Rise } from "./Rise";
 import styles from "./WowSections.module.css";
 
 /**
@@ -21,32 +22,6 @@ import styles from "./WowSections.module.css";
  */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-
-/** Transform-only rise. The one entrance primitive for this file — deliberately not a fade. */
-function Rise({
-  children,
-  delay = 0,
-  y = 26,
-  className,
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  y?: number;
-  className?: string;
-}) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      className={className}
-      initial={reduce ? { y: 0 } : { y }}
-      whileInView={{ y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.85, delay: reduce ? 0 : delay, ease: EASE }}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 /* ─────────────────────────────── 2. THE PROBLEM ─────────────────────────────── */
 /* Brief: "dramatize the pain... Punchy, animated, emotional. Build tension."
