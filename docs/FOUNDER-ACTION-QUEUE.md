@@ -1,5 +1,22 @@
 # Founder action queue
 
+## 🧹 2026-08-16 — 159+ new react-hooks lint findings, DEFERRED (a decision, not an action)
+
+The ESLint-9 / eslint-config-next-16 migration (audit finding #8, commit `04780472`) turned ON a set of new,
+opinionated **react-hooks** rules that the old config never enforced. To keep the toolchain bump
+behaviour-preserving, I **turned them off** in `eslint.config.mjs` rather than fix ~215 findings mid-migration.
+They flag REAL React patterns worth reviewing (not fabricated), by rule:
+
+- `react-hooks/set-state-in-effect` ×159 — `setState` called synchronously inside an effect body (can cause
+  cascading re-renders; React's own guidance discourages it).
+- `react-hooks/refs` ×30, `react-hooks/immutability` ×10, `react-hooks/static-components` ×9,
+  `react-hooks/purity` ×4, and `react-hooks/exhaustive-deps` (kept as a warning, its historical level).
+
+**This is a deferred DECISION, not a bug:** adopting these rules is a deliberate code-quality initiative (fix or
+`eslint-disable`-with-reason each site), separate from the toolchain bump. Nothing is broken today — the app
+builds and runs. **When you want to invest in it:** re-enable a rule in `eslint.config.mjs` (start with
+`set-state-in-effect`), run `npm run lint`, and work through the list. Flagged here so the signal isn't lost.
+
 ## 🔐 2026-08-14 — Password-recovery links land on the MARKETING project — a CONFIG fix (yours)
 
 User feedback (Anthony Aguilar): the "Reset your password" email link opens the marketing "Request access"
