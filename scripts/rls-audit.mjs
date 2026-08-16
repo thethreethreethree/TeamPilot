@@ -89,6 +89,13 @@ const ALLOWLIST = new Map([
   ["fin_inventory_movements.update", "0180 append-only (RULE) — a rewritable movement log can hide a theft."],
   ["fin_inventory_movements.delete", "0180 append-only (RULE) — deleting a movement erases the evidence of a shortfall."],
 
+  // 0214 founder-monitoring audit trail — written ONLY by the service-role monitoring API (bypasses RLS);
+  // append-only. Each absence is the control: a client that could write here could forge or erase a
+  // monitoring record. Reads are is_vendor_super_admin()-gated (TENANT_PIN_EXEMPT above).
+  ["vendor_monitoring_access_log.insert", "0214 service-role monitoring API is the only writer; a client insert could forge a monitoring record."],
+  ["vendor_monitoring_access_log.update", "0214 append-only audit — a monitoring access either happened or it did not; no user may rewrite it."],
+  ["vendor_monitoring_access_log.delete", "0214 append-only audit — the founders must not be able to erase their own monitoring trail."],
+
   ["fin_report_deliveries.insert", "0172 write path is the DEFINER RPC only; a client insert could forge a 'sent'."],
   ["fin_report_deliveries.update", "0172 append-only (RULE) — a run either happened or it did not."],
   ["fin_report_deliveries.delete", "0172 append-only (RULE) — the worker must not erase a failure it caused."],
@@ -654,6 +661,15 @@ const TENANT_PIN_EXEMPT = new Map([
   [
     "crm_accounts_update@crm_accounts",
     "Same as crm_accounts_insert: vendor-global table gated on is_vendor_super_admin(). The tenant is not the scoping dimension — managing any customer company's account IS the vendor's job, and no customer user can write this table at all.",
+  ],
+  // ── 0214 founder session-monitoring (sanctioned cross-tenant exemption, founder-directed 2026-08-16) ──
+  [
+    "vendor_monitoring_scope - all@vendor_monitoring_scope",
+    "Vendor-global founder-monitoring allowlist (0214 exemption): scoping dimension is is_vendor_super_admin(), not the tenant. The rows ARE company_ids (which companies a founder may monitor) — company_id is the DATA here, not the actor's tenant — so a company_id pin is meaningless. No customer user can read or write this table at all. Same class as crm_accounts (vendor-global, 0049).",
+  ],
+  [
+    "vendor_monitoring_access_log - select@vendor_monitoring_access_log",
+    "Vendor-global audit trail (0214 exemption): reads gated on is_vendor_super_admin() — the founders reviewing their OWN monitoring access. Not a cross-tenant read: no customer user can read it, and company_id names the monitored company, not a tenant to cross into. Same class as crm_accounts_select.",
   ],
 ]);
 
