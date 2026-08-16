@@ -30,6 +30,7 @@ import {
   Hourglass,
   Building2,
   FolderOpen,
+  Eye,
   Search as SearchIcon,
   Mic,
   X,
@@ -38,6 +39,7 @@ import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { cn } from "@/lib/utils";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { VENDOR_COMPANY_ID } from "@/lib/crm/vendorCompanyId";
 import { CONSTITUTION } from "@/lib/constitution";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUnreadNotifications } from "@/lib/notifications/useUnread";
@@ -319,6 +321,10 @@ const adminNav: Array<{
   href: string;
   icon: typeof LayoutDashboard;
   hint: NavHint;
+  // vendorOnly items render only for a vendor super-admin (admin whose company IS the vendor
+  // company) — they are 404-gated server-side, and this keeps them from being advertised to a
+  // customer admin who could never reach them (vendorAuth's stated posture).
+  vendorOnly?: boolean;
 }> = [
   {
     label: "Asset readout",
@@ -337,6 +343,7 @@ const adminNav: Array<{
     label: "Customer accounts",
     href: "/dashboard/admin/crm",
     icon: Building2,
+    vendorOnly: true,
     hint: {
       whatItIs:
         "The vendor CRM — every tenant company (ELOSTATE's customers) with lifecycle stage, subscription, contacts, billing events, account-owner notes. Test accounts (founder dev signups) are hidden by default; toggle to surface them.",
@@ -344,6 +351,20 @@ const adminNav: Array<{
       how: "Browse the list to scan customer health. Click into an account for full detail (subscription edit, invoices, contacts, notes). Use Environment filter to keep dev signups out of the production-customer view.",
       principle:
         "Vendor metrics need clean data. The CRM exists so customer admin doesn't pollute the team's operational surfaces.",
+    },
+  },
+  {
+    label: "Session monitoring",
+    href: "/dashboard/admin/monitoring",
+    icon: Eye,
+    vendorOnly: true,
+    hint: {
+      whatItIs:
+        "Founder oversight (0214 exemption): the sessions of the companies on the monitoring allowlist — drill company → session → transcript. Vendor-super-admin only; scoped to the companies that existed when it was granted, and every session you open is recorded to the monitoring audit log.",
+      why: "A customer owner asked the founders to help monitor their agents' sessions. Rather than weaken every tenant's isolation, this is one contained, allowlisted, audited vendor surface — access is accountable, not a hidden backdoor.",
+      how: "Pick a company, then a session, to read its transcript. New customers are NOT auto-included; a company is added to the allowlist deliberately. Access is logged (actor, company, session).",
+      principle:
+        "Cross-tenant access, when sanctioned, is contained and audited — never silent. Oversight the monitored party could in principle see is honest; surveillance it can't is not.",
     },
   },
   {
@@ -427,6 +448,10 @@ export default function Sidebar() {
   const [companyName, setCompanyName] = useState("—");
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  // True iff the signed-in user's company IS the vendor company — gates the vendorOnly
+  // adminNav items (Customer accounts, Session monitoring) so they never advertise to a
+  // customer admin. Cosmetic: the pages + APIs are the real server-side gate.
+  const [isVendorCompany, setIsVendorCompany] = useState(false);
   // §3.4 cycle phase for the sidebar badge — so the founder /
   // admin always sees where they are in the 60-day proof window
   // without navigating to settings.
@@ -526,13 +551,16 @@ export default function Sidebar() {
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "full_name, role, companies(name, cycle_started_at, cycle_control_skipped_at)"
+          "full_name, role, company_id, companies(name, cycle_started_at, cycle_control_skipped_at)"
         )
         .eq("id", auth.user.id)
         .maybeSingle();
       if (profile) {
         setUserName(profile.full_name ?? auth.user.email ?? "");
         setUserRole(profile.role ?? "");
+        setIsVendorCompany(
+          (profile.company_id as string | null) === VENDOR_COMPANY_ID
+        );
         const company = profile.companies as {
           name?: string;
           cycle_started_at?: string;
@@ -841,7 +869,9 @@ export default function Sidebar() {
             </button>
           </LearningHint>
           {isAdminRole(userRole) &&
-            adminNav.map((item) => {
+            adminNav
+              .filter((item) => !item.vendorOnly || isVendorCompany)
+              .map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (

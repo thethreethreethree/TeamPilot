@@ -4,6 +4,7 @@ import {
   getCurrentAuthContext,
   type AuthContext,
 } from "@/lib/supabase/auth-helpers";
+import { VENDOR_COMPANY_ID } from "@/lib/crm/vendorCompanyId";
 
 /**
  * Vendor back-office (CRM) authorization.
@@ -30,11 +31,11 @@ import {
 // The deployment's home / vendor company. SAME resolution the C.A.R.E tenant
 // layer uses for "our own company" (care/config.ts), so a deployment that
 // overrides the home company via CARE_DEFAULT_TENANT_ID stays consistent and
-// its real vendor admins are never locked out.
-const ELOSTATE_COMPANY_ID = "c3e7f389-3df6-48c8-876b-0cd4baf5c2a7";
-
+// its real vendor admins are never locked out. The literal is single-sourced in
+// vendorCompanyId.ts (§2.2) so the client's cosmetic vendor-nav check can't drift
+// from this server gate.
 export function getVendorCompanyId(): string {
-  return process.env.CARE_DEFAULT_TENANT_ID ?? ELOSTATE_COMPANY_ID;
+  return process.env.CARE_DEFAULT_TENANT_ID ?? VENDOR_COMPANY_ID;
 }
 
 /**
