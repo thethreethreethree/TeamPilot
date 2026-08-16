@@ -278,6 +278,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // persisted, reviewable record (§1.1). In-person only — the mic holds
   // both voices in a room; online video, it's agent-only.
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  // Whether the MediaRecorder is actively capturing call audio RIGHT NOW. This is the honest
+  // signal the "not recording" banner needs: when the STT feed drops mid-call (status "error")
+  // the recorder keeps running, so the audio is still being captured and is recoverable — the
+  // banner must NOT tell the rep "nothing is being captured" in that case (§3.4, audit 2026-08-16).
+  const [audioCapturing, setAudioCapturing] = useState(false);
   // #1 fix (2026-06-30): the live attributed turns (volume+content
   // speaker-separated) are persisted as the canonical transcript on Stop —
   // batch diarization can't separate a single far mic, so it collapsed
@@ -856,6 +861,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     cueTracesRef.current = [];
     setCueSummary(null);
     finalizedRef.current = false; // allow this session's finalize to fire once
+    setAudioCapturing(false); // reset: only becomes true once rec.start() succeeds below
     setStatus("connecting");
     // A6: new session epoch — any /cue or /attribute still in flight from a prior
     // session is now stale and will be dropped when it resolves.
@@ -913,6 +919,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           if (e.data.size > 0) chunksRef.current.push(e.data);
         };
         rec.onstop = () => {
+          // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
+          setAudioCapturing(false);
           if (chunksRef.current.length > 0) {
             setRecordingBlob(
               new Blob(chunksRef.current, {
@@ -923,6 +931,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         };
         rec.start();
         recorderRef.current = rec;
+        // Audio is now being captured — true even if the STT feed later errors (the recorder
+        // runs independently), which is exactly what keeps the "not recording" banner honest.
+        setAudioCapturing(true);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn("[live-coaching] recorder unavailable", err);
@@ -1423,6 +1434,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     transcriptSaved,
     micLevel,
     status,
+    audioCapturing,
     turns,
     partial,
     currentCue,

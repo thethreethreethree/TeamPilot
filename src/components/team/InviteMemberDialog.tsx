@@ -11,6 +11,7 @@ import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { INVITABLE_ROLES, type InvitableRole } from "@/lib/roles";
+import { siteUrl } from "@/lib/siteUrl";
 
 /**
  * InviteMemberDialog — shared invite modal mounted in-place wherever
@@ -82,7 +83,8 @@ export function InviteMemberDialog({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Invite failed.");
-      const url = `${window.location.origin}/invite/${data.code}`;
+      // Canonical origin, not window.location.origin (origin-drift class, audit 2026-08-16 #6).
+      const url = `${siteUrl()}/invite/${data.code}`;
       setInviteUrl(url);
       onInvited?.();
     } catch (err) {

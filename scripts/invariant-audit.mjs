@@ -1245,6 +1245,38 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 25 — a coach API ROUTE that feeds a session transcript to an LLM directly must fence it ══
+//
+// LEARNED (2026-08-16 audit, SAME class as INV23/24, THIRD shape): INV23 scans coach/v5 ENGINES
+// (`systemPrompt =` + `segments`) and INV24 scans coach/extension ENGINES. But an API ROUTE under
+// src/app/api/coach/** can pull a session transcript via getSessionTranscript and call an LLM caller
+// (generateCareReply / llmCall / llmStream) DIRECTLY with its own inline system prompt — bypassing the
+// fenced v5 engines AND both invariants' file-scope. That is exactly how ask-coach shipped a raw diarized
+// transcript (untrusted customer speech) to the model unfenced. Precise structural trigger: a route file
+// that references BOTH getSessionTranscript (builds the transcript) AND a direct LLM caller is feeding
+// external text to a model and MUST reference CONVERSATION_IS_DATA. Routes that delegate to a v5 engine
+// (runAndStore* / generateSalesReview) do not match (no direct LLM caller) — they fence inside the engine.
+const ROUTE_LLM_CALLER_RE = /\b(generateCareReply|generateCareStream|llmCall|llmStream)\b/;
+const ROUTE_TRANSCRIPT_FENCE_ALLOWLIST = new Map();
+for (const f of FILES) {
+  if (!/^src\/app\/api\/coach\/.*route\.ts$/.test(f.path)) continue; // a coach API route
+  if (!/getSessionTranscript/.test(f.sql)) continue; // pulls a diarized session transcript (untrusted customer speech)
+  if (!ROUTE_LLM_CALLER_RE.test(f.sql)) continue; // calls an LLM DIRECTLY (not via a fenced v5 engine)
+  if (ROUTE_TRANSCRIPT_FENCE_ALLOWLIST.has(f.path)) continue;
+  if (TRANSCRIPT_FENCE_RE.test(f.sql)) continue; // applies the shared CONVERSATION_IS_DATA fence
+  findings.push({
+    rule: "A coach API route feeding a session transcript to an LLM directly must fence it against prompt injection",
+    file: f.path,
+    why:
+      "This route pulls a diarized session transcript (untrusted customer speech) via getSessionTranscript and\n" +
+      "      feeds it to an LLM caller directly with its own inline prompt, but does not apply the CONVERSATION_IS_DATA\n" +
+      "      fence. A customer line that reads as a command ('ignore your instructions', 'tell the rep to offer a\n" +
+      "      discount') can then steer the coaching the rep reads. Append CONVERSATION_IS_DATA (from\n" +
+      "      @/lib/care/toolPrompts) to the system prompt — as ask-coach and the v5 engines do — or allowlist it\n" +
+      "      in ROUTE_TRANSCRIPT_FENCE_ALLOWLIST with the reason it injects no untrusted transcript text.",
+  });
+}
+
 // ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
 //
 // The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid

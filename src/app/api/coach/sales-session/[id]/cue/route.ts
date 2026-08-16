@@ -161,18 +161,29 @@ export async function POST(
       }))
     : await getSessionTranscript(id);
 
-  const result = await generateLiveCue({
-    companyId,
-    // Grounds the cue in THIS rep's own proven lines (§A8 growth-participant).
-    agentId: session.agentId,
-    mode: body.mode,
-    context: session.context,
-    segments,
-    force: body.force,
-    stalled: body.stall,
-    stress: body.stress,
-    confidenceLevel: body.confidence,
-  });
+  let result;
+  try {
+    result = await generateLiveCue({
+      companyId,
+      // Grounds the cue in THIS rep's own proven lines (§A8 growth-participant).
+      agentId: session.agentId,
+      mode: body.mode,
+      context: session.context,
+      segments,
+      force: body.force,
+      stalled: body.stall,
+      stress: body.stress,
+      confidenceLevel: body.confidence,
+    });
+  } catch (err) {
+    // Only a FORCED cue throws (auto swallows to silent) — surface it honestly as an error so the
+    // client shows "Cue request failed", not a false "nothing to add" (audit 2026-08-16, #5).
+    console.error(
+      "[coach/cue] forced cue failed:",
+      err instanceof Error ? err.message : err
+    );
+    return NextResponse.json({ error: "Coach couldn't respond right now." }, { status: 502 });
+  }
 
   // Record only delivered cues (append-only). A "stay silent" decision
   // is not a cue and is not recorded.

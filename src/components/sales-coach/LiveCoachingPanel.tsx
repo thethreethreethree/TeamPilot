@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Radio, Square, Sparkles, Hand, CheckCircle2, Mic, AlertTriangle } from "lucide-react";
 import { useTapControls } from "@/lib/coach/v5/useTapControls";
 import { useLiveCoaching } from "@/lib/coach/v5/useLiveCoaching";
+import { notRecordingBanner } from "@/components/sales-coach/notRecordingBanner";
 import type { SalesContext } from "@/lib/data/salesCoach";
 import { SessionRecordingUpload } from "./SessionRecordingUpload";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
@@ -40,6 +41,7 @@ export function LiveCoachingPanel({
     transcriptSaved,
     micLevel,
     status,
+    audioCapturing,
     turns,
     partial,
     currentCue,
@@ -316,14 +318,10 @@ export function LiveCoachingPanel({
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-primary">
-                {status === "error"
-                  ? "Recording stopped — nothing is being captured."
-                  : "You're not recording yet."}
+                {notRecordingBanner(status, audioCapturing, error).title}
               </p>
               <p className="text-[11px] text-secondary leading-relaxed mt-0.5">
-                {status === "error" && error
-                  ? error
-                  : "Tap Start live coaching before you begin."}
+                {notRecordingBanner(status, audioCapturing, error).body}
               </p>
             </div>
           </div>

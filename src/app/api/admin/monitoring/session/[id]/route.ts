@@ -29,11 +29,20 @@ export async function GET(
     );
   }
 
-  await logMonitoringAccess({
+  // Fail loud: the transcript is the sensitive cross-tenant disclosure, and the audit trail is the
+  // exemption's accountability. If the access could not be recorded, do NOT serve the transcript —
+  // an unaudited cross-tenant read is worse than a retryable 503 (audit 2026-08-16, finding #3).
+  const audited = await logMonitoringAccess({
     actor: gate.userId,
     companyId: detail.company_id,
     sessionId: id,
     resource: "session_detail",
   });
+  if (!audited) {
+    return NextResponse.json(
+      { error: "Monitoring audit unavailable — read not served. Try again." },
+      { status: 503 }
+    );
+  }
   return NextResponse.json({ session: detail.session, segments: detail.segments });
 }

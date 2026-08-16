@@ -18,7 +18,7 @@ vi.mock("@/lib/monitoring/vendorMonitoring", () => ({
   isCompanyMonitorable: vi.fn(),
   listCompanySessions: vi.fn(async () => [{ id: "s1", agentName: "Rep One" }]),
   getMonitoredSession: vi.fn(),
-  logMonitoringAccess: vi.fn(async () => {}),
+  logMonitoringAccess: vi.fn(async () => true),
 }));
 
 import { requireVendorAdmin } from "@/lib/crm/vendorAuth";
@@ -27,6 +27,7 @@ import {
   getMonitoredSession,
   logMonitoringAccess,
 } from "@/lib/monitoring/vendorMonitoring";
+const mockLog = logMonitoringAccess as unknown as ReturnType<typeof vi.fn>;
 import { GET as getCompanies } from "../companies/route";
 import { GET as getSessions } from "../sessions/route";
 import { GET as getSession } from "../session/[id]/route";
@@ -129,5 +130,19 @@ describe("GET /admin/monitoring/session/[id]", () => {
       sessionId: "s1",
       resource: "session_detail",
     });
+  });
+
+  it("503 (fail loud) when the audit write does not land — transcript NOT served", async () => {
+    asVendor();
+    (getMonitoredSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      company_id: "co1",
+      session: { id: "s1", agentName: "Rep One" },
+      segments: [{ speaker: "agent", text: "hi", seq: 0 }],
+    });
+    mockLog.mockResolvedValueOnce(false); // audit failed
+    const res = await getSession({} as never, sessionCtx("s1"));
+    expect(res.status).toBe(503);
+    // The sensitive transcript must not be disclosed on an unaudited read.
+    expect(await res.json()).not.toHaveProperty("segments");
   });
 });

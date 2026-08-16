@@ -161,23 +161,41 @@ export async function getMonitoredSession(
   };
 }
 
-/** Append the audit row for a monitoring read. Best-effort: a logging failure must not
- *  block the founder's read, but the write is awaited so it lands in the normal case. */
+/** Append the audit row for a monitoring read. Returns whether the audit landed.
+ *
+ *  The audit trail IS the accountability mechanism for this sanctioned cross-tenant exemption, so a
+ *  failure must be OBSERVABLE, never silently swallowed (audit 2026-08-16). It is logged here; the
+ *  session-detail route additionally treats a failed audit as fail-loud (it does NOT serve the
+ *  transcript when the read could not be recorded) — an unrecorded cross-tenant read is worse than a
+ *  transient 503 the founder can retry. The list endpoints log-and-continue (navigation metadata). */
 export async function logMonitoringAccess(entry: {
   actor: string;
   companyId?: string | null;
   sessionId?: string | null;
   resource: string;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     const sb = createAdminClient();
-    await sb.from("vendor_monitoring_access_log").insert({
+    const { error } = await sb.from("vendor_monitoring_access_log").insert({
       actor: entry.actor,
       company_id: entry.companyId ?? null,
       session_id: entry.sessionId ?? null,
       resource: entry.resource,
     });
-  } catch {
-    /* audit is best-effort; never block a read on a log write */
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[monitoring] audit-log write failed for ${entry.resource} (actor ${entry.actor}): ${error.message}`
+      );
+      return false;
+    }
+    return true;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[monitoring] audit-log write threw for ${entry.resource} (actor ${entry.actor}):`,
+      e instanceof Error ? e.message : e
+    );
+    return false;
   }
 }

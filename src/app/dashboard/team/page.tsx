@@ -4,6 +4,7 @@ import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { supabaseEnabled } from "@/lib/supabase/client";
+import { siteUrl } from "@/lib/siteUrl";
 import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 import {
@@ -324,10 +325,10 @@ function InviteRow({
   const [copied, setCopied] = useState(false);
   const toast = useToast();
 
-  const inviteUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/invite/${invitation.code}`
-      : `/invite/${invitation.code}`;
+  // Canonical origin, not window.location.origin — an invite link copied from a preview/marketing
+  // deployment must still point at the real app (same origin-drift class as the recovery-redirect
+  // bug; audit 2026-08-16, #6). siteUrl() is client-safe and has a production fallback.
+  const inviteUrl = `${siteUrl()}/invite/${invitation.code}`;
 
   const copy = async () => {
     try {
