@@ -2810,15 +2810,28 @@ export async function routeNewConversation(args: {
   const agentIds = candidates.map(
     (c) => c.agent_id as string
   );
-  const { data: openConvs } = await sb
-    .from("support_conversations")
-    .select("assigned_agent_id")
-    .eq("company_id", args.companyId)
-    .in("assigned_agent_id", agentIds)
-    .in("status", OPEN_CONVERSATION_STATUSES);
+  // PAGED (audit 2026-08-19): the per-agent load is counted in JS from EVERY open conversation, so an unbounded
+  // select truncated at 1000 → a busy tenant under-counted load and routed a NEW conversation to an agent already
+  // at capacity. Best-effort is preserved: an unavailable read routes as if 0-loaded (same as the prior select).
+  let openConvs: { assigned_agent_id: string | null }[] = [];
+  try {
+    openConvs = await fetchAllPaged<{ assigned_agent_id: string | null }>(
+      (from, to) =>
+        sb
+          .from("support_conversations")
+          .select("assigned_agent_id")
+          .eq("company_id", args.companyId)
+          .in("assigned_agent_id", agentIds)
+          .in("status", OPEN_CONVERSATION_STATUSES)
+          .range(from, to),
+      { label: "routeNewConversation load count" },
+    );
+  } catch {
+    /* best-effort load count — leave openConvs empty so routing still proceeds */
+  }
 
   const loadByAgent = new Map<string, number>();
-  for (const c of openConvs ?? []) {
+  for (const c of openConvs) {
     const id = c.assigned_agent_id as string | null;
     if (!id) continue;
     loadByAgent.set(id, (loadByAgent.get(id) ?? 0) + 1);

@@ -109,6 +109,9 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export default function CareHomePage() {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [growth, setGrowth] = useState<GrowthCommon | null>(null);
+  // A growth FETCH error, distinct from "no growth yet" — the panels gate on `growth &&`, so a 5xx would make
+  // the whole learning-visibility section silently VANISH (absence indistinguishable from a real error). Audit 2026-08-19.
+  const [growthError, setGrowthError] = useState(false);
   const [patterns, setPatterns] = useState<Pattern[] | null>(null);
   const [convs, setConvs] = useState<SnapshotConversation[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +149,11 @@ export default function CareHomePage() {
       if (growthRes && growthRes.ok) {
         const data = await growthRes.json();
         setGrowth(data.snapshot ?? null);
+        setGrowthError(false);
+      } else if (growthRes) {
+        // Got a response but not ok (5xx/4xx) — a real error, not empty growth. (A network failure lands in the
+        // outer catch instead.) Surface it honestly rather than letting the section vanish.
+        setGrowthError(true);
       }
       if (patternsRes && patternsRes.ok) {
         const data = await patternsRes.json();
@@ -247,6 +255,14 @@ export default function CareHomePage() {
           {error && (
             <div className="glass-card p-4 border border-red-500/30 bg-red-500/5">
               <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+          {!loading && growthError && !growth && (
+            <div className="glass-card p-4 border border-amber-400/30 bg-amber-400/5">
+              <p className="text-xs text-amber-300">
+                Couldn&apos;t load your learning snapshot right now — this is an error, not an
+                empty week. Try again shortly.
+              </p>
             </div>
           )}
 
