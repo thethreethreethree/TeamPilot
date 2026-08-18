@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -87,7 +88,9 @@ export default function BankingPage() {
   const [nInst, setNInst] = useState("");
   const [nMask, setNMask] = useState("");
   const [nGl, setNGl] = useState("");
-  const createBank = async () => {
+  const runLatched = useSubmitLatch();
+
+  const createBank = () => runLatched(async () => {
     if (!nName || !nGl) {
       toast.error("Give the account a name and pick its cash GL account");
       return;
@@ -105,9 +108,9 @@ export default function BankingPage() {
       toast.success("Bank account added");
       void load();
     } else toast.error("Couldn't add bank account", j?.error ?? "");
-  };
+  });
 
-  const onFile = async (bankId: string, file: File) => {
+  const onFile = (bankId: string, file: File) => runLatched(async () => {
     const text = await file.text();
     const { rows, skipped } = parseCsv(text);
     if (rows.length === 0) {
@@ -134,9 +137,9 @@ export default function BankingPage() {
       void load();
       void loadTxns(bankId);
     } else toast.error("Import failed", j?.error ?? "");
-  };
+  });
 
-  const autoMatch = async (bankId: string) => {
+  const autoMatch = (bankId: string) => runLatched(async () => {
     setBusy(true);
     const res = await fetch(`/api/finance/bank/accounts/${bankId}/automatch`, { method: "POST" });
     const j = await res.json();
@@ -146,7 +149,7 @@ export default function BankingPage() {
       void load();
       void loadTxns(bankId);
     } else toast.error("Auto-match failed", j?.error ?? "");
-  };
+  });
 
   /**
    * Create the missing ledger entry for a bank line nobody recorded (a fee, interest, an FX charge).
@@ -161,7 +164,7 @@ export default function BankingPage() {
    * sign. A reconciliation entry posted backwards still BALANCES, so no downstream check would ever
    * catch a fee booked as income.
    */
-  const createEntry = async (txnId: string, bankId: string) => {
+  const createEntry = (txnId: string, bankId: string) => runLatched(async () => {
     const accountId = entryAcct[txnId];
     if (!accountId) {
       toast.error("Pick what this was for", "Choose the account this money belongs to.");
@@ -189,9 +192,9 @@ export default function BankingPage() {
     });
     void load();
     void loadTxns(bankId);
-  };
+  });
 
-  const ignore = async (txnId: string, bankId: string) => {
+  const ignore = (txnId: string, bankId: string) => runLatched(async () => {
     setBusy(true);
     const res = await fetch(`/api/finance/bank/transactions/${txnId}`, {
       method: "PATCH",
@@ -201,7 +204,7 @@ export default function BankingPage() {
     setBusy(false);
     if (res.ok) { void load(); void loadTxns(bankId); }
     else toast.error("Couldn't ignore");
-  };
+  });
 
   if (loaded && accounts.length === 0)
     return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -63,7 +64,9 @@ export default function ExpensesPage() {
   const rmItem = (i: number) => setItems((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : xs));
   const itemsTotal = items.reduce((s, x) => s + (parseMoneyInput(x.amount) || 0) + (parseMoneyInput(x.taxAmount) || 0), 0);
 
-  const create = async () => {
+  const runLatched = useSubmitLatch();
+
+  const create = () => runLatched(async () => {
     const valid = items
       .filter((x) => x.accountId && x.amount)
       .map((x) => ({
@@ -94,9 +97,9 @@ export default function ExpensesPage() {
       toast.success("Draft report created");
       void load();
     } else toast.error("Couldn't create report", j?.error ?? "");
-  };
+  });
 
-  const act = async (id: string, action: "submit" | "approve" | "reimburse") => {
+  const act = (id: string, action: "submit" | "approve" | "reimburse") => runLatched(async () => {
     setBusy(true);
     const res = await fetch(`/api/finance/expenses/reports/${id}`, {
       method: "POST",
@@ -111,7 +114,7 @@ export default function ExpensesPage() {
       );
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
-  };
+  });
 
   if (loaded && accounts.length === 0)
     return (

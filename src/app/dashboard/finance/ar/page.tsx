@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -91,7 +92,9 @@ export default function ArPage() {
   const revenueAccounts = accounts.filter((a) => a.type === "revenue");
   // (InvLine declared at module scope below)
   const [cName, setCName] = useState("");
-  const addCustomer = async () => {
+  const runLatched = useSubmitLatch();
+
+  const addCustomer = () => runLatched(async () => {
     if (!cName.trim()) return;
     setBusy(true);
     const res = await fetch("/api/finance/ar/customers", {
@@ -106,7 +109,7 @@ export default function ArPage() {
       toast.success("Customer added");
       void load();
     } else toast.error("Couldn't add customer", j?.error ?? "");
-  };
+  });
 
   const [iCust, setICust] = useState("");
   const [iNum, setINum] = useState("");
@@ -127,7 +130,7 @@ export default function ArPage() {
   const addILine = () => setILines((ls) => [...ls, { revenueAccountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", itemId: "", qty: "" }]);
   const rmILine = (i: number) => setILines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
   const iTotal = iLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
-  const addInvoice = async () => {
+  const addInvoice = () => runLatched(async () => {
     const validLines = iLines
       .filter((l) => l.revenueAccountId && l.amount)
       .map((l) => ({
@@ -159,9 +162,9 @@ export default function ArPage() {
       toast.success("Draft invoice created");
       void load();
     } else toast.error("Couldn't create invoice", j?.error ?? "");
-  };
+  });
 
-  const act = async (id: string, action: "issue" | "receipt", amount?: number) => {
+  const act = (id: string, action: "issue" | "receipt", amount?: number) => runLatched(async () => {
     setBusy(true);
     const res = await fetch(`/api/finance/ar/invoices/${id}/${action}`, {
       method: "POST",
@@ -177,7 +180,7 @@ export default function ArPage() {
       toast.success(action === "issue" ? "Issued & posted to the ledger" : "Payment recorded");
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
-  };
+  });
 
   if (loaded && accounts.length === 0)
     return (
