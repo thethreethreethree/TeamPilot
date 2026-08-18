@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { ScoreCategory } from "./summaryTypes";
 import type { SalesOutcome } from "@/lib/data/salesCoach";
 
@@ -241,17 +242,26 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
 
   // 2. AFTER-PITCH SCORES — used where they exist (the numeric rating), else the
   //    dissect quality stands alone.
-  const { data: aps, error: apsErr } = await admin
-    .from("after_pitch_summaries")
-    .select("session_id, payload, created_at")
-    .eq("agent_id", agentId)
-    .order("created_at", { ascending: false });
-  if (apsErr) {
+  // PAGED (audit 2026-08-18, closing part of the 2026-08-02 "KPI agg" flag): an unbounded `.select()` here
+  // truncates at PostgREST's 1000-row cap. Ordered created_at DESC, that kept only the 1000 MOST-RECENT games
+  // and dropped older ones — and the ELO replay is path-dependent (updateElo applies games in order), so a
+  // truncated set yields a materially WRONG-but-authoritative rating for any high-volume rep. Read the FULL set.
+  const aps = await fetchAllPaged<{ session_id: string; payload: unknown; created_at: string }>(
+    (from, to) =>
+      admin
+        .from("after_pitch_summaries")
+        .select("session_id, payload, created_at")
+        .eq("agent_id", agentId)
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    { label: `salesElo after_pitch_summaries agent=${agentId}` },
+  ).catch((e: unknown) => {
     // eslint-disable-next-line no-console
     console.error(
-      `[salesElo.getAgentEloGames] after-pitch read failed agent=${agentId}: ${apsErr.message}`
+      `[salesElo.getAgentEloGames] after-pitch read failed agent=${agentId}: ${e instanceof Error ? e.message : String(e)}`,
     );
-  }
+    return [] as { session_id: string; payload: unknown; created_at: string }[];
+  });
 
   // Latest dissect per session → strengths / growth counts (the quality signal).
   const dissectBySession = new Map<
@@ -290,21 +300,29 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
   ]);
   if (sessionIds.size === 0) return [];
 
-  const { data: sessions, error: sessErr } = await admin
-    .from("coaching_sessions")
-    .select("id, outcome, ended_at, started_at")
-    .in("id", [...sessionIds]);
-  if (sessErr) {
-    // The MOST consequential swallow: an error here empties sessMap, so EVERY game
-    // loses its outcome + timestamp and the rating is materially wrong yet looks
-    // authoritative. Log it loudly (§3.4 — a wrong rating must be diagnosable, not
-    // silent). A fail-closed rating signal is the deeper fix (flagged in the report).
-    // eslint-disable-next-line no-console
-    console.error(
-      `[salesElo.getAgentEloGames] sessions read FAILED agent=${agentId} — rating will be computed WITHOUT outcomes: ${sessErr.message}`
-    );
+  // CHUNKED (audit 2026-08-18): a single `.in("id", [ids])` returns at most 1000 rows, so once sessionIds
+  // exceeds 1000 (now reachable with the full after-pitch read above) some sessions would lose their
+  // outcome/timestamp — the "most consequential swallow" (an empty sessMap makes EVERY game lose its outcome +
+  // timestamp, a materially wrong rating that still looks authoritative; the honesty rule wants it diagnosable,
+  // not silent). Read in <=1000-id chunks so every session row resolves.
+  type SessRow = { id: string; outcome: string | null; ended_at: string | null; started_at: string | null };
+  const idList = [...sessionIds];
+  const sessions: SessRow[] = [];
+  for (let i = 0; i < idList.length; i += 1000) {
+    const { data, error } = await admin
+      .from("coaching_sessions")
+      .select("id, outcome, ended_at, started_at")
+      .in("id", idList.slice(i, i + 1000));
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[salesElo.getAgentEloGames] sessions read FAILED agent=${agentId} — rating computed WITHOUT some outcomes: ${error.message}`,
+      );
+      continue;
+    }
+    if (data) sessions.push(...(data as SessRow[]));
   }
-  const sessMap = new Map((sessions ?? []).map((s) => [s.id as string, s]));
+  const sessMap = new Map(sessions.map((s) => [s.id, s]));
 
   const games: EloGame[] = [];
   for (const sid of sessionIds) {
