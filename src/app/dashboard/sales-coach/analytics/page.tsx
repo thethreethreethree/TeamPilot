@@ -90,18 +90,28 @@ export default function SalesCoachAnalyticsPage() {
   const { isStandard } = useExperienceMode();
   const [skills, setSkills] = useState<SkillRow[] | null>(null);
   const [skillSessions, setSkillSessions] = useState(0);
+  // Skills fetch failed — distinct from skills===null (loading) so SkillScores shows an honest error instead of
+  // spinning "Reading your recent calls…" forever on a swallowed failure (INV22, error-as-no-data).
+  const [skillsError, setSkillsError] = useState(false);
 
   useEffect(() => {
     if (!isStandard) return;
     let cancelled = false;
+    setSkillsError(false);
     void fetch("/api/coach/sales-session/skills")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (cancelled || !d) return;
+        if (cancelled) return;
+        if (!d) {
+          setSkillsError(true); // a 5xx/401 is an ERROR, not "no scored calls yet"
+          return;
+        }
         setSkills(d.skills ?? []);
         setSkillSessions(d.sampleSessions ?? 0);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setSkillsError(true); // network failure — an error, not empty
+      });
     return () => {
       cancelled = true;
     };
@@ -169,7 +179,7 @@ export default function SalesCoachAnalyticsPage() {
             (team endpoint's isManager). The Expert branch below is untouched. */}
         {isStandard && (
           <StandardAnalyticsManagerView
-            fallback={<SkillScores skills={skills} sampleSessions={skillSessions} />}
+            fallback={<SkillScores skills={skills} sampleSessions={skillSessions} error={skillsError} />}
           />
         )}
 
@@ -509,10 +519,22 @@ function Cell({
 function SkillScores({
   skills,
   sampleSessions,
+  error,
 }: {
   skills: SkillRow[] | null;
   sampleSessions: number;
+  error: boolean;
 }) {
+  if (error && skills === null) {
+    return (
+      <section className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5 text-center">
+        <p className="text-xs text-amber-300">
+          Couldn&apos;t read your recent calls right now — this is an error, not
+          an empty history. Try again shortly.
+        </p>
+      </section>
+    );
+  }
   if (skills === null) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted py-8 justify-center">
