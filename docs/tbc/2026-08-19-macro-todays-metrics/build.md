@@ -77,3 +77,8 @@ confirmed); Macro OFF shows the normal 5 (Home/Analytics/Sessions/Team Chat/Acco
 macroOn state (same one that drives the sidebar focus).
 guard: salesCoachShellNav.test — MACRO_MOBILE_TABS is exactly the 4 wireframe tabs (right hrefs; no Analytics/
 Account) + the render swaps on macroOn. Full gate green (3037 tests).
+
+### Post-build audit fix (follow-up): C3 honest KPI bubbles
+The dashboard's 3 Macro bubbles showed "0" on a totals-fetch failure (silent-zero, §3.4). Added a
+macroTotalsError flag → the bubbles show "—" on error, never a false "0". (C4 mode-GET-defaults-OFF and D2
+getTodaysMetrics summary-read swallow remain accepted-minor: secondary surfaces, primary feeds honest.)

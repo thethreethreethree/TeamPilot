@@ -88,6 +88,9 @@ export default function SalesCoachHome() {
     presentations: number;
     sold: number;
   } | null>(null);
+  // A totals FETCH error, distinct from a genuine zero — the bubbles show "—" on error, never a false "0"
+  // (error-dressed-as-no-data / §3.4). The authoritative numbers live on Today's Metrics; these are a glance.
+  const [macroTotalsError, setMacroTotalsError] = useState(false);
 
   useEffect(() => {
     fetch("/api/coach/sales-session/macro-mode")
@@ -99,10 +102,11 @@ export default function SalesCoachHome() {
   // All-time door KPIs for the 3 bubbles — fetched only while Macro Mode is on.
   useEffect(() => {
     if (!macroOn) return;
+    setMacroTotalsError(false);
     fetch("/api/coach/sales-session/door-log?range=all")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setMacroTotals(d))
-      .catch(() => {});
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("totals unavailable"))))
+      .then((d) => setMacroTotals(d))
+      .catch(() => setMacroTotalsError(true));
   }, [macroOn]);
 
   const toggleMacro = useCallback(async () => {
@@ -304,9 +308,10 @@ export default function SalesCoachHome() {
         {macroOn === null ? null : macroOn ? (
           <div className="grid grid-cols-3 gap-3 mt-3">
             {[
-              { label: "Doors Knocked", val: macroTotals?.doorsKnocked ?? 0, accent: false },
-              { label: "Presentation", val: macroTotals?.presentations ?? 0, accent: false },
-              { label: "Sold", val: macroTotals?.sold ?? 0, accent: true },
+              // "—" on a fetch error so a failed load can't read as a genuine "0" (§3.4 honesty).
+              { label: "Doors Knocked", val: macroTotalsError ? "—" : macroTotals?.doorsKnocked ?? 0, accent: false },
+              { label: "Presentation", val: macroTotalsError ? "—" : macroTotals?.presentations ?? 0, accent: false },
+              { label: "Sold", val: macroTotalsError ? "—" : macroTotals?.sold ?? 0, accent: true },
             ].map((b) => (
               <div
                 key={b.label}
