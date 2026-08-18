@@ -7,6 +7,11 @@
  * that was actually accepted but whose response was lost never double-logs.
  *
  * The No-Answer button in particular works with the network fully off: enqueue() touches only IndexedDB.
+ *
+ * ⚠️ WITHHELD / DORMANT (founder 2026-08-18): the offline system is on hold until its build plan/structure
+ * is set. No live surface imports this module right now — DoorLog.tsx sends online-only — so it is never
+ * bundled into the client and cannot interfere. It is preserved (with its gate test) for a clean re-enable:
+ * re-wire DoorLog's noAnswer/save back to enqueue()+drainQueue() and restore startAutoDrain() on mount.
  */
 
 const DB_NAME = "doorlog-offline-v1";

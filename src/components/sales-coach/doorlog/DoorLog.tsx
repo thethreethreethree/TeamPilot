@@ -9,8 +9,15 @@ import {
 } from "@/lib/coach/doorlog/stateMachine";
 import { computeLocalSalesDate, deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { createClient } from "@/lib/supabase/client";
-import { enqueue, drainQueue, startAutoDrain } from "@/lib/coach/doorlog/offlineQueue";
 import { useDoorRecorder } from "./useDoorRecorder";
+
+// Online-only send. The client offline queue (IndexedDB + auto-drain) is WITHHELD for now — founder
+// 2026-08-18: withhold the offline system until its build plan/structure is set, and until then keep it
+// hidden and non-interfering. The dormant module is preserved at @/lib/coach/doorlog/offlineQueue for
+// re-enable. Writes go straight to the server; server-side dedupe on clientKnockId keeps an accidental
+// re-send idempotent, and the SERVER-side pitch-processing pipeline (worker/cron) is unaffected.
+const DOOR_LOG_URL = "/api/coach/sales-session/door-log";
+const AUDIO_BUCKET = "assets-v1";
 
 /**
  * Door Log — the field UI (Macro Mode Tab 1). Optimised for taps-per-door: two thumb-zone actions,
@@ -49,7 +56,7 @@ export function DoorLog() {
   const localDate = computeLocalSalesDate(new Date(), tz);
   const supabase = useMemo(() => createClient(), []);
 
-  // Upload callback the offline queue uses to push audio direct to storage via a signed target.
+  // Push pitch audio direct to storage via a signed upload target.
   const uploadCb = useCallback(
     (bucket: string, path: string, token: string, blob: Blob) =>
       supabase.storage
@@ -58,6 +65,40 @@ export function DoorLog() {
         .then((r) => !r.error)
         .catch(() => false),
     [supabase]
+  );
+
+  // POST a door-log write directly (online-only). Returns whether the server accepted it.
+  const postDoorLog = useCallback(
+    (body: Record<string, unknown>) =>
+      fetch(DOOR_LOG_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then((r) => r.ok)
+        .catch(() => false),
+    []
+  );
+
+  // Send a pitch: sign an upload target, push the audio, then POST the pitch with its storagePath. Audio
+  // failure is non-fatal — the pitch is still recorded (the Report Card shows the failure, not the Door Log).
+  const sendPitch = useCallback(
+    async (body: Record<string, unknown>, blob: Blob | null) => {
+      let storagePath = "";
+      if (blob) {
+        const signRes = await fetch(DOOR_LOG_URL, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind: "sign" }),
+        }).catch(() => null);
+        if (signRes?.ok) {
+          const { storagePath: sp, token } = await signRes.json();
+          if (await uploadCb(AUDIO_BUCKET, sp, token, blob)) storagePath = sp;
+        }
+      }
+      return postDoorLog({ ...body, ...(blob ? { storagePath } : {}) });
+    },
+    [uploadCb, postDoorLog]
   );
 
   const loadKpi = useCallback(async () => {
@@ -72,8 +113,6 @@ export function DoorLog() {
   useEffect(() => {
     void recorder.arm().then((ok) => setMicDenied(!ok));
     void loadKpi();
-    const stopDrain = startAutoDrain(uploadCb); // flush anything left from a dead-zone session
-    return stopDrain;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -84,15 +123,10 @@ export function DoorLog() {
 
   const noAnswer = useCallback(() => {
     const id = newId();
-    // Durable-first: enqueue to IndexedDB (works fully offline), then attempt an immediate drain.
-    void enqueue({
-      id,
-      body: { kind: "knock", outcome: "no_answer", localDate, clientKnockId: id },
-      createdAt: Date.now(),
-    }).then(() => drainQueue(uploadCb).then(loadKpi));
+    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then(loadKpi);
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setState((s) => transition(s, { type: "NO_ANSWER" }));
-  }, [localDate, uploadCb, loadKpi]);
+  }, [localDate, postDoorLog, loadKpi]);
 
   const recordPitch = useCallback(async () => {
     await recorder.start();
@@ -115,11 +149,10 @@ export function DoorLog() {
     if (busy) return;
     setBusy(true);
     const id = newId();
-    // Queue the pitch + its audio blob durably, then drain. The rep returns to IDLE immediately; the
-    // upload + POST happen in the drain (now if online, on reconnect if not).
-    await enqueue({
-      id,
-      body: {
+    // Fire-and-forget the upload + POST so the rep returns to IDLE immediately (zero waiting). Online-only:
+    // there is no client retry (offline queue withheld); server dedupe on clientKnockId still prevents dups.
+    void sendPitch(
+      {
         kind: "pitch",
         outcome: pickedOutcome,
         localDate,
@@ -127,16 +160,14 @@ export function DoorLog() {
         durationMs: recorded?.durationMs ?? null,
         clientKnockId: id,
       },
-      blob: recorded?.blob ?? undefined,
-      createdAt: Date.now(),
-    });
-    void drainQueue(uploadCb).then(loadKpi);
+      recorded?.blob ?? null
+    ).then(loadKpi);
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setRecorded(null);
     setName("");
     setBusy(false);
     setState((s) => transition(s, { type: "SAVE" }));
-  }, [busy, pickedOutcome, localDate, name, recorded, uploadCb, loadKpi]);
+  }, [busy, pickedOutcome, localDate, name, recorded, sendPitch, loadKpi]);
 
   return (
     <div className="min-h-screen bg-base flex flex-col px-4 py-6 max-w-md mx-auto">
