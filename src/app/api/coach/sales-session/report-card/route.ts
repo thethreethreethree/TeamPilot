@@ -36,12 +36,18 @@ export async function GET(req: NextRequest) {
   // The rep's pitches (name / outcome / status / date + the after-pitch summary snippet) — newest first,
   // bounded. Pitch Performance shows each recording's after-pitch summary inline (founder spec 2026-08-19), so
   // the analysis summary is joined here (left join — a still-processing pitch has none yet).
-  const { data: pitchRows } = await sb
+  const { data: pitchRows, error: pitchErr } = await sb
     .from("pitches")
     .select("id, name, status, recorded_at, door_knocks!inner(outcome), pitch_analyses(summary)")
     .eq("rep_id", repId)
     .order("recorded_at", { ascending: false })
     .limit(200);
+  // Surface a read failure honestly — a swallowed error would return 200 with pitches:[] and a rep would think
+  // their recordings vanished (error-dressed-as-no-data). The pitch_analyses join enlarged this failure surface.
+  if (pitchErr) {
+    console.error("[report-card] pitch read failed:", pitchErr); // CWE-209: log detail, return generic
+    return NextResponse.json({ error: "Couldn't load your pitches." }, { status: 500 });
+  }
 
   const pitches = (pitchRows ?? []).map((p) => {
     const knock = p.door_knocks as unknown as { outcome: string } | { outcome: string }[];

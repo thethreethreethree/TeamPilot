@@ -20,6 +20,13 @@ export async function GET(req: NextRequest) {
   // Default to the caller (a rep sees their OWN); a manager may pass a team member's id, still RLS-authorized.
   const repId = req.nextUrl.searchParams.get("repId") ?? auth.user.id;
 
-  const metrics = await getTodaysMetrics(repId, period);
-  return NextResponse.json({ period, ...metrics });
+  // getTodaysMetrics → fetchAllPaged throws on a read error. In prod Next returns a generic 500 (no leak) and the
+  // client's res.ok check shows the honest error banner — but wrap it for controlled logging + a stable shape.
+  try {
+    const metrics = await getTodaysMetrics(repId, period);
+    return NextResponse.json({ period, ...metrics });
+  } catch (e) {
+    console.error("[todays-metrics] load failed:", e); // CWE-209: log detail, return generic
+    return NextResponse.json({ error: "Couldn't load your metrics." }, { status: 500 });
+  }
 }

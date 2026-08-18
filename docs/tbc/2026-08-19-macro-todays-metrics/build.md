@@ -59,3 +59,13 @@ launchpad cards; OFF unchanged. Full gate green (3035 tests, 0 invariant violati
   view) is not yet built — the desktop sidebar still only hides /sessions + /strategy when macroOn.
 - Internal naming: the component/route stay ReportCard//report-card (display "Pitch Performance") to avoid a
   path cascade through PitchDetail — a pure rename is a safe later refactor.
+
+### Post-build audit fixes (2 adversarial agents on the new code)
+Agents confirmed the core components + data path clean (tenant/IDOR, truncation, math all verified). Fixed:
+- Desktop-nav regression (removing the toggle link grid orphaned desktop Macro reps) → `showLinks` prop restores
+  the 3-surface nav on desktop; mobile keeps its cards.
+- Wrong-mode flash (macroOn null folded into OFF) → skeleton holds the mobile grid/bubbles/CTA while null.
+- report-card route swallowed the pitch read error (the new pitch_analyses join enlarged it) → captures + 500s.
+- todays-metrics route wrapped in try/catch (log + generic 500).
+Accepted-minor: silent-zero bubbles + getTodaysMetrics summary-read swallow (secondary; Today's Metrics honest);
+mode-GET failure defaults to OFF.

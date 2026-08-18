@@ -232,8 +232,16 @@ export default function SalesCoachHome() {
 
         {/* Feature grid. Macro Mode shows the THREE door-to-door surfaces (founder wireframe 2026-08-19): Door
             Log + Today's Metrics on top, Pitch Performance full-width below. The normal Sales Coach shows its
-            2×2 launchpad (unchanged when Macro is off). */}
-        {macroOn ? (
+            2×2 launchpad (unchanged when Macro is off). While the macro-mode fetch is in flight (macroOn===null)
+            a skeleton holds — folding null into the OFF branch flashed the wrong product (+ wrong CTA) on every
+            load for a Macro-ON rep (audit 2026-08-19). */}
+        {macroOn === null ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] h-[88px] animate-pulse" />
+            ))}
+          </div>
+        ) : macroOn ? (
           <div className="grid grid-cols-2 gap-3">
             <MobileCard
               href="/dashboard/sales-coach/doors"
@@ -291,8 +299,9 @@ export default function SalesCoachHome() {
         <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
 
         {/* Stat bubbles — Macro Mode shows the 3 door-to-door KPIs (all-time); otherwise Pitches + Roleplays
-            (Roleplays is honestly 0 until Roleplay Practice ships — the no-instant-results honesty rule). */}
-        {macroOn ? (
+            (Roleplays is honestly 0 until Roleplay Practice ships — the no-instant-results honesty rule).
+            Held while macroOn===null so the wrong pills/bubbles don't flash. */}
+        {macroOn === null ? null : macroOn ? (
           <div className="grid grid-cols-3 gap-3 mt-3">
             {[
               { label: "Doors Knocked", val: macroTotals?.doorsKnocked ?? 0, accent: false },
@@ -347,7 +356,7 @@ export default function SalesCoachHome() {
         {/* Start CTA — reveals the existing capture form (a title is required
             before a session can begin, § our rule). */}
         <div className="mt-4">
-          {macroOn ? (
+          {macroOn === null ? null : macroOn ? (
             // Macro Mode (founder 2026-08-19): a door-to-door rep's primary action is the Door Log, not a
             // pitch-capture session — so the big CTA jumps STRAIGHT to the Door Log instead of opening the
             // capture flow. Gated on macroOn, so the normal Sales Coach dashboard CTA is unchanged when off.
@@ -570,10 +579,10 @@ export default function SalesCoachHome() {
           {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
         </DeckCard>
 
-        {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). Desktop entry mirrors the
-            mobile-field placement (founder 2026-08-18): a rep who knocks doors from a laptop can reach it here,
-            not only on the phone. Same self-contained component; DeckShell's space-y-4 sets the gap. */}
-        <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
+        {/* Macro Mode — per-rep door-to-door toggle. showLinks: on DESKTOP this card carries the nav to the 3
+            door surfaces (mobile shows them as home cards); without it a desktop Macro rep had no way to reach
+            Door Log / Today's Metrics / Pitch Performance (regression fix 2026-08-19). */}
+        <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} showLinks />
 
         {/* What compounded this week */}
         <SectionLabel icon={Sparkles}>What your coach helped with</SectionLabel>
