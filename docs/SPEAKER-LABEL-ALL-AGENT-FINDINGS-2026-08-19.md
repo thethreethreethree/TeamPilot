@@ -52,6 +52,33 @@ AND no audio — a live-pipeline or upload failure, not a diarization/labeling i
 sessions never reach Stop**, so their transcript (which persists only on Stop) is never written. Both are
 honesty-critical and independent of the speaker-label attribution.
 
+### Root cause of the total-capture-loss (traced in code)
+
+Ending a session and capturing it are **decoupled**:
+
+- `PATCH /api/coach/sales-session/[id]` sets `status='ended'` **unconditionally** — it never checks that a
+  transcript or audio exists ([route.ts](../src/app/api/coach/sales-session/[id]/route.ts#L108)).
+- `/finalize` (transcript) and `/upload-recording` (audio) are **independent, best-effort** calls fired around
+  Stop. `/finalize` itself does NOT set `ended`.
+
+So when both finalize and upload fail or never run (network drop at Stop, mic permission denied, browser
+closed before Stop), the session is still stamped `ended` — total capture loss — and **nothing surfaces it to
+the rep.** The honesty fix direction: when a session ends with no transcript AND no audio, fail LOUD (flag it
+to the rep / offer retry), rather than silently marking it ended (the fail-loud-over-silent principle).
+
+### Existing infrastructure (check the record before building)
+
+A **`capture-health`** endpoint already exists — built for the founder's "determine the cost of this issue"
+ask (2026-08-12), surfaced in the sales-coach **settings** page (manager view). It counts ended sessions and
+splits `empty` / `undecided` / `customerLabeled` / `customerMissing` / `recoverable` / `lost`, with a per-agent
+breakdown. Two gaps this sweep exposes:
+
+1. It queries only `ended`/`reviewed` sessions → **blind to the 127 never-ended** sessions (a large lost bucket).
+2. It does not weight by **call duration** → the "19 of the lost were >5min real calls" severity is invisible.
+
+Any capture-reliability work should EXTEND capture-health (cover never-ended + duration weighting) and address
+the decoupled-end root cause, not rebuild a counter from scratch.
+
 **What the data CANNOT resolve:** #2 vs #3 — because neither the manual-override state nor the attribution
 source (content / loudness / pitch / locked) is persisted per segment. The stored result is just the final
 `speaker`, so a locked-toggle session and a collapsed-attribution session are indistinguishable after the
