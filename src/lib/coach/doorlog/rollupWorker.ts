@@ -25,7 +25,8 @@ function periodStart(period: Period, todayIso: string): string {
   return today.toISOString().slice(0, 10);
 }
 
-/** Refresh ONE period's summary for a rep. */
+/** Refresh ONE period's summary for a rep. `todayIso` is the rep's LOCAL today (see rollupRep), so the
+ *  window matches the device-tz KPI surface. */
 async function rollupPeriod(args: {
   companyId: string;
   repId: string;
@@ -34,15 +35,19 @@ async function rollupPeriod(args: {
 }): Promise<void> {
   const sb = createAdminClient();
   const startIso = periodStart(args.period, args.todayIso);
-  const sinceFilter = args.period === "all_time" ? undefined : `${startIso}T00:00:00Z`;
+  // F5: window on the knock's device-tz `local_date` (the SAME field the KPI strip counts), NOT the pitch's
+  // UTC `recorded_at`. An evening pitch in a behind-UTC tz has a recorded_at that rolls into the next UTC day,
+  // so a UTC window put it in a different day/week than the KPI showed. local_date is a DATE (no time-of-day),
+  // compared date-to-date. Both queries embed door_knocks!inner so the join carries the filter.
+  const sinceDate = args.period === "all_time" ? undefined : startIso;
 
-  // The period's completed pitches (via their recorded_at) + analyses.
+  // The period's completed pitches (windowed by the knock's local_date) + analyses.
   let pitchQ = sb
     .from("pitches")
-    .select("id, recorded_at, door_knocks!inner(outcome), pitch_analyses!inner(summary, strengths, improvements, scores)")
+    .select("id, recorded_at, door_knocks!inner(local_date, outcome), pitch_analyses!inner(summary, strengths, improvements, scores)")
     .eq("rep_id", args.repId)
     .eq("status", "complete");
-  if (sinceFilter) pitchQ = pitchQ.gte("recorded_at", sinceFilter);
+  if (sinceDate) pitchQ = pitchQ.gte("door_knocks.local_date", sinceDate);
   // F2: order so the LLM SAMPLE is the most-recent (deterministic + coaching-relevant), not an arbitrary
   // PostgREST slice. The sample is still capped (an LLM can't ingest thousands of pitches) — but the
   // DISPLAYED pitch_count is the REAL total (counted separately below), never the capped sample length.
@@ -50,13 +55,14 @@ async function rollupPeriod(args: {
   const pitches = rows ?? [];
   if (pitches.length === 0) return; // nothing to summarise this period
 
-  // Real total pitch count for the period (head+exact — not truncated by the sample cap).
+  // Real total pitch count for the period (head+exact — embeds door_knocks!inner so the SAME local_date
+  // window applies; not truncated by the sample cap).
   let countQ = sb
     .from("pitches")
-    .select("id", { count: "exact", head: true })
+    .select("id, door_knocks!inner(local_date)", { count: "exact", head: true })
     .eq("rep_id", args.repId)
     .eq("status", "complete");
-  if (sinceFilter) countQ = countQ.gte("recorded_at", sinceFilter);
+  if (sinceDate) countQ = countQ.gte("door_knocks.local_date", sinceDate);
   const { count: realPitchCount } = await countQ;
 
   const signals: PitchSignal[] = [];
@@ -114,9 +120,21 @@ async function rollupPeriod(args: {
 
 /** Refresh all four period summaries for one rep. Errors per-period are swallowed (retried next sweep). */
 export async function rollupRep(args: { companyId: string; repId: string; todayIso: string }): Promise<void> {
+  const sb = createAdminClient();
+  // F5: the rep's LOCAL "today" = their most recent knock's local_date (device-tz, already captured), so the
+  // period windows anchor to the rep's own sales day — matching the KPI strip — WITHOUT storing per-rep tz.
+  // The cron's UTC `todayIso` is only the fallback for a rep with no knocks yet (no window to compute anyway).
+  const { data: latest } = await sb
+    .from("door_knocks")
+    .select("local_date")
+    .eq("rep_id", args.repId)
+    .order("local_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const repTodayIso = (latest?.local_date as string | undefined) ?? args.todayIso;
   for (const period of ["day", "week", "month", "all_time"] as Period[]) {
     try {
-      await rollupPeriod({ ...args, period });
+      await rollupPeriod({ companyId: args.companyId, repId: args.repId, period, todayIso: repTodayIso });
     } catch {
       /* one period failing must not block the others; the cron re-runs */
     }
