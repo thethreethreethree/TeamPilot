@@ -92,3 +92,11 @@ level (the client render test already guards the on-500-show-error side).
 Renamed the component ReportCard → PitchPerformance (file + component + test, git mv preserving history), so it
 no longer reads as "ReportCard renders Pitch Performance". Route PATH kept (/doors/report-card) so PitchDetail's
 [pitchId] + back-link + the API path don't cascade. No lingering imports; typecheck + tests green.
+
+### Holistic flow audit (composition layer, AMD-006 L3) + guard
+Traced the Macro rep's end-to-end journey (toggle → 3-card home → Door Log → record → save → Today's Metrics /
+Pitch Performance) for workflow-continuity breaks the file-level agents wouldn't catch. Result: SOUND — Door Log
+save auto-advances to idle ("next door") with zero waiting, a failed send surfaces a banner (never dressed as
+saved), the optimistic KPI self-corrects via loadKpi(); the async surfaces show honest lag/empty states. The one
+GAP was a guard gap, not a behavior gap: the AMD-006-critical auto-advance (save → idle) was unasserted in
+DoorLogFlow.render.test — now clicked-through and locked (idle field actions return, naming form gone).

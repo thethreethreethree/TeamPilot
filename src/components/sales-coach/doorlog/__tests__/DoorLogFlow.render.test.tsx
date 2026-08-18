@@ -64,5 +64,12 @@ describe("DoorLog — full-flow render gate (each state shows the right controls
     fireEvent.click(screen.getByText("Sold"));
     await waitFor(() => expect(screen.getByText(/Name this pitch/i)).toBeTruthy());
     expect(screen.getByText(/Save & Next Door/i)).toBeTruthy();
+
+    // → SAVE → back to IDLE (auto-advance — AMD-006, the workflow-continuity incident this whole doctrine was
+    // born from): after Save the rep flows straight to the next door, zero waiting, not stranded on the form.
+    fireEvent.click(screen.getByText(/Save & Next Door/i));
+    await waitFor(() => expect(screen.getByText("No Answer")).toBeTruthy());
+    expect(screen.getByText("Record Pitch")).toBeTruthy();
+    expect(screen.queryByText(/Name this pitch/i)).toBeNull(); // left the naming form
   });
 });
