@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Activity, CheckCircle2, AlertTriangle, Lock } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { detectRecoveryFlow } from "@/lib/auth/recoveryFlow";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { fetchLanding } from "@/lib/nav/landing";
@@ -67,67 +68,16 @@ export default function RecoverPage() {
       return;
     }
 
-    // Supabase puts the tokens in the URL fragment (#access_token=...).
-    // We must read window.location.hash on the client; SSR would return
-    // an empty hash.
-    const hash = window.location.hash.startsWith("#")
-      ? window.location.hash.slice(1)
-      : window.location.hash;
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const type = params.get("type");
-    const errCode = params.get("error_code") ?? params.get("error");
-    const errDesc = params.get("error_description");
-
-    if (errCode) {
-      setPhase({
-        kind: "error",
-        message:
-          errDesc ??
-          `Recovery link returned ${errCode}. The link may have expired or already been used.`,
-      });
+    // Supabase can deliver a recovery credential in three shapes — implicit #access_token fragment, PKCE ?code,
+    // or ?token_hash verifyOtp — plus an explicit error / a mis-typed link. detectRecoveryFlow makes that
+    // decision (pure + unit-tested in recoveryFlow.test.ts, so "handles all formats" can't silently regress to
+    // hash-only); we run the matching Supabase call per kind here. Reads must be client-side (SSR has no hash).
+    const flow = detectRecoveryFlow(window.location.hash, window.location.search);
+    if (flow.kind === "error") {
+      setPhase({ kind: "error", message: flow.message });
       return;
     }
-
-    if (!accessToken || !refreshToken) {
-      // No implicit-flow fragment tokens. @supabase/ssr's browser client forces PKCE, so a valid recovery link
-      // can instead arrive as ?code=<auth_code> (PKCE) or ?token_hash=...&type=recovery (verifyOtp) — formats
-      // this page used to reject as "missing tokens", leaving recovery dead. Try them before giving up. ADDITIVE:
-      // the fragment path above is unchanged; this only rescues the case that previously errored. (A live
-      // reset-email test confirms which format Supabase actually sends — see docs/AUTH-REDIRECTS.md.)
-      const query = new URLSearchParams(window.location.search);
-      const code = query.get("code");
-      const tokenHash = query.get("token_hash");
-      const qType = query.get("type");
-      if ((code || tokenHash) && (!qType || qType === "recovery")) {
-        const supabase = createClient();
-        void (async () => {
-          let establishError: { message: string } | null = null;
-          if (code) {
-            // detectSessionInUrl (on by default) may have already exchanged the one-time code on client init;
-            // reuse that session rather than double-consuming the code.
-            const { data: existing } = await supabase.auth.getSession();
-            if (!existing.session) {
-              ({ error: establishError } = await supabase.auth.exchangeCodeForSession(code));
-            }
-          } else if (tokenHash) {
-            ({ error: establishError } = await supabase.auth.verifyOtp({
-              type: "recovery",
-              token_hash: tokenHash,
-            }));
-          }
-          if (establishError) {
-            setPhase({ kind: "error", message: establishError.message });
-            return;
-          }
-          if (typeof window !== "undefined") {
-            window.history.replaceState(null, "", window.location.pathname);
-          }
-          setPhase({ kind: "ready" });
-        })();
-        return;
-      }
+    if (flow.kind === "missing") {
       setPhase({
         kind: "error",
         message:
@@ -136,32 +86,37 @@ export default function RecoverPage() {
       return;
     }
 
-    if (type && type !== "recovery") {
-      // Other Supabase email flows (signup confirm, magiclink) would
-      // also land here if mis-configured. Be explicit so the user
-      // isn't shown a "set new password" form for a non-recovery flow.
-      setPhase({
-        kind: "error",
-        message: `Expected a recovery link, got type=${type}. Use the link sent in the "reset password" email.`,
-      });
-      return;
-    }
-
     const supabase = createClient();
-    supabase.auth
-      .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error }) => {
-        if (error) {
-          setPhase({ kind: "error", message: error.message });
-          return;
+    void (async () => {
+      let establishError: { message: string } | null = null;
+      if (flow.kind === "implicit") {
+        ({ error: establishError } = await supabase.auth.setSession({
+          access_token: flow.accessToken,
+          refresh_token: flow.refreshToken,
+        }));
+      } else if (flow.kind === "pkce") {
+        // detectSessionInUrl (on by default) may have already exchanged the one-time code on client init; reuse
+        // that session rather than double-consuming the one-time code.
+        const { data: existing } = await supabase.auth.getSession();
+        if (!existing.session) {
+          ({ error: establishError } = await supabase.auth.exchangeCodeForSession(flow.code));
         }
-        // Clean the tokens out of the URL so a back/forward navigation
-        // or sharing the URL doesn't expose the recovery session.
-        if (typeof window !== "undefined") {
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-        setPhase({ kind: "ready" });
-      });
+      } else if (flow.kind === "otp") {
+        ({ error: establishError } = await supabase.auth.verifyOtp({
+          type: "recovery",
+          token_hash: flow.tokenHash,
+        }));
+      }
+      if (establishError) {
+        setPhase({ kind: "error", message: establishError.message });
+        return;
+      }
+      // Clean the credential out of the URL so a back/forward nav or a shared URL doesn't expose the session.
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      setPhase({ kind: "ready" });
+    })();
   }, []);
 
   const submit = async (e: React.FormEvent) => {
