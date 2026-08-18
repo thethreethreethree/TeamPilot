@@ -79,6 +79,9 @@ export default function SalesCoachAnalyticsPage() {
   // The manager IS known but the team data failed to load — shown as an
   // honest error, not as zeros (§3.4).
   const [teamDegraded, setTeamDegraded] = useState(false);
+  // Your-own-stats fetch failed. Kept separate from "no sessions yet" so a transient error never renders as
+  // Sessions 0 · Reviews 0 · Cues 0 (error-as-no-data / INV22) — mirrors teamDegraded for the team half.
+  const [ownError, setOwnError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Standard (spec p3): Analytics is "all about the user" — six per-skill /10
@@ -105,6 +108,7 @@ export default function SalesCoachAnalyticsPage() {
   }, [isStandard]);
 
   const load = useCallback(async () => {
+    setOwnError(false);
     try {
       const [ownRes, teamRes] = await Promise.all([
         fetch("/api/coach/sales-session/dashboard").catch(() => null),
@@ -114,6 +118,10 @@ export default function SalesCoachAnalyticsPage() {
         const d = await ownRes.json();
         setStats(d.stats ?? null);
         setSeries(d.series ?? []);
+      } else {
+        // Network error or a 5xx — an ERROR, not a rep with zero activity (INV22). The render shows an
+        // honest "couldn't load" instead of all-zero cells.
+        setOwnError(true);
       }
       if (teamRes && teamRes.ok) {
         const t = await teamRes.json();
@@ -327,6 +335,15 @@ export default function SalesCoachAnalyticsPage() {
               </LearningHint>
             )}
 
+            {ownError ? (
+              <section className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+                <p className="text-xs text-amber-300">
+                  Couldn&apos;t load your analytics right now — this is an error,
+                  not zero activity. Try again shortly.
+                </p>
+              </section>
+            ) : (
+              <>
             {/* Aggregate stats */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <LearningHint as="block" category="Sales Coach · Analytics" title="Sessions (all time)"
@@ -447,6 +464,8 @@ export default function SalesCoachAnalyticsPage() {
                 </div>
               </section>
               </LearningHint>
+            )}
+              </>
             )}
           </>
         )}

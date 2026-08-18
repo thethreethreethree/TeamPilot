@@ -35,9 +35,14 @@ export default function SalesCoachTeamPage() {
   >([]);
   const [isManager, setIsManager] = useState(false);
   const [loading, setLoading] = useState(true);
+  // The team fetch failed. Kept distinct from "empty roster" AND from "not a manager": on a transient error
+  // isManager stays false, which would otherwise tell a real admin they'd lost admin access, and members stays
+  // null, which would read as "No members found". An error is neither (error-as-no-data / INV22).
+  const [loadError, setLoadError] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const res = await fetch("/api/coach/sales-session/team").catch(() => null);
       if (res && res.ok) {
@@ -46,8 +51,9 @@ export default function SalesCoachTeamPage() {
         setMembers(d.members ?? []);
         setPendingInvites(d.pendingInvites ?? []);
       } else {
-        setMembers([]);
-        setPendingInvites([]);
+        // Network error or 5xx — NOT an empty team and NOT a demotion. Flag it so the render shows an honest
+        // "couldn't load", never the admin-only gate or "No members found".
+        setLoadError(true);
       }
     } finally {
       setLoading(false);
@@ -111,6 +117,13 @@ export default function SalesCoachTeamPage() {
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
             Loading…
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5">
+            <p className="text-xs text-amber-300 leading-relaxed">
+              Couldn&apos;t load your team right now — this is an error, not an
+              empty team, and it doesn&apos;t change your access. Try again shortly.
+            </p>
           </div>
         ) : !isManager ? (
           <LearningHint
