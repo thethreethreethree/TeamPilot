@@ -39,18 +39,24 @@ export function ReportCard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async (p: string) => {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch(`/api/coach/sales-session/report-card?period=${p}`);
       if (res.ok) {
         const d = await res.json();
         setSummary(d.summary);
         setPitches(d.pitches ?? []);
+      } else {
+        // A load FAILURE must not masquerade as "no data yet" — a rep would think their pitches vanished
+        // (error dressed as no-data, the honesty thesis). Surface it as an honest, retryable error instead.
+        setError(true);
       }
     } catch {
-      /* leave prior data; the page never hard-fails */
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -88,6 +94,21 @@ export function ReportCard() {
         ))}
       </div>
 
+      {error ? (
+        <div className="glass-card p-5 border border-red-500/30">
+          <p className="text-sm text-red-300">
+            Couldn&apos;t load your Report Card — check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => void load(period)}
+            className="mt-3 text-sm font-semibold text-brand hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
       {/* Pattern hero */}
       <div className="glass-card p-5 mb-6">
         {loading ? (
@@ -183,6 +204,8 @@ export function ReportCard() {
             );
           })}
         </ul>
+      )}
+        </>
       )}
     </div>
   );

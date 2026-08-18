@@ -142,3 +142,10 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   dressed as success (the DECISION-tested-but-CONSUMER-untested class). Fixed: `recordPitch` now branches on the
   return — on failure it sets `micDenied` + a visible "turn on mic access" banner and stays on idle, never
   entering a capture that records nothing. (Component behavior; no unit gate — vitest runs node with no jsdom.)
+- **Finding (MEDIUM, honesty/usability) — FIXED.** Same class, adjacent surface (the mic-denied fix prompted the
+  sweep): the Report Card swallowed a load failure — a network error OR non-200 left `summary`/`pitches` null, so
+  it rendered "No pattern summary yet" / "No pitches recorded yet". A rep whose Report Card failed to load would
+  think their pitches VANISHED (error dressed as no-data). Fixed: added an `error` state set on catch AND !res.ok,
+  rendering an honest "Couldn't load your Report Card — check your connection" card with a Retry button instead of
+  the misleading empty state. PitchDetail already degrades to an honest "This pitch isn't available" on error, so
+  it was left as-is.
