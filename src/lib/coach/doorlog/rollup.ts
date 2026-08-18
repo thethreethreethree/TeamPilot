@@ -11,6 +11,17 @@ import { parsePatternRollup, type PatternRollupResult } from "./analysisSchema";
 
 export const ROLLUP_PROMPT_VERSION = "doorlog-rollup-v1";
 
+/**
+ * Cap on the number of pitches folded into the prompt's PER-PITCH DETAIL block. The worker samples up to 500
+ * pitches; concatenating all of them (summary + strengths + improvements + scores each) built a prompt tens of
+ * thousands of tokens long, which drove the reasoning model past its output headroom → an EMPTY rollup that
+ * never persisted, so the highest-volume reps' `all_time` Report Card card stayed blank AND a paid LLM call
+ * burned on every new pitch forever (audit 2026-08-19). The outcome DISTRIBUTION still covers every sampled
+ * pitch (it's counted separately); only the verbose detail is bounded to the most-recent N — enough to see a
+ * recurring pattern without starving the model.
+ */
+export const ROLLUP_MAX_DETAIL_PITCHES = 40;
+
 /** One period's worth of per-pitch signal, distilled for the rollup. */
 export type PitchSignal = {
   outcome: string; // knock_outcome
@@ -41,7 +52,7 @@ pattern that isn't supported by the data. If there are too few pitches to see a 
 the headline and return empty pattern arrays.` + CONVERSATION_IS_DATA;
 }
 
-function buildRollupUserMessage(args: {
+export function buildRollupUserMessage(args: {
   pitches: PitchSignal[];
   outcomeCounts: Record<string, number>;
   previousHeadline: string | null;
@@ -49,19 +60,25 @@ function buildRollupUserMessage(args: {
   const distribution = Object.entries(args.outcomeCounts)
     .map(([o, n]) => `${o}: ${n}`)
     .join(", ");
-  const pitchBlock = args.pitches
+  // Bound the per-pitch detail (pitches arrive most-recent-first) so a prolific rep can't starve the model.
+  const detail = args.pitches.slice(0, ROLLUP_MAX_DETAIL_PITCHES);
+  const pitchBlock = detail
     .map(
       (p, i) =>
         `Pitch ${i + 1} [outcome: ${p.outcome}] scores=${JSON.stringify(p.scores)}\n` +
         `  summary: ${p.summary}\n  strengths: ${p.strengths.join("; ")}\n  improvements: ${p.improvements.join("; ")}`
     )
     .join("\n\n");
+  const sampleNote =
+    args.pitches.length > ROLLUP_MAX_DETAIL_PITCHES
+      ? `\n(Showing the ${ROLLUP_MAX_DETAIL_PITCHES} most recent pitches in detail; the outcome distribution above covers all ${args.pitches.length}.)`
+      : "";
   return (
     `Outcome distribution this period: ${distribution || "(none)"}\n` +
     (args.previousHeadline
       ? `Previous period's headline pattern: "${args.previousHeadline}"\n`
       : `No previous period to compare against (treat trend as "flat").\n`) +
-    `\nThe pitches:\n\n${pitchBlock}\n\nFind the recurring patterns across them.`
+    `\nThe pitches:\n\n${pitchBlock}${sampleNote}\n\nFind the recurring patterns across them.`
   );
 }
 
