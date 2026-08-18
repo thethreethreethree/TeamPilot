@@ -44,6 +44,14 @@ transcript at all.** Breakdown:
 No-data is a worse honesty failure than mis-labeled-data (the rep believes a call was coached when it wasn't),
 so the 26 total-losses + the 127 never-ended sessions likely deserve priority over the label attribution.
 
+**Severity confirmed (duration analysis).** The 26 total-losses are NOT accidental taps: **19 ran >5 minutes,
+24 were ≥1 minute** — real coached calls that vanished entirely. The 127 never-ended sessions skew stale:
+**70 are >7 days old** (abandoned, safe to auto-close), 43 are 1-7 days, 13 are 1-24h, 1 is <1h. So the two
+capture-reliability workstreams are: (a) **why do multi-minute ended calls capture nothing** (no transcript
+AND no audio — a live-pipeline or upload failure, not a diarization/labeling issue), and (b) **stale active
+sessions never reach Stop**, so their transcript (which persists only on Stop) is never written. Both are
+honesty-critical and independent of the speaker-label attribution.
+
 **What the data CANNOT resolve:** #2 vs #3 — because neither the manual-override state nor the attribution
 source (content / loudness / pitch / locked) is persisted per segment. The stored result is just the final
 `speaker`, so a locked-toggle session and a collapsed-attribution session are indistinguishable after the
