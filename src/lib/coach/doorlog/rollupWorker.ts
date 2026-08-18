@@ -43,9 +43,21 @@ async function rollupPeriod(args: {
     .eq("rep_id", args.repId)
     .eq("status", "complete");
   if (sinceFilter) pitchQ = pitchQ.gte("recorded_at", sinceFilter);
-  const { data: rows } = await pitchQ.limit(500);
+  // F2: order so the LLM SAMPLE is the most-recent (deterministic + coaching-relevant), not an arbitrary
+  // PostgREST slice. The sample is still capped (an LLM can't ingest thousands of pitches) — but the
+  // DISPLAYED pitch_count is the REAL total (counted separately below), never the capped sample length.
+  const { data: rows } = await pitchQ.order("recorded_at", { ascending: false }).limit(500);
   const pitches = rows ?? [];
   if (pitches.length === 0) return; // nothing to summarise this period
+
+  // Real total pitch count for the period (head+exact — not truncated by the sample cap).
+  let countQ = sb
+    .from("pitches")
+    .select("id", { count: "exact", head: true })
+    .eq("rep_id", args.repId)
+    .eq("status", "complete");
+  if (sinceFilter) countQ = countQ.gte("recorded_at", sinceFilter);
+  const { count: realPitchCount } = await countQ;
 
   const signals: PitchSignal[] = [];
   const outcomeCounts: Record<string, number> = {};
@@ -94,7 +106,7 @@ async function rollupPeriod(args: {
     period: args.period,
     periodStart: startIso,
     rollup,
-    pitchCount: pitches.length,
+    pitchCount: realPitchCount ?? pitches.length, // REAL total (F2), not the capped sample length
     model: "brain",
     promptVersion: ROLLUP_PROMPT_VERSION,
   });

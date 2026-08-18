@@ -17,13 +17,15 @@ import type { PatternRollupResult } from "@/lib/coach/doorlog/analysisSchema";
 
 // ─── Rep-facing (RLS client) ─────────────────────────────────────────────────
 
-/** Log a knock. Idempotent on client_knock_id (offline queue may retry). Returns the knock id. */
+/** Log a knock. Idempotent on client_knock_id (offline queue may retry). Returns the knock id — INCLUDING
+ *  on a dedupe (F1 fix): a dependent pitch write must still be able to attach to the existing knock, so we
+ *  fetch the existing id rather than dropping it. `deduped` is informational. */
 export async function createKnock(args: {
   companyId: string;
   outcome: KnockOutcome;
   localDate: string;
   clientKnockId?: string | null;
-}): Promise<{ id: string } | null> {
+}): Promise<{ id: string; deduped?: boolean } | null> {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return null;
@@ -42,7 +44,19 @@ export async function createKnock(args: {
     .select("id")
     .maybeSingle();
   if (error) return null;
-  return data ? { id: data.id as string } : null;
+  if (data) return { id: data.id as string };
+  // Deduped (ignoreDuplicates → null) OR a no-return insert: fetch the existing knock's id so the pitch
+  // path can still attach to it. Without this, a knock-yes/pitch-no partial failure was unrepairable (F1).
+  if (args.clientKnockId) {
+    const { data: existing } = await sb
+      .from("door_knocks")
+      .select("id")
+      .eq("rep_id", auth.user.id)
+      .eq("client_knock_id", args.clientKnockId)
+      .maybeSingle();
+    if (existing) return { id: existing.id as string, deduped: true };
+  }
+  return null;
 }
 
 /** Create the pitch row for a knock (status starts 'recorded'; the worker advances it). */
@@ -69,8 +83,18 @@ export async function createPitch(args: {
     })
     .select("id")
     .maybeSingle();
-  if (error) return null;
-  return data ? { id: data.id as string } : null;
+  if (data) return { id: data.id as string };
+  // The unique index on knock_id makes this idempotent (F1): a retry that hits the existing pitch is a
+  // SUCCESS — return the existing id, never lose the pitch.
+  if (error) {
+    const { data: existing } = await sb
+      .from("pitches")
+      .select("id")
+      .eq("knock_id", args.knockId)
+      .maybeSingle();
+    if (existing) return { id: existing.id as string };
+  }
+  return null;
 }
 
 /** The rep's KPI strip for a local day (RLS-scoped; a manager may pass a rep's id via the view's RLS). */

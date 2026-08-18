@@ -18,11 +18,17 @@ export async function GET(req: NextRequest) {
   const periodParam = req.nextUrl.searchParams.get("period") ?? "week";
   const period = (PERIODS as readonly string[]).includes(periodParam) ? periodParam : "week";
 
-  // Latest summary for this period (the rollup worker upserts per period_start; newest generated wins).
+  // F6: filter by a SPECIFIC rep — default to the caller (so a rep sees their OWN, and a manager doesn't
+  // get an arbitrary team member's summary under rep+manager RLS). A manager may pass ?repId=<team member>;
+  // RLS still authorizes (a non-manager passing someone else's id gets 0 rows).
+  const repId = req.nextUrl.searchParams.get("repId") ?? auth.user.id;
+
+  // Latest summary for this period + rep (the rollup worker upserts per period_start; newest generated wins).
   const { data: summaryRow } = await sb
     .from("rep_pattern_summaries")
     .select("headline, patterns_good, patterns_bad, trend, pitch_count, generated_at")
     .eq("period", period)
+    .eq("rep_id", repId)
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -31,6 +37,7 @@ export async function GET(req: NextRequest) {
   const { data: pitchRows } = await sb
     .from("pitches")
     .select("id, name, status, recorded_at, door_knocks!inner(outcome)")
+    .eq("rep_id", repId)
     .order("recorded_at", { ascending: false })
     .limit(200);
 

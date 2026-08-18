@@ -62,11 +62,22 @@ export async function POST(req: NextRequest) {
       fileId: randomUUID(),
       originalFilename: "pitch.webm",
     });
-    if (!target.ok) return NextResponse.json({ error: target.error }, { status: 502 });
+    if (!target.ok) {
+      // F7 (CWE-209): don't return the raw storage exception to the client; log it, send a generic message.
+      console.error("[door-log] signed-upload target failed:", target.error);
+      return NextResponse.json({ error: "Couldn't prepare the audio upload. Try again." }, { status: 502 });
+    }
     return NextResponse.json({ storagePath: target.storagePath, token: target.token });
   }
 
-  // Both knock + pitch create a knock first (idempotent on client_knock_id).
+  // F3: bind the client-echoed storagePath to the caller's company — the worker downloads it via the
+  // service-role client (bypasses storage RLS), so an unvalidated path is a client-controlled read.
+  if (body.kind === "pitch" && body.storagePath && !body.storagePath.startsWith(`${companyId}/`)) {
+    return NextResponse.json({ error: "Invalid audio path." }, { status: 400 });
+  }
+
+  // Both knock + pitch create a knock first (idempotent on client_knock_id). createKnock returns the id
+  // even on a dedupe (F1), so a null here is a REAL failure — not the offline-retry case.
   const knock = await createKnock({
     companyId,
     outcome: body.outcome,
@@ -74,15 +85,15 @@ export async function POST(req: NextRequest) {
     clientKnockId: body.clientKnockId ?? null,
   });
   if (!knock) {
-    // A duplicate client_knock_id (offline retry) is a SUCCESS from the rep's view — the knock already landed.
-    return NextResponse.json({ ok: true, deduped: true });
+    return NextResponse.json({ error: "Could not log the knock." }, { status: 500 });
   }
 
   if (body.kind === "knock") {
-    return NextResponse.json({ ok: true, knockId: knock.id });
+    return NextResponse.json({ ok: true, knockId: knock.id, deduped: knock.deduped ?? false });
   }
 
-  // Pitch: create the pitch row pointing at the uploaded audio, then kick the worker fire-and-forget.
+  // Pitch: create the pitch row (idempotent on knock_id, F1) — proceed EVEN IF the knock deduped, so a
+  // partial-failure retry (knock-yes/pitch-no) still lands the pitch. Then kick the worker fire-and-forget.
   const pitch = await createPitch({
     knockId: knock.id,
     companyId,

@@ -48,8 +48,18 @@ async function pitchContext(pitchId: string): Promise<{ outcome: string; duratio
 /** Process one pitch through the pipeline. Never throws — failures become retry/terminal state. */
 export async function processPitch(pitch: PitchRow): Promise<void> {
   try {
-    // 1. Transcribe (if not already past it).
-    if (["uploading", "recorded", "transcribing"].includes(pitch.status)) {
+    const sb = createAdminClient();
+    // F4: skip the (paid) STT step if a transcript ALREADY exists. A retry after an analyze-stage failure
+    // must not re-run ElevenLabs — gate transcription on transcript-existence, not the volatile claim-time
+    // status (which resets to "uploading" on a mid-pipeline failure and would otherwise re-transcribe).
+    const { data: existingTr } = await sb
+      .from("pitch_transcripts")
+      .select("pitch_id")
+      .eq("pitch_id", pitch.id)
+      .maybeSingle();
+
+    // 1. Transcribe (only if there's no transcript yet).
+    if (!existingTr && ["uploading", "recorded", "transcribing"].includes(pitch.status)) {
       if (!pitch.audio_path) {
         await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No audio was captured for this pitch." });
         return;
@@ -69,7 +79,6 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     }
 
     // 2. Analyze (reuses the rubric). Read back the transcript + outcome.
-    const sb = createAdminClient();
     const { data: tr } = await sb
       .from("pitch_transcripts")
       .select("text")
