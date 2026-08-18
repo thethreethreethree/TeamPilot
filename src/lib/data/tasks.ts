@@ -528,32 +528,41 @@ export async function addTaskStep(args: {
 }): Promise<TaskStep | null> {
   if (!supabaseEnabled) return null;
   const supabase = createClient();
-  const { data: existing } = await supabase
-    .from("task_steps")
-    .select("step_order")
-    .eq("task_id", args.taskId)
-    .order("step_order", { ascending: false })
-    .limit(1);
-  const nextOrder = ((existing?.[0]?.step_order as number) ?? -1) + 1;
-  const { data, error } = await supabase
-    .from("task_steps")
-    .insert({
-      task_id: args.taskId,
-      step_order: nextOrder,
-      body: args.body,
-    })
-    .select("id, task_id, step_order, body, completed_at, completed_by, created_at")
-    .single();
-  if (error || !data) return null;
-  return {
-    id: data.id,
-    taskId: data.task_id,
-    stepOrder: data.step_order,
-    body: data.body,
-    completedAt: data.completed_at,
-    completedBy: data.completed_by,
-    createdAt: data.created_at,
-  };
+  // Concurrent adds (two participants, or a double-submit) both read the same max step_order and insert the same
+  // next value; the deferred UNIQUE (task_id, step_order) then aborts one at COMMIT with 23505 — which the old
+  // `if (error) return null` swallowed, so the step vanished with no error surfaced (audit 2026-08-19). Retry on
+  // the collision: the loser re-reads the now-committed max and takes the next slot. Any OTHER error gives up.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: existing } = await supabase
+      .from("task_steps")
+      .select("step_order")
+      .eq("task_id", args.taskId)
+      .order("step_order", { ascending: false })
+      .limit(1);
+    const nextOrder = ((existing?.[0]?.step_order as number) ?? -1) + 1;
+    const { data, error } = await supabase
+      .from("task_steps")
+      .insert({
+        task_id: args.taskId,
+        step_order: nextOrder,
+        body: args.body,
+      })
+      .select("id, task_id, step_order, body, completed_at, completed_by, created_at")
+      .single();
+    if (!error && data) {
+      return {
+        id: data.id,
+        taskId: data.task_id,
+        stepOrder: data.step_order,
+        body: data.body,
+        completedAt: data.completed_at,
+        completedBy: data.completed_by,
+        createdAt: data.created_at,
+      };
+    }
+    if ((error as { code?: string } | null)?.code !== "23505") return null; // not an order collision — give up
+  }
+  return null; // exhausted retries under extreme contention — caller surfaces the failure honestly
 }
 
 /**
