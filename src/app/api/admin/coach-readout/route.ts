@@ -115,11 +115,14 @@ export async function GET(req: NextRequest) {
   }
   const all = topics ?? [];
 
-  // 2. Message counts per topic — small enough we can do this as one
-  // SELECT + bucket in TS rather than a separate query per topic.
-  const { data: msgs, error: msgErr } = await supabase
-    .from("chat_messages")
-    .select("topic_id");
+  // 2. Message counts per topic — bucket in TS. PAGED (audit 2026-08-18, closing the 2026-08-02 "msg
+  // pagination" flag): a raw `.select()` is silently capped at 1000 rows by PostgREST, so once a company
+  // passes 1000 chat messages the per-topic counts were UNDERCOUNTED (a wrong-but-authoritative number). Uses
+  // the same fetchAllPagedResult already wired for the event reads below.
+  const { data: msgs, error: msgErr } = await fetchAllPagedResult<{ topic_id: string }>(
+    (from, to) => supabase.from("chat_messages").select("topic_id").range(from, to),
+    { label: "coach-readout message counts" },
+  );
   if (msgErr) {
     console.error("[admin/coach-readout] failed to load messages:", msgErr);
     return NextResponse.json({ error: "Couldn't load the coach readout." }, { status: 500 });
