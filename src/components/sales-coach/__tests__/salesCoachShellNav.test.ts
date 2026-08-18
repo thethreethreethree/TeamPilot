@@ -76,3 +76,25 @@ describe("SalesCoachShell — collapsible Manager Dashboard + Team Tools groups"
     expect(SHELL).toContain("activeGroupHeader");
   });
 });
+
+describe("SalesCoachShell — Macro Mode sidebar focus (founder 2026-08-18: ONLY the two X'd entries)", () => {
+  // The founder was explicit: on Macro Mode, hide EXACTLY "Live AI Coach & Sessions" (/sessions) and "One Liners"
+  // (/strategy) from the sidebar — nothing else, and only in Macro Mode. Lock the set + the condition so a third
+  // entry can't quietly creep in and the focus can't leak to non-Macro-Mode.
+  const macroSet = SHELL.match(/const MACRO_HIDDEN_HREFS = new Set\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
+  const hiddenHrefs = macroSet.match(/"[^"]+"/g) ?? [];
+
+  it("hides exactly the two entries — /sessions and /strategy — and no others", () => {
+    expect(hiddenHrefs).toContain('"/dashboard/sales-coach/sessions"');
+    expect(hiddenHrefs).toContain('"/dashboard/sales-coach/strategy"');
+    expect(hiddenHrefs.length).toBe(2); // exactly two — a third would fail here
+  });
+
+  it("applies the hide ONLY when Macro Mode is on", () => {
+    expect(SHELL).toMatch(/macroOn\s*\?[\s\S]{0,200}MACRO_HIDDEN_HREFS/);
+  });
+
+  it("reacts to the toggle live via the elostate:macro-mode event (no reload)", () => {
+    expect(SHELL).toContain('"elostate:macro-mode"');
+  });
+});
