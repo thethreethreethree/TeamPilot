@@ -85,8 +85,9 @@ describe("Fixed-overlay shells — <main> keeps the flex-column scroll context i
     it(`${shell} renders children inside a flex-col overflow-hidden <main>`, () => {
       const src = readFileSync(shell, "utf8");
       const m = src.match(/<main className="([^"]*)"/);
-      expect(m, `${shell}: no <main className="..."> found — did the shell stop rendering a <main>?`).toBeTruthy();
-      const tokens = m![1].split(/\s+/);
+      const cls = m?.[1];
+      expect(cls, `${shell}: no <main className="..."> found — did the shell stop rendering a <main>?`).toBeTruthy();
+      const tokens = (cls ?? "").split(/\s+/);
       for (const token of REQUIRED) {
         expect(
           tokens,
