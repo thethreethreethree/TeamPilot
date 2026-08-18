@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 
 /**
  * GET /api/finance/profitability — margin by project, cost center, and customer (derived from posted,
@@ -17,11 +18,21 @@ export async function GET() {
     sb.from("fin_customer_profitability").select("customer_id, name, revenue, total_cost").order("revenue", { ascending: false }),
     // 0173: overhead each project ABSORBED. Direct-cost margin systematically FLATTERS every project,
     // because no project pays rent — so a page that shows only direct margin is quietly telling the founder
-    // that every project is more profitable than it is.
-    sb.from("fin_overhead_allocation").select("project_id, month, allocated_overhead"),
-    // Overhead that could be allocated to NOBODY. Surfaced, never absorbed: if it were folded into the
-    // projects, every margin above would improve and nothing would disagree.
-    sb.from("fin_overhead_unallocated").select("month, unallocated_overhead"),
+    // that every project is more profitable than it is. PAGED (audit 2026-08-19): this is row-per-project×month
+    // and is SUMMED in JS below — an unbounded select truncates at 1000, understating overhead and OVERstating
+    // (flattering) the loaded margin exactly as a tenant accumulates project-months. On a paged-fetch error the
+    // sum falls to null → an honest null loaded_margin, never a flattering number.
+    fetchAllPagedResult<{ project_id: string; month: string; allocated_overhead: number | null }>(
+      (from, to) =>
+        sb.from("fin_overhead_allocation").select("project_id, month, allocated_overhead").range(from, to),
+      { label: "profitability overhead allocation" },
+    ),
+    // Overhead that could be allocated to NOBODY. Surfaced, never absorbed. Paged for the same reason (summed
+    // in JS below); per-month so smaller, but same class.
+    fetchAllPagedResult<{ month: string; unallocated_overhead: number }>(
+      (from, to) => sb.from("fin_overhead_unallocated").select("month, unallocated_overhead").range(from, to),
+      { label: "profitability unallocated overhead" },
+    ),
   ]);
 
   // Sum each project's allocated overhead across months. NULL months (overhead existed but no direct cost

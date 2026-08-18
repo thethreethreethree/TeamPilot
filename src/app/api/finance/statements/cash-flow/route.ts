@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 
 /**
  * GET /api/finance/statements/cash-flow?periodId=…
@@ -30,10 +31,16 @@ export async function GET(req: NextRequest) {
 
   const periodId = req.nextUrl.searchParams.get("periodId");
 
-  let q = sb.from("fin_cash_flow_summary").select("period_id, section, net_amount");
-  if (periodId) q = q.eq("period_id", periodId);
-
-  const { data, error } = await q;
+  // PAGED (audit 2026-08-19): with no periodId this sums EVERY period's rows in JS; fin_cash_flow_summary is
+  // per (period_id, section), so a tenant with years of monthly books crosses the 1000-row PostgREST cap and the
+  // all-time statement + netChange silently truncate. Paging fetches the full set; the honest 500 below is kept.
+  const { data, error } = await fetchAllPagedResult<{ period_id: string; section: string; net_amount: number }>(
+    (from, to) => {
+      const base = sb.from("fin_cash_flow_summary").select("period_id, section, net_amount");
+      return (periodId ? base.eq("period_id", periodId) : base).range(from, to);
+    },
+    { label: "cash flow summary" },
+  );
 
   // A read failure must never render as a zeroed statement. "We could not load your cash flow" and
   // "your company moved no cash" are wildly different facts, and only one of them is safe to act on.
