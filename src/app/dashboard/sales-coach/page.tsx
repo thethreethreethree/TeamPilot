@@ -326,7 +326,18 @@ export default function SalesCoachHome() {
         {/* Start CTA — reveals the existing capture form (a title is required
             before a session can begin, § our rule). */}
         <div className="mt-4">
-          {!showCapture ? (
+          {macroOn ? (
+            // Macro Mode (founder 2026-08-19): a door-to-door rep's primary action is the Door Log, not a
+            // pitch-capture session — so the big CTA jumps STRAIGHT to the Door Log instead of opening the
+            // capture flow. Gated on macroOn, so the normal Sales Coach dashboard CTA is unchanged when off.
+            <DeckButton
+              icon={<DoorOpen className="w-4 h-4" aria-hidden />}
+              onClick={() => router.push("/dashboard/sales-coach/doors")}
+              className="w-full"
+            >
+              Start Knocking
+            </DeckButton>
+          ) : !showCapture ? (
             <DeckButton
               icon={<Mic className="w-4 h-4" aria-hidden />}
               onClick={() => setShowCapture(true)}

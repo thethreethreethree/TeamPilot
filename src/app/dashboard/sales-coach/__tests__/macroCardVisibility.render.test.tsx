@@ -86,6 +86,9 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     // The two stat pills (not the three door bubbles).
     expect(m().getByText("Pitches")).toBeTruthy();
     expect(m().getByText("Roleplays")).toBeTruthy();
+    // The primary CTA is the normal pitch-session flow (founder 2026-08-19: unchanged when Macro is OFF).
+    expect(m().getByText("Start Next Pitch Session")).toBeTruthy();
+    expect(m().queryByText("Start Knocking")).toBeNull();
   });
 
   it("Macro ON: the two focus-out cards disappear; the three door bubbles replace the pills", async () => {
@@ -100,5 +103,8 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().getByText("Doors Knocked")).toBeTruthy();
     expect(m().getByText("Sold")).toBeTruthy();
     expect(m().queryByText("Roleplays")).toBeNull();
+    // The primary CTA jumps straight to the Door Log, NOT the pitch-capture flow (founder 2026-08-19).
+    expect(m().getByText("Start Knocking")).toBeTruthy();
+    expect(m().queryByText("Start Next Pitch Session")).toBeNull();
   });
 });
