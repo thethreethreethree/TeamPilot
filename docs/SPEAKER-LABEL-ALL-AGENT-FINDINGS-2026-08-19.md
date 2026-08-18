@@ -5,8 +5,43 @@
 **AGENT**, even though the transcript plainly contains the *client's* turns (e.g. a door-knock where
 the prospect answers "Normal internet uses, streaming, Gmail, YouTube" is stamped AGENT).
 
-Status: **diagnosed, fix gated on which root cause the record confirms.** A read-only diagnostic ships
-to disambiguate before any pipeline change (diagnose-before-patch).
+Status: **diagnostic RUN 2026-08-19 — initial framing corrected (see results below).** The systemic
+"every session is all-agent" reading is NOT borne out; the real issue is narrower and intermittent.
+
+---
+
+## Diagnostic results (run 2026-08-19, read-only)
+
+**The specific screenshot was a misread.** It showed session `273bb962` (Humza, active). That session's
+stored data is `a:7 c:4` with segment order `[a,a,a,c,a,c,c,a]` — **properly split.** The panel showed
+only the TOP of the transcript (the agent's opening monologue, correctly `agent`); the customer turns sit
+below the fold, unscrolled. Humza has **0** all-agent sessions.
+
+**But a real, narrower issue exists platform-wide.** Of ~140 sessions with a transcript, **38 are
+genuinely all-agent** (customer=0, agent>0); 102 are properly split; a further **154 have no transcript at
+all** (a separate capture-reliability concern). Breakdown of the 38:
+
+- retranscribe-cache single-cluster: **0** → **cause #1 (batch diarization) is ruled out.**
+- pure-live (no saved audio): **30 / 38** → the driver is **live-side**.
+- **Every affected rep also has properly-split sessions** (Moses 14 all-agent / 47 split; Knute 7/12;
+  Anthony 5/8; the founder himself 3/10). Same rep, same setup, intermittent → **cause #2 (live-attribution
+  collapse on a quiet far-mic prospect) or #3 (manual "I'm speaking" lock left ON), not a per-rep
+  misconfiguration.**
+
+**Also visible (secondary):** short far-mic customer interjections get *absorbed into an agent-labeled
+segment* rather than split out (the screenshot's turn 2 glued "Normal internet uses…" — a client answer —
+into an agent turn). This is an attribution-granularity weakness, present even on otherwise-split sessions.
+
+**What the data CANNOT resolve:** #2 vs #3 — because neither the manual-override state nor the attribution
+source (content / loudness / pitch / locked) is persisted per segment. The stored result is just the final
+`speaker`, so a locked-toggle session and a collapsed-attribution session are indistinguishable after the
+fact. **This is the real gap to close first.**
+
+**Recommended next step (revised):** persist the **attribution source** per segment (a small additive
+field written by the live path) so the next occurrence is diagnosable as fact, not guesswork — then the
+#2-vs-#3 fix is targeted. Alternatively, a fast human signal: ask the reps whether they use the "I'm
+speaking" earbud-tap toggle. Do NOT rewrite far-mic attribution (#2) speculatively — the data does not yet
+justify it.
 
 ---
 
