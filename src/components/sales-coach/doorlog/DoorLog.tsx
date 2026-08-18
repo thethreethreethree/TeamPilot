@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mic, Square, DoorClosed, Check } from "lucide-react";
+import { Mic, Square, DoorClosed, DoorOpen, Check } from "lucide-react";
 import {
   transition,
   type DoorLogState,
@@ -192,7 +192,7 @@ export function DoorLog() {
   }, [busy, pickedOutcome, localDate, name, recorded, sendPitch, loadKpi]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-base flex flex-col px-4 py-6 max-w-md mx-auto w-full">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-base flex flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-md mx-auto w-full">
       {sendError && (
         <button
           type="button"
@@ -203,16 +203,23 @@ export function DoorLog() {
         </button>
       )}
       {state === "idle" && (
-        <div className="grid grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-4 gap-2 mb-2">
           {[
-            { label: "Knocked", val: kpi?.doorsKnocked ?? 0 },
-            { label: "Sold", val: kpi?.sold ?? 0 },
-            { label: "Go-Backs", val: kpi?.goBacks ?? 0 },
-            { label: "Not Int.", val: kpi?.notInterested ?? 0 },
+            { label: "Knocked", val: kpi?.doorsKnocked ?? 0, accent: false },
+            { label: "Sold", val: kpi?.sold ?? 0, accent: true },
+            { label: "Go-Backs", val: kpi?.goBacks ?? 0, accent: false },
+            { label: "Not Int.", val: kpi?.notInterested ?? 0, accent: false },
           ].map((t) => (
-            <div key={t.label} className="glass-card p-2 text-center">
-              <div className="text-xl font-bold text-primary tabular-nums">{t.val}</div>
-              <div className="text-[10px] uppercase tracking-wide text-muted">{t.label}</div>
+            <div
+              key={t.label}
+              className={`rounded-2xl border p-2.5 text-center ${
+                t.accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-white/10 bg-white/[0.03]"
+              }`}
+            >
+              <div className={`text-2xl font-bold tabular-nums ${t.accent ? "text-brand" : "text-primary"}`}>
+                {t.val}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-muted mt-0.5">{t.label}</div>
             </div>
           ))}
         </div>
@@ -224,6 +231,14 @@ export function DoorLog() {
       <div className={`flex-1 flex flex-col gap-4 pb-4 ${state === "naming" ? "justify-start pt-2" : "justify-end"}`}>
         {state === "idle" && (
           <>
+            {/* Subtle anchor fills the empty middle so the screen feels intentional, not blank — kept minimal
+                so the two thumb-zone actions below stay the focus (founder: nicer, without losing simplicity). */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center select-none">
+              <div className="w-16 h-16 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center">
+                <DoorOpen className="w-7 h-7 text-brand/70" aria-hidden />
+              </div>
+              <p className="text-sm text-muted">Ready for the next door</p>
+            </div>
             {micDenied && (
               <p className="text-xs text-amber-400 text-center">
                 Mic access is off — enable it to record pitches. You can still log No Answer.
@@ -231,7 +246,7 @@ export function DoorLog() {
             )}
             <button
               onClick={noAnswer}
-              className="w-full min-h-[72px] rounded-2xl bg-surface border border-default text-primary text-lg font-semibold active:scale-[0.98] transition-transform"
+              className="w-full min-h-[68px] rounded-2xl bg-white/[0.04] border border-white/12 text-primary text-lg font-semibold active:scale-[0.98] transition-transform"
             >
               <DoorClosed className="inline w-5 h-5 mr-2 -mt-1" aria-hidden />
               No Answer
@@ -247,30 +262,35 @@ export function DoorLog() {
         )}
 
         {state === "recording" && (
-          <div className="flex flex-col items-center gap-8">
-            <div className="text-3xl font-bold text-primary tabular-nums">
-              {Math.floor(recorder.elapsedMs / 60000)}:
-              {String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}
+          // Discreet by request (reps record at the door): a small pulsing dot + timer and a subtle "Stop"
+          // pill, not a loud full-width red button that broadcasts "recording" to the prospect.
+          <div className="flex-1 flex flex-col items-center justify-center gap-7">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500/80 animate-pulse" aria-hidden />
+              <span className="text-2xl font-semibold text-primary tabular-nums">
+                {Math.floor(recorder.elapsedMs / 60000)}:
+                {String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}
+              </span>
             </div>
-            <div className="flex items-end gap-1.5 h-24" aria-hidden>
+            <div className="flex items-end gap-1 h-10" aria-hidden>
               {Array.from({ length: 9 }).map((_, i) => {
                 const mid = Math.abs(i - 4);
-                const h = 12 + recorder.level * 80 * (1 - mid / 6);
+                const h = 6 + recorder.level * 34 * (1 - mid / 6);
                 return (
                   <div
                     key={i}
-                    className="w-2.5 rounded-full bg-ember-400 transition-[height] duration-75"
-                    style={{ height: `${Math.max(8, h)}px` }}
+                    className="w-1.5 rounded-full bg-ember-400/70 transition-[height] duration-75"
+                    style={{ height: `${Math.max(5, h)}px` }}
                   />
                 );
               })}
             </div>
             <button
               onClick={stopRecord}
-              className="w-full min-h-[96px] rounded-2xl bg-red-500 text-white text-xl font-bold active:scale-[0.98] transition-transform"
+              aria-label="Stop recording"
+              className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/[0.06] border border-white/15 px-6 py-2.5 text-sm font-medium text-secondary active:scale-[0.97] transition-transform"
             >
-              <Square className="inline w-6 h-6 mr-2 -mt-1" aria-hidden />
-              Stop Recording
+              <Square className="w-3.5 h-3.5" aria-hidden /> Stop
             </button>
           </div>
         )}

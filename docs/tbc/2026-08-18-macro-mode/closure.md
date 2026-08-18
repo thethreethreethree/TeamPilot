@@ -142,6 +142,16 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   dressed as success (the DECISION-tested-but-CONSUMER-untested class). Fixed: `recordPitch` now branches on the
   return — on failure it sets `micDenied` + a visible "turn on mic access" banner and stays on idle, never
   entering a capture that records nothing. (Component behavior; no unit gate — vitest runs node with no jsdom.)
+## Sales-agent UI revisions (founder 2026-08-18, from annotated screenshots)
+- **Discreet Stop** — the recording state's loud full-width red "Stop Recording" → a small pulsing dot + timer,
+  subtle sound bars, and a quiet "Stop" pill (reps record at the door; the screen no longer broadcasts it).
+- **Door Log polish (keep simplicity)** — refined KPI tiles (Sold accented as the win metric), a subtle door
+  anchor + "Ready for the next door" fills the previously-blank middle, refined the No-Answer button.
+- **Back-nav by the clock (untappable)** — the Macro Mode surfaces used `py-6` with no safe-area inset, so in the
+  fixed PWA shell (viewport-fit=cover) their top content sat UNDER the iOS status-bar clock. Added
+  `pt-[max(1rem,env(safe-area-inset-top))]` to DoorLog/ReportCard/PitchDetail; enlarged PitchDetail's "← Report
+  Card" tap target. (Pending: dashboard Macro-Mode focus — hide the 2 X'd cards + 3 all-time bubbles + FAB overlap.)
+
 - **Finding (MEDIUM, honesty/usability) — FIXED.** Same class, adjacent surface (the mic-denied fix prompted the
   sweep): the Report Card swallowed a load failure — a network error OR non-200 left `summary`/`pitches` null, so
   it rendered "No pattern summary yet" / "No pitches recorded yet". A rep whose Report Card failed to load would

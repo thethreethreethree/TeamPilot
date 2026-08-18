@@ -44,10 +44,11 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
   }, [pitchId]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 py-6 max-w-2xl mx-auto w-full">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-2xl mx-auto w-full">
+      {/* Back link: below the status-bar safe area (was under the clock and untappable), with a real tap target. */}
       <Link
         href="/dashboard/sales-coach/doors/report-card"
-        className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-primary mb-4"
+        className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm font-medium text-secondary hover:text-primary active:bg-white/5 transition-colors mb-3"
       >
         <ArrowLeft className="w-4 h-4" aria-hidden /> Report Card
       </Link>
