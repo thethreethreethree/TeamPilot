@@ -106,3 +106,9 @@ The KPI, score, and rollup-summary reads (all keyed on the window from `latest`)
 the rep waited on their sum. Wrapped in Promise.all — the rep now waits on the slowest, not the total. Behaviour-
 preserving (same reads, same paging); matches the codebase's "parallelize independent reads" perf pattern. Gate
 green (3040 tests).
+
+### Cleanup: drop the dead summary read from the report-card route
+After P4, Pitch Performance shows only the recordings list — the macro pattern summary moved to Today's Metrics.
+The report-card route was still reading rep_pattern_summaries and returning a top-level `summary` field that no
+consumer uses (PitchPerformance uses only `pitches` + each pitch's own summary). Removed the dead read + field —
+one fewer DB read per Pitch Performance view. Route test + PitchPerformance render test green.

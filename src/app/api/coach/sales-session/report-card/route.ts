@@ -23,15 +23,8 @@ export async function GET(req: NextRequest) {
   // RLS still authorizes (a non-manager passing someone else's id gets 0 rows).
   const repId = req.nextUrl.searchParams.get("repId") ?? auth.user.id;
 
-  // Latest summary for this period + rep (the rollup worker upserts per period_start; newest generated wins).
-  const { data: summaryRow } = await sb
-    .from("rep_pattern_summaries")
-    .select("headline, patterns_good, patterns_bad, trend, pitch_count, generated_at")
-    .eq("period", period)
-    .eq("rep_id", repId)
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // NOTE: the macro pattern summary moved to Today's Metrics (founder spec 2026-08-19). Pitch Performance is now
+  // just the recordings list, so this route no longer reads rep_pattern_summaries — one fewer DB read per view.
 
   // The rep's pitches (name / outcome / status / date + the after-pitch summary snippet) — newest first,
   // bounded. Pitch Performance shows each recording's after-pitch summary inline (founder spec 2026-08-19), so
@@ -63,17 +56,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({
-    period,
-    summary: summaryRow
-      ? {
-          headline: summaryRow.headline as string,
-          patternsGood: (summaryRow.patterns_good as string[]) ?? [],
-          patternsBad: (summaryRow.patterns_bad as string[]) ?? [],
-          trend: summaryRow.trend as { direction?: string; note?: string } | null,
-          pitchCount: (summaryRow.pitch_count as number) ?? 0,
-        }
-      : null,
-    pitches,
-  });
+  return NextResponse.json({ period, pitches });
 }
