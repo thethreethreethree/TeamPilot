@@ -3,23 +3,26 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { parsePitchAnalysis, type PitchAnalysisResult } from "./analysisSchema";
 
 /**
- * Per-pitch analysis (Macro Mode pipeline). Reuses the EXISTING sales rubric's score dimensions
- * (opener / objection / tone / close — src/lib/coach/v5/salesScore.ts) and coaching tone, so there is
- * ONE definition of "a good pitch" across the product (build-spec 3.3/3.4). Output validated by the
- * versioned pitchAnalysisSchema; a malformed response is a retryable failure, never a silent write.
+ * Per-pitch analysis (Macro Mode pipeline). Door-to-door rubric (founder spec 2026-08-19): the Today's-Metrics
+ * Score Chart grades these five dimensions — objection / talk-listen / questions / tone / close (opener dropped).
+ * The score schema is a flexible record, so pitches analyzed under the older v1 rubric (opener/objection/tone/
+ * close) still validate; the Score Chart simply averages whichever of the five a period's pitches actually carry.
+ * Output validated by the versioned pitchAnalysisSchema; a malformed response is retryable, never a silent write.
  */
 
-export const ANALYSIS_PROMPT_VERSION = "doorlog-analysis-v1";
+// v2 (2026-08-19): rubric changed to the door-to-door five (dropped opener, added talk_listen + questions).
+export const ANALYSIS_PROMPT_VERSION = "doorlog-analysis-v2";
 
-/** The rubric dimensions, reused from the existing sales coach (not a second definition). */
-export const RUBRIC_DIMENSIONS = ["opener", "objection", "tone", "close"] as const;
+/** The door-to-door rubric dimensions the Score Chart grades (founder spec 2026-08-19). */
+export const RUBRIC_DIMENSIONS = ["objection", "talk_listen", "questions", "tone", "close"] as const;
 
 function buildAnalysisSystemPrompt(): string {
   return `You are a sales coach reviewing a single door-to-door pitch transcript.
 
-Grade the rep against these rubric dimensions (0-100 each), the SAME rubric the rest of the Sales Coach uses:
-- opener: how they opened and built rapport at the door
-- objection: how they handled pushback / hesitation
+Grade the rep against these rubric dimensions (0-100 each):
+- objection: how they handled pushback / hesitation at the door
+- talk_listen: the talk-to-listen balance — did they let the prospect talk and respond to it, or monologue?
+- questions: how well they asked questions to understand the prospect (discovery / qualifying), not just pitch
 - tone: warmth, confidence, pacing
 - close: how they asked for the next step
 
@@ -28,7 +31,7 @@ Return STRICT JSON:
   "summary": "2-3 sentences on what happened in this pitch, grounded in the transcript",
   "strengths": ["specific things they did well, tied to moments in the transcript"],
   "improvements": ["growth opportunities, framed as a concrete practiceable next step — never a verdict"],
-  "scores": { "opener": 0-100, "objection": 0-100, "tone": 0-100, "close": 0-100 }
+  "scores": { "objection": 0-100, "talk_listen": 0-100, "questions": 0-100, "tone": 0-100, "close": 0-100 }
 }
 
 Tone law: kind, growth-oriented, specific. Do NOT fabricate moments not in the transcript. This is one pitch
