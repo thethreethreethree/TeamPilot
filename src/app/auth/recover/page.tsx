@@ -91,6 +91,43 @@ export default function RecoverPage() {
     }
 
     if (!accessToken || !refreshToken) {
+      // No implicit-flow fragment tokens. @supabase/ssr's browser client forces PKCE, so a valid recovery link
+      // can instead arrive as ?code=<auth_code> (PKCE) or ?token_hash=...&type=recovery (verifyOtp) — formats
+      // this page used to reject as "missing tokens", leaving recovery dead. Try them before giving up. ADDITIVE:
+      // the fragment path above is unchanged; this only rescues the case that previously errored. (A live
+      // reset-email test confirms which format Supabase actually sends — see docs/AUTH-REDIRECTS.md.)
+      const query = new URLSearchParams(window.location.search);
+      const code = query.get("code");
+      const tokenHash = query.get("token_hash");
+      const qType = query.get("type");
+      if ((code || tokenHash) && (!qType || qType === "recovery")) {
+        const supabase = createClient();
+        void (async () => {
+          let establishError: { message: string } | null = null;
+          if (code) {
+            // detectSessionInUrl (on by default) may have already exchanged the one-time code on client init;
+            // reuse that session rather than double-consuming the code.
+            const { data: existing } = await supabase.auth.getSession();
+            if (!existing.session) {
+              ({ error: establishError } = await supabase.auth.exchangeCodeForSession(code));
+            }
+          } else if (tokenHash) {
+            ({ error: establishError } = await supabase.auth.verifyOtp({
+              type: "recovery",
+              token_hash: tokenHash,
+            }));
+          }
+          if (establishError) {
+            setPhase({ kind: "error", message: establishError.message });
+            return;
+          }
+          if (typeof window !== "undefined") {
+            window.history.replaceState(null, "", window.location.pathname);
+          }
+          setPhase({ kind: "ready" });
+        })();
+        return;
+      }
       setPhase({
         kind: "error",
         message:
