@@ -78,6 +78,51 @@ export default function SalesCoachHome() {
   const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Macro Mode (per-rep). The dashboard owns this so it can FOCUS the mobile home when it's on: hide the two
+  // non-door-to-door cards and swap the stat pills for the 3 all-time door KPIs (founder 2026-08-18).
+  const [macroOn, setMacroOn] = useState<boolean | null>(null);
+  const [macroSaving, setMacroSaving] = useState(false);
+  const [macroTotals, setMacroTotals] = useState<{
+    doorsKnocked: number;
+    presentations: number;
+    sold: number;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/coach/sales-session/macro-mode")
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .then((d) => setMacroOn(Boolean(d.enabled)))
+      .catch(() => setMacroOn(false));
+  }, []);
+
+  // All-time door KPIs for the 3 bubbles — fetched only while Macro Mode is on.
+  useEffect(() => {
+    if (!macroOn) return;
+    fetch("/api/coach/sales-session/door-log?range=all")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setMacroTotals(d))
+      .catch(() => {});
+  }, [macroOn]);
+
+  const toggleMacro = useCallback(async () => {
+    if (macroOn === null || macroSaving) return;
+    const next = !macroOn;
+    setMacroSaving(true);
+    setMacroOn(next); // optimistic
+    try {
+      const res = await fetch("/api/coach/sales-session/macro-mode", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (!res.ok) setMacroOn(!next);
+    } catch {
+      setMacroOn(!next);
+    } finally {
+      setMacroSaving(false);
+    }
+  }, [macroOn, macroSaving]);
+
   const load = useCallback(async () => {
     // Home fetches the dashboard stats (desktop tiles + mobile PITCHES pill)
     // and the rep's name (mobile Welcome header). The reliance trend, patterns,
@@ -186,50 +231,74 @@ export default function SalesCoachHome() {
             title="Pitch Performance"
             sub="Analyze recent calls & feedback"
           />
-          <MobileCard
-            href="/dashboard/sales-coach/sessions"
-            icon={Bot}
-            title="Live AI Coach & Sessions"
-            sub="Join live or start AI-coached sessions."
-          />
+          {/* Hidden when Macro Mode is on — a door-to-door rep's home stays focused (founder 2026-08-18). */}
+          {!macroOn && (
+            <MobileCard
+              href="/dashboard/sales-coach/sessions"
+              icon={Bot}
+              title="Live AI Coach & Sessions"
+              sub="Join live or start AI-coached sessions."
+            />
+          )}
           <MobileCard
             href="/dashboard/sales-coach/roleplay"
             icon={Target}
             title={ROLEPLAY_PRACTICE_LABEL}
             sub="Build your skills with simulated pitches"
           />
-          <MobileCard
-            href="/dashboard/sales-coach/strategy"
-            icon={Library}
-            // Founder 2026-08-01: "One Liners" is the universal name now (was a Standard-only relabel — the same
-            // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Sourced from
-            // the shared ONE_LINERS_LABEL constant so it can't drift from the nav + page title again.
-            title={ONE_LINERS_LABEL}
-            sub="Find your top-performing lines and sales strategies"
-          />
+          {/* Hidden when Macro Mode is on (founder 2026-08-18). */}
+          {!macroOn && (
+            <MobileCard
+              href="/dashboard/sales-coach/strategy"
+              icon={Library}
+              // Founder 2026-08-01: "One Liners" is the universal name now (was a Standard-only relabel — the same
+              // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Sourced from
+              // the shared ONE_LINERS_LABEL constant so it can't drift from the nav + page title again.
+              title={ONE_LINERS_LABEL}
+              sub="Find your top-performing lines and sales strategies"
+            />
+          )}
         </div>
 
         {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). */}
-        <MacroModeToggle />
+        <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
 
-        {/* Stat pills — Pitches is real; Roleplays is honestly 0 until Roleplay
-            Practice ships (§3.4). */}
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
-            <span className="text-[11px] uppercase tracking-widest text-muted font-bold">
-              Pitches
-            </span>
-            <span className="text-lg font-bold text-primary">
-              {stats?.sessionsTotal ?? 0}
-            </span>
+        {/* Stat bubbles — Macro Mode shows the 3 door-to-door KPIs (all-time); otherwise Pitches + Roleplays
+            (Roleplays is honestly 0 until Roleplay Practice ships — the no-instant-results honesty rule). */}
+        {macroOn ? (
+          <div className="grid grid-cols-3 gap-3 mt-3">
+            {[
+              { label: "Doors Knocked", val: macroTotals?.doorsKnocked ?? 0, accent: false },
+              { label: "Presentation", val: macroTotals?.presentations ?? 0, accent: false },
+              { label: "Sold", val: macroTotals?.sold ?? 0, accent: true },
+            ].map((b) => (
+              <div
+                key={b.label}
+                className={`rounded-xl border px-2 py-2.5 flex flex-col items-center justify-center text-center gap-0.5 ${
+                  b.accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-white/10 bg-white/[0.02]"
+                }`}
+              >
+                <span className={`text-lg font-bold tabular-nums ${b.accent ? "text-brand" : "text-primary"}`}>
+                  {b.val}
+                </span>
+                <span className="text-[9px] uppercase tracking-wide text-muted font-bold leading-tight">
+                  {b.label}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
-            <span className="text-[11px] uppercase tracking-widest text-muted font-bold">
-              Roleplays
-            </span>
-            <span className="text-lg font-bold text-primary">0</span>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+              <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Pitches</span>
+              <span className="text-lg font-bold text-primary">{stats?.sessionsTotal ?? 0}</span>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+              <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Roleplays</span>
+              <span className="text-lg font-bold text-primary">0</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Get the browser extension — coach the conversation you're viewing (founder request 2026-08-08).
             Hidden on mobile (founder 2026-08-11): the extension is a Chrome/desktop-only install, so promoting
@@ -466,7 +535,7 @@ export default function SalesCoachHome() {
         {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). Desktop entry mirrors the
             mobile-field placement (founder 2026-08-18): a rep who knocks doors from a laptop can reach it here,
             not only on the phone. Same self-contained component; DeckShell's space-y-4 sets the gap. */}
-        <MacroModeToggle />
+        <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
 
         {/* What compounded this week */}
         <SectionLabel icon={Sparkles}>What your coach helped with</SectionLabel>

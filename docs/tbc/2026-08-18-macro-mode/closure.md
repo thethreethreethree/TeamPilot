@@ -150,7 +150,15 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
 - **Back-nav by the clock (untappable)** — the Macro Mode surfaces used `py-6` with no safe-area inset, so in the
   fixed PWA shell (viewport-fit=cover) their top content sat UNDER the iOS status-bar clock. Added
   `pt-[max(1rem,env(safe-area-inset-top))]` to DoorLog/ReportCard/PitchDetail; enlarged PitchDetail's "← Report
-  Card" tap target. (Pending: dashboard Macro-Mode focus — hide the 2 X'd cards + 3 all-time bubbles + FAB overlap.)
+  Card" tap target.
+- **Dashboard Macro-Mode focus** — MacroModeToggle made controlled (the page owns `enabled`). When Macro Mode is
+  ON the mobile home hides the two non-door-to-door cards (Live AI Coach & Sessions, One Liners — founder-decided)
+  and swaps the 2 stat pills for 3 all-time door KPIs: **Doors Knocked / Presentation / Sold** (Sold accented).
+  New `getAllTimeKpi(repId)` sums rep_kpi_daily via fetchAllPaged (no 1000-row truncation), served by
+  `GET /door-log?range=all`; a "presentation" = a door where the rep pitched (doors_knocked − no_answer).
+- **FAB overlap** — the Learning-Mode FAB defaulted bottom-right over "Start Next Pitch Session". Raised its
+  default above the bottom tab bar + CTA (BOTTOM_BAR_CLEARANCE) and bumped its storage key (v2→v3) so everyone
+  re-defaults to the clear position.
 
 - **Finding (MEDIUM, honesty/usability) — FIXED.** Same class, adjacent surface (the mic-denied fix prompted the
   sweep): the Report Card swallowed a load failure — a network error OR non-200 left `summary`/`pitches` null, so

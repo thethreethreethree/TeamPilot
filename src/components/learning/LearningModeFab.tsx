@@ -36,7 +36,10 @@ import { useLearningMode } from "./LearningModeProvider";
 // tenants with the widget enabled. The founder had reported this
 // earlier as "behind the chat", we misdiagnosed it as a minimized
 // tab — wrong. Bumping the key forces existing users to re-default.
-const STORAGE_KEY = "elostate.learning_fab.position.v2";
+// v3 (2026-08-18): re-default everyone so the FAB clears the bottom tab bar + primary CTA — at v2 it sat
+// bottom-right over "Start Next Pitch Session" and other bottom actions (founder-surfaced). Bumping the key
+// is the intended re-default mechanism; a user who had dragged it re-picks once.
+const STORAGE_KEY = "elostate.learning_fab.position.v3";
 const FAB_SIZE = 56; // matches w-14 h-14
 const EDGE_PADDING = 16;
 const DRAG_THRESHOLD_PX = 4;
@@ -44,6 +47,9 @@ const DRAG_THRESHOLD_PX = 4;
 // FAB stacks above it by this amount so both surfaces are reachable
 // without the user having to move either one.
 const CHAT_WIDGET_STACK_OFFSET = 72;
+// Clearance above the mobile bottom tab bar (~52px) + a bottom CTA, so the default FAB never covers the
+// primary action (e.g. "Start Next Pitch Session"). Harmless on desktop (no tab bar) — just a bit higher.
+const BOTTOM_BAR_CLEARANCE = 68;
 
 type Position = { x: number; y: number };
 
@@ -87,7 +93,8 @@ function defaultPosition(): Position {
       FAB_SIZE -
       EDGE_PADDING -
       4 -
-      CHAT_WIDGET_STACK_OFFSET,
+      CHAT_WIDGET_STACK_OFFSET -
+      BOTTOM_BAR_CLEARANCE,
   };
 }
 

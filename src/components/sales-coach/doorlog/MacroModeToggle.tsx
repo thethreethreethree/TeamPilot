@@ -1,44 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DoorOpen, BarChart3 } from "lucide-react";
 
 /**
- * Macro Mode toggle (per-rep, alongside the normal Sales Coach — founder decision 2026-08-18). A rep flips
- * it on to reveal the Door Log + Report Card entries. Self-contained: reads/writes profiles.macro_mode_enabled
- * via /api/coach/sales-session/macro-mode.
+ * Macro Mode toggle (per-rep, alongside the normal Sales Coach — founder decision 2026-08-18). Controlled:
+ * the dashboard page owns `enabled` (so it can also focus the dashboard — hide non-macro cards + swap the stat
+ * bubbles — when Macro Mode is on) and provides `onToggle`, which persists via the macro-mode route. A rep
+ * flips it on to reveal the Door Log + Report Card entries.
  */
-export function MacroModeToggle() {
-  const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/coach/sales-session/macro-mode")
-      .then((r) => (r.ok ? r.json() : { enabled: false }))
-      .then((d) => setEnabled(Boolean(d.enabled)))
-      .catch(() => setEnabled(false));
-  }, []);
-
-  const toggle = useCallback(async () => {
-    if (enabled === null || saving) return;
-    const next = !enabled;
-    setSaving(true);
-    setEnabled(next); // optimistic
-    try {
-      const res = await fetch("/api/coach/sales-session/macro-mode", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled: next }),
-      });
-      if (!res.ok) setEnabled(!next); // revert on failure
-    } catch {
-      setEnabled(!next);
-    } finally {
-      setSaving(false);
-    }
-  }, [enabled, saving]);
-
+export function MacroModeToggle({
+  enabled,
+  saving = false,
+  onToggle,
+}: {
+  enabled: boolean | null;
+  saving?: boolean;
+  onToggle: () => void;
+}) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5 mt-3">
       <div className="flex items-center justify-between gap-3">
@@ -52,7 +31,7 @@ export function MacroModeToggle() {
           </p>
         </div>
         <button
-          onClick={toggle}
+          onClick={onToggle}
           disabled={enabled === null || saving}
           role="switch"
           aria-checked={enabled ?? false}

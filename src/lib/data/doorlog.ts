@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { KnockOutcome } from "@/lib/coach/doorlog/outcomes";
 import type { PatternRollupResult } from "@/lib/coach/doorlog/analysisSchema";
 
@@ -110,6 +111,36 @@ export async function getKpiForDay(localDate: string, repId: string) {
     .eq("local_date", localDate)
     .eq("rep_id", repId);
   return data ?? [];
+}
+
+/**
+ * All-time Macro Mode totals for a rep (the dashboard's Doors Knocked / Presentation / Sold bubbles).
+ * Paged (fetchAllPaged) so a rep with >1000 active days can't silently undercount — summing a PostgREST
+ * read truncated at 1000 rows is the honesty-thesis wrong-number class. A "presentation" = a door where the
+ * rep actually pitched, i.e. any outcome other than No-Answer (doors_knocked − no_answer).
+ */
+export async function getAllTimeKpi(
+  repId: string,
+): Promise<{ doorsKnocked: number; presentations: number; sold: number }> {
+  const sb = await createClient();
+  const rows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
+    (from, to) =>
+      sb
+        .from("rep_kpi_daily")
+        .select("doors_knocked, sold, no_answer")
+        .eq("rep_id", repId)
+        .range(from, to),
+    { label: "all-time door KPI" },
+  );
+  let doorsKnocked = 0;
+  let sold = 0;
+  let noAnswer = 0;
+  for (const r of rows) {
+    doorsKnocked += Number(r.doors_knocked ?? 0);
+    sold += Number(r.sold ?? 0);
+    noAnswer += Number(r.no_answer ?? 0);
+  }
+  return { doorsKnocked, presentations: Math.max(0, doorsKnocked - noAnswer), sold };
 }
 
 // ─── Worker-facing (service-role; the ONLY writer to the derived tables) ──────

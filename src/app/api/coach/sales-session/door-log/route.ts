@@ -6,7 +6,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSignedUploadTarget } from "@/lib/storage/assets";
-import { createKnock, createPitch, getKpiForDay } from "@/lib/data/doorlog";
+import { createKnock, createPitch, getKpiForDay, getAllTimeKpi } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
 
 /**
@@ -128,6 +128,12 @@ export async function GET(req: NextRequest) {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  // All-time totals for the dashboard's Macro Mode bubbles (Doors Knocked / Presentation / Sold).
+  if (req.nextUrl.searchParams.get("range") === "all") {
+    return NextResponse.json(await getAllTimeKpi(auth.user.id));
+  }
+
   const date = req.nextUrl.searchParams.get("date") ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Missing/invalid date." }, { status: 400 });
