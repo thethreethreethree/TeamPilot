@@ -112,3 +112,7 @@ After P4, Pitch Performance shows only the recordings list — the macro pattern
 The report-card route was still reading rep_pattern_summaries and returning a top-level `summary` field that no
 consumer uses (PitchPerformance uses only `pitches` + each pitch's own summary). Removed the dead read + field —
 one fewer DB read per Pitch Performance view. Route test + PitchPerformance render test green.
+
+### Cleanup: drop the now-vestigial period handling from report-card
+Removing the pattern summary left the period param/parsing dead (the pitch list was never period-filtered; the
+tabs moved to Today's Metrics). Removed PERIODS + the param + the returned `period` field. Route test green.

@@ -2,21 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * GET /api/coach/sales-session/report-card?period=day|week|month|all_time
- *
- * The Report Card (Macro Mode Tab 2): the rep's latest macro pattern summary for the period + their pitch
- * list. RLS-scoped — a rep sees only their own; a manager sees the team's (rep+manager, Q4). Read-only,
- * no LLM cost (the summaries are precomputed by the rollup worker).
+ * GET /api/coach/sales-session/report-card — Pitch Performance: the rep's recordings list, each with its
+ * after-pitch summary + outcome. RLS-scoped — a rep sees only their own; a manager may pass ?repId=<member>
+ * (rep+manager RLS authorizes). Read-only. The macro pattern summary + the period tabs moved to Today's Metrics,
+ * so this route no longer takes a period (the pitch list was never period-filtered).
  */
-const PERIODS = ["day", "week", "month", "all_time"] as const;
-
 export async function GET(req: NextRequest) {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-
-  const periodParam = req.nextUrl.searchParams.get("period") ?? "week";
-  const period = (PERIODS as readonly string[]).includes(periodParam) ? periodParam : "week";
 
   // F6: filter by a SPECIFIC rep — default to the caller (so a rep sees their OWN, and a manager doesn't
   // get an arbitrary team member's summary under rep+manager RLS). A manager may pass ?repId=<team member>;
@@ -56,5 +50,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ period, pitches });
+  return NextResponse.json({ pitches });
 }
