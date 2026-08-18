@@ -74,20 +74,22 @@ describe("invariant-audit.mjs", () => {
   // which don't end in `.message`), Zod `parsed.error.issues[0]?.message`, and string literals must NOT match.
   it("the CWE-209 detector catches nested AND direct raw .message, but not controlled error fields", () => {
     const RAW_ERR_MSG_RE =
-      /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
+      /\berror:\s*(?:`[^`]*\$\{[^}]*\??\.\s*message|[A-Za-z_$][\w$]*(?:\s*\??\.\s*[A-Za-z_$][\w$]*)?\s*\??\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\??\.\s*message)/;
     // LEAKS — must match
     expect(RAW_ERR_MSG_RE.test("return NextResponse.json({ error: fc.error.message }, { status: 500 });")).toBe(true); // the nested regression
     expect(RAW_ERR_MSG_RE.test("{ error: err.message }")).toBe(true); // the original one-hop form
     expect(RAW_ERR_MSG_RE.test("{ error: `failed: ${e.message}` }")).toBe(true); // interpolated
     expect(RAW_ERR_MSG_RE.test("{ error: err instanceof Error ? err.message : \"x\" }")).toBe(true); // catch fallback
+    expect(RAW_ERR_MSG_RE.test("{ error: insertErr?.message ?? 'x' }")).toBe(true); // optional chaining (2026-08-19 blind spot)
     // CONTROLLED — must NOT match (no crying wolf)
     expect(RAW_ERR_MSG_RE.test("{ error: auth.error }")).toBe(false);
     expect(RAW_ERR_MSG_RE.test("{ error: result.error }")).toBe(false);
+    expect(RAW_ERR_MSG_RE.test("{ error: result?.error }")).toBe(false); // optional-chained controlled field (still not terminal .message)
     expect(RAW_ERR_MSG_RE.test('{ error: parsed.error.issues[0]?.message ?? "Invalid." }')).toBe(false);
     expect(RAW_ERR_MSG_RE.test('{ error: "Not authenticated." }')).toBe(false);
-    // Bind the test to the SCRIPT: the nested-access group must remain, so the widening can't be silently
-    // reverted (which would re-open the finance/forecast blind spot while this test still passed on its copy).
-    expect(SCRIPT).toContain("[A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)?\\s*\\.\\s*message");
+    // Bind the test to the SCRIPT: the nested-access group (now optional-chaining-aware) must remain, so the
+    // widening can't be silently reverted (which would re-open the ?.message blind spot on its copy).
+    expect(SCRIPT).toContain("[A-Za-z_$][\\w$]*(?:\\s*\\??\\.\\s*[A-Za-z_$][\\w$]*)?\\s*\\??\\.\\s*message");
   });
 
   // INVARIANT 13 (PostgREST .or(...ilike...) injection). Flags an INTERPOLATED raw ilike filter; a

@@ -118,7 +118,8 @@ export async function POST(
     if (msg.includes("Invalid chosen_path")) {
       return NextResponse.json({ error: msg }, { status: 422 });
     }
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[topic-decisions.decide] RPC failed:", msg); // CWE-209: log detail, return generic (mapped 4xx above keep the domain message)
+    return NextResponse.json({ error: "Couldn't record the decision." }, { status: 500 });
   }
 
   const row = (data as DecidedRow | null) ?? null;

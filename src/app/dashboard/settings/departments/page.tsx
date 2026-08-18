@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 import { Archive, Building2, Loader2, Plus, RotateCcw } from "lucide-react";
@@ -40,7 +41,9 @@ export default function DepartmentsSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeArchived]);
 
-  const create = async () => {
+  const runLatched = useSubmitLatch();
+
+  const create = () => runLatched(async () => {
     if (!newName.trim()) {
       setError("Name is required.");
       return;
@@ -62,7 +65,7 @@ export default function DepartmentsSettingsPage() {
     setNewDescription("");
     setCreating(false);
     void refresh();
-  };
+  });
 
   // §3.4 / 558ce56 class: a failed archive/unarchive must be visible. These were
   // bare `await fetch` with no res.ok check — the `create` handler above already

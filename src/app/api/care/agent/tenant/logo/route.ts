@@ -132,8 +132,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+    console.error("[care.tenant.logo] storage upload failed:", msg); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: `Storage upload failed: ${msg}` },
+      { error: "Storage upload failed. Please try again." },
       { status: 500 }
     );
   }

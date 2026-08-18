@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import {
   CheckCircle2,
   Copy,
@@ -68,7 +69,9 @@ export function InviteMemberDialog({
     onClose();
   };
 
-  const submit = async () => {
+  const runLatched = useSubmitLatch();
+
+  const submit = () => runLatched(async () => {
     if (!email.includes("@")) {
       setError("Valid email required.");
       return;
@@ -92,7 +95,7 @@ export function InviteMemberDialog({
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
   const copy = async () => {
     // clipboard.writeText rejects on permission-denied / insecure context — guard it so a failure
