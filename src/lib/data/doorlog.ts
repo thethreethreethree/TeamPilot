@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { KnockOutcome } from "@/lib/coach/doorlog/outcomes";
 import type { PatternRollupResult } from "@/lib/coach/doorlog/analysisSchema";
+import { periodStartLocal, averageScores, type MetricsPeriod } from "@/lib/coach/doorlog/period";
 
 /**
  * Door Log / Report Card data layer (Macro Mode). Per AMD-006 L1 — every CRUD function lives here so
@@ -141,6 +142,92 @@ export async function getAllTimeKpi(
     noAnswer += Number(r.no_answer ?? 0);
   }
   return { doorsKnocked, presentations: Math.max(0, doorsKnocked - noAnswer), sold };
+}
+
+/**
+ * Today's Metrics for a rep + period (Macro Mode, founder spec 2026-08-19): the KPI trio (doors / conversations
+ * = presentations / sales), the Score-Chart averages across the period's analyzed pitches, and the Next-Door
+ * focus + growth opportunities from the macro rollup. RLS-scoped (the caller sees their own; a manager may pass
+ * a team member's repId, still RLS-authorized). Windows match the rollup (via the rep's device-tz local_date).
+ */
+export async function getTodaysMetrics(
+  repId: string,
+  period: MetricsPeriod,
+): Promise<{
+  kpi: { doorsKnocked: number; conversations: number; sold: number };
+  scores: Record<string, number>;
+  focus: string | null;
+  opportunities: string[];
+}> {
+  const sb = await createClient();
+
+  // The rep's local "today" = their latest knock's local_date (device-tz, already captured), UTC-today fallback.
+  const { data: latest } = await sb
+    .from("door_knocks")
+    .select("local_date")
+    .eq("rep_id", repId)
+    .order("local_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const todayIso = (latest?.local_date as string | undefined) ?? new Date().toISOString().slice(0, 10);
+  const since = periodStartLocal(period, todayIso);
+
+  // KPIs over the window — paged so a heavy rep's daily rows can't silently truncate the sum (honesty thesis).
+  const kpiRows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
+    (from, to) => {
+      const base = sb.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").eq("rep_id", repId);
+      return (since ? base.gte("local_date", since) : base).range(from, to);
+    },
+    { label: "todays-metrics kpi" },
+  );
+  let doorsKnocked = 0;
+  let sold = 0;
+  let noAnswer = 0;
+  for (const r of kpiRows) {
+    doorsKnocked += Number(r.doors_knocked ?? 0);
+    sold += Number(r.sold ?? 0);
+    noAnswer += Number(r.no_answer ?? 0);
+  }
+
+  // Score-chart inputs: every analyzed pitch in the window (paged), averaged per dim by the tested helper.
+  const pitchRows = await fetchAllPaged<{
+    pitch_analyses: { scores: Record<string, number> } | { scores: Record<string, number> }[];
+  }>(
+    (from, to) => {
+      const base = sb
+        .from("pitches")
+        .select("pitch_analyses!inner(scores), door_knocks!inner(local_date)")
+        .eq("rep_id", repId)
+        .eq("status", "complete");
+      return (since ? base.gte("door_knocks.local_date", since) : base).range(from, to);
+    },
+    { label: "todays-metrics scores" },
+  );
+  const scoresList: Array<Record<string, number>> = [];
+  for (const p of pitchRows) {
+    const a = p.pitch_analyses;
+    const scores = Array.isArray(a) ? a[0]?.scores : a?.scores;
+    if (scores) scoresList.push(scores);
+  }
+
+  // Focus + opportunities come from the macro rollup summary for this period (precomputed; no LLM on view).
+  const { data: summaryRow } = await sb
+    .from("rep_pattern_summaries")
+    .select("patterns_bad")
+    .eq("period", period)
+    .eq("rep_id", repId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const opportunities = (summaryRow?.patterns_bad as string[] | undefined) ?? [];
+
+  return {
+    kpi: { doorsKnocked, conversations: Math.max(0, doorsKnocked - noAnswer), sold },
+    scores: averageScores(scoresList),
+    // Next-Door focus = the rep's #1 recurring growth opportunity, surfaced automatically (founder decision).
+    focus: opportunities[0] ?? null,
+    opportunities,
+  };
 }
 
 // ─── Worker-facing (service-role; the ONLY writer to the derived tables) ──────
