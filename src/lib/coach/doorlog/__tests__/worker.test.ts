@@ -38,10 +38,11 @@ vi.mock("@/lib/data/doorlog", () => ({
   writePitchAnalysis: vi.fn(async () => {}),
   setPitchStatus: vi.fn(async () => {}),
   claimPitchesToProcess: vi.fn(async () => []),
+  claimPitchForProcessing: vi.fn(async () => true), // won the lease by default
 }));
 
 import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
-import { writePitchAnalysis } from "@/lib/data/doorlog";
+import { writePitchAnalysis, claimPitchForProcessing } from "@/lib/data/doorlog";
 import { processPitch } from "../worker";
 
 const PITCH = {
@@ -76,5 +77,16 @@ describe("processPitch — F4 skip-transcribe-if-exists", () => {
     scripts["pitch_transcripts:pitch_id"] = null; // no transcript
     await processPitch({ ...PITCH });
     expect(transcribeSpeech).toHaveBeenCalledTimes(1);
+  });
+
+  // Audit 2026-08-19: the route's fire-and-forget kick AND the cron sweep both reach processPitch; without an
+  // atomic claim both read "no transcript yet" and each run the paid STT + LLM. The loser of the lease must spend
+  // nothing.
+  it("does NO paid work when it loses the atomic claim (double-processing prevented)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null; // no transcript — would otherwise transcribe
+    vi.mocked(claimPitchForProcessing).mockResolvedValueOnce(false); // another worker already owns this pitch
+    await processPitch({ ...PITCH });
+    expect(transcribeSpeech).not.toHaveBeenCalled();
+    expect(writePitchAnalysis).not.toHaveBeenCalled();
   });
 });

@@ -145,7 +145,8 @@ export async function getAllTimeKpi(
 
 // ─── Worker-facing (service-role; the ONLY writer to the derived tables) ──────
 
-/** Claim the next processable pitch (status/run_after sweep) — mirrors the backfill-dissects-cron pattern. */
+/** Claim the next processable pitch (status/run_after sweep) — mirrors the backfill-dissects-cron pattern.
+ *  NOTE: this is only the CANDIDATE list; `claimPitchForProcessing` below is the atomic per-pitch gate. */
 export async function claimPitchesToProcess(limit = 10) {
   const sb = createAdminClient();
   const { data } = await sb
@@ -156,6 +157,27 @@ export async function claimPitchesToProcess(limit = 10) {
     .order("run_after", { ascending: true })
     .limit(limit);
   return data ?? [];
+}
+
+/**
+ * Atomically LEASE one pitch for processing. A pitch is processed from TWO independent entry points — the
+ * fire-and-forget kick in the door-log route (`after()`) and the every-minute cron sweep — and both read
+ * "no transcript yet" before either writes, so without a claim BOTH run the PAID ElevenLabs STT + the LLM
+ * analysis on the same pitch (audit 2026-08-19). This bumps `run_after` into the future CONDITIONED on the
+ * pitch being currently due; Postgres row-locking serialises the two writers, so the loser's WHERE re-evaluates
+ * against the leased row and matches 0 rows. Returns true iff THIS caller won the lease (and may do the paid
+ * work); the loser returns early. The winner's own status writes (complete/failed/backoff) supersede the lease.
+ */
+export async function claimPitchForProcessing(pitchId: string, leaseMs = 5 * 60_000): Promise<boolean> {
+  const sb = createAdminClient();
+  const { data } = await sb
+    .from("pitches")
+    .update({ run_after: new Date(Date.now() + leaseMs).toISOString() })
+    .eq("id", pitchId)
+    .lte("run_after", new Date().toISOString())
+    .in("status", ["uploading", "recorded", "transcribing", "analyzing"])
+    .select("id");
+  return (data?.length ?? 0) > 0;
 }
 
 export async function writePitchTranscript(args: {

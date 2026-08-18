@@ -9,6 +9,7 @@ import {
   writePitchAnalysis,
   setPitchStatus,
   claimPitchesToProcess,
+  claimPitchForProcessing,
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure } from "./retryBackoff";
 
@@ -47,6 +48,9 @@ async function pitchContext(pitchId: string): Promise<{ outcome: string; duratio
 
 /** Process one pitch through the pipeline. Never throws — failures become retry/terminal state. */
 export async function processPitch(pitch: PitchRow): Promise<void> {
+  // Atomic claim FIRST: only one of the two entry points (the route's fire-and-forget kick and the cron sweep)
+  // may do the paid STT + LLM work for a given pitch. The loser of the lease race returns without spending.
+  if (!(await claimPitchForProcessing(pitch.id))) return;
   try {
     const sb = createAdminClient();
     // F4: skip the (paid) STT step if a transcript ALREADY exists. A retry after an analyze-stage failure
