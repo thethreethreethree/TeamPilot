@@ -32,6 +32,18 @@ all** (a separate capture-reliability concern). Breakdown of the 38:
 segment* rather than split out (the screenshot's turn 2 glued "Normal internet uses…" — a client answer —
 into an agent turn). This is an attribution-granularity weakness, present even on otherwise-split sessions.
 
+**Capture-reliability finding (may outrank the label issue).** Of 300 recent sessions, **154 have no
+transcript at all.** Breakdown:
+
+- **127 are `active`** — never-stopped / abandoned. The live path only persists the transcript on **Stop**,
+  so a session the rep never ends captures nothing. 127 never-ended sessions is high — either reps routinely
+  don't hit Stop, or sessions aren't being marked `ended`. Any real call in this bucket lost its coaching data.
+- **27 are `ended`** (a finished call that captured nothing): **1** recoverable (has audio → retranscribe),
+  and **26 are total capture loss** (no transcript AND no audio) — the rep completed a call and got *nothing*.
+
+No-data is a worse honesty failure than mis-labeled-data (the rep believes a call was coached when it wasn't),
+so the 26 total-losses + the 127 never-ended sessions likely deserve priority over the label attribution.
+
 **What the data CANNOT resolve:** #2 vs #3 — because neither the manual-override state nor the attribution
 source (content / loudness / pitch / locked) is persisted per segment. The stored result is just the final
 `speaker`, so a locked-toggle session and a collapsed-attribution session are indistinguishable after the
