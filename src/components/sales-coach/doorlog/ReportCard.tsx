@@ -2,20 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle, ChevronRight } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 
 /**
- * Report Card — Macro Mode Tab 2. The reflective, insight-dense surface (allowed to be complex). Hero is
- * the AI macro-pattern summary (working / hurting + trend vs. the previous period) across the selected
- * period; below it, the pitch list. Precomputed by the rollup worker — no LLM cost on view.
+ * Pitch Performance (Macro Mode — renamed from "Report Card", founder spec 2026-08-19). The recordings list:
+ * each pitch shows its after-pitch summary + outcome (Sold / Go Back / Not Interested…) and drills into the full
+ * per-pitch analysis. The Day/Week/Month/All-Time tabs and the macro pattern summary MOVED to Today's Metrics —
+ * this surface is purely the record of pitches. Read-only; a load error is honest, never a false "no pitches".
  */
-
-const PERIODS = [
-  { key: "day", label: "Day" },
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-  { key: "all_time", label: "All Time" },
-] as const;
 
 const OUTCOME_BADGE: Record<string, { label: string; cls: string }> = {
   sold: { label: "Sold", cls: "bg-emerald-500/15 text-emerald-400" },
@@ -25,34 +19,31 @@ const OUTCOME_BADGE: Record<string, { label: string; cls: string }> = {
   no_answer: { label: "No Answer", cls: "bg-surface text-muted" },
 };
 
-type Summary = {
-  headline: string;
-  patternsGood: string[];
-  patternsBad: string[];
-  trend: { direction?: string; note?: string } | null;
-  pitchCount: number;
+type Pitch = {
+  id: string;
+  name: string;
+  status: string;
+  recordedAt: string;
+  outcome: string;
+  summary: string | null;
 };
-type Pitch = { id: string; name: string; status: string; recordedAt: string; outcome: string };
 
 export function ReportCard() {
-  const [period, setPeriod] = useState<string>("week");
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async (p: string) => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(`/api/coach/sales-session/report-card?period=${p}`);
+      // The pitch list is not period-scoped (it's the full recording history); the API's period param only
+      // shapes the pattern summary, which now lives on Today's Metrics — so we don't pass one here.
+      const res = await fetch(`/api/coach/sales-session/report-card`);
       if (res.ok) {
         const d = await res.json();
-        setSummary(d.summary);
         setPitches(d.pitches ?? []);
       } else {
-        // A load FAILURE must not masquerade as "no data yet" — a rep would think their pitches vanished
-        // (error dressed as no-data, the honesty thesis). Surface it as an honest, retryable error instead.
         setError(true);
       }
     } catch {
@@ -63,115 +54,36 @@ export function ReportCard() {
   }, []);
 
   useEffect(() => {
-    void load(period);
-  }, [period, load]);
-
-  const trendIcon =
-    summary?.trend?.direction === "improving" ? (
-      <TrendingUp className="w-4 h-4 text-emerald-400" aria-hidden />
-    ) : summary?.trend?.direction === "regressing" ? (
-      <TrendingDown className="w-4 h-4 text-red-400" aria-hidden />
-    ) : (
-      <Minus className="w-4 h-4 text-muted" aria-hidden />
-    );
+    void load();
+  }, [load]);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-2xl mx-auto w-full">
-      <h1 className="text-xl font-bold text-primary mb-4">Report Card</h1>
-
-      {/* Period selector */}
-      <div className="flex gap-2 mb-6">
-        {PERIODS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === p.key ? "bg-ember-400 text-[#09090B]" : "bg-surface text-secondary"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <h1 className="text-xl font-bold text-primary">Pitch Performance</h1>
+      <p className="text-xs text-muted mb-5">Your recorded pitches and their after-pitch summary.</p>
 
       {error ? (
         <div className="glass-card p-5 border border-red-500/30">
           <p className="text-sm text-red-300">
-            Couldn&apos;t load your Report Card — check your connection and try again.
+            Couldn&apos;t load your pitches — this is an error, not an empty history. Check your connection and try again.
           </p>
           <button
             type="button"
-            onClick={() => void load(period)}
+            onClick={() => void load()}
             className="mt-3 text-sm font-semibold text-brand hover:underline"
           >
             Retry
           </button>
         </div>
-      ) : (
-        <>
-      {/* Pattern hero */}
-      <div className="glass-card p-5 mb-6">
-        {loading ? (
-          <p className="text-sm text-muted">Loading patterns…</p>
-        ) : !summary ? (
-          <p className="text-sm text-muted">
-            No pattern summary yet for this period — it builds as pitches come in and get analyzed.
-          </p>
-        ) : (
-          <>
-            <div className="flex items-start gap-2 mb-4">
-              {trendIcon}
-              <div>
-                <h2 className="text-base font-bold text-primary leading-snug text-balance">
-                  {summary.headline}
-                </h2>
-                {summary.trend?.note && (
-                  <p className="text-xs text-muted mt-1">{summary.trend.note}</p>
-                )}
-                <p className="text-[11px] text-muted mt-1">
-                  Across {summary.pitchCount} pitch{summary.pitchCount === 1 ? "" : "es"} this{" "}
-                  {PERIODS.find((p) => p.key === period)?.label.toLowerCase()}
-                </p>
-              </div>
-            </div>
-
-            {summary.patternsGood.length > 0 && (
-              <div className="mb-4">
-                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-2">
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden /> What's working
-                </h3>
-                <ul className="space-y-1.5">
-                  {summary.patternsGood.map((p, i) => (
-                    <li key={i} className="text-sm text-secondary leading-relaxed">
-                      • {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {summary.patternsBad.length > 0 && (
-              <div>
-                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ember-400 mb-2">
-                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden /> Growth opportunities
-                </h3>
-                <ul className="space-y-1.5">
-                  {summary.patternsBad.map((p, i) => (
-                    <li key={i} className="text-sm text-secondary leading-relaxed">
-                      • {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Pitch list */}
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary mb-3">Pitches</h2>
-      {pitches.length === 0 ? (
-        <p className="text-sm text-muted">No pitches recorded yet.</p>
+      ) : loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          Loading…
+        </div>
+      ) : pitches.length === 0 ? (
+        <p className="text-sm text-muted">
+          No pitches recorded yet. Record a pitch from the Door Log and its after-pitch summary shows up here.
+        </p>
       ) : (
         <ul className="space-y-2">
           {pitches.map((p) => {
@@ -180,11 +92,11 @@ export function ReportCard() {
               <li key={p.id}>
                 <Link
                   href={`/dashboard/sales-coach/doors/report-card/${p.id}`}
-                  className="glass-card p-3 flex items-center justify-between gap-3 hover:border-strong transition-colors"
+                  className="glass-card p-3.5 flex items-start justify-between gap-3 hover:border-strong transition-colors"
                 >
                   <div className="min-w-0">
                     <div className="text-sm text-primary truncate">{p.name}</div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-[11px] text-muted mb-1">
                       {new Date(p.recordedAt).toLocaleString()}
                       {p.status !== "complete" && (
                         <span className="ml-2 text-brand">
@@ -192,20 +104,24 @@ export function ReportCard() {
                         </span>
                       )}
                     </div>
+                    {/* The after-pitch summary inline — the recording's content (founder spec 2026-08-19). */}
+                    {p.summary ? (
+                      <p className="text-xs text-secondary leading-relaxed line-clamp-2">{p.summary}</p>
+                    ) : p.status === "complete" ? null : (
+                      <p className="text-xs text-muted italic">Summary appears once processing finishes.</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[11px] font-semibold px-2 py-1 rounded-md ${badge.cls}`}>
                       {badge.label}
                     </span>
-                    <ChevronRight className="w-4 h-4 text-muted" aria-hidden />
+                    <ChevronRight className="w-4 h-4 text-muted shrink-0 mt-0.5" aria-hidden />
                   </div>
                 </Link>
               </li>
             );
           })}
         </ul>
-      )}
-        </>
       )}
     </div>
   );

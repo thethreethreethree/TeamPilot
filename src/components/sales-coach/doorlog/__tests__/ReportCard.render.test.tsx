@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 /**
- * Render gate for the error-dressed-as-no-data fix (audit 2026-08-18). When the Report Card's load FAILS
- * (network error or non-200) it must show an honest, retryable error — NOT the "No pattern summary yet /
- * No pitches recorded" empty state, which would make a rep think their pitches vanished.
+ * Render gate for Pitch Performance (renamed from Report Card, founder spec 2026-08-19). Two locks: a failed
+ * load shows an honest, retryable error — NOT the "No pitches recorded" empty state (a rep would think their
+ * pitches vanished; the error-dressed-as-no-data honesty fix, audit 2026-08-18); and a good load renders the
+ * recordings list with each pitch's after-pitch summary + outcome under the "Pitch Performance" heading.
  */
 
 vi.mock("next/link", () => ({
@@ -19,17 +20,39 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ReportCard — load failure shows an honest error, not empty (render gate)", () => {
-  beforeEach(() => {
+describe("Pitch Performance", () => {
+  it("a failed load renders the honest error (not the misleading 'no pitches' empty state)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
+    render(<ReportCard />);
+    await waitFor(() => expect(screen.getByText(/Couldn't load your pitches/i)).toBeTruthy());
+    expect(screen.getByText(/Retry/i)).toBeTruthy();
+    expect(screen.queryByText(/No pitches recorded yet/i)).toBeNull();
   });
 
-  it("a failed load renders the error card (not the misleading 'no data' empty state)", async () => {
+  it("a good load renders the recordings list with each after-pitch summary + outcome", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          pitches: [
+            {
+              id: "p1",
+              name: "Blue door",
+              status: "complete",
+              recordedAt: "2026-08-19T15:00:00Z",
+              outcome: "sold",
+              summary: "Strong open, rushed the close.",
+            },
+          ],
+        }),
+      })),
+    );
     render(<ReportCard />);
-    await waitFor(() => expect(screen.getByText(/Couldn't load your Report Card/i)).toBeTruthy());
-    expect(screen.getByText(/Retry/i)).toBeTruthy();
-    // The misleading empty states must NOT be shown on an error.
-    expect(screen.queryByText(/No pattern summary yet/i)).toBeNull();
-    expect(screen.queryByText(/No pitches recorded yet/i)).toBeNull();
+    await waitFor(() => expect(screen.getByText("Pitch Performance")).toBeTruthy());
+    expect(screen.getByText("Blue door")).toBeTruthy();
+    expect(screen.getByText("Strong open, rushed the close.")).toBeTruthy(); // the after-pitch summary inline
+    expect(screen.getByText("Sold")).toBeTruthy(); // the outcome badge
   });
 });

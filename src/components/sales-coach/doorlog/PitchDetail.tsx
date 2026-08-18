@@ -50,7 +50,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
         href="/dashboard/sales-coach/doors/report-card"
         className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm font-medium text-secondary hover:text-primary active:bg-white/5 transition-colors mb-3"
       >
-        <ArrowLeft className="w-4 h-4" aria-hidden /> Report Card
+        <ArrowLeft className="w-4 h-4" aria-hidden /> Pitch Performance
       </Link>
 
       {loading ? (

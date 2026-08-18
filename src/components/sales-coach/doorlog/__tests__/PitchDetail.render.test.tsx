@@ -49,7 +49,7 @@ describe("PitchDetail — render guard (founder 2026-08-18 clip class)", () => {
     render(<PitchDetail pitchId="p1" />);
 
     // Back-nav is the escape hatch — it must render and point at the Report Card.
-    const back = screen.getByRole("link", { name: /Report Card/i });
+    const back = screen.getByRole("link", { name: /Pitch Performance/i });
     expect(back.getAttribute("href")).toBe("/dashboard/sales-coach/doors/report-card");
 
     await waitFor(() => expect(screen.getByText("Blue door, angry homeowner")).toBeTruthy());
@@ -67,7 +67,7 @@ describe("PitchDetail — render guard (founder 2026-08-18 clip class)", () => {
     await waitFor(() => expect(screen.getByText("Processing failed")).toBeTruthy());
     expect(screen.getByText("Audio was too quiet to transcribe.")).toBeTruthy();
     // Back-nav still present so a rep is never stranded on a failed pitch.
-    expect(screen.getByRole("link", { name: /Report Card/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Pitch Performance/i })).toBeTruthy();
   });
 
   it("not found (404): an honest 'isn't available', back-nav intact", async () => {
@@ -75,6 +75,6 @@ describe("PitchDetail — render guard (founder 2026-08-18 clip class)", () => {
     render(<PitchDetail pitchId="missing" />);
 
     await waitFor(() => expect(screen.getByText(/isn't available/i)).toBeTruthy());
-    expect(screen.getByRole("link", { name: /Report Card/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Pitch Performance/i })).toBeTruthy();
   });
 });

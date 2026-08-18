@@ -36,3 +36,12 @@ Conversations/Sales; Score Chart rendering ONLY the dims present in the data —
 Opportunities to grow; honest error+retry, never a zeroed page). Route
 `/dashboard/sales-coach/doors/todays-metrics`.
 guard: `TodaysMetrics.render.test.tsx` (loaded content + present-dims-only + honest-error).
+
+### Phase 4 — Report Card → Pitch Performance (rename + restructure)
+write-path: report-card API joins `pitch_analyses(summary)` per pitch; `ReportCard.tsx` rewritten as Pitch
+Performance — heading renamed, period tabs + pattern hero REMOVED (moved to Today's Metrics), the recordings
+list now shows each pitch's after-pitch summary inline + outcome badge, drilling into PitchDetail. Honest error
+("not an empty history"). Route path /doors/report-card KEPT (PitchDetail's [pitchId] + back-link depend on it);
+labels updated — MacroModeToggle "Report Card"→"Pitch Performance", PitchDetail back-nav likewise. (Internal
+component/route name stays ReportCard/report-card to avoid a path cascade; display is Pitch Performance.)
+guard: ReportCard.render.test (honest error + loaded recordings-with-summary); PitchDetail test back-nav label.

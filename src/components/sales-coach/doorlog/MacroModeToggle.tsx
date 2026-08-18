@@ -60,7 +60,7 @@ export function MacroModeToggle({
             href="/dashboard/sales-coach/doors/report-card"
             className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-surface border border-default text-primary text-sm font-semibold"
           >
-            <BarChart3 className="w-4 h-4" aria-hidden /> Report Card
+            <BarChart3 className="w-4 h-4" aria-hidden /> Pitch Performance
           </Link>
         </div>
       )}

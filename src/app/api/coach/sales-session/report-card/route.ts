@@ -33,22 +33,27 @@ export async function GET(req: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  // The rep's pitches (name / outcome / status / date) — newest first, bounded.
+  // The rep's pitches (name / outcome / status / date + the after-pitch summary snippet) — newest first,
+  // bounded. Pitch Performance shows each recording's after-pitch summary inline (founder spec 2026-08-19), so
+  // the analysis summary is joined here (left join — a still-processing pitch has none yet).
   const { data: pitchRows } = await sb
     .from("pitches")
-    .select("id, name, status, recorded_at, door_knocks!inner(outcome)")
+    .select("id, name, status, recorded_at, door_knocks!inner(outcome), pitch_analyses(summary)")
     .eq("rep_id", repId)
     .order("recorded_at", { ascending: false })
     .limit(200);
 
   const pitches = (pitchRows ?? []).map((p) => {
     const knock = p.door_knocks as unknown as { outcome: string } | { outcome: string }[];
+    const analysis = p.pitch_analyses as unknown as { summary: string } | { summary: string }[] | null;
+    const summary = Array.isArray(analysis) ? analysis[0]?.summary : analysis?.summary;
     return {
       id: p.id as string,
       name: p.name as string,
       status: p.status as string,
       recordedAt: p.recorded_at as string,
       outcome: (Array.isArray(knock) ? knock[0]?.outcome : knock?.outcome) ?? "unknown",
+      summary: summary ?? null,
     };
   });
 
