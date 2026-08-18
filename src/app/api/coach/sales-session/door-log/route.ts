@@ -6,7 +6,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSignedUploadTarget } from "@/lib/storage/assets";
-import { createKnock, createPitch } from "@/lib/data/doorlog";
+import { createKnock, createPitch, getKpiForDay } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
 
 /**
@@ -106,4 +106,31 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json({ ok: true, knockId: knock.id, pitchId: pitch.id });
+}
+
+/**
+ * GET /api/coach/sales-session/door-log?date=YYYY-MM-DD — the rep's KPI strip for a local sales day
+ * (RLS-scoped: a rep sees only their own; the view aggregates door_knocks). Best-effort; the Door Log
+ * never blocks on it.
+ */
+export async function GET(req: NextRequest) {
+  const sb = await createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const date = req.nextUrl.searchParams.get("date") ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json({ error: "Missing/invalid date." }, { status: 400 });
+  }
+  const rows = await getKpiForDay(date);
+  // The rep's own row (RLS returns only theirs); sum defensively in case of multiple.
+  const total = rows.reduce(
+    (acc, r) => ({
+      doorsKnocked: acc.doorsKnocked + Number(r.doors_knocked ?? 0),
+      sold: acc.sold + Number(r.sold ?? 0),
+      goBacks: acc.goBacks + Number(r.go_backs ?? 0),
+      notInterested: acc.notInterested + Number(r.not_interested ?? 0),
+    }),
+    { doorsKnocked: 0, sold: 0, goBacks: 0, notInterested: 0 }
+  );
+  return NextResponse.json(total);
 }
