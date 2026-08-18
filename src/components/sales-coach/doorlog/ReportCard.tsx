@@ -70,7 +70,7 @@ export function ReportCard() {
     );
 
   return (
-    <div className="min-h-screen bg-base px-4 py-6 max-w-2xl mx-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 py-6 max-w-2xl mx-auto w-full">
       <h1 className="text-xl font-bold text-primary mb-4">Report Card</h1>
 
       {/* Period selector */}

@@ -103,3 +103,13 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   summary is already at/after their latest completed pitch) + fetch each candidate's latest summary once; gated by
   3 unit tests in rollupWorker.test.ts. First-time reps (no summary) still always roll up; freshness after
   inactivity is unchanged (already frozen by the 24h candidate window).
+- **Finding (HIGH, render/usability) — FIXED.** Founder-surfaced 2026-08-18: the Door Log showed ONLY "No Answer" —
+  the core "Record Pitch" button was invisible, making Macro Mode unusable. Root cause (a CLASS the wiring-only
+  audit missed): all three Macro Mode full-screen components (DoorLog, ReportCard, PitchDetail) rooted at
+  `min-h-screen` (full viewport), but render inside SalesCoachShell's `<main>` = `flex-1 … overflow-hidden` =
+  viewport MINUS the fixed bottom nav. Each was taller than main and its bottom CLIPPED with no scrollbar: the
+  DoorLog's bottom-most button (Record Pitch, `justify-end`) vanished; ReportCard's pitch list + PitchDetail's
+  transcript were cut off. Fixed all three to the proven Home-page shell idiom — `flex-1 min-h-0` (+ `overflow-y-auto`
+  on the two scrollable ones) — so they fill main and scroll internally. Verified with a headless render (before:
+  clipped; after: both buttons visible). Lesson: the audit checked routes/RLS/shapes but NOT that surfaces RENDER
+  usably inside the shell — a render/layout pass is now mandatory.

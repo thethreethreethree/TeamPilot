@@ -183,7 +183,7 @@ export function DoorLog() {
   }, [busy, pickedOutcome, localDate, name, recorded, sendPitch, loadKpi]);
 
   return (
-    <div className="min-h-screen bg-base flex flex-col px-4 py-6 max-w-md mx-auto">
+    <div className="flex-1 min-h-0 bg-base flex flex-col px-4 py-6 max-w-md mx-auto w-full">
       {sendError && (
         <button
           type="button"
