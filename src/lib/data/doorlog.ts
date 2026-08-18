@@ -172,14 +172,40 @@ export async function getTodaysMetrics(
   const todayIso = (latest?.local_date as string | undefined) ?? new Date().toISOString().slice(0, 10);
   const since = periodStartLocal(period, todayIso);
 
-  // KPIs over the window — paged so a heavy rep's daily rows can't silently truncate the sum (honesty thesis).
-  const kpiRows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
-    (from, to) => {
-      const base = sb.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").eq("rep_id", repId);
-      return (since ? base.gte("local_date", since) : base).range(from, to);
-    },
-    { label: "todays-metrics kpi" },
-  );
+  // KPIs, scores, and the rollup summary are independent (all key on the window resolved above) — run them in
+  // PARALLEL so the rep waits on the slowest, not the sum. KPIs + scores are PAGED so a heavy rep's rows can't
+  // silently truncate the sum/average (honesty thesis); the summary is the precomputed rollup (no LLM on view).
+  const [kpiRows, pitchRows, summaryRes] = await Promise.all([
+    fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
+      (from, to) => {
+        const base = sb.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").eq("rep_id", repId);
+        return (since ? base.gte("local_date", since) : base).range(from, to);
+      },
+      { label: "todays-metrics kpi" },
+    ),
+    fetchAllPaged<{
+      pitch_analyses: { scores: Record<string, number> } | { scores: Record<string, number> }[];
+    }>(
+      (from, to) => {
+        const base = sb
+          .from("pitches")
+          .select("pitch_analyses!inner(scores), door_knocks!inner(local_date)")
+          .eq("rep_id", repId)
+          .eq("status", "complete");
+        return (since ? base.gte("door_knocks.local_date", since) : base).range(from, to);
+      },
+      { label: "todays-metrics scores" },
+    ),
+    sb
+      .from("rep_pattern_summaries")
+      .select("patterns_bad")
+      .eq("period", period)
+      .eq("rep_id", repId)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
   let doorsKnocked = 0;
   let sold = 0;
   let noAnswer = 0;
@@ -189,20 +215,6 @@ export async function getTodaysMetrics(
     noAnswer += Number(r.no_answer ?? 0);
   }
 
-  // Score-chart inputs: every analyzed pitch in the window (paged), averaged per dim by the tested helper.
-  const pitchRows = await fetchAllPaged<{
-    pitch_analyses: { scores: Record<string, number> } | { scores: Record<string, number> }[];
-  }>(
-    (from, to) => {
-      const base = sb
-        .from("pitches")
-        .select("pitch_analyses!inner(scores), door_knocks!inner(local_date)")
-        .eq("rep_id", repId)
-        .eq("status", "complete");
-      return (since ? base.gte("door_knocks.local_date", since) : base).range(from, to);
-    },
-    { label: "todays-metrics scores" },
-  );
   const scoresList: Array<Record<string, number>> = [];
   for (const p of pitchRows) {
     const a = p.pitch_analyses;
@@ -210,16 +222,7 @@ export async function getTodaysMetrics(
     if (scores) scoresList.push(scores);
   }
 
-  // Focus + opportunities come from the macro rollup summary for this period (precomputed; no LLM on view).
-  const { data: summaryRow } = await sb
-    .from("rep_pattern_summaries")
-    .select("patterns_bad")
-    .eq("period", period)
-    .eq("rep_id", repId)
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const opportunities = (summaryRow?.patterns_bad as string[] | undefined) ?? [];
+  const opportunities = (summaryRes.data?.patterns_bad as string[] | undefined) ?? [];
 
   return {
     kpi: { doorsKnocked, conversations: Math.max(0, doorsKnocked - noAnswer), sold },

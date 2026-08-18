@@ -100,3 +100,9 @@ save auto-advances to idle ("next door") with zero waiting, a failed send surfac
 saved), the optimistic KPI self-corrects via loadKpi(); the async surfaces show honest lag/empty states. The one
 GAP was a guard gap, not a behavior gap: the AMD-006-critical auto-advance (save → idle) was unasserted in
 DoorLogFlow.render.test — now clicked-through and locked (idle field actions return, naming form gone).
+
+### Perf: parallelize getTodaysMetrics reads
+The KPI, score, and rollup-summary reads (all keyed on the window from `latest`) were awaited sequentially, so
+the rep waited on their sum. Wrapped in Promise.all — the rep now waits on the slowest, not the total. Behaviour-
+preserving (same reads, same paging); matches the codebase's "parallelize independent reads" perf pattern. Gate
+green (3040 tests).
