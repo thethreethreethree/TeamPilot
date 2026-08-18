@@ -66,3 +66,33 @@ describe("Sales-Coach shell scroll idiom — no viewport-height roots (they clip
     expect(offenders, `viewport-height roots clip inside the shell — switch to "flex-1 min-h-0 overflow-y-auto":\n${offenders.join("\n")}`).toEqual([]);
   });
 });
+
+/**
+ * The OTHER half of the same contract. The guard above bans the child anti-pattern (viewport-height roots); this
+ * locks the PARENT the correct child idiom depends on. Every door/care page's `flex-1 min-h-0 overflow-y-auto`
+ * root only owns its scroll region because it is a direct child of a `<main>` that is a bounded-height flex COLUMN
+ * with `overflow-hidden`. If a shell refactor drops `flex`, `flex-col`, or `overflow-hidden` from `<main>`, the
+ * children's `flex-1` collapses and the clip bug returns SILENTLY across every surface — the exact regression that
+ * made the Door Log show "only No Answer". This fails first, at the source, so that can't happen unnoticed.
+ */
+describe("Fixed-overlay shells — <main> keeps the flex-column scroll context its children rely on", () => {
+  const SHELLS = [
+    "src/components/sales-coach/SalesCoachShell.tsx",
+    "src/components/care/CareShell.tsx",
+  ];
+  const REQUIRED = ["flex", "flex-col", "overflow-hidden"];
+  for (const shell of SHELLS) {
+    it(`${shell} renders children inside a flex-col overflow-hidden <main>`, () => {
+      const src = readFileSync(shell, "utf8");
+      const m = src.match(/<main className="([^"]*)"/);
+      expect(m, `${shell}: no <main className="..."> found — did the shell stop rendering a <main>?`).toBeTruthy();
+      const tokens = m![1].split(/\s+/);
+      for (const token of REQUIRED) {
+        expect(
+          tokens,
+          `${shell} <main> must keep "${token}" — the children's "flex-1 min-h-0 overflow-y-auto" scroll region depends on it`,
+        ).toContain(token);
+      }
+    });
+  }
+});
