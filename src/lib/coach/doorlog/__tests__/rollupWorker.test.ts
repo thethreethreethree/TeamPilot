@@ -47,7 +47,7 @@ vi.mock("@/lib/coach/doorlog/rollup", () => ({
 }));
 vi.mock("@/lib/data/doorlog", () => ({ upsertRepPatternSummary: vi.fn(async () => {}) }));
 
-import { rollupRep } from "../rollupWorker";
+import { rollupRep, isRepDueForRollup } from "../rollupWorker";
 
 beforeEach(() => {
   gteCalls.length = 0;
@@ -78,5 +78,18 @@ describe("rollupRep — F5 local_date windowing", () => {
     await rollupRep({ companyId: "co1", repId: "rep1", todayIso: "2026-08-19" });
     const starts = gteCalls.filter((c) => c.col === "door_knocks.local_date").map((c) => c.val);
     expect(starts).toContain("2026-08-19"); // day window uses the fallback
+  });
+});
+
+describe("isRepDueForRollup — cost gate (no every-minute LLM re-run)", () => {
+  it("is due when the latest completed pitch is NEWER than the newest summary", () => {
+    expect(isRepDueForRollup("2026-08-18T10:00:00Z", "2026-08-18T09:00:00Z")).toBe(true);
+  });
+  it("is NOT due when the summary is already at/after the latest pitch (skip the redundant re-run)", () => {
+    expect(isRepDueForRollup("2026-08-18T09:00:00Z", "2026-08-18T09:00:00Z")).toBe(false); // equal → current
+    expect(isRepDueForRollup("2026-08-18T09:00:00Z", "2026-08-18T10:00:00Z")).toBe(false); // summary newer
+  });
+  it("is always due when the rep has no summary yet (first rollup)", () => {
+    expect(isRepDueForRollup("2026-08-18T09:00:00Z", undefined)).toBe(true);
   });
 });

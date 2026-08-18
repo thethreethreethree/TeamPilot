@@ -141,23 +141,55 @@ export async function rollupRep(args: { companyId: string; repId: string; todayI
   }
 }
 
+/**
+ * A rep is DUE for a rollup iff they have no summary yet, or their latest completed pitch is newer than their
+ * newest summary. Pure so the cost gate (skip a re-run when nothing changed) is unit-tested and can't regress
+ * back to the every-minute LLM re-run. ISO timestamps compare correctly as strings.
+ */
+export function isRepDueForRollup(latestPitchIso: string, latestSummaryIso: string | undefined): boolean {
+  return !latestSummaryIso || latestSummaryIso < latestPitchIso;
+}
+
 /** Find reps with a recently-completed pitch and refresh their rollups (the cron's rollup pass). */
 export async function rollupDueReps(todayIso: string, limit = 20): Promise<number> {
   const sb = createAdminClient();
-  // Reps whose most recent complete pitch is newer than their newest summary would ideally drive this;
-  // for v1, refresh reps with any complete pitch in the last day (bounded).
+  // Candidate reps: any complete pitch in the last day (bounded), tracking each rep's LATEST completion.
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const { data } = await sb
     .from("pitches")
-    .select("rep_id, company_id")
+    .select("rep_id, company_id, updated_at")
     .eq("status", "complete")
     .gte("updated_at", since)
     .limit(500);
-  const seen = new Map<string, string>(); // rep_id -> company_id
-  for (const r of data ?? []) seen.set(r.rep_id as string, r.company_id as string);
+  const candidates = new Map<string, { companyId: string; latestPitch: string }>();
+  for (const r of data ?? []) {
+    const repId = r.rep_id as string;
+    const ts = r.updated_at as string;
+    const prev = candidates.get(repId);
+    if (!prev || ts > prev.latestPitch) candidates.set(repId, { companyId: r.company_id as string, latestPitch: ts });
+  }
+  if (candidates.size === 0) return 0;
+
+  // Cost gate (the "ideal" the v1 comment named): only roll up a rep whose latest completed pitch is NEWER than
+  // their newest summary. The cron fires every minute; without this, every rep active in the last 24h re-ran the
+  // rollup engine (4 LLM calls — day/week/month/all_time) EVERY minute even with no new pitch — pure spend on an
+  // unchanged summary. A rep with no summary yet has no row here, so they always roll up (first time).
+  const { data: sums } = await sb
+    .from("rep_pattern_summaries")
+    .select("rep_id, generated_at")
+    .in("rep_id", [...candidates.keys()]);
+  const latestSummary = new Map<string, string>();
+  for (const s of sums ?? []) {
+    const repId = s.rep_id as string;
+    const ts = s.generated_at as string;
+    const prev = latestSummary.get(repId);
+    if (!prev || ts > prev) latestSummary.set(repId, ts);
+  }
+
   let n = 0;
-  for (const [repId, companyId] of seen) {
+  for (const [repId, { companyId, latestPitch }] of candidates) {
     if (n >= limit) break;
+    if (!isRepDueForRollup(latestPitch, latestSummary.get(repId))) continue; // summary current — skip LLM re-run
     await rollupRep({ companyId, repId, todayIso });
     n += 1;
   }

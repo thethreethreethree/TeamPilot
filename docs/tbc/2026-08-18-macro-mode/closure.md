@@ -93,4 +93,13 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   so a manager's Door Log KPI strip showed team totals, not their own. The GET handler's own comment ("RLS returns
   only theirs") documented the intended per-caller behavior — a latent gap for managers, not an intentional
   convention (retrospective record-check). Pinned `getKpiForDay` to the caller's `rep_id` (F6-class fix); reps unaffected,
-  managers now correct. Gate green (2978).
+  managers now correct. Full gate re-run: 2978 of 2978 tests pass, 0 failures.
+- **Finding (MEDIUM, efficiency/cost) — FIXED.** With the cron firing every minute, `rollupDueReps` re-ran the
+  rollup engine for EVERY rep with a completed pitch in the last 24h EVERY sweep — 4 LLM calls each
+  (day/week/month/all_time) — even when no new pitch had completed since the last summary. An active rep burned
+  ~4 LLM calls/minute for 24h on an unchanged summary. The code comment named the intended fix ("reps whose most
+  recent complete pitch is newer than their newest summary would ideally drive this") — a documented v1 shortcut,
+  not a convention. Added a pure `isRepDueForRollup(latestPitch, latestSummary)` cost gate (skip a rep whose newest
+  summary is already at/after their latest completed pitch) + fetch each candidate's latest summary once; gated by
+  3 unit tests in rollupWorker.test.ts. First-time reps (no summary) still always roll up; freshness after
+  inactivity is unchanged (already frozen by the 24h candidate window).
