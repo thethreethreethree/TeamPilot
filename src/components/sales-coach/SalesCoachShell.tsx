@@ -182,7 +182,12 @@ export function SalesCoachShell({
   }, []);
   const visibleSections = macroOn
     ? managerSections
-        .map((s) => ({ ...s, items: s.items.filter((i) => !MACRO_HIDDEN_HREFS.has(i.href)) }))
+        // Hide the two focus-out entries — but NOT one the rep is currently ON: hiding the user's own location
+        // would violate the same AMD-006 L3 rule the collapsible groups honor below.
+        .map((s) => ({
+          ...s,
+          items: s.items.filter((i) => !MACRO_HIDDEN_HREFS.has(i.href) || isNavItemActive(i, pathname)),
+        }))
         .filter((s) => s.items.length > 0)
     : managerSections;
 

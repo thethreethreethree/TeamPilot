@@ -91,7 +91,16 @@ describe("SalesCoachShell — Macro Mode sidebar focus (founder 2026-08-18: ONLY
   });
 
   it("applies the hide ONLY when Macro Mode is on", () => {
-    expect(SHELL).toMatch(/macroOn\s*\?[\s\S]{0,200}MACRO_HIDDEN_HREFS/);
+    // Robust to comments/formatting: the visibleSections assignment must gate the MACRO_HIDDEN_HREFS filter on
+    // macroOn (a ternary), so the entries hide ONLY in Macro Mode and are shown otherwise.
+    const block = SHELL.match(/const visibleSections =([\s\S]*?);\n/)?.[1] ?? "";
+    expect(block).toContain("macroOn");
+    expect(block).toContain("MACRO_HIDDEN_HREFS");
+    expect(block).toMatch(/macroOn\s*\?/);
+  });
+
+  it("keeps a focus-out entry visible if the rep is currently ON it (AMD-006 L3 — never hide own location)", () => {
+    expect(SHELL).toMatch(/MACRO_HIDDEN_HREFS\.has\(i\.href\)\s*\|\|\s*isNavItemActive\(i, pathname\)/);
   });
 
   it("reacts to the toggle live via the elostate:macro-mode event (no reload)", () => {
