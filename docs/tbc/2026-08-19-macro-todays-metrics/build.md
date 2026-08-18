@@ -82,3 +82,8 @@ Account) + the render swaps on macroOn. Full gate green (3037 tests).
 The dashboard's 3 Macro bubbles showed "0" on a totals-fetch failure (silent-zero, §3.4). Added a
 macroTotalsError flag → the bubbles show "—" on error, never a false "0". (C4 mode-GET-defaults-OFF and D2
 getTodaysMetrics summary-read swallow remain accepted-minor: secondary surfaces, primary feeds honest.)
+
+### Guard follow-up: report-card route test (locks the D1 honesty fix)
+Added `report-card/__tests__/route.test.ts` — a pitch-read ERROR returns 500 (not a false 200-with-empty-
+pitches), a success returns the pitches + their after-pitch summary, unauth → 401. Locks the D1 fix at the route
+level (the client render test already guards the on-500-show-error side).
