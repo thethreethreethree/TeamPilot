@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { processDuePitches } from "@/lib/coach/doorlog/worker";
+import { rollupDueReps } from "@/lib/coach/doorlog/rollupWorker";
 
 /**
  * GET /api/coach/sales-session/pitch-processing-cron
@@ -32,5 +33,8 @@ export async function GET(req: NextRequest) {
 
   // Bounded per run (LLM/STT cost + function time). A backlog drains across successive minute runs.
   const processed = await processDuePitches(10);
-  return NextResponse.json({ processed });
+  // Rollup pass: refresh the pattern summaries for reps with freshly-completed pitches (bounded).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const rolledUp = await rollupDueReps(todayIso, 5);
+  return NextResponse.json({ processed, rolledUp });
 }
