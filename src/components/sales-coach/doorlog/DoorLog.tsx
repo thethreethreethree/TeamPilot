@@ -50,6 +50,10 @@ export function DoorLog() {
   const [recorded, setRecorded] = useState<{ blob: Blob | null; durationMs: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
+  // Online-only: a failed send has no client retry (offline queue withheld), so it MUST be visible — a
+  // silently-dropped knock/pitch that still advances the flow would read as success (the honesty thesis:
+  // never dress a failure as a saved result). Set on a failed send, cleared when the next send starts.
+  const [sendError, setSendError] = useState<string | null>(null);
   const recorder = useDoorRecorder();
 
   const tz = deviceTimeZone();
@@ -123,7 +127,11 @@ export function DoorLog() {
 
   const noAnswer = useCallback(() => {
     const id = newId();
-    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then(loadKpi);
+    setSendError(null);
+    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((ok) => {
+      if (!ok) setSendError("That knock didn't save — check your connection and tap again.");
+      void loadKpi(); // re-fetches the true count, correcting the optimistic bump on a failed send
+    });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setState((s) => transition(s, { type: "NO_ANSWER" }));
   }, [localDate, postDoorLog, loadKpi]);
@@ -148,9 +156,11 @@ export function DoorLog() {
   const save = useCallback(async () => {
     if (busy) return;
     setBusy(true);
+    setSendError(null);
     const id = newId();
     // Fire-and-forget the upload + POST so the rep returns to IDLE immediately (zero waiting). Online-only:
     // there is no client retry (offline queue withheld); server dedupe on clientKnockId still prevents dups.
+    // A failed send surfaces a banner (below) rather than silently dropping the pitch.
     void sendPitch(
       {
         kind: "pitch",
@@ -161,7 +171,10 @@ export function DoorLog() {
         clientKnockId: id,
       },
       recorded?.blob ?? null
-    ).then(loadKpi);
+    ).then((ok) => {
+      if (!ok) setSendError("Your last pitch didn't save — check your connection and re-log it.");
+      void loadKpi();
+    });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setRecorded(null);
     setName("");
@@ -171,6 +184,15 @@ export function DoorLog() {
 
   return (
     <div className="min-h-screen bg-base flex flex-col px-4 py-6 max-w-md mx-auto">
+      {sendError && (
+        <button
+          type="button"
+          onClick={() => setSendError(null)}
+          className="mb-3 w-full rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-left text-sm text-red-300 active:scale-[0.99] transition-transform"
+        >
+          ⚠ {sendError} <span className="text-red-400/70">(tap to dismiss)</span>
+        </button>
+      )}
       {state === "idle" && (
         <div className="grid grid-cols-4 gap-2 mb-6">
           {[
