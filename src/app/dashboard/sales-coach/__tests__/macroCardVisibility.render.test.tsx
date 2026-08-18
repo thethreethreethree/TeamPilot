@@ -91,19 +91,21 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().queryByText("Start Knocking")).toBeNull();
   });
 
-  it("Macro ON: the two focus-out cards disappear; the three door bubbles replace the pills", async () => {
+  it("Macro ON: the home shows the 3 door-to-door cards + door bubbles + Start Knocking (founder wireframe 2026-08-19)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);
     const m = () => mobile(container);
-    // The always-present card confirms the page rendered before we assert the others are gone.
-    await waitFor(() => expect(m().getByText("Pitch Performance")).toBeTruthy());
-    await waitFor(() => expect(m().queryByText("Live AI Coach & Sessions")).toBeNull());
+    // The 3 Macro surfaces replace the normal launchpad.
+    await waitFor(() => expect(m().getByText("Door Log")).toBeTruthy());
+    expect(m().getByText("Today's Metrics")).toBeTruthy();
+    expect(m().getByText("Pitch Performance")).toBeTruthy(); // the Macro Pitch Performance card
+    // The normal launchpad cards are gone in Macro Mode.
+    expect(m().queryByText("Live AI Coach & Sessions")).toBeNull();
     expect(m().queryByText("One Liners")).toBeNull();
-    // Bubbles, not pills.
+    // Bubbles, not pills; the CTA goes straight to the Door Log.
     expect(m().getByText("Doors Knocked")).toBeTruthy();
     expect(m().getByText("Sold")).toBeTruthy();
     expect(m().queryByText("Roleplays")).toBeNull();
-    // The primary CTA jumps straight to the Door Log, NOT the pitch-capture flow (founder 2026-08-19).
     expect(m().getByText("Start Knocking")).toBeTruthy();
     expect(m().queryByText("Start Next Pitch Session")).toBeNull();
   });

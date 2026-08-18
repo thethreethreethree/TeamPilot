@@ -17,6 +17,7 @@ import {
   Target,
   Library,
   ArrowLeft,
+  BarChart3,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -229,42 +230,62 @@ export default function SalesCoachHome() {
           </p>
         </div>
 
-        {/* 2×2 feature grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <MobileCard
-            href="/dashboard/sales-coach/analytics"
-            icon={Mic}
-            title="Pitch Performance"
-            sub="Analyze recent calls & feedback"
-          />
-          {/* Hidden when Macro Mode is on — a door-to-door rep's home stays focused (founder 2026-08-18). */}
-          {!macroOn && (
+        {/* Feature grid. Macro Mode shows the THREE door-to-door surfaces (founder wireframe 2026-08-19): Door
+            Log + Today's Metrics on top, Pitch Performance full-width below. The normal Sales Coach shows its
+            2×2 launchpad (unchanged when Macro is off). */}
+        {macroOn ? (
+          <div className="grid grid-cols-2 gap-3">
+            <MobileCard
+              href="/dashboard/sales-coach/doors"
+              icon={DoorOpen}
+              title="Door Log"
+              sub="Log every door, fast"
+            />
+            <MobileCard
+              href="/dashboard/sales-coach/doors/todays-metrics"
+              icon={BarChart3}
+              title="Today's Metrics"
+              sub="Focus, KPIs & scores"
+            />
+            <div className="col-span-2">
+              <MobileCard
+                href="/dashboard/sales-coach/doors/report-card"
+                icon={Mic}
+                title="Pitch Performance"
+                sub="Recordings + after-pitch summary"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <MobileCard
+              href="/dashboard/sales-coach/analytics"
+              icon={Mic}
+              title="Pitch Performance"
+              sub="Analyze recent calls & feedback"
+            />
             <MobileCard
               href="/dashboard/sales-coach/sessions"
               icon={Bot}
               title="Live AI Coach & Sessions"
               sub="Join live or start AI-coached sessions."
             />
-          )}
-          <MobileCard
-            href="/dashboard/sales-coach/roleplay"
-            icon={Target}
-            title={ROLEPLAY_PRACTICE_LABEL}
-            sub="Build your skills with simulated pitches"
-          />
-          {/* Hidden when Macro Mode is on (founder 2026-08-18). */}
-          {!macroOn && (
+            <MobileCard
+              href="/dashboard/sales-coach/roleplay"
+              icon={Target}
+              title={ROLEPLAY_PRACTICE_LABEL}
+              sub="Build your skills with simulated pitches"
+            />
             <MobileCard
               href="/dashboard/sales-coach/strategy"
+              // Founder 2026-08-01: "One Liners" is the universal name now, sourced from the shared constant so
+              // it can't drift from the nav + page title.
               icon={Library}
-              // Founder 2026-08-01: "One Liners" is the universal name now (was a Standard-only relabel — the same
-              // mode-specific miss that made the rename look like it "didn't stick" in Expert mode). Sourced from
-              // the shared ONE_LINERS_LABEL constant so it can't drift from the nav + page title again.
               title={ONE_LINERS_LABEL}
               sub="Find your top-performing lines and sales strategies"
             />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). */}
         <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />

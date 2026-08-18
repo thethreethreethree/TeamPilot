@@ -45,3 +45,17 @@ list now shows each pitch's after-pitch summary inline + outcome badge, drilling
 labels updated — MacroModeToggle "Report Card"→"Pitch Performance", PitchDetail back-nav likewise. (Internal
 component/route name stays ReportCard/report-card to avoid a path cascade; display is Pitch Performance.)
 guard: ReportCard.render.test (honest error + loaded recordings-with-summary); PitchDetail test back-nav label.
+
+### Phase 5 — Macro home: the 3 cards (founder wireframe)
+write-path: `page.tsx` mobile grid is now macroOn-conditional — Macro ON shows the THREE door-to-door surfaces
+(Door Log + Today's Metrics on the top row, Pitch Performance full-width below); Macro OFF shows the normal 2×2
+launchpad unchanged (the earlier hide-2-cards behavior is superseded by this cleaner split). MacroModeToggle's
+redundant Door Log/Pitch Performance link grid removed — it's the on/off switch now; the 3 cards are the nav.
+guard: `macroCardVisibility.render.test.tsx` updated — ON shows the 3 cards + bubbles + Start Knocking, no
+launchpad cards; OFF unchanged. Full gate green (3035 tests, 0 invariant violations).
+
+### Follow-ups (noted, not blocking)
+- DESKTOP: the wireframe is mobile; the desktop Macro experience (Today's-Metrics sidebar entry / desktop 3-card
+  view) is not yet built — the desktop sidebar still only hides /sessions + /strategy when macroOn.
+- Internal naming: the component/route stay ReportCard//report-card (display "Pitch Performance") to avoid a
+  path cascade through PitchDetail — a pure rename is a safe later refactor.

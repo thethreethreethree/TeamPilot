@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { DoorOpen, BarChart3 } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 
 /**
  * Macro Mode toggle (per-rep, alongside the normal Sales Coach — founder decision 2026-08-18). Controlled:
@@ -47,23 +46,8 @@ export function MacroModeToggle({
           />
         </button>
       </div>
-
-      {enabled && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <Link
-            href="/dashboard/sales-coach/doors"
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-ember-400 text-[#09090B] text-sm font-semibold"
-          >
-            <DoorOpen className="w-4 h-4" aria-hidden /> Door Log
-          </Link>
-          <Link
-            href="/dashboard/sales-coach/doors/report-card"
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-surface border border-default text-primary text-sm font-semibold"
-          >
-            <BarChart3 className="w-4 h-4" aria-hidden /> Pitch Performance
-          </Link>
-        </div>
-      )}
+      {/* Nav to the three door-to-door surfaces is the home's 3 cards (Door Log / Today's Metrics / Pitch
+          Performance, founder wireframe 2026-08-19) — this card is just the on/off switch now. */}
     </div>
   );
 }
