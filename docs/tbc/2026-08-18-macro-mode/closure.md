@@ -112,4 +112,7 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   transcript were cut off. Fixed all three to the proven Home-page shell idiom — `flex-1 min-h-0` (+ `overflow-y-auto`
   on the two scrollable ones) — so they fill main and scroll internally. Verified with a headless render (before:
   clipped; after: both buttons visible). Lesson: the audit checked routes/RLS/shapes but NOT that surfaces RENDER
-  usably inside the shell — a render/layout pass is now mandatory.
+  usably inside the shell — a render/layout pass is now mandatory. STRUCTURAL GUARD added
+  (shellScrollIdiom.test.ts): fails CI if any page/component under either fixed-overlay shell (SalesCoach OR Care)
+  reintroduces `min-h-screen`/`h-screen` in markup, so the clip class cannot come back silently. Swept both
+  shells — 0 offenders after the fix; the main dashboard (normal scroll) is intentionally excluded.
