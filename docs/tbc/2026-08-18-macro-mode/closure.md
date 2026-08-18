@@ -71,3 +71,26 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   `pitch_analyses` (summary/strengths/improvements/scores); confirmed the shapes align, wiring is Phase 3.
 - The rollup's `controlExempt: true` relies on Macro Mode being a day-1 coaching surface (like the rest of the
   Sales Coach), NOT the gated Elostate diagnostic — consistent with salesReview/dissect.
+
+## Operational-access audit (founder-requested 2026-08-18) — "does it work, can all Sales Coach users reach it"
+- **Access — SOLID.** Traced every gate a Sales Coach user passes to reach Macro Mode:
+  - Middleware module hard-lock (0207): `moduleForPath("/dashboard/sales-coach/doors") = "sales_coach"` by PREFIX
+    (moduleAccess.ts:33), so a sales_coach-locked account is ALLOWED into `/doors` — the prefix design auto-covers
+    new subpaths, no allowlist to update.
+  - Sales-coach layout member gate: `sales_coach_role admin|staff` OR company leader (`CEO/COO/admin`) → enter. The
+    `/doors` pages add NO extra gate (inherit the layout). Macro Mode adds no new barrier — it inherits the module
+    gate. The only excluded users are not-yet-role-assigned invitees, who have no Sales Coach access at all by
+    existing design (unchanged).
+  - macro-mode GET/POST route: auth-only + `.eq("id", auth.user.id)` (self, non-privileged column) — works for
+    every authenticated member.
+  - MacroModeToggle renders UNCONDITIONALLY on both the mobile and desktop sales-coach surfaces (no role wrap).
+- **Functioning — SOUND.** Door Log KPI GET returns `{doorsKnocked,sold,goBacks,notInterested}` exactly matching
+  what DoorLog consumes; `/doors` + `/doors/report-card` render DoorLog/ReportCard; ReportCard first-run empty
+  state is honest ("No pattern summary yet … it builds as pitches come in"); F5 rollup windowing fixed; online-only
+  send failures now surface a banner (no silent loss).
+- **Finding (LOW) — FIXED.** `getKpiForDay` filtered only on `local_date`, not `rep_id`. For a REP that returned
+  their own row (correct); for a MANAGER the rep+manager RLS returned the whole TEAM's rows and the GET summed them,
+  so a manager's Door Log KPI strip showed team totals, not their own. The GET handler's own comment ("RLS returns
+  only theirs") documented the intended per-caller behavior — a latent gap for managers, not an intentional
+  convention (retrospective record-check). Pinned `getKpiForDay` to the caller's `rep_id` (F6-class fix); reps unaffected,
+  managers now correct. Gate green (2978).

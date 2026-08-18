@@ -132,8 +132,9 @@ export async function GET(req: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Missing/invalid date." }, { status: 400 });
   }
-  const rows = await getKpiForDay(date);
-  // The rep's own row (RLS returns only theirs); sum defensively in case of multiple.
+  const rows = await getKpiForDay(date, auth.user.id);
+  // The caller's own row (now pinned to rep_id — a manager would otherwise sum the whole team via RLS);
+  // sum defensively in case of multiple.
   const total = rows.reduce(
     (acc, r) => ({
       doorsKnocked: acc.doorsKnocked + Number(r.doors_knocked ?? 0),

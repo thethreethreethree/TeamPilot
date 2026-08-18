@@ -98,12 +98,17 @@ export async function createPitch(args: {
 }
 
 /** The rep's KPI strip for a local day (RLS-scoped; a manager may pass a rep's id via the view's RLS). */
-export async function getKpiForDay(localDate: string) {
+export async function getKpiForDay(localDate: string, repId: string) {
   const sb = await createClient();
+  // Scope to the CALLER's own row. rep_kpi_daily is rep+manager RLS, so for a MANAGER an unscoped read returns
+  // the whole team's rows and the caller would sum them — but the Door Log KPI strip is the acting rep's OWN
+  // field session, so pin rep_id. (A rep's unscoped read already returned only theirs; this makes managers
+  // correct too. Mirrors the F6 report-card rep scoping.)
   const { data } = await sb
     .from("rep_kpi_daily")
     .select("doors_knocked, sold, go_backs, not_interested, no_answer, non_decision_maker, local_date")
-    .eq("local_date", localDate);
+    .eq("local_date", localDate)
+    .eq("rep_id", repId);
   return data ?? [];
 }
 
