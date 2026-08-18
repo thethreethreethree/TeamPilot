@@ -96,6 +96,29 @@ const ALLOWLIST = new Map([
   ["vendor_monitoring_access_log.update", "0214 append-only audit — a monitoring access either happened or it did not; no user may rewrite it."],
   ["vendor_monitoring_access_log.delete", "0214 append-only audit — the founders must not be able to erase their own monitoring trail."],
 
+  // 0215 Macro Mode (Door Log + Report Card). Each absence is a control, not an oversight.
+  //   door_knocks: an append-only KPI log — a knock is an immutable field event. A rep corrects a mistake by
+  //     logging another knock, never by rewriting or deleting one (that would falsify their own doors-knocked
+  //     count, which IS the KPI's source of truth). Insert + select are policy-covered; update/delete denied.
+  ["door_knocks.update", "0215 append-only KPI log — a knock is an immutable field event; correct by logging a new one."],
+  ["door_knocks.delete", "0215 append-only KPI log — deleting a knock falsifies the doors-knocked count (the rep's own work record)."],
+  //   pitches: retained — audio bytes are purged by the recording-purge-cron, not by deleting the row. A rep
+  //     must not delete a pitch to hide a bad call from their manager (Q4 = rep + manager). Insert/select/
+  //     update-own-name are policy-covered; delete denied.
+  ["pitches.delete", "0215 pitches are retained (audio purged by cron, not row-delete); a rep must not erase a pitch from the manager view."],
+  //   pitch_transcripts / pitch_analyses / rep_pattern_summaries: SERVICE-ROLE written ONLY (the pipeline
+  //     worker bypasses RLS, spec 3.2). Select is policy-covered (rep + manager). A client that
+  //     could write could forge or erase the AI record of a rep's own performance.
+  ["pitch_transcripts.insert", "0215 service-role pipeline worker only; a client insert could forge a transcript."],
+  ["pitch_transcripts.update", "0215 append-only; a client update could alter the recorded transcript."],
+  ["pitch_transcripts.delete", "0215 append-only; a client delete could erase the transcript of a call."],
+  ["pitch_analyses.insert", "0215 service-role analyze worker only; a client insert could forge an analysis."],
+  ["pitch_analyses.update", "0215 append-only; a client update could rewrite the AI's analysis."],
+  ["pitch_analyses.delete", "0215 append-only; a client delete could erase an unfavorable analysis."],
+  ["rep_pattern_summaries.insert", "0215 service-role rollup worker only; a client insert could forge a pattern summary."],
+  ["rep_pattern_summaries.update", "0215 append-only; a client update could rewrite the macro pattern summary."],
+  ["rep_pattern_summaries.delete", "0215 append-only; a client delete could erase an unfavorable summary."],
+
   ["fin_report_deliveries.insert", "0172 write path is the DEFINER RPC only; a client insert could forge a 'sent'."],
   ["fin_report_deliveries.update", "0172 append-only (RULE) — a run either happened or it did not."],
   ["fin_report_deliveries.delete", "0172 append-only (RULE) — the worker must not erase a failure it caused."],
