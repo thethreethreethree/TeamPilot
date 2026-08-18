@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { useSubmitLatch } from "@/lib/hooks/useSubmitLatch";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
@@ -89,9 +90,12 @@ export default function ApPage() {
     void load();
   }, [load]);
 
+  // Synchronous double-submit latch for the money/append-only writes below (audit 2026-08-19).
+  const runLatched = useSubmitLatch();
+
   // new vendor
   const [vName, setVName] = useState("");
-  const addVendor = async () => {
+  const addVendor = () => runLatched(async () => {
     if (!vName.trim()) return;
     setBusy(true);
     const res = await fetch("/api/finance/ap/vendors", {
@@ -106,7 +110,7 @@ export default function ApPage() {
       toast.success("Vendor added");
       void load();
     } else toast.error("Couldn't add vendor", j?.error ?? "");
-  };
+  });
 
   // new bill (single line, minimal). A bill line is normally an expense; capital purchases hit a
   // fixed-asset account. Exclude Cash / AR / Tax-Receivable (1000/1100/1200) — picking those as a
@@ -134,7 +138,7 @@ export default function ApPage() {
   const addBLine = () => setBLines((ls) => [...ls, { accountId: "", amount: "", taxAmount: "", description: "", costCenterId: "", projectId: "", taxCodeId: "", problemId: "" }]);
   const rmBLine = (i: number) => setBLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls));
   const bTotal = bLines.reduce((s, l) => s + (parseMoneyInput(l.amount) || 0) + (parseMoneyInput(l.taxAmount) || 0), 0);
-  const addBill = async () => {
+  const addBill = () => runLatched(async () => {
     const validLines = bLines
       .filter((l) => l.accountId && l.amount)
       .map((l) => ({
@@ -165,9 +169,9 @@ export default function ApPage() {
       toast.success("Draft bill created");
       void load();
     } else toast.error("Couldn't create bill", j?.error ?? "");
-  };
+  });
 
-  const act = async (billId: string, action: "approve" | "pay", amount?: number) => {
+  const act = (billId: string, action: "approve" | "pay", amount?: number) => runLatched(async () => {
     setBusy(true);
     const url = `/api/finance/ap/bills/${billId}/${action}`;
     const res = await fetch(url, {
@@ -184,7 +188,7 @@ export default function ApPage() {
       toast.success(action === "approve" ? "Approved & posted to the ledger" : "Paid");
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
-  };
+  });
 
   // Schedule a payment for LATER, instead of paying now. Different endpoint from act() — scheduling is an
   // intent, not a posting, and it lives on the fin_payment_schedules worklist rather than the GL.
@@ -193,7 +197,7 @@ export default function ApPage() {
   // anything. If the toast just said "Scheduled" the clerk would be left wondering whether money moved. So
   // it names where the intent went (the Schedules page) and states plainly that nothing has settled yet —
   // the next action (execute it when due) happens there, and the clerk is pointed at it.
-  const schedule = async (billId: string, amount: number, date: string) => {
+  const schedule = (billId: string, amount: number, date: string) => runLatched(async () => {
     setBusy(true);
     const res = await fetch("/api/finance/ap/schedules", {
       method: "POST",
@@ -208,7 +212,7 @@ export default function ApPage() {
       toast.success("Payment scheduled", "It's on the Schedules worklist. Nothing has moved yet — execute it there when it's due.");
       void load();
     } else toast.error("Couldn't schedule", j?.error ?? "");
-  };
+  });
 
   return (
     <div className="min-h-screen bg-base">
