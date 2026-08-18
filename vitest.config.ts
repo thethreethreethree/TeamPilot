@@ -13,9 +13,11 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // .tsx included so component-RENDER tests run (a `// @vitest-environment jsdom` file comment opts those
+    // individual files into a DOM; the default stays node, so the node-only suite is untouched).
     include: [
-      "src/**/__tests__/**/*.test.ts",
-      "scripts/**/__tests__/**/*.test.ts",
+      "src/**/__tests__/**/*.test.{ts,tsx}",
+      "scripts/**/__tests__/**/*.test.{ts,tsx}",
     ],
   },
 });
