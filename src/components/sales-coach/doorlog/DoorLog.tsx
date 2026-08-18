@@ -137,7 +137,16 @@ export function DoorLog() {
   }, [localDate, postDoorLog, loadKpi]);
 
   const recordPitch = useCallback(async () => {
-    await recorder.start();
+    // recorder.start() returns false when the mic is denied/unavailable. Honor it: DON'T enter a fake
+    // RECORDING screen that captures nothing and then saves a silent, no-audio pitch (an error dressed as a
+    // success). Surface the reason and stay on the idle screen so the rep can fix mic access or log No Answer.
+    const ok = await recorder.start();
+    if (!ok) {
+      setMicDenied(true);
+      setSendError("Can't record — turn on mic access for this site, then tap Record Pitch again.");
+      return;
+    }
+    setSendError(null);
     setState((s) => transition(s, { type: "RECORD_PITCH" }));
   }, [recorder]);
 

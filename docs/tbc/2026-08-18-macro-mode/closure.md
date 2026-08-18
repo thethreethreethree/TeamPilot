@@ -135,3 +135,10 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   top-align is kept as defense-in-depth. App-wide keyboard-behavior change → founder to confirm on-device.
   STRUCTURAL GUARD: viewportKeyboard.test.ts fails CI if the viewport ever drops `interactiveWidget:
   "resizes-content"`, so a future viewport refactor can't silently reopen the class.
+- **Finding (MEDIUM, honesty/usability) — FIXED.** Found auditing the recorder consumer: `useDoorRecorder.start()`
+  correctly returns `false` when the mic is denied/unavailable (the hook guards every throwing browser API), but
+  `recordPitch` IGNORED the return and always transitioned to the RECORDING screen. So with the mic off, a rep
+  entered a fake recording (0:00, flat bars), tapped Stop, named it, and saved a SILENT no-audio pitch — an error
+  dressed as success (the DECISION-tested-but-CONSUMER-untested class). Fixed: `recordPitch` now branches on the
+  return — on failure it sets `micDenied` + a visible "turn on mic access" banner and stays on idle, never
+  entering a capture that records nothing. (Component behavior; no unit gate — vitest runs node with no jsdom.)
