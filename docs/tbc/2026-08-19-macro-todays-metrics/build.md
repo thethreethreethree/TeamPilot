@@ -69,3 +69,11 @@ Agents confirmed the core components + data path clean (tenant/IDOR, truncation,
 - todays-metrics route wrapped in try/catch (log + generic 500).
 Accepted-minor: silent-zero bubbles + getTodaysMetrics summary-read swallow (secondary; Today's Metrics honest);
 mode-GET failure defaults to OFF.
+
+### P6 — Macro Mode bottom nav (founder screenshot: nav didn't match the wireframe)
+write-path: SalesCoachShell mobile bottom tab bar is now macroOn-conditional — Macro ON shows MACRO_MOBILE_TABS
+(Home · Role Play · Team Chat · AI Agent per the wireframe; AI Agent → the Live AI Coach/Sessions, founder-
+confirmed); Macro OFF shows the normal 5 (Home/Analytics/Sessions/Team Chat/Account). Reuses the shell's existing
+macroOn state (same one that drives the sidebar focus).
+guard: salesCoachShellNav.test — MACRO_MOBILE_TABS is exactly the 4 wireframe tabs (right hrefs; no Analytics/
+Account) + the render swaps on macroOn. Full gate green (3037 tests).

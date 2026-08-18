@@ -107,3 +107,23 @@ describe("SalesCoachShell — Macro Mode sidebar focus (founder 2026-08-18: ONLY
     expect(SHELL).toContain('"elostate:macro-mode"');
   });
 });
+
+describe("SalesCoachShell — Macro Mode bottom nav (founder wireframe 2026-08-19)", () => {
+  const macroTabs = SHELL.match(/const MACRO_MOBILE_TABS[\s\S]*?\];/)?.[0] ?? "";
+
+  it("is exactly Home / Role Play / Team Chat / AI Agent", () => {
+    for (const label of ['"Home"', '"Role Play"', '"Team Chat"', '"AI Agent"']) {
+      expect(macroTabs).toContain(`label: ${label}`);
+    }
+    // Founder-confirmed targets: Role Play → roleplay, AI Agent → the Live AI Coach (Sessions).
+    expect(macroTabs).toContain("/dashboard/sales-coach/roleplay");
+    expect(macroTabs).toContain("/dashboard/sales-coach/sessions");
+    // The normal-mode-only tabs must NOT be in the Macro set.
+    expect(macroTabs).not.toContain('"Analytics"');
+    expect(macroTabs).not.toContain('"Account"');
+  });
+
+  it("the bottom tab bar swaps to the Macro set when Macro Mode is on", () => {
+    expect(SHELL).toMatch(/\(macroOn \? MACRO_MOBILE_TABS : MOBILE_TABS\)\.map/);
+  });
+});

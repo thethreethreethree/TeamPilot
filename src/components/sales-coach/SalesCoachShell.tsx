@@ -15,6 +15,7 @@ import {
 import {
   ArrowLeft,
   BarChart3,
+  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -144,6 +145,15 @@ const MOBILE_TABS: NavItem[] = [
     icon: MessageSquare,
   },
   { label: "Account", href: "/dashboard/sales-coach/settings", icon: User },
+];
+
+// Macro Mode bottom nav (founder wireframe 2026-08-19): a door-to-door rep gets a focused 4-tab bar — Home,
+// Role Play, Team Chat, AI Agent (the Live AI Coach). Swapped in for MOBILE_TABS while Macro Mode is on.
+const MACRO_MOBILE_TABS: NavItem[] = [
+  { label: "Home", href: "/dashboard/sales-coach", icon: Home },
+  { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target },
+  { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
+  { label: "AI Agent", href: "/dashboard/sales-coach/sessions", icon: Bot },
 ];
 
 export function SalesCoachShell({
@@ -374,7 +384,7 @@ export function SalesCoachShell({
           sibling below <main> in the mobile column layout, so content sits
           above it with no overlap; hidden on desktop (the sidebar takes over). */}
       <nav className="md:hidden flex-shrink-0 flex items-stretch justify-around bg-brand-shell border-t border-white/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
-        {MOBILE_TABS.map((tab) => {
+        {(macroOn ? MACRO_MOBILE_TABS : MOBILE_TABS).map((tab) => {
           const Icon = tab.icon;
           const active =
             pathname === tab.href ||
