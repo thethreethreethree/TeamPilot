@@ -28,3 +28,11 @@ fetchAllPaged — no 1000-row truncation; focus = the #1 growth opportunity, aut
 `GET /api/coach/sales-session/todays-metrics?period=`.
 guard: `period.test.ts` (windows + averaging + mixed-rubric). getTodaysMetrics is DB-wiring over tested pure
 helpers + tested fetchAllPaged (same posture as getAllTimeKpi — no unit DB test).
+
+### Phase 3 — Today's Metrics UI
+write-path: `TodaysMetrics.tsx` (fixed-shell idiom flex-1 min-h-0 overflow-y-auto; Day/Week/Month/All-Time tabs
+moved here off the Report Card; Next-Door focus card framed "focus for your next 10 doors"; KPI trio Doors/
+Conversations/Sales; Score Chart rendering ONLY the dims present in the data — no phantom 0 for an unscored dim;
+Opportunities to grow; honest error+retry, never a zeroed page). Route
+`/dashboard/sales-coach/doors/todays-metrics`.
+guard: `TodaysMetrics.render.test.tsx` (loaded content + present-dims-only + honest-error).
