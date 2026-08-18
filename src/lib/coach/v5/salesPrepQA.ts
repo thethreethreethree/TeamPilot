@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getCurrentSalesCorpus, type SalesSession } from "@/lib/data/salesCoach";
 import {
   DEFAULT_METHODOLOGY,
@@ -67,7 +68,10 @@ export async function answerPrepQuestion(args: {
       getCurrentSalesCorpus(args.companyId).catch(() => null),
       getCurrentSalesCorpus(args.companyId, "product").catch(() => null),
     ]);
-    const systemPrompt = buildQASystemPrompt(corpus?.content, product?.content);
+    // Fence the rep's free-form question + session context as data (consistency with every sibling coach engine
+    // — salesIntel/salesScore/ask-coach; audit 2026-08-19). LOW today (the only injectable text is the rep's own
+    // question, pre-call, no customer transcript), but it means a future edit that feeds external text inherits it.
+    const systemPrompt = buildQASystemPrompt(corpus?.content, product?.content) + CONVERSATION_IS_DATA;
     const userMessage = `The rep is preparing for this call:
 ${sessionContext(args.session)}
 

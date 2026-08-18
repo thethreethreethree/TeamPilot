@@ -101,11 +101,24 @@ export async function GET(req: NextRequest) {
   const companyId = ctx.companyId;
 
   // 1. Topics — RLS already scopes to the caller's company.
-  const { data: topics, error: topicsErr } = await supabase
-    .from("chat_topics")
-    .select(
-      "id, coach_enabled, status, close_durability, created_at, closed_at"
-    );
+  // Paged (audit 2026-08-19): summarizeTopicDurability counts coached-vs-uncoached + durability over ALL topics
+  // in JS, so an unbounded select truncated the readout at 1000 topics. Same fetchAllPagedResult already used
+  // for the message/event reads below.
+  const { data: topics, error: topicsErr } = await fetchAllPagedResult<{
+    id: string;
+    coach_enabled: boolean;
+    status: string;
+    close_durability: string | null;
+    created_at: string;
+    closed_at: string | null;
+  }>(
+    (from, to) =>
+      supabase
+        .from("chat_topics")
+        .select("id, coach_enabled, status, close_durability, created_at, closed_at")
+        .range(from, to),
+    { label: "coach-readout topics" },
+  );
   if (topicsErr) {
     console.error("[admin/coach-readout] failed to load topics:", topicsErr);
     return NextResponse.json(
@@ -266,12 +279,24 @@ export async function GET(req: NextRequest) {
   // structured sources (decisions, chats) actually producing
   // better outcomes than directly-created tasks? This is the
   // mechanism check — better diagnosis → better action.
-  const { data: tasksRows, error: eTasks } = await supabase
-    .from("tasks")
-    .select(
-      "id, status, linked_decision_id, linked_chat_topic_id, created_at, updated_at"
-    )
-    .is("deleted_at", null);
+  // Paged (audit 2026-08-19): summarizeTasks computes a completion RATE over all live tasks in JS; an unbounded
+  // select truncated it at 1000 tasks and skewed the rate.
+  const { data: tasksRows, error: eTasks } = await fetchAllPagedResult<{
+    id: string;
+    status: string;
+    linked_decision_id: string | null;
+    linked_chat_topic_id: string | null;
+    created_at: string;
+    updated_at: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("tasks")
+        .select("id, status, linked_decision_id, linked_chat_topic_id, created_at, updated_at")
+        .is("deleted_at", null)
+        .range(from, to),
+    { label: "coach-readout tasks" },
+  );
   const tasksAll = tasksRows ?? [];
   function summarizeTasks(
     rows: typeof tasksAll
