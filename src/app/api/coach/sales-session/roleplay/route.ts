@@ -108,18 +108,15 @@ type RoleplayReview = {
   correctLine: { line: string; why: string } | null;
 };
 
-function parseReview(text: string): RoleplayReview {
-  const empty: RoleplayReview = {
-    summary: "",
-    whatWorked: [],
-    toImprove: [],
-    correctLine: null,
-  };
+export function parseReview(text: string): RoleplayReview | null {
   let o: Record<string, unknown>;
   try {
     o = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    return empty;
+    // A malformed/empty (starved) response is an ERROR, not a legitimately-empty "too short" review — return
+    // null so the route 502s (a retry), never a blank card indistinguishable from a real empty review (audit
+    // 2026-08-19; mirrors the turn phase's parseReply null -> 502). A VALID parse with empty arrays is kept.
+    return null;
   }
   const strArr = (v: unknown): string[] =>
     Array.isArray(v)
@@ -198,5 +195,12 @@ export async function POST(req: NextRequest) {
     systemPrompt: reviewSystem(body, corpus?.content) + CONVERSATION_IS_DATA,
     userMessage: `Full roleplay transcript:\n${transcript}\n\nReview the REP's performance.`,
   });
-  return NextResponse.json({ review: parseReview(r.text) });
+  const review = parseReview(r.text);
+  if (!review) {
+    return NextResponse.json(
+      { error: "Couldn't generate the review — try again." },
+      { status: 502 }
+    );
+  }
+  return NextResponse.json({ review });
 }
