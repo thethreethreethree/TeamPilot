@@ -18,13 +18,8 @@ function fakeSb(opts: { user?: { id: string } | null; pitches?: unknown[]; pitch
   return {
     auth: { getUser: async () => ({ data: { user } }) },
     from: (table: string) => {
-      if (table === "rep_pattern_summaries") {
-        return {
-          select: () => ({
-            eq: () => ({ eq: () => ({ order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) }),
-          }),
-        };
-      }
+      // The route reads ONLY `pitches` now — the rep_pattern_summaries read moved to Today's Metrics. A mock
+      // branch for any other table would be dead; an unexpected table is a real regression, so throw.
       if (table === "pitches") {
         // .select().eq().order().limit(200) is awaited → { data, error }.
         const result = { data: pitches, error: pitchErr };
@@ -36,8 +31,9 @@ function fakeSb(opts: { user?: { id: string } | null; pitches?: unknown[]; pitch
   };
 }
 
-function req(period = "week") {
-  return { nextUrl: { searchParams: new URLSearchParams(`period=${period}`) } } as unknown as Parameters<typeof GET>[0];
+// The route no longer reads a period param (the pitch list was never period-scoped); an empty query is faithful.
+function req() {
+  return { nextUrl: { searchParams: new URLSearchParams() } } as unknown as Parameters<typeof GET>[0];
 }
 
 beforeEach(() => vi.clearAllMocks());

@@ -259,13 +259,18 @@ export default function SalesCoachHome() {
               title="Today's Metrics"
               sub="Focus, KPIs & scores"
             />
-            <div className="col-span-2">
-              <MobileCard
-                href="/dashboard/sales-coach/doors/report-card"
-                icon={Mic}
-                title="Pitch Performance"
-                sub="Recordings + after-pitch summary"
-              />
+            {/* Pitch Performance sits below the pair, but at the SAME card size as them (founder 2026-08-19:
+                the full-width version was aspect-scaled to ~2x height and dominated the screen). A half-width
+                card centered under the two top cards keeps the 3-surface layout without the oversized slab. */}
+            <div className="col-span-2 flex justify-center">
+              <div className="w-[calc(50%-0.375rem)]">
+                <MobileCard
+                  href="/dashboard/sales-coach/doors/report-card"
+                  icon={Mic}
+                  title="Pitch Performance"
+                  sub="Recordings + summaries"
+                />
+              </div>
             </div>
           </div>
         ) : (
