@@ -19,6 +19,19 @@ export type QueuedWrite = {
   createdAt: number;
 };
 
+type UploadFn = (bucket: string, path: string, token: string, blob: Blob) => Promise<boolean>;
+
+/**
+ * The queue's durable backend. The production store is IndexedDB (idbStore below); the seam exists so the
+ * data-integrity invariant of the drain — an item is removed ONLY on a confirmed send, never on a failure —
+ * can be gate-tested against an in-memory fake (vitest runs in node, which has no IndexedDB).
+ */
+export type QueueStore = {
+  put(item: QueuedWrite): Promise<void>;
+  getAll(): Promise<QueuedWrite[]>;
+  delete(id: string): Promise<void>;
+};
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -43,29 +56,36 @@ function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBReque
   );
 }
 
+/** The production store: IndexedDB. Each op swallows its own failure (private mode / quota) exactly as the
+ *  standalone helpers did before — enqueue's fallback is the caller's immediate fetch; reads/deletes are
+ *  best-effort. */
+export const idbStore: QueueStore = {
+  async put(item) {
+    try {
+      await tx("readwrite", (s) => s.put(item));
+    } catch {
+      /* IndexedDB unavailable (private mode / quota) — the immediate fetch in the caller is the fallback */
+    }
+  },
+  async getAll() {
+    try {
+      return (await tx<QueuedWrite[]>("readonly", (s) => s.getAll())) ?? [];
+    } catch {
+      return [];
+    }
+  },
+  async delete(id) {
+    try {
+      await tx("readwrite", (s) => s.delete(id));
+    } catch {
+      /* best-effort */
+    }
+  },
+};
+
 /** Durably queue a write. Returns after the local write only — never touches the network. */
-export async function enqueue(item: QueuedWrite): Promise<void> {
-  try {
-    await tx("readwrite", (s) => s.put(item));
-  } catch {
-    /* IndexedDB unavailable (private mode / quota) — the immediate fetch in the caller is the fallback */
-  }
-}
-
-async function allPending(): Promise<QueuedWrite[]> {
-  try {
-    return (await tx<QueuedWrite[]>("readonly", (s) => s.getAll())) ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function remove(id: string): Promise<void> {
-  try {
-    await tx("readwrite", (s) => s.delete(id));
-  } catch {
-    /* best-effort */
-  }
+export async function enqueue(item: QueuedWrite, store: QueueStore = idbStore): Promise<void> {
+  await store.put(item);
 }
 
 const DOOR_LOG_URL = "/api/coach/sales-session/door-log";
@@ -73,10 +93,7 @@ const AUDIO_BUCKET = "assets-v1";
 
 /** Send one queued write: upload its audio (if any) via a signed target, then POST it. Returns true iff
  *  the server confirmed it (so the item can be removed from the queue). */
-async function flushOne(
-  item: QueuedWrite,
-  uploadToSignedUrl: (bucket: string, path: string, token: string, blob: Blob) => Promise<boolean>
-): Promise<boolean> {
+async function flushOne(item: QueuedWrite, uploadToSignedUrl: UploadFn): Promise<boolean> {
   let storagePath = "";
   if (item.blob) {
     const signRes = await fetch(DOOR_LOG_URL, {
@@ -99,17 +116,22 @@ async function flushOne(
   return Boolean(res?.ok);
 }
 
-/** Drain the whole queue. Items that fail (offline) stay queued for the next drain. */
+/** Drain the whole queue. Items that fail (offline) stay queued for the next drain. The store + per-item
+ *  flush are injectable so the remove-only-on-success invariant can be tested without IndexedDB or network;
+ *  production passes neither and gets the IndexedDB store + the real signed-upload flush. */
 export async function drainQueue(
-  uploadToSignedUrl: (bucket: string, path: string, token: string, blob: Blob) => Promise<boolean>
+  uploadToSignedUrl: UploadFn,
+  deps: { store?: QueueStore; flush?: (item: QueuedWrite, upload: UploadFn) => Promise<boolean> } = {}
 ): Promise<number> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return 0;
-  const items = (await allPending()).sort((a, b) => a.createdAt - b.createdAt);
+  const store = deps.store ?? idbStore;
+  const flush = deps.flush ?? flushOne;
+  const items = (await store.getAll()).sort((a, b) => a.createdAt - b.createdAt);
   let sent = 0;
   for (const item of items) {
     try {
-      if (await flushOne(item, uploadToSignedUrl)) {
-        await remove(item.id);
+      if (await flush(item, uploadToSignedUrl)) {
+        await store.delete(item.id);
         sent += 1;
       }
     } catch {
@@ -120,9 +142,7 @@ export async function drainQueue(
 }
 
 /** Wire auto-drain: on reconnect + a periodic sweep. Returns a cleanup fn. */
-export function startAutoDrain(
-  uploadToSignedUrl: (bucket: string, path: string, token: string, blob: Blob) => Promise<boolean>
-): () => void {
+export function startAutoDrain(uploadToSignedUrl: UploadFn): () => void {
   const run = () => void drainQueue(uploadToSignedUrl);
   run(); // drain anything left from a previous session on mount
   window.addEventListener("online", run);
