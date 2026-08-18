@@ -112,6 +112,14 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+// Macro Mode focus (founder 2026-08-18): the desktop mirror of the mobile home hiding two cards. When a rep is
+// in Macro Mode, these two non-door-to-door sidebar entries hide — "Live AI Coach & Sessions" (/sessions) and
+// "One Liners" (/strategy). Exactly those two, only in Macro Mode.
+const MACRO_HIDDEN_HREFS = new Set([
+  "/dashboard/sales-coach/sessions",
+  "/dashboard/sales-coach/strategy",
+]);
+
 /** Active-state for a nav item: exact match, or a child route under it (except Home, which would match
  *  everything). External items never show active (they open a new tab). Shared by the sidebar sections. */
 function isNavItemActive(item: NavItem, pathname: string): boolean {
@@ -155,7 +163,28 @@ export function SalesCoachShell({
   const isSalesCoachManager = useIsSalesCoachManager();
   // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
   // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
-  const visibleSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
+  const managerSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
+  // Macro Mode: hide the two focus-out entries, kept live via a custom event the dashboard toggle fires, so the
+  // sidebar reacts the instant Macro Mode flips (no reload). Initial value comes from the macro-mode route.
+  const [macroOn, setMacroOn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/coach/sales-session/macro-mode")
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .then((d) => alive && setMacroOn(Boolean(d.enabled)))
+      .catch(() => {});
+    const onChange = (e: Event) => setMacroOn(Boolean((e as CustomEvent<boolean>).detail));
+    window.addEventListener("elostate:macro-mode", onChange);
+    return () => {
+      alive = false;
+      window.removeEventListener("elostate:macro-mode", onChange);
+    };
+  }, []);
+  const visibleSections = macroOn
+    ? managerSections
+        .map((s) => ({ ...s, items: s.items.filter((i) => !MACRO_HIDDEN_HREFS.has(i.href)) }))
+        .filter((s) => s.items.length > 0)
+    : managerSections;
 
   // Collapsible-group open state, keyed by section header. Default COLLAPSED (founder follow-up 2026-08-12:
   // "make it collapse by default") — EXCEPT the group containing the current route, which starts OPEN so a

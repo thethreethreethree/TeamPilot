@@ -109,15 +109,21 @@ export default function SalesCoachHome() {
     const next = !macroOn;
     setMacroSaving(true);
     setMacroOn(next); // optimistic
+    // Broadcast so SalesCoachShell's sidebar hides/shows the two focus-out entries in sync with the toggle.
+    window.dispatchEvent(new CustomEvent("elostate:macro-mode", { detail: next }));
     try {
       const res = await fetch("/api/coach/sales-session/macro-mode", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ enabled: next }),
       });
-      if (!res.ok) setMacroOn(!next);
+      if (!res.ok) {
+        setMacroOn(!next);
+        window.dispatchEvent(new CustomEvent("elostate:macro-mode", { detail: !next }));
+      }
     } catch {
       setMacroOn(!next);
+      window.dispatchEvent(new CustomEvent("elostate:macro-mode", { detail: !next }));
     } finally {
       setMacroSaving(false);
     }

@@ -159,6 +159,17 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
 - **FAB overlap** — the Learning-Mode FAB defaulted bottom-right over "Start Next Pitch Session". Raised its
   default above the bottom tab bar + CTA (BOTTOM_BAR_CLEARANCE) and bumped its storage key (v2→v3) so everyone
   re-defaults to the clear position.
+- **Desktop sidebar focus (founder follow-up)** — the mobile home hides two CARDS on Macro Mode; on desktop those
+  live as SIDEBAR nav (no 2×2 grid). SalesCoachShell now hides exactly the two entries — "Live AI Coach & Sessions"
+  (/sessions) + "One Liners" (/strategy) — when Macro Mode is on, kept live via an `elostate:macro-mode` window
+  event the dashboard toggle fires (sidebar reacts instantly, no reload). Only those two, only in Macro Mode.
+- **Component-render testing (founder-approved)** — the repo ran vitest in node with NO DOM, so render/usability
+  bugs (the clip, the keyboard overlay, the mic-denied fake-capture, the error-as-no-data) were INVISIBLE to CI.
+  Added jsdom + @testing-library/react (dev-only), widened the vitest include to `.tsx`, and use a per-file
+  `// @vitest-environment jsdom` so the node-only suite is untouched. Two render gates written for the fixes that
+  had none: DoorLog.render (mic-denied never enters a fake recording) + ReportCard.render (load failure shows an
+  honest error, not "no data"). NOTE: `npm install` reported 5 high-severity advisories in jsdom's transitive
+  dev deps — dev/test-only, not shipped; left for a deliberate review per the CVE-applicability lens (no auto-fix).
 
 - **Finding (MEDIUM, honesty/usability) — FIXED.** Same class, adjacent surface (the mic-denied fix prompted the
   sweep): the Report Card swallowed a load failure — a network error OR non-200 left `summary`/`pitches` null, so
