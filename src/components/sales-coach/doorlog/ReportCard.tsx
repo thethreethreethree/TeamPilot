@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle, ChevronRight } from "lucide-react";
 
 /**
  * Report Card — Macro Mode Tab 2. The reflective, insight-dense surface (allowed to be complex). Hero is
@@ -155,21 +156,29 @@ export function ReportCard() {
           {pitches.map((p) => {
             const badge = OUTCOME_BADGE[p.outcome] ?? { label: p.outcome, cls: "bg-surface text-muted" };
             return (
-              <li key={p.id} className="glass-card p-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm text-primary truncate">{p.name}</div>
-                  <div className="text-[11px] text-muted">
-                    {new Date(p.recordedAt).toLocaleString()}
-                    {p.status !== "complete" && (
-                      <span className="ml-2 text-brand">
-                        {p.status === "failed" ? "processing failed" : "processing…"}
-                      </span>
-                    )}
+              <li key={p.id}>
+                <Link
+                  href={`/dashboard/sales-coach/doors/report-card/${p.id}`}
+                  className="glass-card p-3 flex items-center justify-between gap-3 hover:border-strong transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm text-primary truncate">{p.name}</div>
+                    <div className="text-[11px] text-muted">
+                      {new Date(p.recordedAt).toLocaleString()}
+                      {p.status !== "complete" && (
+                        <span className="ml-2 text-brand">
+                          {p.status === "failed" ? "processing failed" : "processing…"}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <span className={`shrink-0 text-[11px] font-semibold px-2 py-1 rounded-md ${badge.cls}`}>
-                  {badge.label}
-                </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[11px] font-semibold px-2 py-1 rounded-md ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted" aria-hidden />
+                  </div>
+                </Link>
               </li>
             );
           })}
