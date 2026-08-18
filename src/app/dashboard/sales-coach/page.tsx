@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { MacroModeToggle } from "@/components/sales-coach/doorlog/MacroModeToggle";
 import {
   DeckShell,
   DeckCard,
@@ -207,6 +208,9 @@ export default function SalesCoachHome() {
             sub="Find your top-performing lines and sales strategies"
           />
         </div>
+
+        {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). */}
+        <MacroModeToggle />
 
         {/* Stat pills — Pitches is real; Roleplays is honestly 0 until Roleplay
             Practice ships (§3.4). */}
