@@ -133,3 +133,5 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   `interactiveWidget: "resizes-content"` in the root viewport so the layout resizes when the keyboard opens and
   fixed shells push their bottom content above it — kills the whole class in one place. The Door Log naming
   top-align is kept as defense-in-depth. App-wide keyboard-behavior change → founder to confirm on-device.
+  STRUCTURAL GUARD: viewportKeyboard.test.ts fails CI if the viewport ever drops `interactiveWidget:
+  "resizes-content"`, so a future viewport refactor can't silently reopen the class.
