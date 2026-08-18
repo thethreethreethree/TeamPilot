@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Mic, Square, DoorClosed, Check } from "lucide-react";
 import {
   transition,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/coach/doorlog/stateMachine";
 import { computeLocalSalesDate, deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { createClient } from "@/lib/supabase/client";
+import { enqueue, drainQueue, startAutoDrain } from "@/lib/coach/doorlog/offlineQueue";
 import { useDoorRecorder } from "./useDoorRecorder";
 
 /**
@@ -24,7 +25,6 @@ const OUTCOME_LABELS: Record<PitchOutcome, string> = {
   not_interested: "Not Interested",
 };
 const OUTCOME_ORDER: PitchOutcome[] = ["sold", "go_back", "non_decision_maker", "not_interested"];
-const AUDIO_BUCKET = "assets-v1";
 
 type Kpi = { doorsKnocked: number; sold: number; goBacks: number; notInterested: number };
 
@@ -47,6 +47,18 @@ export function DoorLog() {
 
   const tz = deviceTimeZone();
   const localDate = computeLocalSalesDate(new Date(), tz);
+  const supabase = useMemo(() => createClient(), []);
+
+  // Upload callback the offline queue uses to push audio direct to storage via a signed target.
+  const uploadCb = useCallback(
+    (bucket: string, path: string, token: string, blob: Blob) =>
+      supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(path, token, blob)
+        .then((r) => !r.error)
+        .catch(() => false),
+    [supabase]
+  );
 
   const loadKpi = useCallback(async () => {
     try {
@@ -60,27 +72,27 @@ export function DoorLog() {
   useEffect(() => {
     void recorder.arm().then((ok) => setMicDenied(!ok));
     void loadKpi();
+    const stopDrain = startAutoDrain(uploadCb); // flush anything left from a dead-zone session
+    return stopDrain;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const send = useCallback(async (body: unknown) => {
-    try {
-      await fetch("/api/coach/sales-session/door-log", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } catch {
-      /* offline — a queued retry drains on reconnect (Q7); the UI never blocks */
-    }
-  }, []);
+  const newId = () =>
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.round(performance.now())}`;
 
   const noAnswer = useCallback(() => {
-    void send({ kind: "knock", outcome: "no_answer", localDate });
+    const id = newId();
+    // Durable-first: enqueue to IndexedDB (works fully offline), then attempt an immediate drain.
+    void enqueue({
+      id,
+      body: { kind: "knock", outcome: "no_answer", localDate, clientKnockId: id },
+      createdAt: Date.now(),
+    }).then(() => drainQueue(uploadCb).then(loadKpi));
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setState((s) => transition(s, { type: "NO_ANSWER" }));
-    void loadKpi();
-  }, [send, localDate, loadKpi]);
+  }, [localDate, uploadCb, loadKpi]);
 
   const recordPitch = useCallback(async () => {
     await recorder.start();
@@ -99,48 +111,32 @@ export function DoorLog() {
     setState((s) => transition(s, { type: "PICK_OUTCOME", outcome }));
   }, []);
 
-  /** Upload the audio blob direct to storage via a signed target. Returns the storagePath, or "" on failure
-   *  (a failed upload still records the pitch — the Report Card shows the failure, never the Door Log). */
-  const uploadAudio = useCallback(async (blob: Blob): Promise<string> => {
-    try {
-      const signRes = await fetch("/api/coach/sales-session/door-log", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: "sign" }),
-      });
-      if (!signRes.ok) return "";
-      const { storagePath, token } = await signRes.json();
-      const supabase = createClient();
-      const { error } = await supabase.storage
-        .from(AUDIO_BUCKET)
-        .uploadToSignedUrl(storagePath, token, blob);
-      return error ? "" : storagePath;
-    } catch {
-      return "";
-    }
-  }, []);
-
   const save = useCallback(async () => {
     if (busy) return;
     setBusy(true);
-    const blob = recorded?.blob ?? null;
-    const durationMs = recorded?.durationMs ?? null;
-    const storagePath = blob ? await uploadAudio(blob) : "";
-    await send({
-      kind: "pitch",
-      outcome: pickedOutcome,
-      localDate,
-      name: name.trim() || defaultPitchName(),
-      durationMs,
-      storagePath,
+    const id = newId();
+    // Queue the pitch + its audio blob durably, then drain. The rep returns to IDLE immediately; the
+    // upload + POST happen in the drain (now if online, on reconnect if not).
+    await enqueue({
+      id,
+      body: {
+        kind: "pitch",
+        outcome: pickedOutcome,
+        localDate,
+        name: name.trim() || defaultPitchName(),
+        durationMs: recorded?.durationMs ?? null,
+        clientKnockId: id,
+      },
+      blob: recorded?.blob ?? undefined,
+      createdAt: Date.now(),
     });
+    void drainQueue(uploadCb).then(loadKpi);
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setRecorded(null);
     setName("");
     setBusy(false);
     setState((s) => transition(s, { type: "SAVE" }));
-    void loadKpi();
-  }, [busy, recorded, uploadAudio, send, pickedOutcome, localDate, name, loadKpi]);
+  }, [busy, pickedOutcome, localDate, name, recorded, uploadCb, loadKpi]);
 
   return (
     <div className="min-h-screen bg-base flex flex-col px-4 py-6 max-w-md mx-auto">
