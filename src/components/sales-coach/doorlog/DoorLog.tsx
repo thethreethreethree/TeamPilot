@@ -183,7 +183,7 @@ export function DoorLog() {
   }, [busy, pickedOutcome, localDate, name, recorded, sendPitch, loadKpi]);
 
   return (
-    <div className="flex-1 min-h-0 bg-base flex flex-col px-4 py-6 max-w-md mx-auto w-full">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-base flex flex-col px-4 py-6 max-w-md mx-auto w-full">
       {sendError && (
         <button
           type="button"
@@ -209,7 +209,10 @@ export function DoorLog() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col justify-end gap-4 pb-4">
+      {/* Field states keep the thumb-zone bottom anchor (justify-end). The NAMING state top-aligns instead:
+          it has a text input, and the fixed shell doesn't resize for the mobile keyboard, so a bottom-anchored
+          form is fully hidden behind the keyboard (rep can't reach Save). Top-aligned, it sits above the keyboard. */}
+      <div className={`flex-1 flex flex-col gap-4 pb-4 ${state === "naming" ? "justify-start pt-2" : "justify-end"}`}>
         {state === "idle" && (
           <>
             {micDenied && (

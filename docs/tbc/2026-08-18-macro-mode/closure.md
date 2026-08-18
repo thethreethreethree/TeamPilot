@@ -116,3 +116,10 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   (shellScrollIdiom.test.ts): fails CI if any page/component under either fixed-overlay shell (SalesCoach OR Care)
   reintroduces `min-h-screen`/`h-screen` in markup, so the clip class cannot come back silently. Swept both
   shells — 0 offenders after the fix; the main dashboard (normal scroll) is intentionally excluded.
+- **Finding (HIGH, render/usability #2) — FIXED.** Found in the render pass this class prompted: the Door Log's
+  NAMING state (name-the-pitch input + "Save & Next Door") was bottom-anchored (`justify-end`), and the fixed
+  overlay shell does NOT resize for the mobile keyboard — so when the input focused, the keyboard covered the
+  ENTIRE form including Save. A rep could record + pick an outcome but then NOT save the pitch: core flow broken.
+  Confirmed with a headless keyboard-overlay render (before: form fully hidden; after: visible above keyboard).
+  Fix: the naming state top-aligns (`justify-start`) instead of bottom-anchoring, so it sits above the keyboard;
+  the other states keep the thumb-zone bottom anchor. Root also gained `overflow-y-auto` as scroll safety.
