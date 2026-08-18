@@ -463,6 +463,11 @@ export default function SalesCoachHome() {
           {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
         </DeckCard>
 
+        {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). Desktop entry mirrors the
+            mobile-field placement (founder 2026-08-18): a rep who knocks doors from a laptop can reach it here,
+            not only on the phone. Same self-contained component; DeckShell's space-y-4 sets the gap. */}
+        <MacroModeToggle />
+
         {/* What compounded this week */}
         <SectionLabel icon={Sparkles}>What your coach helped with</SectionLabel>
         <div className="grid grid-cols-2 gap-2.5">
