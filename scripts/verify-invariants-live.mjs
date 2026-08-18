@@ -470,6 +470,32 @@ async function main() {
     return { pass: n === 0, detail: n === 0 ? "all storage.objects read policies are authenticated + scoped" : `${n} anon/public/permissive read policy(ies) → possible PII leak: ${r.rows[0].pols}` };
   });
 
+  await check("Macro-Mode pitch tables keep the PER-REP owner restriction (peer-rep isolation — F8)", async () => {
+    // Q4 = rep + manager: a rep sees only their OWN door-to-door pitches/knocks/analyses/summaries; a
+    // same-company manager (role CEO/COO/admin or sales_coach_role='admin') sees the team. The tenant-pin
+    // audits verify these are company-scoped — but a company-pin ALONE is satisfied by a COMPANY-WIDE policy:
+    // one that dropped the `rep_id = auth.uid()` owner term would let any colleague read another rep's pitch
+    // audio/transcript/analysis while every tenant-pin check stayed green. That widening is the F8 risk (audit
+    // 2026-08-18, closure.md RQ-F8). The BEHAVIOURAL peer-rep test needs two real auth.users + a live pitch
+    // (rep_id → auth.users, 0215:31; pitches empty until reps use the feature), so it stays a residual — but the
+    // actual REGRESSION VECTOR is a policy edit, and that IS checkable against the live qual right here. The
+    // owner term is `rep_id = auth.uid()` directly (door_knocks/pitches/rep_pattern_summaries) or
+    // `pi.rep_id = auth.uid()` via the pitches subquery (pitch_transcripts/pitch_analyses) — both contain the
+    // substring; the MANAGER clause uses `p.id = auth.uid()` (no `rep_id`), so dropping the owner term makes the
+    // substring vanish → this fails. Verified 2026-08-18 against the live quals: all 5 carry it. A DROPPED
+    // select policy (deny-all) is safe and correctly NOT flagged; only an EXISTING policy that lost the term.
+    const tbls = ["door_knocks", "pitches", "pitch_transcripts", "pitch_analyses", "rep_pattern_summaries"];
+    const r = await c.query(
+      "select coalesce(string_agg(tablename || '.' || policyname, ', '), '') as pols, count(*)::int n " +
+      "from pg_policies where schemaname='public' and tablename = any($1) and cmd in ('SELECT','ALL') " +
+      "and lower(coalesce(qual,'')) not like '%rep_id = auth.uid()%'",
+      [tbls]);
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0
+      ? "all 5 Macro-Mode SELECT policies keep the rep-owner restriction (peer-rep isolation holds)"
+      : `${n} Macro-Mode SELECT policy(ies) LOST the rep_id = auth.uid() owner term → peer-rep leak: ${r.rows[0].pols}` };
+  });
+
   await check("pilot_codes RLS-sealed (deny-all: RLS on + 0 policies)", async () => {
     // pilot_codes holds LIVE single-use access keys — a leak lets an attacker read unredeemed codes and
     // create free accounts. Its security model is deny-all: RLS enabled with ZERO policies, so anon /
