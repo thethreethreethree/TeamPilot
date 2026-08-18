@@ -123,3 +123,13 @@ Plus (DB): `npm run db:apply` → verify:live ALL 26 invariants hold; `npm run r
   Confirmed with a headless keyboard-overlay render (before: form fully hidden; after: visible above keyboard).
   Fix: the naming state top-aligns (`justify-start`) instead of bottom-anchoring, so it sits above the keyboard;
   the other states keep the thumb-zone bottom anchor. Root also gained `overflow-y-auto` as scroll safety.
+- **Finding (HIGH, keyboard class ROOT CAUSE, app-wide) — FIXED (founder-approved).** The render sweep for the
+  keyboard class found it wasn't Door-Log-specific: the app viewport declared scale/fit but NOT
+  `interactive-widget`, so it defaulted to `resizes-visual` — the soft keyboard OVERLAYS `fixed inset-0` shell
+  content instead of resizing the layout. That is the underlying cause of the naming-form bug and puts every
+  bottom-anchored input in the fixed shells at risk (confirmed: roleplay's chat composer — same non-scrollable
+  root + bottom composer). Every scrollable page (`flex-1 overflow-y-auto`) was already safe (the scroll region
+  lifts a focused input above the keyboard). Root-cause fix (founder chose app-wide): set
+  `interactiveWidget: "resizes-content"` in the root viewport so the layout resizes when the keyboard opens and
+  fixed shells push their bottom content above it — kills the whole class in one place. The Door Log naming
+  top-align is kept as defense-in-depth. App-wide keyboard-behavior change → founder to confirm on-device.

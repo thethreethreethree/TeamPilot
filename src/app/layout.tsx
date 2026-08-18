@@ -112,6 +112,12 @@ export const viewport: Viewport = {
   // (which lives just above the bottom edge) intercepts horizontal
   // pans on scrollable rows and the user accidentally exits the PWA.
   viewportFit: "cover",
+  // Keyboard handling: default `resizes-visual` makes the soft keyboard OVERLAY fixed-shell content — so a
+  // bottom-anchored input (the Door Log naming form, a chat composer) is hidden behind the keyboard with no way
+  // to reach it (founder-surfaced 2026-08-18). `resizes-content` resizes the LAYOUT viewport when the keyboard
+  // opens, so `fixed inset-0` shells (SalesCoach/Care) shrink and their bottom content is pushed ABOVE the
+  // keyboard. Root-cause fix for the whole keyboard-overlap class across every input surface.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
     { media: "(prefers-color-scheme: dark)", color: "#09090B" },
