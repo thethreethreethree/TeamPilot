@@ -155,8 +155,9 @@ export async function PATCH(
     .select(FIELDS_SELECT)
     .single();
   if (updateErr || !updated) {
+    console.error("[topic-decisions.update] update failed:", updateErr); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: updateErr?.message ?? "Save failed." },
+      { error: "Save failed." },
       { status: 500 }
     );
   }

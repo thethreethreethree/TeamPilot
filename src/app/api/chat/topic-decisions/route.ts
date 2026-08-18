@@ -138,8 +138,9 @@ export async function POST(req: NextRequest) {
     )
     .single();
   if (insertErr || !row) {
+    console.error("[topic-decisions] insert failed:", insertErr); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: insertErr?.message ?? "Could not open dialogue." },
+      { error: "Could not open dialogue." },
       { status: 500 }
     );
   }

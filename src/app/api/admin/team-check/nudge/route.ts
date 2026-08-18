@@ -118,8 +118,9 @@ export async function POST(req: NextRequest) {
     .select("id, task_id, author_id, kind, body, payload, created_at")
     .single();
   if (insertErr || !msg) {
+    console.error("[team-check.nudge] insert failed:", insertErr); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: insertErr?.message ?? "Could not post nudge." },
+      { error: "Could not post nudge." },
       { status: 500 }
     );
   }

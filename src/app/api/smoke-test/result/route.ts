@@ -94,8 +94,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !data) {
+    console.error("[smoke-test.result] insert failed:", error); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: error?.message ?? "Insert failed." },
+      { error: "Insert failed." },
       { status: 500 }
     );
   }

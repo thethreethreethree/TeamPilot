@@ -700,8 +700,13 @@ for (const f of FILES) {
 // `parsed.error.issues[0]?.message` (Zod, array-indexed) doesn't match the plain-property shape (and is
 // 400-excluded anyway). The interpolated `` `${...message}` `` alternative already allowed nested access via
 // its `[^}]*`, so only the direct form needed widening.
+// OPTIONAL-CHAINING BLIND SPOT (added 2026-08-19): the direct form required a literal `.message`, so the very
+// common `error: insertErr?.message ?? "…"` (optional chaining) slipped the gate — a raw Postgres/PostgREST
+// message at a 5xx reached the client (chat/topic-decisions, admin/team-check/nudge, feedback, smoke-test, and
+// finance direct-table ops). The hops now allow an optional `?` before the `.` so `x?.message` and `x?.y?.message`
+// are caught, while still requiring the terminal `.message` (so controlled `result.error` fields stay quiet).
 const RAW_ERR_MSG_RE =
-  /\berror:\s*(?:`[^`]*\$\{[^}]*\.\s*message|[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message)/;
+  /\berror:\s*(?:`[^`]*\$\{[^}]*\??\.\s*message|[A-Za-z_$][\w$]*(?:\s*\??\.\s*[A-Za-z_$][\w$]*)?\s*\??\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\??\.\s*message)/;
 const INTENTIONAL_ERR_STATUS_RE = /status:\s*(?:400|403|415|422|429)\b/;
 const RAW_ERR_ALLOWLIST = new Map([
   // A diagnostic ping whose PURPOSE is to report the LLM provider's connectivity error to the caller — the
@@ -1358,6 +1363,8 @@ st("INV13 ignores a parameterized .ilike()", !RAW_ILIKE_FILTER_RE.test('sb.ilike
 st("INV14 flags a direct error.message", RAW_ERR_MSG_RE.test("{ error: error.message },"));
 st("INV14 flags the instanceof fallback", RAW_ERR_MSG_RE.test("{ error: err instanceof Error ? err.message : 'x' },"));
 st("INV14 flags an interpolated .message", RAW_ERR_MSG_RE.test("{ error: `write failed: ${error.message}` },"));
+st("INV14 flags optional-chained ?.message (2026-08-19 blind spot)", RAW_ERR_MSG_RE.test("{ error: insertErr?.message ?? 'x' },"));
+st("INV14 still ignores a controlled result.error field (not terminal .message)", !RAW_ERR_MSG_RE.test("{ error: result?.error },"));
 st("INV14 ignores a generic string error", !RAW_ERR_MSG_RE.test("{ error: \"Couldn't save.\" },"));
 st("INV14 ignores a detail-key .message (deliberate agent surface)", !RAW_ERR_MSG_RE.test("{ error: 'generic', detail: err.message },"));
 st("INV14 status-exclusion recognizes a 403 domain message", INTENTIONAL_ERR_STATUS_RE.test("{ status: 403 }"));

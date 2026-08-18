@@ -96,8 +96,9 @@ export async function PATCH(
     .single();
 
   if (error || !data) {
+    console.error("[feedback.update] update failed:", error); // CWE-209: log detail, return generic
     return NextResponse.json(
-      { error: error?.message ?? "Update failed." },
+      { error: "Update failed." },
       { status: 500 }
     );
   }
