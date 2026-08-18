@@ -87,3 +87,8 @@ getTodaysMetrics summary-read swallow remain accepted-minor: secondary surfaces,
 Added `report-card/__tests__/route.test.ts` — a pitch-read ERROR returns 500 (not a false 200-with-empty-
 pitches), a success returns the pitches + their after-pitch summary, unauth → 401. Locks the D1 fix at the route
 level (the client render test already guards the on-500-show-error side).
+
+### R3 resolved — component rename (code-smell cleanup)
+Renamed the component ReportCard → PitchPerformance (file + component + test, git mv preserving history), so it
+no longer reads as "ReportCard renders Pitch Performance". Route PATH kept (/doors/report-card) so PitchDetail's
+[pitchId] + back-link + the API path don't cascade. No lingering imports; typecheck + tests green.

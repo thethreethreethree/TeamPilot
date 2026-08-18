@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
-import { ReportCard } from "../ReportCard";
+import { PitchPerformance } from "../PitchPerformance";
 
 afterEach(() => {
   cleanup();
@@ -23,7 +23,7 @@ afterEach(() => {
 describe("Pitch Performance", () => {
   it("a failed load renders the honest error (not the misleading 'no pitches' empty state)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
-    render(<ReportCard />);
+    render(<PitchPerformance />);
     await waitFor(() => expect(screen.getByText(/Couldn't load your pitches/i)).toBeTruthy());
     expect(screen.getByText(/Retry/i)).toBeTruthy();
     expect(screen.queryByText(/No pitches recorded yet/i)).toBeNull();
@@ -49,7 +49,7 @@ describe("Pitch Performance", () => {
         }),
       })),
     );
-    render(<ReportCard />);
+    render(<PitchPerformance />);
     await waitFor(() => expect(screen.getByText("Pitch Performance")).toBeTruthy());
     expect(screen.getByText("Blue door")).toBeTruthy();
     expect(screen.getByText("Strong open, rushed the close.")).toBeTruthy(); // the after-pitch summary inline

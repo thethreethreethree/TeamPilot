@@ -1,4 +1,4 @@
-import { ReportCard } from "@/components/sales-coach/doorlog/ReportCard";
+import { PitchPerformance } from "@/components/sales-coach/doorlog/PitchPerformance";
 
 /**
  * /dashboard/sales-coach/doors/report-card — Macro Mode Tab 2 (Report Card). The reflective surface;
@@ -6,6 +6,6 @@ import { ReportCard } from "@/components/sales-coach/doorlog/ReportCard";
  */
 export const dynamic = "force-dynamic";
 
-export default function ReportCardPage() {
-  return <ReportCard />;
+export default function PitchPerformancePage() {
+  return <PitchPerformance />;
 }

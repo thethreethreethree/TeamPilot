@@ -28,7 +28,7 @@ type Pitch = {
   summary: string | null;
 };
 
-export function ReportCard() {
+export function PitchPerformance() {
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
