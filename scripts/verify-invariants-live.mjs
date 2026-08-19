@@ -113,6 +113,24 @@ async function main() {
     };
   });
 
+  await check("schedule RPCs are single-overload (no orphaned create-or-replace duplicate — 0225)", async () => {
+    // A `create or replace function` that CHANGES the arg list creates a NEW function and ORPHANS the prior
+    // overload; a defaulted param then makes a shorter call AMBIGUOUS ("function is not unique"). 0223 did
+    // exactly that to apply_schedule_import (both a 3-arg and a 4-arg went live); 0225 dropped the stale one.
+    // Gate the lesson (A30): assert the schedule RPCs stay single-overload, so a future signature change that
+    // forgets to drop the old overload FAILS here instead of silently shipping an ambiguous function.
+    const r = await c.query(
+      "select p.proname, count(*)::int n from pg_proc p join pg_namespace nsp on nsp.oid = p.pronamespace " +
+      "where nsp.nspname = 'public' and p.proname in ('apply_schedule_import', 'append_schedule_event') " +
+      "group by p.proname having count(*) <> 1");
+    return {
+      pass: r.rowCount === 0,
+      detail: r.rowCount === 0
+        ? "apply_schedule_import + append_schedule_event each have exactly one overload"
+        : "ORPHANED/duplicate overload(s): " + r.rows.map((x) => `${x.proname} has ${x.n}`).join(", "),
+    };
+  });
+
   await check("§3.1 column-freeze + authz-column guard triggers WIRED (frozen columns immutable; no self-escalation)", async () => {
     // Two registry categories that were human-review-only: §3.1 column-freeze (a captured column can't be
     // rewritten after the fact) and the Security authz-column guards (a user can't self-escalate
