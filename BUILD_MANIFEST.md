@@ -36,6 +36,7 @@ Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now 
 - **RQ4 / RQ7** — where does org **timezone** + **workweek-start** come from (a `companies` setting)? Unblocks cross-tz + the overridable coverage-side overnight nuance.
 - **Re-import semantics** — should re-importing replace, add, or replace-the-week? (Naive dedup silently mishandles a re-uploaded correction.)
 - **Legacy `xlsx`** — add the `xlsx` dependency for staff×date Excel schedules, or stay CSV-first?
+- **Schedule entitlement / positioning (RQ14, surfaced 2026-08-19).** The schedule system is positioned as a STANDALONE tool ("no Elostate account required"), but its ACCESS is currently gated by the 0207 module hard-lock to complete/elostate accounts: a single-module pilot (`access_module = care` or `sales_coach`) is redirected away from `/dashboard/schedule` (`moduleForPath` returns "elostate", `isPathAllowed` denies). Not a bug — the lock works as designed — but the entitlement is an accidental side effect, not a deliberate SKU. **Decide:** is schedule bundled with complete-access only, or should it be its own sellable module (`access_module = 'schedule'` + a path-allow for locked accounts)? Matters if you want to sell scheduling standalone to a scheduling-only customer.
 - **Phase 6** (employee self-service) is deferred until staff get accounts; **Phase 7** (make-learning-visible) needs accumulated data.
 
 ## Residual queue
