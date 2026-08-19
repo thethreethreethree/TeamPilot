@@ -40,4 +40,4 @@ See `docs/tbc/2026-08-19-schedule-event-foundation/closure.md` (A36-ranked): RQ1
 - ✅ **Commit atomicity — FIXED** (`0222` apply_schedule_import RPC): the whole import runs in one transaction, rolls back wholesale on any failure. A 500 now means nothing was written.
 - **Re-import de-dup** — import-once assumed; re-importing appends duplicate shifts. Fix: skip a shift key already present.
 - **Event payload-ref validation** — the event-append + commit routes don't verify a payload's shiftId/employeeId belongs to the company's real shifts/roster. Inert (the projector ignores unresolved ids + events are RLS-company-scoped), but a route-layer check would be tidier.
-- **RQ6 role-per-event-type** — the event-append route gates on auth+company, not role per event type (no self-approve / manager-only appends) before write surfaces ship.
+- ✅ **RQ6 role-per-event-type — FIXED**: the event-append route now gates manager-only event types on ctx.isAdmin (TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED stay open to members). Closes the raw-API self-approve gap. 4 tests.

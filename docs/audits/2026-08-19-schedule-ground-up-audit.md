@@ -42,7 +42,7 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 | # | severity | flag | recommendation |
 |---|----------|------|----------------|
 | RQ4 | **MED** | org timezone not stored | add `companies.timezone` + backfill before cross-tz / cross-midnight scheduling |
-| RQ6 | **MED** | event-append route not role-per-event-type gated | add the role gate before employee-facing write surfaces (no self-approve) |
+| RQ6 | ✅ **FIXED** | event-append route now role-per-event-type gated | manager-only types require ctx.isAdmin; TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED open to members. 4 tests. |
 | — | LOW | re-import de-dup (import-once assumed) | skip a shift key already present on re-import |
 | — | LOW | requirement→shift mapping is first-version (day-applies / time-overlap) | refine when coverage is defined against specific shifts |
 | — | LOW | event payload shiftId/employeeId not route-validated vs the company's real shifts/roster | inert (projector ignores unresolved ids + RLS scopes events); add a check for tidiness |

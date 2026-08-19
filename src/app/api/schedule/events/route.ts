@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { getCurrentCompanyId, getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -26,6 +26,19 @@ const AppendSchema = z.object({
   type: z.string().min(1).max(64),
   payload: z.record(z.string(), z.unknown()).optional(),
 });
+
+// RQ6 role-per-event-type gate. These event types are things only a MANAGER does (define/publish shifts,
+// assign, decide time off, set coverage, approve a swap). The complement — a time-off REQUEST, setting
+// availability, requesting a swap — is open to any company member (for when staff self-service ships). This
+// closes the raw-API self-approve gap: a non-manager could otherwise POST TIMEOFF_APPROVED for their own
+// request via this route even though no UI exposes it.
+const MANAGER_ONLY_EVENT_TYPES = new Set<string>([
+  "SHIFT_DEFINED", "SHIFT_PUBLISHED", "SHIFT_UNPUBLISHED",
+  "EMPLOYEE_ASSIGNED", "EMPLOYEE_UNASSIGNED",
+  "TIMEOFF_APPROVED", "TIMEOFF_DENIED",
+  "COVERAGE_REQ_DEFINED", "COVERAGE_REQ_CHANGED",
+  "SWAP_APPROVED",
+]);
 
 type EventRow = {
   id: string;
@@ -57,23 +70,21 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   const sb = await createClient();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const companyId = await getCurrentCompanyId();
-  if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
-
-  // RQ6 (Phase 3/5, closure.md) — this route gates on auth + company but NOT on role-per-event-type.
-  // Phase 1 is pure event-plumbing: any authenticated company member may append, and actor_id records
-  // who. BEFORE the write paths are exposed through the manager/employee UIs, a role gate MUST be added
-  // (Phase 3's verdict authority + Phase 5/6's role-scoped surfaces): an employee must not self-append
-  // TIMEOFF_APPROVED or SHIFT_PUBLISHED/EMPLOYEE_ASSIGNED (manager-only). Do not ship a user-facing
-  // write surface over this route without that gate.
+  const ctx = await getCurrentAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // Validate the payload against the event type's schema BEFORE any write (never append an
   // unvalidated object — build plan section 5). Invalid → 400 with the specific issues.
   const validated = validateScheduleEvent(body.type, body.payload ?? {});
   if (!validated.ok) {
     return NextResponse.json({ error: "Invalid schedule event.", issues: validated.issues }, { status: 400 });
+  }
+
+  // RQ6 (audit fix): a manager-only event type requires ctx.isAdmin. Employee-appropriate types
+  // (TIMEOFF_REQUESTED / AVAILABILITY_SET / SWAP_REQUESTED) are open to any company member — for when
+  // staff self-service ships. Closes the raw-API self-approve gap the ground-up audit surfaced.
+  if (MANAGER_ONLY_EVENT_TYPES.has(validated.event.type) && !ctx.isAdmin) {
+    return NextResponse.json({ error: "Only a manager can perform this action." }, { status: 403 });
   }
 
   // Append via the security-invoker RPC (derives company_id + actor from the session, enforces RLS).
