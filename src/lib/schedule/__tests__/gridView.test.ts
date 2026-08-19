@@ -24,14 +24,24 @@ describe("buildWeekGrid", () => {
       WEEK,
     );
     expect(g.shiftsThisWeek).toBe(1); // s2 is next week, excluded
-    expect(g.cell("e1", "2026-08-18")).toEqual({ shiftId: "s1", label: "09:00-17:00" });
+    expect(g.cell("e1", "2026-08-18")).toEqual({ shiftId: "s1", label: "09:00-17:00", off: false });
     expect(g.cell("e1", "2026-08-30")).toBeNull(); // outside the displayed week
+  });
+
+  it("marks a cell OFF when the assigned person has approved time-off overlapping the date", () => {
+    const g = buildWeekGrid(
+      [shift("s1", "2026-08-19", "09:00", "17:00", ["e1", "e2"])],
+      WEEK,
+      [{ employeeId: "e1", start: "2026-08-18", end: "2026-08-20" }], // e1 off across the 19th
+    );
+    expect(g.cell("e1", "2026-08-19")?.off).toBe(true);  // e1 is off → flagged
+    expect(g.cell("e2", "2026-08-19")?.off).toBe(false); // e2 works normally
   });
 
   it("gives every assignee their own cell + records each in scheduledIds", () => {
     const g = buildWeekGrid([shift("s1", "2026-08-19", "06:00", "14:00", ["e1", "e2"])], WEEK);
-    expect(g.cell("e1", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00" });
-    expect(g.cell("e2", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00" });
+    expect(g.cell("e1", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false });
+    expect(g.cell("e2", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false });
     expect([...g.scheduledIds].sort()).toEqual(["e1", "e2"]);
   });
 

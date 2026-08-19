@@ -10,6 +10,16 @@ export interface WeekCell {
   shiftId: string;
   /** "HH:mm-HH:mm" for display. */
   label: string;
+  /** The assigned person has APPROVED time-off overlapping this date — so they won't actually work it. The
+   *  grid shows the assignment; without this flag it looks staffed while Coverage (RQ15) flags it short. */
+  off?: boolean;
+}
+
+/** Approved time-off spans (for marking assigned-but-off cells). */
+export interface ApprovedOff {
+  employeeId: string;
+  start: string; // YYYY-MM-DD inclusive
+  end: string; // YYYY-MM-DD inclusive
 }
 
 export interface WeekGrid {
@@ -30,8 +40,10 @@ export interface WeekGrid {
  * one of `dates` (the displayed week). Each cell carries the shiftId so a click can unassign that person from
  * THAT shift. A shift with N assignees produces N cells (one per person).
  */
-export function buildWeekGrid(shifts: Shift[], dates: string[]): WeekGrid {
+export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: ApprovedOff[] = []): WeekGrid {
   const inWeek = new Set(dates);
+  // Is employee `e` on approved time-off on date `d`? (inclusive span). Small n — a linear scan is fine.
+  const isOff = (e: string, d: string) => approvedOff.some((t) => t.employeeId === e && t.start <= d && d <= t.end);
   const byEmpDate = new Map<string, Map<string, WeekCell>>();
   let shiftsThisWeek = 0;
   let emptyShiftsThisWeek = 0;
@@ -41,7 +53,7 @@ export function buildWeekGrid(shifts: Shift[], dates: string[]): WeekGrid {
     if (s.assigned.length === 0) emptyShiftsThisWeek += 1; // no cells rendered for this shift — surface it
     for (const empId of s.assigned) {
       if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
-      byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}` });
+      byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}`, off: isOff(empId, s.date) });
     }
   }
   return {

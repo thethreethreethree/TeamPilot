@@ -82,7 +82,11 @@ export default function ScheduleGridPage() {
   // Pivot the derived shifts into an employee×date lookup for the displayed week (pure logic in gridView.ts,
   // unit-tested there). Each cell carries the shiftId so a click can unassign that person from THAT shift.
   const { cell, shiftsThisWeek, emptyShiftsThisWeek, scheduledIds } = useMemo(
-    () => buildWeekGrid(state ? Object.values(state.shifts) : [], dates),
+    () => buildWeekGrid(
+      state ? Object.values(state.shifts) : [],
+      dates,
+      state ? Object.values(state.timeOff).filter((t) => t.status === "approved").map((t) => ({ employeeId: t.employeeId, start: t.start, end: t.end })) : [],
+    ),
     [state, dates],
   );
 
@@ -201,10 +205,10 @@ export default function ScheduleGridPage() {
                               type="button"
                               onClick={() => unassign(c.shiftId, emp.id, emp.name)}
                               disabled={busy}
-                              title={`Unassign ${emp.name} from this shift`}
-                              className="rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors"
+                              title={c.off ? `${emp.name} has APPROVED time off on this day — they won't work this shift. Click to unassign.` : `Unassign ${emp.name} from this shift`}
+                              className={`rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors ${c.off ? "text-amber-300 line-through decoration-amber-300/70" : ""}`}
                             >
-                              {busy ? "…" : c.label}
+                              {busy ? "…" : c.off ? `${c.label} (off)` : c.label}
                             </button>
                           ) : (
                             "·"
