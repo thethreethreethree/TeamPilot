@@ -143,6 +143,9 @@ Change the dates *after* evaluating but *before* deciding. Look at the **"Record
 **Correct:**
 - Evaluate shows the impact (coverage effect + any AI recommendation-with-why, warm/plain, **no
   em- or en-dashes**).
+- **"Who could cover the gap" candidates are CLICKABLE (new):** if the time-off leaves a shift short, the
+  suggested candidates each render as a button — click one and it **assigns them to cover** that shift (turns
+  green, "· covering"). One click, no separate rebuild. (Closes the propose→act loop.)
 - **Changing the inputs after an evaluation clears the stale result** — you cannot approve against
   an evaluation that no longer matches the form (state-bleed guard).
 - Approve/Deny records and the **Recorded time off** list shows current/upcoming entries with the
