@@ -15,8 +15,16 @@ import { planImport } from "@/lib/schedule/importPlanner";
  * REFUSES to commit if any code is unmapped (matches the preview's readyToCommit — no silent/guessed import).
  *
  * Manager-only. Roster rows are RLS-scoped (company from session); events go through append_schedule_event
- * (security-invoker, company from session). NOTE (idempotency): this assumes an import-once; re-importing the
- * same CSV would append duplicate shifts (append-only). Re-import de-duplication is a tracked follow-up.
+ * (security-invoker, company from session).
+ *
+ * KNOWN GAPS (proactive audit 2026-08-19, tracked for Phase-5 hardening — surfaced, not hidden):
+ *   - NOT ATOMIC. Each staff insert + event append is its own statement; a mid-commit failure (e.g. the 3rd
+ *     shift append 500s) leaves the staff rows + earlier events already written — a PARTIAL import. The proper
+ *     fix is a single DB function (RPC) that does the whole import in one transaction and rolls back on any
+ *     failure; until then a failed commit must be treated as "partially applied, re-run after fixing" (the
+ *     event log makes the partial state inspectable, not corrupt). Do not treat a 500 here as "nothing wrote".
+ *   - IDEMPOTENCY. Import-once is assumed; re-importing the same CSV appends duplicate shifts (append-only).
+ *     Re-import de-duplication (a shift key already present → skip) is the same follow-up.
  */
 export const maxDuration = 60;
 
