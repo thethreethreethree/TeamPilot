@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, CalendarClock, CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
@@ -47,6 +47,10 @@ export default function TimeOffReviewPage() {
   // manager could change the staff member after evaluating and approve on the old verdict (state-bleed).
   const clearEval = () => { setEvaluation(null); setDone(null); };
 
+  // Synchronous double-submit latch for the decision write (a busy-STATE guard can double-fire before the
+  // re-render disables the button).
+  const decidingRef = useRef(false);
+
   const evaluate = async () => {
     if (!canEval) return;
     setBusy("eval");
@@ -64,6 +68,8 @@ export default function TimeOffReviewPage() {
   };
 
   const decide = async (decision: "approve" | "deny") => {
+    if (decidingRef.current) return;
+    decidingRef.current = true;
     setBusy("decide");
     setError(null);
     try {
@@ -75,7 +81,7 @@ export default function TimeOffReviewPage() {
       else if (res.status === 403) { setError("Only a manager can record time off."); }
       else { setError("Couldn't record the decision. Try again."); }
     } catch { setError("Couldn't reach the server."); }
-    finally { setBusy(null); }
+    finally { setBusy(null); decidingRef.current = false; }
   };
 
   const v = evaluation?.verdict;

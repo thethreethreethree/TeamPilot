@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2 } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
@@ -52,6 +52,11 @@ export default function ScheduleImportPage() {
   const [vaWeek, setVaWeek] = useState("");
   const [vaPreview, setVaPreview] = useState<VaPreview | null>(null);
 
+  // Synchronous double-submit latch for the two COMMIT actions (they create staff + shifts). A busy-STATE
+  // guard alone can double-fire: two clicks before the re-render disables the button both see busy === null.
+  // A ref flips synchronously, so the second click is dropped — no duplicate import.
+  const committingRef = useRef(false);
+
   const switchMode = (m: "csv" | "va") => {
     setMode(m);
     setError(null);
@@ -91,6 +96,8 @@ export default function ScheduleImportPage() {
   };
 
   const commit = async () => {
+    if (committingRef.current) return;
+    committingRef.current = true;
     setBusy("commit"); setError(null);
     try {
       const res = await fetch("/api/schedule/upload/commit", {
@@ -101,7 +108,7 @@ export default function ScheduleImportPage() {
       else if (res.status === 403) setError("Only a manager can import a schedule.");
       else setError("Couldn't import. Nothing was changed.");
     } catch { setError("Couldn't reach the server."); }
-    finally { setBusy(null); }
+    finally { setBusy(null); committingRef.current = false; }
   };
 
   // Editing the mapping/dates invalidates a prior preview — clear it so the "ready to import" state can't
@@ -125,7 +132,8 @@ export default function ScheduleImportPage() {
   };
 
   const vaCommit = async () => {
-    if (!vaFile || !vaWeek) return;
+    if (!vaFile || !vaWeek || committingRef.current) return;
+    committingRef.current = true;
     setBusy("commit"); setError(null);
     try {
       const res = await fetch("/api/schedule/upload/va/commit", {
@@ -135,7 +143,7 @@ export default function ScheduleImportPage() {
       else if (res.status === 403) setError("Only a manager can import a schedule.");
       else setError((await res.json().catch(() => null))?.error ?? "Couldn't import. Nothing was changed.");
     } catch { setError("Couldn't reach the server."); }
-    finally { setBusy(null); }
+    finally { setBusy(null); committingRef.current = false; }
   };
 
   const tab = (m: "csv" | "va", icon: React.ReactNode, label: string) => (

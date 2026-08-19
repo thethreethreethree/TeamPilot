@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, UserPlus, Users } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
@@ -20,6 +20,7 @@ export default function ScheduleRosterPage() {
   const [error, setError] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -46,7 +47,10 @@ export default function ScheduleRosterPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || saving) return;
+    // savingRef is a synchronous latch — the `saving` state alone can double-fire (two fast clicks both
+    // read saving === false before the re-render), creating a DUPLICATE staff record.
+    if (!form.name.trim() || saving || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setFormError(null);
     try {
@@ -72,6 +76,7 @@ export default function ScheduleRosterPage() {
       setFormError("Couldn't reach the server. Please try again.");
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   };
 

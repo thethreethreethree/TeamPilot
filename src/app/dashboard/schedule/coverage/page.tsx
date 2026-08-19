@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, ShieldCheck, Plus } from "lucide-react";
 import type { CoverageRequirement } from "@/lib/schedule/types";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
@@ -21,6 +21,9 @@ export default function CoveragePage() {
   const [form, setForm] = useState<Form>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Synchronous double-submit latch — the `saving` state check is read at render time, so two fast clicks
+  // both see saving === false and both POST (duplicate requirement). A ref flips synchronously.
+  const savingRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,7 +40,8 @@ export default function CoveragePage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const min = Number(form.minHeadcount);
-    if (!form.minHeadcount.trim() || Number.isNaN(min) || min < 0 || saving) return;
+    if (!form.minHeadcount.trim() || Number.isNaN(min) || min < 0 || saving || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setFormError(null);
     try {
@@ -53,7 +57,7 @@ export default function CoveragePage() {
       else if (res.status === 403) setFormError("Only a manager can set coverage.");
       else setFormError("Couldn't save. Try again.");
     } catch { setFormError("Couldn't reach the server."); }
-    finally { setSaving(false); }
+    finally { setSaving(false); savingRef.current = false; }
   };
 
   return (
