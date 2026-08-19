@@ -64,6 +64,13 @@ deterministic replay) are proven. Layers 3–4 are inter-phase / UI, explicitly 
     "why_skipped": "Phase 1 treats employeeId as an opaque UUID (decision-independent here); Phase 2 needs the entity. Recommend a lightweight employee record with an optional user_id link. Founder decision needed before Phase 2.",
     "confidence_it_does_not_matter": "low",
     "opened_at": null
+  },
+  {
+    "id": "RQ6",
+    "item": "SECURITY — the append API gates on auth + company but NOT on role-per-event-type. Any authenticated company user can POST any event, including TIMEOFF_APPROVED (self-approve) or SHIFT_PUBLISHED (manager-only).",
+    "why_skipped": "Phase 1 is pure event-plumbing; per-event-type authorization belongs to Phase 3 (the verdict authority gates consequential appends) + Phase 5/6 (manager vs employee interfaces expose only role-appropriate actions). Surfaced now (proactive audit, section 1.5.2) so it is a HARD requirement, not a late discovery: an employee must not self-approve time-off or publish/assign shifts via a direct API call. MUST be closed before the write paths are user-exposed.",
+    "confidence_it_does_not_matter": "low",
+    "opened_at": null
   }
 ]
 ```

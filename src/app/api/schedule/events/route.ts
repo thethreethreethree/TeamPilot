@@ -62,6 +62,13 @@ export async function POST(req: NextRequest) {
   const companyId = await getCurrentCompanyId();
   if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
 
+  // RQ6 (Phase 3/5, closure.md) — this route gates on auth + company but NOT on role-per-event-type.
+  // Phase 1 is pure event-plumbing: any authenticated company member may append, and actor_id records
+  // who. BEFORE the write paths are exposed through the manager/employee UIs, a role gate MUST be added
+  // (Phase 3's verdict authority + Phase 5/6's role-scoped surfaces): an employee must not self-append
+  // TIMEOFF_APPROVED or SHIFT_PUBLISHED/EMPLOYEE_ASSIGNED (manager-only). Do not ship a user-facing
+  // write surface over this route without that gate.
+
   // Validate the payload against the event type's schema BEFORE any write (never append an
   // unvalidated object — build plan section 5). Invalid → 400 with the specific issues.
   const validated = validateScheduleEvent(body.type, body.payload ?? {});

@@ -9,7 +9,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 |---|-------|--------|-------|
 | 1 | Event Store & Derivation Foundation | ✅ **DONE — at checkpoint** | `0220` live, pure projector + append/read API, 17 tests, gate exit 0, append-only verified live. Commit `40f8ddb1`. |
 | 2 | Coverage Requirements & Constraint Model | ⛔ **BLOCKED** | Needs RQ5 (employee model) + founder go. |
-| 3 | The Decision Authority (single verdict, A40) | ⬜ pending | |
+| 3 | The Decision Authority (single verdict, A40) | ⬜ pending | Also owns RQ6: role-per-event-type authz (no self-approve / manager-only appends). |
 | 4 | AI Reasoning Layer (DeepSeek propose; deterministic gate) | ⬜ pending | Needs DeepSeek + per-env config (A41). |
 | 5 | Manager/Admin Interface | ⬜ pending | First user-facing surface (layers 3-4 of the four-layer gate). |
 | 6 | Employee Interface | ⬜ pending | |
