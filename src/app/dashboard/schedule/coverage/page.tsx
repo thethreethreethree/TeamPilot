@@ -11,8 +11,8 @@ import { ScheduleNav } from "@/components/schedule/ScheduleNav";
  * manager-only. Without a requirement, a change shows no coverage impact — this is where the floors come from.
  */
 
-type Form = { appliesTo: "day" | "shift" | "role"; minHeadcount: string; start: string; end: string };
-const EMPTY: Form = { appliesTo: "day", minHeadcount: "", start: "", end: "" };
+type Form = { appliesTo: "day" | "shift" | "role"; minHeadcount: string; role: string; start: string; end: string };
+const EMPTY: Form = { appliesTo: "day", minHeadcount: "", role: "", start: "", end: "" };
 
 export default function CoveragePage() {
   const [reqs, setReqs] = useState<CoverageRequirement[]>([]);
@@ -42,7 +42,9 @@ export default function CoveragePage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const min = Number(form.minHeadcount);
+    const isRole = form.appliesTo === "role";
     if (!form.minHeadcount.trim() || Number.isNaN(min) || min < 0 || saving || savingRef.current) return;
+    if (isRole && !form.role.trim()) { setFormError("Name the role this requirement is for."); return; }
     savingRef.current = true;
     setSaving(true);
     setFormError(null);
@@ -52,6 +54,9 @@ export default function CoveragePage() {
         body: JSON.stringify({
           appliesTo: form.appliesTo,
           minHeadcount: min,
+          // "role" mode: the count is a floor for that specific role (minByRole); the backend + authority
+          // enforce it. Multiple roles = multiple requirements (they combine — RQ20).
+          ...(isRole ? { minByRole: { [form.role.trim()]: min } } : {}),
           ...(form.start && form.end ? { timeWindow: { start: form.start, end: form.end } } : {}),
         }),
       });
@@ -94,8 +99,13 @@ export default function CoveragePage() {
             <option value="role">Per role</option>
           </select>
           <input value={form.minHeadcount} onChange={(e) => setForm((f) => ({ ...f, minHeadcount: e.target.value }))}
-            placeholder="Minimum people" inputMode="numeric"
+            placeholder={form.appliesTo === "role" ? "How many of this role" : "Minimum people"} inputMode="numeric"
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary placeholder:text-muted" />
+          {form.appliesTo === "role" && (
+            <input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+              placeholder="Role (e.g. nurse)"
+              className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary placeholder:text-muted" />
+          )}
           <input value={form.start} onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))}
             placeholder="From (HH:mm, optional)"
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary placeholder:text-muted" />
@@ -125,8 +135,15 @@ export default function CoveragePage() {
           {reqs.map((r) => (
             <li key={r.id} className="glass-card p-3.5 text-sm text-primary flex items-center justify-between gap-3">
               <span>
-                At least <span className="font-semibold">{r.minHeadcount}</span>{" "}
-                {r.appliesTo === "day" ? "every day" : r.appliesTo === "shift" ? "per shift" : "per role"}
+                {Object.keys(r.minByRole).length > 0 ? (
+                  <>At least{" "}
+                    <span className="font-semibold">
+                      {Object.entries(r.minByRole).map(([role, n]) => `${n} ${role}`).join(", ")}
+                    </span>{" "}per shift</>
+                ) : (
+                  <>At least <span className="font-semibold">{r.minHeadcount}</span>{" "}
+                    {r.appliesTo === "day" ? "every day" : r.appliesTo === "shift" ? "per shift" : "per role"}</>
+                )}
                 {r.timeWindow && <span className="text-muted"> · {r.timeWindow.start} to {r.timeWindow.end}</span>}
               </span>
               <button type="button" onClick={() => void remove(r.id)} disabled={removingId === r.id}
