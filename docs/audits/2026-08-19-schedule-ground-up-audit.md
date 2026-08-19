@@ -152,6 +152,30 @@ DIFFERENT companies, all rolled back:
   The behavioral "anon reads 0 from populated tenant tables" check skips schedule_event/employee only because
   they are empty in prod; this manual strong proof covers that gap for now.
 
+## 🔴 Live finding — RQ6 manager-only gate is BYPASSABLE via direct RPC (MED-HIGH, within-tenant)
+Behavioral probe (rolled back): `append_schedule_event` is `EXECUTE`-granted to `authenticated`, and it checks
+the caller's COMPANY (session-derived) but NOT their ROLE. The RQ6 manager-only-event-type gate
+(`MANAGER_ONLY_EVENT_TYPES`) lives ONLY in the TS events route. So a non-admin Member, via a direct PostgREST
+`POST /rest/v1/rpc/append_schedule_event`, appended `TIMEOFF_APPROVED` and it **SUCCEEDED** — bypassing the
+route gate.
+
+- **Impact (within-tenant):** a member can self-approve their own time-off, self-assign / unassign / cancel
+  shifts (`EMPLOYEE_ASSIGNED`/`UNASSIGNED`/`SHIFT_CANCELLED`), define shifts, and change coverage
+  (`COVERAGE_REQ_*`) — every manager-only action — on their OWN company, defeating the RQ6 manager-control
+  model. NOT cross-tenant (company is session-derived; the tenant-isolation proof above holds).
+- **Class:** identical to the 0226 settings finding (route-gated but the write PRIMITIVE is open to
+  authenticated) — here on the CORE schedule write path, so higher impact. The audit's earlier "RQ6 FIXED"
+  entry was the ROUTE gate only; the RPC was never gated.
+- **Fix options (SURFACED — a core-primitive security-model change, founder's call):**
+  1. Enforce RQ6 INSIDE `append_schedule_event` — for a manager-only `p_type`, require the caller be
+     CEO/COO/admin (mirrors `MANAGER_ONLY_EVENT_TYPES` + the 0226/0111 pattern); employee types
+     (TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED) stay open. Route check becomes early-400 defense.
+     **RECOMMENDED** — matches established intent + the founder's 0226 precedent, smallest surface.
+  2. A BEFORE-INSERT trigger on `schedule_event` that enforces the same (keeps the RPC thin).
+  3. Revoke `append_schedule_event` from `authenticated` and force all writes through the service-role API
+     (bigger change; the current client calls it as the user, so this needs the API to use a service client).
+  Gate the fix with a behavioral verify:live check (non-admin direct append of a manager-only type → blocked).
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
