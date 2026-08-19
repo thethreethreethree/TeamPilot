@@ -1,6 +1,9 @@
 # Schedule Management System — visual-verification checklist (2026-08-19 build)
 
-> Every schedule surface is **verified in code** (typecheck + ~182 unit/route tests, gate exit 0)
+> Covers the manager MVP **plus** the four founder-picker features (2026-08-19): cell-click unassign,
+> manager-only visibility, replace-the-week re-import, and company timezone/workweek settings.
+>
+> Every schedule surface is **verified in code** (typecheck + ~230 unit/route tests, gate exit 0)
 > but the automated gate **cannot render React** — so layout, contrast, z-order, and scroll-reach
 > are UNVERIFIED live. This is the founder's checklist to close that one remaining gate.
 >
@@ -23,11 +26,15 @@
 
 **Do:** As a manager/admin on a **complete-access** account, open **Schedule** from the left sidebar.
 
-**Correct:** you land on the **Roster** page with the schedule sub-nav visible (Roster · Build ·
-Schedule · Coverage · Time Off · Import). The sub-nav does not overflow or wrap awkwardly on a
-narrow window.
+**Correct:** you land on the **Roster** page with the schedule sub-nav visible (Schedule · Roster ·
+Time Off · Coverage · Build · Import · **Settings**). The sub-nav does not overflow or wrap awkwardly
+on a narrow window.
 
-**If wrong (no sidebar item / redirected away):** note your account's `access_module`. A
+**Also (manager-only gate, new):** open a schedule URL as a **non-manager** (a Member-role user on the
+same complete-access company). You must be **redirected to /dashboard** — a non-manager should never see
+any schedule page (no flash of the grid first). A manager passes straight through.
+
+**If wrong (no sidebar item / redirected away as a manager):** note your account's `access_module`. A
 single-module pilot (care / sales_coach) is intentionally redirected away (RQ14, a founder
 decision, not a bug) — tell me if this is unexpected for this account.
 
@@ -72,7 +79,8 @@ window and tell me the viewport height.
 ## 3. Grid — `/dashboard/schedule/grid`
 
 **Do:** Open the grid. Use **‹ / ›** to move week to week, then **"This week"** to jump back.
-Add a shift for next week (via Build) and navigate to it.
+Add a shift for next week (via Build) and navigate to it. Then **click a shift cell** (someone
+assigned to a shift) → confirm the "Unassign …?" prompt.
 
 **Correct:**
 - Exactly **7 day-columns** (Mon–Sun) with weekday labels + m/d dates; staff names down the left,
@@ -82,9 +90,14 @@ Add a shift for next week (via Build) and navigate to it.
 - Rows show **active staff + anyone actually working that week** — a deactivated staff member with
   no shifts does **not** appear as an empty row (relevance filter).
 - Cells with a shift show `HH:mm-HH:mm`; empty cells show a faint `·`. All legible in dark mode.
+- **Cell-click unassign (new):** a shift cell is clickable (hover highlight); clicking it prompts
+  "Unassign {name} from this shift?" — confirm and the person **disappears from that cell** on reload
+  (the grid re-reads; coverage re-checks). Cancel leaves it. If the action fails, a small **dismissible
+  banner** appears above the grid — the whole grid must **not** vanish to a full-screen error.
 
-**If wrong (grid scrolls the whole page sideways / name column unpinned):** screenshot — the
-grid's horizontal scroll must stay inside its own container, never the page body.
+**If wrong (grid scrolls the whole page sideways / name column unpinned / a failed unassign blanks the
+whole grid):** screenshot — the grid's horizontal scroll must stay inside its own container, and a
+single failed action must never nuke the view.
 
 ---
 
@@ -135,10 +148,32 @@ fixes — screenshot the form + the surviving result.
   confirmation**, never silently guessed.
 - VA file: after picking a file + target week, a **preview** of the dated shifts appears before
   commit; commit is atomic (a failure writes nothing).
+- **Replace-the-week warning (new):** if you preview an import that overlaps shifts you already have
+  in those dates, the preview shows an **amber "This replaces N existing shifts…"** line before the
+  Import button. After importing, the success message reads **"…replaced N existing shifts."** Re-import
+  the SAME week twice — the second import should **replace, not duplicate** (the shift count stays put).
 - On success you're offered **"View the schedule" / "Import another"** (continuity).
 
-**If wrong (preview omitted / commit with no preview / stuck after import):** screenshot the step
-and send the file you used (I can re-run the parser against it).
+**If wrong (preview omitted / no replace warning on a re-import / a re-import DOUBLES the shifts):**
+screenshot the step and send the file you used (I can re-run the parser against it).
+
+---
+
+## 7. Settings — `/dashboard/schedule/settings` (new)
+
+**Do:** Open the **Settings** tab. Change the **Timezone** and **"Workweek starts on"**, click **Save
+settings**. Then open the **grid** and confirm it re-aligned.
+
+**Correct:**
+- The timezone dropdown lists real IANA zones; the workweek dropdown lists Sunday…Saturday.
+- Save shows a **"Saved."** confirmation; reloading the page keeps your choices.
+- After setting the workweek to **Sunday**, the grid's 7 columns start on **Sunday** (and "This week"
+  reflects it). After changing the timezone, "today" (the current-week default, the time-off
+  current/upcoming list) matches that zone near midnight.
+- Legible in dark mode; the Save button is reachable (no shell-clip).
+
+**If wrong (save silently fails / grid week doesn't realign / a non-manager can reach this page):**
+screenshot + tell me the timezone/workweek you chose. A non-manager reaching Settings is a gate bug.
 
 ---
 
