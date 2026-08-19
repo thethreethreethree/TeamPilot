@@ -57,6 +57,14 @@ can't disagree with the reactive time-off check. List-based to match the UI. Bui
 surfaced) because it's core coverage value on a well-founded default and the founder prefers building on
 defaults; the UX (grid-integrated indicators vs. this list) can still be refined.
 
+## Recommended enhancement (accumulation — your call on the UX)
+- **Grid windowing/navigation.** The Schedule grid derives its date columns from ALL shifts, so as the
+  append-only log accumulates it grows a column per date ever — eventually an unusably wide grid. The
+  coverage-gap + time-off lists solved their equivalent by filtering to current/upcoming, but the grid needs
+  NAVIGATION (past weeks matter for reference), and the UX (a weekly Mon–Sun view with prev/next vs a date
+  range; the tz-aware "today" default — RQ4) is a design choice with regression risk on a working page.
+  Surfaced not built: it's a real UX decision, not a well-founded default like the two lists were.
+
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
 - **Non-manager schedule visibility (RQ23, confirmed).** The schedule WRITES are manager-only (RQ6), but the
