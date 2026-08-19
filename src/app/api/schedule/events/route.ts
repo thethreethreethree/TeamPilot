@@ -32,7 +32,7 @@ const AppendSchema = z.object({
 // availability, requesting a swap — is open to any company member (for when staff self-service ships). This
 // closes the raw-API self-approve gap: a non-manager could otherwise POST TIMEOFF_APPROVED for their own
 // request via this route even though no UI exposes it.
-const MANAGER_ONLY_EVENT_TYPES = new Set<string>([
+export const MANAGER_ONLY_EVENT_TYPES = new Set<string>([
   "SHIFT_DEFINED", "SHIFT_PUBLISHED", "SHIFT_UNPUBLISHED", "SHIFT_CANCELLED",
   "EMPLOYEE_ASSIGNED", "EMPLOYEE_UNASSIGNED",
   "TIMEOFF_APPROVED", "TIMEOFF_DENIED",

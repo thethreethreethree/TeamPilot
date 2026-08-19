@@ -152,7 +152,7 @@ DIFFERENT companies, all rolled back:
   The behavioral "anon reads 0 from populated tenant tables" check skips schedule_event/employee only because
   they are empty in prod; this manual strong proof covers that gap for now.
 
-## 🔴 Live finding — RQ6 manager-only gate is BYPASSABLE via direct RPC (MED-HIGH, within-tenant)
+## ✅ FIXED (was 🔴) — RQ6 manager-only gate is now enforced in the RPCs (0227, founder-picked 2026-08-20)
 Behavioral probe (rolled back): `append_schedule_event` is `EXECUTE`-granted to `authenticated`, and it checks
 the caller's COMPANY (session-derived) but NOT their ROLE. The RQ6 manager-only-event-type gate
 (`MANAGER_ONLY_EVENT_TYPES`) lives ONLY in the TS events route. So a non-admin Member, via a direct PostgREST
@@ -174,7 +174,17 @@ route gate.
   2. A BEFORE-INSERT trigger on `schedule_event` that enforces the same (keeps the RPC thin).
   3. Revoke `append_schedule_event` from `authenticated` and force all writes through the service-role API
      (bigger change; the current client calls it as the user, so this needs the API to use a service client).
-  Gate the fix with a behavioral verify:live check (non-admin direct append of a manager-only type → blocked).
+
+**RESOLUTION (option 1, founder pick):** migration **0227** — a shared `auth_is_schedule_manager(company)`
+predicate + a role gate in BOTH write RPCs (A26 sweep found `apply_schedule_import` had the same bypass —
+confirmed live — so both are fixed). `append_schedule_event` rejects a non-admin appending a manager-only
+type; `apply_schedule_import` requires a manager outright; employee types (TIMEOFF_REQUESTED / AVAILABILITY_SET
+/ SWAP_REQUESTED) stay open; service/definer contexts bypass. Same signatures → single-overload invariant
+stays green. **Behaviorally proven live (rolled back), full matrix:** Member→TIMEOFF_APPROVED BLOCKED,
+Member→TIMEOFF_REQUESTED ALLOWED, Member→apply_schedule_import BLOCKED, Admin→TIMEOFF_APPROVED ALLOWED,
+Admin→apply_schedule_import ALLOWED. **Drift-guarded:** `MANAGER_ONLY_EVENT_TYPES` is now exported and a
+detection-proven test asserts the SQL list in 0227 equals it (so the two can't diverge). The route keeps its
+check as an early-400 defense.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
