@@ -288,10 +288,19 @@ profiles-subquery pattern) AND included owner-checked tables (false positives). 
   class; expected member-write. Need a quick confirm each has no admin-only route, but low priority.
 - **False positives** like `pitches` (owner-scoped `rep_id = auth.uid()` — the heuristic's owner-exclusion just
   didn't catch the parenthesized form).
-So the real remaining surface is **finance** — and finance HAS route-role-gated approval flows (fin_approve_bill
-/ fin_approve_expense_report / fin_approve_po call fin_can_approve at the route). Whether those role gates are
-DB-enforced (vs route-only, the bypass class) is the substance of the deferred sweep. Recommend the deferred
-engagement be scoped as "the finance approval/posting surface" specifically, using the corrected net.
+So the real remaining surface is **finance** — its sensitive operations are approval/posting.
+
+**✅ Spot-verified (de-risks the deferral): finance's critical money ops are DB-ENFORCED, not route-only.**
+Read the live RPC bodies: `fin_approve_bill` and `fin_post_entry` BOTH open with
+`if not fin_can_approve() then raise exception 'Not authorized …'` as their FIRST statement, plus a
+`v_company <> auth_company_id()` tenant check. This is the OPPOSITE of the schedule bug — the capability check
+is INSIDE the RPC (the route is defense-in-depth), so a non-approver calling it directly is blocked at the DB.
+Combined with the posted-entry immutability triggers (fin_entries_immutable), posted records can't be mutated.
+So the ~30 `fin_*` TABLE candidates are DRAFT-level data entry (creating a draft bill/invoice is legitimately
+member work; approving/posting is the gated RPC), NOT a route-only-admin bypass. **Finance is LOW-urgency for
+this class** (unlike schedule, which was systemically route-only). A full finance sweep can still confirm each
+draft-write table per the corrected net, but there is no critical financial-fraud bypass here — the founder can
+defer finance without that risk. (Chat + `files` remain genuinely unexamined for this class.)
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
