@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   shiftDurationHours,
   weekStartOf,
+  rangesOverlap,
   isEligible,
   meetsCoverage,
   withinLimits,
@@ -29,6 +30,26 @@ describe("shiftDurationHours", () => {
   it("a malformed time is 0, never NaN", () => {
     expect(shiftDurationHours("6:00", "15:00")).toBe(0);
     expect(shiftDurationHours("", "")).toBe(0);
+  });
+});
+
+describe("rangesOverlap (same-day time clash)", () => {
+  it("touching ranges do NOT overlap (a split shift is allowed)", () => {
+    expect(rangesOverlap("10:00", "14:00", "19:00", "23:00")).toBe(false);
+    expect(rangesOverlap("10:00", "14:00", "14:00", "17:00")).toBe(false); // touch at 14:00
+  });
+  it("intersecting ranges overlap", () => {
+    expect(rangesOverlap("10:00", "14:00", "13:00", "17:00")).toBe(true);
+    expect(rangesOverlap("09:00", "17:00", "09:00", "17:00")).toBe(true); // identical
+  });
+  it("two overnight ranges that overlap past midnight clash; a night vs a morning range does not", () => {
+    expect(rangesOverlap("22:00", "06:00", "23:00", "01:00")).toBe(true); // 22:00–30:00 vs 23:00–25:00 overlap
+    // Same date: a 01:00–03:00 morning shift is ~19h before a 22:00–02:00 night shift — no clash.
+    expect(rangesOverlap("22:00", "02:00", "01:00", "03:00")).toBe(false);
+    expect(rangesOverlap("22:00", "02:00", "10:00", "14:00")).toBe(false); // night vs midday
+  });
+  it("malformed input → false, never throws", () => {
+    expect(rangesOverlap("bad", "14:00", "10:00", "12:00")).toBe(false);
   });
 });
 

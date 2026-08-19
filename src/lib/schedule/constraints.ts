@@ -45,6 +45,28 @@ export function weekStartOf(date: string): string | null {
   return dt.toISOString().slice(0, 10);
 }
 
+/**
+ * Do two "HH:mm" ranges on the SAME day overlap in time? Overnight ranges (end ≤ start) extend +24h.
+ * Half-open, so TOUCHING ranges do NOT overlap: a split shift 10:00–14:00 + 19:00–23:00 is not a clash,
+ * but 10:00–14:00 + 13:00–17:00 is. This is what "a person can't be in two places" actually means — a
+ * same-DATE check over-blocks legitimate split shifts (which the VA schedules use). Malformed input → false
+ * (times are validated at the event boundary, so this is defensive only).
+ */
+export function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  const m = (t: string): number | null => {
+    const x = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(t);
+    return x ? Number(x[1]) * 60 + Number(x[2]) : null;
+  };
+  const as = m(aStart);
+  const bs = m(bStart);
+  let ae = m(aEnd);
+  let be = m(bEnd);
+  if (as === null || ae === null || bs === null || be === null) return false;
+  if (ae <= as) ae += 24 * 60;
+  if (be <= bs) be += 24 * 60;
+  return as < be && bs < ae;
+}
+
 // ── HARD constraints (pass/fail) ──────────────────────────────────────────────
 
 export type SlotRequirement = { role?: string | null; skills?: string[]; certifications?: string[] };

@@ -43,6 +43,7 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 | # | severity | flag | recommendation |
 |---|----------|------|----------------|
 | RQ8 | ✅ **FIXED (correctness)** | weekly-hours cap summed ALL history, not one week | `weeklyHoursOf` now scopes to the target shift's ISO-Monday week (`weekStartOf`); the `over_hours` block no longer inflates as the append-only log grows. Regression-locked + detection-proven. |
+| RQ9 | ✅ **FIXED (correctness)** | double-booking blocked legitimate SPLIT shifts (same-date, not time-overlap) | `double_booked` (documented as "can't be in two places") was implemented as `o.date === shift.date`, wrongly blocking a same-day non-overlapping second shift — which the VA schedules use (Alex 10–14 + 19–23). Now gated on `rangesOverlap` (time clash). Regression-locked + detection-proven. |
 | RQ4 | **MED** | org timezone not stored | add `companies.timezone` + backfill before cross-tz / cross-midnight scheduling |
 | RQ7 | **LOW→MED** | workweek-start is a hardcoded Monday default | the hours-cap week boundary is ISO Monday; a company whose payroll week starts Sunday/Saturday needs a `companies.workweek_start` setting (same `companies`-settings family as RQ4). Documented default until set. |
 | RQ6 | ✅ **FIXED** | event-append route now role-per-event-type gated | manager-only types require ctx.isAdmin; TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED open to members. 4 tests. |

@@ -72,6 +72,20 @@ describe("evaluateChange — the single authority (A40)", () => {
     expect(v.violations.some((x) => x.kind === "double_booked")).toBe(true);
   });
 
+  it("a SPLIT shift (same day, non-overlapping times) is NOT double-booked — but an overlapping one is", () => {
+    // The VA schedules have split shifts (e.g. 10:00–14:00 AND 19:00–23:00). A same-DATE check would wrongly
+    // block the second; the real rule is a TIME clash.
+    const morning = shift({ id: "M", date: "2026-08-21", start: "10:00", end: "14:00", assigned: ["a"] });
+    const evening = shift({ id: "E", date: "2026-08-21", start: "19:00", end: "23:00", assigned: [] });
+    const overlap = shift({ id: "O", date: "2026-08-21", start: "13:00", end: "17:00", assigned: [] });
+    const ctx = ctxOf([morning, evening, overlap], [emp({ id: "a" })], () => null);
+    const vSplit = evaluateChange({ kind: "assign", shiftId: "E", employeeId: "a" }, ctx);
+    expect(vSplit.violations.some((x) => x.kind === "double_booked")).toBe(false); // no time overlap → allowed
+    expect(vSplit.autoApprovable).toBe(true);
+    const vOverlap = evaluateChange({ kind: "assign", shiftId: "O", employeeId: "a" }, ctx);
+    expect(vOverlap.violations.some((x) => x.kind === "double_booked")).toBe(true); // 13:00–17:00 overlaps 10:00–14:00
+  });
+
   it("assign during APPROVED time-off → ABSOLUTE block", () => {
     const s = shift({ id: "S1", date: "2026-08-21", assigned: [] });
     const ctx = ctxOf([s], [emp({ id: "a" })], () => null);

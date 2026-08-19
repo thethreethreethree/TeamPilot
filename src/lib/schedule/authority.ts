@@ -17,7 +17,7 @@
  *   - a ZERO-IMPACT change (no violation of any kind) is `autoApprovable`.
  */
 import type { ScheduleState, Employee } from "./types";
-import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weekStartOf, type CoverageGap } from "./constraints";
+import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weekStartOf, rangesOverlap, type CoverageGap } from "./constraints";
 
 export type Change =
   | { kind: "time_off"; employeeId: string; start: string; end: string } // inclusive date range YYYY-MM-DD
@@ -134,9 +134,15 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
       if (!isEligible(emp, { role: shift.requiredByRole && Object.keys(shift.requiredByRole).length === 1 ? Object.keys(shift.requiredByRole)[0] : null })) {
         violations.push({ kind: "ineligible", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
-      // double-booking: already on another shift the same date
+      // double-booking: already on another shift the same date whose time OVERLAPS this one. A same-date
+      // check alone would wrongly block legitimate split shifts (e.g. 10:00–14:00 AND 19:00–23:00 — common
+      // in the VA schedules); the real constraint is a TIME clash ("can't be in two places at once").
       const clash = Object.values(state.shifts).some(
-        (o) => o.id !== shift.id && o.date === shift.date && o.assigned.includes(emp.id),
+        (o) =>
+          o.id !== shift.id &&
+          o.date === shift.date &&
+          o.assigned.includes(emp.id) &&
+          rangesOverlap(o.start, o.end, shift.start, shift.end),
       );
       if (clash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: emp.id, overridable: false });
       // no assignment during approved time-off
