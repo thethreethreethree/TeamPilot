@@ -113,6 +113,34 @@ async function main() {
     };
   });
 
+  await check("route-only-admin fixes stay DB-enforced: write policies retain their role/agent predicate (0226-0233)", async () => {
+    // The schedule + care sweeps replaced company-scoped write policies with role/agent-gated ones so a
+    // member can't bypass a route's admin gate via direct PostgREST. A future migration could silently revert
+    // a policy to company-only — still "restrictive" (so the permissive-write invariant wouldn't catch it),
+    // yet re-opening the bypass. Gate the lesson (A30): assert each fixed write policy still references its
+    // role/agent predicate. Each row: [table, cmd, required-substring].
+    const want = [
+      ["schedule_event", "INSERT", "auth_is_schedule_manager"],   // 0230 RQ6 at the table
+      ["schedule_employee", "INSERT", "auth_is_schedule_manager"], // 0229
+      ["schedule_employee", "UPDATE", "auth_is_schedule_manager"],
+      ["schedule_employee", "DELETE", "auth_is_schedule_manager"],
+      ["support_customers", "INSERT", "is_support_agent"],         // 0233 requireCareAgent shape
+      ["support_customers", "UPDATE", "is_support_agent"],
+    ];
+    const bad = [];
+    for (const [tbl, cmd, needle] of want) {
+      const r = await c.query(
+        "select coalesce(with_check, qual, '') e from pg_policies where tablename = $1 and cmd = $2", [tbl, cmd]);
+      if (r.rowCount === 0) bad.push(`${tbl} ${cmd}: NO policy (reverted to default/permissive?)`);
+      else if (!r.rows.some((row) => (row.e || "").includes(needle)))
+        bad.push(`${tbl} ${cmd}: policy no longer references ${needle} (role/agent gate removed → route-only bypass re-opened)`);
+    }
+    return {
+      pass: bad.length === 0,
+      detail: bad.length === 0 ? `all ${want.length} schedule/care write policies retain their role/agent gate` : bad.join("; "),
+    };
+  });
+
   await check("service-only care/sweep RPCs are NOT client-executable (0231/0232)", async () => {
     // A SECURITY DEFINER function that a CRON/service job calls (createAdminClient → service_role) must not be
     // EXECUTE-granted to authenticated/anon — else a member can call it via PostgREST. emit_care_durability_due_event
