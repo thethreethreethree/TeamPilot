@@ -204,6 +204,25 @@ screenshot + tell me the timezone/workweek you chose. A non-manager reaching Set
 
 ---
 
+## 8. Personal Schedule — `/dashboard/schedule/personal` (new, Phase 6)
+
+**Do:** From the **Roster**, click a person's **"Schedule"** link (or open the Personal tab and pick
+someone). Read their shifts. Click **Print** and check the browser print preview.
+
+**Correct:**
+- Shows only **that person's** upcoming shifts, soonest first, each with times + hours, plus a total
+  and any **approved time off**. Someone with nothing scheduled says "No upcoming shifts" — not an error.
+- The header names the employee + role; dates read correctly (a shift on the 25th says the 25th, not
+  the 24th — the local-date guard).
+- **Print** (or Ctrl/Cmd-P): the print preview shows the **schedule card alone** — the sub-nav, the
+  staff picker, and the Print button are **hidden** in print. It fits a page cleanly in light ink.
+- A non-manager cannot load this (manager-only), and you only ever see **your own company's** staff.
+
+**If wrong (another person's shifts leak in / dates off by one / nav or picker prints / a non-manager
+can view):** screenshot the screen and the print preview, and tell me whose schedule you opened.
+
+---
+
 ## What to send me for any failure
 
 A screenshot of the screen + **which numbered step**, the **theme** (light/dark), and the
