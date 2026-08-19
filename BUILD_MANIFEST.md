@@ -11,7 +11,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 | 2 | Coverage Requirements & Constraint Model | ✅ **DONE — at checkpoint** | schedule_employee roster (`0221`) + pure hard/soft predicates + 20 boundary tests. Commit pending. |
 | 3 | The Decision Authority (single verdict, A40) | ✅ **DONE — at checkpoint** | `evaluateChange → Verdict`, single-source proven (grep+test), 8 drift-guard tests. Coverage=overridable, conflicts=absolute, zero-impact=autoApprovable. Open: rest-between-shifts (P3-2), RQ6 authz. |
 | 4 | AI Reasoning Layer (DeepSeek propose; deterministic gate) | ✅ **DONE — at checkpoint** | Resolution search (deterministic) + AI layer (parse-then-confirm + recommend-with-why, warm+plain). Advisory by construction (imports no authority). 14 tests. A41 DeepSeek verified live. |
-| 5 | Manager/Admin Interface | ⬜ pending | First user-facing surface (layers 3-4). **Includes FILE UPLOAD (PDF/Excel/CSV) for staff + schedule-template entry** (S3; samples: HUB SCHED.pdf / frendz.xlsx). Employee CRUD + manager-only write gate (S4). |
+| 5 | Manager/Admin Interface | 🟨 **IN PROGRESS** | Roster API DONE (create/list, manager-gated, tenant-pinned — closes S2/RQ6; 6 tests). View=grid, order=roster+upload-first (picker). Next: add-form + grid UI, then FILE UPLOAD parser (S3; samples HK/HUB SCHED/frendz), then [id] edit (S4), review queue. |
 | 6 | Employee Interface | ⬜ pending | |
 | 7 | Make Learning Visible & Close the Loop | ⬜ pending | |
 | 8 | Ground-Up Audit & Hardening (1.7) | ⬜ pending | Full A41 sweep. (RQ2 permanent append-only invariant already landed early — verify:live category (d).) |
