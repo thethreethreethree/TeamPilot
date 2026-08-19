@@ -71,7 +71,7 @@ function hasApprovedTimeOffOn(state: ScheduleState, employeeId: string, date: st
  * shift that runs into a day they're approved off (the VA schedules have overnight shifts). Span-based, tz
  * independent (uses the shift's own local dates).
  */
-function shiftHitsApprovedTimeOff(state: ScheduleState, employeeId: string, shift: { date: string; start: string; end: string }): boolean {
+export function shiftHitsApprovedTimeOff(state: ScheduleState, employeeId: string, shift: { date: string; start: string; end: string }): boolean {
   if (hasApprovedTimeOffOn(state, employeeId, shift.date)) return true;
   if (crossesMidnight(shift.start, shift.end)) {
     const next = addDaysIso(shift.date, 1);

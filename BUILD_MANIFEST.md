@@ -48,14 +48,14 @@ shift-selector since the grid IS the selector. So it's a real design call (inter
 surfaced rather than guessed. The events API already supports every edit (append EMPLOYEE_UNASSIGNED / a
 correcting SHIFT_DEFINED), so this is a UI-shape decision, not a backend gap.
 
-## Recommended enhancement (beyond the explicit request — your call)
-- **Proactive coverage-gap view.** Coverage gaps are enforced + surfaced REACTIVELY (during time-off
-  evaluation), but there's no PROACTIVE view of which currently-built/imported shifts are understaffed
-  (below their `requiredHeadcount` — RQ22 — or a coverage requirement). A "current gaps" list (natural on
-  the Coverage tab, list-based to match the UI) would let a manager spot + fix understaffing without waiting
-  for a time-off. The logic is all built (requirementForShift + meetsCoverage); this is a compute-all-shifts
-  + display addition. Surfaced not built: it's beyond the explicit "evaluate CHANGES against coverage" scope
-  and breaks no promise, so it's a founder call rather than a completion.
+## Proactive coverage-gap view — ✅ BUILT (2026-08-19)
+`findCoverageGaps` (`coverageStatus.ts`) + a "N shifts short right now" section on the Coverage tab: which
+currently-built/imported shifts are understaffed against their floor (a coverage requirement OR the shift's
+own `requiredHeadcount`, RQ22), counting only PRESENT staff (an approved-off assignee doesn't cover, RQ15).
+Reuses the authority's building blocks (buildEvalContext + meetsCoverage + shiftHitsApprovedTimeOff) so it
+can't disagree with the reactive time-off check. List-based to match the UI. Built (rather than only
+surfaced) because it's core coverage value on a well-founded default and the founder prefers building on
+defaults; the UX (grid-integrated indicators vs. this list) can still be refined.
 
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:

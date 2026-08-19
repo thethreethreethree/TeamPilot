@@ -21,7 +21,8 @@ function req(body: unknown): Parameters<typeof POST>[0] {
 let appended: { type: string; payload: Record<string, unknown> } | null = null;
 function fakeSb(events: unknown[] = []) {
   return {
-    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: events, error: null }) }) }) }) }),
+    // table-aware: the GET now reads BOTH schedule_event (for requirements + gaps) and schedule_employee.
+    from: (table: string) => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : [], error: null }) }) }) }) }),
     rpc: async (_fn: string, args: { p_type: string; p_payload: Record<string, unknown> }) => { appended = { type: args.p_type, payload: args.p_payload }; return { error: null }; },
   };
 }

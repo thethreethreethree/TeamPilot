@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, ShieldCheck, Plus } from "lucide-react";
+import { Loader2, ShieldCheck, Plus, AlertTriangle } from "lucide-react";
 import type { CoverageRequirement } from "@/lib/schedule/types";
+import type { ShiftCoverageGap } from "@/lib/schedule/coverageStatus";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -16,6 +17,7 @@ const EMPTY: Form = { appliesTo: "day", minHeadcount: "", role: "", start: "", e
 
 export default function CoveragePage() {
   const [reqs, setReqs] = useState<CoverageRequirement[]>([]);
+  const [gaps, setGaps] = useState<ShiftCoverageGap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
@@ -32,7 +34,7 @@ export default function CoveragePage() {
     setError(false);
     try {
       const res = await fetch("/api/schedule/coverage");
-      if (res.ok) setReqs((await res.json()).requirements ?? []);
+      if (res.ok) { const j = await res.json(); setReqs(j.requirements ?? []); setGaps(j.gaps ?? []); }
       else setError(true);
     } catch { setError(true); }
     finally { setLoading(false); }
@@ -120,6 +122,25 @@ export default function CoveragePage() {
           Add
         </button>
       </form>
+
+      {/* Current gaps: shifts understaffed RIGHT NOW (proactive) — before you even review a time-off. */}
+      {gaps.length > 0 && (
+        <div className="glass-card p-4 mb-6 border border-brand/30">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand mb-2">
+            <AlertTriangle className="w-4 h-4" aria-hidden /> {gaps.length} shift{gaps.length > 1 ? "s" : ""} short right now
+          </div>
+          <ul className="space-y-1.5">
+            {gaps.map((g) => (
+              <li key={g.shiftId} className="text-xs text-secondary flex items-center justify-between gap-3">
+                <span>{g.date} · {g.start} to {g.end} · <span className="text-muted">{g.assigned} on it</span></span>
+                <span className="text-brand">
+                  {g.gaps.map((d) => (d.kind === "headcount" ? `${d.need} more` : `${d.need} more ${d.role}`)).join(", ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {error ? (
         <div className="glass-card p-5 border border-red-500/30">

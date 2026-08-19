@@ -7,6 +7,8 @@ import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { deriveState } from "@/lib/schedule/deriveState";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
+import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
+import { findCoverageGaps } from "@/lib/schedule/coverageStatus";
 
 /**
  * Schedule Management System — coverage requirements (Phase 5). A coverage requirement is the "no lapse"
@@ -29,11 +31,23 @@ export async function GET(_req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const sb = await createClient();
   try {
-    const rows = await fetchAllPaged<EventRow>(
-      (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
-      { label: "schedule_event" },
-    );
-    return NextResponse.json({ requirements: Object.values(deriveState(rows.map(rowToEvent)).coverageReqs) });
+    const [evRows, empRows] = await Promise.all([
+      fetchAllPaged<EventRow>(
+        (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
+        { label: "schedule_event" },
+      ),
+      fetchAllPaged<EmployeeRow>(
+        (from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("id").range(from, to),
+        { label: "schedule_employee" },
+      ),
+    ]);
+    const events = evRows.map(rowToEvent);
+    const employees = empRows.map(rowToEmployee);
+    // Requirements (the rules) + the gaps they + each shift's own headcount currently produce (proactive view).
+    return NextResponse.json({
+      requirements: Object.values(deriveState(events).coverageReqs),
+      gaps: findCoverageGaps(events, employees),
+    });
   } catch (e) {
     console.error("[schedule/coverage] read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load coverage requirements." }, { status: 500 });
