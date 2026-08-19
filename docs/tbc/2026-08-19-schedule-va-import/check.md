@@ -13,5 +13,7 @@ actual VA grid. No violation.
 ## Final full-gate run
 ```
 npm run check → exit 0 (all gates)
-Tests: 3176 passed | 15 skipped   (3166 prior + 10 new)
+Tests: 3180 passed | 15 skipped   (3166 prior + 10 vaGrid + 4 vaDocx)
 ```
+The .docx extractor was additionally verified against the founder's REAL VA_Weekly_Schedule.docx (out-of-band
+node check): header ["Time","Alex","Kaye","Nikko","Joanne"] + all 12 time-block rows extracted exactly.

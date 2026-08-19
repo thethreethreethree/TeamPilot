@@ -27,10 +27,11 @@ file-format-independent foundation the .docx/.pdf extractors and the pipeline wi
   },
   {
     "id": "R-VA-2",
-    "item": ".docx and .pdf table EXTRACTION (bytes -> VaGrid) is not built yet.",
-    "why_skipped": "The founder chose the full option; the extractor is the next unit. .docx is a zip (word/document.xml table); .pdf is fragile (the shorthand is ambiguous — the .docx is canonical). The parser core is extraction-independent so it is buildable + tested now, ahead of the readers.",
+    "item": ".docx table EXTRACTION (bytes -> VaGrid) — BUILT (vaDocx.ts). .pdf extraction still open.",
+    "why_skipped": "docx done + verified against the founder's REAL file (header + all 12 rows extracted exactly). .pdf (unpdf text) remains: its shorthand is ambiguous and columnar-text alignment is fragile, so it is best-effort with the .docx as canonical — its own follow-up.",
     "confidence_it_does_not_matter": "low",
-    "opened_at": null
+    "opened_at": "2026-08-19T15:50:00Z",
+    "outcome": "OPENED + PARTIALLY RESOLVED: .docx path built + real-file-verified (parseDocxTableCells/cellGridToVaGrid/extractVaGridFromDocx, 4 tests). .pdf extraction + the recurring->dated wiring (R-VA-3) remain."
   },
   {
     "id": "R-VA-3",

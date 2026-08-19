@@ -5,6 +5,9 @@
 |------|------|--------|
 | `src/lib/schedule/vaGrid.ts` | The file-format-INDEPENDENT parser core. `parseTimeBlock` (both notations + ambiguous-shorthand resolution + cross-midnight), `coalesceRanges` (cycle/row-order merge across midnight), `parseVaGrid` (grid → per-staff coalesced shifts + surfaced unparsed blocks). Pure, no dep. | §1.5.1, §3.4 |
 | `src/lib/schedule/__tests__/vaGrid.test.ts` | 10 tests: parseTimeBlock (docx + pdf notations, minutes, dashes, malformed), coalesceRanges (touch/gap/across-midnight), and the founder's ACTUAL VA grid (Alex/Kaye/Nikko/Joanne) → asserted coalesced shifts + unparsed surfacing. | A30, §1.5.1 |
+| `src/lib/schedule/vaDocx.ts` | **R-VA-2 (.docx extraction).** `parseDocxTableCells` (word/document.xml table → 2D cell grid, pure), `cellGridToVaGrid` (→ VaGrid: header→staff, "On Duty"→presence), `extractVaGridFromDocx` (jszip IO wrapper, reuses the bomb-guarded `unzipEntry`). The .docx is canonical (explicit meridiems). | §1.5.1, §3.4 |
+| `src/lib/schedule/__tests__/vaDocx.test.ts` | 4 tests: table extraction ignoring outside-table paragraphs, split-run "On Duty", blank cells, and .docx→VaGrid→shifts end-to-end. VERIFIED against the founder's REAL VA_Weekly_Schedule.docx (header + all 12 rows extracted exactly). | A30, §1.5.1 |
+| `src/lib/documents/extractText.ts` | Exported `unzipEntry` (reuse over duplication — the docx extractor shares the one bomb-guarded zip-entry read). | §6 |
 
 ## Features (reachability inventory)
 

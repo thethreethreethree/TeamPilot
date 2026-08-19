@@ -224,7 +224,7 @@ async function loadZip(buffer: Uint8Array): Promise<JSZip> {
   return JSZip.loadAsync(buffer);
 }
 
-async function unzipEntry(buffer: Uint8Array, path: string): Promise<string> {
+export async function unzipEntry(buffer: Uint8Array, path: string): Promise<string> {
   const zip = await loadZip(buffer);
   const file = zip.file(path);
   if (!file) throw new EmptyExtractionError("The document is missing its text content.");
