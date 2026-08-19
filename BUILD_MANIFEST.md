@@ -54,6 +54,14 @@ over-hours / ineligible; coverage excluded — the gaps view's job). `/api/sched
 staff amber + lists reasons. Manager-overridable (warns, doesn't block — matches the founder's coverage
 posture). 8 tests. Closes the gap where Build posted EMPLOYEE_ASSIGNED blindly.
 
+## "Suggest who's free" — ✅ BUILT (2026-08-20)
+The plan's PROPOSE half, wired for the create flow (was only wired for time-off review).
+`assignEval.suggestForProposedShift` reuses `findResolutions` (eligible + conflict-free + fair-load ranked) via
+the same hypothetical-shift injection. `/api/schedule/assign/suggest` (manager-only, read-only) + a Build-page
+"Suggest who's free" action listing available staff (least-loaded first, current hours) as click-to-add chips;
+"No one is free" when everyone is off/over-hours/ineligible/booked. 3 tests. Together with the conflict-warning,
+Build now delivers the plan's evaluate + propose for assignment.
+
 ## Proactive coverage-gap view — ✅ BUILT (2026-08-19)
 `findCoverageGaps` (`coverageStatus.ts`) + a "N shifts short right now" section on the Coverage tab: which
 currently-built/imported shifts are understaffed against their floor (a coverage requirement OR the shift's

@@ -70,6 +70,10 @@ continuity buttons.
   conflict — **double-booked**, **approved time off**, **over their weekly hours**, or **ineligible** — gets
   an **amber marker**, and a **"Conflicts (you can still create — warnings)"** list explains each. It's a
   warning, not a block: you can still create the shift (manager override). A clean selection shows no warnings.
+- **Suggest who's free (new):** with a date + times set, click **"Suggest who's free"** — it lists the staff
+  who can work the shift (eligible, not off/over-hours/double-booked), **least-loaded first** (with each
+  person's current weekly hours), as click-to-add chips. If nobody is free it says so. (This is the plan's
+  "AI proposes", reusing the same engine the time-off review uses.)
 - On submit you get a success state offering **"View the schedule"** / **"Build another"** —
   clicking View takes you to the grid with the new shift shown; Build another clears the form
   (workflow continuity — you're never left at a dead end).
