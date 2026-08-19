@@ -94,6 +94,21 @@ Outside-view pass over the surface the picker features added, on the record per 
   (a second confirmation on an unusually large replace) remains an OPTIONAL UX follow-up, not a correctness
   gap — the range display is the well-founded mitigation.
 
+## Live-schema verification (2026-08-19) — found + fixed a latent RPC ambiguity
+Behavioral verification of the applied migrations against the LIVE DB (§1.5.1 layer-2 — "db:apply passed" is
+not "the object is right in prod"): queried `information_schema` + `pg_proc` directly.
+
+- ✅ 0224 columns present (companies.timezone default 'UTC', workweek_start smallint default 1 + CHECK 0-6).
+- ✅ **FIXED — 0223 left TWO `apply_schedule_import` overloads live.** `create or replace function` with an
+  ADDED parameter creates a NEW function rather than replacing, so the old 3-arg (0222) AND the new 4-arg
+  (0223) both went live. With the 4-arg's defaulted last param, a 3-arg call matched BOTH and raised
+  `function apply_schedule_import(text[], jsonb, jsonb) is not unique` (probed live, rolled back). The
+  `commitImport` guarded fallback (a 3-arg call for the pre-0223 window) would have hit that ambiguity.
+  Migration **0225** drops the stale 3-arg overload; re-probed live → 1 overload, a 3-arg call now resolves
+  cleanly via the 4-arg's default. Class: `create or replace` that changes a function's arg list silently
+  ORPHANS the prior overload — a duplicate that only a live `pg_proc` count reveals (typecheck/db:apply are
+  both blind to it). Verified fixed.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
