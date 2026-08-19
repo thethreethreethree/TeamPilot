@@ -37,7 +37,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 See `docs/tbc/2026-08-19-schedule-event-foundation/closure.md` (A36-ranked): RQ1 (opened/closed), RQ2–RQ5.
 
 ## Phase-5 hardening (proactive audit 2026-08-19, flagged not blocking)
-- **Commit atomicity** — the upload/commit route is not transactional; a mid-commit failure leaves a PARTIAL import (staff + earlier events written). Fix: a single import RPC in one transaction. A 500 there means "partially applied, re-run", not "nothing wrote". (flagged at the code site)
+- ✅ **Commit atomicity — FIXED** (`0222` apply_schedule_import RPC): the whole import runs in one transaction, rolls back wholesale on any failure. A 500 now means nothing was written.
 - **Re-import de-dup** — import-once assumed; re-importing appends duplicate shifts. Fix: skip a shift key already present.
 - **Event payload-ref validation** — the event-append + commit routes don't verify a payload's shiftId/employeeId belongs to the company's real shifts/roster. Inert (the projector ignores unresolved ids + events are RLS-company-scoped), but a route-layer check would be tidier.
 - **RQ6 role-per-event-type** — the event-append route gates on auth+company, not role per event type (no self-approve / manager-only appends) before write surfaces ship.

@@ -17,14 +17,12 @@ import { planImport } from "@/lib/schedule/importPlanner";
  * Manager-only. Roster rows are RLS-scoped (company from session); events go through append_schedule_event
  * (security-invoker, company from session).
  *
- * KNOWN GAPS (proactive audit 2026-08-19, tracked for Phase-5 hardening — surfaced, not hidden):
- *   - NOT ATOMIC. Each staff insert + event append is its own statement; a mid-commit failure (e.g. the 3rd
- *     shift append 500s) leaves the staff rows + earlier events already written — a PARTIAL import. The proper
- *     fix is a single DB function (RPC) that does the whole import in one transaction and rolls back on any
- *     failure; until then a failed commit must be treated as "partially applied, re-run after fixing" (the
- *     event log makes the partial state inspectable, not corrupt). Do not treat a 500 here as "nothing wrote".
- *   - IDEMPOTENCY. Import-once is assumed; re-importing the same CSV appends duplicate shifts (append-only).
- *     Re-import de-duplication (a shift key already present → skip) is the same follow-up.
+ * ATOMIC (0222, audit fix): the whole import runs inside the apply_schedule_import RPC — a single
+ * transaction that rolls back wholesale on any failure. A 500 here means NOTHING was written (no partial
+ * import). Planning stays in TS (importPlanner); the RPC only applies the plan.
+ *
+ * KNOWN GAP (tracked): IDEMPOTENCY — import-once is assumed; re-importing the same CSV appends duplicate
+ * shifts (append-only). Re-import de-duplication (a shift key already present → skip) is a follow-up.
  */
 export const maxDuration = 60;
 
@@ -59,69 +57,33 @@ export async function POST(req: NextRequest) {
 
   const sb = await createClient();
 
-  // Existing roster (name -> id), RLS-scoped to the caller's company.
+  // Existing roster names → the planner decides who's new. (Read is RLS-scoped to the caller's company.)
   const { data: existing, error: rosterErr } = await sb
     .from("schedule_employee")
-    .select("id, name")
+    .select("name")
     .eq("company_id", ctx.companyId);
   if (rosterErr) {
     console.error("[schedule/upload/commit] roster read failed:", rosterErr.message);
     return NextResponse.json({ error: "Couldn't read the roster." }, { status: 500 });
   }
-  const idByName = new Map<string, string>();
-  for (const r of existing ?? []) idByName.set(String(r.name).trim().toLowerCase(), r.id as string);
-
   const plan = planImport({ staff: parsed.staff, entries: parsed.entries }, (existing ?? []).map((r) => r.name as string));
 
-  // 1. Create new staff (manager-gated already; RLS pins company_id on the insert's with-check).
-  let staffCreated = 0;
-  for (const name of plan.newStaff) {
-    const { data, error } = await sb
-      .from("schedule_employee")
-      .insert({ company_id: ctx.companyId, name, status: "active" })
-      .select("id, name")
-      .single();
-    if (error || !data) {
-      console.error("[schedule/upload/commit] staff insert failed:", error?.message);
-      return NextResponse.json({ error: `Couldn't create staff member "${name}".` }, { status: 500 });
-    }
-    idByName.set(String(data.name).trim().toLowerCase(), data.id as string);
-    staffCreated++;
+  // Apply the whole import ATOMICALLY (0222): create staff + append SHIFT_DEFINED + EMPLOYEE_ASSIGNED in ONE
+  // transaction that rolls back wholesale on any failure — no partial import (the audit fix). Planning stays
+  // in TS (planImport above); the RPC only applies the plan.
+  const { data: result, error } = await sb.rpc("apply_schedule_import", {
+    p_new_staff: plan.newStaff,
+    p_shifts: plan.shifts,
+    p_assignments: plan.assignments,
+  });
+  if (error) {
+    console.error("[schedule/upload/commit] atomic import failed:", error.message);
+    return NextResponse.json({ error: "Couldn't import the schedule. Nothing was changed." }, { status: 500 });
   }
 
-  // 2. Append SHIFT_DEFINED per unique shift; keep key -> shiftId.
-  const shiftIdByKey = new Map<string, string>();
-  let shiftsCreated = 0;
-  for (const s of plan.shifts) {
-    const shiftId = crypto.randomUUID();
-    const { error } = await sb.rpc("append_schedule_event", {
-      p_type: "SHIFT_DEFINED",
-      p_payload: { shiftId, date: s.date, start: s.start, end: s.end, requiredHeadcount: 1 },
-    });
-    if (error) {
-      console.error("[schedule/upload/commit] shift append failed:", error.message);
-      return NextResponse.json({ error: "Couldn't record an imported shift." }, { status: 500 });
-    }
-    shiftIdByKey.set(s.key, shiftId);
-    shiftsCreated++;
-  }
-
-  // 3. Append EMPLOYEE_ASSIGNED per assignment.
-  let assignmentsCreated = 0;
-  for (const a of plan.assignments) {
-    const shiftId = shiftIdByKey.get(a.shiftKey);
-    const employeeId = idByName.get(a.staffName.trim().toLowerCase());
-    if (!shiftId || !employeeId) continue; // defensive — a name/shift we couldn't resolve is skipped, not guessed
-    const { error } = await sb.rpc("append_schedule_event", {
-      p_type: "EMPLOYEE_ASSIGNED",
-      p_payload: { shiftId, employeeId },
-    });
-    if (error) {
-      console.error("[schedule/upload/commit] assignment append failed:", error.message);
-      return NextResponse.json({ error: "Couldn't record an imported assignment." }, { status: 500 });
-    }
-    assignmentsCreated++;
-  }
-
-  return NextResponse.json({ staffCreated, shiftsCreated, assignmentsCreated }, { status: 201 });
+  const r = (result ?? {}) as { staffCreated?: number; shiftsCreated?: number; assignmentsCreated?: number };
+  return NextResponse.json(
+    { staffCreated: r.staffCreated ?? 0, shiftsCreated: r.shiftsCreated ?? 0, assignmentsCreated: r.assignmentsCreated ?? 0 },
+    { status: 201 },
+  );
 }
