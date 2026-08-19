@@ -330,6 +330,21 @@ participatory). **Conclusion: no critical route-only-admin write bypass exists a
 instances were schedule + care, both fixed + regression-gated. The deferred finance/chat sweep is a low-urgency
 per-table confirm of draft-write tables, not a critical exposure.
 
+## Additional lenses verified (2026-08-20) — CLEAN (recording what's solid, §1.7)
+Beyond the write-authorization work, applied these lenses to the schedule module; each came back clean:
+- **Prompt-injection fence** — all 3 LLM calls in `ai.ts` fence untrusted input with `CONVERSATION_IS_DATA`.
+- **Advisory-by-construction (§3.3)** — `ai.ts` imports NO decision functions (evaluateChange/constraints/
+  findResolutions); the LLM only phrases/parses, never decides. Guide-don't-overtake is structural.
+- **CWE-209 (error leakage)** — no schedule route returns a raw exception/stack; all log server-side and
+  return a generic message.
+- **Rate limiting** — every write route (coverage POST+DELETE, employees, [id], events, settings, timeoff,
+  evaluate, CSV+VA propose/preview/commit) calls `rateLimit`.
+- **Empty states** — roster ("Add your first team member"), grid ("nothing scheduled… build/import") guide the
+  next action (no dead-ends).
+- **Grid honesty (§1.5.1/§3.4)** — FIXED this session: empty (unassigned) shifts surfaced via a hint (were
+  invisible ghosts); approved-time-off assignments struck-through "(off)" and span-aware (overnight), so the
+  grid agrees with Coverage.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
