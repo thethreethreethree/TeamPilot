@@ -341,6 +341,8 @@ Beyond the write-authorization work, applied these lenses to the schedule module
   evaluate, CSV+VA propose/preview/commit) calls `rateLimit`.
 - **Empty states** — roster ("Add your first team member"), grid ("nothing scheduled… build/import") guide the
   next action (no dead-ends).
+- **Input validation** — every write route (POST/PATCH) validates its body through `readBody` (zod) or the VA
+  upload validator; NONE read raw `req.json()` (no validation-written-but-unwired gap).
 - **Grid honesty (§1.5.1/§3.4)** — FIXED this session: empty (unassigned) shifts surfaced via a hint (were
   invisible ghosts); approved-time-off assignments struck-through "(off)" and span-aware (overnight), so the
   grid agrees with Coverage.
