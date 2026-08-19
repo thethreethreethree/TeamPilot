@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
  * Schedule Management System — file-import screen (Phase 5, S3). Paste a CSV schedule (staff x date grid),
@@ -80,6 +81,7 @@ export default function ScheduleImportPage() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-3xl mx-auto w-full">
+      <ScheduleNav />
       <div className="flex items-center gap-2 mb-1">
         <Upload className="w-6 h-6 text-brand" aria-hidden />
         <h1 className="text-xl font-bold text-primary">Import a Schedule</h1>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, CalendarDays } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
+import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
  * Schedule Management System — the grid schedule view (Phase 5, the founder's chosen primary layout).
@@ -66,6 +67,7 @@ export default function ScheduleGridPage() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-full mx-auto w-full">
+      <ScheduleNav />
       <div className="flex items-center gap-2 mb-1">
         <CalendarDays className="w-6 h-6 text-brand" aria-hidden />
         <h1 className="text-xl font-bold text-primary">Schedule</h1>

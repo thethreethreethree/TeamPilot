@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, UserPlus, Users } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
+import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
  * Schedule Management System — the staff roster page (Phase 5). Standalone tool: a manager enters staff
@@ -76,6 +77,7 @@ export default function ScheduleRosterPage() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-8 max-w-3xl mx-auto w-full">
+      <ScheduleNav />
       <div className="flex items-center gap-2 mb-1">
         <Users className="w-6 h-6 text-brand" aria-hidden />
         <h1 className="text-xl font-bold text-primary">Staff Roster</h1>
