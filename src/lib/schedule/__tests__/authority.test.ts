@@ -95,6 +95,19 @@ describe("evaluateChange — the single authority (A40)", () => {
     expect(v.violations.some((x) => x.kind === "time_off_conflict")).toBe(true);
   });
 
+  it("a SWAP onto a shift the to-employee already OVERLAPS is double-booked (A26 sweep of RQ9)", () => {
+    // Swap: B takes over S2. B is already on S1 that day. If S2 overlaps S1 in time → double-booked; if not
+    // (a split shift) → allowed. The assign path had this check; the swap path was the unswept sibling.
+    const s1 = shift({ id: "S1", date: "2026-08-21", start: "09:00", end: "17:00", assigned: ["b"] });
+    const overlaps = shift({ id: "S2", date: "2026-08-21", start: "10:00", end: "18:00", assigned: ["a"] });
+    const disjoint = shift({ id: "S3", date: "2026-08-21", start: "19:00", end: "23:00", assigned: ["a"] });
+    const ctx = ctxOf([s1, overlaps, disjoint], [emp({ id: "a" }), emp({ id: "b" })], () => null);
+    const vOverlap = evaluateChange({ kind: "swap", shiftId: "S2", fromEmployeeId: "a", toEmployeeId: "b" }, ctx);
+    expect(vOverlap.violations.some((x) => x.kind === "double_booked")).toBe(true);
+    const vSplit = evaluateChange({ kind: "swap", shiftId: "S3", fromEmployeeId: "a", toEmployeeId: "b" }, ctx);
+    expect(vSplit.violations.some((x) => x.kind === "double_booked")).toBe(false); // 19:00–23:00 doesn't overlap 09:00–17:00
+  });
+
   it("a colleague already on approved time-off does NOT count toward coverage (RQ15)", () => {
     // Shift needs 1; A and B are both assigned, but B is ALREADY approved off that day (approving time-off
     // doesn't unassign). Evaluating A's time-off removes A, leaving only B — who is off — so real coverage is

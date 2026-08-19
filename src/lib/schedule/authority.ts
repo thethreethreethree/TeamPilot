@@ -198,6 +198,12 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
         if (shiftHitsApprovedTimeOff(state, to.id, shift)) {
           violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: to.id, overridable: false });
         }
+        // double-booking: the to-employee is already on another shift the same date whose time OVERLAPS.
+        // Mirrors the assign path (RQ9) — every assignment-creating path must reject a time clash (A26).
+        const swapClash = Object.values(state.shifts).some(
+          (o) => o.id !== shift.id && o.date === shift.date && o.assigned.includes(to.id) && rangesOverlap(o.start, o.end, shift.start, shift.end),
+        );
+        if (swapClash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: to.id, overridable: false });
         const proposed = weeklyHoursOf(state, to.id, shift.date) + shiftDurationHours(shift.start, shift.end);
         const lim = withinLimits(to, proposed);
         if (!lim.within) violations.push({ kind: "over_hours", employeeId: to.id, overBy: lim.overBy, overridable: false });
