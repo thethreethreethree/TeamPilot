@@ -16,6 +16,12 @@ Canonical gate: `npm run check` =
 - `npm run db:apply` applied `0220` and auto-ran `verify:live` → **27/27 invariants hold**, including
   tenant-isolation (every `company_id` table RLS-on + behaviorally enforced: anon reads 0) — so
   `schedule_event` is confirmed RLS-protected on the live project.
+- **Append-only enforced LIVE (behavioral, rolled back).** A one-off check (transaction, no data written)
+  attempted UPDATE and DELETE on a `schedule_event` row on the live DB — BOTH raised
+  `schedule_event is append-only: UPDATE/DELETE is not permitted`. So the fail-loud raise-trigger fires on
+  the real project, satisfying the §6/A41 "verify the event table truly rejects UPDATE/DELETE in the live
+  project, not just in migration intent" precondition. (A permanent `verify:live` invariant locking this is
+  RQ2 — Phase-8 hardening.)
 
 ## Findings
 **No findings.** No violations surfaced by any gate; no deviations beyond the flagged D1/D2 scoping
