@@ -4,27 +4,29 @@ import { join } from "node:path";
 import { MANAGER_ONLY_EVENT_TYPES } from "../route";
 
 /**
- * Drift guard (§2.2 / the "keep in sync" vein): the RQ6 manager-only-event list exists in TWO places — the
- * TS route (MANAGER_ONLY_EVENT_TYPES, the early-400) and the SQL RPC append_schedule_event (0227, the REAL
- * gate). If they drift — a manager-only type added to one but not the other — the RPC either lets a non-admin
- * append it (security hole) or the route 400s a legitimately-appendable type. This test fails on any such
- * drift, forcing both to move together.
+ * Drift guard (§2.2 / the "keep in sync" vein): the RQ6 manager-only-event list now lives in THREE places —
+ * the TS route (MANAGER_ONLY_EVENT_TYPES, the early-400), the SQL RPC append_schedule_event (0227, `p_type in
+ * (...)`), and the schedule_event INSERT RLS policy (0230, `type not in (...)` — the REAL table-level gate). If
+ * any drifts, a manager-only type is either let through for a non-admin (security hole) or wrongly blocked.
+ * This test fails on any divergence, forcing all three to move together.
  */
-describe("RQ6 manager-only event list: route (TS) and RPC (SQL) agree", () => {
-  it("the SQL append_schedule_event manager-only list equals MANAGER_ONLY_EVENT_TYPES", () => {
-    const sql = readFileSync(
-      join(process.cwd(), "supabase/migrations/0227_rpc_enforce_manager_only_events.sql"),
-      "utf8",
-    );
-    // Extract the `p_type in ( '...','...' )` list from append_schedule_event (the only p_type-in block).
-    const block = /p_type in \(([\s\S]*?)\)/.exec(sql);
-    expect(block, "append_schedule_event must have a `p_type in (...)` gate").toBeTruthy();
-    const inner = block?.[1] ?? "";
-    const sqlTypes = new Set([...inner.matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]));
+function extractTypes(file: string, re: RegExp): Set<string> {
+  const sql = readFileSync(join(process.cwd(), file), "utf8");
+  const block = re.exec(sql);
+  expect(block, `${file}: expected a manager-only type list`).toBeTruthy();
+  return new Set([...(block?.[1] ?? "").matchAll(/'([A-Z_]+)'/g)].map((m) => m[1] ?? ""));
+}
 
-    // Both directions — no type in one set missing from the other.
-    const tsSorted = [...MANAGER_ONLY_EVENT_TYPES].sort();
-    const sqlSorted = [...sqlTypes].sort();
-    expect(sqlSorted).toEqual(tsSorted);
+describe("RQ6 manager-only event list: route (TS), RPC (SQL) and RLS (SQL) all agree", () => {
+  const ts = [...MANAGER_ONLY_EVENT_TYPES].sort();
+
+  it("append_schedule_event RPC list (0227 `p_type in`) equals MANAGER_ONLY_EVENT_TYPES", () => {
+    const rpc = [...extractTypes("supabase/migrations/0227_rpc_enforce_manager_only_events.sql", /p_type in \(([\s\S]*?)\)/)].sort();
+    expect(rpc).toEqual(ts);
+  });
+
+  it("schedule_event INSERT RLS list (0230 `type not in`) equals MANAGER_ONLY_EVENT_TYPES", () => {
+    const rls = [...extractTypes("supabase/migrations/0230_schedule_event_rls_rq6_and_manager_reads.sql", /type not in \(([\s\S]*?)\)/)].sort();
+    expect(rls).toEqual(ts);
   });
 });

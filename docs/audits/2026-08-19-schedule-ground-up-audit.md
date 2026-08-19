@@ -206,7 +206,19 @@ are schedule_event (via append_schedule_event RPC → 0227), apply_schedule_impo
 (0226 trigger), schedule_employee (0229 RLS). All four now enforce the admin gate at the DB, not just the
 route. No other write surface exists.
 
-## ⚠️ Open (read-side) — "manager-only" visibility is UI-only; RLS reads are member-visible (founder-decision)
+## ⚠️→✅ CRITICAL follow-up — 0227 RPC gate was BYPASSABLE via direct schedule_event insert (FIXED 0230)
+Restricting reads (below) surfaced a worse write gap: `schedule_event` had a single `for all` company-scoped
+policy AND `authenticated` holds a direct INSERT grant, so a non-admin member could
+`POST /rest/v1/schedule_event {type:'TIMEOFF_APPROVED'}` DIRECTLY — bypassing `append_schedule_event` and its
+0227 RQ6 check entirely (confirmed live: the insert SUCCEEDED). **Gating only the RPC was insufficient** — RQ6
+must live on the TABLE. **0230** replaces the ALL policy with a manager-only SELECT + an RQ6 INSERT check
+(`type not in (<12 manager-only>) or auth_is_schedule_manager(company_id)`); UPDATE/DELETE denied by default +
+the append-only trigger. The RLS list is the THIRD copy of the manager-only set — the drift-guard test now
+asserts route == 0227 RPC == 0230 RLS. **Behaviorally proven live (rolled back):** member direct-insert
+TIMEOFF_APPROVED BLOCKED, member direct-insert TIMEOFF_REQUESTED (employee) WROTE, admin direct-insert +
+append_schedule_event RPC both WROTE.
+
+## ✅ FIXED (was ⚠️ Open) — schedule reads restricted to managers (0230, founder pick 2026-08-20)
 The founder's "manager-only" pick (0226-era layout gate) redirects non-managers from the schedule UI, but the
 `schedule_event` / `schedule_employee` SELECT policies are company-scoped (member-readable). So a non-manager
 member could read schedule data — including colleagues' `TIMEOFF_REQUESTED` events with `type: sick` — via a
@@ -214,7 +226,9 @@ direct PostgREST GET, despite the UI redirect. The sick-leave privacy the manage
 therefore UI-only, not RLS-enforced. **Decision (surfaced, not built):** restrict schedule reads to managers at
 RLS too (fully honoring manager-only) vs. leave member-readable for Phase-6 employee self-service (which will
 need members to read their OWN schedule with per-person scoping). No current UI needs member reads (all
-schedule UI is manager-gated), so restricting now is low-risk; but Phase 6 will re-open a scoped member read.
+schedule UI is manager-gated), so restricting now is low-risk; but Phase 6 will re-open a scoped member read. **DONE (0230):** schedule_event +
+schedule_employee SELECT are now `using (auth_is_schedule_manager(company_id))`; a member reads 0 rows
+(verified live). Phase 6 will add a per-person member read when it ships.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
