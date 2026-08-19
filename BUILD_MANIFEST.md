@@ -57,13 +57,14 @@ can't disagree with the reactive time-off check. List-based to match the UI. Bui
 surfaced) because it's core coverage value on a well-founded default and the founder prefers building on
 defaults; the UX (grid-integrated indicators vs. this list) can still be refined.
 
-## Recommended enhancement (accumulation — your call on the UX)
-- **Grid windowing/navigation.** The Schedule grid derives its date columns from ALL shifts, so as the
-  append-only log accumulates it grows a column per date ever — eventually an unusably wide grid. The
-  coverage-gap + time-off lists solved their equivalent by filtering to current/upcoming, but the grid needs
-  NAVIGATION (past weeks matter for reference), and the UX (a weekly Mon–Sun view with prev/next vs a date
-  range; the tz-aware "today" default — RQ4) is a design choice with regression risk on a working page.
-  Surfaced not built: it's a real UX decision, not a well-founded default like the two lists were.
+## Grid windowing/navigation — ✅ BUILT (2026-08-19)
+The Schedule grid is now a WEEKLY view (7 columns Mon–Sun) with prev/next + "This week" navigation, defaulting
+to the current week (tz-safe LOCAL today). Bounds the grid to 7 columns (it grew a column per date ever as the
+log accumulated) while keeping history reachable (navigate to any past/future week — navigation, not a filter,
+so nothing is lost). Weekday labels added; "no shifts this week" hint when the week is empty. Reuses
+`weekStartOf`/`addDaysIso`. The standard scheduling-grid UX (a well-founded default after all — navigation
+keeps history, which was my earlier concern). Grid-cell EDITING (click to unassign/retime) is still the
+separate grid-interactivity decision.
 
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
