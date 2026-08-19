@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
@@ -81,7 +81,7 @@ export default function ScheduleGridPage() {
 
   // Pivot the derived shifts into an employee×date lookup for the displayed week (pure logic in gridView.ts,
   // unit-tested there). Each cell carries the shiftId so a click can unassign that person from THAT shift.
-  const { cell, shiftsThisWeek, scheduledIds } = useMemo(
+  const { cell, shiftsThisWeek, emptyShiftsThisWeek, scheduledIds } = useMemo(
     () => buildWeekGrid(state ? Object.values(state.shifts) : [], dates),
     [state, dates],
   );
@@ -168,6 +168,12 @@ export default function ScheduleGridPage() {
       ) : (
         <>
           {shiftsThisWeek === 0 && <p className="text-xs text-muted mb-2">No shifts this week — use the arrows to find a week with shifts, or Build / Import one.</p>}
+          {emptyShiftsThisWeek > 0 && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-300 mb-2">
+              <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
+              {emptyShiftsThisWeek} shift{emptyShiftsThisWeek === 1 ? " has" : "s have"} no one assigned this week (not shown in the grid) — assign staff on Build, or see Coverage for the gaps.
+            </p>
+          )}
           <div className="overflow-x-auto glass-card p-0">
             <table className="w-full border-collapse text-sm">
               <thead>

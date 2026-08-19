@@ -40,6 +40,17 @@ describe("buildWeekGrid", () => {
     expect(g.shiftsThisWeek).toBe(0);
     expect(g.cell("e1", "2026-08-19")).toBeNull();
     expect(g.scheduledIds.size).toBe(0);
+    expect(g.emptyShiftsThisWeek).toBe(0);
+  });
+
+  it("counts shifts with NOBODY assigned (emptyShiftsThisWeek — they render no cells)", () => {
+    const g = buildWeekGrid(
+      [shift("s1", "2026-08-18", "09:00", "17:00", ["e1"]), shift("s2", "2026-08-19", "06:00", "14:00", [])],
+      WEEK,
+    );
+    expect(g.shiftsThisWeek).toBe(2);
+    expect(g.emptyShiftsThisWeek).toBe(1); // s2 has no one assigned → invisible in the grid, surfaced here
+    expect(g.cell("e1", "2026-08-19")).toBeNull(); // s2 produced no cell
   });
 });
 

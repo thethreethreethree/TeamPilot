@@ -19,6 +19,10 @@ export interface WeekGrid {
   scheduledIds: Set<string>;
   /** How many shifts fall in the displayed week (for the "no shifts this week" hint). */
   shiftsThisWeek: number;
+  /** Shifts in the displayed week with NOBODY assigned. The grid pivots by assignment, so these render NO
+   *  cells — they'd be invisible ghosts (yet counted, and flagged by Coverage). Surfaced so the manager can
+   *  see + act on them instead of a confusing empty-looking grid. */
+  emptyShiftsThisWeek: number;
 }
 
 /**
@@ -30,9 +34,11 @@ export function buildWeekGrid(shifts: Shift[], dates: string[]): WeekGrid {
   const inWeek = new Set(dates);
   const byEmpDate = new Map<string, Map<string, WeekCell>>();
   let shiftsThisWeek = 0;
+  let emptyShiftsThisWeek = 0;
   for (const s of shifts) {
     if (!inWeek.has(s.date)) continue;
     shiftsThisWeek += 1;
+    if (s.assigned.length === 0) emptyShiftsThisWeek += 1; // no cells rendered for this shift — surface it
     for (const empId of s.assigned) {
       if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
       byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}` });
@@ -42,6 +48,7 @@ export function buildWeekGrid(shifts: Shift[], dates: string[]): WeekGrid {
     cell: (employeeId, date) => byEmpDate.get(employeeId)?.get(date) ?? null,
     scheduledIds: new Set(byEmpDate.keys()),
     shiftsThisWeek,
+    emptyShiftsThisWeek,
   };
 }
 
