@@ -62,6 +62,13 @@ describe("generateProposal (recommend + why, warm + plain, no dashes)", () => {
     const payload = JSON.parse(String(llm.mock.calls[0]?.[0]?.messages?.[0]?.content ?? "{}"));
     expect(payload.recommend?.name).toBe("Ana");
   });
+  it("fences the candidate names (a staff name can be attacker-controlled via an imported file)", async () => {
+    // The proposal embeds employee names, which for VA-imported staff come from an uploaded doc — so this
+    // route receives untrusted external text and must carry the same injection fence as the other two prompts.
+    const llm = llmReturning("Recommend Ana.");
+    await generateProposal({ impactSummary: "x", candidates: [{ employeeId: "a", name: "Ana", addsHours: 8, currentHours: 5 }], opts: { llm } });
+    expect(String(llm.mock.calls[0]?.[0]?.systemPrompt)).toMatch(/CONVERSATION|data, not|instructions/i);
+  });
 });
 
 describe("parseMappingOutput + proposeImportMapping (propose-then-confirm)", () => {
