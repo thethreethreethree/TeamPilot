@@ -59,12 +59,17 @@ failing — I need to know.
 
 ## 2. Build a shift — `/dashboard/schedule/new`
 
-**Do:** Pick a date, start/end time, headcount, and select one or more staff. Submit. Then use the
+**Do:** Pick a date, start/end time, headcount, and select one or more staff. Try selecting someone who
+already works an overlapping shift that day, or who has approved time off. Submit. Then use the
 continuity buttons.
 
 **Correct:**
 - The staff **multi-select is fully visible** — if it's a dropdown, it renders **above** the form,
   not clipped behind it or behind the app chrome (z-order check).
+- **Conflict warnings (new):** shortly after selecting staff (with a date + times set), anyone with a
+  conflict — **double-booked**, **approved time off**, **over their weekly hours**, or **ineligible** — gets
+  an **amber marker**, and a **"Conflicts (you can still create — warnings)"** list explains each. It's a
+  warning, not a block: you can still create the shift (manager override). A clean selection shows no warnings.
 - On submit you get a success state offering **"View the schedule"** / **"Build another"** —
   clicking View takes you to the grid with the new shift shown; Build another clears the form
   (workflow continuity — you're never left at a dead end).

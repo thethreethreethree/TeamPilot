@@ -45,6 +45,15 @@ reloads (coverage re-checks). busyRef re-entrancy latch; a failed action shows a
 the full-screen error). Retime/cancel-shift remain a later surface (map to a correcting SHIFT_DEFINED /
 SHIFT_CANCELLED — the event now exists). TBC: `docs/tbc/2026-08-19-schedule-manager-controls`.
 
+## Conflict-aware assignment — ✅ BUILT (2026-08-20)
+The plan's core ("AI evaluates changes + surfaces impact") is now wired for the PRIMARY flow, not just
+time-off. `assignEval.evaluateAssignments` reuses `evaluateChange` (injecting the proposed, not-yet-created
+shift into a hypothetical state) → each employee's absolute conflicts (double-booked / approved time-off /
+over-hours / ineligible; coverage excluded — the gaps view's job). `/api/schedule/assign/evaluate`
+(manager-only, read-only) serves it; the Build page debounce-evaluates on date/time/staff, marks conflicted
+staff amber + lists reasons. Manager-overridable (warns, doesn't block — matches the founder's coverage
+posture). 8 tests. Closes the gap where Build posted EMPLOYEE_ASSIGNED blindly.
+
 ## Proactive coverage-gap view — ✅ BUILT (2026-08-19)
 `findCoverageGaps` (`coverageStatus.ts`) + a "N shifts short right now" section on the Coverage tab: which
 currently-built/imported shifts are understaffed against their floor (a coverage requirement OR the shift's
