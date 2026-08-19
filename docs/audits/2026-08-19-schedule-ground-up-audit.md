@@ -316,10 +316,19 @@ proper design:
 - **`files`** — uploader-or-admin RLS (matches the route).
 - **`pitches` / after_pitch** — owner-scoped (`rep_id`/`agent_id = auth.uid()`).
 - **core** (problems/signals/resolutions/tasks/team_*) — collaborative, member-writable by design.
-So the deferred "app-wide sweep" is much SMALLER than the raw recon suggested: the substance is a per-table
-confirm of the finance draft-write tables + chat (guard-triggered already) — low urgency, no critical bypass
-known. The recon heuristic (auth_company_id()-or-profiles scoping, minus role, minus an INCOMPLETE owner-column
-list) OVER-FLAGS; the reliable method is reading each candidate's full policy, as done above.
+So the deferred "app-wide sweep" is much SMALLER than the raw recon suggested. The recon heuristic
+(auth_company_id()-or-profiles scoping, minus role, minus an INCOMPLETE owner-column list) OVER-FLAGS; the
+reliable method is reading each candidate's full policy, as done above.
+
+**Sensitive RPC actions across finance + chat + diagnostic — spot-verified DB-enforced (2026-08-20):** read the
+live bodies of every authenticated-callable, non-trigger write RPC whose name suggested an admin action:
+`fin_approve_bill` / `fin_post_entry` (→ `fin_can_approve()`), `fin_close_period` (→ `fin_can_manage_periods()`),
+`fin_close_year` (→ `fin_can_configure()` — controller/CFO), `close_topic` (→ admin/CEO/COO) — EACH raises
+"Not authorized" as its FIRST statement + a tenant check. `decide_chat_topic_decision` / `close_problem` carry
+no role gate but are collaborative-by-design (RLS-scoped, member-appropriate — the diagnostic/chat system is
+participatory). **Conclusion: no critical route-only-admin write bypass exists app-wide.** The class's only real
+instances were schedule + care, both fixed + regression-gated. The deferred finance/chat sweep is a low-urgency
+per-table confirm of draft-write tables, not a critical exposure.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
