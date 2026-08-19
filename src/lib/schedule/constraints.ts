@@ -9,7 +9,7 @@
  * These functions do NOT decide anything and do NOT compute the final verdict — that is Phase 3's
  * single authority (A40), which consumes these. They are the math the authority runs.
  */
-import type { Shift, CoverageRequirement, Employee } from "./types";
+import type { Shift, CoverageRequirement, Employee, ScheduleState } from "./types";
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
@@ -53,6 +53,24 @@ export function addDaysIso(iso: string, n: number): string | null {
   if (Number.isNaN(dt.getTime())) return null;
   dt.setUTCDate(dt.getUTCDate() + n);
   return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Sum an employee's assigned hours WITHIN THE WEEK containing `weekOfDate` (ISO-Monday week). The cap is
+ * `maxHoursWeek`, a WEEKLY limit, and `state.shifts` holds the ENTIRE append-only history — summing all of
+ * it would inflate "weekly" hours to all-time. SHARED by the authority (the hours-cap check) and the
+ * resolution search (fair-load ranking) so the two can't drift (they had separate copies; one was fixed for
+ * RQ8 and the other silently kept summing all-time). A shift is attributed to the week of its start date.
+ */
+export function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDate: string): number {
+  const targetWeek = weekStartOf(weekOfDate);
+  let h = 0;
+  for (const s of Object.values(state.shifts)) {
+    if (!s.assigned.includes(employeeId)) continue;
+    if (targetWeek !== null && weekStartOf(s.date) !== targetWeek) continue; // only the target shift's week
+    h += shiftDurationHours(s.start, s.end);
+  }
+  return h;
 }
 
 /** Does a "HH:mm"→"HH:mm" shift cross midnight (end at or before start)? Such a shift occupies its start

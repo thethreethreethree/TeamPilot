@@ -34,6 +34,15 @@ describe("findResolutions", () => {
     expect(r[0]?.addsHours).toBe(9);
   });
 
+  it("currentHours is WEEK-SCOPED to the shift being filled, not all-time (RQ8 sibling — shared helper)", () => {
+    // `a` worked 9h in the PRIOR week; the target is this week. Their fair-load figure for THIS week is 0 —
+    // an all-time sum (the old local copy) would report 9 and mis-rank them as loaded.
+    const target = shift({ id: "T", date: "2026-08-22", assigned: [] }); // week of Mon 2026-08-17
+    const priorWeek = shift({ id: "P", date: "2026-08-13", start: "09:00", end: "18:00", assigned: ["a"] }); // prev week, 9h
+    const r = findResolutions("T", ctxOf([target, priorWeek], [emp({ id: "a" })]));
+    expect(r[0]?.currentHours).toBe(0);
+  });
+
   it("excludes someone already assigned to the shift", () => {
     const t = shift({ id: "T", assigned: ["a"] });
     const r = findResolutions("T", ctxOf([t], [emp({ id: "a" }), emp({ id: "b" })]));

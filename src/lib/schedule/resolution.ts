@@ -9,8 +9,7 @@
  */
 import type { EvalContext } from "./authority";
 import { evaluateChange } from "./authority";
-import { shiftDurationHours } from "./constraints";
-import type { ScheduleState } from "./types";
+import { shiftDurationHours, weeklyHoursOf } from "./constraints";
 
 export interface ResolutionCandidate {
   employeeId: string;
@@ -19,14 +18,6 @@ export interface ResolutionCandidate {
   addsHours: number;
   /** The employee's current weekly hours BEFORE this shift (lower → assigned first, to spread load). */
   currentHours: number;
-}
-
-function weeklyHoursOf(state: ScheduleState, employeeId: string): number {
-  let h = 0;
-  for (const s of Object.values(state.shifts)) {
-    if (s.assigned.includes(employeeId)) h += shiftDurationHours(s.start, s.end);
-  }
-  return h;
 }
 
 /**
@@ -49,7 +40,9 @@ export function findResolutions(shiftId: string, ctx: EvalContext): ResolutionCa
     // approvable = no ABSOLUTE violation → they genuinely CAN work it. (A coverage "gap" from other shifts
     // is overridable, not disqualifying for THIS assignment; approvable already excludes only absolutes.)
     if (!verdict.approvable) continue;
-    const currentHours = weeklyHoursOf(ctx.state, emp.id);
+    // Week-scoped to the shift being filled (the shared helper) — the fair-load ranking is about THIS week's
+    // load, not all-time; the same fix as RQ8, now one shared source so it can't drift again.
+    const currentHours = weeklyHoursOf(ctx.state, emp.id, shift.date);
     out.push({ employeeId: emp.id, name: emp.name, addsHours: shiftDurationHours(shift.start, shift.end), currentHours });
   }
   // Fair-load ranking: least-loaded first; tie-break by name for a stable, deterministic order.
