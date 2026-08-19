@@ -130,9 +130,13 @@ change `timezone`/`workweek_start`.
   contexts bypass (verified live — owner UPDATE of the columns succeeds, so seeds + the apply_schedule_import
   RPC aren't blocked). Applied + verify:live 28/28. **Gated (A30):** the verify:live authz-guard invariant now
   asserts `companies_guard_schedule_settings` is wired (and, gap-fill, `companies_guard_guidance` from 0111,
-  which was previously ungated) — 9 triggers total. Residual: the two-real-user reject-path behavioral test
-  (a non-admin's direct UPDATE → raise) needs live auth.users JWT context, the documented residual for every
-  authz-guard trigger in this codebase (0111/F8 precedent); the WIRED invariant closes the regression vector.
+  which was previously ungated) — 9 triggers total. **BEHAVIORALLY PROVEN (residual CLOSED):** ran the
+  two-real-user test against prod in rolled-back transactions — a real non-admin (Member) simulating their JWT
+  (`request.jwt.claims.sub`; auth_company_id() reads profiles so RLS passes for their own company) → `UPDATE
+  companies SET timezone` **RAISED** ("only CEO/COO/admin may change"); a real admin → **UPDATE succeeded (1
+  row)**; owner/service context → bypass (succeeds). All three paths verified live, nothing persisted. This is
+  the two-user test the 0111/F8 residual notes deemed hard — done here because both a real admin and a real
+  non-admin profile exist in prod to simulate.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
