@@ -63,7 +63,7 @@ export default function ScheduleGridPage() {
   );
 
   // Pivot the derived shifts: employeeId -> date -> "HH:mm-HH:mm".
-  const { cellFor, shiftsThisWeek } = useMemo(() => {
+  const { cellFor, shiftsThisWeek, scheduledIds } = useMemo(() => {
     const shifts = state ? Object.values(state.shifts) : [];
     const inWeek = dates.length > 0 ? new Set(dates) : new Set<string>();
     const byEmpDate = new Map<string, Map<string, string>>();
@@ -76,8 +76,19 @@ export default function ScheduleGridPage() {
         byEmpDate.get(empId)!.set(s.date, `${s.start}-${s.end}`);
       }
     }
-    return { cellFor: (empId: string, date: string) => byEmpDate.get(empId)?.get(date) ?? "", shiftsThisWeek: count };
+    return {
+      cellFor: (empId: string, date: string) => byEmpDate.get(empId)?.get(date) ?? "",
+      shiftsThisWeek: count,
+      scheduledIds: new Set(byEmpDate.keys()),
+    };
   }, [state, dates]);
+
+  // Rows = active staff + anyone actually working this week (a deactivated staff member with a shift still
+  // shows). Deactivated staff with no shift this week are hidden — otherwise their empty rows pile up.
+  const rows = useMemo(
+    () => roster.filter((e) => e.status === "active" || scheduledIds.has(e.id)),
+    [roster, scheduledIds],
+  );
 
   const dayLabel = (iso: string) => { const [, m, d] = iso.split("-"); return `${m}/${d}`; };
   const shiftWeek = (n: number) => setWeekStart((w) => addDaysIso(w, n) ?? w);
@@ -134,7 +145,7 @@ export default function ScheduleGridPage() {
                 </tr>
               </thead>
               <tbody>
-                {roster.map((emp) => (
+                {rows.map((emp) => (
                   <tr key={emp.id}>
                     <td className="sticky left-0 bg-base text-primary text-xs px-3 py-2 border-b border-white/5 truncate min-w-[9rem]">{emp.name}</td>
                     {dates.map((d) => {
