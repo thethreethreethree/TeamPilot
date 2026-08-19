@@ -1,9 +1,11 @@
 # VA presence-grid import — Closure
 
 ## Verdict
-The VA-parser **core is SHIPPABLE** as an engine: it correctly turns the founder's actual presence grid into
-per-staff shifts, including the cross-midnight coalescing that the naive approach gets wrong. It is the
-file-format-independent foundation the .docx/.pdf extractors and the pipeline wiring build on.
+The VA import is **COMPLETE end-to-end** — engine (parse + .docx + .pdf) → orchestration (vaImport) →
+routes (va/preview + va/commit) → UI (a "Schedule file" mode in the import page). Every layer that the gate
+can verify is verified (typecheck, tests, theme, shell-scroll idiom); the parse/extract logic is verified
+against the founder's REAL files. The ONE remaining check is the FOUNDER's visual confirmation of the upload
+UI (the gate cannot render React) — layer-4 surface only; layers 1–3 are proven.
 
 ## Acceptance
 - ✅ `parseTimeBlock` handles both the .docx (explicit) and .pdf (shorthand) notations + cross-midnight.
