@@ -259,6 +259,25 @@ Live-probed the care + sales-coach candidate surfaces for this class:
 Net: care + sales-coach have no route-only-admin write bypass; one unnecessary client grant closed. Remaining
 app-wide surface (finance / chat) still deferred.
 
+### ⚠️ CORRECTION (A38 — I over-claimed "clean") — recon had a profiles-subquery BLIND SPOT
+The care/sales-coach recon above filtered on `auth_company_id()` in the write policy — but many care tables
+scope via a `profiles` SUBQUERY (`EXISTS(select 1 from profiles p where p.id=auth.uid() and p.company_id =
+<table>.company_id)`), which that filter MISSED. Re-run with a corrected net (company-membership write, no role
+AND no owner column):
+- `care_tenant_config` — first looked exposed, but is SAFE: the full (untruncated) policy DOES carry a role
+  check; a non-admin member UPDATE was BLOCKED live (0 rows). (Lesson: don't classify off a truncated policy.)
+- **`support_customers` — genuine LOW-MED gap (surfaced, not yet fixed):** write policy is pure company
+  membership (no `is_support_agent`/role term), but its route uses `requireCareAgent` (agent OR admin). So a
+  plain Member (non-agent, non-admin) could INSERT/UPDATE customer records via direct PostgREST, bypassing the
+  agent gate. Within-tenant, LOW-MED (a non-agent manages care customer records). Behavioral proof needs a
+  plain-Member test user (the two available are an agent + an admin, both allowed by the gate); policy analysis
+  is conclusive.
+- `files` — app-wide (not care-specific): route gates uploader-OR-admin, RLS is company-membership → a
+  non-uploader colleague could modify/delete a file. Deferred to the app-wide sweep (shared table, complex).
+
+Corrected net's ONLY pure-company-membership candidates app-wide: support_customers + files. The recon
+blind-spot fix (catch the profiles-subquery scoping) must carry into the deferred finance/chat sweep.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
