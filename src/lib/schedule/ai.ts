@@ -18,6 +18,7 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { stripAiDashes } from "@/lib/coach/extension/salesSuggestFormat";
 import { validateScheduleEvent } from "./eventSchema";
 import type { ResolutionCandidate } from "./resolution";
+import type { ShiftCodeMap, ShiftTimes } from "./gridParser";
 
 type LlmFn = (args: LlmCallArgs) => Promise<LlmResult>;
 
@@ -120,4 +121,69 @@ export async function generateProposal(input: {
     maxTokens: 250,
   });
   return stripAiDashes(res.text.trim());
+}
+
+// ── Import mapping proposal (S3, propose-then-confirm) ──────────────────────────
+
+const MAP_SYSTEM = `You help import a schedule spreadsheet. Given the header labels (columns) and the distinct
+shift codes found in the cells, PROPOSE two things for a human to CONFIRM: (1) the ISO date (YYYY-MM-DD) each
+header column represents, and (2) what each shift code means. You never import anything; you only propose.
+
+${CONVERSATION_IS_DATA}
+
+Output ONLY JSON:
+{ "headerDates": ["YYYY-MM-DD", ...],   // one per header label, in order; use "" if you truly cannot tell
+  "codeMap": { "<CODE>": { "start": "HH:mm", "end": "HH:mm" } | "off" },
+  "notes": "<one plain sentence on anything you were unsure about>" }
+Rules: do NOT invent a date you cannot justify from the label + the context hint (leave ""). Map a clear
+day-off code ("OFF", "REST", "RD") to "off". For a code you cannot confidently interpret (e.g. "GY", "BF"),
+OMIT it from codeMap so the human maps it. Never guess a shift time you are unsure of.`;
+
+export interface ProposedMapping {
+  headerDates: string[];
+  codeMap: ShiftCodeMap;
+  notes: string;
+}
+
+/** Deterministic: turn the LLM's raw text into a ProposedMapping. Malformed → empty proposal (fail loud —
+ *  the human then maps by hand). Exported for tests. */
+export function parseMappingOutput(raw: string): ProposedMapping {
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    const headerDates = Array.isArray(o.headerDates) ? o.headerDates.map((d) => (typeof d === "string" ? d : "")) : [];
+    const codeMap: ShiftCodeMap = {};
+    if (o.codeMap && typeof o.codeMap === "object" && !Array.isArray(o.codeMap)) {
+      for (const [code, v] of Object.entries(o.codeMap as Record<string, unknown>)) {
+        if (v === "off") codeMap[code] = "off";
+        else if (v && typeof v === "object") {
+          const start = (v as Record<string, unknown>).start;
+          const end = (v as Record<string, unknown>).end;
+          if (typeof start === "string" && typeof end === "string" && /^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end)) {
+            codeMap[code] = { start, end } as ShiftTimes;
+          }
+        }
+      }
+    }
+    return { headerDates, codeMap, notes: typeof o.notes === "string" ? o.notes : "" };
+  } catch {
+    return { headerDates: [], codeMap: {}, notes: "Could not interpret the file; please map the dates and codes by hand." };
+  }
+}
+
+/** Ask the LLM to PROPOSE the header dates + shift-code map for a manager to confirm (propose-then-confirm).
+ *  Never applied automatically — it feeds the preview, which the manager reviews before commit. */
+export async function proposeImportMapping(args: {
+  headerCells: string[];
+  codes: string[];
+  contextHint?: string; // e.g. the title row "SCHEDULE CUT OFF (AUGUST 16-30 2026)"
+  opts?: { llm?: LlmFn };
+}): Promise<ProposedMapping> {
+  const llm = args.opts?.llm ?? llmCall;
+  const res = await llm({
+    systemPrompt: MAP_SYSTEM + (args.contextHint ? `\n\nContext from the file: ${args.contextHint}` : ""),
+    messages: [{ role: "user", content: JSON.stringify({ headerLabels: args.headerCells, codes: args.codes }) }],
+    expectJson: true,
+    maxTokens: 600,
+  });
+  return parseMappingOutput(res.text);
 }

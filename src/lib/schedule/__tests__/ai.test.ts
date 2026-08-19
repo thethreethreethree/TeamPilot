@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { parseLlmOutput, parseRequest, buildTimeOffEvent, generateProposal } from "../ai";
+import { parseLlmOutput, parseRequest, buildTimeOffEvent, generateProposal, parseMappingOutput, proposeImportMapping } from "../ai";
 import type { LlmResult, LlmCallArgs } from "@/lib/llm/types";
 
 /**
@@ -61,5 +61,29 @@ describe("generateProposal (recommend + why, warm + plain, no dashes)", () => {
     await generateProposal({ impactSummary: "x", candidates: [{ employeeId: "a", name: "Ana", addsHours: 8, currentHours: 5 }], opts: { llm } });
     const payload = JSON.parse(String(llm.mock.calls[0]?.[0]?.messages?.[0]?.content ?? "{}"));
     expect(payload.recommend?.name).toBe("Ana");
+  });
+});
+
+describe("parseMappingOutput + proposeImportMapping (propose-then-confirm)", () => {
+  it("parses a proposed mapping: dates + code times + off, dropping invalid times", () => {
+    const r = parseMappingOutput('{"headerDates":["2026-08-16","2026-08-17"],"codeMap":{"6-3":{"start":"06:00","end":"15:00"},"OFF":"off","BAD":{"start":"x","end":"y"}},"notes":"unsure about GY"}');
+    expect(r.headerDates).toEqual(["2026-08-16", "2026-08-17"]);
+    expect(r.codeMap["6-3"]).toEqual({ start: "06:00", end: "15:00" });
+    expect(r.codeMap["OFF"]).toBe("off");
+    expect(r.codeMap["BAD"]).toBeUndefined(); // invalid time dropped, not guessed
+    expect(r.notes).toMatch(/unsure/i);
+  });
+
+  it("a malformed reply → empty proposal (human maps by hand)", () => {
+    const r = parseMappingOutput("not json");
+    expect(r.headerDates).toEqual([]);
+    expect(Object.keys(r.codeMap)).toHaveLength(0);
+  });
+
+  it("proposeImportMapping fences the file content + routes through the parser", async () => {
+    const llm = llmReturning('{"headerDates":["2026-08-16"],"codeMap":{"OFF":"off"},"notes":""}');
+    const r = await proposeImportMapping({ headerCells: ["AUG 16"], codes: ["OFF", "GY"], contextHint: "AUGUST 2026", opts: { llm } });
+    expect(r.codeMap["OFF"]).toBe("off");
+    expect(String(llm.mock.calls[0]?.[0]?.systemPrompt)).toMatch(/CONVERSATION|data, not|instructions/i);
   });
 });
