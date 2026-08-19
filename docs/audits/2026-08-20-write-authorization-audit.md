@@ -40,6 +40,11 @@ findings below. That recurrence is why the fixes are now *gated* (below), not ju
 - **`files`** — RLS is `uploader_id = auth.uid() OR <CEO/COO/admin>` (matches the route). Not a bypass.
 - **`pitches` / `after_pitch_summaries`** — owner-scoped (`rep_id`/`agent_id = auth.uid()`).
 - **`care_tenant_config`, `care_agent_state`** — role-checked policy / column-guard trigger respectively.
+- **Care operational tables (verified directly, not via recon):** `support_conversations` / `coaching_sessions`
+  UPDATE are agent/role-gated (profiles-subquery incl. `is_support_agent`/role); `support_messages` INSERT is
+  owner-scoped (`author_id = auth.uid()`); `care_rcd_conversations` / `care_rcd_messages` / `coaching_cues`
+  have NO client write policy (RPC/service-written + immutability triggers). No bypass. The care sweep is thus
+  fully verified, not reasoned.
 - **Core** (problems / signals / tasks) — VERIFIED collaborative: `company_id = auth_company_id()` write
   policy AND no core write route gates `isAdmin` (so no admin action is being bypassed). `resolutions` adds a
   soft owner association (`decided_by`/`reviewer = auth.uid()`). Member-writable by design (the Living
