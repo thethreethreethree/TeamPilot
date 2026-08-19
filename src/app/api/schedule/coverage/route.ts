@@ -44,9 +44,10 @@ export async function GET(_req: NextRequest) {
     // Derive state ONCE (buildEvalContext replays the log) and reuse it for BOTH the requirements list and
     // the proactive gaps — no double replay.
     const evalCtx = buildEvalContext({ events: evRows.map(rowToEvent), employees: empRows.map(rowToEmployee) });
+    const today = new Date().toISOString().slice(0, 10); // server date; tz-approximate until RQ4
     return NextResponse.json({
       requirements: Object.values(evalCtx.state.coverageReqs),
-      gaps: findCoverageGaps(evalCtx),
+      gaps: findCoverageGaps(evalCtx, today),
     });
   } catch (e) {
     console.error("[schedule/coverage] read failed:", e instanceof Error ? e.message : e);

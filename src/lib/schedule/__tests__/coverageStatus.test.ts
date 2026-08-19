@@ -60,6 +60,18 @@ describe("findCoverageGaps", () => {
     expect(gaps[0]?.gaps).toEqual([{ kind: "headcount", need: 1 }]);
   });
 
+  it("skips PAST shifts when a fromDate is given (only actionable gaps)", () => {
+    const events = [
+      ev(1, "SHIFT_DEFINED", { shiftId: "PAST", date: "2026-08-01", start: "09:00", end: "17:00", requiredHeadcount: 2 }),
+      ev(2, "EMPLOYEE_ASSIGNED", { shiftId: "PAST", employeeId: "a" }),
+      ev(3, "SHIFT_DEFINED", { shiftId: "FUT", date: "2026-08-25", start: "09:00", end: "17:00", requiredHeadcount: 2 }),
+      ev(4, "EMPLOYEE_ASSIGNED", { shiftId: "FUT", employeeId: "a" }),
+    ];
+    const ctx = buildEvalContext({ events, employees: [emp("a")] });
+    expect(findCoverageGaps(ctx, "2026-08-15").map((g) => g.shiftId)).toEqual(["FUT"]); // PAST skipped
+    expect(findCoverageGaps(ctx).map((g) => g.shiftId).sort()).toEqual(["FUT", "PAST"]); // no filter → both
+  });
+
   it("no gaps when every shift meets its floor (honest empty)", () => {
     const events = [
       ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-21", start: "09:00", end: "17:00", requiredHeadcount: 1 }),

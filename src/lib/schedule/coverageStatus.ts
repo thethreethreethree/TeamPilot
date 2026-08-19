@@ -24,11 +24,16 @@ export interface ShiftCoverageGap {
  * requiredHeadcount 0) is never a gap. Only PRESENT staff count (an approved-off assignee doesn't cover).
  * Takes a pre-built EvalContext so the caller derives state ONCE (the route reuses it for the requirements
  * list too — no double replay).
+ *
+ * `fromDate` (YYYY-MM-DD, optional): skip shifts before it — a manager can't act on a PAST understaffed
+ * shift, so including them is just noise that grows as the log accumulates. The caller passes "today"; the
+ * exact day boundary is tz-approximate until `companies.timezone` lands (RQ4).
  */
-export function findCoverageGaps(ctx: EvalContext): ShiftCoverageGap[] {
+export function findCoverageGaps(ctx: EvalContext, fromDate?: string): ShiftCoverageGap[] {
   const roleOf = (id: string): string | null => ctx.employees[id]?.role ?? null;
   const out: ShiftCoverageGap[] = [];
   for (const shift of Object.values(ctx.state.shifts)) {
+    if (fromDate && shift.date < fromDate) continue; // past shift — not actionable
     const req = ctx.requirementForShift(shift.id);
     if (!req) continue;
     const present = shift.assigned.filter((id) => !shiftHitsApprovedTimeOff(ctx.state, id, shift));
