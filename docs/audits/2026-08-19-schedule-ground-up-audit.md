@@ -109,6 +109,28 @@ not "the object is right in prod"): queried `information_schema` + `pg_proc` dir
   ORPHANS the prior overload — a duplicate that only a live `pg_proc` count reveals (typecheck/db:apply are
   both blind to it). Verified fixed.
 
+## Live RLS finding — settings PATCH admin gate is ROUTE-only (within-tenant, founder-decision)
+Behavioral check of the `companies` UPDATE policy (probed live): `roles={public}, qual=(id =
+auth_company_id()), check=(id = auth_company_id())` — **company-scoped, not role-scoped** — and `authenticated`
+holds the UPDATE grant. So the schedule Settings PATCH's `isAdmin` gate is enforced only at the ROUTE: a
+NON-admin company member could bypass it via a direct PostgREST `PATCH /companies?id=eq.<own-company>` and
+change `timezone`/`workweek_start`.
+
+- **Scope:** WITHIN-tenant only (`auth_company_id()` confines it to the member's own company; `anon` is
+  RLS-blocked despite the grant — auth_company_id() is null). Not cross-tenant, not exfiltration.
+- **Impact:** a company-wide schedule setting (everyone's "today"/week shifts). Internal actor, griefing/
+  integrity nuisance, admin-recoverable. **LOW-MED.**
+- **Not new / not schedule-specific:** the `companies` UPDATE policy is pre-existing (0095); `default_theme`
+  (0201) and every companies-settings column share the exact property (route-gated, RLS company-scoped). A26
+  sweep: this is a `companies`-table-wide pattern, not introduced here.
+- **Fix is a DECISION (surfaced, not built):** DB-enforcing admin-only on company settings is cross-cutting
+  (a column-guard trigger on timezone/workweek_start — targeted, matches the route's existing intent,
+  defense-in-depth; or a broader companies-UPDATE role restriction — affects default_theme + any other
+  companies write). Given it's within-tenant + pre-existing + touches a shared table, it's the founder's
+  security-posture call, not an autonomous change. Recommendation: a **targeted column-guard trigger** on the
+  two schedule columns (closes the bypass without touching other companies flows) IF non-admin members
+  changing schedule settings is unwanted; else accept the route gate + document.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
