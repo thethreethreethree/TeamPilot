@@ -23,24 +23,29 @@ const DATES = ["2026-08-16", "2026-08-17"];
 const CSV = ["NAME,d1,d2", "ALICE,6-3,OFF", "ABRIL,6-3,2-11"].join("\n");
 
 let rpcArgs: Record<string, unknown> | null = null;
-function fakeSb(existing: { name: string }[] = []) {
+// commitImport reads schedule_event (to bound the replace-the-week span) then schedule_employee (roster).
+function fakeSb(existing: { name: string }[] = [], events: unknown[] = []) {
   return {
-    // roster read is now paged: .from().select().eq().order().range() → { data, error }
-    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: existing, error: null }) }) }) }) }),
+    from: (table: string) => ({
+      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : existing, error: null }) }) }) }),
+    }),
     rpc: async (_fn: string, args: Record<string, unknown>) => {
       rpcArgs = args;
-      // Mirror the real RPC's shape: counts derived from the applied plan.
+      // Mirror the real RPC's shape: counts derived from the applied plan + superseded ids.
       return {
         data: {
           staffCreated: (args.p_new_staff as unknown[]).length,
           shiftsCreated: (args.p_shifts as unknown[]).length,
           assignmentsCreated: (args.p_assignments as unknown[]).length,
+          shiftsSuperseded: (args.p_cancel_shift_ids as unknown[] | undefined)?.length ?? 0,
         },
         error: null,
       };
     },
   };
 }
+const evRow = (seq: number, payload: Record<string, unknown>) =>
+  ({ id: `e${seq}`, company_id: "c1", type: "SHIFT_DEFINED", actor_id: null, payload, occurred_at: "2026-08-01T00:00:00Z", seq });
 
 beforeEach(() => {
   rpcArgs = null;
@@ -77,5 +82,26 @@ describe("POST /api/schedule/upload/commit (atomic)", () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u2", companyId: "c1", role: "Member", isAdmin: false });
     asMock(createClient).mockResolvedValue(fakeSb([]));
     expect((await POST(req({ csv: CSV, headerDates: DATES, codeMap: MAP }))).status).toBe(403);
+  });
+
+  it("replace-the-week: supersedes an existing shift inside the imported span", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    // An existing shift on 2026-08-16 (inside the DATES span 08-16..08-17) must be superseded on re-import.
+    asMock(createClient).mockResolvedValue(fakeSb([], [
+      evRow(1, { shiftId: "11111111-1111-4111-8111-111111111111", date: "2026-08-16", start: "06:00", end: "15:00", requiredHeadcount: 1 }),
+    ]));
+    const res = await POST(req({ csv: CSV, headerDates: DATES, codeMap: MAP }));
+    expect(res.status).toBe(201);
+    expect(rpcArgs?.p_cancel_shift_ids).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect((await res.json()).shiftsSuperseded).toBe(1);
+  });
+
+  it("first import (no existing shifts) supersedes nothing", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(createClient).mockResolvedValue(fakeSb([], []));
+    const res = await POST(req({ csv: CSV, headerDates: DATES, codeMap: MAP }));
+    expect(res.status).toBe(201);
+    expect(rpcArgs?.p_cancel_shift_ids).toEqual([]);
+    expect((await res.json()).shiftsSuperseded).toBe(0);
   });
 });

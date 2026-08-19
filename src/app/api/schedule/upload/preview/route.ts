@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { parseScheduleGrid } from "@/lib/schedule/gridParser";
+import { supersededShiftIds } from "@/lib/schedule/importPlanner";
+import { readExistingShifts } from "@/lib/schedule/commitImport";
 
 /**
  * Schedule Management System — Phase 5 file-upload PREVIEW (S3, parse-then-confirm).
@@ -40,15 +43,28 @@ export async function POST(req: NextRequest) {
   const grid = parseCsvToGrid(body.csv, { headerRowIndex: body.headerRowIndex });
   const parsed = parseScheduleGrid({ headerDates: body.headerDates, rows: grid.rows, codeMap: body.codeMap });
 
+  // Replace-the-week honesty (§3.4): how many EXISTING shifts a commit would supersede, so the manager sees
+  // that a re-import replaces (not silently deletes) before confirming. Same supersededShiftIds the commit
+  // uses → the warned count matches what actually happens. A read failure here must not block the preview.
+  const shiftEntries = parsed.entries.filter((e) => e.kind === "shift");
+  let willReplace = 0;
+  try {
+    const sb = await createClient();
+    willReplace = supersededShiftIds(await readExistingShifts(sb, ctx.companyId), shiftEntries).length;
+  } catch (e) {
+    console.error("[schedule/upload/preview] supersede count failed (non-blocking):", e instanceof Error ? e.message : e);
+  }
+
   // The preview: exactly what a commit would create, plus the codes still needing a mapping (so the manager
   // fixes the map before committing — never a silent drop or a guessed shift).
   return NextResponse.json({
     staff: parsed.staff,
     entryCount: parsed.entries.length,
-    shifts: parsed.entries.filter((e) => e.kind === "shift").length,
+    shifts: shiftEntries.length,
     off: parsed.entries.filter((e) => e.kind === "off").length,
     unknownCodes: parsed.unknownCodes,
     entries: parsed.entries,
+    willReplace,
     readyToCommit: parsed.unknownCodes.length === 0,
   });
 }

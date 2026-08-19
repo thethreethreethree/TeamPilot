@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planImport, type ImportPreview } from "../importPlanner";
+import { planImport, supersededShiftIds, type ImportPreview } from "../importPlanner";
 import type { GridEntry } from "../gridParser";
 
 /**
@@ -45,5 +45,33 @@ describe("planImport", () => {
   it("newStaff de-duplicates repeated names in the preview", () => {
     const plan = planImport({ staff: ["Bob", "bob", "BOB"], entries: [] }, []);
     expect(plan.newStaff).toEqual(["Bob"]);
+  });
+});
+
+describe("supersededShiftIds — replace-the-week span", () => {
+  const existing = [
+    { id: "a", date: "2026-08-15" }, // before span
+    { id: "b", date: "2026-08-17" }, // in span
+    { id: "c", date: "2026-08-19" }, // in span, mid-week with no new shift → still superseded
+    { id: "d", date: "2026-08-21" }, // after span
+  ];
+  const planned = [{ date: "2026-08-17" }, { date: "2026-08-20" }]; // span 08-17..08-20
+
+  it("supersedes every existing shift inside the imported date SPAN (min..max), inclusive", () => {
+    expect(supersededShiftIds(existing, planned).sort()).toEqual(["b", "c"]);
+  });
+
+  it("clears a mid-span date that the corrected week no longer staffs", () => {
+    // 'c' (08-19) is inside the span but the import has no 08-19 shift — replace-the-week still clears it.
+    expect(supersededShiftIds(existing, planned)).toContain("c");
+  });
+
+  it("supersedes nothing when the import has no shifts (also covers a first import)", () => {
+    expect(supersededShiftIds(existing, [])).toEqual([]);
+    expect(supersededShiftIds([], planned)).toEqual([]);
+  });
+
+  it("a single-day import supersedes only that day", () => {
+    expect(supersededShiftIds(existing, [{ date: "2026-08-17" }])).toEqual(["b"]);
   });
 });

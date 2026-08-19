@@ -20,9 +20,9 @@ import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 type ShiftTimes = { start: string; end: string };
 type CodeVal = ShiftTimes | "off";
 type Proposal = { headerCells: string[]; codes: string[]; headerDates: string[]; codeMap: Record<string, CodeVal>; notes: string };
-type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: string[]; readyToCommit: boolean };
-type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; readyToCommit: boolean };
-type Done = { staffCreated: number; shiftsCreated: number; assignmentsCreated: number };
+type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: string[]; willReplace?: number; readyToCommit: boolean };
+type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; willReplace?: number; readyToCommit: boolean };
+type Done = { staffCreated: number; shiftsCreated: number; assignmentsCreated: number; shiftsSuperseded?: number };
 
 /** Read a File → base64 (no data: prefix). FileReader avoids the stack overflow of String.fromCharCode(...big). */
 function fileToBase64(file: File): Promise<string> {
@@ -183,7 +183,8 @@ export default function ScheduleImportPage() {
               <CheckCircle2 className="w-5 h-5" aria-hidden /> Imported
             </div>
             <p className="text-sm text-secondary">
-              {done.staffCreated} new staff, {done.shiftsCreated} shifts, {done.assignmentsCreated} assignments.
+              {done.staffCreated} new staff, {done.shiftsCreated} shifts, {done.assignmentsCreated} assignments
+              {done.shiftsSuperseded ? `, replaced ${done.shiftsSuperseded} existing shift${done.shiftsSuperseded === 1 ? "" : "s"}` : ""}.
             </p>
           </div>
           {/* Workflow continuity (1.5.1 layer 3): the obvious next action is to SEE the imported schedule. */}
@@ -268,6 +269,12 @@ export default function ScheduleImportPage() {
                   Map these codes before importing: {preview.unknownCodes.join(", ")}
                 </p>
               )}
+              {!!preview.willReplace && preview.willReplace > 0 && (
+                <p className="flex items-center gap-2 text-xs text-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
+                  This replaces {preview.willReplace} existing shift{preview.willReplace === 1 ? "" : "s"} in these dates (the corrected week supersedes them).
+                </p>
+              )}
               <button type="button" onClick={commit} disabled={!preview.readyToCommit || busy !== null}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
                 {busy === "commit" ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <Upload className="w-3.5 h-3.5" aria-hidden />}
@@ -310,6 +317,12 @@ export default function ScheduleImportPage() {
                 <p className="flex items-center gap-2 text-xs text-brand">
                   <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
                   These time blocks couldn’t be read — fix the file before importing: {vaPreview.unparsedBlocks.join(", ")}
+                </p>
+              )}
+              {!!vaPreview.willReplace && vaPreview.willReplace > 0 && (
+                <p className="flex items-center gap-2 text-xs text-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
+                  This replaces {vaPreview.willReplace} existing shift{vaPreview.willReplace === 1 ? "" : "s"} in this week (the imported week supersedes them).
                 </p>
               )}
               <button type="button" onClick={vaCommit} disabled={!vaPreview.readyToCommit || busy !== null}

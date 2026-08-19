@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { VaUploadBody, extractVaOrError } from "@/lib/schedule/vaUpload";
 import { planImport } from "@/lib/schedule/importPlanner";
+import { commitImport } from "@/lib/schedule/commitImport";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
@@ -64,19 +65,25 @@ export async function POST(req: NextRequest) {
 
   const plan = planImport(preview, existingNames);
 
-  const { data: result, error } = await sb.rpc("apply_schedule_import", {
-    p_new_staff: plan.newStaff,
-    p_shifts: plan.shifts,
-    p_assignments: plan.assignments,
-  });
-  if (error) {
-    console.error("[schedule/upload/va/commit] atomic import failed:", error.message);
+  // Replace-the-week + atomic (shared helper — same semantic as the CSV route, no drift).
+  const outcome = await commitImport(sb, ctx.companyId, plan);
+  if (!outcome.ok) {
+    if (outcome.code === "MIGRATION_REQUIRED") {
+      return NextResponse.json(
+        { error: "Replace-the-week re-import needs a database update that isn't applied yet. Nothing was changed." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: "Couldn't import the schedule. Nothing was changed." }, { status: 500 });
   }
 
-  const r = (result ?? {}) as { staffCreated?: number; shiftsCreated?: number; assignmentsCreated?: number };
   return NextResponse.json(
-    { staffCreated: r.staffCreated ?? 0, shiftsCreated: r.shiftsCreated ?? 0, assignmentsCreated: r.assignmentsCreated ?? 0 },
+    {
+      staffCreated: outcome.staffCreated,
+      shiftsCreated: outcome.shiftsCreated,
+      assignmentsCreated: outcome.assignmentsCreated,
+      shiftsSuperseded: outcome.shiftsSuperseded,
+    },
     { status: 201 },
   );
 }

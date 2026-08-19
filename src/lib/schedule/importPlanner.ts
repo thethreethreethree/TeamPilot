@@ -55,3 +55,28 @@ export function planImport(preview: ImportPreview, existingStaffNames: string[])
 
   return { newStaff, shifts: [...shiftByKey.values()], assignments };
 }
+
+/**
+ * The ids of existing shifts a re-import should SUPERSEDE — every current shift whose date falls within the
+ * imported date SPAN (min..max of the planned shifts' dates). This is the "replace-the-week" semantic
+ * (founder decision 2026-08-19): importing a week replaces that week's shifts, so a re-uploaded correction
+ * doesn't stack duplicates on top of the originals.
+ *
+ * Span (not exact-date-set) is deliberate: a corrected week that drops a mid-week shift must clear the old
+ * one, so a date inside the span with no new shift is still superseded. Returns [] when the import has no
+ * shifts (no span to bound) — which also makes a FIRST import (empty schedule) a clean no-op.
+ */
+export function supersededShiftIds(
+  existingShifts: { id: string; date: string }[],
+  plannedShifts: { date: string }[],
+): string[] {
+  const first = plannedShifts[0];
+  if (!first) return [];
+  let min = first.date;
+  let max = first.date;
+  for (const s of plannedShifts) {
+    if (s.date < min) min = s.date;
+    if (s.date > max) max = s.date;
+  }
+  return existingShifts.filter((s) => s.date >= min && s.date <= max).map((s) => s.id);
+}

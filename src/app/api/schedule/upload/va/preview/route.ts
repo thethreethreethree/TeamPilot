@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { VaUploadBody, extractVaOrError } from "@/lib/schedule/vaUpload";
+import { supersededShiftIds } from "@/lib/schedule/importPlanner";
+import { readExistingShifts } from "@/lib/schedule/commitImport";
 
 /**
  * Schedule Management System — VA presence-grid upload PREVIEW (Phase 5; R-VA-3).
@@ -32,11 +35,24 @@ export async function POST(req: NextRequest) {
   if (res instanceof NextResponse) return res;
 
   const { preview, unparsedBlocks } = res;
+
+  // Replace-the-week honesty (§3.4): how many existing shifts this import would supersede in its date span —
+  // same supersededShiftIds the commit uses. Non-blocking (a read failure must not break the preview).
+  const shiftEntries = preview.entries.filter((e) => e.kind === "shift");
+  let willReplace = 0;
+  try {
+    const sb = await createClient();
+    willReplace = supersededShiftIds(await readExistingShifts(sb, ctx.companyId), shiftEntries).length;
+  } catch (e) {
+    console.error("[schedule/upload/va/preview] supersede count failed (non-blocking):", e instanceof Error ? e.message : e);
+  }
+
   return NextResponse.json({
     staff: preview.staff,
     entries: preview.entries,
     entryCount: preview.entries.length,
     unparsedBlocks,
+    willReplace,
     readyToCommit: unparsedBlocks.length === 0 && preview.entries.length > 0,
   });
 }

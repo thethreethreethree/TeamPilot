@@ -7,6 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { parseScheduleGrid } from "@/lib/schedule/gridParser";
 import { planImport } from "@/lib/schedule/importPlanner";
+import { commitImport } from "@/lib/schedule/commitImport";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
@@ -22,8 +23,9 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
  * transaction that rolls back wholesale on any failure. A 500 here means NOTHING was written (no partial
  * import). Planning stays in TS (importPlanner); the RPC only applies the plan.
  *
- * KNOWN GAP (tracked): IDEMPOTENCY — import-once is assumed; re-importing the same CSV appends duplicate
- * shifts (append-only). Re-import de-duplication (a shift key already present → skip) is a follow-up.
+ * REPLACE-THE-WEEK (0223, founder decision 2026-08-19): re-importing supersedes the existing shifts in the
+ * imported date span (SHIFT_CANCELLED, same transaction) before inserting — so a re-uploaded correction
+ * replaces the week instead of stacking duplicates. The shared commitImport helper owns that semantic.
  */
 export const maxDuration = 60;
 
@@ -75,22 +77,27 @@ export async function POST(req: NextRequest) {
   }
   const plan = planImport({ staff: parsed.staff, entries: parsed.entries }, existingNames);
 
-  // Apply the whole import ATOMICALLY (0222): create staff + append SHIFT_DEFINED + EMPLOYEE_ASSIGNED in ONE
-  // transaction that rolls back wholesale on any failure — no partial import (the audit fix). Planning stays
-  // in TS (planImport above); the RPC only applies the plan.
-  const { data: result, error } = await sb.rpc("apply_schedule_import", {
-    p_new_staff: plan.newStaff,
-    p_shifts: plan.shifts,
-    p_assignments: plan.assignments,
-  });
-  if (error) {
-    console.error("[schedule/upload/commit] atomic import failed:", error.message);
+  // Apply the whole import ATOMICALLY (0222) with the replace-the-week semantic (0223): supersede existing
+  // shifts in the imported span, then create staff + append SHIFT_DEFINED + EMPLOYEE_ASSIGNED — all in ONE
+  // transaction. Shared helper so the CSV + VA routes can't drift; planning stays in TS (planImport above).
+  const outcome = await commitImport(sb, ctx.companyId, plan);
+  if (!outcome.ok) {
+    if (outcome.code === "MIGRATION_REQUIRED") {
+      return NextResponse.json(
+        { error: "Replace-the-week re-import needs a database update that isn't applied yet. Nothing was changed." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: "Couldn't import the schedule. Nothing was changed." }, { status: 500 });
   }
 
-  const r = (result ?? {}) as { staffCreated?: number; shiftsCreated?: number; assignmentsCreated?: number };
   return NextResponse.json(
-    { staffCreated: r.staffCreated ?? 0, shiftsCreated: r.shiftsCreated ?? 0, assignmentsCreated: r.assignmentsCreated ?? 0 },
+    {
+      staffCreated: outcome.staffCreated,
+      shiftsCreated: outcome.shiftsCreated,
+      assignmentsCreated: outcome.assignmentsCreated,
+      shiftsSuperseded: outcome.shiftsSuperseded,
+    },
     { status: 201 },
   );
 }
