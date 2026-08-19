@@ -30,6 +30,20 @@ describe("moduleForPath", () => {
   });
 });
 
+describe("schedule route entitlement (RQ14 — current behavior locked; change is a founder decision)", () => {
+  // The schedule system is positioned as a STANDALONE tool, but its access is currently an "elostate" route:
+  // reachable by complete/elostate (null-lock) accounts, and BLOCKED for a single-module pilot by the 0207
+  // hard-lock. This asserts that behavior explicitly so a change to it (e.g. making schedule its own module)
+  // is a DELIBERATE edit that trips this test, not a silent drift. See BUILD_MANIFEST open-decisions.
+  it("schedule is an elostate route — locked pilots are denied, complete accounts allowed", () => {
+    expect(moduleForPath("/dashboard/schedule")).toBe("elostate");
+    expect(moduleForPath("/dashboard/schedule/grid")).toBe("elostate");
+    expect(isPathAllowed("care", "/dashboard/schedule")).toBe(false);
+    expect(isPathAllowed("sales_coach", "/dashboard/schedule")).toBe(false);
+    expect(isPathAllowed(null, "/dashboard/schedule")).toBe(true);
+  });
+});
+
 describe("isPathAllowed", () => {
   it("no lock (complete/legacy) → everything allowed", () => {
     expect(isPathAllowed(null, "/dashboard")).toBe(true);
