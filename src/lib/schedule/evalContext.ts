@@ -5,10 +5,11 @@
  * This builds that context from the raw data a route fetched: the event log (→ deriveState), the roster
  * (→ employees map), and a requirement-for-shift lookup derived from the coverage requirements in state.
  *
- * requirementForShift mapping (FIRST VERSION, flagged for refinement): a coverage requirement applies to a
- * shift when appliesTo === "day" (applies to every shift), or its timeWindow overlaps the shift's start-end.
- * Among applicable requirements the STRICTEST (highest minHeadcount) wins. A richer per-shift/role mapping
- * (once the coverage editor defines requirements against specific shifts) is a follow-up.
+ * requirementForShift mapping (FIRST VERSION, flagged for refinement): a coverage requirement with a
+ * timeWindow applies to shifts whose times overlap that window; a requirement with NO timeWindow applies to
+ * EVERY shift (no window = no time restriction — for any appliesTo, so a "shift"/"role" floor set without a
+ * window is honored rather than silently ignored). Among applicable requirements the STRICTEST (highest
+ * minHeadcount) wins. A richer per-shift/role mapping (requirements against specific shifts) is a follow-up.
  */
 import type { ScheduleEvent, ScheduleState, Employee, CoverageRequirement } from "./types";
 import { deriveState } from "./deriveState";
@@ -36,9 +37,11 @@ export function buildEvalContext(args: {
     if (!shift) return null;
     let best: { minHeadcount: number; minByRole: Record<string, number> } | null = null;
     for (const r of reqs) {
-      const applies =
-        r.appliesTo === "day" ||
-        (r.timeWindow ? overlaps(shift.start, shift.end, r.timeWindow.start, r.timeWindow.end) : false);
+      // With a window: overlap. Without a window: applies to every shift (any appliesTo) — a floor with no
+      // time restriction, so a "shift"/"role" requirement set without a window is honored, not ignored.
+      const applies = r.timeWindow
+        ? overlaps(shift.start, shift.end, r.timeWindow.start, r.timeWindow.end)
+        : true;
       if (!applies) continue;
       if (!best || r.minHeadcount > best.minHeadcount) best = { minHeadcount: r.minHeadcount, minByRole: r.minByRole };
     }

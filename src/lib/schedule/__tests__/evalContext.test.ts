@@ -20,6 +20,26 @@ describe("buildEvalContext — requirementForShift mapping", () => {
     expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 3, minByRole: {} });
   });
 
+  it("a shift/role requirement WITHOUT a time window applies to every shift (RQ19 — not silently ignored)", () => {
+    const events = [
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
+      ev(2, "COVERAGE_REQ_DEFINED", { requirementId: U1, appliesTo: "shift", minHeadcount: 2 }),
+    ];
+    const ctx = buildEvalContext({ events, employees: [] });
+    expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 2, minByRole: {} });
+  });
+
+  it("a WINDOWED requirement applies only to an overlapping shift", () => {
+    const events = [
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "12:00", requiredHeadcount: 1 }),
+      ev(2, "SHIFT_DEFINED", { shiftId: "S2", date: "2026-08-16", start: "18:00", end: "22:00", requiredHeadcount: 1 }),
+      ev(3, "COVERAGE_REQ_DEFINED", { requirementId: U1, appliesTo: "shift", minHeadcount: 2, timeWindow: { start: "08:00", end: "13:00" } }),
+    ];
+    const ctx = buildEvalContext({ events, employees: [] });
+    expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 2, minByRole: {} }); // overlaps 08:00–13:00
+    expect(ctx.requirementForShift("S2")).toBeNull(); // 18:00–22:00 does not overlap
+  });
+
   it("null when no requirement applies", () => {
     const events = [ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 1 })];
     const ctx = buildEvalContext({ events, employees: [] });
