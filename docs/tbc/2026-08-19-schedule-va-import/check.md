@@ -13,7 +13,7 @@ actual VA grid. No violation.
 ## Final full-gate run
 ```
 npm run check → exit 0 (all gates)
-Tests: 3189 passed | 15 skipped   (3166 prior + 10 vaGrid + 4 vaDocx + 3 vaPdf + 6 vaResolve = +23)
+Tests: 3198 passed | 15 skipped   (3166 prior + 10 vaGrid + 4 vaDocx + 3 vaPdf + 6 vaResolve + 3 vaImport + 6 va-routes = +32)
 ```
 Verified against the founder's REAL files out-of-band:
 - .docx (VA_Weekly_Schedule.docx): header + all 12 rows extracted exactly.

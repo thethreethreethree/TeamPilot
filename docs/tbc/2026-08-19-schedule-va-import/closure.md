@@ -39,7 +39,7 @@ file-format-independent foundation the .docx/.pdf extractors and the pipeline wi
     "why_skipped": "resolveVaToPreview built + tested (grid->parse->resolve->planImport end-to-end), converging on the existing commit path. The HTTP route (accept .docx/.pdf, detect VA shape, preview for a target week) + the upload-UI VA path remain — the layer that needs the founder's visual verification (the gate can't render React).",
     "confidence_it_does_not_matter": "low",
     "opened_at": "2026-08-19T15:55:00Z",
-    "outcome": "OPENED + PARTIALLY RESOLVED: the pure resolution core is built + gated. Route + UI wiring is the remaining unit, deferred to founder-present visual verification."
+    "outcome": "OPENED + RESOLVED for the BACKEND: resolution core (vaResolve) + the orchestration helper (vaImport) + the HTTP routes (va/preview + va/commit, manager-gated, hardened, atomic, deterministic re-extract) all built + tested (9 tests). The whole bytes->dated-import path is reachable + gated. ONLY the React upload-UI VA path remains — the layer that genuinely needs founder visual verification (the gate can't render React)."
   }
 ]
 ```
