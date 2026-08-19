@@ -34,6 +34,7 @@ import {
   Search as SearchIcon,
   Mic,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -135,6 +136,19 @@ const productionNav: Array<{
       how: "Add a teammate via Invite — pick role, send. They get an invitation email; clicking it brings them through profile setup. Revoke when someone leaves. Update roles via the row controls when responsibilities change.",
       principle:
         "Role is permissioning that's also pedagogy. A user's role signals what part of the System they're responsible for.",
+    },
+  },
+  {
+    label: "Schedule",
+    href: "/dashboard/schedule",
+    icon: CalendarDays,
+    hint: {
+      whatItIs:
+        "The staff scheduling tool: a roster of your team, a staff-by-date grid of who works when, and a file import (paste a CSV schedule and the AI proposes the dates + shift codes for you to confirm). Event-sourced — every change is an immutable event; the schedule is a projection over the log.",
+      why: "Scheduling is where coverage promises are kept or broken. The System computes coverage and eligibility deterministically and proposes fills; it never silently publishes an understaffed shift or auto-decides for you — it surfaces the impact and leaves the call to the manager.",
+      how: "Add staff to the Roster, then Import (or build) a schedule; the Schedule grid shows who works when. When you review a time-off request, the System shows the coverage impact and a recommended fill — you approve or override.",
+      principle:
+        "The tool diagnoses staffing honestly and proposes; the human decides. Understand the whole schedule before changing it.",
     },
   },
   {
