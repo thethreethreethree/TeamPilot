@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Users, Upload } from "lucide-react";
+import { CalendarDays, Users, Upload, CalendarClock } from "lucide-react";
 
 /**
  * Schedule Management System — the sub-nav shared across the schedule surfaces (Phase 5). Self-contained
@@ -13,6 +13,7 @@ import { CalendarDays, Users, Upload } from "lucide-react";
 const TABS = [
   { href: "/dashboard/schedule/grid", label: "Schedule", icon: CalendarDays },
   { href: "/dashboard/schedule", label: "Roster", icon: Users, exact: true },
+  { href: "/dashboard/schedule/timeoff", label: "Time Off", icon: CalendarClock },
   { href: "/dashboard/schedule/import", label: "Import", icon: Upload },
 ] as const;
 
