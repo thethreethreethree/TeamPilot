@@ -79,6 +79,15 @@ function applyEvent(state: ScheduleState, e: ScheduleEvent): void {
       if (s) s.status = "draft";
       return;
     }
+    case "SHIFT_CANCELLED": {
+      // Tombstone: the shift no longer exists in derived state (with its assignments). Append-only — the
+      // SHIFT_DEFINED stays in the log; replaying just drops the cancelled shift. A later SHIFT_DEFINED with
+      // the same id would re-create it (a fresh definition), which is fine (ids are unique per creation).
+      const id = str(p, "shiftId");
+      if (!id) return;
+      delete state.shifts[id];
+      return;
+    }
     case "EMPLOYEE_ASSIGNED": {
       const shiftId = str(p, "shiftId");
       const employeeId = str(p, "employeeId");

@@ -60,6 +60,24 @@ describe("deriveState — replay foundation (Phase 1)", () => {
     expect(s.shifts["S9"]?.assigned).toEqual([]);
   });
 
+  it("SHIFT_CANCELLED tombstones the shift — it and its assignments drop from derived state", () => {
+    const s = deriveState([
+      ev(1, "SHIFT_DEFINED", { shiftId: "SC", date: "2026-08-25", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
+      ev(2, "EMPLOYEE_ASSIGNED", { shiftId: "SC", employeeId: "E4" }),
+      ev(3, "SHIFT_CANCELLED", { shiftId: "SC" }),
+    ]);
+    expect(s.shifts["SC"]).toBeUndefined();
+  });
+
+  it("a SHIFT_DEFINED after a SHIFT_CANCELLED for the same id re-creates the shift (fresh definition)", () => {
+    const s = deriveState([
+      ev(1, "SHIFT_DEFINED", { shiftId: "SR", date: "2026-08-26", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
+      ev(2, "SHIFT_CANCELLED", { shiftId: "SR" }),
+      ev(3, "SHIFT_DEFINED", { shiftId: "SR", date: "2026-08-26", start: "10:00", end: "18:00", requiredHeadcount: 2 }),
+    ]);
+    expect(s.shifts["SR"]).toMatchObject({ start: "10:00", requiredHeadcount: 2, assigned: [] });
+  });
+
   it("re-defining a shift preserves its assignments + publish status (a definition edit, not a reset)", () => {
     const s = deriveState([
       ev(1, "SHIFT_DEFINED", { shiftId: "S2", date: "2026-08-23", start: "09:00", end: "17:00", requiredHeadcount: 1 }),

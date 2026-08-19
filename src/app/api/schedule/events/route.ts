@@ -33,7 +33,7 @@ const AppendSchema = z.object({
 // closes the raw-API self-approve gap: a non-manager could otherwise POST TIMEOFF_APPROVED for their own
 // request via this route even though no UI exposes it.
 const MANAGER_ONLY_EVENT_TYPES = new Set<string>([
-  "SHIFT_DEFINED", "SHIFT_PUBLISHED", "SHIFT_UNPUBLISHED",
+  "SHIFT_DEFINED", "SHIFT_PUBLISHED", "SHIFT_UNPUBLISHED", "SHIFT_CANCELLED",
   "EMPLOYEE_ASSIGNED", "EMPLOYEE_UNASSIGNED",
   "TIMEOFF_APPROVED", "TIMEOFF_DENIED",
   "COVERAGE_REQ_DEFINED", "COVERAGE_REQ_CHANGED", "COVERAGE_REQ_REMOVED",

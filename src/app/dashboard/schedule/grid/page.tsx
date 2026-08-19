@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
@@ -62,22 +62,23 @@ export default function ScheduleGridPage() {
     [weekStart],
   );
 
-  // Pivot the derived shifts: employeeId -> date -> "HH:mm-HH:mm".
+  // Pivot the derived shifts: employeeId -> date -> { shiftId, label }. The shiftId is carried so a
+  // cell click can unassign that person from THAT shift (EMPLOYEE_UNASSIGNED needs the shiftId).
   const { cellFor, shiftsThisWeek, scheduledIds } = useMemo(() => {
     const shifts = state ? Object.values(state.shifts) : [];
     const inWeek = dates.length > 0 ? new Set(dates) : new Set<string>();
-    const byEmpDate = new Map<string, Map<string, string>>();
+    const byEmpDate = new Map<string, Map<string, { shiftId: string; label: string }>>();
     let count = 0;
     for (const s of shifts) {
       if (!inWeek.has(s.date)) continue;
       count += 1;
       for (const empId of s.assigned) {
         if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
-        byEmpDate.get(empId)!.set(s.date, `${s.start}-${s.end}`);
+        byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}` });
       }
     }
     return {
-      cellFor: (empId: string, date: string) => byEmpDate.get(empId)?.get(date) ?? "",
+      cellFor: (empId: string, date: string) => byEmpDate.get(empId)?.get(date) ?? null,
       shiftsThisWeek: count,
       scheduledIds: new Set(byEmpDate.keys()),
     };
@@ -90,6 +91,36 @@ export default function ScheduleGridPage() {
     [roster, scheduledIds],
   );
 
+  // Cell-click unassign: click a shift cell -> confirm -> append EMPLOYEE_UNASSIGNED (manager-gated route) ->
+  // reload. The grid IS the natural selector (the person is shown right where you click). busyRef is a
+  // re-entrancy latch (a double-click must not double-append); `unassigning` drives the per-cell spinner.
+  const [unassigning, setUnassigning] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const unassign = useCallback(async (shiftId: string, empId: string, empName: string) => {
+    if (busyRef.current) return;
+    if (typeof window !== "undefined" && !window.confirm(`Unassign ${empName} from this shift?`)) return;
+    busyRef.current = true;
+    setActionError(null);
+    setUnassigning(`${shiftId}:${empId}`);
+    try {
+      const res = await fetch("/api/schedule/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "EMPLOYEE_UNASSIGNED", payload: { shiftId, employeeId: empId } }),
+      });
+      // A single-action failure shows a light dismissible banner — it must NOT nuke the whole grid to the
+      // full-screen error card (that would lose the manager's view for a transient click failure).
+      if (!res.ok) { setActionError(`Couldn't unassign ${empName}. Try again.`); return; }
+      await load();
+    } catch {
+      setActionError(`Couldn't unassign ${empName}. Try again.`);
+    } finally {
+      busyRef.current = false;
+      setUnassigning(null);
+    }
+  }, [load]);
+
   const dayLabel = (iso: string) => { const [, m, d] = iso.split("-"); return `${m}/${d}`; };
   const shiftWeek = (n: number) => setWeekStart((w) => addDaysIso(w, n) ?? w);
   const goToday = () => setWeekStart(weekStartOf(localTodayIso()) ?? localTodayIso());
@@ -101,7 +132,7 @@ export default function ScheduleGridPage() {
         <CalendarDays className="w-6 h-6 text-brand" aria-hidden />
         <h1 className="text-xl font-bold text-primary">Schedule</h1>
       </div>
-      <p className="text-xs text-muted mb-4">Who works when. Import a schedule or build shifts to fill this in.</p>
+      <p className="text-xs text-muted mb-4">Who works when. Click a shift to unassign someone; import a schedule or build shifts to add them.</p>
 
       {/* Week navigation */}
       <div className="flex items-center gap-2 mb-4">
@@ -116,6 +147,13 @@ export default function ScheduleGridPage() {
         </button>
         <button type="button" onClick={goToday} className="text-xs font-semibold text-brand hover:underline ml-1">This week</button>
       </div>
+
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+          <span className="text-xs text-red-300">{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="text-xs font-semibold text-red-300 hover:underline">Dismiss</button>
+        </div>
+      )}
 
       {error ? (
         <div className="glass-card p-5 border border-red-500/30">
@@ -150,9 +188,22 @@ export default function ScheduleGridPage() {
                     <td className="sticky left-0 bg-base text-primary text-xs px-3 py-2 border-b border-white/5 truncate min-w-[9rem]">{emp.name}</td>
                     {dates.map((d) => {
                       const cell = cellFor(emp.id, d);
+                      const busy = cell !== null && unassigning === `${cell.shiftId}:${emp.id}`;
                       return (
                         <td key={d} className={`text-center text-[11px] px-2 py-2 border-b border-white/5 whitespace-nowrap tabular-nums ${cell ? "text-primary" : "text-muted/40"}`}>
-                          {cell || "·"}
+                          {cell ? (
+                            <button
+                              type="button"
+                              onClick={() => unassign(cell.shiftId, emp.id, emp.name)}
+                              disabled={busy}
+                              title={`Unassign ${emp.name} from this shift`}
+                              className="rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors"
+                            >
+                              {busy ? "…" : cell.label}
+                            </button>
+                          ) : (
+                            "·"
+                          )}
                         </td>
                       );
                     })}

@@ -25,6 +25,9 @@ const PAYLOADS: Record<ScheduleEventType, z.ZodType> = {
   }),
   SHIFT_PUBLISHED: z.object({ shiftId: id }),
   SHIFT_UNPUBLISHED: z.object({ shiftId: id }),
+  // Tombstone: cancel a shift (the projector deletes it + its assignments). Corrections stay append-only;
+  // used by shift-cancel and by replace-the-week re-import (supersede the imported range).
+  SHIFT_CANCELLED: z.object({ shiftId: id }),
   EMPLOYEE_ASSIGNED: z.object({ shiftId: id, employeeId: id }),
   EMPLOYEE_UNASSIGNED: z.object({ shiftId: id, employeeId: id }),
   TIMEOFF_REQUESTED: z.object({
