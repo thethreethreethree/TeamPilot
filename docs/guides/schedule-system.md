@@ -14,9 +14,10 @@ intact for later analysis).
 
 | Screen | What it does |
 |--------|--------------|
-| **Roster** | Add / list staff (name, role, skills, certifications, weekly-hours min/max, status). |
-| **Grid** | The week at a glance - staff × dates, each cell the shift that person works that day. |
-| **Coverage** | Define how many people (and which roles) a shift needs - the floor the system checks against. |
+| **Roster** | Add staff (name, role, skills, certifications, weekly-hours min/max). Each staff row can be **edited** (the pencil/Edit action) or **deactivated** - a deactivated (departed) staff member stops being scheduled but their history stays intact; reactivate them any time. |
+| **Grid** | The week at a glance - staff × dates, each cell the shift that person works that day. Read-only view. |
+| **Coverage** | Define how many people (and which roles) a shift needs - the floor the system checks against. Each requirement has a **Remove** action to fix a mistaken rule. |
+| **Build** | Create a shift by hand - pick the date, start/end (may cross midnight), how many are needed, and which staff to assign - without importing a file. |
 | **Time off** | Review a time-off request: the system shows the coverage impact + candidate replacements, and the AI drafts a recommendation. You approve or deny - it never auto-decides. |
 | **Import** | Bring an existing schedule in from a file (two formats - below). |
 
@@ -81,5 +82,8 @@ These are surfaced so an operator isn't surprised; each awaits a product decisio
 - **Time zone** is not yet a per-company setting; shift times are compared as clock times. Correct within a
   single time zone; cross-time-zone scheduling needs the setting (RQ4).
 - **Workweek start** is Monday (ISO). A Sunday/Saturday payroll week needs a setting (RQ7).
+- **Editing an existing shift** (removing a person from it, changing its time, or cancelling it) is not built
+  yet - you can create shifts (Build / Import) and view them (Grid), but not edit them in place. The way to
+  offer this (an interactive grid vs. a separate list) is a design decision.
 - **Employee self-service** (staff viewing their own schedule / requesting time off) is not built - a manager
   records on their behalf for now.
