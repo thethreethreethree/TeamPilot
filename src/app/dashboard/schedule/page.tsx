@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, UserPlus, Users } from "lucide-react";
+import Link from "next/link";
+import { Loader2, UserPlus, Users, CalendarDays } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
@@ -248,6 +249,12 @@ export default function ScheduleRosterPage() {
                   </div>
                 </div>
                 <div className="shrink-0 flex items-center gap-1.5">
+                  {/* Phase 6 (manager-entered): open this one person's printable schedule. */}
+                  <Link href={`/dashboard/schedule/personal?employeeId=${emp.id}`}
+                    title={`View ${emp.name}'s schedule`}
+                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-white/10 text-secondary hover:text-primary">
+                    <CalendarDays className="w-3 h-3" aria-hidden /> Schedule
+                  </Link>
                   <button type="button" onClick={() => startEdit(emp)}
                     className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-white/10 text-secondary">Edit</button>
                   <button type="button" onClick={() => void toggleStatus(emp)} disabled={togglingId === emp.id}
