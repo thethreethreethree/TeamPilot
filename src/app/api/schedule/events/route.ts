@@ -7,7 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { validateScheduleEvent } from "@/lib/schedule/eventSchema";
 import { deriveState } from "@/lib/schedule/deriveState";
-import type { ScheduleEvent } from "@/lib/schedule/types";
+import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 
 /**
  * Schedule Management System — Phase 1 event-append + read API (CLAUDE.md 3.1).
@@ -39,28 +39,6 @@ const MANAGER_ONLY_EVENT_TYPES = new Set<string>([
   "COVERAGE_REQ_DEFINED", "COVERAGE_REQ_CHANGED", "COVERAGE_REQ_REMOVED",
   "SWAP_APPROVED",
 ]);
-
-type EventRow = {
-  id: string;
-  company_id: string;
-  type: string;
-  actor_id: string | null;
-  payload: Record<string, unknown> | null;
-  occurred_at: string;
-  seq: number;
-};
-
-function toEvent(r: EventRow): ScheduleEvent {
-  return {
-    id: r.id,
-    companyId: r.company_id,
-    type: r.type as ScheduleEvent["type"],
-    actorId: r.actor_id,
-    payload: r.payload ?? {},
-    occurredAt: r.occurred_at,
-    seq: r.seq,
-  };
-}
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "schedule-events-append", windowMs: 60_000, max: 120 });
@@ -115,7 +93,7 @@ export async function GET(_req: NextRequest) {
       (from, to) =>
         sb
           .from("schedule_event")
-          .select("id, company_id, type, actor_id, payload, occurred_at, seq")
+          .select(EVENT_COLUMNS)
           .eq("company_id", companyId)
           .order("seq", { ascending: true })
           .range(from, to),
@@ -127,7 +105,7 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load the schedule." }, { status: 500 });
   }
 
-  const events = rows.map(toEvent);
+  const events = rows.map(rowToEvent);
   const state = deriveState(events);
   return NextResponse.json({ events, state });
 }

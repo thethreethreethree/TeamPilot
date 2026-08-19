@@ -9,6 +9,8 @@ import { buildEvalContext } from "@/lib/schedule/evalContext";
 import { evaluateChange } from "@/lib/schedule/authority";
 import { findResolutions } from "@/lib/schedule/resolution";
 import { generateProposal } from "@/lib/schedule/ai";
+import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
+import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
 import type { ScheduleEvent, Employee } from "@/lib/schedule/types";
 
 /**
@@ -28,9 +30,6 @@ const Body = z.object({
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-type EventRow = { id: string; company_id: string; type: string; actor_id: string | null; payload: Record<string, unknown> | null; occurred_at: string; seq: number };
-type EmpRow = { id: string; company_id: string; name: string; role: string | null; employment_type: string | null; skills: string[] | null; certifications: string[] | null; max_hours_week: number | null; min_hours_week: number | null; status: string };
-
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "schedule-timeoff-evaluate", windowMs: 60_000, max: 60 });
   if (limited) return limited;
@@ -48,16 +47,16 @@ export async function POST(req: NextRequest) {
   try {
     const [evRows, empRows] = await Promise.all([
       fetchAllPaged<EventRow>(
-        (from, to) => sb.from("schedule_event").select("id, company_id, type, actor_id, payload, occurred_at, seq").eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
+        (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
         { label: "schedule_event" },
       ),
-      fetchAllPaged<EmpRow>(
-        (from, to) => sb.from("schedule_employee").select("id, company_id, name, role, employment_type, skills, certifications, max_hours_week, min_hours_week, status").eq("company_id", ctx.companyId).order("id").range(from, to),
+      fetchAllPaged<EmployeeRow>(
+        (from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("id").range(from, to),
         { label: "schedule_employee" },
       ),
     ]);
-    events = evRows.map((r) => ({ id: r.id, companyId: r.company_id, type: r.type as ScheduleEvent["type"], actorId: r.actor_id, payload: r.payload ?? {}, occurredAt: r.occurred_at, seq: r.seq }));
-    employees = empRows.map((r) => ({ id: r.id, companyId: r.company_id, name: r.name, role: r.role, employmentType: r.employment_type, skills: r.skills ?? [], certifications: r.certifications ?? [], maxHoursWeek: r.max_hours_week, minHoursWeek: r.min_hours_week, status: r.status === "inactive" ? "inactive" : "active" }));
+    events = evRows.map(rowToEvent);
+    employees = empRows.map(rowToEmployee);
   } catch (e) {
     console.error("[schedule/timeoff/evaluate] load failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load the schedule to evaluate the request." }, { status: 500 });

@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { deriveState } from "@/lib/schedule/deriveState";
-import type { ScheduleEvent } from "@/lib/schedule/types";
+import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 
 /**
  * Schedule Management System — coverage requirements (Phase 5). A coverage requirement is the "no lapse"
@@ -24,19 +24,16 @@ const Body = z.object({
   minByRole: z.record(z.string().min(1).max(60), z.number().int().nonnegative()).optional(),
 });
 
-type EventRow = { id: string; company_id: string; type: string; actor_id: string | null; payload: Record<string, unknown> | null; occurred_at: string; seq: number };
-
 export async function GET(_req: NextRequest) {
   const ctx = await getCurrentAuthContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const sb = await createClient();
   try {
     const rows = await fetchAllPaged<EventRow>(
-      (from, to) => sb.from("schedule_event").select("id, company_id, type, actor_id, payload, occurred_at, seq").eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
+      (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
       { label: "schedule_event" },
     );
-    const events: ScheduleEvent[] = rows.map((r) => ({ id: r.id, companyId: r.company_id, type: r.type as ScheduleEvent["type"], actorId: r.actor_id, payload: r.payload ?? {}, occurredAt: r.occurred_at, seq: r.seq }));
-    return NextResponse.json({ requirements: Object.values(deriveState(events).coverageReqs) });
+    return NextResponse.json({ requirements: Object.values(deriveState(rows.map(rowToEvent)).coverageReqs) });
   } catch (e) {
     console.error("[schedule/coverage] read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load coverage requirements." }, { status: 500 });
