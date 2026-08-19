@@ -187,6 +187,11 @@ function applyEvent(state: ScheduleState, e: ScheduleEvent): void {
       state.coverageReqs[id] = req;
       return;
     }
+    case "COVERAGE_REQ_REMOVED": {
+      const id = str(p, "requirementId");
+      if (id) delete state.coverageReqs[id];
+      return;
+    }
     case "SWAP_REQUESTED":
       // A pending swap does not change assignments; it becomes a manager-queue signal (Phase 5/6).
       // No core-state mutation in Phase 1.

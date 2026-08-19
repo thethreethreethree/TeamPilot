@@ -24,6 +24,8 @@ export default function CoveragePage() {
   // Synchronous double-submit latch — the `saving` state check is read at render time, so two fast clicks
   // both see saving === false and both POST (duplicate requirement). A ref flips synchronously.
   const savingRef = useRef(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const removingRef = useRef<Set<string>>(new Set()); // per-id double-submit latch (RQ13 class)
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +60,19 @@ export default function CoveragePage() {
       else setFormError("Couldn't save. Try again.");
     } catch { setFormError("Couldn't reach the server."); }
     finally { setSaving(false); savingRef.current = false; }
+  };
+
+  const remove = async (id: string) => {
+    if (removingRef.current.has(id)) return;
+    removingRef.current.add(id);
+    setRemovingId(id);
+    setFormError(null);
+    try {
+      const res = await fetch(`/api/schedule/coverage?requirementId=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) await load();
+      else setFormError(res.status === 403 ? "Only a manager can remove coverage." : "Couldn't remove it. Try again.");
+    } catch { setFormError("Couldn't reach the server."); }
+    finally { setRemovingId(null); removingRef.current.delete(id); }
   };
 
   return (
@@ -108,10 +123,16 @@ export default function CoveragePage() {
       ) : (
         <ul className="space-y-2">
           {reqs.map((r) => (
-            <li key={r.id} className="glass-card p-3.5 text-sm text-primary">
-              At least <span className="font-semibold">{r.minHeadcount}</span>{" "}
-              {r.appliesTo === "day" ? "every day" : r.appliesTo === "shift" ? "per shift" : "per role"}
-              {r.timeWindow && <span className="text-muted"> · {r.timeWindow.start} to {r.timeWindow.end}</span>}
+            <li key={r.id} className="glass-card p-3.5 text-sm text-primary flex items-center justify-between gap-3">
+              <span>
+                At least <span className="font-semibold">{r.minHeadcount}</span>{" "}
+                {r.appliesTo === "day" ? "every day" : r.appliesTo === "shift" ? "per shift" : "per role"}
+                {r.timeWindow && <span className="text-muted"> · {r.timeWindow.start} to {r.timeWindow.end}</span>}
+              </span>
+              <button type="button" onClick={() => void remove(r.id)} disabled={removingId === r.id}
+                className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-white/10 text-secondary disabled:opacity-50">
+                {removingId === r.id ? "…" : "Remove"}
+              </button>
             </li>
           ))}
         </ul>

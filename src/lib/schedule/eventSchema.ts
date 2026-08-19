@@ -58,6 +58,8 @@ const PAYLOADS: Record<ScheduleEventType, z.ZodType> = {
     minHeadcount: z.number().int().nonnegative().optional(),
     minByRole: roleCounts.optional(),
   }),
+  // Tombstone: remove a coverage requirement (the projector deletes it). Corrections stay append-only.
+  COVERAGE_REQ_REMOVED: z.object({ requirementId: id }),
   SWAP_REQUESTED: z.object({ shiftId: id, fromEmployeeId: id, toEmployeeId: id }),
   SWAP_APPROVED: z.object({ shiftId: id, fromEmployeeId: id, toEmployeeId: id }),
 };

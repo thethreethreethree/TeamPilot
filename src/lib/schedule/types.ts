@@ -21,6 +21,7 @@ export type ScheduleEventType =
   | "AVAILABILITY_SET"
   | "COVERAGE_REQ_DEFINED"
   | "COVERAGE_REQ_CHANGED"
+  | "COVERAGE_REQ_REMOVED"
   | "SWAP_REQUESTED"
   | "SWAP_APPROVED";
 
@@ -36,6 +37,7 @@ export const SCHEDULE_EVENT_TYPES: readonly ScheduleEventType[] = [
   "AVAILABILITY_SET",
   "COVERAGE_REQ_DEFINED",
   "COVERAGE_REQ_CHANGED",
+  "COVERAGE_REQ_REMOVED",
   "SWAP_REQUESTED",
   "SWAP_APPROVED",
 ] as const;

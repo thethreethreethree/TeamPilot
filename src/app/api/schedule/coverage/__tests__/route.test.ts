@@ -10,7 +10,7 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { GET, POST } from "../route";
+import { GET, POST, DELETE } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 const R = "33333333-3333-4333-8333-333333333333";
@@ -61,5 +61,27 @@ describe("schedule coverage API", () => {
   it("401 unauthenticated", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue(null);
     expect((await GET({} as Parameters<typeof GET>[0])).status).toBe(401);
+  });
+
+  const delReq = (id: string) =>
+    ({ url: `http://x/api/schedule/coverage?requirementId=${id}`, headers: new Headers() }) as unknown as Parameters<typeof DELETE>[0];
+
+  it("a manager DELETE appends a COVERAGE_REQ_REMOVED tombstone", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(createClient).mockResolvedValue(fakeSb());
+    const res = await DELETE(delReq(R));
+    expect(res.status).toBe(200);
+    expect(appended?.type).toBe("COVERAGE_REQ_REMOVED");
+    expect(appended?.payload.requirementId).toBe(R);
+  });
+
+  it("a non-manager cannot remove coverage (403, no append); an invalid id is 400", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u2", companyId: "c1", role: "Member", isAdmin: false });
+    asMock(createClient).mockResolvedValue(fakeSb());
+    expect((await DELETE(delReq(R))).status).toBe(403);
+    expect(appended).toBeNull();
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    expect((await DELETE(delReq("not-a-uuid"))).status).toBe(400);
+    expect(appended).toBeNull(); // validation before any append
   });
 });

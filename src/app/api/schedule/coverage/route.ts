@@ -72,3 +72,33 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ requirementId }, { status: 201 });
 }
+
+/**
+ * Remove a coverage requirement (a manager fixing a mistaken rule). Appends a COVERAGE_REQ_REMOVED tombstone
+ * — the projector deletes it; the log stays append-only. Manager-only. The append is company-scoped by the
+ * RPC (auth_company_id()), so a removal only affects the caller's own company's derived state.
+ */
+export async function DELETE(req: NextRequest) {
+  const limited = rateLimit(req, { id: "schedule-coverage-remove", windowMs: 60_000, max: 60 });
+  if (limited) return limited;
+
+  const requirementId = new URL(req.url).searchParams.get("requirementId") ?? "";
+  if (!z.string().uuid().safeParse(requirementId).success) {
+    return NextResponse.json({ error: "Invalid requirement id." }, { status: 400 });
+  }
+
+  const ctx = await getCurrentAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  if (!ctx.isAdmin) return NextResponse.json({ error: "Only a manager can remove coverage." }, { status: 403 });
+
+  const sb = await createClient();
+  const { error } = await sb.rpc("append_schedule_event", {
+    p_type: "COVERAGE_REQ_REMOVED",
+    p_payload: { requirementId },
+  });
+  if (error) {
+    console.error("[schedule/coverage] remove append failed:", error.message);
+    return NextResponse.json({ error: "Couldn't remove the coverage requirement." }, { status: 500 });
+  }
+  return NextResponse.json({ requirementId }, { status: 200 });
+}

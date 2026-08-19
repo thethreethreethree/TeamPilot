@@ -92,6 +92,16 @@ describe("deriveState — replay foundation (Phase 1)", () => {
     expect(s.coverageReqs["R1"]).toMatchObject({ appliesTo: "day", minHeadcount: 5 }); // patched, appliesTo preserved
   });
 
+  it("COVERAGE_REQ_REMOVED deletes a requirement (a manager fixing a mistaken rule)", () => {
+    const s = deriveState([
+      ev(1, "COVERAGE_REQ_DEFINED", { requirementId: "R1", appliesTo: "day", minHeadcount: 3 }),
+      ev(2, "COVERAGE_REQ_DEFINED", { requirementId: "R2", appliesTo: "shift", minHeadcount: 2 }),
+      ev(3, "COVERAGE_REQ_REMOVED", { requirementId: "R1" }),
+    ]);
+    expect(s.coverageReqs["R1"]).toBeUndefined(); // removed
+    expect(s.coverageReqs["R2"]).toMatchObject({ minHeadcount: 2 }); // the other is untouched
+  });
+
   it("is robust: an unknown event type and a malformed payload are no-ops (replay survives)", () => {
     const s = deriveState([
       ev(1, "SHIFT_DEFINED", { shiftId: "S4", date: "2026-08-26", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
