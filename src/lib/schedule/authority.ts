@@ -124,7 +124,13 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
   const coverageAfter = (shiftId: string, assigned: string[]) => {
     const req = ctx.requirementForShift(shiftId);
     if (!req) return; // no requirement → no coverage floor to breach
-    const res = meetsCoverage({ assigned }, req, roleOf);
+    // Count only employees actually PRESENT: someone assigned but on APPROVED time-off does not cover the
+    // shift (approving time-off does NOT auto-unassign them). Without this the coverage check OVERCOUNTS a
+    // colleague who is already off, so a manager could approve overlapping time-off that understaffs a shift
+    // with no warning. Span-aware (RQ10) — an overnight shift running into an off day counts them absent too.
+    const shift = state.shifts[shiftId];
+    const present = shift ? assigned.filter((id) => !shiftHitsApprovedTimeOff(state, id, shift)) : assigned;
+    const res = meetsCoverage({ assigned: present }, req, roleOf);
     if (!res.meets) violations.push({ kind: "coverage", shiftId, gaps: res.gaps, overridable: true });
   };
 

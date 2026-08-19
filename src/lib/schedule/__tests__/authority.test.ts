@@ -95,6 +95,17 @@ describe("evaluateChange — the single authority (A40)", () => {
     expect(v.violations.some((x) => x.kind === "time_off_conflict")).toBe(true);
   });
 
+  it("a colleague already on approved time-off does NOT count toward coverage (RQ15)", () => {
+    // Shift needs 1; A and B are both assigned, but B is ALREADY approved off that day (approving time-off
+    // doesn't unassign). Evaluating A's time-off removes A, leaving only B — who is off — so real coverage is
+    // 0. Without excluding the off colleague the check would count B and wrongly report the shift covered.
+    const s = shift({ id: "S1", date: "2026-08-21", assigned: ["a", "b"], requiredHeadcount: 1 });
+    const ctx = ctxOf([s], [emp({ id: "a" }), emp({ id: "b" })], () => ({ minHeadcount: 1, minByRole: {} }));
+    ctx.state.timeOff["T1"] = { id: "T1", employeeId: "b", type: "vacation", start: "2026-08-21", end: "2026-08-21", partial: false, status: "approved" };
+    const v = evaluateChange({ kind: "time_off", employeeId: "a", start: "2026-08-21", end: "2026-08-21" }, ctx);
+    expect(v.violations.some((x) => x.kind === "coverage")).toBe(true); // B is off → removing A leaves 0
+  });
+
   it("an OVERNIGHT shift running into an approved day off conflicts (span-aware); a day shift does not", () => {
     // RQ10: an overnight shift on X occupies X AND X+1. Time-off on X+1 must block it; the old check saw
     // only X. Control: a same-start-date DAY shift does not reach X+1, so no conflict.
