@@ -7,6 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { parseScheduleGrid } from "@/lib/schedule/gridParser";
 import { planImport } from "@/lib/schedule/importPlanner";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * Schedule Management System — Phase 5 file-upload COMMIT (S3). Applies a CONFIRMED import: creates any new
@@ -57,16 +58,22 @@ export async function POST(req: NextRequest) {
 
   const sb = await createClient();
 
-  // Existing roster names → the planner decides who's new. (Read is RLS-scoped to the caller's company.)
-  const { data: existing, error: rosterErr } = await sb
-    .from("schedule_employee")
-    .select("name")
-    .eq("company_id", ctx.companyId);
-  if (rosterErr) {
-    console.error("[schedule/upload/commit] roster read failed:", rosterErr.message);
+  // Existing roster names → the planner decides who's new. PAGED past the 1000-row PostgREST cap: a
+  // truncated roster would make staff beyond row 1000 look "new" and create DUPLICATE records on import
+  // (the unbounded-select class). RLS-scoped to the caller's company; ordered by id for stable paging.
+  let existingNames: string[];
+  try {
+    const rows = await fetchAllPaged<{ name: string }>(
+      (from, to) =>
+        sb.from("schedule_employee").select("name").eq("company_id", ctx.companyId).order("id").range(from, to),
+      { label: "schedule roster" },
+    );
+    existingNames = rows.map((r) => r.name);
+  } catch (e) {
+    console.error("[schedule/upload/commit] roster read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't read the roster." }, { status: 500 });
   }
-  const plan = planImport({ staff: parsed.staff, entries: parsed.entries }, (existing ?? []).map((r) => r.name as string));
+  const plan = planImport({ staff: parsed.staff, entries: parsed.entries }, existingNames);
 
   // Apply the whole import ATOMICALLY (0222): create staff + append SHIFT_DEFINED + EMPLOYEE_ASSIGNED in ONE
   // transaction that rolls back wholesale on any failure — no partial import (the audit fix). Planning stays

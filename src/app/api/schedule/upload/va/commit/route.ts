@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { VaUploadBody, extractVaOrError } from "@/lib/schedule/vaUpload";
 import { planImport } from "@/lib/schedule/importPlanner";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * Schedule Management System — VA presence-grid upload COMMIT (Phase 5; R-VA-3).
@@ -46,16 +47,22 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = await createClient();
-  const { data: existing, error: rosterErr } = await sb
-    .from("schedule_employee")
-    .select("name")
-    .eq("company_id", ctx.companyId);
-  if (rosterErr) {
-    console.error("[schedule/upload/va/commit] roster read failed:", rosterErr.message);
+  // Existing roster names, PAGED past the 1000-row cap (a truncated roster → duplicate staff on import —
+  // the unbounded-select class). RLS-scoped to the caller's company; ordered by id for stable paging.
+  let existingNames: string[];
+  try {
+    const rows = await fetchAllPaged<{ name: string }>(
+      (from, to) =>
+        sb.from("schedule_employee").select("name").eq("company_id", ctx.companyId).order("id").range(from, to),
+      { label: "schedule roster" },
+    );
+    existingNames = rows.map((r) => r.name);
+  } catch (e) {
+    console.error("[schedule/upload/va/commit] roster read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't read the roster." }, { status: 500 });
   }
 
-  const plan = planImport(preview, (existing ?? []).map((r) => r.name as string));
+  const plan = planImport(preview, existingNames);
 
   const { data: result, error } = await sb.rpc("apply_schedule_import", {
     p_new_staff: plan.newStaff,

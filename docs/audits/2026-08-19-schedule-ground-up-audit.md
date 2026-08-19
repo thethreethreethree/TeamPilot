@@ -38,6 +38,7 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 - ✅ Honest errors (no false-empty; a read failure is a real 5xx); no raw error `.message` to the client (CWE-209 gate passes).
 - ✅ UIs theme-safe (0 leaks) + typecheck-clean.
 - ✅ **RQ11 (render-class audit) — FIXED: time-off decision state-bleed.** Changing the employee/dates after evaluating didn't clear the on-screen verdict, so a manager could approve for a different person than the one evaluated (the decide route records as-is, no server re-eval). Now any input change clears the evaluation + hides the decision block. Swept the render-class lenses across all 5 pages: shell-scroll idiom present everywhere, no throwing browser APIs, grid/coverage read-only or simple-add (no evaluate-then-act bleed), VA/CSV import previews cleared on input change.
+- ✅ **RQ12 (unbounded-select audit) — FIXED: the import roster read was unpaged.** Both commit routes (CSV + VA) read the existing roster with a bare `.select("name").eq(company_id)` — capped at PostgREST's 1000 rows. A company with >1000 staff would get a truncated roster, so `planImport` treats staff beyond row 1000 as NEW → duplicate staff records on import. Now `fetchAllPaged` (ordered by id, stable paging), matching the events GET; a read failure is an honest 500, never a silent short roster.
 - ℹ️ **UI render not yet visually verified by the founder** — the gate can't render React; roster/grid/import/timeoff/coverage need a human look.
 
 ## Open flags (ranked by severity)

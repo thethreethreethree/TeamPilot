@@ -34,7 +34,8 @@ const previewResult = {
 let rpcCalled = false;
 function fakeSb() {
   return {
-    from: () => ({ select: () => ({ eq: async () => ({ data: [], error: null }) }) }),
+    // roster read is now paged: .from().select().eq().order().range() → { data, error }
+    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: [], error: null }) }) }) }) }),
     rpc: async () => { rpcCalled = true; return { data: { staffCreated: 1, shiftsCreated: 5, assignmentsCreated: 5 }, error: null }; },
   };
 }

@@ -25,7 +25,8 @@ const CSV = ["NAME,d1,d2", "ALICE,6-3,OFF", "ABRIL,6-3,2-11"].join("\n");
 let rpcArgs: Record<string, unknown> | null = null;
 function fakeSb(existing: { name: string }[] = []) {
   return {
-    from: () => ({ select: () => ({ eq: async () => ({ data: existing, error: null }) }) }),
+    // roster read is now paged: .from().select().eq().order().range() → { data, error }
+    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: existing, error: null }) }) }) }) }),
     rpc: async (_fn: string, args: Record<string, unknown>) => {
       rpcArgs = args;
       // Mirror the real RPC's shape: counts derived from the applied plan.
