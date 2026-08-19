@@ -55,13 +55,42 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 | RQ20 | ✅ **FIXED (correctness)** | multiple applicable coverage requirements were not combined — a role floor was dropped | `requirementForShift` returned only the SINGLE requirement with the highest minHeadcount, so with "3 people" + "1 nurse" both applying, the nurse (lower headcount) requirement was silently dropped and never enforced. Now it COMBINES every applicable requirement — max headcount + max per-role floor — so all constraints hold. Regression-locked + detection-proven. |
 | RQ19 | ✅ **FIXED (correctness)** | a coverage requirement scoped "shift"/"role" without a time window was silently ignored | `requirementForShift` applied a requirement only if `appliesTo === "day"` OR its timeWindow overlapped — so a "shift" or "role" requirement set WITHOUT a window matched neither clause and was silently dropped (the coverage form lets a manager create exactly that). A floor with no time window should apply to every shift (no window = no time restriction); now it does. Regression-locked + detection-proven. |
 | RQ18 | ✅ **FIXED (RQ17 class, DRY)** | the row→domain mappers were duplicated across read routes | The ScheduleEvent row-mapper was copied in 3 routes (events GET, coverage GET, timeoff/evaluate) and the Employee mapper in 2 — a column added to the shape would update one copy and silently miss the others (same drift as RQ17, one layer down). Extracted `eventRow.ts` (mirroring `employeeRow.ts`); all read routes now use the single shared `rowToEvent`/`rowToEmployee` + `*_COLUMNS`. Verified no inline mapper/column-literal remains. Behavior-preserving. |
-| RQ4 | **MED** | org timezone not stored | add `companies.timezone` + backfill before cross-tz / cross-midnight scheduling. When done, also: (a) an overnight shift's POST-midnight coverage isn't matched to an early-morning coverage window (`evalContext.overlaps` caps an overnight end at 24:00); (b) consolidate the TWO time-overlap fns — `evalContext.overlaps` (24:00 cap) vs `constraints.rangesOverlap` (+24h, RQ9) — into one once the overnight semantic is decided (they agree for same-day, differ only across midnight, so a drift risk bounded to this RQ4 work). |
-| RQ7 | **LOW→MED** | workweek-start is a hardcoded Monday default | the hours-cap week boundary is ISO Monday; a company whose payroll week starts Sunday/Saturday needs a `companies.workweek_start` setting (same `companies`-settings family as RQ4). Documented default until set. |
+| RQ4 | ✅ **FIXED (setting) / partial** | org timezone not stored | `companies.timezone` added (0224) + consumed — server "today" (coverage/time-off) = `todayInTz(tz)`; the grid's today/week use it. STILL OPEN (separate item, unblocked-not-done): (a) an overnight shift's POST-midnight coverage isn't matched to an early-morning window (`evalContext.overlaps` caps an overnight end at 24:00); (b) consolidate the TWO time-overlap fns (`evalContext.overlaps` 24:00-cap vs `constraints.rangesOverlap` +24h) once the overnight semantic is decided. |
+| RQ7 | ✅ **FIXED** | workweek-start was a hardcoded Monday default | `companies.workweek_start` added (0224); `weekStartOf(date, weekStartDay)` + `weeklyHoursOf(..., weekStartDay)` parameterized (default Monday, so no caller broke); threaded via `EvalContext.weekStartDay` into the hours cap + fair-load ranking, and into the grid week. A manager sets it on the Settings tab. Detection-proven. |
 | RQ6 | ✅ **FIXED** | event-append route now role-per-event-type gated | manager-only types require ctx.isAdmin; TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED open to members. 4 tests. |
 | — | LOW | re-import de-dup (import-once assumed) | skip a shift key already present on re-import |
 | — | LOW | requirement→shift mapping is first-version (day-applies / time-overlap) | refine when coverage is defined against specific shifts |
 | — | LOW | event payload shiftId/employeeId not route-validated vs the company's real shifts/roster | inert (projector ignores unresolved ids + RLS scopes events); add a check for tidiness |
 | — | INFO | UI render unverified by a human | founder visual pass on the 5 schedule pages |
+
+## Post-feature audit — the four founder-picker features (2026-08-19)
+Outside-view pass over the surface the picker features added, on the record per §1.7.
+
+- ✅ **Manager-only layout gate (visibility) — security boundary, tested.** `dashboard/schedule/layout.tsx`
+  redirects a non-`isAdmin` (or unauthenticated) caller to `/dashboard` before any schedule page renders,
+  reusing `getCurrentAuthContext().isAdmin` — the SAME predicate the write APIs enforce (RQ6), so page and API
+  can't drift (single-source, §2.2). Server-side (no flash). Regression-locked + **detection-proven**
+  (disabling the gate fails 2 of 3 tests). Data was never at risk (writes already gated); this closes the
+  read-visibility of sick time-off to non-managers.
+- ✅ **Settings PATCH — new write to `companies`, tenant-safe.** `/api/schedule/settings` PATCH is
+  manager-only and pins the update to `id = ctx.companyId` (INV15 — company from the session, never a
+  parameter); the companies UPDATE RLS independently scopes to `auth_company_id()`. Same precedent as 0201
+  `default_theme`. IANA + 0-6 validated. 6 tests (auth + pin + validation).
+- ✅ **Replace-the-week — data-DELETING path, atomic + honest + fail-loud.** The supersede set is computed once
+  from derived state (`supersededShiftIds`, §2.2) and only APPLIED by the RPC; the cancel + insert run in ONE
+  transaction (0223), so a failure rolls back wholesale (no half-empty week). The manager sees "replaces N"
+  before commit and "replaced N" after (§3.4 — never a silent delete). If the migration were absent with
+  something to supersede, the code returns 503 rather than silently re-appending duplicates (§1.5.3). The
+  residual is a benign preview/commit TOCTOU on the ADVISORY count (the commit recomputes authoritatively). A
+  pathological wide date-span in a CSV (a typo'd date) would supersede a large range — mitigated by the visible
+  "replaces N" count; flagged LOW below.
+- ✅ **Cell-click unassign — append-only, re-entrancy-safe.** Appends `EMPLOYEE_UNASSIGNED` via the
+  manager-gated events route; `busyRef` latch prevents a double-click double-append; a failed action shows a
+  local banner, never nuking the grid. The `SHIFT_CANCELLED` tombstone it's built beside is projector-tested.
+- ➕ **New LOW flag:** replace-the-week supersedes the whole imported date SPAN, so a typo'd import date could
+  cancel a wide range of shifts. Mitigated by the preview's visible "replaces N shifts" count (the manager sees
+  it). A proportionate extra guard (confirm on an unusually large replace) is a possible follow-up — a UX
+  decision, not a correctness bug.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
