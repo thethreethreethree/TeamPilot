@@ -73,7 +73,8 @@ describe("GET /api/schedule/timeoff (the list)", () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "Member", isAdmin: false });
     asMock(createClient).mockResolvedValue(readSb(
       [
-        evRow(1, "TIMEOFF_REQUESTED", { timeOffId: U, employeeId: "emp1", type: "vacation", start: "2026-08-21", end: "2026-08-22" }),
+        // far-future dates so the GET's "current/upcoming" filter (end >= today) keeps them on any run date.
+        evRow(1, "TIMEOFF_REQUESTED", { timeOffId: U, employeeId: "emp1", type: "vacation", start: "2099-08-21", end: "2099-08-22" }),
         evRow(2, "TIMEOFF_APPROVED", { timeOffId: U }),
       ],
       [{ id: "emp1", company_id: "c1", name: "Alex", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }],

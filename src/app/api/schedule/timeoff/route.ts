@@ -45,9 +45,12 @@ export async function GET(_req: NextRequest) {
       ),
     ]);
     const nameOf = new Map(empRows.map((r) => [r.id, r.name]));
+    const today = new Date().toISOString().slice(0, 10); // server date; tz-approximate until RQ4
+    // Current/upcoming only — a fully-PAST time-off is over, so it's just noise that accumulates.
     const timeOff = Object.values(deriveState(evRows.map(rowToEvent)).timeOff)
+      .filter((t) => t.end >= today)
       .map((t) => ({ ...t, employeeName: nameOf.get(t.employeeId) ?? "(unknown)" }))
-      .sort((a, b) => b.start.localeCompare(a.start));
+      .sort((a, b) => a.start.localeCompare(b.start)); // soonest first
     return NextResponse.json({ timeOff });
   } catch (e) {
     console.error("[schedule/timeoff] list read failed:", e instanceof Error ? e.message : e);
