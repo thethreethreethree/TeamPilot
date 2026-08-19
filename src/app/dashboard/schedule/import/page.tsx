@@ -104,7 +104,9 @@ export default function ScheduleImportPage() {
     finally { setBusy(null); }
   };
 
-  const setCode = (code: string, val: CodeVal) => setMap((m) => ({ ...m, [code]: val }));
+  // Editing the mapping/dates invalidates a prior preview — clear it so the "ready to import" state can't
+  // reflect stale inputs (the commit re-parses server-side regardless, but a stale preview misleads).
+  const setCode = (code: string, val: CodeVal) => { setMap((m) => ({ ...m, [code]: val })); setPreview(null); };
 
   // ---- VA handlers ----
   const vaBody = async () => ({ fileBase64: await fileToBase64(vaFile!), filename: vaFile!.name, weekStart: vaWeek });
@@ -192,7 +194,7 @@ export default function ScheduleImportPage() {
               {prop.notes && <p className="text-[11px] text-muted italic">{prop.notes}</p>}
               <div>
                 <div className="text-[11px] text-muted mb-1">Dates (one per column, ISO YYYY-MM-DD, comma separated)</div>
-                <input value={dates} onChange={(e) => setDates(e.target.value)}
+                <input value={dates} onChange={(e) => { setDates(e.target.value); setPreview(null); }}
                   className="w-full rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary" />
               </div>
               <div className="space-y-2">

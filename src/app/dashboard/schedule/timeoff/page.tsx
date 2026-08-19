@@ -42,6 +42,11 @@ export default function TimeOffReviewPage() {
 
   const canEval = employeeId && start && end && busy === null;
 
+  // Any input change invalidates a prior evaluation: a decision must act on a FRESH evaluation of the
+  // CURRENT inputs, never a stale verdict computed for a different employee/date range. Without this, a
+  // manager could change the staff member after evaluating and approve on the old verdict (state-bleed).
+  const clearEval = () => { setEvaluation(null); setDone(null); };
+
   const evaluate = async () => {
     if (!canEval) return;
     setBusy("eval");
@@ -86,21 +91,21 @@ export default function TimeOffReviewPage() {
 
       <div className="glass-card p-4 mb-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
+          <select value={employeeId} onChange={(e) => { setEmployeeId(e.target.value); clearEval(); }}
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary">
             <option value="">Select staff…</option>
             {roster.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
-          <select value={type} onChange={(e) => setType(e.target.value)}
+          <select value={type} onChange={(e) => { setType(e.target.value); clearEval(); }}
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary">
             <option value="vacation">Vacation</option>
             <option value="sick">Sick</option>
             <option value="personal">Personal</option>
             <option value="day_off">Day off</option>
           </select>
-          <input type="date" value={start} onChange={(e) => setStart(e.target.value)}
+          <input type="date" value={start} onChange={(e) => { setStart(e.target.value); clearEval(); }}
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary" />
-          <input type="date" value={end} onChange={(e) => setEnd(e.target.value)}
+          <input type="date" value={end} onChange={(e) => { setEnd(e.target.value); clearEval(); }}
             className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary" />
         </div>
         <button type="button" onClick={evaluate} disabled={!canEval}
