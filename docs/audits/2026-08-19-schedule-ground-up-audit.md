@@ -347,6 +347,40 @@ Beyond the write-authorization work, applied these lenses to the schedule module
   invisible ghosts); approved-time-off assignments struck-through "(off)" and span-aware (overnight), so the
   grid agrees with Coverage.
 
+## Overnight-span class sweep (2026-08-20) — 2 fixed, 3 pre-existing flagged
+An adversarial review of the Phase-6 additions found two overnight-span defects (fixed, commit `6e131546`),
+which prompted a sweep of every start-date-keyed check in the module. The class: a shift running past midnight
+occupies its start day AND the next day, so any check keyed only on `shift.date` misses the second day. The
+module's ESTABLISHED pattern is span-aware (`shiftHitsApprovedTimeOff` checks both days; the grid off-marking
+and coverage present-filter follow it) — these are the deviations from it.
+
+**FIXED this session (`6e131546`, tests locked):**
+- `isAvailable` (constraints.ts) — an overnight shift now checks its next calendar day against `unavailableDates`
+  too (before: marking Tue off did not block a Mon 22:00→06:00 shift running into Tue).
+- `personalSchedule` — the "upcoming" filter keys on the shift's END day, so an overnight shift started the day
+  before `fromDate` (still in progress) shows instead of being dropped.
+
+**PRE-EXISTING — flagged, NOT fixed (each touches core authority logic with design choices; recorded for a
+founder decision per OPTION-BASED control, not self-authorized):**
+- 🟨 **MED — double-booking misses adjacent-date overnight overlap.** `authority.ts` assign+swap clash checks
+  `o.date === shift.date` before `rangesOverlap`. Two time-overlapping shifts on ADJACENT dates (one overnight)
+  share no date, so the overlap is never tested. Concrete: X on `08-20 22:00→06:00`; assigning X to `08-21
+  05:00→09:00` overlaps 05:00–06:00 but is NOT flagged as `double_booked` (an ABSOLUTE constraint → a genuinely
+  impossible assignment is silently allowed). Reachable given the VA data has overnight shifts. Fix needs the
+  clash check to consider shifts on `date` and `date±1` with a day-offset in the overlap math — a real change to
+  a hard gate, hence flagged not patched.
+- 🟦 **LOW — time-off affected-shifts pre-check keys on start date.** `authority.ts` time_off case collects
+  affected shifts by `s.date` within the range; an overnight shift starting the day BEFORE the range but running
+  into the first off-day isn't collected. Mitigated: the approval-time coverage present-count
+  (`shiftHitsApprovedTimeOff`) IS span-aware, so the deeper check still catches it — this is a pre-check
+  completeness gap, not a coverage-safety hole.
+- 🟦 **LOW — coverage "past shift" filter (`coverageStatus.ts:36`) skips by start date.** An overnight shift
+  started the day before `fromDate` is treated as past. Same minor asymmetry as the personal-view fix; low
+  impact (a just-ended overnight shift dropping off the proactive gap list).
+
+Recommendation: fix the MED double-booking gap next (it's a hard-constraint hole); the two LOWs are cosmetic/
+pre-check completeness and can ride a later pass. None blocks the manager MVP.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
