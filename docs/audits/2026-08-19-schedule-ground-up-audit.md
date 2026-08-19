@@ -186,6 +186,20 @@ Admin→apply_schedule_import ALLOWED. **Drift-guarded:** `MANAGER_ONLY_EVENT_TY
 detection-proven test asserts the SQL list in 0227 equals it (so the two can't diverge). The route keeps its
 check as an early-400 defense.
 
+## ✅ FIXED — schedule_employee roster writes were member-writable (0229, A26 sweep of the same class)
+Live probe: `schedule_employee` had a single `for all` RLS policy scoped only by company, so a non-admin
+member could INSERT / UPDATE / DELETE roster rows via direct PostgREST — add fake staff, rename, deactivate
+colleagues, delete staff — bypassing the roster routes' isAdmin gate. Third instance of the route-only-admin
+class (after 0226 settings, 0227 RQ6); the founder's twice-established decision (DB-enforce) was applied.
+
+**Fix (0229):** split the ALL policy into a member SELECT (reads the roster — needed for the grid) + admin-only
+INSERT/UPDATE/DELETE (reuses `auth_is_schedule_manager(company_id)`, which guards `p_company =
+auth_company_id()`). Service/owner contexts bypass RLS (seeds, the admin-run import RPC). **Behaviorally proven
+live (rolled back):** member INSERT → BLOCKED; member SELECT → OK (read preserved); a real roster row planted
+in the member's company → member DELETE 0 rows + UPDATE 0 rows, row unchanged (protected); admin INSERT → OK.
+verify:live 28/28, gate green. Structurally gated by the existing dynamic "no company_id table has a PERMISSIVE
+write policy" invariant.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
