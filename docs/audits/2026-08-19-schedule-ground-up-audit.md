@@ -266,12 +266,12 @@ scope via a `profiles` SUBQUERY (`EXISTS(select 1 from profiles p where p.id=aut
 AND no owner column):
 - `care_tenant_config` — first looked exposed, but is SAFE: the full (untruncated) policy DOES carry a role
   check; a non-admin member UPDATE was BLOCKED live (0 rows). (Lesson: don't classify off a truncated policy.)
-- **`support_customers` — genuine LOW-MED gap (surfaced, not yet fixed):** write policy is pure company
-  membership (no `is_support_agent`/role term), but its route uses `requireCareAgent` (agent OR admin). So a
-  plain Member (non-agent, non-admin) could INSERT/UPDATE customer records via direct PostgREST, bypassing the
-  agent gate. Within-tenant, LOW-MED (a non-agent manages care customer records). Behavioral proof needs a
-  plain-Member test user (the two available are an agent + an admin, both allowed by the gate); policy analysis
-  is conclusive.
+- **`support_customers` — ✅ FIXED (0233, founder pick 2026-08-20):** write policy was pure company membership
+  (no `is_support_agent`/role term) while the route uses `requireCareAgent`, so a plain Member could
+  INSERT/UPDATE customer records via direct PostgREST. **0233** replaces the INSERT/UPDATE policies with the
+  agent-or-admin predicate (`is_support_agent OR role in CEO/COO/admin` — the same requireCareAgent shape the
+  0034/0035 care tables use). **Behaviorally proven live (rolled back):** a real plain Member → BLOCKED; a real
+  support agent → WROTE; a real admin → WROTE. SELECT left as-is (read is a separate consideration).
 - `files` — app-wide (not care-specific): route gates uploader-OR-admin, RLS is company-membership → a
   non-uploader colleague could modify/delete a file. Deferred to the app-wide sweep (shared table, complex).
 
