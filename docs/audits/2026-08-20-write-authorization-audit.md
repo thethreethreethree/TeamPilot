@@ -40,7 +40,10 @@ findings below. That recurrence is why the fixes are now *gated* (below), not ju
 - **`files`** — RLS is `uploader_id = auth.uid() OR <CEO/COO/admin>` (matches the route). Not a bypass.
 - **`pitches` / `after_pitch_summaries`** — owner-scoped (`rep_id`/`agent_id = auth.uid()`).
 - **`care_tenant_config`, `care_agent_state`** — role-checked policy / column-guard trigger respectively.
-- **Core** (problems / signals / resolutions / tasks / team_*) — collaborative, member-writable by design.
+- **Core** (problems / signals / tasks) — VERIFIED collaborative: `company_id = auth_company_id()` write
+  policy AND no core write route gates `isAdmin` (so no admin action is being bypassed). `resolutions` adds a
+  soft owner association (`decided_by`/`reviewer = auth.uid()`). Member-writable by design (the Living
+  Diagnosis is participatory, §3.3).
 
 **Conclusion: no critical route-only-admin write bypass exists app-wide.** The only real instances were
 schedule + care, all fixed + gated.
