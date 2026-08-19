@@ -9,7 +9,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 |---|-------|--------|-------|
 | 1 | Event Store & Derivation Foundation | ✅ **DONE — at checkpoint** | `0220` live, pure projector + append/read API, 17 tests, gate exit 0, append-only verified live. Commit `40f8ddb1`. |
 | 2 | Coverage Requirements & Constraint Model | ✅ **DONE — at checkpoint** | schedule_employee roster (`0221`) + pure hard/soft predicates + 20 boundary tests. Commit pending. |
-| 3 | The Decision Authority (single verdict, A40) | ⬜ pending | Composes the predicates + state-dependent checks (S1: double-book / time-off-overlap / rest). Also RQ6: role-per-event-type authz. Coverage=block-overridable; zero-impact time-off=auto-approve. |
+| 3 | The Decision Authority (single verdict, A40) | ✅ **DONE — at checkpoint** | `evaluateChange → Verdict`, single-source proven (grep+test), 8 drift-guard tests. Coverage=overridable, conflicts=absolute, zero-impact=autoApprovable. Open: rest-between-shifts (P3-2), RQ6 authz. |
 | 4 | AI Reasoning Layer (DeepSeek propose; deterministic gate) | ⬜ pending | Needs DeepSeek + per-env config (A41). |
 | 5 | Manager/Admin Interface | ⬜ pending | First user-facing surface (layers 3-4). **Includes FILE UPLOAD (PDF/Excel/CSV) for staff + schedule-template entry** (S3; samples: HUB SCHED.pdf / frendz.xlsx). Employee CRUD + manager-only write gate (S4). |
 | 6 | Employee Interface | ⬜ pending | |
