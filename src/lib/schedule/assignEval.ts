@@ -1,4 +1,5 @@
 import { evaluateChange, type EvalContext, type HardViolation } from "./authority";
+import { findResolutions, type ResolutionCandidate } from "./resolution";
 import type { Shift } from "./types";
 
 /**
@@ -42,6 +43,27 @@ export function evaluateAssignments(base: EvalContext, shift: ProposedShift, emp
     const verdict = evaluateChange({ kind: "assign", shiftId: TEMP_ID, employeeId }, ctx);
     return { employeeId, violations: verdict.violations.filter((v) => v.kind !== "coverage") };
   });
+}
+
+/**
+ * Suggest staff for a PROPOSED shift — the plan's "AI proposes", wired for the Build create flow (was only
+ * wired for time-off). Reuses `findResolutions` (eligible + no absolute conflict + fair-load ranked) by
+ * injecting the proposed shift into a hypothetical state, so a manager filling a shift sees who's genuinely
+ * free, least-loaded first. Pure.
+ */
+export function suggestForProposedShift(base: EvalContext, shift: ProposedShift): ResolutionCandidate[] {
+  const hypo: Shift = {
+    id: TEMP_ID,
+    date: shift.date,
+    start: shift.start,
+    end: shift.end,
+    requiredHeadcount: shift.requiredHeadcount,
+    requiredByRole: shift.requiredByRole ?? {},
+    assigned: [],
+    status: "draft",
+  };
+  const ctx: EvalContext = { ...base, state: { ...base.state, shifts: { ...base.state.shifts, [TEMP_ID]: hypo } } };
+  return findResolutions(TEMP_ID, ctx);
 }
 
 /** A short, plain-language line for a per-employee violation (for the Build UI — no LLM needed for a fixed set). */

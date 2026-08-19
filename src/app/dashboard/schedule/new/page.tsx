@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, CalendarPlus, CheckCircle2, CalendarDays, AlertTriangle } from "lucide-react";
+import { Loader2, CalendarPlus, CheckCircle2, CalendarDays, AlertTriangle, Sparkles } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
 import { describeViolation } from "@/lib/schedule/assignEval";
 import type { AssignmentImpact } from "@/lib/schedule/assignEval";
+import type { ResolutionCandidate } from "@/lib/schedule/resolution";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -34,6 +35,8 @@ export default function ScheduleBuildPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
   const [conflicts, setConflicts] = useState<Record<string, string[]>>({}); // employeeId -> conflict reasons
+  const [suggestions, setSuggestions] = useState<ResolutionCandidate[] | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,9 +76,23 @@ export default function ScheduleBuildPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, start, end, headcount, selected]);
 
+  const canSuggest = !!date && hhmm.test(start) && hhmm.test(end) && !suggesting;
+  const suggest = async () => {
+    if (!canSuggest) return;
+    setSuggesting(true);
+    try {
+      const res = await fetch("/api/schedule/assign/suggest", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, start, end, requiredHeadcount: Number(headcount) || 0 }),
+      });
+      setSuggestions(res.ok ? ((await res.json()).candidates ?? []) : []);
+    } catch { setSuggestions([]); }
+    finally { setSuggesting(false); }
+  };
+
   const reset = () => {
     setDone(null); setError(null);
-    setDate(""); setStart(""); setEnd(""); setHeadcount("1"); setSelected(new Set()); setConflicts({});
+    setDate(""); setStart(""); setEnd(""); setHeadcount("1"); setSelected(new Set()); setConflicts({}); setSuggestions(null);
   };
 
   const create = async () => {
@@ -161,7 +178,32 @@ export default function ScheduleBuildPage() {
           </div>
 
           <div>
-            <div className="text-xs text-muted mb-1">Assign staff (optional)</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-muted">Assign staff (optional)</div>
+              <button type="button" onClick={suggest} disabled={!canSuggest}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline disabled:opacity-40 disabled:no-underline">
+                {suggesting ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden /> : <Sparkles className="w-3 h-3" aria-hidden />}
+                Suggest who's free
+              </button>
+            </div>
+            {suggestions !== null && (
+              suggestions.length === 0 ? (
+                <p className="text-[11px] text-muted mb-2">No one is free for this shift (everyone is off, over hours, ineligible, or already booked).</p>
+              ) : (
+                <div className="mb-2 rounded-lg border border-brand/25 bg-brand/5 px-3 py-2">
+                  <p className="text-[11px] text-muted mb-1">Available, least-loaded first — click to add:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestions.filter((c) => !selected.has(c.employeeId)).map((c) => (
+                      <button key={c.employeeId} type="button" onClick={() => toggle(c.employeeId)}
+                        title={`${c.currentHours}h this week`}
+                        className="text-[11px] px-2 py-0.5 rounded-lg border border-brand/40 bg-surface text-brand hover:bg-brand/10">
+                        + {c.name} <span className="text-muted">({c.currentHours}h)</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
             {loading ? (
               <div className="flex items-center gap-2 text-xs text-muted py-3"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading roster…</div>
             ) : roster.length === 0 ? (

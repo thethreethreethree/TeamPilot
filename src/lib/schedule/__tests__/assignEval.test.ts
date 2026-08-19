@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateAssignments, describeViolation } from "../assignEval";
+import { evaluateAssignments, suggestForProposedShift, describeViolation } from "../assignEval";
 import { buildEvalContext } from "../evalContext";
 import type { ScheduleEvent, ScheduleEventType, Employee } from "../types";
 
@@ -54,6 +54,17 @@ describe("evaluateAssignments — conflicts on a proposed shift", () => {
   it("does NOT report coverage (a shift-level, overridable concern) — only per-employee conflicts", () => {
     const impacts = evaluateAssignments(ctx(), proposed, ["E3"]);
     expect(impacts[0]?.violations.some((v) => v.kind === "coverage")).toBe(false);
+  });
+});
+
+describe("suggestForProposedShift — who's free for a proposed shift", () => {
+  const proposed = { date: "2026-08-20", start: "10:00", end: "14:00", requiredHeadcount: 1 };
+
+  it("suggests only conflict-free staff (E3), excluding the double-booked (E1) and the off (E2)", () => {
+    const ids = suggestForProposedShift(ctx(), proposed).map((c) => c.employeeId);
+    expect(ids).toContain("E3");
+    expect(ids).not.toContain("E1"); // double-booked
+    expect(ids).not.toContain("E2"); // approved time off
   });
 });
 
