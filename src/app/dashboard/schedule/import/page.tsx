@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -62,6 +63,14 @@ export default function ScheduleImportPage() {
     setError(null);
     setPreview(null);
     setVaPreview(null);
+  };
+
+  // After a successful import, reset to a clean form so the manager can import another without a reload
+  // (keeps the workflow flowing — see the "View the schedule" CTA that also follows a done import).
+  const resetImport = () => {
+    setDone(null); setError(null);
+    setCsv(""); setContextHint(""); setProp(null); setDates(""); setMap({}); setPreview(null);
+    setVaFile(null); setVaWeek(""); setVaPreview(null);
   };
 
   // ---- CSV handlers ----
@@ -168,13 +177,26 @@ export default function ScheduleImportPage() {
       </div>
 
       {done ? (
-        <div className="glass-card p-5 border border-emerald-500/30">
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold mb-1">
-            <CheckCircle2 className="w-5 h-5" aria-hidden /> Imported
+        <div className="glass-card p-5 border border-emerald-500/30 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 text-emerald-400 font-semibold mb-1">
+              <CheckCircle2 className="w-5 h-5" aria-hidden /> Imported
+            </div>
+            <p className="text-sm text-secondary">
+              {done.staffCreated} new staff, {done.shiftsCreated} shifts, {done.assignmentsCreated} assignments.
+            </p>
           </div>
-          <p className="text-sm text-secondary">
-            {done.staffCreated} new staff, {done.shiftsCreated} shifts, {done.assignmentsCreated} assignments.
-          </p>
+          {/* Workflow continuity (1.5.1 layer 3): the obvious next action is to SEE the imported schedule. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/dashboard/schedule/grid"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-black">
+              <CalendarDays className="w-3.5 h-3.5" aria-hidden /> View the schedule
+            </Link>
+            <button type="button" onClick={resetImport}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-4 py-2 text-sm font-semibold text-primary">
+              <Upload className="w-3.5 h-3.5" aria-hidden /> Import another
+            </button>
+          </div>
         </div>
       ) : mode === "csv" ? (
         <>
