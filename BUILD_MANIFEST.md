@@ -48,6 +48,15 @@ shift-selector since the grid IS the selector. So it's a real design call (inter
 surfaced rather than guessed. The events API already supports every edit (append EMPLOYEE_UNASSIGNED / a
 correcting SHIFT_DEFINED), so this is a UI-shape decision, not a backend gap.
 
+## Recommended enhancement (beyond the explicit request — your call)
+- **Proactive coverage-gap view.** Coverage gaps are enforced + surfaced REACTIVELY (during time-off
+  evaluation), but there's no PROACTIVE view of which currently-built/imported shifts are understaffed
+  (below their `requiredHeadcount` — RQ22 — or a coverage requirement). A "current gaps" list (natural on
+  the Coverage tab, list-based to match the UI) would let a manager spot + fix understaffing without waiting
+  for a time-off. The logic is all built (requirementForShift + meetsCoverage); this is a compute-all-shifts
+  + display addition. Surfaced not built: it's beyond the explicit "evaluate CHANGES against coverage" scope
+  and breaks no promise, so it's a founder call rather than a completion.
+
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
 - **Visual-verify the schedule UIs** (the gate can't render React) — especially the VA import flow at `/dashboard/schedule/import` → "Schedule file" tab.
