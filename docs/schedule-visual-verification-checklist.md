@@ -217,9 +217,16 @@ someone). Read their shifts. Click **Print** and check the browser print preview
 - **Print** (or Ctrl/Cmd-P): the print preview shows the **schedule card alone** — the sub-nav, the
   staff picker, and the Print button are **hidden** in print. It fits a page cleanly in light ink.
 - A non-manager cannot load this (manager-only), and you only ever see **your own company's** staff.
+- **Availability editor (new):** below the schedule (hidden when printing) is an **Availability** panel —
+  check the days + times this person can work, and add **specific days off**. Save shows **"Saved."**
+  Switching to a different staff member shows **their** availability, not the last person's (no bleed).
+- **Enforcement check:** set someone **unavailable** for a day, then on **Build** try to assign them to a
+  shift that day — you get an **amber "marked unavailable (you can assign anyway)"** warning but it is
+  **not blocked**. On **Coverage**/**Time Off**, the auto-suggest **does not offer** an unavailable person.
 
 **If wrong (another person's shifts leak in / dates off by one / nav or picker prints / a non-manager
-can view):** screenshot the screen and the print preview, and tell me whose schedule you opened.
+can view / availability bleeds between staff / an unavailable person is still auto-suggested):**
+screenshot the screen and the print preview, and tell me whose schedule you opened.
 
 ---
 
