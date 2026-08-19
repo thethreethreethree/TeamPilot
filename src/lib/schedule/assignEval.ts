@@ -73,6 +73,7 @@ export function describeViolation(v: HardViolation): string {
     case "time_off_conflict": return "has approved time off during this shift";
     case "over_hours": return `would exceed their weekly hours cap by ${v.overBy}h`;
     case "ineligible": return "doesn't have the required role for this shift";
+    case "unavailable": return "is marked unavailable for this time (you can assign anyway)";
     case "coverage": return "leaves a coverage gap";
     default: return "conflict";
   }

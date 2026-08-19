@@ -37,9 +37,15 @@ export function findResolutions(shiftId: string, ctx: EvalContext): ResolutionCa
     if (emp.status !== "active") continue;
     if (shift.assigned.includes(emp.id)) continue; // already on this shift
     const verdict = evaluateChange({ kind: "assign", shiftId, employeeId: emp.id }, ctx);
-    // approvable = no ABSOLUTE violation → they genuinely CAN work it. (A coverage "gap" from other shifts
-    // is overridable, not disqualifying for THIS assignment; approvable already excludes only absolutes.)
-    if (!verdict.approvable) continue;
+    // Exclude any candidate whose assignment produces a violation ABOUT THIS PERSON working THIS shift —
+    // i.e. anything except `coverage`. Coverage is a shift-level, overridable concern from OTHER shifts and
+    // must NOT disqualify a candidate for the one being filled. Every other kind (ineligible, double_booked,
+    // time_off_conflict, over_hours, unavailable) means they genuinely shouldn't be SUGGESTED — even the
+    // overridable `unavailable` one (founder 2026-08-20: auto-suggest excludes the unavailable; a manager may
+    // still assign them manually and override). This generalizes the old `!approvable` check, which caught only
+    // the absolutes because coverage was then the sole overridable kind — a fragile assumption once `unavailable`
+    // (overridable) joined it.
+    if (verdict.violations.some((v) => v.kind !== "coverage")) continue;
     // Week-scoped to the shift being filled (the shared helper) — the fair-load ranking is about THIS week's
     // load, not all-time; the same fix as RQ8, now one shared source so it can't drift again.
     const currentHours = weeklyHoursOf(ctx.state, emp.id, shift.date, ctx.weekStartDay ?? 1);

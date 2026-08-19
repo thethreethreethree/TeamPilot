@@ -4,7 +4,8 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, CalendarDays, Printer, User } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
-import type { Employee } from "@/lib/schedule/types";
+import { AvailabilityEditor } from "@/components/schedule/AvailabilityEditor";
+import type { Employee, Availability } from "@/lib/schedule/types";
 import type { PersonalSchedule } from "@/lib/schedule/personalSchedule";
 
 /**
@@ -15,7 +16,7 @@ import type { PersonalSchedule } from "@/lib/schedule/personalSchedule";
  * schedule alone. Read-only — no events are appended here.
  */
 
-type Data = { employee: { id: string; name: string; role: string | null }; schedule: PersonalSchedule };
+type Data = { employee: { id: string; name: string; role: string | null }; schedule: PersonalSchedule; availability: Availability | null };
 
 // Format an ISO date (YYYY-MM-DD) as a local weekday + date. Parse the parts explicitly rather than
 // `new Date(iso)` — the latter reads the string as UTC midnight and can render the previous day in a
@@ -98,6 +99,7 @@ function PersonalInner() {
       ) : !employeeId ? (
         <p className="text-sm text-muted print:hidden">Choose someone above.</p>
       ) : data ? (
+        <>
         <div className="glass-card p-5 print:shadow-none print:border-0 print:p-0">
           {/* Header — the printout identifies whose schedule it is. */}
           <div className="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3 mb-4 print:border-black/20">
@@ -137,6 +139,12 @@ function PersonalInner() {
             </div>
           )}
         </div>
+        {/* Manager-entered availability — print:hidden so it never lands on the printout. Keyed on the
+            employee so switching staff re-mounts it with THEIR data (context-switch state-bleed guard). */}
+        <div className="print:hidden">
+          <AvailabilityEditor key={data.employee.id} employeeId={data.employee.id} initial={data.availability} onSaved={() => void load(employeeId)} />
+        </div>
+        </>
       ) : null}
     </div>
   );

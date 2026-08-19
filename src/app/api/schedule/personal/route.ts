@@ -53,10 +53,14 @@ export async function GET(req: NextRequest) {
     const state = deriveState(evRows.map(rowToEvent));
     const today = todayInTz(settings.timezone);
     const schedule = personalSchedule(state, employeeId, today);
+    // The employee's current availability (for the manager-entered editor) — null when never set, so the
+    // editor can show "no restrictions set" honestly rather than an empty-looking form that implies a block.
+    const availability = state.availability[employeeId] ?? null;
 
     return NextResponse.json({
       employee: { id: employee.id, name: employee.name, role: employee.role },
       schedule,
+      availability,
     });
   } catch (e) {
     console.error("[schedule/personal] read failed:", e instanceof Error ? e.message : e);

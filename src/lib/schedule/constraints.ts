@@ -9,7 +9,7 @@
  * These functions do NOT decide anything and do NOT compute the final verdict — that is Phase 3's
  * single authority (A40), which consumes these. They are the math the authority runs.
  */
-import type { Shift, CoverageRequirement, Employee, ScheduleState } from "./types";
+import type { Shift, CoverageRequirement, Employee, ScheduleState, Availability } from "./types";
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
@@ -73,6 +73,39 @@ export function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDa
     h += shiftDurationHours(s.start, s.end);
   }
   return h;
+}
+
+/** JS day-of-week (0=Sunday..6=Saturday) of a YYYY-MM-DD date, or null if malformed. UTC-based so it is
+ *  deterministic regardless of the runtime timezone (the UTC-day class) — matches weekStartOf/addDaysIso. */
+export function dayOfWeekOf(date: string): number | null {
+  const x = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!x) return null;
+  const dt = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
+  return Number.isNaN(dt.getTime()) ? null : dt.getUTCDay();
+}
+
+/**
+ * Is an employee AVAILABLE to work a shift, per their set availability (RQ / Phase 6)? Availability is
+ * OPT-IN: an employee with NO availability record is treated as available — otherwise every existing
+ * employee (who has none set) would instantly become unschedulable. When a record exists:
+ *   - the shift's start date in `unavailableDates` → unavailable (a specific day-off they marked).
+ *   - `weekly` windows, IF ANY are set, are the ONLY times they can work: the shift's weekday must have a
+ *     window that fully contains the shift's [start,end]. An empty `weekly` imposes no weekly restriction.
+ * Overnight shifts (crossesMidnight) are checked against `unavailableDates` only — a same-day weekly window
+ * can't represent a span into the next day, and hard-blocking every overnight shift on weekly windows would
+ * be wrong; the manager can still override (this is an overridable violation). Times compare lexicographically
+ * (zero-padded 24h "HH:mm"), which is correct ordering.
+ */
+export function isAvailable(availability: Availability | undefined, shift: { date: string; start: string; end: string }): boolean {
+  if (!availability) return true; // opt-in: no record set = no constraint
+  if (availability.unavailableDates.includes(shift.date)) return false;
+  if (crossesMidnight(shift.start, shift.end)) return true; // overnight: only date-level unavailability applies
+  if (availability.weekly.length === 0) return true; // only specific dates constrain them
+  const dow = dayOfWeekOf(shift.date);
+  if (dow === null) return true; // malformed date — don't fabricate a block (defensive; validated upstream)
+  const windows = availability.weekly.filter((w) => w.dayOfWeek === dow);
+  if (windows.length === 0) return false; // they set weekly windows but none for this weekday → not available
+  return windows.some((w) => w.from <= shift.start && w.to >= shift.end);
 }
 
 /** Does a "HH:mm"→"HH:mm" shift cross midnight (end at or before start)? Such a shift occupies its start

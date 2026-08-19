@@ -17,7 +17,7 @@
  *   - a ZERO-IMPACT change (no violation of any kind) is `autoApprovable`.
  */
 import type { ScheduleState, Employee } from "./types";
-import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weeklyHoursOf, rangesOverlap, crossesMidnight, addDaysIso, type CoverageGap } from "./constraints";
+import { meetsCoverage, isEligible, isAvailable, withinLimits, shiftDurationHours, weeklyHoursOf, rangesOverlap, crossesMidnight, addDaysIso, type CoverageGap } from "./constraints";
 
 export type Change =
   | { kind: "time_off"; employeeId: string; start: string; end: string } // inclusive date range YYYY-MM-DD
@@ -30,7 +30,12 @@ export type HardViolation =
   | { kind: "ineligible"; shiftId: string; employeeId: string; overridable: false }
   | { kind: "double_booked"; shiftId: string; employeeId: string; overridable: false }
   | { kind: "time_off_conflict"; shiftId: string; employeeId: string; overridable: false }
-  | { kind: "over_hours"; employeeId: string; overBy: number; overridable: false };
+  | { kind: "over_hours"; employeeId: string; overBy: number; overridable: false }
+  // Employee marked unavailable (weekly windows / a specific unavailable date). Founder 2026-08-20:
+  // BLOCK-but-OVERRIDABLE — a manager may assign anyway (the person may have agreed to come in), so it is
+  // `overridable: true` (like coverage), NOT absolute. Auto-suggest EXCLUDES the unavailable (resolution
+  // filters non-coverage violations), but a MANUAL assign is warned, not forbidden.
+  | { kind: "unavailable"; shiftId: string; employeeId: string; overridable: true };
 
 export interface Verdict {
   /** No ABSOLUTE violations — the change may be approved (possibly WITH a manager override of coverage gaps). */
@@ -87,11 +92,15 @@ function verdictOf(violations: HardViolation[], affectedShifts: string[]): Verdi
   const absolute = violations.filter((v) => v.overridable === false);
   const approvable = absolute.length === 0;
   const autoApprovable = violations.length === 0;
+  // In the override branch every remaining violation is overridable (absolute.length === 0). Name the actual
+  // kinds rather than assuming "coverage" — availability (`unavailable`) is also overridable now, so a fixed
+  // "coverage shortfall" label would misdescribe an availability-only override.
+  const kinds = [...new Set(violations.map((v) => v.kind))].join(", ");
   const reason = autoApprovable
     ? "No coverage impact and no conflicts — safe to approve automatically."
     : absolute.length > 0
       ? `Blocked by ${absolute.length} hard conflict(s): ${absolute.map((v) => v.kind).join(", ")}.`
-      : `Approvable with a manager override — ${violations.length} coverage shortfall(s) would result.`;
+      : `Approvable with a manager override — ${violations.length} overridable concern(s): ${kinds}.`;
   return { approvable, autoApprovable, violations, affectedShifts, reason };
 }
 
@@ -155,6 +164,10 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
       if (shiftHitsApprovedTimeOff(state, emp.id, shift)) {
         violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
+      // availability: outside the employee's set availability → overridable violation (see the union comment)
+      if (!isAvailable(state.availability[emp.id], shift)) {
+        violations.push({ kind: "unavailable", shiftId: shift.id, employeeId: emp.id, overridable: true });
+      }
       // hours cap (their current hours THAT WEEK + this shift; week bucketed on the company workweek-start)
       const proposed = weeklyHoursOf(state, emp.id, shift.date, ctx.weekStartDay ?? 1) + shiftDurationHours(shift.start, shift.end);
       const lim = withinLimits(emp, proposed);
@@ -181,6 +194,9 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
         }
         if (shiftHitsApprovedTimeOff(state, to.id, shift)) {
           violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: to.id, overridable: false });
+        }
+        if (!isAvailable(state.availability[to.id], shift)) {
+          violations.push({ kind: "unavailable", shiftId: shift.id, employeeId: to.id, overridable: true });
         }
         // double-booking: the to-employee is already on another shift the same date whose time OVERLAPS.
         // Mirrors the assign path (RQ9) — every assignment-creating path must reject a time clash (A26).
