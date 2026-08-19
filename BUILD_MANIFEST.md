@@ -63,8 +63,10 @@ to the current week (tz-safe LOCAL today). Bounds the grid to 7 columns (it grew
 log accumulated) while keeping history reachable (navigate to any past/future week — navigation, not a filter,
 so nothing is lost). Weekday labels added; "no shifts this week" hint when the week is empty. Reuses
 `weekStartOf`/`addDaysIso`. The standard scheduling-grid UX (a well-founded default after all — navigation
-keeps history, which was my earlier concern). Grid-cell EDITING (click to unassign/retime) is still the
-separate grid-interactivity decision.
+keeps history, which was my earlier concern). Rows show only RELEVANT staff — active, or anyone with a shift
+in the displayed week (a staff member deactivated after assignment still shows). Deactivated-and-unscheduled
+staff are hidden so their empty rows don't pile up (same accumulation-filter as past shifts / past time-off).
+Grid-cell EDITING (click to unassign/retime) is still the separate grid-interactivity decision.
 
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
