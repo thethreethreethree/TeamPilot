@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { findCoverageGaps } from "../coverageStatus";
+import { buildEvalContext } from "../evalContext";
 import type { ScheduleEvent, Employee } from "../types";
+
+const gapsOf = (events: ScheduleEvent[], employees: Employee[]) => findCoverageGaps(buildEvalContext({ events, employees }));
 
 /**
  * Proactive coverage-gap finder. Reuses the authority's building blocks, so it must agree with the reactive
@@ -26,7 +29,7 @@ describe("findCoverageGaps", () => {
       ev(5, "EMPLOYEE_ASSIGNED", { shiftId: "S2", employeeId: "a" }),
       ev(6, "EMPLOYEE_ASSIGNED", { shiftId: "S2", employeeId: "b" }),
     ];
-    const gaps = findCoverageGaps(events, [emp("a"), emp("b")]);
+    const gaps = gapsOf(events, [emp("a"), emp("b")]);
     expect(gaps.map((g) => g.shiftId)).toEqual(["S1"]); // only S1 is short
     expect(gaps[0]?.assigned).toBe(1);
     expect(gaps[0]?.gaps).toEqual([{ kind: "headcount", need: 1 }]);
@@ -41,7 +44,7 @@ describe("findCoverageGaps", () => {
       ev(5, "TIMEOFF_REQUESTED", { timeOffId: R1, employeeId: "b", type: "sick", start: "2026-08-21", end: "2026-08-21" }),
       ev(6, "TIMEOFF_APPROVED", { timeOffId: R1 }),
     ];
-    const gaps = findCoverageGaps(events, [emp("a"), emp("b")]);
+    const gaps = gapsOf(events, [emp("a"), emp("b")]);
     expect(gaps.map((g) => g.shiftId)).toEqual(["S1"]); // b is off → present 1 < 2
     expect(gaps[0]?.assigned).toBe(1);
   });
@@ -52,7 +55,7 @@ describe("findCoverageGaps", () => {
       ev(2, "EMPLOYEE_ASSIGNED", { shiftId: "S1", employeeId: "a" }),
       ev(3, "EMPLOYEE_ASSIGNED", { shiftId: "S1", employeeId: "b" }),
     ];
-    const gaps = findCoverageGaps(events, [emp("a"), emp("b")]);
+    const gaps = gapsOf(events, [emp("a"), emp("b")]);
     expect(gaps.map((g) => g.shiftId)).toEqual(["S1"]); // needs 3, has 2
     expect(gaps[0]?.gaps).toEqual([{ kind: "headcount", need: 1 }]);
   });
@@ -62,6 +65,6 @@ describe("findCoverageGaps", () => {
       ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-21", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
       ev(2, "EMPLOYEE_ASSIGNED", { shiftId: "S1", employeeId: "a" }),
     ];
-    expect(findCoverageGaps(events, [emp("a")])).toEqual([]);
+    expect(gapsOf(events, [emp("a")])).toEqual([]);
   });
 });

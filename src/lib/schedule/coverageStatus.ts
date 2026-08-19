@@ -7,10 +7,8 @@
  * `buildEvalContext` (requirementForShift: coverage requirements + the shift's own requiredHeadcount, RQ22),
  * `meetsCoverage`, and `shiftHitsApprovedTimeOff` (an approved-off person doesn't cover the shift, RQ15).
  */
-import { buildEvalContext } from "./evalContext";
 import { meetsCoverage, type CoverageGap } from "./constraints";
-import { shiftHitsApprovedTimeOff } from "./authority";
-import type { ScheduleEvent, Employee } from "./types";
+import { shiftHitsApprovedTimeOff, type EvalContext } from "./authority";
 
 export interface ShiftCoverageGap {
   shiftId: string;
@@ -24,9 +22,10 @@ export interface ShiftCoverageGap {
 /**
  * Every currently-understaffed shift, earliest first. A shift with no coverage floor (no requirement AND
  * requiredHeadcount 0) is never a gap. Only PRESENT staff count (an approved-off assignee doesn't cover).
+ * Takes a pre-built EvalContext so the caller derives state ONCE (the route reuses it for the requirements
+ * list too — no double replay).
  */
-export function findCoverageGaps(events: ScheduleEvent[], employees: Employee[]): ShiftCoverageGap[] {
-  const ctx = buildEvalContext({ events, employees });
+export function findCoverageGaps(ctx: EvalContext): ShiftCoverageGap[] {
   const roleOf = (id: string): string | null => ctx.employees[id]?.role ?? null;
   const out: ShiftCoverageGap[] = [];
   for (const shift of Object.values(ctx.state.shifts)) {

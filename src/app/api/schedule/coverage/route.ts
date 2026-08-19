@@ -5,7 +5,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
-import { deriveState } from "@/lib/schedule/deriveState";
+import { buildEvalContext } from "@/lib/schedule/evalContext";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
 import { findCoverageGaps } from "@/lib/schedule/coverageStatus";
@@ -41,12 +41,12 @@ export async function GET(_req: NextRequest) {
         { label: "schedule_employee" },
       ),
     ]);
-    const events = evRows.map(rowToEvent);
-    const employees = empRows.map(rowToEmployee);
-    // Requirements (the rules) + the gaps they + each shift's own headcount currently produce (proactive view).
+    // Derive state ONCE (buildEvalContext replays the log) and reuse it for BOTH the requirements list and
+    // the proactive gaps — no double replay.
+    const evalCtx = buildEvalContext({ events: evRows.map(rowToEvent), employees: empRows.map(rowToEmployee) });
     return NextResponse.json({
-      requirements: Object.values(deriveState(events).coverageReqs),
-      gaps: findCoverageGaps(events, employees),
+      requirements: Object.values(evalCtx.state.coverageReqs),
+      gaps: findCoverageGaps(evalCtx),
     });
   } catch (e) {
     console.error("[schedule/coverage] read failed:", e instanceof Error ? e.message : e);
