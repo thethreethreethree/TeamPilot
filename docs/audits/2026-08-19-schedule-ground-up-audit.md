@@ -275,8 +275,23 @@ AND no owner column):
 - `files` — app-wide (not care-specific): route gates uploader-OR-admin, RLS is company-membership → a
   non-uploader colleague could modify/delete a file. Deferred to the app-wide sweep (shared table, complex).
 
-Corrected net's ONLY pure-company-membership candidates app-wide: support_customers + files. The recon
-blind-spot fix (catch the profiles-subquery scoping) must carry into the deferred finance/chat sweep.
+Corrected net's ONLY pure-company-membership candidates in CARE/sales-coach: support_customers (fixed) + files.
+
+### 📐 App-wide RE-SIZE (corrects the wrong "69") — the deferred sweep is really a FINANCE sweep
+The earlier "69 candidates" was doubly wrong: it filtered only `auth_company_id()` scoping (missed the
+profiles-subquery pattern) AND included owner-checked tables (false positives). Re-run with the corrected net
+(company-membership write via EITHER scoping, no role, no owner column), the actionable app-wide set is ~40 and
+**dominated by finance** (~30 `fin_*` tables). The rest split into:
+- **Core collaborative tables** (problems / signals / resolutions / tasks / task_messages / task_participants /
+  team_members / team_invitations / notification_subscriptions) — these are member-writable BY DESIGN (the
+  diagnostic system + tasks are collaborative; a member contributes signals, creates tasks). Not the bypass
+  class; expected member-write. Need a quick confirm each has no admin-only route, but low priority.
+- **False positives** like `pitches` (owner-scoped `rep_id = auth.uid()` — the heuristic's owner-exclusion just
+  didn't catch the parenthesized form).
+So the real remaining surface is **finance** — and finance HAS route-role-gated approval flows (fin_approve_bill
+/ fin_approve_expense_report / fin_approve_po call fin_can_approve at the route). Whether those role gates are
+DB-enforced (vs route-only, the bypass class) is the substance of the deferred sweep. Recommend the deferred
+engagement be scoped as "the finance approval/posting surface" specifically, using the corrected net.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
