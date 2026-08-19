@@ -8,6 +8,8 @@
 | `src/lib/schedule/vaDocx.ts` | **R-VA-2 (.docx extraction).** `parseDocxTableCells` (word/document.xml table → 2D cell grid, pure), `cellGridToVaGrid` (→ VaGrid: header→staff, "On Duty"→presence), `extractVaGridFromDocx` (jszip IO wrapper, reuses the bomb-guarded `unzipEntry`). The .docx is canonical (explicit meridiems). | §1.5.1, §3.4 |
 | `src/lib/schedule/__tests__/vaDocx.test.ts` | 4 tests: table extraction ignoring outside-table paragraphs, split-run "On Duty", blank cells, and .docx→VaGrid→shifts end-to-end. VERIFIED against the founder's REAL VA_Weekly_Schedule.docx (header + all 12 rows extracted exactly). | A30, §1.5.1 |
 | `src/lib/documents/extractText.ts` | Exported `unzipEntry` (reuse over duplication — the docx extractor shares the one bomb-guarded zip-entry read). | §6 |
+| `src/lib/schedule/vaPdf.ts` + test | **R-VA-2 (.pdf).** plain text collapses columns; `pdfItemsToVaGrid` recovers WHO-is-on-duty from unpdf's POSITIONED items (extractTextItems x,y) by matching each mark's x to the nearest staff-header x. `extractVaGridFromPdf` is the IO wrapper. Tested with the REAL file's coordinates; converges on the same shifts as the docx. | §1.5.1, §3.4, §2 |
+| `src/lib/schedule/vaResolve.ts` + test | **R-VA-3 core.** `resolveVaToPreview` turns the recurring Mon–Fri template into a dated `ImportPreview` for a target week — the SAME structure the CSV import produces, so VA converges on the existing `planImport → apply_schedule_import` commit path (no parallel writer). `addDaysIso` UTC-deterministic. End-to-end test: grid → parse → resolve → planImport. | §1.5.1 (layer 3), §6 |
 
 ## Features (reachability inventory)
 

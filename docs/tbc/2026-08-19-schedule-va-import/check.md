@@ -13,7 +13,9 @@ actual VA grid. No violation.
 ## Final full-gate run
 ```
 npm run check → exit 0 (all gates)
-Tests: 3180 passed | 15 skipped   (3166 prior + 10 vaGrid + 4 vaDocx)
+Tests: 3189 passed | 15 skipped   (3166 prior + 10 vaGrid + 4 vaDocx + 3 vaPdf + 6 vaResolve = +23)
 ```
-The .docx extractor was additionally verified against the founder's REAL VA_Weekly_Schedule.docx (out-of-band
-node check): header ["Time","Alex","Kaye","Nikko","Joanne"] + all 12 time-block rows extracted exactly.
+Verified against the founder's REAL files out-of-band:
+- .docx (VA_Weekly_Schedule.docx): header + all 12 rows extracted exactly.
+- .pdf (VA_Weekly_Color_Grid.pdf): unpdf's positioned items carry the exact x-coords the tests use, so column
+  recovery gets WHO-is-on-duty right; both formats resolve to identical shifts.

@@ -31,14 +31,15 @@ file-format-independent foundation the .docx/.pdf extractors and the pipeline wi
     "why_skipped": "docx done + verified against the founder's REAL file (header + all 12 rows extracted exactly). .pdf (unpdf text) remains: its shorthand is ambiguous and columnar-text alignment is fragile, so it is best-effort with the .docx as canonical — its own follow-up.",
     "confidence_it_does_not_matter": "low",
     "opened_at": "2026-08-19T15:50:00Z",
-    "outcome": "OPENED + PARTIALLY RESOLVED: .docx path built + real-file-verified (parseDocxTableCells/cellGridToVaGrid/extractVaGridFromDocx, 4 tests). .pdf extraction + the recurring->dated wiring (R-VA-3) remain."
+    "outcome": "OPENED + RESOLVED: BOTH formats built + verified against the founder's real files. .docx (parseDocxTableCells/cellGridToVaGrid/extractVaGridFromDocx). .pdf (pdfItemsToVaGrid — the plain-text-collapses-columns constraint was incidental: unpdf's POSITIONED items recover columns by x). Both converge on identical shifts."
   },
   {
     "id": "R-VA-3",
-    "item": "Recurring weekday template -> concrete dated shifts (target-week resolution) + wiring to planImport/apply_schedule_import + the upload-UI VA path.",
-    "why_skipped": "Downstream of extraction. The VA grid is a recurring Mon-Fri pattern with no dates; a target week resolves it to EMPLOYEE_ASSIGNED/SHIFT_DEFINED events via the existing commit path. Its own unit.",
+    "item": "Recurring weekday template -> dated shifts (target-week resolution) — CORE BUILT (vaResolve). Route + upload-UI VA path remain.",
+    "why_skipped": "resolveVaToPreview built + tested (grid->parse->resolve->planImport end-to-end), converging on the existing commit path. The HTTP route (accept .docx/.pdf, detect VA shape, preview for a target week) + the upload-UI VA path remain — the layer that needs the founder's visual verification (the gate can't render React).",
     "confidence_it_does_not_matter": "low",
-    "opened_at": null
+    "opened_at": "2026-08-19T15:55:00Z",
+    "outcome": "OPENED + PARTIALLY RESOLVED: the pure resolution core is built + gated. Route + UI wiring is the remaining unit, deferred to founder-present visual verification."
   }
 ]
 ```
