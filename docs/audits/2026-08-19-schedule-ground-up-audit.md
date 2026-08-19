@@ -200,6 +200,22 @@ in the member's company → member DELETE 0 rows + UPDATE 0 rows, row unchanged 
 verify:live 28/28, gate green. Structurally gated by the existing dynamic "no company_id table has a PERMISSIVE
 write policy" invariant.
 
+## A26 sweep COMPLETE — route-only-admin-gate class, all schedule WRITE surfaces DB-enforced
+Boundary confirmed (grepped every `.from`/`.rpc` write in `src/app/api/schedule`): the schedule write surfaces
+are schedule_event (via append_schedule_event RPC → 0227), apply_schedule_import (0227), companies settings
+(0226 trigger), schedule_employee (0229 RLS). All four now enforce the admin gate at the DB, not just the
+route. No other write surface exists.
+
+## ⚠️ Open (read-side) — "manager-only" visibility is UI-only; RLS reads are member-visible (founder-decision)
+The founder's "manager-only" pick (0226-era layout gate) redirects non-managers from the schedule UI, but the
+`schedule_event` / `schedule_employee` SELECT policies are company-scoped (member-readable). So a non-manager
+member could read schedule data — including colleagues' `TIMEOFF_REQUESTED` events with `type: sick` — via a
+direct PostgREST GET, despite the UI redirect. The sick-leave privacy the manager-only pick aimed at is
+therefore UI-only, not RLS-enforced. **Decision (surfaced, not built):** restrict schedule reads to managers at
+RLS too (fully honoring manager-only) vs. leave member-readable for Phase-6 employee self-service (which will
+need members to read their OWN schedule with per-person scoping). No current UI needs member reads (all
+schedule UI is manager-gated), so restricting now is low-risk; but Phase 6 will re-open a scoped member read.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
