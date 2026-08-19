@@ -31,7 +31,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 - **NEW — file upload (PDF/Excel/CSV)** for staff + schedule-template data entry → Phase 5. ✅
 
 ## Manual shift-building — ✅ BUILT (2026-08-19)
-`/dashboard/schedule/build` ("Build" tab): a FORM-based builder (date + start/end + headcount + staff
+`/dashboard/schedule/new` ("Build" tab; route is `new/` not `build/` — the latter is gitignored): a FORM-based builder (date + start/end + headcount + staff
 picker) that appends SHIFT_DEFINED then one EMPLOYEE_ASSIGNED per selected staff via the manager-gated
 events route. Form-based to match the rest of the schedule UI (roster/coverage/time-off/import are all forms
 — grid-click would be the inconsistent outlier); incremental (create the shift, then assign; each

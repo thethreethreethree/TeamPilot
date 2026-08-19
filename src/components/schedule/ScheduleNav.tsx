@@ -15,7 +15,7 @@ const TABS = [
   { href: "/dashboard/schedule", label: "Roster", icon: Users, exact: true },
   { href: "/dashboard/schedule/timeoff", label: "Time Off", icon: CalendarClock },
   { href: "/dashboard/schedule/coverage", label: "Coverage", icon: ShieldCheck },
-  { href: "/dashboard/schedule/build", label: "Build", icon: CalendarPlus },
+  { href: "/dashboard/schedule/new", label: "Build", icon: CalendarPlus },
   { href: "/dashboard/schedule/import", label: "Import", icon: Upload },
 ] as const;
 
