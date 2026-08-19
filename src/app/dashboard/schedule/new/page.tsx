@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, CalendarPlus, CheckCircle2, CalendarDays } from "lucide-react";
+import { Loader2, CalendarPlus, CheckCircle2, CalendarDays, AlertTriangle } from "lucide-react";
 import type { Employee } from "@/lib/schedule/types";
+import { describeViolation } from "@/lib/schedule/assignEval";
+import type { AssignmentImpact } from "@/lib/schedule/assignEval";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -31,6 +33,7 @@ export default function ScheduleBuildPage() {
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  const [conflicts, setConflicts] = useState<Record<string, string[]>>({}); // employeeId -> conflict reasons
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,9 +51,31 @@ export default function ScheduleBuildPage() {
   const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
   const canCreate = !!date && hhmm.test(start) && hhmm.test(end) && Number(headcount) >= 1 && !busy;
 
+  // Surface assignment conflicts BEFORE creating (the plan: evaluate changes + surface impact). Debounced;
+  // reuses the authority server-side. Manager-overridable — this warns, it doesn't block the create.
+  useEffect(() => {
+    if (!date || !hhmm.test(start) || !hhmm.test(end) || selected.size === 0) { setConflicts({}); return; }
+    const ids = [...selected];
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/schedule/assign/evaluate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, start, end, requiredHeadcount: Number(headcount) || 0, employeeIds: ids }),
+        });
+        if (!res.ok) { setConflicts({}); return; }
+        const { impacts } = (await res.json()) as { impacts: AssignmentImpact[] };
+        const map: Record<string, string[]> = {};
+        for (const im of impacts) if (im.violations.length > 0) map[im.employeeId] = im.violations.map(describeViolation);
+        setConflicts(map);
+      } catch { setConflicts({}); }
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, start, end, headcount, selected]);
+
   const reset = () => {
     setDone(null); setError(null);
-    setDate(""); setStart(""); setEnd(""); setHeadcount("1"); setSelected(new Set());
+    setDate(""); setStart(""); setEnd(""); setHeadcount("1"); setSelected(new Set()); setConflicts({});
   };
 
   const create = async () => {
@@ -143,11 +168,30 @@ export default function ScheduleBuildPage() {
               <p className="text-xs text-muted">No active staff. Add staff on the Roster tab, or create the shift now and assign later.</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {roster.map((e) => (
-                  <button key={e.id} type="button" onClick={() => toggle(e.id)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border ${selected.has(e.id) ? "bg-brand text-black border-transparent font-semibold" : "bg-surface border-white/10 text-secondary"}`}>
-                    {e.name}
-                  </button>
+                {roster.map((e) => {
+                  const hasConflict = selected.has(e.id) && (conflicts[e.id]?.length ?? 0) > 0;
+                  return (
+                    <button key={e.id} type="button" onClick={() => toggle(e.id)}
+                      title={hasConflict ? `${e.name}: ${conflicts[e.id]!.join("; ")}` : undefined}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border ${
+                        selected.has(e.id)
+                          ? hasConflict ? "bg-amber-400/20 text-amber-300 border-amber-400/60 font-semibold" : "bg-brand text-black border-transparent font-semibold"
+                          : "bg-surface border-white/10 text-secondary"
+                      }`}>
+                      {hasConflict && <AlertTriangle className="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden />}
+                      {e.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {Object.keys(conflicts).length > 0 && (
+              <div className="mt-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 space-y-0.5">
+                <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" aria-hidden /> Conflicts (you can still create — these are warnings)</p>
+                {Object.entries(conflicts).map(([id, reasons]) => (
+                  <p key={id} className="text-[11px] text-amber-300/90">
+                    <span className="font-medium">{roster.find((e) => e.id === id)?.name ?? id}</span>: {reasons.join("; ")}
+                  </p>
                 ))}
               </div>
             )}
