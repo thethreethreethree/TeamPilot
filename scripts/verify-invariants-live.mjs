@@ -113,6 +113,31 @@ async function main() {
     };
   });
 
+  await check("service-only care/sweep RPCs are NOT client-executable (0231/0232)", async () => {
+    // A SECURITY DEFINER function that a CRON/service job calls (createAdminClient → service_role) must not be
+    // EXECUTE-granted to authenticated/anon — else a member can call it via PostgREST. emit_care_durability_due_event
+    // took an unguarded check_id and wrote a cross-tenant event; 0231/0232 revoked it (functions default to
+    // GRANT EXECUTE TO PUBLIC, so PUBLIC must be revoked, not just the role). Gate the lesson (A30): assert it
+    // is service-only, so a future migration that re-grants (or a new `create or replace` that resets grants
+    // to PUBLIC) FAILS here.
+    const bad = [];
+    for (const fn of ["emit_care_durability_due_event"]) {
+      const r = await c.query(
+        "select has_function_privilege('authenticated', p.oid, 'EXECUTE') a, " +
+        "has_function_privilege('anon', p.oid, 'EXECUTE') an, has_function_privilege('service_role', p.oid, 'EXECUTE') s " +
+        "from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1",
+        [fn]);
+      const row = r.rows[0];
+      if (!row) bad.push(`${fn}: MISSING`);
+      else if (row.a || row.an) bad.push(`${fn}: client-executable (authenticated=${row.a} anon=${row.an}) — should be service-only`);
+      else if (!row.s) bad.push(`${fn}: service_role LOST execute — the cron will break`);
+    }
+    return {
+      pass: bad.length === 0,
+      detail: bad.length === 0 ? "emit_care_durability_due_event is service-role-only (cron works, clients blocked)" : bad.join("; "),
+    };
+  });
+
   await check("schedule RPCs are single-overload (no orphaned create-or-replace duplicate — 0225)", async () => {
     // A `create or replace function` that CHANGES the arg list creates a NEW function and ORPHANS the prior
     // overload; a defaulted param then makes a shorter call AMBIGUOUS ("function is not unique"). 0223 did

@@ -244,6 +244,21 @@ per-table route analysis across finance / care / sales-coach / chat, a large eng
 build. **Not swept here** (would touch modules outside the task). Recommend a scoped follow-up (e.g. the
 sellable modules first) with a gate to stop recurrence. Surfaced to the founder as its own decision.
 
+### ✅ Scoped sweep DONE — care + sales-coach (founder pick 2026-08-20): mostly clean, 1 LOW fixed
+Live-probed the care + sales-coach candidate surfaces for this class:
+- **Table writes (3 candidates) — all SAFE:** `pitches` + `after_pitch_summaries` are OWNER-scoped
+  (`rep_id`/`agent_id = auth.uid()` — a rep writes their own pitch; the recon's role-regex just didn't match
+  the owner check); `care_agent_state`'s admin columns are already trigger-guarded and the rest is agent-owned.
+- **Callable write RPCs (1) — FIXED (LOW):** `emit_care_durability_due_event(check_id)` was SECURITY DEFINER +
+  client-executable and wrote a cross-tenant `events` row from an unguarded check_id. It is CRON/service-only
+  (durabilitySweep → createAdminClient → service_role). **0231/0232** revoke it from public/authenticated/anon
+  (functions default to GRANT-TO-PUBLIC, so PUBLIC had to be revoked too) + re-grant service_role. Verified
+  live: member call BLOCKED, service_role retained. Gated (A30): a verify:live invariant asserts it stays
+  service-only (29 invariants).
+- All other care/coach `emit_*`/`stamp_*` are TRIGGER functions (not callable) — harmless grants.
+Net: care + sales-coach have no route-only-admin write bypass; one unnecessary client grant closed. Remaining
+app-wide surface (finance / chat) still deferred.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
