@@ -123,13 +123,16 @@ change `timezone`/`workweek_start`.
 - **Not new / not schedule-specific:** the `companies` UPDATE policy is pre-existing (0095); `default_theme`
   (0201) and every companies-settings column share the exact property (route-gated, RLS company-scoped). A26
   sweep: this is a `companies`-table-wide pattern, not introduced here.
-- **Fix is a DECISION (surfaced, not built):** DB-enforcing admin-only on company settings is cross-cutting
-  (a column-guard trigger on timezone/workweek_start — targeted, matches the route's existing intent,
-  defense-in-depth; or a broader companies-UPDATE role restriction — affects default_theme + any other
-  companies write). Given it's within-tenant + pre-existing + touches a shared table, it's the founder's
-  security-posture call, not an autonomous change. Recommendation: a **targeted column-guard trigger** on the
-  two schedule columns (closes the bypass without touching other companies flows) IF non-admin members
-  changing schedule settings is unwanted; else accept the route gate + document.
+- ✅ **FIXED (founder picked the targeted column-guard trigger, 2026-08-20).** Migration **0226**
+  `guard_company_schedule_settings` — a BEFORE UPDATE trigger on companies that rejects a non-admin changing
+  `timezone`/`workweek_start` (mirrors 0111's guidance guard exactly; role check = CEO/COO/admin, matching
+  `isAdminRole` and the route gate). An update not touching those columns passes; service-role/definer
+  contexts bypass (verified live — owner UPDATE of the columns succeeds, so seeds + the apply_schedule_import
+  RPC aren't blocked). Applied + verify:live 28/28. **Gated (A30):** the verify:live authz-guard invariant now
+  asserts `companies_guard_schedule_settings` is wired (and, gap-fill, `companies_guard_guidance` from 0111,
+  which was previously ungated) — 9 triggers total. Residual: the two-real-user reject-path behavioral test
+  (a non-admin's direct UPDATE → raise) needs live auth.users JWT context, the documented residual for every
+  authz-guard trigger in this codebase (0111/F8 precedent); the WIRED invariant closes the regression vector.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing

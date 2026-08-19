@@ -149,6 +149,10 @@ async function main() {
       ["profiles", "profiles_guard_privileged", BEFORE | INSERT | UPDATE],
       ["chat_participants", "chat_participants_guard_privilege", BEFORE | INSERT | UPDATE],
       ["care_agent_state", "care_agent_state_guard_admin_cols", BEFORE | UPDATE],
+      // companies-settings authz guards — a non-admin member must not bypass the route's isAdmin gate via a
+      // direct companies UPDATE (route-gated-but-RLS-open class, 0095 companies UPDATE is company-scoped):
+      ["companies", "companies_guard_schedule_settings", BEFORE | UPDATE], // 0226 (timezone/workweek_start)
+      ["companies", "companies_guard_guidance", BEFORE | UPDATE],          // 0111 (§3.4 control window)
       // §3.1 column-freeze — BEFORE UPDATE:
       ["chat_topic_decisions", "chat_topic_decisions_immutable", BEFORE | UPDATE],
       ["chat_topics", "chat_topics_immutable", BEFORE | UPDATE],
