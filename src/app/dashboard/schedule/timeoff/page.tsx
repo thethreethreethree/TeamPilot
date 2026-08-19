@@ -31,6 +31,9 @@ export default function TimeOffReviewPage() {
   const [done, setDone] = useState<string | null>(null);
 
   const [timeOff, setTimeOff] = useState<TimeOffRow[]>([]);
+  const [covering, setCovering] = useState<string | null>(null); // `${shiftId}:${employeeId}` being assigned
+  const [covered, setCovered] = useState<Set<string>>(new Set()); // candidates assigned to cover, this eval
+  const coverRef = useRef(false);
 
   const loadRoster = useCallback(async () => {
     try {
@@ -54,7 +57,30 @@ export default function TimeOffReviewPage() {
   // Any input change invalidates a prior evaluation: a decision must act on a FRESH evaluation of the
   // CURRENT inputs, never a stale verdict computed for a different employee/date range. Without this, a
   // manager could change the staff member after evaluating and approve on the old verdict (state-bleed).
-  const clearEval = () => { setEvaluation(null); setDone(null); };
+  const clearEval = () => { setEvaluation(null); setDone(null); setCovered(new Set()); };
+
+  // One-click cover: assign a proposed candidate to the gapped shift (close the propose→act loop — the plan
+  // proposes WHO could cover; this lets the manager act on it without a separate rebuild). Appends
+  // EMPLOYEE_ASSIGNED via the manager-gated events route. Re-entrancy-latched.
+  const assignCover = async (shiftId: string, c: Candidate) => {
+    if (coverRef.current) return;
+    coverRef.current = true;
+    setCovering(`${shiftId}:${c.employeeId}`);
+    setError(null);
+    try {
+      const res = await fetch("/api/schedule/events", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "EMPLOYEE_ASSIGNED", payload: { shiftId, employeeId: c.employeeId } }),
+      });
+      if (!res.ok) { setError(`Couldn't assign ${c.name} to cover. Try again.`); return; }
+      setCovered((s) => new Set(s).add(`${shiftId}:${c.employeeId}`));
+    } catch {
+      setError(`Couldn't assign ${c.name} to cover. Try again.`);
+    } finally {
+      coverRef.current = false;
+      setCovering(null);
+    }
+  };
 
   // Synchronous double-submit latch for the decision write (a busy-STATE guard can double-fire before the
   // re-render disables the button).
@@ -151,11 +177,23 @@ export default function TimeOffReviewPage() {
                   {r.candidates.length === 0 ? (
                     <span className="text-muted">No one is free and eligible for one shift.</span>
                   ) : (
-                    r.candidates.slice(0, 5).map((c) => (
-                      <span key={c.employeeId} className="inline-block mr-2 mb-1 bg-surface rounded px-2 py-0.5">
-                        {c.name} <span className="text-muted">({c.currentHours}h)</span>
-                      </span>
-                    ))
+                    r.candidates.slice(0, 5).map((c) => {
+                      const key = `${r.shiftId}:${c.employeeId}`;
+                      const isCovered = covered.has(key);
+                      const isCovering = covering === key;
+                      return (
+                        <button key={c.employeeId} type="button"
+                          onClick={() => !isCovered && void assignCover(r.shiftId, c)}
+                          disabled={isCovered || isCovering}
+                          title={isCovered ? `${c.name} assigned to cover` : `Assign ${c.name} to cover this shift`}
+                          className={`inline-flex items-center gap-1 mr-2 mb-1 rounded px-2 py-0.5 border ${
+                            isCovered ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-surface border-brand/30 text-secondary hover:bg-brand/10"
+                          }`}>
+                          {isCovering ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden /> : isCovered ? <CheckCircle2 className="w-3 h-3" aria-hidden /> : <span className="text-brand">+</span>}
+                          {c.name} <span className="text-muted">({c.currentHours}h)</span>{isCovered ? " · covering" : ""}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               ))}
