@@ -129,9 +129,15 @@ minimum). Add a second. **Remove** one. Look at the **"N shifts short right now"
 - If any built/imported shift is understaffed against its floor, the **gaps section** lists it
   (with the AlertTriangle marker); if everything is covered, the section is absent or says so —
   it must not show a false gap for a fully-covered shift.
+- **Fill in place (new):** each short shift shows a **"Fill with:"** row of clickable staff chips
+  (name + their hours this week) — the same eligible / conflict-free / fair-load-ranked candidates
+  the time-off review proposes. Click one: it **assigns** them and the gap **shrinks or disappears**
+  on reload (no leaving to rebuild). If nobody can fill it (all off / over hours / ineligible /
+  already booked) it says **"No one is free to fill this"** instead of empty chips.
 
-**If wrong (a covered shift shown as short, or a real gap missing):** tell me the shift's staffing
-vs its requirement — the gap check should agree exactly with the time-off review.
+**If wrong (a covered shift shown as short, a real gap missing, or a fill click that doesn't shrink
+the gap):** tell me the shift's staffing vs its requirement — the gap check should agree exactly with
+the time-off review, and a successful fill should re-run it.
 
 ---
 
