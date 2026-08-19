@@ -216,7 +216,10 @@ must live on the TABLE. **0230** replaces the ALL policy with a manager-only SEL
 the append-only trigger. The RLS list is the THIRD copy of the manager-only set — the drift-guard test now
 asserts route == 0227 RPC == 0230 RLS. **Behaviorally proven live (rolled back):** member direct-insert
 TIMEOFF_APPROVED BLOCKED, member direct-insert TIMEOFF_REQUESTED (employee) WROTE, admin direct-insert +
-append_schedule_event RPC both WROTE.
+append_schedule_event RPC both WROTE. **Append-only preserved** (0230 removed the ALL policy that had covered
+UPDATE/DELETE): verified live that `authenticated`/`anon` hold NO UPDATE/DELETE grant on schedule_event, and an
+admin UPDATE + DELETE are both BLOCKED — the grant absence + the 0220 append-only trigger + no UPDATE/DELETE
+policy keep the log immutable.
 
 ## ✅ FIXED (was ⚠️ Open) — schedule reads restricted to managers (0230, founder pick 2026-08-20)
 The founder's "manager-only" pick (0226-era layout gate) redirects non-managers from the schedule UI, but the
