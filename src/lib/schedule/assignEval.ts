@@ -20,8 +20,10 @@ export interface ProposedShift {
 
 export interface AssignmentImpact {
   employeeId: string;
-  /** Per-employee absolute conflicts (double_booked / time_off_conflict / over_hours / ineligible). Coverage
-   *  (a shift-level, overridable concern) is intentionally excluded — it's surfaced by the coverage-gaps view. */
+  /** Per-employee conflicts about THIS person working THIS shift: the absolutes (double_booked /
+   *  time_off_conflict / over_hours / ineligible) AND the overridable `unavailable`. Coverage (a shift-level,
+   *  overridable concern from OTHER shifts) is intentionally excluded — it's surfaced by the coverage-gaps
+   *  view, not the per-employee warning. So the filter drops only `coverage`, not everything overridable. */
   violations: HardViolation[];
 }
 
