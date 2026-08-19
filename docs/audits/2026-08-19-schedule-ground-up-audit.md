@@ -272,8 +272,12 @@ AND no owner column):
   agent-or-admin predicate (`is_support_agent OR role in CEO/COO/admin` — the same requireCareAgent shape the
   0034/0035 care tables use). **Behaviorally proven live (rolled back):** a real plain Member → BLOCKED; a real
   support agent → WROTE; a real admin → WROTE. SELECT left as-is (read is a separate consideration).
-- `files` — app-wide (not care-specific): route gates uploader-OR-admin, RLS is company-membership → a
-  non-uploader colleague could modify/delete a file. Deferred to the app-wide sweep (shared table, complex).
+- `files` — ✅ SAFE (I over-flagged it; corrected). The full UPDATE policy is
+  `company_id = auth_company_id() AND (uploader_id = auth.uid() OR <caller CEO/COO/admin>)` — uploader-OR-admin,
+  which MATCHES the route gate. Not a bypass. My corrected recon false-flagged it because my owner-column
+  exclusion list had `uploaded_by` but not `uploader_id`, so the owner check wasn't recognized. (Lesson: the
+  recon heuristic's owner-column list is incomplete — it over-flags; every candidate needs the FULL policy
+  read, as done here.)
 
 Corrected net's ONLY pure-company-membership candidates in CARE/sales-coach: support_customers (fixed) + files.
 
@@ -300,7 +304,22 @@ So the ~30 `fin_*` TABLE candidates are DRAFT-level data entry (creating a draft
 member work; approving/posting is the gated RPC), NOT a route-only-admin bypass. **Finance is LOW-urgency for
 this class** (unlike schedule, which was systemically route-only). A full finance sweep can still confirm each
 draft-write table per the corrected net, but there is no critical financial-fraud bypass here — the founder can
-defer finance without that risk. (Chat + `files` remain genuinely unexamined for this class.)
+defer finance without that risk.
+
+### 🧮 Bottom line — the route-only-admin class is essentially CLOSED (not a large deferred surface)
+After reading the FULL policies (not the heuristic recon, which over-flags), the only REAL route-only-admin
+write bypasses in the whole app were **schedule** (5 surfaces) and **care** (support_customers +
+emit_care_durability grant) — all now FIXED. Everything the recon flagged beyond those is a false positive or
+proper design:
+- **finance** — sensitive ops (approve/post) gate `fin_can_approve()` INSIDE the RPC + posted-immutability;
+  draft writes are member-appropriate.
+- **`files`** — uploader-or-admin RLS (matches the route).
+- **`pitches` / after_pitch** — owner-scoped (`rep_id`/`agent_id = auth.uid()`).
+- **core** (problems/signals/resolutions/tasks/team_*) — collaborative, member-writable by design.
+So the deferred "app-wide sweep" is much SMALLER than the raw recon suggested: the substance is a per-table
+confirm of the finance draft-write tables + chat (guard-triggered already) — low urgency, no critical bypass
+known. The recon heuristic (auth_company_id()-or-profiles scoping, minus role, minus an INCOMPLETE owner-column
+list) OVER-FLAGS; the reliable method is reading each candidate's full policy, as done above.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
