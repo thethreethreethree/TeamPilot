@@ -9,6 +9,7 @@ function emp(over: Partial<Employee> & { id: string }): Employee {
   return { companyId: "c1", name: over.id, role: null, employmentType: null, skills: [], certifications: [], maxHoursWeek: null, minHoursWeek: null, status: "active", ...over };
 }
 const U1 = "11111111-1111-4111-8111-111111111111";
+const U2 = "22222222-2222-4222-8222-222222222222";
 
 describe("buildEvalContext — requirementForShift mapping", () => {
   it("a day-applies coverage requirement applies to every shift", () => {
@@ -38,6 +39,17 @@ describe("buildEvalContext — requirementForShift mapping", () => {
     const ctx = buildEvalContext({ events, employees: [] });
     expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 2, minByRole: {} }); // overlaps 08:00–13:00
     expect(ctx.requirementForShift("S2")).toBeNull(); // 18:00–22:00 does not overlap
+  });
+
+  it("COMBINES multiple applicable requirements — strictest headcount AND every role floor (RQ20)", () => {
+    const events = [
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
+      ev(2, "COVERAGE_REQ_DEFINED", { requirementId: U1, appliesTo: "day", minHeadcount: 3 }),
+      ev(3, "COVERAGE_REQ_DEFINED", { requirementId: U2, appliesTo: "role", minHeadcount: 0, minByRole: { nurse: 1 } }),
+    ];
+    const ctx = buildEvalContext({ events, employees: [] });
+    // headcount = max(3, 0) = 3; role floor from the second requirement must survive (not be dropped).
+    expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 3, minByRole: { nurse: 1 } });
   });
 
   it("null when no requirement applies", () => {

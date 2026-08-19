@@ -35,7 +35,10 @@ export function buildEvalContext(args: {
   const requirementForShift = (shiftId: string): { minHeadcount: number; minByRole: Record<string, number> } | null => {
     const shift = state.shifts[shiftId];
     if (!shift) return null;
-    let best: { minHeadcount: number; minByRole: Record<string, number> } | null = null;
+    // COMBINE every applicable requirement — the strictest of each dimension (max headcount, max per role).
+    // Picking only the highest-headcount requirement would drop a role floor set on a separate requirement
+    // (e.g. "3 people" + "1 nurse" → the nurse requirement must still hold), so we merge them.
+    let combined: { minHeadcount: number; minByRole: Record<string, number> } | null = null;
     for (const r of reqs) {
       // With a window: overlap. Without a window: applies to every shift (any appliesTo) — a floor with no
       // time restriction, so a "shift"/"role" requirement set without a window is honored, not ignored.
@@ -43,9 +46,13 @@ export function buildEvalContext(args: {
         ? overlaps(shift.start, shift.end, r.timeWindow.start, r.timeWindow.end)
         : true;
       if (!applies) continue;
-      if (!best || r.minHeadcount > best.minHeadcount) best = { minHeadcount: r.minHeadcount, minByRole: r.minByRole };
+      if (!combined) combined = { minHeadcount: 0, minByRole: {} };
+      combined.minHeadcount = Math.max(combined.minHeadcount, r.minHeadcount);
+      for (const [role, n] of Object.entries(r.minByRole)) {
+        combined.minByRole[role] = Math.max(combined.minByRole[role] ?? 0, n);
+      }
     }
-    return best;
+    return combined;
   };
 
   return { state, employees, requirementForShift };
