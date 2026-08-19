@@ -9,6 +9,7 @@ import { buildEvalContext } from "@/lib/schedule/evalContext";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
 import { findCoverageGaps } from "@/lib/schedule/coverageStatus";
+import { findResolutions } from "@/lib/schedule/resolution";
 import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
 
 /**
@@ -47,10 +48,13 @@ export async function GET(_req: NextRequest) {
     // the proactive gaps — no double replay. Week + "today" use the company settings (0224).
     const evalCtx = buildEvalContext({ events: evRows.map(rowToEvent), employees: empRows.map(rowToEmployee), weekStartDay: settings.workweekStart });
     const today = todayInTz(settings.timezone);
-    return NextResponse.json({
-      requirements: Object.values(evalCtx.state.coverageReqs),
-      gaps: findCoverageGaps(evalCtx, today),
-    });
+    // Each gap carries who could FILL it (findResolutions on the real shift: eligible, conflict-free, fair-load
+    // ranked) so the manager can act on the proactive gap in place, not just see it. Gaps are few → cheap.
+    const gaps = findCoverageGaps(evalCtx, today).map((g) => ({
+      ...g,
+      candidates: findResolutions(g.shiftId, evalCtx).slice(0, 5),
+    }));
+    return NextResponse.json({ requirements: Object.values(evalCtx.state.coverageReqs), gaps });
   } catch (e) {
     console.error("[schedule/coverage] read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load coverage requirements." }, { status: 500 });

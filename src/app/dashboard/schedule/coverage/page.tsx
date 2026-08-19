@@ -14,10 +14,14 @@ import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 type Form = { appliesTo: "day" | "shift" | "role"; minHeadcount: string; role: string; start: string; end: string };
 const EMPTY: Form = { appliesTo: "day", minHeadcount: "", role: "", start: "", end: "" };
+type Candidate = { employeeId: string; name: string; currentHours: number };
+type GapWithCandidates = ShiftCoverageGap & { candidates?: Candidate[] };
 
 export default function CoveragePage() {
   const [reqs, setReqs] = useState<CoverageRequirement[]>([]);
-  const [gaps, setGaps] = useState<ShiftCoverageGap[]>([]);
+  const [gaps, setGaps] = useState<GapWithCandidates[]>([]);
+  const [covering, setCovering] = useState<string | null>(null);
+  const coverRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
@@ -40,6 +44,22 @@ export default function CoveragePage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  // Fill a gap in place: assign a suggested candidate to the short shift, then reload so the gap updates
+  // (closes the proactive-gap → action loop). Re-entrancy-latched.
+  const fillGap = async (shiftId: string, c: Candidate) => {
+    if (coverRef.current) return;
+    coverRef.current = true;
+    setCovering(`${shiftId}:${c.employeeId}`);
+    try {
+      const res = await fetch("/api/schedule/events", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "EMPLOYEE_ASSIGNED", payload: { shiftId, employeeId: c.employeeId } }),
+      });
+      if (res.ok) await load(); // reload — the gap shrinks or disappears
+    } catch { /* leave the gap; the manager can retry */ }
+    finally { coverRef.current = false; setCovering(null); }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,11 +151,32 @@ export default function CoveragePage() {
           </div>
           <ul className="space-y-1.5">
             {gaps.map((g) => (
-              <li key={g.shiftId} className="text-xs text-secondary flex items-center justify-between gap-3">
-                <span>{g.date} · {g.start} to {g.end} · <span className="text-muted">{g.assigned} on it</span></span>
-                <span className="text-brand">
-                  {g.gaps.map((d) => (d.kind === "headcount" ? `${d.need} more` : `${d.need} more ${d.role}`)).join(", ")}
-                </span>
+              <li key={g.shiftId} className="text-xs text-secondary">
+                <div className="flex items-center justify-between gap-3">
+                  <span>{g.date} · {g.start} to {g.end} · <span className="text-muted">{g.assigned} on it</span></span>
+                  <span className="text-brand">
+                    {g.gaps.map((d) => (d.kind === "headcount" ? `${d.need} more` : `${d.need} more ${d.role}`)).join(", ")}
+                  </span>
+                </div>
+                {/* Fill in place — the candidates are eligible + conflict-free + fair-load ranked (findResolutions). */}
+                {g.candidates && g.candidates.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-muted">Fill with:</span>
+                    {g.candidates.map((c) => {
+                      const isCovering = covering === `${g.shiftId}:${c.employeeId}`;
+                      return (
+                        <button key={c.employeeId} type="button" onClick={() => void fillGap(g.shiftId, c)} disabled={isCovering}
+                          title={`Assign ${c.name} (${c.currentHours}h this week) to this shift`}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-brand/40 bg-surface text-brand hover:bg-brand/10 disabled:opacity-50">
+                          {isCovering ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden /> : <span>+</span>}
+                          {c.name} <span className="text-muted">({c.currentHours}h)</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : g.candidates ? (
+                  <p className="text-[11px] text-muted mt-1">No one is free to fill this (all off / over hours / ineligible / already booked).</p>
+                ) : null}
               </li>
             ))}
           </ul>
