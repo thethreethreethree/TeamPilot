@@ -59,6 +59,13 @@ defaults; the UX (grid-integrated indicators vs. this list) can still be refined
 
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
+- **Non-manager schedule visibility (RQ23, confirmed).** The schedule WRITES are manager-only (RQ6), but the
+  READS are member-visible and there is NO page/layout `isAdmin` gate — so a Member-role user in a
+  complete-access company can open every schedule page: they see the data (safe) and write buttons that 403
+  on click (broken UX). Decide: (a) manager-ONLY (add a `layout.tsx` that redirects non-`isAdmin`), or (b)
+  view-all but HIDE the write actions for non-managers (a read-only view). Not built — it's a visibility
+  design call (view-all vs manager-only), and a hard redirect changes access, so it's yours. Data is not at
+  risk either way (writes are gated).
 - **Visual-verify the schedule UIs** (the gate can't render React) — especially the VA import flow at `/dashboard/schedule/import` → "Schedule file" tab.
 - **RQ4 / RQ7** — where does org **timezone** + **workweek-start** come from (a `companies` setting)? Unblocks cross-tz + the overridable coverage-side overnight nuance.
 - **Re-import semantics** — should re-importing replace, add, or replace-the-week? (Naive dedup silently mishandles a re-uploaded correction.)
