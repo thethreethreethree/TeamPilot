@@ -138,6 +138,20 @@ change `timezone`/`workweek_start`.
   the two-user test the 0111/F8 residual notes deemed hard — done here because both a real admin and a real
   non-admin profile exist in prod to simulate.
 
+## Cross-tenant isolation — BEHAVIORALLY PROVEN with real data (2026-08-20)
+The module's most important security property, proven live (not assumed) using two real prod users in
+DIFFERENT companies, all rolled back:
+
+- **Strong proof (with data via the real write path):** as company A, wrote a `SHIFT_DEFINED` through the
+  actual `append_schedule_event` RPC → A sees its own new event (1); switched the session to company B (a
+  different tenant) → B sees **0** of A's events. RLS + the RPC's session-derived company_id both hold — a
+  tenant cannot read another's schedule data even when it exists.
+- **Read isolation** (schedule_event + schedule_employee, both users): 0 other-company rows visible.
+- **Structurally gated:** the dynamic verify:live tenant invariants cover these tables — "all company_id
+  tables RLS-protected" (RLS ON) + "no company_id table has a PERMISSIVE read/write policy" (no open policy).
+  The behavioral "anon reads 0 from populated tenant tables" check skips schedule_event/employee only because
+  they are empty in prod; this manual strong proof covers that gap for now.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
