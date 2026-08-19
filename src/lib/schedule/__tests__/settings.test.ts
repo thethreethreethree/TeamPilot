@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { getScheduleSettings, todayInTz, DEFAULT_SCHEDULE_SETTINGS } from "../settings";
 
 /**
@@ -48,11 +48,23 @@ describe("getScheduleSettings — guarded fallback", () => {
 });
 
 describe("todayInTz", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
   it("returns a YYYY-MM-DD string for a real zone", () => {
     expect(todayInTz("America/New_York")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("falls back to a valid date for a bogus zone (never throws)", () => {
     expect(todayInTz("Not/AZone")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("actually shifts the CALENDAR DATE by zone (the whole point) — not just the clock", () => {
+    // 02:00 UTC on 2026-08-19. In New York (UTC-4 in August DST) it is still 22:00 on 2026-08-18;
+    // in Tokyo (UTC+9) it is already 11:00 on 2026-08-19. Same instant, different calendar day.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-19T02:00:00Z"));
+    expect(todayInTz("UTC")).toBe("2026-08-19");
+    expect(todayInTz("America/New_York")).toBe("2026-08-18"); // the fix: "today" is the PREVIOUS day there
+    expect(todayInTz("Asia/Tokyo")).toBe("2026-08-19");
   });
 });
