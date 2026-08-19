@@ -30,6 +30,15 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 - **Zero-impact time-off:** auto-approve. ✅
 - **NEW — file upload (PDF/Excel/CSV)** for staff + schedule-template data entry → Phase 5. ✅
 
+## Recommended next feature (founder checkpoint)
+- **Manual shift-building UI.** Today shifts are created ONLY by import (CSV or VA file); the grid is
+  read-only. The events API already supports manual writes (`append_schedule_event` → SHIFT_DEFINED /
+  EMPLOYEE_ASSIGNED, manager-gated after RQ6), but there's no UI to define a shift + assign staff by hand or
+  to tweak one. The grid empty-state already promises "or build a schedule," so this is the honest completion
+  of that promise. Deferred as a "sibling surface" when the grid was built — a new surface past the Phase-5
+  checkpoint, and its UX (a form vs. clicking a grid cell) is a design choice, so surfaced rather than built
+  ahead. **Staff deactivate/reactivate is DONE (R5-1); this is the remaining roster→schedule editing gap.**
+
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
 - **Visual-verify the schedule UIs** (the gate can't render React) — especially the VA import flow at `/dashboard/schedule/import` → "Schedule file" tab.
