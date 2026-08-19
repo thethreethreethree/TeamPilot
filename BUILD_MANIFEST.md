@@ -39,14 +39,11 @@ EMPLOYEE_ASSIGNED is independent + projector-deduped, so no atomic-write need). 
 empty-state's "or build a schedule". RQ13 double-submit latch; workflow continuity (view grid / build
 another). Visual render is the founder's check.
 
-**Open (grid-interactivity — a genuine UX DECISION):** a manager can now CREATE shifts (build/import), VIEW
-them (grid), and REVIEW time-off, but cannot yet EDIT an existing shift — unassign a person
-(EMPLOYEE_UNASSIGNED exists in the vocabulary + projector), change its time, or cancel it. Editing is
-grid-COUPLED: the natural UX is clicking the shift where it's shown (making the grid interactive), which
-breaks the form-based pattern the rest of the schedule UI uses; a form alternative needs an awkward
-shift-selector since the grid IS the selector. So it's a real design call (interactive grid vs. form),
-surfaced rather than guessed. The events API already supports every edit (append EMPLOYEE_UNASSIGNED / a
-correcting SHIFT_DEFINED), so this is a UI-shape decision, not a backend gap.
+## Shift editing — ✅ BUILT (2026-08-19, founder picked "cell-click unassign")
+The grid is now interactive: clicking a shift cell confirms + appends EMPLOYEE_UNASSIGNED (manager-gated) and
+reloads (coverage re-checks). busyRef re-entrancy latch; a failed action shows a light dismissible banner (not
+the full-screen error). Retime/cancel-shift remain a later surface (map to a correcting SHIFT_DEFINED /
+SHIFT_CANCELLED — the event now exists). TBC: `docs/tbc/2026-08-19-schedule-manager-controls`.
 
 ## Proactive coverage-gap view — ✅ BUILT (2026-08-19)
 `findCoverageGaps` (`coverageStatus.ts`) + a "N shifts short right now" section on the Coverage tab: which
@@ -68,19 +65,17 @@ in the displayed week (a staff member deactivated after assignment still shows).
 staff are hidden so their empty rows don't pile up (same accumulation-filter as past shifts / past time-off).
 Grid-cell EDITING (click to unassign/retime) is still the separate grid-interactivity decision.
 
+## Founder picker RESOLVED (2026-08-19) — all four BUILT
+- ✅ **Shift editing → cell-click unassign** — the grid is interactive (see "Shift editing" above). `manager-controls` TBC.
+- ✅ **Non-manager visibility (RQ23) → manager-only** — `src/app/dashboard/schedule/layout.tsx` server-redirects non-`isAdmin` to /dashboard (reuses getCurrentAuthContext().isAdmin, the same predicate the APIs enforce). `manager-controls` TBC.
+- ✅ **Re-import → replace-the-week** — a re-import supersedes existing shifts in the imported span (SHIFT_CANCELLED, atomic via 0223); the preview warns "replaces N shifts". `reimport-replace-week` TBC.
+- ✅ **RQ4 / RQ7 → company settings** — companies.timezone + workweek_start (0224); a Settings tab sets them; server "today" + the hours-cap week + the grid week honor them. `company-settings` TBC.
+
 ## Open founder decisions
-Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
-- **Non-manager schedule visibility (RQ23, confirmed).** The schedule WRITES are manager-only (RQ6), but the
-  READS are member-visible and there is NO page/layout `isAdmin` gate — so a Member-role user in a
-  complete-access company can open every schedule page: they see the data (safe) and write buttons that 403
-  on click (broken UX). Decide: (a) manager-ONLY (add a `layout.tsx` that redirects non-`isAdmin`), or (b)
-  view-all but HIDE the write actions for non-managers (a read-only view). Not built — it's a visibility
-  design call (view-all vs manager-only), and a hard redirect changes access, so it's yours. Data is not at
-  risk either way (writes are gated).
-- **Visual-verify the schedule UIs** (the gate can't render React) — especially the VA import flow at `/dashboard/schedule/import` → "Schedule file" tab.
-- **RQ4 / RQ7** — where does org **timezone** + **workweek-start** come from (a `companies` setting)? Unblocks cross-tz + the overridable coverage-side overnight nuance.
-- **Re-import semantics** — should re-importing replace, add, or replace-the-week? (Naive dedup silently mishandles a re-uploaded correction.)
+Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit + the four picker features). What awaits you:
+- **Visual-verify the schedule UIs** (the gate can't render React) — the grid cell-click unassign, the import replace-week warning, and the new Settings tab especially.
 - **Legacy `xlsx`** — add the `xlsx` dependency for staff×date Excel schedules, or stay CSV-first?
+- **Schedule entitlement (RQ14)** — bundle with complete-access, or a sellable `access_module='schedule'` SKU? (Below.)
 - **Schedule entitlement / positioning (RQ14, surfaced 2026-08-19).** The schedule system is positioned as a STANDALONE tool ("no Elostate account required"), but its ACCESS is currently gated by the 0207 module hard-lock to complete/elostate accounts: a single-module pilot (`access_module = care` or `sales_coach`) is redirected away from `/dashboard/schedule` (`moduleForPath` returns "elostate", `isPathAllowed` denies). Not a bug — the lock works as designed — but the entitlement is an accidental side effect, not a deliberate SKU. **Decide:** is schedule bundled with complete-access only, or should it be its own sellable module (`access_module = 'schedule'` + a path-allow for locked accounts)? Matters if you want to sell scheduling standalone to a scheduling-only customer.
 - **Phase 6** (employee self-service) is deferred until staff get accounts; **Phase 7** (make-learning-visible) needs accumulated data.
 
