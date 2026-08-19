@@ -22,6 +22,8 @@ export default function ScheduleRosterPage() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const togglingRef = useRef<Set<string>>(new Set()); // per-id double-submit latch (RQ13 class)
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +79,30 @@ export default function ScheduleRosterPage() {
     } finally {
       setSaving(false);
       savingRef.current = false;
+    }
+  };
+
+  // Deactivate a departed employee (or reactivate). Deactivating flips status → inactive so isEligible stops
+  // scheduling them. Per-id ref latch so a double-click can't double-submit the same row.
+  const toggleStatus = async (emp: Employee) => {
+    if (togglingRef.current.has(emp.id)) return;
+    togglingRef.current.add(emp.id);
+    setTogglingId(emp.id);
+    setFormError(null);
+    const next = emp.status === "active" ? "inactive" : "active";
+    try {
+      const res = await fetch(`/api/schedule/employees/${emp.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (res.ok) await load();
+      else setFormError(res.status === 403 ? "Only a manager can update staff." : "Couldn't update the staff member.");
+    } catch {
+      setFormError("Couldn't reach the server.");
+    } finally {
+      setTogglingId(null);
+      togglingRef.current.delete(emp.id);
     }
   };
 
@@ -165,6 +191,10 @@ export default function ScheduleRosterPage() {
                   {emp.maxHoursWeek != null && ` · max ${emp.maxHoursWeek}h/wk`}
                 </div>
               </div>
+              <button type="button" onClick={() => void toggleStatus(emp)} disabled={togglingId === emp.id}
+                className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-white/10 text-secondary disabled:opacity-50">
+                {togglingId === emp.id ? "…" : emp.status === "active" ? "Deactivate" : "Reactivate"}
+              </button>
             </li>
           ))}
         </ul>

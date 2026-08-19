@@ -5,7 +5,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
-import type { Employee } from "@/lib/schedule/types";
+import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
 
 /**
  * Schedule Management System — Phase 5: the staff roster API (schedule_employee, 0221).
@@ -29,37 +29,22 @@ const EmployeeInput = z.object({
   status: z.enum(["active", "inactive"]).optional(),
 });
 
-type Row = {
-  id: string; company_id: string; name: string; role: string | null; employment_type: string | null;
-  skills: string[] | null; certifications: string[] | null; max_hours_week: number | null;
-  min_hours_week: number | null; status: string;
-};
-
-function toEmployee(r: Row): Employee {
-  return {
-    id: r.id, companyId: r.company_id, name: r.name, role: r.role, employmentType: r.employment_type,
-    skills: r.skills ?? [], certifications: r.certifications ?? [],
-    maxHoursWeek: r.max_hours_week, minHoursWeek: r.min_hours_week,
-    status: r.status === "inactive" ? "inactive" : "active",
-  };
-}
-
 export async function GET(_req: NextRequest) {
   const ctx = await getCurrentAuthContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const sb = await createClient();
   try {
-    const rows = await fetchAllPaged<Row>(
+    const rows = await fetchAllPaged<EmployeeRow>(
       (from, to) =>
         sb
           .from("schedule_employee")
-          .select("id, company_id, name, role, employment_type, skills, certifications, max_hours_week, min_hours_week, status")
+          .select(EMPLOYEE_COLUMNS)
           .eq("company_id", ctx.companyId)
           .order("name", { ascending: true })
           .range(from, to),
       { label: "schedule_employee roster" },
     );
-    return NextResponse.json({ employees: rows.map(toEmployee) });
+    return NextResponse.json({ employees: rows.map(rowToEmployee) });
   } catch (e) {
     console.error("[schedule/employees] read failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load the roster." }, { status: 500 });
@@ -92,11 +77,11 @@ export async function POST(req: NextRequest) {
       min_hours_week: body.minHoursWeek ?? null,
       status: body.status ?? "active",
     })
-    .select("id, company_id, name, role, employment_type, skills, certifications, max_hours_week, min_hours_week, status")
+    .select(EMPLOYEE_COLUMNS)
     .single();
   if (error || !data) {
     console.error("[schedule/employees] create failed:", error?.message);
     return NextResponse.json({ error: "Couldn't add the staff member." }, { status: 500 });
   }
-  return NextResponse.json({ employee: toEmployee(data as Row) }, { status: 201 });
+  return NextResponse.json({ employee: rowToEmployee(data as EmployeeRow) }, { status: 201 });
 }
