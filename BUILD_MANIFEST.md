@@ -11,8 +11,8 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 | 2 | Coverage Requirements & Constraint Model | ✅ **DONE — at checkpoint** | schedule_employee roster (`0221`) + pure hard/soft predicates + 20 boundary tests. Commit pending. |
 | 3 | The Decision Authority (single verdict, A40) | ✅ **DONE — at checkpoint** | `evaluateChange → Verdict`, single-source proven (grep+test), 8 drift-guard tests. Coverage=overridable, conflicts=absolute, zero-impact=autoApprovable. Open: rest-between-shifts (P3-2), RQ6 authz. |
 | 4 | AI Reasoning Layer (DeepSeek propose; deterministic gate) | ✅ **DONE — at checkpoint** | Resolution search (deterministic) + AI layer (parse-then-confirm + recommend-with-why, warm+plain). Advisory by construction (imports no authority). 14 tests. A41 DeepSeek verified live. |
-| 5 | Manager/Admin Interface | 🟨 **BACKEND + first UI DONE; remaining UI open** | DONE: roster API (manager-gated) + roster page UI (/dashboard/schedule) + the WHOLE file-upload logic — extract(CSV)→LLM propose-mapping→preview→commit, all tested (~30 upload tests). OPEN (browser-verified UI): grid schedule view, upload UI (picker+confirm+preview), review queue, Sidebar nav link. OPEN (dep call): xlsx/PDF extraction. |
-| 6 | Employee Interface | ⬜ pending | |
+| 5 | Manager/Admin Interface | ✅ **MVP DONE** | Roster (API+UI), grid schedule view, file import (CSV: extract→AI-map→preview→atomic commit, +UI), time-off review (evaluate→verdict+candidates+AI proposal→approve/deny, +UI), sub-nav + Sidebar link. All gate-tested backend; UIs browser-verified. OPEN: coverage-requirement editor, xlsx/PDF extraction. |
+| 6 | Employee Interface | ⬜ pending (needs staff accounts) | Personal schedule view, self-service time-off/availability/swaps. Deferred: staff are standalone (no accounts) until the Elostate-user link opens. Manager currently records time off on their behalf (Phase 5 review flow). |
 | 7 | Make Learning Visible & Close the Loop | ⬜ pending | |
 | 8 | Ground-Up Audit & Hardening (1.7) | ⬜ pending | Full A41 sweep. (RQ2 permanent append-only invariant already landed early — verify:live category (d).) |
 
