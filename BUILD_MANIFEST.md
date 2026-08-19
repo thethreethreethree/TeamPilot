@@ -37,8 +37,16 @@ events route. Form-based to match the rest of the schedule UI (roster/coverage/t
 — grid-click would be the inconsistent outlier); incremental (create the shift, then assign; each
 EMPLOYEE_ASSIGNED is independent + projector-deduped, so no atomic-write need). Fulfills the grid
 empty-state's "or build a schedule". RQ13 double-submit latch; workflow continuity (view grid / build
-another). Visual render is the founder's check. **Possible refinement (founder call): grid-cell-click
-editing directly on the schedule grid, if preferred over a separate form page.**
+another). Visual render is the founder's check.
+
+**Open (grid-interactivity — a genuine UX DECISION):** a manager can now CREATE shifts (build/import), VIEW
+them (grid), and REVIEW time-off, but cannot yet EDIT an existing shift — unassign a person
+(EMPLOYEE_UNASSIGNED exists in the vocabulary + projector), change its time, or cancel it. Editing is
+grid-COUPLED: the natural UX is clicking the shift where it's shown (making the grid interactive), which
+breaks the form-based pattern the rest of the schedule UI uses; a form alternative needs an awkward
+shift-selector since the grid IS the selector. So it's a real design call (interactive grid vs. form),
+surfaced rather than guessed. The events API already supports every edit (append EMPLOYEE_UNASSIGNED / a
+correcting SHIFT_DEFINED), so this is a UI-shape decision, not a backend gap.
 
 ## Open founder decisions
 Phases 1–5 + 8 are DONE (manager MVP + both import formats + audit). What now awaits you:
