@@ -45,6 +45,29 @@ export function weekStartOf(date: string): string | null {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Add `n` days to a YYYY-MM-DD date, UTC-based (deterministic regardless of runtime tz). Null if malformed. */
+export function addDaysIso(iso: string, n: number): string | null {
+  const x = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!x) return null;
+  const dt = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
+  if (Number.isNaN(dt.getTime())) return null;
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Does a "HH:mm"→"HH:mm" shift cross midnight (end at or before start)? Such a shift occupies its start
+ *  date AND the next calendar day — so span-aware checks (time-off, coverage) must consider both. */
+export function crossesMidnight(start: string, end: string): boolean {
+  const m = (t: string): number | null => {
+    const x = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(t);
+    return x ? Number(x[1]) * 60 + Number(x[2]) : null;
+  };
+  const s = m(start);
+  const e = m(end);
+  if (s === null || e === null) return false;
+  return e <= s;
+}
+
 /**
  * Do two "HH:mm" ranges on the SAME day overlap in time? Overnight ranges (end ≤ start) extend +24h.
  * Half-open, so TOUCHING ranges do NOT overlap: a split shift 10:00–14:00 + 19:00–23:00 is not a clash,

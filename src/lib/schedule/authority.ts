@@ -17,7 +17,7 @@
  *   - a ZERO-IMPACT change (no violation of any kind) is `autoApprovable`.
  */
 import type { ScheduleState, Employee } from "./types";
-import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weekStartOf, rangesOverlap, type CoverageGap } from "./constraints";
+import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weekStartOf, rangesOverlap, crossesMidnight, addDaysIso, type CoverageGap } from "./constraints";
 
 export type Change =
   | { kind: "time_off"; employeeId: string; start: string; end: string } // inclusive date range YYYY-MM-DD
@@ -79,6 +79,22 @@ function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDate: str
 function hasApprovedTimeOffOn(state: ScheduleState, employeeId: string, date: string): boolean {
   for (const t of Object.values(state.timeOff)) {
     if (t.employeeId === employeeId && t.status === "approved" && date >= t.start && date <= t.end) return true;
+  }
+  return false;
+}
+
+/**
+ * Does a shift's FULL SPAN fall on an employee's approved time-off? A shift is checked on its start date,
+ * AND — if it crosses midnight (an overnight shift) — on the next calendar day too, since that shift also
+ * occupies the morning after. Checking only the start date would let someone be assigned to an overnight
+ * shift that runs into a day they're approved off (the VA schedules have overnight shifts). Span-based, tz
+ * independent (uses the shift's own local dates).
+ */
+function shiftHitsApprovedTimeOff(state: ScheduleState, employeeId: string, shift: { date: string; start: string; end: string }): boolean {
+  if (hasApprovedTimeOffOn(state, employeeId, shift.date)) return true;
+  if (crossesMidnight(shift.start, shift.end)) {
+    const next = addDaysIso(shift.date, 1);
+    if (next && hasApprovedTimeOffOn(state, employeeId, next)) return true;
   }
   return false;
 }
@@ -145,8 +161,8 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
           rangesOverlap(o.start, o.end, shift.start, shift.end),
       );
       if (clash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: emp.id, overridable: false });
-      // no assignment during approved time-off
-      if (hasApprovedTimeOffOn(state, emp.id, shift.date)) {
+      // no assignment during approved time-off (span-aware: an overnight shift also occupies the next day)
+      if (shiftHitsApprovedTimeOff(state, emp.id, shift)) {
         violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
       // hours cap (their current hours THAT WEEK + this shift)
@@ -173,7 +189,7 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
         if (!isEligible(to, { role: shift.requiredByRole && Object.keys(shift.requiredByRole).length === 1 ? Object.keys(shift.requiredByRole)[0] : null })) {
           violations.push({ kind: "ineligible", shiftId: shift.id, employeeId: to.id, overridable: false });
         }
-        if (hasApprovedTimeOffOn(state, to.id, shift.date)) {
+        if (shiftHitsApprovedTimeOff(state, to.id, shift)) {
           violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: to.id, overridable: false });
         }
         const proposed = weeklyHoursOf(state, to.id, shift.date) + shiftDurationHours(shift.start, shift.end);

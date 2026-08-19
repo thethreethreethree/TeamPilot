@@ -10,20 +10,14 @@
  * An overnight shift (e.g. 23:00–03:00) is attributed to its START date, consistent with how the projector
  * + `shiftDurationHours` treat `shift.date` (the start day). Pure + UTC-deterministic (no local-tz parsing).
  */
-import { weekStartOf } from "./constraints";
+import { weekStartOf, addDaysIso } from "./constraints";
 import type { VaParseResult } from "./vaGrid";
 import type { ImportPreview } from "./importPlanner";
 import type { GridEntry } from "./gridParser";
 
-/** Add `n` days to a YYYY-MM-DD date, UTC-based (deterministic regardless of runtime tz). Null if malformed. */
-export function addDaysIso(iso: string, n: number): string | null {
-  const x = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!x) return null;
-  const dt = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
-  if (Number.isNaN(dt.getTime())) return null;
-  dt.setUTCDate(dt.getUTCDate() + n);
-  return dt.toISOString().slice(0, 10);
-}
+// addDaysIso now lives in constraints.ts (co-located with the other date helpers); re-exported so existing
+// importers of it from this module keep working.
+export { addDaysIso } from "./constraints";
 
 export interface ResolveOptions {
   /** Any date within the target week — normalized to that week's Monday. */

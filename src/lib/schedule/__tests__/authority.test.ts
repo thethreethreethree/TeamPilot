@@ -95,6 +95,20 @@ describe("evaluateChange — the single authority (A40)", () => {
     expect(v.violations.some((x) => x.kind === "time_off_conflict")).toBe(true);
   });
 
+  it("an OVERNIGHT shift running into an approved day off conflicts (span-aware); a day shift does not", () => {
+    // RQ10: an overnight shift on X occupies X AND X+1. Time-off on X+1 must block it; the old check saw
+    // only X. Control: a same-start-date DAY shift does not reach X+1, so no conflict.
+    const overnight = shift({ id: "N", date: "2026-08-21", start: "22:00", end: "02:00", assigned: [] });
+    const day = shift({ id: "D", date: "2026-08-21", start: "09:00", end: "17:00", assigned: [] });
+    const ctx = ctxOf([overnight, day], [emp({ id: "a" })], () => null);
+    // approved OFF on the 22nd only (the morning the overnight shift runs into)
+    ctx.state.timeOff["T1"] = { id: "T1", employeeId: "a", type: "vacation", start: "2026-08-22", end: "2026-08-22", partial: false, status: "approved" };
+    const vNight = evaluateChange({ kind: "assign", shiftId: "N", employeeId: "a" }, ctx);
+    expect(vNight.violations.some((x) => x.kind === "time_off_conflict")).toBe(true); // runs into the 22nd
+    const vDay = evaluateChange({ kind: "assign", shiftId: "D", employeeId: "a" }, ctx);
+    expect(vDay.violations.some((x) => x.kind === "time_off_conflict")).toBe(false); // day shift stays on the 21st
+  });
+
   it("assign that exceeds the HOURS CAP → ABSOLUTE block; a REQUESTED (not approved) time-off does NOT block", () => {
     // employee already on a 9h shift, cap 10; adding another 9h → 18h > 10.
     const s1 = shift({ id: "S1", date: "2026-08-20", start: "09:00", end: "18:00", assigned: ["a"] });

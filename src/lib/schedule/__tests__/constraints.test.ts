@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   shiftDurationHours,
   weekStartOf,
+  addDaysIso,
+  crossesMidnight,
   rangesOverlap,
   isEligible,
   meetsCoverage,
@@ -30,6 +32,20 @@ describe("shiftDurationHours", () => {
   it("a malformed time is 0, never NaN", () => {
     expect(shiftDurationHours("6:00", "15:00")).toBe(0);
     expect(shiftDurationHours("", "")).toBe(0);
+  });
+});
+
+describe("addDaysIso + crossesMidnight", () => {
+  it("addDaysIso adds days (UTC), null on malformed", () => {
+    expect(addDaysIso("2026-08-21", 1)).toBe("2026-08-22");
+    expect(addDaysIso("2026-08-31", 1)).toBe("2026-09-01");
+    expect(addDaysIso("bad", 1)).toBeNull();
+  });
+  it("crossesMidnight: end at or before start = overnight", () => {
+    expect(crossesMidnight("22:00", "02:00")).toBe(true);
+    expect(crossesMidnight("23:00", "23:00")).toBe(true); // end == start (full/degenerate) counts as wrap
+    expect(crossesMidnight("09:00", "17:00")).toBe(false);
+    expect(crossesMidnight("bad", "17:00")).toBe(false);
   });
 });
 
