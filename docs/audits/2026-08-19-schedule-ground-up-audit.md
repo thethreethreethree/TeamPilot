@@ -233,6 +233,17 @@ schedule UI is manager-gated), so restricting now is low-risk; but Phase 6 will 
 schedule_employee SELECT are now `using (auth_is_schedule_manager(company_id))`; a member reads 0 rows
 (verified live). Phase 6 will add a per-person member read when it ships.
 
+## 📋 App-wide follow-up (OUT of schedule scope, sized for the founder) — the route-only-admin class recurs
+The class the schedule sweep just closed (a route gates a WRITE by role, but the table's RLS is company-scoped
+and `authenticated` holds a direct write grant, so the route is bypassable via direct PostgREST) is one this
+codebase has hit repeatedly — 0089, 0090, 0111 (§3.4 control window), and the schedule's 0226-0230. A bounded
+recon query found **69 candidate tables** app-wide with a company-scoped write policy (no role reference) + an
+authenticated write grant. MOST are legitimately member-writable (chat_messages, feedback, etc.), so the true
+gap count is far lower — but confirming which of the 69 have a role-gated ROUTE (hence a bypass) needs
+per-table route analysis across finance / care / sales-coach / chat, a large engagement beyond this schedule
+build. **Not swept here** (would touch modules outside the task). Recommend a scoped follow-up (e.g. the
+sellable modules first) with a gate to stop recurrence. Surfaced to the founder as its own decision.
+
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing
 discipline, single-source verdict (A40), advisory-only LLM, tenant isolation, and append-only enforcement all
