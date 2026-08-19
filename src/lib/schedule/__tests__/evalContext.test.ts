@@ -31,14 +31,16 @@ describe("buildEvalContext — requirementForShift mapping", () => {
   });
 
   it("a WINDOWED requirement applies only to an overlapping shift", () => {
+    // requiredHeadcount 0 here so the test isolates the windowed requirement (a shift's own headcount is a
+    // separate floor — RQ22 — tested above).
     const events = [
-      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "12:00", requiredHeadcount: 1 }),
-      ev(2, "SHIFT_DEFINED", { shiftId: "S2", date: "2026-08-16", start: "18:00", end: "22:00", requiredHeadcount: 1 }),
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "12:00", requiredHeadcount: 0 }),
+      ev(2, "SHIFT_DEFINED", { shiftId: "S2", date: "2026-08-16", start: "18:00", end: "22:00", requiredHeadcount: 0 }),
       ev(3, "COVERAGE_REQ_DEFINED", { requirementId: U1, appliesTo: "shift", minHeadcount: 2, timeWindow: { start: "08:00", end: "13:00" } }),
     ];
     const ctx = buildEvalContext({ events, employees: [] });
     expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 2, minByRole: {} }); // overlaps 08:00–13:00
-    expect(ctx.requirementForShift("S2")).toBeNull(); // 18:00–22:00 does not overlap
+    expect(ctx.requirementForShift("S2")).toBeNull(); // 18:00–22:00 does not overlap, and no own floor
   });
 
   it("COMBINES multiple applicable requirements — strictest headcount AND every role floor (RQ20)", () => {
@@ -52,10 +54,26 @@ describe("buildEvalContext — requirementForShift mapping", () => {
     expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 3, minByRole: { nurse: 1 } });
   });
 
-  it("null when no requirement applies", () => {
-    const events = [ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 1 })];
+  it("null when there is NO floor at all (no requirement AND requiredHeadcount 0)", () => {
+    const events = [ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 0 })];
     const ctx = buildEvalContext({ events, employees: [] });
     expect(ctx.requirementForShift("S1")).toBeNull();
+  });
+
+  it("the shift's OWN requiredHeadcount is a coverage floor even with no coverage requirement (RQ22)", () => {
+    // The Build page collects "how many needed" → requiredHeadcount; it must be enforced, not a dead field.
+    const events = [ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 3 })];
+    const ctx = buildEvalContext({ events, employees: [] });
+    expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 3, minByRole: {} });
+  });
+
+  it("a coverage requirement STRICTER than the shift's headcount wins (max of the two)", () => {
+    const events = [
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-16", start: "09:00", end: "17:00", requiredHeadcount: 2 }),
+      ev(2, "COVERAGE_REQ_DEFINED", { requirementId: U1, appliesTo: "day", minHeadcount: 5 }),
+    ];
+    const ctx = buildEvalContext({ events, employees: [] });
+    expect(ctx.requirementForShift("S1")).toEqual({ minHeadcount: 5, minByRole: {} }); // max(2, 5)
   });
 
   it("builds the derived state + employee map the authority needs", () => {

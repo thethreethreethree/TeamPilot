@@ -52,6 +52,14 @@ export function buildEvalContext(args: {
         combined.minByRole[role] = Math.max(combined.minByRole[role] ?? 0, n);
       }
     }
+    // The shift's OWN requiredHeadcount is a coverage floor too — a shift that says it needs N people must
+    // have N (the Build page collects this; imports set it). Without this it was a dead field: collected +
+    // stored but never enforced. Combined as a max with any coverage requirements.
+    const shiftFloor = typeof shift.requiredHeadcount === "number" ? shift.requiredHeadcount : 0;
+    if (shiftFloor > 0) {
+      if (!combined) combined = { minHeadcount: 0, minByRole: {} };
+      combined.minHeadcount = Math.max(combined.minHeadcount, shiftFloor);
+    }
     return combined;
   };
 
