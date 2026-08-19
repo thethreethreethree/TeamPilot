@@ -87,6 +87,14 @@ assigned to a shift) → confirm the "Unassign …?" prompt.
   the name column **stays pinned** when you scroll the grid sideways.
 - Prev/Next moves by one week; "This week" returns to the current week.
 - A week with no shifts shows the **"No shifts this week"** hint (not a blank void).
+- **Empty shifts surfaced (new):** if a shift has no one assigned (created via Build without assigning, or
+  after unassigning the last person), it shows no cells but an **amber hint** appears: "N shifts have no one
+  assigned this week (not shown) — assign on Build, or see Coverage." (Without this the shift is an invisible
+  ghost that Coverage still flags short.)
+- **Approved time-off marked (new):** a person assigned to a shift they have **approved time off** for shows
+  **struck-through + amber + "(off)"** with a tooltip — so the grid agrees with Coverage (which counts them
+  absent) instead of looking falsely staffed. Overnight shifts hit by time-off on their second day are marked
+  too.
 - Rows show **active staff + anyone actually working that week** — a deactivated staff member with
   no shifts does **not** appear as an empty row (relevance filter).
 - Cells with a shift show `HH:mm-HH:mm`; empty cells show a faint `·`. All legible in dark mode.
