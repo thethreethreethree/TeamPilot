@@ -91,15 +91,22 @@ export function dayOfWeekOf(date: string): number | null {
  *   - the shift's start date in `unavailableDates` → unavailable (a specific day-off they marked).
  *   - `weekly` windows, IF ANY are set, are the ONLY times they can work: the shift's weekday must have a
  *     window that fully contains the shift's [start,end]. An empty `weekly` imposes no weekly restriction.
- * Overnight shifts (crossesMidnight) are checked against `unavailableDates` only — a same-day weekly window
- * can't represent a span into the next day, and hard-blocking every overnight shift on weekly windows would
- * be wrong; the manager can still override (this is an overridable violation). Times compare lexicographically
- * (zero-padded 24h "HH:mm"), which is correct ordering.
+ * Overnight shifts (crossesMidnight) are checked against `unavailableDates` on BOTH the start day AND the next
+ * calendar day they run into (span-aware, matching shiftHitsApprovedTimeOff) — but never against weekly windows
+ * (a same-day window can't represent a span into the next day, and hard-blocking every overnight shift on
+ * weekly windows would be wrong; the manager can still override this overridable violation). Times compare
+ * lexicographically (zero-padded 24h "HH:mm"), which is correct ordering.
  */
 export function isAvailable(availability: Availability | undefined, shift: { date: string; start: string; end: string }): boolean {
   if (!availability) return true; // opt-in: no record set = no constraint
   if (availability.unavailableDates.includes(shift.date)) return false;
-  if (crossesMidnight(shift.start, shift.end)) return true; // overnight: only date-level unavailability applies
+  if (crossesMidnight(shift.start, shift.end)) {
+    // Overnight shift ALSO occupies the next calendar day — check that day's off-mark too (span-aware,
+    // matching shiftHitsApprovedTimeOff). Beyond the two date checks an overnight shift isn't weekly-blocked
+    // (a same-day window can't represent a span into the next day).
+    const next = addDaysIso(shift.date, 1);
+    return !(next !== null && availability.unavailableDates.includes(next));
+  }
   if (availability.weekly.length === 0) return true; // only specific dates constrain them
   const dow = dayOfWeekOf(shift.date);
   if (dow === null) return true; // malformed date — don't fabricate a block (defensive; validated upstream)

@@ -46,7 +46,15 @@ describe("isAvailable (pure predicate)", () => {
     const a: Availability = { employeeId: "e", weekly: [{ dayOfWeek: 1, from: "08:00", to: "18:00" }], unavailableDates: [] };
     expect(isAvailable(a, { date: MON, start: "22:00", end: "06:00" })).toBe(true); // weekly window can't span midnight; not blocked
     const b: Availability = { employeeId: "e", weekly: [], unavailableDates: [MON] };
-    expect(isAvailable(b, { date: MON, start: "22:00", end: "06:00" })).toBe(false); // but a marked date still blocks
+    expect(isAvailable(b, { date: MON, start: "22:00", end: "06:00" })).toBe(false); // but the start-date being off blocks
+  });
+
+  it("an overnight shift is blocked when its NEXT day is marked off (span-aware, matches time-off)", () => {
+    // shift starts Monday 22:00 → runs into Tuesday 06:00; Tuesday is the off day, Monday is not.
+    const a: Availability = { employeeId: "e", weekly: [], unavailableDates: [TUE] };
+    expect(isAvailable(a, { date: MON, start: "22:00", end: "06:00" })).toBe(false); // runs into Tue (off)
+    const b: Availability = { employeeId: "e", weekly: [], unavailableDates: [] };
+    expect(isAvailable(b, { date: MON, start: "22:00", end: "06:00" })).toBe(true); // neither day off → available
   });
 });
 

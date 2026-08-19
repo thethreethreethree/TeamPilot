@@ -1,5 +1,5 @@
 import type { ScheduleState } from "./types";
-import { shiftDurationHours } from "./constraints";
+import { shiftDurationHours, crossesMidnight, addDaysIso } from "./constraints";
 
 /**
  * Schedule Management System — Phase 6 (§1.5.1 layers 3–4), "no login yet" model.
@@ -40,7 +40,14 @@ export interface PersonalSchedule {
 
 export function personalSchedule(state: ScheduleState, employeeId: string, fromDate: string): PersonalSchedule {
   const upcoming: PersonalShift[] = Object.values(state.shifts)
-    .filter((s) => s.assigned.includes(employeeId) && s.date >= fromDate)
+    .filter((s) => {
+      if (!s.assigned.includes(employeeId)) return false;
+      // Key on the shift's END day, not its start date: an overnight shift that STARTED the day before
+      // `fromDate` still runs into it (the employee is working it "today"), so it belongs in the view.
+      // Span-aware, consistent with the rest of the module (shiftHitsApprovedTimeOff, the coverage filter).
+      const endDay = crossesMidnight(s.start, s.end) ? (addDaysIso(s.date, 1) ?? s.date) : s.date;
+      return endDay >= fromDate;
+    })
     .sort((a, b) => (a.date === b.date ? a.start.localeCompare(b.start) : a.date.localeCompare(b.date)))
     .map((s) => ({
       id: s.id,

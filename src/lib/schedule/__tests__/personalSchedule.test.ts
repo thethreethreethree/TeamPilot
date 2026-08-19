@@ -70,6 +70,16 @@ describe("personalSchedule", () => {
     expect(r.upcoming.map((s) => s.published)).toEqual([false, true]);
   });
 
+  it("includes an overnight shift that started the day before fromDate (still in progress today)", () => {
+    const st = state([
+      shift({ id: "night", date: "2026-08-20", start: "22:00", end: "06:00", assigned: ["emp1"] }), // runs into 08-21
+      shift({ id: "old", date: "2026-08-19", start: "22:00", end: "06:00", assigned: ["emp1"] }), // ends 08-20, before window
+      shift({ id: "day", date: "2026-08-20", start: "09:00", end: "17:00", assigned: ["emp1"] }), // same-day, ends before window
+    ]);
+    const r = personalSchedule(st, "emp1", "2026-08-21");
+    expect(r.upcoming.map((s) => s.id)).toEqual(["night"]); // only the overnight one still running into 08-21
+  });
+
   it("is empty (not throwing) for an employee with nothing scheduled", () => {
     const r = personalSchedule(state([]), "nobody", "2026-08-21");
     expect(r).toEqual({ upcoming: [], approvedTimeOff: [], totalHours: 0 });
