@@ -14,7 +14,7 @@ each phase ends at a founder checkpoint; never build ahead (plan working-agreeme
 | 5 | Manager/Admin Interface | ⬜ pending | First user-facing surface (layers 3-4 of the four-layer gate). |
 | 6 | Employee Interface | ⬜ pending | |
 | 7 | Make Learning Visible & Close the Loop | ⬜ pending | |
-| 8 | Ground-Up Audit & Hardening (1.7) | ⬜ pending | Includes RQ2 (permanent append-only invariant), full A41 sweep. |
+| 8 | Ground-Up Audit & Hardening (1.7) | ⬜ pending | Full A41 sweep. (RQ2 permanent append-only invariant already landed early — verify:live category (d).) |
 
 ## Decisions log (grounded, override welcome)
 

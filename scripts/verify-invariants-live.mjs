@@ -99,10 +99,16 @@ async function main() {
       missing.push("resolutions: no_delete rule + resolutions_immutable trigger");
     // (c) no_delete-only members (delete blocked; UPDATE permitted by design — feedback record / test infra):
     for (const t of ["feedback", "smoke_test_versions"]) if (!hasD(t)) missing.push(`${t}: no_delete rule DROPPED`);
+    // (d) trigger-BLOCKED (a BEFORE UPDATE OR DELETE trigger that RAISES — the schedule module's fail-loud
+    //     append-only model, 0220). It carries NO no_update/no_delete rules, so categories (a)-(c) cannot see
+    //     it; without this line a migration that DROPs the trigger would leave schedule_event silently mutable
+    //     while verify:live stayed green (the A30 "gate the lesson, not just the migration" gap).
+    if (!hasT("schedule_event", "schedule_event_no_update_delete"))
+      missing.push("schedule_event: schedule_event_no_update_delete trigger DROPPED (append-only broken)");
     return {
       pass: missing.length === 0,
       detail: missing.length === 0
-        ? "all 22 registry tables retain live append-only enforcement (per-table model)"
+        ? "all 23 registry tables retain live append-only enforcement (per-table model)"
         : `DROPPED constitutional append-only enforcement:\n    ${missing.join("\n    ")}`,
     };
   });

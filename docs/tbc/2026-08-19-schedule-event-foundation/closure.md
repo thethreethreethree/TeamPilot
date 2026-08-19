@@ -38,10 +38,11 @@ deterministic replay) are proven. Layers 3–4 are inter-phase / UI, explicitly 
   },
   {
     "id": "RQ2",
-    "item": "A permanent verify:live invariant asserting schedule_event REJECTS an UPDATE (behavioral append-only lock, mirroring the events-table check).",
-    "why_skipped": "Enforced by migration DDL (raise-trigger + revoke) and RLS confirmed live 27/27; the permanent gate is Phase-8 hardening scope.",
+    "item": "A permanent verify:live invariant so schedule_event's append-only enforcement cannot be silently dropped by a future migration.",
+    "why_skipped": "Originally deferred to Phase 8; PULLED FORWARD — A30 says a fix is not complete until gated, and the verify:live registry was blind to schedule_event's trigger model (it only tracked no_update/no_delete rules).",
     "confidence_it_does_not_matter": "medium",
-    "opened_at": null
+    "opened_at": "2026-08-19T01:15:00Z",
+    "outcome": "DONE: added category (d) to the verify:live append-only registry check (asserts the schedule_event_no_update_delete trigger is present). Registry now reports 'all 23 tables'; verify:live passes 27/27; registry doc synced. A future migration dropping the trigger now FAILS verify:live."
   },
   {
     "id": "RQ3",

@@ -59,6 +59,10 @@ confirm the rule survives. Authoritative always-current check (re-run to detect 
 >   content column; status/read-flags may still change). Content is immutable; the row is not.
 > - `smoke_test_versions` — `_no_delete` only; UPDATE is permitted (test infrastructure, not a constitutional
 >   event-chain table — benign by design).
+> - `schedule_event` — a `schedule_event_no_update_delete` (BEFORE UPDATE OR DELETE) trigger that RAISES +
+>   revoked UPDATE/DELETE grants (`0220`, the Schedule Management System event log). A NEW *fail-loud* model:
+>   unlike the silent `do instead nothing` rules above, an attempted mutation ERRORS (honesty — a silent
+>   append-only lets a caller believe a mutation succeeded). Verified live (verify:live registry category (d)).
 
 ```
 after_pitch_summaries      coaching_cues                  smoke_test_results
