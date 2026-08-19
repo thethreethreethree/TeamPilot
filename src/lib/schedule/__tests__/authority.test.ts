@@ -94,6 +94,20 @@ describe("evaluateChange — the single authority (A40)", () => {
     expect(v.approvable).toBe(false);
   });
 
+  it("HOURS CAP is scoped to the target shift's WEEK — a PRIOR week's hours do not count", () => {
+    // Regression lock: `weeklyHoursOf` once summed ALL history (state.shifts holds the whole append-only
+    // log), so as weeks accumulated a within-week assignment falsely tripped over_hours. Here: cap 20;
+    // a 10h shift in the PRIOR week (Aug 13) + a 9h shift already this week (Aug 20); assigning a 9h
+    // shift Aug 21 → this-week total 18 ≤ 20 (approve). Under the old all-time sum it was 10+9+9=28 > 20.
+    const prior = shift({ id: "S0", date: "2026-08-13", start: "09:00", end: "19:00", assigned: ["a"] }); // prev week, 10h
+    const s1 = shift({ id: "S1", date: "2026-08-20", start: "09:00", end: "18:00", assigned: ["a"] }); // this week, 9h
+    const s2 = shift({ id: "S2", date: "2026-08-21", start: "09:00", end: "18:00", assigned: [] }); // this week, 9h
+    const ctx = ctxOf([prior, s1, s2], [emp({ id: "a", maxHoursWeek: 20 })], () => null);
+    const v = evaluateChange({ kind: "assign", shiftId: "S2", employeeId: "a" }, ctx);
+    expect(v.violations.some((x) => x.kind === "over_hours")).toBe(false); // week-scoped 18 ≤ 20
+    expect(v.autoApprovable).toBe(true);
+  });
+
   it("an ABSOLUTE violation dominates a coverage gap (mixed → not approvable)", () => {
     // ineligible AND coverage would still be short → absolute wins, approvable=false.
     const s = shift({ id: "S1", assigned: [], requiredByRole: { nurse: 2 } });

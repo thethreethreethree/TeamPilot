@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   shiftDurationHours,
+  weekStartOf,
   isEligible,
   meetsCoverage,
   withinLimits,
@@ -28,6 +29,25 @@ describe("shiftDurationHours", () => {
   it("a malformed time is 0, never NaN", () => {
     expect(shiftDurationHours("6:00", "15:00")).toBe(0);
     expect(shiftDurationHours("", "")).toBe(0);
+  });
+});
+
+describe("weekStartOf (ISO Monday, UTC-deterministic)", () => {
+  it("maps every day of a week to the same Monday", () => {
+    // Mon 2026-08-17 .. Sun 2026-08-23 all belong to the week starting Mon 2026-08-17.
+    for (const d of ["2026-08-17", "2026-08-20", "2026-08-23"]) expect(weekStartOf(d)).toBe("2026-08-17");
+  });
+  it("a Sunday belongs to the week that STARTED the prior Monday (not the next)", () => {
+    expect(weekStartOf("2026-08-23")).toBe("2026-08-17"); // Sunday → Monday six days earlier
+    expect(weekStartOf("2026-08-24")).toBe("2026-08-24"); // the NEXT Monday is a new week
+  });
+  it("dates in different weeks map to different Mondays", () => {
+    expect(weekStartOf("2026-08-13")).toBe("2026-08-10"); // prior week
+    expect(weekStartOf("2026-08-20")).toBe("2026-08-17"); // this week
+  });
+  it("malformed input is null, never a thrown error", () => {
+    expect(weekStartOf("2026-8-1")).toBeNull();
+    expect(weekStartOf("")).toBeNull();
   });
 });
 

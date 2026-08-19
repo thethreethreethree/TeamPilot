@@ -28,6 +28,23 @@ export function shiftDurationHours(start: string, end: string): number {
   return mins / 60;
 }
 
+/**
+ * The Monday (ISO week start) of the week containing a YYYY-MM-DD date, returned as YYYY-MM-DD, or null
+ * for malformed input. UTC-based so it is deterministic regardless of the runtime timezone (never parses
+ * a bare date string through local time — the UTC-day class). Used to scope the weekly-hours cap to ONE
+ * week. The boundary is Monday (ISO 8601) as a documented default; the workweek-start is not yet a
+ * company setting — see RQ7 (same `companies`-settings family as RQ4's timezone).
+ */
+export function weekStartOf(date: string): string | null {
+  const x = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!x) return null;
+  const dt = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
+  if (Number.isNaN(dt.getTime())) return null;
+  const backToMonday = (dt.getUTCDay() + 6) % 7; // getUTCDay: 0=Sun..6=Sat → days since Monday
+  dt.setUTCDate(dt.getUTCDate() - backToMonday);
+  return dt.toISOString().slice(0, 10);
+}
+
 // ── HARD constraints (pass/fail) ──────────────────────────────────────────────
 
 export type SlotRequirement = { role?: string | null; skills?: string[]; certifications?: string[] };

@@ -26,6 +26,7 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 ## Layer 4 — Verdict authority (A40 / 2.2)
 - ✅ **Single source.** `meetsCoverage`/`isEligible`/`withinLimits` are called ONLY inside `authority.ts` (grep-proven; the one other hit is a comment). Resolution search reuses `evaluateChange`, never re-derives.
 - ✅ Drift-guard tests exercise both branches of every term, especially the override (overridable coverage vs absolute conflict).
+- ✅ **RQ8 (post-audit correctness fix) — weekly-hours cap is now WEEK-SCOPED.** `weeklyHoursOf` previously summed an employee's hours across the ENTIRE append-only history (the projector replays every event), so the "weekly" cap inflated to all-time and `over_hours` — an absolute, non-overridable block — falsely fired more as the log grew. Now scoped to the target shift's ISO-Monday week (`weekStartOf`, UTC-deterministic). Regression test fails under the old all-time sum (detection-proven); +5 tests. Boundary = Monday default → **RQ7**.
 
 ## Layer 5 — AI layer (5 / 3.3)
 - ✅ **Advisory by construction:** `ai.ts` imports `llmCall`/fence/voice/eventSchema only — NOT constraints/authority. It cannot compute the gate or override the verdict.
@@ -41,7 +42,9 @@ else's. An empty flag list would itself be suspicious (1.7) — the honest flags
 ## Open flags (ranked by severity)
 | # | severity | flag | recommendation |
 |---|----------|------|----------------|
+| RQ8 | ✅ **FIXED (correctness)** | weekly-hours cap summed ALL history, not one week | `weeklyHoursOf` now scopes to the target shift's ISO-Monday week (`weekStartOf`); the `over_hours` block no longer inflates as the append-only log grows. Regression-locked + detection-proven. |
 | RQ4 | **MED** | org timezone not stored | add `companies.timezone` + backfill before cross-tz / cross-midnight scheduling |
+| RQ7 | **LOW→MED** | workweek-start is a hardcoded Monday default | the hours-cap week boundary is ISO Monday; a company whose payroll week starts Sunday/Saturday needs a `companies.workweek_start` setting (same `companies`-settings family as RQ4). Documented default until set. |
 | RQ6 | ✅ **FIXED** | event-append route now role-per-event-type gated | manager-only types require ctx.isAdmin; TIMEOFF_REQUESTED/AVAILABILITY_SET/SWAP_REQUESTED open to members. 4 tests. |
 | — | LOW | re-import de-dup (import-once assumed) | skip a shift key already present on re-import |
 | — | LOW | requirement→shift mapping is first-version (day-applies / time-overlap) | refine when coverage is defined against specific shifts |

@@ -17,7 +17,7 @@
  *   - a ZERO-IMPACT change (no violation of any kind) is `autoApprovable`.
  */
 import type { ScheduleState, Employee } from "./types";
-import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, type CoverageGap } from "./constraints";
+import { meetsCoverage, isEligible, withinLimits, shiftDurationHours, weekStartOf, type CoverageGap } from "./constraints";
 
 export type Change =
   | { kind: "time_off"; employeeId: string; start: string; end: string } // inclusive date range YYYY-MM-DD
@@ -56,11 +56,21 @@ export interface EvalContext {
 const roleOfFrom = (employees: Record<string, Employee>) => (id: string): string | null =>
   employees[id]?.role ?? null;
 
-/** Sum an employee's assigned hours across all shifts in the derived state (for the hours cap). */
-function weeklyHoursOf(state: ScheduleState, employeeId: string): number {
+/**
+ * Sum an employee's assigned hours WITHIN THE WEEK containing `weekOfDate` — the cap is `maxHoursWeek`,
+ * a WEEKLY limit, and `state.shifts` holds the ENTIRE append-only history (the projector replays every
+ * event). Summing all history would inflate "weekly" hours to all-time and falsely trip `over_hours` (an
+ * absolute, non-overridable block) more and more as the schedule accumulates — so we scope to one week.
+ * A shift is attributed to the week of its start date (`s.date`). If the target date is malformed, we
+ * fail SAFE by summing nothing beyond the change itself rather than blocking on a bad input.
+ */
+function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDate: string): number {
+  const targetWeek = weekStartOf(weekOfDate);
   let h = 0;
   for (const s of Object.values(state.shifts)) {
-    if (s.assigned.includes(employeeId)) h += shiftDurationHours(s.start, s.end);
+    if (!s.assigned.includes(employeeId)) continue;
+    if (targetWeek !== null && weekStartOf(s.date) !== targetWeek) continue; // only the target shift's week
+    h += shiftDurationHours(s.start, s.end);
   }
   return h;
 }
@@ -133,8 +143,8 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
       if (hasApprovedTimeOffOn(state, emp.id, shift.date)) {
         violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
-      // hours cap (their current hours + this shift)
-      const proposed = weeklyHoursOf(state, emp.id) + shiftDurationHours(shift.start, shift.end);
+      // hours cap (their current hours THAT WEEK + this shift)
+      const proposed = weeklyHoursOf(state, emp.id, shift.date) + shiftDurationHours(shift.start, shift.end);
       const lim = withinLimits(emp, proposed);
       if (!lim.within) violations.push({ kind: "over_hours", employeeId: emp.id, overBy: lim.overBy, overridable: false });
       break;
@@ -160,7 +170,7 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
         if (hasApprovedTimeOffOn(state, to.id, shift.date)) {
           violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: to.id, overridable: false });
         }
-        const proposed = weeklyHoursOf(state, to.id) + shiftDurationHours(shift.start, shift.end);
+        const proposed = weeklyHoursOf(state, to.id, shift.date) + shiftDurationHours(shift.start, shift.end);
         const lim = withinLimits(to, proposed);
         if (!lim.within) violations.push({ kind: "over_hours", employeeId: to.id, overBy: lim.overBy, overridable: false });
         coverageAfter(shift.id, after);
