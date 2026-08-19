@@ -38,6 +38,15 @@ describe("buildWeekGrid", () => {
     expect(g.cell("e2", "2026-08-19")?.off).toBe(false); // e2 works normally
   });
 
+  it("off marking is SPAN-AWARE — an overnight shift hit by time-off on its SECOND day is flagged (matches coverage)", () => {
+    const g = buildWeekGrid(
+      [shift("s1", "2026-08-19", "22:00", "06:00", ["e1"])], // overnight: occupies 08-19 AND 08-20
+      WEEK,
+      [{ employeeId: "e1", start: "2026-08-20", end: "2026-08-20" }], // off only on the SECOND day
+    );
+    expect(g.cell("e1", "2026-08-19")?.off).toBe(true); // still flagged — the shift runs into the off day
+  });
+
   it("gives every assignee their own cell + records each in scheduledIds", () => {
     const g = buildWeekGrid([shift("s1", "2026-08-19", "06:00", "14:00", ["e1", "e2"])], WEEK);
     expect(g.cell("e1", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false });

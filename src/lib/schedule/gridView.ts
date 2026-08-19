@@ -1,4 +1,5 @@
 import type { Shift, Employee } from "./types";
+import { crossesMidnight, addDaysIso } from "./constraints";
 
 /**
  * Pure view logic for the weekly schedule grid, extracted from the client component so it can be unit-tested
@@ -43,7 +44,11 @@ export interface WeekGrid {
 export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: ApprovedOff[] = []): WeekGrid {
   const inWeek = new Set(dates);
   // Is employee `e` on approved time-off on date `d`? (inclusive span). Small n — a linear scan is fine.
-  const isOff = (e: string, d: string) => approvedOff.some((t) => t.employeeId === e && t.start <= d && d <= t.end);
+  const offOn = (e: string, d: string) => approvedOff.some((t) => t.employeeId === e && t.start <= d && d <= t.end);
+  // Span-aware, matching the coverage check (RQ10/RQ15): a shift hits time-off on its start date OR, if it
+  // crosses midnight, the next calendar day too — so the grid marking agrees with what Coverage counts.
+  const shiftHitsOff = (e: string, s: Shift) =>
+    offOn(e, s.date) || (crossesMidnight(s.start, s.end) && offOn(e, addDaysIso(s.date, 1) ?? s.date));
   const byEmpDate = new Map<string, Map<string, WeekCell>>();
   let shiftsThisWeek = 0;
   let emptyShiftsThisWeek = 0;
@@ -53,7 +58,7 @@ export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: App
     if (s.assigned.length === 0) emptyShiftsThisWeek += 1; // no cells rendered for this shift — surface it
     for (const empId of s.assigned) {
       if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
-      byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}`, off: isOff(empId, s.date) });
+      byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}`, off: shiftHitsOff(empId, s) });
     }
   }
   return {
