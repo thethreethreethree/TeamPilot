@@ -62,6 +62,10 @@ schedule + care, all fixed + gated.
   - **schedule/care write policies retain their role/agent predicate** (a revert of `0226/0229/0230/0233` to
     company-scoped FAILS — detection-proven).
 - Drift-guard test: the manager-only event list agrees across route TS == `0227` RPC == `0230` RLS.
+- **Behavioral diagnostic** (stronger than the structural invariants — verifies the predicate actually blocks):
+  `node scripts/diag-schedule-security.mjs` — READ-ONLY, all rolled back; simulates a plain member / agent /
+  admin JWT under RLS and asserts each schedule/care write is blocked or allowed as designed (9 checks). Re-run
+  after any policy/RPC change.
 
 ## Reusable method (for the deferred finance/chat draft-table confirm)
 
