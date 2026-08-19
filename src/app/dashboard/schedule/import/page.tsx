@@ -20,8 +20,8 @@ import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 type ShiftTimes = { start: string; end: string };
 type CodeVal = ShiftTimes | "off";
 type Proposal = { headerCells: string[]; codes: string[]; headerDates: string[]; codeMap: Record<string, CodeVal>; notes: string };
-type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: string[]; willReplace?: number; readyToCommit: boolean };
-type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; willReplace?: number; readyToCommit: boolean };
+type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: string[]; willReplace?: number; replaceFrom?: string | null; replaceTo?: string | null; readyToCommit: boolean };
+type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; willReplace?: number; replaceFrom?: string | null; replaceTo?: string | null; readyToCommit: boolean };
 type Done = { staffCreated: number; shiftsCreated: number; assignmentsCreated: number; shiftsSuperseded?: number };
 
 /** Read a File → base64 (no data: prefix). FileReader avoids the stack overflow of String.fromCharCode(...big). */
@@ -272,7 +272,8 @@ export default function ScheduleImportPage() {
               {!!preview.willReplace && preview.willReplace > 0 && (
                 <p className="flex items-center gap-2 text-xs text-amber-300">
                   <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
-                  This replaces {preview.willReplace} existing shift{preview.willReplace === 1 ? "" : "s"} in these dates (the corrected week supersedes them).
+                  This replaces {preview.willReplace} existing shift{preview.willReplace === 1 ? "" : "s"}
+                  {preview.replaceFrom && preview.replaceTo ? ` from ${preview.replaceFrom} to ${preview.replaceTo}` : ""} (the corrected week supersedes them — check the dates look right).
                 </p>
               )}
               <button type="button" onClick={commit} disabled={!preview.readyToCommit || busy !== null}
@@ -322,7 +323,8 @@ export default function ScheduleImportPage() {
               {!!vaPreview.willReplace && vaPreview.willReplace > 0 && (
                 <p className="flex items-center gap-2 text-xs text-amber-300">
                   <AlertTriangle className="w-3.5 h-3.5" aria-hidden />
-                  This replaces {vaPreview.willReplace} existing shift{vaPreview.willReplace === 1 ? "" : "s"} in this week (the imported week supersedes them).
+                  This replaces {vaPreview.willReplace} existing shift{vaPreview.willReplace === 1 ? "" : "s"}
+                  {vaPreview.replaceFrom && vaPreview.replaceTo ? ` from ${vaPreview.replaceFrom} to ${vaPreview.replaceTo}` : ""} (the imported week supersedes them — check the dates look right).
                 </p>
               )}
               <button type="button" onClick={vaCommit} disabled={!vaPreview.readyToCommit || busy !== null}

@@ -70,13 +70,25 @@ export function supersededShiftIds(
   existingShifts: { id: string; date: string }[],
   plannedShifts: { date: string }[],
 ): string[] {
-  const first = plannedShifts[0];
-  if (!first) return [];
-  let min = first.date;
-  let max = first.date;
-  for (const s of plannedShifts) {
-    if (s.date < min) min = s.date;
-    if (s.date > max) max = s.date;
+  const span = dateSpan(plannedShifts);
+  if (!span) return [];
+  return existingShifts.filter((s) => s.date >= span.from && s.date <= span.to).map((s) => s.id);
+}
+
+/**
+ * The [min, max] date span of a set of dated items (YYYY-MM-DD), or null if empty. The single source of the
+ * "replace-the-week" range — used both to pick the superseded shifts (above) and to SHOW the manager the exact
+ * date range a re-import will replace (so a typo'd import date, which widens the span, is obvious in the
+ * preview rather than a silent large delete).
+ */
+export function dateSpan(items: { date: string }[]): { from: string; to: string } | null {
+  const first = items[0];
+  if (!first) return null;
+  let from = first.date;
+  let to = first.date;
+  for (const s of items) {
+    if (s.date < from) from = s.date;
+    if (s.date > to) to = s.date;
   }
-  return existingShifts.filter((s) => s.date >= min && s.date <= max).map((s) => s.id);
+  return { from, to };
 }

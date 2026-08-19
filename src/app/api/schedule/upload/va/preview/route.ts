@@ -4,7 +4,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { VaUploadBody, extractVaOrError } from "@/lib/schedule/vaUpload";
-import { supersededShiftIds } from "@/lib/schedule/importPlanner";
+import { supersededShiftIds, dateSpan } from "@/lib/schedule/importPlanner";
 import { readExistingShifts } from "@/lib/schedule/commitImport";
 
 /**
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
   // Replace-the-week honesty (§3.4): how many existing shifts this import would supersede in its date span —
   // same supersededShiftIds the commit uses. Non-blocking (a read failure must not break the preview).
   const shiftEntries = preview.entries.filter((e) => e.kind === "shift");
+  const span = dateSpan(shiftEntries); // the date range a re-import would replace (shown in the preview warning)
   let willReplace = 0;
   try {
     const sb = await createClient();
@@ -53,6 +54,8 @@ export async function POST(req: NextRequest) {
     entryCount: preview.entries.length,
     unparsedBlocks,
     willReplace,
+    replaceFrom: span?.from ?? null,
+    replaceTo: span?.to ?? null,
     readyToCommit: unparsedBlocks.length === 0 && preview.entries.length > 0,
   });
 }

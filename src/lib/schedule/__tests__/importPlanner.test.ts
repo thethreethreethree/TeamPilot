@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planImport, supersededShiftIds, type ImportPreview } from "../importPlanner";
+import { planImport, supersededShiftIds, dateSpan, type ImportPreview } from "../importPlanner";
 import type { GridEntry } from "../gridParser";
 
 /**
@@ -73,5 +73,18 @@ describe("supersededShiftIds — replace-the-week span", () => {
 
   it("a single-day import supersedes only that day", () => {
     expect(supersededShiftIds(existing, [{ date: "2026-08-17" }])).toEqual(["b"]);
+  });
+});
+
+describe("dateSpan — the replace range shown to the manager", () => {
+  it("returns [min, max] of the dates", () => {
+    expect(dateSpan([{ date: "2026-08-20" }, { date: "2026-08-17" }, { date: "2026-08-19" }])).toEqual({ from: "2026-08-17", to: "2026-08-20" });
+  });
+  it("surfaces a typo'd wide span (the whole point — the manager SEES the bad range)", () => {
+    // A stray 2020 date widens the span to six years — visible in the warning, not a silent large delete.
+    expect(dateSpan([{ date: "2020-01-01" }, { date: "2026-08-19" }])).toEqual({ from: "2020-01-01", to: "2026-08-19" });
+  });
+  it("null for an empty set", () => {
+    expect(dateSpan([])).toBeNull();
   });
 });

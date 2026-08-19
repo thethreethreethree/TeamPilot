@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { parseScheduleGrid } from "@/lib/schedule/gridParser";
-import { supersededShiftIds } from "@/lib/schedule/importPlanner";
+import { supersededShiftIds, dateSpan } from "@/lib/schedule/importPlanner";
 import { readExistingShifts } from "@/lib/schedule/commitImport";
 
 /**
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
   // that a re-import replaces (not silently deletes) before confirming. Same supersededShiftIds the commit
   // uses → the warned count matches what actually happens. A read failure here must not block the preview.
   const shiftEntries = parsed.entries.filter((e) => e.kind === "shift");
+  const span = dateSpan(shiftEntries); // the date range a re-import would replace — shown so a typo'd date is obvious
   let willReplace = 0;
   try {
     const sb = await createClient();
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest) {
     unknownCodes: parsed.unknownCodes,
     entries: parsed.entries,
     willReplace,
+    replaceFrom: span?.from ?? null,
+    replaceTo: span?.to ?? null,
     readyToCommit: parsed.unknownCodes.length === 0,
   });
 }
