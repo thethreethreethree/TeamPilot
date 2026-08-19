@@ -5,6 +5,7 @@ import { Loader2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
+import { buildWeekGrid, relevantRows } from "@/lib/schedule/gridView";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -78,34 +79,16 @@ export default function ScheduleGridPage() {
     [weekStart],
   );
 
-  // Pivot the derived shifts: employeeId -> date -> { shiftId, label }. The shiftId is carried so a
-  // cell click can unassign that person from THAT shift (EMPLOYEE_UNASSIGNED needs the shiftId).
-  const { cellFor, shiftsThisWeek, scheduledIds } = useMemo(() => {
-    const shifts = state ? Object.values(state.shifts) : [];
-    const inWeek = dates.length > 0 ? new Set(dates) : new Set<string>();
-    const byEmpDate = new Map<string, Map<string, { shiftId: string; label: string }>>();
-    let count = 0;
-    for (const s of shifts) {
-      if (!inWeek.has(s.date)) continue;
-      count += 1;
-      for (const empId of s.assigned) {
-        if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
-        byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}` });
-      }
-    }
-    return {
-      cellFor: (empId: string, date: string) => byEmpDate.get(empId)?.get(date) ?? null,
-      shiftsThisWeek: count,
-      scheduledIds: new Set(byEmpDate.keys()),
-    };
-  }, [state, dates]);
-
-  // Rows = active staff + anyone actually working this week (a deactivated staff member with a shift still
-  // shows). Deactivated staff with no shift this week are hidden — otherwise their empty rows pile up.
-  const rows = useMemo(
-    () => roster.filter((e) => e.status === "active" || scheduledIds.has(e.id)),
-    [roster, scheduledIds],
+  // Pivot the derived shifts into an employee×date lookup for the displayed week (pure logic in gridView.ts,
+  // unit-tested there). Each cell carries the shiftId so a click can unassign that person from THAT shift.
+  const { cell, shiftsThisWeek, scheduledIds } = useMemo(
+    () => buildWeekGrid(state ? Object.values(state.shifts) : [], dates),
+    [state, dates],
   );
+
+  // Rows = active staff + anyone actually working this week (deactivated-and-unscheduled staff are hidden so
+  // their empty rows don't pile up). Pure + unit-tested in gridView.ts.
+  const rows = useMemo(() => relevantRows(roster, scheduledIds), [roster, scheduledIds]);
 
   // Cell-click unassign: click a shift cell -> confirm -> append EMPLOYEE_UNASSIGNED (manager-gated route) ->
   // reload. The grid IS the natural selector (the person is shown right where you click). busyRef is a
@@ -203,19 +186,19 @@ export default function ScheduleGridPage() {
                   <tr key={emp.id}>
                     <td className="sticky left-0 bg-base text-primary text-xs px-3 py-2 border-b border-white/5 truncate min-w-[9rem]">{emp.name}</td>
                     {dates.map((d) => {
-                      const cell = cellFor(emp.id, d);
-                      const busy = cell !== null && unassigning === `${cell.shiftId}:${emp.id}`;
+                      const c = cell(emp.id, d);
+                      const busy = c !== null && unassigning === `${c.shiftId}:${emp.id}`;
                       return (
-                        <td key={d} className={`text-center text-[11px] px-2 py-2 border-b border-white/5 whitespace-nowrap tabular-nums ${cell ? "text-primary" : "text-muted/40"}`}>
-                          {cell ? (
+                        <td key={d} className={`text-center text-[11px] px-2 py-2 border-b border-white/5 whitespace-nowrap tabular-nums ${c ? "text-primary" : "text-muted/40"}`}>
+                          {c ? (
                             <button
                               type="button"
-                              onClick={() => unassign(cell.shiftId, emp.id, emp.name)}
+                              onClick={() => unassign(c.shiftId, emp.id, emp.name)}
                               disabled={busy}
                               title={`Unassign ${emp.name} from this shift`}
                               className="rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors"
                             >
-                              {busy ? "…" : cell.label}
+                              {busy ? "…" : c.label}
                             </button>
                           ) : (
                             "·"
