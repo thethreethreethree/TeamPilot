@@ -12,6 +12,7 @@ import { ScheduleNav } from "@/components/schedule/ScheduleNav";
  */
 
 type Candidate = { employeeId: string; name: string; currentHours: number };
+type TimeOffRow = { id: string; employeeName: string; type: string; start: string; end: string; status: string };
 type Evaluation = {
   verdict: { approvable: boolean; autoApprovable: boolean; violations: { kind: string }[]; reason: string };
   resolutionsByShift: { shiftId: string; candidates: Candidate[] }[];
@@ -29,6 +30,8 @@ export default function TimeOffReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
+  const [timeOff, setTimeOff] = useState<TimeOffRow[]>([]);
+
   const loadRoster = useCallback(async () => {
     try {
       const res = await fetch("/api/schedule/employees");
@@ -38,7 +41,13 @@ export default function TimeOffReviewPage() {
       }
     } catch { /* the picker just stays empty; the form still guards on employeeId */ }
   }, []);
-  useEffect(() => { void loadRoster(); }, [loadRoster]);
+  const loadTimeOff = useCallback(async () => {
+    try {
+      const res = await fetch("/api/schedule/timeoff");
+      if (res.ok) setTimeOff((await res.json()).timeOff ?? []);
+    } catch { /* the list just stays empty */ }
+  }, []);
+  useEffect(() => { void loadRoster(); void loadTimeOff(); }, [loadRoster, loadTimeOff]);
 
   const canEval = employeeId && start && end && busy === null;
 
@@ -77,7 +86,7 @@ export default function TimeOffReviewPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId, type, start, end, decision }),
       });
-      if (res.status === 201) { setDone(decision === "approve" ? "Approved" : "Denied"); setEvaluation(null); }
+      if (res.status === 201) { setDone(decision === "approve" ? "Approved" : "Denied"); setEvaluation(null); void loadTimeOff(); }
       else if (res.status === 403) { setError("Only a manager can record time off."); }
       else { setError("Couldn't record the decision. Try again."); }
     } catch { setError("Couldn't reach the server."); }
@@ -172,6 +181,26 @@ export default function TimeOffReviewPage() {
       )}
 
       {error && <p className="text-sm text-red-300 mt-2">{error}</p>}
+
+      {/* Recorded time off — who is off / pending, so a manager has the picture without evaluating each one. */}
+      {timeOff.length > 0 && (
+        <div className="mt-6">
+          <div className="text-sm font-semibold text-secondary mb-2">Recorded time off</div>
+          <ul className="space-y-1.5">
+            {timeOff.map((t) => (
+              <li key={t.id} className="glass-card p-3 text-xs flex items-center justify-between gap-3">
+                <span className="text-primary truncate">
+                  <span className="font-semibold">{t.employeeName}</span>
+                  <span className="text-muted"> · {t.type} · {t.start}{t.end !== t.start ? ` to ${t.end}` : ""}</span>
+                </span>
+                <span className={t.status === "approved" ? "text-emerald-400" : t.status === "denied" ? "text-muted line-through" : "text-brand"}>
+                  {t.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

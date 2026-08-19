@@ -10,7 +10,7 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { POST } from "../route";
+import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 const U = "11111111-1111-4111-8111-111111111111";
@@ -57,5 +57,36 @@ describe("POST /api/schedule/timeoff", () => {
     expect((await POST(req(base))).status).toBe(403);
     asMock(getCurrentAuthContext).mockResolvedValue(null);
     expect((await POST(req(base))).status).toBe(401);
+  });
+});
+
+describe("GET /api/schedule/timeoff (the list)", () => {
+  const evRow = (seq: number, type: string, payload: Record<string, unknown>) =>
+    ({ id: `e${seq}`, company_id: "c1", type, actor_id: null, payload, occurred_at: "2026-08-19T00:00:00Z", seq });
+  function readSb(events: unknown[], employees: unknown[]) {
+    return {
+      from: (table: string) => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }) }) }) }) }),
+    };
+  }
+
+  it("returns the derived time off with the staff member's name", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "Member", isAdmin: false });
+    asMock(createClient).mockResolvedValue(readSb(
+      [
+        evRow(1, "TIMEOFF_REQUESTED", { timeOffId: U, employeeId: "emp1", type: "vacation", start: "2026-08-21", end: "2026-08-22" }),
+        evRow(2, "TIMEOFF_APPROVED", { timeOffId: U }),
+      ],
+      [{ id: "emp1", company_id: "c1", name: "Alex", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }],
+    ));
+    const res = await GET({} as Parameters<typeof GET>[0]);
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.timeOff).toHaveLength(1);
+    expect(j.timeOff[0]).toMatchObject({ employeeName: "Alex", type: "vacation", status: "approved" });
+  });
+
+  it("401 unauthenticated", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(null);
+    expect((await GET({} as Parameters<typeof GET>[0])).status).toBe(401);
   });
 });

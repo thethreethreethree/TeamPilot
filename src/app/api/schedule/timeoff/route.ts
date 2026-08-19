@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { deriveState } from "@/lib/schedule/deriveState";
+import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
+import { EMPLOYEE_COLUMNS, type EmployeeRow } from "@/lib/schedule/employeeRow";
 
 /**
  * Schedule Management System — record a time-off request + the manager's decision (Phase 5/6 review flow).
@@ -22,6 +26,34 @@ const Body = z.object({
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   decision: z.enum(["request", "approve", "deny"]).default("request"),
 });
+
+/** The company's recorded time off (derived from the log), each with the staff member's name, most-recent
+ *  start first — so a manager can see who is off / pending, not just evaluate a new request. */
+export async function GET(_req: NextRequest) {
+  const ctx = await getCurrentAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const sb = await createClient();
+  try {
+    const [evRows, empRows] = await Promise.all([
+      fetchAllPaged<EventRow>(
+        (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
+        { label: "schedule_event" },
+      ),
+      fetchAllPaged<EmployeeRow>(
+        (from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("id").range(from, to),
+        { label: "schedule_employee" },
+      ),
+    ]);
+    const nameOf = new Map(empRows.map((r) => [r.id, r.name]));
+    const timeOff = Object.values(deriveState(evRows.map(rowToEvent)).timeOff)
+      .map((t) => ({ ...t, employeeName: nameOf.get(t.employeeId) ?? "(unknown)" }))
+      .sort((a, b) => b.start.localeCompare(a.start));
+    return NextResponse.json({ timeOff });
+  } catch (e) {
+    console.error("[schedule/timeoff] list read failed:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Couldn't load time off." }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "schedule-timeoff", windowMs: 60_000, max: 60 });
