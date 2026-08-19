@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
+import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -34,20 +35,35 @@ function weekdayOf(iso: string): string {
 export default function ScheduleGridPage() {
   const [state, setState] = useState<ScheduleState | null>(null);
   const [roster, setRoster] = useState<Employee[]>([]);
+  const [settings, setSettings] = useState<ScheduleSettings>(DEFAULT_SCHEDULE_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [weekStart, setWeekStart] = useState<string>(() => weekStartOf(localTodayIso()) ?? localTodayIso());
+  const initialWeekSet = useRef(false); // set the default week from settings ONCE (a reload must not jump off a navigated week)
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const [ev, emp] = await Promise.all([fetch("/api/schedule/events"), fetch("/api/schedule/employees")]);
+      const [ev, emp, set] = await Promise.all([
+        fetch("/api/schedule/events"),
+        fetch("/api/schedule/employees"),
+        fetch("/api/schedule/settings"), // non-critical: falls back to defaults below
+      ]);
       if (!ev.ok || !emp.ok) { setError(true); return; }
       const evd: EventsResponse = await ev.json();
       const empd: { employees: Employee[] } = await emp.json();
       setState(evd.state);
       setRoster(empd.employees ?? []);
+      const s: ScheduleSettings = set.ok ? await set.json() : DEFAULT_SCHEDULE_SETTINGS;
+      setSettings(s);
+      // Align the default week to the company's workweek-start + timezone — but only ONCE, so a reload
+      // (e.g. after an unassign) never yanks the manager back off a week they navigated to.
+      if (!initialWeekSet.current) {
+        initialWeekSet.current = true;
+        const today = todayInTz(s.timezone);
+        setWeekStart(weekStartOf(today, s.workweekStart) ?? today);
+      }
     } catch {
       setError(true);
     } finally {
@@ -123,7 +139,7 @@ export default function ScheduleGridPage() {
 
   const dayLabel = (iso: string) => { const [, m, d] = iso.split("-"); return `${m}/${d}`; };
   const shiftWeek = (n: number) => setWeekStart((w) => addDaysIso(w, n) ?? w);
-  const goToday = () => setWeekStart(weekStartOf(localTodayIso()) ?? localTodayIso());
+  const goToday = () => { const t = todayInTz(settings.timezone); setWeekStart(weekStartOf(t, settings.workweekStart) ?? t); };
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-full mx-auto w-full">

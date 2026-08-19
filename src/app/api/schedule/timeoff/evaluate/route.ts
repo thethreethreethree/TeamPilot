@@ -8,6 +8,7 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { buildEvalContext } from "@/lib/schedule/evalContext";
 import { evaluateChange } from "@/lib/schedule/authority";
 import { findResolutions } from "@/lib/schedule/resolution";
+import { getScheduleSettings } from "@/lib/schedule/settings";
 import { generateProposal } from "@/lib/schedule/ai";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
@@ -44,8 +45,9 @@ export async function POST(req: NextRequest) {
   const sb = await createClient();
   let events: ScheduleEvent[];
   let employees: Employee[];
+  let weekStartDay = 1;
   try {
-    const [evRows, empRows] = await Promise.all([
+    const [evRows, empRows, settings] = await Promise.all([
       fetchAllPaged<EventRow>(
         (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
         { label: "schedule_event" },
@@ -54,15 +56,17 @@ export async function POST(req: NextRequest) {
         (from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("id").range(from, to),
         { label: "schedule_employee" },
       ),
+      getScheduleSettings(sb, ctx.companyId),
     ]);
     events = evRows.map(rowToEvent);
     employees = empRows.map(rowToEmployee);
+    weekStartDay = settings.workweekStart;
   } catch (e) {
     console.error("[schedule/timeoff/evaluate] load failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't load the schedule to evaluate the request." }, { status: 500 });
   }
 
-  const evalCtx = buildEvalContext({ events, employees });
+  const evalCtx = buildEvalContext({ events, employees, weekStartDay });
   const verdict = evaluateChange({ kind: "time_off", employeeId: body.employeeId, start: body.start, end: body.end }, evalCtx);
 
   // For each shift that would drop coverage, find who could fill it (deterministic, reuses the authority).

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Users, Upload, CalendarClock, ShieldCheck, CalendarPlus } from "lucide-react";
+import { CalendarDays, Users, Upload, CalendarClock, ShieldCheck, CalendarPlus, Settings } from "lucide-react";
 
 /**
  * Schedule Management System — the sub-nav shared across the schedule surfaces (Phase 5). Self-contained
@@ -17,6 +17,7 @@ const TABS = [
   { href: "/dashboard/schedule/coverage", label: "Coverage", icon: ShieldCheck },
   { href: "/dashboard/schedule/new", label: "Build", icon: CalendarPlus },
   { href: "/dashboard/schedule/import", label: "Import", icon: Upload },
+  { href: "/dashboard/schedule/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function ScheduleNav() {

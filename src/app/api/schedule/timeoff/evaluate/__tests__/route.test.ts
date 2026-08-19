@@ -39,7 +39,7 @@ const ROSTER = [
 function fakeSb() {
   return {
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? EVENTS : ROSTER, error: null }) }) }) }),
+      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? EVENTS : ROSTER, error: null }) }), maybeSingle: async () => ({ data: null, error: null }) }) }),
     }),
   };
 }

@@ -86,6 +86,15 @@ describe("weekStartOf (ISO Monday, UTC-deterministic)", () => {
     expect(weekStartOf("2026-8-1")).toBeNull();
     expect(weekStartOf("")).toBeNull();
   });
+  it("honors a configurable workweek-start day (RQ7 / 0224)", () => {
+    // Sunday-start week (0): Sun 2026-08-23 .. Sat 2026-08-29 all belong to Sun 2026-08-23.
+    for (const d of ["2026-08-23", "2026-08-26", "2026-08-29"]) expect(weekStartOf(d, 0)).toBe("2026-08-23");
+    // Same date, Monday-start (default) buckets differently — 08-23 (Sun) → prior Monday 08-17.
+    expect(weekStartOf("2026-08-23", 1)).toBe("2026-08-17");
+    expect(weekStartOf("2026-08-23")).toBe("2026-08-17"); // default arg == Monday
+    // Saturday-start week (6): Sat 2026-08-22 .. Fri 2026-08-28 → Sat 2026-08-22.
+    expect(weekStartOf("2026-08-25", 6)).toBe("2026-08-22");
+  });
 });
 
 describe("isEligible (hard)", () => {

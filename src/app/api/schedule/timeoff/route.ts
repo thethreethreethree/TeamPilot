@@ -8,6 +8,7 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { deriveState } from "@/lib/schedule/deriveState";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, type EmployeeRow } from "@/lib/schedule/employeeRow";
+import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
 
 /**
  * Schedule Management System — record a time-off request + the manager's decision (Phase 5/6 review flow).
@@ -45,7 +46,7 @@ export async function GET(_req: NextRequest) {
       ),
     ]);
     const nameOf = new Map(empRows.map((r) => [r.id, r.name]));
-    const today = new Date().toISOString().slice(0, 10); // server date; tz-approximate until RQ4
+    const today = todayInTz((await getScheduleSettings(sb, ctx.companyId)).timezone); // company tz (0224)
     // Current/upcoming only — a fully-PAST time-off is over, so it's just noise that accumulates.
     const timeOff = Object.values(deriveState(evRows.map(rowToEvent)).timeOff)
       .filter((t) => t.end >= today)

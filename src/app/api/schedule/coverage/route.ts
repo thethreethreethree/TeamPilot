@@ -9,6 +9,7 @@ import { buildEvalContext } from "@/lib/schedule/evalContext";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
 import { findCoverageGaps } from "@/lib/schedule/coverageStatus";
+import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
 
 /**
  * Schedule Management System — coverage requirements (Phase 5). A coverage requirement is the "no lapse"
@@ -31,7 +32,7 @@ export async function GET(_req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const sb = await createClient();
   try {
-    const [evRows, empRows] = await Promise.all([
+    const [evRows, empRows, settings] = await Promise.all([
       fetchAllPaged<EventRow>(
         (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
         { label: "schedule_event" },
@@ -40,11 +41,12 @@ export async function GET(_req: NextRequest) {
         (from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("id").range(from, to),
         { label: "schedule_employee" },
       ),
+      getScheduleSettings(sb, ctx.companyId),
     ]);
     // Derive state ONCE (buildEvalContext replays the log) and reuse it for BOTH the requirements list and
-    // the proactive gaps — no double replay.
-    const evalCtx = buildEvalContext({ events: evRows.map(rowToEvent), employees: empRows.map(rowToEmployee) });
-    const today = new Date().toISOString().slice(0, 10); // server date; tz-approximate until RQ4
+    // the proactive gaps — no double replay. Week + "today" use the company settings (0224).
+    const evalCtx = buildEvalContext({ events: evRows.map(rowToEvent), employees: empRows.map(rowToEmployee), weekStartDay: settings.workweekStart });
+    const today = todayInTz(settings.timezone);
     return NextResponse.json({
       requirements: Object.values(evalCtx.state.coverageReqs),
       gaps: findCoverageGaps(evalCtx, today),

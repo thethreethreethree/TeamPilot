@@ -51,6 +51,9 @@ export interface EvalContext {
    *  authority stays agnostic to how requirements map to shifts (day/shift/role — that mapping is the
    *  caller's, so this one authority isn't coupled to it). */
   requirementForShift: (shiftId: string) => { minHeadcount: number; minByRole: Record<string, number> } | null;
+  /** Day the workweek starts (JS 0=Sun..6=Sat) for the weekly-hours cap — a company setting (RQ7, 0224).
+   *  Optional: absent → Monday (1), the prior default, so existing callers/tests are unaffected. */
+  weekStartDay?: number;
 }
 
 const roleOfFrom = (employees: Record<string, Employee>) => (id: string): string | null =>
@@ -152,8 +155,8 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
       if (shiftHitsApprovedTimeOff(state, emp.id, shift)) {
         violations.push({ kind: "time_off_conflict", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
-      // hours cap (their current hours THAT WEEK + this shift)
-      const proposed = weeklyHoursOf(state, emp.id, shift.date) + shiftDurationHours(shift.start, shift.end);
+      // hours cap (their current hours THAT WEEK + this shift; week bucketed on the company workweek-start)
+      const proposed = weeklyHoursOf(state, emp.id, shift.date, ctx.weekStartDay ?? 1) + shiftDurationHours(shift.start, shift.end);
       const lim = withinLimits(emp, proposed);
       if (!lim.within) violations.push({ kind: "over_hours", employeeId: emp.id, overBy: lim.overBy, overridable: false });
       break;
@@ -185,7 +188,7 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
           (o) => o.id !== shift.id && o.date === shift.date && o.assigned.includes(to.id) && rangesOverlap(o.start, o.end, shift.start, shift.end),
         );
         if (swapClash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: to.id, overridable: false });
-        const proposed = weeklyHoursOf(state, to.id, shift.date) + shiftDurationHours(shift.start, shift.end);
+        const proposed = weeklyHoursOf(state, to.id, shift.date, ctx.weekStartDay ?? 1) + shiftDurationHours(shift.start, shift.end);
         const lim = withinLimits(to, proposed);
         if (!lim.within) violations.push({ kind: "over_hours", employeeId: to.id, overBy: lim.overBy, overridable: false });
         coverageAfter(shift.id, after);

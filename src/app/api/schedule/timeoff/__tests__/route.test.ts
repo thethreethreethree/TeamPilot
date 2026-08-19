@@ -65,7 +65,14 @@ describe("GET /api/schedule/timeoff (the list)", () => {
     ({ id: `e${seq}`, company_id: "c1", type, actor_id: null, payload, occurred_at: "2026-08-19T00:00:00Z", seq });
   function readSb(events: unknown[], employees: unknown[]) {
     return {
-      from: (table: string) => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }) }) }) }) }),
+      from: (table: string) => ({
+        select: () => ({
+          eq: () => ({
+            order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }) }),
+            maybeSingle: async () => ({ data: null, error: null }), // companies settings read → defaults
+          }),
+        }),
+      }),
     };
   }
 

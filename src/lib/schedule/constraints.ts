@@ -29,19 +29,21 @@ export function shiftDurationHours(start: string, end: string): number {
 }
 
 /**
- * The Monday (ISO week start) of the week containing a YYYY-MM-DD date, returned as YYYY-MM-DD, or null
- * for malformed input. UTC-based so it is deterministic regardless of the runtime timezone (never parses
- * a bare date string through local time — the UTC-day class). Used to scope the weekly-hours cap to ONE
- * week. The boundary is Monday (ISO 8601) as a documented default; the workweek-start is not yet a
- * company setting — see RQ7 (same `companies`-settings family as RQ4's timezone).
+ * The week-start date of the week containing a YYYY-MM-DD date, returned as YYYY-MM-DD, or null for malformed
+ * input. UTC-based so it is deterministic regardless of the runtime timezone (never parses a bare date string
+ * through local time — the UTC-day class). Used to scope the weekly-hours cap + the grid week to ONE week.
+ *
+ * `weekStartDay` is the day the workweek begins, JS convention 0=Sunday..6=Saturday (RQ7 — a company setting
+ * since 0224). It DEFAULTS to 1 (Monday, ISO 8601) so every caller that doesn't pass a company setting keeps
+ * the prior behavior unchanged.
  */
-export function weekStartOf(date: string): string | null {
+export function weekStartOf(date: string, weekStartDay = 1): string | null {
   const x = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (!x) return null;
   const dt = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
   if (Number.isNaN(dt.getTime())) return null;
-  const backToMonday = (dt.getUTCDay() + 6) % 7; // getUTCDay: 0=Sun..6=Sat → days since Monday
-  dt.setUTCDate(dt.getUTCDate() - backToMonday);
+  const back = (dt.getUTCDay() - weekStartDay + 7) % 7; // days since the configured week-start day
+  dt.setUTCDate(dt.getUTCDate() - back);
   return dt.toISOString().slice(0, 10);
 }
 
@@ -62,12 +64,12 @@ export function addDaysIso(iso: string, n: number): string | null {
  * resolution search (fair-load ranking) so the two can't drift (they had separate copies; one was fixed for
  * RQ8 and the other silently kept summing all-time). A shift is attributed to the week of its start date.
  */
-export function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDate: string): number {
-  const targetWeek = weekStartOf(weekOfDate);
+export function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDate: string, weekStartDay = 1): number {
+  const targetWeek = weekStartOf(weekOfDate, weekStartDay);
   let h = 0;
   for (const s of Object.values(state.shifts)) {
     if (!s.assigned.includes(employeeId)) continue;
-    if (targetWeek !== null && weekStartOf(s.date) !== targetWeek) continue; // only the target shift's week
+    if (targetWeek !== null && weekStartOf(s.date, weekStartDay) !== targetWeek) continue; // only the target shift's week
     h += shiftDurationHours(s.start, s.end);
   }
   return h;

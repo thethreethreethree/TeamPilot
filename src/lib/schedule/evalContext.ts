@@ -31,6 +31,8 @@ function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): b
 export function buildEvalContext(args: {
   events: ScheduleEvent[];
   employees: Employee[];
+  /** Company workweek-start (JS 0=Sun..6=Sat) for the weekly-hours cap (RQ7, 0224). Absent → Monday. */
+  weekStartDay?: number;
 }): EvalContext {
   const state: ScheduleState = deriveState(args.events);
   const employees: Record<string, Employee> = {};
@@ -69,5 +71,5 @@ export function buildEvalContext(args: {
     return combined;
   };
 
-  return { state, employees, requirementForShift };
+  return { state, employees, requirementForShift, weekStartDay: args.weekStartDay ?? 1 };
 }

@@ -42,7 +42,7 @@ export function findResolutions(shiftId: string, ctx: EvalContext): ResolutionCa
     if (!verdict.approvable) continue;
     // Week-scoped to the shift being filled (the shared helper) — the fair-load ranking is about THIS week's
     // load, not all-time; the same fix as RQ8, now one shared source so it can't drift again.
-    const currentHours = weeklyHoursOf(ctx.state, emp.id, shift.date);
+    const currentHours = weeklyHoursOf(ctx.state, emp.id, shift.date, ctx.weekStartDay ?? 1);
     out.push({ employeeId: emp.id, name: emp.name, addsHours: shiftDurationHours(shift.start, shift.end), currentHours });
   }
   // Fair-load ranking: least-loaded first; tie-break by name for a stable, deterministic order.
