@@ -15,8 +15,14 @@ import type { ScheduleEvent, ScheduleState, Employee, CoverageRequirement } from
 import { deriveState } from "./deriveState";
 import type { EvalContext } from "./authority";
 
+// Does a shift's time overlap a coverage-requirement WINDOW? This is DELIBERATELY NOT `constraints.rangesOverlap`
+// and must not be merged into it: rangesOverlap WRAPS an overnight range +24h (correct for a double-booking
+// clash), whereas this CLAMPS an overnight end to "24:00" (drops the post-midnight portion). The clamp is the
+// current, admittedly-imperfect coverage-side overnight behavior — an overnight shift's 00:00–02:00 tail won't
+// match a 00:00–06:00 window. Fixing that (wrap here too) is tangled with RQ4 (org timezone / date semantics)
+// and is founder-gated, so the two functions intentionally differ until RQ4 is decided. Merging them now would
+// silently change overnight coverage matching. See BUILD_MANIFEST "RQ4 / RQ7".
 function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-  // "HH:mm" string compare works for same-day windows; an end<=start (overnight) is treated as spanning to 24:00.
   const ae = aEnd > aStart ? aEnd : "24:00";
   const be = bEnd > bStart ? bEnd : "24:00";
   return aStart < be && bStart < ae;
