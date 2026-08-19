@@ -104,3 +104,19 @@ export interface ScheduleState {
   availability: Record<string, Availability>; // keyed by employeeId
   coverageReqs: Record<string, CoverageRequirement>;
 }
+
+/** A staff member (Phase 2 — the standalone roster, `schedule_employee`). NOT event-sourced; NOT tied
+ *  to an Elostate account (a future optional link). The constraint layer reads these alongside the
+ *  derived ScheduleState. */
+export interface Employee {
+  id: string;
+  companyId: string;
+  name: string;
+  role: string | null;
+  employmentType: string | null;
+  skills: string[];
+  certifications: string[];
+  maxHoursWeek: number | null; // labor limit; null = no cap
+  minHoursWeek: number | null;
+  status: "active" | "inactive";
+}
