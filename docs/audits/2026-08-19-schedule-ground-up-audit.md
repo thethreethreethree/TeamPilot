@@ -87,10 +87,12 @@ Outside-view pass over the surface the picker features added, on the record per 
 - ✅ **Cell-click unassign — append-only, re-entrancy-safe.** Appends `EMPLOYEE_UNASSIGNED` via the
   manager-gated events route; `busyRef` latch prevents a double-click double-append; a failed action shows a
   local banner, never nuking the grid. The `SHIFT_CANCELLED` tombstone it's built beside is projector-tested.
-- ➕ **New LOW flag:** replace-the-week supersedes the whole imported date SPAN, so a typo'd import date could
-  cancel a wide range of shifts. Mitigated by the preview's visible "replaces N shifts" count (the manager sees
-  it). A proportionate extra guard (confirm on an unusually large replace) is a possible follow-up — a UX
-  decision, not a correctness bug.
+- ✅ **LOW flag ADDRESSED:** replace-the-week supersedes the whole imported date SPAN, so a typo'd import date
+  could cancel a wide range. The preview now shows the exact **date range** ("replaces N shifts from X to Y"),
+  not just the count — a typo'd span (e.g. "from 2020-01-01") is obvious at a glance instead of a silent large
+  delete. `dateSpan` is the single source of that range (shared with `supersededShiftIds`). A further guard
+  (a second confirmation on an unusually large replace) remains an OPTIONAL UX follow-up, not a correctness
+  gap — the range display is the well-founded mitigation.
 
 ## Verdict
 The schedule system is **structurally sound foundation-up.** No CRITICAL or HIGH flags. The event-sourcing

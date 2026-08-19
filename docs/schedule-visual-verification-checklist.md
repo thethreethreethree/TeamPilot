@@ -149,9 +149,10 @@ fixes — screenshot the form + the surviving result.
 - VA file: after picking a file + target week, a **preview** of the dated shifts appears before
   commit; commit is atomic (a failure writes nothing).
 - **Replace-the-week warning (new):** if you preview an import that overlaps shifts you already have
-  in those dates, the preview shows an **amber "This replaces N existing shifts…"** line before the
-  Import button. After importing, the success message reads **"…replaced N existing shifts."** Re-import
-  the SAME week twice — the second import should **replace, not duplicate** (the shift count stays put).
+  in those dates, the preview shows an **amber "This replaces N existing shifts from {date} to {date}…"**
+  line before the Import button — the **date range** is shown so a wrong/typo'd date is obvious. After
+  importing, the success message reads **"…replaced N existing shifts."** Re-import the SAME week twice —
+  the second import should **replace, not duplicate** (the shift count stays put).
 - On success you're offered **"View the schedule" / "Import another"** (continuity).
 
 **If wrong (preview omitted / no replace warning on a re-import / a re-import DOUBLES the shifts):**
