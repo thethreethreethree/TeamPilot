@@ -102,6 +102,23 @@ describe("deriveState — replay foundation (Phase 1)", () => {
     expect(s.coverageReqs["R2"]).toMatchObject({ minHeadcount: 2 }); // the other is untouched
   });
 
+  it("SHIFT_UNPUBLISHED drafts a shift; TIMEOFF_DENIED denies; SWAP_REQUESTED leaves assignments unchanged", () => {
+    // Locks the projector branches the other tests skipped. SWAP_REQUESTED is a pending signal only — it must
+    // NOT move anyone (only SWAP_APPROVED reassigns).
+    const s = deriveState([
+      ev(1, "SHIFT_DEFINED", { shiftId: "S1", date: "2026-08-21", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
+      ev(2, "EMPLOYEE_ASSIGNED", { shiftId: "S1", employeeId: "A" }),
+      ev(3, "SHIFT_PUBLISHED", { shiftId: "S1" }),
+      ev(4, "SHIFT_UNPUBLISHED", { shiftId: "S1" }),
+      ev(5, "TIMEOFF_REQUESTED", { timeOffId: "T1", employeeId: "A", type: "sick", start: "2026-08-25", end: "2026-08-25" }),
+      ev(6, "TIMEOFF_DENIED", { timeOffId: "T1" }),
+      ev(7, "SWAP_REQUESTED", { shiftId: "S1", fromEmployeeId: "A", toEmployeeId: "B" }),
+    ]);
+    expect(s.shifts["S1"]?.status).toBe("draft"); // unpublished → draft
+    expect(s.shifts["S1"]?.assigned).toEqual(["A"]); // SWAP_REQUESTED did not reassign
+    expect(s.timeOff["T1"]?.status).toBe("denied");
+  });
+
   it("is robust: an unknown event type and a malformed payload are no-ops (replay survives)", () => {
     const s = deriveState([
       ev(1, "SHIFT_DEFINED", { shiftId: "S4", date: "2026-08-26", start: "09:00", end: "17:00", requiredHeadcount: 1 }),
