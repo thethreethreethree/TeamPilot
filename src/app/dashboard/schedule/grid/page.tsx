@@ -7,6 +7,7 @@ import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { buildWeekGrid, relevantRows } from "@/lib/schedule/gridView";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
+import { useCompanyName } from "@/lib/hooks/useCompany";
 
 /**
  * Schedule Management System — the grid schedule view (Phase 5, the founder's chosen primary layout).
@@ -34,6 +35,7 @@ function weekdayOf(iso: string): string {
 }
 
 export default function ScheduleGridPage() {
+  const companyName = useCompanyName(); // for the printed/downloaded schedule header
   const [state, setState] = useState<ScheduleState | null>(null);
   const [roster, setRoster] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<ScheduleSettings>(DEFAULT_SCHEDULE_SETTINGS);
@@ -155,8 +157,9 @@ export default function ScheduleGridPage() {
 
     const gW = nameW + 7 * colW;
     const w = pad * 2 + gW;
+    const bannerH = companyName ? 48 : 0; // a company header at the very top (whose schedule this is)
     const blockH = (n: number) => titleH + headH + n * rowH;
-    const h = pad * 2 + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
+    const h = pad * 2 + bannerH + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
 
     // A browser canvas maxes out near 32767px per side; a huge multi-week schedule would silently render blank.
     // Guard it: fail LOUD (return null → the caller shows a message) rather than export a broken image.
@@ -168,7 +171,11 @@ export default function ScheduleGridPage() {
     ctx.scale(scale, scale);
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
 
-    let yTop = pad;
+    if (companyName) {
+      ctx.fillStyle = "#111827"; ctx.font = "bold 26px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(`${companyName} — Schedule`, pad, pad + 30);
+    }
+    let yTop = pad + bannerH;
     for (const b of blocks) {
       const { ws, dts, cellFn, rws } = b;
       ctx.fillStyle = "#111827"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
@@ -207,7 +214,7 @@ export default function ScheduleGridPage() {
       yTop += blockH(rws.length) + gap;
     }
     return canvas;
-  }, [state, settings.workweekStart, weekStart, weekGridData]);
+  }, [state, settings.workweekStart, weekStart, weekGridData, companyName]);
 
   const [printImg, setPrintImg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
