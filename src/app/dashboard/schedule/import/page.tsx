@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays, Sparkles } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
@@ -139,9 +139,8 @@ export default function ScheduleImportPage() {
           headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap,
           notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. I pre-filled ${mapped} of ${d.codes.length} shift-code times${mapped < d.codes.length ? " (fill the rest)" : ""} — check them, then Import.${extra}`,
         });
-        // Auto-run the preview so the manager immediately SEES the schedule the file will create (and which
-        // codes, if any, still need a time) — pass the just-computed values (state setters haven't flushed).
-        await runPreview({ csv: d.csv, headerDates: d.headerDates, codeMap });
+        // The debounced auto-preview effect (below) runs once prop+map are set, so the manager immediately SEES
+        // the schedule the file creates and which codes still need a time — no explicit preview call needed.
       } else {
         // DOCX: raw labels — the CSV is loaded above; the manager clicks Analyze to resolve dates + codes.
         setProp(null); setDates("");
@@ -167,6 +166,16 @@ export default function ScheduleImportPage() {
     finally { setBusy(null); }
   };
 
+  // Auto-(re)preview, debounced, whenever a confirm step is active and the dates/codes change — so the preview
+  // + Import button stay live as the manager fills in codes (no hunting for a Preview button). runPreview only
+  // sets `preview` (not map/dates/prop), so this cannot loop.
+  useEffect(() => {
+    if (!prop || !csv.trim()) return;
+    const t = setTimeout(() => { void runPreview(); }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, dates, prop, csv]);
+
   const commit = async () => {
     if (committingRef.current) return;
     committingRef.current = true;
@@ -185,7 +194,9 @@ export default function ScheduleImportPage() {
 
   // Editing the mapping/dates invalidates a prior preview — clear it so the "ready to import" state can't
   // reflect stale inputs (the commit re-parses server-side regardless, but a stale preview misleads).
-  const setCode = (code: string, val: CodeVal) => { setMap((m) => ({ ...m, [code]: val })); setPreview(null); };
+  // No setPreview(null) here: the debounced auto-preview effect below re-runs the preview as codes change, so
+  // the preview + Import button stay live (the manager doesn't have to hunt for Preview after filling a code).
+  const setCode = (code: string, val: CodeVal) => setMap((m) => ({ ...m, [code]: val }));
 
   // ---- VA handlers ----
   const vaBody = async () => ({ fileBase64: await fileToBase64(vaFile!), filename: vaFile!.name, weekStart: vaWeek });
@@ -331,7 +342,7 @@ export default function ScheduleImportPage() {
               )}
               <div>
                 <div className="text-[11px] text-muted mb-1">Dates (one per column, ISO YYYY-MM-DD, comma separated)</div>
-                <input value={dates} onChange={(e) => { setDates(e.target.value); setPreview(null); }}
+                <input value={dates} onChange={(e) => setDates(e.target.value)}
                   className="w-full rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary" />
               </div>
               <div className="space-y-2">
