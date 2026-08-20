@@ -19,4 +19,8 @@ describe("import page wires the deterministic time-range mapper (round-trip reac
     const calls = SRC.match(/autoTimeRangeCodeMap\s*\(/g) ?? [];
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
+  it("accepts a .csv FILE upload (round-trip UX seam — an exported CSV re-imports by picking the file)", () => {
+    expect(SRC).toMatch(/accept="[^"]*\.csv/); // the file picker allows .csv
+    expect(SRC).toMatch(/importCsvFile/);      // and routes it to the CSV handler (read text → analyze)
+  });
 });

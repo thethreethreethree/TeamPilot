@@ -68,6 +68,7 @@ const CSV_EXPORT_ALLOWLIST = new Map([
   // injected into a spreadsheet by us.
   ["src/app/dashboard/finance/banking/page.tsx", "CSV file INPUT (bank statement import), not an export."],
   ["src/app/dashboard/finance/cards/page.tsx", "CSV file INPUT (card statement import), not an export."],
+  ["src/app/dashboard/schedule/import/page.tsx", "CSV file INPUT (re-import an exported schedule: reads a .csv into the grid), not an export. The schedule CSV EXPORT is produced by gridToCsv→toCsv→csvSafe elsewhere."],
 ]);
 
 // Extracted + self-tested (guard-integrity 2026-07-31, INV1-6 got no self-test before): the "wired to the
