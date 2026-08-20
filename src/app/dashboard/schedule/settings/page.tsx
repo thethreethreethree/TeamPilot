@@ -19,6 +19,7 @@ export default function ScheduleSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   // Clear-the-schedule (danger zone): a two-step confirm so it can't be a one-click accident.
@@ -80,6 +81,7 @@ export default function ScheduleSettingsPage() {
     setSaving(true);
     setError(null);
     setSaved(false);
+    setNotice(null);
     try {
       const res = await fetch("/api/schedule/settings", {
         method: "PATCH",
@@ -87,8 +89,9 @@ export default function ScheduleSettingsPage() {
         body: JSON.stringify(settings),
       });
       if (!res.ok) { setError("Couldn't save settings. Try again."); return; }
-      setSettings(await res.json());
-      setSaved(true);
+      const data = await res.json();
+      setSettings({ timezone: data.timezone, workweekStart: data.workweekStart, scheduleName: data.scheduleName ?? null });
+      if (data.notice) setNotice(data.notice); else setSaved(true);
     } catch {
       setError("Couldn't save settings. Try again.");
     } finally {
@@ -142,6 +145,7 @@ export default function ScheduleSettingsPage() {
             </button>
             {saved && <span className="text-xs text-emerald-400">Saved.</span>}
           </div>
+          {notice && <p className="text-xs text-amber-300">{notice}</p>}
           {error && <p className="text-xs text-red-300">{error}</p>}
         </div>
       )}

@@ -64,6 +64,28 @@ describe("PATCH /api/schedule/settings", () => {
     expect(await res.json()).toEqual({ timezone: "UTC", workweekStart: 1, scheduleName: "Front of House" });
   });
 
+  it("degrades when schedule_name is not migrated (pre-0234): saves timezone/workweek, drops the name, returns a notice", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    const calls: Record<string, unknown>[] = [];
+    const sb = {
+      from: () => ({
+        update: (vals: Record<string, unknown>) => { calls.push(vals); return { eq: () => Promise.resolve(
+          "schedule_name" in vals
+            ? { error: { code: "PGRST204", message: "Could not find the 'schedule_name' column of 'companies' in the schema cache" } }
+            : { error: null },
+        ) }; },
+      }),
+    };
+    asMock(createClient).mockResolvedValue(sb);
+    const res = await PATCH(req({ timezone: "UTC", workweekStart: 1, scheduleName: "Front of House" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.scheduleName).toBeNull(); // the name could not be saved — reported honestly, not silently
+    expect(body.notice).toMatch(/0234/);
+    expect("schedule_name" in calls[0]!).toBe(true);  // first attempt included the new column
+    expect("schedule_name" in calls[1]!).toBe(false); // retry saved only the pre-0234 columns
+  });
+
   it("rejects an invalid IANA timezone (400)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
     asMock(createClient).mockResolvedValue(fakeSb());
