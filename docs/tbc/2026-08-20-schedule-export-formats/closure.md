@@ -39,3 +39,40 @@ landscape. Every re-importable format is proven to round-trip against the real i
 Delivers a user-specified experience (the named formats + landscape) as the intended result (§1.5.4), with the
 round-trip — the actual point of "so it can be imported back" — proven end-to-end (§1.5.1 layer-2), and the
 lesson gated by tests (A30) rather than left as prose.
+
+---
+
+## Addendum — 2026-08-21 continuation (import robustness + colour + verification-against-reality)
+
+Work that landed after the closure above, in response to founder reports ("the system still fails to import
+this PDF", "it's too plain / needs colours", "the page is broken/messy"):
+
+**Shipped (all live, HEAD `0c734ed4`):**
+- **Generic foreign-PDF import fallback** (`pdfGridToCsv`, commit `8c81b365`) — a valid staff×date PDF the
+  frendz/ISO readers don't recognize (e.g. `AUG 16` date-label headers) now clusters positioned text into
+  columns/rows → CSV → the same Analyze/confirm flow docx/xlsx use. Both upload paths route through it.
+- **Multi-page corruption fix** (`5a53147c`) — the fallback flattened all pages and grouped rows by ABSOLUTE y;
+  PDF y resets per page, so same-height rows on different pages merged. Now columns cluster globally, rows group
+  per page. Failing-first multi-page test added, then fixed. (This retires the R1-class risk for the generic
+  path — pages no longer collide.)
+- **One week per page** (`422d6c2e`) — colour PDF + Print render each week to its own landscape page (no
+  mid-week break); `exportEmptyMsg` (`4b254389`) gives accurate no-shifts vs too-large feedback.
+- **Colour export + custom name** — verified live (see below).
+
+**Verified against reality (not just handler tests — this addresses residual R3):**
+- **Real `frendz.pdf`** through the current code after the `extractPdfPages` refactor: `staff=6 dates=31
+  warnings=0 shifts=153 off=33 unknown=[]`. The mixed double/single-dash quirk (`1--10` vs `6-3`) is absorbed by
+  `normalizeCode`; the extract route dedupes codes so the manager maps each once. No regression, no code bug (an
+  early "0 shifts" reading was a throwaway-harness error — codeMap values must be `{start,end}`, diagnosed not
+  assumed). Temp tests were local-only (depend on a scratchpad file) and removed, not committed.
+- **Foreign fallback E2E through real `unpdf`** (`writePdf.test.ts`) + jitter/multi-word-name guards
+  (`pdfIsoGrid.test.ts`).
+- **Colour export rendered** from a faithful copy of the real `renderCanvas` + `shiftColors` palette and sent to
+  the founder as a PNG for eye-judgement — R3's "open it in a viewer" check, now done for the colour graphic.
+- **Legibility is measured + locked**: every band's shift-time text on its tint passes WCAG AA (worst 6.37:1);
+  a contrast guard in `shiftColors.test.ts` (`0c734ed4`) fails if a future colour tweak drops below 4.5:1.
+  Colour is redundant — every cell also prints the time as text.
+
+**Still the founder's (external / human):** apply migration `0234` (custom-name WRITE persists; READ degrades to
+company name until then, fail-loud notice); the founder's eye-check on the colour sample; the founder's import
+re-test with their own file.
