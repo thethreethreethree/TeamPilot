@@ -85,15 +85,24 @@ describe("schedule grid-pdf extract API", () => {
     expect((await POST(req({ fileBase64: b64, filename: "frendz.pdf" }))).status).toBe(403);
   });
 
-  it("a .docx returns raw CSV with headerDates empty (client runs Analyze to resolve dates)", async () => {
+  it("a .docx resolves dates + codes like the PDF fallback (a .docx export behaves like its PDF)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
     asMock(unzipEntry).mockResolvedValue("<w:tbl/>");
     asMock(parseDocxTableCells).mockReturnValue([["NAME", "AUG 16"], ["ALICE", "6-3"]]);
     const res = await POST(req({ fileBase64: b64, filename: "sched.docx" }));
     expect(res.status).toBe(200);
     const j = await res.json();
-    expect(j.headerDates).toEqual([]); // docx → raw labels, not resolved
+    expect(j.headerDates).toEqual([expect.stringMatching(/^\d{4}-08-16$/)]); // "AUG 16" now resolved (month + today's year)
+    expect(j.codes).toEqual(["6-3"]);
     expect(j.csv).toBe("NAME,AUG 16\nALICE,6-3");
+  });
+
+  it("a .docx whose headers carry NO month leaves headerDates empty (client runs Analyze)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(unzipEntry).mockResolvedValue("<w:tbl/>");
+    asMock(parseDocxTableCells).mockReturnValue([["NAME", "Shift A"], ["ALICE", "6-3"]]);
+    const j = await (await POST(req({ fileBase64: b64, filename: "sched.docx" }))).json();
+    expect(j.headerDates).toEqual([]); // no month found → fall back to Analyze
   });
 
   it("a .docx with no table is 422", async () => {
@@ -103,13 +112,14 @@ describe("schedule grid-pdf extract API", () => {
     expect((await POST(req({ fileBase64: b64, filename: "sched.docx" }))).status).toBe(422);
   });
 
-  it("a .xlsx returns raw CSV with headerDates empty (dependency-free read)", async () => {
+  it("a .xlsx resolves dates + codes (dependency-free read, same as PDF/docx)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
     asMock(xlsxToCsv).mockResolvedValue("NAME,AUG 16\nALICE,6-3");
     const res = await POST(req({ fileBase64: b64, filename: "roster.xlsx" }));
     expect(res.status).toBe(200);
     const j = await res.json();
-    expect(j.headerDates).toEqual([]);
+    expect(j.headerDates).toEqual([expect.stringMatching(/^\d{4}-08-16$/)]);
+    expect(j.codes).toEqual(["6-3"]);
     expect(j.csv).toBe("NAME,AUG 16\nALICE,6-3");
   });
 

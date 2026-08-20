@@ -68,8 +68,10 @@ export async function POST(req: NextRequest) {
 
   try {
     if (isDocx || isXlsx) {
-      // A real table (Word or Excel) → CSV directly. Dates are raw labels (headerDates: []), so the client
-      // runs the normal Analyze step to resolve them — no positional guessing, no unverified inference.
+      // A real table (Word or Excel) → CSV directly (no positional guessing). Then resolve dates + pre-fill codes
+      // the SAME way the PDF fallback does, so a .docx/.xlsx export of a schedule behaves identically to its PDF
+      // (day-number / "AUG. 16" headers auto-resolve; hours-only codes auto-fill). If the month can't be found,
+      // headerDates stays [] and the client runs the normal Analyze step.
       const csv = isDocx ? docxCellsToCsv(parseDocxTableCells(await unzipEntry(bytes, "word/document.xml"))) : await xlsxToCsv(bytes);
       if (!csv.trim()) {
         return NextResponse.json(
@@ -77,7 +79,20 @@ export async function POST(req: NextRequest) {
           { status: 422 },
         );
       }
-      return NextResponse.json({ csv, headerDates: [], staff: [], codes: [], warnings: [] });
+      const dg = parseCsvToGrid(csv);
+      const dRows = dg.rows.filter((r) => r.name.trim());
+      const dCodes = new Set<string>();
+      for (const row of dRows) for (const cell of row.cells) { const c = cell.trim(); if (c) dCodes.add(normalizeCode(c)); }
+      const { dates: dDates, anyResolved: dAny } = resolveGridDates(dg.headerCells, csv.split("\n")[0] ?? "", today);
+      return NextResponse.json({
+        csv,
+        headerDates: dAny ? dDates : [],
+        staff: dRows.map((r) => r.name.trim()),
+        codes: [...dCodes].sort(),
+        warnings: [dAny
+          ? "I read this file and filled in the dates from its month and day columns. Check the dates and shift-code times, then Import."
+          : "I read this table. Click Analyze to confirm the dates and shift codes before importing."],
+      });
     }
 
     // PDF: extract text ONCE (unpdf), then run the specific parser AND the generic fallback on the SAME pages —
