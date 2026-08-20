@@ -179,6 +179,10 @@ target week — preview — commit.
   **DOCX / XLSX** (a real table) loads the grid into the box → click **Analyze** to resolve dates + codes
   (same as pasted CSV; xlsx is read dependency-free). If a PDF read looks uncertain, an amber **"Check the
   extraction"** panel appears above the codes.
+- **Shift-code TIMES are a picker (fixed 2026-08-20):** each code's start/end is a **time picker**, not free
+  text — the AI **pre-fills** the obvious ones (1--10 → 1 PM–10 PM, etc.) and universal off-codes (OFF/RD/DO)
+  auto-map to "day off". The **preview updates on its own** as you set the remaining codes (GY/BF), so the
+  **Import** button stays live. (Before this, typing "1"/"1:00pm" silently failed the preview — that's fixed.)
 - **Wrong-tab auto-route (new):** upload such a file to the **Schedule file** tab by mistake and press
   Preview — instead of an error, you're **moved to the CSV importer** with the grid loaded and an emerald
   "I moved it here" note. It should work whichever tab you pick.
@@ -237,6 +241,42 @@ someone). Read their shifts. Click **Print** and check the browser print preview
 **If wrong (another person's shifts leak in / dates off by one / nav or picker prints / a non-manager
 can view / availability bleeds between staff / an unavailable person is still auto-suggested):**
 screenshot the screen and the print preview, and tell me whose schedule you opened.
+
+---
+
+## 9. AI Assistant — `/dashboard/schedule/assistant` (new, headline feature)
+
+**Do:** Open the **AI Assistant** tab (first tab; also a button on **Build** + **Import**). Type plain-language
+commands and click **Apply** on the proposals. Try: "create a 06:00 to 15:00 shift on <a date> for 2 people",
+"give <staff name> the 09:00 to 17:00 on <date>", "cancel the shift on <date>", "who's working this week?".
+
+**Correct:**
+- Each instruction returns a **proposal with a summary + any impact warning** and an **Apply** button — nothing
+  changes until you click Apply (it proposes, you decide). 2+ proposals show **Apply all**.
+- After Apply, the change is real — open **Schedule** and see it. An **unknown staff name or missing shift is
+  BLOCKED** ("couldn't find…"), never a wrong guess.
+- Asking to "import a file" tells you to use the **Import page** (the assistant can't read files), not "no data".
+- A question (no change) is answered from your schedule with no proposal.
+
+**If wrong (it silently changes the schedule without Apply / applies to the wrong person / says "no data" for a
+question it should answer):** paste the exact command you typed and what it replied.
+
+---
+
+## 10. Print + Download the schedule — on the Grid (new)
+
+**Do:** On **Schedule**, use **Download all** / **Print all** (whole schedule) and **This week** / **Print**
+(shown week).
+
+**Correct:**
+- **Download all** saves one **PNG** (`schedule-all-weeks.png`) with **every week that has shifts** stacked as
+  clean white grids (staff down the side, dates across the top, shift times in cells, time-off struck-through).
+- **This week** saves just the shown week; **Print** / **Print all** open the print dialog on the **white grid**
+  (not the dark screen UI).
+- A genuinely huge schedule shows an amber "too large to export as one image" message (not a blank file).
+
+**If wrong (blank/clipped image / a week missing / times unreadable / dark UI prints):** tell me how many weeks
++ staff you have and send the exported image.
 
 ---
 
