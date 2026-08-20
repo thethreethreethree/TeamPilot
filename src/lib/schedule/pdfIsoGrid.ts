@@ -31,11 +31,22 @@ function groupRows(items: PdfTextItem[], tol = 4): VRow[] {
   return rows;
 }
 
-/** True when the PDF looks like our ISO-header export (some row has ≥2 ISO-date items). */
+/** Is this a header row of our ISO export? It carries ≥1 ISO date AND is disambiguated from a stray dated line
+ *  (e.g. a "Generated <date>" footer) by either ≥2 ISO dates OR a leading "Name" label. This matters because a
+ *  paginated column-group can legitimately have a SINGLE date (13 dates → a trailing 1-date page); requiring ≥2
+ *  would silently drop that page's cells on re-import. Data rows carry no ISO dates, so they never match. */
+function isHeaderRow(row: VRow): boolean {
+  const isoCount = row.items.filter((it) => ISO.test(it.str)).length;
+  if (isoCount === 0) return false;
+  const first = row.items[0]?.str.trim().toLowerCase();
+  return isoCount >= 2 || first === "name";
+}
+
+/** True when the PDF looks like our ISO-header export (a Name/ISO-date header row). */
 export function isIsoHeaderGrid(pages: PdfTextItem[][]): boolean {
   for (const page of pages) {
     for (const row of groupRows(page)) {
-      if (row.items.filter((it) => ISO.test(it.str)).length >= 2) return true;
+      if (isHeaderRow(row)) return true;
     }
   }
   return false;
@@ -51,8 +62,8 @@ export function isoGridFromItems(pages: PdfTextItem[][]): StaffDateGrid {
   for (const page of pages) {
     let anchors: { x: number; iso: string }[] | null = null;
     for (const row of groupRows(page)) {
-      const isoItems = row.items.filter((it) => ISO.test(it.str));
-      if (isoItems.length >= 2) {
+      if (isHeaderRow(row)) {
+        const isoItems = row.items.filter((it) => ISO.test(it.str));
         anchors = isoItems.map((it) => ({ x: it.x, iso: it.str }));
         anchors.forEach((a) => allDates.add(a.iso));
         continue;

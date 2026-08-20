@@ -41,6 +41,25 @@ describe("buildImagePdf (visual)", () => {
 });
 
 describe("buildTablePdf → unpdf → ISO reader → parsers (DATA PDF re-import round-trip)", () => {
+  it("round-trips a 13-date schedule — the trailing SINGLE-date column-page is not dropped", async () => {
+    // 13 dates > maxCols(12) → the data-PDF paginates into a 12-date page + a 1-date page. A 1-date page's header
+    // carries only ONE ISO date; the reader must still recognize it (regression guard for the dropped-page bug).
+    const roster = [emp("a", "Alice")];
+    const dates = Array.from({ length: 13 }, (_, i) => `2026-09-${String(i + 1).padStart(2, "0")}`);
+    const shifts = dates.map((d, i) => shift(`s${i}`, d, "06:00", "15:00", ["a"]));
+    const grid = buildExportGrid(shifts, roster);
+    const pdf = buildTablePdf(grid, "Wide Co");
+    const { extractTextItems } = await import("unpdf");
+    const result = (await extractTextItems(pdf)) as { items?: PdfTextItem[][] | PdfTextItem[] };
+    const raw = result.items ?? [];
+    const pages: PdfTextItem[][] = Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
+    const read = isoGridFromItems(pages);
+    expect(read.headerDates.length).toBe(13); // all 13 date columns recovered, incl. the lone trailing one
+    const codes = [...new Set(read.rows.flatMap((r) => r.cells).filter((c) => c.trim()))];
+    const parsed = parseScheduleGrid({ headerDates: read.headerDates, rows: read.rows, codeMap: autoTimeRangeCodeMap(codes) });
+    expect(parsed.entries.filter((e) => e.kind === "shift").length).toBe(13);
+  });
+
   it("re-imports to the exact exported shifts", async () => {
     const roster = [emp("a", "Alice"), emp("b", "Bob")];
     const shifts = [
