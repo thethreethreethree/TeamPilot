@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { to24h, normalizeCodeMap } from "../importTime";
+import { parseScheduleGrid } from "../gridParser";
 
 /**
  * The fix for 4 failed imports: shift-code times came in as "1", "1:00pm", "13" etc., but preview/commit need
@@ -47,5 +48,21 @@ describe("normalizeCodeMap", () => {
       "6-3": { start: "06:00", end: "15:00" },
       OFF: "off",
     });
+  });
+
+  it("integrates: a 12-hour LLM codeMap -> normalize -> parseScheduleGrid yields correct shifts (the fix)", () => {
+    // This is exactly the chain that was failing: the LLM proposes "1:00pm" etc.; normalize makes it HH:mm so
+    // parseScheduleGrid (and downstream preview/commit) accept it and produce real shift entries.
+    const llmMap = { "1-10": { start: "1:00pm", end: "10:00pm" }, GY: { start: "9:00pm", end: "6:00am" }, OFF: "off" as const };
+    const parsed = parseScheduleGrid({
+      headerDates: ["2026-08-16", "2026-08-17"],
+      rows: [{ name: "ALICE", cells: ["1-10", "OFF"] }, { name: "BOB", cells: ["GY", "1-10"] }],
+      codeMap: normalizeCodeMap(llmMap),
+    });
+    expect(parsed.unknownCodes).toEqual([]);
+    const e = (n: string, d: string) => parsed.entries.find((x) => x.employeeName === n && x.date === d);
+    expect(e("ALICE", "2026-08-16")).toMatchObject({ kind: "shift", times: { start: "13:00", end: "22:00" } });
+    expect(e("ALICE", "2026-08-17")).toMatchObject({ kind: "off" });
+    expect(e("BOB", "2026-08-16")).toMatchObject({ kind: "shift", times: { start: "21:00", end: "06:00" } }); // GY overnight
   });
 });
