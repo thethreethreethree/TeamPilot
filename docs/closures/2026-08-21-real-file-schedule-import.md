@@ -27,8 +27,18 @@ Lesson recorded: `memory/feedback_verify_against_real_artifact_not_synthetic.md`
    `autoTimeRangeCodeMap`, which the client already prefers over the LLM. (`105174e8`)
 5. **Format inconsistency.** The date + code resolution was wired only into the PDF fallback; DOCX/XLSX still
    returned empty dates. → The docx/xlsx branch now resolves dates + codes identically. (`43cc8a39`)
+6. **Analyze/paste path still blank (founder re-test).** The deterministic resolver was in the file-upload route
+   only; the paste-CSV → **Analyze** path (`/upload/propose`) still took dates from the LLM alone → all blank,
+   and the preview's `headerDates.min(1)` then failed with "Couldn't build the preview." → propose now runs
+   `resolveGridDates` first, prefers it over the LLM per-column, and returns dates even if the LLM (codes) fails.
+   Both import paths resolve dates identically. (`822c5438`)
 
 Operator doc brought current: `docs/SCHEDULE-EXPORT.md` (`010f387c`).
+
+**Preview link verified:** the preview route requires all `headerDates` ISO, but the client filters empties
+before sending, so HK's trailing `TOTAL` blank is dropped and the 16 real dates align to the day columns →
+128 shifts → preview builds. Latent (unfixed, no real case): the client's empty-filter would misalign a
+*mid-grid* blank column; HK/HUB have `TOTAL` last, so safe.
 
 ## Verified against reality
 Canonical command:
