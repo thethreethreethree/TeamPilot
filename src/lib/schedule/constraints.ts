@@ -150,6 +150,36 @@ export function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd
   return as < be && bs < ae;
 }
 
+/**
+ * Do two DATED shifts overlap in real (absolute) time? Each shift is placed on an absolute minute timeline
+ * (its date's day-index × 1440 + start-of-day minutes; duration via shiftDurationHours, which already extends
+ * an overnight shift past midnight). Half-open, so TOUCHING shifts don't clash.
+ *
+ * This is the correct "a person can't be in two places at once" test across ANY dates — crucially, an
+ * overnight shift (e.g. Mon 22:00→06:00) and an early shift on the FOLLOWING day (Tue 05:00→09:00) overlap
+ * 05:00–06:00 even though their `date` fields differ. `rangesOverlap` alone (same-day, time-only) misses
+ * that, so the double-booking gate must compose date + time — which is exactly what this does. Malformed
+ * input → false (defensive; times/dates are validated at the event boundary).
+ */
+export function shiftsTimeClash(
+  a: { date: string; start: string; end: string },
+  b: { date: string; start: string; end: string },
+): boolean {
+  const interval = (s: { date: string; start: string; end: string }): [number, number] | null => {
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.date);
+    const tm = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(s.start);
+    if (!dm || !tm) return null;
+    const dayIdx = Math.floor(Date.UTC(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3])) / 86_400_000);
+    const startAbs = dayIdx * 1440 + Number(tm[1]) * 60 + Number(tm[2]);
+    const durationMin = shiftDurationHours(s.start, s.end) * 60; // 0 if end malformed → zero-length, no clash
+    return [startAbs, startAbs + durationMin];
+  };
+  const ia = interval(a);
+  const ib = interval(b);
+  if (!ia || !ib) return false;
+  return ia[0] < ib[1] && ib[0] < ia[1]; // half-open overlap
+}
+
 // ── HARD constraints (pass/fail) ──────────────────────────────────────────────
 
 export type SlotRequirement = { role?: string | null; skills?: string[]; certifications?: string[] };

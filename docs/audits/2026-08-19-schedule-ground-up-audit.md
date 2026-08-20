@@ -362,13 +362,16 @@ and coverage present-filter follow it) — these are the deviations from it.
 
 **PRE-EXISTING — flagged, NOT fixed (each touches core authority logic with design choices; recorded for a
 founder decision per OPTION-BASED control, not self-authorized):**
-- 🟨 **MED — double-booking misses adjacent-date overnight overlap.** `authority.ts` assign+swap clash checks
-  `o.date === shift.date` before `rangesOverlap`. Two time-overlapping shifts on ADJACENT dates (one overnight)
-  share no date, so the overlap is never tested. Concrete: X on `08-20 22:00→06:00`; assigning X to `08-21
-  05:00→09:00` overlaps 05:00–06:00 but is NOT flagged as `double_booked` (an ABSOLUTE constraint → a genuinely
-  impossible assignment is silently allowed). Reachable given the VA data has overnight shifts. Fix needs the
-  clash check to consider shifts on `date` and `date±1` with a day-offset in the overlap math — a real change to
-  a hard gate, hence flagged not patched.
+- ✅ **FIXED (2026-08-20, commit pending) — double-booking now span-aware.** Was: `authority.ts` assign+swap
+  clash checks used `o.date === shift.date` before `rangesOverlap`, so two time-overlapping shifts on ADJACENT
+  dates (one overnight) shared no date and the overlap was never tested — X on `08-20 22:00→06:00` could be
+  assigned to `08-21 05:00→09:00` (overlaps 05:00–06:00) with no `double_booked` flag (an ABSOLUTE constraint
+  silently defeated). Now both clash checks use `shiftsTimeClash` (constraints.ts), which places each shift on an
+  absolute minute timeline (day-index × 1440 + start, duration via shiftDurationHours) and tests half-open
+  interval overlap — catching the adjacent-date overnight case while still allowing legitimate same-day split
+  shifts (RQ9). On reflection this was NOT a founder judgment call: "can't be in two places at once" is the
+  documented RQ9 intent, and the date-scoping was an incomplete implementation of it, so the fix aligns with the
+  record. Tests: doubleBookingOvernight.test.ts (pure helper + authority integration, both branches).
 - 🟦 **LOW — time-off affected-shifts pre-check keys on start date.** `authority.ts` time_off case collects
   affected shifts by `s.date` within the range; an overnight shift starting the day BEFORE the range but running
   into the first off-day isn't collected. Mitigated: the approval-time coverage present-count

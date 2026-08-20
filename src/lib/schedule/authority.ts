@@ -17,7 +17,7 @@
  *   - a ZERO-IMPACT change (no violation of any kind) is `autoApprovable`.
  */
 import type { ScheduleState, Employee } from "./types";
-import { meetsCoverage, isEligible, isAvailable, withinLimits, shiftDurationHours, weeklyHoursOf, rangesOverlap, crossesMidnight, addDaysIso, type CoverageGap } from "./constraints";
+import { meetsCoverage, isEligible, isAvailable, withinLimits, shiftDurationHours, weeklyHoursOf, shiftsTimeClash, crossesMidnight, addDaysIso, type CoverageGap } from "./constraints";
 
 export type Change =
   | { kind: "time_off"; employeeId: string; start: string; end: string } // inclusive date range YYYY-MM-DD
@@ -149,15 +149,12 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
       if (!isEligible(emp, { role: shift.requiredByRole && Object.keys(shift.requiredByRole).length === 1 ? Object.keys(shift.requiredByRole)[0] : null })) {
         violations.push({ kind: "ineligible", shiftId: shift.id, employeeId: emp.id, overridable: false });
       }
-      // double-booking: already on another shift the same date whose time OVERLAPS this one. A same-date
-      // check alone would wrongly block legitimate split shifts (e.g. 10:00–14:00 AND 19:00–23:00 — common
-      // in the VA schedules); the real constraint is a TIME clash ("can't be in two places at once").
+      // double-booking: already on another shift whose time OVERLAPS this one ("can't be in two places at
+      // once"). Uses shiftsTimeClash (date + time on an absolute timeline), NOT a same-date check: a split
+      // shift (10:00–14:00 AND 19:00–23:00) correctly does NOT clash, while an overnight shift running into
+      // the NEXT day's early shift DOES — even though their dates differ (the adjacent-date overnight gap).
       const clash = Object.values(state.shifts).some(
-        (o) =>
-          o.id !== shift.id &&
-          o.date === shift.date &&
-          o.assigned.includes(emp.id) &&
-          rangesOverlap(o.start, o.end, shift.start, shift.end),
+        (o) => o.id !== shift.id && o.assigned.includes(emp.id) && shiftsTimeClash(o, shift),
       );
       if (clash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: emp.id, overridable: false });
       // no assignment during approved time-off (span-aware: an overnight shift also occupies the next day)
@@ -198,10 +195,11 @@ export function evaluateChange(change: Change, ctx: EvalContext): Verdict {
         if (!isAvailable(state.availability[to.id], shift)) {
           violations.push({ kind: "unavailable", shiftId: shift.id, employeeId: to.id, overridable: true });
         }
-        // double-booking: the to-employee is already on another shift the same date whose time OVERLAPS.
-        // Mirrors the assign path (RQ9) — every assignment-creating path must reject a time clash (A26).
+        // double-booking: the to-employee is already on another shift whose time OVERLAPS (date + time via
+        // shiftsTimeClash). Mirrors the assign path (RQ9/RQ16) — every assignment-creating path must reject a
+        // time clash (A26), including the adjacent-date overnight case.
         const swapClash = Object.values(state.shifts).some(
-          (o) => o.id !== shift.id && o.date === shift.date && o.assigned.includes(to.id) && rangesOverlap(o.start, o.end, shift.start, shift.end),
+          (o) => o.id !== shift.id && o.assigned.includes(to.id) && shiftsTimeClash(o, shift),
         );
         if (swapClash) violations.push({ kind: "double_booked", shiftId: shift.id, employeeId: to.id, overridable: false });
         const proposed = weeklyHoursOf(state, to.id, shift.date, ctx.weekStartDay ?? 1) + shiftDurationHours(shift.start, shift.end);
