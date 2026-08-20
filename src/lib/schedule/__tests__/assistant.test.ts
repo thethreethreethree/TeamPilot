@@ -42,6 +42,20 @@ describe("parseAssistantReply", () => {
     expect(r.actions[2]).toMatchObject({ op: "time_off", employee: "Sam", type: "day_off" });
   });
 
+  it("parses create_shift (default headcount 1) and cancel_shift (no employee needed)", () => {
+    const r = parseAssistantReply(JSON.stringify({
+      reply: "ok",
+      actions: [
+        { op: "create_shift", date: "2026-08-25", start: "09:00", end: "17:00", headcount: 2, role: "nurse" },
+        { op: "create_shift", date: "2026-08-26", start: "06:00", end: "15:00" }, // no headcount → 1
+        { op: "cancel_shift", date: "2026-08-24", start: "22:00", end: "06:00" },
+      ],
+    }));
+    expect(r.actions[0]).toEqual({ op: "create_shift", date: "2026-08-25", start: "09:00", end: "17:00", headcount: 2, role: "nurse" });
+    expect(r.actions[1]).toMatchObject({ op: "create_shift", headcount: 1 });
+    expect(r.actions[2]).toEqual({ op: "cancel_shift", date: "2026-08-24", start: "22:00", end: "06:00" });
+  });
+
   it("a pure question yields a reply and no actions", () => {
     const r = parseAssistantReply(JSON.stringify({ reply: "Darren and Marie are working Thursday.", actions: [] }));
     expect(r.actions).toEqual([]);

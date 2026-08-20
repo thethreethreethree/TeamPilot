@@ -22,18 +22,19 @@ const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 const EMP = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const req = (body: unknown) => ({ json: async () => body, headers: new Headers() }) as unknown as Parameters<typeof POST>[0];
 
-function fakeSb(emp: unknown[]) {
+function fakeSb(emp: unknown[], events: unknown[] = []) {
   return {
     from: (table: string) => {
       const chain: Record<string, unknown> = {
         select: () => chain, eq: () => chain, order: () => chain,
-        range: async () => ({ data: table === "schedule_employee" ? emp : [], error: null }),
+        range: async () => ({ data: table === "schedule_employee" ? emp : table === "schedule_event" ? events : [], error: null }),
         maybeSingle: async () => ({ data: null, error: null }),
       };
       return chain;
     },
   };
 }
+const SHIFT = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const empRow = { id: EMP, company_id: "c1", name: "Darren Guzman", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" };
 
 describe("schedule assistant API — write-path (A31)", () => {
@@ -74,6 +75,32 @@ describe("schedule assistant API — write-path (A31)", () => {
     const j = await (await POST(req({ message: "who works monday?" }))).json();
     expect(j.reply).toContain("Darren");
     expect(j.proposals).toEqual([]);
+  });
+
+  it("create_shift yields a lone SHIFT_DEFINED (no employee needed)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(createClient).mockResolvedValue(fakeSb([empRow]));
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "create_shift", date: "2099-01-05", start: "09:00", end: "17:00", headcount: 2 }] });
+    const j = await (await POST(req({ message: "make a 9-5 for 2 on jan 5" }))).json();
+    expect(j.proposals[0].blocked).toBe(false);
+    expect(j.proposals[0].events.map((e: { type: string }) => e.type)).toEqual(["SHIFT_DEFINED"]);
+    expect(j.proposals[0].events[0].payload).toMatchObject({ requiredHeadcount: 2 });
+  });
+
+  it("cancel_shift finds a real shift and yields SHIFT_CANCELLED; a missing one is blocked", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    const events = [
+      { id: "e1", company_id: "c1", type: "SHIFT_DEFINED", actor_id: null, payload: { shiftId: SHIFT, date: "2099-02-02", start: "09:00", end: "17:00", requiredHeadcount: 1 }, occurred_at: "2026-08-20T00:00:00Z", seq: 1 },
+    ];
+    asMock(createClient).mockResolvedValue(fakeSb([empRow], events));
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "cancel_shift", date: "2099-02-02", start: "09:00", end: "17:00" }] });
+    let j = await (await POST(req({ message: "cancel the feb 2 9-5" }))).json();
+    expect(j.proposals[0].blocked).toBe(false);
+    expect(j.proposals[0].events).toEqual([{ type: "SHIFT_CANCELLED", payload: { shiftId: SHIFT } }]);
+
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "cancel_shift", date: "2099-03-03" }] });
+    j = await (await POST(req({ message: "cancel the mar 3 shift" }))).json();
+    expect(j.proposals[0].blocked).toBe(true); // no shift that day
   });
 
   it("a non-manager is refused (403)", async () => {

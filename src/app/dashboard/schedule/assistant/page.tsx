@@ -87,8 +87,9 @@ export default function ScheduleAssistantPage() {
 
   const examples = [
     "Give Darren Guzman the 09:00 to 17:00 shift on 2026-08-25",
+    "Create a 06:00 to 15:00 shift on 2026-08-26 for 2 people",
+    "Cancel the shift on 2026-08-24",
     "Who's working this week?",
-    "Take Marie Malinao off 2026-08-24",
     "Give Rebecca Lachica the day off on 2026-08-22",
   ];
 

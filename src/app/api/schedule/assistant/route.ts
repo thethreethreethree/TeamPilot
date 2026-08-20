@@ -108,6 +108,30 @@ function buildProposal(
   evalCtx: EvalContext,
   resolveEmp: (name: string) => Employee | null,
 ): Proposal {
+  // Shift-level ops first (no employee to resolve).
+  if (a.op === "create_shift") {
+    const shiftId = crypto.randomUUID();
+    return {
+      op: "create_shift",
+      summary: `Create a shift on ${a.date} ${a.start} to ${a.end} (needs ${a.headcount ?? 1}${a.role ? ` ${a.role}` : ""})`,
+      events: [{ type: "SHIFT_DEFINED", payload: { shiftId, date: a.date, start: a.start, end: a.end, requiredHeadcount: a.headcount ?? 1, ...(a.role ? { requiredByRole: { [a.role]: a.headcount ?? 1 } } : {}) } }],
+      impact: [],
+      blocked: false,
+    };
+  }
+  if (a.op === "cancel_shift") {
+    const matches = Object.values(state.shifts).filter((s) => s.date === a.date && (!a.start || s.start === a.start) && (!a.end || s.end === a.end));
+    if (matches.length === 0) return { op: "cancel_shift", summary: `Cancel the shift on ${a.date}`, events: [], impact: [], blocked: true, reason: `There's no shift on ${a.date}${a.start ? ` at ${a.start}` : ""} to cancel.` };
+    const staffCount = matches.reduce((n, s) => n + s.assigned.length, 0);
+    return {
+      op: "cancel_shift",
+      summary: `Cancel ${matches.length} shift${matches.length === 1 ? "" : "s"} on ${a.date} (${matches.map((s) => `${s.start} to ${s.end}`).join(", ")})`,
+      events: matches.map((s) => ({ type: "SHIFT_CANCELLED", payload: { shiftId: s.id } })),
+      impact: staffCount > 0 ? [`this removes ${staffCount} assignment${staffCount === 1 ? "" : "s"} on that shift`] : [],
+      blocked: false,
+    };
+  }
+
   const emp = resolveEmp(a.employee);
   if (!emp) return { op: a.op, summary: `${a.op} ${a.employee}`, events: [], impact: [], blocked: true, reason: `I couldn't find "${a.employee}" on the roster.` };
 

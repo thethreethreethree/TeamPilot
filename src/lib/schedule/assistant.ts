@@ -23,7 +23,9 @@ type LlmFn = (args: LlmCallArgs) => Promise<LlmResult>;
 export type AssistantAction =
   | { op: "assign"; employee: string; date: string; start: string; end: string; role?: string }
   | { op: "unassign"; employee: string; date: string; start?: string; end?: string }
-  | { op: "time_off"; employee: string; date: string; endDate?: string; type?: string };
+  | { op: "time_off"; employee: string; date: string; endDate?: string; type?: string }
+  | { op: "create_shift"; date: string; start: string; end: string; headcount?: number; role?: string }
+  | { op: "cancel_shift"; date: string; start?: string; end?: string };
 
 export interface AssistantReply {
   reply: string; // the manager-facing natural-language answer
@@ -43,15 +45,18 @@ You are given a JSON context: today's date, the staff roster (names + roles), th
 Output ONLY JSON, exactly this shape:
 { "reply": "<warm, plain, concise reply to the manager. Answer any question from the data. If you are proposing changes, say briefly what you will set up. NEVER use em dashes or en dashes.>",
   "actions": [
-    { "op": "assign",   "employee": "<name exactly as in the roster>", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm", "role": "<optional>" },
-    { "op": "unassign", "employee": "<name>", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" },
-    { "op": "time_off", "employee": "<name>", "date": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "type": "vacation|sick|personal|day_off" }
+    { "op": "assign",       "employee": "<name exactly as in the roster>", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm", "role": "<optional>" },
+    { "op": "unassign",     "employee": "<name>", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" },
+    { "op": "time_off",     "employee": "<name>", "date": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "type": "vacation|sick|personal|day_off" },
+    { "op": "create_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm", "headcount": 1, "role": "<optional>" },
+    { "op": "cancel_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" }
   ] }
 
 Rules:
 - Use ONLY staff names that appear in the roster. If a name is unknown or ambiguous, do NOT invent an action; ask in the reply.
 - Never invent a date. Resolve relative dates ("next Monday", "tomorrow") using today's date. If you cannot resolve a date, ask in the reply.
-- "assign" and "unassign" need start+end in 24h. If the manager uses a shift code (e.g. "6-3", "GY") and did not tell you its times, ask in the reply instead of guessing.
+- Actions with times need start+end in 24h. If the manager uses a shift code (e.g. "6-3", "GY") and did not tell you its times, ask in the reply instead of guessing.
+- "create_shift" makes an empty shift (optionally with a headcount + role); "assign" puts a person on a shift (creating it if needed); "cancel_shift" removes a shift entirely (use for "delete/remove the ... shift"); "unassign" only takes a person off a shift.
 - If the manager only asks a question, return "actions": [] and put the whole answer in "reply".
 - Keep "actions" to what the manager actually asked for. Do not add extra changes.`;
 
@@ -73,10 +78,23 @@ export function parseAssistantReply(raw: string): AssistantReply {
   for (const a of rawActions) {
     if (!a || typeof a !== "object") continue;
     const r = a as Record<string, unknown>;
+    if (!isIso(r.date)) continue; // every action is anchored to a real date
+    const role = typeof r.role === "string" && r.role.trim() ? r.role.trim() : undefined;
+    // Shift-level ops (no employee): create / cancel a shift itself.
+    if (r.op === "create_shift" && isHHmm(r.start) && isHHmm(r.end)) {
+      const hc = typeof r.headcount === "number" && Number.isInteger(r.headcount) && r.headcount > 0 ? r.headcount : 1;
+      actions.push({ op: "create_shift", date: r.date, start: r.start, end: r.end, headcount: hc, ...(role ? { role } : {}) });
+      continue;
+    }
+    if (r.op === "cancel_shift") {
+      actions.push({ op: "cancel_shift", date: r.date, ...(isHHmm(r.start) ? { start: r.start } : {}), ...(isHHmm(r.end) ? { end: r.end } : {}) });
+      continue;
+    }
+    // Employee-level ops need a name.
     const employee = asName(r.employee);
-    if (!employee || !isIso(r.date)) continue;
+    if (!employee) continue;
     if (r.op === "assign" && isHHmm(r.start) && isHHmm(r.end)) {
-      actions.push({ op: "assign", employee, date: r.date, start: r.start, end: r.end, ...(typeof r.role === "string" && r.role.trim() ? { role: r.role.trim() } : {}) });
+      actions.push({ op: "assign", employee, date: r.date, start: r.start, end: r.end, ...(role ? { role } : {}) });
     } else if (r.op === "unassign") {
       actions.push({ op: "unassign", employee, date: r.date, ...(isHHmm(r.start) ? { start: r.start } : {}), ...(isHHmm(r.end) ? { end: r.end } : {}) });
     } else if (r.op === "time_off") {
