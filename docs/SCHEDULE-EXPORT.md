@@ -37,18 +37,27 @@ grid it doesn't specifically recognize still imports:
 
 1. **Our own exports** (ISO-date headers) — read straight back, deterministically.
 2. **The "frendz" layout** (a day-number row + weekday row + a title month) — dates inferred deterministically.
-3. **Generic fallback** — for *any other* layout (e.g. `AUG 16` / `AUG 17` date-label headers with codes like
-   `6-3`, `2-11`, `OFF`): the reader clusters the PDF's positioned text into columns and rows to reconstruct the
-   grid as a **CSV**, then hands it to the **Analyze** step. Analyze uses AI to resolve the date labels
-   (`AUG 16` → a real date) and proposes a time for each shift code, which **you confirm** before importing
-   (guide-don't-overtake — nothing is guessed silently).
+3. **Generic fallback** — for *any other* layout (e.g. a `16 17 18 … 31` day-number header, or `AUG. 16`
+   month+day columns, with codes like `6-3`, `7-4`, `2-11`, `OFF`, `GY`): the reader clusters the PDF's
+   positioned text into columns and rows to reconstruct the grid, and **pre-fills as much as it safely can**:
+   - **Dates** resolve **deterministically** — the month comes from the file (a `AUGUST` title cell or `AUG.`
+     columns), the year is chosen so the schedule lands nearest today, and a non-date column like `TOTAL` is left
+     blank. Only if no month is findable does it leave the dates for you to enter.
+   - **Shift-code times** pre-fill for hours-only codes (`7-4` → 7am–4pm, `2-11` → 2pm–11pm) via a deterministic
+     best-guess. Org-specific codes it must not guess (`GY` graveyard, `SKY-BAR`) are left for you to set once.
+   You **confirm** the pre-filled dates + times before importing (guide-don't-overtake — a guess is shown, never
+   applied silently).
 
-**What to expect on upload of a foreign PDF:** the grid loads into the import box with a note ("I read this as a
-general table"). Click **Analyze**, check the proposed dates and code→time mappings, then **Import**.
+**What to expect on upload of a foreign PDF:** the grid loads with the dates and most code-times already filled
+and a note ("I filled in the dates from its month and day columns"). Check them, set any org-specific codes, then
+**Preview → Import**. (If no month was in the file, you'll instead get "click **Analyze**" and the AI proposes
+the dates for you to confirm.)
 
-**Handled:** multi-**page** PDFs (a long schedule split across pages — rows are grouped per page so pages never
-collide), per-cell coordinate jitter, and multi-word names kept in one column. **Word (.docx) / Excel (.xlsx)**
-foreign grids take a more reliable table-structure path (not positional) into the same Analyze flow.
+**Handled:** multi-**page** PDFs (rows grouped per page so pages never collide); per-cell coordinate jitter;
+multi-word names kept in one column; a **split two-row header** (a month row + a day-number row are merged into
+`AUG. 16` columns); **section-label rows** (`AM SHIFT` / `PM SHIFT`) dropped so they aren't read as staff; and a
+**code wrapped across two lines** (`SKY-` + `BAR`) reunited. **Word (.docx) / Excel (.xlsx)** foreign grids take
+a more reliable table-structure path (not positional) into the same confirm flow.
 
 **Limits (fail honestly, not silently):** a name the PDF splits into tokens spaced *wider* than a column gap can
 land in the wrong column — if a foreign file reads wrong, the loaded grid is visible for you to correct before
