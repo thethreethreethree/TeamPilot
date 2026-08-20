@@ -18,6 +18,11 @@ vi.mock("@/lib/schedule/pdfIsoGrid", async (orig) => {
 });
 vi.mock("@/lib/schedule/vaDocx", () => ({ parseDocxTableCells: vi.fn() }));
 vi.mock("@/lib/schedule/staffDateXlsx", () => ({ xlsxToCsv: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
+vi.mock("@/lib/schedule/settings", async (orig) => {
+  const actual = await (orig() as Promise<Record<string, unknown>>);
+  return { ...actual, getScheduleSettings: vi.fn(async () => ({ timezone: "UTC", workweekStart: 1 })) }; // todayInTz stays real
+});
 vi.mock("@/lib/documents/extractText", async (orig) => {
   const actual = await (orig() as Promise<Record<string, unknown>>);
   return { ...actual, unzipEntry: vi.fn() };
@@ -68,7 +73,8 @@ describe("schedule grid-pdf extract API", () => {
     const res = await POST(req({ fileBase64: b64, filename: "HK.pdf" }));
     expect(res.status).toBe(200); // NOT a dead 422 — the fallback recovered it
     const j = await res.json();
-    expect(j.headerDates).toEqual([]); // generic fallback → client runs Analyze
+    // Dates are resolved deterministically from the "AUG 16" / "AUG 17" columns (month) + today's year.
+    expect(j.headerDates).toEqual([expect.stringMatching(/^\d{4}-08-16$/), expect.stringMatching(/^\d{4}-08-17$/)]);
     expect(j.staff).toEqual(["ALICE"]);
     expect(j.csv).toContain("AUG 16");
     expect(asMock(extractPdfPages)).toHaveBeenCalledTimes(1); // still ONE unpdf call despite the parser throw

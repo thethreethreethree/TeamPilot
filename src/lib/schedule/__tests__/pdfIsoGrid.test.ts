@@ -79,6 +79,25 @@ describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (th
     expect(pdfGridToCsv([[]])).toBe("");
   });
 
+  it("merges a TWO-ROW header + drops section-label rows + reunites wrapped codes (HUB SCHED.pdf shape)", () => {
+    // Row layout (top→bottom): month row "NAME AUG. AUG.", day-number row (blank name) "16 17", a staffer,
+    // a "PM SHIFT" divider (name, no data), a staffer with a wrapped "SKY-" code, its "BAR" continuation row.
+    const page: PdfTextItem[] = [
+      item("NAME", 20, 200), item("AUG.", 120, 200), item("AUG.", 220, 200),
+      item("16", 120, 180), item("17", 220, 180), // day-number row, blank name column
+      item("ALICE", 20, 160), item("6-3", 120, 160), item("6-3", 220, 160),
+      item("PM SHIFT", 20, 140), // section divider: name only, no cells
+      item("ABRIL", 20, 120), item("SKY-", 120, 120), item("2-11", 220, 120),
+      item("BAR", 120, 100), // continuation of ABRIL's wrapped "SKY-BAR", blank name column
+    ];
+    const csv = pdfGridToCsv([page]);
+    const lines = csv.split("\n");
+    expect(lines[0]).toBe("NAME,AUG. 16,AUG. 17"); // two header rows merged → month+day per column
+    const g = parseCsvToGrid(csv);
+    expect(g.rows.map((r) => r.name)).toEqual(["ALICE", "ABRIL"]); // "PM SHIFT" divider dropped, no blank rows
+    expect(g.rows.find((r) => r.name === "ABRIL")?.cells).toEqual(["SKY- BAR", "2-11"]); // wrapped code reunited
+  });
+
   it("does NOT collide rows across pages that share a y-range (multi-page PDF — real schedules paginate)", () => {
     // Two pages, each with header y=500 + one staff row y=470. y RESETS per page, so a naive flatten-then-group
     // -by-y would merge page1's ALICE row with page2's BEN row. Rows must be grouped PER PAGE, in page order.

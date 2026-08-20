@@ -10,6 +10,9 @@ import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
 import { normalizeCode } from "@/lib/schedule/gridParser";
+import { resolveGridDates } from "@/lib/schedule/importDates";
+import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
+import { createClient } from "@/lib/supabase/server";
 import { unzipEntry } from "@/lib/documents/extractText";
 
 /**
@@ -52,6 +55,16 @@ export async function POST(req: NextRequest) {
   }
   const bytes = decodeBase64(body.fileBase64);
   if (!bytes) return NextResponse.json({ error: "Couldn't read the uploaded file." }, { status: 400 });
+
+  // Company-local "today" — the year (and fallback month) for resolving bare day-number headers. Guarded: if the
+  // settings read fails, default to UTC today so date resolution still works.
+  let today: string;
+  try {
+    const sb = await createClient();
+    today = todayInTz((await getScheduleSettings(sb, ctx.companyId)).timezone);
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+  }
 
   try {
     if (isDocx || isXlsx) {
@@ -102,8 +115,11 @@ export async function POST(req: NextRequest) {
       console.error("[schedule/upload/grid-pdf/extract] specific parser failed; using generic fallback:", spe instanceof Error ? spe.message : spe);
     }
 
-    // GENERIC fallback on the SAME pages: cluster positioned text into columns/rows → CSV → the normal Analyze
-    // flow (LLM date-resolution + human confirm). headerDates: [] → the client runs Analyze rather than pre-fill.
+    // GENERIC fallback on the SAME pages: cluster positioned text into columns/rows → CSV. Then resolve the
+    // header dates DETERMINISTICALLY (month from the file + year from today) so bare day-number headers (16, 17…)
+    // and "AUG. 16" columns come back PRE-FILLED — the real HK.pdf / HUB SCHED files have exactly this shape, and
+    // the LLM correctly refused to guess a year, which left the preview unbuildable. If nothing resolves, fall
+    // back to headerDates: [] so the client runs the normal Analyze step.
     const itemCount = pages.reduce((n, p) => n + p.length, 0);
     const csv = pdfGridToCsv(pages);
     const g = parseCsvToGrid(csv);
@@ -112,12 +128,15 @@ export async function POST(req: NextRequest) {
     if (csv.trim().length > 0 && dataRows.length >= 1 && headerFilled > 0) {
       const codes = new Set<string>();
       for (const row of dataRows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
+      const { dates, anyResolved } = resolveGridDates(g.headerCells, csv.split("\n")[0] ?? "", today);
       return NextResponse.json({
         csv,
-        headerDates: [],
+        headerDates: anyResolved ? dates : [],
         staff: dataRows.map((r) => r.name.trim()),
         codes: [...codes].sort(),
-        warnings: ["I read this file as a general staff-by-date table. Click Analyze to confirm the dates and shift codes before importing."],
+        warnings: [anyResolved
+          ? "I read this file and filled in the dates from its month and day columns. Check the dates and shift-code times, then Import."
+          : "I read this file as a general staff-by-date table. Click Analyze to confirm the dates and shift codes before importing."],
       });
     }
     // Cause-specific, honest message (§3.4): NO extractable text → almost always a scanned image (no text reader

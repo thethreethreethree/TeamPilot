@@ -84,8 +84,8 @@ export function pdfGridToCsv(pages: PdfTextItem[][]): string {
     return bi;
   };
 
-  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const lines: string[] = [];
+  // Build the grid as rows of cells (per page, in order); post-process for real-world layouts below.
+  const grid: string[][] = [];
   for (const pageItems of cleanPages) {
     // Rows by y (top-to-bottom), WITHIN this page only.
     const rows: { y: number; items: { str: string; x: number }[] }[] = [];
@@ -103,9 +103,39 @@ export function pdfGridToCsv(pages: PdfTextItem[][]): string {
       let last = cells.length - 1;
       while (last >= 0 && !cells[last]!.trim()) last--;
       if (last < 0) continue; // fully-empty row
-      lines.push(cells.slice(0, last + 1).map(esc).join(","));
+      grid.push(cells.slice(0, last + 1));
     }
   }
+
+  // Merge NAMELESS rows (blank first cell) into the row above. Real schedules (HUB SCHED.pdf) split a two-row
+  // header — a month row ("AUG." per column) and a day-number row ("16", "17", …) — and wrap a long cell
+  // ("SKY-" + "BAR") onto the next visual line; both arrive as a row whose NAME column is blank. Appending their
+  // cells to the previous row reunites "AUG."+"16" → "AUG. 16" (a resolvable date) and the wrapped code, and
+  // folds the day-number row into the header. A nameless row with no data at all is dropped.
+  const mergedRows: string[][] = [];
+  for (const row of grid) {
+    const nameBlank = !(row[0] ?? "").trim();
+    const hasData = row.some((c) => (c ?? "").trim());
+    if (nameBlank && mergedRows.length > 0 && hasData) {
+      const prev = mergedRows[mergedRows.length - 1]!;
+      for (let i = 0; i < row.length; i++) {
+        const v = (row[i] ?? "").trim();
+        if (!v) continue;
+        while (prev.length <= i) prev.push("");
+        prev[i] = prev[i]!.trim() ? `${prev[i]!.trim()} ${v}` : v;
+      }
+      continue;
+    }
+    if (nameBlank && !hasData) continue; // fully empty
+    mergedRows.push([...row]);
+  }
+
+  // Drop section-label rows: a NAMED row with no data cells at all (e.g. "PM SHIFT", "SKY BAR") is a divider, not
+  // a person — it carries nothing importable. The header (row 0) is always kept.
+  const cleaned = mergedRows.filter((row, i) => i === 0 || row.slice(1).some((c) => (c ?? "").trim()));
+
+  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const lines = cleaned.map((row) => row.map(esc).join(","));
   // Drop header rows repeated by pagination: page 2+ of a multi-page grid repeats the "Name, date, date…" header
   // row. Left in, each repeat re-parses into a bogus staff member named after the first header cell ("NAME").
   // Keep the first occurrence (the real header); drop later exact-duplicate header lines only.
