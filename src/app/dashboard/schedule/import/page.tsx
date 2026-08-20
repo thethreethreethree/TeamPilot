@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays, Sparkles } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { AssistantPanel } from "@/components/schedule/AssistantPanel";
+import { to24h, normalizeCodeMap } from "@/lib/schedule/importTime";
 
 /**
  * Schedule Management System — file-import screen (Phase 5, S3 + the VA presence-grid follow-up).
@@ -24,47 +25,6 @@ type Proposal = { headerCells: string[]; codes: string[]; headerDates: string[];
 type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: string[]; willReplace?: number; replaceFrom?: string | null; replaceTo?: string | null; readyToCommit: boolean };
 type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; willReplace?: number; replaceFrom?: string | null; replaceTo?: string | null; readyToCommit: boolean };
 type Done = { staffCreated: number; shiftsCreated: number; assignmentsCreated: number; shiftsSuperseded?: number };
-
-/**
- * Normalize any human time to strict "HH:mm" 24-hour (what the preview/commit require). Accepts "13:00",
- * "1:00pm", "1pm", "1 PM", "9:00 am", and a bare hour "1"/"13"/"9". Returns "" if it can't parse — so an
- * unparseable value fails visibly (unmapped) rather than silently. This is why a raw "1" or "1:00pm" used to
- * make the whole preview fail: nothing converted it to 24h. A bare number is read literally (1 -> 01:00); use
- * 1pm / 13 for the afternoon.
- */
-function to24h(raw: string): string {
-  const s = raw.trim().toLowerCase();
-  if (!s) return "";
-  let m = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/.exec(s);
-  if (m) {
-    let h = Number(m[1]); const min = Number(m[2]); const ap = m[3];
-    if (ap === "pm" && h < 12) h += 12;
-    if (ap === "am" && h === 12) h = 0;
-    if (h > 23 || min > 59) return "";
-    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-  }
-  m = /^(\d{1,2})\s*(am|pm)?$/.exec(s);
-  if (m) {
-    let h = Number(m[1]); const ap = m[2];
-    if (ap === "pm" && h < 12) h += 12;
-    if (ap === "am" && h === 12) h = 0;
-    if (h > 23) return "";
-    return `${String(h).padStart(2, "0")}:00`;
-  }
-  return "";
-}
-
-/** Coerce every code's times to strict HH:mm (or drop the code to unmapped if unparseable) — applied before
- *  preview/commit and to the LLM's proposal, so no time format can silently break the import. */
-function normalizeCodeMap(map: Record<string, ShiftTimes | "off">): Record<string, ShiftTimes | "off"> {
-  const out: Record<string, ShiftTimes | "off"> = {};
-  for (const [code, v] of Object.entries(map)) {
-    if (v === "off") { out[code] = "off"; continue; }
-    const start = to24h(v.start); const end = to24h(v.end);
-    if (start && end) out[code] = { start, end }; // drop a code with an unparseable time (stays "needs mapping")
-  }
-  return out;
-}
 
 /** Read a File → base64 (no data: prefix). FileReader avoids the stack overflow of String.fromCharCode(...big). */
 function fileToBase64(file: File): Promise<string> {
