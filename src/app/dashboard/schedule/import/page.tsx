@@ -132,8 +132,11 @@ export default function ScheduleImportPage() {
         const mapped = Object.keys(codeMap).length;
         setProp({
           headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap,
-          notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. I pre-filled ${mapped} of ${d.codes.length} shift-code times${mapped < d.codes.length ? " (fill the rest)" : ""} — check them, then Preview.${extra}`,
+          notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. I pre-filled ${mapped} of ${d.codes.length} shift-code times${mapped < d.codes.length ? " (fill the rest)" : ""} — check them, then Import.${extra}`,
         });
+        // Auto-run the preview so the manager immediately SEES the schedule the file will create (and which
+        // codes, if any, still need a time) — pass the just-computed values (state setters haven't flushed).
+        await runPreview({ csv: d.csv, headerDates: d.headerDates, codeMap });
       } else {
         // DOCX: raw labels — the CSV is loaded above; the manager clicks Analyze to resolve dates + codes.
         setProp(null); setDates("");
@@ -144,12 +147,14 @@ export default function ScheduleImportPage() {
 
   const headerDates = () => dates.split(",").map((d) => d.trim()).filter(Boolean);
 
-  const runPreview = async () => {
+  // Accepts explicit values so it can run right after extract+propose without waiting for the state setters
+  // (auto-preview on upload); with no args it uses the current form state (the manual "Preview" button).
+  const runPreview = async (over?: { csv?: string; headerDates?: string[]; codeMap?: Record<string, CodeVal> }) => {
     setBusy("preview"); setError(null);
     try {
       const res = await fetch("/api/schedule/upload/preview", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv, headerDates: headerDates(), codeMap: map }),
+        body: JSON.stringify({ csv: over?.csv ?? csv, headerDates: over?.headerDates ?? headerDates(), codeMap: over?.codeMap ?? map }),
       });
       if (!res.ok) { setError("Couldn't build the preview. Check the dates and code map."); return; }
       setPreview(await res.json());
@@ -344,7 +349,7 @@ export default function ScheduleImportPage() {
                   );
                 })}
               </div>
-              <button type="button" onClick={runPreview} disabled={busy !== null}
+              <button type="button" onClick={() => void runPreview()} disabled={busy !== null}
                 className="inline-flex items-center gap-2 rounded-lg bg-surface border border-white/10 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
                 {busy === "preview" ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <ArrowRight className="w-3.5 h-3.5" aria-hidden />}
                 Preview
