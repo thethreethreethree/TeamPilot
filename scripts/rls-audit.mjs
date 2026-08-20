@@ -88,6 +88,16 @@ const ALLOWLIST = new Map([
   ["fin_inventory_movements.insert", "0180 DEFINER RPCs only — a client insert could forge a receipt and manufacture inventory value."],
   ["fin_inventory_movements.update", "0180 append-only (RULE) — a rewritable movement log can hide a theft."],
   ["fin_inventory_movements.delete", "0180 append-only (RULE) — deleting a movement erases the evidence of a shortfall."],
+  // 0235 team_passwords — service-role-only BY DESIGN. The secret is a DISTRIBUTABLE shared onboarding credential
+  // an admin hands to a new member (their first-login password), so it must be admin-VIEWABLE — but only through
+  // the admin-gated, company-pinned /api/team/passwords route (service-role, which bypasses RLS). RLS deny-all
+  // (no policies) means NO authenticated/anon client may read a secret or write a row directly. A per-op policy
+  // would either leak the secret to non-admins (select) or let a member forge/alter/revoke a company credential
+  // (insert/update/delete). The absence IS the control.
+  ["team_passwords.select", "0235 service-role-only: the secret is admin-viewable only via the admin-gated route; no client may read it directly."],
+  ["team_passwords.insert", "0235 service-role-only: only the admin-gated, company-pinned route creates passwords; a client insert could forge a company's credential."],
+  ["team_passwords.update", "0235 service-role-only: change/title edits go through the admin-gated route; a client update could alter another team's onboarding credential."],
+  ["team_passwords.delete", "0235 service-role-only: soft-delete via the admin-gated route; a client delete could revoke a company's credential."],
 
   // 0214 founder-monitoring audit trail — written ONLY by the service-role monitoring API (bypasses RLS);
   // append-only. Each absence is the control: a client that could write here could forge or erase a

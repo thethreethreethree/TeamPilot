@@ -91,6 +91,19 @@ export default async function DashboardLayout({
     if (!profile?.company_id) {
       redirect("/onboarding");
     }
+    // Forced first-login password change (0235): a user the admin created with a SHARED team password must set
+    // their own password before using the app (else the shared credential stays live on their account). SEPARATE
+    // best-effort read — same migration-coupling discipline as the onboarding gate: if must_change_password is
+    // missing (unapplied migration), this errors, the flag reads falsy, and the gate is simply inactive rather
+    // than bouncing every user. /set-password lives OUTSIDE /dashboard, so there is no redirect loop.
+    const { data: pwGate } = await supabase
+      .from("profiles")
+      .select("must_change_password")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (pwGate?.must_change_password) {
+      redirect("/set-password");
+    }
     // Preferences — a SEPARATE, best-effort read. If experience_mode /
     // learning_mode_enabled are missing (migration not applied somewhere), this
     // query errors, `prefs` is null, and we keep the safe defaults (standard /

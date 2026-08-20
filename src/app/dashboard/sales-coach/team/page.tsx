@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, ShieldCheck, Lock, Users, UserPlus, Clock } from "lucide-react";
+import { Loader2, ShieldCheck, Lock, Users, UserPlus, Clock, KeyRound } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
-import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
+import { AddAgentDialog } from "@/components/team/AddAgentDialog";
+import { TeamPasswordsDialog } from "@/components/team/TeamPasswordsDialog";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 /**
@@ -40,6 +41,7 @@ export default function SalesCoachTeamPage() {
   // null, which would read as "No members found". An error is neither (error-as-no-data / INV22).
   const [loadError, setLoadError] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -164,24 +166,34 @@ export default function SalesCoachTeamPage() {
               >
               <h2 className="text-sm font-semibold text-primary">Members</h2>
               </LearningHint>
-              <LearningHint
-                as="inline-block"
-                category="Sales Coach · Team"
-                title="Add agent"
-                whatItIs="Sends an Elostate invite to bring a new person into the company, after which you can assign them a Sales Coach role."
-                why="You can only coach people the system knows about. This is the on-ramp — it adds the person once, then their role is yours to set here."
-                how="Click it, invite the person by email, and once they join assign their Sales Coach role on their row."
-                principle="Bring the person in first, then decide their level — access is a deliberate step, not an accident of signup."
-              >
-              <button
-                type="button"
-                onClick={() => setInviteOpen(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <UserPlus className="w-3.5 h-3.5" aria-hidden />
-                Add agent
-              </button>
-              </LearningHint>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPwOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold border border-ember-400/40 text-brand hover:bg-ember-400/10 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5" aria-hidden />
+                  Team passwords
+                </button>
+                <LearningHint
+                  as="inline-block"
+                  category="Sales Coach · Team"
+                  title="Add agent"
+                  whatItIs="Adds a team member by email. An existing Elostate/Sales Coach account joins immediately; a brand-new person is created with a team password and sets their own on first login."
+                  why="You can only coach people the system knows about. This is the on-ramp — no invite link to chase; add the person once, set their role here."
+                  how="Click it, enter their email, pick Existing or New (new users need a team password), then assign their Sales Coach access."
+                  principle="Bring the person in first, then decide their level — access is a deliberate step, not an accident of signup."
+                >
+                <button
+                  type="button"
+                  onClick={() => setInviteOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-br from-ember-300 via-ember-400 to-ember-500 hover:shadow-[0_0_26px_-6px_rgba(250,204,21,0.65)] text-[#09090B] px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <UserPlus className="w-3.5 h-3.5" aria-hidden />
+                  Add agent
+                </button>
+                </LearningHint>
+              </div>
             </div>
             <LearningHint
               as="block"
@@ -198,9 +210,11 @@ export default function SalesCoachTeamPage() {
                 Assign company members as Sales Coach <span className="text-primary">staff</span>{" "}
                 or <span className="text-primary">admin</span>. This sets who the
                 product is for and who can manage it — independent of their
-                Elostate role. New people join via{" "}
-                <span className="text-primary">Add agent</span> (an Elostate
-                invite), then you assign their Sales Coach role here.
+                Elostate role. Add people with{" "}
+                <span className="text-primary">Add agent</span> — an existing
+                account joins right away; a new person is created with a{" "}
+                <span className="text-primary">team password</span> (managed under
+                Team passwords) and sets their own on first login.
               </p>
             </div>
             </LearningHint>
@@ -345,20 +359,15 @@ export default function SalesCoachTeamPage() {
               </div>
             )}
 
-            <InviteMemberDialog
+            <AddAgentDialog
               open={inviteOpen}
               onClose={() => setInviteOpen(false)}
-              onInvited={() => {
-                // Reminder for the load-bearing second step: an invited agent can't use the coach until they
-                // accept AND are set to Staff. The toast + the pending list + the "no access yet" row badge all
-                // point at this so it isn't forgotten.
-                toast.success(
-                  "Agent invited",
-                  "Once they accept, set them to Staff on their row to give them the coach."
-                );
+              onAdded={(msg) => {
+                toast.success("Added to team", msg);
                 void load();
               }}
             />
+            <TeamPasswordsDialog open={pwOpen} onClose={() => setPwOpen(false)} />
           </>
         )}
       </div>
