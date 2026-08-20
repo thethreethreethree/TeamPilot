@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildWeekGrid, relevantRows } from "../gridView";
+import { buildWeekGrid, relevantRows, weeksWithShifts } from "../gridView";
 import type { Shift, Employee } from "../types";
 
 /**
@@ -16,6 +16,25 @@ const emp = (id: string, status: "active" | "inactive"): Employee =>
   ({ id, name: id, role: null, employmentType: null, skills: [], certifications: [], maxHoursWeek: null, minHoursWeek: null, status } as unknown as Employee);
 
 const WEEK = ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-22", "2026-08-23"];
+
+describe("weeksWithShifts (drives the export-all-weeks download)", () => {
+  it("returns distinct Monday week-starts with shifts, sorted, deduped", () => {
+    const shifts = [
+      shift("a", "2026-08-18", "09:00", "17:00", ["x"]), // week of Mon 08-17
+      shift("b", "2026-08-20", "09:00", "17:00", ["x"]), // same week 08-17
+      shift("c", "2026-08-31", "09:00", "17:00", ["x"]), // week of Mon 08-31
+      shift("d", "2026-08-16", "09:00", "17:00", ["x"]), // Sunday → week of Mon 08-10 (ISO Monday default)
+    ];
+    expect(weeksWithShifts(shifts)).toEqual(["2026-08-10", "2026-08-17", "2026-08-31"]);
+  });
+  it("honors a Sunday workweek start (0)", () => {
+    // 2026-08-16 is a Sunday → its own week-start under Sunday weeks.
+    expect(weeksWithShifts([shift("a", "2026-08-16", "09:00", "17:00", ["x"])], 0)).toEqual(["2026-08-16"]);
+  });
+  it("is empty for no shifts", () => {
+    expect(weeksWithShifts([])).toEqual([]);
+  });
+});
 
 describe("buildWeekGrid", () => {
   it("includes only shifts whose date is in the displayed week", () => {

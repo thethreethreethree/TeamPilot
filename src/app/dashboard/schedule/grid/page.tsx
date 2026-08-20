@@ -5,7 +5,7 @@ import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, Printe
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
-import { buildWeekGrid, relevantRows } from "@/lib/schedule/gridView";
+import { buildWeekGrid, relevantRows, weeksWithShifts } from "@/lib/schedule/gridView";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -146,12 +146,9 @@ export default function ScheduleGridPage() {
     const nameW = 190, colW = 116, rowH = 40, headH = 54, titleH = 52, pad = 24, gap = 34, scale = 2;
 
     // Which weeks to draw: the visible one, or every distinct week that has at least one relevant row.
-    let weekList: string[];
-    if (mode === "all" && state) {
-      const set = new Set<string>();
-      for (const s of Object.values(state.shifts)) { const w = weekStartOf(s.date, settings.workweekStart); if (w) set.add(w); }
-      weekList = [...set].sort();
-    } else weekList = [weekStart];
+    const weekList = mode === "all" && state
+      ? weeksWithShifts(Object.values(state.shifts), settings.workweekStart)
+      : [weekStart];
     const blocks = weekList.map((ws) => ({ ws, ...weekGridData(ws) })).filter((b) => b.rws.length > 0);
     if (blocks.length === 0) return null;
 

@@ -1,5 +1,5 @@
 import type { Shift, Employee } from "./types";
-import { crossesMidnight, addDaysIso } from "./constraints";
+import { crossesMidnight, addDaysIso, weekStartOf } from "./constraints";
 
 /**
  * Pure view logic for the weekly schedule grid, extracted from the client component so it can be unit-tested
@@ -74,6 +74,18 @@ export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: App
  * deactivated AFTER being assigned still shows). Deactivated-and-unscheduled staff are hidden so their empty
  * rows don't pile up over time (the accumulation class the past-shift / past-time-off filters also address).
  */
+/** The distinct week-start dates (YYYY-MM-DD) that contain at least one shift, sorted ascending. Drives the
+ *  "export all weeks" schedule download/print — one grid per week that actually has shifts. `workweekStart` is
+ *  the company setting (0=Sun..6=Sat), so the weeks line up with the on-screen grid. */
+export function weeksWithShifts(shifts: Shift[], workweekStart = 1): string[] {
+  const set = new Set<string>();
+  for (const s of shifts) {
+    const w = weekStartOf(s.date, workweekStart);
+    if (w) set.add(w);
+  }
+  return [...set].sort();
+}
+
 export function relevantRows(roster: Employee[], scheduledIds: Set<string>): Employee[] {
   return roster.filter((e) => e.status === "active" || scheduledIds.has(e.id));
 }
