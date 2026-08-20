@@ -159,15 +159,16 @@ export default function ScheduleGridPage() {
   // time of day (morning/day/evening/overnight) with a legend, so a manager reads "who works nights vs mornings"
   // at a glance — the founder's explicit ask (§1.5.4: the colour-coding IS the deliverable, not polish). Print +
   // download share this. mode "all" stacks every week that has shifts into one tall image.
-  const renderCanvas = useCallback((mode: "week" | "all"): HTMLCanvasElement | null => {
+  const renderCanvas = useCallback((mode: "week" | "all", weeksOverride?: string[]): HTMLCanvasElement | null => {
     if (typeof document === "undefined") return null;
     const nameW = 196, colW = 120, rowH = 42, headH = 50, titleH = 46, pad = 26, gap = 30, scale = 2;
     const bandH = 68, legendH = 40; // brand header band + colour legend
 
-    // Which weeks to draw: the visible one, or every distinct week that has at least one relevant row.
-    const weekList = mode === "all" && state
+    // Which weeks to draw: an explicit override (one-week-per-page export), the visible one, or every distinct
+    // week that has at least one relevant row.
+    const weekList = weeksOverride ?? (mode === "all" && state
       ? weeksWithShifts(Object.values(state.shifts), settings.workweekStart)
-      : [weekStart];
+      : [weekStart]);
     const blocks = weekList.map((ws) => ({ ws, ...weekGridData(ws) })).filter((b) => b.rws.length > 0);
     if (blocks.length === 0) return null;
     const title = (settings.scheduleName?.trim() || companyName || "Schedule");
@@ -284,24 +285,24 @@ export default function ScheduleGridPage() {
     return canvas;
   }, [state, settings.workweekStart, settings.scheduleName, weekStart, weekGridData, companyName]);
 
-  const [printImg, setPrintImg] = useState<string | null>(null);
+  const [printImgs, setPrintImgs] = useState<string[]>([]);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportScope, setExportScope] = useState<"week" | "all">("all");
   const tooLargeMsg = "This schedule is too large to export as one image. Export week by week (This week / Print), or tell me and I'll add a multi-page PDF.";
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const clear = () => setPrintImg(null);
+    const clear = () => setPrintImgs([]);
     window.addEventListener("afterprint", clear);
     return () => window.removeEventListener("afterprint", clear);
   }, []);
-  // Print only AFTER the print image has actually painted (two rAFs), not on a fixed timeout that could fire
-  // before the image is on screen and print a blank page.
+  // Print only AFTER the print image(s) have actually painted (two rAFs), not on a fixed timeout that could fire
+  // before they're on screen and print a blank page.
   useEffect(() => {
-    if (!printImg || typeof window === "undefined") return;
+    if (printImgs.length === 0 || typeof window === "undefined") return;
     const id = requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
     return () => cancelAnimationFrame(id);
-  }, [printImg]);
+  }, [printImgs]);
 
   // Download as a PNG image (a real, shareable graphic). mode "all" = the whole schedule (every week with
   // shifts) in one file; "week" = just the visible week.
@@ -319,13 +320,18 @@ export default function ScheduleGridPage() {
     }, "image/png");
   };
 
-  // Print: swap in the white canvas image (print:block) and open the browser print dialog — clean, no popup,
-  // no fighting the dark theme. afterprint clears it. mode "all" prints the whole schedule across pages.
+  // Print: swap in the white canvas image(s) (print:block) and open the browser print dialog — clean, no popup,
+  // no fighting the dark theme. afterprint clears them. ONE WEEK PER PAGE (founder 2026-08-20): each week is its
+  // own image with a CSS page-break, so a printed page never breaks across weeks.
   const printSchedule = (mode: "week" | "all") => {
-    const canvas = renderCanvas(mode);
-    if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
+    const imgs: string[] = [];
+    for (const wk of exportWeeks(mode)) {
+      const canvas = renderCanvas(mode, [wk]);
+      if (canvas) imgs.push(canvas.toDataURL("image/png"));
+    }
+    if (imgs.length === 0) { setExportMsg(mode === "all" ? tooLargeMsg : null); return; }
     setExportMsg(null);
-    setPrintImg(canvas.toDataURL("image/png")); // the effect above prints once it has painted
+    setPrintImgs(imgs); // the effect above prints once they've painted
   };
 
   // ---- Data + file exports (CSV / Excel / PDF), built to RE-IMPORT (the founder's ask) ----
@@ -376,29 +382,21 @@ export default function ScheduleGridPage() {
     noticeFor(grid);
     downloadBytes(buildTablePdf(grid, exportTitle), `schedule-data-${suffix(mode)}.pdf`, "application/pdf");
   };
+  // The weeks (Monday/…-anchored) to put ONE PER PAGE. "week" = just the shown week; "all" = every week with shifts.
+  const exportWeeks = (mode: "week" | "all"): string[] =>
+    mode === "all" && state ? weeksWithShifts(Object.values(state.shifts), settings.workweekStart) : [weekStart];
+
   const downloadPdfVisual = (mode: "week" | "all") => {
-    const canvas = renderCanvas(mode);
-    if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
-    setExportMsg(null);
-    // Slice a TALL canvas into landscape-page-height bands so an "all weeks" PDF stays readable (one page each)
-    // rather than shrinking the whole schedule onto a single illegible page.
-    const pageAspect = (842 - 48) / (595 - 48); // usable landscape width/height
-    const bandH = Math.max(1, Math.round(canvas.width / pageAspect));
+    // ONE WEEK PER PAGE (founder 2026-08-20): render each week to its own canvas → its own landscape page, so a
+    // page never breaks across weeks. Each page is self-contained (header band + legend + that week's grid).
     const pages: { jpeg: Uint8Array; w: number; h: number }[] = [];
-    if (canvas.height <= bandH * 1.1) {
+    for (const wk of exportWeeks(mode)) {
+      const canvas = renderCanvas(mode, [wk]);
+      if (!canvas) continue;
       pages.push({ jpeg: dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92)), w: canvas.width, h: canvas.height });
-    } else {
-      for (let y = 0; y < canvas.height; y += bandH) {
-        const sliceH = Math.min(bandH, canvas.height - y);
-        const c2 = document.createElement("canvas");
-        c2.width = canvas.width; c2.height = sliceH;
-        const cx = c2.getContext("2d");
-        if (!cx) continue;
-        cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, c2.width, sliceH);
-        cx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        pages.push({ jpeg: dataUrlToBytes(c2.toDataURL("image/jpeg", 0.92)), w: c2.width, h: c2.height });
-      }
     }
+    if (pages.length === 0) { setExportMsg(mode === "all" ? tooLargeMsg : null); return; }
+    setExportMsg(null);
     downloadBytes(buildImagePdf(pages), `schedule-${suffix(mode)}.pdf`, "application/pdf");
   };
 
@@ -574,9 +572,11 @@ export default function ScheduleGridPage() {
         wide staff×date grid fits without shrinking. */}
     <style>{`@media print { @page { size: A4 landscape; margin: 8mm; } }`}</style>
     <div className="hidden print:block">
-      {/* A canvas data-URL for printing — next/image can't optimize a runtime data URL, and it's print-only. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {printImg && <img src={printImg} alt={`Schedule week of ${weekStart}`} className="w-full" />}
+      {/* One image PER WEEK, each on its own page (break-after) so a page never breaks mid-week. */}
+      {printImgs.map((src, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} src={src} alt={`Schedule page ${i + 1}`} className="w-full" style={{ breakAfter: i < printImgs.length - 1 ? "page" : "auto" }} />
+      ))}
     </div>
     </>
   );
