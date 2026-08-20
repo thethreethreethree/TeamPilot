@@ -233,7 +233,9 @@ export default function ScheduleImportPage() {
         if (res.status === 422 && vaFile) {
           setMode("csv");
           setMovedNote("That file is a staff-by-date grid, not an 'On Duty' grid — I moved it to the right importer below.");
-          await extractGridFile(vaFile);
+          // Route by type: a .csv reads as text (importCsvFile); pdf/docx/xlsx go through the binary extractor.
+          const isCsv = vaFile.name.toLowerCase().endsWith(".csv") || vaFile.type === "text/csv";
+          if (isCsv) await importCsvFile(vaFile); else await extractGridFile(vaFile);
           return;
         }
         setError((await res.json().catch(() => null))?.error ?? "Couldn't read that schedule file."); return;

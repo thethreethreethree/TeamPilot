@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { isIsoHeaderGrid, isoGridFromItems } from "../pdfIsoGrid";
+import { isIsoHeaderGrid, isoGridFromItems, pdfGridToCsv } from "../pdfIsoGrid";
+import { parseCsvToGrid } from "../csvGrid";
 import type { PdfTextItem } from "../staffDatePdf";
 
 /**
@@ -46,5 +47,35 @@ describe("isoGridFromItems — reads an ISO grid", () => {
     const g = isoGridFromItems([page1, page2]);
     expect(g.headerDates).toEqual(["2026-08-17", "2026-08-24"]);
     expect(g.rows.find((r) => r.name === "Alice")!.cells).toEqual(["06:00-15:00", "13:00-22:00"]);
+  });
+});
+
+describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (the founder's 'AUG 16' grid)", () => {
+  it("clusters positioned text into columns/rows → the CSV the Analyze flow can resolve", () => {
+    // Header + two staff rows, one item per cell, at 4 column x's (~30 / 150 / 270 / 390).
+    const page: PdfTextItem[] = [
+      item("NAME", 30, 500), item("AUG 16", 150, 500), item("AUG 17", 270, 500), item("AUG 18", 390, 500),
+      item("ALICE", 30, 470), item("6-3", 150, 470), item("6-3", 270, 470), item("OFF", 390, 470),
+      item("ABRIL", 30, 440), item("OFF", 150, 440), item("2-11", 270, 440), item("2-11", 390, 440),
+    ];
+    const csv = pdfGridToCsv([page]);
+    expect(csv).toBe("NAME,AUG 16,AUG 17,AUG 18\nALICE,6-3,6-3,OFF\nABRIL,OFF,2-11,2-11");
+    // And it parses as a real staff×date grid the importer accepts.
+    const g = parseCsvToGrid(csv);
+    expect(g.headerCells).toEqual(["AUG 16", "AUG 17", "AUG 18"]);
+    expect(g.rows.map((r) => r.name)).toEqual(["ALICE", "ABRIL"]);
+  });
+
+  it("merges a date label the PDF split into two close tokens ('AUG' + '16') within one column", () => {
+    const page: PdfTextItem[] = [
+      item("NAME", 30, 500), item("AUG", 150, 500), item("16", 162, 500), item("AUG", 270, 500), item("17", 282, 500),
+      item("ALICE", 30, 470), item("6-3", 150, 470), item("6-3", 270, 470),
+    ];
+    const csv = pdfGridToCsv([page]);
+    expect(csv).toBe("NAME,AUG 16,AUG 17\nALICE,6-3,6-3");
+  });
+
+  it("returns '' for an empty page (no false grid)", () => {
+    expect(pdfGridToCsv([[]])).toBe("");
   });
 });

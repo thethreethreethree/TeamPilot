@@ -4,7 +4,9 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { decodeBase64 } from "@/lib/schedule/vaUpload";
-import { extractStaffDateGridFromPdf, gridToCsv, docxCellsToCsv } from "@/lib/schedule/staffDatePdf";
+import { extractStaffDateGridFromPdf, extractPdfPages, gridToCsv, docxCellsToCsv } from "@/lib/schedule/staffDatePdf";
+import { pdfGridToCsv } from "@/lib/schedule/pdfIsoGrid";
+import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
 import { normalizeCode } from "@/lib/schedule/gridParser";
@@ -82,6 +84,28 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     if (e instanceof EmptyExtractionError) {
+      // GENERIC fallback: the specific parsers (frendz layout / our ISO export) didn't recognize this PDF, but
+      // it may still be a staff×date grid in a DIFFERENT layout (e.g. "AUG 16" date-label headers). Cluster its
+      // positioned text into columns/rows → CSV, and let the normal Analyze flow (LLM date-resolution + confirm)
+      // handle it, exactly like docx/xlsx. headerDates: [] → the client runs Analyze rather than pre-filling.
+      try {
+        const csv = pdfGridToCsv(await extractPdfPages(bytes));
+        const g = parseCsvToGrid(csv);
+        const dataRows = g.rows.filter((r) => r.name.trim());
+        if (csv.trim() && dataRows.length >= 1 && g.headerCells.some((h) => h.trim())) {
+          const codes = new Set<string>();
+          for (const row of dataRows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
+          return NextResponse.json({
+            csv,
+            headerDates: [],
+            staff: dataRows.map((r) => r.name.trim()),
+            codes: [...codes].sort(),
+            warnings: ["I read this file as a general staff-by-date table. Click Analyze to confirm the dates and shift codes before importing."],
+          });
+        }
+      } catch (fe) {
+        console.error("[schedule/upload/grid-pdf/extract] generic fallback failed:", fe instanceof Error ? fe.message : fe);
+      }
       return NextResponse.json(
         { error: "No staff-by-date schedule grid was found in that file. Is it a staff (rows) x dates (columns) grid?" },
         { status: 422 },

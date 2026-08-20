@@ -248,13 +248,19 @@ export function docxCellsToCsv(cells: string[][]): string {
     .join("\n");
 }
 
-/** Read a .pdf buffer -> StaffDateGrid via unpdf's positioned extraction. Throws EmptyExtractionError if no
- *  staff x date schedule grid is found (same failure contract as the VA path). */
-export async function extractStaffDateGridFromPdf(buffer: Uint8Array): Promise<StaffDateGrid> {
+/** unpdf positioned text extraction → one PdfTextItem[] per page. Shared by the resolved-grid extractor and the
+ *  generic CSV fallback so the raw text is read once per path. */
+export async function extractPdfPages(buffer: Uint8Array): Promise<PdfTextItem[][]> {
   const { extractTextItems } = await import("unpdf");
   const result = (await extractTextItems(buffer)) as { items?: PdfTextItem[][] | PdfTextItem[] };
   const raw = result.items ?? [];
-  const pages: PdfTextItem[][] = Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
+  return Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
+}
+
+/** Read a .pdf buffer -> StaffDateGrid via unpdf's positioned extraction. Throws EmptyExtractionError if no
+ *  staff x date schedule grid is found (same failure contract as the VA path). */
+export async function extractStaffDateGridFromPdf(buffer: Uint8Array): Promise<StaffDateGrid> {
+  const pages = await extractPdfPages(buffer);
   // Prefer the generic ISO-header reader when the PDF carries ISO-date headers — our own data-PDF export's
   // signature, read back deterministically. Otherwise fall back to the frendz day-number/weekday parser.
   const { isIsoHeaderGrid, isoGridFromItems } = await import("./pdfIsoGrid");
