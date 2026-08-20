@@ -131,11 +131,18 @@ export default function ScheduleBuildPage() {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-3xl mx-auto w-full">
       <ScheduleNav />
-      <div className="flex items-center gap-2 mb-1">
-        <CalendarPlus className="w-6 h-6 text-brand" aria-hidden />
-        <h1 className="text-xl font-bold text-primary">Build a Shift</h1>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex items-center gap-2">
+          <CalendarPlus className="w-6 h-6 text-brand" aria-hidden />
+          <h1 className="text-xl font-bold text-primary">Build a Shift</h1>
+        </div>
+        {/* The AI is the headline way to arrange the schedule — make it reachable from the manual builder too. */}
+        <Link href="/dashboard/schedule/assistant"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-black shrink-0">
+          <Sparkles className="w-4 h-4" aria-hidden /> AI Assistance
+        </Link>
       </div>
-      <p className="text-xs text-muted mb-5">Create a shift by hand and assign staff — no file needed.</p>
+      <p className="text-xs text-muted mb-5">Create a shift by hand and assign staff — or just tell the <span className="text-secondary">AI Assistant</span> what you need.</p>
 
       {done ? (
         <div className="glass-card p-5 border border-emerald-500/30 space-y-4">
