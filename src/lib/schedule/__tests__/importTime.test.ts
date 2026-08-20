@@ -1,6 +1,34 @@
 import { describe, it, expect } from "vitest";
-import { to24h, normalizeCodeMap } from "../importTime";
+import { to24h, normalizeCodeMap, inferNumericShift, autoTimeRangeCodeMap } from "../importTime";
 import { parseScheduleGrid } from "../gridParser";
+
+describe("inferNumericShift (hours-only shift codes → times, the founder's HK/HUB codes)", () => {
+  it("reads a start hour 6–11 as AM and 1–5 as PM, end as the plausible-length reading", () => {
+    expect(inferNumericShift("7-4")).toEqual({ start: "07:00", end: "16:00" }); // 7am–4pm
+    expect(inferNumericShift("6-3")).toEqual({ start: "06:00", end: "15:00" }); // 6am–3pm
+    expect(inferNumericShift("2-11")).toEqual({ start: "14:00", end: "23:00" }); // 2pm–11pm
+    expect(inferNumericShift("10-7")).toEqual({ start: "10:00", end: "19:00" }); // 10am–7pm
+    expect(inferNumericShift("1-10")).toEqual({ start: "13:00", end: "22:00" }); // 1pm–10pm
+    expect(inferNumericShift("9-6")).toEqual({ start: "09:00", end: "18:00" }); // 9am–6pm
+  });
+  it("tolerates a short duty suffix ('6-3 BF' = the 6-3 shift)", () => {
+    expect(inferNumericShift("6-3 BF")).toEqual({ start: "06:00", end: "15:00" });
+  });
+  it("returns null for org-specific codes it must NOT guess (GY, G-Y, SKY-BAR, OFF)", () => {
+    for (const c of ["GY", "G-Y", "SKY-BAR", "OFF", "13:00", ""]) expect(inferNumericShift(c)).toBeNull();
+  });
+});
+
+describe("autoTimeRangeCodeMap folds in the numeric inference", () => {
+  it("pre-fills numeric codes deterministically, leaves org codes for the human", () => {
+    const m = autoTimeRangeCodeMap(["7-4", "6-3", "OFF", "GY", "06:00-15:00"]);
+    expect(m["7-4"]).toEqual({ start: "07:00", end: "16:00" });
+    expect(m["6-3"]).toEqual({ start: "06:00", end: "15:00" });
+    expect(m["OFF"]).toBe("off");
+    expect(m["06:00-15:00"]).toEqual({ start: "06:00", end: "15:00" }); // explicit range still works
+    expect(m["GY"]).toBeUndefined(); // org code → stays unmapped for the manager
+  });
+});
 
 /**
  * The fix for 4 failed imports: shift-code times came in as "1", "1:00pm", "13" etc., but preview/commit need

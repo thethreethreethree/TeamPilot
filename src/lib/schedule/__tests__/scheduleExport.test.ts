@@ -94,13 +94,13 @@ describe("ROUND-TRIP with tricky staff names (CSV quoting ↔ parsing contract)"
   });
 });
 
-describe("autoTimeRangeCodeMap (deterministic explicit-time recognition)", () => {
-  it("maps explicit HH:mm ranges + OFF, leaves ambiguous org codes for the LLM/human", () => {
+describe("autoTimeRangeCodeMap (deterministic explicit-time recognition + numeric inference)", () => {
+  it("maps explicit HH:mm ranges + OFF + hours-only shift codes; leaves NON-numeric org codes for the human", () => {
     const m = autoTimeRangeCodeMap(["06:00-15:00", "9:00am-5:00pm", "OFF", "6-3", "GY"]);
     expect(m["06:00-15:00"]).toEqual({ start: "06:00", end: "15:00" });
     expect(m["9:00am-5:00pm"]).toEqual({ start: "09:00", end: "17:00" });
     expect(m["OFF"]).toBe("off");
-    expect(m["6-3"]).toBeUndefined(); // ambiguous (no colon) — NOT auto-mapped
-    expect(m["GY"]).toBeUndefined();
+    expect(m["6-3"]).toEqual({ start: "06:00", end: "15:00" }); // "6-3" = 6am–3pm (numeric inference, human confirms)
+    expect(m["GY"]).toBeUndefined(); // non-numeric org code → stays for the human to map
   });
 });
