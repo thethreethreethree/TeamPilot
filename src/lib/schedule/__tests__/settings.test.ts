@@ -22,9 +22,14 @@ function sbReturning(result: SingleResult | (() => never)) {
 }
 
 describe("getScheduleSettings — guarded fallback", () => {
-  it("passes a valid row through", async () => {
-    const s = await getScheduleSettings(sbReturning({ data: { timezone: "America/New_York", workweek_start: 0 }, error: null }), "c1");
-    expect(s).toEqual({ timezone: "America/New_York", workweekStart: 0 });
+  it("passes a valid row through (incl. a custom schedule name)", async () => {
+    const s = await getScheduleSettings(sbReturning({ data: { timezone: "America/New_York", workweek_start: 0, schedule_name: "  Front of House  " }, error: null }), "c1");
+    expect(s).toEqual({ timezone: "America/New_York", workweekStart: 0, scheduleName: "Front of House" });
+  });
+
+  it("a blank/absent schedule_name → null (export falls back to the company name)", async () => {
+    expect((await getScheduleSettings(sbReturning({ data: { timezone: "UTC", workweek_start: 1, schedule_name: "   " }, error: null }), "c1")).scheduleName).toBeNull();
+    expect((await getScheduleSettings(sbReturning({ data: { timezone: "UTC", workweek_start: 1 }, error: null }), "c1")).scheduleName).toBeNull();
   });
 
   it("no row → defaults (UTC / Monday)", async () => {

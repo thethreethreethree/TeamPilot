@@ -113,6 +113,14 @@ export default function ScheduleSettingsPage() {
       ) : (
         <div className="glass-card p-4 space-y-4 max-w-md">
           <div>
+            <label htmlFor="schedName" className="block text-sm font-semibold text-secondary mb-1">Schedule name</label>
+            <input id="schedName" type="text" maxLength={60} value={settings.scheduleName ?? ""}
+              placeholder="Your company name"
+              onChange={(e) => { setSettings((s) => ({ ...s, scheduleName: e.target.value })); setSaved(false); }}
+              className="w-full rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary" />
+            <p className="text-[11px] text-muted mt-1">Shown as the title on printed &amp; downloaded schedules. Leave blank to use your company name.</p>
+          </div>
+          <div>
             <label htmlFor="tz" className="block text-sm font-semibold text-secondary mb-1">Timezone</label>
             <select id="tz" value={settings.timezone} onChange={(e) => { setSettings((s) => ({ ...s, timezone: e.target.value })); setSaved(false); }}
               className="w-full rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-primary">

@@ -7,6 +7,7 @@ import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { buildWeekGrid, relevantRows, weeksWithShifts } from "@/lib/schedule/gridView";
 import { scheduleInsights, understaffedWeekdays } from "@/lib/schedule/insights";
+import { bandFromLabel, BAND_STYLE, WORKED_BANDS } from "@/lib/schedule/shiftColors";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -151,11 +152,14 @@ export default function ScheduleGridPage() {
     return { dts, cellFn: g.cell, rws: relevantRows(roster, g.scheduledIds) };
   }, [state, roster]);
 
-  // Render one or ALL weeks to a clean WHITE canvas (no dependency) — a plain staff x date grid anyone reads at
-  // a glance. Print + download share this. mode "all" stacks every week that has shifts into one tall image.
+  // Render one or ALL weeks to a designed, COLOUR-CODED schedule graphic (no dependency). Shifts are tinted by
+  // time of day (morning/day/evening/overnight) with a legend, so a manager reads "who works nights vs mornings"
+  // at a glance — the founder's explicit ask (§1.5.4: the colour-coding IS the deliverable, not polish). Print +
+  // download share this. mode "all" stacks every week that has shifts into one tall image.
   const renderCanvas = useCallback((mode: "week" | "all"): HTMLCanvasElement | null => {
     if (typeof document === "undefined") return null;
-    const nameW = 190, colW = 116, rowH = 40, headH = 54, titleH = 52, pad = 24, gap = 34, scale = 2;
+    const nameW = 196, colW = 120, rowH = 42, headH = 50, titleH = 46, pad = 26, gap = 30, scale = 2;
+    const bandH = 68, legendH = 40; // brand header band + colour legend
 
     // Which weeks to draw: the visible one, or every distinct week that has at least one relevant row.
     const weekList = mode === "all" && state
@@ -163,13 +167,14 @@ export default function ScheduleGridPage() {
       : [weekStart];
     const blocks = weekList.map((ws) => ({ ws, ...weekGridData(ws) })).filter((b) => b.rws.length > 0);
     if (blocks.length === 0) return null;
+    const title = (settings.scheduleName?.trim() || companyName || "Schedule");
+    const anyOff = blocks.some((b) => b.rws.some((e) => b.dts.some((d) => b.cellFn(e.id, d)?.off)));
 
     const gW = nameW + 7 * colW;
     const w = pad * 2 + gW;
-    const bannerH = companyName ? 48 : 0; // a company header at the very top (whose schedule this is)
-    const footerH = 30; // "generated <date>" so a printout's currency is clear
+    const footerH = 26;
     const blockH = (n: number) => titleH + headH + n * rowH;
-    const h = pad * 2 + bannerH + footerH + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
+    const h = pad + bandH + legendH + 14 + footerH + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap) + pad;
 
     // A browser canvas maxes out near 32767px per side; a huge multi-week schedule would silently render blank.
     // Guard it: fail LOUD (return null → the caller shows a message) rather than export a broken image.
@@ -179,55 +184,102 @@ export default function ScheduleGridPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     ctx.scale(scale, scale);
+    // Rounded-rect helper (roundRect is widely supported; fall back to a plain rect on old engines).
+    const rrect = (x: number, y: number, wd: number, ht: number, rad: number) => {
+      ctx.beginPath();
+      if (typeof (ctx as unknown as { roundRect?: unknown }).roundRect === "function") ctx.roundRect(x, y, wd, ht, rad);
+      else ctx.rect(x, y, wd, ht);
+    };
+    const isWeekend = (d: string) => { const wd = weekdayOf(d); return wd === "Sat" || wd === "Sun"; };
+
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
 
-    if (companyName) {
-      ctx.fillStyle = "#111827"; ctx.font = "bold 26px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-      ctx.fillText(`${companyName} — Schedule`, pad, pad + 30);
+    // ---- Brand header band: eyebrow + title, generated date on the right ----
+    ctx.fillStyle = "#0f172a"; rrect(pad, pad, gW, bandH, 14); ctx.fill();
+    ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    ctx.fillStyle = "#7dd3fc"; ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.fillText("W O R K   S C H E D U L E", pad + 22, pad + 26);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 27px system-ui, sans-serif";
+    ctx.fillText(title, pad + 22, pad + 54, gW - 260);
+    ctx.textAlign = "right"; ctx.fillStyle = "#94a3b8"; ctx.font = "12px system-ui, sans-serif";
+    ctx.fillText(`Generated ${new Date().toLocaleDateString()}`, pad + gW - 22, pad + 34);
+    const firstWs = blocks[0]!.ws, lastWs = blocks[blocks.length - 1]!.ws;
+    const span = blocks.length > 1 ? `${firstWs} → ${lastWs}` : `Week of ${firstWs}`;
+    ctx.fillText(span, pad + gW - 22, pad + 52);
+
+    // ---- Legend: a colour chip per time-of-day band (+ time off when present) ----
+    const legendY = pad + bandH + legendH / 2 + 4;
+    const chips = [...WORKED_BANDS, ...(anyOff ? (["off"] as const) : [])];
+    ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    let lx = pad + 22;
+    ctx.font = "bold 12px system-ui, sans-serif";
+    for (const band of chips) {
+      const st = BAND_STYLE[band];
+      rrect(lx, legendY - 7, 14, 14, 4); ctx.fillStyle = st.bg; ctx.fill();
+      ctx.strokeStyle = st.dot; ctx.lineWidth = 1.5; rrect(lx, legendY - 7, 14, 14, 4); ctx.stroke();
+      ctx.fillStyle = "#475569"; ctx.fillText(st.label, lx + 20, legendY);
+      lx += 26 + ctx.measureText(st.label).width + 22;
     }
-    let yTop = pad + bannerH;
+
+    let yTop = pad + bandH + legendH + 14;
     for (const b of blocks) {
       const { ws, dts, cellFn, rws } = b;
-      ctx.fillStyle = "#111827"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-      ctx.fillText(`Week of ${ws}`, pad, yTop + 30);
+      // Week title with a brand accent bar.
+      ctx.fillStyle = "#6366f1"; rrect(pad, yTop + 8, 5, 22, 2.5); ctx.fill();
+      ctx.fillStyle = "#0f172a"; ctx.font = "bold 19px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(`Week of ${ws}`, pad + 16, yTop + 26);
       const gTop = yTop + titleH;
-      ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, gTop, gW, headH);
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "left";
-      ctx.fillText("Name", pad + 14, gTop + headH / 2);
+      const gBottom = gTop + headH + rws.length * rowH;
+
+      // Weekend column tint (behind everything), so Sat/Sun read as different from the workweek.
+      dts.forEach((d, i) => {
+        if (!isWeekend(d)) return;
+        ctx.fillStyle = "#fff7ed"; ctx.fillRect(pad + nameW + i * colW, gTop, colW, gBottom - gTop);
+      });
+      // Header row.
+      ctx.fillStyle = "#f1f5f9"; rrect(pad, gTop, gW, headH, 10); ctx.fill();
+      ctx.textBaseline = "middle"; ctx.fillStyle = "#334155"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("Name", pad + 16, gTop + headH / 2);
       ctx.textAlign = "center";
       dts.forEach((d, i) => {
         const x = pad + nameW + i * colW + colW / 2;
-        ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.fillText(weekdayOf(d), x, gTop + 17);
-        ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillText(dayLabel(d), x, gTop + 37);
+        ctx.fillStyle = isWeekend(d) ? "#c2410c" : "#94a3b8"; ctx.font = "11px system-ui, sans-serif"; ctx.fillText(weekdayOf(d), x, gTop + 16);
+        ctx.fillStyle = "#334155"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillText(dayLabel(d), x, gTop + 34);
       });
+      // Rows.
       rws.forEach((emp, r) => {
         const y = gTop + headH + r * rowH;
-        if (r % 2 === 1) { ctx.fillStyle = "#f9fafb"; ctx.fillRect(pad, y, gW, rowH); }
-        ctx.fillStyle = "#111827"; ctx.font = "12px system-ui, sans-serif"; ctx.textAlign = "left";
-        ctx.fillText(emp.name, pad + 14, y + rowH / 2, nameW - 20);
-        ctx.textAlign = "center";
+        if (r % 2 === 1) { ctx.fillStyle = "#f8fafc"; ctx.fillRect(pad, y, nameW, rowH); }
+        ctx.fillStyle = "#0f172a"; ctx.font = "600 12px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(emp.name, pad + 16, y + rowH / 2, nameW - 24);
         dts.forEach((d, i) => {
           const c = cellFn(emp.id, d);
-          const x = pad + nameW + i * colW + colW / 2;
+          const cx = pad + nameW + i * colW;
+          const x = cx + colW / 2;
           if (c) {
-            ctx.fillStyle = c.off ? "#b45309" : "#111827";
-            ctx.font = c.off ? "italic 11px system-ui, sans-serif" : "12px system-ui, sans-serif";
-            ctx.fillText(c.off ? `${c.label} (off)` : c.label, x, y + rowH / 2, colW - 8);
-          } else { ctx.fillStyle = "#d1d5db"; ctx.font = "12px system-ui, sans-serif"; ctx.fillText("·", x, y + rowH / 2); }
+            const st = c.off ? BAND_STYLE.off : BAND_STYLE[bandFromLabel(c.label) ?? "day"];
+            const pw = colW - 16, ph = 26;
+            rrect(cx + 8, y + (rowH - ph) / 2, pw, ph, 8); ctx.fillStyle = st.bg; ctx.fill();
+            ctx.fillStyle = st.fg; ctx.font = "600 12px system-ui, sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(c.off ? `${c.label} · off` : c.label, x, y + rowH / 2, pw - 8);
+          } else {
+            ctx.fillStyle = "#cbd5e1"; ctx.font = "13px system-ui, sans-serif"; ctx.textAlign = "center";
+            ctx.fillText("·", x, y + rowH / 2);
+          }
         });
       });
-      ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
-      for (let r = 0; r <= rws.length; r++) { const y = gTop + headH + r * rowH; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + gW, y); ctx.stroke(); }
-      for (let c = 0; c <= 7; c++) { const x = pad + nameW + c * colW; ctx.beginPath(); ctx.moveTo(x, gTop); ctx.lineTo(x, gTop + headH + rws.length * rowH); ctx.stroke(); }
-      ctx.strokeStyle = "#d1d5db"; ctx.strokeRect(pad, gTop, gW, headH + rws.length * rowH);
+      // Light column separators + an outer frame.
+      ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+      for (let c = 1; c < 7; c++) { const x = pad + nameW + c * colW; ctx.beginPath(); ctx.moveTo(x, gTop + headH); ctx.lineTo(x, gBottom); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(pad + nameW, gTop); ctx.lineTo(pad + nameW, gBottom); ctx.stroke();
+      ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1.25; rrect(pad, gTop, gW, gBottom - gTop, 10); ctx.stroke();
       yTop += blockH(rws.length) + gap;
     }
     // Footer: when this was generated (so a printed copy's currency is clear).
-    ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    ctx.fillText(`Generated ${new Date().toLocaleString()}`, pad, h - pad + 8);
+    ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(`Generated ${new Date().toLocaleString()}`, pad, h - pad + 6);
     return canvas;
-  }, [state, settings.workweekStart, weekStart, weekGridData, companyName]);
+  }, [state, settings.workweekStart, settings.scheduleName, weekStart, weekGridData, companyName]);
 
   const [printImg, setPrintImg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);

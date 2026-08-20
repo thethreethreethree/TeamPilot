@@ -36,7 +36,7 @@ describe("GET /api/schedule/settings", () => {
     asMock(createClient).mockResolvedValue(fakeSb({ timezone: "America/New_York", workweek_start: 0 }));
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ timezone: "America/New_York", workweekStart: 0 });
+    expect(await res.json()).toEqual({ timezone: "America/New_York", workweekStart: 0, scheduleName: null });
   });
 
   it("401 unauthenticated", async () => {
@@ -51,8 +51,17 @@ describe("PATCH /api/schedule/settings", () => {
     asMock(createClient).mockResolvedValue(fakeSb());
     const res = await PATCH(req({ timezone: "America/Chicago", workweekStart: 0 }));
     expect(res.status).toBe(200);
-    expect(updateArgs).toEqual({ timezone: "America/Chicago", workweek_start: 0 });
+    expect(updateArgs).toEqual({ timezone: "America/Chicago", workweek_start: 0, schedule_name: null });
     expect(eqArgs).toEqual(["id", "c1"]); // INV15 — pinned to the session company
+  });
+
+  it("persists a custom schedule name, trimmed (blank stays null)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(createClient).mockResolvedValue(fakeSb());
+    const res = await PATCH(req({ timezone: "UTC", workweekStart: 1, scheduleName: "  Front of House  " }));
+    expect(res.status).toBe(200);
+    expect(updateArgs).toEqual({ timezone: "UTC", workweek_start: 1, schedule_name: "Front of House" });
+    expect(await res.json()).toEqual({ timezone: "UTC", workweekStart: 1, scheduleName: "Front of House" });
   });
 
   it("rejects an invalid IANA timezone (400)", async () => {

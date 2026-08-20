@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
-import { getScheduleSettings } from "@/lib/schedule/settings";
+import { getScheduleSettings, normalizeScheduleName } from "@/lib/schedule/settings";
 
 /**
  * Schedule Management System — company schedule settings (RQ4 / RQ7): timezone + workweek-start.
@@ -21,6 +21,8 @@ const Body = z.object({
     try { new Intl.DateTimeFormat("en-CA", { timeZone: tz }); return true; } catch { return false; }
   }, "not a valid IANA timezone"),
   workweekStart: z.number().int().min(0).max(6),
+  // Custom export title (0234). Empty/blank/absent → null (fall back to the company name).
+  scheduleName: z.string().max(60).nullable().optional(),
 });
 
 export async function GET() {
@@ -41,15 +43,16 @@ export async function PATCH(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   if (!ctx.isAdmin) return NextResponse.json({ error: "Only a manager can change schedule settings." }, { status: 403 });
 
+  const scheduleName = normalizeScheduleName(body.scheduleName);
   const sb = await createClient();
   // company_id pinned to the session (INV15) — a manager can only set their OWN company's settings.
   const { error } = await sb
     .from("companies")
-    .update({ timezone: body.timezone, workweek_start: body.workweekStart })
+    .update({ timezone: body.timezone, workweek_start: body.workweekStart, schedule_name: scheduleName })
     .eq("id", ctx.companyId);
   if (error) {
     console.error("[schedule/settings] update failed:", error.message);
     return NextResponse.json({ error: "Couldn't save settings." }, { status: 500 });
   }
-  return NextResponse.json({ timezone: body.timezone, workweekStart: body.workweekStart });
+  return NextResponse.json({ timezone: body.timezone, workweekStart: body.workweekStart, scheduleName });
 }

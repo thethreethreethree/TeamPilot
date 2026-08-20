@@ -9,9 +9,18 @@ export interface ScheduleSettings {
   timezone: string;
   /** Day the workweek starts, JS convention 0=Sun..6=Sat; 1 (Monday) is the default. */
   workweekStart: number;
+  /** Custom title for the printed/downloaded schedule (0234). null = fall back to the company name. */
+  scheduleName: string | null;
 }
 
-export const DEFAULT_SCHEDULE_SETTINGS: ScheduleSettings = { timezone: "UTC", workweekStart: 1 };
+export const DEFAULT_SCHEDULE_SETTINGS: ScheduleSettings = { timezone: "UTC", workweekStart: 1, scheduleName: null };
+
+/** Trim + cap a custom schedule name; blank → null (so the export falls back to the company name). */
+export const normalizeScheduleName = (raw: unknown): string | null => {
+  if (typeof raw !== "string") return null;
+  const t = raw.trim();
+  return t ? t.slice(0, 60) : null;
+};
 
 const isValidTz = (tz: unknown): tz is string => {
   if (typeof tz !== "string" || !tz) return false;
@@ -37,7 +46,7 @@ export async function getScheduleSettings(sb: SbClient, companyId: string): Prom
   try {
     ({ data, error } = await sb
       .from("companies")
-      .select("timezone, workweek_start")
+      .select("timezone, workweek_start, schedule_name")
       .eq("id", companyId)
       .maybeSingle());
   } catch (e) {
@@ -47,17 +56,18 @@ export async function getScheduleSettings(sb: SbClient, companyId: string): Prom
   }
 
   if (error) {
-    if (!isMissingColumnError(error, "timezone") && !isMissingColumnError(error, "workweek_start")) {
-      console.error("[schedule/settings] read failed, using defaults:", error.message);
-    }
+    // Migration-coupled: any of the 0224/0234 columns missing → the whole select errors; detect THOSE
+    // specifically and fall back to defaults quietly (never assert the migration is applied — A34).
+    const known = isMissingColumnError(error, "timezone") || isMissingColumnError(error, "workweek_start") || isMissingColumnError(error, "schedule_name");
+    if (!known) console.error("[schedule/settings] read failed, using defaults:", error.message);
     return DEFAULT_SCHEDULE_SETTINGS;
   }
 
-  const row = (data ?? {}) as { timezone?: unknown; workweek_start?: unknown };
+  const row = (data ?? {}) as { timezone?: unknown; workweek_start?: unknown; schedule_name?: unknown };
   const timezone = isValidTz(row.timezone) ? row.timezone : DEFAULT_SCHEDULE_SETTINGS.timezone;
   const wkRaw = typeof row.workweek_start === "number" ? row.workweek_start : DEFAULT_SCHEDULE_SETTINGS.workweekStart;
   const workweekStart = Number.isInteger(wkRaw) && wkRaw >= 0 && wkRaw <= 6 ? wkRaw : DEFAULT_SCHEDULE_SETTINGS.workweekStart;
-  return { timezone, workweekStart };
+  return { timezone, workweekStart, scheduleName: normalizeScheduleName(row.schedule_name) };
 }
 
 /**

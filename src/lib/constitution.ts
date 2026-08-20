@@ -11,15 +11,15 @@ export const CONSTITUTION = {
    *  already ratified (docs/amendments/), so /api/health + the customer-facing version
    *  badge reported a constitution state that wasn't true (§5 honesty). Version follows
    *  the existing per-amendment minor-bump convention (AMD-004=1.4 → AMD-006=1.6 → AMD-008=1.8
-   *  → AMD-010=1.10 → AMD-011=1.11); AMD-007 and AMD-009 are PROPOSED, not ratified, so they are not counted —
-   *  hence count 9 (001–006 + 008 + 010 + 011) with lastAmendmentId AMD-011 (the gaps at 007/009 are
-   *  intentional). Updated 2026-08-14 on AMD-011. */
-  version: "1.11",
-  amendmentCount: 9,
-  lastAmendmentDate: "2026-08-14",
-  lastAmendmentId: "AMD-011",
+   *  → AMD-010=1.10 → AMD-011=1.11 → AMD-012=1.12); AMD-007 and AMD-009 are PROPOSED, not ratified, so they are
+   *  not counted — hence count 10 (001–006 + 008 + 010 + 011 + 012) with lastAmendmentId AMD-012 (the gaps at
+   *  007/009 are intentional). Updated 2026-08-20 on AMD-012. */
+  version: "1.12",
+  amendmentCount: 10,
+  lastAmendmentDate: "2026-08-20",
+  lastAmendmentId: "AMD-012",
   lastAmendmentTitle:
-    "A config-dependent feature is not complete until its external-config precondition is verified or flagged",
+    "A user-specified experience is layer-2 (the intended result), not waivable layer-4 polish",
 } as const;
 
 export type Constitution = typeof CONSTITUTION;
