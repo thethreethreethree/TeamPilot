@@ -59,6 +59,26 @@ describe("ROUND-TRIP: export → CSV → import parsers → the same shifts", ()
   });
 });
 
+describe("ROUND-TRIP with tricky staff names (CSV quoting ↔ parsing contract)", () => {
+  it("a name with a comma / apostrophe / quote survives export → CSV → re-import intact", () => {
+    const roster = [emp("a", "O'Brien, Jr."), emp("b", 'Ann "Nan" Cruz')];
+    const shifts = [
+      shift("s1", "2026-08-17", "06:00", "15:00", ["a"]),
+      shift("s2", "2026-08-17", "13:00", "22:00", ["b"]),
+    ];
+    const csv = gridToCsv(buildExportGrid(shifts, roster));
+    const { headerCells, rows } = parseCsvToGrid(csv);
+    const codes = [...new Set(rows.flatMap((r) => r.cells).filter((c) => c.trim()))];
+    const parsed = parseScheduleGrid({ headerDates: headerCells, rows, codeMap: autoTimeRangeCodeMap(codes) });
+    expect(parsed.unknownCodes).toEqual([]);
+    const back = parsed.entries.filter((e) => e.kind === "shift").map((e) => `${e.employeeName} | ${e.times!.start}-${e.times!.end}`).sort();
+    expect(back).toEqual([
+      `Ann "Nan" Cruz | 13:00-22:00`, // quotes preserved through RFC-4180 doubling
+      "O'Brien, Jr. | 06:00-15:00",   // the comma did NOT split the name into an extra column
+    ]);
+  });
+});
+
 describe("autoTimeRangeCodeMap (deterministic explicit-time recognition)", () => {
   it("maps explicit HH:mm ranges + OFF, leaves ambiguous org codes for the LLM/human", () => {
     const m = autoTimeRangeCodeMap(["06:00-15:00", "9:00am-5:00pm", "OFF", "6-3", "GY"]);
