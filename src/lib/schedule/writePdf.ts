@@ -50,29 +50,44 @@ function assemblePdf(bodies: Uint8Array[], rootNum: number): Uint8Array {
 
 const pdfText = (s: string) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 
+export interface ImagePage { jpeg: Uint8Array; w: number; h: number }
+
 /**
- * A colour-coded schedule image (JPEG bytes at imgW×imgH px) → a single landscape-A4 PDF page, scaled to fit
- * with a margin, preserving aspect. Human view / print — NOT re-importable (it's an image).
+ * Colour-coded schedule image page(s) → a landscape-A4 PDF, ONE image per page, each scaled to fit with a
+ * margin (aspect preserved). Accepts an array so a tall multi-week "all" export paginates into readable pages
+ * instead of shrinking to one illegible sliver. Human view / print — NOT re-importable (it's an image). Passing
+ * a single {jpeg,w,h} is the common one-page case.
  */
-export function buildImagePdf(jpeg: Uint8Array, imgW: number, imgH: number): Uint8Array {
+export function buildImagePdf(pages: ImagePage[] | Uint8Array, imgW?: number, imgH?: number): Uint8Array {
+  const imgs: ImagePage[] = pages instanceof Uint8Array ? [{ jpeg: pages, w: imgW!, h: imgH! }] : pages;
+  if (imgs.length === 0) throw new Error("buildImagePdf: no image pages");
   const { w, h } = LANDSCAPE;
   const m = 24;
-  const scale = Math.min((w - 2 * m) / imgW, (h - 2 * m) / imgH);
-  const dw = imgW * scale, dh = imgH * scale;
-  const tx = (w - dw) / 2, ty = (h - dh) / 2;
-  const content = strBytes(`q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)} cm /Im0 Do Q`);
-
+  const k = imgs.length;
+  // obj 1 catalog, 2 pages, then per image: page obj (3..2+k) and image obj (3+k..2+2k) and content (…).
+  const kids = Array.from({ length: k }, (_, i) => `${3 + i} 0 R`).join(" ");
   const bodies: Uint8Array[] = [
     strBytes("<< /Type /Catalog /Pages 2 0 R >>"),
-    strBytes("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
-    strBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`),
-    concat([
-      strBytes(`<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`),
-      jpeg,
-      strBytes("\nendstream"),
-    ]),
-    concat([strBytes(`<< /Length ${content.length} >>\nstream\n`), content, strBytes("\nendstream")]),
+    strBytes(`<< /Type /Pages /Kids [${kids}] /Count ${k} >>`),
   ];
+  const imgObjBase = 3 + k, contentObjBase = 3 + 2 * k;
+  imgs.forEach((_, i) => {
+    bodies.push(strBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im0 ${imgObjBase + i} 0 R >> >> /Contents ${contentObjBase + i} 0 R >>`));
+  });
+  imgs.forEach((img) => {
+    bodies.push(concat([
+      strBytes(`<< /Type /XObject /Subtype /Image /Width ${img.w} /Height ${img.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.jpeg.length} >>\nstream\n`),
+      img.jpeg,
+      strBytes("\nendstream"),
+    ]));
+  });
+  imgs.forEach((img) => {
+    const scale = Math.min((w - 2 * m) / img.w, (h - 2 * m) / img.h);
+    const dw = img.w * scale, dh = img.h * scale;
+    const tx = (w - dw) / 2, ty = (h - dh) / 2;
+    const content = strBytes(`q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)} cm /Im0 Do Q`);
+    bodies.push(concat([strBytes(`<< /Length ${content.length} >>\nstream\n`), content, strBytes("\nendstream")]));
+  });
   return assemblePdf(bodies, 1);
 }
 

@@ -13,15 +13,30 @@ const emp = (id: string, name: string): Employee =>
   ({ id, name, role: null, employmentType: null, skills: [], certifications: [], maxHoursWeek: null, minHoursWeek: null, status: "active" } as unknown as Employee);
 
 describe("buildImagePdf (visual)", () => {
-  it("produces a valid single-page image PDF", () => {
-    const pdf = buildImagePdf(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), 800, 600);
-    const head = String.fromCharCode(...pdf.slice(0, 8));
-    const tail = String.fromCharCode(...pdf.slice(-6));
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  it("produces a valid single-page image PDF (legacy single-image call)", () => {
+    const pdf = buildImagePdf(jpg, 800, 600);
     const body = String.fromCharCode(...pdf);
-    expect(head).toBe("%PDF-1.4");
+    expect(String.fromCharCode(...pdf.slice(0, 8))).toBe("%PDF-1.4");
     expect(body).toContain("/Filter /DCTDecode");
     expect(body).toContain("/MediaBox [0 0 842 595]"); // landscape
-    expect(tail.trim().endsWith("%%EOF")).toBe(true);
+    expect(body).toContain("/Count 1");
+    expect(String.fromCharCode(...pdf.slice(-6)).trim().endsWith("%%EOF")).toBe(true);
+  });
+  it("paginates multiple image pages (a tall 'all weeks' export → one page per band)", () => {
+    const pdf = buildImagePdf([{ jpeg: jpg, w: 800, h: 500 }, { jpeg: jpg, w: 800, h: 500 }, { jpeg: jpg, w: 800, h: 300 }]);
+    const body = String.fromCharCode(...pdf);
+    expect(body).toContain("/Count 3");
+    expect((body.match(/\/Subtype \/Image/g) ?? []).length).toBe(3);
+    expect(String.fromCharCode(...pdf.slice(-6)).trim().endsWith("%%EOF")).toBe(true);
+  });
+  it("the multi-page structure LOADS in pdf.js with the right page count + landscape (object numbering is valid)", async () => {
+    const pdf = buildImagePdf([{ jpeg: jpg, w: 800, h: 500 }, { jpeg: jpg, w: 800, h: 500 }]);
+    const { getDocumentProxy } = await import("unpdf");
+    const doc = await getDocumentProxy(pdf);
+    expect(doc.numPages).toBe(2);
+    const page = await doc.getPage(2);
+    expect(page.view[2]! > page.view[3]!).toBe(true); // landscape MediaBox
   });
 });
 

@@ -370,8 +370,26 @@ export default function ScheduleGridPage() {
     const canvas = renderCanvas(mode);
     if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
     setExportMsg(null);
-    const jpeg = dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92));
-    downloadBytes(buildImagePdf(jpeg, canvas.width, canvas.height), `schedule-${suffix(mode)}.pdf`, "application/pdf");
+    // Slice a TALL canvas into landscape-page-height bands so an "all weeks" PDF stays readable (one page each)
+    // rather than shrinking the whole schedule onto a single illegible page.
+    const pageAspect = (842 - 48) / (595 - 48); // usable landscape width/height
+    const bandH = Math.max(1, Math.round(canvas.width / pageAspect));
+    const pages: { jpeg: Uint8Array; w: number; h: number }[] = [];
+    if (canvas.height <= bandH * 1.1) {
+      pages.push({ jpeg: dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92)), w: canvas.width, h: canvas.height });
+    } else {
+      for (let y = 0; y < canvas.height; y += bandH) {
+        const sliceH = Math.min(bandH, canvas.height - y);
+        const c2 = document.createElement("canvas");
+        c2.width = canvas.width; c2.height = sliceH;
+        const cx = c2.getContext("2d");
+        if (!cx) continue;
+        cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, c2.width, sliceH);
+        cx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        pages.push({ jpeg: dataUrlToBytes(c2.toDataURL("image/jpeg", 0.92)), w: c2.width, h: c2.height });
+      }
+    }
+    downloadBytes(buildImagePdf(pages), `schedule-${suffix(mode)}.pdf`, "application/pdf");
   };
 
   return (
