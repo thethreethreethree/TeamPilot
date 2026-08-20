@@ -88,11 +88,20 @@ export async function POST(req: NextRequest) {
       // it may still be a staff×date grid in a DIFFERENT layout (e.g. "AUG 16" date-label headers). Cluster its
       // positioned text into columns/rows → CSV, and let the normal Analyze flow (LLM date-resolution + confirm)
       // handle it, exactly like docx/xlsx. headerDates: [] → the client runs Analyze rather than pre-filling.
+      // Instrument the fallback (diagnose-before-patching): capture WHY it didn't yield a grid so a real failing
+      // file reveals its cause (no text at all → scanned image; text but no columns → a layout to tune).
+      let pageCount = 0, itemCount = 0, csvLen = 0, dataRowCount = 0, headerFilled = 0;
       try {
-        const csv = pdfGridToCsv(await extractPdfPages(bytes));
+        const pages = await extractPdfPages(bytes);
+        pageCount = pages.length;
+        itemCount = pages.reduce((n, p) => n + p.length, 0);
+        const csv = pdfGridToCsv(pages);
+        csvLen = csv.trim().length;
         const g = parseCsvToGrid(csv);
         const dataRows = g.rows.filter((r) => r.name.trim());
-        if (csv.trim() && dataRows.length >= 1 && g.headerCells.some((h) => h.trim())) {
+        dataRowCount = dataRows.length;
+        headerFilled = g.headerCells.filter((h) => h.trim()).length;
+        if (csvLen > 0 && dataRowCount >= 1 && headerFilled > 0) {
           const codes = new Set<string>();
           for (const row of dataRows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
           return NextResponse.json({
@@ -104,10 +113,18 @@ export async function POST(req: NextRequest) {
           });
         }
       } catch (fe) {
-        console.error("[schedule/upload/grid-pdf/extract] generic fallback failed:", fe instanceof Error ? fe.message : fe);
+        console.error("[schedule/upload/grid-pdf/extract] generic fallback threw:", fe instanceof Error ? fe.message : fe);
       }
+      console.error(`[schedule/upload/grid-pdf/extract] fallback yielded no grid: pages=${pageCount} textItems=${itemCount} csvLen=${csvLen} dataRows=${dataRowCount} headerCells=${headerFilled}`);
+      // Cause-specific, honest message (§3.4): a PDF with NO extractable text is almost always a scanned image /
+      // photo — no text-based reader can help; the manager needs a text PDF or to paste CSV. Text-but-no-grid is
+      // a layout we can tune. Either way, give an actionable path, not a dead "not found".
       return NextResponse.json(
-        { error: "No staff-by-date schedule grid was found in that file. Is it a staff (rows) x dates (columns) grid?" },
+        {
+          error: itemCount === 0
+            ? "I couldn't read any text in that PDF — it looks like a scanned image or a photo of a schedule. Save/export it as a real (text) PDF, or paste the grid into the CSV box above, and I can read it."
+            : "I read the text in that PDF but couldn't line it up into a staff (rows) x dates (columns) grid. Paste the grid into the CSV box above to import it now — or send me the file and I'll tune the reader to its exact layout.",
+        },
         { status: 422 },
       );
     }
