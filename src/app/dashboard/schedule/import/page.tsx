@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays, Sparkles } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
+import { AssistantPanel } from "@/components/schedule/AssistantPanel";
 
 /**
  * Schedule Management System — file-import screen (Phase 5, S3 + the VA presence-grid follow-up).
@@ -422,6 +423,19 @@ export default function ScheduleImportPage() {
       )}
 
       {error && <p className="text-sm text-red-300 mt-2">{error}</p>}
+
+      {/* The founder's flow: after (or instead of) uploading a file, tell the AI what to do — right here.
+          Embedded so the manager never has to leave the import screen to command the assistant. */}
+      <div className="glass-card p-4 mt-6">
+        <div className="flex items-center gap-2 text-sm font-semibold text-secondary mb-1">
+          <Sparkles className="w-4 h-4 text-brand" aria-hidden /> Or just tell the AI Assistant
+        </div>
+        <p className="text-[11px] text-muted mb-3">
+          Type an instruction in plain language and I&apos;ll propose the change for you to confirm — e.g.
+          &ldquo;create a 06:00 to 15:00 shift on 2026-08-26 for 2 people&rdquo; or &ldquo;who&apos;s working this week?&rdquo;.
+        </p>
+        <AssistantPanel variant="embedded" />
+      </div>
     </div>
   );
 }
