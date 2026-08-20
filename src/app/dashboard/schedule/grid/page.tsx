@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, Printer, Download } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
@@ -128,8 +128,96 @@ export default function ScheduleGridPage() {
   const shiftWeek = (n: number) => setWeekStart((w) => addDaysIso(w, n) ?? w);
   const goToday = () => { const t = todayInTz(settings.timezone); setWeekStart(weekStartOf(t, settings.workweekStart) ?? t); };
 
+  // Render the visible week as a clean, WHITE, printable/shareable image on a canvas (no dependency). The dark
+  // themed on-screen table doesn't print well, so print + download both use this one graphic — a plain
+  // staff x date grid anyone can read at a glance.
+  const renderCanvas = useCallback((): HTMLCanvasElement | null => {
+    if (typeof document === "undefined") return null;
+    const nameW = 190, colW = 116, rowH = 40, headH = 54, titleH = 52, pad = 24, scale = 2;
+    const cols = dates.length;
+    const w = pad * 2 + nameW + cols * colW;
+    const h = pad * 2 + titleH + headH + rows.length * rowH;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * scale; canvas.height = h * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+    // Title
+    ctx.fillStyle = "#111827"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(`Schedule — Week of ${weekStart}`, pad, pad + 30);
+    const gTop = pad + titleH;
+    const gW = nameW + cols * colW;
+    // Header band
+    ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, gTop, gW, headH);
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("Name", pad + 14, gTop + headH / 2);
+    ctx.textAlign = "center";
+    dates.forEach((d, i) => {
+      const x = pad + nameW + i * colW + colW / 2;
+      ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.fillText(weekdayOf(d), x, gTop + 17);
+      ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillText(dayLabel(d), x, gTop + 37);
+    });
+    // Rows
+    rows.forEach((emp, r) => {
+      const y = gTop + headH + r * rowH;
+      if (r % 2 === 1) { ctx.fillStyle = "#f9fafb"; ctx.fillRect(pad, y, gW, rowH); }
+      ctx.fillStyle = "#111827"; ctx.font = "12px system-ui, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText(emp.name, pad + 14, y + rowH / 2, nameW - 20);
+      ctx.textAlign = "center";
+      dates.forEach((d, i) => {
+        const c = cell(emp.id, d);
+        const x = pad + nameW + i * colW + colW / 2;
+        if (c) {
+          ctx.fillStyle = c.off ? "#b45309" : "#111827";
+          ctx.font = c.off ? "italic 11px system-ui, sans-serif" : "12px system-ui, sans-serif";
+          ctx.fillText(c.off ? `${c.label} (off)` : c.label, x, y + rowH / 2, colW - 8);
+        } else { ctx.fillStyle = "#d1d5db"; ctx.font = "12px system-ui, sans-serif"; ctx.fillText("·", x, y + rowH / 2); }
+      });
+    });
+    // Gridlines
+    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
+    for (let r = 0; r <= rows.length; r++) { const y = gTop + headH + r * rowH; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + gW, y); ctx.stroke(); }
+    for (let c = 0; c <= cols; c++) { const x = pad + nameW + c * colW; ctx.beginPath(); ctx.moveTo(x, gTop); ctx.lineTo(x, gTop + headH + rows.length * rowH); ctx.stroke(); }
+    ctx.strokeStyle = "#d1d5db"; ctx.strokeRect(pad, gTop, gW, headH + rows.length * rowH);
+    return canvas;
+  }, [dates, rows, cell, weekStart]);
+
+  const [printImg, setPrintImg] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clear = () => setPrintImg(null);
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
+
+  // Download the week as a PNG image (a real, shareable graphic).
+  const downloadPng = () => {
+    const canvas = renderCanvas();
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `schedule-${weekStart}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  };
+
+  // Print: swap in the white canvas image (print:block) and open the browser print dialog — clean, no popup,
+  // no fighting the dark theme. afterprint clears it.
+  const printSchedule = () => {
+    const canvas = renderCanvas();
+    if (!canvas) return;
+    setPrintImg(canvas.toDataURL("image/png"));
+    setTimeout(() => window.print(), 150);
+  };
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-full mx-auto w-full">
+    <>
+    <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-full mx-auto w-full print:hidden">
       <ScheduleNav />
       <div className="flex items-center gap-2 mb-1">
         <CalendarDays className="w-6 h-6 text-brand" aria-hidden />
@@ -149,6 +237,17 @@ export default function ScheduleGridPage() {
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
         <button type="button" onClick={goToday} className="text-xs font-semibold text-brand hover:underline ml-1">This week</button>
+        {/* Print + Download the week as a clean, white, shareable visual (both use the same canvas render). */}
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={printSchedule} disabled={rows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
+            <Printer className="w-3.5 h-3.5" aria-hidden /> Print
+          </button>
+          <button type="button" onClick={downloadPng} disabled={rows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40">
+            <Download className="w-3.5 h-3.5" aria-hidden /> Download
+          </button>
+        </div>
       </div>
 
       {actionError && (
@@ -224,5 +323,12 @@ export default function ScheduleGridPage() {
         </>
       )}
     </div>
+    {/* Print-only: the clean white schedule image (everything else is print:hidden). */}
+    <div className="hidden print:block">
+      {/* A canvas data-URL for printing — next/image can't optimize a runtime data URL, and it's print-only. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {printImg && <img src={printImg} alt={`Schedule week of ${weekStart}`} className="w-full" />}
+    </div>
+    </>
   );
 }
