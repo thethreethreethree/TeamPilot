@@ -60,6 +60,21 @@ describe("buildTablePdf → unpdf → ISO reader → parsers (DATA PDF re-import
     expect(parsed.entries.filter((e) => e.kind === "shift").length).toBe(13);
   });
 
+  it("round-trips a 30-staff schedule — ROW-paginated pages merge back by name (nobody dropped)", async () => {
+    const roster = Array.from({ length: 30 }, (_, i) => emp(`e${i}`, `Staff${String(i).padStart(2, "0")}`));
+    const shifts = roster.map((e, i) => shift(`s${i}`, "2026-09-01", "06:00", "15:00", [e.id]));
+    const grid = buildExportGrid(shifts, roster);
+    const pdf = buildTablePdf(grid, "Big Co");
+    const { extractTextItems } = await import("unpdf");
+    const result = (await extractTextItems(pdf)) as { items?: PdfTextItem[][] | PdfTextItem[] };
+    const raw = result.items ?? [];
+    const pages: PdfTextItem[][] = Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
+    const read = isoGridFromItems(pages);
+    expect(read.staff.length).toBe(30); // all 30 recovered across the row-pages
+    const parsed = parseScheduleGrid({ headerDates: read.headerDates, rows: read.rows, codeMap: autoTimeRangeCodeMap(["06:00-15:00"]) });
+    expect(parsed.entries.filter((e) => e.kind === "shift").length).toBe(30);
+  });
+
   it("re-imports to the exact exported shifts", async () => {
     const roster = [emp("a", "Alice"), emp("b", "Bob")];
     const shifts = [
