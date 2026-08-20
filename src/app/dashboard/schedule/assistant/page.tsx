@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Sparkles, Send, Check, AlertTriangle, CheckCircle2, Upload } from "lucide-react";
+import { Loader2, Sparkles, Send, Check, AlertTriangle, CheckCircle2, Upload, CalendarDays } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -85,6 +85,8 @@ export default function ScheduleAssistantPage() {
     }
   };
 
+  const appliedCount = Object.values(applied).filter((v) => v === "done").length;
+
   const examples = [
     "Give Darren Guzman the 09:00 to 17:00 shift on 2026-08-25",
     "Create a 06:00 to 15:00 shift on 2026-08-26 for 2 people",
@@ -103,7 +105,10 @@ export default function ScheduleAssistantPage() {
       </div>
       <p className="text-xs text-muted mb-3">
         Tell me how to arrange the schedule in plain language, or ask about it. I&apos;ll propose the changes for you to confirm.{" "}
-        <Link href="/dashboard/schedule/import" className="text-brand hover:underline inline-flex items-center gap-1"><Upload className="w-3 h-3" aria-hidden />Import a file</Link> first if you have one.
+        <Link href="/dashboard/schedule/import" className="text-brand hover:underline inline-flex items-center gap-1"><Upload className="w-3 h-3" aria-hidden />Import a file</Link>
+        {" · "}
+        <Link href="/dashboard/schedule/grid" className="text-brand hover:underline inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" aria-hidden />View the schedule</Link>
+        {appliedCount > 0 && <span className="text-emerald-400"> · {appliedCount} change{appliedCount === 1 ? "" : "s"} applied</span>}
       </p>
 
       {/* Conversation */}
