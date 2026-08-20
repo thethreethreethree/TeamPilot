@@ -95,7 +95,7 @@ describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (th
     expect(lines[0]).toBe("NAME,AUG. 16,AUG. 17"); // two header rows merged → month+day per column
     const g = parseCsvToGrid(csv);
     expect(g.rows.map((r) => r.name)).toEqual(["ALICE", "ABRIL"]); // "PM SHIFT" divider dropped, no blank rows
-    expect(g.rows.find((r) => r.name === "ABRIL")?.cells).toEqual(["SKY- BAR", "2-11"]); // wrapped code reunited
+    expect(g.rows.find((r) => r.name === "ABRIL")?.cells).toEqual(["SKY-BAR", "2-11"]); // wrapped code reunited (no space: prev ends in "-")
   });
 
   it("does NOT collide rows across pages that share a y-range (multi-page PDF — real schedules paginate)", () => {

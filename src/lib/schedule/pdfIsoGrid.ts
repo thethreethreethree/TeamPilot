@@ -122,7 +122,10 @@ export function pdfGridToCsv(pages: PdfTextItem[][]): string {
         const v = (row[i] ?? "").trim();
         if (!v) continue;
         while (prev.length <= i) prev.push("");
-        prev[i] = prev[i]!.trim() ? `${prev[i]!.trim()} ${v}` : v;
+        const p = prev[i]!.trim();
+        // A cell that ends in a dash is a word wrapped mid-token ("SKY-" + "BAR" = "SKY-BAR"); anything else is a
+        // separate token ("AUG." + "16" = "AUG. 16"), so join with a space.
+        prev[i] = p ? (p.endsWith("-") ? `${p}${v}` : `${p} ${v}`) : v;
       }
       continue;
     }
