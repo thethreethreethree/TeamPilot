@@ -191,6 +191,13 @@ export default function ScheduleGridPage() {
     window.addEventListener("afterprint", clear);
     return () => window.removeEventListener("afterprint", clear);
   }, []);
+  // Print only AFTER the print image has actually painted (two rAFs), not on a fixed timeout that could fire
+  // before the image is on screen and print a blank page.
+  useEffect(() => {
+    if (!printImg || typeof window === "undefined") return;
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    return () => cancelAnimationFrame(id);
+  }, [printImg]);
 
   // Download the week as a PNG image (a real, shareable graphic).
   const downloadPng = () => {
@@ -211,8 +218,7 @@ export default function ScheduleGridPage() {
   const printSchedule = () => {
     const canvas = renderCanvas();
     if (!canvas) return;
-    setPrintImg(canvas.toDataURL("image/png"));
-    setTimeout(() => window.print(), 150);
+    setPrintImg(canvas.toDataURL("image/png")); // the effect above prints once it has painted
   };
 
   return (
