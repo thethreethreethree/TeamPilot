@@ -7,6 +7,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/schedule/ai", () => ({ proposeImportMapping: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
+vi.mock("@/lib/schedule/settings", async (orig) => {
+  const actual = await (orig() as Promise<Record<string, unknown>>);
+  return { ...actual, getScheduleSettings: vi.fn(async () => ({ timezone: "UTC", workweekStart: 1 })) }; // todayInTz stays real
+});
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { proposeImportMapping } from "@/lib/schedule/ai";
@@ -32,10 +37,27 @@ describe("POST /api/schedule/upload/propose", () => {
     expect(arg.headerCells).toEqual(["d1", "d2"]);
   });
 
-  it("a proposer failure fails loud (502), not a false-empty proposal", async () => {
+  it("resolves dates DETERMINISTICALLY when the LLM leaves them blank (the paste→Analyze path)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    // The LLM refuses to guess a year → blank dates. The resolver must fill them from the "AUGUST" month + today.
+    asMock(proposeImportMapping).mockResolvedValue({ headerDates: ["", ""], codeMap: { OFF: "off" }, notes: "No month/year context was provided." });
+    const j = await (await POST(req({ csv: ["AUGUST,16,17", "ALICE,6-3,OFF"].join("\n") }))).json();
+    expect(j.headerDates).toEqual([expect.stringMatching(/^\d{4}-08-16$/), expect.stringMatching(/^\d{4}-08-17$/)]);
+    expect(j.notes).toContain("filled in the dates"); // note reflects the deterministic fill, not "no context"
+  });
+
+  it("still returns deterministic dates even if the LLM (codes) fails, instead of a dead 502", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
     asMock(proposeImportMapping).mockRejectedValue(new Error("llm down"));
-    expect((await POST(req({ csv: CSV }))).status).toBe(502);
+    const res = await POST(req({ csv: ["AUGUST,16,17", "ALICE,6-3,OFF"].join("\n") }));
+    expect(res.status).toBe(200); // dates resolved → usable, map codes by hand
+    expect((await res.json()).headerDates).toEqual([expect.stringMatching(/^\d{4}-08-16$/), expect.stringMatching(/^\d{4}-08-17$/)]);
+  });
+
+  it("a proposer failure with NO resolvable dates still fails loud (502)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(proposeImportMapping).mockRejectedValue(new Error("llm down"));
+    expect((await POST(req({ csv: CSV }))).status).toBe(502); // CSV headers "d1,d2" → no month → nothing to salvage
   });
 
   it("non-manager 403; unauthenticated 401", async () => {

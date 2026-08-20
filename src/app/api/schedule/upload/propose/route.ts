@@ -6,6 +6,9 @@ import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { normalizeCode } from "@/lib/schedule/gridParser";
 import { proposeImportMapping } from "@/lib/schedule/ai";
+import { resolveGridDates } from "@/lib/schedule/importDates";
+import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Schedule Management System — Phase 5 upload PROPOSE (S3, propose-then-confirm step 1).
@@ -46,14 +49,37 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Resolve dates DETERMINISTICALLY first (month from the file/context + year nearest today) — the LLM refuses
+  // to guess a year from bare day numbers, which left the paste→Analyze path with blank dates even when the
+  // month is right there in the file. This is the same resolver the file-upload route uses.
+  let today: string;
+  try {
+    const sb = await createClient();
+    today = todayInTz((await getScheduleSettings(sb, ctx.companyId)).timezone);
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+  }
+  const monthText = `${grid.headerCells.join(" ")} ${body.contextHint ?? ""} ${body.csv.split("\n")[0] ?? ""}`;
+  const { dates: detDates, anyResolved } = resolveGridDates(grid.headerCells, monthText, today);
+
   try {
     const proposal = await proposeImportMapping({
       headerCells: grid.headerCells,
       codes: [...codes],
       contextHint: body.contextHint,
     });
-    return NextResponse.json({ headerCells: grid.headerCells, codes: [...codes], ...proposal });
+    // Prefer the deterministic date for each column; fall back to the LLM's only where the resolver couldn't.
+    const headerDates = grid.headerCells.map((_, i) => detDates[i] || proposal.headerDates?.[i] || "");
+    const notes = anyResolved
+      ? "I filled in the dates from the month and day columns. Check the dates and shift-code times, then Preview."
+      : proposal.notes;
+    return NextResponse.json({ headerCells: grid.headerCells, codes: [...codes], ...proposal, headerDates, notes });
   } catch (e) {
+    // The LLM (codes) failed, but deterministic dates may still be usable — return them so the manager can map
+    // codes by hand rather than starting from nothing.
+    if (anyResolved) {
+      return NextResponse.json({ headerCells: grid.headerCells, codes: [...codes], headerDates: detDates, codeMap: {}, notes: "I filled in the dates from the month and day columns. Map the shift codes below, then Preview." });
+    }
     // Fail loud (never a false-empty proposal the manager might trust): a real 502, retry available.
     console.error("[schedule/upload/propose] mapping proposal failed:", e instanceof Error ? e.message : e);
     return NextResponse.json(
