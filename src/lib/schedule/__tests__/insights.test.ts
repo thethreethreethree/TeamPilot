@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scheduleInsights } from "../insights";
+import { scheduleInsights, understaffedWeekdays } from "../insights";
 import type { Shift, Employee } from "../types";
 
 const shift = (id: string, date: string, start: string, end: string, assigned: string[]): Shift =>
@@ -40,5 +40,19 @@ describe("scheduleInsights (Phase 7 current-patterns)", () => {
   it("is empty-safe (no shifts / no staff)", () => {
     const r = scheduleInsights([], [], "2026-08-20");
     expect(r).toEqual({ hoursByStaff: [], overReliance: null, unusedStaff: [], totalUpcomingShifts: 0, activeStaff: 0 });
+  });
+});
+
+describe("understaffedWeekdays", () => {
+  it("groups gap dates by weekday, most-frequent first", () => {
+    // 2026-08-18 Tue, 2026-08-25 Tue, 2026-08-20 Thu, 2026-09-01 Tue
+    expect(understaffedWeekdays(["2026-08-18", "2026-08-25", "2026-08-20", "2026-09-01"])).toEqual([
+      { weekday: "Tuesday", count: 3 },
+      { weekday: "Thursday", count: 1 },
+    ]);
+  });
+  it("ignores malformed dates and is empty-safe", () => {
+    expect(understaffedWeekdays(["not-a-date", ""])).toEqual([]);
+    expect(understaffedWeekdays([])).toEqual([]);
   });
 });

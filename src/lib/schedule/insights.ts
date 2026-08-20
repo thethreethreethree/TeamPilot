@@ -62,3 +62,21 @@ export function scheduleInsights(shifts: Shift[], employees: Employee[], fromDat
 
   return { hoursByStaff, overReliance, unusedStaff, totalUpcomingShifts: upcoming.length, activeStaff: active.length };
 }
+
+const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+/** Which WEEKDAYS are most often understaffed (the plan's other named Phase-7 pattern, §3.6) — given the dates
+ *  of the current coverage gaps, group by weekday, most-frequent first. UTC-based day-of-week (deterministic).
+ *  Honest "what's short now, by day", not a claim about the future. */
+export function understaffedWeekdays(gapDates: string[]): { weekday: string; count: number }[] {
+  const counts = new Map<number, number>();
+  for (const d of gapDates) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+    if (!m) continue;
+    const wd = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay();
+    counts.set(wd, (counts.get(wd) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([wd, count]) => ({ weekday: WD[wd] ?? "?", count }))
+    .sort((a, b) => b.count - a.count || a.weekday.localeCompare(b.weekday));
+}

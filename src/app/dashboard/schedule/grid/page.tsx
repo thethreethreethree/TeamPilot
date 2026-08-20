@@ -6,7 +6,7 @@ import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { buildWeekGrid, relevantRows, weeksWithShifts } from "@/lib/schedule/gridView";
-import { scheduleInsights } from "@/lib/schedule/insights";
+import { scheduleInsights, understaffedWeekdays } from "@/lib/schedule/insights";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -43,22 +43,25 @@ export default function ScheduleGridPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [weekStart, setWeekStart] = useState<string>(() => weekStartOf(localTodayIso()) ?? localTodayIso());
+  const [coverageGaps, setCoverageGaps] = useState<{ date: string }[]>([]); // for the understaffed-weekday pattern
   const initialWeekSet = useRef(false); // set the default week from settings ONCE (a reload must not jump off a navigated week)
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const [ev, emp, set] = await Promise.all([
+      const [ev, emp, set, cov] = await Promise.all([
         fetch("/api/schedule/events"),
         fetch("/api/schedule/employees"),
         fetch("/api/schedule/settings"), // non-critical: falls back to defaults below
+        fetch("/api/schedule/coverage").catch(() => null), // non-critical: powers the understaffed-day pattern
       ]);
       if (!ev.ok || !emp.ok) { setError(true); return; }
       const evd: EventsResponse = await ev.json();
       const empd: { employees: Employee[] } = await emp.json();
       setState(evd.state);
       setRoster(empd.employees ?? []);
+      try { if (cov?.ok) setCoverageGaps(((await cov.json()).gaps ?? []).map((g: { date: string }) => ({ date: g.date }))); } catch { /* pattern just omits */ }
       const s: ScheduleSettings = set.ok ? await set.json() : DEFAULT_SCHEDULE_SETTINGS;
       setSettings(s);
       // Align the default week to the company's workweek-start + timezone — but only ONCE, so a reload
@@ -103,6 +106,7 @@ export default function ScheduleGridPage() {
     () => (state ? scheduleInsights(Object.values(state.shifts), roster, todayInTz(settings.timezone)) : null),
     [state, roster, settings.timezone],
   );
+  const gapWeekdays = useMemo(() => understaffedWeekdays(coverageGaps.map((g) => g.date)), [coverageGaps]);
 
   // Cell-click unassign: click a shift cell -> confirm -> append EMPLOYEE_UNASSIGNED (manager-gated route) ->
   // reload. The grid IS the natural selector (the person is shown right where you click). busyRef is a
@@ -412,6 +416,9 @@ export default function ScheduleGridPage() {
               </div>
               {insights.unusedStaff.length > 0 && (
                 <p className="text-[11px] text-muted">Active but not scheduled: {insights.unusedStaff.join(", ")}.</p>
+              )}
+              {gapWeekdays.length > 0 && (
+                <p className="text-[11px] text-amber-300/90 mt-1">Most often short: {gapWeekdays.slice(0, 3).map((g) => `${g.weekday} (${g.count})`).join(", ")}.</p>
               )}
             </div>
           )}
