@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Settings as SettingsIcon, Check } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Check, Trash2, AlertTriangle } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 
@@ -21,6 +21,33 @@ export default function ScheduleSettingsPage() {
   const [saved, setSaved] = useState(false);
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
+  // Clear-the-schedule (danger zone): a two-step confirm so it can't be a one-click accident.
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const clearingRef = useRef(false);
+  const [clearMsg, setClearMsg] = useState<string | null>(null);
+
+  const clearSchedule = async () => {
+    if (clearingRef.current) return;
+    clearingRef.current = true;
+    setClearing(true);
+    setClearMsg(null);
+    try {
+      const res = await fetch("/api/schedule/clear", { method: "POST" });
+      if (res.ok) {
+        const { cleared } = await res.json();
+        setClearMsg(cleared > 0 ? `Cleared ${cleared} shift${cleared === 1 ? "" : "s"}. The schedule is now empty; your staff are unchanged.` : "The schedule was already empty.");
+        setConfirmClear(false);
+      } else {
+        setClearMsg(res.status === 403 ? "Only a manager can clear the schedule." : "Couldn't clear the schedule. Nothing was changed.");
+      }
+    } catch {
+      setClearMsg("Couldn't reach the server.");
+    } finally {
+      clearingRef.current = false;
+      setClearing(false);
+    }
+  };
 
   // The IANA zones the runtime knows — no dependency; a plain, complete, sorted picker.
   const zones = useMemo(() => {
@@ -108,6 +135,35 @@ export default function ScheduleSettingsPage() {
             {saved && <span className="text-xs text-emerald-400">Saved.</span>}
           </div>
           {error && <p className="text-xs text-red-300">{error}</p>}
+        </div>
+      )}
+
+      {/* Danger zone — clear the whole schedule (append-only: cancels every shift; staff untouched). */}
+      {!loading && (
+        <div className="glass-card p-4 space-y-3 max-w-md mt-6 border border-red-500/30">
+          <div className="flex items-center gap-2 text-sm font-semibold text-red-300">
+            <AlertTriangle className="w-4 h-4" aria-hidden /> Danger zone
+          </div>
+          <p className="text-xs text-muted">
+            Clear the schedule to remove every shift and start fresh (useful after a test import). Your <span className="text-secondary">staff and coverage rules are kept</span> — only the shifts are removed.
+          </p>
+          {!confirmClear ? (
+            <button type="button" onClick={() => { setConfirmClear(true); setClearMsg(null); }}
+              className="inline-flex items-center gap-2 rounded-lg bg-surface border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/10">
+              <Trash2 className="w-3.5 h-3.5" aria-hidden /> Clear the schedule
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={clearSchedule} disabled={clearing}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <Trash2 className="w-3.5 h-3.5" aria-hidden />}
+                Yes, remove every shift
+              </button>
+              <button type="button" onClick={() => setConfirmClear(false)} disabled={clearing}
+                className="rounded-lg bg-surface border border-white/10 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">Cancel</button>
+            </div>
+          )}
+          {clearMsg && <p className="text-xs text-secondary">{clearMsg}</p>}
         </div>
       )}
     </div>
