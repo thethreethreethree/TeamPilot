@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildImagePdf, buildTablePdf } from "../writePdf";
 import { buildExportGrid } from "../scheduleExport";
-import { isIsoHeaderGrid, isoGridFromItems } from "../pdfIsoGrid";
+import { isIsoHeaderGrid, isoGridFromItems, pdfGridToCsv } from "../pdfIsoGrid";
+import { parseCsvToGrid } from "../csvGrid";
 import { parseScheduleGrid } from "../gridParser";
 import { autoTimeRangeCodeMap } from "../importTime";
 import type { PdfTextItem } from "../staffDatePdf";
@@ -102,5 +103,32 @@ describe("buildTablePdf → unpdf → ISO reader → parsers (DATA PDF re-import
       "Alice 2026-08-19 21:00-06:00",
       "Bob 2026-08-17 13:00-22:00",
     ]);
+  });
+});
+
+describe("generic PDF fallback E2E — a non-ISO 'AUG 16' label-header grid → unpdf → pdfGridToCsv", () => {
+  it("reconstructs the staff×date CSV from a REAL extraction (not just synthetic coordinates)", async () => {
+    // A grid with date-LABEL headers (not ISO) + org codes — the founder's shape. buildTablePdf lays it out as
+    // positioned text; title "" avoids a title row. This exercises the real unpdf coordinate system.
+    const grid = { dates: ["AUG 16", "AUG 17", "AUG 18"], rows: [
+      { name: "ALICE", cells: ["6-3", "6-3", "OFF"] },
+      { name: "ABRIL", cells: ["OFF", "2-11", "2-11"] },
+    ], collapsedShifts: 0 };
+    const pdf = buildTablePdf(grid, "");
+    const { extractTextItems } = await import("unpdf");
+    const result = (await extractTextItems(pdf)) as { items?: PdfTextItem[][] | PdfTextItem[] };
+    const raw = result.items ?? [];
+    const pages: PdfTextItem[][] = Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
+
+    // The specific readers must NOT claim it (no ISO header) — so the generic fallback is what runs.
+    expect(isIsoHeaderGrid(pages)).toBe(false);
+    const csv = pdfGridToCsv(pages);
+    const g = parseCsvToGrid(csv);
+    // Header carries the date labels; both staff rows + their codes survive the real round-trip.
+    expect(g.headerCells).toEqual(["AUG 16", "AUG 17", "AUG 18"]);
+    const alice = g.rows.find((r) => r.name === "ALICE");
+    const abril = g.rows.find((r) => r.name === "ABRIL");
+    expect(alice?.cells).toEqual(["6-3", "6-3", "OFF"]);
+    expect(abril?.cells).toEqual(["OFF", "2-11", "2-11"]);
   });
 });
