@@ -128,61 +128,83 @@ export default function ScheduleGridPage() {
   const shiftWeek = (n: number) => setWeekStart((w) => addDaysIso(w, n) ?? w);
   const goToday = () => { const t = todayInTz(settings.timezone); setWeekStart(weekStartOf(t, settings.workweekStart) ?? t); };
 
-  // Render the visible week as a clean, WHITE, printable/shareable image on a canvas (no dependency). The dark
-  // themed on-screen table doesn't print well, so print + download both use this one graphic — a plain
-  // staff x date grid anyone can read at a glance.
-  const renderCanvas = useCallback((): HTMLCanvasElement | null => {
+  // The grid data for ANY week (dates + a cell lookup + the relevant rows) — reuses the tested pure helpers so
+  // the exported image matches the on-screen grid exactly. Used to export every week with shifts.
+  const weekGridData = useCallback((ws: string) => {
+    const dts = [0, 1, 2, 3, 4, 5, 6].map((n) => addDaysIso(ws, n)).filter((d): d is string => d !== null);
+    const off = state ? Object.values(state.timeOff).filter((t) => t.status === "approved").map((t) => ({ employeeId: t.employeeId, start: t.start, end: t.end })) : [];
+    const g = buildWeekGrid(state ? Object.values(state.shifts) : [], dts, off);
+    return { dts, cellFn: g.cell, rws: relevantRows(roster, g.scheduledIds) };
+  }, [state, roster]);
+
+  // Render one or ALL weeks to a clean WHITE canvas (no dependency) — a plain staff x date grid anyone reads at
+  // a glance. Print + download share this. mode "all" stacks every week that has shifts into one tall image.
+  const renderCanvas = useCallback((mode: "week" | "all"): HTMLCanvasElement | null => {
     if (typeof document === "undefined") return null;
-    const nameW = 190, colW = 116, rowH = 40, headH = 54, titleH = 52, pad = 24, scale = 2;
-    const cols = dates.length;
-    const w = pad * 2 + nameW + cols * colW;
-    const h = pad * 2 + titleH + headH + rows.length * rowH;
+    const nameW = 190, colW = 116, rowH = 40, headH = 54, titleH = 52, pad = 24, gap = 34, scale = 2;
+
+    // Which weeks to draw: the visible one, or every distinct week that has at least one relevant row.
+    let weekList: string[];
+    if (mode === "all" && state) {
+      const set = new Set<string>();
+      for (const s of Object.values(state.shifts)) { const w = weekStartOf(s.date, settings.workweekStart); if (w) set.add(w); }
+      weekList = [...set].sort();
+    } else weekList = [weekStart];
+    const blocks = weekList.map((ws) => ({ ws, ...weekGridData(ws) })).filter((b) => b.rws.length > 0);
+    if (blocks.length === 0) return null;
+
+    const gW = nameW + 7 * colW;
+    const w = pad * 2 + gW;
+    const blockH = (n: number) => titleH + headH + n * rowH;
+    const h = pad * 2 + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
+
     const canvas = document.createElement("canvas");
     canvas.width = w * scale; canvas.height = h * scale;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     ctx.scale(scale, scale);
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
-    // Title
-    ctx.fillStyle = "#111827"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    ctx.fillText(`Schedule — Week of ${weekStart}`, pad, pad + 30);
-    const gTop = pad + titleH;
-    const gW = nameW + cols * colW;
-    // Header band
-    ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, gTop, gW, headH);
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("Name", pad + 14, gTop + headH / 2);
-    ctx.textAlign = "center";
-    dates.forEach((d, i) => {
-      const x = pad + nameW + i * colW + colW / 2;
-      ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.fillText(weekdayOf(d), x, gTop + 17);
-      ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillText(dayLabel(d), x, gTop + 37);
-    });
-    // Rows
-    rows.forEach((emp, r) => {
-      const y = gTop + headH + r * rowH;
-      if (r % 2 === 1) { ctx.fillStyle = "#f9fafb"; ctx.fillRect(pad, y, gW, rowH); }
-      ctx.fillStyle = "#111827"; ctx.font = "12px system-ui, sans-serif"; ctx.textAlign = "left";
-      ctx.fillText(emp.name, pad + 14, y + rowH / 2, nameW - 20);
+
+    let yTop = pad;
+    for (const b of blocks) {
+      const { ws, dts, cellFn, rws } = b;
+      ctx.fillStyle = "#111827"; ctx.font = "bold 22px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(`Week of ${ws}`, pad, yTop + 30);
+      const gTop = yTop + titleH;
+      ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, gTop, gW, headH);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("Name", pad + 14, gTop + headH / 2);
       ctx.textAlign = "center";
-      dates.forEach((d, i) => {
-        const c = cell(emp.id, d);
+      dts.forEach((d, i) => {
         const x = pad + nameW + i * colW + colW / 2;
-        if (c) {
-          ctx.fillStyle = c.off ? "#b45309" : "#111827";
-          ctx.font = c.off ? "italic 11px system-ui, sans-serif" : "12px system-ui, sans-serif";
-          ctx.fillText(c.off ? `${c.label} (off)` : c.label, x, y + rowH / 2, colW - 8);
-        } else { ctx.fillStyle = "#d1d5db"; ctx.font = "12px system-ui, sans-serif"; ctx.fillText("·", x, y + rowH / 2); }
+        ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.fillText(weekdayOf(d), x, gTop + 17);
+        ctx.fillStyle = "#374151"; ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillText(dayLabel(d), x, gTop + 37);
       });
-    });
-    // Gridlines
-    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
-    for (let r = 0; r <= rows.length; r++) { const y = gTop + headH + r * rowH; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + gW, y); ctx.stroke(); }
-    for (let c = 0; c <= cols; c++) { const x = pad + nameW + c * colW; ctx.beginPath(); ctx.moveTo(x, gTop); ctx.lineTo(x, gTop + headH + rows.length * rowH); ctx.stroke(); }
-    ctx.strokeStyle = "#d1d5db"; ctx.strokeRect(pad, gTop, gW, headH + rows.length * rowH);
+      rws.forEach((emp, r) => {
+        const y = gTop + headH + r * rowH;
+        if (r % 2 === 1) { ctx.fillStyle = "#f9fafb"; ctx.fillRect(pad, y, gW, rowH); }
+        ctx.fillStyle = "#111827"; ctx.font = "12px system-ui, sans-serif"; ctx.textAlign = "left";
+        ctx.fillText(emp.name, pad + 14, y + rowH / 2, nameW - 20);
+        ctx.textAlign = "center";
+        dts.forEach((d, i) => {
+          const c = cellFn(emp.id, d);
+          const x = pad + nameW + i * colW + colW / 2;
+          if (c) {
+            ctx.fillStyle = c.off ? "#b45309" : "#111827";
+            ctx.font = c.off ? "italic 11px system-ui, sans-serif" : "12px system-ui, sans-serif";
+            ctx.fillText(c.off ? `${c.label} (off)` : c.label, x, y + rowH / 2, colW - 8);
+          } else { ctx.fillStyle = "#d1d5db"; ctx.font = "12px system-ui, sans-serif"; ctx.fillText("·", x, y + rowH / 2); }
+        });
+      });
+      ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
+      for (let r = 0; r <= rws.length; r++) { const y = gTop + headH + r * rowH; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + gW, y); ctx.stroke(); }
+      for (let c = 0; c <= 7; c++) { const x = pad + nameW + c * colW; ctx.beginPath(); ctx.moveTo(x, gTop); ctx.lineTo(x, gTop + headH + rws.length * rowH); ctx.stroke(); }
+      ctx.strokeStyle = "#d1d5db"; ctx.strokeRect(pad, gTop, gW, headH + rws.length * rowH);
+      yTop += blockH(rws.length) + gap;
+    }
     return canvas;
-  }, [dates, rows, cell, weekStart]);
+  }, [state, settings.workweekStart, weekStart, weekGridData]);
 
   const [printImg, setPrintImg] = useState<string | null>(null);
   useEffect(() => {
@@ -199,24 +221,25 @@ export default function ScheduleGridPage() {
     return () => cancelAnimationFrame(id);
   }, [printImg]);
 
-  // Download the week as a PNG image (a real, shareable graphic).
-  const downloadPng = () => {
-    const canvas = renderCanvas();
+  // Download as a PNG image (a real, shareable graphic). mode "all" = the whole schedule (every week with
+  // shifts) in one file; "week" = just the visible week.
+  const downloadPng = (mode: "week" | "all") => {
+    const canvas = renderCanvas(mode);
     if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `schedule-${weekStart}.png`;
+      a.href = url; a.download = mode === "all" ? "schedule-all-weeks.png" : `schedule-${weekStart}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     }, "image/png");
   };
 
   // Print: swap in the white canvas image (print:block) and open the browser print dialog — clean, no popup,
-  // no fighting the dark theme. afterprint clears it.
-  const printSchedule = () => {
-    const canvas = renderCanvas();
+  // no fighting the dark theme. afterprint clears it. mode "all" prints the whole schedule across pages.
+  const printSchedule = (mode: "week" | "all") => {
+    const canvas = renderCanvas(mode);
     if (!canvas) return;
     setPrintImg(canvas.toDataURL("image/png")); // the effect above prints once it has painted
   };
@@ -243,15 +266,28 @@ export default function ScheduleGridPage() {
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
         <button type="button" onClick={goToday} className="text-xs font-semibold text-brand hover:underline ml-1">This week</button>
-        {/* Print + Download the week as a clean, white, shareable visual (both use the same canvas render). */}
-        <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={printSchedule} disabled={rows.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
+        {/* Print + Download a clean, white, shareable visual. "This week" = the shown week; "All weeks" = the
+            whole schedule (every week with shifts) in one file/printout. Both use the same canvas render. */}
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <button type="button" onClick={() => printSchedule("week")} disabled={rows.length === 0}
+            title="Print the shown week"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
             <Printer className="w-3.5 h-3.5" aria-hidden /> Print
           </button>
-          <button type="button" onClick={downloadPng} disabled={rows.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" aria-hidden /> Download
+          <button type="button" onClick={() => downloadPng("week")} disabled={rows.length === 0}
+            title="Download the shown week as an image"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
+            <Download className="w-3.5 h-3.5" aria-hidden /> This week
+          </button>
+          <button type="button" onClick={() => downloadPng("all")} disabled={!state || Object.keys(state.shifts).length === 0}
+            title="Download the WHOLE schedule (all weeks with shifts) as one image"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-xs font-semibold text-black disabled:opacity-40">
+            <Download className="w-3.5 h-3.5" aria-hidden /> Download all
+          </button>
+          <button type="button" onClick={() => printSchedule("all")} disabled={!state || Object.keys(state.shifts).length === 0}
+            title="Print the WHOLE schedule (all weeks with shifts)"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
+            <Printer className="w-3.5 h-3.5" aria-hidden /> Print all
           </button>
         </div>
       </div>
