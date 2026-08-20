@@ -352,19 +352,29 @@ export default function ScheduleGridPage() {
     return buildExportGrid(shifts, roster, opts);
   };
   const suffix = (mode: "week" | "all") => (mode === "all" ? "all-weeks" : weekStart);
+  // A data export holds one shift per person per day. If the schedule has split shifts, SAY the export is lossy
+  // for them (§3.4 — never lose data silently) instead of quietly dropping the extra shift.
+  const noticeFor = (grid: { collapsedShifts: number }) => {
+    if (grid.collapsedShifts > 0) {
+      const n = grid.collapsedShifts;
+      setExportMsg(`Heads up: ${n} extra shift${n === 1 ? "" : "s"} on days where someone works more than once ${n === 1 ? "isn't" : "aren't"} in this file — the export (and the on-screen grid) hold one shift per person per day. Everything else is complete.`);
+    } else setExportMsg(null);
+  };
 
   const downloadCsv = (mode: "week" | "all") => {
-    setExportMsg(null);
-    downloadBytes(gridToCsv(exportGrid(mode)), `schedule-${suffix(mode)}.csv`, "text/csv;charset=utf-8");
+    const grid = exportGrid(mode);
+    noticeFor(grid);
+    downloadBytes(gridToCsv(grid), `schedule-${suffix(mode)}.csv`, "text/csv;charset=utf-8");
   };
   const downloadXlsx = async (mode: "week" | "all") => {
-    setExportMsg(null);
-    const bytes = await buildXlsxBytes(toAoa(exportGrid(mode)), "Schedule");
-    downloadBytes(bytes, `schedule-${suffix(mode)}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const grid = exportGrid(mode);
+    noticeFor(grid);
+    downloadBytes(await buildXlsxBytes(toAoa(grid), "Schedule"), `schedule-${suffix(mode)}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   };
   const downloadPdfData = (mode: "week" | "all") => {
-    setExportMsg(null);
-    downloadBytes(buildTablePdf(exportGrid(mode), exportTitle), `schedule-data-${suffix(mode)}.pdf`, "application/pdf");
+    const grid = exportGrid(mode);
+    noticeFor(grid);
+    downloadBytes(buildTablePdf(grid, exportTitle), `schedule-data-${suffix(mode)}.pdf`, "application/pdf");
   };
   const downloadPdfVisual = (mode: "week" | "all") => {
     const canvas = renderCanvas(mode);

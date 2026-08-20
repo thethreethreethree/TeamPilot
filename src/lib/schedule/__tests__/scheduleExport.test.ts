@@ -31,6 +31,21 @@ describe("buildExportGrid", () => {
   it("toAoa prepends the Name/date header row", () => {
     expect(toAoa(buildExportGrid(SHIFTS, ROSTER))[0]).toEqual(["Name", "2026-08-17", "2026-08-18", "2026-08-19"]);
   });
+
+  it("counts collapsed SPLIT shifts (one cell per person-day) so the UI can warn — earliest is kept", () => {
+    const split = [
+      shift("m", "2026-08-17", "06:00", "10:00", ["a"]), // morning
+      shift("e", "2026-08-17", "16:00", "20:00", ["a"]), // evening — same day, non-overlapping (allowed)
+      shift("x", "2026-08-18", "09:00", "17:00", ["a"]), // a normal single-shift day
+    ];
+    const g = buildExportGrid(split, [emp("a", "Alice")]);
+    expect(g.collapsedShifts).toBe(1); // the evening shift couldn't fit the single 08-17 cell
+    expect(g.rows[0]!.cells).toEqual(["06:00-10:00", "09:00-17:00"]); // earliest kept on the split day
+  });
+
+  it("collapsedShifts is 0 for a schedule with no split shifts", () => {
+    expect(buildExportGrid(SHIFTS, ROSTER).collapsedShifts).toBe(0);
+  });
 });
 
 describe("ROUND-TRIP: export → CSV → import parsers → the same shifts", () => {

@@ -17,6 +17,10 @@ export interface ExportGrid {
   dates: string[];
   /** One row per staff member; `cells` aligns to `dates` — "HH:mm-HH:mm" or "" (not working that day). */
   rows: { name: string; cells: string[] }[];
+  /** How many EXTRA shifts were collapsed because the one-cell-per-day grid can hold only one shift per person
+   *  per day (split shifts). >0 means the export is lossy for those and the UI must SAY SO (§3.4 — never lose
+   *  data silently), not pretend the file is a complete representation. */
+  collapsedShifts: number;
 }
 
 /**
@@ -32,12 +36,17 @@ export function buildExportGrid(shifts: Shift[], roster: Employee[], opts?: { fr
   const dateSet = new Set<string>();
   const byPerson = new Map<string, Map<string, string>>();
   const scheduled = new Set<string>();
+  const seen = new Set<string>(); // "empId|date" already having a shift — a repeat is a collapsed split shift
+  let collapsedShifts = 0;
   for (const s of used) {
     dateSet.add(s.date);
     const label = `${s.start}-${s.end}`;
     for (const empId of s.assigned) {
       scheduled.add(empId);
       if (!byPerson.has(empId)) byPerson.set(empId, new Map());
+      const key = `${empId}|${s.date}`;
+      if (seen.has(key)) collapsedShifts += 1; // a 2nd+ shift for this person that day — only one cell can hold it
+      else seen.add(key);
       const prev = byPerson.get(empId)!.get(s.date);
       if (prev === undefined || s.start < prev) byPerson.get(empId)!.set(s.date, label);
     }
@@ -46,7 +55,7 @@ export function buildExportGrid(shifts: Shift[], roster: Employee[], opts?: { fr
   const rows = roster
     .filter((e) => e.status === "active" || scheduled.has(e.id))
     .map((e) => ({ name: e.name, cells: dates.map((d) => byPerson.get(e.id)?.get(d) ?? "") }));
-  return { dates, rows };
+  return { dates, rows, collapsedShifts };
 }
 
 /** Grid → array-of-arrays (header row + one row per staff). The shared shape the CSV and xlsx writers consume. */
