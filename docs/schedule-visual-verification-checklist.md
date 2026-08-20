@@ -173,13 +173,15 @@ target week — preview — commit.
 - Both tabs are reachable and the active tab is visually obvious.
 - CSV: extract → a mapping/preview step → commit; unrecognized shift codes are **surfaced for
   confirmation**, never silently guessed.
-- **Staff×date PDF/DOCX (new):** on the **CSV** tab, the **"Or upload a schedule .pdf/.docx"** picker reads
-  a staff-rows × date-columns grid (like frendz.pdf). A **PDF** fills in the **dates automatically** and
-  lists the **shift codes to map** (1--10, 6--3, GY, 6-3 BF…) → Preview → Import. A **DOCX** (a real Word
-  table) loads the grid into the box → click **Analyze** to resolve the dates + codes (same as pasted CSV).
-  If the PDF/DOCX read looks uncertain, an amber **"Check the extraction"** panel appears above the codes.
-  Uploading such a file to the **Schedule file** tab instead shows an error that **points you to the CSV
-  tab** (not a dead-end "no table found").
+- **Staff×date PDF/DOCX/XLSX (new):** on the **CSV** tab, the **"Or upload a schedule .pdf/.docx/.xlsx"**
+  picker reads a staff-rows × date-columns grid (like frendz.pdf). A **PDF** fills in the **dates
+  automatically** and lists the **shift codes to map** (1--10, 6--3, GY, 6-3 BF…) → Preview → Import. A
+  **DOCX / XLSX** (a real table) loads the grid into the box → click **Analyze** to resolve dates + codes
+  (same as pasted CSV; xlsx is read dependency-free). If a PDF read looks uncertain, an amber **"Check the
+  extraction"** panel appears above the codes.
+- **Wrong-tab auto-route (new):** upload such a file to the **Schedule file** tab by mistake and press
+  Preview — instead of an error, you're **moved to the CSV importer** with the grid loaded and an emerald
+  "I moved it here" note. It should work whichever tab you pick.
 - VA file: after picking a file + target week, a **preview** of the dated shifts appears before
   commit; commit is atomic (a failure writes nothing).
 - **Replace-the-week warning (new):** if you preview an import that overlaps shifts you already have
