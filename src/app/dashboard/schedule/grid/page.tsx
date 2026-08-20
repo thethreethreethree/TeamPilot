@@ -329,7 +329,7 @@ export default function ScheduleGridPage() {
       const canvas = renderCanvas(mode, [wk]);
       if (canvas) imgs.push(canvas.toDataURL("image/png"));
     }
-    if (imgs.length === 0) { setExportMsg(mode === "all" ? tooLargeMsg : null); return; }
+    if (imgs.length === 0) { setExportMsg(exportEmptyMsg(mode)); return; }
     setExportMsg(null);
     setPrintImgs(imgs); // the effect above prints once they've painted
   };
@@ -386,6 +386,15 @@ export default function ScheduleGridPage() {
   const exportWeeks = (mode: "week" | "all"): string[] =>
     mode === "all" && state ? weeksWithShifts(Object.values(state.shifts), settings.workweekStart) : [weekStart];
 
+  // Accurate empty-export feedback (§1.5.1 layer-3): distinguish "no shifts" from the genuine too-large case, so
+  // the paginated PDF/Print paths never tell the manager "too large" when the schedule is simply empty.
+  const exportEmptyMsg = (mode: "week" | "all"): string =>
+    mode === "week"
+      ? "This week has no shifts to export — switch to a week with shifts, or use the whole-schedule export."
+      : exportWeeks("all").length === 0
+        ? "Nothing to export yet — this schedule has no shifts."
+        : tooLargeMsg;
+
   const downloadPdfVisual = (mode: "week" | "all") => {
     // ONE WEEK PER PAGE (founder 2026-08-20): render each week to its own canvas → its own landscape page, so a
     // page never breaks across weeks. Each page is self-contained (header band + legend + that week's grid).
@@ -395,7 +404,7 @@ export default function ScheduleGridPage() {
       if (!canvas) continue;
       pages.push({ jpeg: dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92)), w: canvas.width, h: canvas.height });
     }
-    if (pages.length === 0) { setExportMsg(mode === "all" ? tooLargeMsg : null); return; }
+    if (pages.length === 0) { setExportMsg(exportEmptyMsg(mode)); return; }
     setExportMsg(null);
     downloadBytes(buildImagePdf(pages), `schedule-${suffix(mode)}.pdf`, "application/pdf");
   };
