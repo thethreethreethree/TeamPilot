@@ -158,6 +158,9 @@ export default function ScheduleGridPage() {
     const blockH = (n: number) => titleH + headH + n * rowH;
     const h = pad * 2 + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
 
+    // A browser canvas maxes out near 32767px per side; a huge multi-week schedule would silently render blank.
+    // Guard it: fail LOUD (return null → the caller shows a message) rather than export a broken image.
+    if (h * scale > 30000) return null;
     const canvas = document.createElement("canvas");
     canvas.width = w * scale; canvas.height = h * scale;
     const ctx = canvas.getContext("2d");
@@ -207,6 +210,8 @@ export default function ScheduleGridPage() {
   }, [state, settings.workweekStart, weekStart, weekGridData]);
 
   const [printImg, setPrintImg] = useState<string | null>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const tooLargeMsg = "This schedule is too large to export as one image. Export week by week (This week / Print), or tell me and I'll add a multi-page PDF.";
   useEffect(() => {
     if (typeof window === "undefined") return;
     const clear = () => setPrintImg(null);
@@ -225,7 +230,8 @@ export default function ScheduleGridPage() {
   // shifts) in one file; "week" = just the visible week.
   const downloadPng = (mode: "week" | "all") => {
     const canvas = renderCanvas(mode);
-    if (!canvas) return;
+    if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
+    setExportMsg(null);
     canvas.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
@@ -240,7 +246,8 @@ export default function ScheduleGridPage() {
   // no fighting the dark theme. afterprint clears it. mode "all" prints the whole schedule across pages.
   const printSchedule = (mode: "week" | "all") => {
     const canvas = renderCanvas(mode);
-    if (!canvas) return;
+    if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
+    setExportMsg(null);
     setPrintImg(canvas.toDataURL("image/png")); // the effect above prints once it has painted
   };
 
@@ -291,6 +298,13 @@ export default function ScheduleGridPage() {
           </button>
         </div>
       </div>
+
+      {exportMsg && (
+        <div className="flex items-center justify-between gap-3 mb-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+          <span className="text-xs text-amber-300">{exportMsg}</span>
+          <button type="button" onClick={() => setExportMsg(null)} className="text-xs font-semibold text-amber-300 hover:underline">Dismiss</button>
+        </div>
+      )}
 
       {actionError && (
         <div className="flex items-center justify-between gap-3 mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
