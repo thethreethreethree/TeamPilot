@@ -25,6 +25,47 @@ type Preview = { staff: string[]; shifts: number; off: number; unknownCodes: str
 type VaPreview = { staff: string[]; entryCount: number; unparsedBlocks: string[]; willReplace?: number; replaceFrom?: string | null; replaceTo?: string | null; readyToCommit: boolean };
 type Done = { staffCreated: number; shiftsCreated: number; assignmentsCreated: number; shiftsSuperseded?: number };
 
+/**
+ * Normalize any human time to strict "HH:mm" 24-hour (what the preview/commit require). Accepts "13:00",
+ * "1:00pm", "1pm", "1 PM", "9:00 am", and a bare hour "1"/"13"/"9". Returns "" if it can't parse — so an
+ * unparseable value fails visibly (unmapped) rather than silently. This is why a raw "1" or "1:00pm" used to
+ * make the whole preview fail: nothing converted it to 24h. A bare number is read literally (1 -> 01:00); use
+ * 1pm / 13 for the afternoon.
+ */
+function to24h(raw: string): string {
+  const s = raw.trim().toLowerCase();
+  if (!s) return "";
+  let m = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/.exec(s);
+  if (m) {
+    let h = Number(m[1]); const min = Number(m[2]); const ap = m[3];
+    if (ap === "pm" && h < 12) h += 12;
+    if (ap === "am" && h === 12) h = 0;
+    if (h > 23 || min > 59) return "";
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  }
+  m = /^(\d{1,2})\s*(am|pm)?$/.exec(s);
+  if (m) {
+    let h = Number(m[1]); const ap = m[2];
+    if (ap === "pm" && h < 12) h += 12;
+    if (ap === "am" && h === 12) h = 0;
+    if (h > 23) return "";
+    return `${String(h).padStart(2, "0")}:00`;
+  }
+  return "";
+}
+
+/** Coerce every code's times to strict HH:mm (or drop the code to unmapped if unparseable) — applied before
+ *  preview/commit and to the LLM's proposal, so no time format can silently break the import. */
+function normalizeCodeMap(map: Record<string, ShiftTimes | "off">): Record<string, ShiftTimes | "off"> {
+  const out: Record<string, ShiftTimes | "off"> = {};
+  for (const [code, v] of Object.entries(map)) {
+    if (v === "off") { out[code] = "off"; continue; }
+    const start = to24h(v.start); const end = to24h(v.end);
+    if (start && end) out[code] = { start, end }; // drop a code with an unparseable time (stays "needs mapping")
+  }
+  return out;
+}
+
 /** Read a File → base64 (no data: prefix). FileReader avoids the stack overflow of String.fromCharCode(...big). */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -93,7 +134,7 @@ export default function ScheduleImportPage() {
       });
       if (!res.ok) { setError("Couldn't analyze the file. You can map the dates and codes by hand, or try again."); return; }
       const p: Proposal = await res.json();
-      setProp(p); setDates(p.headerDates.join(", ")); setMap(p.codeMap ?? {}); setPreview(null);
+      setProp(p); setDates(p.headerDates.join(", ")); setMap(normalizeCodeMap(p.codeMap ?? {})); setPreview(null);
     } catch { setError("Couldn't reach the server."); }
     finally { setBusy(null); }
   };
@@ -126,7 +167,7 @@ export default function ScheduleImportPage() {
           const pr = await fetch("/api/schedule/upload/propose", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: d.csv }),
           });
-          if (pr.ok) { const pj = await pr.json(); codeMap = pj.codeMap ?? {}; extra = pj.notes ? ` ${pj.notes}` : ""; }
+          if (pr.ok) { const pj = await pr.json(); codeMap = normalizeCodeMap(pj.codeMap ?? {}); extra = pj.notes ? ` ${pj.notes}` : ""; }
         } catch { /* LLM unavailable — fall back to manual mapping, still fully functional */ }
         // Off-family codes are universal ("no shift", regardless of business) — map them deterministically so
         // they never need the founder's input. Times are still their call; "off" isn't.
@@ -158,7 +199,7 @@ export default function ScheduleImportPage() {
     try {
       const res = await fetch("/api/schedule/upload/preview", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: over?.csv ?? csv, headerDates: over?.headerDates ?? headerDates(), codeMap: over?.codeMap ?? map }),
+        body: JSON.stringify({ csv: over?.csv ?? csv, headerDates: over?.headerDates ?? headerDates(), codeMap: normalizeCodeMap(over?.codeMap ?? map) }),
       });
       if (!res.ok) { setError("Couldn't build the preview. Check the dates and code map."); return; }
       setPreview(await res.json());
@@ -173,7 +214,7 @@ export default function ScheduleImportPage() {
     try {
       const res = await fetch("/api/schedule/upload/commit", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv, headerDates: headerDates(), codeMap: map }),
+        body: JSON.stringify({ csv, headerDates: headerDates(), codeMap: normalizeCodeMap(map) }),
       });
       if (res.status === 201) setDone(await res.json());
       else if (res.status === 403) setError("Only a manager can import a schedule.");
@@ -344,10 +385,11 @@ export default function ScheduleImportPage() {
                       <span className={`text-xs font-mono px-2 py-1 rounded ${unmapped ? "bg-ember-400/15 text-brand" : "bg-surface text-secondary"}`}>{code}</span>
                       <button type="button" onClick={() => setCode(code, "off")}
                         className={`text-[11px] px-2 py-1 rounded ${isOff ? "bg-brand text-black" : "bg-surface text-muted"}`}>day off</button>
-                      <input value={t.start} onChange={(e) => setCode(code, { start: e.target.value, end: t.end })}
-                        placeholder="start HH:mm" className="w-24 rounded bg-surface border border-white/10 px-2 py-1 text-xs text-primary" />
-                      <input value={t.end} onChange={(e) => setCode(code, { start: t.start, end: e.target.value })}
-                        placeholder="end HH:mm" className="w-24 rounded bg-surface border border-white/10 px-2 py-1 text-xs text-primary" />
+                      <input type="time" value={to24h(t.start)} disabled={isOff} onChange={(e) => setCode(code, { start: e.target.value, end: t.end })}
+                        aria-label={`${code} start`} className="rounded bg-surface border border-white/10 px-2 py-1 text-xs text-primary disabled:opacity-40" />
+                      <span className="text-[11px] text-muted">to</span>
+                      <input type="time" value={to24h(t.end)} disabled={isOff} onChange={(e) => setCode(code, { start: t.start, end: e.target.value })}
+                        aria-label={`${code} end`} className="rounded bg-surface border border-white/10 px-2 py-1 text-xs text-primary disabled:opacity-40" />
                       {unmapped && <span className="text-[11px] text-brand">needs mapping</span>}
                     </div>
                   );
