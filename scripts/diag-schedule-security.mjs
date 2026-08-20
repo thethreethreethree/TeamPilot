@@ -92,6 +92,36 @@ if (admin) {
   // Admin (a manager): manager-only write + RPC allowed.
   record("append_schedule_event RPC: admin CAN append a manager-only type",
     (await asUser(admin.id, `select append_schedule_event('SHIFT_DEFINED', $1::jsonb)`, [JSON.stringify(MANAGER_EVENT)])).ok);
+
+  // ── Append-only enforcement (§3.1, migration 0220) — the "non-negotiable" invariant. Two layers, both proven
+  //    BEHAVIORALLY: the privilege REVOKE (authenticated has no UPDATE/DELETE) AND the trigger that RAISES even
+  //    for a privileged writer. A trigger PRESENT in a migration is not a trigger WIRED + FIRING — so we make it
+  //    fire, rather than trust it exists. ──
+  record("schedule_event: authenticated UPDATE is BLOCKED (0220 revoke — append-only)",
+    !(await asUser(admin.id, `update schedule_event set actor_id = actor_id where id = (select id from schedule_event limit 1)`)).ok);
+  record("schedule_event: authenticated DELETE is BLOCKED (0220 revoke — append-only)",
+    !(await asUser(admin.id, `delete from schedule_event where id = (select id from schedule_event limit 1)`)).ok);
+  // The trigger itself: as the table owner (revoke doesn't apply), UPDATE on a real row must RAISE 'append-only'.
+  await c.query("begin");
+  let trigPass = false, trigDetail = "";
+  try {
+    const ins = await c.query(
+      `insert into schedule_event (company_id,type,actor_id,payload) values ($1,'SHIFT_DEFINED',$2,$3::jsonb) returning id`,
+      [admin.company_id, admin.id, JSON.stringify(MANAGER_EVENT)]);
+    const id = ins.rows[0]?.id;
+    try {
+      await c.query(`update schedule_event set actor_id = actor_id where id = $1`, [id]);
+      trigDetail = "UPDATE unexpectedly SUCCEEDED — the append-only trigger did not fire";
+    } catch (e) {
+      const msg = String(e.message || e);
+      trigPass = /append-only/i.test(msg);
+      trigDetail = msg.slice(0, 90);
+    }
+  } catch (e) {
+    trigDetail = "setup insert failed: " + String(e.message || e).slice(0, 90);
+  }
+  await c.query("rollback");
+  record("schedule_event: the append-only TRIGGER raises on UPDATE even for a privileged writer (0220 wired+firing)", trigPass, trigDetail);
 } else console.log("  (no admin user — skipping schedule manager checks)");
 
 // ── Care: support_customers writes gated to agent/admin (0233) ──────────────────────────────

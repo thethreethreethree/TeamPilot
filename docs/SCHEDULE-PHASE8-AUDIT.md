@@ -14,10 +14,13 @@ Legend: **OK** = verified clean · **FLAG** = needs action · **N/V** = not veri
 - **OK — event-integrity intact.** No code path issues UPDATE/DELETE/upsert on `schedule_event`, and nothing
   writes a derived-state table directly (swept: `from('schedule_event').(update|delete|upsert)` and
   `from('schedule_(shift|state|derived)')` → both empty). Corrections are new events (UNASSIGN then ASSIGN).
-- **N/V — RLS live-verification.** Migrations 0230 (event RLS + manager reads), 0227/0228 (manager-only RPC +
-  tenant param), 0231/0232 (revoke durability-emit from clients/public) are on the ledger, but a live
-  `SET ROLE anon; SELECT` behavioral check needs prod DB access (unavailable here). **Verify on go-live** per the
-  §1.7 checklist item.
+- **N/V (runnable) — RLS + append-only live-verification.** Migrations 0230 (event RLS + manager reads),
+  0227/0228 (manager-only RPC + tenant param), 0220 (append-only trigger + revoke) are on the ledger. The
+  behavioral verifier `scripts/diag-schedule-security.mjs` proves them under simulated JWTs (rolled back) —
+  non-manager insert/read blocked, cross-tenant isolation, and (added this pass) the **append-only** invariant:
+  authenticated UPDATE/DELETE blocked by the revoke AND the trigger RAISES on UPDATE even for a privileged writer
+  (the "trigger present in a migration ≠ trigger wired + firing" blind spot). It needs prod DB access to RUN —
+  **run it at go-live** (`node scripts/diag-schedule-security.mjs`), not writeable from this sandbox.
 
 ## Layer 3 — Derivation (projections)
 - **OK** — state is derived by replaying events (`deriveState`); the grid, export, and coverage all read the
