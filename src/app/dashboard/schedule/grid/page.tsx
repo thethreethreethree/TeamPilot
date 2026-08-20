@@ -6,6 +6,7 @@ import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { buildWeekGrid, relevantRows, weeksWithShifts } from "@/lib/schedule/gridView";
+import { scheduleInsights } from "@/lib/schedule/insights";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -95,6 +96,13 @@ export default function ScheduleGridPage() {
   // Rows = active staff + anyone actually working this week (deactivated-and-unscheduled staff are hidden so
   // their empty rows don't pile up). Pure + unit-tested in gridView.ts.
   const rows = useMemo(() => relevantRows(roster, scheduledIds), [roster, scheduledIds]);
+
+  // Phase 7 (§3.6): current patterns a manager might miss — over-reliance by hours + unused staff. Honest
+  // "current patterns" (deterministic), not overclaimed longitudinal learning.
+  const insights = useMemo(
+    () => (state ? scheduleInsights(Object.values(state.shifts), roster, todayInTz(settings.timezone)) : null),
+    [state, roster, settings.timezone],
+  );
 
   // Cell-click unassign: click a shift cell -> confirm -> append EMPLOYEE_UNASSIGNED (manager-gated route) ->
   // reload. The grid IS the natural selector (the person is shown right where you click). busyRef is a
@@ -384,6 +392,29 @@ export default function ScheduleGridPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Phase 7 (§3.6): current patterns — over-reliance by hours + unused staff. Honest "current
+              patterns", computed deterministically; not overclaimed longitudinal learning. */}
+          {insights && insights.totalUpcomingShifts > 0 && (
+            <div className="glass-card p-4 mt-4">
+              <div className="text-sm font-semibold text-secondary mb-2">Patterns in your schedule</div>
+              {insights.overReliance && (
+                <p className="flex items-start gap-1.5 text-xs text-amber-300 mb-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden />
+                  <span><span className="font-semibold">{insights.overReliance.name}</span> is carrying the most hours ({insights.overReliance.hours}h upcoming) — well above the team average. Consider spreading the load.</span>
+                </p>
+              )}
+              <div className="text-[11px] text-muted mb-1">Upcoming hours per person (most first):</div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {insights.hoursByStaff.slice(0, 12).map((s) => (
+                  <span key={s.employeeId} className="text-[11px] px-2 py-0.5 rounded-full bg-surface border border-white/10 text-secondary tabular-nums">{s.name} · {s.hours}h</span>
+                ))}
+              </div>
+              {insights.unusedStaff.length > 0 && (
+                <p className="text-[11px] text-muted">Active but not scheduled: {insights.unusedStaff.join(", ")}.</p>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
