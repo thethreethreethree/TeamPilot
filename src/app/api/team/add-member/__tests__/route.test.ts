@@ -5,17 +5,24 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 const findByEmail = vi.fn();
 const upsert = vi.fn();
 const tpSingle = vi.fn();
+const profileLookup = vi.fn().mockResolvedValue({ data: null }); // existing user's current profile (role, company_id)
 const createUser = vi.fn();
-vi.mock("@/lib/supabase/admin", () => ({
-  findAuthUserByEmail: (e: string) => findByEmail(e),
-  createAdminClient: () => ({
-    from: () => ({
-      upsert: (v: unknown) => upsert(v),
-      select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ single: tpSingle }) }) }) }),
+vi.mock("@/lib/supabase/admin", () => {
+  // One chainable stub serving both selects: profile lookup (.eq().maybeSingle()) and team-password
+  // lookup (.eq().eq().is().single()).
+  const chain: Record<string, unknown> = {};
+  chain.eq = () => chain;
+  chain.is = () => chain;
+  chain.maybeSingle = () => profileLookup();
+  chain.single = () => tpSingle();
+  return {
+    findAuthUserByEmail: (e: string) => findByEmail(e),
+    createAdminClient: () => ({
+      from: () => ({ upsert: (v: unknown) => upsert(v), select: () => chain }),
+      auth: { admin: { createUser: (a: unknown) => createUser(a), deleteUser: async () => ({}) } },
     }),
-    auth: { admin: { createUser: (a: unknown) => createUser(a), deleteUser: async () => ({}) } },
-  }),
-}));
+  };
+});
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { POST } from "../route";
@@ -37,13 +44,32 @@ describe("POST /api/team/add-member", () => {
     findByEmail.mockResolvedValue(null);
     expect((await POST(req({ mode: "existing", email: "nobody@x.com" }))).status).toBe(404);
   });
-  it("existing mode: known email → upsert to THIS company (pinned), 200", async () => {
+  it("existing mode: a fresh join is set to Member, pinned to THIS company", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue(admin);
     findByEmail.mockResolvedValue({ id: "u9", email: "a@b.com" });
+    profileLookup.mockResolvedValue({ data: { role: null, company_id: null } });
     upsert.mockResolvedValue({ error: null });
     const res = await POST(req({ mode: "existing", email: "a@b.com", salesCoachRole: "staff" }));
     expect(res.status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ id: "u9", company_id: "c1", sales_coach_role: "staff" }));
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ id: "u9", company_id: "c1", role: "Member", sales_coach_role: "staff" }));
+  });
+  it("existing mode: NEVER demotes — an existing admin of this company keeps their role (no role in the patch)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin);
+    findByEmail.mockResolvedValue({ id: "u9", email: "a@b.com" });
+    profileLookup.mockResolvedValue({ data: { role: "admin", company_id: "c1" } }); // already an admin here
+    upsert.mockResolvedValue({ error: null });
+    await POST(req({ mode: "existing", email: "a@b.com", salesCoachRole: null }));
+    const patch = upsert.mock.calls[0]![0] as Record<string, unknown>;
+    expect(patch.role).toBeUndefined(); // role omitted → left unchanged (no demotion)
+    expect(patch.company_id).toBe("c1");
+  });
+  it("existing mode: the admin adding their OWN email is not demoted", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin); // userId u1
+    findByEmail.mockResolvedValue({ id: "u1", email: "self@b.com" }); // same id as caller
+    profileLookup.mockResolvedValue({ data: { role: "admin", company_id: "c1" } });
+    upsert.mockResolvedValue({ error: null });
+    await POST(req({ mode: "existing", email: "self@b.com", salesCoachRole: null }));
+    expect((upsert.mock.calls[0]![0] as Record<string, unknown>).role).toBeUndefined();
   });
   it("new mode: email already has an account → 409", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue(admin);

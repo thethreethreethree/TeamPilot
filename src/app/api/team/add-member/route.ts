@@ -4,6 +4,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { createAdminClient, findAuthUserByEmail } from "@/lib/supabase/admin";
+import { isAdminRole } from "@/lib/roles";
 
 /**
  * Streamlined "Add agent" (2026-08-21 urgent client build). Adds a team member by email — no manual invite link:
@@ -49,12 +50,15 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
-    // Attach to this company. company_id pinned to the caller's session (INV15). role defaults to team Member;
-    // service-role bypasses the privileged-column guard. (Deferred: this reassigns a person who is already on
-    // another team — the founder's acknowledged future complication.)
-    const { error } = await sb
-      .from("profiles")
-      .upsert({ id: existing.id, company_id: ctx.companyId, role: "Member", sales_coach_role: salesCoachRole, status: "active" }, { onConflict: "id" });
+    // NEVER demote an existing role. A fresh join gets team Member; but re-adding an admin (or the admin adding
+    // their OWN email, or someone already an admin of THIS company) must KEEP their role — omitting `role` from
+    // the upsert leaves it unchanged. company_id pinned to the caller's session (INV15); service-role bypasses
+    // the privileged-column guard. (Deferred: reassigning a person already on another team — founder's future item.)
+    const { data: cur } = await sb.from("profiles").select("role, company_id").eq("id", existing.id).maybeSingle();
+    const keepRole = existing.id === ctx.userId || (cur?.company_id === ctx.companyId && isAdminRole(cur?.role ?? null));
+    const patch: Record<string, string | null> = { id: existing.id, company_id: ctx.companyId, sales_coach_role: salesCoachRole, status: "active" };
+    if (!keepRole) patch.role = "Member";
+    const { error } = await sb.from("profiles").upsert(patch, { onConflict: "id" });
     if (error) {
       console.error("[team/add-member existing] upsert failed:", error.message);
       return NextResponse.json({ error: "Couldn't add that member." }, { status: 500 });

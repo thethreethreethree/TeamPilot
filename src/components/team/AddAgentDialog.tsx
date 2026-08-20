@@ -77,7 +77,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
         <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.03] border border-white/10 mb-4">
           {([["existing", "Existing user"], ["new", "New user"]] as const).map(([v, label]) => (
             <button key={v} type="button" onClick={() => { setMode(v); setError(null); }}
-              className={`text-xs font-medium py-1.5 rounded-md transition-colors ${mode === v ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-primary"}`}>
+              className={`text-xs font-medium py-1.5 rounded-md transition-colors ${mode === v ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-brand"}`}>
               {label}
             </button>
           ))}
