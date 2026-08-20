@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { EVENT_COLUMNS, rowToEvent, type EventRow } from "@/lib/schedule/eventRow";
 import { EMPLOYEE_COLUMNS, rowToEmployee, type EmployeeRow } from "@/lib/schedule/employeeRow";
@@ -21,6 +22,9 @@ import { getScheduleSettings, todayInTz } from "@/lib/schedule/settings";
 export const maxDuration = 30;
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, { id: "schedule-personal", windowMs: 60_000, max: 60 });
+  if (limited) return limited;
+
   const employeeId = new URL(req.url).searchParams.get("employeeId") ?? "";
   if (!z.string().uuid().safeParse(employeeId).success) {
     return NextResponse.json({ error: "Invalid employee id." }, { status: 400 });
