@@ -131,6 +131,31 @@ function buildProposal(
       blocked: false,
     };
   }
+  if (a.op === "retime_shift") {
+    const old = Object.values(state.shifts).find((s) => s.date === a.date && s.start === a.start && s.end === a.end);
+    if (!old) return { op: "retime_shift", summary: `Move the ${a.date} ${a.start} to ${a.end} shift`, events: [], impact: [], blocked: true, reason: `There's no shift on ${a.date} at ${a.start} to ${a.end} to move.` };
+    // Move = cancel the old shift + recreate it at the new time, carrying its staff over. Same date.
+    const newId = crypto.randomUUID();
+    const events: EventToAppend[] = [
+      { type: "SHIFT_CANCELLED", payload: { shiftId: old.id } },
+      { type: "SHIFT_DEFINED", payload: { shiftId: newId, date: a.date, start: a.newStart, end: a.newEnd, requiredHeadcount: old.requiredHeadcount, ...(Object.keys(old.requiredByRole).length ? { requiredByRole: old.requiredByRole } : {}) } },
+      ...old.assigned.map((empId) => ({ type: "EMPLOYEE_ASSIGNED", payload: { shiftId: newId, employeeId: empId } })),
+    ];
+    // Evaluate each carried-over assignment at the NEW time (a retime can newly double-book someone).
+    const hypo: Shift = { ...old, id: newId, start: a.newStart, end: a.newEnd, assigned: [] };
+    const injCtx: EvalContext = { ...evalCtx, state: { ...state, shifts: { ...state.shifts, [newId]: hypo } } };
+    const impact: string[] = [];
+    for (const empId of old.assigned) {
+      const v = evaluateChange({ kind: "assign", shiftId: newId, employeeId: empId }, injCtx);
+      const name = evalCtx.employees[empId]?.name ?? empId;
+      for (const viol of v.violations.filter((x) => x.kind !== "coverage")) impact.push(`${name} ${describeViolation(viol)}`);
+    }
+    return {
+      op: "retime_shift",
+      summary: `Move the ${a.date} shift from ${a.start} to ${a.end} → ${a.newStart} to ${a.newEnd}${old.assigned.length ? ` (keeps ${old.assigned.length} staff)` : ""}`,
+      events, impact, blocked: false,
+    };
+  }
 
   const emp = resolveEmp(a.employee);
   if (!emp) return { op: a.op, summary: `${a.op} ${a.employee}`, events: [], impact: [], blocked: true, reason: `I couldn't find "${a.employee}" on the roster.` };

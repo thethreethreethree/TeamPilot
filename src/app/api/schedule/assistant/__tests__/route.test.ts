@@ -103,6 +103,24 @@ describe("schedule assistant API — write-path (A31)", () => {
     expect(j.proposals[0].blocked).toBe(true); // no shift that day
   });
 
+  it("retime_shift cancels the old shift, recreates it at the new time, and carries staff over", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    const events = [
+      { id: "e1", company_id: "c1", type: "SHIFT_DEFINED", actor_id: null, payload: { shiftId: SHIFT, date: "2099-02-02", start: "09:00", end: "17:00", requiredHeadcount: 1 }, occurred_at: "2026-08-20T00:00:00Z", seq: 1 },
+      { id: "e2", company_id: "c1", type: "EMPLOYEE_ASSIGNED", actor_id: null, payload: { shiftId: SHIFT, employeeId: EMP }, occurred_at: "2026-08-20T00:00:00Z", seq: 2 },
+    ];
+    asMock(createClient).mockResolvedValue(fakeSb([empRow], events));
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "retime_shift", date: "2099-02-02", start: "09:00", end: "17:00", newStart: "10:00", newEnd: "18:00" }] });
+    const j = await (await POST(req({ message: "move the feb 2 shift to 10-6" }))).json();
+    const p = j.proposals[0];
+    expect(p.blocked).toBe(false);
+    expect(p.events.map((e: { type: string }) => e.type)).toEqual(["SHIFT_CANCELLED", "SHIFT_DEFINED", "EMPLOYEE_ASSIGNED"]);
+    expect(p.events[0].payload.shiftId).toBe(SHIFT); // cancels the old one
+    expect(p.events[1].payload).toMatchObject({ start: "10:00", end: "18:00" }); // recreated at the new time
+    expect(p.events[2].payload.employeeId).toBe(EMP); // staff carried over
+    expect(p.events[1].payload.shiftId).toBe(p.events[2].payload.shiftId); // reassigned to the NEW shift
+  });
+
   it("a non-manager is refused (403)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u2", companyId: "c1", role: "Member", isAdmin: false });
     asMock(createClient).mockResolvedValue(fakeSb([empRow]));

@@ -25,7 +25,8 @@ export type AssistantAction =
   | { op: "unassign"; employee: string; date: string; start?: string; end?: string }
   | { op: "time_off"; employee: string; date: string; endDate?: string; type?: string }
   | { op: "create_shift"; date: string; start: string; end: string; headcount?: number; role?: string }
-  | { op: "cancel_shift"; date: string; start?: string; end?: string };
+  | { op: "cancel_shift"; date: string; start?: string; end?: string }
+  | { op: "retime_shift"; date: string; start: string; end: string; newStart: string; newEnd: string };
 
 export interface AssistantReply {
   reply: string; // the manager-facing natural-language answer
@@ -49,14 +50,15 @@ Output ONLY JSON, exactly this shape:
     { "op": "unassign",     "employee": "<name>", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" },
     { "op": "time_off",     "employee": "<name>", "date": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "type": "vacation|sick|personal|day_off" },
     { "op": "create_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm", "headcount": 1, "role": "<optional>" },
-    { "op": "cancel_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" }
+    { "op": "cancel_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm" },
+    { "op": "retime_shift", "date": "YYYY-MM-DD", "start": "HH:mm", "end": "HH:mm", "newStart": "HH:mm", "newEnd": "HH:mm" }
   ] }
 
 Rules:
 - Use ONLY staff names that appear in the roster. If a name is unknown or ambiguous, do NOT invent an action; ask in the reply.
 - Never invent a date. Resolve relative dates ("next Monday", "tomorrow") using today's date. If you cannot resolve a date, ask in the reply.
 - Actions with times need start+end in 24h. If the manager uses a shift code (e.g. "6-3", "GY") and did not tell you its times, ask in the reply instead of guessing.
-- "create_shift" makes an empty shift (optionally with a headcount + role); "assign" puts a person on a shift (creating it if needed); "cancel_shift" removes a shift entirely (use for "delete/remove the ... shift"); "unassign" only takes a person off a shift.
+- "create_shift" makes an empty shift (optionally with a headcount + role); "assign" puts a person on a shift (creating it if needed); "cancel_shift" removes a shift entirely (use for "delete/remove the ... shift"); "unassign" only takes a person off a shift; "retime_shift" moves an existing shift (start/end) to newStart/newEnd, keeping its staff (use for "move/reschedule/change the time of the ... shift").
 - If the manager only asks a question, return "actions": [] and put the whole answer in "reply".
 - Keep "actions" to what the manager actually asked for. Do not add extra changes.`;
 
@@ -88,6 +90,10 @@ export function parseAssistantReply(raw: string): AssistantReply {
     }
     if (r.op === "cancel_shift") {
       actions.push({ op: "cancel_shift", date: r.date, ...(isHHmm(r.start) ? { start: r.start } : {}), ...(isHHmm(r.end) ? { end: r.end } : {}) });
+      continue;
+    }
+    if (r.op === "retime_shift" && isHHmm(r.start) && isHHmm(r.end) && isHHmm(r.newStart) && isHHmm(r.newEnd)) {
+      actions.push({ op: "retime_shift", date: r.date, start: r.start, end: r.end, newStart: r.newStart, newEnd: r.newEnd });
       continue;
     }
     // Employee-level ops need a name.

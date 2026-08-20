@@ -56,6 +56,17 @@ describe("parseAssistantReply", () => {
     expect(r.actions[2]).toEqual({ op: "cancel_shift", date: "2026-08-24", start: "22:00", end: "06:00" });
   });
 
+  it("parses retime_shift (all four times) and drops one missing a new time", () => {
+    const r = parseAssistantReply(JSON.stringify({
+      reply: "ok",
+      actions: [
+        { op: "retime_shift", date: "2026-08-25", start: "09:00", end: "17:00", newStart: "10:00", newEnd: "18:00" },
+        { op: "retime_shift", date: "2026-08-25", start: "09:00", end: "17:00", newStart: "10:00" }, // missing newEnd → dropped
+      ],
+    }));
+    expect(r.actions).toEqual([{ op: "retime_shift", date: "2026-08-25", start: "09:00", end: "17:00", newStart: "10:00", newEnd: "18:00" }]);
+  });
+
   it("a pure question yields a reply and no actions", () => {
     const r = parseAssistantReply(JSON.stringify({ reply: "Darren and Marie are working Thursday.", actions: [] }));
     expect(r.actions).toEqual([]);
