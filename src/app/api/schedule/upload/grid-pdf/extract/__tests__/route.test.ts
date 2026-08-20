@@ -8,11 +8,18 @@ vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/schedule/staffDatePdf", async (orig) => {
   const actual = await (orig() as Promise<Record<string, unknown>>);
-  return { ...actual, extractStaffDateGridFromPdf: vi.fn() };
+  return { ...actual, extractStaffDateGridFromPdf: vi.fn() }; // gridToCsv + docxCellsToCsv stay real
+});
+vi.mock("@/lib/schedule/vaDocx", () => ({ parseDocxTableCells: vi.fn() }));
+vi.mock("@/lib/documents/extractText", async (orig) => {
+  const actual = await (orig() as Promise<Record<string, unknown>>);
+  return { ...actual, unzipEntry: vi.fn() }; // EmptyExtractionError stays real
 });
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { extractStaffDateGridFromPdf } from "@/lib/schedule/staffDatePdf";
+import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
+import { unzipEntry } from "@/lib/documents/extractText";
 import { POST } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
@@ -41,7 +48,25 @@ describe("schedule grid-pdf extract API", () => {
     expect((await POST(req({ fileBase64: b64, filename: "frendz.pdf" }))).status).toBe(403);
   });
 
-  it("a non-PDF filename is rejected (415)", async () => {
+  it("a .docx returns raw CSV with headerDates empty (client runs Analyze to resolve dates)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(unzipEntry).mockResolvedValue("<w:tbl/>");
+    asMock(parseDocxTableCells).mockReturnValue([["NAME", "AUG 16"], ["ALICE", "6-3"]]);
+    const res = await POST(req({ fileBase64: b64, filename: "sched.docx" }));
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.headerDates).toEqual([]); // docx → raw labels, not resolved
+    expect(j.csv).toBe("NAME,AUG 16\nALICE,6-3");
+  });
+
+  it("a .docx with no table is 422", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(unzipEntry).mockResolvedValue("<w:body/>");
+    asMock(parseDocxTableCells).mockReturnValue([]);
+    expect((await POST(req({ fileBase64: b64, filename: "sched.docx" }))).status).toBe(422);
+  });
+
+  it("an unsupported filename is rejected (415)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
     expect((await POST(req({ fileBase64: b64, filename: "roster.xlsx" }))).status).toBe(415);
   });

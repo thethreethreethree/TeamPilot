@@ -93,10 +93,11 @@ export default function ScheduleImportPage() {
     finally { setBusy(null); }
   };
 
-  // Upload a staff x date shift-code PDF (the "frendz" layout): the server extracts it to a CSV grid with the
-  // dates already resolved, then the SAME confirm → preview → import flow runs. No LLM needed — dates come from
-  // the file; the manager only maps the shift codes.
-  const extractGridPdf = async (file: File) => {
+  // Upload a staff x date shift-code file (the "frendz" layout). The server extracts it to a CSV grid; then
+  // the SAME confirm → preview → import flow runs. A .pdf comes back with dates already RESOLVED (skip straight
+  // to mapping the codes); a .docx comes back as raw labels (headerDates empty) so the manager clicks Analyze
+  // to resolve them — same as pasted CSV. No positional guessing on the docx path.
+  const extractGridFile = async (file: File) => {
     setBusy("propose"); setError(null); setDone(null);
     try {
       const fileBase64 = await fileToBase64(file);
@@ -104,17 +105,23 @@ export default function ScheduleImportPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileBase64, filename: file.name }),
       });
-      if (!res.ok) { setError((await res.json().catch(() => null))?.error ?? "Couldn't read that PDF."); return; }
+      if (!res.ok) { setError((await res.json().catch(() => null))?.error ?? "Couldn't read that file."); return; }
       const d = (await res.json()) as { csv: string; headerDates: string[]; staff: string[]; codes: string[]; warnings?: string[] };
       setCsv(d.csv);
-      setDates(d.headerDates.join(", "));
-      setMap({});
       setPreview(null);
       setGridWarnings(d.warnings ?? []);
-      setProp({
-        headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap: {},
-        notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the PDF. The dates are set — just map each shift code below.`,
-      });
+      if (d.headerDates.length > 0) {
+        // PDF: dates resolved from the file → straight to the code-map confirm.
+        setDates(d.headerDates.join(", "));
+        setMap({});
+        setProp({
+          headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap: {},
+          notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. The dates are set — just map each shift code below.`,
+        });
+      } else {
+        // DOCX: raw labels — the CSV is loaded above; the manager clicks Analyze to resolve dates + codes.
+        setProp(null); setDates("");
+      }
     } catch { setError("Couldn't reach the server."); }
     finally { setBusy(null); }
   };
@@ -246,11 +253,12 @@ export default function ScheduleImportPage() {
               {busy === "propose" ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <ArrowRight className="w-3.5 h-3.5" aria-hidden />}
               Analyze
             </button>
-            {/* Or upload a staff x date PDF grid — extracted to the same CSV flow (dates read from the file). */}
+            {/* Or upload a staff x date PDF/DOCX grid — extracted to the same CSV flow. */}
             <div className="border-t border-white/10 pt-3">
-              <div className="text-[11px] text-muted mb-1">Or upload a schedule PDF (staff down the side, dates across the top)</div>
-              <input type="file" accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) void extractGridPdf(f); }}
+              <div className="text-[11px] text-muted mb-1">Or upload a schedule <span className="text-secondary">.pdf</span> / <span className="text-secondary">.docx</span> (staff down the side, dates across the top)</div>
+              <input type="file" accept=".pdf,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) void extractGridFile(f); }}
                 className="block w-full text-xs text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary" />
+              <p className="text-[11px] text-muted mt-1">A PDF fills in the dates automatically; a DOCX loads the grid — then click Analyze.</p>
             </div>
           </div>
 

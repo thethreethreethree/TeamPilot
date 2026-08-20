@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pdfItemsToStaffDateGrid, gridToCsv, type PdfTextItem } from "../staffDatePdf";
+import { pdfItemsToStaffDateGrid, gridToCsv, docxCellsToCsv, type PdfTextItem } from "../staffDatePdf";
 import { parseCsvToGrid } from "../csvGrid";
 import { parseScheduleGrid, type ShiftCodeMap } from "../gridParser";
 import { planImport } from "../importPlanner";
@@ -133,6 +133,16 @@ describe("pdfItemsToStaffDateGrid — the real frendz.pdf", () => {
     const empty = pdfItemsToStaffDateGrid([page([[100, [["just a note", 50], ["nothing", 200]]]])]);
     expect(empty.staff).toEqual([]);
     expect(empty.headerDates).toEqual([]);
+  });
+
+  it("docxCellsToCsv serializes a Word table (blank rows dropped, commas quoted)", () => {
+    const cells = [
+      ["NAME", "AUG 16", "AUG 17"],
+      ["ALICE", "6-3", "OFF"],
+      [], // blank row → dropped
+      ["BO, JR", "GY", "6-3"], // name with a comma → quoted
+    ];
+    expect(docxCellsToCsv(cells)).toBe('NAME,AUG 16,AUG 17\nALICE,6-3,OFF\n"BO, JR",GY,6-3');
   });
 
   it("converges on the CSV import pipeline: gridToCsv -> parseCsvToGrid -> parseScheduleGrid", () => {

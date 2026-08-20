@@ -233,6 +233,21 @@ export function gridToCsv(grid: StaffDateGrid): string {
   return [header, ...rows].join("\n");
 }
 
+/**
+ * Serialize a Word-table 2D cell grid (from vaDocx.parseDocxTableCells) to CSV text. A .docx staff x date
+ * schedule is a REAL table (rows × cells), so — unlike the positional PDF — there is no column-guessing: the
+ * table becomes CSV directly and flows through the SAME CSV import path, where the human confirms the date
+ * labels + shift codes (no unverified inference). Blank rows are dropped; cells are RFC-4180-quoted as needed.
+ * Scope note: parseDocxTableCells reads the FIRST table only (matches the VA docx path).
+ */
+export function docxCellsToCsv(cells: string[][]): string {
+  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  return cells
+    .filter((r) => r.length > 0 && r.some((c) => c.trim().length > 0))
+    .map((r) => r.map((c) => esc(c.trim())).join(","))
+    .join("\n");
+}
+
 /** Read a .pdf buffer -> StaffDateGrid via unpdf's positioned extraction. Throws EmptyExtractionError if no
  *  staff x date schedule grid is found (same failure contract as the VA path). */
 export async function extractStaffDateGridFromPdf(buffer: Uint8Array): Promise<StaffDateGrid> {
