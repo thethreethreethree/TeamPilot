@@ -45,3 +45,31 @@ export function normalizeCodeMap(map: Record<string, ShiftTimes | "off">): Recor
   }
   return out;
 }
+
+/** OFF tokens recognized deterministically on import (case-insensitive). Mirrors the import page's OFF set. */
+const OFF_TOKENS = new Set(["OFF", "REST", "RD", "DO", "RDO", "OFF DAY", "REST DAY", "DAY OFF"]);
+
+/** A cell that is ALREADY an explicit HH:mm time range ("06:00-15:00", "9:00am-5:00pm") — both sides carry a
+ *  colon, so it is UNAMBIGUOUS (unlike an org code like "6-3", which stays for the LLM/human to map). */
+const EXPLICIT_RANGE = /^\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*(?:-|–|—|to)\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*$/i;
+
+/**
+ * Build a code map DETERMINISTICALLY for codes that are self-describing — an explicit "HH:mm-HH:mm" range or an
+ * OFF token — so a file carrying explicit times (including one WE exported) round-trips with NO manual mapping
+ * and NO LLM guess (§3.4 — deterministic where the data is unambiguous). Ambiguous org codes are left out
+ * (return has no entry for them), so they still surface as "needs mapping".
+ */
+export function autoTimeRangeCodeMap(codes: string[]): Record<string, ShiftTimes | "off"> {
+  const out: Record<string, ShiftTimes | "off"> = {};
+  for (const code of codes) {
+    const c = code.trim();
+    if (!c) continue;
+    if (OFF_TOKENS.has(c.toUpperCase())) { out[code] = "off"; continue; }
+    const m = EXPLICIT_RANGE.exec(c);
+    if (!m) continue;
+    const start = to24h(m[1] ?? "");
+    const end = to24h(m[2] ?? "");
+    if (start && end) out[code] = { start, end };
+  }
+  return out;
+}

@@ -73,7 +73,7 @@ const CSV_EXPORT_ALLOWLIST = new Map([
 // Extracted + self-tested (guard-integrity 2026-07-31, INV1-6 got no self-test before): the "wired to the
 // safe CSV primitive" matcher is the fragile part — a rename of csvSafe or a regex typo here would make INV1
 // silently pass every export. The self-test at the bottom locks it.
-const CSV_ROUTED_RE = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv/;
+const CSV_ROUTED_RE = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv|gridToCsv/;
 
 for (const f of FILES) {
   const producesCsv =
@@ -1321,6 +1321,7 @@ const st = (name, ok) => { if (!ok) selfTestFailures.push(name); };
 // broken matcher would have silently reported 0 violations forever (the exact failure this whole block
 // guards against). Each locks the extracted "safe-primitive wired?" regex in both directions.
 st("INV1 routing regex accepts a csvSafe-wired export", CSV_ROUTED_RE.test("rows.map(toCsv).join('')"));
+st("INV1 routing regex accepts the gridToCsv wrapper (routes through toCsv→csvSafe)", CSV_ROUTED_RE.test("downloadBytes(gridToCsv(grid), 'schedule.csv', 'text/csv')"));
 st("INV1 routing regex flags an unrouted producer", !CSV_ROUTED_RE.test('new Blob([raw], { type: "text/csv" })'));
 st("INV2 service-role regex flags createAdminClient", FINANCE_SERVICE_ROLE_RE.test("const a = createAdminClient();"));
 st("INV2 service-role regex ignores the RLS client", !FINANCE_SERVICE_ROLE_RE.test("const a = await createClient();"));

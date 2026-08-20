@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, Printer, Download } from "lucide-react";
+import { Loader2, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, Printer, Download, ChevronDown, FileImage, FileText, FileSpreadsheet } from "lucide-react";
 import type { Employee, ScheduleState } from "@/lib/schedule/types";
 import { weekStartOf, addDaysIso } from "@/lib/schedule/constraints";
 import { todayInTz, DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "@/lib/schedule/settings";
 import { buildWeekGrid, relevantRows, weeksWithShifts } from "@/lib/schedule/gridView";
 import { scheduleInsights, understaffedWeekdays } from "@/lib/schedule/insights";
 import { bandFromLabel, BAND_STYLE, WORKED_BANDS } from "@/lib/schedule/shiftColors";
+import { buildExportGrid, toAoa, gridToCsv } from "@/lib/schedule/scheduleExport";
+import { buildXlsxBytes } from "@/lib/schedule/writeXlsx";
+import { buildTablePdf, buildImagePdf } from "@/lib/schedule/writePdf";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { useCompanyName } from "@/lib/hooks/useCompany";
 
@@ -283,6 +286,8 @@ export default function ScheduleGridPage() {
 
   const [printImg, setPrintImg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<"week" | "all">("all");
   const tooLargeMsg = "This schedule is too large to export as one image. Export week by week (This week / Print), or tell me and I'll add a multi-page PDF.";
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -323,6 +328,52 @@ export default function ScheduleGridPage() {
     setPrintImg(canvas.toDataURL("image/png")); // the effect above prints once it has painted
   };
 
+  // ---- Data + file exports (CSV / Excel / PDF), built to RE-IMPORT (the founder's ask) ----
+  const exportTitle = (settings.scheduleName?.trim() || companyName || "Schedule");
+  const downloadBytes = (data: string | Uint8Array, filename: string, mime: string) => {
+    // Copy typed arrays into a fresh ArrayBuffer-backed array so Blob accepts them (TS BlobPart requires it).
+    const part: BlobPart = typeof data === "string" ? data : Uint8Array.from(data);
+    const blob = new Blob([part], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+  const dataUrlToBytes = (dataUrl: string): Uint8Array => {
+    const bin = atob(dataUrl.split(",")[1] ?? "");
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  };
+  // The staff×date data grid for the chosen scope ("week" = shown week; "all" = whole schedule).
+  const exportGrid = (mode: "week" | "all") => {
+    const shifts = state ? Object.values(state.shifts) : [];
+    const opts = mode === "week" ? { fromDate: weekStart, toDate: addDaysIso(weekStart, 6) ?? weekStart } : {};
+    return buildExportGrid(shifts, roster, opts);
+  };
+  const suffix = (mode: "week" | "all") => (mode === "all" ? "all-weeks" : weekStart);
+
+  const downloadCsv = (mode: "week" | "all") => {
+    setExportMsg(null);
+    downloadBytes(gridToCsv(exportGrid(mode)), `schedule-${suffix(mode)}.csv`, "text/csv;charset=utf-8");
+  };
+  const downloadXlsx = async (mode: "week" | "all") => {
+    setExportMsg(null);
+    const bytes = await buildXlsxBytes(toAoa(exportGrid(mode)), "Schedule");
+    downloadBytes(bytes, `schedule-${suffix(mode)}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  };
+  const downloadPdfData = (mode: "week" | "all") => {
+    setExportMsg(null);
+    downloadBytes(buildTablePdf(exportGrid(mode), exportTitle), `schedule-data-${suffix(mode)}.pdf`, "application/pdf");
+  };
+  const downloadPdfVisual = (mode: "week" | "all") => {
+    const canvas = renderCanvas(mode);
+    if (!canvas) { if (mode === "all") setExportMsg(tooLargeMsg); return; }
+    setExportMsg(null);
+    const jpeg = dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92));
+    downloadBytes(buildImagePdf(jpeg, canvas.width, canvas.height), `schedule-${suffix(mode)}.pdf`, "application/pdf");
+  };
+
   return (
     <>
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-full mx-auto w-full print:hidden">
@@ -345,29 +396,43 @@ export default function ScheduleGridPage() {
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
         <button type="button" onClick={goToday} className="text-xs font-semibold text-brand hover:underline ml-1">This week</button>
-        {/* Print + Download a clean, white, shareable visual. "This week" = the shown week; "All weeks" = the
-            whole schedule (every week with shifts) in one file/printout. Both use the same canvas render. */}
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <button type="button" onClick={() => printSchedule("week")} disabled={rows.length === 0}
-            title="Print the shown week"
+        {/* Print (landscape) + an Export menu: a scope toggle (this week / all weeks) then a format per row.
+            Colour formats are for viewing/printing; the data formats (Excel/CSV/PDF-data) RE-IMPORT into the
+            system. All share the same derived schedule. */}
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={() => printSchedule(exportScope)} disabled={rows.length === 0}
+            title="Print (landscape)"
             className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
             <Printer className="w-3.5 h-3.5" aria-hidden /> Print
           </button>
-          <button type="button" onClick={() => downloadPng("week")} disabled={rows.length === 0}
-            title="Download the shown week as an image"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" aria-hidden /> This week
-          </button>
-          <button type="button" onClick={() => downloadPng("all")} disabled={!state || Object.keys(state.shifts).length === 0}
-            title="Download the WHOLE schedule (all weeks with shifts) as one image"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-xs font-semibold text-black disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" aria-hidden /> Download all
-          </button>
-          <button type="button" onClick={() => printSchedule("all")} disabled={!state || Object.keys(state.shifts).length === 0}
-            title="Print the WHOLE schedule (all weeks with shifts)"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-secondary hover:text-primary disabled:opacity-40">
-            <Printer className="w-3.5 h-3.5" aria-hidden /> Print all
-          </button>
+          <div className="relative">
+            <button type="button" onClick={() => setExportOpen((o) => !o)} disabled={!state || Object.keys(state.shifts).length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40">
+              <Download className="w-3.5 h-3.5" aria-hidden /> Export <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+            </button>
+            {exportOpen && (
+              <>
+                <button type="button" aria-label="Close export menu" onClick={() => setExportOpen(false)} className="fixed inset-0 z-[80] cursor-default" />
+                <div className="absolute right-0 mt-1 z-[90] w-60 rounded-xl border border-white/10 bg-surface shadow-2xl p-2">
+                  <div className="flex items-center gap-1 mb-2 rounded-lg bg-base p-0.5">
+                    {(["week", "all"] as const).map((s) => (
+                      <button key={s} type="button" onClick={() => setExportScope(s)}
+                        className={`flex-1 rounded-md px-2 py-1 text-[11px] font-semibold ${exportScope === s ? "bg-brand text-black" : "text-secondary hover:text-primary"}`}>
+                        {s === "week" ? "This week" : "All weeks"}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="px-1.5 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">View / print</p>
+                  <button type="button" onClick={() => { downloadPng(exportScope); setExportOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-secondary hover:bg-white/5 hover:text-primary"><FileImage className="w-3.5 h-3.5" aria-hidden /> PNG image (colour)</button>
+                  <button type="button" onClick={() => { downloadPdfVisual(exportScope); setExportOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-secondary hover:bg-white/5 hover:text-primary"><FileText className="w-3.5 h-3.5" aria-hidden /> PDF (colour)</button>
+                  <p className="px-1.5 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">Re-importable data</p>
+                  <button type="button" onClick={() => { void downloadXlsx(exportScope); setExportOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-secondary hover:bg-white/5 hover:text-primary"><FileSpreadsheet className="w-3.5 h-3.5" aria-hidden /> Excel (.xlsx)</button>
+                  <button type="button" onClick={() => { downloadCsv(exportScope); setExportOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-secondary hover:bg-white/5 hover:text-primary"><FileText className="w-3.5 h-3.5" aria-hidden /> CSV</button>
+                  <button type="button" onClick={() => { downloadPdfData(exportScope); setExportOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-secondary hover:bg-white/5 hover:text-primary"><FileText className="w-3.5 h-3.5" aria-hidden /> PDF (data table)</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -477,7 +542,9 @@ export default function ScheduleGridPage() {
         </>
       )}
     </div>
-    {/* Print-only: the clean white schedule image (everything else is print:hidden). */}
+    {/* Print-only: the clean white schedule image (everything else is print:hidden). Landscape page so the
+        wide staff×date grid fits without shrinking. */}
+    <style>{`@media print { @page { size: A4 landscape; margin: 8mm; } }`}</style>
     <div className="hidden print:block">
       {/* A canvas data-URL for printing — next/image can't optimize a runtime data URL, and it's print-only. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}

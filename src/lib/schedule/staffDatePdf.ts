@@ -255,7 +255,10 @@ export async function extractStaffDateGridFromPdf(buffer: Uint8Array): Promise<S
   const result = (await extractTextItems(buffer)) as { items?: PdfTextItem[][] | PdfTextItem[] };
   const raw = result.items ?? [];
   const pages: PdfTextItem[][] = Array.isArray(raw[0]) ? (raw as PdfTextItem[][]) : [raw as PdfTextItem[]];
-  const grid = pdfItemsToStaffDateGrid(pages);
+  // Prefer the generic ISO-header reader when the PDF carries ISO-date headers — our own data-PDF export's
+  // signature, read back deterministically. Otherwise fall back to the frendz day-number/weekday parser.
+  const { isIsoHeaderGrid, isoGridFromItems } = await import("./pdfIsoGrid");
+  const grid = isIsoHeaderGrid(pages) ? isoGridFromItems(pages) : pdfItemsToStaffDateGrid(pages);
   if (grid.staff.length === 0 || grid.headerDates.length === 0) {
     const { EmptyExtractionError } = await import("@/lib/documents/extractText");
     throw new EmptyExtractionError("No staff-by-date schedule grid was found in the .pdf.");
