@@ -40,4 +40,16 @@ describe("palette", () => {
   it("lists the four worked bands in time-of-day order", () => {
     expect(WORKED_BANDS).toEqual(["morning", "day", "evening", "overnight"]);
   });
+
+  // The founder's requirement is an EASY-TO-READ graphic (§1.5.4). The shift-time text sits on the band tint, so
+  // it must stay legible — WCAG AA (4.5:1) for every band. This guards against a future colour tweak that looks
+  // nice but makes a cell unreadable. (Colour is also redundant: every cell shows the time as text too.)
+  it("keeps every band's text legible on its tint — WCAG AA (>= 4.5:1)", () => {
+    const lin = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+    const lum = (hex: string) => 0.2126 * lin(parseInt(hex.slice(1, 3), 16)) + 0.7152 * lin(parseInt(hex.slice(3, 5), 16)) + 0.0722 * lin(parseInt(hex.slice(5, 7), 16));
+    const contrast = (a: string, b: string) => { const hi = Math.max(lum(a), lum(b)), lo = Math.min(lum(a), lum(b)); return (hi + 0.05) / (lo + 0.05); };
+    for (const [band, style] of Object.entries(BAND_STYLE)) {
+      expect(contrast(style.fg, style.bg), `${band} text on tint`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 });
