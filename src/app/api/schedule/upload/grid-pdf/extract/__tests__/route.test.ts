@@ -11,6 +11,7 @@ vi.mock("@/lib/schedule/staffDatePdf", async (orig) => {
   return { ...actual, extractStaffDateGridFromPdf: vi.fn() }; // gridToCsv + docxCellsToCsv stay real
 });
 vi.mock("@/lib/schedule/vaDocx", () => ({ parseDocxTableCells: vi.fn() }));
+vi.mock("@/lib/schedule/staffDateXlsx", () => ({ xlsxToCsv: vi.fn() }));
 vi.mock("@/lib/documents/extractText", async (orig) => {
   const actual = await (orig() as Promise<Record<string, unknown>>);
   return { ...actual, unzipEntry: vi.fn() }; // EmptyExtractionError stays real
@@ -19,6 +20,7 @@ vi.mock("@/lib/documents/extractText", async (orig) => {
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { extractStaffDateGridFromPdf } from "@/lib/schedule/staffDatePdf";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
+import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { unzipEntry } from "@/lib/documents/extractText";
 import { POST } from "../route";
 
@@ -66,9 +68,19 @@ describe("schedule grid-pdf extract API", () => {
     expect((await POST(req({ fileBase64: b64, filename: "sched.docx" }))).status).toBe(422);
   });
 
+  it("a .xlsx returns raw CSV with headerDates empty (dependency-free read)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(xlsxToCsv).mockResolvedValue("NAME,AUG 16\nALICE,6-3");
+    const res = await POST(req({ fileBase64: b64, filename: "roster.xlsx" }));
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.headerDates).toEqual([]);
+    expect(j.csv).toBe("NAME,AUG 16\nALICE,6-3");
+  });
+
   it("an unsupported filename is rejected (415)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
-    expect((await POST(req({ fileBase64: b64, filename: "roster.xlsx" }))).status).toBe(415);
+    expect((await POST(req({ fileBase64: b64, filename: "roster.txt" }))).status).toBe(415);
   });
 
   it("401 unauthenticated", async () => {

@@ -253,12 +253,12 @@ export default function ScheduleImportPage() {
               {busy === "propose" ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <ArrowRight className="w-3.5 h-3.5" aria-hidden />}
               Analyze
             </button>
-            {/* Or upload a staff x date PDF/DOCX grid — extracted to the same CSV flow. */}
+            {/* Or upload a staff x date PDF/DOCX/XLSX grid — extracted to the same CSV flow. */}
             <div className="border-t border-white/10 pt-3">
-              <div className="text-[11px] text-muted mb-1">Or upload a schedule <span className="text-secondary">.pdf</span> / <span className="text-secondary">.docx</span> (staff down the side, dates across the top)</div>
-              <input type="file" accept=".pdf,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) void extractGridFile(f); }}
+              <div className="text-[11px] text-muted mb-1">Or upload a schedule <span className="text-secondary">.pdf</span> / <span className="text-secondary">.docx</span> / <span className="text-secondary">.xlsx</span> (staff down the side, dates across the top)</div>
+              <input type="file" accept=".pdf,.docx,.xlsx" onChange={(e) => { const f = e.target.files?.[0]; if (f) void extractGridFile(f); }}
                 className="block w-full text-xs text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary" />
-              <p className="text-[11px] text-muted mt-1">A PDF fills in the dates automatically; a DOCX loads the grid — then click Analyze.</p>
+              <p className="text-[11px] text-muted mt-1">A PDF fills in the dates automatically; a DOCX/XLSX loads the grid — then click Analyze.</p>
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { decodeBase64 } from "@/lib/schedule/vaUpload";
 import { extractStaffDateGridFromPdf, gridToCsv, docxCellsToCsv } from "@/lib/schedule/staffDatePdf";
+import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
 import { normalizeCode } from "@/lib/schedule/gridParser";
 import { EmptyExtractionError, unzipEntry } from "@/lib/documents/extractText";
@@ -43,22 +44,21 @@ export async function POST(req: NextRequest) {
 
   const isPdf = /\.pdf$/i.test(body.filename);
   const isDocx = /\.docx$/i.test(body.filename);
-  if (!isPdf && !isDocx) {
-    return NextResponse.json({ error: "Upload a .pdf or .docx schedule grid (or paste it as CSV)." }, { status: 415 });
+  const isXlsx = /\.xlsx$/i.test(body.filename);
+  if (!isPdf && !isDocx && !isXlsx) {
+    return NextResponse.json({ error: "Upload a .pdf, .docx or .xlsx schedule grid (or paste it as CSV)." }, { status: 415 });
   }
   const bytes = decodeBase64(body.fileBase64);
   if (!bytes) return NextResponse.json({ error: "Couldn't read the uploaded file." }, { status: 400 });
 
   try {
-    if (isDocx) {
-      // A real Word table → CSV directly. Dates are raw labels (headerDates: []), so the client runs the
-      // normal Analyze step to resolve them — no positional guessing, no unverified inference.
-      const xml = await unzipEntry(bytes, "word/document.xml");
-      const cells = parseDocxTableCells(xml);
-      const csv = docxCellsToCsv(cells);
-      if (cells.length === 0 || !csv.trim()) {
+    if (isDocx || isXlsx) {
+      // A real table (Word or Excel) → CSV directly. Dates are raw labels (headerDates: []), so the client
+      // runs the normal Analyze step to resolve them — no positional guessing, no unverified inference.
+      const csv = isDocx ? docxCellsToCsv(parseDocxTableCells(await unzipEntry(bytes, "word/document.xml"))) : await xlsxToCsv(bytes);
+      if (!csv.trim()) {
         return NextResponse.json(
-          { error: "No table was found in that .docx. Is it a staff (rows) x dates (columns) grid?" },
+          { error: `No table was found in that .${isDocx ? "docx" : "xlsx"}. Is it a staff (rows) x dates (columns) grid?` },
           { status: 422 },
         );
       }
