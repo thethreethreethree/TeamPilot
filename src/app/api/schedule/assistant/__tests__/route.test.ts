@@ -121,6 +121,26 @@ describe("schedule assistant API — write-path (A31)", () => {
     expect(p.events[1].payload.shiftId).toBe(p.events[2].payload.shiftId); // reassigned to the NEW shift
   });
 
+  it("an AMBIGUOUS name resolves to nobody (blocked), never the wrong staff", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    // Two active staff whose names both contain "mari" → "Mari" must NOT bind to either.
+    const marie = { ...empRow, id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", name: "Marie Malinao" };
+    const maria = { ...empRow, id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", name: "Maria Santos" };
+    asMock(createClient).mockResolvedValue(fakeSb([marie, maria]));
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "assign", employee: "Mari", date: "2099-01-05", start: "09:00", end: "17:00" }] });
+    const j = await (await POST(req({ message: "assign Mari" }))).json();
+    expect(j.proposals[0].blocked).toBe(true); // ambiguous → blocked, not a guess
+    expect(j.proposals[0].events).toEqual([]);
+  });
+
+  it("an inactive employee is not resolvable (LLM only sees active staff)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    asMock(createClient).mockResolvedValue(fakeSb([{ ...empRow, status: "inactive" }]));
+    asMock(interpretCommand).mockResolvedValue({ reply: "ok", actions: [{ op: "assign", employee: "Darren Guzman", date: "2099-01-05", start: "09:00", end: "17:00" }] });
+    const j = await (await POST(req({ message: "assign Darren" }))).json();
+    expect(j.proposals[0].blocked).toBe(true);
+  });
+
   it("a non-manager is refused (403)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u2", companyId: "c1", role: "Member", isAdmin: false });
     asMock(createClient).mockResolvedValue(fakeSb([empRow]));

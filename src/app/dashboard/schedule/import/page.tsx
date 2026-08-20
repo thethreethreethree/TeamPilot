@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays } from "lucide-react";
+import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays, Sparkles } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 
 /**
@@ -217,11 +217,18 @@ export default function ScheduleImportPage() {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 max-w-3xl mx-auto w-full">
       <ScheduleNav />
-      <div className="flex items-center gap-2 mb-1">
-        <Upload className="w-6 h-6 text-brand" aria-hidden />
-        <h1 className="text-xl font-bold text-primary">Import a Schedule</h1>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex items-center gap-2">
+          <Upload className="w-6 h-6 text-brand" aria-hidden />
+          <h1 className="text-xl font-bold text-primary">Import a Schedule</h1>
+        </div>
+        {/* The founder's flow: upload a file, then command the AI. The AI Assistant is reachable right here. */}
+        <Link href="/dashboard/schedule/assistant"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-black shrink-0">
+          <Sparkles className="w-4 h-4" aria-hidden /> AI Assistance
+        </Link>
       </div>
-      <p className="text-xs text-muted mb-4">Nothing is saved until you press Import.</p>
+      <p className="text-xs text-muted mb-4">Import a file, then tell the <span className="text-secondary">AI Assistant</span> how to adjust it. Nothing is saved until you press Import.</p>
 
       <div className="flex items-center gap-2 mb-5">
         {tab("csv", <Table2 className="w-3.5 h-3.5" aria-hidden />, "CSV grid")}
@@ -239,10 +246,15 @@ export default function ScheduleImportPage() {
               {done.shiftsSuperseded ? `, replaced ${done.shiftsSuperseded} existing shift${done.shiftsSuperseded === 1 ? "" : "s"}` : ""}.
             </p>
           </div>
-          {/* Workflow continuity (1.5.1 layer 3): the obvious next action is to SEE the imported schedule. */}
+          {/* Workflow continuity (1.5.1 layer 3): after importing, the next action is to SEE it or to TELL the
+              AI to adjust it (the founder's flow: upload a file, then command the AI). */}
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/dashboard/schedule/grid"
+            <Link href="/dashboard/schedule/assistant"
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-black">
+              <Sparkles className="w-3.5 h-3.5" aria-hidden /> Adjust with the AI Assistant
+            </Link>
+            <Link href="/dashboard/schedule/grid"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-surface border border-white/10 px-4 py-2 text-sm font-semibold text-primary">
               <CalendarDays className="w-3.5 h-3.5" aria-hidden /> View the schedule
             </Link>
             <button type="button" onClick={resetImport}

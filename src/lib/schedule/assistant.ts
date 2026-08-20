@@ -15,6 +15,7 @@ import { llmCall } from "@/lib/llm";
 import type { LlmCallArgs, LlmResult } from "@/lib/llm/types";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { stripAiDashes } from "@/lib/coach/extension/salesSuggestFormat";
+import { isRealDate } from "./constraints";
 
 type LlmFn = (args: LlmCallArgs) => Promise<LlmResult>;
 
@@ -34,7 +35,8 @@ export interface AssistantReply {
 }
 
 const isHHmm = (s: unknown): s is string => typeof s === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
-const isIso = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+// A real calendar date, not just regex-shaped — an impossible date (2026-02-30) must not become a proposal.
+const isIso = (s: unknown): s is string => typeof s === "string" && isRealDate(s);
 const asName = (s: unknown): string => (typeof s === "string" ? s.trim() : "");
 
 export const ASSISTANT_SYSTEM = `You are the scheduling assistant for a manager. The manager gives you plain-language instructions to arrange the staff schedule, and you interpret them into concrete actions for the manager to CONFIRM. You also answer questions about the schedule. You never apply anything yourself; you propose, and the manager decides.

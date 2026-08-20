@@ -7,9 +7,12 @@
  */
 import { z } from "zod";
 import { SCHEDULE_EVENT_TYPES, type ScheduleEventType } from "./types";
+import { isRealDate } from "./constraints";
 
 const id = z.string().uuid();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+// Regex-shaped AND a real calendar date — the regex alone lets 2026-02-30 / 2026-13-45 through, and a shift
+// or time-off on a non-existent day is bad data. Enforced HERE at the event boundary so every path is covered.
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD").refine(isRealDate, "not a real calendar date");
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:mm");
 const roleCounts = z.record(z.string().min(1), z.number().int().nonnegative());
 const timeOffType = z.enum(["vacation", "sick", "personal", "day_off"]);

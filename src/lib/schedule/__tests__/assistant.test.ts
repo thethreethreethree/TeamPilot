@@ -67,6 +67,18 @@ describe("parseAssistantReply", () => {
     expect(r.actions).toEqual([{ op: "retime_shift", date: "2026-08-25", start: "09:00", end: "17:00", newStart: "10:00", newEnd: "18:00" }]);
   });
 
+  it("drops an action with an IMPOSSIBLE calendar date (regex-shaped but not real)", () => {
+    const r = parseAssistantReply(JSON.stringify({
+      reply: "ok",
+      actions: [
+        { op: "create_shift", date: "2026-02-30", start: "09:00", end: "17:00" }, // Feb 30 → dropped
+        { op: "cancel_shift", date: "2026-13-01" }, // month 13 → dropped
+        { op: "create_shift", date: "2026-02-28", start: "09:00", end: "17:00" }, // real → kept
+      ],
+    }));
+    expect(r.actions).toEqual([{ op: "create_shift", date: "2026-02-28", start: "09:00", end: "17:00", headcount: 1 }]);
+  });
+
   it("a pure question yields a reply and no actions", () => {
     const r = parseAssistantReply(JSON.stringify({ reply: "Darren and Marie are working Thursday.", actions: [] }));
     expect(r.actions).toEqual([]);

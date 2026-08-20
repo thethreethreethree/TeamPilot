@@ -70,11 +70,18 @@ export async function POST(req: NextRequest) {
   }
 
   const state = evalCtx.state;
-  const byName = new Map<string, Employee>();
-  for (const e of employees) byName.set(norm(e.name), e);
+  // Resolve over ACTIVE staff only (the names the LLM saw), and NEVER silently bind an ambiguous match to the
+  // wrong person: exact name wins; otherwise a substring match resolves only if EXACTLY ONE active staff
+  // matches, else it returns null → a BLOCKED proposal ("couldn't find …"), never a wrong-staff write.
+  const active = employees.filter((e) => e.status === "active");
   const resolveEmp = (name: string): Employee | null => {
     const n = norm(name);
-    return byName.get(n) ?? employees.find((e) => norm(e.name).includes(n) || n.includes(norm(e.name))) ?? null;
+    if (!n) return null;
+    const exact = active.filter((e) => norm(e.name) === n);
+    if (exact.length === 1) return exact[0]!;
+    if (exact.length > 1) return null; // ambiguous duplicate exact names → block
+    const sub = active.filter((e) => norm(e.name).includes(n) || n.includes(norm(e.name)));
+    return sub.length === 1 ? sub[0]! : null;
   };
 
   // The LLM context: today + roster + a compact shift list (upcoming) + coverage. Data, never instructions.
@@ -110,6 +117,7 @@ function buildProposal(
 ): Proposal {
   // Shift-level ops first (no employee to resolve).
   if (a.op === "create_shift") {
+    if (a.start === a.end) return { op: "create_shift", summary: `Create a shift on ${a.date}`, events: [], impact: [], blocked: true, reason: "A shift can't start and end at the same time." };
     const shiftId = crypto.randomUUID();
     return {
       op: "create_shift",
@@ -132,6 +140,8 @@ function buildProposal(
     };
   }
   if (a.op === "retime_shift") {
+    if (a.newStart === a.newEnd) return { op: "retime_shift", summary: `Move the ${a.date} shift`, events: [], impact: [], blocked: true, reason: "A shift can't start and end at the same time." };
+    if (a.newStart === a.start && a.newEnd === a.end) return { op: "retime_shift", summary: `Move the ${a.date} shift`, events: [], impact: [], blocked: true, reason: `That shift is already at ${a.start} to ${a.end}.` };
     const old = Object.values(state.shifts).find((s) => s.date === a.date && s.start === a.start && s.end === a.end);
     if (!old) return { op: "retime_shift", summary: `Move the ${a.date} ${a.start} to ${a.end} shift`, events: [], impact: [], blocked: true, reason: `There's no shift on ${a.date} at ${a.start} to ${a.end} to move.` };
     // Move = cancel the old shift + recreate it at the new time, carrying its staff over. Same date.
@@ -161,6 +171,7 @@ function buildProposal(
   if (!emp) return { op: a.op, summary: `${a.op} ${a.employee}`, events: [], impact: [], blocked: true, reason: `I couldn't find "${a.employee}" on the roster.` };
 
   if (a.op === "assign") {
+    if (a.start === a.end) return { op: "assign", summary: `Put ${emp.name} on ${a.date}`, events: [], impact: [], blocked: true, reason: "A shift can't start and end at the same time." };
     const existing = Object.values(state.shifts).find((s) => s.date === a.date && s.start === a.start && s.end === a.end);
     const shiftId = existing?.id ?? crypto.randomUUID();
     const events: EventToAppend[] = existing

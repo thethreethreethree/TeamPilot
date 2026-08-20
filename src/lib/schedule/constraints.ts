@@ -75,6 +75,19 @@ export function weeklyHoursOf(state: ScheduleState, employeeId: string, weekOfDa
   return h;
 }
 
+/** Is a YYYY-MM-DD string a REAL calendar date (not just regex-shaped)? Rejects 2026-02-30, 2026-13-45,
+ *  2026-00-00 etc. by round-tripping through a UTC Date — the regex alone lets impossible dates through, and
+ *  a shift/time-off appended on a non-existent day is bad data (§3.4). Used at the event boundary + the
+ *  assistant so no path can append an impossible date. */
+export function isRealDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
 /** JS day-of-week (0=Sunday..6=Saturday) of a YYYY-MM-DD date, or null if malformed. UTC-based so it is
  *  deterministic regardless of the runtime timezone (the UTC-day class) — matches weekStartOf/addDaysIso. */
 export function dayOfWeekOf(date: string): number | null {
