@@ -89,6 +89,31 @@ export default function ScheduleImportPage() {
     finally { setBusy(null); }
   };
 
+  // Upload a staff x date shift-code PDF (the "frendz" layout): the server extracts it to a CSV grid with the
+  // dates already resolved, then the SAME confirm → preview → import flow runs. No LLM needed — dates come from
+  // the file; the manager only maps the shift codes.
+  const extractGridPdf = async (file: File) => {
+    setBusy("propose"); setError(null); setDone(null);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      const res = await fetch("/api/schedule/upload/grid-pdf/extract", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64, filename: file.name }),
+      });
+      if (!res.ok) { setError((await res.json().catch(() => null))?.error ?? "Couldn't read that PDF."); return; }
+      const d = (await res.json()) as { csv: string; headerDates: string[]; staff: string[]; codes: string[] };
+      setCsv(d.csv);
+      setDates(d.headerDates.join(", "));
+      setMap({});
+      setPreview(null);
+      setProp({
+        headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap: {},
+        notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the PDF. The dates are set — just map each shift code below.`,
+      });
+    } catch { setError("Couldn't reach the server."); }
+    finally { setBusy(null); }
+  };
+
   const headerDates = () => dates.split(",").map((d) => d.trim()).filter(Boolean);
 
   const runPreview = async () => {
@@ -216,6 +241,12 @@ export default function ScheduleImportPage() {
               {busy === "propose" ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <ArrowRight className="w-3.5 h-3.5" aria-hidden />}
               Analyze
             </button>
+            {/* Or upload a staff x date PDF grid — extracted to the same CSV flow (dates read from the file). */}
+            <div className="border-t border-white/10 pt-3">
+              <div className="text-[11px] text-muted mb-1">Or upload a schedule PDF (staff down the side, dates across the top)</div>
+              <input type="file" accept=".pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) void extractGridPdf(f); }}
+                className="block w-full text-xs text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary" />
+            </div>
           </div>
 
           {/* Step 2: confirm dates + codes */}

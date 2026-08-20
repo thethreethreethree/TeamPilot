@@ -196,6 +196,19 @@ function columnTol(anchors: number[]): number {
   return Number.isFinite(minGap) ? minGap / 2 : 30;
 }
 
+/**
+ * Serialize a StaffDateGrid to CSV text (header `NAME,<iso>,<iso>…`, one row per staff). This lets the
+ * staff x date PDF converge on the EXISTING CSV import routes (propose/preview/commit) unchanged — the PDF
+ * becomes a CSV internally, so there is one code path for both, not a parallel importer. Cells/names are
+ * RFC-4180-quoted only when they contain a comma/quote/newline (shift codes like "6-3 BF" don't).
+ */
+export function gridToCsv(grid: StaffDateGrid): string {
+  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const header = ["NAME", ...grid.headerDates].map(esc).join(",");
+  const rows = grid.rows.map((r) => [r.name, ...r.cells].map(esc).join(","));
+  return [header, ...rows].join("\n");
+}
+
 /** Read a .pdf buffer -> StaffDateGrid via unpdf's positioned extraction. Throws EmptyExtractionError if no
  *  staff x date schedule grid is found (same failure contract as the VA path). */
 export async function extractStaffDateGridFromPdf(buffer: Uint8Array): Promise<StaffDateGrid> {

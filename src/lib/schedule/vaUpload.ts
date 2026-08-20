@@ -48,7 +48,13 @@ export async function extractVaOrError(
   } catch (e) {
     if (e instanceof UnsupportedFormatError) return NextResponse.json({ error: e.message }, { status: 415 });
     if (e instanceof EmptyExtractionError)
-      return NextResponse.json({ error: "No schedule table was found in that file." }, { status: 422 });
+      return NextResponse.json(
+        {
+          error:
+            "No 'On Duty' time-block grid was found. If your schedule is a staff-by-date grid (names down the side, dates across the top), use the 'CSV grid' tab and upload the PDF there.",
+        },
+        { status: 422 },
+      );
     if (e instanceof DecompressionLimitError)
       return NextResponse.json({ error: "That file expands to too much content to process safely." }, { status: 413 });
     console.error(`[${label}] extraction failed:`, e instanceof Error ? e.message : e);

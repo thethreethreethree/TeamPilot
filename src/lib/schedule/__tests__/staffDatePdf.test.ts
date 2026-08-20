@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { pdfItemsToStaffDateGrid, type PdfTextItem } from "../staffDatePdf";
+import { pdfItemsToStaffDateGrid, gridToCsv, type PdfTextItem } from "../staffDatePdf";
+import { parseCsvToGrid } from "../csvGrid";
+import { parseScheduleGrid, type ShiftCodeMap } from "../gridParser";
 
 /**
  * Verified against the REAL "frendz.pdf" (the founder's schedule) — the exact positioned coordinates dumped
@@ -115,5 +117,29 @@ describe("pdfItemsToStaffDateGrid — the real frendz.pdf", () => {
     const empty = pdfItemsToStaffDateGrid([page([[100, [["just a note", 50], ["nothing", 200]]]])]);
     expect(empty.staff).toEqual([]);
     expect(empty.headerDates).toEqual([]);
+  });
+
+  it("converges on the CSV import pipeline: gridToCsv -> parseCsvToGrid -> parseScheduleGrid", () => {
+    // The PDF becomes a CSV internally, so the existing importer (code-confirm + preview + commit) runs
+    // unchanged. With the frendz codes mapped, the grid yields the right shift entries and NO unknown codes.
+    const csv = gridToCsv(grid);
+    const back = parseCsvToGrid(csv);
+    const codeMap: ShiftCodeMap = {
+      "1-10": { start: "13:00", end: "22:00" },
+      "6-3": { start: "06:00", end: "15:00" },
+      "9-6": { start: "09:00", end: "18:00" },
+      GY: { start: "22:00", end: "07:00" },
+      "6-3 BF": { start: "06:00", end: "15:00" },
+      OFF: "off",
+    };
+    const parsed = parseScheduleGrid({ headerDates: grid.headerDates, rows: back.rows, codeMap });
+    expect(parsed.staff).toEqual(grid.staff);
+    expect(parsed.unknownCodes).toEqual([]); // every frendz code mapped
+
+    const entry = (name: string, iso: string) => parsed.entries.find((e) => e.employeeName === name && e.date === iso);
+    expect(entry("DARREN GUZMAN", "2026-09-01")).toMatchObject({ kind: "shift", times: { start: "13:00", end: "22:00" } });
+    expect(entry("DARREN GUZMAN", "2026-09-03")).toMatchObject({ kind: "off" });
+    expect(entry("CELESTINO MOLINA", "2026-08-16")).toMatchObject({ kind: "shift", times: { start: "06:00", end: "15:00" } }); // "6-3 BF"
+    expect(entry("REBECCA LACHICA", "2026-08-22")).toMatchObject({ kind: "shift", times: { start: "22:00", end: "07:00" } }); // GY overnight
   });
 });
