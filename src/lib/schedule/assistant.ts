@@ -62,7 +62,8 @@ Rules:
 - Actions with times need start+end in 24h. If the manager uses a shift code (e.g. "6-3", "GY") and did not tell you its times, ask in the reply instead of guessing.
 - "create_shift" makes an empty shift (optionally with a headcount + role); "assign" puts a person on a shift (creating it if needed); "cancel_shift" removes a shift entirely (use for "delete/remove the ... shift"); "unassign" only takes a person off a shift; "retime_shift" moves an existing shift (start/end) to newStart/newEnd, keeping its staff (use for "move/reschedule/change the time of the ... shift").
 - If the manager only asks a question, return "actions": [] and put the whole answer in "reply".
-- Keep "actions" to what the manager actually asked for. Do not add extra changes.`;
+- Keep "actions" to what the manager actually asked for. Do not add extra changes.
+- You CANNOT read uploaded files or import a spreadsheet/PDF — you only arrange the schedule that already exists. If the manager asks you to "import", "upload", or "read the file" (or refers to a file you can't see), do NOT say you lack data; explain in the reply that file import happens on the Import page (upload the file there, confirm the shift-code times, then Import), and that once it's imported you can adjust it. Return "actions": [].`;
 
 /**
  * Deterministic: turn the LLM's raw text into a validated AssistantReply. A malformed reply degrades to a

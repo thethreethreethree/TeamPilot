@@ -69,27 +69,46 @@ export function AssistantPanel({ variant = "full", examples = DEFAULT_EXAMPLES }
     }
   };
 
-  // Apply a proposal: append its events in order. If any event fails, stop and mark it errored — a partial
-  // apply is surfaced, never hidden (retry re-runs all events and converges: re-cancel/re-define/re-assign
-  // are idempotent on replay).
+  // Append a proposal's events in order. Returns true if all succeeded. A partial apply is surfaced (the
+  // caller marks it errored), never hidden — and a retry re-runs all events and converges (re-cancel /
+  // re-define / re-assign are idempotent on replay).
+  const appendEvents = async (events: Proposal["events"]): Promise<boolean> => {
+    for (const ev of events) {
+      const res = await fetch("/api/schedule/events", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev),
+      }).catch(() => null);
+      if (!res || !res.ok) return false;
+    }
+    return true;
+  };
+
+  // Apply ONE proposal (the manager confirms this specific change).
   const applyProposal = async (key: string, p: Proposal) => {
     if (applyingRef.current || applied[key]) return;
     applyingRef.current = true;
     setApplying(key);
-    try {
-      for (const ev of p.events) {
-        const res = await fetch("/api/schedule/events", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev),
-        });
-        if (!res.ok) { setApplied((a) => ({ ...a, [key]: "error" })); return; }
-      }
-      setApplied((a) => ({ ...a, [key]: "done" }));
-    } catch {
-      setApplied((a) => ({ ...a, [key]: "error" }));
-    } finally {
-      applyingRef.current = false;
-      setApplying(null);
+    const ok = await appendEvents(p.events);
+    setApplied((a) => ({ ...a, [key]: ok ? "done" : "error" }));
+    applyingRef.current = false;
+    setApplying(null);
+  };
+
+  // Apply ALL still-pending, non-blocked proposals of a message in one click (the manager confirms the whole
+  // batch). Still §3.3 — explicit confirmation, just of the batch instead of each. Stops on the first failure.
+  const applyAll = async (mi: number, proposals: Proposal[]) => {
+    if (applyingRef.current) return;
+    applyingRef.current = true;
+    for (let pi = 0; pi < proposals.length; pi++) {
+      const p = proposals[pi]!;
+      const key = `${mi}:${pi}`;
+      if (p.blocked || applied[key]) continue;
+      setApplying(key);
+      const ok = await appendEvents(p.events);
+      setApplied((a) => ({ ...a, [key]: ok ? "done" : "error" }));
+      if (!ok) break;
     }
+    applyingRef.current = false;
+    setApplying(null);
   };
 
   const embedded = variant === "embedded";
@@ -116,6 +135,14 @@ export function AssistantPanel({ variant = "full", examples = DEFAULT_EXAMPLES }
                 <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                 {m.proposals && m.proposals.length > 0 && (
                   <div className="mt-2 space-y-2">
+                    {/* Apply-all: one click to confirm the whole batch when a message proposes 2+ still-pending
+                        changes (still §3.3 — an explicit confirmation, just of the batch). */}
+                    {m.proposals.filter((p, pi) => !p.blocked && !applied[`${mi}:${pi}`]).length > 1 && (
+                      <button type="button" onClick={() => void applyAll(mi, m.proposals!)} disabled={applying !== null}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1 text-[11px] font-semibold text-black disabled:opacity-50">
+                        <Check className="w-3 h-3" aria-hidden /> Apply all ({m.proposals.filter((p, pi) => !p.blocked && !applied[`${mi}:${pi}`]).length})
+                      </button>
+                    )}
                     {m.proposals.map((p, pi) => {
                       const key = `${mi}:${pi}`;
                       const st = applied[key];

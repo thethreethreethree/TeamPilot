@@ -116,12 +116,23 @@ export default function ScheduleImportPage() {
       setPreview(null);
       setGridWarnings(d.warnings ?? []);
       if (d.headerDates.length > 0) {
-        // PDF: dates resolved from the file → straight to the code-map confirm.
+        // PDF: dates are resolved deterministically from the file. Ask the LLM to PROPOSE the shift-code times
+        // too, so they come PRE-FILLED — the manager reviews + confirms rather than hand-mapping from scratch
+        // (a wrong 1--10 = 1AM vs 1PM would create a wrong schedule, so the confirm stays, but it's fast now).
         setDates(d.headerDates.join(", "));
-        setMap({});
+        let codeMap: Record<string, CodeVal> = {};
+        let extra = "";
+        try {
+          const pr = await fetch("/api/schedule/upload/propose", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: d.csv }),
+          });
+          if (pr.ok) { const pj = await pr.json(); codeMap = pj.codeMap ?? {}; extra = pj.notes ? ` ${pj.notes}` : ""; }
+        } catch { /* LLM unavailable — fall back to manual mapping, still fully functional */ }
+        setMap(codeMap);
+        const mapped = Object.keys(codeMap).length;
         setProp({
-          headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap: {},
-          notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. The dates are set — just map each shift code below.`,
+          headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap,
+          notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the file. I pre-filled ${mapped} of ${d.codes.length} shift-code times${mapped < d.codes.length ? " (fill the rest)" : ""} — check them, then Preview.${extra}`,
         });
       } else {
         // DOCX: raw labels — the CSV is loaded above; the manager clicks Analyze to resolve dates + codes.
