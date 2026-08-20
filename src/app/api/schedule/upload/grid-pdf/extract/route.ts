@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       headerDates: grid.headerDates,
       staff: grid.staff,
       codes: [...codes].sort(),
+      warnings: grid.warnings, // extraction-integrity concerns for the manager to check against the preview
     });
   } catch (e) {
     if (e instanceof EmptyExtractionError) {

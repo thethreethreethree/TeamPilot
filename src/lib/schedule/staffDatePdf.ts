@@ -36,6 +36,11 @@ export interface StaffDateGrid {
   headerDates: string[];
   /** One row per staff member, cells aligned index-for-index with headerDates ("" where none). */
   rows: { name: string; cells: string[] }[];
+  /** Extraction-integrity concerns for a HUMAN to check against the preview — a positional PDF parser can
+   *  silently mis-read a column on a file whose spacing differs from the verified one. Empty = a clean parse.
+   *  This is the honesty safety net (§3.4): surface low-confidence reads rather than emit a confident-but-wrong
+   *  grid. Non-fatal — the grid is still returned; the warnings ride alongside it to the preview. */
+  warnings: string[];
 }
 
 const MONTHS: Record<string, number> = {
@@ -105,6 +110,9 @@ export function pdfItemsToStaffDateGrid(pages: PdfTextItem[][]): StaffDateGrid {
   const rosterKey = new Set<string>();
   const cells = new Map<string, Map<string, string>>(); // name -> (iso -> rawCode)
   const allDates = new Set<string>();
+  let unplacedItems = 0; // cells that matched no date column (within tolerance) — a silent-drop risk
+  const collisionCells = new Set<string>(); // "name|iso" where a second item overwrote — columns may be misread
+  let skippedHeaders = 0; // header rows whose day-number/weekday counts didn't line up (rows under them dropped)
 
   let pendingTitle: { month: number; year: number } | null = null;
   let pendingDayNums: number[] | null = null;
@@ -140,6 +148,7 @@ export function pdfItemsToStaffDateGrid(pages: PdfTextItem[][]): StaffDateGrid {
           dates.forEach((d) => allDates.add(d));
         } else {
           current = null; // malformed header — don't misattribute the rows under it
+          if (pendingDayNums && weekdayItems.length > 0) skippedHeaders++; // a real-looking header we couldn't line up
         }
         pendingDayNums = null;
         continue;
@@ -162,7 +171,9 @@ export function pdfItemsToStaffDateGrid(pages: PdfTextItem[][]): StaffDateGrid {
         if (!name) { current.filled++; continue; } // no roster slot known yet — skip defensively
       }
 
-      // Place each cell at its nearest column anchor.
+      // Place each cell at its nearest column anchor. Track two silent-loss signals for the integrity report:
+      // an item that matched NO column (unplaced), and two items landing in the SAME cell (collision → the
+      // column detection is likely off and one code was overwritten).
       const target = cells.get(name.trim());
       if (target) {
         for (const it of cellItems) {
@@ -171,21 +182,34 @@ export function pdfItemsToStaffDateGrid(pages: PdfTextItem[][]): StaffDateGrid {
             const d = Math.abs(it.x - current.anchors[c]!);
             if (d < bestD) { bestD = d; best = c; }
           }
-          if (best >= 0 && bestD <= tol) target.set(current.dates[best]!, it.str);
+          if (best >= 0 && bestD <= tol) {
+            const iso = current.dates[best]!;
+            const prev = target.get(iso);
+            if (prev !== undefined && prev !== it.str) collisionCells.add(`${name.trim()}|${iso}`);
+            target.set(iso, it.str);
+          } else {
+            unplacedItems++;
+          }
         }
       }
       current.filled++;
     }
   }
 
-  if (roster.length === 0 || allDates.size === 0) return { staff: [], headerDates: [], rows: [] };
+  if (roster.length === 0 || allDates.size === 0) return { staff: [], headerDates: [], rows: [], warnings: [] };
 
   const headerDates = [...allDates].sort();
   const rows = roster.map((name) => {
     const map = cells.get(name) ?? new Map<string, string>();
     return { name, cells: headerDates.map((d) => map.get(d) ?? "") };
   });
-  return { staff: roster, headerDates, rows };
+
+  const warnings: string[] = [];
+  if (unplacedItems > 0) warnings.push(`${unplacedItems} cell${unplacedItems === 1 ? "" : "s"} couldn't be matched to a date column — some shifts may be missing. Check the preview against the PDF.`);
+  if (collisionCells.size > 0) warnings.push(`${collisionCells.size} cell${collisionCells.size === 1 ? "" : "s"} had two codes land in one column (columns may be misread) — check those days in the preview.`);
+  if (skippedHeaders > 0) warnings.push(`${skippedHeaders} date header${skippedHeaders === 1 ? "" : "s"} couldn't be lined up (day numbers vs weekdays) — some dates may be missing.`);
+
+  return { staff: roster, headerDates, rows, warnings };
 }
 
 /** Column tolerance = half the smallest gap between adjacent anchors (fallback 30) — so a cell is matched to

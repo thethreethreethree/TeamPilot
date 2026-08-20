@@ -113,6 +113,21 @@ describe("pdfItemsToStaffDateGrid — the real frendz.pdf", () => {
     expect(cell("MARIE MALINAO", "2026-08-31")).toBe("1--10"); // page-4 overflow, last date
   });
 
+  it("parses the real file with NO integrity warnings (a clean, confident read)", () => {
+    expect(grid.warnings).toEqual([]);
+  });
+
+  it("warns when two codes land in one column (a misread-column signal, not a silent overwrite)", () => {
+    // A minimal 2-column block where a staff row has an extra item crammed into column 0.
+    const collide = pdfItemsToStaffDateGrid([page([
+      [517, [["SCHEDULE CUT OFF (JANUARY 1-2 2026)", 400]]],
+      [501, [["1", 100], ["2", 200]]],
+      [487, [["THU", 100], ["FRI", 200]]],
+      [461, [["AL", 20], ["X", 100], ["Y", 105], ["Z", 200]]], // X and Y both nearest column 0
+    ])]);
+    expect(collide.warnings.some((w) => /two codes land in one column/.test(w))).toBe(true);
+  });
+
   it("returns an empty grid (no throw) when no schedule header is present", () => {
     const empty = pdfItemsToStaffDateGrid([page([[100, [["just a note", 50], ["nothing", 200]]]])]);
     expect(empty.staff).toEqual([]);

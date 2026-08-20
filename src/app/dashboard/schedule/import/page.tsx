@@ -53,6 +53,9 @@ export default function ScheduleImportPage() {
   const [vaWeek, setVaWeek] = useState("");
   const [vaPreview, setVaPreview] = useState<VaPreview | null>(null);
 
+  // Extraction-integrity warnings from a staff×date PDF upload (surfaced so the manager checks the preview).
+  const [gridWarnings, setGridWarnings] = useState<string[]>([]);
+
   // Synchronous double-submit latch for the two COMMIT actions (they create staff + shifts). A busy-STATE
   // guard alone can double-fire: two clicks before the re-render disables the button both see busy === null.
   // A ref flips synchronously, so the second click is dropped — no duplicate import.
@@ -63,20 +66,21 @@ export default function ScheduleImportPage() {
     setError(null);
     setPreview(null);
     setVaPreview(null);
+    setGridWarnings([]);
   };
 
   // After a successful import, reset to a clean form so the manager can import another without a reload
   // (keeps the workflow flowing — see the "View the schedule" CTA that also follows a done import).
   const resetImport = () => {
     setDone(null); setError(null);
-    setCsv(""); setContextHint(""); setProp(null); setDates(""); setMap({}); setPreview(null);
+    setCsv(""); setContextHint(""); setProp(null); setDates(""); setMap({}); setPreview(null); setGridWarnings([]);
     setVaFile(null); setVaWeek(""); setVaPreview(null);
   };
 
   // ---- CSV handlers ----
   const propose = async () => {
     if (!csv.trim()) return;
-    setBusy("propose"); setError(null);
+    setBusy("propose"); setError(null); setGridWarnings([]); // pasted CSV → any prior PDF-extraction warnings are stale
     try {
       const res = await fetch("/api/schedule/upload/propose", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -101,11 +105,12 @@ export default function ScheduleImportPage() {
         body: JSON.stringify({ fileBase64, filename: file.name }),
       });
       if (!res.ok) { setError((await res.json().catch(() => null))?.error ?? "Couldn't read that PDF."); return; }
-      const d = (await res.json()) as { csv: string; headerDates: string[]; staff: string[]; codes: string[] };
+      const d = (await res.json()) as { csv: string; headerDates: string[]; staff: string[]; codes: string[]; warnings?: string[] };
       setCsv(d.csv);
       setDates(d.headerDates.join(", "));
       setMap({});
       setPreview(null);
+      setGridWarnings(d.warnings ?? []);
       setProp({
         headerCells: d.headerDates, codes: d.codes, headerDates: d.headerDates, codeMap: {},
         notes: `Read ${d.staff.length} staff and ${d.headerDates.length} dates from the PDF. The dates are set — just map each shift code below.`,
@@ -254,6 +259,14 @@ export default function ScheduleImportPage() {
             <div className="glass-card p-4 mb-4 space-y-3">
               <label className="text-sm font-semibold text-secondary">2. Confirm the dates + shift codes</label>
               {prop.notes && <p className="text-[11px] text-muted italic">{prop.notes}</p>}
+              {gridWarnings.length > 0 && (
+                <div className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 space-y-1">
+                  <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" aria-hidden /> Check the extraction
+                  </p>
+                  {gridWarnings.map((w, i) => <p key={i} className="text-[11px] text-amber-300/90">{w}</p>)}
+                </div>
+              )}
               <div>
                 <div className="text-[11px] text-muted mb-1">Dates (one per column, ISO YYYY-MM-DD, comma separated)</div>
                 <input value={dates} onChange={(e) => { setDates(e.target.value); setPreview(null); }}
