@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { pdfItemsToStaffDateGrid, gridToCsv, type PdfTextItem } from "../staffDatePdf";
 import { parseCsvToGrid } from "../csvGrid";
 import { parseScheduleGrid, type ShiftCodeMap } from "../gridParser";
+import { planImport } from "../importPlanner";
 
 /**
  * Verified against the REAL "frendz.pdf" (the founder's schedule) — the exact positioned coordinates dumped
@@ -156,5 +157,17 @@ describe("pdfItemsToStaffDateGrid — the real frendz.pdf", () => {
     expect(entry("DARREN GUZMAN", "2026-09-03")).toMatchObject({ kind: "off" });
     expect(entry("CELESTINO MOLINA", "2026-08-16")).toMatchObject({ kind: "shift", times: { start: "06:00", end: "15:00" } }); // "6-3 BF"
     expect(entry("REBECCA LACHICA", "2026-08-22")).toMatchObject({ kind: "shift", times: { start: "22:00", end: "07:00" } }); // GY overnight
+
+    // The FINAL deliverable: planImport turns those entries into the exact roster + shifts + assignments a
+    // commit would write. On an empty schedule, all 6 staff are new; OFF produces no shift; shifts dedup by
+    // (date,start,end) so a whole GY column is one shift with many assignments.
+    const plan = planImport({ staff: parsed.staff, entries: parsed.entries }, []);
+    expect(plan.newStaff.sort()).toEqual([...grid.staff].sort());
+    const gy0822 = plan.shifts.find((s) => s.date === "2026-08-22" && s.start === "22:00" && s.end === "07:00");
+    expect(gy0822).toBeTruthy(); // the overnight GY shift exists
+    expect(plan.assignments.some((a) => a.shiftKey === gy0822!.key && a.staffName === "REBECCA LACHICA")).toBe(true);
+    // No shift is created for an OFF day (DARREN is OFF on 2026-09-03).
+    const darrenSep3 = plan.assignments.filter((a) => a.staffName === "DARREN GUZMAN" && a.shiftKey.startsWith("2026-09-03"));
+    expect(darrenSep3).toEqual([]);
   });
 });
