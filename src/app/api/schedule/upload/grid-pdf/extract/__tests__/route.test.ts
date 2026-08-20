@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
  * Staff x date grid PDF extract route. Pins: manager-only, PDF-only filename guard, and the happy path
@@ -6,19 +6,25 @@ import { describe, it, expect, vi } from "vitest";
  */
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+// The route now extracts PDF text ONCE (extractPdfPages) and runs the specific parser over those pages, so we
+// mock those two; gridToCsv + docxCellsToCsv stay real.
 vi.mock("@/lib/schedule/staffDatePdf", async (orig) => {
   const actual = await (orig() as Promise<Record<string, unknown>>);
-  return { ...actual, extractStaffDateGridFromPdf: vi.fn() }; // gridToCsv + docxCellsToCsv stay real
+  return { ...actual, extractPdfPages: vi.fn(), pdfItemsToStaffDateGrid: vi.fn() };
+});
+vi.mock("@/lib/schedule/pdfIsoGrid", async (orig) => {
+  const actual = await (orig() as Promise<Record<string, unknown>>);
+  return { ...actual, isIsoHeaderGrid: vi.fn(() => false) }; // force the frendz path; pdfGridToCsv stays real
 });
 vi.mock("@/lib/schedule/vaDocx", () => ({ parseDocxTableCells: vi.fn() }));
 vi.mock("@/lib/schedule/staffDateXlsx", () => ({ xlsxToCsv: vi.fn() }));
 vi.mock("@/lib/documents/extractText", async (orig) => {
   const actual = await (orig() as Promise<Record<string, unknown>>);
-  return { ...actual, unzipEntry: vi.fn() }; // EmptyExtractionError stays real
+  return { ...actual, unzipEntry: vi.fn() };
 });
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { extractStaffDateGridFromPdf } from "@/lib/schedule/staffDatePdf";
+import { extractPdfPages, pdfItemsToStaffDateGrid } from "@/lib/schedule/staffDatePdf";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
 import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { unzipEntry } from "@/lib/documents/extractText";
@@ -29,12 +35,16 @@ const req = (body: unknown) => ({ json: async () => body, headers: new Headers()
 const b64 = Buffer.from("dummy").toString("base64");
 
 describe("schedule grid-pdf extract API", () => {
-  it("a manager gets CSV + distinct codes from the extracted grid", async () => {
+  beforeEach(() => vi.clearAllMocks()); // reset call counts so per-test "one unpdf call" assertions are exact
+
+  it("a manager gets CSV + distinct codes from the extracted grid (specific parser hit)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
-    asMock(extractStaffDateGridFromPdf).mockResolvedValue({
+    asMock(extractPdfPages).mockResolvedValue([[{ str: "x", x: 0, y: 0 }]]); // non-empty pages (one unpdf call)
+    asMock(pdfItemsToStaffDateGrid).mockReturnValue({
       staff: ["ALICE", "BOB"],
       headerDates: ["2026-09-01", "2026-09-02"],
       rows: [{ name: "ALICE", cells: ["6-3", "OFF"] }, { name: "BOB", cells: ["GY", "6-3"] }],
+      warnings: [],
     });
     const res = await POST(req({ fileBase64: b64, filename: "frendz.pdf" }));
     expect(res.status).toBe(200);
@@ -43,6 +53,25 @@ describe("schedule grid-pdf extract API", () => {
     expect(j.headerDates).toEqual(["2026-09-01", "2026-09-02"]);
     expect(j.codes).toEqual(["6-3", "GY", "OFF"]); // distinct, normalized, sorted
     expect(j.csv.split("\n")[0]).toBe("NAME,2026-09-01,2026-09-02");
+    expect(asMock(extractPdfPages)).toHaveBeenCalledTimes(1); // ONE unpdf call (worker-safe)
+  });
+
+  it("a PDF the specific parser can't read falls back to the generic clusterer (no second unpdf call)", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    // Specific parser THROWS (as the real HK.pdf / HUB SCHED do) — the fallback must still run on the SAME pages.
+    // Positioned items forming a small staff×date grid the generic clusterer can read.
+    asMock(extractPdfPages).mockResolvedValue([[
+      { str: "NAME", x: 20, y: 100 }, { str: "AUG 16", x: 120, y: 100 }, { str: "AUG 17", x: 220, y: 100 },
+      { str: "ALICE", x: 20, y: 80 }, { str: "6-3", x: 120, y: 80 }, { str: "OFF", x: 220, y: 80 },
+    ]]);
+    asMock(pdfItemsToStaffDateGrid).mockImplementation(() => { throw new Error("Cannot transfer object of unsupported type."); });
+    const res = await POST(req({ fileBase64: b64, filename: "HK.pdf" }));
+    expect(res.status).toBe(200); // NOT a dead 422 — the fallback recovered it
+    const j = await res.json();
+    expect(j.headerDates).toEqual([]); // generic fallback → client runs Analyze
+    expect(j.staff).toEqual(["ALICE"]);
+    expect(j.csv).toContain("AUG 16");
+    expect(asMock(extractPdfPages)).toHaveBeenCalledTimes(1); // still ONE unpdf call despite the parser throw
   });
 
   it("a non-manager is refused (403)", async () => {

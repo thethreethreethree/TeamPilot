@@ -4,13 +4,13 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { decodeBase64 } from "@/lib/schedule/vaUpload";
-import { extractStaffDateGridFromPdf, extractPdfPages, gridToCsv, docxCellsToCsv } from "@/lib/schedule/staffDatePdf";
-import { pdfGridToCsv } from "@/lib/schedule/pdfIsoGrid";
+import { extractPdfPages, gridToCsv, docxCellsToCsv, pdfItemsToStaffDateGrid } from "@/lib/schedule/staffDatePdf";
+import { pdfGridToCsv, isIsoHeaderGrid, isoGridFromItems } from "@/lib/schedule/pdfIsoGrid";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
 import { xlsxToCsv } from "@/lib/schedule/staffDateXlsx";
 import { parseDocxTableCells } from "@/lib/schedule/vaDocx";
 import { normalizeCode } from "@/lib/schedule/gridParser";
-import { EmptyExtractionError, unzipEntry } from "@/lib/documents/extractText";
+import { unzipEntry } from "@/lib/documents/extractText";
 
 /**
  * Schedule Management System — staff x date grid PDF extraction (the "frendz" layout).
@@ -67,67 +67,71 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ csv, headerDates: [], staff: [], codes: [], warnings: [] });
     }
 
-    const grid = await extractStaffDateGridFromPdf(bytes);
-    const codes = new Set<string>();
-    for (const row of grid.rows) {
-      for (const cell of row.cells) {
-        const c = cell.trim();
-        if (c) codes.add(normalizeCode(c));
-      }
-    }
-    return NextResponse.json({
-      csv: gridToCsv(grid),
-      headerDates: grid.headerDates,
-      staff: grid.staff,
-      codes: [...codes].sort(),
-      warnings: grid.warnings, // extraction-integrity concerns for the manager to check against the preview
-    });
-  } catch (e) {
-    if (e instanceof EmptyExtractionError) {
-      // GENERIC fallback: the specific parsers (frendz layout / our ISO export) didn't recognize this PDF, but
-      // it may still be a staff×date grid in a DIFFERENT layout (e.g. "AUG 16" date-label headers). Cluster its
-      // positioned text into columns/rows → CSV, and let the normal Analyze flow (LLM date-resolution + confirm)
-      // handle it, exactly like docx/xlsx. headerDates: [] → the client runs Analyze rather than pre-filling.
-      // Instrument the fallback (diagnose-before-patching): capture WHY it didn't yield a grid so a real failing
-      // file reveals its cause (no text at all → scanned image; text but no columns → a layout to tune).
-      let pageCount = 0, itemCount = 0, csvLen = 0, dataRowCount = 0, headerFilled = 0;
-      try {
-        const pages = await extractPdfPages(bytes);
-        pageCount = pages.length;
-        itemCount = pages.reduce((n, p) => n + p.length, 0);
-        const csv = pdfGridToCsv(pages);
-        csvLen = csv.trim().length;
-        const g = parseCsvToGrid(csv);
-        const dataRows = g.rows.filter((r) => r.name.trim());
-        dataRowCount = dataRows.length;
-        headerFilled = g.headerCells.filter((h) => h.trim()).length;
-        if (csvLen > 0 && dataRowCount >= 1 && headerFilled > 0) {
-          const codes = new Set<string>();
-          for (const row of dataRows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
-          return NextResponse.json({
-            csv,
-            headerDates: [],
-            staff: dataRows.map((r) => r.name.trim()),
-            codes: [...codes].sort(),
-            warnings: ["I read this file as a general staff-by-date table. Click Analyze to confirm the dates and shift codes before importing."],
-          });
-        }
-      } catch (fe) {
-        console.error("[schedule/upload/grid-pdf/extract] generic fallback threw:", fe instanceof Error ? fe.message : fe);
-      }
-      console.error(`[schedule/upload/grid-pdf/extract] fallback yielded no grid: pages=${pageCount} textItems=${itemCount} csvLen=${csvLen} dataRows=${dataRowCount} headerCells=${headerFilled}`);
-      // Cause-specific, honest message (§3.4): a PDF with NO extractable text is almost always a scanned image /
-      // photo — no text-based reader can help; the manager needs a text PDF or to paste CSV. Text-but-no-grid is
-      // a layout we can tune. Either way, give an actionable path, not a dead "not found".
+    // PDF: extract text ONCE (unpdf), then run the specific parser AND the generic fallback on the SAME pages —
+    // never call unpdf twice. unpdf's loopback worker can break on a 2nd call in the same process (the real
+    // HK.pdf / HUB SCHED files throw "Cannot transfer object" on a repeat call), so a single extraction shared by
+    // both readers is the robust shape — and it's also cheaper. The specific parser is pure over pages; if it
+    // doesn't yield a grid, the generic column/row clusterer does, feeding the same Analyze-confirm flow.
+    let pages: Awaited<ReturnType<typeof extractPdfPages>>;
+    try {
+      pages = await extractPdfPages(bytes);
+    } catch (pe) {
+      console.error("[schedule/upload/grid-pdf/extract] pdf text extraction failed:", pe instanceof Error ? pe.message : pe);
       return NextResponse.json(
-        {
-          error: itemCount === 0
-            ? "I couldn't read any text in that PDF — it looks like a scanned image or a photo of a schedule. Save/export it as a real (text) PDF, or paste the grid into the CSV box above, and I can read it."
-            : "I read the text in that PDF but couldn't line it up into a staff (rows) x dates (columns) grid. Paste the grid into the CSV box above to import it now — or send me the file and I'll tune the reader to its exact layout.",
-        },
+        { error: "I couldn't read that PDF. If it's a scanned image or a photo, save it as a text PDF or paste the grid into the CSV box above." },
         { status: 422 },
       );
     }
+
+    // Specific parser (PURE over pages): our own ISO export, else the frendz day-number/weekday layout. Wrapped
+    // so a parse throw doesn't skip the fallback — the fallback reads layouts the specific parser can't.
+    try {
+      const grid = isIsoHeaderGrid(pages) ? isoGridFromItems(pages) : pdfItemsToStaffDateGrid(pages);
+      if (grid.staff.length > 0 && grid.headerDates.length > 0) {
+        const codes = new Set<string>();
+        for (const row of grid.rows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
+        return NextResponse.json({
+          csv: gridToCsv(grid),
+          headerDates: grid.headerDates,
+          staff: grid.staff,
+          codes: [...codes].sort(),
+          warnings: grid.warnings, // extraction-integrity concerns for the manager to check against the preview
+        });
+      }
+    } catch (spe) {
+      console.error("[schedule/upload/grid-pdf/extract] specific parser failed; using generic fallback:", spe instanceof Error ? spe.message : spe);
+    }
+
+    // GENERIC fallback on the SAME pages: cluster positioned text into columns/rows → CSV → the normal Analyze
+    // flow (LLM date-resolution + human confirm). headerDates: [] → the client runs Analyze rather than pre-fill.
+    const itemCount = pages.reduce((n, p) => n + p.length, 0);
+    const csv = pdfGridToCsv(pages);
+    const g = parseCsvToGrid(csv);
+    const dataRows = g.rows.filter((r) => r.name.trim());
+    const headerFilled = g.headerCells.filter((h) => h.trim()).length;
+    if (csv.trim().length > 0 && dataRows.length >= 1 && headerFilled > 0) {
+      const codes = new Set<string>();
+      for (const row of dataRows) for (const cell of row.cells) { const c = cell.trim(); if (c) codes.add(normalizeCode(c)); }
+      return NextResponse.json({
+        csv,
+        headerDates: [],
+        staff: dataRows.map((r) => r.name.trim()),
+        codes: [...codes].sort(),
+        warnings: ["I read this file as a general staff-by-date table. Click Analyze to confirm the dates and shift codes before importing."],
+      });
+    }
+    // Cause-specific, honest message (§3.4): NO extractable text → almost always a scanned image (no text reader
+    // helps); text-but-no-grid → a layout to tune. Either way, an actionable path, not a dead "not found".
+    console.error(`[schedule/upload/grid-pdf/extract] no grid: textItems=${itemCount} csvLen=${csv.trim().length} dataRows=${dataRows.length} headerCells=${headerFilled}`);
+    return NextResponse.json(
+      {
+        error: itemCount === 0
+          ? "I couldn't read any text in that PDF — it looks like a scanned image or a photo of a schedule. Save/export it as a real (text) PDF, or paste the grid into the CSV box above, and I can read it."
+          : "I read the text in that PDF but couldn't line it up into a staff (rows) x dates (columns) grid. Paste the grid into the CSV box above to import it now — or send me the file and I'll tune the reader to its exact layout.",
+      },
+      { status: 422 },
+    );
+  } catch (e) {
     console.error("[schedule/upload/grid-pdf/extract] failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Couldn't read that file." }, { status: 500 });
   }
