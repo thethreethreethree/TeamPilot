@@ -158,8 +158,9 @@ export default function ScheduleGridPage() {
     const gW = nameW + 7 * colW;
     const w = pad * 2 + gW;
     const bannerH = companyName ? 48 : 0; // a company header at the very top (whose schedule this is)
+    const footerH = 30; // "generated <date>" so a printout's currency is clear
     const blockH = (n: number) => titleH + headH + n * rowH;
-    const h = pad * 2 + bannerH + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
+    const h = pad * 2 + bannerH + footerH + blocks.reduce((sum, b) => sum + blockH(b.rws.length) + gap, -gap);
 
     // A browser canvas maxes out near 32767px per side; a huge multi-week schedule would silently render blank.
     // Guard it: fail LOUD (return null → the caller shows a message) rather than export a broken image.
@@ -213,6 +214,9 @@ export default function ScheduleGridPage() {
       ctx.strokeStyle = "#d1d5db"; ctx.strokeRect(pad, gTop, gW, headH + rws.length * rowH);
       yTop += blockH(rws.length) + gap;
     }
+    // Footer: when this was generated (so a printed copy's currency is clear).
+    ctx.fillStyle = "#9ca3af"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(`Generated ${new Date().toLocaleString()}`, pad, h - pad + 8);
     return canvas;
   }, [state, settings.workweekStart, weekStart, weekGridData, companyName]);
 
