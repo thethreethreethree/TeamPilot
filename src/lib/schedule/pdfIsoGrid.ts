@@ -106,7 +106,12 @@ export function pdfGridToCsv(pages: PdfTextItem[][]): string {
       lines.push(cells.slice(0, last + 1).map(esc).join(","));
     }
   }
-  return lines.join("\n");
+  // Drop header rows repeated by pagination: page 2+ of a multi-page grid repeats the "Name, date, date…" header
+  // row. Left in, each repeat re-parses into a bogus staff member named after the first header cell ("NAME").
+  // Keep the first occurrence (the real header); drop later exact-duplicate header lines only.
+  const header = lines[0];
+  const deduped = header ? lines.filter((l, i) => i === 0 || l !== header) : lines;
+  return deduped.join("\n");
 }
 
 /** Read an ISO-header schedule PDF back into a staff × date grid (merging paginated pages by name). */

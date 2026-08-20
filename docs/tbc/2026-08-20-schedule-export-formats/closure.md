@@ -59,19 +59,33 @@ this PDF", "it's too plain / needs colours", "the page is broken/messy"):
   mid-week break); `exportEmptyMsg` (`4b254389`) gives accurate no-shifts vs too-large feedback.
 - **Colour export + custom name** — verified live (see below).
 
-**Verified against reality (not just handler tests — this addresses residual R3):**
-- **Real `frendz.pdf`** through the current code after the `extractPdfPages` refactor: `staff=6 dates=31
-  warnings=0 shifts=153 off=33 unknown=[]`. The mixed double/single-dash quirk (`1--10` vs `6-3`) is absorbed by
-  `normalizeCode`; the extract route dedupes codes so the manager maps each once. No regression, no code bug (an
-  early "0 shifts" reading was a throwaway-harness error — codeMap values must be `{start,end}`, diagnosed not
-  assumed). Temp tests were local-only (depend on a scratchpad file) and removed, not committed.
-- **Foreign fallback E2E through real `unpdf`** (`writePdf.test.ts`) + jitter/multi-word-name guards
-  (`pdfIsoGrid.test.ts`).
+**Evidence against reality (not just handler tests — this addresses residual R3).** Canonical command:
+
+```
+$ npm run check
+Test Files  513 passed | 1 skipped (514)
+     Tests  3414 passed | 15 skipped (3429)
+exit 0
+```
+
+Real-file run of the current extraction code on the founder's own `frendz.pdf` (local throwaway test, since it
+depends on a scratchpad file — removed, not committed):
+
+```
+staff=6  dates=31  warnings=0  shifts=153  off=33  unknown=[]
+```
+
+- **Real `frendz.pdf`** parses cleanly after the `extractPdfPages` refactor (numbers above). The mixed
+  double/single-dash quirk (`1--10` vs `6-3`) is absorbed by `normalizeCode`; the extract route dedupes codes so
+  the manager maps each once. No regression, no code bug (an early "0 shifts" reading was a throwaway-harness
+  error — codeMap values must be `{start,end}`, diagnosed not assumed).
+- **Foreign fallback E2E through real `unpdf`** (`writePdf.test.ts`) + jitter/multi-word-name + multi-page +
+  repeated-header-dedup guards (`pdfIsoGrid.test.ts`) — all in the 3413 above.
 - **Colour export rendered** from a faithful copy of the real `renderCanvas` + `shiftColors` palette and sent to
   the founder as a PNG for eye-judgement — R3's "open it in a viewer" check, now done for the colour graphic.
-- **Legibility is measured + locked**: every band's shift-time text on its tint passes WCAG AA (worst 6.37:1);
-  a contrast guard in `shiftColors.test.ts` (`0c734ed4`) fails if a future colour tweak drops below 4.5:1.
-  Colour is redundant — every cell also prints the time as text.
+- **Legibility measured + locked**: every band's shift-time text on its tint clears WCAG AA (worst 6.37:1); a
+  contrast guard in `shiftColors.test.ts` (`0c734ed4`) fails if a future colour tweak drops below 4.5:1. Colour
+  is redundant — every cell also prints the time as text.
 
 **Still the founder's (external / human):** apply migration `0234` (custom-name WRITE persists; READ degrades to
 company name until then, fail-loud notice); the founder's eye-check on the colour sample; the founder's import

@@ -96,6 +96,11 @@ describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (th
     expect(lines).toContain("ALICE,6-3,6-3");
     expect(lines).toContain("BEN,OFF,2-11");
     expect(lines.some((l) => l.includes("ALICE") && l.includes("BEN"))).toBe(false); // not merged
+    // The page-2 header repeat must NOT survive as a second data row (else it re-parses into a bogus "NAME"
+    // staff member). Exactly ONE header line, and the parsed grid has only the two real people.
+    expect(lines.filter((l) => l === "NAME,AUG 16,AUG 17").length).toBe(1);
+    const g = parseCsvToGrid(csv);
+    expect(g.rows.map((r) => r.name)).toEqual(["ALICE", "BEN"]); // no "NAME" ghost row
   });
 
   it("absorbs per-cell x-jitter AND keeps a multi-word name in one column (real-PDF robustness)", () => {
