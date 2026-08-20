@@ -78,4 +78,18 @@ describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (th
   it("returns '' for an empty page (no false grid)", () => {
     expect(pdfGridToCsv([[]])).toBe("");
   });
+
+  it("absorbs per-cell x-jitter AND keeps a multi-word name in one column (real-PDF robustness)", () => {
+    // Columns ~29 / ~150 / ~270 / ~390 with ±6px jitter; a two-word name as one text run must stay one cell.
+    const page: PdfTextItem[] = [
+      item("NAME", 28, 500), item("AUG 16", 152, 500), item("AUG 17", 268, 500), item("AUG 18", 392, 500),
+      item("CELESTINO MOLINA", 31, 470), item("6-3", 148, 470), item("6-3", 272, 470), item("OFF", 388, 470),
+      item("ABRIL", 29, 440), item("OFF", 151, 440), item("2-11", 269, 440), item("2-11", 391, 440),
+    ];
+    const csv = pdfGridToCsv([page]);
+    const g = parseCsvToGrid(csv);
+    expect(g.headerCells).toEqual(["AUG 16", "AUG 17", "AUG 18"]);
+    expect(g.rows.find((r) => r.name === "CELESTINO MOLINA")?.cells).toEqual(["6-3", "6-3", "OFF"]); // name not split
+    expect(g.rows.find((r) => r.name === "ABRIL")?.cells).toEqual(["OFF", "2-11", "2-11"]);
+  });
 });
