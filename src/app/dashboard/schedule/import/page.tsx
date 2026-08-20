@@ -55,6 +55,9 @@ export default function ScheduleImportPage() {
 
   // Extraction-integrity warnings from a staff×date PDF upload (surfaced so the manager checks the preview).
   const [gridWarnings, setGridWarnings] = useState<string[]>([]);
+  // Set when a file uploaded to the "Schedule file" tab turned out to be a staff×date grid and we moved it
+  // here (the CSV importer) automatically — so the founder isn't stranded on the wrong tab.
+  const [movedNote, setMovedNote] = useState<string | null>(null);
 
   // Synchronous double-submit latch for the two COMMIT actions (they create staff + shifts). A busy-STATE
   // guard alone can double-fire: two clicks before the re-render disables the button both see busy === null.
@@ -67,13 +70,14 @@ export default function ScheduleImportPage() {
     setPreview(null);
     setVaPreview(null);
     setGridWarnings([]);
+    setMovedNote(null);
   };
 
   // After a successful import, reset to a clean form so the manager can import another without a reload
   // (keeps the workflow flowing — see the "View the schedule" CTA that also follows a done import).
   const resetImport = () => {
     setDone(null); setError(null);
-    setCsv(""); setContextHint(""); setProp(null); setDates(""); setMap({}); setPreview(null); setGridWarnings([]);
+    setCsv(""); setContextHint(""); setProp(null); setDates(""); setMap({}); setPreview(null); setGridWarnings([]); setMovedNote(null);
     setVaFile(null); setVaWeek(""); setVaPreview(null);
   };
 
@@ -171,7 +175,18 @@ export default function ScheduleImportPage() {
       const res = await fetch("/api/schedule/upload/va/preview", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await vaBody()),
       });
-      if (!res.ok) { setError((await res.json().catch(() => null))?.error ?? "Couldn't read that schedule file."); return; }
+      if (!res.ok) {
+        // Auto-route: an "On Duty" grid wasn't found (422). The file may be a staff×date grid on the wrong
+        // tab — try THAT importer on the same file and, if it reads, move the manager here rather than
+        // stranding them behind an error telling them to switch tabs themselves.
+        if (res.status === 422 && vaFile) {
+          setMode("csv");
+          setMovedNote("That file is a staff-by-date grid, not an 'On Duty' grid — I moved it to the right importer below.");
+          await extractGridFile(vaFile);
+          return;
+        }
+        setError((await res.json().catch(() => null))?.error ?? "Couldn't read that schedule file."); return;
+      }
       setVaPreview(await res.json());
     } catch { setError("Couldn't reach the server."); }
     finally { setBusy(null); }
@@ -238,6 +253,11 @@ export default function ScheduleImportPage() {
         </div>
       ) : mode === "csv" ? (
         <>
+          {movedNote && (
+            <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300 flex items-center gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden /> {movedNote}
+            </div>
+          )}
           {/* Step 1: paste */}
           <div className="glass-card p-4 mb-4 space-y-3">
             <label className="text-sm font-semibold text-secondary">1. Paste the schedule (CSV)</label>
