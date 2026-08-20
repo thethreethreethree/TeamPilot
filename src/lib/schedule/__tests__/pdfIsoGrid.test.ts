@@ -79,6 +79,25 @@ describe("pdfGridToCsv — generic fallback for a non-frendz, non-ISO layout (th
     expect(pdfGridToCsv([[]])).toBe("");
   });
 
+  it("does NOT collide rows across pages that share a y-range (multi-page PDF — real schedules paginate)", () => {
+    // Two pages, each with header y=500 + one staff row y=470. y RESETS per page, so a naive flatten-then-group
+    // -by-y would merge page1's ALICE row with page2's BEN row. Rows must be grouped PER PAGE, in page order.
+    const page1: PdfTextItem[] = [
+      item("NAME", 30, 500), item("AUG 16", 150, 500), item("AUG 17", 270, 500),
+      item("ALICE", 30, 470), item("6-3", 150, 470), item("6-3", 270, 470),
+    ];
+    const page2: PdfTextItem[] = [
+      item("NAME", 30, 500), item("AUG 16", 150, 500), item("AUG 17", 270, 500),
+      item("BEN", 30, 470), item("OFF", 150, 470), item("2-11", 270, 470),
+    ];
+    const csv = pdfGridToCsv([page1, page2]);
+    const lines = csv.split("\n");
+    // ALICE and BEN must be on their OWN lines with their OWN codes — not merged into one line.
+    expect(lines).toContain("ALICE,6-3,6-3");
+    expect(lines).toContain("BEN,OFF,2-11");
+    expect(lines.some((l) => l.includes("ALICE") && l.includes("BEN"))).toBe(false); // not merged
+  });
+
   it("absorbs per-cell x-jitter AND keeps a multi-word name in one column (real-PDF robustness)", () => {
     // Columns ~29 / ~150 / ~270 / ~390 with ±6px jitter; a two-word name as one text run must stay one cell.
     const page: PdfTextItem[] = [
