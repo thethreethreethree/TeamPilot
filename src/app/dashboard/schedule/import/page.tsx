@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Table2, CalendarDays, Sparkles } from "lucide-react";
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { AssistantPanel } from "@/components/schedule/AssistantPanel";
-import { to24h, normalizeCodeMap } from "@/lib/schedule/importTime";
+import { to24h, normalizeCodeMap, autoTimeRangeCodeMap } from "@/lib/schedule/importTime";
 
 /**
  * Schedule Management System — file-import screen (Phase 5, S3 + the VA presence-grid follow-up).
@@ -94,7 +94,11 @@ export default function ScheduleImportPage() {
       });
       if (!res.ok) { setError("Couldn't analyze the file. You can map the dates and codes by hand, or try again."); return; }
       const p: Proposal = await res.json();
-      setProp(p); setDates(p.headerDates.join(", ")); setMap(normalizeCodeMap(p.codeMap ?? {})); setPreview(null);
+      // Deterministic explicit-"HH:mm-HH:mm"/OFF cells (incl. anything WE exported) override the LLM proposal —
+      // a re-imported export maps without depending on the model.
+      setProp(p); setDates(p.headerDates.join(", "));
+      setMap({ ...normalizeCodeMap(p.codeMap ?? {}), ...autoTimeRangeCodeMap(p.codes ?? []) });
+      setPreview(null);
     } catch { setError("Couldn't reach the server."); }
     finally { setBusy(null); }
   };
@@ -121,16 +125,20 @@ export default function ScheduleImportPage() {
         // too, so they come PRE-FILLED — the manager reviews + confirms rather than hand-mapping from scratch
         // (a wrong 1--10 = 1AM vs 1PM would create a wrong schedule, so the confirm stays, but it's fast now).
         setDates(d.headerDates.join(", "));
-        let codeMap: Record<string, CodeVal> = {};
+        // Deterministic first: explicit "HH:mm-HH:mm" ranges + OFF map with no LLM (a re-imported export is
+        // fully mapped here). Only if codes REMAIN unmapped do we ask the LLM to propose the rest.
+        let codeMap: Record<string, CodeVal> = autoTimeRangeCodeMap(d.codes);
         let extra = "";
-        try {
-          const pr = await fetch("/api/schedule/upload/propose", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: d.csv }),
-          });
-          if (pr.ok) { const pj = await pr.json(); codeMap = normalizeCodeMap(pj.codeMap ?? {}); extra = pj.notes ? ` ${pj.notes}` : ""; }
-        } catch { /* LLM unavailable — fall back to manual mapping, still fully functional */ }
-        // Off-family codes are universal ("no shift", regardless of business) — map them deterministically so
-        // they never need the founder's input. Times are still their call; "off" isn't.
+        if (d.codes.some((code) => !codeMap[code])) {
+          try {
+            const pr = await fetch("/api/schedule/upload/propose", {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: d.csv }),
+            });
+            // LLM fills gaps; the deterministic explicit-time/OFF maps keep precedence.
+            if (pr.ok) { const pj = await pr.json(); codeMap = { ...normalizeCodeMap(pj.codeMap ?? {}), ...codeMap }; extra = pj.notes ? ` ${pj.notes}` : ""; }
+          } catch { /* LLM unavailable — fall back to manual mapping, still fully functional */ }
+        }
+        // Off-family codes are universal ("no shift", regardless of business) — belt-and-braces over the above.
         const OFF_CODES = new Set(["OFF", "REST", "RD", "DO", "RDO", "OFF DAY", "REST DAY", "DAY OFF"]);
         for (const code of d.codes) if (!codeMap[code] && OFF_CODES.has(code.toUpperCase())) codeMap[code] = "off";
         setMap(codeMap);
