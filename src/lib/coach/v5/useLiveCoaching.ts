@@ -9,6 +9,7 @@ import {
   isPaceSpike,
   type PaceBaseline,
 } from "@/lib/coach/v5/liveStress";
+import { selectUnflushedSegments } from "@/lib/coach/v5/segmentFlush";
 import {
   detectF0,
   PitchSeparator,
@@ -329,6 +330,14 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // double Stop / double finalize would DUPLICATE the whole transcript and the
   // post-call dissect would read doubled turns (§3.1). Fire finalize once/session.
   const finalizedRef = useRef(false);
+  // Incremental transcript persistence (2026-08-21 capture-loss fix). The live transcript used to live ONLY in
+  // turnsRef and was written in one batch on Stop→/finalize — so any un-clean end (tab close, nav-away, WS drop,
+  // rep never Stopping) lost the whole conversation (52% of sessions stored zero segments). Now a timer flushes
+  // SETTLED turns to /segments every few seconds, and a pagehide beacon catches the rest, so a dropped session
+  // keeps what was captured. flushedSegsRef tracks which seqs are already persisted (idempotent with finalize's
+  // re-send — the table has unique(session_id, seq)).
+  const flushedSegsRef = useRef<Set<number>>(new Set());
+  const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // The turn index whose cue clock was started AT COMMIT by an obvious content
   // tell (before the LLM /attribute returned) — so classifyTurn doesn't reset
   // the timer and re-add the latency we just saved (L2 response time). -1 = none.
@@ -717,7 +726,32 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     [invokeCue]
   );
 
+  // Flush settled (or, on end/unload, all remaining) captured turns to the append-only /segments route so the
+  // transcript survives an un-clean end. Best-effort: a failure leaves the seqs unflushed for the next tick /
+  // the Stop finalize. `useBeacon` sends via sendBeacon (survives page unload) — used on pagehide/nav-away.
+  const flushSegments = useCallback(
+    (includePending: boolean, useBeacon = false) => {
+      const segs = selectUnflushedSegments(turnsRef.current, flushedSegsRef.current, includePending).slice(0, 500);
+      if (segs.length === 0) return;
+      const seqs = segs.map((s) => s.seq);
+      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq })) };
+      const url = `/api/coach/sales-session/${sessionId}/segments`;
+      const body = JSON.stringify(payload);
+      if (useBeacon && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        // sendBeacon carries same-origin cookies (auth) and survives unload. Fire-and-forget → mark optimistically.
+        const ok = navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
+        if (ok) seqs.forEach((s) => flushedSegsRef.current.add(s));
+        return;
+      }
+      void fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })
+        .then((r) => { if (r.ok) seqs.forEach((s) => flushedSegsRef.current.add(s)); })
+        .catch(() => { /* best-effort — the same seqs retry next tick / on finalize */ });
+    },
+    [sessionId]
+  );
+
   const stop = useCallback(() => {
+    if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
     // A6: invalidate any in-flight /cue or /attribute so a late resolution can't
     // write into a session that has ended (or the next one, after a restart).
     sessionEpochRef.current += 1;
@@ -853,6 +887,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     wsRef.current = null;
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
   }, []);
 
   const start = useCallback(async () => {
@@ -869,6 +904,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     setTurns([]);
     turnsRef.current = [];
     setTranscriptSaved(false);
+    // Reset + start incremental transcript persistence for this session (2026-08-21 capture-loss fix): flush
+    // settled turns to the DB every few seconds so a drop/close/never-Stop keeps the conversation.
+    flushedSegsRef.current = new Set();
+    if (flushTimerRef.current) clearInterval(flushTimerRef.current);
+    flushTimerRef.current = setInterval(() => flushSegments(false), 4000);
     utterEnergyRef.current = { sum: 0, count: 0 };
     pitchSepRef.current.reset();
     pitchAgreeRef.current = 0;
@@ -1406,14 +1446,28 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // (Re)mount: clear the cancel flag so a remount (incl. React strict-mode double-invoke)
     // isn't permanently wedged into the "unmounted" branch of start().
     unmountedRef.current = false;
+    // Tab-close / hide / nav-away is where the old batch-on-Stop lost everything (no unload handler existed).
+    // Beacon the remaining un-flushed turns (incl. still-pending) so the transcript survives — sendBeacon is
+    // delivered by the browser even as the page unloads. visibilitychange→hidden covers mobile/background.
+    const beaconFlush = () => flushSegments(true, true);
+    const onVisibility = () => { if (typeof document !== "undefined" && document.visibilityState === "hidden") beaconFlush(); };
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", beaconFlush);
+      document.addEventListener("visibilitychange", onVisibility);
+    }
     return () => {
       // Signal any in-flight start() to abort after its current await, THEN free whatever is
       // already in the refs. Freeing from refs alone missed resources start() acquires AFTER an
       // await (the mic-prompt window) — the flag closes that gap.
       unmountedRef.current = true;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pagehide", beaconFlush);
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
+      beaconFlush(); // nav-away without Stop: beacon whatever's still un-flushed before teardown
       teardownMedia();
     };
-  }, [teardownMedia]);
+  }, [teardownMedia, flushSegments]);
 
   // Toggle the manual "agent is speaking" lock (single earbud tap / button).
   const toggleAgentSpeaking = useCallback(() => {
