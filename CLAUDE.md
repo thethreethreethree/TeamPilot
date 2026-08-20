@@ -195,6 +195,38 @@ path works" and stopped short of "the config the feature depends on is in place.
 dependence is invisible to typecheck/lint/unit-tests by construction (the §5 confident-well-formed-failure at the
 configuration boundary). The class was swept in `docs/CONFIG-PRECONDITIONS-AUDIT.md`.
 
+### 1.5.4 A user-specified experience is layer-2, not waivable layer-4 polish
+
+> Added by [AMD-012](docs/amendments/AMD-012-user-specified-experience-is-layer-2.md), ratified 2026-08-20. Operational lesson: ThinkerThinker.md A42.
+
+§1.5.1 assigns "user interface and design" to **layer 4** and permits shipping a feature that passes
+layers 1-3 but fails layer 4 "with a follow-up polish commit." That clause governs design the
+**agent originated** — the thousand small choices no one asked for. It does **not** govern design the
+**user specified**.
+
+**The layer at which a property is binding is set by whether the user made it part of the intended
+result — not by the property's category.** When the user names the experience, appearance, tone,
+format, or interaction **as** the deliverable ("it needs colors, a design concept, a graphic element
+that's easy to read"), that specified experience **is** the intended result and belongs to **layer 2
+(operational effectivity)**. A feature that renders correctly but lacks the user-specified experience
+has **not** delivered the intended result — it fails layer 2, and layer 2 is never waivable by the
+layer-4 follow-up-polish clause.
+
+**In practice, before invoking "ship now, polish later," check:** did the user specify this surface
+or quality as a requirement? If yes, it is not polish — it is the result. Shipping without it and
+reporting the feature done is the §5 confident-well-formed-failure (a stated requirement unmet under
+a correct-looking build), and is forbidden. This is the *under-deliver* half of respecting founder
+intent, the mirror of §3.3's *overtake* half: doing less than asked while reporting complete is as
+much a violation as doing more or other than asked.
+
+This gate exists because the schedule Print/Download export (2026-08-20) shipped **correct**
+(whole-schedule, deploy-verified) but **monochrome**, after the founder explicitly required "colors
+elements, design concept/element, a graphic element that is very easy to understand." The agent filed
+the missing design under layer-4-optional and reported done; the founder: *"Why did you ignore my
+instruction?"* The category "design" was read as "therefore deferrable," when the user had made the
+design the point. The structural defense is this precondition: a user-specified experience binds at
+layer 2 and cannot be deferred as polish.
+
 ### 1.7 Ground-up auditing
 
 > Added by [AMD-004](docs/amendments/AMD-004-ground-up-audit.md), ratified 2026-06-02.
@@ -410,6 +442,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 5a. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md), ratified 2026-06-17.)** For user-facing features: have I traced the user's workflow *before AND after* this feature, and does the completed feature leave them in a flowing state? Or does it stall them — empty state, dead end, unnecessary intermediate steps?
 5b. **(Added by [AMD-006](docs/amendments/AMD-006-system-and-user-flow-tracing.md) second addendum, ratified 2026-06-18.)** While doing this task, have I *thought first* about what could fail or improve in the surrounding system, *then* searched and applied the four-layer framework to confirm? Proactive THINK + search is the default; mechanical grep alone doesn't satisfy the rule.
 5c. **(Added by [AMD-011](docs/amendments/AMD-011-external-config-preconditions.md), ratified 2026-08-14.)** Does this feature depend on config *outside the repo* (a third-party dashboard setting, an allowlist, env, DNS, a webhook secret)? If so, have I *verified* that precondition end-to-end, or *documented + flagged* it as a blocking setup step? "The code is correct" ≠ "it works" when an external precondition is unmet (§1.5.3).
+5d. **(Added by [AMD-012](docs/amendments/AMD-012-user-specified-experience-is-layer-2.md), ratified 2026-08-20.)** Did the user *specify the experience/appearance* (colors, design, tone, format, a graphic, an interaction) as part of the ask? If so it is **layer-2 (the intended result)**, not layer-4 polish — I may **not** ship "done" without it. Reporting complete with a user-specified requirement unmet is the §5 confident-well-formed-failure; it is the *under-deliver* mirror of §3.3's *overtake* (§1.5.4).
 5. Have I traced what else this change affects (holistic), and am I proposing iteratively
    (organic)?
 6. Am I explaining the WHY, not just the WHAT?
