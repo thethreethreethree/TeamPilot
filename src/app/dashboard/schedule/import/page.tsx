@@ -128,6 +128,10 @@ export default function ScheduleImportPage() {
           });
           if (pr.ok) { const pj = await pr.json(); codeMap = pj.codeMap ?? {}; extra = pj.notes ? ` ${pj.notes}` : ""; }
         } catch { /* LLM unavailable — fall back to manual mapping, still fully functional */ }
+        // Off-family codes are universal ("no shift", regardless of business) — map them deterministically so
+        // they never need the founder's input. Times are still their call; "off" isn't.
+        const OFF_CODES = new Set(["OFF", "REST", "RD", "DO", "RDO", "OFF DAY", "REST DAY", "DAY OFF"]);
+        for (const code of d.codes) if (!codeMap[code] && OFF_CODES.has(code.toUpperCase())) codeMap[code] = "off";
         setMap(codeMap);
         const mapped = Object.keys(codeMap).length;
         setProp({
