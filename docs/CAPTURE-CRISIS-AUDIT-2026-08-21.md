@@ -73,8 +73,14 @@ sessions in ~1–2 days.
 
 - **Founder validation required:** the reconnect recovery path is not verifiable headless — needs a real
   15+ min mobile call to confirm capture survives a mid-call drop.
-- **Partial-success marker hole:** a session whose dissect succeeded but another engine failed keeps the
-  `dissect_generated` marker, so the backfill won't retry the missing engine. (Rare; not yet closed.)
+- **Partial-success marker hole — INVESTIGATED, judged low-priority (2026-08-21).** A session whose dissect
+  succeeded but a sibling engine failed keeps the `dissect_generated` marker, so the backfill won't retry the
+  sibling. Measured prevalence looked high at first (51% of dissected sessions miss ≥1 sibling marker, mostly
+  moments 37/83), BUT the sibling engines emit their marker ONLY when there is signal (`salesMoments.ts:89`:
+  no moments → no marker), so a missing marker mostly means the engine HONESTLY found nothing (§3.4), not a
+  failure. The markers cannot distinguish honest-empty from failed, and re-running would just re-produce the
+  empties (LLM waste). A correct fix would need a per-engine `*_attempted` marker (mirroring
+  `dissect_attempted`) so the backfill can skip honest-empties; deferred until it's shown to matter.
 - **Proactive WS keepalive:** deferred — the robust reconnect now recovers from an idle/background close, but a
   keepalive ping would avoid the drop entirely on backgrounded calls.
 - **Unrecoverable backlog:** ~54% of past sessions have no transcript AND no audio — nothing to recover; P0/P1
