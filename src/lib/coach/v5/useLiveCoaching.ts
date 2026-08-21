@@ -72,6 +72,25 @@ const RECONNECT_STABLE_MS = 8000;
 // release it. Long enough not to fire during a normal multi-sentence pitch, short enough to catch a
 // left-on lock before it collapses many customer turns (founder 2026-08-21).
 const LOCK_WARN_MS = 20_000;
+// The MediaRecorder timeslice → a chunk (≈150-300 KB of webm audio) is emitted + uploaded this often, so the
+// recording is durably in storage within ~15s of "now" no matter how the session ends (2026-08-21).
+const AUDIO_CHUNK_MS = 15_000;
+
+/**
+ * Upload one live-recording audio chunk, fire-and-forget. Best-effort durability — a failure never affects
+ * live capture or the transcript, and the clean-Stop full-blob persist still covers a Stopped call. NOT
+ * keepalive: a chunk (~200 KB) exceeds the 64 KB keepalive body cap, so a chunk still in flight at a hard
+ * tab-close may be lost (≤15s of tail) — every earlier chunk is already durably stored.
+ */
+function postAudioChunk(sessionId: string, seq: number, blob: Blob): void {
+  void fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
+    method: "POST",
+    headers: { "Content-Type": blob.type || "audio/webm" },
+    body: blob,
+  }).catch(() => {
+    /* best-effort — the chunk is also in chunksRef for the clean-Stop persist; a cron stitch retries the rest */
+  });
+}
 // Endpointing: Scribe's VAD commits a transcript at end-of-utterance, so a
 // committed_transcript already means "they paused". This short SETTLE on
 // top coalesces burst-commits within one turn (e.g. "I think…" then "…next
@@ -326,6 +345,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // Monotonic seq for the incremental chunk upload ("never lose the recording", 2026-08-21). Resets to 0 on a
+  // fresh recording; PERSISTS across a reconnect (the recorder + its stream survive the drop), so the uploaded
+  // chunks stay one contiguous, byte-concatenatable webm.
+  const audioChunkSeqRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
@@ -1065,10 +1088,16 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           if (!isReconnect) {
             chunksRef.current = [];
             setRecordingBlob(null);
+            audioChunkSeqRef.current = 0; // fresh recording → chunk seq restarts at 0
           }
           const rec = new MediaRecorder(stream);
           rec.ondataavailable = (e) => {
-            if (e.data.size > 0) chunksRef.current.push(e.data);
+            if (e.data.size === 0) return;
+            chunksRef.current.push(e.data);
+            // "Never lose the recording" (founder 2026-08-21): upload each chunk fire-and-forget so the audio
+            // is in storage no matter how the session ends (drop / tab-close / never-Stop). Sequential
+            // MediaRecorder chunks byte-concatenate into a valid webm — seq order is preserved server-side.
+            void postAudioChunk(sessionId, audioChunkSeqRef.current++, e.data);
           };
           rec.onstop = () => {
             // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
@@ -1081,7 +1110,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
               );
             }
           };
-          rec.start();
+          // Timeslice → ondataavailable fires every AUDIO_CHUNK_MS (not just once on stop), so chunks upload
+          // DURING the call. onstop still yields the full blob from chunksRef, so the clean-Stop persist is
+          // byte-identical behaviour.
+          rec.start(AUDIO_CHUNK_MS);
           recorderRef.current = rec;
           // Audio is now being captured — true even if the STT feed later errors (the recorder
           // runs independently), which is exactly what keeps the "not recording" banner honest.
@@ -1586,7 +1618,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // `status` intentionally omitted: the only read was the stale onclose check,
     // now replaced by the functional setStatus form. Keeping it here would
     // recreate `start` on every status transition for no benefit.
-  }, [invokeCue, stop, classifyTurn, teardownMedia, teardownForReconnect, flushSegments]);
+  }, [invokeCue, stop, classifyTurn, teardownMedia, teardownForReconnect, flushSegments, sessionId]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;

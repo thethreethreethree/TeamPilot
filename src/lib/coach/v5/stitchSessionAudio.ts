@@ -1,0 +1,101 @@
+import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ASSETS_BUCKET, downloadAssetBytes } from "@/lib/storage/assets";
+
+/**
+ * Stitch a live session's incrementally-uploaded audio chunks into one recording and stamp `audio_asset_url`
+ * (founder 2026-08-21 — "never lose the recording"). During a call the recorder uploads a chunk every ~15s to
+ * `${companyId}/${sessionId}/chunks/${seq}.webm`; this concatenates them into the final
+ * `${companyId}/${sessionId}/recording.webm` so the audio survives ANY ending (drop / tab-close / phone-lock /
+ * crash / never-Stop) — not only a clean Stop. Sequential MediaRecorder chunks byte-concatenate into a valid
+ * webm, so ORDER matters and a gap truncates the tail (never corrupts the head).
+ *
+ * IDEMPOTENT: skips when `audio_asset_url` is already set (a clean Stop's `persistRecording` may have already
+ * uploaded the full blob, or a prior stitch ran). Service-role throughout (the worker/cron have no user
+ * session); path is pinned to the session's company, never derived from caller input.
+ */
+
+const chunksPrefix = (companyId: string, sessionId: string) => `${companyId}/${sessionId}/chunks`;
+const finalPath = (companyId: string, sessionId: string) => `${companyId}/${sessionId}/recording.webm`;
+
+/**
+ * From the chunk object names (`"0.webm"`, `"1.webm"`, …) return the CONTIGUOUS seq run starting at 0 — the
+ * portion that byte-concatenates into a valid recording. Stops at the first gap (a dropped chunk truncates the
+ * tail, keeping the valid head) and ignores duplicates / non-numeric names. Pure, so it's unit-testable.
+ */
+export function orderedChunkSeqs(names: string[]): number[] {
+  const seqs = names
+    .map((n) => Number(String(n).replace(/\.webm$/i, "")))
+    .filter((n) => Number.isInteger(n) && n >= 0)
+    .sort((a, b) => a - b);
+  const contiguous: number[] = [];
+  let expected = 0;
+  for (const s of seqs) {
+    if (s === expected) {
+      contiguous.push(s);
+      expected += 1;
+    } else if (s > expected) {
+      break; // gap — stop; the head is intact, the tail is dropped
+    }
+    // s < expected → duplicate; skip
+  }
+  return contiguous;
+}
+
+export async function stitchSessionAudio(args: {
+  companyId: string;
+  sessionId: string;
+}): Promise<{ stitched: boolean; reason?: string; bytes?: number }> {
+  const admin = createAdminClient();
+
+  // Idempotent guard — never overwrite an audio pointer a clean Stop (or a prior stitch) already set.
+  const { data: sess } = await admin
+    .from("coaching_sessions")
+    .select("audio_asset_url")
+    .eq("id", args.sessionId)
+    .maybeSingle();
+  if (!sess) return { stitched: false, reason: "session not found" };
+  if (sess.audio_asset_url) return { stitched: false, reason: "already has audio" };
+
+  const prefix = chunksPrefix(args.companyId, args.sessionId);
+  const { data: objects, error: listErr } = await admin.storage
+    .from(ASSETS_BUCKET)
+    .list(prefix, { limit: 2000 });
+  if (listErr) return { stitched: false, reason: `list: ${listErr.message}` };
+  const order = orderedChunkSeqs((objects ?? []).map((o) => o.name));
+  if (order.length === 0) return { stitched: false, reason: "no chunks" };
+
+  const parts: Buffer[] = [];
+  for (const seq of order) {
+    const dl = await downloadAssetBytes({ storagePath: `${prefix}/${seq}.webm` });
+    if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
+    parts.push(dl.bytes);
+  }
+  if (parts.length === 0) return { stitched: false, reason: "no readable chunks" };
+  const merged = Buffer.concat(parts);
+
+  const fpath = finalPath(args.companyId, args.sessionId);
+  const { error: upErr } = await admin.storage
+    .from(ASSETS_BUCKET)
+    .upload(fpath, merged, { contentType: "audio/webm", upsert: true });
+  if (upErr) return { stitched: false, reason: `upload: ${upErr.message}` };
+
+  // Stamp the pointer in the SAME shape upload-recording writes + recording-purge-cron expects:
+  // `${bucket}/${path}`. Re-scope to audio_asset_url IS NULL so a concurrent clean-Stop persist wins cleanly.
+  const { data: stamped, error: updErr } = await admin
+    .from("coaching_sessions")
+    .update({ audio_asset_url: `${ASSETS_BUCKET}/${fpath}` })
+    .eq("id", args.sessionId)
+    .is("audio_asset_url", null)
+    .select("id");
+  if (updErr) return { stitched: false, reason: `stamp: ${updErr.message}` };
+  if ((stamped?.length ?? 0) === 0) return { stitched: false, reason: "raced — audio set concurrently" };
+
+  // Best-effort: drop the chunk objects now that the canonical recording exists.
+  try {
+    await admin.storage.from(ASSETS_BUCKET).remove(order.map((s) => `${prefix}/${s}.webm`));
+  } catch {
+    /* noop — orphan chunks are harmless; the purge/retention sweeps them by prefix age */
+  }
+  return { stitched: true, bytes: merged.length };
+}
