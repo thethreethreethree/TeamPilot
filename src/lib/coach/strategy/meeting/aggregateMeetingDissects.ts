@@ -20,6 +20,7 @@ export type MeetingMetrics = {
   decisionsPerMeeting: number;
   ownedActionRatio: number | null; // owned / total actions; null when no actions were recorded
   focusedRatio: number | null; // focused / meetings-with-an-effectiveness-read; null when none recorded
+  balancedRatio: number | null; // balanced / meetings-with-a-balance-read; null when none recorded
   openItemsPerMeeting: number;
 };
 
@@ -48,6 +49,8 @@ function metricsFor(payloads: Record<string, unknown>[]): MeetingMetrics {
   let openItems = 0;
   let focused = 0;
   let effRecorded = 0;
+  let balanced = 0;
+  let balanceRecorded = 0;
   for (const p of payloads) {
     decisions += asArray(p.decisions).length;
     const acts = asArray(p.actions);
@@ -63,6 +66,11 @@ function metricsFor(payloads: Record<string, unknown>[]): MeetingMetrics {
       effRecorded += 1;
       if (eff.focused) focused += 1;
     }
+    const bal = asRecord(p.balance);
+    if (typeof bal.balanced === "boolean") {
+      balanceRecorded += 1;
+      if (bal.balanced) balanced += 1;
+    }
   }
   const n = payloads.length;
   return {
@@ -70,6 +78,7 @@ function metricsFor(payloads: Record<string, unknown>[]): MeetingMetrics {
     decisionsPerMeeting: n ? decisions / n : 0,
     ownedActionRatio: actions ? owned / actions : null,
     focusedRatio: effRecorded ? focused / effRecorded : null,
+    balancedRatio: balanceRecorded ? balanced / balanceRecorded : null,
     openItemsPerMeeting: n ? openItems / n : 0,
   };
 }
@@ -104,17 +113,21 @@ export function aggregateMeetingDissects(rows: MeetingDissectRow[]): MeetingTren
   const recent = metricsFor(payloads.slice(0, mid));
   const earlier = metricsFor(payloads.slice(mid));
 
-  // Direction from the two quality ratios moving together (missing ratio counts as no-change on that axis).
+  // Direction from the THREE monotonic-good quality ratios — actions getting owners, meetings staying focused,
+  // and voices staying balanced — moving together (a missing ratio counts as no-change on that axis). Net more
+  // ratios up than down = improving; more down = declining; a tie = flat. (Raw counts like decisions/meeting are
+  // reported but never directional — "more decisions" isn't unambiguously better; these three are.)
   const delta = (a: number | null, b: number | null): number =>
     a === null || b === null ? 0 : a - b;
-  const owned = delta(recent.ownedActionRatio, earlier.ownedActionRatio);
-  const focus = delta(recent.focusedRatio, earlier.focusedRatio);
-  const up = (d: number) => d > TOLERANCE;
-  const down = (d: number) => d < -TOLERANCE;
+  const deltas = [
+    delta(recent.ownedActionRatio, earlier.ownedActionRatio),
+    delta(recent.focusedRatio, earlier.focusedRatio),
+    delta(recent.balancedRatio, earlier.balancedRatio),
+  ];
+  const ups = deltas.filter((d) => d > TOLERANCE).length;
+  const downs = deltas.filter((d) => d < -TOLERANCE).length;
 
-  let direction: MeetingTrend["direction"] = "flat";
-  if ((up(owned) && !down(focus)) || (up(focus) && !down(owned))) direction = "improving";
-  else if ((down(owned) && !up(focus)) || (down(focus) && !up(owned))) direction = "declining";
+  const direction: MeetingTrend["direction"] = ups > downs ? "improving" : downs > ups ? "declining" : "flat";
 
   return { overall, recent, earlier, direction, lastAt: lastAt ?? null };
 }

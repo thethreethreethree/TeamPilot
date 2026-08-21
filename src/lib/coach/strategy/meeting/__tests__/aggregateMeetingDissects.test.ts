@@ -48,6 +48,16 @@ describe("aggregateMeetingDissects", () => {
     expect(t.lastAt).toBe("2026-08-22T00:00:00Z");
   });
 
+  it("reads 'improving' from BALANCE alone when owned+focused are flat (balance is a trend signal)", () => {
+    // owned + focused identical across halves; only balance improves (recent balanced, earlier not).
+    const balanced = { ...good, balance: { balanced: true } };
+    const uneven = { ...good, balance: { balanced: false } };
+    const t = aggregateMeetingDissects([row(balanced), row(balanced), row(uneven), row(uneven)]);
+    expect(t.recent?.balancedRatio).toBe(1);
+    expect(t.earlier?.balancedRatio).toBe(0);
+    expect(t.direction).toBe("improving");
+  });
+
   it("dedups by subject — counts distinct MEETINGS, not events (finding #2)", () => {
     // Same meeting m1 emitted 3 dissect events (a force-regen + a race); m2 emitted 1. Should count 2 meetings.
     const t = aggregateMeetingDissects([
