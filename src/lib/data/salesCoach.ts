@@ -2,6 +2,7 @@ import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { selectWinningLines } from "@/lib/coach/v5/winningLines";
+import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
 /**
  * Live Sales Coach — data layer (subsystem 2: Recording & Storage).
@@ -293,26 +294,37 @@ export async function setSessionOutcome(args: {
   return mapSession(data);
 }
 
-/** Append one diarized transcript segment (immutable). */
+/** Append one diarized transcript segment (immutable). `source` (0236) records WHY the speaker was assigned. */
 export async function appendTranscriptSegment(args: {
   sessionId: string;
   speaker: TranscriptSpeaker;
   text: string;
   seq: number;
   spokenAt?: string | null;
+  source?: string | null;
 }): Promise<TranscriptSegment | null> {
   const sb = createServiceRoleClient();
-  const { data, error } = await sb
+  const base = {
+    session_id: args.sessionId,
+    speaker: args.speaker,
+    text: args.text,
+    seq: args.seq,
+    spoken_at: args.spokenAt ?? null,
+  };
+  // `source` is a real column (0236) but the generated Supabase types predate it, so cast to the pre-0236 row
+  // shape — the extra property is sent at runtime, and the migration-coupling guard below covers an env where
+  // the column isn't applied.
+  let { data, error } = await sb
     .from("coaching_transcript_segments")
-    .insert({
-      session_id: args.sessionId,
-      speaker: args.speaker,
-      text: args.text,
-      seq: args.seq,
-      spoken_at: args.spokenAt ?? null,
-    })
+    .insert((args.source ? { ...base, source: args.source } : base) as typeof base)
     .select("*")
     .single();
+  // Migration-coupling guard (A34): if `source` (0236) isn't applied in this env, retry WITHOUT it rather than
+  // LOSING the segment — the transcript matters far more than the diagnostic source. (Column IS live in prod;
+  // this is belt-and-braces so a deploy-before-migrate can never regress capture. [[feedback_migration_coupling_no_assert]])
+  if (error && args.source && isMissingColumnError(error, "source")) {
+    ({ data, error } = await sb.from("coaching_transcript_segments").insert(base).select("*").single());
+  }
   if (error) {
     // 23505 = a segment for this (session_id, seq) already exists (migration 0208's unique constraint).
     // That means a re-finalize / hook remount replayed the transcript — an idempotent NO-OP (first-take

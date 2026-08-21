@@ -49,6 +49,7 @@ const SegmentInput = z.object({
   text: z.string().min(1).max(8000),
   seq: z.number().int().nonnegative(),
   spokenAt: z.string().datetime().optional(),
+  source: z.enum(["video-mic", "manual", "content", "pitch", "loudness"]).optional(), // 0236: why the speaker was assigned
 });
 const Body = z.object({
   segments: z.array(SegmentInput).max(2000).optional(),
@@ -109,6 +110,7 @@ export async function POST(
       text: seg.text,
       seq: seg.seq,
       spokenAt: seg.spokenAt ?? null,
+      source: seg.source ?? null,
     });
     if (r) appended += 1;
   }

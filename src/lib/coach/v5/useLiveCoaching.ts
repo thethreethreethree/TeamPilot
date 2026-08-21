@@ -107,7 +107,7 @@ const QUIET_RATIO = 0.65;
 // A single attributed turn. Salesperson = "agent", prospect = "customer"
 // (the existing TranscriptSpeaker terms). `pending` = the instant
 // provisional label is showing; the content classifier hasn't returned yet.
-type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean };
+type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean; source?: string };
 
 /**
  * Proximity verdict from an utterance's mean loudness — the INSTANT,
@@ -745,7 +745,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       const segs = selectUnflushedSegments(turnsRef.current, flushedSegsRef.current, includePending).slice(0, 500);
       if (segs.length === 0) return;
       const seqs = segs.map((s) => s.seq);
-      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq })) };
+      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq, ...(s.source ? { source: s.source } : {}) })) };
       const url = `/api/coach/sales-session/${sessionId}/segments`;
       const body = JSON.stringify(payload);
       if (useBeacon && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -793,6 +793,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             speaker: t.speaker,
             text: t.text,
             seq: i,
+            ...(t.source ? { source: t.source } : {}),
           })),
         }),
         keepalive: true,
@@ -1293,7 +1294,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             ...turnsRef.current,
             // Video: pending:false — the label is final (agent), no /attribute
             // refine is coming. In-person: pending until the LLM settles it.
-            { text, speaker: provisional, pending: !locked && !isVideo },
+            // source (0236) records WHY this label was chosen (manual lock / video / content / pitch / loudness)
+            // so an all-"agent" collapse is diagnosable afterward instead of indistinguishable from a real call.
+            { text, speaker: provisional, pending: !locked && !isVideo, source: attrSource },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console

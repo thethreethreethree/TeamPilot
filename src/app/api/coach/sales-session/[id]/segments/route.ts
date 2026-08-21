@@ -19,6 +19,7 @@ const SegmentSchema = z.object({
   text: z.string().min(1).max(8000),
   seq: z.number().int().nonnegative(),
   spokenAt: z.string().datetime().optional(),
+  source: z.enum(["video-mic", "manual", "content", "pitch", "loudness"]).optional(), // 0236: why the speaker was assigned
 });
 
 const BodySchema = z.object({
@@ -75,6 +76,7 @@ export async function POST(
       text: seg.text,
       seq: seg.seq,
       spokenAt: seg.spokenAt ?? null,
+      source: seg.source ?? null,
     });
     if (r) inserted += 1;
   }
