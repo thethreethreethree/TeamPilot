@@ -27,6 +27,17 @@ describe("Door Log state machine", () => {
     expect(transition("idle", { type: "NO_ANSWER" })).toBe("idle");
   });
 
+  it("NO_ANSWER from OUTCOME discards the recording and returns home (founder 2026-08-22)", () => {
+    // A rep who started recording expecting contact — and nobody came out — tags the door No-Answer from
+    // the outcome screen instead of a false Sold/Go-Back/Not-Interested. It's a real state change here
+    // (OUTCOME → IDLE), unlike the IDLE self-transition.
+    expect(transition("outcome", { type: "NO_ANSWER" })).toBe("idle");
+    expect(isLegalTransition("outcome", { type: "NO_ANSWER" })).toBe(true);
+    // Still illegal mid-recording and mid-naming — you tag No-Answer after Stop, on the outcome screen.
+    expect(transition("recording", { type: "NO_ANSWER" })).toBe("recording");
+    expect(transition("naming", { type: "NO_ANSWER" })).toBe("naming");
+  });
+
   it("LOG_OUTCOME jumps IDLE→OUTCOME (no-mic path — tag the outcome without recording)", () => {
     // Founder 2026-08-21: a mic-less rep reaches the OUTCOME screen directly, skipping RECORDING, so they
     // can still log Sold/Go-Back. It only fires from IDLE — never mid-recording or mid-naming.
@@ -53,7 +64,7 @@ describe("Door Log state machine", () => {
     const legal: Record<DoorLogState, DoorLogEvent[]> = {
       idle: [{ type: "RECORD_PITCH" }, { type: "LOG_OUTCOME" }, { type: "NO_ANSWER" }],
       recording: [{ type: "STOP_RECORD" }],
-      outcome: [{ type: "PICK_OUTCOME", outcome: "go_back" }],
+      outcome: [{ type: "PICK_OUTCOME", outcome: "go_back" }, { type: "NO_ANSWER" }],
       naming: [{ type: "SAVE" }],
     };
     const allEvents: DoorLogEvent[] = [

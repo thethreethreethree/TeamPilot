@@ -6,7 +6,13 @@
  *
  *   IDLE ──[NO_ANSWER]────────► (log knock) ──► IDLE
  *     ├──[RECORD_PITCH]──► RECORDING ──[STOP_RECORD]──► OUTCOME ──[PICK_OUTCOME]──► NAMING ──[SAVE]──► IDLE
+ *     │                                                    └──[NO_ANSWER]──► (log no-answer knock) ──► IDLE
  *     └──[LOG_OUTCOME]───────────────────────────────► OUTCOME  (no-mic path: log the outcome as a knock)
+ *
+ * NO_ANSWER is legal from OUTCOME too (founder feedback 2026-08-22): a rep who started recording expecting
+ * contact — and nobody came to the door — must be able to tag the door No-Answer from the outcome screen
+ * instead of being forced to pick a false Sold / Go-Back / Not-Interested. It logs a no-answer knock and
+ * discards the recording (there was no pitch), returning home exactly like the IDLE No-Answer action.
  *
  * LOG_OUTCOME (founder 2026-08-21) is the mic-less entry: a rep without mic access could previously log
  * ONLY No-Answer — the whole Sold/Go-Back path was gated behind RECORD_PITCH → the mic. This jumps straight
@@ -53,6 +59,9 @@ export function transition(state: DoorLogState, event: DoorLogEvent): DoorLogSta
       return state;
     case "outcome":
       if (event.type === "PICK_OUTCOME") return "naming";
+      // Nobody came to the door — tag it No-Answer from the outcome screen and discard the recording,
+      // rather than forcing a false Sold/Go-Back/Not-Interested (founder feedback 2026-08-22).
+      if (event.type === "NO_ANSWER") return "idle";
       return state;
     case "naming":
       if (event.type === "SAVE") return "idle";

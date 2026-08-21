@@ -47,10 +47,14 @@ function defaultPitchName(): string {
 // the cause is server-side. Only a genuine network throw (the client couldn't reach us at all) mentions
 // the signal; a server response (expired token already refreshed-and-retried, a 5xx, a 4xx) is "on our end".
 type SaveFailReason = "network" | "server";
+// Copy tells the rep what to DO, and tells the truth: this is an online-only surface with no client retry
+// queue, so the banner is a dismiss affordance — it must not promise a "retry" that doesn't exist (the old
+// "tap to retry" copy was false: tapping only dismissed, and the recording was already gone). Re-logging the
+// door is the real recovery. A server drop is never blamed on the rep's connection (honesty thesis, §3.4).
 function saveFailMessage(what: string, reason: SaveFailReason): string {
   return reason === "network"
-    ? `${what} didn't save — check your signal and try again.`
-    : `${what} didn't save on our end — tap to retry.`;
+    ? `${what} didn't save — check your signal and re-log this door.`
+    : `${what} didn't save on our end — please re-log this door.`;
 }
 
 export function DoorLog() {
@@ -69,6 +73,11 @@ export function DoorLog() {
   // silently-dropped knock/pitch that still advances the flow would read as success (the honesty thesis:
   // never dress a failure as a saved result). Set on a failed send, cleared when the next send starts.
   const [sendError, setSendError] = useState<string | null>(null);
+  // A non-error, honest heads-up (amber, not red): the outcome DID save, but something benign happened worth
+  // telling the rep — e.g. capture yielded no audio, so the pitch was logged as an outcome-only knock with
+  // nothing to review. Distinct from sendError so a successful-but-partial save never renders as a red failure
+  // (dressing a save as a failure is as dishonest as dressing a failure as a save — INV22, both directions).
+  const [notice, setNotice] = useState<string | null>(null);
   const recorder = useDoorRecorder();
 
   const tz = deviceTimeZone();
@@ -129,10 +138,22 @@ export function DoorLog() {
     [supabase]
   );
 
-  // Send a pitch: sign an upload target, push the audio, then POST the pitch with its storagePath. Audio
-  // failure is non-fatal — the pitch is still recorded (the Report Card shows the failure, not the Door Log).
+  // Send a pitch: sign an upload target, push the audio, then POST the pitch with its storagePath.
+  //
+  // CRITICAL (founder 2026-08-22, "didn't save on our end"): a pitch IS its recording. When there is NO
+  // usable audio — capture produced no blob (the recorder seams from the capture crisis: mid-call recorder
+  // recreation, mobile lock, zero chunks) OR the sign/upload failed — we must NOT send an audio-less pitch.
+  // The old code omitted `storagePath` on a null blob; the server's PitchBody REQUIRES it, so the POST 400'd
+  // and the ENTIRE pitch — the sale, the outcome, the door — was rejected. The rep saw "didn't save on our
+  // end" and lost the disposition, not just the (nonexistent) recording. The fix: when there's no audio,
+  // preserve what actually matters by logging the DISPOSITION as a KNOCK (drives the KPI + records the
+  // outcome exactly like the no-mic path). `audioDropped: true` lets the caller tell the rep honestly that
+  // this one recorded no audio — without a red "failed" banner, because the outcome DID save.
   const sendPitch = useCallback(
-    async (body: Record<string, unknown>, blob: Blob | null): Promise<{ ok: boolean; failReason: SaveFailReason }> => {
+    async (
+      base: { outcome: PitchOutcome; name: string; durationMs: number | null; clientKnockId: string },
+      blob: Blob | null
+    ): Promise<{ ok: boolean; failReason: SaveFailReason; audioDropped: boolean }> => {
       let storagePath = "";
       if (blob) {
         const signOnce = () =>
@@ -143,14 +164,14 @@ export function DoorLog() {
           }).catch(() => null);
         let signRes = await signOnce();
         // Mirror postDoorLog's 401 handling: an expired token on the SIGN step would silently drop the
-        // audio for a rep who's been out for hours (the exact long-field-session case) — the sale still
-        // lands via the resilient pitch POST below, but the recording (and its coaching) would be lost.
-        // Refresh the session and retry the sign once so the recording lands too. Still best-effort.
+        // audio for a rep who's been out for hours (the exact long-field-session case). Refresh the session
+        // and retry the sign once so the recording lands too. Still best-effort — a failed sign/upload falls
+        // through to the knock fallback below, so the OUTCOME is preserved even when the audio can't be.
         if (signRes && needsSessionRefresh(signRes.status)) {
           try {
             await supabase.auth.refreshSession();
           } catch {
-            /* refresh failed → audio stays best-effort; the pitch itself still saves below */
+            /* refresh failed → audio stays best-effort; the outcome still saves via the knock fallback */
           }
           signRes = await signOnce();
         }
@@ -159,9 +180,27 @@ export function DoorLog() {
           if (await uploadCb(AUDIO_BUCKET, sp, token, blob)) storagePath = sp;
         }
       }
-      return postDoorLog({ ...body, ...(blob ? { storagePath } : {}) });
+      if (!storagePath) {
+        const r = await postDoorLog({
+          kind: "knock",
+          outcome: base.outcome,
+          localDate,
+          clientKnockId: base.clientKnockId,
+        });
+        return { ...r, audioDropped: true };
+      }
+      const r = await postDoorLog({
+        kind: "pitch",
+        outcome: base.outcome,
+        localDate,
+        name: base.name,
+        durationMs: base.durationMs,
+        clientKnockId: base.clientKnockId,
+        storagePath,
+      });
+      return { ...r, audioDropped: false };
     },
-    [uploadCb, postDoorLog, supabase]
+    [uploadCb, postDoorLog, supabase, localDate]
   );
 
   const loadKpi = useCallback(async () => {
@@ -187,11 +226,30 @@ export function DoorLog() {
   const noAnswer = useCallback(() => {
     const id = newId();
     setSendError(null);
+    setNotice(null);
     void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("That knock", r.failReason));
       void loadKpi(); // re-fetches the true count, correcting the optimistic bump on a failed send
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
+    setState((s) => transition(s, { type: "NO_ANSWER" }));
+  }, [localDate, postDoorLog, loadKpi]);
+
+  // "Not Home / No Answer" from the OUTCOME screen (founder feedback 2026-08-22): a rep who started recording
+  // expecting contact — and nobody came out — was forced to tag a false Sold / Go-Back / Not-Interested at
+  // Stop. This logs a No-Answer knock and DISCARDS the recording (there was no pitch), returning home. Works
+  // for both the recorded flow (drop the audio) and the no-mic flow. Mirrors noAnswer(), from a later state.
+  const notHome = useCallback(() => {
+    const id = newId();
+    setSendError(null);
+    setNotice(null);
+    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((r) => {
+      if (!r.ok) setSendError(saveFailMessage("That knock", r.failReason));
+      void loadKpi();
+    });
+    setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
+    setRecorded(null);
+    setNoRecord(false);
     setState((s) => transition(s, { type: "NO_ANSWER" }));
   }, [localDate, postDoorLog, loadKpi]);
 
@@ -259,15 +317,16 @@ export function DoorLog() {
     if (busy) return;
     setBusy(true);
     setSendError(null);
+    setNotice(null);
     const id = newId();
     // Fire-and-forget the upload + POST so the rep returns to IDLE immediately (zero waiting). Online-only:
     // there is no client retry (offline queue withheld); server dedupe on clientKnockId still prevents dups.
-    // A failed send surfaces a banner (below) rather than silently dropping the pitch.
+    // sendPitch NEVER loses the outcome: no usable audio → it logs the disposition as a knock and reports
+    // audioDropped, so a capture hiccup shows an honest amber heads-up, not a red "didn't save" that drops
+    // the sale (founder 2026-08-22). A true server refusal still surfaces the red failure banner.
     void sendPitch(
       {
-        kind: "pitch",
         outcome: pickedOutcome,
-        localDate,
         name: name.trim() || defaultPitchName(),
         durationMs: recorded?.durationMs ?? null,
         clientKnockId: id,
@@ -275,6 +334,8 @@ export function DoorLog() {
       recorded?.blob ?? null
     ).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));
+      else if (r.audioDropped)
+        setNotice("Saved the outcome — but this pitch recorded no audio, so there's nothing to review.");
       void loadKpi();
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
@@ -282,7 +343,7 @@ export function DoorLog() {
     setName("");
     setBusy(false);
     setState((s) => transition(s, { type: "SAVE" }));
-  }, [busy, pickedOutcome, localDate, name, recorded, sendPitch, loadKpi]);
+  }, [busy, pickedOutcome, name, recorded, sendPitch, loadKpi]);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base flex flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-md mx-auto w-full">
@@ -293,6 +354,15 @@ export function DoorLog() {
           className="mb-3 w-full rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-left text-sm text-red-300 active:scale-[0.99] transition-transform"
         >
           ⚠ {sendError} <span className="text-red-400/70">(tap to dismiss)</span>
+        </button>
+      )}
+      {notice && (
+        <button
+          type="button"
+          onClick={() => setNotice(null)}
+          className="mb-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-left text-sm text-amber-300 active:scale-[0.99] transition-transform"
+        >
+          ⓘ {notice} <span className="text-amber-400/70">(tap to dismiss)</span>
         </button>
       )}
       {state === "idle" && (
@@ -413,6 +483,16 @@ export function DoorLog() {
                 {OUTCOME_LABELS[o]}
               </button>
             ))}
+            {/* Nobody came to the door — log No-Answer + discard the recording (founder feedback 2026-08-22:
+                a stopped recording must not force a false Sold/Go-Back/Not-Interested). Set apart visually as
+                the "none of the above" action so it never competes with a real outcome tap. */}
+            <button
+              onClick={notHome}
+              className="mt-1 w-full min-h-[56px] rounded-2xl bg-white/[0.04] border border-white/12 text-secondary text-base font-semibold active:scale-[0.98] transition-transform"
+            >
+              <DoorClosed className="inline w-5 h-5 mr-2 -mt-1" aria-hidden />
+              Not Home / No Answer
+            </button>
           </div>
         )}
 
