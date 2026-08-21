@@ -28,9 +28,16 @@ tenant-scope + owner-required service-role write + CWE-209). Typecheck clean.
   chunks persist; rare, and the stitch is idempotent-retried by the auto-close cron while still active.)
 - **Cap orphan:** if a single auto-close run closes >25 sessions WITH chunks, the overflow is `ended` but
   unstitched. Steady-state closures/run << 25 (only sessions crossing 6h that hour), so it rarely binds.
-- **Dead-recorder-on-reconnect seam — HANDLED (f5c66be8):** if the recorder is recreated mid-session (a mobile
-  screen-lock ends the mic track → P0 rebuilds it), the new recorder emits a fresh webm EBML header. The stitch
-  now DETECTS that header (`startsWithEbmlHeader`) and stops at the seam, keeping the first (valid) segment — the
-  pre-lock audio, still playable + transcribable — instead of a corrupt concat. The post-lock segment is dropped
-  from the stitched recording (a full multi-segment recovery would need per-generation muxing; not worth it).
+- **Dead-recorder-on-reconnect seam — HANDLED for the never-Stop path (f5c66be8):** if the recorder is recreated
+  mid-session (a mobile screen-lock ends the mic track → P0 rebuilds it), the new recorder emits a fresh webm
+  EBML header. The STITCH now detects that header (`startsWithEbmlHeader`) and stops at the seam, keeping the
+  first (valid) segment — the pre-lock audio, still playable + transcribable — instead of a corrupt concat. The
+  post-lock segment is dropped (a full multi-segment recovery would need per-generation muxing; not worth it).
+- **RESIDUAL — clean-Stop-after-track-loss full blob (narrow, documented):** the clean-Stop path uploads
+  `new Blob([all chunks])` via `persistRecording`, which does NOT go through the seam-fixed stitch — so a rep who
+  locks the phone (recorder recreated) AND THEN cleanly taps Stop gets a full blob corrupt at the seam. Narrow
+  (lock + clean-Stop; NOT the never-Stop case, which is fixed; NOT in the validation protocol — its Stop test
+  uses airplane-mode, which drops the WS but not the mic track, so no recorder-recreate). A fix would route
+  clean-Stop through the stitch and resolve a race with `persistRecording`; deferred as not worth that
+  complexity for the case's frequency. Flagged so it isn't mistaken for covered.
 - **Founder validation:** confirm a real never-Stopped call leaves a playable `recording.webm`.
