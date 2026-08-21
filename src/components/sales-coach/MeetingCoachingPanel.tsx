@@ -8,7 +8,8 @@ import { useMeetingCoaching } from "@/lib/coach/v5/useMeetingCoaching";
  * Setup (pick kind + where + title → create the session) → live coaching (transcript, the current cue, coach
  * controls). Mirrors the Sales LiveCoachingPanel's shape (earpiece-gated Start, prominent cue, Stop) but leaner.
  * The UX here is the agent's default (founder can refine it — §1.5.4); the coaching substance is the meeting
- * brain behind /api/coach/meeting-session/[id]/cue.
+ * brain behind /api/coach/meeting-session/[id]/cue. Colors use the app's theme tokens (text-primary/secondary/
+ * muted, bg-surface, border-default) so the panel is legible in both light and dark, not hard-coded zinc.
  */
 type Kind = "meeting" | "huddle";
 type Ctx = "in_person" | "video";
@@ -34,6 +35,16 @@ export function MeetingCoachingPanel() {
     // coach is a fresh object each render; gate on sessionId + the once-latch above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // End the session and return to setup — so a mic-permission failure (or a finished meeting) is never a
+  // dead-end: the facilitator can start over or begin another meeting. Resets the once-latch so the next
+  // created session starts cleanly. (Post-meeting Dissect is a later phase; setup is the honest MVP return.)
+  function endSession() {
+    coach.stop();
+    startedRef.current = false;
+    setSessionId(null);
+    setTitle("");
+  }
 
   async function startSession() {
     setCreating(true);
@@ -63,14 +74,14 @@ export function MeetingCoachingPanel() {
     return (
       <div className="mx-auto flex max-w-lg flex-col gap-5 p-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Start a coached meeting</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="text-xl font-semibold text-primary">Start a coached meeting</h1>
+          <p className="mt-1 text-sm text-secondary">
             The coach listens and quietly cues you on facilitation — surfacing drift, undecided items, and
             unassigned actions — in your earpiece. It advises; you run the room.
           </p>
         </div>
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-300">
+        <label className="flex flex-col gap-1 text-sm text-secondary">
           What is this?
           <div className="flex gap-2">
             {(["meeting", "huddle"] as const).map((k) => (
@@ -81,11 +92,11 @@ export function MeetingCoachingPanel() {
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm capitalize ${
                   kind === k
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
-                    : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                    : "border-default text-secondary hover:border-strong"
                 }`}
               >
                 {k}
-                <span className="mt-0.5 block text-xs font-normal text-zinc-500">
+                <span className="mt-0.5 block text-xs font-normal text-muted">
                   {k === "meeting" ? "decisions + actions" : "fast status + blockers"}
                 </span>
               </button>
@@ -93,7 +104,7 @@ export function MeetingCoachingPanel() {
           </div>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-300">
+        <label className="flex flex-col gap-1 text-sm text-secondary">
           Where?
           <div className="flex gap-2">
             {(["in_person", "video"] as const).map((c) => (
@@ -104,7 +115,7 @@ export function MeetingCoachingPanel() {
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
                   context === c
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
-                    : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                    : "border-default text-secondary hover:border-strong"
                 }`}
               >
                 {c === "in_person" ? "In person" : "Video call"}
@@ -113,18 +124,18 @@ export function MeetingCoachingPanel() {
           </div>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-300">
+        <label className="flex flex-col gap-1 text-sm text-secondary">
           Title
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Weekly product sync"
             maxLength={200}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500"
+            className="rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus:border-emerald-500"
           />
         </label>
 
-        <label className="flex items-start gap-2 text-sm text-zinc-400">
+        <label className="flex items-start gap-2 text-sm text-secondary">
           <input
             type="checkbox"
             checked={earpieceOk}
@@ -134,7 +145,7 @@ export function MeetingCoachingPanel() {
           I have an in-ear earpiece in, so cues are private to me and don&apos;t interrupt the room.
         </label>
 
-        {createError && <p className="text-sm text-red-300">{createError}</p>}
+        {createError && <p className="text-sm text-red-400">{createError}</p>}
 
         <button
           type="button"
@@ -153,8 +164,8 @@ export function MeetingCoachingPanel() {
     <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold capitalize text-zinc-100">{kind} coach</h1>
-          <p className="text-xs text-zinc-500">
+          <h1 className="text-lg font-semibold capitalize text-primary">{kind} coach</h1>
+          <p className="text-xs text-muted">
             {coach.status === "live"
               ? "Listening"
               : coach.status === "connecting"
@@ -164,7 +175,7 @@ export function MeetingCoachingPanel() {
                   : "Idle"}
           </p>
         </div>
-        <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-800" aria-hidden>
+        <div className="h-2 w-24 overflow-hidden rounded-full bg-surface-raised" aria-hidden>
           <div
             className="h-full bg-emerald-500 transition-[width] duration-100"
             style={{ width: `${Math.round(coach.micLevel * 100)}%` }}
@@ -172,13 +183,13 @@ export function MeetingCoachingPanel() {
         </div>
       </div>
 
-      {coach.error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{coach.error}</p>}
+      {coach.error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{coach.error}</p>}
 
       {/* The current cue — the point of the whole surface. */}
       <div className="min-h-[4.5rem] rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4">
         <p className="text-xs uppercase tracking-wide text-emerald-400/70">Coach</p>
-        <p className="mt-1 text-sm text-zinc-100">
-          {coach.currentCue ?? <span className="text-zinc-500">Quiet unless something needs your attention.</span>}
+        <p className="mt-1 text-sm text-primary">
+          {coach.currentCue ?? <span className="text-muted">Quiet unless something needs your attention.</span>}
         </p>
       </div>
 
@@ -186,7 +197,7 @@ export function MeetingCoachingPanel() {
         <button
           type="button"
           onClick={coach.requestCue}
-          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-600"
+          className="rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
         >
           Coach me now
         </button>
@@ -194,7 +205,7 @@ export function MeetingCoachingPanel() {
           type="button"
           onClick={() => coach.setAutoCoach(!coach.autoCoach)}
           className={`rounded-lg border px-3 py-2 text-sm ${
-            coach.autoCoach ? "border-emerald-500 text-emerald-300" : "border-zinc-700 text-zinc-400"
+            coach.autoCoach ? "border-emerald-500 text-emerald-300" : "border-default text-secondary"
           }`}
         >
           Auto-coach {coach.autoCoach ? "on" : "off"}
@@ -202,31 +213,31 @@ export function MeetingCoachingPanel() {
         <button
           type="button"
           onClick={() => coach.markNearingEnd(true)}
-          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-600"
+          className="rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
         >
           Wrapping up
         </button>
         <button
           type="button"
-          onClick={coach.stop}
-          className="ml-auto rounded-lg bg-zinc-700 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-600"
+          onClick={endSession}
+          className="ml-auto rounded-lg bg-surface-raised px-3 py-2 text-sm text-primary hover:opacity-90"
         >
-          Stop
+          {coach.status === "error" ? "Back to setup" : "Stop"}
         </button>
       </div>
 
       {/* Rolling transcript (cue fuel — unlabeled single stream for the in-person MVP). */}
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
+      <div className="max-h-64 overflow-y-auto rounded-lg border border-default bg-surface p-3 text-sm">
         {coach.turns.length === 0 && !coach.partial ? (
-          <p className="text-zinc-600">The conversation will appear here as it&apos;s captured.</p>
+          <p className="text-muted">The conversation will appear here as it&apos;s captured.</p>
         ) : (
           <div className="flex flex-col gap-1.5">
             {coach.turns.map((t, i) => (
-              <p key={i} className="text-zinc-300">
+              <p key={i} className="text-secondary">
                 {t.text}
               </p>
             ))}
-            {coach.partial && <p className="text-zinc-500 italic">{coach.partial}</p>}
+            {coach.partial && <p className="text-muted italic">{coach.partial}</p>}
           </div>
         )}
       </div>

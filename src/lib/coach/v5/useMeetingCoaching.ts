@@ -75,7 +75,10 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const micLevelRef = useRef(0);
   const startRef = useRef<(isReconnect?: boolean) => Promise<void>>(async () => {});
 
-  const teardown = useCallback(() => {
+  // Free the STT TRANSPORT (socket + audio graph + context) but KEEP the mic stream. Used before a reconnect —
+  // a reconnect rebuilds the socket/context/proc, so the old ones MUST be closed first or each drop leaks an
+  // AudioContext + a socket (browsers cap live AudioContexts, so a flaky network eventually kills capture).
+  const teardownTransport = useCallback(() => {
     try {
       const ws = wsRef.current;
       if (ws) {
@@ -98,9 +101,13 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
       /* ignore */
     }
     ctxRef.current = null;
+  }, []);
+
+  const teardown = useCallback(() => {
+    teardownTransport();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-  }, []);
+  }, [teardownTransport]);
 
   // Speak a cue to the earpiece via the shared TTS route (generic text→audio; reused unchanged from Sales).
   const speakCue = useCallback(async (text: string) => {
@@ -167,6 +174,10 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         setError(null);
         turnsRef.current = [];
         setTurns([]);
+      } else {
+        // Close the dropped socket + its audio graph/context before rebuilding — else each reconnect orphans an
+        // AudioContext + socket. Keep the mic stream (re-acquiring after a background/lock often fails or hangs).
+        teardownTransport();
       }
       setStatus("connecting");
       const scheduleReconnect = (): boolean => {
@@ -288,7 +299,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         teardown();
       }
     },
-    [teardown, invokeCue]
+    [teardown, teardownTransport, invokeCue]
   );
   startRef.current = start;
 
