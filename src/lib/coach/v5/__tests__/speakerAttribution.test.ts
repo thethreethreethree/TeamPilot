@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   guessSpeakerFromContent,
   composeProvisional,
+  shouldReleaseLock,
 } from "../speakerAttribution";
 
 /**
@@ -110,5 +111,24 @@ describe("composeProvisional — signal priority (A16)", () => {
     expect(
       composeProvisional({ ...base, content: "customer", isVideo: false })
     ).toEqual({ speaker: "customer", source: "content" });
+  });
+});
+
+describe("shouldReleaseLock — smart auto-release of a stuck 'I'm speaking' lock (founder 2026-08-21)", () => {
+  it("releases ONLY when the lock is held AND the content is an unambiguous customer tell", () => {
+    // The stuck-lock collapse: the rep held the lock, but the customer plainly spoke → release so the
+    // customer's turn (and the ones after) attribute normally instead of inheriting "agent".
+    expect(shouldReleaseLock(true, "customer")).toBe(true);
+  });
+
+  it("does NOT release when the lock isn't held (nothing to release)", () => {
+    expect(shouldReleaseLock(false, "customer")).toBe(false);
+  });
+
+  it("does NOT release on an agent tell or an ambiguous turn (only a customer tell overturns the rep's toggle)", () => {
+    // A held lock + agent content AGREES with the lock → stay locked. A held lock + no tell (null) is the
+    // normal multi-sentence pitch → stay locked so pitch/loudness can't wrongly overturn ground truth.
+    expect(shouldReleaseLock(true, "agent")).toBe(false);
+    expect(shouldReleaseLock(true, null)).toBe(false);
   });
 });

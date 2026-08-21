@@ -57,6 +57,7 @@ export function LiveCoachingPanel({
     setAutoCoach,
     agentSpeaking,
     toggleAgentSpeaking,
+    lockHeldWarning,
     anchorHint,
     mode,
     setMode,
@@ -505,6 +506,43 @@ export function LiveCoachingPanel({
             while you talk to lock your voice in and sharpen the split.
           </span>
         </p>
+      )}
+
+      {/* Loud lock indicator (founder 2026-08-21): the "I'm speaking" lock is STICKY, and a rep who
+          forgets to release it collapses the whole call to "agent". The small header pill wasn't enough
+          — this is an UNMISSABLE, tappable banner whenever the lock is held, escalating to a warning
+          after LOCK_WARN_MS (lockHeldWarning). Tapping it releases the lock. The smart auto-release in
+          the hook still catches a stuck lock on an obvious customer turn; this is the visible half. */}
+      {live && agentSpeaking && (
+        <button
+          type="button"
+          onClick={toggleAgentSpeaking}
+          aria-live="polite"
+          className={`mt-2 w-full flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold active:scale-[0.99] transition-transform ${
+            lockHeldWarning
+              ? "border-red-500/60 bg-red-500/15 text-red-300 animate-pulse"
+              : "border-ember-400/60 bg-ember-400/15 text-brand"
+          }`}
+        >
+          {lockHeldWarning ? (
+            <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden />
+          ) : (
+            <Mic className="w-4 h-4 shrink-0" aria-hidden />
+          )}
+          <span className="leading-snug">
+            {lockHeldWarning ? (
+              <>
+                Still holding <strong>&quot;I&apos;m speaking&quot;</strong>? The prospect&apos;s turns are
+                being logged as you — <span className="underline">tap to release</span>.
+              </>
+            ) : (
+              <>
+                Mic locked to you — every turn is being labeled as you.{" "}
+                <span className="underline">Tap to release</span> when you hand back.
+              </>
+            )}
+          </span>
+        </button>
       )}
 
       {/* Build 5 — earpiece tap control on its OWN row so it doesn't crowd the

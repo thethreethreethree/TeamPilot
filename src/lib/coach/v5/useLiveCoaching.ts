@@ -18,6 +18,7 @@ import {
 import {
   guessSpeakerFromContent,
   composeProvisional,
+  shouldReleaseLock,
 } from "@/lib/coach/v5/speakerAttribution";
 import {
   shouldScheduleCueAtCommit,
@@ -62,6 +63,10 @@ export type LiveStatus = "idle" | "connecting" | "live" | "error";
 const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
 // How many times to auto-reconnect the realtime socket after a mid-call drop before giving up (2026-08-21).
 const MAX_RECONNECTS = 3;
+// Stuck "I'm speaking" lock nudge: after this long of continuous hold, the panel warns the rep to
+// release it. Long enough not to fire during a normal multi-sentence pitch, short enough to catch a
+// left-on lock before it collapses many customer turns (founder 2026-08-21).
+const LOCK_WARN_MS = 20_000;
 // Endpointing: Scribe's VAD commits a transcript at end-of-utterance, so a
 // committed_transcript already means "they paused". This short SETTLE on
 // top coalesces burst-commits within one turn (e.g. "I think…" then "…next
@@ -269,6 +274,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // "agent" — a hard override of the loudness/content guess — for clean script
   // separation on the rep's turns. OFF = the automatic attribution runs.
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  // Stuck-lock warning (founder 2026-08-21): the lock is sticky, so a rep who forgets to tap it OFF
+  // collapses the call to all-"agent". Smart auto-release (below) catches it when the customer gives an
+  // obvious content tell; this timer is the belt-and-braces nudge for the case where no such tell fires —
+  // after LOCK_WARN_MS of continuous hold the panel surfaces "still holding? tap to release". Cleared on
+  // release (manual OR auto), on stop, and on teardown so it never fires stale.
+  const [lockHeldWarning, setLockHeldWarning] = useState(false);
+  const lockWarnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Pitch-anchor nudge (founder 2026-07-06): true when the in-person voice
   // separation is struggling and the rep hasn't anchored it yet — the panel
   // surfaces a hint to tap "I'm speaking". Ref mirrors state so the commit
@@ -866,6 +878,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // turns (proactive audit, §1.5.2).
     agentSpeakingRef.current = false;
     setAgentSpeaking(false);
+    if (lockWarnTimerRef.current) {
+      clearTimeout(lockWarnTimerRef.current);
+      lockWarnTimerRef.current = null;
+    }
+    setLockHeldWarning(false);
   }, [sessionId]);
 
   // Free every live-coaching media resource straight from the refs — NO setState, so it is safe
@@ -901,6 +918,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
+    if (lockWarnTimerRef.current) { clearTimeout(lockWarnTimerRef.current); lockWarnTimerRef.current = null; }
   }, []);
 
   const start = useCallback(async () => {
@@ -1209,22 +1227,42 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           const acc = utterEnergyRef.current;
           const energy = acc.count > 0 ? acc.sum / acc.count : 0;
           utterEnergyRef.current = { sum: 0, count: 0 };
-          // Close out the utterance's pitch too — clears the buffer every commit
-          // (matching the energy reset) so frames don't bleed across turns. When
-          // the rep holds "I'm speaking" this turn is ground-truth agent, so the
-          // agent cluster is updated directly, never the nearest (audit F5).
-          const pitch = pitchSepRef.current.labelTurn(
-            agentSpeakingRef.current ? "agent" : undefined
-          );
+          // Smart auto-release of a stuck "I'm speaking" lock (founder 2026-08-21): decide it BEFORE the
+          // pitch buffer is closed. labelTurn(agentSpeaking?"agent") ANCHORS this turn's pitch to the agent
+          // cluster — if the lock was left ON and it's actually the customer, that anchor poisons the
+          // cluster. The release is driven by the LOCK-INDEPENDENT content tell (shouldReleaseLock, the
+          // single source per §2.2 — composeProvisional below consumes the resolved lock, never re-derives),
+          // so it's known before we touch the pitch buffer.
+          const wasLocked = agentSpeakingRef.current;
+          const contentGuess = guessSpeakerFromContent(text);
+          const releaseLock = shouldReleaseLock(wasLocked, contentGuess);
+          if (releaseLock) {
+            // The customer plainly spoke while the lock was held → the rep forgot to tap off. Release now so
+            // THIS turn and the ones after attribute normally instead of every turn inheriting "agent".
+            agentSpeakingRef.current = false;
+            setAgentSpeaking(false);
+            if (lockWarnTimerRef.current) {
+              clearTimeout(lockWarnTimerRef.current);
+              lockWarnTimerRef.current = null;
+            }
+            setLockHeldWarning(false);
+            playToggleBeep(false); // falling tone = the rep hears the release, eyes-free
+            // eslint-disable-next-line no-console
+            console.info("[live-coaching] auto-released 'I'm speaking' — unambiguous customer content while held");
+          }
+          const locked = wasLocked && !releaseLock;
+          // Close out the utterance's pitch too — clears the buffer every commit (matching the energy
+          // reset) so frames don't bleed across turns. When the rep holds "I'm speaking" this turn is
+          // ground-truth agent, so the agent cluster is updated directly, never the nearest (audit F5) —
+          // unless we just auto-released, in which case it's attributed like any unlocked turn.
+          const pitch = pitchSepRef.current.labelTurn(locked ? "agent" : undefined);
           if (!text) {
-            // An empty commit (noise burst) still ENDS the current utterance —
-            // clear the per-utterance start so the NEXT turn measures pace from its
-            // OWN first partial, not across this gap (audit 2026-07-09: a stale start
-            // inflated durationSec → WPM too low → pace spikes silently missed).
+            // An empty commit (noise burst) still ENDS the current utterance — clear the per-utterance
+            // start so the NEXT turn measures pace from its OWN first partial, not across this gap (audit
+            // 2026-07-09: a stale start inflated durationSec → WPM too low → pace spikes silently missed).
             utteranceStartRef.current = null;
             return;
           }
-          const locked = agentSpeakingRef.current;
           // Accuracy measurement (§4/§3.6): when the rep has confirmed "I'm
           // speaking" (ground truth = agent), compare what the AUTO verdict
           // WOULD have guessed — so separation accuracy is a watchable number,
@@ -1268,7 +1306,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // Voice-only signal — passed to the LLM /attribute as its tiebreaker.
           const voiceHint: TranscriptSpeaker =
             pitchTrusted && pitch.speaker ? pitch.speaker : v.speaker;
-          const contentGuess = guessSpeakerFromContent(text);
+          // contentGuess is computed above (it drives the smart auto-release before the pitch anchor).
           // Video A/B (founder 2026-07-06 → mic-only v1): a video call's mic is
           // AGENT-ONLY — the prospect is on the far end of the call, not in the
           // mic. composeProvisional applies that as a HARD override (isVideo →
@@ -1520,6 +1558,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     const next = !agentSpeakingRef.current;
     agentSpeakingRef.current = next;
     setAgentSpeaking(next);
+    // Stuck-lock nudge (founder 2026-08-21): arm a warning when the lock goes ON so a rep who forgets to
+    // tap it OFF is prompted before it collapses many customer turns; clear it whenever the lock goes OFF.
+    if (lockWarnTimerRef.current) {
+      clearTimeout(lockWarnTimerRef.current);
+      lockWarnTimerRef.current = null;
+    }
+    if (next) {
+      lockWarnTimerRef.current = setTimeout(() => setLockHeldWarning(true), LOCK_WARN_MS);
+    } else {
+      setLockHeldWarning(false);
+    }
     // Audible confirmation to the earphones — distinct rising (ON) / falling
     // (OFF) tone so the rep knows the state without seeing the screen.
     playToggleBeep(next);
@@ -1528,6 +1577,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   return {
     agentSpeaking,
     toggleAgentSpeaking,
+    lockHeldWarning,
     anchorHint,
     recordingBlob,
     clearRecording,

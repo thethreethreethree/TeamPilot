@@ -85,6 +85,29 @@ export function guessSpeakerFromContent(text: string): TranscriptSpeaker | null 
   return null; // ambiguous / mixed / no tell → voice + LLM decide
 }
 
+/**
+ * Smart auto-release of the manual "I'm speaking" lock (founder 2026-08-21).
+ *
+ * The lock is STICKY — a single earbud tap holds it ON until tapped OFF — so a rep who forgets to
+ * release it collapses the whole call to "agent" (every subsequent turn, INCLUDING the customer's,
+ * inherits the lock; ~26% of transcribed sessions were all-"agent" from exactly this). When the lock is
+ * ON but THIS turn's content is an UNAMBIGUOUS customer tell — a lock-INDEPENDENT signal that the rep's
+ * turn is plainly over — the lock is almost certainly stuck. Release it so this turn and the ones after
+ * it attribute normally. Only the confident buyer content tell (guessSpeakerFromContent returns
+ * "customer" ONLY when unambiguous) may overturn the rep's explicit toggle; pitch/loudness are too weak
+ * in person to overturn a ground-truth signal, so they never trigger a release.
+ *
+ * This is the SINGLE SOURCE for the release decision (§2.2/AMD-010): the hook computes it once, BEFORE
+ * the pitch cluster is anchored to "agent", then feeds the resolved lock into composeProvisional — which
+ * never re-derives it. Called with the toggle's raw ON state and this turn's content guess.
+ */
+export function shouldReleaseLock(
+  locked: boolean,
+  content: TranscriptSpeaker | null
+): boolean {
+  return locked && content === "customer";
+}
+
 export type AttributionSource =
   | "video-mic"
   | "manual"
