@@ -1,5 +1,40 @@
 # Founder action queue
 
+## ✅ 2026-08-22 — Meeting Coach (Team-Sync) IN-PERSON MVP: BUILT, DEPLOYED, LIVE — needs your device run + 4 decisions
+
+**Your 3 decisions were made (2026-08-21) and the entire in-person MVP is built, review-hardened, §1.7-audited,
+deployed, and LIVE on elostate.com** (HEAD `b0da7903` == prod, verified via `/api/health`; `npm run check` 3572
+tests green throughout; Sales Coach untouched). Your decisions, as executed: (1) attribution = platform captions
+(video) + room-mic (in-person); (2) cues **live day-1** (`controlExempt`, no control-month — your call); (3)
+`session_kind` column.
+
+**11 commits** (`129e3c01` server → `4f5c4538` client → `9eda105a` hardening → `6fe34caa` durable audio →
+`4d5d7791` review fixes → `ee81bf2a` audit → `b0da7903` start-race). A facilitator can go to
+`/dashboard/meeting-coach`, run a coached meeting/huddle, and get facilitation cues in their earpiece + on screen,
+with durable audio. Full maps: `docs/reference/meeting-coach-architecture.md`, `docs/MEETINGCOACH-AUDIT-2026-08-22.md`.
+
+**What's on YOU now:**
+
+1. **APPLY MIGRATION 0237 + DEVICE TEST (the one blocker + the one thing unverifiable headless).** Run
+   `npm run db:apply` (until then the create route fail-honest-500s), then a real huddle on a phone with an
+   earpiece. Step-by-step: `docs/MEETINGCOACH-DEVICE-VALIDATION.md`; verify with
+   `node scripts/diag-meeting-session.mjs "<your name>"` (reports kind + cues + audio).
+2. **§3.5 DISSECT-MEASUREMENT DECISION (before I build post-meeting Dissect).** *What is a "good meeting"?*
+   (decisions reached / actions assigned-with-owners / clarification cycles / follow-through). The §1.7 audit
+   flagged the constraint: because cues run day-1 there is **no control-month baseline**, so Dissect must measure
+   a trend or a circumstance-controlled signal, **never agreement with the coach** (grading its own homework).
+3. **NAV PLACEMENT.** `/dashboard/meeting-coach` is reachable only by URL. It's a **Team-Sync** feature — placing
+   it under Sales Coach would misfile it. Where does it live? (This ties to Team-Sync's structure — see #5.)
+4. **APPROVE the filed sales-hook fix?** The review found a shared low-frequency `start()` race (Stop during the
+   1–2s startup → zombie "live" session) in BOTH hooks. I fixed the **meeting** hook (zero risk) but **filed** the
+   identical `useLiveCoaching` (live sales) fix — a one-line-pattern change I won't apply to the live business
+   under the autonomous guard without your OK + a device run. Green-light it?
+
+**Forward finding (for when you scope Team-Sync):** two monitors the plan wanted are honestly omitted because a
+raw transcript can't ground them — meeting "agenda item running long" (needs a clock/agenda) and huddle "missing
+updates" (needs an attendee roster). **Giving a Team-Sync meeting an agenda + duration + attendee list unlocks
+both** (and improves speaker attribution). So Team-Sync's meeting metadata directly upgrades the coach.
+
 ## 🎙️ 2026-08-21 — Live-Coach CAPTURE CRISIS fixed & live — needs ONE validation + 3 gated decisions
 
 The capture crisis (sessions dropping, recording stopping, after-pitch not generating) is remediated and live
