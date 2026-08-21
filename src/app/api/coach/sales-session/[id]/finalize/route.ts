@@ -10,6 +10,7 @@ import {
   appendTranscriptSegment,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { ATTRIBUTION_SOURCES } from "@/lib/coach/v5/speakerAttribution";
 
 // The five post-call engines run concurrently, each bounded by a 40s (shared) in-code
 // timeout (withEngineTimeout). That timeout is only effective if the platform
@@ -49,7 +50,7 @@ const SegmentInput = z.object({
   text: z.string().min(1).max(8000),
   seq: z.number().int().nonnegative(),
   spokenAt: z.string().datetime().optional(),
-  source: z.enum(["video-mic", "manual", "content", "pitch", "loudness"]).optional(), // 0236: why the speaker was assigned
+  source: z.enum(ATTRIBUTION_SOURCES).optional(), // 0236: why the speaker was assigned (single source of the values)
 });
 const Body = z.object({
   segments: z.array(SegmentInput).max(2000).optional(),

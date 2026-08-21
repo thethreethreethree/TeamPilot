@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import { ATTRIBUTION_SOURCES } from "@/lib/coach/v5/speakerAttribution";
 
 /**
  * Live Sales Coach — append diarized transcript segments (append-only).
@@ -19,7 +20,7 @@ const SegmentSchema = z.object({
   text: z.string().min(1).max(8000),
   seq: z.number().int().nonnegative(),
   spokenAt: z.string().datetime().optional(),
-  source: z.enum(["video-mic", "manual", "content", "pitch", "loudness"]).optional(), // 0236: why the speaker was assigned
+  source: z.enum(ATTRIBUTION_SOURCES).optional(), // 0236: why the speaker was assigned (single source of the values)
 });
 
 const BodySchema = z.object({
