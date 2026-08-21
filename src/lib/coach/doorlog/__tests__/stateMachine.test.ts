@@ -27,6 +27,15 @@ describe("Door Log state machine", () => {
     expect(transition("idle", { type: "NO_ANSWER" })).toBe("idle");
   });
 
+  it("LOG_OUTCOME jumps IDLE→OUTCOME (no-mic path — tag the outcome without recording)", () => {
+    // Founder 2026-08-21: a mic-less rep reaches the OUTCOME screen directly, skipping RECORDING, so they
+    // can still log Sold/Go-Back. It only fires from IDLE — never mid-recording or mid-naming.
+    expect(transition("idle", { type: "LOG_OUTCOME" })).toBe("outcome");
+    expect(transition("recording", { type: "LOG_OUTCOME" })).toBe("recording");
+    expect(transition("outcome", { type: "LOG_OUTCOME" })).toBe("outcome");
+    expect(transition("naming", { type: "LOG_OUTCOME" })).toBe("naming");
+  });
+
   it("makes an illegal transition impossible — no path from IDLE straight to NAMING", () => {
     // There is no event that jumps IDLE → naming.
     const events: DoorLogEvent[] = [
@@ -42,13 +51,14 @@ describe("Door Log state machine", () => {
 
   it("every state only accepts its own events (exhaustive legal set)", () => {
     const legal: Record<DoorLogState, DoorLogEvent[]> = {
-      idle: [{ type: "RECORD_PITCH" }, { type: "NO_ANSWER" }],
+      idle: [{ type: "RECORD_PITCH" }, { type: "LOG_OUTCOME" }, { type: "NO_ANSWER" }],
       recording: [{ type: "STOP_RECORD" }],
       outcome: [{ type: "PICK_OUTCOME", outcome: "go_back" }],
       naming: [{ type: "SAVE" }],
     };
     const allEvents: DoorLogEvent[] = [
       { type: "RECORD_PITCH" },
+      { type: "LOG_OUTCOME" },
       { type: "NO_ANSWER" },
       { type: "STOP_RECORD" },
       { type: "PICK_OUTCOME", outcome: "not_interested" },

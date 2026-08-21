@@ -5,7 +5,13 @@
  * that illegal transitions be impossible:
  *
  *   IDLE ──[NO_ANSWER]────────► (log knock) ──► IDLE
- *     └──[RECORD_PITCH]──► RECORDING ──[STOP_RECORD]──► OUTCOME ──[PICK_OUTCOME]──► NAMING ──[SAVE]──► IDLE
+ *     ├──[RECORD_PITCH]──► RECORDING ──[STOP_RECORD]──► OUTCOME ──[PICK_OUTCOME]──► NAMING ──[SAVE]──► IDLE
+ *     └──[LOG_OUTCOME]───────────────────────────────► OUTCOME  (no-mic path: log the outcome as a knock)
+ *
+ * LOG_OUTCOME (founder 2026-08-21) is the mic-less entry: a rep without mic access could previously log
+ * ONLY No-Answer — the whole Sold/Go-Back path was gated behind RECORD_PITCH → the mic. This jumps straight
+ * to OUTCOME so the outcome is logged as a knock (no recording, no pitch row). The recording flow is
+ * unchanged; both converge on the same OUTCOME screen.
  *
  * This module is independent of every open question (consent/Q2, visibility/Q4, sales-day/Q5, toggle):
  * those are backend/RLS/UI-gate concerns. If Q2 resolves to an in-flow consent step, a `CONSENT` state
@@ -23,6 +29,7 @@ export type DoorLogState = "idle" | "recording" | "outcome" | "naming";
 export type DoorLogEvent =
   | { type: "NO_ANSWER" } // log a no-answer knock, stay home
   | { type: "RECORD_PITCH" } // begin capture
+  | { type: "LOG_OUTCOME" } // no-mic path: skip recording, go straight to tagging the outcome
   | { type: "STOP_RECORD" } // end capture → tag outcome
   | { type: "PICK_OUTCOME"; outcome: PitchOutcome } // choose 1 of 4 → name it
   | { type: "SAVE" }; // save the name → back to the next door
@@ -36,6 +43,8 @@ export function transition(state: DoorLogState, event: DoorLogEvent): DoorLogSta
   switch (state) {
     case "idle":
       if (event.type === "RECORD_PITCH") return "recording";
+      // LOG_OUTCOME (no-mic path) jumps straight to tagging — no recording state.
+      if (event.type === "LOG_OUTCOME") return "outcome";
       // NO_ANSWER logs a knock (side effect handled by the caller) and returns home.
       if (event.type === "NO_ANSWER") return "idle";
       return state;

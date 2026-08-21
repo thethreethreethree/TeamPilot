@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mic, Square, DoorClosed, DoorOpen, Check } from "lucide-react";
+import { Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList } from "lucide-react";
 import {
   transition,
   type DoorLogState,
@@ -42,6 +42,16 @@ function defaultPitchName(): string {
   return `${day} ${time}`;
 }
 
+// Honest failure copy (founder 2026-08-21, honesty thesis): a failed save must NOT blame the rep's connection when
+// the cause is server-side. Only a genuine network throw (the client couldn't reach us at all) mentions
+// the signal; a server response (expired token already refreshed-and-retried, a 5xx, a 4xx) is "on our end".
+type SaveFailReason = "network" | "server";
+function saveFailMessage(what: string, reason: SaveFailReason): string {
+  return reason === "network"
+    ? `${what} didn't save — check your signal and try again.`
+    : `${what} didn't save on our end — tap to retry.`;
+}
+
 export function DoorLog() {
   const [state, setState] = useState<DoorLogState>("idle");
   const [kpi, setKpi] = useState<Kpi | null>(null);
@@ -50,6 +60,10 @@ export function DoorLog() {
   const [recorded, setRecorded] = useState<{ blob: Blob | null; durationMs: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
+  // No-mic path (founder 2026-08-21): true while the rep is tagging an outcome they DIDN'T record (mic
+  // unavailable / "Log Pitch"). The OUTCOME screen is shared with the recording flow, so this flag routes
+  // the pick to a plain knock (no naming, no pitch row) instead of the naming→save recording path.
+  const [noRecord, setNoRecord] = useState(false);
   // Online-only: a failed send has no client retry (offline queue withheld), so it MUST be visible — a
   // silently-dropped knock/pitch that still advances the flow would read as success (the honesty thesis:
   // never dress a failure as a saved result). Set on a failed send, cleared when the next send starts.
@@ -71,23 +85,54 @@ export function DoorLog() {
     [supabase]
   );
 
-  // POST a door-log write directly (online-only). Returns whether the server accepted it.
+  // POST a door-log write with in-session resilience (founder 2026-08-21, offline queue stays withheld):
+  //  • 401 → the auth token expired/rotated mid field-session (the common "our end" drop for a rep who's
+  //    been knocking for hours on solid signal — NOT their connection). Refresh the session, retry once.
+  //  • 5xx / network throw → transient blip; back off and retry a couple of times.
+  //  • 400/403 → not retryable (bad body / no company); fail fast.
+  // No IndexedDB persistence — this only survives a hiccup while the app is open, by design. Returns
+  // whether the server ultimately accepted it, and (on failure) whether the last failure was network or
+  // server, so the caller can show an HONEST message that doesn't misattribute a server drop to the rep.
   const postDoorLog = useCallback(
-    (body: Record<string, unknown>) =>
-      fetch(DOOR_LOG_URL, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      })
-        .then((r) => r.ok)
-        .catch(() => false),
-    []
+    async (body: Record<string, unknown>): Promise<{ ok: boolean; failReason: SaveFailReason }> => {
+      const attempt = async (): Promise<{ ok: boolean; status: number }> => {
+        try {
+          const r = await fetch(DOOR_LOG_URL, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          return { ok: r.ok, status: r.status };
+        } catch {
+          return { ok: false, status: 0 }; // couldn't reach us at all — genuine network
+        }
+      };
+      let res = await attempt();
+      if (res.ok) return { ok: true, failReason: "server" };
+      if (res.status === 401) {
+        try {
+          await supabase.auth.refreshSession();
+        } catch {
+          /* refresh failed → fall through to the retry loop, then an honest failure */
+        }
+        res = await attempt();
+        if (res.ok) return { ok: true, failReason: "server" };
+      }
+      for (let i = 0; i < 2 && (res.status === 0 || res.status >= 500); i++) {
+        await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        res = await attempt();
+        if (res.ok) return { ok: true, failReason: "server" };
+      }
+      // status 0 = never reached the server (network); anything else came FROM the server (our end).
+      return { ok: false, failReason: res.status === 0 ? "network" : "server" };
+    },
+    [supabase]
   );
 
   // Send a pitch: sign an upload target, push the audio, then POST the pitch with its storagePath. Audio
   // failure is non-fatal — the pitch is still recorded (the Report Card shows the failure, not the Door Log).
   const sendPitch = useCallback(
-    async (body: Record<string, unknown>, blob: Blob | null) => {
+    async (body: Record<string, unknown>, blob: Blob | null): Promise<{ ok: boolean; failReason: SaveFailReason }> => {
       let storagePath = "";
       if (blob) {
         const signRes = await fetch(DOOR_LOG_URL, {
@@ -128,13 +173,39 @@ export function DoorLog() {
   const noAnswer = useCallback(() => {
     const id = newId();
     setSendError(null);
-    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((ok) => {
-      if (!ok) setSendError("That knock didn't save — check your connection and tap again.");
+    void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((r) => {
+      if (!r.ok) setSendError(saveFailMessage("That knock", r.failReason));
       void loadKpi(); // re-fetches the true count, correcting the optimistic bump on a failed send
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setState((s) => transition(s, { type: "NO_ANSWER" }));
   }, [localDate, postDoorLog, loadKpi]);
+
+  // No-mic path (founder 2026-08-21): jump straight to the OUTCOME screen without recording, so a rep
+  // whose mic is unavailable can still log Sold / Go-Back / Not-Interested — previously they could log
+  // ONLY No-Answer. The outcome is logged as a knock (below); no audio, no pitch row, no analysis.
+  const logPitchNoRecord = useCallback(() => {
+    setSendError(null);
+    setNoRecord(true);
+    setState((s) => transition(s, { type: "LOG_OUTCOME" }));
+  }, []);
+
+  // Log a mic-less outcome as a knock (drives the KPI strip exactly like a recorded pitch's knock does),
+  // then return to IDLE. No naming step — there's no recording to name.
+  const logOutcomeKnock = useCallback(
+    (outcome: PitchOutcome) => {
+      const id = newId();
+      setSendError(null);
+      void postDoorLog({ kind: "knock", outcome, localDate, clientKnockId: id }).then((r) => {
+        if (!r.ok) setSendError(saveFailMessage("That pitch", r.failReason));
+        void loadKpi();
+      });
+      setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
+      setNoRecord(false);
+      setState("idle");
+    },
+    [localDate, postDoorLog, loadKpi]
+  );
 
   const recordPitch = useCallback(async () => {
     // recorder.start() returns false when the mic is denied/unavailable. Honor it: DON'T enter a fake
@@ -156,11 +227,19 @@ export function DoorLog() {
     setState((s) => transition(s, { type: "STOP_RECORD" }));
   }, [recorder]);
 
-  const pickOutcome = useCallback((outcome: PitchOutcome) => {
-    setPickedOutcome(outcome);
-    setName(defaultPitchName());
-    setState((s) => transition(s, { type: "PICK_OUTCOME", outcome }));
-  }, []);
+  const pickOutcome = useCallback(
+    (outcome: PitchOutcome) => {
+      // No-mic path: log the outcome directly as a knock and go home — skip naming (nothing was recorded).
+      if (noRecord) {
+        logOutcomeKnock(outcome);
+        return;
+      }
+      setPickedOutcome(outcome);
+      setName(defaultPitchName());
+      setState((s) => transition(s, { type: "PICK_OUTCOME", outcome }));
+    },
+    [noRecord, logOutcomeKnock]
+  );
 
   const save = useCallback(async () => {
     if (busy) return;
@@ -180,8 +259,8 @@ export function DoorLog() {
         clientKnockId: id,
       },
       recorded?.blob ?? null
-    ).then((ok) => {
-      if (!ok) setSendError("Your last pitch didn't save — check your connection and re-log it.");
+    ).then((r) => {
+      if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));
       void loadKpi();
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
@@ -241,7 +320,8 @@ export function DoorLog() {
             </div>
             {micDenied && (
               <p className="text-xs text-amber-400 text-center">
-                Mic access is off — enable it to record pitches. You can still log No Answer.
+                Mic access is off — you can still log every outcome. Turn on mic access to also record
+                pitches for coaching.
               </p>
             )}
             <button
@@ -251,13 +331,25 @@ export function DoorLog() {
               <DoorClosed className="inline w-5 h-5 mr-2 -mt-1" aria-hidden />
               No Answer
             </button>
-            <button
-              onClick={recordPitch}
-              className="w-full min-h-[96px] rounded-2xl bg-ember-400 text-[#09090B] text-xl font-bold active:scale-[0.98] transition-transform shadow-glow"
-            >
-              <Mic className="inline w-6 h-6 mr-2 -mt-1" aria-hidden />
-              Record Pitch
-            </button>
+            {/* Mic available → record + analyze the pitch. Mic unavailable → log the outcome without a
+                recording (founder 2026-08-21) so a mic-less rep is never locked out of logging a sale. */}
+            {micDenied ? (
+              <button
+                onClick={logPitchNoRecord}
+                className="w-full min-h-[96px] rounded-2xl bg-ember-400 text-[#09090B] text-xl font-bold active:scale-[0.98] transition-transform shadow-glow"
+              >
+                <ClipboardList className="inline w-6 h-6 mr-2 -mt-1" aria-hidden />
+                Log Pitch
+              </button>
+            ) : (
+              <button
+                onClick={recordPitch}
+                className="w-full min-h-[96px] rounded-2xl bg-ember-400 text-[#09090B] text-xl font-bold active:scale-[0.98] transition-transform shadow-glow"
+              >
+                <Mic className="inline w-6 h-6 mr-2 -mt-1" aria-hidden />
+                Record Pitch
+              </button>
+            )}
           </>
         )}
 
