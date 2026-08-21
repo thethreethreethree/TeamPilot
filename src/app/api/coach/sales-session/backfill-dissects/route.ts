@@ -16,7 +16,9 @@ import { rateLimit } from "@/lib/api/rateLimit";
  * all-company cron at /backfill-dissects-cron). This route supplies the
  * auth + the company scope + the manual batch size; the core does the work.
  */
-const BATCH = 6;
+// Each recovery now runs the FULL 5-engine artifact set (not one dissect), so a batch is 5×BATCH concurrent
+// LLM calls — 4 keeps one "Generate missing" click's burst bounded while still clearing several per click.
+const BATCH = 4;
 
 async function resolve() {
   const sb = await createClient();
@@ -40,8 +42,9 @@ async function resolve() {
   };
 }
 
-// LLM route: longer serverless budget than Vercel's short default (awaits LLM calls via a lib chain).
-export const maxDuration = 60;
+// LLM route: the full 5-engine generation per session runs concurrently (each bounded to 40s), so give it the
+// same 300s ceiling /finalize uses rather than the old dissect-only 60s.
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   // Each call fans out up to BATCH (6) LLM dissect calls. Admin-gated below,

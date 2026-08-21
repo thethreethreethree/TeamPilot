@@ -22,11 +22,14 @@ import { constantTimeEqual } from "@/lib/api/constantTime";
  * genuine misses (e.g. a closed tab before /finalize ran).
  */
 
-// Founder-approved 2026-07-01: 12 per daily run, all companies.
-const CRON_CAP = 12;
+// Per-run cap (all companies). Lowered 12→6 (2026-08-21): each recovery now runs the FULL 5-engine artifact
+// set (generateSessionArtifacts), not a single dissect, so a batch of N runs 5N concurrent LLM calls — 6 keeps
+// the concurrent burst bounded (~30) while a backlog still drains over runs.
+const CRON_CAP = 6;
 
-// LLM route: longer serverless budget than Vercel's short default (awaits LLM calls via a lib chain).
-export const maxDuration = 60;
+// LLM route: the full 5-engine generation per session (each bounded to 40s) runs the batch concurrently, so
+// wall-clock ≈ the slowest engine — but give it the same 300s ceiling /finalize uses, well clear of a timeout.
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;

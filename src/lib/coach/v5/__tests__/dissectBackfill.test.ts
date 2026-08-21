@@ -8,12 +8,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * scanBounded honestly when the scan hit its limit. IO-heavy but the control flow is the point.
  */
 
-type Session = { id: string; agent_id: string; company_id: string; client_label: string | null; context: string; status: string };
+type Session = { id: string; agent_id: string; company_id: string; client_label: string | null; context: string; status: string; outcome: string | null };
 const state = vi.hoisted(() => ({
   sessions: [] as Session[],
   dissectEvents: [] as Array<{ subject: string }>, // coach.dissect_generated
   attemptEvents: [] as Array<{ subject: string }>, // coach.dissect_attempted (backoff)
-  dissect: vi.fn(),
+  dissect: vi.fn(), // stands in for the whole artifact generation; resolves { dissect: { hasSignal } }
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
@@ -29,6 +29,7 @@ vi.mock("@/lib/supabase/admin", () => {
     b.then = (resolve: (v: unknown) => void) => {
       let data: unknown;
       if (table === "coaching_sessions") data = state.sessions;
+      else if (table === "after_pitch_summaries") data = []; // none pre-exist → backfill would generate
       else if ((b as { _kind: string | null })._kind === "coach.dissect_attempted") data = state.attemptEvents;
       else data = state.dissectEvents;
       resolve({ data, error: null });
@@ -38,7 +39,16 @@ vi.mock("@/lib/supabase/admin", () => {
   return { createAdminClient: () => ({ from: (t: string) => q(t) }) };
 });
 vi.mock("@/lib/data/salesCoach", () => ({ getSessionTranscriptAdmin: async () => [] }));
-vi.mock("@/lib/coach/v5/salesDissect", () => ({ runAndStoreDissect: (...a: unknown[]) => state.dissect(...a) }));
+// The backfill now regenerates the FULL artifact set; mock that generator. It returns the whole artifact
+// bundle — the backfill only reads `.dissect.hasSignal` (still the "was it reviewed?" signal + marker key).
+vi.mock("@/lib/coach/v5/generateSessionArtifacts", () => ({
+  generateSessionArtifacts: async (...a: unknown[]) => ({ dissect: await state.dissect(...a) }),
+}));
+// After-Pitch recovery is best-effort + covered by its own test; here it's a no-op so the control-flow
+// assertions (which count dissect generations) stay focused.
+vi.mock("@/lib/coach/v5/generateAndStoreAfterPitch", () => ({
+  generateAndStoreAfterPitch: async () => ({ generated: false }),
+}));
 
 const { runDissectBackfill } = await import("../dissectBackfill");
 
@@ -49,6 +59,7 @@ const session = (id: string): Session => ({
   client_label: "Acme",
   context: "in_person",
   status: "ended",
+  outcome: null,
 });
 
 beforeEach(() => {

@@ -1,20 +1,31 @@
 import "server-only";
+import type { SalesSession } from "@/lib/data/salesCoach";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionTranscriptAdmin } from "@/lib/data/salesCoach";
-import { runAndStoreDissect } from "@/lib/coach/v5/salesDissect";
+import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { generateAndStoreAfterPitch } from "@/lib/coach/v5/generateAndStoreAfterPitch";
 
 /**
- * Shared dissect-backfill core (§A21 — one implementation, two callers):
+ * Shared session-review backfill core (§A21 — one implementation, two callers):
  *   - POST /api/coach/sales-session/backfill-dissects        (manager, one
- *     company, batch 6, on-demand "Generate missing" button)
+ *     company, batch, on-demand "Generate missing" button)
  *   - GET  /api/coach/sales-session/backfill-dissects-cron   (Vercel cron,
- *     ALL companies, cap 12/day, CRON_SECRET auth)
+ *     ALL companies, capped/run, CRON_SECRET auth)
  *
  * Finds Sales Coach sessions with content (ended/reviewed) but NO
- * coach.dissect_generated event and regenerates a CAPPED batch, each dissect
+ * coach.dissect_generated event and regenerates a CAPPED batch, each artifact
  * attributed to the SESSION'S agent (§A18). Thin sessions short-circuit
- * inside runAndStoreDissect before any LLM call (§3.4 — no fabrication) and
- * are simply re-checked next run.
+ * inside the engines before any LLM call (§3.4 — no fabrication) and are
+ * simply re-checked next run.
+ *
+ * P1 (2026-08-21 capture audit): this now regenerates the FULL review set via
+ * generateSessionArtifacts (Dissect + Summary + Timeline/Moments + Pivot +
+ * Intel), not just the Dissect. A session that was never cleanly Stopped
+ * (tab-close → auto-closed at 6h) missed /finalize entirely, so ALL of those
+ * artifacts are absent — not only the dissect. The dissect_generated marker is
+ * still the "has this session been reviewed?" key (it's written iff the dissect
+ * has signal), so eligibility/backoff are unchanged; what grew is what a single
+ * recovery produces.
  *
  * §5 — the cap bounds LLM cost + function time per run; a large backlog
  * drains over several runs rather than one expensive burst. §3.4 — the scan
@@ -57,7 +68,7 @@ export async function runDissectBackfill(args: {
   // Sessions with content, most recent first.
   let sq = admin
     .from("coaching_sessions")
-    .select("id, agent_id, company_id, client_label, context, status")
+    .select("id, agent_id, company_id, client_label, context, status, outcome")
     .in("status", ["ended", "reviewed"])
     .order("started_at", { ascending: false })
     .limit(scanLimit);
@@ -117,6 +128,19 @@ export async function runDissectBackfill(args: {
   );
   const batch = missing.slice(0, args.cap);
 
+  // Which of the batch ALREADY have an After-Pitch summary (generated on-view) — skip regenerating those, so a
+  // backfill never duplicates an existing summary (after_pitch_summaries is insert-only, read-latest). Same
+  // bounded-diff discipline as the dissect-event query above.
+  const batchIds = batch.map((s) => s.id as string);
+  const hasAfterPitch = new Set<string>();
+  if (batchIds.length > 0) {
+    const { data: apRows } = await admin
+      .from("after_pitch_summaries")
+      .select("session_id")
+      .in("session_id", batchIds);
+    for (const r of apRows ?? []) hasAfterPitch.add(String(r.session_id));
+  }
+
   // PARALLEL, not sequential. Each dissect is an independent LLM call on a different session (no shared
   // state), and the active reasoning model (deepseek-v4-flash) now spends ~15–25s PER dissect — so a
   // sequential batch of `cap` (6) would run ~90–120s and blow the 60s maxDuration, timing out mid-batch.
@@ -127,14 +151,36 @@ export async function runDissectBackfill(args: {
     batch.map(async (s) => {
       // Service-role transcript read — works with or without a user session.
       const segments = await getSessionTranscriptAdmin(s.id as string);
-      const dissect = await runAndStoreDissect({
+      // Recover the FULL review set, not just the dissect (see header) — same 5-engine generator /finalize
+      // runs, each engine self-storing + independently guarded, so a partial failure still lands what it can.
+      // dissect.hasSignal is still the "was it reviewed?" signal (drives the generated count + the marker).
+      const { dissect } = await generateSessionArtifacts({
         companyId: s.company_id as string,
         actorId: s.agent_id as string,
         sessionId: s.id as string,
+        session: {
+          clientLabel: (s.client_label as string | null) ?? null,
+          context: s.context as "in_person" | "video",
+          outcome: (s.outcome as SalesSession["outcome"]) ?? null,
+        },
         segments,
-        sessionTitle: (s.client_label as string | null) ?? undefined,
-        context: s.context as "in_person" | "video",
-      }).catch(() => null);
+      }).catch(() => ({ dissect: null }));
+      // Also recover the After-Pitch summary (founder P1) unless one already exists — it's generated on-view,
+      // so a never-viewed session has none. Best-effort + self-gating (a thin/one-sided transcript stores
+      // nothing). No viewer in a backfill, so attribute the coarse event to the rep. Never blocks the 5
+      // artifacts above, which have already landed.
+      if (!hasAfterPitch.has(s.id as string)) {
+        await generateAndStoreAfterPitch({
+          companyId: s.company_id as string,
+          sessionId: s.id as string,
+          agentId: s.agent_id as string,
+          actorId: s.agent_id as string,
+          context: s.context as "in_person" | "video",
+          outcome: (s.outcome as string | null) ?? null,
+        }).catch(() => {
+          /* best-effort — the 5 artifacts already landed */
+        });
+      }
       return dissect?.hasSignal === true;
     })
   );

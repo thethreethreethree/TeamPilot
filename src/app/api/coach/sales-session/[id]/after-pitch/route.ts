@@ -4,10 +4,9 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   getSession,
-  saveAfterPitchSummary,
   getLatestAfterPitchSummaryAdmin,
 } from "@/lib/data/salesCoach";
-import { generateAfterPitchSummary } from "@/lib/coach/v5/afterPitch";
+import { generateAndStoreAfterPitch } from "@/lib/coach/v5/generateAndStoreAfterPitch";
 import { getExperienceMode } from "@/lib/experience/mode";
 
 /**
@@ -122,43 +121,18 @@ export async function POST(
   // mode's. §3.4: Standard shortens presentation only, never omits a real finding.
   const mode = await getExperienceMode(supabase, session.agentId);
 
-  const summary = await generateAfterPitchSummary({
+  // Generate + persist + emit the coarse event via the shared helper (A16 drift-guard — the backfill runs
+  // the identical sequence). The summary is ALWAYS owned by the rep (agent_id), even when a manager triggers
+  // it; actorId only labels the event.
+  const { summary } = await generateAndStoreAfterPitch({
     companyId: session.companyId,
     sessionId: id,
+    agentId: session.agentId,
+    actorId: viewer.userId,
     context: session.context,
     outcome: session.outcome,
     mode,
   });
-
-  if (summary.hasSignal) {
-    // The summary is ALWAYS owned by the rep (agent_id = session.agentId),
-    // even when a manager triggers generation — the row stays rep-private.
-    await saveAfterPitchSummary({
-      sessionId: id,
-      companyId: session.companyId,
-      agentId: session.agentId,
-      payload: summary,
-    });
-    // Company-visible event — COARSE COUNTS ONLY, never the private scores.
-    try {
-      const breakdown = summary.moments.some((m) => m.isBreakdown);
-      await supabase.from("events").insert({
-        company_id: session.companyId,
-        actor: viewer.userId,
-        kind: "coach.after_pitch_summary_generated",
-        subject: `sales_session:${id}`,
-        payload: {
-          moments_count: summary.moments.length,
-          has_breakdown: breakdown,
-          cue_loop_count: summary.cueLoop.length,
-          focus_present: summary.focus !== null,
-          coach_version: "after-pitch-v1",
-        },
-      });
-    } catch {
-      /* event emit is best-effort; the summary still returns */
-    }
-  }
 
   return NextResponse.json({
     summary: forViewer(summary, viewer.isOwner),
