@@ -21,9 +21,11 @@
 tenant-scope + owner-required service-role write + CWE-209). Typecheck clean.
 
 ## Residual / notes
-- **Clean-Stop orphan chunks:** a rep who DOES cleanly Stop gets `audio_asset_url` from the unchanged
-  `persistRecording` (full blob); the stitch then skips (idempotent), leaving that session's chunks orphaned.
-  Small; a prefix-age cleanup is a follow-up (noted, not blocking).
+- **Clean-Stop orphan chunks — CLOSED:** the recording-purge cron now removes the `${company}/${session}/chunks/`
+  prefix for each session it purges (keyed on company_id + session id, not the fileId-based audio path), so a
+  clean-Stopped session's chunks are cleaned within the 2-day retention window. maxDuration 60→300 for the added
+  per-session list+remove. (A never-Stop stitch-FAILED session with no audio is out of the purge scope → its
+  chunks persist; rare, and the stitch is idempotent-retried by the auto-close cron while still active.)
 - **Cap orphan:** if a single auto-close run closes >25 sessions WITH chunks, the overflow is `ended` but
   unstitched. Steady-state closures/run << 25 (only sessions crossing 6h that hour), so it rarely binds.
 - **Dead-recorder-on-reconnect seam:** if the recorder is recreated mid-session (rare — P0 keeps it alive), a

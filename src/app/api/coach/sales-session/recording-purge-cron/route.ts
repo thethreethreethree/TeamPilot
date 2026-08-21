@@ -26,11 +26,11 @@ const RETENTION_DAYS = 2;
 // ~200 (the RCD cron's proven value) rather than raise it — smaller batches drain reliably, big ones truncate.
 const BATCH = 500;
 
-// Raise past Vercel's ~10s default so a full batch (500 sessions, each a storage remove() + a DB update)
-// isn't truncated mid-purge — which under a backlog would retain recordings past the 2-day promise. Matches
-// the RCD retention cron + the durability/task-overrun sweep crons (all maxDuration=60). This one lacked it
-// despite having the LARGEST batch, so it was the most truncation-prone of them.
-export const maxDuration = 60;
+// Raise past Vercel's ~10s default so a full batch (500 sessions, each now a recording remove() + a chunk-prefix
+// list+remove + a DB update) isn't truncated mid-purge — which under a backlog would retain recordings past the
+// 2-day promise. Bumped 60→300 (2026-08-21) because the added per-session chunk cleanup roughly doubles the
+// sequential storage work; the `bounded` flag still self-heals a truncated run on the next tick.
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   // Oldest-first so a backlog can't starve the oldest expired recordings (mirrors the durability sweep).
   const { data: expired, error } = await admin
     .from("coaching_sessions")
-    .select("id, audio_asset_url")
+    .select("id, company_id, audio_asset_url")
     .not("audio_asset_url", "is", null)
     .eq("recording_saved", false)
     .lt("created_at", cutoff)
@@ -90,6 +90,23 @@ export async function GET(req: NextRequest) {
       assetErrors += 1;
       continue; // leave the row for the next run rather than orphan a live asset's pointer
     }
+    // Also drop the incremental audio CHUNK objects for this session (2026-08-21 audio build). A clean-Stopped
+    // session's chunks are orphaned — the full-blob persist set audio_asset_url so stitchSessionAudio (which
+    // deletes chunks on success) never ran. They live under `${company}/${session}/chunks/`, keyed on the
+    // session id (NOT derivable from the audio path, which uses a fileId), so we use the row's company_id + id.
+    // Best-effort + idempotent (a never-Stopped session's chunks were already removed by the stitch → no-op).
+    const companyId = row.company_id as string | null;
+    if (companyId) {
+      const chunkPrefix = `${companyId}/${row.id as string}/chunks`;
+      try {
+        const { data: chunkObjs } = await admin.storage.from(ASSETS_BUCKET).list(chunkPrefix, { limit: 2000 });
+        const names = (chunkObjs ?? []).map((o) => `${chunkPrefix}/${o.name}`);
+        if (names.length > 0) await admin.storage.from(ASSETS_BUCKET).remove(names);
+      } catch {
+        /* best-effort — orphan chunks are wasteful, not harmful; retried next run via the same row until purged */
+      }
+    }
+
     const { error: updErr } = await admin
       .from("coaching_sessions")
       .update({ audio_asset_url: null })
