@@ -20,6 +20,7 @@ import {
   composeProvisional,
   shouldReleaseLock,
 } from "@/lib/coach/v5/speakerAttribution";
+import { canAttemptReconnect } from "@/lib/coach/v5/reconnectPolicy";
 import {
   shouldScheduleCueAtCommit,
   reconcileCueAfterClassify,
@@ -62,7 +63,11 @@ export type LiveStatus = "idle" | "connecting" | "live" | "error";
 
 const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
 // How many times to auto-reconnect the realtime socket after a mid-call drop before giving up (2026-08-21).
-const MAX_RECONNECTS = 3;
+// A long call legitimately drops several times (the single-use STT token expires ~every 15 min, plus network
+// blips), so the budget bounds CONSECUTIVE failed cycles (reset once a socket proves stable), not total drops.
+const MAX_RECONNECTS = 6;
+// A (re)connected socket must stay OPEN at least this long before its success refills the reconnect budget.
+const RECONNECT_STABLE_MS = 8000;
 // Stuck "I'm speaking" lock nudge: after this long of continuous hold, the panel warns the rep to
 // release it. Long enough not to fire during a normal multi-sentence pitch, short enough to catch a
 // left-on lock before it collapses many customer turns (founder 2026-08-21).
@@ -361,6 +366,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const stoppedRef = useRef(false);
   const reconnectingRef = useRef(false);
   const startRef = useRef<() => void>(() => {});
+  // Refill the reconnect budget only once a (re)connect has stayed OPEN this long — resetting it the instant
+  // the socket opens let an open-then-instant-drop provider loop forever (2026-08-21 capture audit).
+  const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The turn index whose cue clock was started AT COMMIT by an obvious content
   // tell (before the LLM /attribute returned) — so classifyTurn doesn't reset
   // the timer and re-add the latency we just saved (L2 response time). -1 = none.
@@ -781,6 +789,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     sessionEpochRef.current += 1;
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
     // #1 fix: persist the live attributed transcript (speaker-separated)
     // before teardown. This is the canonical transcript for in-person —
     // append-only, best-effort. A failure just leaves the recording-upload
@@ -919,6 +928,23 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
     if (lockWarnTimerRef.current) { clearTimeout(lockWarnTimerRef.current); lockWarnTimerRef.current = null; }
+    if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
+  }, []);
+
+  // Teardown for a RECONNECT (2026-08-21 capture fix): free ONLY the STT socket + audio graph (ws/proc/ctx),
+  // and LEAVE the call recorder + mic stream RUNNING. The MediaRecorder records the raw mic and is independent
+  // of the WS, so a dropped socket must NOT stop it — the old reconnect called teardownMedia() here, which
+  // stopped the recorder + mic and discarded the captured audio on every drop (the regression behind ~93% of
+  // calls saving no audio). Keeping the recorder alive means the recording is continuous AND remains the
+  // upload→re-transcribe fallback even if STT never recovers. The 4s transcript flush timer is preserved too.
+  const teardownForReconnect = useCallback(() => {
+    try { procRef.current?.disconnect(); } catch { /* noop */ }
+    procRef.current = null;
+    try { void ctxRef.current?.close(); } catch { /* noop */ }
+    ctxRef.current = null;
+    try { wsRef.current?.close(); } catch { /* noop */ }
+    wsRef.current = null;
+    if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
   }, []);
 
   const start = useCallback(async () => {
@@ -927,7 +953,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     cueTracesRef.current = [];
     setCueSummary(null);
     finalizedRef.current = false; // allow this session's finalize to fire once
-    setAudioCapturing(false); // reset: only becomes true once rec.start() succeeds below
+    // A RECONNECT keeps the existing recorder + mic running (see below), so don't flip audioCapturing off —
+    // that flicker is what read to the rep as "recording stopped" on every drop. Fresh start resets it.
+    const isReconnect = reconnectingRef.current;
+    if (!isReconnect) setAudioCapturing(false); // only becomes true once rec.start() succeeds below
     setStatus("connecting");
     // A6: new session epoch — any /cue or /attribute still in flight from a prior
     // session is now stale and will be dropped when it resolves.
@@ -977,45 +1006,90 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // including on-demand "Coach me now" — silently returns at the guard until the stale fetch settles.
     cueInFlightRef.current = false;
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+
+    // Schedule the next bounded reconnect (2026-08-21 capture fix): re-run start() with the transcript AND
+    // the running recorder/mic preserved (teardownForReconnect frees only the socket + audio graph). Returns
+    // false when out of budget / stopped / unmounted so the caller can fail LOUD instead of dying silently.
+    // Used from BOTH a mid-session drop AND a failure DURING a reconnect attempt — so a transient token/network
+    // hiccup on the retry no longer latches the session dead via stop() (the "drops and stays dropped" bug).
+    const scheduleReconnect = (): boolean => {
+      if (
+        !canAttemptReconnect({
+          stopped: stoppedRef.current,
+          unmounted: unmountedRef.current,
+          attempts: reconnectAttemptsRef.current,
+          max: MAX_RECONNECTS,
+        })
+      ) {
+        return false;
+      }
+      reconnectAttemptsRef.current += 1;
+      setStatus("connecting");
+      setTimeout(() => {
+        if (stoppedRef.current || unmountedRef.current) return;
+        reconnectingRef.current = true;
+        teardownForReconnect();
+        startRef.current();
+      }, 500 * reconnectAttemptsRef.current);
+      return true;
+    };
+
     try {
-      // 1. Mic.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      // 1. Mic. On a RECONNECT, REUSE the existing live stream — re-acquiring after a mobile
+      //    background/screen-lock frequently fails or hangs and permanently ends capture. Only a fresh
+      //    start (or a stream whose track has died) requests a new one.
+      let stream: MediaStream;
+      const existingStream = streamRef.current;
+      const streamLive =
+        !!existingStream && existingStream.getAudioTracks().some((t) => t.readyState === "live");
+      if (isReconnect && existingStream && streamLive) {
+        stream = existingStream;
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      }
       // Unmounted while the mic prompt was open? Free the stream and abort before building anything.
       if (unmountedRef.current) {
         teardownMedia();
         return;
       }
 
-      // F2: record the call audio in parallel for the post-call
-      // transcript/review (S1a pipeline). Best-effort — a recorder
-      // failure must never block live coaching.
-      try {
-        chunksRef.current = [];
-        setRecordingBlob(null);
-        const rec = new MediaRecorder(stream);
-        rec.ondataavailable = (e) => {
-          if (e.data.size > 0) chunksRef.current.push(e.data);
-        };
-        rec.onstop = () => {
-          // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
-          setAudioCapturing(false);
-          if (chunksRef.current.length > 0) {
-            setRecordingBlob(
-              new Blob(chunksRef.current, {
-                type: chunksRef.current[0]?.type || "audio/webm",
-              })
-            );
+      // F2: record the call audio in parallel for the post-call transcript/review (S1a pipeline).
+      // Best-effort — a recorder failure must never block live coaching. On a RECONNECT, KEEP the
+      // already-running recorder + its captured chunks (the recorder is WS-independent), so the recording
+      // is continuous and nothing captured before the drop is discarded. Only a fresh start — or a
+      // dead/absent recorder — (re)creates it, and only a fresh start clears the chunks.
+      const recorderLive = !!recorderRef.current && recorderRef.current.state !== "inactive";
+      if (!isReconnect || !recorderLive) {
+        try {
+          if (!isReconnect) {
+            chunksRef.current = [];
+            setRecordingBlob(null);
           }
-        };
-        rec.start();
-        recorderRef.current = rec;
-        // Audio is now being captured — true even if the STT feed later errors (the recorder
-        // runs independently), which is exactly what keeps the "not recording" banner honest.
-        setAudioCapturing(true);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[live-coaching] recorder unavailable", err);
+          const rec = new MediaRecorder(stream);
+          rec.ondataavailable = (e) => {
+            if (e.data.size > 0) chunksRef.current.push(e.data);
+          };
+          rec.onstop = () => {
+            // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
+            setAudioCapturing(false);
+            if (chunksRef.current.length > 0) {
+              setRecordingBlob(
+                new Blob(chunksRef.current, {
+                  type: chunksRef.current[0]?.type || "audio/webm",
+                })
+              );
+            }
+          };
+          rec.start();
+          recorderRef.current = rec;
+          // Audio is now being captured — true even if the STT feed later errors (the recorder
+          // runs independently), which is exactly what keeps the "not recording" banner honest.
+          setAudioCapturing(true);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[live-coaching] recorder unavailable", err);
+        }
       }
 
       // 2. Single-use token (server-minted; key never reaches the browser).
@@ -1138,9 +1212,14 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       let wsOpened = false;
       ws.onopen = () => {
         wsOpened = true;
-        // A successful (re)connect refills the reconnect budget, so MAX_RECONNECTS bounds CONSECUTIVE failures
-        // (a session that reconnects cleanly keeps working through occasional drops), not total drops per session.
-        reconnectAttemptsRef.current = 0;
+        // Refill the reconnect budget only once the socket proves STABLE (stays open RECONNECT_STABLE_MS).
+        // Resetting it the instant it opens let an open-then-instant-drop provider loop forever, minting a
+        // fresh token each cycle (2026-08-21 capture audit). The timer is cleared on close/teardown, so a
+        // socket that drops before it fires does NOT refill the budget.
+        if (stableTimerRef.current) clearTimeout(stableTimerRef.current);
+        stableTimerRef.current = setTimeout(() => {
+          reconnectAttemptsRef.current = 0;
+        }, RECONNECT_STABLE_MS);
         // eslint-disable-next-line no-console
         console.info("[live-coaching] ws OPEN");
         setStatus("live");
@@ -1159,10 +1238,14 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           `[live-coaching] ws CLOSE code=${ev.code} reason=${ev.reason || "(none)"}`
         );
         if (!wsOpened) {
-          // Never opened → handshake failed. Name the exact close code so the rep can report it and we can
-          // pinpoint the cause (1006 = network/dropped/blocked, 1008/4401 = auth/policy, 1011 = server) instead
-          // of guessing from an opaque "connection error." The recording is still saving locally, so always
-          // point at the upload fallback (§3.4 — honest error + a way forward).
+          // Never opened. If this was a RECONNECT attempt (the socket failed its handshake — the common 1006
+          // on a flaky network), keep working the retry ladder instead of giving up after one try. Only a
+          // FRESH-start handshake failure (or an exhausted reconnect) surfaces the honest error below.
+          if (isReconnect && scheduleReconnect()) return;
+          // Name the exact close code so the rep can report it and we can pinpoint the cause (1006 =
+          // network/dropped/blocked, 1008/4401 = auth/policy, 1011 = server) instead of guessing from an
+          // opaque "connection error." The recording is still saving locally, so always point at the upload
+          // fallback (§3.4 — honest error + a way forward).
           const detail = ev.reason ? ` — ${ev.reason}` : "";
           setError(
             `Realtime connection couldn't start (code ${ev.code}${detail}). Your recording is still saving — you can upload it below to get your transcript.`
@@ -1170,25 +1253,22 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           setStatus("error");
           return;
         }
-        // Opened then closed = a mid-session drop. AUTO-RECONNECT (2026-08-21 "keeps dropping" fix): re-run
-        // start() with the transcript preserved (reconnectingRef) — fresh token + socket + audio graph — so
-        // capture RESUMES instead of dying silently. Bounded (MAX_RECONNECTS) with linear backoff; never after an
-        // intentional stop or unmount. The incremental flush already persisted the turns up to the drop, so the
-        // reconnect is about resuming capture, not saving data.
-        if (!stoppedRef.current && !unmountedRef.current && reconnectAttemptsRef.current < MAX_RECONNECTS) {
-          reconnectAttemptsRef.current += 1;
-          setStatus("connecting");
-          setTimeout(() => {
-            if (stoppedRef.current || unmountedRef.current) return;
-            reconnectingRef.current = true;
-            teardownMedia(); // free the dropped session's mic / socket / ctx first
-            startRef.current(); // rebuild + resume (preserves turnsRef)
-          }, 500 * reconnectAttemptsRef.current);
-          return;
+        // Opened then closed = a mid-session drop. AUTO-RECONNECT: re-run start() with the transcript AND the
+        // running recorder/mic preserved — fresh token + socket + audio graph — so capture RESUMES instead of
+        // dying. Bounded (MAX_RECONNECTS consecutive) with linear backoff; never after an intentional stop.
+        if (scheduleReconnect()) return;
+        // Exhausted reconnects couldn't recover the STT connection. Fail LOUD — the rep otherwise just sees the
+        // session go quiet with no idea capture stopped. The recorder is still running, so their audio is
+        // saving; point them at Stop + the upload fallback to recover the transcript. (Don't fire on an
+        // intentional stop/unmount — that path sets stoppedRef.)
+        if (!stoppedRef.current && !unmountedRef.current) {
+          setError(
+            "Live transcription dropped and couldn't reconnect. Your audio is still recording — tap Stop to save it, then upload below to get your transcript."
+          );
+          setStatus("error");
+        } else {
+          setStatus((prev) => (prev === "live" ? "idle" : prev));
         }
-        // Exhausted reconnects (or an intentional close): reflect the dead connection honestly. Functional form
-        // reads the CURRENT status, not start's stale closure. Don't stomp an "error" already set.
-        setStatus((prev) => (prev === "live" ? "idle" : prev));
       };
       ws.onmessage = (ev) => {
         let msg: { message_type?: string; text?: string };
@@ -1494,13 +1574,19 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       };
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      // A failure DURING a reconnect (e.g. the realtime-token endpoint 503s under load, or getUserMedia
+      // hiccups) must NOT latch the session dead — stop() sets stoppedRef=true and permanently disables
+      // reconnect. Schedule another bounded attempt instead so a transient hiccup on the retry doesn't end
+      // the call (the "drops and stays dropped" bug). Only when it's NOT a reconnect, or the budget is spent,
+      // do we stop() cleanly (which finalizes whatever transcript was captured).
+      if (isReconnect && scheduleReconnect()) return;
       setStatus("error");
       stop();
     }
     // `status` intentionally omitted: the only read was the stale onclose check,
     // now replaced by the functional setStatus form. Keeping it here would
     // recreate `start` on every status transition for no benefit.
-  }, [invokeCue, stop, classifyTurn, teardownMedia, flushSegments]);
+  }, [invokeCue, stop, classifyTurn, teardownMedia, teardownForReconnect, flushSegments]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;
