@@ -153,6 +153,9 @@ export function useDoorRecorder() {
         startedAtRef.current = Date.now();
         setElapsedMs(0);
         setRecording(true);
+        // Mark a recording in progress so VersionWatcher never auto-reloads mid-pitch (it guards on this exact
+        // flag — the same protection the live-coaching recorder gets). Cleared on stop/teardown.
+        if (typeof document !== "undefined") document.body.dataset.recording = "1";
         void requestWakeLock();
         timerRef.current = setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 250);
         rafRef.current = requestAnimationFrame(tickLevel);
@@ -176,6 +179,7 @@ export function useDoorRecorder() {
     setRecording(false);
     setLevel(0);
     releaseWakeLock();
+    if (typeof document !== "undefined") delete document.body.dataset.recording;
     const rec = recorderRef.current;
     return new Promise((resolve) => {
       const chunksUploaded = uploadedRef.current;
@@ -216,6 +220,7 @@ export function useDoorRecorder() {
       if (timerRef.current) clearInterval(timerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       releaseWakeLock();
+      if (typeof document !== "undefined") delete document.body.dataset.recording;
       try {
         if (recorderRef.current && recorderRef.current.state !== "inactive") {
           recorderRef.current.stop();

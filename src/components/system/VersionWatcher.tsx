@@ -230,16 +230,24 @@ export function VersionWatcher() {
     };
     // A recording that was holding a revisit-triggered update has ended → apply it now.
     const onRecordingEnded = () => scheduleReload();
+    // A SAFE update checkpoint reached by a foregrounded surface (e.g. DoorLog returning to idle BETWEEN doors —
+    // nothing recording). An actively-knocking mobile rep never idles 90s and never backgrounds the app, so a
+    // deploy could sit unreceived for hours (founder 2026-08-22: the recording fixes weren't reaching the field).
+    // On this signal, CHECK fresh (bypass the throttle) and auto-reload IF stale — the recording-guard +
+    // once-per-commit loop-guard inside still apply, so a pitch is never interrupted.
+    const onSafeToUpdate = () => void check(true, true);
     // visibilitychange fires on `document`; attach there (not `window`) — it's the load-bearing iOS-PWA-resume
     // revisit path and matches the rest of the codebase's usage (audit consistency finding).
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("elostate:recording-ended", onRecordingEnded);
+    window.addEventListener("elostate:safe-to-update", onSafeToUpdate);
     return () => {
       unmountedRef.current = true;
       window.clearInterval(pollId);
       if (reloadTimerRef.current !== null) window.clearTimeout(reloadTimerRef.current); // don't reload after teardown (audit leak finding)
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("elostate:recording-ended", onRecordingEnded);
+      window.removeEventListener("elostate:safe-to-update", onSafeToUpdate);
     };
   }, [check, scheduleReload]);
 

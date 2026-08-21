@@ -82,8 +82,9 @@ describe("DoorLog — capture loss never drops the outcome (founder 2026-08-22)"
     expect(posts.some((p) => p.body.kind === "sign")).toBe(false);
     expect(screen.queryByText(/Name this pitch/i)).toBeNull(); // naming skipped
 
-    // Honest, non-alarming: an amber heads-up that there's no audio to review — NOT a red "didn't save".
-    expect(await screen.findByText(/no audio, so there's nothing to review/i)).toBeTruthy();
+    // Honest, non-alarming: an amber heads-up that no audio was recorded — NOT a red "didn't save", and NOT
+    // the misleading "recorded no audio" for what is really a no-capture (mic) case (audit M1 distinguishes them).
+    expect(await screen.findByText(/no audio was recorded, so there's nothing to review/i)).toBeTruthy();
     expect(screen.queryByText(/didn't save/i)).toBeNull();
     await waitFor(() => expect(screen.getByText("Record Pitch")).toBeTruthy()); // flowed home to idle
   });

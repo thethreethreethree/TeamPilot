@@ -47,6 +47,17 @@ function defaultPitchName(): string {
 // the cause is server-side. Only a genuine network throw (the client couldn't reach us at all) mentions
 // the signal; a server response (expired token already refreshed-and-retried, a 5xx, a 4xx) is "on our end".
 type SaveFailReason = "network" | "server";
+// Why a pitch was saved as an outcome-only knock — so the honest heads-up doesn't misattribute the cause.
+//   "no_capture"    — the mic recorded nothing (blob null AND no chunks): truly no audio to review.
+//   "upload_failed" — the rep DID record, but the recording couldn't be saved this time (e.g. weak signal on a
+//                     long call): NOT "no audio". Founder 2026-08-22 (audit M1): the old copy said "recorded no
+//                     audio" for an upload failure, which reads to the rep as "the app didn't record" — a lie.
+type DropReason = "no_capture" | "upload_failed";
+function audioDroppedMessage(reason: DropReason): string {
+  return reason === "upload_failed"
+    ? "Saved the outcome — but the recording couldn't be saved this time (weak signal). The sale is logged."
+    : "Saved the outcome — but no audio was recorded, so there's nothing to review.";
+}
 // Copy tells the rep what to DO, and tells the truth: this is an online-only surface with no client retry
 // queue, so the banner is a dismiss affordance — it must not promise a "retry" that doesn't exist (the old
 // "tap to retry" copy was false: tapping only dismissed, and the recording was already gone). Re-logging the
@@ -163,7 +174,7 @@ export function DoorLog() {
     async (
       base: { outcome: PitchOutcome; name: string; durationMs: number | null; clientKnockId: string },
       audio: { blob: Blob | null; recordingId: string | null; chunksUploaded: number }
-    ): Promise<{ ok: boolean; failReason: SaveFailReason; audioDropped: boolean }> => {
+    ): Promise<{ ok: boolean; failReason: SaveFailReason; audioDropped: boolean; dropReason?: DropReason }> => {
       // PRIMARY durability path (founder 2026-08-22): the recorder uploaded ~15s chunks DURING recording, so the
       // audio is already in storage. The pitch just references it by recordingId and the server stitches it —
       // NO large final upload (the long-recording upload failure this fix kills), and a recording that stopped
@@ -211,7 +222,10 @@ export function DoorLog() {
           localDate,
           clientKnockId: base.clientKnockId,
         });
-        return { ...r, audioDropped: true };
+        // Honest cause: if a blob existed (or chunks were attempted) the rep DID record and the UPLOAD failed;
+        // only a truly empty capture is "no audio" (audit M1).
+        const dropReason: DropReason = audio.blob || audio.chunksUploaded > 0 ? "upload_failed" : "no_capture";
+        return { ...r, audioDropped: true, dropReason };
       }
       const r = await postDoorLog({
         kind: "pitch",
@@ -241,6 +255,19 @@ export function DoorLog() {
     void loadKpi();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When a door completes and we return to IDLE (between doors, nothing recording), signal a SAFE moment to
+  // apply a pending app update. An actively-knocking rep never goes idle long enough for VersionWatcher's 90s
+  // auto-update and keeps the app foregrounded, so a deploy can sit unreceived for hours — the reason the
+  // recording fixes weren't reaching the field (founder 2026-08-22). VersionWatcher listens for this and reloads
+  // ONLY if stale (its recording-guard + once-per-commit loop-guard still apply, so it never interrupts a pitch).
+  const prevStateRef = useRef<DoorLogState>("idle");
+  useEffect(() => {
+    if (prevStateRef.current !== "idle" && state === "idle" && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("elostate:safe-to-update"));
+    }
+    prevStateRef.current = state;
+  }, [state]);
 
   const newId = () =>
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -298,8 +325,8 @@ export function DoorLog() {
       setNotice(null);
       void postDoorLog({ kind: "knock", outcome, localDate, clientKnockId: id }).then((r) => {
         if (!r.ok) setSendError(saveFailMessage("That pitch", r.failReason));
-        else if (opts?.audioDropped)
-          setNotice("Saved the outcome — but this pitch recorded no audio, so there's nothing to review.");
+        // This path is reached only when NO audio was captured at all (no blob + no chunks) — a true no_capture.
+        else if (opts?.audioDropped) setNotice(audioDroppedMessage("no_capture"));
         void loadKpi();
       });
       setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
@@ -380,8 +407,7 @@ export function DoorLog() {
       }
     ).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));
-      else if (r.audioDropped)
-        setNotice("Saved the outcome — but this pitch recorded no audio, so there's nothing to review.");
+      else if (r.audioDropped) setNotice(audioDroppedMessage(r.dropReason ?? "no_capture"));
       void loadKpi();
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
