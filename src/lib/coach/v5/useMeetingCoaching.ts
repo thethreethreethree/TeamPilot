@@ -272,7 +272,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
             ? streamRef.current
             : await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
-        if (unmountedRef.current) return teardown();
+        if (unmountedRef.current || stoppedRef.current) return teardown();
 
         // Record the call audio — FRESH START only. One recorder for the whole call = one valid webm (no
         // mid-stream seam to reason about). On a reconnect the existing recorder keeps running on the reused
@@ -306,7 +306,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         const tokRes = await fetch("/api/coach/sales-session/realtime-token", { method: "POST" });
         if (!tokRes.ok) throw new Error("Couldn't get a realtime token.");
         const { token } = await tokRes.json();
-        if (unmountedRef.current) return teardown();
+        if (unmountedRef.current || stoppedRef.current) return teardown();
 
         let ctx: AudioContext;
         try {
@@ -316,7 +316,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         }
         ctxRef.current = ctx;
         if (ctx.state === "suspended") await ctx.resume();
-        if (unmountedRef.current) return teardown();
+        if (unmountedRef.current || stoppedRef.current) return teardown();
         const sr = Math.round(ctx.sampleRate);
 
         const ws = new WebSocket(
