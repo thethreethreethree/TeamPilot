@@ -16,10 +16,11 @@ import { constantTimeEqual } from "@/lib/api/constantTime";
  * is set. We verify it; manual browser hits bounce off the same gate. The
  * SAME CRON_SECRET the durability cron waits on activates this one too.
  *
- * All-company sweep, CAPPED at CRON_CAP dissects per run (§5 — bounds LLM
- * cost + function time; a backlog drains over several daily runs rather than
- * one expensive burst). Steady-state cost is ~zero: it only ever regenerates
- * genuine misses (e.g. a closed tab before /finalize ran).
+ * All-company sweep, CAPPED at CRON_CAP recoveries per run (§5 — bounds LLM
+ * cost + function time; a backlog drains over several runs rather than one
+ * expensive burst). Runs every 3h (founder 2026-08-21 — accelerate the
+ * capture-crisis backlog recovery). Steady-state cost is ~zero: it only ever
+ * regenerates genuine misses (e.g. a closed tab before /finalize ran).
  */
 
 // Per-run cap (all companies). Lowered 12→6 (2026-08-21): each recovery now runs the FULL 5-engine artifact

@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/coach/sales-session/backfill-dissects-cron",
-      "schedule": "0 4 * * *"
+      "schedule": "0 */3 * * *"
     },
     {
       "path": "/api/diagnosis/task-overrun-sweep-cron",
