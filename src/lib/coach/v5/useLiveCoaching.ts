@@ -82,6 +82,27 @@ const AUDIO_CHUNK_MS = 15_000;
  * keepalive: a chunk (~200 KB) exceeds the 64 KB keepalive body cap, so a chunk still in flight at a hard
  * tab-close may be lost (≤15s of tail) — every earlier chunk is already durably stored.
  */
+/**
+ * Close a WebSocket after DETACHING its handlers, so an INTENTIONAL close (teardown / reconnect) can never
+ * fire onclose/onerror and re-enter the reconnect logic. Without this, the reconnect path is correct only
+ * because the socket happens to be already-closed when teardownForReconnect runs — a fragile implicit property
+ * (a future edit that reconnects from an OPEN socket would trigger a spurious second reconnect + inflate the
+ * attempt counter → premature exhaustion). Enforcing it here at the chokepoint makes every intentional close
+ * robustly inert. Standard WS-cleanup discipline.
+ */
+function detachAndCloseWs(ws: WebSocket | null): void {
+  if (!ws) return;
+  ws.onopen = null;
+  ws.onmessage = null;
+  ws.onerror = null;
+  ws.onclose = null;
+  try {
+    ws.close();
+  } catch {
+    /* noop */
+  }
+}
+
 function postAudioChunk(sessionId: string, seq: number, blob: Blob): void {
   void fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
     method: "POST",
@@ -873,11 +894,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     ctxRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    try {
-      wsRef.current?.close();
-    } catch {
-      /* noop */
-    }
+    detachAndCloseWs(wsRef.current); // intentional stop → detach so onclose can't re-enter reconnect
     wsRef.current = null;
     // A2 readout: the "is it fluid?" summary for this call — median/p90 end-to-end
     // cue latency + delivered/suppressed counts (§3.5 consequence, §3.6 visible).
@@ -941,11 +958,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     ctxRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    try {
-      wsRef.current?.close();
-    } catch {
-      /* noop */
-    }
+    detachAndCloseWs(wsRef.current);
     wsRef.current = null;
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
@@ -965,7 +978,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     procRef.current = null;
     try { void ctxRef.current?.close(); } catch { /* noop */ }
     ctxRef.current = null;
-    try { wsRef.current?.close(); } catch { /* noop */ }
+    detachAndCloseWs(wsRef.current); // detach handlers so this INTENTIONAL close can't re-enter reconnect
     wsRef.current = null;
     if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
   }, []);
