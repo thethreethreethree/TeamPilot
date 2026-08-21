@@ -73,6 +73,24 @@ for (const [label, lo, hi] of buckets) {
   console.log(`  ${label.padEnd(6)} n=${String(grp.length).padStart(3)}  empty=${Math.round(empty/grp.length*100)}%  FULL=${Math.round(full/grp.length*100)}%`);
 }
 
+// PER-DAY capture-health trend (§3.6 make the improvement visible / §4 measure vs the baseline). The P0/P1
+// capture fix deployed 2026-08-21 — this shows capture-success PER DAY so the before/after is objective: a
+// clean fix makes empty% fall and FULL% rise on the days AFTER the deploy, on real calls, not a hunch.
+console.log(`\n=== per-day capture health (newest first — watch empty%↓ FULL%↑ after the 08-21 fix) ===`);
+const byDay = {};
+for (const s of sessions) {
+  const day = s.started_at.slice(0, 10);
+  (byDay[day] ??= { n: 0, empty: 0, full: 0, noAudio: 0 });
+  const b = byDay[day]; b.n++;
+  if ((segCount.get(s.id) ?? 0) === 0) b.empty++;
+  if (!s.audio_asset_url) b.noAudio++;
+  if (isFull(s)) b.full++;
+}
+for (const [day, b] of Object.entries(byDay).sort((a, b2) => b2[0].localeCompare(a[0])).slice(0, 14)) {
+  const p = (x) => `${String(Math.round((x / b.n) * 100)).padStart(3)}%`;
+  console.log(`  ${day}  n=${String(b.n).padStart(3)}  empty=${p(b.empty)}  noAudio=${p(b.noAudio)}  FULL=${p(b.full)}`);
+}
+
 // Event-kind funnel for these sessions — where does the pipeline STOP?
 console.log(`\n=== coach.* event funnel (subjects among these sessions) ===`);
 const kinds = {};

@@ -39,10 +39,18 @@ The four founder symptoms reduce to **capture failing on long calls**; the gener
    → **no further reconnect ever** ("drops and stays dropped"); (ii) there is no WS keepalive, so silence /
    backgrounding lets the provider idle-close; (iii) exhausted reconnects went silently to `idle`.
 
-2. **Recording stopping + 93% no audio (B/D) — a regression I shipped 2026-08-21.** The reconnect path called
+2. **Recording stopping mid-call (B) — a regression I shipped 2026-08-21.** The reconnect path called
    `teardownMedia()`, which **stopped the MediaRecorder + mic and discarded the captured audio on every drop**;
    `start()` then re-acquired the mic (which fails on a backgrounded/locked phone → permanent end). The
-   transcript was preserved across reconnect but the audio was thrown away.
+   transcript was preserved across reconnect but the audio was thrown away. (Fixed in P0.)
+
+   **CORRECTION (per-day data, §5):** I originally attributed the ~93% no-audio rate mainly to this regression.
+   That was IMPRECISE. The per-day trend (`diag-session-health.mjs`) shows `noAudio` ~97–100% on EVERY day back
+   to early August — long before the 08-21 regression. The dominant cause is separate and older: `persistRecording`
+   (the "never lose the audio" guarantee, `LiveCoachingPanel.tsx:120-146`) fires only on a CLEAN Stop, but most
+   sessions are never cleanly Stopped (rep closes the tab → the component unmounts before the on-Stop persist
+   runs), and a large audio blob can't `sendBeacon` on unload the way the small transcript delta does. The audio
+   fallback is therefore broadly dead independent of my regression — see the P2 finding below.
 
 3. **After-pitch not generating (C).** Almost entirely downstream of (A)/(B): an empty/one-sided transcript
    produces nothing by design. Compounding it: the backfill only recovered the *Dissect*, and the After-Pitch
@@ -85,6 +93,14 @@ sessions in ~1–2 days.
   keepalive ping would avoid the drop entirely on backgrounded calls.
 - **Unrecoverable backlog:** ~54% of past sessions have no transcript AND no audio — nothing to recover; P0/P1
   fix new calls only.
+
+- **P2 finding — the audio fallback (`persistRecording`) is broadly dead for never-Stopped sessions.** `noAudio`
+  is ~97–100% every day (per-day trend). The audio saves only on a CLEAN Stop; a tab-close unmounts the panel
+  before the on-Stop persist runs, and a large blob can't `sendBeacon` on unload. IMPORTANCE dropped by P0: the
+  audio is a FALLBACK for when live STT fails, and P0 makes the *transcript* (the primary artifact) reliable, so
+  fewer sessions need the fallback at all. A real fix is incremental audio-chunk upload DURING the call (mirroring
+  the 4s transcript flush) — a significant build, and arguably better absorbed by the self-hosted-voice migration
+  than bolted onto the browser MediaRecorder path. Founder-gated (effort vs. the now-reduced need).
 
 - **P2 opportunity — auto-re-transcribe empty-but-has-audio before the 2-day purge (holistic ripple, §1.5).**
   P0 now SAVES the recording even when live STT produced an empty transcript (previously that audio was also
