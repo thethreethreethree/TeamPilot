@@ -46,6 +46,10 @@ export type SalesSession = {
   companyId: string;
   agentId: string;
   context: SalesContext;
+  // Coaching kind (migration 0237): 'sales' | 'meeting' | 'huddle'. Distinct from `context` (where the call
+  // happens). Drives strategy selection (resolveCoachingMode → selectStrategy). Defaults 'sales' for pre-0237
+  // rows and any legacy value, so the sales path is unchanged.
+  sessionKind: string;
   clientLabel: string | null;
   status: SalesSessionStatus;
   audioAssetUrl: string | null;
@@ -103,6 +107,8 @@ function mapSession(row: Record<string, unknown>): SalesSession {
     companyId: row.company_id as string,
     agentId: row.agent_id as string,
     context: row.context as SalesContext,
+    // A34 migration-coupling: session_kind may be absent on a pre-0237 row → default 'sales'.
+    sessionKind: (row.session_kind as string | null) ?? "sales",
     clientLabel: (row.client_label as string | null) ?? null,
     status: row.status as SalesSessionStatus,
     audioAssetUrl: (row.audio_asset_url as string | null) ?? null,

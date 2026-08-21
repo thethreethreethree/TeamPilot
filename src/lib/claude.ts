@@ -518,6 +518,28 @@ export async function liveSalesCue(args: {
 }
 
 /**
+ * Live MEETING/HUDDLE cue (Meeting Coach / Team-Sync). The CueLLM the meeting + huddle strategies inject —
+ * same shape + latency budget as liveSalesCue, re-aimed at facilitation by the caller's prompt (the strategy
+ * owns the prompt; this owns the provider call + gating). controlExempt: true per the founder's 2026-08-21
+ * decision to run meeting cues live from day 1 (no §3.4 control-month baseline for meetings). Returns a
+ * CallResult ({ text, suppressed }) so the strategies consume `suppressed` as a verdict (A40).
+ */
+export async function liveMeetingCue(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 160,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+  });
+}
+
+/**
  * Deep full-conversation evaluation ("Dissect"). Composes with the brain,
  * but exempt from the §3.4 control window — Sales Coach AI is active day 1
  * (founder 2026-06-30); the control window is for the Elostate diagnostic
