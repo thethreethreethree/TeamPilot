@@ -33,11 +33,11 @@ tenant-scope + owner-required service-role write + CWE-209). Typecheck clean.
   EBML header. The STITCH now detects that header (`startsWithEbmlHeader`) and stops at the seam, keeping the
   first (valid) segment — the pre-lock audio, still playable + transcribable — instead of a corrupt concat. The
   post-lock segment is dropped (a full multi-segment recovery would need per-generation muxing; not worth it).
-- **RESIDUAL — clean-Stop-after-track-loss full blob (narrow, documented):** the clean-Stop path uploads
-  `new Blob([all chunks])` via `persistRecording`, which does NOT go through the seam-fixed stitch — so a rep who
-  locks the phone (recorder recreated) AND THEN cleanly taps Stop gets a full blob corrupt at the seam. Narrow
-  (lock + clean-Stop; NOT the never-Stop case, which is fixed; NOT in the validation protocol — its Stop test
-  uses airplane-mode, which drops the WS but not the mic track, so no recorder-recreate). A fix would route
-  clean-Stop through the stitch and resolve a race with `persistRecording`; deferred as not worth that
-  complexity for the case's frequency. Flagged so it isn't mistaken for covered.
+- **Clean-Stop-after-track-loss full blob — ALSO HANDLED (ccb0b1e1):** the clean-Stop path uploads
+  `new Blob([all chunks])` via `persistRecording`, which would be corrupt at the seam if the recorder was
+  recreated mid-call. Now `onstop` mirrors the server seam guard: a `recorderRecreatedRef` flag (set only when a
+  recorder is rebuilt on a reconnect) gates an async scan that keeps only the first valid webm segment, with a
+  try/catch fallback to the full blob. Flag-gated → the common single-recorder Stop is byte-identical to before.
+  So BOTH audio paths (never-Stop stitch + clean-Stop blob) are seam-safe. (The onstop scan itself is React
+  glue → device-confirmation; the seam logic mirrors the unit-tested `startsWithEbmlHeader`.)
 - **Founder validation:** confirm a real never-Stopped call leaves a playable `recording.webm`.
