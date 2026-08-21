@@ -28,6 +28,9 @@ tenant-scope + owner-required service-role write + CWE-209). Typecheck clean.
   chunks persist; rare, and the stitch is idempotent-retried by the auto-close cron while still active.)
 - **Cap orphan:** if a single auto-close run closes >25 sessions WITH chunks, the overflow is `ended` but
   unstitched. Steady-state closures/run << 25 (only sessions crossing 6h that hour), so it rarely binds.
-- **Dead-recorder-on-reconnect seam:** if the recorder is recreated mid-session (rare — P0 keeps it alive), a
-  new webm header lands mid-sequence and the stitched audio is corrupt at that seam (playable to the seam).
+- **Dead-recorder-on-reconnect seam — HANDLED (f5c66be8):** if the recorder is recreated mid-session (a mobile
+  screen-lock ends the mic track → P0 rebuilds it), the new recorder emits a fresh webm EBML header. The stitch
+  now DETECTS that header (`startsWithEbmlHeader`) and stops at the seam, keeping the first (valid) segment — the
+  pre-lock audio, still playable + transcribable — instead of a corrupt concat. The post-lock segment is dropped
+  from the stitched recording (a full multi-segment recovery would need per-generation muxing; not worth it).
 - **Founder validation:** confirm a real never-Stopped call leaves a playable `recording.webm`.
