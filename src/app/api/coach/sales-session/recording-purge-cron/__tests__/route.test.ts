@@ -64,6 +64,47 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     expect(JSON.stringify(await res.json())).not.toContain("internal pg detail");
   });
 
+  it("purges a valid recording: removes the audio + its chunk objects, then nulls the pointer", async () => {
+    // The happy path was previously untested. Covers the core purge AND the 2026-08-21 chunk cleanup — a
+    // clean-Stopped session's incremental audio chunks (orphaned once persistRecording set audio_asset_url)
+    // are removed here so they don't accumulate. Best-effort but consequential (a storage DELETE).
+    process.env.CRON_SECRET = "s3cret";
+    const removed: string[] = [];
+    const listed: string[] = [];
+    const updated: string[] = [];
+    setAdmin({
+      from: () => ({
+        select: () => ({
+          not: () => ({
+            eq: () => ({
+              lt: () => ({
+                order: () => ({
+                  limit: async () => ({
+                    data: [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        }),
+        update: () => ({ eq: async (_col: string, val: string) => { updated.push(val); return { error: null }; } }),
+      }),
+      storage: {
+        from: () => ({
+          remove: async (paths: string[]) => { removed.push(...paths); return { error: null }; },
+          list: async (prefix: string) => { listed.push(prefix); return { data: [{ name: "0.webm" }, { name: "1.webm" }], error: null }; },
+        }),
+      },
+    });
+    const body = await (await GET(req("Bearer s3cret"))).json();
+    expect(body.purged).toBe(1);
+    expect(removed).toContain("co1/s1/recording.webm"); // the final recording object
+    expect(listed).toContain("co1/s1/chunks"); // the chunk prefix was listed (the cleanup)
+    expect(removed).toContain("co1/s1/chunks/0.webm"); // and its chunk objects removed
+    expect(updated).toContain("s1"); // pointer nulled last
+  });
+
   it("does NOT purge a pointer of an UNRECOGNIZED shape — flags it malformed, never silently orphans the audio", async () => {
     // Retention integrity: a full-URL pointer (not the `${bucket}/...` shape this cron understands) must be
     // LEFT with its pointer intact + counted `malformed`, not nulled-and-counted-purged (the false-ok write
