@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { ASSETS_BUCKET } from "@/lib/storage/assets";
+import { chunkPrefix } from "@/lib/coach/v5/stitchSessionAudio";
 
 /**
  * GET /api/coach/sales-session/recording-purge-cron — ELOSALES retention (PDF Sessions item 1b):
@@ -97,10 +98,10 @@ export async function GET(req: NextRequest) {
     // Best-effort + idempotent (a never-Stopped session's chunks were already removed by the stitch → no-op).
     const companyId = row.company_id as string | null;
     if (companyId) {
-      const chunkPrefix = `${companyId}/${row.id as string}/chunks`;
+      const prefix = chunkPrefix(companyId, row.id as string);
       try {
-        const { data: chunkObjs } = await admin.storage.from(ASSETS_BUCKET).list(chunkPrefix, { limit: 2000 });
-        const names = (chunkObjs ?? []).map((o) => `${chunkPrefix}/${o.name}`);
+        const { data: chunkObjs } = await admin.storage.from(ASSETS_BUCKET).list(prefix, { limit: 2000 });
+        const names = (chunkObjs ?? []).map((o) => `${prefix}/${o.name}`);
         if (names.length > 0) await admin.storage.from(ASSETS_BUCKET).remove(names);
       } catch {
         /* best-effort — orphan chunks are wasteful, not harmful; retried next run via the same row until purged */

@@ -52,13 +52,23 @@ vi.mock("@/lib/storage/assets", () => ({
   downloadAssetBytes: async () => ({ ok: true, bytes: Buffer.from([1, 2, 3]) }),
 }));
 
-const { orderedChunkSeqs, stitchSessionAudio } = await import("../stitchSessionAudio");
+const { orderedChunkSeqs, stitchSessionAudio, chunkPrefix, chunkObjectPath, finalRecordingPath } = await import("../stitchSessionAudio");
 
 beforeEach(() => {
   state.audioUrl = null;
   state.chunkNames = [];
   state.uploaded = [];
   state.stamped = false;
+});
+
+describe("audio chunk storage-path contract (single source — route WRITES, stitch READS, purge CLEANS)", () => {
+  // A drift between these three consumers silently loses the audio (written to one path, sought from another).
+  it("chunkObjectPath = chunkPrefix + /<seq>.webm, and the final recording sits beside the chunks folder", () => {
+    expect(chunkPrefix("co", "s1")).toBe("co/s1/chunks");
+    expect(chunkObjectPath("co", "s1", 7)).toBe("co/s1/chunks/7.webm");
+    expect(chunkObjectPath("co", "s1", 7).startsWith(chunkPrefix("co", "s1") + "/")).toBe(true);
+    expect(finalRecordingPath("co", "s1")).toBe("co/s1/recording.webm");
+  });
 });
 
 describe("orderedChunkSeqs", () => {

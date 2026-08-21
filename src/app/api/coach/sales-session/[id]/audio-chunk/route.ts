@@ -4,6 +4,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { uploadAssetBytes } from "@/lib/storage/assets";
+import { chunkObjectPath } from "@/lib/coach/v5/stitchSessionAudio";
 
 /**
  * POST /api/coach/sales-session/[id]/audio-chunk?seq=N — append one live-recording audio chunk.
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Chunk too large." }, { status: 413 });
   }
 
-  const storagePath = `${companyId}/${id}/chunks/${seq}.webm`;
+  const storagePath = chunkObjectPath(companyId, id, seq);
   const res = await uploadAssetBytes({
     storagePath,
     bytes: buf,

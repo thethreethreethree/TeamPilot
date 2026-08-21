@@ -15,8 +15,17 @@ import { ASSETS_BUCKET, downloadAssetBytes } from "@/lib/storage/assets";
  * session); path is pinned to the session's company, never derived from caller input.
  */
 
-const chunksPrefix = (companyId: string, sessionId: string) => `${companyId}/${sessionId}/chunks`;
-const finalPath = (companyId: string, sessionId: string) => `${companyId}/${sessionId}/recording.webm`;
+// SINGLE SOURCE for the incremental-audio storage layout (§2.2) — the chunk-upload route WRITES chunks here,
+// this stitch READS them, and the recording-purge cron CLEANS them, so the three must never drift (a mismatch
+// silently loses the audio: chunks written to one path, stitched/purged from another). All three import these.
+/** Prefix (folder) holding a session's uploaded audio chunks. */
+export const chunkPrefix = (companyId: string, sessionId: string) => `${companyId}/${sessionId}/chunks`;
+/** Storage path of one uploaded chunk. */
+export const chunkObjectPath = (companyId: string, sessionId: string, seq: number) =>
+  `${chunkPrefix(companyId, sessionId)}/${seq}.webm`;
+/** Storage path of the final stitched recording. */
+export const finalRecordingPath = (companyId: string, sessionId: string) =>
+  `${companyId}/${sessionId}/recording.webm`;
 
 /**
  * From the chunk object names (`"0.webm"`, `"1.webm"`, …) return the CONTIGUOUS seq run starting at 0 — the
@@ -57,7 +66,7 @@ export async function stitchSessionAudio(args: {
   if (!sess) return { stitched: false, reason: "session not found" };
   if (sess.audio_asset_url) return { stitched: false, reason: "already has audio" };
 
-  const prefix = chunksPrefix(args.companyId, args.sessionId);
+  const prefix = chunkPrefix(args.companyId, args.sessionId);
   const { data: objects, error: listErr } = await admin.storage
     .from(ASSETS_BUCKET)
     .list(prefix, { limit: 2000 });
@@ -67,14 +76,14 @@ export async function stitchSessionAudio(args: {
 
   const parts: Buffer[] = [];
   for (const seq of order) {
-    const dl = await downloadAssetBytes({ storagePath: `${prefix}/${seq}.webm` });
+    const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, seq) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
     parts.push(dl.bytes);
   }
   if (parts.length === 0) return { stitched: false, reason: "no readable chunks" };
   const merged = Buffer.concat(parts);
 
-  const fpath = finalPath(args.companyId, args.sessionId);
+  const fpath = finalRecordingPath(args.companyId, args.sessionId);
   const { error: upErr } = await admin.storage
     .from(ASSETS_BUCKET)
     .upload(fpath, merged, { contentType: "audio/webm", upsert: true });
@@ -93,7 +102,7 @@ export async function stitchSessionAudio(args: {
 
   // Best-effort: drop the chunk objects now that the canonical recording exists.
   try {
-    await admin.storage.from(ASSETS_BUCKET).remove(order.map((s) => `${prefix}/${s}.webm`));
+    await admin.storage.from(ASSETS_BUCKET).remove(order.map((s) => chunkObjectPath(args.companyId, args.sessionId, s)));
   } catch {
     /* noop — orphan chunks are harmless; the purge/retention sweeps them by prefix age */
   }
