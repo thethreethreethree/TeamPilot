@@ -29,6 +29,10 @@ const CUE_COOLDOWN_MS = 4000;
 // The understanding gate needs a little conversation before a cue means anything.
 const MIN_TURNS = 2;
 const MAX_RECONNECTS = 6;
+// Refill the reconnect budget only after the socket proves STABLE (stays open this long). Resetting it the
+// instant it opens lets an open-then-instant-drop provider loop forever, minting a token + churning an
+// AudioContext each cycle (sales capture audit 2026-08-21; review finding #2).
+const RECONNECT_STABLE_MS = 8000;
 // Record the call audio in 15s slices. "The audio is the load-bearing artifact" (sales capture-crisis lesson):
 // everything downstream can fail + regenerate, but only if the audio survived.
 const AUDIO_CHUNK_MS = 15_000;
@@ -81,6 +85,8 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const [micLevel, setMicLevel] = useState(0);
   const [autoCoach, setAutoCoach] = useState(true);
   const [cueMode] = useState<CueMode>("suggestion");
+  // Per-cue status so a forced/declined/failed "Coach me now" is never a dead button (review finding #3).
+  const [cueStatus, setCueStatus] = useState("");
 
   // Live refs read by the stable STT/cue handlers.
   const turnsRef = useRef<MeetingTurn[]>([]);
@@ -101,12 +107,20 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const cueInFlightRef = useRef(false);
   const lastCueAtRef = useRef(0);
   const micLevelRef = useRef(0);
+  // Session epoch — bumped on each fresh start so a cue requested for a prior session can't be delivered into a
+  // new one (review finding #1). Stable-open timer for the reconnect-budget refill (finding #2).
+  const sessionEpochRef = useRef(0);
+  const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startRef = useRef<(isReconnect?: boolean) => Promise<void>>(async () => {});
 
   // Free the STT TRANSPORT (socket + audio graph + context) but KEEP the mic stream. Used before a reconnect —
   // a reconnect rebuilds the socket/context/proc, so the old ones MUST be closed first or each drop leaks an
   // AudioContext + a socket (browsers cap live AudioContexts, so a flaky network eventually kills capture).
   const teardownTransport = useCallback(() => {
+    if (stableTimerRef.current) {
+      clearTimeout(stableTimerRef.current);
+      stableTimerRef.current = null;
+    }
     try {
       const ws = wsRef.current;
       if (ws) {
@@ -171,9 +185,16 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
     async (force: boolean) => {
       if (cueInFlightRef.current) return;
       const live = turnsRef.current;
-      if (live.length < MIN_TURNS && !force) return;
+      if (live.length < MIN_TURNS) {
+        // Don't call the LLM on an empty room; a forced tap gets an honest message instead of a dead button.
+        if (force) setCueStatus("Still listening — say a bit more, then ask again.");
+        return;
+      }
       if (!force && Date.now() - lastCueAtRef.current < CUE_COOLDOWN_MS) return;
+      // Capture the epoch at request time; only deliver if we're still in the SAME session when it resolves.
+      const epoch = sessionEpochRef.current;
       cueInFlightRef.current = true;
+      if (force) setCueStatus("Thinking…");
       try {
         const res = await fetch(`/api/coach/meeting-session/${sessionId}/cue`, {
           method: "POST",
@@ -185,16 +206,24 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
             liveTranscript: live.slice(-12).map((t) => ({ speaker: t.speaker, text: t.text })),
           }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          // Surface a forced failure honestly (§3.4 — never a silent dead button); auto-cues stay quiet.
+          if (force) setCueStatus(`Cue request failed (${res.status}).`);
+          return;
+        }
         const data = await res.json();
         const c = data?.cue ?? {};
         if (c.shouldCue && typeof c.cue === "string" && c.cue.length > 0) {
+          if (epoch !== sessionEpochRef.current) return; // a new session started while this was in flight — drop it
           lastCueAtRef.current = Date.now();
           setCurrentCue(c.cue);
+          setCueStatus("");
           void speakCue(c.cue);
+        } else if (force) {
+          setCueStatus("Coach had nothing pressing to add right now.");
         }
       } catch {
-        /* auto-cue stays silent on failure; a forced request just yields no cue */
+        if (force) setCueStatus("Cue request failed — check your connection.");
       } finally {
         cueInFlightRef.current = false;
       }
@@ -205,8 +234,19 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const start = useCallback(
     async (isReconnect = false) => {
       if (!isReconnect) {
+        // FRESH session — reset every per-session ref/state so nothing bleeds from a prior meeting in this same
+        // mount (the panel keeps the hook mounted across endSession). Findings #1 (cue latch + epoch) and #4.
         stoppedRef.current = false;
+        cueInFlightRef.current = false; // a prior in-flight cue must not block the new session's cues
+        sessionEpochRef.current += 1; // a late cue from the prior session won't be delivered (checked in invokeCue)
+        reconnectAttemptsRef.current = 0;
+        nearingEndRef.current = false;
+        lastCueAtRef.current = 0;
+        micLevelRef.current = 0;
         setError(null);
+        setCurrentCue(null);
+        setCueStatus("");
+        setMicLevel(0);
         turnsRef.current = [];
         setTurns([]);
       } else {
@@ -319,13 +359,24 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         let wsOpened = false;
         ws.onopen = () => {
           wsOpened = true;
-          reconnectAttemptsRef.current = 0;
+          // Refill the reconnect budget only once the socket proves STABLE (open ≥ RECONNECT_STABLE_MS). The timer
+          // is cleared on close/teardown, so an open-then-instant-drop never refills → the loop can't run forever.
+          if (stableTimerRef.current) clearTimeout(stableTimerRef.current);
+          stableTimerRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current = 0;
+          }, RECONNECT_STABLE_MS);
           setStatus("live");
         };
         ws.onerror = () => {
           setError("Realtime connection error.");
         };
         ws.onclose = (ev) => {
+          // A drop before the stable timer fires must NOT refill the budget — clear it so a flapping socket
+          // exhausts MAX_RECONNECTS and surfaces the error instead of reconnecting forever.
+          if (stableTimerRef.current) {
+            clearTimeout(stableTimerRef.current);
+            stableTimerRef.current = null;
+          }
           if (stoppedRef.current || unmountedRef.current) return;
           if (scheduleReconnect()) return;
           setError(
@@ -372,6 +423,9 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
     teardown();
     setStatus("idle");
     setPartial("");
+    setCurrentCue(null);
+    setCueStatus("");
+    setMicLevel(0);
   }, [teardown]);
 
   const requestCue = useCallback(() => void invokeCue(true), [invokeCue]);
@@ -392,6 +446,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
     turns,
     partial,
     currentCue,
+    cueStatus,
     error,
     micLevel,
     autoCoach,

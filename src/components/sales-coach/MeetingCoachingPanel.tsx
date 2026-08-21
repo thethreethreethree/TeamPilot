@@ -191,6 +191,7 @@ export function MeetingCoachingPanel() {
         <p className="mt-1 text-sm text-primary">
           {coach.currentCue ?? <span className="text-muted">Quiet unless something needs your attention.</span>}
         </p>
+        {coach.cueStatus && <p className="mt-2 text-xs text-muted">{coach.cueStatus}</p>}
       </div>
 
       <div className="flex flex-wrap gap-2">
