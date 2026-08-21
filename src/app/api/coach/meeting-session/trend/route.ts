@@ -21,7 +21,7 @@ export async function GET() {
   // Service-role read pinned to the caller's company (INV15) — the events table's payloads are the dissects.
   const { data, error } = await createAdminClient()
     .from("events")
-    .select("payload, created_at")
+    .select("payload, created_at, subject")
     .eq("company_id", companyId)
     .eq("kind", "meeting.dissect_generated")
     .order("created_at", { ascending: false })

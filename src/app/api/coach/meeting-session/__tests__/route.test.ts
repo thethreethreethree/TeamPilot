@@ -9,11 +9,11 @@ import type { NextRequest } from "next/server";
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
-vi.mock("@/lib/data/salesCoach", () => ({ createSession: vi.fn(), listAgentSessions: vi.fn() }));
+vi.mock("@/lib/data/salesCoach", () => ({ createSession: vi.fn(), listAgentMeetingSessions: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
-import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
+import { createSession, listAgentMeetingSessions } from "@/lib/data/salesCoach";
 import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -69,14 +69,16 @@ describe("GET meeting-session (list)", () => {
     expect((await GET()).status).toBe(401);
   });
 
-  it("returns only meeting/huddle sessions, filtering out sales", async () => {
-    asMock(listAgentSessions).mockResolvedValue([
+  it("maps the DB-filtered meeting/huddle sessions to the list rows", async () => {
+    // listAgentMeetingSessions filters to meeting/huddle IN THE QUERY (finding #3), so the route only maps.
+    asMock(listAgentMeetingSessions).mockResolvedValue([
       { id: "m1", clientLabel: "Sync", sessionKind: "meeting", startedAt: "2026-08-22T00:00:00Z", endedAt: null },
-      { id: "s1", clientLabel: "Deal", sessionKind: "sales", startedAt: "2026-08-21T00:00:00Z", endedAt: null },
       { id: "h1", clientLabel: "Standup", sessionKind: "huddle", startedAt: "2026-08-20T00:00:00Z", endedAt: null },
     ]);
     const json = await (await GET()).json();
     expect(json.meetings.map((m: { id: string }) => m.id)).toEqual(["m1", "h1"]);
     expect(json.meetings[0]).toMatchObject({ id: "m1", title: "Sync", kind: "meeting" });
+    // it asked the kind-filtered helper with the 30 limit
+    expect(asMock(listAgentMeetingSessions).mock.calls[0]?.[1]).toBe(30);
   });
 });

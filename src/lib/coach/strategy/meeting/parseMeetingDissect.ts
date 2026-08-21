@@ -72,7 +72,9 @@ export function parseMeetingDissect(text: string): MeetingDissect {
     })
     .filter((d) => d.decision.length > 0);
 
-  const NO_OWNER = /^(none|no one|nobody|unassigned|n\/a|tbd|-)$/i;
+  // Models frequently emit the STRING "null" (not JSON null) or a vague non-owner; all must normalize to null so
+  // an owner-less action is honestly counted as owner-less (the exact signal this dissect exists to surface).
+  const NO_OWNER = /^(null|none|no one|nobody|unassigned|unowned|someone|the team|everyone|n\/a|tbd|-)$/i;
   const actions: DissectAction[] = arr(o.actions)
     .map((a) => {
       const aa = (a ?? {}) as Record<string, unknown>;

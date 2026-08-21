@@ -97,9 +97,10 @@ export async function generateAndStoreMeetingDissect(args: {
     } catch {
       /* best-effort — the dissect still returns */
     }
-  } else if (args.segments.length > 0) {
-    // The LLM ran (there were turns) but produced no signal — emit an ATTEMPTED marker so a backfill backs off
-    // rather than re-running the full LLM call on this session every pass.
+  } else {
+    // No signal (the LLM ran and found nothing, OR the transcription yielded zero segments) — ALWAYS emit an
+    // ATTEMPTED marker so the interactive dissect route (and any future backfill) BACKS OFF instead of re-running
+    // a full batch STT + ~20s LLM on this same session every view (review finding #1; the 2026-08-14 cost loop).
     try {
       await createAdminClient()
         .from("events")

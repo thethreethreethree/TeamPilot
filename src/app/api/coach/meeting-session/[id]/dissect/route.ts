@@ -49,19 +49,26 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const subject = `meeting_session:${id}`;
   const force = new URL(req.url).searchParams.get("force") === "1";
 
-  // The stored dissect event is the cache — return it without re-charging STT/LLM unless ?force=1.
+  // The stored dissect events are the cache — return without re-charging STT/LLM unless ?force=1. We read the
+  // most recent of EITHER kind: a `dissect_generated` returns its payload; a `dissect_attempted` (a prior view
+  // that transcribed but found nothing to capture) returns the empty state — WITHOUT re-transcribing again. That
+  // consult of the attempted marker is review finding #1: without it, a no-signal meeting re-charged batch STT +
+  // LLM on every single view.
   if (!force) {
     const { data: existing } = await admin
       .from("events")
-      .select("payload")
+      .select("payload, kind")
       .eq("company_id", companyId)
       .eq("subject", subject)
-      .eq("kind", "meeting.dissect_generated")
+      .in("kind", ["meeting.dissect_generated", "meeting.dissect_attempted"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing?.payload) {
+    if (existing?.kind === "meeting.dissect_generated" && existing.payload) {
       return NextResponse.json({ dissect: existing.payload, cached: true });
+    }
+    if (existing?.kind === "meeting.dissect_attempted") {
+      return NextResponse.json({ dissect: null, cached: true, empty: true });
     }
   }
 

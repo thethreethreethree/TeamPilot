@@ -61,9 +61,10 @@ describe("generateAndStoreMeetingDissect", () => {
     expect((state.inserts[0]!.payload as Record<string, unknown>).reason).toBe("no_signal");
   });
 
-  it("stores nothing when there are no segments", async () => {
+  it("stores an ATTEMPTED backoff marker even with no segments (silent/failed transcription — finding #1)", async () => {
     const d = await generateAndStoreMeetingDissect({ companyId: "co1", actorId: "u1", sessionId: "s3", segments: [] });
     expect(d.hasSignal).toBe(false);
-    expect(state.inserts).toHaveLength(0);
+    expect(state.inserts).toHaveLength(1);
+    expect(state.inserts[0]!.kind).toBe("meeting.dissect_attempted");
   });
 });

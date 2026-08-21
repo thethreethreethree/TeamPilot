@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
+import { createSession, listAgentMeetingSessions } from "@/lib/data/salesCoach";
 
 /**
  * Meeting Coach (Team-Sync) — session collection. Sibling of the sales-session create route, re-aimed at
@@ -64,15 +64,14 @@ export async function GET() {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const sessions = await listAgentSessions(auth.user.id, 30);
-  const meetings = sessions
-    .filter((s) => s.sessionKind === "meeting" || s.sessionKind === "huddle")
-    .map((s) => ({
-      id: s.id,
-      title: s.clientLabel,
-      kind: s.sessionKind,
-      startedAt: s.startedAt,
-      endedAt: s.endedAt,
-    }));
+  // Kind-filtered IN THE QUERY (finding #3) — a bounded list + post-filter could hide meetings behind sales rows.
+  const sessions = await listAgentMeetingSessions(auth.user.id, 30);
+  const meetings = sessions.map((s) => ({
+    id: s.id,
+    title: s.clientLabel,
+    kind: s.sessionKind,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt,
+  }));
   return NextResponse.json({ meetings });
 }

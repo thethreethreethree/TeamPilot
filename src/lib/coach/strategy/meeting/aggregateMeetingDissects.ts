@@ -13,7 +13,7 @@
  * declining, otherwise flat. Raw counts (decisions/meeting, open-items/meeting) are reported but not used for
  * direction, since "more decisions" isn't unambiguously better the way "more actions get owners" is.
  */
-export type MeetingDissectRow = { payload: unknown; created_at: unknown };
+export type MeetingDissectRow = { payload: unknown; created_at: unknown; subject?: unknown };
 
 export type MeetingMetrics = {
   meetings: number;
@@ -77,9 +77,21 @@ function metricsFor(payloads: Record<string, unknown>[]): MeetingMetrics {
 /** Rows arrive newest-first (created_at desc). */
 export function aggregateMeetingDissects(rows: MeetingDissectRow[]): MeetingTrend {
   const list = rows ?? [];
-  const payloads = list.map((r) => asRecord(r?.payload));
+  // Dedup by subject — one meeting can emit multiple dissect_generated events (a ?force regenerate, or two tabs
+  // racing on first view). Rows are newest-first, so keep the FIRST seen per subject → the trend counts distinct
+  // MEETINGS, not events (review finding #2; counting events inflated the "did we improve?" numbers). A row with
+  // no subject key can't be deduped, so it's kept.
+  const seen = new Set<string>();
+  const deduped = list.filter((r) => {
+    const subj = typeof r?.subject === "string" ? r.subject : null;
+    if (subj === null) return true;
+    if (seen.has(subj)) return false;
+    seen.add(subj);
+    return true;
+  });
+  const payloads = deduped.map((r) => asRecord(r?.payload));
   const lastAt =
-    list.find((r) => typeof r?.created_at === "string")?.created_at as string | undefined;
+    deduped.find((r) => typeof r?.created_at === "string")?.created_at as string | undefined;
 
   const overall = metricsFor(payloads);
 

@@ -6,19 +6,25 @@ import type { NextRequest } from "next/server";
  * 400(sales session); the stored dissect event is the CACHE (returns it without re-transcribing); 409 when
  * there's no audio; happy path transcribes → generate-and-store → returns.
  */
-const state = vi.hoisted(() => ({ cachedPayload: null as unknown, storagePath: "co/s1/recording.webm" as string | null }));
+const state = vi.hoisted(() => ({
+  cachedPayload: null as unknown,
+  cachedKind: "meeting.dissect_generated" as string,
+  storagePath: "co/s1/recording.webm" as string | null,
+}));
 
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
 vi.mock("@/lib/data/salesCoach", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({
-    from: () => ({
-      select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: state.cachedPayload ? { payload: state.cachedPayload } : null }) }) }) }) }) }) }),
-    }),
-  }),
-}));
+vi.mock("@/lib/supabase/admin", () => {
+  // Chainable builder (select/eq/in/order/limit all return the builder); maybeSingle resolves the cached event.
+  const builder: Record<string, unknown> = {};
+  for (const m of ["select", "eq", "in", "order", "limit"]) builder[m] = () => builder;
+  builder.maybeSingle = async () => ({
+    data: state.cachedPayload ? { payload: state.cachedPayload, kind: state.cachedKind } : null,
+  });
+  return { createAdminClient: () => ({ from: () => builder }) };
+});
 vi.mock("@/lib/storage/assets", () => ({
   assetUrlToStoragePath: () => state.storagePath,
   downloadAssetBytes: vi.fn(async () => ({ ok: true, bytes: new Uint8Array([1, 2, 3]), contentType: "audio/webm" })),
@@ -47,6 +53,7 @@ const ctx = { params: Promise.resolve({ id: "s1" }) };
 beforeEach(() => {
   vi.clearAllMocks();
   state.cachedPayload = null;
+  state.cachedKind = "meeting.dissect_generated";
   state.storagePath = "co/s1/recording.webm";
   setAuth(OWNER);
   asMock(getSession).mockResolvedValue({ id: "s1", agentId: OWNER, companyId: "co1", sessionKind: "meeting", audioAssetUrl: "assets-v1/co/s1/recording.webm", clientLabel: "Sync" });
@@ -77,6 +84,15 @@ describe("POST meeting-session dissect", () => {
     expect(json.cached).toBe(true);
     expect(transcribeWithDiarization).not.toHaveBeenCalled();
     expect(generateAndStoreMeetingDissect).not.toHaveBeenCalled();
+  });
+
+  it("honors a dissect_attempted marker — returns empty WITHOUT re-transcribing (finding #1 cost loop)", async () => {
+    state.cachedPayload = { reason: "no_signal" };
+    state.cachedKind = "meeting.dissect_attempted";
+    const res = await POST(req(), ctx);
+    const json = await res.json();
+    expect(json).toMatchObject({ dissect: null, cached: true, empty: true });
+    expect(transcribeWithDiarization).not.toHaveBeenCalled(); // the whole point: no re-charge
   });
 
   it("409 when there's no saved audio", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * MeetingReview — the post-meeting Dissect surface (Phase 6). Fetches (and, on first view, generates) the
@@ -22,25 +22,37 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio">("loading");
   const [dissect, setDissect] = useState<Dissect | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  // Guard state updates after the (potentially long — batch transcription) fetch settles post-unmount.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setState("loading");
     try {
       const res = await fetch(`/api/coach/meeting-session/${sessionId}/dissect`, { method: "POST" });
+      if (!mountedRef.current) return;
       if (res.status === 409) {
         setState("pending-audio");
         return;
       }
       if (!res.ok) {
         const d = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!mountedRef.current) return;
         setErrorMsg(d?.error ?? "Couldn't load the review.");
         setState("error");
         return;
       }
       const data = (await res.json()) as { dissect: Dissect };
+      if (!mountedRef.current) return;
       setDissect(data.dissect ?? null);
       setState("ready");
     } catch {
+      if (!mountedRef.current) return;
       setErrorMsg("Couldn't load the review.");
       setState("error");
     }

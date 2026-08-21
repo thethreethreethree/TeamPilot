@@ -791,6 +791,29 @@ export async function listAgentSessions(
 }
 
 /**
+ * A facilitator's recent MEETING/HUDDLE sessions (for the Meeting Coach history list). Filters by session_kind
+ * IN THE QUERY — a post-JS filter over a bounded listAgentSessions() would push meetings out of the window for a
+ * facilitator who mostly runs sales sessions (review finding #3). A34: pre-0237 the session_kind column is
+ * absent, so no meeting can exist yet → degrade to [] rather than throw (the predicate NAMES the column, so a
+ * different error still surfaces).
+ */
+export async function listAgentMeetingSessions(agentId: string, limit = 30): Promise<SalesSession[]> {
+  const sb = await createServerClient();
+  const { data, error } = await sb
+    .from("coaching_sessions")
+    .select("*")
+    .eq("agent_id", agentId)
+    .in("session_kind", ["meeting", "huddle"])
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (isMissingColumnError(error, "session_kind")) return [];
+    throw new Error(`Failed to load the agent's meeting sessions: ${error.message}`);
+  }
+  return (data ?? []).map(mapSession);
+}
+
+/**
  * Cue-reliance signal (§3.5 + the founder's "training wheels come off"
  * intent): cue count per ended/reviewed session for an agent, oldest →
  * newest. A downward trend is the trackable "needs fewer cues over time"

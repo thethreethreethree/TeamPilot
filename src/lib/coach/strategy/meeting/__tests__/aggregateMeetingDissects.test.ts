@@ -6,7 +6,7 @@ import { aggregateMeetingDissects } from "../aggregateMeetingDissects";
  * the owned-action + focused ratios. §3.4/§3.6: below MIN_FOR_TREND meetings it must say "insufficient", not fake
  * a curve; defensive on malformed payloads.
  */
-const row = (p: unknown, created_at = "2026-08-22T00:00:00Z") => ({ payload: p, created_at });
+const row = (p: unknown, subject?: string, created_at = "2026-08-22T00:00:00Z") => ({ payload: p, subject, created_at });
 // newest-first: front rows are "recent", back rows are "earlier".
 const good = { decisions: [{ decision: "d" }], actions: [{ action: "a", owner: "Dana" }], open_items: [], effectiveness: { focused: true } };
 const bad = { decisions: [{ decision: "d" }], actions: [{ action: "a", owner: null }], open_items: [{ item: "x" }], effectiveness: { focused: false } };
@@ -46,6 +46,19 @@ describe("aggregateMeetingDissects", () => {
     expect(t.overall.openItemsPerMeeting).toBe(0.5); // bad has 1 open item, good has 0
     expect(t.overall.focusedRatio).toBe(0.5);
     expect(t.lastAt).toBe("2026-08-22T00:00:00Z");
+  });
+
+  it("dedups by subject — counts distinct MEETINGS, not events (finding #2)", () => {
+    // Same meeting m1 emitted 3 dissect events (a force-regen + a race); m2 emitted 1. Should count 2 meetings.
+    const t = aggregateMeetingDissects([
+      row(good, "meeting_session:m1"),
+      row(good, "meeting_session:m1"),
+      row(bad, "meeting_session:m1"),
+      row(good, "meeting_session:m2"),
+    ]);
+    expect(t.overall.meetings).toBe(2); // not 4
+    // the NEWEST event per subject is kept (rows are newest-first), so m1 = the first `good`
+    expect(t.overall.ownedActionRatio).toBe(1); // both kept meetings (good) have an owned action
   });
 
   it("nulls ratios when nothing was recorded, and never throws on malformed payloads", () => {
