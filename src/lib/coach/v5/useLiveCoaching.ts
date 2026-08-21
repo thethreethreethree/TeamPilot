@@ -60,6 +60,8 @@ import {
 export type LiveStatus = "idle" | "connecting" | "live" | "error";
 
 const REALTIME_WS = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
+// How many times to auto-reconnect the realtime socket after a mid-call drop before giving up (2026-08-21).
+const MAX_RECONNECTS = 3;
 // Endpointing: Scribe's VAD commits a transcript at end-of-utterance, so a
 // committed_transcript already means "they paused". This short SETTLE on
 // top coalesces burst-commits within one turn (e.g. "I think…" then "…next
@@ -338,6 +340,15 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // re-send — the table has unique(session_id, seq)).
   const flushedSegsRef = useRef<Set<number>>(new Set());
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Auto-reconnect on a mid-call WebSocket drop (2026-08-21 "session keeps dropping" fix). The ElevenLabs
+  // realtime socket can close mid-session (network blip, single-use-token expiry on a long call, provider close);
+  // before, the handler just went silently to "idle" and capture DIED with no recovery. Now a recoverable drop
+  // re-runs start() (fresh token + socket + audio graph) while PRESERVING the transcript (reconnectingRef gates
+  // the reset), bounded by MAX_RECONNECTS with backoff, and never after an intentional stop (stoppedRef).
+  const reconnectAttemptsRef = useRef(0);
+  const stoppedRef = useRef(false);
+  const reconnectingRef = useRef(false);
+  const startRef = useRef<() => void>(() => {});
   // The turn index whose cue clock was started AT COMMIT by an obvious content
   // tell (before the LLM /attribute returned) — so classifyTurn doesn't reset
   // the timer and re-add the latency we just saved (L2 response time). -1 = none.
@@ -751,6 +762,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   );
 
   const stop = useCallback(() => {
+    stoppedRef.current = true; // intentional stop → the ws.onclose below must NOT auto-reconnect
     if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
     // A6: invalidate any in-flight /cue or /attribute so a late resolution can't
     // write into a session that has ended (or the next one, after a restart).
@@ -901,12 +913,20 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // A6: new session epoch — any /cue or /attribute still in flight from a prior
     // session is now stale and will be dropped when it resolves.
     sessionEpochRef.current += 1;
-    setTurns([]);
-    turnsRef.current = [];
+    // Fresh start resets the transcript; an AUTO-RECONNECT (reconnectingRef) PRESERVES it so a mid-call drop
+    // doesn't wipe what was captured — the same session continues appending from where it dropped.
+    if (reconnectingRef.current) {
+      reconnectingRef.current = false; // consume the reconnect flag
+    } else {
+      setTurns([]);
+      turnsRef.current = [];
+      flushedSegsRef.current = new Set();
+      reconnectAttemptsRef.current = 0;
+      stoppedRef.current = false;
+    }
     setTranscriptSaved(false);
-    // Reset + start incremental transcript persistence for this session (2026-08-21 capture-loss fix): flush
-    // settled turns to the DB every few seconds so a drop/close/never-Stop keeps the conversation.
-    flushedSegsRef.current = new Set();
+    // (Re)start incremental transcript persistence (2026-08-21 capture-loss fix): flush settled turns to the DB
+    // every few seconds so a drop/close/never-Stop keeps the conversation.
     if (flushTimerRef.current) clearInterval(flushTimerRef.current);
     flushTimerRef.current = setInterval(() => flushSegments(false), 4000);
     utterEnergyRef.current = { sum: 0, count: 0 };
@@ -1099,6 +1119,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       let wsOpened = false;
       ws.onopen = () => {
         wsOpened = true;
+        // A successful (re)connect refills the reconnect budget, so MAX_RECONNECTS bounds CONSECUTIVE failures
+        // (a session that reconnects cleanly keeps working through occasional drops), not total drops per session.
+        reconnectAttemptsRef.current = 0;
         // eslint-disable-next-line no-console
         console.info("[live-coaching] ws OPEN");
         setStatus("live");
@@ -1128,10 +1151,24 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           setStatus("error");
           return;
         }
-        // Opened then closed = a mid-session drop. Bug fix (2026-07-06 read-audit): use the FUNCTIONAL form so
-        // we read the CURRENT status, not the stale `status` captured in start's closure (which was ~"idle"
-        // when the user clicked Start). Without this, a socket close AFTER going live left the UI stuck on
-        // "live" — the surface lying about a dead connection (§3.4). Don't stomp an "error" already set.
+        // Opened then closed = a mid-session drop. AUTO-RECONNECT (2026-08-21 "keeps dropping" fix): re-run
+        // start() with the transcript preserved (reconnectingRef) — fresh token + socket + audio graph — so
+        // capture RESUMES instead of dying silently. Bounded (MAX_RECONNECTS) with linear backoff; never after an
+        // intentional stop or unmount. The incremental flush already persisted the turns up to the drop, so the
+        // reconnect is about resuming capture, not saving data.
+        if (!stoppedRef.current && !unmountedRef.current && reconnectAttemptsRef.current < MAX_RECONNECTS) {
+          reconnectAttemptsRef.current += 1;
+          setStatus("connecting");
+          setTimeout(() => {
+            if (stoppedRef.current || unmountedRef.current) return;
+            reconnectingRef.current = true;
+            teardownMedia(); // free the dropped session's mic / socket / ctx first
+            startRef.current(); // rebuild + resume (preserves turnsRef)
+          }, 500 * reconnectAttemptsRef.current);
+          return;
+        }
+        // Exhausted reconnects (or an intentional close): reflect the dead connection honestly. Functional form
+        // reads the CURRENT status, not start's stale closure. Don't stomp an "error" already set.
         setStatus((prev) => (prev === "live" ? "idle" : prev));
       };
       ws.onmessage = (ev) => {
@@ -1422,7 +1459,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // `status` intentionally omitted: the only read was the stale onclose check,
     // now replaced by the functional setStatus form. Keeping it here would
     // recreate `start` on every status transition for no benefit.
-  }, [invokeCue, stop, classifyTurn, teardownMedia]);
+  }, [invokeCue, stop, classifyTurn, teardownMedia, flushSegments]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;
@@ -1468,6 +1505,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       teardownMedia();
     };
   }, [teardownMedia, flushSegments]);
+
+  // Keep startRef pointing at the latest start() so ws.onclose can trigger an auto-reconnect without a
+  // circular useCallback dependency (start ⇄ onclose). Ref indirection resolves start at call time.
+  useEffect(() => {
+    startRef.current = () => void start();
+  }, [start]);
 
   // Toggle the manual "agent is speaking" lock (single earbud tap / button).
   const toggleAgentSpeaking = useCallback(() => {
