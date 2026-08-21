@@ -63,5 +63,22 @@ describe("DoorLog — mic-denied still lets the rep log a pitch (no fake recordi
     await waitFor(() => expect(screen.getByText("Log Pitch")).toBeTruthy());
     expect(screen.queryByText(/Name this pitch/i)).toBeNull();
     expect(screen.queryByText("Stop")).toBeNull();
+
+    // And it logged the RIGHT thing: a KNOCK carrying the chosen outcome (this is what drives the KPI), NOT a
+    // pitch — a pitch would need audio + would create an orphan pitch row. A wrong `kind` would 400 server-side
+    // while the optimistic UI still advanced to idle, so the UI assertions above can't see this regression.
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const knockPost = fetchMock.mock.calls
+      .map(([, init]) => init as { method?: string; body?: string } | undefined)
+      .find((init) => {
+        if (init?.method !== "POST") return false;
+        try {
+          return JSON.parse(init.body ?? "{}").kind === "knock";
+        } catch {
+          return false;
+        }
+      });
+    expect(knockPost).toBeTruthy();
+    expect(JSON.parse(knockPost!.body!)).toMatchObject({ kind: "knock", outcome: "sold" });
   });
 });
