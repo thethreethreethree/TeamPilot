@@ -382,6 +382,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // fresh recording; PERSISTS across a reconnect (the recorder + its stream survive the drop), so the uploaded
   // chunks stay one contiguous, byte-concatenatable webm.
   const audioChunkSeqRef = useRef(0);
+  // True once the MediaRecorder has been RECREATED mid-session (a mobile screen-lock ended the mic track → P0
+  // rebuilt it). Then chunksRef spans two webm recordings, so the clean-Stop full blob would be corrupt at the
+  // seam — onstop scans for the seam only in this case (the common single-recorder Stop is untouched).
+  const recorderRecreatedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
@@ -1114,6 +1118,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             chunksRef.current = [];
             setRecordingBlob(null);
             audioChunkSeqRef.current = 0; // fresh recording → chunk seq restarts at 0
+            recorderRecreatedRef.current = false; // fresh recording → no seam
+          } else {
+            // Reconnect + we're (re)creating the recorder → the old one died mid-session (track loss). The
+            // captured chunks now span two webm recordings; flag it so onstop drops the corrupt seam.
+            recorderRecreatedRef.current = true;
           }
           const rec = new MediaRecorder(stream);
           rec.ondataavailable = (e) => {
@@ -1127,13 +1136,33 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           rec.onstop = () => {
             // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
             setAudioCapturing(false);
-            if (chunksRef.current.length > 0) {
-              setRecordingBlob(
-                new Blob(chunksRef.current, {
-                  type: chunksRef.current[0]?.type || "audio/webm",
-                })
-              );
+            const all = chunksRef.current;
+            if (all.length === 0) return;
+            const buildBlob = (cs: Blob[]) => new Blob(cs, { type: cs[0]?.type || "audio/webm" });
+            // Common case: one recorder for the whole call → the chunks are one valid webm.
+            if (!recorderRecreatedRef.current) {
+              setRecordingBlob(buildBlob(all));
+              return;
             }
+            // Seam case (recorder recreated mid-session): a later chunk begins a NEW webm header (0x1A45DFA3);
+            // concatenating past it corrupts the blob. Keep only the first (valid) segment — mirrors the server
+            // stitch's startsWithEbmlHeader. Async byte-read; fall back to the full blob on any error (never
+            // lose the recording). Only runs in the recreate case, so the common Stop is untouched.
+            void (async () => {
+              try {
+                let end = all.length;
+                for (let i = 1; i < all.length; i++) {
+                  const head = new Uint8Array(await all[i]!.slice(0, 4).arrayBuffer());
+                  if (head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3) {
+                    end = i;
+                    break;
+                  }
+                }
+                setRecordingBlob(buildBlob(all.slice(0, end)));
+              } catch {
+                setRecordingBlob(buildBlob(all));
+              }
+            })();
           };
           // Timeslice → ondataavailable fires every AUDIO_CHUNK_MS (not just once on stop), so chunks upload
           // DURING the call. onstop still yields the full blob from chunksRef, so the clean-Stop persist is
