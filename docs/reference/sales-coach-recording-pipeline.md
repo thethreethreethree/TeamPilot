@@ -11,9 +11,17 @@ A session's canonical transcript (`coaching_transcript_segments`, append-only, s
 ### 1. LIVE coaching (the primary in-person / real-time path)
 - **`useLiveCoaching.ts`** opens the mic (`getUserMedia`), records the audio in parallel via `MediaRecorder`
   (→ `recordingBlob`), and streams the audio to **ElevenLabs realtime STT** over a websocket, authed by a
-  single-use token minted server-side (`/realtime-token`). Committed turns accumulate in `turnsRef`.
+  single-use token minted server-side (`/realtime-token`). Committed turns accumulate in `turnsRef` AND are
+  flushed to the DB every 4s (so a drop/never-Stop keeps the transcript). A mid-call drop **auto-reconnects**
+  (fresh token) while keeping the recorder + mic + transcript alive (2026-08-21 P0).
+- **Audio durability — INCREMENTAL upload (2026-08-21).** `MediaRecorder` runs with a 15s timeslice; each chunk
+  is uploaded fire-and-forget (one idempotent retry) to `/audio-chunk?seq=N` → `${company}/${session}/chunks/`.
+  On session end `stitchSessionAudio` byte-concatenates the chunks into `recording.webm` + stamps
+  `audio_asset_url`. So the audio survives ANY ending (drop / tab-close / phone-lock / crash / **never-Stop**),
+  not only a clean Stop. See `docs/tbc/2026-08-21-incremental-audio-upload/`.
 - On **Stop**: if `turnsRef.length > 0`, it POSTs `/finalize` (keepalive) — the SERVER appends the transcript
-  then generates the review artifacts (`generateSessionArtifacts`). `transcriptSaved` ← finalize ok.
+  then generates the review artifacts (`generateSessionArtifacts`). `transcriptSaved` ← finalize ok. The
+  clean-Stop full-blob persist (`persistRecording`, below) still runs; the stitch skips it (idempotent).
 - **`LiveCoachingPanel.tsx`** renders it + owns the post-Stop UX (see "persist + advance" below).
 
 ### 2. UPLOADED recording (phone voice memo / mobile record; recovery)
@@ -27,7 +35,7 @@ A session's canonical transcript (`coaching_transcript_segments`, append-only, s
 
 | Failure | Symptom | Where handled |
 |---|---|---|
-| Live STT captures ZERO turns (dead feed / missing STT scope) | "No conversation was captured" | **Now survivable**: `LiveCoachingPanel` persists `recordingBlob` to Storage on Stop (`persistRecording` → `/upload-recording {persistOnly}`) BEFORE navigating, so the audio is never lost + is re-transcribable. In-call amber warning after ~30s of no turns. |
+| Live STT captures ZERO turns (dead feed / missing STT scope) | "No conversation was captured" | **Survivable via BOTH audio paths**: the incremental chunk upload (during the call) saves the audio even if the rep never Stops — stitched on auto-close; AND the clean-Stop `persistRecording` full-blob upload for a Stopped call. Either leaves re-transcribable audio. In-call amber warning after ~30s of no turns. (Historically this relied ONLY on the on-Stop persist, which missed the never-Stopped majority — the 2026-08-21 incremental upload closed that.) |
 | Audio was saved but transcript empty | After-pitch empty state | `after-pitch/page.tsx`: if `session.audioAssetUrl` present → "transcription didn't connect, audio saved, recover it" + `SessionRecordingUpload autoRetranscribe` auto-recovers. Else → "nothing recorded". |
 | ONE-SIDED transcript — customer side missing (agent captured, `custW===0` → talk/listen "—"), blank "Your read" despite scores | After-pitch shows scores but no written read | **Now auto-recovered (build 2026-08-14):** `after-pitch/page.tsx` detects it via `afterPitchNeedsAutoRecover` (`captureGap.ts`: the `talk_ratio` caveat) and POSTs `/auto-recover` (once per id) BEFORE the LLM heal. The server re-diarizes the saved audio, `autoAssignAgentCluster` (`autoSpeakerAssign.ts`) picks the agent cluster — or DECLINES to the manual one-tap card rather than guess — ATOMICALLY replaces the broken transcript (`replace_session_transcript` RPC, 0212: delete+insert in one transaction, so a failed re-save leaves the original intact — never a false "recovered"), and regenerates. At-most-once across reloads via the `auto_recover_attempted_at` marker (migration 0211), claimed atomically before any STT + released on a transient STT failure so a later retry isn't burned. |
 | ElevenLabs key/scope/quota problem (the FREQUENCY driver) | Captures fail often | Diagnose via **`/voice-health`** (`probeElevenLabsVoice`: key present → `sk_` format → account/quota → **realtime STT token mint** = the STT-scope check). Surfaced in Settings → Coaching → "Voice provider health" card. ENV fix (enable STT scope) is the operator's. |
@@ -44,8 +52,12 @@ A session's canonical transcript (`coaching_transcript_segments`, append-only, s
 
 ## Key invariant
 **The audio is the load-bearing artifact.** Everything downstream (transcript, review, scores) can fail and be
-regenerated — but only if the audio survived. The incident was that the live path never persisted it. The rule
-now: persist the audio to Storage the moment recording stops, before anything else can lose it.
+regenerated — but only if the audio survived. The original incident was that the live path never persisted it;
+the first fix (2026-08-12) persisted the full blob **on Stop** — but the 2026-08-21 audit found reps
+overwhelmingly do NOT cleanly Stop (they close the tab), so on-Stop persist never ran for them. The rule now:
+**persist the audio INCREMENTALLY during the call** (15s chunks → stitched on session end), so it survives any
+ending — not only a clean Stop. The on-Stop full-blob persist remains as the clean-Stop path; the two are
+idempotent (whichever sets `audio_asset_url` first wins; the stitch skips an already-set pointer).
 
 ## Tests
 - `upload-recording/__tests__/route.test.ts` — the multipart + JSON(persistOnly) branches + the recovery contract.
@@ -53,6 +65,14 @@ now: persist the audio to Storage the moment recording stops, before anything el
 - `label-transcript/__tests__/route.test.ts` — append + the `generateSessionArtifacts` trigger + the
   delete-guard (a failed clear → 500, never a partial re-save).
 - `generateSessionArtifacts.test.ts` — the five-engine resilience (one fails ≠ all drop).
+- `stitchSessionAudio.test.ts` — the incremental-audio stitch: contiguous-run/gap-truncation ordering,
+  idempotent skip-when-audio-set, and the chunk storage-path contract (route/stitch/purge single source).
+- `audio-chunk/__tests__/route.test.ts` — the chunk-upload owner-gate (401/404/403/400) + company/session/seq
+  path pinning.
+- `auto-close-stale-cron/__tests__/route.test.ts` — closes stale sessions AND stitches each with the correct
+  per-session company pinning (`stitched` count).
+- `reconnectPolicy.test.ts` + `reconnectTeardownInvariant.test.ts` — the reconnect budget + the source guard
+  that a reconnect never tears down the recorder (the regression that discarded audio on every drop).
 - `auto-recover/__tests__/route.test.ts` — owner-only, canonical-never-clobbered, at-most-once marker (no STT
   on a repeat), decline-vs-guess, delete-guard.
 - `autoSpeakerAssign.test.ts` / `captureGap.test.ts` / `blankReadRecovery.test.ts` — the pure recovery logic:
