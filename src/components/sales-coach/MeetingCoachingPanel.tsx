@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMeetingCoaching } from "@/lib/coach/v5/useMeetingCoaching";
+import { MeetingTrendTile } from "@/components/sales-coach/MeetingTrendTile";
 
 /**
  * MeetingCoachingPanel — the facilitator's surface for a live Meeting/Huddle Coach session (Team-Sync).
@@ -73,6 +74,7 @@ export function MeetingCoachingPanel() {
   if (!sessionId) {
     return (
       <div className="mx-auto flex max-w-lg flex-col gap-5 p-6">
+        <MeetingTrendTile />
         <div>
           <h1 className="text-xl font-semibold text-primary">Start a coached meeting</h1>
           <p className="mt-1 text-sm text-secondary">
