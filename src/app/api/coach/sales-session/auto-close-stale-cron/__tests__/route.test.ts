@@ -6,7 +6,9 @@ const updateChain = { in: () => updateChain, eq: () => updateChain, select: vi.f
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: () => ({ select: () => selectChain, update: () => updateChain }) }),
 }));
+vi.mock("@/lib/coach/v5/stitchSessionAudio", () => ({ stitchSessionAudio: vi.fn() }));
 
+import { stitchSessionAudio } from "@/lib/coach/v5/stitchSessionAudio";
 import { GET } from "../route";
 const req = (auth?: string) => ({ headers: { get: (k: string) => (k === "authorization" ? auth ?? null : null) } }) as unknown as Parameters<typeof GET>[0];
 
@@ -38,5 +40,18 @@ describe("GET /api/coach/sales-session/auto-close-stale-cron", () => {
     const j = await (await GET(req("Bearer s3cret"))).json();
     expect(j.closed).toBe(0);
     expect(updateChain.select).not.toHaveBeenCalled();
+  });
+  it("stitches each closed session's audio chunks (never-Stopped recording recovery, 2026-08-21)", async () => {
+    vi.stubEnv("CRON_SECRET", "s3cret");
+    // company_id is needed to build the chunk path; the cron pins it per session from the initial select.
+    selectChain.limit.mockResolvedValue({ data: [{ id: "a", company_id: "co1" }, { id: "b", company_id: "co2" }], error: null });
+    updateChain.select.mockResolvedValue({ data: [{ id: "a" }, { id: "b" }], error: null });
+    (stitchSessionAudio as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ stitched: true });
+    const j = await (await GET(req("Bearer s3cret"))).json();
+    expect(j.closed).toBe(2);
+    expect(stitchSessionAudio).toHaveBeenCalledTimes(2);
+    expect(stitchSessionAudio).toHaveBeenCalledWith({ companyId: "co1", sessionId: "a" });
+    expect(stitchSessionAudio).toHaveBeenCalledWith({ companyId: "co2", sessionId: "b" });
+    expect(j.stitched).toBe(2);
   });
 });
