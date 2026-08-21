@@ -8,10 +8,12 @@ tests green throughout; Sales Coach untouched). Your decisions, as executed: (1)
 (video) + room-mic (in-person); (2) cues **live day-1** (`controlExempt`, no control-month — your call); (3)
 `session_kind` column.
 
-**11 commits** (`129e3c01` server → `4f5c4538` client → `9eda105a` hardening → `6fe34caa` durable audio →
-`4d5d7791` review fixes → `ee81bf2a` audit → `b0da7903` start-race). A facilitator can go to
-`/dashboard/meeting-coach`, run a coached meeting/huddle, and get facilitation cues in their earpiece + on screen,
-with durable audio. Full maps: `docs/reference/meeting-coach-architecture.md`, `docs/MEETINGCOACH-AUDIT-2026-08-22.md`.
+**~28 commits.** A facilitator goes to `/dashboard/meeting-coach`, runs a coached meeting/huddle (facilitation
+cues in the earpiece + on screen, durable audio), then reviews it: the **post-meeting Dissect is BUILT END-TO-END**
+— it re-transcribes the audio with N-party diarization and shows decisions reached / actions-with-owners
+(owner-less flagged) / open items / effectiveness, plus a **team improvement-TREND tile** ("did our meetings
+improve?") and a **history list** of past meetings. Everything reachable (post-Stop review link + history list +
+trend). Full maps: `docs/reference/meeting-coach-architecture.md`, `docs/MEETINGCOACH-AUDIT-2026-08-22.md`.
 
 **What's on YOU now:**
 
@@ -19,10 +21,13 @@ with durable audio. Full maps: `docs/reference/meeting-coach-architecture.md`, `
    `npm run db:apply` (until then the create route fail-honest-500s), then a real huddle on a phone with an
    earpiece. Step-by-step: `docs/MEETINGCOACH-DEVICE-VALIDATION.md`; verify with
    `node scripts/diag-meeting-session.mjs "<your name>"` (reports kind + cues + audio).
-2. **§3.5 DISSECT-MEASUREMENT DECISION (before I build post-meeting Dissect).** *What is a "good meeting"?*
-   (decisions reached / actions assigned-with-owners / clarification cycles / follow-through). The §1.7 audit
-   flagged the constraint: because cues run day-1 there is **no control-month baseline**, so Dissect must measure
-   a trend or a circumstance-controlled signal, **never agreement with the coach** (grading its own homework).
+2. **REVIEW the proposed Dissect measurement (BUILT — adjust, don't decide-from-scratch).** Rather than gate on
+   your §3.5 call, I built a defensible default + flagged it (the constitution's build-a-default, don't-offload
+   discipline): it measures a meeting's CONSEQUENCES — decisions reached, actions assigned-with-owners
+   (owner-less = the tracked failure), open items, focus — **never agreement with the coach**, and the trend is a
+   recent-vs-earlier signal (no control-month baseline exists). **Tell me which fields to add/drop**; they're
+   isolated in one prompt+parse+type. (Where to adjust: `src/lib/coach/strategy/meeting/meetingDissectPrompt.ts`
+   + `parseMeetingDissect.ts` + `aggregateMeetingDissects.ts`.)
 3. **NAV PLACEMENT.** `/dashboard/meeting-coach` is reachable only by URL. It's a **Team-Sync** feature — placing
    it under Sales Coach would misfile it. Where does it live? (This ties to Team-Sync's structure — see #5.)
 4. **APPROVE the filed sales-hook fix?** The review found a shared low-frequency `start()` race (Stop during the
