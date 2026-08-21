@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList } from "lucide-react";
 import {
   transition,
@@ -62,7 +62,17 @@ export function DoorLog() {
   const [kpi, setKpi] = useState<Kpi | null>(null);
   const [name, setName] = useState("");
   const [pickedOutcome, setPickedOutcome] = useState<PitchOutcome>("sold");
-  const [recorded, setRecorded] = useState<{ blob: Blob | null; durationMs: number } | null>(null);
+  // `chunksUploaded` = how many ~15s chunks reached storage DURING recording (the durable path); `recordingId`
+  // keys them for the server stitch. Audio is present when EITHER a clean-Stop blob exists OR ≥1 chunk landed —
+  // so a recording that stopped early (phone-lock) but streamed chunks is still saved, not dropped.
+  const [recorded, setRecorded] = useState<{
+    blob: Blob | null;
+    durationMs: number;
+    chunksUploaded: number;
+    recordingId: string | null;
+  } | null>(null);
+  // Minted at Record-tap, read at Save (a ref so the async chunk uploads + save never see a stale closure).
+  const recordingIdRef = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
   // No-mic path (founder 2026-08-21): true while the rep is tagging an outcome they DIDN'T record (mic
@@ -152,10 +162,28 @@ export function DoorLog() {
   const sendPitch = useCallback(
     async (
       base: { outcome: PitchOutcome; name: string; durationMs: number | null; clientKnockId: string },
-      blob: Blob | null
+      audio: { blob: Blob | null; recordingId: string | null; chunksUploaded: number }
     ): Promise<{ ok: boolean; failReason: SaveFailReason; audioDropped: boolean }> => {
+      // PRIMARY durability path (founder 2026-08-22): the recorder uploaded ~15s chunks DURING recording, so the
+      // audio is already in storage. The pitch just references it by recordingId and the server stitches it —
+      // NO large final upload (the long-recording upload failure this fix kills), and a recording that stopped
+      // early (phone-lock) still keeps whatever streamed.
+      if (audio.chunksUploaded > 0 && audio.recordingId) {
+        const r = await postDoorLog({
+          kind: "pitch",
+          outcome: base.outcome,
+          localDate,
+          name: base.name,
+          durationMs: base.durationMs,
+          clientKnockId: base.clientKnockId,
+          recordingId: audio.recordingId,
+        });
+        return { ...r, audioDropped: false };
+      }
+      // FALLBACK: no chunk reached storage (chunk endpoint unavailable). Try the single-blob upload; if there is
+      // no usable audio at all, preserve the DISPOSITION as a knock so the sale is never lost to an audio hiccup.
       let storagePath = "";
-      if (blob) {
+      if (audio.blob) {
         const signOnce = () =>
           fetch(DOOR_LOG_URL, {
             method: "POST",
@@ -163,10 +191,6 @@ export function DoorLog() {
             body: JSON.stringify({ kind: "sign" }),
           }).catch(() => null);
         let signRes = await signOnce();
-        // Mirror postDoorLog's 401 handling: an expired token on the SIGN step would silently drop the
-        // audio for a rep who's been out for hours (the exact long-field-session case). Refresh the session
-        // and retry the sign once so the recording lands too. Still best-effort — a failed sign/upload falls
-        // through to the knock fallback below, so the OUTCOME is preserved even when the audio can't be.
         if (signRes && needsSessionRefresh(signRes.status)) {
           try {
             await supabase.auth.refreshSession();
@@ -177,7 +201,7 @@ export function DoorLog() {
         }
         if (signRes?.ok) {
           const { storagePath: sp, token } = await signRes.json();
-          if (await uploadCb(AUDIO_BUCKET, sp, token, blob)) storagePath = sp;
+          if (await uploadCb(AUDIO_BUCKET, sp, token, audio.blob)) storagePath = sp;
         }
       }
       if (!storagePath) {
@@ -290,7 +314,10 @@ export function DoorLog() {
     // recorder.start() returns false when the mic is denied/unavailable. Honor it: DON'T enter a fake
     // RECORDING screen that captures nothing and then saves a silent, no-audio pitch (an error dressed as a
     // success). Surface the reason and stay on the idle screen so the rep can fix mic access or log No Answer.
-    const ok = await recorder.start();
+    // Mint the recordingId that keys this recording's incremental chunk uploads (durability, founder 2026-08-22).
+    const rid = newId();
+    recordingIdRef.current = rid;
+    const ok = await recorder.start(rid);
     if (!ok) {
       setMicDenied(true);
       setSendError("Can't record — turn on mic access for this site, then tap Record Pitch again.");
@@ -302,7 +329,7 @@ export function DoorLog() {
 
   const stopRecord = useCallback(async () => {
     const result = await recorder.stop();
-    setRecorded(result);
+    setRecorded({ ...result, recordingId: recordingIdRef.current });
     setState((s) => transition(s, { type: "STOP_RECORD" }));
   }, [recorder]);
 
@@ -313,10 +340,11 @@ export function DoorLog() {
         logKnockOutcome(outcome);
         return;
       }
-      // Recorded flow but capture produced NO audio (the recorder seams): skip the pointless naming step —
-      // there is no recording to name — and preserve the disposition as a knock with an honest note. Completes
-      // the capture-loss fix so the rep is never asked to name a pitch that does not exist (founder 2026-08-22).
-      if (!recorded?.blob) {
+      // Recorded flow but NO audio at all — no clean-Stop blob AND no chunk reached storage: skip the pointless
+      // naming step and preserve the disposition as a knock with an honest note. A recording that streamed
+      // chunks but produced no final blob (it stopped early) DOES have audio and goes through the normal save.
+      const hasAudio = !!(recorded?.blob || (recorded?.chunksUploaded ?? 0) > 0);
+      if (!hasAudio) {
         logKnockOutcome(outcome, { audioDropped: true });
         return;
       }
@@ -345,7 +373,11 @@ export function DoorLog() {
         durationMs: recorded?.durationMs ?? null,
         clientKnockId: id,
       },
-      recorded?.blob ?? null
+      {
+        blob: recorded?.blob ?? null,
+        recordingId: recorded?.recordingId ?? null,
+        chunksUploaded: recorded?.chunksUploaded ?? 0,
+      }
     ).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));
       else if (r.audioDropped)

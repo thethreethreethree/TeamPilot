@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { createSignedUploadTarget } from "@/lib/storage/assets";
 import { createKnock, createPitch, getKpiForDay, getAllTimeKpi } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
+import { pitchRecordingPath } from "@/lib/coach/doorlog/pitchAudioChunks";
 
 /**
  * POST /api/coach/sales-session/door-log — the Door Log's write endpoint (Macro Mode).
@@ -36,7 +37,11 @@ const PitchBody = z.object({
   clientKnockId: z.string().max(100).optional(),
   name: z.string().min(1).max(200),
   durationMs: z.number().int().nonnegative().max(3_600_000).nullable().optional(),
-  storagePath: z.string().max(400),
+  // Audio arrives one of two ways: `recordingId` (the durable path — chunks uploaded DURING recording, the
+  // server stitches them) OR `storagePath` (the single-blob fallback). Exactly one is expected; both optional
+  // in the schema so a degraded client that has neither still gets an honest 400 rather than a hard parse fail.
+  storagePath: z.string().max(400).optional(),
+  recordingId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
 const Body = z.discriminatedUnion("kind", [KnockBody, SignBody, PitchBody]);
 
@@ -70,10 +75,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ storagePath: target.storagePath, token: target.token });
   }
 
-  // F3: bind the client-echoed storagePath to the caller's company — the worker downloads it via the
-  // service-role client (bypasses storage RLS), so an unvalidated path is a client-controlled read.
-  if (body.kind === "pitch" && body.storagePath && !body.storagePath.startsWith(`${companyId}/`)) {
-    return NextResponse.json({ error: "Invalid audio path." }, { status: 400 });
+  // Resolve the pitch's audio path SERVER-SIDE:
+  //  • recordingId → the stitched-recording path derived from the caller's company (the worker stitches the
+  //    incrementally-uploaded chunks into it). Path is computed here, never taken from the client, so there is
+  //    no client-controlled read.
+  //  • storagePath (single-blob fallback) → validate it is scoped to the caller's company (F3) before the
+  //    service-role worker downloads it.
+  let pitchAudioPath = "";
+  if (body.kind === "pitch") {
+    if (body.recordingId) {
+      pitchAudioPath = pitchRecordingPath(companyId, body.recordingId);
+    } else if (body.storagePath) {
+      if (!body.storagePath.startsWith(`${companyId}/`)) {
+        return NextResponse.json({ error: "Invalid audio path." }, { status: 400 });
+      }
+      pitchAudioPath = body.storagePath;
+    } else {
+      // Neither audio reference — the client sends a knock instead when there is no audio, so this is a bad body.
+      return NextResponse.json({ error: "A pitch requires audio." }, { status: 400 });
+    }
   }
 
   // Both knock + pitch create a knock first (idempotent on client_knock_id). createKnock returns the id
@@ -98,7 +118,7 @@ export async function POST(req: NextRequest) {
     knockId: knock.id,
     companyId,
     name: body.name,
-    audioPath: body.storagePath,
+    audioPath: pitchAudioPath,
     durationMs: body.durationMs ?? null,
   });
   if (!pitch) return NextResponse.json({ error: "Could not create the pitch." }, { status: 500 });
@@ -110,7 +130,7 @@ export async function POST(req: NextRequest) {
       id: pitch.id,
       company_id: companyId,
       rep_id: repId,
-      audio_path: body.storagePath,
+      audio_path: pitchAudioPath,
       status: "uploading",
       attempts: 0,
     })

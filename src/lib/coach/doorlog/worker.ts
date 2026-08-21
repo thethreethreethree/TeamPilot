@@ -12,6 +12,7 @@ import {
   claimPitchForProcessing,
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure } from "./retryBackoff";
+import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
 
 /**
  * Pitch-processing worker (Macro Mode pipeline, build-spec 3.3). Nothing here is in the rep's request path:
@@ -69,6 +70,21 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
         return;
       }
       await setPitchStatus({ pitchId: pitch.id, status: "transcribing" });
+      // Durable path (founder 2026-08-22): audio_path points at a stitched recording built from chunks that
+      // uploaded DURING recording (survives a long-call upload failure OR a recorder that stopped early). Stitch
+      // them now — idempotent, so a retry or the route's earlier run is a no-op. No chunks reached storage →
+      // nothing was captured → honest terminal failure; a transient list/upload error is retryable (throw).
+      const rid = recordingIdFromAudioPath(pitch.audio_path);
+      if (rid) {
+        const st = await stitchPitchAudio({ companyId: pitch.company_id, recordingId: rid });
+        if (!st.ok) {
+          if (/no chunks|no readable/i.test(st.reason ?? "")) {
+            await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No audio was captured for this pitch." });
+            return;
+          }
+          throw new Error(`recording stitch failed: ${st.reason ?? "unknown"}`);
+        }
+      }
       const dl = await downloadAssetBytes({ storagePath: pitch.audio_path });
       if (!dl.ok || !dl.bytes) throw new Error(dl.error ?? "audio download failed");
       const text = await transcribeSpeech({ audio: dl.bytes, mimeType: dl.contentType ?? "audio/webm" });
