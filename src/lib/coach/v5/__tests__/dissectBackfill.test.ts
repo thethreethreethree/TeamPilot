@@ -13,7 +13,9 @@ const state = vi.hoisted(() => ({
   sessions: [] as Session[],
   dissectEvents: [] as Array<{ subject: string }>, // coach.dissect_generated
   attemptEvents: [] as Array<{ subject: string }>, // coach.dissect_attempted (backoff)
+  afterPitchExisting: [] as Array<{ session_id: string }>, // sessions that ALREADY have an after-pitch row
   dissect: vi.fn(), // stands in for the whole artifact generation; resolves { dissect: { hasSignal } }
+  afterPitch: vi.fn(), // generateAndStoreAfterPitch spy — asserts the de-dup guard skips existing summaries
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
@@ -29,7 +31,7 @@ vi.mock("@/lib/supabase/admin", () => {
     b.then = (resolve: (v: unknown) => void) => {
       let data: unknown;
       if (table === "coaching_sessions") data = state.sessions;
-      else if (table === "after_pitch_summaries") data = []; // none pre-exist → backfill would generate
+      else if (table === "after_pitch_summaries") data = state.afterPitchExisting; // drives the de-dup guard
       else if ((b as { _kind: string | null })._kind === "coach.dissect_attempted") data = state.attemptEvents;
       else data = state.dissectEvents;
       resolve({ data, error: null });
@@ -44,10 +46,10 @@ vi.mock("@/lib/data/salesCoach", () => ({ getSessionTranscriptAdmin: async () =>
 vi.mock("@/lib/coach/v5/generateSessionArtifacts", () => ({
   generateSessionArtifacts: async (...a: unknown[]) => ({ dissect: await state.dissect(...a) }),
 }));
-// After-Pitch recovery is best-effort + covered by its own test; here it's a no-op so the control-flow
-// assertions (which count dissect generations) stay focused.
+// After-Pitch recovery is best-effort (its generation is covered by its own test); here it's a spy so we can
+// assert the backfill's de-dup guard SKIPS a session that already has a summary.
 vi.mock("@/lib/coach/v5/generateAndStoreAfterPitch", () => ({
-  generateAndStoreAfterPitch: async () => ({ generated: false }),
+  generateAndStoreAfterPitch: (a: unknown) => state.afterPitch(a),
 }));
 
 const { runDissectBackfill } = await import("../dissectBackfill");
@@ -66,8 +68,11 @@ beforeEach(() => {
   state.sessions = [];
   state.dissectEvents = [];
   state.attemptEvents = [];
+  state.afterPitchExisting = [];
   state.dissect.mockReset();
   state.dissect.mockResolvedValue({ hasSignal: true });
+  state.afterPitch.mockReset();
+  state.afterPitch.mockResolvedValue({ generated: false });
 });
 
 describe("runDissectBackfill", () => {
@@ -121,6 +126,25 @@ describe("runDissectBackfill", () => {
     expect(r.processed).toBe(3);
     expect(r.generated).toBe(1);
     expect(r.thinOrFailed).toBe(2);
+  });
+
+  it("recovers the After-Pitch for a session that has none, but SKIPS one that already has a summary (de-dup)", async () => {
+    // The de-dup guard: after_pitch_summaries is insert-only/read-latest, so a backfill must NOT duplicate a
+    // summary a rep already generated on-view. s1 has none → generate; s2 already has one → skip.
+    state.sessions = [session("s1"), session("s2")];
+    state.afterPitchExisting = [{ session_id: "s2" }];
+    await runDissectBackfill({ companyId: "c1", cap: 6 });
+    const calledSessions = state.afterPitch.mock.calls.map((c) => (c[0] as { sessionId: string }).sessionId);
+    expect(calledSessions).toContain("s1"); // no existing summary → recovered
+    expect(calledSessions).not.toContain("s2"); // already has one → NOT regenerated
+  });
+
+  it("a failing After-Pitch recovery never sinks the batch (best-effort — the 5 artifacts already landed)", async () => {
+    state.sessions = [session("s1")];
+    state.afterPitch.mockRejectedValueOnce(new Error("after-pitch llm down"));
+    const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
+    expect(r.processed).toBe(1);
+    expect(r.generated).toBe(1); // the dissect still counts — the after-pitch failure is swallowed
   });
 
   it("reports scanBounded honestly when the scan hits its limit (§3.4)", async () => {
