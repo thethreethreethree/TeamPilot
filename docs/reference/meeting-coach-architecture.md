@@ -69,15 +69,38 @@ Cosmetic: the reused routes' error text says "rep" — reads slightly off for a 
 ## Not persisted: the live meeting transcript
 
 Unlike sales (which flushes `/segments`), the meeting live transcript is client-only cue-fuel. The durable AUDIO
-is the source of truth: post-meeting Dissect (Phase 6) will re-transcribe it with BATCH diarization
-(`autoSpeakerAssign` clusters) for full N-party attribution — higher quality than the unlabeled live stream.
+is the source of truth: the post-meeting Dissect (below) re-transcribes it with BATCH diarization for full
+N-party attribution — higher quality than the unlabeled live stream.
+
+## Post-meeting Dissect + trend (Phase 6, BUILT 2026-08-22)
+
+The §3.5 honesty discipline is the design: the dissect measures a meeting's CONSEQUENCES and never sees the cues,
+so it cannot grade agreement. Flow:
+
+- **Measurement** (`src/lib/coach/strategy/meeting/`): `meetingDissectPrompt` + `parseMeetingDissect`
+  (`MeetingDissect` = decisions / actions-with-owner(null) / open-items / effectiveness) + `generateMeetingDissect`
+  (reuses the sales `dissectCoachV5` binding, INV22-safe). `generateAndStoreMeetingDissect` persists a
+  `meeting.dissect_generated` event (subject `meeting_session:<id>`), or a `meeting.dissect_attempted` backoff
+  marker on a with-turns no-signal run.
+- **Trigger** (`POST /api/coach/meeting-session/[id]/cue`... no — `.../[id]/dissect`): owner-gated; returns the
+  cached dissect event if present (no re-charge), else `transcribeWithDiarization` (numSpeakers omitted →
+  auto N-party — Decision #1's attribution, post-hoc) → generate-and-store. `?force=1` regenerates. maxDuration 300.
+- **Trend** (`aggregateMeetingDissects` + `GET /api/coach/meeting-session/trend`): "did meetings improve?" as a
+  RECENT-vs-EARLIER signal on the owned-action + focused ratios (no control-month baseline — cues run day-1);
+  "insufficient" below MIN_FOR_TREND (no faked curve). Company-pinned (INV15).
+- **UI**: `MeetingReview` (`/dashboard/meeting-coach/[id]/review` — note it handles BOTH payload shapes: the
+  route's camelCase `openItems` on a fresh gen, the stored event's snake_case `open_items` on a cache hit),
+  `MeetingTrendTile` + `MeetingHistoryList` on the coach setup, and a post-Stop "Review this meeting" link.
+- **Reach**: review is reachable for the just-ended meeting (post-Stop link) AND past meetings (`GET
+  /api/coach/meeting-session` list, filtered to meeting/huddle kinds).
 
 ## Open / deferred
 
 Apply migration 0237 + founder device validation; nav + module gating (product-structure decision — under Sales
-Coach or its own Team-Sync section?); realtime diarization (needs verifying Scribe realtime support — A41);
-video/platform captions (major external OAuth integration); post-meeting Dissect (needs the §3.5 measurement
-decision — what a "good meeting" measures; the durable audio is its input).
+Coach or its own Team-Sync section?); realtime diarization for the LIVE imbalance monitor (needs verifying Scribe
+realtime support — A41; the Dissect already gets N-party via batch); video/platform captions (major external
+OAuth integration); a manager team-view of meetings + an optional dissect-backfill cron (cost decision); founder
+sign-off on the proposed dissect measurement + trend heuristic.
 
 ## Tests
 
