@@ -155,23 +155,33 @@ export async function createSession(args: {
   agentId: string;
   context: SalesContext;
   clientLabel?: string | null;
+  // Coaching kind (migration 0237): 'sales' (default) | 'meeting' | 'huddle'.
+  sessionKind?: string;
   // Phase 2 capture, all optional (only the title is required).
   territory?: string | null;
   approach?: string | null;
   offer?: string | null;
 }): Promise<SalesSession | null> {
   const sb = createServiceRoleClient();
+  const base = {
+    company_id: args.companyId,
+    agent_id: args.agentId,
+    context: args.context,
+    client_label: args.clientLabel ?? null,
+    territory: args.territory ?? null,
+    approach: args.approach ?? null,
+    offer: args.offer ?? null,
+  };
+  // A34 migration-coupling: only WRITE session_kind for a non-default (meeting/huddle) session. The sales path
+  // omits it entirely → byte-identical to pre-0237 and cannot fail if the column isn't applied yet. A meeting
+  // session DOES write it and so fails HONESTLY on a pre-0237 DB (correct — a meeting can't exist before 0237).
+  const insertData =
+    args.sessionKind && args.sessionKind !== "sales"
+      ? ({ ...base, session_kind: args.sessionKind } as typeof base)
+      : base;
   const { data, error } = await sb
     .from("coaching_sessions")
-    .insert({
-      company_id: args.companyId,
-      agent_id: args.agentId,
-      context: args.context,
-      client_label: args.clientLabel ?? null,
-      territory: args.territory ?? null,
-      approach: args.approach ?? null,
-      offer: args.offer ?? null,
-    })
+    .insert(insertData)
     .select("*")
     .single();
   if (error || !data) {
