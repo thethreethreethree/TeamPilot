@@ -17,6 +17,8 @@
  * parseMeetingCue.
  */
 
+import type { SpeakerBalance } from "./speakerBalance";
+
 export type DissectDecision = { decision: string; context: string };
 /** owner === null is the tracked failure mode (an action with no owner walks out of the room un-done). */
 export type DissectAction = { action: string; owner: string | null };
@@ -29,6 +31,9 @@ export type MeetingDissect = {
   actions: DissectAction[];
   openItems: DissectOpenItem[];
   effectiveness: DissectEffectiveness | null;
+  // Speaker balance is computed from the diarized SEGMENTS (not the LLM), so the parse leaves it null;
+  // generateMeetingDissect fills it in. Null when balance couldn't be assessed (< 2 speaking participants).
+  balance: SpeakerBalance | null;
   overall?: string;
 };
 
@@ -38,6 +43,7 @@ export const EMPTY_MEETING_DISSECT: MeetingDissect = {
   actions: [],
   openItems: [],
   effectiveness: null,
+  balance: null,
 };
 
 function str(v: unknown): string {
@@ -109,6 +115,7 @@ export function parseMeetingDissect(text: string): MeetingDissect {
     actions,
     openItems,
     effectiveness,
+    balance: null, // filled by generateMeetingDissect from the diarized segments
     ...(overall ? { overall } : {}),
   };
 }

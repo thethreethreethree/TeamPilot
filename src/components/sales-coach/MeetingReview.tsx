@@ -15,6 +15,7 @@ type Dissect = {
   open_items?: { item: string; why?: string }[];
   openItems?: { item: string; why?: string }[]; // event payload uses snake_case; the route return uses camel
   effectiveness?: { focused: boolean; note: string } | null;
+  balance?: { balanced: boolean; note: string; dominantSharePct: number } | null;
   overall?: string | null;
 };
 
@@ -168,6 +169,19 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
           />
           <p className="text-sm text-secondary">
             <span className="text-primary">{eff.focused ? "Focused." : "Drifted."}</span> {eff.note}
+          </p>
+        </section>
+      )}
+
+      {dissect?.balance && (
+        <section className="flex items-start gap-2 rounded-lg border border-default bg-surface p-3">
+          <span
+            className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${dissect.balance.balanced ? "bg-emerald-500" : "bg-amber-500"}`}
+            aria-hidden
+          />
+          <p className="text-sm text-secondary">
+            <span className="text-primary">{dissect.balance.balanced ? "Balanced." : "Uneven."}</span>{" "}
+            {dissect.balance.note}
           </p>
         </section>
       )}

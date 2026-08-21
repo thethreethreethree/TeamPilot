@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { StrategyTranscriptSegment } from "../coachingStrategy";
 import { buildMeetingDissectSystemPrompt, buildMeetingDissectUserMessage } from "./meetingDissectPrompt";
 import { parseMeetingDissect, EMPTY_MEETING_DISSECT, type MeetingDissect } from "./parseMeetingDissect";
+import { computeSpeakerBalance } from "./speakerBalance";
 
 /**
  * Generate the post-meeting DISSECT from a meeting's diarized transcript (Phase-6). Reuses the sales
@@ -48,7 +49,9 @@ export async function generateMeetingDissect(args: {
       );
       return EMPTY_MEETING_DISSECT;
     }
-    return parsed;
+    // Balance is computed from the diarized segments (not the LLM) — the plan's imbalance monitor, realized
+    // post-hoc. Null when < 2 speaking participants (the parse left it null; fill it here).
+    return { ...parsed, balance: computeSpeakerBalance(args.segments) };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(`[generateMeetingDissect] threw: ${e instanceof Error ? e.message : String(e)}`);
@@ -90,6 +93,7 @@ export async function generateAndStoreMeetingDissect(args: {
             actions: dissect.actions,
             open_items: dissect.openItems,
             effectiveness: dissect.effectiveness,
+            balance: dissect.balance,
             overall: dissect.overall ?? null,
             coach_version: "meeting-dissect-v1",
           },
