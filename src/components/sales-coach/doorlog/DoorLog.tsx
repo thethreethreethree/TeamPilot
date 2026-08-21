@@ -9,6 +9,7 @@ import {
 } from "@/lib/coach/doorlog/stateMachine";
 import { computeLocalSalesDate, deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { createClient } from "@/lib/supabase/client";
+import { isRetryableStatus, needsSessionRefresh, failReasonFor } from "@/lib/coach/doorlog/saveRetry";
 import { useDoorRecorder } from "./useDoorRecorder";
 
 // Online-only send. The client offline queue (IndexedDB + auto-drain) is WITHHELD for now — founder
@@ -109,7 +110,7 @@ export function DoorLog() {
       };
       let res = await attempt();
       if (res.ok) return { ok: true, failReason: "server" };
-      if (res.status === 401) {
+      if (needsSessionRefresh(res.status)) {
         try {
           await supabase.auth.refreshSession();
         } catch {
@@ -118,13 +119,12 @@ export function DoorLog() {
         res = await attempt();
         if (res.ok) return { ok: true, failReason: "server" };
       }
-      for (let i = 0; i < 2 && (res.status === 0 || res.status >= 500); i++) {
+      for (let i = 0; i < 2 && isRetryableStatus(res.status); i++) {
         await new Promise((r) => setTimeout(r, 400 * (i + 1)));
         res = await attempt();
         if (res.ok) return { ok: true, failReason: "server" };
       }
-      // status 0 = never reached the server (network); anything else came FROM the server (our end).
-      return { ok: false, failReason: res.status === 0 ? "network" : "server" };
+      return { ok: false, failReason: failReasonFor(res.status) };
     },
     [supabase]
   );
