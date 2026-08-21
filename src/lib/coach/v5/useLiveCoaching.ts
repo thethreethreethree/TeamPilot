@@ -104,12 +104,24 @@ function detachAndCloseWs(ws: WebSocket | null): void {
 }
 
 function postAudioChunk(sessionId: string, seq: number, blob: Blob): void {
-  void fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
-    method: "POST",
-    headers: { "Content-Type": blob.type || "audio/webm" },
-    body: blob,
-  }).catch(() => {
-    /* best-effort — the chunk is also in chunksRef for the clean-Stop persist; a cron stitch retries the rest */
+  const attempt = () =>
+    fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
+      method: "POST",
+      headers: { "Content-Type": blob.type || "audio/webm" },
+      body: blob,
+    }).then((r) => {
+      if (!r.ok) throw new Error(`chunk ${seq} HTTP ${r.status}`);
+    });
+  // ONE idempotent retry (the route dedups on session+seq). This matters most for seq 0 — it carries the webm
+  // header, so if that chunk is lost to a transient mobile blip the whole never-Stopped recording is
+  // unrecoverable (later chunks are headerless fragments). Still best-effort: the chunk is also in chunksRef
+  // for the clean-Stop full-blob persist, and the stitch keeps whatever contiguous run did land.
+  void attempt().catch(() => {
+    setTimeout(() => {
+      void attempt().catch(() => {
+        /* best-effort — clean-Stop persist + stitch cover the rest */
+      });
+    }, 1500);
   });
 }
 // Endpointing: Scribe's VAD commits a transcript at end-of-utterance, so a
