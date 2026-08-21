@@ -85,3 +85,12 @@ sessions in ~1–2 days.
   keepalive ping would avoid the drop entirely on backgrounded calls.
 - **Unrecoverable backlog:** ~54% of past sessions have no transcript AND no audio — nothing to recover; P0/P1
   fix new calls only.
+
+- **P2 opportunity — auto-re-transcribe empty-but-has-audio before the 2-day purge (holistic ripple, §1.5).**
+  P0 now SAVES the recording even when live STT produced an empty transcript (previously that audio was also
+  lost). That audio can recover the transcript via re-transcription — but `recording-purge-cron` deletes it
+  after `RETENTION_DAYS=2` unless `recording_saved`. Verified NO regression: the review backfill generates
+  from the stored TRANSCRIPT (which the purge keeps), not the audio, so it's unaffected. The opportunity: a
+  session with a saved recording but an EMPTY/one-sided transcript is now recoverable, and an automatic
+  re-transcribe-before-purge (extend the existing one-sided auto-recover to the fully-empty case) would
+  capture those instead of letting the 2-day window expire. Founder-gated (LLM/STT cost per recovery).
