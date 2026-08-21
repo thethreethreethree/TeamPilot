@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useMeetingCoaching } from "@/lib/coach/v5/useMeetingCoaching";
 import { MeetingTrendTile } from "@/components/sales-coach/MeetingTrendTile";
 
@@ -23,6 +24,9 @@ export function MeetingCoachingPanel() {
   const [earpieceOk, setEarpieceOk] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // The just-ended meeting's id, so we can offer a "review it" link before returning to setup (layer-3
+  // continuity — the facilitator just ran a meeting; let them review it, not dead-end at a blank form).
+  const [endedSessionId, setEndedSessionId] = useState<string | null>(null);
 
   const coach = useMeetingCoaching(sessionId ?? "", kind);
 
@@ -43,6 +47,7 @@ export function MeetingCoachingPanel() {
   function endSession() {
     coach.stop();
     startedRef.current = false;
+    if (sessionId) setEndedSessionId(sessionId); // remember it so we can offer the review
     setSessionId(null);
     setTitle("");
   }
@@ -68,6 +73,36 @@ export function MeetingCoachingPanel() {
     } finally {
       setCreating(false);
     }
+  }
+
+  // ── ENDED — offer the review before returning to setup (layer-3 continuity) ─
+  if (!sessionId && endedSessionId) {
+    return (
+      <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
+        <div>
+          <h1 className="text-xl font-semibold text-primary">Meeting ended</h1>
+          <p className="mt-1 text-sm text-secondary">
+            The recording is saving now. Its review — decisions, action items, and what was left open — will be
+            ready in a moment.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/dashboard/meeting-coach/${endedSessionId}/review`}
+            className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white"
+          >
+            Review this meeting
+          </Link>
+          <button
+            type="button"
+            onClick={() => setEndedSessionId(null)}
+            className="rounded-lg border border-default px-4 py-2.5 text-sm text-secondary hover:border-strong"
+          >
+            Start another
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // ── SETUP ────────────────────────────────────────────────────────────────
