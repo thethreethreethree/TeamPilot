@@ -262,17 +262,24 @@ export function DoorLog() {
     setState((s) => transition(s, { type: "LOG_OUTCOME" }));
   }, []);
 
-  // Log a mic-less outcome as a knock (drives the KPI strip exactly like a recorded pitch's knock does),
-  // then return to IDLE. No naming step — there's no recording to name.
-  const logOutcomeKnock = useCallback(
-    (outcome: PitchOutcome) => {
+  // Log a pitch OUTCOME as a knock (drives the KPI strip exactly like a recorded pitch's knock does), then
+  // return to IDLE with no naming step. The shared tail for every path that has a disposition but NO recording
+  // to save: the no-mic "Log Pitch" flow, and a recorded flow whose capture yielded no audio. `audioDropped`
+  // shows the honest amber "no audio to review" note (the rep EXPECTED a recording); the no-mic path omits it
+  // (the rep chose to log without recording, so there's nothing to flag).
+  const logKnockOutcome = useCallback(
+    (outcome: PitchOutcome, opts?: { audioDropped?: boolean }) => {
       const id = newId();
       setSendError(null);
+      setNotice(null);
       void postDoorLog({ kind: "knock", outcome, localDate, clientKnockId: id }).then((r) => {
         if (!r.ok) setSendError(saveFailMessage("That pitch", r.failReason));
+        else if (opts?.audioDropped)
+          setNotice("Saved the outcome — but this pitch recorded no audio, so there's nothing to review.");
         void loadKpi();
       });
       setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
+      setRecorded(null);
       setNoRecord(false);
       setState("idle");
     },
@@ -303,14 +310,21 @@ export function DoorLog() {
     (outcome: PitchOutcome) => {
       // No-mic path: log the outcome directly as a knock and go home — skip naming (nothing was recorded).
       if (noRecord) {
-        logOutcomeKnock(outcome);
+        logKnockOutcome(outcome);
+        return;
+      }
+      // Recorded flow but capture produced NO audio (the recorder seams): skip the pointless naming step —
+      // there is no recording to name — and preserve the disposition as a knock with an honest note. Completes
+      // the capture-loss fix so the rep is never asked to name a pitch that does not exist (founder 2026-08-22).
+      if (!recorded?.blob) {
+        logKnockOutcome(outcome, { audioDropped: true });
         return;
       }
       setPickedOutcome(outcome);
       setName(defaultPitchName());
       setState((s) => transition(s, { type: "PICK_OUTCOME", outcome }));
     },
-    [noRecord, logOutcomeKnock]
+    [noRecord, recorded, logKnockOutcome]
   );
 
   const save = useCallback(async () => {

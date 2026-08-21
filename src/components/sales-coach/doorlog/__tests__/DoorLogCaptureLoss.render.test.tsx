@@ -60,7 +60,7 @@ afterEach(() => {
 });
 
 describe("DoorLog — capture loss never drops the outcome (founder 2026-08-22)", () => {
-  it("no audio captured → the outcome saves as a KNOCK (never a dropped pitch), with an honest amber notice and NO red failure", async () => {
+  it("no audio captured → picking the outcome logs a KNOCK directly (skips naming), with an honest amber notice and NO red failure", async () => {
     const posts: Post[] = [];
     mockFetchCapturing(posts);
     render(<DoorLog />);
@@ -71,20 +71,21 @@ describe("DoorLog — capture loss never drops the outcome (founder 2026-08-22)"
     fireEvent.click(screen.getByText("Stop"));
     await waitFor(() => expect(screen.getByText("How did it go?")).toBeTruthy());
     fireEvent.click(screen.getByText("Sold"));
-    await waitFor(() => expect(screen.getByText(/Save & Next Door/i)).toBeTruthy());
-    fireEvent.click(screen.getByText(/Save & Next Door/i));
 
-    // The disposition was preserved as a knock carrying the picked outcome — never sent as an audio-less
-    // pitch (which the server would 400), and no sign step ran (there was no blob to upload).
+    // No naming step — capture produced no audio, so there is no pitch to name. The disposition is logged
+    // directly as a knock carrying the picked outcome — never an audio-less pitch (which the server 400s),
+    // and no sign step ran (no blob to upload).
     await waitFor(() => expect(posts.some((p) => p.body.kind === "knock")).toBe(true));
     const knock = posts.find((p) => p.body.kind === "knock");
     expect(knock!.body).toMatchObject({ kind: "knock", outcome: "sold" });
     expect(posts.some((p) => p.body.kind === "pitch")).toBe(false);
     expect(posts.some((p) => p.body.kind === "sign")).toBe(false);
+    expect(screen.queryByText(/Name this pitch/i)).toBeNull(); // naming skipped
 
     // Honest, non-alarming: an amber heads-up that there's no audio to review — NOT a red "didn't save".
     expect(await screen.findByText(/no audio, so there's nothing to review/i)).toBeTruthy();
     expect(screen.queryByText(/didn't save/i)).toBeNull();
+    await waitFor(() => expect(screen.getByText("Record Pitch")).toBeTruthy()); // flowed home to idle
   });
 
   it("'Not Home / No Answer' from the OUTCOME screen logs a no-answer knock and returns home (paired revision)", async () => {
