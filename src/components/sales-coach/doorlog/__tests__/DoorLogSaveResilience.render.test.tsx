@@ -28,7 +28,7 @@ vi.mock("../useDoorRecorder", () => ({
     elapsedMs: 0,
     arm: vi.fn(async () => true),
     start: vi.fn(async () => true),
-    stop: vi.fn(async () => ({ blob: null, durationMs: 0 })),
+    stop: vi.fn(async () => ({ blob: new Blob(["x"]), durationMs: 5000 })), // a real recording → exercises the sign path
   }),
 }));
 
@@ -81,5 +81,42 @@ describe("DoorLog — resilient save wires the retry policy", () => {
     const banner = await screen.findByText(/didn't save/i);
     expect(banner.textContent).toMatch(/on our end/i);
     expect(banner.textContent).not.toMatch(/connection|signal/i);
+  });
+
+  it("a 401 on the audio-sign step refreshes + retries so the RECORDING lands too (long-field-session case)", async () => {
+    // The sign step is where an expired token would silently drop a recorded pitch's audio. It must refresh
+    // and retry the sign — not just the final pitch POST — so the recording (and its coaching) survives.
+    let signCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: { method?: string; body?: string }) => {
+        if (init?.method === "POST") {
+          const body = JSON.parse(init.body ?? "{}");
+          if (body.kind === "sign") {
+            signCalls += 1;
+            return signCalls === 1
+              ? { ok: false, status: 401, json: async () => ({}) } // expired token on first sign
+              : { ok: true, status: 200, json: async () => ({ storagePath: "co/pitch.webm", token: "t" }) };
+          }
+          return { ok: true, status: 200, json: async () => ({}) }; // the pitch POST
+        }
+        return { ok: true, status: 200, json: async () => KPI };
+      }),
+    );
+
+    render(<DoorLog />);
+    await waitFor(() => expect(screen.getByText("Record Pitch")).toBeTruthy());
+    fireEvent.click(screen.getByText("Record Pitch"));
+    await waitFor(() => expect(screen.getByText("Stop")).toBeTruthy());
+    fireEvent.click(screen.getByText("Stop"));
+    await waitFor(() => expect(screen.getByText("How did it go?")).toBeTruthy());
+    fireEvent.click(screen.getByText("Sold"));
+    await waitFor(() => expect(screen.getByText(/Save & Next Door/i)).toBeTruthy());
+    fireEvent.click(screen.getByText(/Save & Next Door/i));
+
+    // The sign step refreshed the session and was retried (2 sign calls), and the pitch saved with no banner.
+    await waitFor(() => expect(refreshSpy).toHaveBeenCalled());
+    expect(signCalls).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/didn't save/i)).toBeNull();
   });
 });

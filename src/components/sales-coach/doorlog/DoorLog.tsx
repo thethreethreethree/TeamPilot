@@ -135,11 +135,25 @@ export function DoorLog() {
     async (body: Record<string, unknown>, blob: Blob | null): Promise<{ ok: boolean; failReason: SaveFailReason }> => {
       let storagePath = "";
       if (blob) {
-        const signRes = await fetch(DOOR_LOG_URL, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind: "sign" }),
-        }).catch(() => null);
+        const signOnce = () =>
+          fetch(DOOR_LOG_URL, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ kind: "sign" }),
+          }).catch(() => null);
+        let signRes = await signOnce();
+        // Mirror postDoorLog's 401 handling: an expired token on the SIGN step would silently drop the
+        // audio for a rep who's been out for hours (the exact long-field-session case) — the sale still
+        // lands via the resilient pitch POST below, but the recording (and its coaching) would be lost.
+        // Refresh the session and retry the sign once so the recording lands too. Still best-effort.
+        if (signRes && needsSessionRefresh(signRes.status)) {
+          try {
+            await supabase.auth.refreshSession();
+          } catch {
+            /* refresh failed → audio stays best-effort; the pitch itself still saves below */
+          }
+          signRes = await signOnce();
+        }
         if (signRes?.ok) {
           const { storagePath: sp, token } = await signRes.json();
           if (await uploadCb(AUDIO_BUCKET, sp, token, blob)) storagePath = sp;
@@ -147,7 +161,7 @@ export function DoorLog() {
       }
       return postDoorLog({ ...body, ...(blob ? { storagePath } : {}) });
     },
-    [uploadCb, postDoorLog]
+    [uploadCb, postDoorLog, supabase]
   );
 
   const loadKpi = useCallback(async () => {
