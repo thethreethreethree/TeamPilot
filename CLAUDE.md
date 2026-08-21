@@ -433,6 +433,7 @@ apply fixed ones. This is the meta-loop: resolutions feed back not only as data 
 
 ## 6. Quick Decision Checklist (run before any substantive action)
 
+0. **(Added by [AMD-013](docs/amendments/AMD-013-decision-picker-enforcement.md), ratified 2026-08-22.)** Is this output offering the founder a DECISION — a choice among courses, or asking them to pick / approve / direct? If so it MUST be an `AskUserQuestion` picker WITH a recommendation (recommended option first), NEVER a prose option-list, "which do you want?", "should I X or Y?", "want me to…?", or "your call". A prose choice at a decision point under-serves the founder's control (the §3.3 overtake failure inverted) and is forbidden. Enforced structurally by `.claude/hooks/decision-picker-guard.mjs`.
 1. Do I actually understand *why* this problem exists, from the record? If no → diagnose.
 1a. **(Added by [AMD-005](docs/amendments/AMD-005-methodology-in-working-tree.md), ratified 2026-06-17.)** Is the methodology document for this domain in the agent's working tree, and have I read the relevant asset(s) this session — not relied on cached labels?
 2. Have I looked backward (retrospective) AND stepped outside my assumptions (outside view)?

@@ -1,7 +1,8 @@
 {
   "hooks": {
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "node .claude/hooks/build-continue-guard.mjs" } ] }
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/build-continue-guard.mjs" } ] },
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/decision-picker-guard.mjs" } ] }
     ]
   }
 }

@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-08-20T13:45:00Z",
-  "note": "Regenerate ONLY as the consequence of a ratified amendment. Reference the AMD-XXX in the commit message (THINK_BUILD_CHECK.md Appendix A, CLAUDE.md §7.4). Regenerated 2026-08-20 on AMD-012 (CLAUDE.md §1.5.4 + checklist 5d added; ThinkerThinker.md A42 added).",
+  "generated_at": "2026-08-22T04:40:00Z",
+  "note": "Regenerate ONLY as the consequence of a ratified amendment. Reference the AMD-XXX in the commit message (THINK_BUILD_CHECK.md Appendix A, CLAUDE.md §7.4). Regenerated 2026-08-22 on AMD-013 (CLAUDE.md §6 checklist item 0 added — decision-picker enforcement).",
   "documents": [
     {
       "path": "CLAUDE.md",
-      "sha256": "d4bfb3eea58ff933f45d83b4147ec25c7eef8142337db0e1b9f5e609b0bc2514",
-      "lines": 513,
+      "sha256": "9dc4807cb778bb7e1be71b016e594418736730ac05f3be023c4867688f9dcb4c",
+      "lines": 515,
       "role": "current constitutional state"
     },
     {
