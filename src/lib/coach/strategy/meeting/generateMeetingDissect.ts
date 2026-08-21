@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { StrategyTranscriptSegment } from "../coachingStrategy";
 import { buildMeetingDissectSystemPrompt, buildMeetingDissectUserMessage } from "./meetingDissectPrompt";
 import { parseMeetingDissect, EMPTY_MEETING_DISSECT, type MeetingDissect } from "./parseMeetingDissect";
@@ -53,4 +54,65 @@ export async function generateMeetingDissect(args: {
     console.error(`[generateMeetingDissect] threw: ${e instanceof Error ? e.message : String(e)}`);
     return EMPTY_MEETING_DISSECT;
   }
+}
+
+/**
+ * Generate the meeting dissect AND store it as an append-only event when it has signal (mirrors the sales
+ * runAndStoreDissect). On a with-turns run that produced NO signal, emit a `meeting.dissect_attempted` marker so
+ * a future backfill/trigger BACKS OFF instead of re-running a ~20s LLM call on the same stuck session forever
+ * (the sales dissect-cron cost loop, 2026-08-14). Best-effort on the event store — the dissect still returns.
+ */
+export async function generateAndStoreMeetingDissect(args: {
+  companyId: string;
+  actorId: string;
+  sessionId: string;
+  sessionTitle?: string;
+  segments: StrategyTranscriptSegment[];
+}): Promise<MeetingDissect> {
+  const dissect = await generateMeetingDissect({
+    companyId: args.companyId,
+    sessionTitle: args.sessionTitle,
+    segments: args.segments,
+  });
+  const subject = `meeting_session:${args.sessionId}`;
+
+  if (dissect.hasSignal) {
+    try {
+      await createAdminClient()
+        .from("events")
+        .insert({
+          company_id: args.companyId,
+          actor: args.actorId,
+          kind: "meeting.dissect_generated",
+          subject,
+          payload: {
+            decisions: dissect.decisions,
+            actions: dissect.actions,
+            open_items: dissect.openItems,
+            effectiveness: dissect.effectiveness,
+            overall: dissect.overall ?? null,
+            coach_version: "meeting-dissect-v1",
+          },
+        });
+    } catch {
+      /* best-effort — the dissect still returns */
+    }
+  } else if (args.segments.length > 0) {
+    // The LLM ran (there were turns) but produced no signal — emit an ATTEMPTED marker so a backfill backs off
+    // rather than re-running the full LLM call on this session every pass.
+    try {
+      await createAdminClient()
+        .from("events")
+        .insert({
+          company_id: args.companyId,
+          actor: args.actorId,
+          kind: "meeting.dissect_attempted",
+          subject,
+          payload: { reason: "no_signal", coach_version: "meeting-dissect-v1" },
+        });
+    } catch {
+      /* best-effort — the backoff just doesn't apply this run */
+    }
+  }
+  return dissect;
 }
