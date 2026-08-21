@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CueMode } from "@/lib/data/salesCoach";
+import { persistRecording } from "@/lib/coach/v5/persistRecording";
 
 /**
  * useMeetingCoaching — the LIVE capture + cue loop for Meeting Coach (Team-Sync), sibling of useLiveCoaching but
@@ -28,9 +29,33 @@ const CUE_COOLDOWN_MS = 4000;
 // The understanding gate needs a little conversation before a cue means anything.
 const MIN_TURNS = 2;
 const MAX_RECONNECTS = 6;
+// Record the call audio in 15s slices. "The audio is the load-bearing artifact" (sales capture-crisis lesson):
+// everything downstream can fail + regenerate, but only if the audio survived.
+const AUDIO_CHUNK_MS = 15_000;
 
 export type MeetingCoachingStatus = "idle" | "connecting" | "live" | "error";
 type MeetingTurn = { speaker: "participant"; text: string };
+
+/**
+ * Upload one audio slice to the SHARED session audio-chunk route (a meeting session is a coaching_sessions row,
+ * so the same route + stitch cron give it durable audio for free — no new server code). Fire-and-forget with ONE
+ * idempotent retry (the route dedups on session+seq); seq 0 carries the webm header, so it matters most. The
+ * clean-Stop persist below covers a Stopped call; the never-Stop case is stitched from these chunks by the cron.
+ * Route path is sales-namespaced but session-generic (owner-gated on the coaching_sessions row).
+ */
+function postMeetingAudioChunk(sessionId: string, seq: number, blob: Blob): void {
+  const attempt = () =>
+    fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
+      method: "POST",
+      headers: { "Content-Type": blob.type || "audio/webm" },
+      body: blob,
+    }).then((r) => {
+      if (!r.ok) throw new Error(`chunk ${seq} HTTP ${r.status}`);
+    });
+  void attempt().catch(() => {
+    setTimeout(() => void attempt().catch(() => {}), 1500);
+  });
+}
 
 /** Pure: a Float32 PCM frame → base64 16-bit PCM (Scribe's input_audio_chunk payload). Duplicated from the
  *  sales hook so this file needs no edit to that load-bearing one; behaviourally identical. */
@@ -67,6 +92,9 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioSeqRef = useRef(0);
   const stoppedRef = useRef(false);
   const unmountedRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
@@ -105,6 +133,13 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
 
   const teardown = useCallback(() => {
     teardownTransport();
+    // Stop the recorder BEFORE the mic tracks so its onstop fires with the captured chunks (→ clean-Stop persist).
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+    } catch {
+      /* ignore */
+    }
+    recorderRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, [teardownTransport]);
@@ -198,6 +233,35 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
             : await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
         if (unmountedRef.current) return teardown();
+
+        // Record the call audio — FRESH START only. One recorder for the whole call = one valid webm (no
+        // mid-stream seam to reason about). On a reconnect the existing recorder keeps running on the reused
+        // stream; if the mic track died and a new stream was acquired, post-loss audio isn't recorded (accepted
+        // MVP limit — the full recorder-recreate seam handling is a later refinement, see the client closure).
+        if (!isReconnect) {
+          chunksRef.current = [];
+          audioSeqRef.current = 0;
+          try {
+            const rec = new MediaRecorder(stream);
+            rec.ondataavailable = (e) => {
+              if (e.data.size === 0) return;
+              chunksRef.current.push(e.data);
+              postMeetingAudioChunk(sessionId, audioSeqRef.current++, e.data); // durable during the call
+            };
+            rec.onstop = () => {
+              const all = chunksRef.current;
+              if (all.length === 0) return;
+              const blob = new Blob(all, { type: all[0]?.type || "audio/webm" });
+              // Clean-Stop full-blob persist (stamps audio_asset_url). Best-effort — the incremental chunks +
+              // the stitch cron cover a never-Stopped session or a failed persist.
+              void persistRecording(sessionId, blob).catch(() => {});
+            };
+            rec.start(AUDIO_CHUNK_MS);
+            recorderRef.current = rec;
+          } catch {
+            /* a recorder failure must never block live coaching — the transcript + cues still run */
+          }
+        }
 
         const tokRes = await fetch("/api/coach/sales-session/realtime-token", { method: "POST" });
         if (!tokRes.ok) throw new Error("Couldn't get a realtime token.");
@@ -299,7 +363,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         teardown();
       }
     },
-    [teardown, teardownTransport, invokeCue]
+    [teardown, teardownTransport, invokeCue, sessionId]
   );
   startRef.current = start;
 
