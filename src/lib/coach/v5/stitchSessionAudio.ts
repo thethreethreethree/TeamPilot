@@ -51,6 +51,17 @@ export function orderedChunkSeqs(names: string[]): number[] {
   return contiguous;
 }
 
+/**
+ * True if the buffer begins with the EBML/webm magic (0x1A45DFA3) — i.e. it is the START of a webm recording.
+ * A MediaRecorder emits this header only in its FIRST chunk; a SECOND occurrence mid-stream means the recorder
+ * was recreated during the session (e.g. a mobile screen-lock ended the mic track and P0 rebuilt the recorder).
+ * Those two segments cannot be byte-concatenated into one valid webm, so the stitch stops at the boundary and
+ * keeps the first (valid) segment — the pre-lock audio, still playable AND transcribable. Pure/testable.
+ */
+export function startsWithEbmlHeader(buf: Buffer): boolean {
+  return buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3;
+}
+
 export async function stitchSessionAudio(args: {
   companyId: string;
   sessionId: string;
@@ -75,9 +86,14 @@ export async function stitchSessionAudio(args: {
   if (order.length === 0) return { stitched: false, reason: "no chunks" };
 
   const parts: Buffer[] = [];
-  for (const seq of order) {
-    const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, seq) });
+  for (let i = 0; i < order.length; i++) {
+    const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, order[i]!) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
+    // A new webm header AFTER the first chunk = the recorder was recreated mid-session (mobile screen-lock
+    // ended the mic track → P0 rebuilt it). The two segments can't be concatenated into one valid webm, so
+    // stop and keep the first (valid) segment — the pre-lock audio, still playable + transcribable. Without
+    // this the stitched file (and its re-transcription) would be corrupt from the seam onward.
+    if (i > 0 && startsWithEbmlHeader(dl.bytes)) break;
     parts.push(dl.bytes);
   }
   if (parts.length === 0) return { stitched: false, reason: "no readable chunks" };
