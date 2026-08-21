@@ -756,6 +756,12 @@ const COACHING_SESSION_WRITE_ALLOWLIST = new Map([
     "System retention cron (CRON_SECRET-gated): selects expired rows across ALL tenants by a created_at cutoff " +
       "with NO user input; row.id comes from its own trusted query, so a company_id filter would be meaningless.",
   ],
+  [
+    "src/app/api/coach/sales-session/auto-close-stale-cron/route.ts",
+    "System auto-close cron (CRON_SECRET-gated): ends sessions still 'active' past a started_at cutoff across ALL " +
+      "tenants with NO user input; ids come from its own trusted query and the UPDATE is re-scoped to status='active', " +
+      "so a company_id filter would be meaningless (the whole point is a platform-wide stale-session sweep).",
+  ],
 ]);
 /** True if `sql` contains a `.from("coaching_sessions")....update(...)` statement with NO `.eq("company_id"...)`
  *  in that same statement. Statement-bounded (stops at the first `;`) so a later scoped write can't mask it. */

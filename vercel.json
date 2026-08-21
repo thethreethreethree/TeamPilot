@@ -31,6 +31,10 @@
     {
       "path": "/api/coach/sales-session/pitch-processing-cron",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/coach/sales-session/auto-close-stale-cron",
+      "schedule": "15 * * * *"
     }
   ]
 }
