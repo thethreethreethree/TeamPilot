@@ -103,9 +103,11 @@ export interface CueDecision {
 
 /**
  * The pluggable coaching brain. Every mode (sales / meeting / huddle) implements this; the engine calls
- * `analyze()` and knows nothing about the domain. MUST NOT throw — a cue failure can never disrupt a live
- * call; implementations resolve to `{ shouldCue: false, cue: null, trigger: "" }` on any error (mirrors the
- * existing `generateLiveCue` never-throws contract, liveCue.ts).
+ * `analyze()` and knows nothing about the domain. On an AUTO cue (`context.force` falsy) it MUST NOT throw — a
+ * cue failure can never disrupt a live call; it resolves to a stay-silent decision. On a FORCED cue
+ * (`context.force` true — the wearer explicitly asked) it MAY throw on a provider failure, so the route surfaces
+ * the error honestly instead of a false "nothing to add" (error-dressed-as-no-data). The caller (route) must
+ * catch a forced-cue throw and return an honest error. Mirrors the sales `generateLiveCue` force-re-throw.
  */
 export interface CoachingStrategy {
   /** Stable identifier for the record/dissect + mode selection. e.g. 'sales' | 'meeting' | 'huddle'. */

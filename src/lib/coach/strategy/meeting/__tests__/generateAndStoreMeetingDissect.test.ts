@@ -48,6 +48,11 @@ describe("generateAndStoreMeetingDissect", () => {
     const payload = row.payload as Record<string, unknown>;
     expect((payload.decisions as unknown[]).length).toBe(1);
     expect(payload.coach_version).toBe("meeting-dissect-v1");
+    // Balance is computed from the diarized segments (2 speakers here) and stored on the payload.
+    const balance = payload.balance as Record<string, unknown>;
+    expect(balance).toBeTruthy();
+    expect(balance.speakers).toBe(2);
+    expect(balance.balanced).toBe(true); // 1 word each → 50/50
   });
 
   it("stores a meeting.dissect_attempted backoff marker when there are turns but no signal", async () => {

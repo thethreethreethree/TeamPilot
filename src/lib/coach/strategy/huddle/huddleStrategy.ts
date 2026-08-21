@@ -46,7 +46,9 @@ export class HuddleStrategy implements CoachingStrategy {
       if (r.suppressed) return SILENT; // A40: consume the gate's verdict, don't re-derive
 
       return parseHuddleCue(r.text, { force: context.force });
-    } catch {
+    } catch (e) {
+      // A FORCED cue failure surfaces (route 502s it — the facilitator asked); an AUTO failure stays silent.
+      if (context.force) throw e instanceof Error ? e : new Error(String(e));
       return SILENT;
     }
   }

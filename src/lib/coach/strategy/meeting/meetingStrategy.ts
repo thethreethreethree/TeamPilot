@@ -21,8 +21,9 @@ import { distinctKnownSpeakers } from "../renderTurns";
  *
  * Mirrors the sales generateLiveCue orchestration (liveCue.ts): a MIN_SEGMENTS understanding gate (§3.2 — need
  * enough to read the room before advising), a rolling window (latency + relevance), honor the LLM's
- * `suppressed` verdict WITHOUT re-deriving it (A40), parse silent-safe, and NEVER throw — a cue failure must
- * not disrupt a live meeting (it resolves to stay-silent).
+ * `suppressed` verdict WITHOUT re-deriving it (A40), parse silent-safe, and stay silent on an AUTO cue failure
+ * (it must not disrupt a live meeting). A FORCED ("coach me now") cue failure RE-THROWS so the route surfaces it
+ * honestly (the facilitator asked — silence would be error-dressed-as-no-data), mirroring the sales path.
  */
 
 /** Only reason over the most recent N turns — a meeting has long context, but the coach reacts to the live moment. */
@@ -64,8 +65,11 @@ export class MeetingStrategy implements CoachingStrategy {
       if (decision.trigger === "imbalance" && distinctKnownSpeakers(recent) < 2) return SILENT;
 
       return decision;
-    } catch {
-      // A cue failure can never disrupt a live meeting (§3.4 honesty over a broken cue).
+    } catch (e) {
+      // A FORCED cue failure must surface (the facilitator asked — the route 502s it honestly instead of a false
+      // "nothing to add"; the sales path re-throws on force for exactly this). An AUTO cue failure stays silent —
+      // it can never disrupt a live meeting.
+      if (context.force) throw e instanceof Error ? e : new Error(String(e));
       return SILENT;
     }
   }

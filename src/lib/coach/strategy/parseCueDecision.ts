@@ -11,9 +11,11 @@ import type { CueDecision, CueImportance } from "./coachingStrategy";
  * holds — an empty cue is not a cue, regardless of `shouldCue` — unless `force` (the wearer explicitly asked),
  * in which case any non-empty cue counts.
  *
- * An out-of-vocabulary phase/trigger normalizes to "unknown"/"none": this is also what stops a LEAKED cue
- * from another domain (e.g. a sales 'objection'/'close' surfacing in a meeting) from masquerading as a valid
- * trigger — the vocab set is the gate.
+ * An out-of-vocabulary phase/trigger normalizes to "unknown"/"none". Critically, an AUTO cue must carry a VALID
+ * trigger to be delivered — so a LEAKED cue from another domain (a sales 'close'/'objection' surfacing in a
+ * meeting) whose trigger normalizes to "none" is DROPPED, not delivered with a relabeled trigger (the plan's
+ * hard invariant: a sales closing cue must never reach a meeting). A forced cue (the wearer explicitly asked)
+ * still delivers any non-empty cue — the leak risk there is bounded by the clean prompt + the fence.
  */
 export function parseCueDecision(
   rawText: string,
@@ -42,9 +44,12 @@ export function parseCueDecision(
 
   const cue = typeof o["cue"] === "string" ? o["cue"].trim() : "";
 
-  // Understanding gate: an empty cue means stay silent regardless of `shouldCue`. When forced, any non-empty
-  // cue counts — the wearer asked.
-  const shouldCue = opts.force ? cue.length > 0 : o["shouldCue"] === true && cue.length > 0;
+  // Understanding gate: an empty cue means stay silent regardless of `shouldCue`. When forced, any non-empty cue
+  // counts — the wearer asked. For an AUTO cue, additionally require a VALID (non-"none") trigger: a cue whose
+  // trigger normalized to "none" (out-of-vocab / leaked from another domain, or incoherent) is NOT delivered —
+  // this is the actual gate on cross-domain leakage (a sales cue can't ride into a meeting with a relabeled
+  // trigger).
+  const shouldCue = opts.force ? cue.length > 0 : o["shouldCue"] === true && cue.length > 0 && trigger !== "none";
 
   if (!shouldCue) return { ...silent, phase, trigger };
   return { shouldCue: true, cue, trigger, phase, importance };

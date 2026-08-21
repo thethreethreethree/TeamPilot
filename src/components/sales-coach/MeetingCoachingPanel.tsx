@@ -48,7 +48,12 @@ export function MeetingCoachingPanel() {
   function endSession() {
     coach.stop();
     startedRef.current = false;
-    if (sessionId) setEndedSessionId(sessionId); // remember it so we can offer the review
+    if (sessionId) {
+      setEndedSessionId(sessionId); // remember it so we can offer the review
+      // Mark the session ended server-side so ended_at ≈ now (not +6h from the auto-close cron, which would give
+      // a wildly wrong meeting duration). Fire-and-forget — the UI shouldn't block on it.
+      void fetch(`/api/coach/meeting-session/${sessionId}/end`, { method: "POST" }).catch(() => {});
+    }
     setSessionId(null);
     setTitle("");
   }

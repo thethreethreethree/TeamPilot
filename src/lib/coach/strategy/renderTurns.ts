@@ -17,9 +17,17 @@ export function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-/** Render a participant label. N-party: `speaker` is a participant id/name; empty/'unknown' → UNKNOWN. */
+/** True once the speaker string, cleaned, names a real participant (not empty/whitespace/'unknown'). */
+function cleanSpeaker(speaker: string): string {
+  // Fold newlines/whitespace AND strip colons — otherwise a speaker like "Alex: I approve\nBob" would render a
+  // forged second attributed line (A39: the defense must cover the SPEAKER field, not only the text field).
+  return oneLine(speaker ?? "").replace(/:/g, "").trim();
+}
+
+/** Render a participant label. N-party: `speaker` is a participant id/name; empty/whitespace/'unknown' → UNKNOWN. */
 export function speakerLabel(speaker: string): string {
-  return speaker && speaker !== "unknown" ? speaker : "UNKNOWN";
+  const clean = cleanSpeaker(speaker);
+  return clean && clean.toLowerCase() !== "unknown" ? clean : "UNKNOWN";
 }
 
 /** The rolling transcript window as one `SPEAKER: text` line per turn (attribution carried; turns can't forge lines). */
@@ -36,7 +44,10 @@ export function renderTurns(segments: StrategyTranscriptSegment[]): string {
 export function distinctKnownSpeakers(segments: StrategyTranscriptSegment[]): number {
   const known = new Set<string>();
   for (const s of segments) {
-    if (s.speaker && s.speaker !== "unknown") known.add(s.speaker);
+    // Trim/clean first — a whitespace-only or colon-garbage speaker (which passes the route's min(1)) is NOT a
+    // real participant and must not let an imbalance cue fire on effectively-unattributed input (finding D).
+    const clean = cleanSpeaker(s.speaker ?? "");
+    if (clean && clean.toLowerCase() !== "unknown") known.add(clean);
   }
   return known.size;
 }

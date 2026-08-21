@@ -65,10 +65,27 @@ describe.each([
     expect(d).toEqual({ shouldCue: true, cue: "Close it before moving on.", trigger, phase, importance: "high" });
   });
 
-  it("NEVER throws — an LLM error resolves to stay-silent", async () => {
+  it("an AUTO cue LLM error resolves to stay-silent (never disrupts a live call)", async () => {
     const llm = vi.fn(async () => {
       throw new Error("provider 500");
     });
+    const d = await make(llm as unknown as CueLLM).analyze(twoTurns, ctx());
+    expect(d.shouldCue).toBe(false);
+    expect(d.cue).toBeNull();
+  });
+
+  it("RE-THROWS on a FORCED cue LLM error so the route surfaces it, not a false silence (finding A)", async () => {
+    const llm = vi.fn(async () => {
+      throw new Error("provider 500");
+    });
+    await expect(make(llm as unknown as CueLLM).analyze(twoTurns, ctx({ force: true }))).rejects.toThrow(/provider 500/);
+  });
+
+  it("DROPS an AUTO cue whose trigger is out-of-vocab / leaked from another domain (finding B — the leak gate)", async () => {
+    // A sales 'close' cue must never ride into a meeting/huddle with a relabeled trigger.
+    const llm = vi.fn(async () => ({
+      text: JSON.stringify({ phase: "closing", trigger: "close", shouldCue: true, importance: "high", cue: "Ask them to sign now." }),
+    }));
     const d = await make(llm as unknown as CueLLM).analyze(twoTurns, ctx());
     expect(d.shouldCue).toBe(false);
     expect(d.cue).toBeNull();
