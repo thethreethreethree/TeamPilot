@@ -1,5 +1,28 @@
 # Founder action queue
 
+## 🎙️ 2026-08-21 — Live-Coach CAPTURE CRISIS fixed & live — needs ONE validation + 3 gated decisions
+
+The capture crisis (sessions dropping, recording stopping, after-pitch not generating) is remediated and live
+on elostate.com. Full detail: `docs/CAPTURE-CRISIS-AUDIT-2026-08-21.md`. What's on YOU:
+
+1. **VALIDATE (the one thing I can't do headless):** run a real **15+ minute call on a phone** and confirm
+   capture survives a mid-call drop and the transcript + after-pitch land. Then, over the next few days, run
+   `node scripts/diag-session-health.mjs "$(pwd)"` and watch the **per-day** block: `empty%` should fall and
+   `FULL%` should rise on calls made AFTER 2026-08-21 (objective before/after proof).
+
+2. **Gated DECISION — audio recording fallback (effort vs. reduced need).** The audio-save has been broadly
+   failing since early August (independent of the fix): it only persists on a clean Stop, and most reps close
+   the tab. P0 REDUCES the need (the transcript — the primary artifact — is now reliable). A real fix is
+   incremental audio-chunk upload or the self-hosted-voice migration. **Want it, or accept the reduced need?**
+
+3. **Gated DECISION — proactive WS keepalive.** Would prevent idle/background drops entirely (the reconnect
+   currently recovers from them). I'm holding it until you've validated P0 (#1), to avoid another un-validated
+   change to the capture path. **Green-light after your test?**
+
+4. **Gated DECISION — mass-recover the backlog now?** ~57 past sessions have a transcript but no review. The
+   backfill cron (now every 3h) drains them in ~1–2 days automatically; a one-off script would do it in minutes
+   (bigger LLM-cost burst). **Let it drain, or run the one-off?**
+
 ## 🧹 2026-08-16 — 159+ new react-hooks lint findings, DEFERRED (a decision, not an action)
 
 The ESLint-9 / eslint-config-next-16 migration (audit finding #8, commit `04780472`) turned ON a set of new,
