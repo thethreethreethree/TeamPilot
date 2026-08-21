@@ -94,7 +94,12 @@ sessions in ~1–2 days.
 - **Unrecoverable backlog:** ~54% of past sessions have no transcript AND no audio — nothing to recover; P0/P1
   fix new calls only.
 
-- **P2 finding — the audio fallback (`persistRecording`) is broadly dead for never-Stopped sessions.** `noAudio`
+- **✅ FIXED (founder-directed) — incremental audio upload.** The audio now uploads in ~15s chunks DURING the
+  call and is stitched into `recording.webm` on session end (auto-close cron for the never-Stopped case), so it
+  survives any ending, not only a clean Stop. `docs/tbc/2026-08-21-incremental-audio-upload/`. Founder validates
+  a real never-Stopped call leaves a playable recording. (Supersedes the P2 finding below for new calls.)
+
+- **P2 finding (superseded for new calls) — the audio fallback (`persistRecording`) was broadly dead for never-Stopped sessions.** `noAudio`
   is ~97–100% every day (per-day trend). The audio saves only on a CLEAN Stop; a tab-close unmounts the panel
   before the on-Stop persist runs, and a large blob can't `sendBeacon` on unload. IMPORTANCE dropped by P0: the
   audio is a FALLBACK for when live STT fails, and P0 makes the *transcript* (the primary artifact) reliable, so
