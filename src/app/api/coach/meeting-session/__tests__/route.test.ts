@@ -9,12 +9,12 @@ import type { NextRequest } from "next/server";
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
-vi.mock("@/lib/data/salesCoach", () => ({ createSession: vi.fn() }));
+vi.mock("@/lib/data/salesCoach", () => ({ createSession: vi.fn(), listAgentSessions: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
-import { createSession } from "@/lib/data/salesCoach";
-import { POST } from "../route";
+import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
+import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 function setAuth(userId: string | null) {
@@ -60,5 +60,23 @@ describe("POST meeting-session (create)", () => {
   it("500 (fail-honest) when the insert returns null — 0237 likely unapplied", async () => {
     asMock(createSession).mockResolvedValue(null);
     expect((await POST(req(good))).status).toBe(500);
+  });
+});
+
+describe("GET meeting-session (list)", () => {
+  it("401 when unauthenticated", async () => {
+    setAuth(null);
+    expect((await GET()).status).toBe(401);
+  });
+
+  it("returns only meeting/huddle sessions, filtering out sales", async () => {
+    asMock(listAgentSessions).mockResolvedValue([
+      { id: "m1", clientLabel: "Sync", sessionKind: "meeting", startedAt: "2026-08-22T00:00:00Z", endedAt: null },
+      { id: "s1", clientLabel: "Deal", sessionKind: "sales", startedAt: "2026-08-21T00:00:00Z", endedAt: null },
+      { id: "h1", clientLabel: "Standup", sessionKind: "huddle", startedAt: "2026-08-20T00:00:00Z", endedAt: null },
+    ]);
+    const json = await (await GET()).json();
+    expect(json.meetings.map((m: { id: string }) => m.id)).toEqual(["m1", "h1"]);
+    expect(json.meetings[0]).toMatchObject({ id: "m1", title: "Sync", kind: "meeting" });
   });
 });

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { createSession } from "@/lib/data/salesCoach";
+import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
 
 /**
  * Meeting Coach (Team-Sync) — session collection. Sibling of the sales-session create route, re-aimed at
@@ -53,4 +53,26 @@ export async function POST(req: NextRequest) {
     );
   }
   return NextResponse.json({ session });
+}
+
+/**
+ * GET → the current facilitator's recent meeting/huddle sessions (for the "your meetings" list → review links).
+ * Filters listAgentSessions to the meeting kinds so a sales session never appears here.
+ */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  const sessions = await listAgentSessions(auth.user.id, 30);
+  const meetings = sessions
+    .filter((s) => s.sessionKind === "meeting" || s.sessionKind === "huddle")
+    .map((s) => ({
+      id: s.id,
+      title: s.clientLabel,
+      kind: s.sessionKind,
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+    }));
+  return NextResponse.json({ meetings });
 }

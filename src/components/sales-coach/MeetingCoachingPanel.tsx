@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMeetingCoaching } from "@/lib/coach/v5/useMeetingCoaching";
 import { MeetingTrendTile } from "@/components/sales-coach/MeetingTrendTile";
+import { MeetingHistoryList } from "@/components/sales-coach/MeetingHistoryList";
 
 /**
  * MeetingCoachingPanel — the facilitator's surface for a live Meeting/Huddle Coach session (Team-Sync).
@@ -192,6 +193,8 @@ export function MeetingCoachingPanel() {
         >
           {creating ? "Starting…" : "Start coaching"}
         </button>
+
+        <MeetingHistoryList />
       </div>
     );
   }
