@@ -14,6 +14,7 @@ type Metrics = {
   decisionsPerMeeting: number;
   ownedActionRatio: number | null;
   focusedRatio: number | null;
+  balancedRatio: number | null;
   openItemsPerMeeting: number;
 };
 type Trend = {
@@ -86,7 +87,7 @@ export function MeetingTrendTile() {
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <Stat label="Actions owned" value={pct(m.ownedActionRatio)} />
           <Stat label="Stayed focused" value={pct(m.focusedRatio)} />
-          <Stat label="Decisions / mtg" value={m.decisionsPerMeeting.toFixed(1)} />
+          <Stat label="Balanced" value={pct(m.balancedRatio)} />
         </div>
       )}
       {trend.direction !== "insufficient" && (
