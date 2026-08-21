@@ -6,7 +6,9 @@ The capture crisis (sessions dropping, recording stopping, after-pitch not gener
 on elostate.com. Full detail: `docs/CAPTURE-CRISIS-AUDIT-2026-08-21.md`. What's on YOU:
 
 1. **VALIDATE (the one thing I can't do headless):** run a real **15+ minute call on a phone** and confirm
-   capture survives a mid-call drop and the transcript + after-pitch land. Then, over the next few days, run
+   capture survives a mid-call drop and the transcript + after-pitch land. **Step-by-step protocol (do it the
+   right way — tapping Stop tests the OLD path, not the never-Stopped case the fix targets):**
+   `docs/CAPTURE-FIX-VALIDATION-PROTOCOL.md`. Then, over the next few days, run
    `node scripts/diag-session-health.mjs "$(pwd)"` and watch the **per-day** block: `empty%` should fall and
    `FULL%` should rise on calls made AFTER 2026-08-21 (objective before/after proof).
 
