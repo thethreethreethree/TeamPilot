@@ -18,8 +18,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 
 const DOOR_LOG_CHUNK_URL = "/api/coach/sales-session/door-log/audio-chunk";
-// MediaRecorder timeslice → ondataavailable fires this often, each firing a ~150-300 KB webm chunk we upload.
+// MediaRecorder timeslice → ondataavailable fires this often, each firing a ~150-300 KB chunk we upload.
 const AUDIO_CHUNK_MS = 15_000;
+
+/**
+ * Pick a mimeType the browser can ACTUALLY encode (founder 2026-08-23). Passing no type lets the browser choose,
+ * which is usually fine — but being explicit + verified avoids a silent no-data start on a browser whose default
+ * it can't encode. Prefer webm (the whole existing pipeline is webm) and fall back to mp4 ONLY where webm is
+ * unsupported — i.e. iOS Safari, which already defaults to mp4 anyway. "" → let the browser default (old behavior).
+ */
+function pickSupportedMimeType(): string {
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") return "";
+  for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", "audio/mpeg"]) {
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    } catch {
+      /* isTypeSupported can throw on some engines — treat as unsupported */
+    }
+  }
+  return "";
+}
 
 /**
  * Ground-truth capture diagnostics (founder 2026-08-23) — the recorder used to swallow EVERY failure (no onerror,
@@ -56,6 +74,8 @@ export function useDoorRecorder() {
   const chunksRef = useRef<Blob[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  // The analyser runs on a CLONED mic track (not the recording stream) — see arm(). Kept so teardown stops it.
+  const analyserStreamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -131,7 +151,22 @@ export function useDoorRecorder() {
           window.AudioContext ||
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ctx = new Ctx();
-        const src = ctx.createMediaStreamSource(stream);
+        // iOS Safari (field data 2026-08-23): an AudioContext consuming the SAME MediaStream that MediaRecorder
+        // records can leave the recorder with ZERO audio data (mic track alive, no recorder error — just silence).
+        // Feed the sound-bar analyser a CLONED track so MediaRecorder gets the untouched recording stream. If clone
+        // is unavailable, fall back to the original stream (a degraded meter beats losing the recording).
+        let analyserSource: MediaStream = stream;
+        try {
+          const track = stream.getAudioTracks()[0];
+          if (track && typeof track.clone === "function") {
+            const cloned = new MediaStream([track.clone()]);
+            analyserStreamRef.current = cloned;
+            analyserSource = cloned;
+          }
+        } catch {
+          /* clone unsupported → analyser reads the original stream (old behavior) */
+        }
+        const src = ctx.createMediaStreamSource(analyserSource);
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
         src.connect(analyser);
@@ -200,8 +235,13 @@ export function useDoorRecorder() {
             /* track resumed — keep the flag set; the rep was already warned and some audio was likely lost */
           };
         }
-        const rec = new MediaRecorder(streamRef.current);
-        mimeTypeRef.current = rec.mimeType || "";
+        // Explicit, verified mimeType (see pickSupportedMimeType) — avoids a silent no-data start on iOS Safari.
+        const chosenMime = pickSupportedMimeType();
+        const rec = chosenMime
+          ? new MediaRecorder(streamRef.current, { mimeType: chosenMime })
+          : new MediaRecorder(streamRef.current);
+        // Capture the recorder's ACTUAL mimeType (post-construction) for the diagnostics.
+        mimeTypeRef.current = rec.mimeType || chosenMime || "";
         rec.ondataavailable = (e) => {
           if (e.data.size === 0) return;
           sawDataRef.current = true;
@@ -318,6 +358,7 @@ export function useDoorRecorder() {
         /* noop */
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      analyserStreamRef.current?.getTracks().forEach((t) => t.stop()); // the cloned analyser track
       void audioCtxRef.current?.close();
     };
   }, [releaseWakeLock]);

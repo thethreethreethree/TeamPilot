@@ -7,7 +7,12 @@ do these in order.
 
 ## Preconditions (blocking — founder)
 
-### 1. Apply the migrations
+### 1. Apply the migrations ✅ DONE (2026-08-23)
+Migrations 0237 + 0238 are applied (schema verified: `session_kind` + `meeting_preps` + `meeting_prep_documents`
+live) and the ledger is reconciled (`db:reconcile` → 0 drift; `db:dry` → nothing pending). They were applied
+outside the ledgered runner, which left an off-ledger drift on 0238 (its `create policy` isn't idempotent) — that
+was reconciled by recording 0237/0238 in `public._agent_migrations` (baselined) without re-running the SQL.
+**Lesson for next time: run `npm run db:apply` (below) so the ledger records it automatically — avoids the drift.**
 ```
 npm run db:apply
 ```

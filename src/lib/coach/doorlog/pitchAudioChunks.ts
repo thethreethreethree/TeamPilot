@@ -82,16 +82,21 @@ export async function stitchPitchAudio(args: {
   if (order.length === 0) return { ok: false, reason: "no chunks" };
 
   const parts: Buffer[] = [];
+  let chunkContentType = "audio/webm"; // preserved from the chunks — iOS Safari records audio/mp4, not webm
   for (let i = 0; i < order.length; i++) {
     const dl = await downloadAssetBytes({ storagePath: pitchChunkObjectPath(args.companyId, args.recordingId, order[i]!) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — keep the valid head, drop the tail
+    if (i === 0 && dl.contentType) chunkContentType = dl.contentType; // the recording's real format
     if (i > 0 && startsWithEbmlHeader(dl.bytes)) break; // recorder was recreated mid-recording — keep segment 1
     parts.push(dl.bytes);
   }
   if (parts.length === 0) return { ok: false, reason: "no readable chunks" };
   const merged = Buffer.concat(parts);
 
-  const up = await uploadAssetBytes({ storagePath: finalPath, bytes: merged, contentType: "audio/webm" });
+  // Label the stitched recording with the ACTUAL format (founder 2026-08-23) — hardcoding audio/webm mislabeled
+  // iOS's mp4 recording, so the worker handed mp4 bytes to STT as webm. downloadAssetBytes reads this back as
+  // dl.contentType, which the worker passes to transcription.
+  const up = await uploadAssetBytes({ storagePath: finalPath, bytes: merged, contentType: chunkContentType });
   if (!up.ok) return { ok: false, reason: `upload: ${up.error}` };
 
   // Best-effort: drop the chunk objects now that the canonical recording exists (retention sweeps orphans too).
