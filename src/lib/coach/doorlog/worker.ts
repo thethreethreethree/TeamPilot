@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
+import { rollupRep } from "./rollupWorker";
 
 /**
  * Pitch-processing worker (Macro Mode pipeline, build-spec 3.3). Nothing here is in the rep's request path:
@@ -146,7 +148,24 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       promptVersion: ANALYSIS_PROMPT_VERSION,
     });
     await setPitchStatus({ pitchId: pitch.id, status: "complete" });
-    // NOTE: rollup refresh is enqueued by the cron's rollup pass (keeps this step single-purpose).
+    // Refresh the rep's pattern rollup (the Next Door focus + Opportunities) NOW that a pitch completed — via
+    // after() so it doesn't block, and so it fires on EVERY completion (the route's fire-and-forget kick AND the
+    // cron), not ONLY the cron's separate rollup pass. That pass was the sole trigger and left
+    // rep_pattern_summaries EMPTY despite 42 analyzed pitches (founder 2026-08-22: "Next Door focus isn't
+    // generating") — a silent gap because the failure was invisible. Completion-path kick = the same reliable
+    // mechanism that processes the pitch itself; the cron rollup pass remains a backstop. Best-effort: no request
+    // context (a direct/test invocation) → skip and let the cron cover it.
+    try {
+      after(() =>
+        rollupRep({
+          companyId: pitch.company_id,
+          repId: pitch.rep_id,
+          todayIso: new Date().toISOString().slice(0, 10),
+        })
+      );
+    } catch {
+      /* no after() context here — the cron's rollup pass is the backstop */
+    }
   } catch (err) {
     const attempts = pitch.attempts + 1;
     const message = err instanceof Error ? err.message : String(err);

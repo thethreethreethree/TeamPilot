@@ -40,11 +40,15 @@ vi.mock("@/lib/data/doorlog", () => ({
   claimPitchesToProcess: vi.fn(async () => []),
   claimPitchForProcessing: vi.fn(async () => true), // won the lease by default
 }));
+// after() runs the callback synchronously here so the completion-path rollup kick is observable.
+vi.mock("next/server", () => ({ after: (fn: () => unknown) => fn() }));
+vi.mock("../rollupWorker", () => ({ rollupRep: vi.fn(async () => {}) }));
 
 import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
 import { downloadAssetBytes } from "@/lib/storage/assets";
 import { writePitchAnalysis, writePitchTranscript, setPitchStatus, claimPitchForProcessing } from "@/lib/data/doorlog";
 import { analyzePitch } from "@/lib/coach/doorlog/analyze";
+import { rollupRep } from "../rollupWorker";
 import { processPitch } from "../worker";
 
 /** Did any setPitchStatus call mark this pitch terminally failed with a message matching `re`? */
@@ -127,5 +131,23 @@ describe("processPitch — H1: empty/silent audio never fabricates a 'complete' 
     expect(failedWith(/no speech was detected/i)).toBe(true);
     expect(analyzePitch).not.toHaveBeenCalled();
     expect(writePitchAnalysis).not.toHaveBeenCalled();
+  });
+});
+
+describe("processPitch — the Next Door focus rollup fires on completion (founder 2026-08-22, 'never again')", () => {
+  it("kicks the rep's pattern rollup after a pitch completes — so the focus generates without relying on the cron", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to a clean complete
+    await processPitch({ ...PITCH });
+    expect(writePitchAnalysis).toHaveBeenCalledTimes(1); // it completed
+    expect(rollupRep).toHaveBeenCalledTimes(1); // …and the rollup was kicked on the completion path
+    expect(vi.mocked(rollupRep).mock.calls[0]?.[0]).toMatchObject({ companyId: "co1", repId: "rep1" });
+  });
+
+  it("does NOT kick the rollup when the pitch FAILS (empty transcript) — no focus refresh on a non-completion", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(transcribeSpeech).mockResolvedValueOnce(""); // empty → terminal failed, never completes
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(true);
+    expect(rollupRep).not.toHaveBeenCalled();
   });
 });

@@ -135,8 +135,12 @@ export async function rollupRep(args: { companyId: string; repId: string; todayI
   for (const period of ["day", "week", "month", "all_time"] as Period[]) {
     try {
       await rollupPeriod({ companyId: args.companyId, repId: args.repId, period, todayIso: repTodayIso });
-    } catch {
-      /* one period failing must not block the others; the cron re-runs */
+    } catch (e) {
+      // One period failing must not block the others; the cron/completion-kick re-runs. But LOG it — this catch
+      // silently swallowing was why an empty rep_pattern_summaries (no Next Door focus) hid despite analyzed
+      // pitches (founder 2026-08-22). Visibility over silence (INV22 / A38).
+      // eslint-disable-next-line no-console
+      console.error(`[doorlog/rollup] period=${period} failed for rep=${args.repId}:`, e instanceof Error ? e.message : e);
     }
   }
 }
