@@ -16,6 +16,14 @@ type Dissect = {
   openItems?: { item: string; why?: string }[]; // event payload uses snake_case; the route return uses camel
   effectiveness?: { focused: boolean; note: string } | null;
   balance?: { balanced: boolean; note: string; dominantSharePct: number } | null;
+  // Prep-up agenda coverage (founder 2026-08-22): did the meeting hit its goal + which must-discuss topics were
+  // covered vs missed. Present only for a prepped meeting.
+  agenda?: {
+    goal: string;
+    goalAttained: "yes" | "partial" | "no" | "unknown";
+    note: string;
+    topics: { text: string; covered: boolean }[];
+  } | null;
   overall?: string | null;
 };
 
@@ -105,7 +113,14 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
   const actions = dissect?.actions ?? [];
   const openItems = dissect?.openItems ?? dissect?.open_items ?? [];
   const eff = dissect?.effectiveness ?? null;
-  const nothing = decisions.length === 0 && actions.length === 0 && openItems.length === 0 && !eff;
+  const agenda = dissect?.agenda ?? null;
+  const nothing = decisions.length === 0 && actions.length === 0 && openItems.length === 0 && !eff && !agenda;
+  const GOAL_LABEL: Record<string, { text: string; cls: string }> = {
+    yes: { text: "Goal achieved", cls: "bg-emerald-500/10 text-emerald-300" },
+    partial: { text: "Goal partially met", cls: "bg-amber-500/10 text-amber-300" },
+    no: { text: "Goal not met", cls: "bg-red-500/10 text-red-300" },
+    unknown: { text: "Goal outcome unclear", cls: "bg-white/5 text-muted" },
+  };
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5 p-6">
@@ -119,6 +134,32 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
           This meeting didn&apos;t produce clear decisions or actions to capture — a short or exploratory
           discussion. That&apos;s an honest read, not a failure.
         </p>
+      )}
+
+      {agenda && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Agenda coverage</h2>
+          <div className="rounded-lg border border-default bg-surface p-3">
+            {agenda.goal && <p className="text-sm text-primary">Goal: {agenda.goal}</p>}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-xs ${(GOAL_LABEL[agenda.goalAttained] ?? GOAL_LABEL.unknown!).cls}`}>
+                {(GOAL_LABEL[agenda.goalAttained] ?? GOAL_LABEL.unknown!).text}
+              </span>
+              {agenda.note && <span className="text-xs text-muted">{agenda.note}</span>}
+            </div>
+            {agenda.topics.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1">
+                {agenda.topics.map((t, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <span className={t.covered ? "text-emerald-400" : "text-amber-400"}>{t.covered ? "✓" : "○"}</span>
+                    <span className={t.covered ? "text-primary" : "text-secondary"}>{t.text}</span>
+                    {!t.covered && <span className="text-xs text-amber-400/80">not covered</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       )}
 
       {decisions.length > 0 && (

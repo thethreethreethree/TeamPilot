@@ -1,6 +1,6 @@
 import "server-only";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import type { StrategyTranscriptSegment } from "../coachingStrategy";
+import type { MeetingAgenda, StrategyTranscriptSegment } from "../coachingStrategy";
 import { renderTurns } from "../renderTurns";
 
 /**
@@ -32,12 +32,22 @@ HONESTY (§3.4): base every item on the transcript. No decision that wasn't made
 (use null); no invented open item. A near-empty or purely-social meeting yields empty arrays — that is a valid,
 honest result, not a failure. Do NOT judge the participants as people; describe what the meeting produced.
 
-OUTPUT — respond with ONLY this JSON:
+PREP-UP AGENDA (only when one is provided in the input): the meeting had a pre-set GOAL + must-discuss TOPICS.
+Judge them AGAINST THE TRANSCRIPT (§3.5 consequence — measured against the meeting's own plan, never against the
+coach's cues):
+- goalAttained: "yes" (the goal was clearly achieved), "partial" (progressed but not fully), or "no" (not
+  achieved). Base it on what the transcript shows; if you truly can't tell, omit the agenda block.
+- note: one honest sentence on the goal outcome.
+- covered: the ids of the must-discuss topics that WERE actually discussed in the transcript (a topic merely
+  named in passing without real discussion is NOT covered). Omit ids not discussed — those are the missed topics.
+
+OUTPUT — respond with ONLY this JSON ("agenda" only when an agenda was provided):
 {
   "decisions":   [ { "decision": "...", "context": "..." } ],
   "actions":     [ { "action": "...", "owner": "name or null" } ],
   "openItems":   [ { "item": "...", "why": "left unresolved because ..." } ],
   "effectiveness": { "focused": true|false, "note": "..." },
+  "agenda":      { "goalAttained": "yes"|"partial"|"no", "note": "...", "covered": ["<topic id discussed>"] },
   "overall": "one or two sentences: what this meeting produced, honestly"
 }
 Empty arrays are fine. Use null for a missing owner. No prose outside the JSON.` + CONVERSATION_IS_DATA
@@ -47,12 +57,24 @@ Empty arrays are fine. Use null for a missing owner. No prose outside the JSON.`
 export function buildMeetingDissectUserMessage(args: {
   sessionTitle?: string;
   segments: StrategyTranscriptSegment[];
+  /** Prep-up agenda — when present, also judge goal attainment + which must-discuss topics were covered. */
+  agenda?: MeetingAgenda;
 }): string {
   const title = args.sessionTitle ? `Meeting: ${args.sessionTitle}\n\n` : "";
   const transcript = renderTurns(args.segments);
+  let agendaBlock = "";
+  if (args.agenda) {
+    const goal = args.agenda.goal.trim();
+    const topicLines = args.agenda.topics.map((t) => `  - (id: ${t.id}) ${t.text}`).join("\n");
+    const parts: string[] = ["PREP-UP AGENDA to judge against the transcript:"];
+    if (goal) parts.push(`Goal: ${goal}`);
+    if (topicLines) parts.push(`Must-discuss topics:\n${topicLines}`);
+    parts.push(`Return "agenda" with goalAttained + note + the ids actually discussed in "covered".`);
+    agendaBlock = `\n\n${parts.join("\n\n")}`;
+  }
   return `${title}Transcript (diarized, one line per speaker turn):
 
-${transcript}
+${transcript}${agendaBlock}
 
-Extract the decisions, owned actions, open items, and an effectiveness read. JSON only.`;
+Extract the decisions, owned actions, open items, and an effectiveness read${args.agenda ? ", plus the agenda judgment" : ""}. JSON only.`;
 }

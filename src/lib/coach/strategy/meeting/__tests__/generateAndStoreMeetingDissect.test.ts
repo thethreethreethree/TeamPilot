@@ -72,4 +72,38 @@ describe("generateAndStoreMeetingDissect", () => {
     expect(state.inserts).toHaveLength(1);
     expect(state.inserts[0]!.kind).toBe("meeting.dissect_attempted");
   });
+
+  it("measures Prep-up agenda coverage into the stored payload (Phase 4, founder 2026-08-22)", async () => {
+    // The dissect LLM judged the goal partial and topic t1 covered (over the full transcript).
+    state.dissectText = JSON.stringify({
+      decisions: [{ decision: "Ship Friday", context: "" }],
+      actions: [], openItems: [],
+      agenda: { goalAttained: "partial", note: "date set, budget deferred", covered: ["t1"] },
+    });
+    const d = await generateAndStoreMeetingDissect({
+      companyId: "co1", actorId: "u1", sessionId: "s4",
+      segments: [seg("Al", "hi"), seg("Bo", "ok")],
+      agenda: {
+        goal: "Lock launch date + budget",
+        docContext: "",
+        topics: [
+          { id: "t1", text: "launch date", covered: false },
+          { id: "t2", text: "budget", covered: false },
+        ],
+      },
+    });
+    expect(d.hasSignal).toBe(true);
+    const payload = state.inserts[0]!.payload as Record<string, unknown>;
+    const ag = payload.agenda as { goal: string; goalAttained: string; topics: { text: string; covered: boolean }[] };
+    expect(ag.goal).toBe("Lock launch date + budget");
+    expect(ag.goalAttained).toBe("partial");
+    expect(ag.topics.find((t) => t.text === "launch date")?.covered).toBe(true);
+    expect(ag.topics.find((t) => t.text === "budget")?.covered).toBe(false); // missed → surfaced
+  });
+
+  it("no agenda in the payload for a prep-less meeting (no regression)", async () => {
+    state.dissectText = JSON.stringify({ decisions: [{ decision: "x", context: "" }], actions: [], openItems: [] });
+    await generateAndStoreMeetingDissect({ companyId: "co1", actorId: "u1", sessionId: "s5", segments: [seg("Al", "hi")] });
+    expect((state.inserts[0]!.payload as Record<string, unknown>).agenda).toBeNull();
+  });
 });

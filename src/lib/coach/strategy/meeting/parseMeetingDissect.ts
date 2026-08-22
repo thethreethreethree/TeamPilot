@@ -25,6 +25,16 @@ export type DissectAction = { action: string; owner: string | null };
 export type DissectOpenItem = { item: string; why: string };
 export type DissectEffectiveness = { focused: boolean; note: string };
 
+/** Prep-up agenda outcome (founder 2026-08-22): did the meeting hit its goal + which must-discuss topics were
+ *  covered vs missed. §3.5 consequence — measured against the meeting's OWN pre-set agenda, not the coach's cues. */
+export type GoalAttained = "yes" | "partial" | "no" | "unknown";
+export type DissectAgenda = {
+  goal: string;
+  goalAttained: GoalAttained;
+  note: string;
+  topics: Array<{ text: string; covered: boolean }>;
+};
+
 export type MeetingDissect = {
   hasSignal: boolean;
   decisions: DissectDecision[];
@@ -34,6 +44,9 @@ export type MeetingDissect = {
   // Speaker balance is computed from the diarized SEGMENTS (not the LLM), so the parse leaves it null;
   // generateMeetingDissect fills it in. Null when balance couldn't be assessed (< 2 speaking participants).
   balance: SpeakerBalance | null;
+  // Agenda coverage (Prep-up only) — assembled by generateMeetingDissect from the LLM's goal-attainment judgment
+  // + a re-assessment of topic coverage over the FULL transcript. Absent for a prep-less meeting.
+  agenda?: DissectAgenda;
   overall?: string;
 };
 
@@ -118,4 +131,29 @@ export function parseMeetingDissect(text: string): MeetingDissect {
     balance: null, // filled by generateMeetingDissect from the diarized segments
     ...(overall ? { overall } : {}),
   };
+}
+
+/**
+ * Extract the LLM's Prep-up agenda judgment (goal attainment + the topic ids it judged covered over the FULL
+ * transcript) from the same dissect JSON. Separate from parseMeetingDissect so the consequence parse stays
+ * unchanged; generateMeetingDissect assembles the final DissectAgenda (with topic texts). Total + silent-safe:
+ * returns null when there's no agenda block. Pure.
+ */
+export function parseAgendaJudgment(text: string): { goalAttained: GoalAttained; note: string; coveredIds: string[] } | null {
+  let raw: unknown;
+  try {
+    const m = text.match(/\{[\s\S]*\}/);
+    raw = JSON.parse(m ? m[0] : text);
+  } catch {
+    return null;
+  }
+  if (!raw || typeof raw !== "object") return null;
+  const a = (raw as Record<string, unknown>).agenda;
+  if (!a || typeof a !== "object") return null;
+  const ao = a as Record<string, unknown>;
+  const ga = str(ao.goalAttained).toLowerCase();
+  const goalAttained: GoalAttained = ga === "yes" || ga === "partial" || ga === "no" ? (ga as GoalAttained) : "unknown";
+  const coveredIds = arr(ao.covered)
+    .filter((x): x is string => typeof x === "string" && x.length > 0);
+  return { goalAttained, note: str(ao.note), coveredIds: Array.from(new Set(coveredIds)) };
 }

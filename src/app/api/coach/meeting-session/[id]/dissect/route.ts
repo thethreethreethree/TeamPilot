@@ -8,7 +8,8 @@ import { resolveCoachingMode } from "@/lib/coach/strategy/resolveCoachingMode";
 import { assetUrlToStoragePath, downloadAssetBytes } from "@/lib/storage/assets";
 import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 import { generateAndStoreMeetingDissect } from "@/lib/coach/strategy/meeting/generateMeetingDissect";
-import type { StrategyTranscriptSegment } from "@/lib/coach/strategy/coachingStrategy";
+import { getMeetingPrepBySession, getPrepDocContext } from "@/lib/data/meetingPrep";
+import type { MeetingAgenda, StrategyTranscriptSegment } from "@/lib/coach/strategy/coachingStrategy";
 
 /**
  * POST /api/coach/meeting-session/[id]/dissect — the post-meeting review (Phase 6).
@@ -97,12 +98,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Couldn't transcribe the meeting audio right now — please try again." }, { status: 502 });
   }
 
+  // Prep-up agenda (founder 2026-08-22): if the meeting was prepped, the dissect also measures goal attainment +
+  // which must-discuss topics were covered vs missed — against the FULL diarized transcript (§3.5). Best-effort.
+  const prep = await getMeetingPrepBySession(id);
+  let agenda: MeetingAgenda | undefined;
+  if (prep) {
+    const docContext = await getPrepDocContext(prep.id);
+    agenda = { goal: prep.goal, topics: prep.topics, docContext };
+  }
+
   const dissect = await generateAndStoreMeetingDissect({
     companyId,
     actorId: auth.user.id,
     sessionId: id,
     sessionTitle: session.clientLabel ?? undefined,
     segments,
+    agenda,
   });
 
   return NextResponse.json({ dissect, cached: false });

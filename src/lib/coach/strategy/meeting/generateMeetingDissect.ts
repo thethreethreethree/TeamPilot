@@ -1,9 +1,9 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { StrategyTranscriptSegment } from "../coachingStrategy";
+import type { MeetingAgenda, StrategyTranscriptSegment } from "../coachingStrategy";
 import { buildMeetingDissectSystemPrompt, buildMeetingDissectUserMessage } from "./meetingDissectPrompt";
-import { parseMeetingDissect, EMPTY_MEETING_DISSECT, type MeetingDissect } from "./parseMeetingDissect";
+import { parseMeetingDissect, parseAgendaJudgment, EMPTY_MEETING_DISSECT, type DissectAgenda, type MeetingDissect } from "./parseMeetingDissect";
 import { computeSpeakerBalance } from "./speakerBalance";
 
 /**
@@ -20,6 +20,8 @@ export async function generateMeetingDissect(args: {
   companyId: string;
   sessionTitle?: string;
   segments: StrategyTranscriptSegment[];
+  /** Prep-up agenda — when present, the dissect also measures goal attainment + covered/missed topics (§3.5). */
+  agenda?: MeetingAgenda;
 }): Promise<MeetingDissect> {
   try {
     if (args.segments.length === 0) return EMPTY_MEETING_DISSECT;
@@ -28,6 +30,7 @@ export async function generateMeetingDissect(args: {
     const userMessage = buildMeetingDissectUserMessage({
       sessionTitle: args.sessionTitle,
       segments: args.segments,
+      agenda: args.agenda,
     });
 
     const r = await dissectCoachV5({ companyId: args.companyId, systemPrompt, userMessage });
@@ -51,7 +54,23 @@ export async function generateMeetingDissect(args: {
     }
     // Balance is computed from the diarized segments (not the LLM) — the plan's imbalance monitor, realized
     // post-hoc. Null when < 2 speaking participants (the parse left it null; fill it here).
-    return { ...parsed, balance: computeSpeakerBalance(args.segments) };
+    const balance = computeSpeakerBalance(args.segments);
+
+    // Prep-up agenda coverage (§3.5): the LLM judged goal attainment + which topic ids were discussed over the
+    // FULL transcript; map that onto the agenda's topics (text + covered) so the review shows covered vs missed.
+    let agenda: DissectAgenda | undefined;
+    if (args.agenda) {
+      const judgment = parseAgendaJudgment(r.text);
+      const coveredSet = new Set(judgment?.coveredIds ?? []);
+      agenda = {
+        goal: args.agenda.goal,
+        goalAttained: judgment?.goalAttained ?? "unknown",
+        note: judgment?.note ?? "",
+        topics: args.agenda.topics.map((t) => ({ text: t.text, covered: coveredSet.has(t.id) })),
+      };
+    }
+
+    return { ...parsed, balance, ...(agenda ? { agenda } : {}) };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(`[generateMeetingDissect] threw: ${e instanceof Error ? e.message : String(e)}`);
@@ -71,11 +90,14 @@ export async function generateAndStoreMeetingDissect(args: {
   sessionId: string;
   sessionTitle?: string;
   segments: StrategyTranscriptSegment[];
+  /** Prep-up agenda — measured into the dissect (goal attainment + covered/missed topics) when present. */
+  agenda?: MeetingAgenda;
 }): Promise<MeetingDissect> {
   const dissect = await generateMeetingDissect({
     companyId: args.companyId,
     sessionTitle: args.sessionTitle,
     segments: args.segments,
+    agenda: args.agenda,
   });
   const subject = `meeting_session:${args.sessionId}`;
 
@@ -94,6 +116,7 @@ export async function generateAndStoreMeetingDissect(args: {
             open_items: dissect.openItems,
             effectiveness: dissect.effectiveness,
             balance: dissect.balance,
+            agenda: dissect.agenda ?? null,
             overall: dissect.overall ?? null,
             coach_version: "meeting-dissect-v1",
           },
