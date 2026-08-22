@@ -19,6 +19,11 @@ Severity legend: **HIGH** = silent data loss or a falsehood shown to the rep · 
 recoverable loss · **LOW** = cosmetic / low blast-radius. **[verified]** = re-read against code this session;
 **[reported]** = auditor evidence, not yet re-verified by me.
 
+> **STATUS (2026-08-22): ALL HIGH findings closed + deployed.** H1 `d9160efe` (empty-audio honesty) · H2
+> `6453218b` (crash/timeout loop terminalises) · H3 `0455ffca` (lost write never dressed as complete) · H4
+> `664f54da` (transient Dissect self-heals). Bundle A (H1-H3) + Bundle C's HIGH (H4) done. Remaining: MED
+> (M1-M4) + LOW (L1-L2).
+
 ---
 
 ## HIGH

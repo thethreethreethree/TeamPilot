@@ -132,6 +132,12 @@ export function DoorLog() {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(body),
+            // keepalive (audit M2): "zero-waiting" returns to idle the instant this fire-and-forget POST is in
+            // flight, so a rep walking to the next door / backgrounding the PWA would abandon it and lose the
+            // pitch (or knock) record. keepalive lets the browser finish the request across the page's unload.
+            // Safe here: these bodies are tiny (kind/outcome/name/recordingId) — far under the 64KB keepalive cap
+            // (the audio itself already streamed as live chunks, not through this POST).
+            keepalive: true,
           });
           return { ok: r.ok, status: r.status };
         } catch {

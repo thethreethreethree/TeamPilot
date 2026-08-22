@@ -31,14 +31,14 @@ vi.mock("@/lib/supabase/client", () => ({
 import { DoorLog } from "../DoorLog";
 
 const KPI = { doorsKnocked: 0, sold: 0, goBacks: 0, notInterested: 0 };
-type Post = { body: Record<string, unknown> };
+type Post = { body: Record<string, unknown>; keepalive?: boolean };
 
 function mockFetchCapturing(posts: Post[]) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: string, init?: { method?: string; body?: string }) => {
+    vi.fn(async (_url: string, init?: { method?: string; body?: string; keepalive?: boolean }) => {
       if (init?.method === "POST") {
-        posts.push({ body: JSON.parse(init.body ?? "{}") });
+        posts.push({ body: JSON.parse(init.body ?? "{}"), keepalive: init.keepalive });
         return { ok: true, status: 200, json: async () => ({ knockId: "k1", pitchId: "p1" }) };
       }
       return { ok: true, status: 200, json: async () => KPI };
@@ -80,5 +80,26 @@ describe("DoorLog — chunked recordings save by reference (no large final uploa
     expect(posts.some((p) => p.body.kind === "sign")).toBe(false);
     // No red failure banner.
     expect(screen.queryByText(/didn't save/i)).toBeNull();
+    // audit M2: the pitch POST must use keepalive so it survives the rep walking to the next door mid-flight.
+    expect(pitch.keepalive).toBe(true);
+  });
+
+  it("the door-log POST uses keepalive (audit M2 — survives the rep leaving before it completes)", async () => {
+    const posts: Post[] = [];
+    mockFetchCapturing(posts);
+    render(<DoorLog />);
+    await waitFor(() => expect(screen.getByText("Record Pitch")).toBeTruthy());
+
+    fireEvent.click(screen.getByText("Record Pitch"));
+    await waitFor(() => expect(screen.getByText("Stop")).toBeTruthy());
+    fireEvent.click(screen.getByText("Stop"));
+    await waitFor(() => expect(screen.getByText("How did it go?")).toBeTruthy());
+    fireEvent.click(screen.getByText("Sold"));
+    await waitFor(() => expect(screen.getByText(/Save & Next Door/i)).toBeTruthy());
+    fireEvent.click(screen.getByText(/Save & Next Door/i));
+
+    // EVERY door-log POST (knock or pitch) is fire-and-forget from the rep's view, so all must be keepalive.
+    await waitFor(() => expect(posts.some((p) => p.body.kind === "pitch")).toBe(true));
+    expect(posts.every((p) => p.keepalive === true)).toBe(true);
   });
 });

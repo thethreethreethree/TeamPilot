@@ -40,7 +40,9 @@ const PitchBody = z.object({
   // Audio arrives one of two ways: `recordingId` (the durable path — chunks uploaded DURING recording, the
   // server stitches them) OR `storagePath` (the single-blob fallback). Exactly one is expected; both optional
   // in the schema so a degraded client that has neither still gets an honest 400 rather than a hard parse fail.
-  storagePath: z.string().max(400).optional(),
+  // min(1) (audit M3): a present-but-EMPTY storagePath is a client contract violation, not a valid path — reject
+  // it at the schema boundary so it can never mint a pitch with an empty audio_path (a doomed worker claim).
+  storagePath: z.string().min(1).max(400).optional(),
   recordingId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
 const Body = z.discriminatedUnion("kind", [KnockBody, SignBody, PitchBody]);
