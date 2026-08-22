@@ -2,9 +2,14 @@ import { MeetingCoachingPanel } from "@/components/sales-coach/MeetingCoachingPa
 
 /**
  * Meeting Coach (Team-Sync) — live meeting/huddle coaching. The panel owns session creation + the live loop.
- * Auth/company context is provided by the dashboard layout (same as the sales-coach routes). Nav integration
- * and module-access gating are follow-ups; the route is reachable by URL for the in-person MVP.
+ * When arriving from Prep-up ("Start Meeting"), the `prepId` query binds the new session to that prep so the
+ * coach loads its agenda (goal + must-discuss topics + docs). Auth/company context comes from the dashboard layout.
  */
-export default function MeetingCoachPage() {
-  return <MeetingCoachingPanel />;
+export default async function MeetingCoachPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ prepId?: string }>;
+}) {
+  const { prepId } = await searchParams;
+  return <MeetingCoachingPanel initialPrepId={typeof prepId === "string" ? prepId : undefined} />;
 }

@@ -17,7 +17,7 @@ import { MeetingHistoryList } from "@/components/sales-coach/MeetingHistoryList"
 type Kind = "meeting" | "huddle";
 type Ctx = "in_person" | "video";
 
-export function MeetingCoachingPanel() {
+export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string } = {}) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind>("meeting");
   const [context, setContext] = useState<Ctx>("in_person");
@@ -65,7 +65,8 @@ export function MeetingCoachingPanel() {
       const res = await fetch("/api/coach/meeting-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, context, title: title.trim() }),
+        // Carry the Prep-up link so the session binds to its agenda (the coach loads goal + topics + docs).
+        body: JSON.stringify({ kind, context, title: title.trim(), ...(initialPrepId ? { prepId: initialPrepId } : {}) }),
       });
       const data = (await res.json().catch(() => null)) as { session?: { id: string }; error?: string } | null;
       if (!res.ok || !data?.session) {
@@ -123,6 +124,22 @@ export function MeetingCoachingPanel() {
             unassigned actions — in your earpiece. It advises; you run the room.
           </p>
         </div>
+
+        {initialPrepId ? (
+          <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            ✓ Your prep is loaded — the coach will keep this meeting on your goal + must-discuss topics.
+          </p>
+        ) : (
+          <Link
+            href="/dashboard/meeting-coach/prep"
+            className="rounded-lg border border-ember-400/40 bg-ember-400/[0.06] px-3 py-2.5 text-sm text-primary hover:border-ember-400/70 transition-colors"
+          >
+            <span className="font-semibold">Prep this meeting first →</span>
+            <span className="mt-0.5 block text-xs text-muted">
+              Add the goal, must-discuss topics, and documents so the coach keeps you on the agenda.
+            </span>
+          </Link>
+        )}
 
         <label className="flex flex-col gap-1 text-sm text-secondary">
           What is this?

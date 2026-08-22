@@ -5,6 +5,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSession, listAgentMeetingSessions } from "@/lib/data/salesCoach";
+import { markMeetingPrepStarted } from "@/lib/data/meetingPrep";
 
 /**
  * Meeting Coach (Team-Sync) — session collection. Sibling of the sales-session create route, re-aimed at
@@ -21,6 +22,9 @@ const CreateSchema = z.object({
   context: z.enum(["in_person", "video"]),
   // A title, required before the session begins (mirrors sales — an untitled session is ambiguous in history).
   title: z.string().trim().min(1).max(200),
+  // Optional Prep-up link (founder 2026-08-22): when the meeting was prepped, the session is bound to that prep
+  // so the live coach loads its agenda (goal + must-discuss topics + docs). Absent → a prep-less meeting.
+  prepId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -52,6 +56,14 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Bind the Prep-up to this session so the live cue route finds its agenda (by session_id). Owner-scoped via
+  // RLS (the caller must own the prep). Best-effort: a failed link degrades to a prep-less meeting, never blocks
+  // the meeting from starting.
+  if (body.prepId) {
+    await markMeetingPrepStarted({ prepId: body.prepId, sessionId: session.id });
+  }
+
   return NextResponse.json({ session });
 }
 

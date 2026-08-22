@@ -10,10 +10,12 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
 vi.mock("@/lib/data/salesCoach", () => ({ createSession: vi.fn(), listAgentMeetingSessions: vi.fn() }));
+vi.mock("@/lib/data/meetingPrep", () => ({ markMeetingPrepStarted: vi.fn(async () => true) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { createSession, listAgentMeetingSessions } from "@/lib/data/salesCoach";
+import { markMeetingPrepStarted } from "@/lib/data/meetingPrep";
 import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -60,6 +62,18 @@ describe("POST meeting-session (create)", () => {
   it("500 (fail-honest) when the insert returns null — 0237 likely unapplied", async () => {
     asMock(createSession).mockResolvedValue(null);
     expect((await POST(req(good))).status).toBe(500);
+  });
+
+  it("Prep-up: binds the prep to the new session when a prepId is given (founder 2026-08-22)", async () => {
+    const res = await POST(req({ ...good, prepId: "abcd1234-5678-90ab-cdef-1234567890ab" }));
+    expect(res.status).toBe(200);
+    expect(markMeetingPrepStarted).toHaveBeenCalledTimes(1);
+    expect(asMock(markMeetingPrepStarted).mock.calls[0]?.[0]).toMatchObject({ prepId: "abcd1234-5678-90ab-cdef-1234567890ab", sessionId: "s1" });
+  });
+
+  it("no prepId → prep-less meeting (never links a prep)", async () => {
+    await POST(req(good));
+    expect(markMeetingPrepStarted).not.toHaveBeenCalled();
   });
 });
 
