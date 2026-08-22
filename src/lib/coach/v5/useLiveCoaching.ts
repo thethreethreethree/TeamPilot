@@ -10,6 +10,7 @@ import {
   type PaceBaseline,
 } from "@/lib/coach/v5/liveStress";
 import { selectUnflushedSegments } from "@/lib/coach/v5/segmentFlush";
+import { reportCaptureDiag, buildCaptureDiag } from "@/lib/coach/captureDiag";
 import {
   detectF0,
   PitchSeparator,
@@ -387,6 +388,15 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // seam — onstop scans for the seam only in this case (the common single-recorder Stop is untouched).
   const recorderRecreatedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  // Capture-blindness sweep (founder 2026-08-23): observe WHY the recorder yields no audio instead of swallowing
+  // it. These feed the existing `audioCapturing` honest banner AND a `coach.capture_failed` diag on a
+  // meaningful-duration session that captured nothing. Reset on a fresh start; persist across a reconnect.
+  const captureSawDataRef = useRef(false);
+  const captureRecorderErrorRef = useRef<string | null>(null);
+  const captureTrackEndedRef = useRef(false);
+  const captureTrackMutedRef = useRef(false);
+  const captureStartedAtRef = useRef(0);
+  const captureDiagSentRef = useRef(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
   // Set true when the hook unmounts. start() awaits the mic prompt + token + ctx.resume BEFORE
@@ -1099,6 +1109,20 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       } else {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
+        // Capture-blindness sweep: a mic track that ENDS/MUTES mid-call (screen-lock / DND / a call / another app
+        // taking the mic) silently stops audio. Flip the honest banner OFF the moment it dies (don't wait for the
+        // next Stop) and note the cause for the diag.
+        const micTrack = stream.getAudioTracks()[0];
+        if (micTrack) {
+          micTrack.onended = () => {
+            captureTrackEndedRef.current = true;
+            if (!unmountedRef.current) setAudioCapturing(false);
+          };
+          micTrack.onmute = () => {
+            captureTrackMutedRef.current = true;
+            if (!unmountedRef.current) setAudioCapturing(false);
+          };
+        }
       }
       // Unmounted while the mic prompt was open? Free the stream and abort before building anything.
       if (unmountedRef.current) {
@@ -1119,14 +1143,27 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             setRecordingBlob(null);
             audioChunkSeqRef.current = 0; // fresh recording → chunk seq restarts at 0
             recorderRecreatedRef.current = false; // fresh recording → no seam
+            // Fresh capture-diagnostics accounting (founder 2026-08-23).
+            captureSawDataRef.current = false;
+            captureRecorderErrorRef.current = null;
+            captureTrackEndedRef.current = false;
+            captureTrackMutedRef.current = false;
+            captureDiagSentRef.current = false;
+            captureStartedAtRef.current = Date.now();
           } else {
             // Reconnect + we're (re)creating the recorder → the old one died mid-session (track loss). The
             // captured chunks now span two webm recordings; flag it so onstop drops the corrupt seam.
             recorderRecreatedRef.current = true;
           }
           const rec = new MediaRecorder(stream);
+          rec.onerror = (e: Event) => {
+            const err = (e as unknown as { error?: { name?: string; message?: string } }).error;
+            captureRecorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
+            if (!unmountedRef.current) setAudioCapturing(false);
+          };
           rec.ondataavailable = (e) => {
             if (e.data.size === 0) return;
+            captureSawDataRef.current = true;
             chunksRef.current.push(e.data);
             // "Never lose the recording" (founder 2026-08-21): upload each chunk fire-and-forget so the audio
             // is in storage no matter how the session ends (drop / tab-close / never-Stop). Sequential
@@ -1137,7 +1174,31 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
             setAudioCapturing(false);
             const all = chunksRef.current;
-            if (all.length === 0) return;
+            if (all.length === 0) {
+              // A session that ran a MEANINGFUL length but captured NOTHING is a real capture failure — report the
+              // ground-truth cause (capture-blindness sweep). A quick start/stop (<3s) with no chunks is not a
+              // failure worth reporting. Once per session.
+              const dur = captureStartedAtRef.current ? Date.now() - captureStartedAtRef.current : 0;
+              if (dur > 3000 && !captureDiagSentRef.current) {
+                captureDiagSentRef.current = true;
+                reportCaptureDiag(
+                  "live",
+                  buildCaptureDiag({
+                    sawData: captureSawDataRef.current,
+                    chunkCount: 0,
+                    chunksUploaded: audioChunkSeqRef.current,
+                    durationMs: dur,
+                    mimeType: rec.mimeType,
+                    recorderError: captureRecorderErrorRef.current,
+                    trackEnded: captureTrackEndedRef.current,
+                    trackMuted: captureTrackMutedRef.current,
+                    track: streamRef.current?.getAudioTracks()[0] ?? null,
+                  }),
+                  sessionId,
+                );
+              }
+              return;
+            }
             const buildBlob = (cs: Blob[]) => new Blob(cs, { type: cs[0]?.type || "audio/webm" });
             // Common case: one recorder for the whole call → the chunks are one valid webm.
             if (!recorderRecreatedRef.current) {

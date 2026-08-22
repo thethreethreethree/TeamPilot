@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CueMode } from "@/lib/data/salesCoach";
 import { persistRecording } from "@/lib/coach/v5/persistRecording";
+import { reportCaptureDiag, buildCaptureDiag } from "@/lib/coach/captureDiag";
 
 /**
  * useMeetingCoaching — the LIVE capture + cue loop for Meeting Coach (Team-Sync), sibling of useLiveCoaching but
@@ -114,6 +115,14 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   // Count of chunks that actually landed in storage during the call (audit M4) — the durable-audio evidence the
   // clean-Stop persist falls back on. Accumulates across reconnects; reset only on a fresh start.
   const chunkOkRef = useRef(0);
+  // Capture-blindness sweep (founder 2026-08-23): observe WHY the recorder yields no audio, and report a diag on a
+  // meaningful-duration session that captured nothing. Reset on a fresh start.
+  const captureSawDataRef = useRef(false);
+  const captureRecorderErrorRef = useRef<string | null>(null);
+  const captureTrackEndedRef = useRef(false);
+  const captureTrackMutedRef = useRef(false);
+  const captureStartedAtRef = useRef(0);
+  const captureDiagSentRef = useRef(false);
   const stoppedRef = useRef(false);
   const unmountedRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
@@ -257,6 +266,12 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         lastCueAtRef.current = 0;
         micLevelRef.current = 0;
         chunkOkRef.current = 0; // fresh recording-durability accounting (audit M4)
+        captureSawDataRef.current = false;
+        captureRecorderErrorRef.current = null;
+        captureTrackEndedRef.current = false;
+        captureTrackMutedRef.current = false;
+        captureDiagSentRef.current = false;
+        captureStartedAtRef.current = 0;
         setRecordingSaved(null);
         setError(null);
         setCurrentCue(null);
@@ -296,10 +311,22 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         if (!isReconnect) {
           chunksRef.current = [];
           audioSeqRef.current = 0;
+          captureStartedAtRef.current = Date.now();
+          // Capture-blindness sweep: watch the mic track dying mid-call (screen-lock / DND / a call / another app).
+          const micTrack = stream.getAudioTracks()[0];
+          if (micTrack) {
+            micTrack.onended = () => { captureTrackEndedRef.current = true; };
+            micTrack.onmute = () => { captureTrackMutedRef.current = true; };
+          }
           try {
             const rec = new MediaRecorder(stream);
+            rec.onerror = (e: Event) => {
+              const err = (e as unknown as { error?: { name?: string; message?: string } }).error;
+              captureRecorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
+            };
             rec.ondataavailable = (e) => {
               if (e.data.size === 0) return;
+              captureSawDataRef.current = true;
               chunksRef.current.push(e.data);
               // durable during the call; track whether it actually landed so Stop can tell the truth (M4)
               void postMeetingAudioChunk(sessionId, audioSeqRef.current++, e.data).then((ok) => {
@@ -309,6 +336,27 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
             rec.onstop = () => {
               const all = chunksRef.current;
               const blob = all.length ? new Blob(all, { type: all[0]?.type || "audio/webm" }) : null;
+              // Capture-blindness sweep: a meaningful-duration meeting that captured NOTHING (no blob AND no chunk
+              // landed) is a real failure — report the ground-truth cause. Once per session.
+              const dur = captureStartedAtRef.current ? Date.now() - captureStartedAtRef.current : 0;
+              if (!blob && chunkOkRef.current === 0 && dur > 3000 && !captureDiagSentRef.current) {
+                captureDiagSentRef.current = true;
+                reportCaptureDiag(
+                  "meeting",
+                  buildCaptureDiag({
+                    sawData: captureSawDataRef.current,
+                    chunkCount: 0,
+                    chunksUploaded: chunkOkRef.current,
+                    durationMs: dur,
+                    mimeType: rec.mimeType,
+                    recorderError: captureRecorderErrorRef.current,
+                    trackEnded: captureTrackEndedRef.current,
+                    trackMuted: captureTrackMutedRef.current,
+                    track: streamRef.current?.getAudioTracks()[0] ?? null,
+                  }),
+                  sessionId,
+                );
+              }
               if (blob) {
                 // Clean-Stop full-blob persist (stamps audio_asset_url). On success the recording is durable; on
                 // failure it's durable ONLY if a chunk already landed — otherwise the review would be a false

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoicePhase } from "./VoiceSurface";
 import { detectBrowser, getRecoverySteps } from "./micPermission";
+import { reportCaptureDiag, buildCaptureDiag } from "@/lib/coach/captureDiag";
 
 /**
  * Voice call hook — Phase 9, rewritten to "phone call" shape
@@ -144,6 +145,11 @@ export function useVoiceMode(args: {
   const callActiveRef = useRef(false); // tracks "are we in a call" without going through render
   const speechStartedAtRef = useRef<number | null>(null);
   const lastEnergyAboveAtRef = useRef<number | null>(null);
+  // Capture-blindness sweep (founder 2026-08-23): a CARE call can go DEAF mid-call (the mic track ends/mutes on
+  // screen-lock / another app / a phone call, or the recorder errors) — the code notes the "permanently-deaf call"
+  // risk but never detected it. Report it once so the cause is on the record instead of a silent dead call.
+  const careDeafReportedRef = useRef(false);
+  const careRecorderErrorRef = useRef<string | null>(null);
   // 2026-06-17 — bug fix refs (user reported Jeff said the same
   // reply 5 times and interrupted himself mid-sentence):
   //  - turnInFlightRef: hard lock. While a turn is processing (STT
@@ -464,6 +470,24 @@ export function useVoiceMode(args: {
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
+
+    // Capture-blindness sweep: a MediaRecorder error used to vanish silently. Record it + report once (surface
+    // "care") so a deaf turn/call is explainable. Best-effort; never blocks the turn loop.
+    recorder.onerror = (e: Event) => {
+      const err = (e as unknown as { error?: { name?: string; message?: string } }).error;
+      careRecorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
+      if (!careDeafReportedRef.current) {
+        careDeafReportedRef.current = true;
+        reportCaptureDiag(
+          "care",
+          buildCaptureDiag({
+            sawData: false,
+            recorderError: careRecorderErrorRef.current,
+            track: streamRef.current?.getAudioTracks()[0] ?? null,
+          }),
+        );
+      }
     };
 
     recorder.onstop = async () => {
@@ -860,6 +884,29 @@ export function useVoiceMode(args: {
     setVoicePhase("connecting");
     setVoiceTranscript(null);
     streamRef.current = stream;
+    careDeafReportedRef.current = false;
+    careRecorderErrorRef.current = null;
+    // Capture-blindness sweep: if the mic track ENDS/MUTES mid-call the call goes deaf silently. Report the cause
+    // once (surface "care") so a dead call is explainable instead of a mystery. Best-effort; never touches the loop.
+    const careTrack = stream.getAudioTracks()[0];
+    const reportDeaf = (trackEnded: boolean, trackMuted: boolean) => {
+      if (careDeafReportedRef.current) return;
+      careDeafReportedRef.current = true;
+      reportCaptureDiag(
+        "care",
+        buildCaptureDiag({
+          sawData: false,
+          recorderError: careRecorderErrorRef.current,
+          trackEnded,
+          trackMuted,
+          track: streamRef.current?.getAudioTracks()[0] ?? null,
+        }),
+      );
+    };
+    if (careTrack) {
+      careTrack.onended = () => reportDeaf(true, false);
+      careTrack.onmute = () => reportDeaf(false, true);
+    }
 
     // AudioContext for VAD energy polling.
     const AC =
