@@ -116,5 +116,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     agenda,
   });
 
+  // A TRANSIENT failure (token-starvation / parse-failure / throw / suppressed) wrote NO backoff marker (audit
+  // H4), so it isn't cached as a permanent empty. Tell the client the truth — it didn't generate and is
+  // retryable — instead of showing the honest-looking empty state that hid a recoverable failure.
+  if (dissect.outcome === "transient") {
+    return NextResponse.json(
+      { dissect: null, retryable: true, error: "The review didn't generate this time — please try again." },
+      { status: 503 }
+    );
+  }
+
   return NextResponse.json({ dissect, cached: false });
 }

@@ -24,7 +24,9 @@ export async function generateMeetingDissect(args: {
   agenda?: MeetingAgenda;
 }): Promise<MeetingDissect> {
   try {
-    if (args.segments.length === 0) return EMPTY_MEETING_DISSECT;
+    // No transcript segments — the audio transcribed to nothing (a genuinely silent meeting). Honest empty; a
+    // re-transcribe of silent audio won't differ, so this legitimately backs off (not a "transient" retry).
+    if (args.segments.length === 0) return { ...EMPTY_MEETING_DISSECT, outcome: "empty" };
 
     const systemPrompt = buildMeetingDissectSystemPrompt();
     const userMessage = buildMeetingDissectUserMessage({
@@ -34,23 +36,28 @@ export async function generateMeetingDissect(args: {
     });
 
     const r = await dissectCoachV5({ companyId: args.companyId, systemPrompt, userMessage });
-    if (r.suppressed) return EMPTY_MEETING_DISSECT;
+    // Control-suppressed → the LLM never ran; TRANSIENT (retry on the next view), never a permanent empty.
+    if (r.suppressed) return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
 
     if (!r.text || !r.text.trim()) {
       // eslint-disable-next-line no-console
       console.error(
-        `[generateMeetingDissect] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely token-budget starvation. Dissect will be blank.`
+        `[generateMeetingDissect] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely token-budget starvation. TRANSIENT — the next view will retry (audit H4).`
       );
-      return EMPTY_MEETING_DISSECT;
+      return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
     }
 
     const parsed = parseMeetingDissect(r.text);
     if (!parsed.hasSignal) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `[generateMeetingDissect] parse produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no consequence extracted.`
-      );
-      return EMPTY_MEETING_DISSECT;
+      // parsed.outcome distinguishes a GENUINE thin meeting ("empty" — legitimate backoff) from an unparseable
+      // token-starved response ("transient" — retry). Only the transient case is a defect worth logging loudly.
+      if (parsed.outcome === "transient") {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[generateMeetingDissect] parse FAILED (textLen=${r.text.length}, model=${r.model}) — unparseable JSON; TRANSIENT, will retry (audit H4).`
+        );
+      }
+      return parsed;
     }
     // Balance is computed from the diarized segments (not the LLM) — the plan's imbalance monitor, realized
     // post-hoc. Null when < 2 speaking participants (the parse left it null; fill it here).
@@ -70,11 +77,12 @@ export async function generateMeetingDissect(args: {
       };
     }
 
-    return { ...parsed, balance, ...(agenda ? { agenda } : {}) };
+    return { ...parsed, balance, outcome: "signal", ...(agenda ? { agenda } : {}) };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(`[generateMeetingDissect] threw: ${e instanceof Error ? e.message : String(e)}`);
-    return EMPTY_MEETING_DISSECT;
+    // A throw is TRANSIENT (network/LLM blip) — never a permanent empty; the next view retries (audit H4).
+    return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
   }
 }
 
@@ -100,8 +108,9 @@ export async function generateAndStoreMeetingDissect(args: {
     agenda: args.agenda,
   });
   const subject = `meeting_session:${args.sessionId}`;
+  const outcome = dissect.outcome ?? (dissect.hasSignal ? "signal" : "empty");
 
-  if (dissect.hasSignal) {
+  if (outcome === "signal") {
     try {
       await createAdminClient()
         .from("events")
@@ -124,10 +133,10 @@ export async function generateAndStoreMeetingDissect(args: {
     } catch {
       /* best-effort — the dissect still returns */
     }
-  } else {
-    // No signal (the LLM ran and found nothing, OR the transcription yielded zero segments) — ALWAYS emit an
-    // ATTEMPTED marker so the interactive dissect route (and any future backfill) BACKS OFF instead of re-running
-    // a full batch STT + ~20s LLM on this same session every view (review finding #1; the 2026-08-14 cost loop).
+  } else if (outcome === "empty") {
+    // GENUINE thin meeting — the LLM ran, parsed, and found no decisions/actions (or the audio was silent). Emit
+    // the ATTEMPTED backoff marker so the route BACKS OFF instead of re-running batch STT + ~20s LLM every view
+    // (review finding #1; the 2026-08-14 cost loop). This is the ONLY no-signal case that should back off.
     try {
       await createAdminClient()
         .from("events")
@@ -142,5 +151,8 @@ export async function generateAndStoreMeetingDissect(args: {
       /* best-effort — the backoff just doesn't apply this run */
     }
   }
+  // outcome === "transient": DO NOT write a marker (audit H4). A one-off token-starvation / parse-failure / throw
+  // must NOT be cached as a permanent empty — the meeting has real content in the audio. With no marker, the route
+  // re-transcribes + retries on the next view and self-heals (a success then writes the durable generated event).
   return dissect;
 }

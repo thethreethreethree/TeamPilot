@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+import { dissectCoachV5 } from "@/lib/claude";
 const { generateAndStoreMeetingDissect } = await import("../generateMeetingDissect");
 
 let s = 0;
@@ -66,11 +67,39 @@ describe("generateAndStoreMeetingDissect", () => {
     expect((state.inserts[0]!.payload as Record<string, unknown>).reason).toBe("no_signal");
   });
 
-  it("stores an ATTEMPTED backoff marker even with no segments (silent/failed transcription — finding #1)", async () => {
+  it("stores an ATTEMPTED backoff marker even with no segments (silent transcription → genuine empty)", async () => {
     const d = await generateAndStoreMeetingDissect({ companyId: "co1", actorId: "u1", sessionId: "s3", segments: [] });
     expect(d.hasSignal).toBe(false);
     expect(state.inserts).toHaveLength(1);
     expect(state.inserts[0]!.kind).toBe("meeting.dissect_attempted");
+  });
+
+  it("writes NO marker on a TRANSIENT empty-LLM-text run (audit H4) — the next view retries, not a permanent empty", async () => {
+    state.dissectText = ""; // token-starvation: empty text → transient, NOT a thin meeting
+    const d = await generateAndStoreMeetingDissect({
+      companyId: "co1", actorId: "u1", sessionId: "s6", segments: [seg("Al", "we decided to ship")],
+    });
+    expect(d.hasSignal).toBe(false);
+    expect(d.outcome).toBe("transient");
+    expect(state.inserts).toHaveLength(0); // NO backoff marker — the real content is still recoverable on retry
+  });
+
+  it("writes NO marker when the dissect LLM throws (audit H4 — transient, retryable)", async () => {
+    vi.mocked(dissectCoachV5).mockRejectedValueOnce(new Error("network blip"));
+    const d = await generateAndStoreMeetingDissect({
+      companyId: "co1", actorId: "u1", sessionId: "s7", segments: [seg("Al", "hi"), seg("Bo", "ok")],
+    });
+    expect(d.outcome).toBe("transient");
+    expect(state.inserts).toHaveLength(0);
+  });
+
+  it("writes NO marker when the LLM response is UNPARSEABLE (audit H4 — transient, not a thin meeting)", async () => {
+    state.dissectText = "sorry, I can't"; // non-JSON → parse failure → transient
+    const d = await generateAndStoreMeetingDissect({
+      companyId: "co1", actorId: "u1", sessionId: "s8", segments: [seg("Al", "we agreed on the budget")],
+    });
+    expect(d.outcome).toBe("transient");
+    expect(state.inserts).toHaveLength(0);
   });
 
   it("measures Prep-up agenda coverage into the stored payload (Phase 4, founder 2026-08-22)", async () => {

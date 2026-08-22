@@ -49,10 +49,12 @@ describe("parseMeetingDissect", () => {
     expect(d.decisions[0]?.decision).toBe("Adopt X");
   });
 
-  it("returns EMPTY (not a fabricated review) on malformed / non-object / non-JSON", () => {
-    expect(parseMeetingDissect("not json")).toEqual(EMPTY_MEETING_DISSECT);
-    expect(parseMeetingDissect("[1,2,3]")).toEqual(EMPTY_MEETING_DISSECT);
-    expect(parseMeetingDissect("")).toEqual(EMPTY_MEETING_DISSECT);
+  it("returns no-signal (not a fabricated review) on malformed / non-object / non-JSON", () => {
+    for (const bad of ["not json", "[1,2,3]", ""]) {
+      const d = parseMeetingDissect(bad);
+      expect(d.hasSignal).toBe(false);
+      expect({ ...d, outcome: undefined }).toEqual({ ...EMPTY_MEETING_DISSECT, outcome: undefined });
+    }
     expect(parseMeetingDissect("{}").hasSignal).toBe(false);
   });
 
@@ -60,5 +62,17 @@ describe("parseMeetingDissect", () => {
     const d = parseMeetingDissect(JSON.stringify({ effectiveness: { focused: false, note: "circled, never decided" } }));
     expect(d.hasSignal).toBe(true);
     expect(d.effectiveness?.focused).toBe(false);
+  });
+
+  it("outcome distinguishes TRANSIENT (unparseable) from EMPTY (parsed thin meeting) from SIGNAL (audit H4)", () => {
+    // Unparseable / non-object → transient: a token-starved truncated response, must NOT permanently back off.
+    expect(parseMeetingDissect("not json").outcome).toBe("transient");
+    expect(parseMeetingDissect("[1,2,3]").outcome).toBe("transient");
+    expect(parseMeetingDissect("").outcome).toBe("transient");
+    // Valid JSON that parsed but carried no consequence → a GENUINE thin meeting → empty (legitimate backoff).
+    expect(parseMeetingDissect("{}").outcome).toBe("empty");
+    expect(parseMeetingDissect(JSON.stringify({ decisions: [], actions: [], openItems: [] })).outcome).toBe("empty");
+    // A real dissect → signal.
+    expect(parseMeetingDissect(JSON.stringify({ decisions: [{ decision: "Ship", context: "" }] })).outcome).toBe("signal");
   });
 });

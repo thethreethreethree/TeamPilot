@@ -35,8 +35,18 @@ export type DissectAgenda = {
   topics: Array<{ text: string; covered: boolean }>;
 };
 
+/**
+ * Why the dissect produced no signal (audit H4, 2026-08-22) — so the store can tell a GENUINE thin meeting
+ * ("empty": the LLM ran, parsed, found nothing → back off permanently) from a TRANSIENT failure ("transient":
+ * empty LLM text / unparseable JSON / a throw / control-suppressed → DON'T back off; let the next view retry so
+ * a real meeting's content isn't lost to a one-off token-starvation). "signal": a real dissect.
+ */
+export type DissectOutcome = "signal" | "empty" | "transient";
+
 export type MeetingDissect = {
   hasSignal: boolean;
+  /** Set by generateMeetingDissect (and parseMeetingDissect for the parse branch). Absent = treat as its hasSignal. */
+  outcome?: DissectOutcome;
   decisions: DissectDecision[];
   actions: DissectAction[];
   openItems: DissectOpenItem[];
@@ -79,9 +89,12 @@ export function parseMeetingDissect(text: string): MeetingDissect {
     const m = text.match(/\{[\s\S]*\}/);
     raw = JSON.parse(m ? m[0] : text);
   } catch {
-    return EMPTY_MEETING_DISSECT;
+    // Unparseable JSON is a TRANSIENT failure (a truncated/token-starved response), NOT a thin meeting (H4).
+    return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
   }
-  if (!raw || typeof raw !== "object") return EMPTY_MEETING_DISSECT;
+  // An array (or non-object) is malformed — not the expected dissect object. typeof [] === "object", so guard it
+  // explicitly. Malformed shape is a TRANSIENT failure (the model produced garbage), not a thin meeting.
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
   const o = raw as Record<string, unknown>;
 
   const decisions: DissectDecision[] = arr(o.decisions)
@@ -124,6 +137,9 @@ export function parseMeetingDissect(text: string): MeetingDissect {
 
   return {
     hasSignal,
+    // Parsed cleanly: a real dissect is "signal"; a valid-but-empty response is a GENUINE thin meeting ("empty"),
+    // which legitimately backs off — distinct from the "transient" parse-failure above.
+    outcome: hasSignal ? "signal" : "empty",
     decisions,
     actions,
     openItems,
