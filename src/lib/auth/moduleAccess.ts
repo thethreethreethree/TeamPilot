@@ -24,6 +24,11 @@ export type PathModule = LockedModule | "elostate";
 // middleware guard and the login/redeem landing (the A21 "one concept, two encodings" class).
 export const SALES_COACH_ROOT = "/dashboard/sales-coach";
 export const CARE_ROOT = "/dashboard/care";
+// Meeting Coach (Team-Sync) lives at a top-level route but is part of the SALES_COACH entitlement (founder
+// 2026-08-23 go-live): it reuses the Sales Coach engine + its components live under sales-coach/, and the Sales
+// Coach shell surfaces it. So a sales_coach-locked account may reach it; without this classification the
+// single-module lock (0207) would silently redirect them away (moduleForPath would call it the elostate hub).
+export const MEETING_COACH_ROOT = "/dashboard/meeting-coach";
 
 /**
  * The module a path belongs to. A path is a module's iff it IS the module root or sits under it (`root/`), so
@@ -31,6 +36,8 @@ export const CARE_ROOT = "/dashboard/care";
  */
 export function moduleForPath(pathname: string): PathModule {
   if (pathname === SALES_COACH_ROOT || pathname.startsWith(SALES_COACH_ROOT + "/")) return "sales_coach";
+  // Meeting Coach is bundled with the sales_coach entitlement (see MEETING_COACH_ROOT).
+  if (pathname === MEETING_COACH_ROOT || pathname.startsWith(MEETING_COACH_ROOT + "/")) return "sales_coach";
   if (pathname === CARE_ROOT || pathname.startsWith(CARE_ROOT + "/")) return "care";
   return "elostate";
 }

@@ -18,6 +18,17 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/dashboard/care")).toBe("care");
     expect(moduleForPath("/dashboard/care/conversations")).toBe("care");
   });
+  it("maps Meeting Coach into the sales_coach entitlement (Team-Sync go-live 2026-08-23)", () => {
+    // Meeting Coach reuses the Sales Coach engine + shell; it's bundled with sales_coach so a sales_coach-locked
+    // account isn't redirected away by the 0207 lock. A care-locked account still can't reach it; hub always can.
+    expect(moduleForPath("/dashboard/meeting-coach")).toBe("sales_coach");
+    expect(moduleForPath("/dashboard/meeting-coach/prep")).toBe("sales_coach");
+    expect(moduleForPath("/dashboard/meeting-coach/abc/review")).toBe("sales_coach");
+    expect(isPathAllowed("sales_coach", "/dashboard/meeting-coach")).toBe(true); // reachable by sales_coach lock
+    expect(isPathAllowed("care", "/dashboard/meeting-coach")).toBe(false); // NOT a care feature
+    expect(isPathAllowed(null, "/dashboard/meeting-coach")).toBe(true); // hub always
+    expect(moduleForPath("/dashboard/meeting-coach-x")).toBe("elostate"); // lookalike is not the subtree
+  });
   it("treats the hub + any other route as elostate", () => {
     expect(moduleForPath("/dashboard")).toBe("elostate");
     expect(moduleForPath("/dashboard/settings")).toBe("elostate");

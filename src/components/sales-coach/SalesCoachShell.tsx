@@ -25,6 +25,7 @@ import {
   Library,
   MessageSquare,
   Mic,
+  Presentation,
   Puzzle,
   Settings,
   Target,
@@ -78,9 +79,19 @@ type NavSection = { header?: string; items: NavItem[]; collapsible?: boolean };
 // header shows (AMD-006 L3). The mockup's "1. / 2. / 3." denote ORDER, not literal numbering — items are not
 // number-prefixed (consistent with the rest of the product's nav). "One Liners" is the universal label; route
 // path kept as /strategy so existing links don't break.
+// Meeting Coach (Team-Sync) go-live gate (founder 2026-08-23). NEXT_PUBLIC_* is inlined at build time, so the nav
+// entry only appears once the founder sets NEXT_PUBLIC_MEETING_COACH_ENABLED=true (AFTER applying migrations 0237 +
+// 0238) and redeploys — the feature never advertises before its DB is in place (§1.5.3). See docs/MEETING-COACH-GO-LIVE.md.
+const MEETING_COACH_ENABLED = process.env.NEXT_PUBLIC_MEETING_COACH_ENABLED === "true";
+
 const NAV_SECTIONS: NavSection[] = [
   {
-    items: [{ label: "Home", href: "/dashboard/sales-coach", icon: Home }],
+    items: [
+      { label: "Home", href: "/dashboard/sales-coach", icon: Home },
+      ...(MEETING_COACH_ENABLED
+        ? [{ label: "Meeting Coach", href: "/dashboard/meeting-coach", icon: Presentation }]
+        : []),
+    ],
   },
   {
     header: "Manager Dashboard",

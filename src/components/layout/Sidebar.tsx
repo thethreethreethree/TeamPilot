@@ -35,6 +35,7 @@ import {
   Mic,
   X,
   CalendarDays,
+  Presentation,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -54,11 +55,18 @@ type NavHint = {
   principle?: string;
 };
 
+// Meeting Coach (Team-Sync) go-live gate (founder 2026-08-23). NEXT_PUBLIC_* is inlined at build time, so this
+// entry appears only once the founder sets NEXT_PUBLIC_MEETING_COACH_ENABLED=true (AFTER applying migrations 0237 +
+// 0238) and redeploys — the feature never advertises before its DB is in place (§1.5.3). See docs/MEETING-COACH-GO-LIVE.md.
+const MEETING_COACH_ENABLED = process.env.NEXT_PUBLIC_MEETING_COACH_ENABLED === "true";
+
 const productionNav: Array<{
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
   hint: NavHint;
+  /** Gated behind the Meeting Coach go-live flag — filtered out of the render until the flag is on. */
+  requiresMeetingCoachFlag?: boolean;
 }> = [
   {
     label: "Command Center",
@@ -266,6 +274,20 @@ const productionNav: Array<{
       how: "Start a session (online video or in-person), and your transcript, cues, and review attach to it. After the call, generate the growth review: strengths first, then opportunities with a concrete next step each. Watch your cue-reliance trend fall as the moves become yours.",
       principle:
         "Coach toward independence, not dependence: the goal is needing fewer cues over time, measured against your own past — never a ranking against others.",
+    },
+  },
+  {
+    label: "Meeting Coach",
+    href: "/dashboard/meeting-coach",
+    icon: Presentation,
+    requiresMeetingCoachFlag: true,
+    hint: {
+      whatItIs:
+        "Meeting Coach (Team-Sync). Real-time AI facilitation for team meetings and huddles: Prep-up captures the goal, must-discuss topics, and supporting documents beforehand, then the coach keeps the meeting on-agenda live and a post-meeting review scores what the meeting actually produced.",
+      why: "Meetings drift, run long, and end without owned actions. Prep-up + a live facilitation coach turn a meeting into a goal-directed session, and the review measures the meeting's real consequences — decisions, owned actions, topic coverage — not whether the coach's cues were followed.",
+      how: "Prep the meeting (goal + topics + docs), start the session, and the coach hints, nudges on drift, and flags a must-discuss topic left uncovered before you wrap. Afterward, open the review to see decisions, action items with owners, and agenda coverage.",
+      principle:
+        "Measure a meeting by what it produced, never by whether the AI's cues were obeyed — consequence over agreement.",
     },
   },
   {
@@ -763,7 +785,9 @@ export default function Sidebar() {
         <p className="px-3 mb-2 text-[10px] text-muted uppercase tracking-widest">
           Production
         </p>
-        {productionNav.map((item) => {
+        {productionNav
+          .filter((item) => !item.requiresMeetingCoachFlag || MEETING_COACH_ENABLED)
+          .map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
 
