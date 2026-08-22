@@ -10,7 +10,7 @@ import {
 import { computeLocalSalesDate, deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { createClient } from "@/lib/supabase/client";
 import { isRetryableStatus, needsSessionRefresh, failReasonFor } from "@/lib/coach/doorlog/saveRetry";
-import { useDoorRecorder } from "./useDoorRecorder";
+import { useDoorRecorder, type CaptureDiag } from "./useDoorRecorder";
 
 // Online-only send. The client offline queue (IndexedDB + auto-drain) is WITHHELD for now — founder
 // 2026-08-18: withhold the offline system until its build plan/structure is set, and until then keep it
@@ -18,6 +18,7 @@ import { useDoorRecorder } from "./useDoorRecorder";
 // re-enable. Writes go straight to the server; server-side dedupe on clientKnockId keeps an accidental
 // re-send idempotent, and the SERVER-side pitch-processing pipeline (worker/cron) is unaffected.
 const DOOR_LOG_URL = "/api/coach/sales-session/door-log";
+const DOOR_LOG_DIAG_URL = "/api/coach/sales-session/door-log/capture-diag";
 const AUDIO_BUCKET = "assets-v1";
 
 /**
@@ -81,6 +82,7 @@ export function DoorLog() {
     durationMs: number;
     chunksUploaded: number;
     recordingId: string | null;
+    diag: CaptureDiag;
   } | null>(null);
   // Minted at Record-tap, read at Save (a ref so the async chunk uploads + save never see a stale closure).
   const recordingIdRef = useRef<string | null>(null);
@@ -366,6 +368,23 @@ export function DoorLog() {
     setState((s) => transition(s, { type: "STOP_RECORD" }));
   }, [recorder]);
 
+  // Report the GROUND-TRUTH reason a recorded pitch produced no audio (founder 2026-08-23). Fire-and-forget +
+  // keepalive so it lands even as the rep moves on. This is what ends the guess-cycle: instead of assuming why
+  // capture failed, the recorder's own observations (mic track ended/muted, recorder error, tab hidden, wake-lock
+  // denied, mimeType, duration, UA) are recorded per occurrence and queryable.
+  const reportCaptureFailure = useCallback((diag: CaptureDiag) => {
+    try {
+      void fetch(DOOR_LOG_DIAG_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ localDate, diag }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      /* diagnostics are best-effort — never let them affect the rep's flow */
+    }
+  }, [localDate]);
+
   const pickOutcome = useCallback(
     (outcome: PitchOutcome) => {
       // No-mic path: log the outcome directly as a knock and go home — skip naming (nothing was recorded).
@@ -378,6 +397,8 @@ export function DoorLog() {
       // chunks but produced no final blob (it stopped early) DOES have audio and goes through the normal save.
       const hasAudio = !!(recorded?.blob || (recorded?.chunksUploaded ?? 0) > 0);
       if (!hasAudio) {
+        // Report WHY capture produced nothing so the real cause is on the record, not assumed.
+        if (recorded?.diag) reportCaptureFailure(recorded.diag);
         logKnockOutcome(outcome, { audioDropped: true });
         return;
       }
@@ -385,7 +406,7 @@ export function DoorLog() {
       setName(defaultPitchName());
       setState((s) => transition(s, { type: "PICK_OUTCOME", outcome }));
     },
-    [noRecord, recorded, logKnockOutcome]
+    [noRecord, recorded, logKnockOutcome, reportCaptureFailure]
   );
 
   const save = useCallback(async () => {
@@ -539,6 +560,16 @@ export function DoorLog() {
                 );
               })}
             </div>
+            {/* LIVE capture-loss warning (founder 2026-08-23): the mic track died mid-pitch (screen-lock / DND /
+                a phone call / another app took the mic) — the top "recorded no audio" cause. Tell the rep NOW so
+                they can recover the pitch (unlock the phone / bring the app forward), instead of discovering it
+                afterward. Prominent + honest — this is the moment the recording is being lost. */}
+            {recorder.captureInterrupted && (
+              <p className="max-w-xs text-center text-sm font-semibold text-red-400" role="alert">
+                ⚠ The mic stopped — audio isn&apos;t recording. Keep the screen on and the app open, then Stop and
+                re-record this pitch.
+              </p>
+            )}
             <button
               onClick={stopRecord}
               aria-label="Stop recording"

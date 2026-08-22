@@ -21,11 +21,35 @@ const DOOR_LOG_CHUNK_URL = "/api/coach/sales-session/door-log/audio-chunk";
 // MediaRecorder timeslice → ondataavailable fires this often, each firing a ~150-300 KB webm chunk we upload.
 const AUDIO_CHUNK_MS = 15_000;
 
+/**
+ * Ground-truth capture diagnostics (founder 2026-08-23) — the recorder used to swallow EVERY failure (no onerror,
+ * silent catches, no track-death detection), so a "recorded no audio" was impossible to explain and every fix was
+ * a guess. This is what the recorder actually observed, reported on any zero-audio outcome so the real cause is on
+ * the record instead of assumed.
+ */
+export type CaptureDiag = {
+  sawData: boolean; // did ondataavailable ever fire with bytes?
+  chunkCount: number; // local chunks captured
+  chunksUploaded: number; // chunks that reached storage
+  durationMs: number;
+  mimeType: string; // what MediaRecorder actually chose
+  recorderError: string | null; // MediaRecorder 'error' event, if any
+  trackEnded: boolean; // the mic track fired 'ended' mid-recording (screen-lock / phone call / app took the mic)
+  trackMuted: boolean; // the mic track went 'muted' mid-recording (suspended — the iOS pocket/lock case)
+  trackReadyState: string; // the audio track's readyState at stop ('live' | 'ended')
+  wakeLockGranted: boolean; // did the screen wake lock actually take (often false on iOS Safari)?
+  hiddenDuringRecording: number; // times the tab went hidden while recording (backgrounded → iOS suspends audio)
+  ua: string;
+};
+
 export function useDoorRecorder() {
   const [armed, setArmed] = useState(false);
   const [recording, setRecording] = useState(false);
   const [level, setLevel] = useState(0); // 0..1 live input level for the sound bar
   const [elapsedMs, setElapsedMs] = useState(0);
+  // The mic stopped delivering audio mid-recording (track ended/muted). Surfaced LIVE so the rep can recover the
+  // pitch in the moment (unlock the phone / bring the app forward) instead of discovering "no audio" afterward.
+  const [captureInterrupted, setCaptureInterrupted] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -42,6 +66,14 @@ export function useDoorRecorder() {
   const uploadedRef = useRef(0); // count of chunks that reached storage (drives the chunked-vs-fallback save)
   // Screen wake lock — kept while recording so the phone doesn't lock/dim and end the mic track.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const wakeLockGrantedRef = useRef(false);
+  // Ground-truth capture observations (per recording) — feed CaptureDiag so a zero-audio outcome is explainable.
+  const sawDataRef = useRef(false);
+  const recorderErrorRef = useRef<string | null>(null);
+  const trackEndedRef = useRef(false);
+  const trackMutedRef = useRef(false);
+  const hiddenDuringRef = useRef(0);
+  const mimeTypeRef = useRef("");
 
   /** Upload one recording chunk, best-effort with ONE idempotent retry. seq 0 carries the webm header, so its
    *  loss makes the whole recording unstitchable — the retry matters most there. Counts successful uploads. */
@@ -73,6 +105,7 @@ export function useDoorRecorder() {
       const nav = navigator as unknown as { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
       if (!nav.wakeLock) return;
       wakeLockRef.current = await nav.wakeLock.request("screen");
+      wakeLockGrantedRef.current = true; // it actually took (often FALSE on iOS Safari / in-app browsers — a top cause)
     } catch {
       /* wake lock unsupported / denied → recording still works; screen may lock (chunks already protect the audio) */
     }
@@ -138,13 +171,50 @@ export function useDoorRecorder() {
         seqRef.current = 0;
         uploadedRef.current = 0;
         recordingIdRef.current = recordingId ?? null;
+        // Reset per-recording diagnostics + the live interruption flag.
+        sawDataRef.current = false;
+        recorderErrorRef.current = null;
+        trackEndedRef.current = false;
+        trackMutedRef.current = false;
+        hiddenDuringRef.current = 0;
+        wakeLockGrantedRef.current = false;
+        setCaptureInterrupted(false);
+        // Record tap is a user gesture → resume the AudioContext so the sound-bar analyser actually runs on iOS
+        // Safari (a fresh AudioContext starts SUSPENDED and gives a misleading flat bar otherwise — the rep can't
+        // trust it as a "capture is working" signal). Best-effort; recording works regardless.
+        if (audioCtxRef.current?.state === "suspended") void audioCtxRef.current.resume().catch(() => {});
+        // Watch the actual MIC TRACK: if it ENDS or MUTES mid-pitch (screen-lock / DND / a phone call / another app
+        // grabbing the mic — the top iOS "recorded nothing" cause), the recorder silently yields no data. Detect it
+        // so we can (a) WARN the rep live to recover the pitch, and (b) report it as the ground-truth cause.
+        const track = streamRef.current.getAudioTracks()[0];
+        if (track) {
+          track.onended = () => {
+            trackEndedRef.current = true;
+            if (!unmountedRef.current) setCaptureInterrupted(true);
+          };
+          track.onmute = () => {
+            trackMutedRef.current = true;
+            if (!unmountedRef.current) setCaptureInterrupted(true);
+          };
+          track.onunmute = () => {
+            /* track resumed — keep the flag set; the rep was already warned and some audio was likely lost */
+          };
+        }
         const rec = new MediaRecorder(streamRef.current);
+        mimeTypeRef.current = rec.mimeType || "";
         rec.ondataavailable = (e) => {
           if (e.data.size === 0) return;
+          sawDataRef.current = true;
           chunksRef.current.push(e.data);
           // Upload this chunk during recording (durability). seq is assigned in emission order.
           const rid = recordingIdRef.current;
           if (rid) uploadChunk(rid, seqRef.current++, e.data);
+        };
+        // A MediaRecorder 'error' (encoder failure, track loss) used to vanish silently — capture it as the cause.
+        rec.onerror = (e: Event) => {
+          const err = (e as unknown as { error?: { name?: string; message?: string } }).error;
+          recorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
+          if (!unmountedRef.current) setCaptureInterrupted(true);
         };
         // Timeslice → ondataavailable fires every AUDIO_CHUNK_MS (not just once on stop), so chunks upload as we
         // go instead of one large blob at the end (the long-recording upload failure this fix exists to kill).
@@ -172,7 +242,7 @@ export function useDoorRecorder() {
    * captured); `chunksUploaded` is how many ~15s chunks reached storage during recording (the caller saves via
    * the stitched recordingId when >0, and falls back to uploading `blob` when 0).
    */
-  const stop = useCallback((): Promise<{ blob: Blob | null; durationMs: number; chunksUploaded: number }> => {
+  const stop = useCallback((): Promise<{ blob: Blob | null; durationMs: number; chunksUploaded: number; diag: CaptureDiag }> => {
     const durationMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     if (timerRef.current) clearInterval(timerRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -181,32 +251,51 @@ export function useDoorRecorder() {
     releaseWakeLock();
     if (typeof document !== "undefined") delete document.body.dataset.recording;
     const rec = recorderRef.current;
+    const buildDiag = (): CaptureDiag => ({
+      sawData: sawDataRef.current,
+      chunkCount: chunksRef.current.length,
+      chunksUploaded: uploadedRef.current,
+      durationMs,
+      mimeType: mimeTypeRef.current,
+      recorderError: recorderErrorRef.current,
+      trackEnded: trackEndedRef.current,
+      trackMuted: trackMutedRef.current,
+      trackReadyState: streamRef.current?.getAudioTracks()[0]?.readyState ?? "unknown",
+      wakeLockGranted: wakeLockGrantedRef.current,
+      hiddenDuringRecording: hiddenDuringRef.current,
+      ua: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    });
     return new Promise((resolve) => {
       const chunksUploaded = uploadedRef.current;
       if (!rec || rec.state === "inactive") {
-        resolve({ blob: null, durationMs, chunksUploaded });
+        resolve({ blob: null, durationMs, chunksUploaded, diag: buildDiag() });
         return;
       }
       rec.onstop = () => {
         const blob = chunksRef.current.length
           ? new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || "audio/webm" })
           : null;
-        resolve({ blob, durationMs, chunksUploaded: uploadedRef.current });
+        resolve({ blob, durationMs, chunksUploaded: uploadedRef.current, diag: buildDiag() });
       };
       try {
         rec.stop();
       } catch {
-        resolve({ blob: null, durationMs, chunksUploaded });
+        resolve({ blob: null, durationMs, chunksUploaded, diag: buildDiag() });
       }
     });
   }, [releaseWakeLock]);
 
   // Re-acquire the wake lock when the tab becomes visible again while still recording (mobile releases it on hide).
+  // Also COUNT hidden transitions during a recording — a backgrounded tab is when iOS suspends the mic track, so
+  // this is a prime suspect for a zero-audio pitch and belongs in the diagnostics.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible" && recorderRef.current && recorderRef.current.state === "recording") {
-        void requestWakeLock();
+      const isRecording = recorderRef.current && recorderRef.current.state === "recording";
+      if (document.visibilityState === "hidden") {
+        if (isRecording) hiddenDuringRef.current += 1;
+        return;
       }
+      if (isRecording) void requestWakeLock();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -233,5 +322,7 @@ export function useDoorRecorder() {
     };
   }, [releaseWakeLock]);
 
-  return { armed, recording, level, elapsedMs, arm, start, stop };
+  return { armed, recording, level, elapsedMs, arm, start, stop, captureInterrupted };
 }
+
+export type UseDoorRecorder = ReturnType<typeof useDoorRecorder>;
