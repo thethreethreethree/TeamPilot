@@ -27,9 +27,9 @@ vi.mock("@/lib/data/doorlog", () => ({
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { createKnock, createPitch } from "@/lib/data/doorlog";
+import { createKnock, createPitch, getKpiForDay } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
-import { POST } from "../route";
+import { POST, GET } from "../route";
 
 const setAuth = () =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -87,5 +87,39 @@ describe("POST /door-log — F3 storagePath binding", () => {
     expect(res.status).toBe(400);
     expect(createKnock).not.toHaveBeenCalled(); // rejected before any write
     expect(createPitch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a pitch with an EMPTY storagePath and no recordingId — no doomed pitch (audit M3)", async () => {
+    (createKnock as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "k1" });
+    const res = await POST(req({ ...PITCH, storagePath: "" }));
+    expect(res.status).toBe(400); // "A pitch requires audio" — never mints a pitch with an empty audio_path
+    expect(createPitch).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /door-log — KPI read honesty (audit L1)", () => {
+  const getReq = (params: Record<string, string>) =>
+    ({
+      nextUrl: { searchParams: { get: (k: string) => params[k] ?? null } },
+    }) as unknown as Parameters<typeof GET>[0];
+
+  it("a KPI read ERROR returns a 5xx, never a fabricated 0/0/0/0 strip", async () => {
+    (getKpiForDay as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("conn reset"));
+    const res = await GET(getReq({ date: "2026-08-22" }));
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { doorsKnocked?: number; error?: string };
+    expect(body.doorsKnocked).toBeUndefined(); // NOT a zeroed strip
+    expect(body.error).toBeTruthy();
+  });
+
+  it("a successful read returns the summed totals", async () => {
+    (getKpiForDay as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { doors_knocked: 10, sold: 3, go_backs: 2, not_interested: 1 },
+    ]);
+    const res = await GET(getReq({ date: "2026-08-22" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { doorsKnocked: number; sold: number };
+    expect(body.doorsKnocked).toBe(10);
+    expect(body.sold).toBe(3);
   });
 });

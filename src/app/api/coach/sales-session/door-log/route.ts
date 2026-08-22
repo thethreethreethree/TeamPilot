@@ -160,7 +160,15 @@ export async function GET(req: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Missing/invalid date." }, { status: 400 });
   }
-  const rows = await getKpiForDay(date, auth.user.id);
+  let rows: Awaited<ReturnType<typeof getKpiForDay>>;
+  try {
+    rows = await getKpiForDay(date, auth.user.id);
+  } catch (e) {
+    // Audit L1: a KPI read error returns a 5xx, NOT a fabricated 0 strip. Generic message (CWE-209); the client's
+    // best-effort loadKpi keeps its last good values instead of blanking to zeros.
+    console.error(`[door-log kpi] read failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load your stats right now — please try again." }, { status: 502 });
+  }
   // The caller's own row (now pinned to rep_id — a manager would otherwise sum the whole team via RLS);
   // sum defensively in case of multiple.
   const total = rows.reduce(

@@ -17,6 +17,29 @@ import { MeetingHistoryList } from "@/components/sales-coach/MeetingHistoryList"
 type Kind = "meeting" | "huddle";
 type Ctx = "in_person" | "video";
 
+/**
+ * Honest post-meeting recording copy (audit M4). Pure so it's gate-testable: NEVER promise a review when the
+ * recording didn't save. null = still uploading (honest optimism); true = durable; false = nothing saved.
+ */
+export function meetingEndedRecordingCopy(recordingSaved: boolean | null): { tone: "warn" | "info"; text: string } {
+  if (recordingSaved === false) {
+    return {
+      tone: "warn",
+      text: "We couldn't confirm this meeting's recording saved, so its review may be unavailable. If you can, keep this tab open a moment — the recording keeps trying to upload.",
+    };
+  }
+  if (recordingSaved === true) {
+    return {
+      tone: "info",
+      text: "Your recording is saved. Its review — decisions, action items, and what was left open — is ready.",
+    };
+  }
+  return {
+    tone: "info",
+    text: "The recording is saving now. Its review — decisions, action items, and what was left open — will be ready in a moment.",
+  };
+}
+
 export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string } = {}) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind>("meeting");
@@ -88,10 +111,11 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
       <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
         <div>
           <h1 className="text-xl font-semibold text-primary">Meeting ended</h1>
-          <p className="mt-1 text-sm text-secondary">
-            The recording is saving now. Its review — decisions, action items, and what was left open — will be
-            ready in a moment.
-          </p>
+          {/* Honest recording state (audit M4) — never promise a review over a recording that didn't save. */}
+          {(() => {
+            const c = meetingEndedRecordingCopy(coach.recordingSaved);
+            return <p className={`mt-1 text-sm ${c.tone === "warn" ? "text-amber-500" : "text-secondary"}`}>{c.text}</p>;
+          })()}
         </div>
         <div className="flex flex-wrap gap-2">
           <Link

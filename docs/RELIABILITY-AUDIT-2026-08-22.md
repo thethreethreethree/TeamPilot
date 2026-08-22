@@ -19,10 +19,13 @@ Severity legend: **HIGH** = silent data loss or a falsehood shown to the rep · 
 recoverable loss · **LOW** = cosmetic / low blast-radius. **[verified]** = re-read against code this session;
 **[reported]** = auditor evidence, not yet re-verified by me.
 
-> **STATUS (2026-08-22): ALL HIGH findings closed + deployed.** H1 `d9160efe` (empty-audio honesty) · H2
-> `6453218b` (crash/timeout loop terminalises) · H3 `0455ffca` (lost write never dressed as complete) · H4
-> `664f54da` (transient Dissect self-heals). Bundle A (H1-H3) + Bundle C's HIGH (H4) done. Remaining: MED
-> (M1-M4) + LOW (L1-L2).
+> **STATUS (2026-08-22): all HIGH + all MED closed + deployed; one LOW deferred.** HIGH — H1 `d9160efe` · H2
+> `6453218b` · H3 `0455ffca` · H4 `664f54da`. MED — M1 confirmed already mitigated (chunked live upload +
+> DropReason) · M2 + M3 `51676b6c` (keepalive + reject empty storagePath) · M4 (this commit; honest post-meeting
+> recording state). LOW — L1 (this commit; KPI read error → 502, not a fabricated 0). **L2 DEFERRED** (pitch
+> duration uses client wall-clock, not real audio length) — LOW blast-radius (colors a prompt note, not a
+> displayed metric) and the proper fix needs Scribe-timestamp plumbing the pitch STT path (`transcribeSpeech`,
+> text-only) doesn't expose; tracked below. With L2's exception, the audit is fully closed.
 
 ---
 

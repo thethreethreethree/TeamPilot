@@ -47,7 +47,7 @@ type MeetingTurn = { speaker: "participant"; text: string };
  * clean-Stop persist below covers a Stopped call; the never-Stop case is stitched from these chunks by the cron.
  * Route path is sales-namespaced but session-generic (owner-gated on the coaching_sessions row).
  */
-function postMeetingAudioChunk(sessionId: string, seq: number, blob: Blob): void {
+function postMeetingAudioChunk(sessionId: string, seq: number, blob: Blob): Promise<boolean> {
   const attempt = () =>
     fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
       method: "POST",
@@ -55,10 +55,16 @@ function postMeetingAudioChunk(sessionId: string, seq: number, blob: Blob): void
       body: blob,
     }).then((r) => {
       if (!r.ok) throw new Error(`chunk ${seq} HTTP ${r.status}`);
+      return true;
     });
-  void attempt().catch(() => {
-    setTimeout(() => void attempt().catch(() => {}), 1500);
-  });
+  // Resolve true iff a chunk actually landed (audit M4) — so the hook can tell the facilitator the truth about
+  // whether the recording is durable, rather than an unconditional "saving now".
+  return attempt().catch(
+    () =>
+      new Promise<boolean>((resolve) => {
+        setTimeout(() => void attempt().then(() => resolve(true)).catch(() => resolve(false)), 1500);
+      })
+  );
 }
 
 /** Pure: a Float32 PCM frame → base64 16-bit PCM (Scribe's input_audio_chunk payload). Duplicated from the
@@ -87,6 +93,10 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const [cueMode] = useState<CueMode>("suggestion");
   // Per-cue status so a forced/declined/failed "Coach me now" is never a dead button (review finding #3).
   const [cueStatus, setCueStatus] = useState("");
+  // Recording durability (audit M4): null while a call is live / the clean-Stop persist is in flight; true once
+  // ANY audio is durable (a landed chunk OR the clean-Stop full-blob persist); false only when a Stopped call
+  // saved NOTHING — so the panel never promises a review over a silently-lost recording.
+  const [recordingSaved, setRecordingSaved] = useState<boolean | null>(null);
 
   // Live refs read by the stable STT/cue handlers.
   const turnsRef = useRef<MeetingTurn[]>([]);
@@ -101,6 +111,9 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioSeqRef = useRef(0);
+  // Count of chunks that actually landed in storage during the call (audit M4) — the durable-audio evidence the
+  // clean-Stop persist falls back on. Accumulates across reconnects; reset only on a fresh start.
+  const chunkOkRef = useRef(0);
   const stoppedRef = useRef(false);
   const unmountedRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
@@ -243,6 +256,8 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
         nearingEndRef.current = false;
         lastCueAtRef.current = 0;
         micLevelRef.current = 0;
+        chunkOkRef.current = 0; // fresh recording-durability accounting (audit M4)
+        setRecordingSaved(null);
         setError(null);
         setCurrentCue(null);
         setCueStatus("");
@@ -286,15 +301,29 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
             rec.ondataavailable = (e) => {
               if (e.data.size === 0) return;
               chunksRef.current.push(e.data);
-              postMeetingAudioChunk(sessionId, audioSeqRef.current++, e.data); // durable during the call
+              // durable during the call; track whether it actually landed so Stop can tell the truth (M4)
+              void postMeetingAudioChunk(sessionId, audioSeqRef.current++, e.data).then((ok) => {
+                if (ok) chunkOkRef.current += 1;
+              });
             };
             rec.onstop = () => {
               const all = chunksRef.current;
-              if (all.length === 0) return;
-              const blob = new Blob(all, { type: all[0]?.type || "audio/webm" });
-              // Clean-Stop full-blob persist (stamps audio_asset_url). Best-effort — the incremental chunks +
-              // the stitch cron cover a never-Stopped session or a failed persist.
-              void persistRecording(sessionId, blob).catch(() => {});
+              const blob = all.length ? new Blob(all, { type: all[0]?.type || "audio/webm" }) : null;
+              if (blob) {
+                // Clean-Stop full-blob persist (stamps audio_asset_url). On success the recording is durable; on
+                // failure it's durable ONLY if a chunk already landed — otherwise the review would be a false
+                // promise, so surface that honestly (audit M4).
+                void persistRecording(sessionId, blob)
+                  .then(() => {
+                    if (!unmountedRef.current) setRecordingSaved(true);
+                  })
+                  .catch(() => {
+                    if (!unmountedRef.current) setRecordingSaved(chunkOkRef.current > 0);
+                  });
+              } else if (!unmountedRef.current) {
+                // No full blob captured — durability rests entirely on whatever chunks streamed live.
+                setRecordingSaved(chunkOkRef.current > 0);
+              }
             };
             rec.start(AUDIO_CHUNK_MS);
             recorderRef.current = rec;
@@ -456,5 +485,6 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
     stop,
     requestCue,
     markNearingEnd,
+    recordingSaved,
   };
 }

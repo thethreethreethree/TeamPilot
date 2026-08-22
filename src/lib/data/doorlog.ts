@@ -106,11 +106,15 @@ export async function getKpiForDay(localDate: string, repId: string) {
   // the whole team's rows and the caller would sum them — but the Door Log KPI strip is the acting rep's OWN
   // field session, so pin rep_id. (A rep's unscoped read already returned only theirs; this makes managers
   // correct too. Mirrors the F6 report-card rep scoping.)
-  const { data } = await sb
+  const { data, error } = await sb
     .from("rep_kpi_daily")
     .select("doors_knocked, sold, go_backs, not_interested, no_answer, non_decision_maker, local_date")
     .eq("local_date", localDate)
     .eq("rep_id", repId);
+  // Classify the error instead of swallowing it into [] (audit L1 / INV22): a transient read error must NOT render
+  // the KPI strip as a fabricated 0/0/0/0 — that's a falsehood dressed as no-data. Throw so the GET returns a 5xx
+  // and the client keeps its last good strip rather than showing zeros.
+  if (error) throw new Error(`getKpiForDay failed: ${error.message}`);
   return data ?? [];
 }
 
