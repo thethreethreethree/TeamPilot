@@ -44,6 +44,15 @@ export function parseCueDecision(
 
   const cue = typeof o["cue"] === "string" ? o["cue"].trim() : "";
 
+  // Prep-up coverage (Meeting Coach): the agenda topic ids the model judged DISCUSSED in this window. Parsed
+  // independently of `shouldCue` — coverage is reported even on a silent pass — and only when present, so
+  // non-agenda strategies are unaffected. Defensive: strings only, deduped, capped.
+  const coveredTopicIds = Array.isArray(o["covered"])
+    ? Array.from(new Set((o["covered"] as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0))).slice(0, 200)
+    : undefined;
+  const withCoverage = <T extends CueDecision>(d: T): T =>
+    coveredTopicIds && coveredTopicIds.length > 0 ? { ...d, coveredTopicIds } : d;
+
   // Understanding gate: an empty cue means stay silent regardless of `shouldCue`. When forced, any non-empty cue
   // counts — the wearer asked. For an AUTO cue, additionally require a VALID (non-"none") trigger: a cue whose
   // trigger normalized to "none" (out-of-vocab / leaked from another domain, or incoherent) is NOT delivered —
@@ -51,6 +60,6 @@ export function parseCueDecision(
   // trigger).
   const shouldCue = opts.force ? cue.length > 0 : o["shouldCue"] === true && cue.length > 0 && trigger !== "none";
 
-  if (!shouldCue) return { ...silent, phase, trigger };
-  return { shouldCue: true, cue, trigger, phase, importance };
+  if (!shouldCue) return withCoverage({ ...silent, phase, trigger });
+  return withCoverage({ shouldCue: true, cue, trigger, phase, importance });
 }

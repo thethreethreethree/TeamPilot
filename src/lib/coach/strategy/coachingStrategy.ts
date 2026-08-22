@@ -72,6 +72,12 @@ export interface CoachingContext {
   /** A client silence timer fired (a long quiet). The strategy still decides — some silences are sacred. */
   stall?: boolean;
   /**
+   * Prep-up agenda (Meeting Coach only): the goal + must-discuss topics + document context loaded before the
+   * meeting. When present, the meeting brain grounds hints/drift in it and alerts on an uncovered must-discuss
+   * topic before the end. Absent → today's agenda-less behaviour (a prep-less meeting).
+   */
+  agenda?: MeetingAgenda;
+  /**
    * Strategy-specific hints (sales: `{ stress: {fillerSpike,paceSpike}, confidence }`; a meeting strategy
    * defines its own). Kept open so the shared contract doesn't carry one domain's hint shapes. A strategy
    * reads only the keys it understands and treats missing/malformed signals as "no hint" (stay silent, §3.2).
@@ -99,6 +105,22 @@ export interface CueDecision {
   phase?: string;
   /** Delivery priority; drives the (context-agnostic, already-reusable) cueDelivery gate. */
   importance?: CueImportance;
+  /**
+   * Prep-up agenda topic ids the brain judged DISCUSSED in this window (Meeting Coach, founder 2026-08-22).
+   * Reported independently of `shouldCue` — coverage accumulates across passes so the coach knows what's left
+   * and can alert on an uncovered must-discuss topic before the meeting ends. Absent for non-agenda strategies.
+   */
+  coveredTopicIds?: string[];
+}
+
+/** Prep-up context the Meeting Coach uses to run the meeting to its agenda (founder 2026-08-22). */
+export interface MeetingAgenda {
+  /** The ultimate goal / focus of the meeting. */
+  goal: string;
+  /** The must-discuss topics + their running coverage (accumulated across coaching passes). */
+  topics: Array<{ id: string; text: string; covered: boolean }>;
+  /** Condensed supporting-document context (notes + extracted/OCR'd text), capped for the prompt. */
+  docContext: string;
 }
 
 /**

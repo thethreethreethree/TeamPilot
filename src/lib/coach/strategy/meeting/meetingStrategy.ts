@@ -51,6 +51,7 @@ export class MeetingStrategy implements CoachingStrategy {
       const userMessage = buildMeetingCueUserMessage({
         recentSegments: recent,
         nearingEnd: context.signals?.["nearingEnd"] === true,
+        agenda: context.agenda,
       });
 
       const r = await this.llm({ systemPrompt, userMessage });

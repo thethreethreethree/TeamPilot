@@ -1,7 +1,10 @@
 import "server-only";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import type { CueMode, StrategyTranscriptSegment } from "../coachingStrategy";
+import type { CueMode, MeetingAgenda, StrategyTranscriptSegment } from "../coachingStrategy";
 import { renderTurns } from "../renderTurns";
+
+// Bound the document context folded into every cue prompt so a big prep can't bloat the per-cue latency/cost.
+const MAX_DOC_CONTEXT_CHARS = 2000;
 
 /**
  * Meeting Coach — real-time facilitation cue prompt (Phase-3 brain of docs/MeetingCoach-BuildPlan.md).
@@ -46,6 +49,7 @@ export const MEETING_TRIGGERS = [
   "unassigned_action", // an action item was mentioned with no owner
   "unclear", // something vague was said that needs clarifying
   "imbalance", // one participant is dominating (needs speaker labels; silent if unattributed)
+  "uncovered_topic", // a Prep-up must-discuss topic hasn't been raised (urgent near the end) — needs an agenda
   "summarize", // near the end — prompt to summarize decisions + next steps
   "none", // no trigger — stay silent
 ] as const;
@@ -87,10 +91,19 @@ HIGH-VALUE TRIGGERS (only these warrant a cue):
 - "unassigned_action"— a task/next-step was named with NO owner. Nudge: assign an owner now.
 - "unclear"          — a vague statement was made ("we'll handle it", "soon") that needs a concrete answer. Nudge: ask them to clarify.
 - "imbalance"        — one participant is clearly dominating while others are quiet. Nudge: gently bring others in. ONLY fire this if the transcript is reliably attributed to distinct speakers; if you cannot tell who is speaking, DO NOT guess — trigger "none".
+- "uncovered_topic"  — ONLY when a PREP-UP AGENDA is provided: a must-discuss topic still marked NOT covered, and the meeting is wrapping (or clearly moving past its chance to cover it). Nudge: raise that specific topic before you close. Near the end this is often the most important cue — a planned topic must not be missed.
 - "summarize"        — the meeting is wrapping and decisions/next-steps have NOT been said back. Nudge: summarize decisions + owners now.
 - "none"             — nothing high-value. STAY SILENT.
 
 NEVER cue: while someone is mid-thought, during productive on-agenda discussion, to persuade or "close" anyone, or to editorialize about a participant. You facilitate; you never take over the room.
+
+WHEN A PREP-UP AGENDA IS PROVIDED (goal + must-discuss topics + document context): run the meeting toward it.
+- Ground "drift" in the GOAL: if the discussion has left the meeting's stated goal, that is drift — nudge back.
+- Hint the next NOT-covered must-discuss topic at a natural gap ("uncovered_topic"), and near the end treat a
+  still-uncovered must-discuss topic as high importance.
+- ALSO report coverage: in "covered", list the ids of the agenda topics that ARE discussed in THIS window (even
+  when you stay silent). This accumulates so an already-covered topic is never re-nudged. If no agenda is given,
+  omit "covered" and never use "uncovered_topic".
 
 ${FACILITATION_METHOD}
 
@@ -103,29 +116,51 @@ IMPORTANCE (§3.3 — deliver the MOST important nudge, don't dilute):
 - "low"    — marginal. Prefer silence — a low cue trains the facilitator to tune you out. When in doubt, silent.
 Be honest and STINGY with "high" — if everything is high, nothing is.
 
-OUTPUT — respond with ONLY this JSON:
+OUTPUT — respond with ONLY this JSON ("covered" only when an agenda is provided):
 {
   "phase": "opening"|"discussion"|"decision_point"|"action_assignment"|"drift"|"wrap"|"unknown",
-  "trigger": "drift"|"undecided"|"unassigned_action"|"unclear"|"imbalance"|"summarize"|"none",
+  "trigger": "drift"|"undecided"|"unassigned_action"|"unclear"|"imbalance"|"uncovered_topic"|"summarize"|"none",
   "shouldCue": boolean,
   "importance": "high"|"medium"|"low",
-  "cue": "the one-line facilitation cue, or empty string if shouldCue is false"
+  "cue": "the one-line facilitation cue, or empty string if shouldCue is false",
+  "covered": ["<agenda topic id discussed in THIS window>"]
 }` + CONVERSATION_IS_DATA
   );
+}
+
+/** Render the Prep-up agenda block (goal + must-discuss topics with coverage + doc context). Empty when absent. */
+function renderAgenda(agenda: MeetingAgenda | undefined): string {
+  if (!agenda) return "";
+  const goal = agenda.goal.trim();
+  const topicLines = agenda.topics
+    .map((t) => `  - [${t.covered ? "COVERED" : "NOT COVERED"}] (id: ${t.id}) ${t.text}`)
+    .join("\n");
+  const doc = agenda.docContext.trim().slice(0, MAX_DOC_CONTEXT_CHARS);
+  const parts = ["PREP-UP AGENDA (run the meeting toward this):"];
+  if (goal) parts.push(`Goal: ${goal}`);
+  if (topicLines) parts.push(`Must-discuss topics:\n${topicLines}`);
+  if (doc) parts.push(`Supporting document context:\n${doc}`);
+  parts.push(
+    `Use this: ground drift in the goal; hint the next NOT-COVERED topic at a gap; near the end, a still-NOT-COVERED must-discuss topic is high importance ("uncovered_topic"). In "covered", return the ids of any topics discussed in THIS window.`
+  );
+  return `\n\n${parts.join("\n\n")}`;
 }
 
 export function buildMeetingCueUserMessage(args: {
   recentSegments: StrategyTranscriptSegment[];
   /** The meeting appears to be nearing its end (a wrap/summarize opportunity). The brain still decides. */
   nearingEnd?: boolean;
+  /** Prep-up agenda — when present, the coach runs the meeting toward it + reports topic coverage. */
+  agenda?: MeetingAgenda;
 }): string {
   const rolling = renderTurns(args.recentSegments);
+  const agendaBlock = renderAgenda(args.agenda);
   const wrap = args.nearingEnd
-    ? `\n\nNOTE: the meeting looks close to its end. If decisions and owned next-steps have NOT been said back to the room, a "summarize" nudge may help — but only if there is something concrete to summarize. If they already recapped, stay silent.`
+    ? `\n\nNOTE: the meeting looks close to its end. If decisions and owned next-steps have NOT been said back to the room, a "summarize" nudge may help — but only if there is something concrete to summarize. If they already recapped, stay silent. If a must-discuss agenda topic is still NOT COVERED, raising it now ("uncovered_topic") is likely the most important cue.`
     : "";
   return `Meeting so far (most recent turns, one line per speaker turn):
 
-${rolling}${wrap}
+${rolling}${agendaBlock}${wrap}
 
 Read the phase, decide whether to cue the facilitator, and if so give one short facilitation cue. JSON only.`;
 }

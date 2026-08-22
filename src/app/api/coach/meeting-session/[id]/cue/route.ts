@@ -9,7 +9,8 @@ import { liveMeetingCue } from "@/lib/claude";
 import { selectStrategy } from "@/lib/coach/strategy/selectStrategy";
 import { resolveCoachingMode } from "@/lib/coach/strategy/resolveCoachingMode";
 import { toCoachingCuesMode } from "@/lib/coach/strategy/persistCueMode";
-import type { CueLLM, StrategyTranscriptSegment } from "@/lib/coach/strategy/coachingStrategy";
+import { getMeetingPrepBySession, getPrepDocContext, setMeetingPrepTopicsCovered } from "@/lib/data/meetingPrep";
+import type { CueLLM, MeetingAgenda, StrategyTranscriptSegment } from "@/lib/coach/strategy/coachingStrategy";
 
 /**
  * Live MEETING / HUDDLE cue (Meeting Coach / Team-Sync). Sibling of the sales `/sales-session/[id]/cue` route,
@@ -92,6 +93,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     seq: i,
   }));
 
+  // Prep-up agenda (founder 2026-08-22): if this meeting was prepped, load the goal + must-discuss topics +
+  // document context so the coach runs the meeting toward the agenda (hints, goal-grounded drift, and the
+  // uncovered-topic-before-end alert). Absent → today's agenda-less coaching. Best-effort: a prep-load failure
+  // never blocks the cue.
+  const prep = await getMeetingPrepBySession(id);
+  let agenda: MeetingAgenda | undefined;
+  if (prep) {
+    const docContext = await getPrepDocContext(prep.id);
+    agenda = { goal: prep.goal, topics: prep.topics, docContext };
+  }
+
   // Inject liveMeetingCue as the strategy's LLM, binding this session's company for grounding + the control gate.
   const cueLLM: CueLLM = (a) => liveMeetingCue({ ...a, companyId });
   const strategy = selectStrategy(mode, { cueLLM });
@@ -105,6 +117,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       mode: body.mode,
       force: body.force,
       signals: { nearingEnd: body.nearingEnd === true },
+      agenda,
     });
   } catch (err) {
     // The strategy never throws (it resolves to silent), but guard the route boundary too — surface a forced
@@ -129,6 +142,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       signal: null,
     });
     cueId = appended?.id ?? null;
+  }
+
+  // Persist Prep-up topic coverage: merge the topics the brain saw discussed in THIS window into the prep's
+  // running covered set (accumulates across passes), so the coach never re-nudges a covered topic and the
+  // uncovered-before-end alert is grounded in the whole meeting (founder 2026-08-22). Best-effort.
+  if (prep && decision.coveredTopicIds && decision.coveredTopicIds.length > 0) {
+    const nowCovered = new Set(decision.coveredTopicIds);
+    const merged = prep.topics.map((t) => (!t.covered && nowCovered.has(t.id) ? { ...t, covered: true } : t));
+    if (merged.some((t, i) => t.covered !== prep.topics[i]!.covered)) {
+      await setMeetingPrepTopicsCovered({ prepId: prep.id, topics: merged });
+    }
   }
 
   return NextResponse.json({ cue: decision, cueId });

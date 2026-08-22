@@ -162,3 +162,25 @@ export async function setMeetingPrepTopicsCovered(args: { prepId: string; topics
   const { error } = await admin.from("meeting_preps").update({ topics: args.topics }).eq("id", args.prepId);
   return !error;
 }
+
+/**
+ * Condensed document context for the live coach (admin-scoped; runs in the cue path). Concatenates each prep
+ * document's note + extracted/OCR'd text, capped so it can't bloat the per-cue prompt. Returns "" when the prep
+ * has no documents.
+ */
+export async function getPrepDocContext(prepId: string, maxChars = 4000): Promise<string> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("meeting_prep_documents")
+    .select("filename, note, extracted_text")
+    .eq("prep_id", prepId)
+    .order("created_at", { ascending: true });
+  if (!data || data.length === 0) return "";
+  const blocks = (data as Array<{ filename: string; note: string | null; extracted_text: string | null }>).map((d) => {
+    const parts = [`[${d.filename}]`];
+    if (d.note?.trim()) parts.push(`note: ${d.note.trim()}`);
+    if (d.extracted_text?.trim()) parts.push(d.extracted_text.trim());
+    return parts.join(" ");
+  });
+  return blocks.join("\n").slice(0, maxChars);
+}
