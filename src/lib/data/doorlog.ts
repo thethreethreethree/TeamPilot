@@ -283,6 +283,17 @@ export async function claimPitchForProcessing(
   return { won, attempts: won ? ((data![0]!.attempts as number) ?? nextAttempts) : currentAttempts };
 }
 
+/**
+ * The derived-table writes below THROW on a Supabase error instead of swallowing it (audit H3, 2026-08-22).
+ * They previously ignored `error`, so a transient write failure could leave a pitch `complete` with NO analysis
+ * row — rendered as "Still processing…" forever (error dressed as no-data). Throwing routes the failure into the
+ * worker's catch → retry, then an honest terminal `failed`. Ordering already guarantees `complete` is written
+ * only AFTER `writePitchAnalysis` returns, so a throwing analysis write can no longer be outrun by the status flip.
+ */
+function assertNoWriteError(error: { message?: string } | null, op: string): void {
+  if (error) throw new Error(`${op} failed: ${error.message ?? "unknown DB error"}`);
+}
+
 export async function writePitchTranscript(args: {
   pitchId: string;
   companyId: string;
@@ -291,7 +302,7 @@ export async function writePitchTranscript(args: {
   wordCount: number;
 }): Promise<void> {
   const sb = createAdminClient();
-  await sb.from("pitch_transcripts").upsert({
+  const { error } = await sb.from("pitch_transcripts").upsert({
     pitch_id: args.pitchId,
     company_id: args.companyId,
     rep_id: args.repId,
@@ -299,6 +310,7 @@ export async function writePitchTranscript(args: {
     word_count: args.wordCount,
     provider: "elevenlabs",
   });
+  assertNoWriteError(error, "writePitchTranscript");
 }
 
 export async function writePitchAnalysis(args: {
@@ -313,7 +325,7 @@ export async function writePitchAnalysis(args: {
   promptVersion: string;
 }): Promise<void> {
   const sb = createAdminClient();
-  await sb.from("pitch_analyses").upsert({
+  const { error } = await sb.from("pitch_analyses").upsert({
     pitch_id: args.pitchId,
     company_id: args.companyId,
     rep_id: args.repId,
@@ -324,6 +336,7 @@ export async function writePitchAnalysis(args: {
     model: args.model,
     prompt_version: args.promptVersion,
   });
+  assertNoWriteError(error, "writePitchAnalysis");
 }
 
 /** Advance / fail a pitch (the worker's status machine; retry bookkeeping in retryBackoff.ts). */
@@ -335,7 +348,7 @@ export async function setPitchStatus(args: {
   error?: string | null;
 }): Promise<void> {
   const sb = createAdminClient();
-  await sb
+  const { error } = await sb
     .from("pitches")
     .update({
       status: args.status,
@@ -344,6 +357,10 @@ export async function setPitchStatus(args: {
       error: args.error ?? null,
     })
     .eq("id", args.pitchId);
+  // Throw on error too (audit H3): a silently-failed forward transition self-heals via the cron re-claim, but a
+  // silently-failed COMPLETE/FAILED write would strand the pitch. The worker calls this on its FAILURE paths
+  // through a best-effort guard (never re-throws out of processPitch), so honesty here doesn't break the contract.
+  assertNoWriteError(error, "setPitchStatus");
 }
 
 /** Upsert a rep's macro pattern summary for a period (the rollup worker's output). */

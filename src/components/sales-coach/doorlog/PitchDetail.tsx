@@ -74,9 +74,22 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
               </p>
             </div>
           ) : !detail.analysis ? (
-            <p className="text-sm text-muted mb-5">
-              Still processing — the analysis will appear here shortly.
-            </p>
+            detail.status === "complete" ? (
+              // Honest state for a completed pitch with no analysis row (audit H3): the data write failed at some
+              // point. NEVER show "still processing" for a terminal pitch — that spinner would never resolve.
+              <div className="glass-card p-4 mb-5 border border-amber-500/30">
+                <p className="flex items-center gap-2 text-sm text-amber-400 font-semibold">
+                  <AlertTriangle className="w-4 h-4" aria-hidden /> Analysis unavailable
+                </p>
+                <p className="text-xs text-secondary mt-1">
+                  This pitch finished, but its analysis didn&apos;t save. The transcript below is still here.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted mb-5">
+                Still processing — the analysis will appear here shortly.
+              </p>
+            )
           ) : (
             <>
               {/* Scores */}

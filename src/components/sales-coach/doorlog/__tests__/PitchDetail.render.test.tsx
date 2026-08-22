@@ -70,6 +70,15 @@ describe("PitchDetail — render guard (founder 2026-08-18 clip class)", () => {
     expect(screen.getByRole("link", { name: /Pitch Performance/i })).toBeTruthy();
   });
 
+  it("complete but no analysis (audit H3): honest 'Analysis unavailable', NEVER a forever 'still processing'", async () => {
+    stubFetch({ ...ANALYZED, status: "complete", analysis: null }); // completed, but the analysis write was lost
+    render(<PitchDetail pitchId="p1" />);
+
+    await waitFor(() => expect(screen.getByText(/Analysis unavailable/i)).toBeTruthy());
+    expect(screen.queryByText(/Still processing/i)).toBeNull(); // the spinner-forever falsehood is gone
+    expect(screen.getByText("Transcript")).toBeTruthy(); // the transcript is still shown
+  });
+
   it("not found (404): an honest 'isn't available', back-nav intact", async () => {
     stubFetch(null, 404);
     render(<PitchDetail pitchId="missing" />);

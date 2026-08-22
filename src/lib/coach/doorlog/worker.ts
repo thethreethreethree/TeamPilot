@@ -49,6 +49,22 @@ async function pitchContext(pitchId: string): Promise<{ outcome: string; duratio
   return { outcome: outcome ?? "unknown", durationMs: (data.duration_ms as number | null) ?? null };
 }
 
+/**
+ * Best-effort status write for the FAILURE paths (poison-terminal + the catch). setPitchStatus now THROWS on a DB
+ * error (audit H3), but processPitch must never throw (its contract + the cron loop). If we can't even persist the
+ * failure state, swallow + report: the lease expires and the cron re-claims it, so the record still progresses.
+ */
+async function recordFailureStatus(args: Parameters<typeof setPitchStatus>[0]): Promise<void> {
+  try {
+    await setPitchStatus(args);
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
+      tags: { feature: "macro-mode", stage: "pitch-processing-persist" },
+      extra: { pitchId: args.pitchId },
+    });
+  }
+}
+
 /** Process one pitch through the pipeline. Never throws — failures become retry/terminal state. */
 export async function processPitch(pitch: PitchRow): Promise<void> {
   // Atomic claim FIRST: only one of the two entry points (the route's fire-and-forget kick and the cron sweep)
@@ -63,7 +79,7 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
   // re-crash. Terminalise honestly instead of looping. `> MAX` (not `>=`) so the ordinary throw path still gets
   // its full MAX_PITCH_ATTEMPTS real tries, each terminalised by the catch at `>= MAX`.
   if (attempts > MAX_PITCH_ATTEMPTS) {
-    await setPitchStatus({
+    await recordFailureStatus({
       pitchId: pitch.id,
       status: "failed",
       attempts,
@@ -192,7 +208,7 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     // would double-count and terminalise too early.
     const message = err instanceof Error ? err.message : String(err);
     if (isTerminalFailure(attempts)) {
-      await setPitchStatus({
+      await recordFailureStatus({
         pitchId: pitch.id,
         status: "failed",
         attempts,
@@ -205,7 +221,7 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     } else {
       // Transient — back off and let the cron re-claim it. Keep the current status so it resumes there; the lease
       // already set `attempts`, so leave it untouched (omitted) and only move `run_after`.
-      await setPitchStatus({
+      await recordFailureStatus({
         pitchId: pitch.id,
         status: pitch.status as "uploading" | "transcribing" | "analyzing",
         runAfter: new Date(Date.now() + backoffMs(attempts)),

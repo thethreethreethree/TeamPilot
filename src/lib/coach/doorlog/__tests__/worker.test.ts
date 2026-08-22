@@ -157,6 +157,17 @@ describe("processPitch — H2: a crash/timeout loop terminalises instead of proc
   });
 });
 
+describe("processPitch — H3: a failed derived-table write is NEVER dressed as 'complete' (founder 2026-08-22)", () => {
+  it("when writePitchAnalysis throws, the pitch does NOT reach 'complete' (retries instead)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to analyze
+    vi.mocked(writePitchAnalysis).mockRejectedValueOnce(new Error("analysis upsert failed: deadlock"));
+    await processPitch({ ...PITCH }); // claim default → attempts 1 → transient, backs off
+    // Never a hollow complete; the catch routes it to a (non-terminal) backoff for the cron to re-claim.
+    const completeCalls = vi.mocked(setPitchStatus).mock.calls.filter(([a]) => a?.status === "complete");
+    expect(completeCalls).toHaveLength(0);
+  });
+});
+
 describe("processPitch — the Next Door focus rollup fires on completion (founder 2026-08-22, 'never again')", () => {
   it("kicks the rep's pattern rollup after a pitch completes — so the focus generates without relying on the cron", async () => {
     scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to a clean complete
