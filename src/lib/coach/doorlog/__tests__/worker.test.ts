@@ -42,8 +42,17 @@ vi.mock("@/lib/data/doorlog", () => ({
 }));
 
 import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
-import { writePitchAnalysis, claimPitchForProcessing } from "@/lib/data/doorlog";
+import { downloadAssetBytes } from "@/lib/storage/assets";
+import { writePitchAnalysis, writePitchTranscript, setPitchStatus, claimPitchForProcessing } from "@/lib/data/doorlog";
+import { analyzePitch } from "@/lib/coach/doorlog/analyze";
 import { processPitch } from "../worker";
+
+/** Did any setPitchStatus call mark this pitch terminally failed with a message matching `re`? */
+function failedWith(re: RegExp): boolean {
+  return vi.mocked(setPitchStatus).mock.calls.some(
+    ([a]) => a?.status === "failed" && re.test(String(a?.error ?? "")),
+  );
+}
 
 const PITCH = {
   id: "p1",
@@ -87,6 +96,36 @@ describe("processPitch — F4 skip-transcribe-if-exists", () => {
     vi.mocked(claimPitchForProcessing).mockResolvedValueOnce(false); // another worker already owns this pitch
     await processPitch({ ...PITCH });
     expect(transcribeSpeech).not.toHaveBeenCalled();
+    expect(writePitchAnalysis).not.toHaveBeenCalled();
+  });
+});
+
+describe("processPitch — H1: empty/silent audio never fabricates a 'complete' analysis (founder 2026-08-22)", () => {
+  it("STT returns no words → terminal 'No speech detected', NEVER analyzed or written complete", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null; // no transcript yet → runs STT
+    vi.mocked(transcribeSpeech).mockResolvedValueOnce("   "); // silence → empty transcript
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(true);
+    expect(writePitchTranscript).not.toHaveBeenCalled(); // no empty transcript persisted
+    expect(analyzePitch).not.toHaveBeenCalled(); // NEVER analyze empty input
+    expect(writePitchAnalysis).not.toHaveBeenCalled(); // and NEVER a hollow 'complete'
+  });
+
+  it("a 0-byte / empty audio download → terminal 'No audio', never sent to STT", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(downloadAssetBytes).mockResolvedValueOnce({ ok: true, bytes: Buffer.alloc(0), contentType: "audio/webm" });
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no audio was captured/i)).toBe(true);
+    expect(transcribeSpeech).not.toHaveBeenCalled(); // empty Buffer is truthy — the LENGTH guard catches it
+    expect(analyzePitch).not.toHaveBeenCalled();
+  });
+
+  it("a previously-persisted EMPTY transcript is not analyzed either (defense-in-depth)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // transcript row exists → skip STT
+    scripts["pitch_transcripts:text"] = { text: "   " }; // …but it is empty
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(true);
+    expect(analyzePitch).not.toHaveBeenCalled();
     expect(writePitchAnalysis).not.toHaveBeenCalled();
   });
 });

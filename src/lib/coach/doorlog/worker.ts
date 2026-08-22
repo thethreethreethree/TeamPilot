@@ -86,14 +86,28 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
         }
       }
       const dl = await downloadAssetBytes({ storagePath: pitch.audio_path });
-      if (!dl.ok || !dl.bytes) throw new Error(dl.error ?? "audio download failed");
+      if (!dl.ok) throw new Error(dl.error ?? "audio download failed");
+      // A 0-byte / empty recording (a truncated upload, a muted mic) — an empty Buffer is TRUTHY, so guard the
+      // LENGTH, not just presence. Nothing to transcribe → honest terminal, never a fabricated analysis (H1).
+      if (!dl.bytes || dl.bytes.length === 0) {
+        await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No audio was captured for this pitch." });
+        return;
+      }
       const text = await transcribeSpeech({ audio: dl.bytes, mimeType: dl.contentType ?? "audio/webm" });
+      // Empty/silent capture (audit H1, founder 2026-08-22): STT returned no words. Do NOT run the analysis on an
+      // empty transcript — the rubric schema forces a non-empty summary + scores, so it would produce a HOLLOW
+      // "complete" pitch with MADE-UP scores (the "captured nothing but looks fine" trust-killer). Mark it
+      // honestly instead. Terminal (an empty recording won't get less empty on retry).
+      if (!text.trim()) {
+        await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No speech was detected in this recording." });
+        return;
+      }
       await writePitchTranscript({
         pitchId: pitch.id,
         companyId: pitch.company_id,
         repId: pitch.rep_id,
         text,
-        wordCount: text.trim() ? text.trim().split(/\s+/).length : 0,
+        wordCount: text.trim().split(/\s+/).length,
       });
       await setPitchStatus({ pitchId: pitch.id, status: "analyzing" });
     }
@@ -105,6 +119,12 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       .eq("pitch_id", pitch.id)
       .maybeSingle();
     const transcript = (tr?.text as string | undefined) ?? "";
+    // Defense-in-depth (H1): never analyze an empty transcript — even if one was already persisted (an older
+    // pitch reprocessed, or a silent recording). Analyzing "" fabricates a hollow "complete"; fail honestly.
+    if (!transcript.trim()) {
+      await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No speech was detected in this recording." });
+      return;
+    }
     const ctx = await pitchContext(pitch.id);
     const analysis = await analyzePitch({
       companyId: pitch.company_id,
