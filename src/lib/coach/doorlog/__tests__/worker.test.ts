@@ -38,7 +38,8 @@ vi.mock("@/lib/data/doorlog", () => ({
   writePitchAnalysis: vi.fn(async () => {}),
   setPitchStatus: vi.fn(async () => {}),
   claimPitchesToProcess: vi.fn(async () => []),
-  claimPitchForProcessing: vi.fn(async () => true), // won the lease by default
+  // Won the lease by default; the lease advances attempts (H2), so return the incremented count.
+  claimPitchForProcessing: vi.fn(async (_id: string, current = 0) => ({ won: true, attempts: current + 1 })),
 }));
 // after() runs the callback synchronously here so the completion-path rollup kick is observable.
 vi.mock("next/server", () => ({ after: (fn: () => unknown) => fn() }));
@@ -97,7 +98,7 @@ describe("processPitch — F4 skip-transcribe-if-exists", () => {
   // nothing.
   it("does NO paid work when it loses the atomic claim (double-processing prevented)", async () => {
     scripts["pitch_transcripts:pitch_id"] = null; // no transcript — would otherwise transcribe
-    vi.mocked(claimPitchForProcessing).mockResolvedValueOnce(false); // another worker already owns this pitch
+    vi.mocked(claimPitchForProcessing).mockResolvedValueOnce({ won: false, attempts: 0 }); // another worker owns it
     await processPitch({ ...PITCH });
     expect(transcribeSpeech).not.toHaveBeenCalled();
     expect(writePitchAnalysis).not.toHaveBeenCalled();
@@ -131,6 +132,28 @@ describe("processPitch — H1: empty/silent audio never fabricates a 'complete' 
     expect(failedWith(/no speech was detected/i)).toBe(true);
     expect(analyzePitch).not.toHaveBeenCalled();
     expect(writePitchAnalysis).not.toHaveBeenCalled();
+  });
+});
+
+describe("processPitch — H2: a crash/timeout loop terminalises instead of processing forever (founder 2026-08-22)", () => {
+  it("does NO paid work and marks 'failed' when the lease shows attempts already PAST the ceiling (poison pitch)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null; // would otherwise transcribe
+    // A prior run hard-crashed (serverless timeout/OOM) without hitting the catch, so only the lease advanced
+    // attempts — now the claim returns a count past MAX_PITCH_ATTEMPTS (5).
+    vi.mocked(claimPitchForProcessing).mockResolvedValueOnce({ won: true, attempts: 6 });
+    await processPitch({ ...PITCH, attempts: 5 });
+    expect(failedWith(/timeout or crash prevented completion/i)).toBe(true);
+    expect(transcribeSpeech).not.toHaveBeenCalled(); // spent nothing — it just crashes again
+    expect(analyzePitch).not.toHaveBeenCalled();
+  });
+
+  it("a thrown error at the ceiling terminalises with the lease-set count (no double-increment)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to analyze
+    vi.mocked(claimPitchForProcessing).mockResolvedValueOnce({ won: true, attempts: 5 }); // 5th (final) real try
+    vi.mocked(analyzePitch).mockRejectedValueOnce(new Error("brain down"));
+    await processPitch({ ...PITCH, attempts: 4 });
+    // Terminal message names 5 (the lease count), NOT 6 — the catch must not re-increment.
+    expect(failedWith(/after 5 attempts: brain down/i)).toBe(true);
   });
 });
 

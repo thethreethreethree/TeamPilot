@@ -258,16 +258,29 @@ export async function claimPitchesToProcess(limit = 10) {
  * against the leased row and matches 0 rows. Returns true iff THIS caller won the lease (and may do the paid
  * work); the loser returns early. The winner's own status writes (complete/failed/backoff) supersede the lease.
  */
-export async function claimPitchForProcessing(pitchId: string, leaseMs = 5 * 60_000): Promise<boolean> {
+export async function claimPitchForProcessing(
+  pitchId: string,
+  currentAttempts: number,
+  leaseMs = 5 * 60_000,
+): Promise<{ won: boolean; attempts: number }> {
   const sb = createAdminClient();
+  // Advance `attempts` as part of the SAME conditional lease — so EVERY processing attempt consumes an attempt,
+  // INCLUDING a serverless timeout / OOM / hard-kill that never reaches the worker's catch (audit H2,
+  // 2026-08-22). Previously `attempts` only advanced inside the catch, so a crash left it unchanged and the cron
+  // re-claimed the same pitch every 5 min FOREVER ("processing…" that never resolves). Postgres row-locks the
+  // update; the loser's WHERE re-evaluates against the leased row and matches 0 rows, so exactly one caller wins
+  // and increments. A win means the row was still due (run_after <= now) at lease time, so `currentAttempts`
+  // (read moments earlier in the candidate sweep) is the row's live value and `currentAttempts + 1` is correct.
+  const nextAttempts = currentAttempts + 1;
   const { data } = await sb
     .from("pitches")
-    .update({ run_after: new Date(Date.now() + leaseMs).toISOString() })
+    .update({ run_after: new Date(Date.now() + leaseMs).toISOString(), attempts: nextAttempts })
     .eq("id", pitchId)
     .lte("run_after", new Date().toISOString())
     .in("status", ["uploading", "recorded", "transcribing", "analyzing"])
-    .select("id");
-  return (data?.length ?? 0) > 0;
+    .select("attempts");
+  const won = (data?.length ?? 0) > 0;
+  return { won, attempts: won ? ((data![0]!.attempts as number) ?? nextAttempts) : currentAttempts };
 }
 
 export async function writePitchTranscript(args: {

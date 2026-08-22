@@ -12,7 +12,7 @@ import {
   claimPitchesToProcess,
   claimPitchForProcessing,
 } from "@/lib/data/doorlog";
-import { backoffMs, isTerminalFailure } from "./retryBackoff";
+import { backoffMs, isTerminalFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
 import { rollupRep } from "./rollupWorker";
 
@@ -53,7 +53,28 @@ async function pitchContext(pitchId: string): Promise<{ outcome: string; duratio
 export async function processPitch(pitch: PitchRow): Promise<void> {
   // Atomic claim FIRST: only one of the two entry points (the route's fire-and-forget kick and the cron sweep)
   // may do the paid STT + LLM work for a given pitch. The loser of the lease race returns without spending.
-  if (!(await claimPitchForProcessing(pitch.id))) return;
+  // The claim also ADVANCES `attempts` (audit H2) — so a crash/timeout that never reaches the catch below is
+  // still counted, and a "poison" pitch eventually goes terminal instead of processing forever.
+  const claim = await claimPitchForProcessing(pitch.id, pitch.attempts);
+  if (!claim.won) return;
+  const attempts = claim.attempts;
+  // Poison-pitch backstop (audit H2, 2026-08-22): once the lease has pushed `attempts` PAST the ceiling, a prior
+  // run must have hard-crashed (serverless timeout / OOM) without hitting the catch — re-processing would just
+  // re-crash. Terminalise honestly instead of looping. `> MAX` (not `>=`) so the ordinary throw path still gets
+  // its full MAX_PITCH_ATTEMPTS real tries, each terminalised by the catch at `>= MAX`.
+  if (attempts > MAX_PITCH_ATTEMPTS) {
+    await setPitchStatus({
+      pitchId: pitch.id,
+      status: "failed",
+      attempts,
+      error: `Processing failed after ${attempts} attempts (a timeout or crash prevented completion).`,
+    });
+    Sentry.captureException(new Error("pitch processing exceeded max attempts (crash/timeout loop)"), {
+      tags: { feature: "macro-mode", stage: "pitch-processing" },
+      extra: { pitchId: pitch.id, attempts },
+    });
+    return;
+  }
   try {
     const sb = createAdminClient();
     // F4: skip the (paid) STT step if a transcript ALREADY exists. A retry after an analyze-stage failure
@@ -167,7 +188,8 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       /* no after() context here — the cron's rollup pass is the backstop */
     }
   } catch (err) {
-    const attempts = pitch.attempts + 1;
+    // `attempts` was already advanced at lease time (audit H2) — do NOT increment again here, or a thrown error
+    // would double-count and terminalise too early.
     const message = err instanceof Error ? err.message : String(err);
     if (isTerminalFailure(attempts)) {
       await setPitchStatus({
@@ -181,11 +203,11 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
         extra: { pitchId: pitch.id },
       });
     } else {
-      // Transient — back off and let the cron re-claim it. Keep the current status so it resumes there.
+      // Transient — back off and let the cron re-claim it. Keep the current status so it resumes there; the lease
+      // already set `attempts`, so leave it untouched (omitted) and only move `run_after`.
       await setPitchStatus({
         pitchId: pitch.id,
         status: pitch.status as "uploading" | "transcribing" | "analyzing",
-        attempts,
         runAfter: new Date(Date.now() + backoffMs(attempts)),
       });
     }
