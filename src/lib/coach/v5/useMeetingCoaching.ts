@@ -229,8 +229,13 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
           }),
         });
         if (!res.ok) {
-          // Surface a forced failure honestly (§3.4 — never a silent dead button); auto-cues stay quiet.
-          if (force) setCueStatus(`Cue request failed (${res.status}).`);
+          // Surface a forced failure honestly (§3.4 — never a silent dead button); auto-cues stay quiet. A rep
+          // shouldn't see a raw HTTP status (audit D5) — show a plain, actionable line; keep the status in the
+          // console for debugging.
+          if (force) {
+            console.error(`[meeting cue] forced cue failed — HTTP ${res.status}`);
+            setCueStatus("Coach couldn't respond right now — try again in a moment.");
+          }
           return;
         }
         const data = await res.json();
