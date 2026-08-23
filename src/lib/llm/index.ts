@@ -54,6 +54,16 @@ export function chooseProvider(): Provider {
   );
 }
 
+/**
+ * The canonical name of the provider that WOULD be selected right now (or null if none is configured).
+ *
+ * NOTE — intentionally NOT used by `/api/health`. Health derives its `activeProvider` from raw `process.env`
+ * on purpose, to stay decoupled from THIS module's `import "@/lib/env"` (which parses/validates env at load):
+ * health must return 200 and describe a broken LLM config, never 500 because of it. Wiring health to this
+ * helper would couple it to that eager validation and defeat that guarantee (verified 2026-08-23 — a tempting
+ * DRY that would be a regression). Kept as a single-source helper for server contexts that ALREADY depend on
+ * `@/lib/llm` and want the canonical active-provider name rather than re-deriving the selection.
+ */
 export function activeProviderName(): string | null {
   try {
     return chooseProvider().name;

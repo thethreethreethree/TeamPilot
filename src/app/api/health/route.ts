@@ -50,6 +50,10 @@ export async function GET() {
       persistence: supabaseEnabled,
       llmReady,
       providers: llmProviders,
+      // Derived from raw env ON PURPOSE — do NOT replace with @/lib/llm's activeProviderName()/chooseProvider().
+      // That module eagerly imports @/lib/env (validates at load), and this endpoint must return 200 describing a
+      // broken LLM config, never 500 because of it. Mirrors chooseProvider's preference order (env, then deepseek,
+      // then anthropic); see the note on activeProviderName() for why the coupling is deliberately avoided here.
       activeProvider:
         process.env.LLM_PROVIDER ??
         (llmProviders.deepseek
