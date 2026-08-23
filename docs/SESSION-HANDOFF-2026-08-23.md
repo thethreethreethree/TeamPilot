@@ -46,7 +46,7 @@ These were **deliberately not built** — each would gold-plate, overtake a defe
 | Item | Why held | Approve with |
 |---|---|---|
 | **D3** coverage whole-JSONB race | Verified benign + latent — `useMeetingCoaching` serializes cue POSTs (race needs two concurrent clients, rare) and the review re-assesses coverage from the full transcript anyway, so worst case is a stale LIVE re-nudge, not a wrong review. Fix needs a founder-applied migration/row-lock (non-trivial for a benign issue). | "do D3 with a migration" |
-| **D4** multi-company assertions | You explicitly deferred multi-company; these are that milestone's hardening (companyId assertions on cue/dissect). | "add the D4 multi-company assertions" |
+| **D4** multi-company assertions | You explicitly deferred multi-company. Precise shape (verified): `getMeetingPrepBySession` (meetingPrep.ts:210) uses the admin client + filters by `session_id` only (no `company_id`) — cross-tenant-capable, safe today *only* because the cue/dissect callers verify the session via the RLS-scoped `getSession` first ("safe only by caller discipline"). Milestone fix: add a `company_id` filter at that chokepoint (+ constrain `meeting_prep_documents.company_id` to the parent prep). | "add the D4 multi-company assertions" |
 
 *(The pending-audio hard auto-terminal — previously listed here — was built as an A20 default in `34d2cdf8`; see section 1.)*
 
