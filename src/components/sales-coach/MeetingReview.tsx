@@ -37,11 +37,19 @@ type Dissect = {
   overall?: string | null;
 };
 
+// After this many consecutive 409s the pending-audio state becomes a hard TERMINAL "not recorded" (audit D5 — a
+// prior version offered Try-again forever). Chunks upload DURING the call, so by review-time a 409 is almost
+// always terminal; 3 tries comfortably covers the narrow window where the last chunk is still landing, so the
+// false-terminal risk is low. A fresh navigation to the review remounts + resets the count, so a determined rep
+// can always re-check.
+const MAX_PENDING_RETRIES = 3;
+
 export function MeetingReview({ sessionId }: { sessionId: string }) {
-  const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio" | "no-recording">("loading");
   const [dissect, setDissect] = useState<Dissect | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [retryable, setRetryable] = useState(true); // is the current error worth a Retry? (5xx/network yes; 4xx no — audit L3)
+  const pendingRetriesRef = useRef(0); // consecutive 409s → hard terminal at MAX_PENDING_RETRIES (audit D5)
   // Guard state updates after the (potentially long — batch transcription) fetch settles post-unmount.
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -57,9 +65,12 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
       const res = await fetch(`/api/coach/meeting-session/${sessionId}/dissect`, { method: "POST" });
       if (!mountedRef.current) return;
       if (res.status === 409) {
-        setState("pending-audio");
+        pendingRetriesRef.current += 1;
+        // After a few tries with no audio, stop offering an endless "Try again" and state the terminal truth.
+        setState(pendingRetriesRef.current >= MAX_PENDING_RETRIES ? "no-recording" : "pending-audio");
         return;
       }
+      pendingRetriesRef.current = 0; // any non-409 result ends the pending-audio sequence
       if (!res.ok) {
         const d = (await res.json().catch(() => null)) as { error?: string } | null;
         if (!mountedRef.current) return;
@@ -76,6 +87,7 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
       setState("ready");
     } catch {
       if (!mountedRef.current) return;
+      pendingRetriesRef.current = 0; // a network error is a different failure, not a pending-audio tick
       setErrorMsg("Couldn't load the review.");
       setRetryable(true); // a network error is worth retrying
       setState("error");
@@ -97,9 +109,9 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
     return (
       <div className="mx-auto max-w-lg p-6">
         {/* Honesty (audit D5): a 409 here can be transient (audio still stitching) OR terminal (the meeting was
-            never recorded — the dissect stitches-on-demand and found no chunks, INT-1). The old copy implied
-            transient-only, so a rep could "Try again" forever. Name the terminal possibility so they know when to
-            stop. (A hard auto-terminal after N retries is the deeper UX call, left to the founder.) */}
+            never recorded — the dissect stitches-on-demand and found no chunks, INT-1). Name the terminal
+            possibility so the rep knows Try-again isn't endless; after MAX_PENDING_RETRIES it becomes the hard
+            "no-recording" terminal below. */}
         <p className="text-sm text-secondary">
           The recording isn&apos;t ready yet — it may still be saving. If a couple of retries don&apos;t help, this
           meeting likely wasn&apos;t recorded — head back and start a fresh one.
@@ -112,6 +124,22 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
           >
             Try again
           </button>
+          <BackToMeetingCoach />
+        </div>
+      </div>
+    );
+  }
+  if (state === "no-recording") {
+    // Terminal state (audit D5): after MAX_PENDING_RETRIES consecutive 409s, stop offering Try-again and state the
+    // truth. Back is the escape; a fresh navigation to the review remounts + resets the counter, so a determined
+    // rep can still re-check if a recording genuinely lands late.
+    return (
+      <div className="mx-auto max-w-lg p-6">
+        <p className="text-sm text-secondary">
+          This meeting doesn&apos;t appear to have been recorded, so there&apos;s no review to show. If you expected
+          a recording, start a fresh meeting.
+        </p>
+        <div className="mt-3">
           <BackToMeetingCoach />
         </div>
       </div>
