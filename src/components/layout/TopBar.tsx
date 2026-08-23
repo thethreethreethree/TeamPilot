@@ -1,7 +1,7 @@
 "use client";
 
-import { Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { ArrowLeft, Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -23,7 +23,14 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
   // tab bar), so that sidebar isn't there — the button did nothing. Hide it on
   // Sales Coach routes (founder 2026-07-04: "hamburger not working").
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const inSalesCoach = pathname.startsWith("/dashboard/sales-coach");
+  // Systemic mobile back affordance (audit F1/F2, founder pick 2026-08-23). The Sales Coach mobile surface has
+  // only the bottom tab bar for chrome, so a page reached from a home card (Roleplay, One Liners, …) or any
+  // non-tab route gave a rep no in-page way back. One fix here covers every SC mobile page that renders TopBar
+  // (current + future). Shown only on SC routes, only on mobile (desktop has the sidebar), and never on the SC
+  // home itself (which renders no TopBar on mobile anyway, but guard the exact path so it can't self-reference).
+  const showSalesCoachBack = inSalesCoach && pathname !== "/dashboard/sales-coach";
 
   useEffect(() => {
     setNow(new Date());
@@ -61,6 +68,17 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
       className="pt-[env(safe-area-inset-top)] min-h-11 md:min-h-16 border-b border-default bg-base/80 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 sticky top-0 z-30 gap-2 md:gap-3"
     >
       <div className="flex items-center gap-2 min-w-0">
+        {showSalesCoachBack && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Go back"
+            // Same ~40px tap target + styling as the hamburger it stands in for on SC routes. Mobile-only.
+            className="md:hidden p-2.5 -ml-1 rounded-lg text-muted hover:text-primary hover:bg-surface-raised flex-shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" aria-hidden />
+          </button>
+        )}
         {!inSalesCoach && (
           <button
             type="button"

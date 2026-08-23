@@ -79,10 +79,14 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     stubFetch(false);
     const { container } = render(<SalesCoachHome />);
     const m = () => mobile(container);
-    // Pitch Performance + Roleplay always present; the two focus-out cards present because Macro is OFF.
+    // Pitch Analytics (renamed from "Pitch Performance", audit F3) + Roleplay always present; the two focus-out
+    // cards present because Macro is OFF.
     await waitFor(() => expect(m().getByText("Live AI Coach & Sessions")).toBeTruthy());
     expect(m().getByText("One Liners")).toBeTruthy();
-    expect(m().getByText("Pitch Performance")).toBeTruthy();
+    expect(m().getByText("Pitch Analytics")).toBeTruthy();
+    // The label collision is resolved: "Pitch Performance" is no longer a non-macro card (it uniquely means the
+    // macro report-card tab now).
+    expect(m().queryByText("Pitch Performance")).toBeNull();
     // The two stat pills (not the three door bubbles).
     expect(m().getByText("Pitches")).toBeTruthy();
     expect(m().getByText("Roleplays")).toBeTruthy();

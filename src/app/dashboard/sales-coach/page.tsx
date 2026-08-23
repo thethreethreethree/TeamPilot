@@ -272,7 +272,9 @@ export default function SalesCoachHome() {
             <MobileCard
               href="/dashboard/sales-coach/analytics"
               icon={Mic}
-              title="Pitch Performance"
+              // Audit F3 (founder pick 2026-08-23): renamed from "Pitch Performance" to end the label collision —
+              // that name now uniquely means the macro report card (/doors/report-card). This card opens Analytics.
+              title="Pitch Analytics"
               sub="Analyze recent calls & feedback"
             />
             <MobileCard
