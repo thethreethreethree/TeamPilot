@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
-import { createSignedUploadTarget, downloadAssetBytes } from "@/lib/storage/assets";
+import { createSignedUploadTarget, downloadAssetBytes, getAssetObjectInfo, validateUploadCandidate } from "@/lib/storage/assets";
 import { extractText } from "@/lib/documents/extractText";
 import { extractImageText } from "@/lib/documents/extractImageText";
 import { getMeetingPrep, addPrepDocument } from "@/lib/data/meetingPrep";
@@ -25,6 +25,7 @@ const SignBody = z.object({
   kind: z.literal("sign"),
   filename: z.string().min(1).max(200),
   mimeType: z.string().max(120).default(""),
+  sizeBytes: z.number().int().nonnegative().max(1_000_000_000).optional(), // client-declared (fast early reject; the REAL size is re-checked at confirm)
 });
 const ConfirmBody = z.object({
   kind: z.literal("confirm"),
@@ -37,6 +38,26 @@ const Body = z.discriminatedUnion("kind", [SignBody, ConfirmBody]);
 
 // OCR (Tesseract, incl. first-run engine load) + extractText need headroom beyond the short default.
 export const maxDuration = 120;
+
+/**
+ * Security gate at the established chokepoint (audit D2/§A27): route the upload through validateUploadCandidate so
+ * a spoofed-MIME executable / SVG / archive is blocked by the SAME blocklist + size cap the rest of the app uses,
+ * instead of this route's weaker re-implementation. Returns a 400 for a hard-blocked type / oversized / empty
+ * file; returns null (pass) for an allowed type OR a `not_allowed_type` — the latter falls through to classifyKind,
+ * which is INTENTIONALLY broader (it accepts odt/epub the global allowlist omits) but only AFTER the blocklist ran.
+ */
+function uploadSecurityRejection(args: { filename: string; mimeType: string; sizeBytes: number }): NextResponse | null {
+  const v = validateUploadCandidate({
+    sizeBytes: args.sizeBytes,
+    mimeType: args.mimeType,
+    uploadedVia: "agent_dashboard",
+    filename: args.filename,
+  });
+  if (!v.ok && v.reason !== "not_allowed_type") {
+    return NextResponse.json({ error: v.detail }, { status: v.reason === "too_large" ? 413 : 400 });
+  }
+  return null;
+}
 
 /** Accepted Prep-up doc types → the stored `kind`. Anything else is refused (executables/archives/etc.). */
 function classifyKind(filename: string, mimeType: string): "image" | "text" | "pdf" | null {
@@ -70,6 +91,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!kind) return NextResponse.json({ error: "Unsupported file type." }, { status: 400 });
 
   if (body.kind === "sign") {
+    // Security chokepoint (D2): block a spoofed executable/SVG/archive + an over-cap file up front (the declared
+    // size is untrusted → re-checked against the REAL size at confirm below).
+    const rejected = uploadSecurityRejection({ filename: body.filename, mimeType: body.mimeType, sizeBytes: body.sizeBytes ?? 1 });
+    if (rejected) return rejected;
     const target = await createSignedUploadTarget({
       companyId,
       fileId: randomUUID(),
@@ -86,6 +111,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!body.storagePath.startsWith(`${companyId}/`)) {
     return NextResponse.json({ error: "Invalid upload path." }, { status: 400 });
   }
+
+  // Re-validate against the REAL uploaded object (D2): read its actual size + content-type from storage BEFORE
+  // buffering the whole file — blocks a client that under-declared its size or spoofed a type at sign, and bounds
+  // the download (a multi-GB object can't OOM the function). Confirms the object exists (no phantom path).
+  const info = await getAssetObjectInfo(body.storagePath);
+  if (!info) return NextResponse.json({ error: "Uploaded file not found." }, { status: 400 });
+  const realRejected = uploadSecurityRejection({
+    filename: body.filename,
+    mimeType: info.contentType || body.mimeType,
+    sizeBytes: info.sizeBytes,
+  });
+  if (realRejected) return realRejected;
 
   const dl = await downloadAssetBytes({ storagePath: body.storagePath });
   if (!dl.ok || !dl.bytes) {

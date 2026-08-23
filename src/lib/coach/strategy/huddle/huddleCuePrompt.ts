@@ -1,6 +1,6 @@
 import "server-only";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import type { CueMode, StrategyTranscriptSegment } from "../coachingStrategy";
+import type { CueMode, MeetingAgenda, StrategyTranscriptSegment } from "../coachingStrategy";
 import { renderTurns } from "../renderTurns";
 
 /**
@@ -11,7 +11,18 @@ import { renderTurns } from "../renderTurns";
  * │ focused, so the coach is near-silent and biased to brevity + momentum over depth (plan  │
  * │ §3.2). Higher bar to cue than meeting mode. Reuses NOTHING sales-specific.              │
  * └─────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * AGENDA-AWARE (audit D1, founder 2026-08-23): a huddle CAN be prepped too (a prep row links to the session),
+ * and the Dissect already judges agenda coverage for huddles — so a huddle brain that ignored the agenda was
+ * inconsistent with its own review (it would never track coverage or flag a must-cover point the huddle skipped).
+ * This mirrors the Meeting brain's agenda handling (goal-grounded + uncovered-topic-before-end + coverage report)
+ * but keeps the huddle's near-silent posture: the agenda raises exactly ONE new reason to speak — a must-cover
+ * point about to be missed as the huddle ends — and otherwise the higher silence bar is unchanged.
  */
+
+// Bound the doc context folded into the prompt. TIGHTER than the meeting brain's 2000 — a huddle is latency-
+// sensitive and the coach reads supporting docs only lightly (its job is momentum, not depth).
+const MAX_DOC_CONTEXT_CHARS = 1200;
 
 /** Huddle phases the coach reads before deciding to cue (§3.2 understanding gate). */
 export const HUDDLE_PHASES = [
@@ -35,6 +46,7 @@ export const HUDDLE_TRIGGERS = [
   "hidden_blocker", // someone hints they're stuck without naming it — surface it
   "overrun", // a status has turned into a deep problem-solving discussion — take it offline
   "capture_action", // a commitment/next-step was made — capture it as a task
+  "uncovered_topic", // a prepped must-cover point hasn't been raised as the huddle ends — needs an agenda (D1)
   "none", // no trigger — stay silent
 ] as const;
 export type HuddleTrigger = (typeof HUDDLE_TRIGGERS)[number];
@@ -71,9 +83,12 @@ HIGH-VALUE TRIGGERS (only these; and be stingy):
 - "hidden_blocker"  — someone hints they're stuck but hasn't named the blocker. Nudge: surface it now.
 - "overrun"         — a status has turned into a working discussion. Nudge: take it offline, keep the huddle moving.
 - "capture_action"  — a real commitment/next-step was made. Nudge: capture it as an owned task.
+- "uncovered_topic" — ONLY when a PREP-UP AGENDA is provided: a must-cover point still marked NOT covered and the huddle is ENDING (or clearly about to). Nudge: raise it in one line before you close. This is the only agenda-driven cue — do NOT walk the huddle through the agenda item by item; a huddle is not a meeting.
 - "none"            — anything else. STAY SILENT.
 
 NEVER cue: a status that's already concrete, a blocker already named and being noted, normal quick back-and-forth, or just to seem useful. Silence is the default state of a good huddle coach.
+
+WHEN A PREP-UP AGENDA IS PROVIDED (goal + must-cover points + optional doc context): the huddle stays tight — the agenda does NOT lower the silence bar mid-huddle. Its one job here is END-COVERAGE: near the end, if a must-cover point was never raised, "uncovered_topic" it in a single line. ALSO report coverage: in "covered", list the ids of any agenda points raised in THIS window (even on a silent pass), so an already-covered point is never re-nudged. If no agenda is given, omit "covered" and never use "uncovered_topic".
 
 ${HUDDLE_METHOD}
 
@@ -86,29 +101,58 @@ IMPORTANCE (§3.3):
 - "low"    — marginal. Prefer silence.
 Be STINGY with "high".
 
-OUTPUT — respond with ONLY this JSON:
+OUTPUT — respond with ONLY this JSON ("covered" only when an agenda is provided):
 {
   "phase": "status_round"|"blocker"|"deep_dive"|"wrap"|"unknown",
-  "trigger": "vague_status"|"hidden_blocker"|"overrun"|"capture_action"|"none",
+  "trigger": "vague_status"|"hidden_blocker"|"overrun"|"capture_action"|"uncovered_topic"|"none",
   "shouldCue": boolean,
   "importance": "high"|"medium"|"low",
-  "cue": "the one-line cue, or empty string if shouldCue is false"
+  "cue": "the one-line cue, or empty string if shouldCue is false",
+  "covered": ["<agenda point id raised in THIS window>"]
 }` + CONVERSATION_IS_DATA
   );
+}
+
+/**
+ * Render the Prep-up agenda block for a huddle — TIGHTER than the meeting brain's: it frames the topics as
+ * must-cover POINTS and asks for exactly one agenda behaviour (end-coverage + the covered report), not the
+ * meeting brain's run-toward-the-goal facilitation. Empty when no prep is linked. Mirrors meetingCuePrompt's
+ * renderAgenda structure so the two can't drift on the covered-id contract.
+ */
+function renderAgenda(agenda: MeetingAgenda | undefined): string {
+  if (!agenda) return "";
+  const goal = agenda.goal.trim();
+  const topicLines = agenda.topics
+    .map((t) => `  - [${t.covered ? "COVERED" : "NOT COVERED"}] (id: ${t.id}) ${t.text}`)
+    .join("\n");
+  const doc = agenda.docContext.trim().slice(0, MAX_DOC_CONTEXT_CHARS);
+  const parts = ["PREP-UP AGENDA (must-cover points for this huddle):"];
+  if (goal) parts.push(`Focus: ${goal}`);
+  if (topicLines) parts.push(`Must-cover points:\n${topicLines}`);
+  if (doc) parts.push(`Supporting context (light — a huddle reads this only in passing):\n${doc}`);
+  parts.push(
+    `Stay tight: do NOT walk the agenda item by item. Near the end, a still-NOT-COVERED point is worth one "uncovered_topic" line before you close. In "covered", return the ids of any points raised in THIS window.`
+  );
+  return `\n\n${parts.join("\n\n")}`;
 }
 
 export function buildHuddleCueUserMessage(args: {
   recentSegments: StrategyTranscriptSegment[];
   /** The huddle appears to be nearing its end. The brain still decides. */
   nearingEnd?: boolean;
+  /** Prep-up agenda — when present, the huddle tracks coverage + flags a must-cover point missed at the end (D1). */
+  agenda?: MeetingAgenda;
 }): string {
   const rolling = renderTurns(args.recentSegments);
+  const agendaBlock = renderAgenda(args.agenda);
   const wrap = args.nearingEnd
-    ? `\n\nNOTE: the huddle looks close to done. Only cue if a commitment still needs capturing or a status stayed vague — otherwise let it end.`
+    ? `\n\nNOTE: the huddle looks close to done. Only cue if a commitment still needs capturing, a status stayed vague${
+        args.agenda ? `, or a must-cover agenda point is still NOT COVERED ("uncovered_topic")` : ""
+      } — otherwise let it end.`
     : "";
   return `Huddle so far (most recent turns, one line per speaker turn):
 
-${rolling}${wrap}
+${rolling}${agendaBlock}${wrap}
 
 Read the phase, decide whether to cue the facilitator (usually not), and if so give one short cue. JSON only.`;
 }

@@ -16,9 +16,30 @@ import "server-only";
 const MAX_OCR_MS = 25_000;
 // Cap the stored text so a dense scan can't bloat the prep prompt the AI later reads.
 const MAX_OCR_CHARS = 20_000;
+// Image-bomb guard (audit D2/MED-2): a small highly-compressed raster (e.g. a few-hundred-KB PNG) can decode to a
+// multi-GB RGBA bitmap that OOMs the function BEFORE the timeout fires (the timeout can't interrupt a synchronous
+// decode). sharp reads the dimensions from the header WITHOUT decoding the pixels, so we reject an over-large
+// image up front. 40 MP is far above any legitimate document photo/scan.
+const MAX_IMAGE_PIXELS = 40_000_000;
 
 export async function extractImageText(bytes: Buffer): Promise<string> {
   try {
+    // Bounded-decode guard FIRST: read dimensions cheaply (header only) and refuse an image-bomb before Tesseract
+    // decodes it into memory. Any metadata error → treat as unreadable → note-only (graceful).
+    try {
+      const sharp = (await import("sharp")).default;
+      const meta = await sharp(bytes, { failOn: "none" }).metadata();
+      const pixels = (meta.width ?? 0) * (meta.height ?? 0);
+      if (pixels > MAX_IMAGE_PIXELS) {
+        // eslint-disable-next-line no-console
+        console.error(`[prep-up ocr] image too large to OCR safely (${meta.width}x${meta.height}) — storing note only`);
+        return "";
+      }
+    } catch (metaErr) {
+      // eslint-disable-next-line no-console
+      console.error("[prep-up ocr] couldn't read image dimensions (storing note only):", metaErr instanceof Error ? metaErr.message : metaErr);
+      return "";
+    }
     const { recognize } = await import("tesseract.js");
     const result = await Promise.race([
       recognize(bytes, "eng"),

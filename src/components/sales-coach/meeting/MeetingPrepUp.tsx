@@ -146,7 +146,7 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
         const signRes = await fetch(base, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind: "sign", filename: file.name, mimeType: file.type }),
+          body: JSON.stringify({ kind: "sign", filename: file.name, mimeType: file.type, sizeBytes: file.size }),
         });
         if (!signRes.ok) throw new Error("unsupported or sign failed");
         const { storagePath, token } = await signRes.json();

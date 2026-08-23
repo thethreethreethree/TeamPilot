@@ -40,6 +40,9 @@ export class HuddleStrategy implements CoachingStrategy {
       const userMessage = buildHuddleCueUserMessage({
         recentSegments: recent,
         nearingEnd: context.signals?.["nearingEnd"] === true,
+        // D1 (founder 2026-08-23): a prepped huddle runs toward its agenda too — forward it so the brain tracks
+        // coverage + flags a must-cover point missed at the end. Absent → today's agenda-less huddle behaviour.
+        agenda: context.agenda,
       });
 
       const r = await this.llm({ systemPrompt, userMessage });
