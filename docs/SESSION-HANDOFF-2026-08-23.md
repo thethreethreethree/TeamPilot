@@ -14,13 +14,14 @@ with `npm run check` EXIT 0 on every commit and `verify:live` 30/30 live-prod in
 | `260aa536` | **D1** huddle brain agenda-aware · **D2** doc-upload chokepoint + image-bomb guard |
 | `e8a1f1aa` | **Macro Mode mobile nav revision** — your annotated mockup (Home · Pitch Performance · Today's Metrics · Role Play; the two data views moved out of the home grid into the nav) |
 
-**Meeting Coach audit — D5's four clear items (the rest of D1–D5 shipped earlier in prior commits)**
+**Meeting Coach audit — all of D5 (the rest of D1–D5 shipped earlier in prior commits)**
 | Commit | What |
 |---|---|
 | `67d522f4` | Orphan draft-prep per `/prep` visit → server reuses the caller's truly-empty draft |
 | `3b17cf51` | Forced-cue failure showed a raw HTTP status → plain message |
 | `581b1ca6` | Empty-prep Start nudge (passive; Start stays enabled) |
-| `3f23af7d` | Pending-audio review now names the "not recorded" terminal case |
+| `3f23af7d` | Pending-audio review names the "not recorded" terminal case (soft copy) |
+| `34d2cdf8` | Pending-audio review hard auto-terminal after 3 retries (A20 default — no endless Try-again) |
 
 **Proactive mobile Sales Coach UX audit (6 findings, all fixed)**
 | Commit | What |
@@ -44,9 +45,10 @@ These were **deliberately not built** — each would gold-plate, overtake a defe
 
 | Item | Why held | Approve with |
 |---|---|---|
-| **D3** coverage whole-JSONB race | Verified latent — `useMeetingCoaching` serializes cue POSTs, so the race needs two concurrent clients on one session (rare) + impact is a stale re-nudge. Fix needs a migration/row-lock (non-trivial for rare/low-impact). | "do D3 with a migration" |
-| **D4** multi-company assertions | You deferred multi-company; these are that milestone's hardening (companyId assertions on cue/dissect). | "add the D4 multi-company assertions" |
-| **Pending-audio hard auto-terminal** | A UX call — auto-detect "not recorded" after N retries + hide Try-again. The honest interim copy already shipped (`3f23af7d`). | "build the hard auto-terminal" |
+| **D3** coverage whole-JSONB race | Verified benign + latent — `useMeetingCoaching` serializes cue POSTs (race needs two concurrent clients, rare) and the review re-assesses coverage from the full transcript anyway, so worst case is a stale LIVE re-nudge, not a wrong review. Fix needs a founder-applied migration/row-lock (non-trivial for a benign issue). | "do D3 with a migration" |
+| **D4** multi-company assertions | You explicitly deferred multi-company; these are that milestone's hardening (companyId assertions on cue/dissect). | "add the D4 multi-company assertions" |
+
+*(The pending-audio hard auto-terminal — previously listed here — was built as an A20 default in `34d2cdf8`; see section 1.)*
 
 ---
 

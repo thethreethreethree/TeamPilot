@@ -93,12 +93,11 @@ Review Retry gated to retryable errors + a "Back to Meeting Coach" escape; a rea
 - **D4 — multi-company LOWs.** cue/dissect load prep by `session_id` without a `session.companyId===companyId`
   assertion; `meeting_prep_documents.company_id` isn't constrained to the parent prep's; `persistOnly` finalize
   doesn't check the stamp row-count. All safe under single-company; harden at the multi-company milestone.
-- **D5 — UI polish.** ✅ ALL FOUR CLEAR ITEMS FIXED + deployed: orphan draft prep on every `/prep` visit
-  (`67d522f4` — server reuses the caller's truly-empty draft); forced-cue raw HTTP status → plain message
-  (`3b17cf51`); empty-prep Start nudge (`581b1ca6` — passive, Start still enabled); pending-audio copy names the
-  terminal "not recorded" case (`3f23af7d`). REMAINING = one deeper UX-design call for the founder only: a HARD
-  auto-terminal state after N retries (auto-detect "not recorded" + hide Try-again) — the passive copy fix ships
-  the honest interim.
+- **D5 — UI polish.** ✅ FULLY FIXED + deployed: orphan draft prep on every `/prep` visit (`67d522f4` — server
+  reuses the caller's truly-empty draft); forced-cue raw HTTP status → plain message (`3b17cf51`); empty-prep Start
+  nudge (`581b1ca6` — passive, Start still enabled); pending-audio copy names the terminal "not recorded" case
+  (`3f23af7d`); AND the hard auto-terminal after 3 retries (`34d2cdf8` — A20 default, no endless Try-again). Nothing
+  remains in D5.
 
 ---
 
@@ -111,6 +110,6 @@ Coach UX audit this session shipped F1–F5 + class-completions — see its own 
 
 ## How to confirm at go-live
 Run `docs/MEETINGCOACH-DEVICE-VALIDATION.md` on real hardware (Prep-up → agenda-aware cues → agenda-scored review;
-+ the iOS pitch-capture check). **D1, D2, and all of D5's clear items are done + deployed.** Remaining follow-up
-backlog (single-company-safe today): **D3** (latent coverage race — needs a migration/concurrency guard), **D4**
-(multi-company milestone), and one **D5 UX-design call** (a hard auto-terminal state on the pending-audio review).
++ the iOS pitch-capture check). **D1, D2, and all of D5 are done + deployed.** Remaining follow-up backlog
+(single-company-safe today): **D3** (benign + latent coverage race — needs a founder-applied migration/concurrency
+guard) and **D4** (multi-company milestone hardening — you explicitly deferred it).
