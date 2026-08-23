@@ -93,22 +93,24 @@ Review Retry gated to retryable errors + a "Back to Meeting Coach" escape; a rea
 - **D4 — multi-company LOWs.** cue/dissect load prep by `session_id` without a `session.companyId===companyId`
   assertion; `meeting_prep_documents.company_id` isn't constrained to the parent prep's; `persistOnly` finalize
   doesn't check the stamp row-count. All safe under single-company; harden at the multi-company milestone.
-- **D5 — UI polish.** ✅ FIXED: orphan draft prep on every `/prep` visit (`67d522f4` — server reuses the caller's
-  truly-empty draft) + forced-cue raw HTTP status → plain message (`3b17cf51`). REMAINING (UX-design calls for the
-  founder, not clear bugs): Start enabled with an empty prep + no hint; the pending-audio "try again" lacks a
-  terminal "may-not-have-been-recorded" state.
+- **D5 — UI polish.** ✅ ALL FOUR CLEAR ITEMS FIXED + deployed: orphan draft prep on every `/prep` visit
+  (`67d522f4` — server reuses the caller's truly-empty draft); forced-cue raw HTTP status → plain message
+  (`3b17cf51`); empty-prep Start nudge (`581b1ca6` — passive, Start still enabled); pending-audio copy names the
+  terminal "not recorded" case (`3f23af7d`). REMAINING = one deeper UX-design call for the founder only: a HARD
+  auto-terminal state after N retries (auto-detect "not recorded" + hide Try-again) — the passive copy fix ships
+  the honest interim.
 
 ---
 
 ## Commits
-UI fixes `9ee0f089` · backend/wiring fixes `66ee5ea5` · **D1 + D2 remediation `260aa536`** · **D5 partial: forced-cue
-copy `3b17cf51` + orphan-draft reuse `67d522f4`** (all deploy-verified). Prior related this session: capture
-instrumentation + iOS fix (`a9402dcb`/`75ad8c2d`/`55fd7837`), reliability audit (H1–H4/M/L), Prep-up + go-live.
-(A SEPARATE mobile Sales Coach UX audit this session shipped F1–F5 + class-completions — see its own commits
-`0affa4c3`/`a56124e1`/`5f8497a2`.)
+UI fixes `9ee0f089` · backend/wiring fixes `66ee5ea5` · **D1 + D2 remediation `260aa536`** · **D5 (all clear items):
+forced-cue copy `3b17cf51`, orphan-draft reuse `67d522f4`, empty-prep nudge `581b1ca6`, pending-audio copy
+`3f23af7d`** (all deploy-verified). Prior related this session: capture instrumentation + iOS fix
+(`a9402dcb`/`75ad8c2d`/`55fd7837`), reliability audit (H1–H4/M/L), Prep-up + go-live. (A SEPARATE mobile Sales
+Coach UX audit this session shipped F1–F5 + class-completions — see its own commits `0affa4c3`/`a56124e1`/`5f8497a2`.)
 
 ## How to confirm at go-live
 Run `docs/MEETINGCOACH-DEVICE-VALIDATION.md` on real hardware (Prep-up → agenda-aware cues → agenda-scored review;
-+ the iOS pitch-capture check). **D1 + D2 are done + deployed**, and **D5's two clear bugs (orphan draft, forced-cue
-copy) are fixed + deployed.** Remaining follow-up backlog: **D3** (latent race), **D4** (multi-company milestone),
-and **D5's two UX-design calls** (empty-prep Start hint, pending-audio terminal state) — single-company-safe today.
++ the iOS pitch-capture check). **D1, D2, and all of D5's clear items are done + deployed.** Remaining follow-up
+backlog (single-company-safe today): **D3** (latent coverage race — needs a migration/concurrency guard), **D4**
+(multi-company milestone), and one **D5 UX-design call** (a hard auto-terminal state on the pending-audio review).
