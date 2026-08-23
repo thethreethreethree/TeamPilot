@@ -1,4 +1,5 @@
 import type { SalesSession } from "@/lib/data/salesCoach";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Shared prep helpers (audit F3 — §A21, one source instead of per-engine
@@ -23,8 +24,11 @@ SALES METHODOLOGY (reason FROM it; adapt to THIS call):
  * critique instead of prep.
  */
 export function reviewProductBlock(product?: string | null): string {
-  return product?.trim()
-    ? `\n\nPRODUCT / OFFER DETAILS (what the rep is actually selling — judge the call against THIS; flag any product claim that contradicts it, and credit accurate product framing; NEVER invent product specifics beyond it):\n${product.trim()}`
+  // Cap to the shared corpus budget (INV22 / §3.4): a large product corpus injected raw would starve the
+  // reasoning model's output to empty. Defensive at load; the /product save route caps too.
+  const trimmed = product?.trim();
+  return trimmed
+    ? `\n\nPRODUCT / OFFER DETAILS (what the rep is actually selling — judge the call against THIS; flag any product claim that contradicts it, and credit accurate product framing; NEVER invent product specifics beyond it):\n${capCorpus(trimmed).content}`
     : `\n\n(No product details on file — assess delivery + methodology only; do NOT invent or assume product specifics.)`;
 }
 

@@ -16,6 +16,7 @@ vi.mock("@/lib/coach/v5/salesKnowledgeBase", () => ({ getSalesKnowledgeBase: vi.
 
 import { createClient } from "@/lib/supabase/server";
 import { appendSalesCorpusVersion } from "@/lib/data/salesCoach";
+import { KNOWLEDGE_CORPUS_MAX_CHARS } from "@/lib/llm/corpusBudget";
 import { GET, POST } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>
@@ -66,5 +67,18 @@ describe("POST /corpus — manager-gated write (the load-bearing boundary)", () 
     const res = await POST(postReq({ content: "Our real methodology: discovery first." }));
     expect(res.status).toBe(200);
     expect(appendSalesCorpusVersion).toHaveBeenCalledOnce();
+  });
+  it("caps an over-budget corpus at save (stores <= budget) and reports the truncation honestly (§3.4/INV22)", async () => {
+    setCaller("boss", MANAGER);
+    const res = await POST(postReq({ content: "a".repeat(KNOWLEDGE_CORPUS_MAX_CHARS + 10_000) }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.truncated).toBe(true);
+    expect(body.originalChars).toBe(KNOWLEDGE_CORPUS_MAX_CHARS + 10_000);
+    // The STORED content — what gets injected into the LLM prompt — is within budget, so it can't starve.
+    const call = (appendSalesCorpusVersion as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    const stored = (call?.[0]?.content ?? "") as string;
+    expect(stored.length).toBeGreaterThan(0);
+    expect(stored.length).toBeLessThanOrEqual(KNOWLEDGE_CORPUS_MAX_CHARS);
   });
 });

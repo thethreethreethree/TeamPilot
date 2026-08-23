@@ -5,6 +5,7 @@ import {
   DEFAULT_METHODOLOGY,
   sessionContextLines,
 } from "@/lib/coach/v5/prepShared";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Live Sales Coach — "pre-knock prep" (Live Coach Step 3, the buildable
@@ -41,13 +42,17 @@ const EMPTY_PREP: SalesPrep = {
 };
 
 
-function buildPrepSystemPrompt(
+// Exported for the corpus-cap wiring test (A30 gate) — a pure prompt builder, no side effects.
+export function buildPrepSystemPrompt(
   corpus?: string | null,
   product?: string | null
 ): string {
-  const methodology = corpus?.trim() ? corpus.trim() : DEFAULT_METHODOLOGY;
-  const productBlock = product?.trim()
-    ? `\n\nPRODUCT / OFFER DETAILS (what the rep is actually selling — ground the prep in THIS; NEVER invent product specifics beyond it):\n${product.trim()}`
+  // Cap both to the shared corpus budget (INV22 / §3.4): a large custom corpus injected raw would blow the
+  // system prompt past the reasoning model's output clamp and starve the briefing to empty.
+  const methodology = corpus?.trim() ? capCorpus(corpus.trim()).content : DEFAULT_METHODOLOGY;
+  const trimmedProduct = product?.trim();
+  const productBlock = trimmedProduct
+    ? `\n\nPRODUCT / OFFER DETAILS (what the rep is actually selling — ground the prep in THIS; NEVER invent product specifics beyond it):\n${capCorpus(trimmedProduct).content}`
     : `\n\n(No product details on file — prep from the methodology + the session's offer field only; do NOT invent product specifics.)`;
   return `You are a sales coach giving a rep a SHORT pre-knock briefing — the
 30 seconds before they knock or dial. You PREPARE them; you do NOT script

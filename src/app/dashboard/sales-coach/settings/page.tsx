@@ -278,11 +278,20 @@ function CorpusEditor() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text }),
       });
+      const b = await res.json().catch(() => null);
       if (!res.ok) {
-        const b = await res.json().catch(() => null);
         throw new Error(b?.error ?? "failed");
       }
-      toast.success("Methodology saved", "Future reviews will use it.");
+      if (b?.truncated) {
+        // §3.4 honesty: the corpus was capped to keep the coach from starving to empty — tell the admin so
+        // they trim what matters rather than silently losing the tail.
+        toast.info(
+          "Saved — trimmed to fit",
+          `Your corpus was ${Number(b.originalChars).toLocaleString()} characters; the coach uses the first ${Number(b.storedChars).toLocaleString()}. Trim it so nothing important is dropped.`
+        );
+      } else {
+        toast.success("Methodology saved", "Future reviews will use it.");
+      }
       await load();
     } catch (e) {
       toast.error("Couldn't save", e instanceof Error ? e.message : undefined);
@@ -458,14 +467,22 @@ function ProductEditor() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text }),
       });
+      const b = await res.json().catch(() => null);
       if (!res.ok) {
-        const b = await res.json().catch(() => null);
         throw new Error(b?.error ?? "failed");
       }
-      toast.success(
-        "Product details saved",
-        "The coach uses these now — in pre-call prep, live cues, and the post-call review. History is kept."
-      );
+      if (b?.truncated) {
+        // §3.4 honesty (same as the methodology corpus): capped to avoid starving the coach — tell the admin.
+        toast.info(
+          "Saved — trimmed to fit",
+          `Your product details were ${Number(b.originalChars).toLocaleString()} characters; the coach uses the first ${Number(b.storedChars).toLocaleString()}. Trim so nothing important is dropped.`
+        );
+      } else {
+        toast.success(
+          "Product details saved",
+          "The coach uses these now — in pre-call prep, live cues, and the post-call review. History is kept."
+        );
+      }
       await load();
     } catch (e) {
       toast.error("Couldn't save", e instanceof Error ? e.message : undefined);

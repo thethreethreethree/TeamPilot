@@ -6,6 +6,7 @@ import {
   DEFAULT_METHODOLOGY,
   sessionContextLines,
 } from "@/lib/coach/v5/prepShared";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Prep Time — the interactive "ask the coach" (Sessions build 2). BEFORE a
@@ -27,13 +28,17 @@ export type PrepAnswer = {
   failed: boolean;
 };
 
-function buildQASystemPrompt(
+// Exported for the corpus-cap wiring test (A30 gate) — a pure prompt builder, no side effects.
+export function buildQASystemPrompt(
   corpus?: string | null,
   product?: string | null
 ): string {
-  const methodology = corpus?.trim() ? corpus.trim() : DEFAULT_METHODOLOGY;
-  const productBlock = product?.trim()
-    ? `PRODUCT / OFFER DETAILS (what the rep sells — the ONLY source of product facts; never state a product specific that isn't here):\n${product.trim()}`
+  // Cap both to the shared corpus budget (INV22 / §3.4): a large custom corpus injected raw would starve the
+  // reasoning model's output to empty (a dead Prep-Time Q&A).
+  const methodology = corpus?.trim() ? capCorpus(corpus.trim()).content : DEFAULT_METHODOLOGY;
+  const trimmedProduct = product?.trim();
+  const productBlock = trimmedProduct
+    ? `PRODUCT / OFFER DETAILS (what the rep sells — the ONLY source of product facts; never state a product specific that isn't here):\n${capCorpus(trimmedProduct).content}`
     : `PRODUCT / OFFER DETAILS: none on file. If the rep asks about what they're selling (price, features, terms), tell them honestly you don't have the product details and to ask an admin to add them in Settings → Coaching. Do NOT invent product facts.`;
 
   return `You are a sales coach helping a rep PREPARE before a call. They asked you

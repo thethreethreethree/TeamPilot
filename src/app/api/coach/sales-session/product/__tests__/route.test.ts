@@ -15,6 +15,7 @@ vi.mock("@/lib/data/salesCoach", () => ({
 
 import { createClient } from "@/lib/supabase/server";
 import { appendSalesCorpusVersion } from "@/lib/data/salesCoach";
+import { KNOWLEDGE_CORPUS_MAX_CHARS } from "@/lib/llm/corpusBudget";
 import { POST } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>
@@ -49,5 +50,17 @@ describe("POST /product — manager-gated write", () => {
     expect(res.status).toBe(200);
     expect(appendSalesCorpusVersion).toHaveBeenCalledOnce();
     expect(appendSalesCorpusVersion).toHaveBeenCalledWith(expect.objectContaining({ kind: "product" }));
+  });
+
+  it("caps an over-budget product corpus at save (stores <= budget) + reports truncation (§3.4/INV22)", async () => {
+    setCaller("boss", MANAGER);
+    const res = await POST(postReq({ content: "p".repeat(KNOWLEDGE_CORPUS_MAX_CHARS + 10_000) }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.truncated).toBe(true);
+    const call = (appendSalesCorpusVersion as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    const stored = (call?.[0]?.content ?? "") as string;
+    expect(stored.length).toBeGreaterThan(0);
+    expect(stored.length).toBeLessThanOrEqual(KNOWLEDGE_CORPUS_MAX_CHARS);
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
 import { reviewProductBlock } from "./prepShared";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Methodology block: the compiled Sales Knowledge Base (SPIN / Challenger
@@ -17,12 +18,16 @@ export function methodologyBlock(corpusOverride?: string): string {
   // claim the 4 books when the source is the company's own corpus (§3.4).
   const custom = corpusOverride?.trim();
   if (custom) {
+    // Cap to the shared knowledge-corpus budget so a large custom corpus can't blow the system prompt past the
+    // reasoning model's output clamp and starve the answer to empty (INV22 / §3.4). Defensive at load — the save
+    // routes cap too; this protects corpora saved before that cap existed.
+    const capped = capCorpus(custom).content;
     return `SALES KNOWLEDGE BASE — your team's own operational reference.
 Reason FROM these principles; match the conversation to the right move;
 adapt to what THIS conversation needed (§3.3 understanding gate). Do not
 grade against it as a rigid checklist.
 
-${custom}
+${capped}
 
 END OF SALES KNOWLEDGE BASE.`;
   }

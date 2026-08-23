@@ -9,6 +9,7 @@ import {
 } from "@/lib/data/salesCoach";
 import { getSalesKnowledgeBase } from "@/lib/coach/v5/salesKnowledgeBase";
 import { readBody } from "@/lib/api/validate";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Sales Coach → editable methodology corpus (migration 0074).
@@ -112,13 +113,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Cap to the shared corpus budget so a corpus can't be STORED large enough to starve the reasoning model's
+  // output to empty when injected raw (INV22 / §3.4). Report truncation so the admin is told honestly rather
+  // than silently losing the tail of what they pasted.
+  const capped = capCorpus(body.content);
   const ok = await appendSalesCorpusVersion({
     companyId: ctx.companyId,
-    content: body.content,
+    content: capped.content,
     createdBy: ctx.userId,
   });
   if (!ok) {
     return NextResponse.json({ error: "Couldn't save." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    ...(capped.truncated
+      ? { truncated: true, originalChars: capped.originalChars, storedChars: capped.content.length }
+      : {}),
+  });
 }

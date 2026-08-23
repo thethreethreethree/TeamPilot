@@ -8,6 +8,7 @@ import {
   appendSalesCorpusVersion,
 } from "@/lib/data/salesCoach";
 import { readBody } from "@/lib/api/validate";
+import { capCorpus } from "@/lib/llm/corpusBudget";
 
 /**
  * Sales Coach → editable PRODUCT / brand details (migration 0078).
@@ -102,14 +103,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Cap to the shared corpus budget (INV22 / §3.4) — same reason as the methodology corpus: a stored corpus
+  // large enough to starve the reasoning model's output produces empty AI. Report truncation honestly.
+  const capped = capCorpus(body.content);
   const ok = await appendSalesCorpusVersion({
     companyId: ctx.companyId,
-    content: body.content,
+    content: capped.content,
     createdBy: ctx.userId,
     kind: "product",
   });
   if (!ok) {
     return NextResponse.json({ error: "Couldn't save." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    ...(capped.truncated
+      ? { truncated: true, originalChars: capped.originalChars, storedChars: capped.content.length }
+      : {}),
+  });
 }
