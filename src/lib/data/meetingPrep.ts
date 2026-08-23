@@ -71,6 +71,44 @@ export async function createMeetingPrep(args: { companyId: string }): Promise<Me
   return mapPrep(data as PrepRow);
 }
 
+/**
+ * Return the caller's most-recent TRULY-EMPTY draft prep, or create a fresh one (audit D5 — orphan-draft-on-every-
+ * visit). The /prep page POSTs on mount, so always-creating orphaned an empty prep on every visit-and-leave.
+ * "Empty" is deliberately CONSERVATIVE — draft status, no linked session, no goal, no topics, AND no documents —
+ * so a prep the user actually worked on can NEVER be resurfaced (that would be worse than an orphan row). Reusing
+ * is transparent to the client: it still receives an empty prep, whether new or reused. If the reuse probe fails
+ * for any reason we fall through to a fresh create — the optimization must never block starting a prep.
+ */
+export async function getOrCreateDraftMeetingPrep(args: { companyId: string }): Promise<MeetingPrep | null> {
+  const sb = await createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth?.user) return null;
+  // Most-recent unlinked, goal-null draft by this user (RLS also scopes reads to the owner). goal-null is checked
+  // in the query; topics-empty + draft-status + no-docs are checked below (jsonb/relational, not a clean filter).
+  const { data: latest, error } = await sb
+    .from("meeting_preps")
+    .select("*")
+    .eq("created_by", auth.user.id)
+    .eq("company_id", args.companyId)
+    .is("session_id", null)
+    .is("goal", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!error && latest) {
+    const row = latest as PrepRow;
+    const topicsEmpty = !Array.isArray(row.topics) || (row.topics as unknown[]).length === 0;
+    if (topicsEmpty && (row.status ?? "draft") === "draft") {
+      const { count, error: cErr } = await sb
+        .from("meeting_prep_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("prep_id", row.id);
+      if (!cErr && (count ?? 0) === 0) return mapPrep(row); // truly empty → reuse, no new orphan
+    }
+  }
+  return createMeetingPrep({ companyId: args.companyId }); // nothing reusable (or probe failed) → fresh draft
+}
+
 /** Owner-scoped read (RLS). Throws on a GENUINE DB error so the route can 500 honestly; null is reserved for a
  *  real no-row (not found / not the owner) — collapsing an error to null told the user their prep was deleted
  *  when it was a transient failure (audit: error-as-no-data / INV22, mirrors getSession). */

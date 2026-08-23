@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { NextRequest } from "next/server";
 
-/** POST /api/coach/meeting-prep — create a draft prep. 401 unauth / 403 no company / 200 with the prep. */
+/** POST /api/coach/meeting-prep — get-or-create a draft prep. 401 unauth / 403 no company / 200 with the prep.
+ *  (audit D5: the route reuses the caller's latest truly-empty draft via getOrCreateDraftMeetingPrep — the reuse
+ *  logic itself is unit-tested in meetingPrep.draftReuse.test.ts; here we lock the route's auth/company/shape.) */
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
 vi.mock("@/lib/data/meetingPrep", () => ({
-  createMeetingPrep: vi.fn(async () => ({ id: "p1", companyId: "co1", createdBy: "u1", goal: "", topics: [], status: "draft", sessionId: null })),
+  getOrCreateDraftMeetingPrep: vi.fn(async () => ({ id: "p1", companyId: "co1", createdBy: "u1", goal: "", topics: [], status: "draft", sessionId: null })),
 }));
 
 import { createClient } from "@/lib/supabase/server";
