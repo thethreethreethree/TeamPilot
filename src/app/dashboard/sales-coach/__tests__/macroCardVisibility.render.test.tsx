@@ -91,6 +91,29 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().queryByText("Start Knocking")).toBeNull();
   });
 
+  it("audit F4b — a FAILED dashboard fetch shows Pitches '—', never a false '0' (error-as-no-data)", async () => {
+    // The Pitches pill must distinguish "load failed" from "zero pitches": on a dashboard-fetch failure it shows
+    // "—" (like the macro totals already do), not "0" which a rep reads as "you have no pitches".
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() })),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/macro-mode")) return { ok: true, json: async () => ({ enabled: false }) }; // macro OFF → the Pitches/Roleplays pills
+        if (url.includes("/dashboard")) return { ok: false, status: 500, json: async () => ({}) }; // the FAILURE under test
+        if (url.includes("/identity")) return { ok: true, json: async () => ({ fullName: "Rep" }) };
+        return { ok: true, json: async () => ({}) };
+      }),
+    );
+    const { container } = render(<SalesCoachHome />);
+    const m = () => mobile(container);
+    await waitFor(() => expect(m().getByText("Pitches")).toBeTruthy());
+    expect(m().getByText("—")).toBeTruthy(); // honest load-failure marker (only the Pitches pill renders "—" here)
+  });
+
   it("Macro ON: the home shows the Door Log card + door bubbles + Start Knocking; Metrics & Pitch moved to the nav (founder 2026-08-23)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);

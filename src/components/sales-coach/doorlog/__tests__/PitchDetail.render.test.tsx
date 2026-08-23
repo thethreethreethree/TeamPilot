@@ -86,4 +86,16 @@ describe("PitchDetail — render guard (founder 2026-08-18 clip class)", () => {
     await waitFor(() => expect(screen.getByText(/isn't available/i)).toBeTruthy());
     expect(screen.getByRole("link", { name: /Pitch Performance/i })).toBeTruthy();
   });
+
+  it("audit F4 — a 500 shows an honest RETRYABLE error, NOT the permanent 'isn't available'", async () => {
+    // Error-as-no-data regression guard: only a 404 is "missing". A transient 5xx (or a network drop) must offer
+    // a Retry, not collapse into the no-data state — matching the sibling surfaces (PitchPerformance/TodaysMetrics).
+    stubFetch(null, 500);
+    render(<PitchDetail pitchId="p1" />);
+
+    await waitFor(() => expect(screen.getByText(/this is an error, not a missing pitch/i)).toBeTruthy());
+    expect(screen.getByRole("button", { name: /Retry/i })).toBeTruthy();
+    expect(screen.queryByText(/isn't available/i)).toBeNull(); // a transient failure is never shown as "missing"
+    expect(screen.getByRole("link", { name: /Pitch Performance/i })).toBeTruthy(); // back-nav still intact
+  });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
 
@@ -29,19 +29,36 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // Error-as-no-data fix (audit F4, 2026-08-23): only a real 404 is "not available". A 500 / network drop must
+  // NOT collapse into the permanent no-data state (the honesty class the sibling surfaces already handle —
+  // PitchPerformance/TodaysMetrics set an explicit error + Retry). Distinct `loadError` → an honest, retryable card.
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
+    try {
+      const r = await fetch(`/api/coach/sales-session/report-card/${pitchId}`);
+      if (r.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!r.ok) {
+        setLoadError(true);
+        return;
+      }
+      setDetail(await r.json());
+    } catch {
+      setLoadError(true); // network drop / parse throw → error, not "missing pitch"
+    } finally {
+      setLoading(false);
+    }
+  }, [pitchId]);
 
   useEffect(() => {
-    fetch(`/api/coach/sales-session/report-card/${pitchId}`)
-      .then((r) => {
-        if (r.status === 404) {
-          setNotFound(true);
-          return null;
-        }
-        return r.ok ? r.json() : null;
-      })
-      .then((d) => d && setDetail(d))
-      .finally(() => setLoading(false));
-  }, [pitchId]);
+    void load();
+  }, [load]);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-2xl mx-auto w-full">
@@ -53,7 +70,20 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
         <ArrowLeft className="w-4 h-4" aria-hidden /> Pitch Performance
       </Link>
 
-      {loading ? (
+      {loadError ? (
+        <div className="glass-card p-4 border border-red-500/30">
+          <p className="text-sm text-red-300">
+            Couldn&apos;t load this pitch — this is an error, not a missing pitch. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-3 text-sm font-semibold text-brand hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : notFound || !detail ? (
         <p className="text-sm text-muted">This pitch isn&apos;t available.</p>

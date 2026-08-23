@@ -56,6 +56,9 @@ type Stats = {
 export default function SalesCoachHome() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  // A dashboard-fetch FAILURE (not a genuine zero) — the mobile Pitches pill shows "—" rather than a false "0"
+  // that reads as "no pitches" (audit F4b, error-as-no-data honesty / INV22 client twin).
+  const [statsError, setStatsError] = useState(false);
   // The rep's name for the mobile "Welcome, [name]" header (PWA home).
   const [name, setName] = useState<string | null>(null);
   const [context, setContext] = useState<"in_person" | "video">("video");
@@ -145,12 +148,17 @@ export default function SalesCoachHome() {
       if (dRes && dRes.ok) {
         const d = await dRes.json();
         setStats(d.stats ?? null);
+      } else {
+        // Error-as-no-data fix (audit F4b): a FAILED dashboard fetch is an error, not "0 pitches". The mobile
+        // Pitches pill shows "—" on this flag (like the macro totals below); the desktop tiles keep their own
+        // documented "honest empty" 0. INV22's client twin.
+        setStatsError(true);
       }
       if (idRes && idRes.ok) {
         setName((await idRes.json()).fullName ?? null);
       }
     } catch {
-      /* stats/name stay null — the tiles show 0, an honest empty (§3.4) */
+      setStatsError(true); // a .json() throw is also a load failure, not zero pitches
     }
   }, []);
 
@@ -216,7 +224,7 @@ export default function SalesCoachHome() {
         <div className="flex justify-start">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
+            className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
             Back to ELOSTATE
@@ -323,7 +331,7 @@ export default function SalesCoachHome() {
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Pitches</span>
-              <span className="text-lg font-bold text-primary">{stats?.sessionsTotal ?? 0}</span>
+              <span className="text-lg font-bold text-primary">{statsError ? "—" : stats?.sessionsTotal ?? 0}</span>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Roleplays</span>
