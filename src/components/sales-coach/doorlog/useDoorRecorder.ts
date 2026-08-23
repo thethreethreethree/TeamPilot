@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buildCaptureDiag, type CaptureDiag } from "@/lib/coach/captureDiag";
+
+// Re-exported so existing consumers (DoorLog) keep importing CaptureDiag from here; the canonical definition +
+// builder live in @/lib/coach/captureDiag (shared with the live/meeting/C.A.R.E recorders — one source, no drift).
+export type { CaptureDiag };
 
 /**
  * Door Log recorder hook (Macro Mode — RECORDING state). MediaRecorder for capture + an AnalyserNode
@@ -38,27 +43,6 @@ function pickSupportedMimeType(): string {
   }
   return "";
 }
-
-/**
- * Ground-truth capture diagnostics (founder 2026-08-23) — the recorder used to swallow EVERY failure (no onerror,
- * silent catches, no track-death detection), so a "recorded no audio" was impossible to explain and every fix was
- * a guess. This is what the recorder actually observed, reported on any zero-audio outcome so the real cause is on
- * the record instead of assumed.
- */
-export type CaptureDiag = {
-  sawData: boolean; // did ondataavailable ever fire with bytes?
-  chunkCount: number; // local chunks captured
-  chunksUploaded: number; // chunks that reached storage
-  durationMs: number;
-  mimeType: string; // what MediaRecorder actually chose
-  recorderError: string | null; // MediaRecorder 'error' event, if any
-  trackEnded: boolean; // the mic track fired 'ended' mid-recording (screen-lock / phone call / app took the mic)
-  trackMuted: boolean; // the mic track went 'muted' mid-recording (suspended — the iOS pocket/lock case)
-  trackReadyState: string; // the audio track's readyState at stop ('live' | 'ended')
-  wakeLockGranted: boolean; // did the screen wake lock actually take (often false on iOS Safari)?
-  hiddenDuringRecording: number; // times the tab went hidden while recording (backgrounded → iOS suspends audio)
-  ua: string;
-};
 
 export function useDoorRecorder() {
   const [armed, setArmed] = useState(false);
@@ -291,20 +275,21 @@ export function useDoorRecorder() {
     releaseWakeLock();
     if (typeof document !== "undefined") delete document.body.dataset.recording;
     const rec = recorderRef.current;
-    const buildDiag = (): CaptureDiag => ({
-      sawData: sawDataRef.current,
-      chunkCount: chunksRef.current.length,
-      chunksUploaded: uploadedRef.current,
-      durationMs,
-      mimeType: mimeTypeRef.current,
-      recorderError: recorderErrorRef.current,
-      trackEnded: trackEndedRef.current,
-      trackMuted: trackMutedRef.current,
-      trackReadyState: streamRef.current?.getAudioTracks()[0]?.readyState ?? "unknown",
-      wakeLockGranted: wakeLockGrantedRef.current,
-      hiddenDuringRecording: hiddenDuringRef.current,
-      ua: typeof navigator !== "undefined" ? navigator.userAgent : "",
-    });
+    // Assemble the diagnostic via the SHARED builder (one source of the shape + defaults across all recorders).
+    const buildDiag = (): CaptureDiag =>
+      buildCaptureDiag({
+        sawData: sawDataRef.current,
+        chunkCount: chunksRef.current.length,
+        chunksUploaded: uploadedRef.current,
+        durationMs,
+        mimeType: mimeTypeRef.current,
+        recorderError: recorderErrorRef.current,
+        trackEnded: trackEndedRef.current,
+        trackMuted: trackMutedRef.current,
+        track: streamRef.current?.getAudioTracks()[0] ?? null,
+        wakeLockGranted: wakeLockGrantedRef.current,
+        hiddenDuringRecording: hiddenDuringRef.current,
+      });
     return new Promise((resolve) => {
       const chunksUploaded = uploadedRef.current;
       if (!rec || rec.state === "inactive") {
