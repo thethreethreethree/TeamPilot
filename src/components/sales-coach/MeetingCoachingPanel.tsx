@@ -57,6 +57,10 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
   // Start the live capture ONCE, after sessionId is set — so the hook's start() closure carries the real
   // session id (starting it inline in startSession would capture the pre-create null id).
   const startedRef = useRef(false);
+  // Did this session ever reach LIVE (actually capture)? Distinguishes "a real meeting ended" from "capture never
+  // began" (mic denied / connect error / immediate stop) — so we don't offer a review + a false "recording saved"
+  // for a session that recorded nothing (audit H1: that led to a Review link 409-looping forever).
+  const wasLiveRef = useRef(false);
   useEffect(() => {
     if (!sessionId || startedRef.current) return;
     startedRef.current = true;
@@ -64,14 +68,22 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
     // coach is a fresh object each render; gate on sessionId + the once-latch above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+  useEffect(() => {
+    if (coach.status === "live") wasLiveRef.current = true;
+  }, [coach.status]);
 
   // End the session and return to setup — so a mic-permission failure (or a finished meeting) is never a
   // dead-end: the facilitator can start over or begin another meeting. Resets the once-latch so the next
-  // created session starts cleanly. (Post-meeting Dissect is a later phase; setup is the honest MVP return.)
+  // created session starts cleanly.
   function endSession() {
+    const didRecord = wasLiveRef.current;
     coach.stop();
     startedRef.current = false;
-    if (sessionId) {
+    wasLiveRef.current = false;
+    // Only offer the review + stamp ended_at when the session ACTUALLY recorded. A session that never went live
+    // (mic denied / error / instant stop) has no audio → offering a review dead-ends on a 409 that never resolves
+    // and the "recording saved" copy would be a lie (audit H1). Those return straight to setup.
+    if (sessionId && didRecord) {
       setEndedSessionId(sessionId); // remember it so we can offer the review
       // Mark the session ended server-side so ended_at ≈ now (not +6h from the auto-close cron, which would give
       // a wildly wrong meeting duration). Fire-and-forget — the UI shouldn't block on it.
@@ -150,7 +162,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
         </div>
 
         {initialPrepId ? (
-          <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+          <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
             ✓ Your prep is loaded — the coach will keep this meeting on your goal + must-discuss topics.
           </p>
         ) : (
@@ -175,7 +187,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
                 onClick={() => setKind(k)}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm capitalize ${
                   kind === k
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                     : "border-default text-secondary hover:border-strong"
                 }`}
               >
@@ -198,7 +210,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
                 onClick={() => setContext(c)}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
                   context === c
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                     : "border-default text-secondary hover:border-strong"
                 }`}
               >
@@ -229,7 +241,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
           I have an in-ear earpiece in, so cues are private to me and don&apos;t interrupt the room.
         </label>
 
-        {createError && <p className="text-sm text-red-400">{createError}</p>}
+        {createError && <p className="text-sm text-red-700 dark:text-red-400">{createError}</p>}
 
         <button
           type="button"
@@ -269,11 +281,11 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
         </div>
       </div>
 
-      {coach.error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{coach.error}</p>}
+      {coach.error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{coach.error}</p>}
 
       {/* The current cue — the point of the whole surface. */}
       <div className="min-h-[4.5rem] rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4">
-        <p className="text-xs uppercase tracking-wide text-emerald-400/70">Coach</p>
+        <p className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-400/70">Coach</p>
         <p className="mt-1 text-sm text-primary">
           {coach.currentCue ?? <span className="text-muted">Quiet unless something needs your attention.</span>}
         </p>
@@ -292,7 +304,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
           type="button"
           onClick={() => coach.setAutoCoach(!coach.autoCoach)}
           className={`rounded-lg border px-3 py-2 text-sm ${
-            coach.autoCoach ? "border-emerald-500 text-emerald-300" : "border-default text-secondary"
+            coach.autoCoach ? "border-emerald-500 text-emerald-700 dark:text-emerald-300" : "border-default text-secondary"
           }`}
         >
           Auto-coach {coach.autoCoach ? "on" : "off"}

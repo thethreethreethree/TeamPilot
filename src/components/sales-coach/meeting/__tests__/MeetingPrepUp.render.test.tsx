@@ -69,6 +69,31 @@ describe("MeetingPrepUp", () => {
     );
   });
 
+  it("flushes a pending save BEFORE Start, so a quick type→Start never binds an empty prep (audit H2)", async () => {
+    const calls: Call[] = [];
+    mockFetch(calls);
+    const started: string[] = [];
+    render(<MeetingPrepUp onStart={(id) => started.push(id)} />);
+    await waitFor(() => expect(screen.getByText("The goal of this meeting")).toBeTruthy());
+    // Type a goal and IMMEDIATELY tap Start (inside the 700ms debounce — the old bug dropped this save on unmount).
+    fireEvent.change(screen.getByPlaceholderText(/Agree the Q3/i), { target: { value: "Lock the launch date" } });
+    fireEvent.click(screen.getByText("Start Meeting"));
+    // The flush must PATCH the goal, and onStart must fire only AFTER the save resolved.
+    await waitFor(() => expect(started).toEqual(["prep-1"]));
+    const patched = calls.find((c) => c.method === "PATCH" && c.body?.goal === "Lock the launch date");
+    expect(patched).toBeTruthy(); // the goal was persisted, not lost
+  });
+
+  it("the file input is keyboard-reachable (sr-only, not display:none) (audit M4)", async () => {
+    const calls: Call[] = [];
+    mockFetch(calls);
+    render(<MeetingPrepUp />);
+    await waitFor(() => expect(screen.getByText("Documents")).toBeTruthy());
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.className).toContain("sr-only");
+    expect(input.className).not.toContain("hidden"); // display:none would drop it from the tab order
+  });
+
   it("a text/pdf pick runs sign → confirm and lists the document", async () => {
     const calls: Call[] = [];
     mockFetch(calls);

@@ -25,8 +25,8 @@ type Trend = {
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
 
 const DIR: Record<Trend["direction"], { label: string; cls: string; dot: string }> = {
-  improving: { label: "Improving", cls: "text-emerald-300", dot: "bg-emerald-500" },
-  declining: { label: "Slipping", cls: "text-amber-300", dot: "bg-amber-500" },
+  improving: { label: "Improving", cls: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  declining: { label: "Slipping", cls: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
   flat: { label: "Holding steady", cls: "text-secondary", dot: "bg-secondary" },
   insufficient: { label: "Not enough data yet", cls: "text-muted", dot: "bg-muted" },
 };
@@ -70,7 +70,7 @@ export function MeetingTrendTile() {
   return (
     <div className="rounded-xl border border-default bg-surface p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Your meetings</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Meeting trend</h2>
         <span className={`flex items-center gap-1.5 text-xs ${d.cls}`}>
           <span className={`h-2 w-2 rounded-full ${d.dot}`} aria-hidden />
           {d.label}

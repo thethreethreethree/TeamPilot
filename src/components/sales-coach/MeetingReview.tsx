@@ -1,6 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+// Escape hatch shown in the error/pending states so a review is never a dead-end (audit L4).
+function BackToMeetingCoach() {
+  return (
+    <Link href="/dashboard/meeting-coach" className="mt-3 inline-block text-sm text-secondary underline hover:text-primary">
+      ← Back to Meeting Coach
+    </Link>
+  );
+}
 
 /**
  * MeetingReview — the post-meeting Dissect surface (Phase 6). Fetches (and, on first view, generates) the
@@ -31,6 +41,7 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio">("loading");
   const [dissect, setDissect] = useState<Dissect | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [retryable, setRetryable] = useState(true); // is the current error worth a Retry? (5xx/network yes; 4xx no — audit L3)
   // Guard state updates after the (potentially long — batch transcription) fetch settles post-unmount.
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -53,6 +64,9 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
         const d = (await res.json().catch(() => null)) as { error?: string } | null;
         if (!mountedRef.current) return;
         setErrorMsg(d?.error ?? "Couldn't load the review.");
+        // 5xx (incl. the 503 transient-dissect) is worth retrying; a 4xx (403 not-facilitator / 404 / 400 not-a-
+        // meeting) is permanent — offering Retry there just re-fails (audit L3).
+        setRetryable(res.status >= 500);
         setState("error");
         return;
       }
@@ -63,6 +77,7 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
     } catch {
       if (!mountedRef.current) return;
       setErrorMsg("Couldn't load the review.");
+      setRetryable(true); // a network error is worth retrying
       setState("error");
     }
   }, [sessionId]);
@@ -84,27 +99,36 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
         <p className="text-sm text-secondary">
           The recording isn&apos;t ready yet — the audio may still be saving. Check back shortly.
         </p>
-        <button
-          type="button"
-          onClick={load}
-          className="mt-3 rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
-        >
-          Try again
-        </button>
+        <div className="mt-3 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={load}
+            className="rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
+          >
+            Try again
+          </button>
+          <BackToMeetingCoach />
+        </div>
       </div>
     );
   }
   if (state === "error") {
     return (
       <div className="mx-auto max-w-lg p-6">
-        <p className="text-sm text-red-400">{errorMsg}</p>
-        <button
-          type="button"
-          onClick={load}
-          className="mt-3 rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
-        >
-          Retry
-        </button>
+        <p className="text-sm text-red-700 dark:text-red-400">{errorMsg}</p>
+        <div className="flex items-center gap-4">
+          {/* Retry only helps a RETRYABLE error (5xx/network/pending) — a 404/403/400 just re-fails, so gate it (audit L3). */}
+          {retryable && (
+            <button
+              type="button"
+              onClick={load}
+              className="mt-3 rounded-lg border border-default px-3 py-2 text-sm text-secondary hover:border-strong"
+            >
+              Retry
+            </button>
+          )}
+          <BackToMeetingCoach />
+        </div>
       </div>
     );
   }
@@ -116,9 +140,9 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
   const agenda = dissect?.agenda ?? null;
   const nothing = decisions.length === 0 && actions.length === 0 && openItems.length === 0 && !eff && !agenda;
   const GOAL_LABEL: Record<string, { text: string; cls: string }> = {
-    yes: { text: "Goal achieved", cls: "bg-emerald-500/10 text-emerald-300" },
-    partial: { text: "Goal partially met", cls: "bg-amber-500/10 text-amber-300" },
-    no: { text: "Goal not met", cls: "bg-red-500/10 text-red-300" },
+    yes: { text: "Goal achieved", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+    partial: { text: "Goal partially met", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+    no: { text: "Goal not met", cls: "bg-red-500/10 text-red-700 dark:text-red-300" },
     unknown: { text: "Goal outcome unclear", cls: "bg-white/5 text-muted" },
   };
 
@@ -151,9 +175,9 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
               <ul className="mt-2 flex flex-col gap-1">
                 {agenda.topics.map((t, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
-                    <span className={t.covered ? "text-emerald-400" : "text-amber-400"}>{t.covered ? "✓" : "○"}</span>
+                    <span className={t.covered ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>{t.covered ? "✓" : "○"}</span>
                     <span className={t.covered ? "text-primary" : "text-secondary"}>{t.text}</span>
-                    {!t.covered && <span className="text-xs text-amber-400/80">not covered</span>}
+                    {!t.covered && <span className="text-xs text-amber-600 dark:text-amber-400/80">not covered</span>}
                   </li>
                 ))}
               </ul>
@@ -181,9 +205,9 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
             <div key={i} className="flex items-center justify-between gap-3 rounded-lg border border-default bg-surface p-3">
               <p className="text-sm text-primary">{a.action}</p>
               {a.owner ? (
-                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{a.owner}</span>
+                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-300">{a.owner}</span>
               ) : (
-                <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">no owner</span>
+                <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">no owner</span>
               )}
             </div>
           ))}

@@ -39,6 +39,11 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedTick, setSavedTick] = useState(false);
+  const [saveError, setSaveError] = useState(false); // a prep autosave FAILED — surfaced, not swallowed (audit M1)
+  const [starting, setStarting] = useState(false);
+  // The latest un-persisted goal/topics — so "Start Meeting" can FLUSH a pending debounced save before it unmounts
+  // (audit H2: typing then tapping Start within the debounce dropped the save → an empty agenda-less prep).
+  const pendingSaveRef = useRef<{ goal: string; topics: PrepTopic[] } | null>(null);
 
   // Create a draft prep on mount (the fields autosave against it).
   useEffect(() => {
@@ -59,30 +64,57 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
     };
   }, []);
 
-  // Debounced autosave of goal + topics (PATCH). A failed save is surfaced, never silently dropped.
-  const scheduleSave = useCallback(
-    (nextGoal: string, nextTopics: PrepTopic[]) => {
-      if (!prepId) return;
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-      savedTimer.current = setTimeout(() => {
-        void fetch(`/api/coach/meeting-prep/${prepId}`, {
+  // The actual PATCH — shared by the debounced autosave AND the flush-on-Start. Returns true iff it persisted.
+  // On success clears the pending marker + the error; on failure SURFACES it (audit M1) and keeps the pending
+  // values so a later edit / the Start flush retries.
+  const savePrep = useCallback(
+    async (nextGoal: string, nextTopics: PrepTopic[]): Promise<boolean> => {
+      if (!prepId) return false;
+      try {
+        const r = await fetch(`/api/coach/meeting-prep/${prepId}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ goal: nextGoal, topics: nextTopics }),
-        })
-          .then((r) => {
-            if (r.ok) {
-              setSavedTick(true);
-              setTimeout(() => setSavedTick(false), 1500);
-            }
-          })
-          .catch(() => {
-            /* transient; the next edit reschedules a save */
-          });
-      }, 700);
+        });
+        if (!r.ok) {
+          setSaveError(true);
+          return false;
+        }
+        pendingSaveRef.current = null;
+        setSaveError(false);
+        setSavedTick(true);
+        setTimeout(() => setSavedTick(false), 1500);
+        return true;
+      } catch {
+        setSaveError(true);
+        return false;
+      }
     },
-    [prepId]
+    [prepId],
   );
+
+  // Debounced autosave. Records the pending values so Start can flush them.
+  const scheduleSave = useCallback(
+    (nextGoal: string, nextTopics: PrepTopic[]) => {
+      if (!prepId) return;
+      pendingSaveRef.current = { goal: nextGoal, topics: nextTopics };
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => void savePrep(nextGoal, nextTopics), 700);
+    },
+    [prepId, savePrep],
+  );
+
+  // Flush any pending debounced save NOW (audit H2) — before Start hands off + unmounts. Returns true iff the prep
+  // is persisted (nothing pending = already saved = true). A failure surfaces the error and returns false.
+  const flushSave = useCallback(async (): Promise<boolean> => {
+    if (savedTimer.current) {
+      clearTimeout(savedTimer.current);
+      savedTimer.current = null;
+    }
+    const pend = pendingSaveRef.current;
+    if (!pend) return true; // nothing un-saved
+    return savePrep(pend.goal, pend.topics);
+  }, [savePrep]);
 
   const updateGoal = (v: string) => {
     setGoal(v);
@@ -219,10 +251,10 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
         {topics.length > 0 && (
           <ul className="flex flex-col gap-1.5 mt-1">
             {topics.map((t, i) => (
-              <li key={t.id} className="flex items-center gap-2 rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2">
+              <li key={t.id} className="flex items-center gap-2 rounded-lg bg-surface-raised border border-default px-3 py-2">
                 <span className="text-xs text-muted tabular-nums w-5">{i + 1}.</span>
                 <span className="flex-1 text-sm text-primary">{t.text}</span>
-                <button type="button" onClick={() => removeTopic(t.id)} aria-label={`Remove ${t.text}`} className="text-muted hover:text-red-400">
+                <button type="button" onClick={() => removeTopic(t.id)} aria-label={`Remove ${t.text}`} className="text-muted hover:text-red-400 p-2 -m-1 rounded">
                   <X className="w-4 h-4" aria-hidden />
                 </button>
               </li>
@@ -241,7 +273,7 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
         {documents.length > 0 && (
           <ul className="flex flex-col gap-1.5">
             {documents.map((d) => (
-              <li key={d.id} className="rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2">
+              <li key={d.id} className="rounded-lg bg-surface-raised border border-default px-3 py-2">
                 <div className="flex items-center gap-2">
                   {d.kind === "image" ? <ImageIcon className="w-4 h-4 text-brand/70" aria-hidden /> : <FileText className="w-4 h-4 text-brand/70" aria-hidden />}
                   <span className="flex-1 text-sm text-primary truncate">{d.filename}</span>
@@ -281,12 +313,14 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
             </div>
           </div>
         ) : (
-          <label className="w-full cursor-pointer rounded-xl border border-dashed border-white/20 bg-white/[0.02] px-4 py-4 text-center text-sm text-secondary hover:border-ember-400/40 transition-colors">
+          <label className="w-full cursor-pointer rounded-xl border border-dashed border-default bg-surface px-4 py-4 text-center text-sm text-secondary hover:border-ember-400/40 focus-within:border-ember-400/60 focus-within:ring-2 focus-within:ring-ember-400/30 transition-colors">
             {uploading ? "Uploading…" : "Tap to add a document"}
+            {/* sr-only (not `hidden`) so the input stays keyboard-focusable/tabbable — a `display:none` input can't
+                be reached by keyboard, leaving keyboard users no way to open the file picker (audit M4). */}
             <input
               type="file"
               accept="image/*,.txt,.md,.csv,.rtf,.html,.pdf,.docx,.odt,.epub"
-              className="hidden"
+              className="sr-only"
               disabled={uploading}
               onChange={(e) => {
                 onPickFile(e.target.files?.[0] ?? null);
@@ -298,13 +332,26 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
         {uploadError && <p className="text-xs text-red-300">{uploadError}</p>}
       </section>
 
-      {/* START */}
+      {/* START — flush the pending save FIRST so the meeting never binds to an unsaved (empty) prep (audit H2). */}
+      {saveError && (
+        <p className="text-xs text-red-400" role="alert">
+          Couldn&apos;t save your prep just now — check your connection. Your goal/topics may not be attached to the
+          meeting until this saves.
+        </p>
+      )}
       <button
         type="button"
-        onClick={() => onStart?.(prepId)}
-        className="w-full min-h-[64px] rounded-2xl bg-ember-400 text-[#09090B] text-lg font-bold active:scale-[0.98] transition-transform shadow-glow mt-2"
+        disabled={starting || uploading}
+        onClick={async () => {
+          setStarting(true);
+          const saved = await flushSave();
+          setStarting(false);
+          if (saved) onStart?.(prepId);
+          // if !saved, saveError is shown above and we do NOT start with an unsaved prep
+        }}
+        className="w-full min-h-[64px] rounded-2xl bg-ember-400 text-[#09090B] text-lg font-bold active:scale-[0.98] transition-transform shadow-glow mt-2 disabled:opacity-60"
       >
-        Start Meeting
+        {starting ? "Saving prep…" : "Start Meeting"}
       </button>
     </div>
   );
