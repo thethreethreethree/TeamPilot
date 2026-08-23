@@ -27,10 +27,17 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const prep = await getMeetingPrep(id);
-  if (!prep) return NextResponse.json({ error: "Prep not found or not accessible." }, { status: 404 });
-  const documents = await listPrepDocuments(id);
-  return NextResponse.json({ prep, documents });
+  // getMeetingPrep/listPrepDocuments THROW on a genuine DB error (not a false 404) — a transient read failure is a
+  // 500 "try again", not "your prep is gone" (audit: error-as-no-data). null is still a real not-found → 404.
+  try {
+    const prep = await getMeetingPrep(id);
+    if (!prep) return NextResponse.json({ error: "Prep not found or not accessible." }, { status: 404 });
+    const documents = await listPrepDocuments(id);
+    return NextResponse.json({ prep, documents });
+  } catch (e) {
+    console.error(`[meeting-prep GET] read failed id=${id}: ${e instanceof Error ? e.message : e}`);
+    return NextResponse.json({ error: "Couldn't load the prep right now — please try again." }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {

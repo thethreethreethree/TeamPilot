@@ -17,8 +17,10 @@ const AUDIO_BUCKET = "assets-v1"; // shared assets bucket (same as the recording
 type PrepTopic = { id: string; text: string; covered: boolean };
 type PrepDocument = { id: string; filename: string; kind: "image" | "text" | "pdf"; note: string; extractedText: string };
 
-const newId = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+// SHORT topic id (audit INT-2): the coach LLM must echo a topic's id verbatim in its `covered` output for the
+// live/dissect coverage to match. A 36-char UUID gets dropped/altered unreliably (worse with several topics);
+// a short token (`t` + 5 base36 chars) round-trips reliably. Uniqueness within a prep is ample at this scale.
+const shortTopicId = () => `t${Math.random().toString(36).slice(2, 7)}`;
 
 function kindOf(file: File): "image" | "text" | "pdf" {
   if (file.type.startsWith("image/")) return "image";
@@ -123,7 +125,7 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
   const addTopic = () => {
     const text = topicDraft.trim();
     if (!text) return;
-    const next = [...topics, { id: newId(), text, covered: false }];
+    const next = [...topics, { id: shortTopicId(), text, covered: false }];
     setTopics(next);
     setTopicDraft("");
     scheduleSave(goal, next);

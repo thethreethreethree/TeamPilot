@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { resolveCoachingMode } from "@/lib/coach/strategy/resolveCoachingMode";
 import { assetUrlToStoragePath, downloadAssetBytes } from "@/lib/storage/assets";
+import { stitchSessionAudio } from "@/lib/coach/v5/stitchSessionAudio";
 import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 import { generateAndStoreMeetingDissect } from "@/lib/coach/strategy/meeting/generateMeetingDissect";
 import { getMeetingPrepBySession, getPrepDocContext } from "@/lib/data/meetingPrep";
@@ -74,8 +75,25 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   // Need the durable audio to review a meeting (there is no persisted transcript to fall back on).
-  const storagePath = assetUrlToStoragePath(session.audioAssetUrl);
-  if (!session.audioAssetUrl || !storagePath) {
+  let audioUrl = session.audioAssetUrl;
+  // Self-heal (audit INT-1, 2026-08-23): a clean Stop whose full-blob persist failed leaves audio_asset_url NULL
+  // with the live chunks still in storage. The stale-close cron only stitches status='active', but /end set
+  // 'ended' → nothing would ever assemble those chunks → the review 409-looped forever. Stitch on demand here so
+  // the review self-heals from whatever streamed. Idempotent + service-role; no-op ("no chunks") if truly nothing
+  // was recorded → the honest 409 below.
+  if (!audioUrl) {
+    const st = await stitchSessionAudio({ companyId, sessionId: id });
+    if (st.stitched) {
+      const { data: restitched } = await admin
+        .from("coaching_sessions")
+        .select("audio_asset_url")
+        .eq("id", id)
+        .maybeSingle();
+      audioUrl = (restitched?.audio_asset_url as string | null) ?? null;
+    }
+  }
+  const storagePath = assetUrlToStoragePath(audioUrl);
+  if (!audioUrl || !storagePath) {
     return NextResponse.json(
       { error: "No saved recording for this meeting yet — the audio may still be stitching, or the meeting wasn't recorded." },
       { status: 409 }

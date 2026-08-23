@@ -73,7 +73,10 @@ export async function generateMeetingDissect(args: {
         goal: args.agenda.goal,
         goalAttained: judgment?.goalAttained ?? "unknown",
         note: judgment?.note ?? "",
-        topics: args.agenda.topics.map((t) => ({ text: t.text, covered: coveredSet.has(t.id) })),
+        // OR-in the LIVE-accumulated coverage (audit INT-2): a topic the live loop already marked covered stays
+        // covered even if the dissect LLM drops/alters its id — the dissect must not THROW AWAY coverage the live
+        // coach earned. `t.covered` comes from the prep's persisted topics; `coveredSet` is the dissect's own read.
+        topics: args.agenda.topics.map((t) => ({ text: t.text, covered: t.covered || coveredSet.has(t.id) })),
       };
     }
 

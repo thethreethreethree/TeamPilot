@@ -58,13 +58,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Bind the Prep-up to this session so the live cue route finds its agenda (by session_id). Owner-scoped via
-  // RLS (the caller must own the prep). Best-effort: a failed link degrades to a prep-less meeting, never blocks
-  // the meeting from starting.
+  // RLS. Best-effort for the meeting (a failed link never blocks the start), but the result is RETURNED so the UI
+  // can tell the truth instead of claiming "prep loaded" when the link silently no-op'd (audit INT-3): a stale/
+  // foreign prepId matches 0 rows with no error, so markMeetingPrepStarted now returns false there.
+  let prepLinked: boolean | undefined;
   if (body.prepId) {
-    await markMeetingPrepStarted({ prepId: body.prepId, sessionId: session.id });
+    prepLinked = await markMeetingPrepStarted({ prepId: body.prepId, sessionId: session.id });
+    if (!prepLinked) {
+      console.error(`[meeting-session] prep link no-op: prepId=${body.prepId} session=${session.id} (stale/foreign prepId?)`);
+    }
   }
 
-  return NextResponse.json({ session });
+  return NextResponse.json({ session, prepLinked });
 }
 
 /**
