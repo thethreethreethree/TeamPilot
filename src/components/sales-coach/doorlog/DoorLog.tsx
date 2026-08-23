@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList } from "lucide-react";
 import {
   transition,
   type DoorLogState,
@@ -446,6 +447,18 @@ export function DoorLog() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-base flex flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-md mx-auto w-full">
+      {/* In-page back to the Sales Coach home (audit F1/F2 completion, founder "covers all" pick 2026-08-23).
+          Door Log renders no TopBar, so the systemic TopBar back button can't reach it; this is its equivalent.
+          IDLE-ONLY — never shown mid-knock/record/name so it can't intrude on the field flow. `self-start` keeps
+          it a small top-left affordance, not a full-width row. */}
+      {state === "idle" && (
+        <Link
+          href="/dashboard/sales-coach"
+          className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-2 py-1.5 rounded-lg text-[13px] font-medium text-secondary hover:text-primary active:bg-white/5 transition-colors self-start"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden /> Sales Coach
+        </Link>
+      )}
       {sendError && (
         <button
           type="button"

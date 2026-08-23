@@ -605,8 +605,11 @@ export default function SalesCoachHome() {
             <DeckStat
               icon={GraduationCap}
               label="Sessions / week"
-              value={stats?.sessionsThisWeek ?? 0}
-              sub={`${stats?.sessionsTotal ?? 0} total`}
+              // Audit F4b class-completion (2026-08-23): on a dashboard-fetch FAILURE show "—", not a false "0"
+              // that reads as "zero activity". Same honesty as the mobile Pitches pill + the macro totals
+              // (statsError). Completes the error-as-no-data sweep on this page (A26); a genuine 0 still shows 0.
+              value={statsError ? "—" : stats?.sessionsThisWeek ?? 0}
+              sub={statsError ? "—" : `${stats?.sessionsTotal ?? 0} total`}
               tone="brand"
             />
           </LearningHint>
@@ -622,7 +625,7 @@ export default function SalesCoachHome() {
             <DeckStat
               icon={Sparkles}
               label="Growth reviews"
-              value={stats?.reviewsGenerated ?? 0}
+              value={statsError ? "—" : stats?.reviewsGenerated ?? 0}
               sub="From your calls"
               tone="emerald"
             />
@@ -639,7 +642,7 @@ export default function SalesCoachHome() {
             <DeckStat
               icon={MessageSquare}
               label="Live cues"
-              value={stats?.cuesTotal ?? 0}
+              value={statsError ? "—" : stats?.cuesTotal ?? 0}
               sub="All sessions"
               tone="muted"
             />
@@ -656,7 +659,7 @@ export default function SalesCoachHome() {
             <DeckStat
               icon={Lightbulb}
               label="Growth ops"
-              value={stats?.recentGrowth.length ?? 0}
+              value={statsError ? "—" : stats?.recentGrowth.length ?? 0}
               sub="To practice"
               tone="amber"
             />

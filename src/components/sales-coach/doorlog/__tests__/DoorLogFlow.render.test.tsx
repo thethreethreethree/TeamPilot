@@ -47,11 +47,16 @@ describe("DoorLog — full-flow render gate (each state shows the right controls
     // IDLE: both field actions present.
     expect(screen.getByText("No Answer")).toBeTruthy();
     expect(screen.getByText("Record Pitch")).toBeTruthy();
+    // IDLE also shows the in-page back to the Sales Coach home (audit F1/F2 completion — Door Log has no TopBar,
+    // so this is its equivalent of the systemic back button).
+    expect(screen.getByRole("link", { name: /Sales Coach/i }).getAttribute("href")).toBe("/dashboard/sales-coach");
 
     // → RECORDING: the discreet Stop appears; Record Pitch is gone.
     fireEvent.click(screen.getByText("Record Pitch"));
     await waitFor(() => expect(screen.getByText("Stop")).toBeTruthy());
     expect(screen.queryByText("Record Pitch")).toBeNull();
+    // The back link is IDLE-ONLY — it must not intrude on the active knocking/recording flow.
+    expect(screen.queryByRole("link", { name: /Sales Coach/i })).toBeNull();
 
     // → OUTCOME: the four outcome choices.
     fireEvent.click(screen.getByText("Stop"));
