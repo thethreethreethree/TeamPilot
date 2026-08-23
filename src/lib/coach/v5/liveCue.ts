@@ -49,16 +49,16 @@ async function getCueGrounding(
 }
 
 /**
- * Live Sales Coach — real-time cue engine (the coaching brain, minus the
- * vendor-bound audio I/O). Takes the rolling transcript + a mode and
- * decides whether to deliver a short cue, per the §3.3 understanding
- * gate. Never throws — a cue failure must never disrupt a live call; it
- * resolves to "stay silent".
+ * Live Sales Coach — real-time cue engine (the coaching brain). Takes the
+ * rolling transcript + a mode and decides whether to deliver a short cue,
+ * per the §3.3 understanding gate. Never throws — a cue failure must never
+ * disrupt a live call; it resolves to "stay silent".
  *
- * The audio pipeline (subsystem 1, vendor-gated) will call this with the
- * latest transcript window as words are transcribed, then TTS any
- * returned cue privately to the agent's earpiece + record it via
- * appendCue (for the cue-reliance signal).
+ * The audio pipeline (useLiveCoaching.ts) IS built: it calls this with the
+ * latest transcript window as words are transcribed, then TTSes any
+ * returned cue to the agent's earpiece (tts/route.ts) + records it via
+ * appendCue (for the cue-reliance signal). It depends on the ElevenLabs
+ * realtime scope and is not yet validated on real hardware.
  */
 
 export type CuePhase =

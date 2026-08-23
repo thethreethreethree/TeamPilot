@@ -25,10 +25,11 @@ import { isWithinObserveWindow, observeWindowEndsAt } from "@/lib/coach/v5/obser
  * When it cues, it records the cue (append-only) so the cue-reliance
  * progress signal (§3.5) can be derived later.
  *
- * NOTE: this is the cue BRAIN. The audio I/O around it — getting the
- * live transcript in and speaking the cue privately to the earpiece —
- * is subsystem 1 (vendor-gated, not built). The realtime pipeline will
- * call this and TTS the returned cue.
+ * NOTE: this is the cue BRAIN, and the audio I/O around it IS built — the
+ * realtime pipeline (useLiveCoaching.ts) feeds the live websocket
+ * transcript in via `liveTranscript` (below) and TTSes the returned cue to
+ * the agent's earpiece (tts/route.ts). It depends on the ElevenLabs
+ * realtime scope and is not yet validated on real hardware.
  */
 
 const BodySchema = z.object({
