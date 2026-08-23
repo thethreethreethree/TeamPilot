@@ -73,14 +73,20 @@ Review Retry gated to retryable errors + a "Back to Meeting Coach" escape; a rea
 
 ## Deferred (flagged — single-company-safe today)
 
-- **D1 — huddle brain ignores the agenda** the cue route loads/passes (no agenda block / `uncovered_topic`), while
-  the dissect judges agenda coverage for huddles → inconsistency. Reachable only by prepping then toggling
-  kind→huddle. *Decide huddle+prep semantics; then wire the agenda into the huddle brain or block prep+huddle.*
-- **D2 — document upload hardening.** The prep-doc route re-implements a weaker allowlist instead of the
-  `validateUploadCandidate` chokepoint (MIME-prefix defeatable by a spoofed type; no app-layer size cap; unbounded
-  download buffer) and the image OCR path has no image-bomb guard. LOW blast radius today (docs owner-scoped +
-  never served) — would become a real vector if a "share prep" feature ships. *Route through the chokepoint +
-  `getAssetObjectInfo` + a bounded image decoder; verify the bucket `file_size_limit` (AMD-011).*
+- **D1 — ✅ RESOLVED (`260aa536`, deploy-verified; founder chose "make the huddle agenda-aware").** The huddle
+  brain now consumes `context.agenda`: `HuddleStrategy` forwards it, the huddle prompt gained an agenda block +
+  the `uncovered_topic` trigger + a `covered` output (tuned tight — the agenda adds one reason to speak: a
+  must-cover point missed at the end; a prep-less huddle renders no block, no regression). Verified the dissect
+  route already loads the agenda for huddles (kind-agnostic, sales-excluded) + ORs-in live coverage, so D1 feeds
+  the same coverage the dissect consumes — the inconsistency is closed, not merely reshaped. +5 tests. TBC
+  `docs/tbc/2026-08-23-meeting-coach-d1-d2-audit-remediation/`.
+- **D2 — ✅ RESOLVED (`260aa536`, deploy-verified).** The prep-doc route now routes both shapes through the
+  `validateUploadCandidate` chokepoint (a spoofed `image/svg+xml` is blocked though `classifyKind` alone would
+  pass it) + re-checks the REAL size via `getAssetObjectInfo` at confirm (413 over-cap / 400 phantom before
+  buffering) — so the app-layer cap fails LOUD regardless of the live bucket `file_size_limit` (AMD-011
+  belt-and-suspenders). `extractImageText` refuses an image-bomb via a `sharp` header read before Tesseract
+  decodes it. A26 class swept: the doc route was the only in-class instance (door-log sign excluded — server-const
+  `pitch.webm`; care/upload/sign + files/upload-url + upload-recording/sign already validate). +7 tests.
 - **D3 — coverage whole-JSONB lost-update race.** `setMeetingPrepTopicsCovered`/`updateMeetingPrep` overwrite the
   whole topics array with no concurrency control; latent because the hook fires one cue at a time. *Additive
   coverage set / optimistic concurrency if concurrency is introduced.*
@@ -93,9 +99,11 @@ Review Retry gated to retryable errors + a "Back to Meeting Coach" escape; a rea
 ---
 
 ## Commits
-UI fixes `9ee0f089` · backend/wiring fixes `66ee5ea5` (both deploy-verified). Prior related this session: capture
-instrumentation + iOS fix (`a9402dcb`/`75ad8c2d`/`55fd7837`), reliability audit (H1–H4/M/L), Prep-up + go-live.
+UI fixes `9ee0f089` · backend/wiring fixes `66ee5ea5` · **D1 + D2 remediation `260aa536`** (all deploy-verified).
+Prior related this session: capture instrumentation + iOS fix (`a9402dcb`/`75ad8c2d`/`55fd7837`), reliability
+audit (H1–H4/M/L), Prep-up + go-live.
 
 ## How to confirm at go-live
 Run `docs/MEETINGCOACH-DEVICE-VALIDATION.md` on real hardware (Prep-up → agenda-aware cues → agenda-scored review;
-+ the iOS pitch-capture check). The deferred items (D1–D5) are the follow-up backlog.
++ the iOS pitch-capture check). **D1 + D2 are done + deployed**; the remaining follow-up backlog is **D3–D5**
+(single-company-safe today).
