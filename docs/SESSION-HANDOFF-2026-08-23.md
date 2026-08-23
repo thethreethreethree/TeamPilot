@@ -32,10 +32,19 @@ with `npm run check` EXIT 0 on every commit and `verify:live` 30/30 live-prod in
 
 Plus doc/record updates (`ee2ac53a`, `ab5917f2`, `d51f9985`) keeping the audit report accurate.
 
+**Corpus re-starvation fix (`4a1a34e6`) — a live INV22 gap found by auditing new untracked code**
+Your custom Sales knowledge corpus (methodology + product) could be saved at up to 100k chars and was fed
+**raw** into the coach's analysis/prep prompts — big enough to blow past the AI model's output limit and return
+an **empty** review/dissect/prep. In other words: the more you invested in a rich corpus, the more likely the
+coach came back blank. The guard for this (`corpusBudget.ts`) had been written but never wired. Now it caps the
+corpus at save (and tells you if it trimmed) + defensively at every prompt, so a rich corpus produces a real
+read instead of nothing. +14 tests, `npm run check` EXIT 0. (C.A.R.E was already safe — excluded with reason.)
+
 **Audit-class sweeps (A26 — swept to codebase boundary, confirmed clean beyond the fixed instances):**
 - *error-as-no-data (client):* Sales Coach was the only offender (fixed); Meeting Coach + C.A.R.E use honest error states.
 - *upload-security chokepoint:* coach doc route fixed; Schedule Management + care + files already hardened.
 - *capture-seam-safety:* Meeting Coach recorder verified seam-safe (incremental upload + dual durability).
+- *corpus starvation (LLM prompt):* Sales methodology + product corpora capped at save + all 4 injection chokepoints; C.A.R.E bounded already (`4a1a34e6`).
 
 ---
 
