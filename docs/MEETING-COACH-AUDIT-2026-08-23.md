@@ -1,0 +1,101 @@
+# Meeting Coach (Team-Sync) — System Audit, 2026-08-23
+
+**Why this exists.** Founder directive: "audit the Team Coach system… make sure the Meeting Coach is sound and
+there are no UI and Backend bugs." A 4-agent parallel audit (backend routes + data layer, security + RLS, UI/UX,
+end-to-end integration + capture) plus live behavioral probes swept the whole surface: Prep-up (collect →
+agenda-aware live coach → agenda-scored review), the meeting-session routes, the recorder/capture, RLS, and the UI.
+Every agent finding is a **suspect**; each was re-verified against the code before any fix (A26).
+
+**Verdict.** The core is **sound**. No HIGH security issue (no reachable cross-tenant read/write, no live XSS/RCE).
+The bugs that mattered clustered in two places — an **audio-loss seam on clean Stop** and the **Prep-up UI + data
+layer** (silent data loss / dead-ends / error-as-no-data). All HIGH + the impactful MED are **fixed, deployed, and
+verified**; the remainder are defense-in-depth or multi-company-latent, flagged below.
+
+Severity: **HIGH** = data loss or a falsehood shown to the user · **MED** = degraded honesty / recoverable ·
+**LOW** = cosmetic / latent.
+
+---
+
+## Verified SOUND (checked, no defect)
+
+- **Auth + tenant isolation.** Every mutation route: `getUser` + company context; cue/end/dissect enforce
+  `session.agentId === user.id` (owner, INV19) + a `mode==='sales'` mis-route guard. Service-role writes pin
+  `company_id` (INV15).
+- **RLS — behaviorally probed against prod.** `meeting_preps` + `meeting_prep_documents` have RLS enabled; an
+  `anon` role sees **0 rows** (of a real row present); policies scope to `created_by`/parent-owner + `company_id`
+  on writes. No `USING(true)` leak.
+- **Validation** (zod on every body), **CWE-209** (no raw error leaks), **maxDuration** (on exactly the LLM/STT
+  routes), **the document upload** (signed target scoped + owner-gated before signing; storage RLS confines writes
+  to the caller's company), and the **LLM prompt-injection fence** (`CONVERSATION_IS_DATA` on the transcript +
+  agenda + OCR doc-context) — all present + correct.
+- **Mode routing / the `coaching_cues.mode` CHECK landmine** — behaviorally confirmed: the prod CHECK is
+  `('suggestion','guide_response')`; the cue route maps `directive → guide_response` at a single chokepoint, so a
+  meeting cue can't violate it. The cross-domain leak gate + the imbalance-suppression gate are correct.
+- **H4 dissect self-heal** — a transient dissect failure writes no backoff marker (retries); only a genuine empty
+  backs off. **Never-Stop capture** — the stale-close cron stitches an `active` session's chunks.
+
+---
+
+## HIGH — fixed
+
+- **A1 (integration) — clean-Stop audio loss → permanently unreviewable + false "review ready".** A clean Stop
+  whose full-blob persist failed left `audio_asset_url` NULL with the live 15s chunks in storage; the only stitch
+  trigger is the stale cron (`status='active'`), but `/end` set `'ended'` → nothing assembled the chunks → the
+  review 409-looped forever, while the UI said "recording saved." **Fixed** (`66ee5ea5`): the dissect route
+  **stitches-on-demand** when audio is null (self-healing); honest 409 only if truly no chunks.
+- **A2 (UI) — false "review ready" + dead-end after a session that never recorded.** A mic-denied / connect-error
+  / instant-stop session offered a Review link that 409-looped forever + copy claiming the recording saved.
+  **Fixed** (`9ee0f089`): only offer the review + stamp `/end` when the session actually went live; else return to
+  setup.
+- **A3 (UI) — Prep-up data silently lost on a quick "Start".** Goal/topics autosaved on a 700ms debounce that
+  Start dropped on unmount → the meeting bound an EMPTY prep, silently defeating the whole agenda feature.
+  **Fixed** (`9ee0f089`): Start flushes a final save before handing off; a save failure blocks Start + surfaces.
+
+## MED — fixed
+
+- **A4 — prep→session link silent no-op** (`markMeetingPrepStarted` returned true on a 0-row update) → agenda-less
+  meeting reported as "prep loaded." **Fixed** (`66ee5ea5`): row-count check → false on no-op; create route logs +
+  returns the real result.
+- **A5 — coverage silently never accumulated** (36-char UUID topic ids the LLM had to echo verbatim) + the dissect
+  discarded live coverage. **Fixed** (`66ee5ea5`): short topic ids + the dissect ORs-in live coverage.
+- **A6 — error-as-no-data** (`getMeetingPrep` → false 404, `listPrepDocuments`/brain reads swallowed errors) +
+  autosave failures swallowed. **Fixed** (`66ee5ea5` + `9ee0f089`): user-facing reads throw → honest 500; brain
+  reads log-and-degrade; autosave errors surfaced.
+- **A7 — light-theme legibility** (accents `text-*-300/400` washed out on white; Prep-up rows white-on-white;
+  file input keyboard-unreachable; duplicate heading). **Fixed** (`9ee0f089`): `text-{c}-700 dark:text-{c}-300`,
+  theme tokens, `sr-only` focusable input, heading rename.
+
+## LOW — fixed
+Review Retry gated to retryable errors + a "Back to Meeting Coach" escape; a real tap target on remove-topic
+(`9ee0f089`).
+
+---
+
+## Deferred (flagged — single-company-safe today)
+
+- **D1 — huddle brain ignores the agenda** the cue route loads/passes (no agenda block / `uncovered_topic`), while
+  the dissect judges agenda coverage for huddles → inconsistency. Reachable only by prepping then toggling
+  kind→huddle. *Decide huddle+prep semantics; then wire the agenda into the huddle brain or block prep+huddle.*
+- **D2 — document upload hardening.** The prep-doc route re-implements a weaker allowlist instead of the
+  `validateUploadCandidate` chokepoint (MIME-prefix defeatable by a spoofed type; no app-layer size cap; unbounded
+  download buffer) and the image OCR path has no image-bomb guard. LOW blast radius today (docs owner-scoped +
+  never served) — would become a real vector if a "share prep" feature ships. *Route through the chokepoint +
+  `getAssetObjectInfo` + a bounded image decoder; verify the bucket `file_size_limit` (AMD-011).*
+- **D3 — coverage whole-JSONB lost-update race.** `setMeetingPrepTopicsCovered`/`updateMeetingPrep` overwrite the
+  whole topics array with no concurrency control; latent because the hook fires one cue at a time. *Additive
+  coverage set / optimistic concurrency if concurrency is introduced.*
+- **D4 — multi-company LOWs.** cue/dissect load prep by `session_id` without a `session.companyId===companyId`
+  assertion; `meeting_prep_documents.company_id` isn't constrained to the parent prep's; `persistOnly` finalize
+  doesn't check the stamp row-count. All safe under single-company; harden at the multi-company milestone.
+- **D5 — UI polish.** A draft prep created on every `/prep` visit (orphans); Start enabled with an empty prep + no
+  hint; a forced-cue failure shows the raw HTTP status; the pending-audio "try again" lacks a terminal state.
+
+---
+
+## Commits
+UI fixes `9ee0f089` · backend/wiring fixes `66ee5ea5` (both deploy-verified). Prior related this session: capture
+instrumentation + iOS fix (`a9402dcb`/`75ad8c2d`/`55fd7837`), reliability audit (H1–H4/M/L), Prep-up + go-live.
+
+## How to confirm at go-live
+Run `docs/MEETINGCOACH-DEVICE-VALIDATION.md` on real hardware (Prep-up → agenda-aware cues → agenda-scored review;
++ the iOS pitch-capture check). The deferred items (D1–D5) are the follow-up backlog.
