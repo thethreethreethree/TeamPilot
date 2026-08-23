@@ -96,8 +96,13 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
   if (state === "pending-audio") {
     return (
       <div className="mx-auto max-w-lg p-6">
+        {/* Honesty (audit D5): a 409 here can be transient (audio still stitching) OR terminal (the meeting was
+            never recorded — the dissect stitches-on-demand and found no chunks, INT-1). The old copy implied
+            transient-only, so a rep could "Try again" forever. Name the terminal possibility so they know when to
+            stop. (A hard auto-terminal after N retries is the deeper UX call, left to the founder.) */}
         <p className="text-sm text-secondary">
-          The recording isn&apos;t ready yet — the audio may still be saving. Check back shortly.
+          The recording isn&apos;t ready yet — it may still be saving. If a couple of retries don&apos;t help, this
+          meeting likely wasn&apos;t recorded — head back and start a fresh one.
         </p>
         <div className="mt-3 flex items-center gap-4">
           <button
