@@ -17,7 +17,6 @@ import {
   Target,
   Library,
   ArrowLeft,
-  BarChart3,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -246,31 +245,18 @@ export default function SalesCoachHome() {
             ))}
           </div>
         ) : macroOn ? (
-          <div className="grid grid-cols-2 gap-3">
-            <MobileCard
-              href="/dashboard/sales-coach/doors"
-              icon={DoorOpen}
-              title="Door Log"
-              sub="Log every door, fast"
-            />
-            <MobileCard
-              href="/dashboard/sales-coach/doors/todays-metrics"
-              icon={BarChart3}
-              title="Today's Metrics"
-              sub="Focus, KPIs & scores"
-            />
-            {/* Pitch Performance sits below the pair, but at the SAME card size as them (founder 2026-08-19:
-                the full-width version was aspect-scaled to ~2x height and dominated the screen). A half-width
-                card centered under the two top cards keeps the 3-surface layout without the oversized slab. */}
-            <div className="col-span-2 flex justify-center">
-              <div className="w-[calc(50%-0.375rem)]">
-                <MobileCard
-                  href="/dashboard/sales-coach/doors/report-card"
-                  icon={Mic}
-                  title="Pitch Performance"
-                  sub="Recordings + summaries"
-                />
-              </div>
+          // Founder revision 2026-08-23 (annotated mockup): Today's Metrics + Pitch Performance moved OUT of the
+          // Macro home grid and INTO the bottom nav (MACRO_MOBILE_TABS in SalesCoachShell) for one-tap access — a
+          // true move, so they're no longer duplicated as cards here. Door Log is the remaining primary surface;
+          // it keeps the same half-width card proportions (centered) rather than a lone stretched slab.
+          <div className="flex justify-center">
+            <div className="w-[calc(50%-0.375rem)]">
+              <MobileCard
+                href="/dashboard/sales-coach/doors"
+                icon={DoorOpen}
+                title="Door Log"
+                sub="Log every door, fast"
+              />
             </div>
           </div>
         ) : (

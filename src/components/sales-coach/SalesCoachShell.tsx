@@ -15,7 +15,6 @@ import {
 import {
   ArrowLeft,
   BarChart3,
-  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -158,13 +157,17 @@ const MOBILE_TABS: NavItem[] = [
   { label: "Account", href: "/dashboard/sales-coach/settings", icon: User },
 ];
 
-// Macro Mode bottom nav (founder wireframe 2026-08-19): a door-to-door rep gets a focused 4-tab bar — Home,
-// Role Play, Team Chat, AI Agent (the Live AI Coach). Swapped in for MOBILE_TABS while Macro Mode is on.
+// Macro Mode bottom nav — a door-to-door rep gets a focused 4-tab bar. Founder revision 2026-08-23 (annotated
+// mockup): promote the two door-to-door DATA surfaces into the nav for one-tap access — Pitch Performance
+// (report card) + Today's Metrics — replacing the old Team Chat + AI Agent tabs; Role Play moves to the last
+// slot. The two promoted surfaces are correspondingly REMOVED from the Macro home grid (true move, not a
+// duplicate) — see the macroOn branch in dashboard/sales-coach/page.tsx. Team Chat stays reachable on desktop +
+// the non-macro mobile nav; the Live AI Coach lives on the Sessions page (Home → cards) rather than a tab.
 const MACRO_MOBILE_TABS: NavItem[] = [
   { label: "Home", href: "/dashboard/sales-coach", icon: Home },
+  { label: "Pitch Performance", href: "/dashboard/sales-coach/doors/report-card", icon: Mic },
+  { label: "Today's Metrics", href: "/dashboard/sales-coach/doors/todays-metrics", icon: BarChart3 },
   { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target },
-  { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
-  { label: "AI Agent", href: "/dashboard/sales-coach/sessions", icon: Bot },
 ];
 
 export function SalesCoachShell({

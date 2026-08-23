@@ -108,17 +108,32 @@ describe("SalesCoachShell — Macro Mode sidebar focus (founder 2026-08-18: ONLY
   });
 });
 
-describe("SalesCoachShell — Macro Mode bottom nav (founder wireframe 2026-08-19)", () => {
+describe("SalesCoachShell — Macro Mode bottom nav (founder revision 2026-08-23, annotated mockup)", () => {
+  // Founder revised the Macro bottom nav (2026-08-23): promote the two door-to-door DATA surfaces
+  // (Pitch Performance + Today's Metrics) into the nav for one-tap access, replacing Team Chat + AI Agent;
+  // Role Play moves to the last slot. This nav has flip-flopped before (see MACRO_MOBILE_TABS history), so lock
+  // the founder-chosen set + ORDER so it can't silently regress (A30).
   const macroTabs = SHELL.match(/const MACRO_MOBILE_TABS[\s\S]*?\];/)?.[0] ?? "";
 
-  it("is exactly Home / Role Play / Team Chat / AI Agent", () => {
-    for (const label of ['"Home"', '"Role Play"', '"Team Chat"', '"AI Agent"']) {
+  it("is exactly Home / Pitch Performance / Today's Metrics / Role Play (in order)", () => {
+    for (const label of ['"Home"', '"Pitch Performance"', '"Today\'s Metrics"', '"Role Play"']) {
       expect(macroTabs).toContain(`label: ${label}`);
     }
-    // Founder-confirmed targets: Role Play → roleplay, AI Agent → the Live AI Coach (Sessions).
-    expect(macroTabs).toContain("/dashboard/sales-coach/roleplay");
-    expect(macroTabs).toContain("/dashboard/sales-coach/sessions");
-    // The normal-mode-only tabs must NOT be in the Macro set.
+    // Order is load-bearing (the founder placed the two data views between Home and Role Play).
+    expect(macroTabs).toMatch(
+      /"Home"[\s\S]*?"Pitch Performance"[\s\S]*?"Today's Metrics"[\s\S]*?"Role Play"/
+    );
+    // Founder-confirmed targets.
+    expect(macroTabs).toContain("/dashboard/sales-coach/doors/report-card"); // Pitch Performance
+    expect(macroTabs).toContain("/dashboard/sales-coach/doors/todays-metrics"); // Today's Metrics
+    expect(macroTabs).toContain("/dashboard/sales-coach/roleplay"); // Role Play
+  });
+
+  it("drops the AI Agent (Sessions) + Team Chat tabs from the Macro set (founder 2026-08-23)", () => {
+    expect(macroTabs).not.toContain('"AI Agent"');
+    expect(macroTabs).not.toContain('"Team Chat"');
+    expect(macroTabs).not.toContain("/dashboard/sales-coach/sessions");
+    // The normal-mode-only tabs must NOT be in the Macro set either.
     expect(macroTabs).not.toContain('"Analytics"');
     expect(macroTabs).not.toContain('"Account"');
   });

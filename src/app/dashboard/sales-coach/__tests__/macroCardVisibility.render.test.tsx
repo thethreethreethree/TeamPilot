@@ -91,14 +91,16 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().queryByText("Start Knocking")).toBeNull();
   });
 
-  it("Macro ON: the home shows the 3 door-to-door cards + door bubbles + Start Knocking (founder wireframe 2026-08-19)", async () => {
+  it("Macro ON: the home shows the Door Log card + door bubbles + Start Knocking; Metrics & Pitch moved to the nav (founder 2026-08-23)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);
     const m = () => mobile(container);
-    // The 3 Macro surfaces replace the normal launchpad.
+    // Door Log is the remaining Macro home surface.
     await waitFor(() => expect(m().getByText("Door Log")).toBeTruthy());
-    expect(m().getByText("Today's Metrics")).toBeTruthy();
-    expect(m().getByText("Pitch Performance")).toBeTruthy(); // the Macro Pitch Performance card
+    // Founder revision 2026-08-23: Today's Metrics + Pitch Performance MOVED to the Macro bottom nav
+    // (MACRO_MOBILE_TABS in SalesCoachShell) — a true move, so they are NO LONGER cards on the home grid.
+    expect(m().queryByText("Today's Metrics")).toBeNull();
+    expect(m().queryByText("Pitch Performance")).toBeNull();
     // The normal launchpad cards are gone in Macro Mode.
     expect(m().queryByText("Live AI Coach & Sessions")).toBeNull();
     expect(m().queryByText("One Liners")).toBeNull();
