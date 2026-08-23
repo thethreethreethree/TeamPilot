@@ -355,6 +355,15 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
       >
         {starting ? "Saving prep…" : "Start Meeting"}
       </button>
+      {/* Empty-prep nudge (audit D5): Start is intentionally NOT disabled (a prep-less meeting is valid — the
+          coach still runs, just without an agenda to steer toward), but a rep starting a blank prep should know
+          they're leaving the coach un-briefed. Passive + non-blocking (no flow/H2 change). */}
+      {!goal.trim() && topics.length === 0 && (
+        <p className="text-xs text-muted text-center mt-1">
+          This prep is empty — add a goal and a few topics so the coach can steer the meeting toward them. You can
+          start without them; it&apos;ll just coach generally.
+        </p>
+      )}
     </div>
   );
 }

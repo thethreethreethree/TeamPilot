@@ -84,6 +84,19 @@ describe("MeetingPrepUp", () => {
     expect(patched).toBeTruthy(); // the goal was persisted, not lost
   });
 
+  it("shows an empty-prep nudge until a goal/topic is added, and never disables Start (audit D5)", async () => {
+    const calls: Call[] = [];
+    mockFetch(calls);
+    render(<MeetingPrepUp />);
+    await waitFor(() => expect(screen.getByText("The goal of this meeting")).toBeTruthy());
+    // Empty prep → the nudge shows; Start stays ENABLED (a prep-less meeting is valid, just un-briefed).
+    expect(screen.getByText(/This prep is empty/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Start Meeting/i }).hasAttribute("disabled")).toBe(false);
+    // Add a goal → the nudge disappears (the coach now has something to steer toward).
+    fireEvent.change(screen.getByPlaceholderText(/Agree the Q3/i), { target: { value: "Lock the date" } });
+    expect(screen.queryByText(/This prep is empty/i)).toBeNull();
+  });
+
   it("the file input is keyboard-reachable (sr-only, not display:none) (audit M4)", async () => {
     const calls: Call[] = [];
     mockFetch(calls);
