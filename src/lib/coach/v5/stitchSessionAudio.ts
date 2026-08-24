@@ -62,6 +62,47 @@ export function startsWithEbmlHeader(buf: Buffer): boolean {
   return buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3;
 }
 
+/**
+ * True if the buffer begins with an mp4/ISO-BMFF init segment — an `ftyp` box (type bytes at offset 4, after the
+ * 4-byte box size). iOS Safari records `audio/mp4` (MediaRecorder webm→mp4 fallback), so on iOS a recorder
+ * recreation emits a fresh `ftyp`+`moov` init; a continuation fragment of the SAME recording starts with `moof`,
+ * not `ftyp`, so this only matches a genuine NEW recording start — the mp4 twin of startsWithEbmlHeader.
+ * (2026-08-25: the webm-only reseam let two iOS mp4 segments concatenate → ElevenLabs "invalid_audio / corrupted".)
+ */
+export function startsWithMp4InitSegment(buf: Buffer): boolean {
+  return buf.length >= 8 && buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70; // "ftyp"
+}
+
+/** True if the buffer is the START of a NEW recording in EITHER container the pipeline records (webm OR mp4). */
+export function startsWithNewRecordingHeader(buf: Buffer): boolean {
+  return startsWithEbmlHeader(buf) || startsWithMp4InitSegment(buf);
+}
+
+/**
+ * The bad-concat fingerprint: the offset of a SECOND recording-init header (webm EBML past byte 0, or mp4 `ftyp`
+ * past the legitimate first one at offset 4), or -1. A positive result on a stitched file means two recordings
+ * were concatenated — exactly what the mp4-aware reseam prevents. Heuristic (a byte run could coincide in audio
+ * payload), so it's a DIAGNOSTIC hint, never a gate. `Buffer.indexOf` is native (fast on multi-MB audio).
+ */
+export function findSecondInitSegment(buf: Buffer): number {
+  const ebml = buf.indexOf(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), 1);
+  if (ebml >= 0) return ebml;
+  return buf.indexOf(Buffer.from([0x66, 0x74, 0x79, 0x70]), 8); // "ftyp" past the first init's ftyp@4
+}
+
+/**
+ * Ground-truth signature of an audio buffer for a failure log (feedback_recurring_failure_instrument_dont_assume):
+ * size, content-type, the first 16 bytes (magic → webm EBML / mp4 ftyp / garbage), and a mid-file second-init hint.
+ * So when STT rejects audio as "corrupted", the log NAMES why (bad concat / wrong format / truncation) as DATA.
+ */
+export function describeAudioBytes(buf: Buffer, contentType?: string | null): string {
+  const secondInit = findSecondInitSegment(buf);
+  return (
+    `size=${buf.length} ct=${contentType ?? "?"} head=${buf.subarray(0, 16).toString("hex")}` +
+    (secondInit >= 0 ? ` secondInit@${secondInit}(bad-concat?)` : "")
+  );
+}
+
 export async function stitchSessionAudio(args: {
   companyId: string;
   sessionId: string;
@@ -89,11 +130,12 @@ export async function stitchSessionAudio(args: {
   for (let i = 0; i < order.length; i++) {
     const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, order[i]!) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
-    // A new webm header AFTER the first chunk = the recorder was recreated mid-session (mobile screen-lock
-    // ended the mic track → P0 rebuilt it). The two segments can't be concatenated into one valid webm, so
-    // stop and keep the first (valid) segment — the pre-lock audio, still playable + transcribable. Without
-    // this the stitched file (and its re-transcription) would be corrupt from the seam onward.
-    if (i > 0 && startsWithEbmlHeader(dl.bytes)) break;
+    // A new recording header AFTER the first chunk = the recorder was recreated mid-session (mobile screen-lock
+    // ended the mic track → P0 rebuilt it). The two segments can't be concatenated into one valid file, so stop
+    // and keep the first (valid) segment — the pre-lock audio, still playable + transcribable. Container-aware
+    // (2026-08-25): webm EBML OR mp4 ftyp — iOS records mp4, and the old webm-only check let two mp4 segments
+    // concatenate into an unplayable file (ElevenLabs "corrupted"). Without this the stitch corrupts from the seam on.
+    if (i > 0 && startsWithNewRecordingHeader(dl.bytes)) break;
     parts.push(dl.bytes);
   }
   if (parts.length === 0) return { stitched: false, reason: "no readable chunks" };

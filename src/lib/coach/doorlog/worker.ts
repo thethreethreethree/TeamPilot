@@ -14,6 +14,7 @@ import {
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
+import { describeAudioBytes } from "@/lib/coach/v5/stitchSessionAudio";
 import { rollupRep } from "./rollupWorker";
 
 /**
@@ -132,7 +133,20 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
         await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No audio was captured for this pitch." });
         return;
       }
-      const text = await transcribeSpeech({ audio: dl.bytes, mimeType: dl.contentType ?? "audio/webm" });
+      // Ground-truth capture on an STT rejection (feedback_recurring_failure_instrument_dont_assume): when
+      // ElevenLabs calls the audio "corrupted/invalid", log its SIGNATURE — size, content-type, first-bytes magic
+      // (webm EBML vs mp4 ftyp vs garbage), and a mid-file second-init hint (the bad-concat fingerprint). Appended
+      // to the error so the terminal failure + Sentry NAME the cause as data instead of a guess, and re-thrown so
+      // the existing retry/terminal machinery is unchanged.
+      let text: string;
+      try {
+        text = await transcribeSpeech({ audio: dl.bytes, mimeType: dl.contentType ?? "audio/webm" });
+      } catch (sttErr) {
+        const sig = describeAudioBytes(dl.bytes, dl.contentType);
+        const msg = sttErr instanceof Error ? sttErr.message : String(sttErr);
+        console.error(`[pitch worker] STT rejected audio for pitch ${pitch.id} — ${sig}`);
+        throw new Error(`${msg} [audio ${sig}]`);
+      }
       // Empty/silent capture (audit H1, founder 2026-08-22): STT returned no words. Do NOT run the analysis on an
       // empty transcript — the rubric schema forces a non-empty summary + scores, so it would produce a HOLLOW
       // "complete" pitch with MADE-UP scores (the "captured nothing but looks fine" trust-killer). Mark it

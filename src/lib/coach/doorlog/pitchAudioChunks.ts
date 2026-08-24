@@ -1,7 +1,7 @@
 import "server-only";
 import { ASSETS_BUCKET, downloadAssetBytes, uploadAssetBytes } from "@/lib/storage/assets";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { orderedChunkSeqs, startsWithEbmlHeader } from "@/lib/coach/v5/stitchSessionAudio";
+import { orderedChunkSeqs, startsWithNewRecordingHeader } from "@/lib/coach/v5/stitchSessionAudio";
 
 /**
  * Incremental audio for a DoorLog PITCH — the "never lose the recording on a long call" durability layer
@@ -12,9 +12,9 @@ import { orderedChunkSeqs, startsWithEbmlHeader } from "@/lib/coach/v5/stitchSes
  * The cure mirrors the LIVE-coaching path (`stitchSessionAudio`): the recorder emits ~15s chunks that upload
  * DURING recording, so the audio is already in storage no matter how the recording ends, and the whole thing
  * never rides on one large final upload. This module is the pitch-side of that: the chunk storage layout + the
- * stitch. It REUSES the live path's pure, tested helpers (`orderedChunkSeqs`, `startsWithEbmlHeader`) so the
- * concatenation semantics (contiguous-run, gap-truncates-tail, EBML-reseam-stops) can never drift between the
- * two surfaces.
+ * stitch. It REUSES the live path's pure, tested helpers (`orderedChunkSeqs`, `startsWithNewRecordingHeader`) so
+ * the concatenation semantics (contiguous-run, gap-truncates-tail, recorder-recreation-reseam for webm OR mp4)
+ * can never drift between the two surfaces.
  *
  * Keyed on a client-generated `recordingId` (a uuid minted at Record-tap) — NOT the pitch id, because the
  * chunks upload while recording, BEFORE the pitch row exists (it's created at Save). The server derives the
@@ -87,7 +87,7 @@ export async function stitchPitchAudio(args: {
     const dl = await downloadAssetBytes({ storagePath: pitchChunkObjectPath(args.companyId, args.recordingId, order[i]!) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — keep the valid head, drop the tail
     if (i === 0 && dl.contentType) chunkContentType = dl.contentType; // the recording's real format
-    if (i > 0 && startsWithEbmlHeader(dl.bytes)) break; // recorder was recreated mid-recording — keep segment 1
+    if (i > 0 && startsWithNewRecordingHeader(dl.bytes)) break; // recorder recreated (webm OR iOS mp4) — keep segment 1
     parts.push(dl.bytes);
   }
   if (parts.length === 0) return { ok: false, reason: "no readable chunks" };

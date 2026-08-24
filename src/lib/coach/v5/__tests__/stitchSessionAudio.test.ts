@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   uploaded: [] as string[],
   stamped: false,
   headerSeqs: new Set<number>(), // seqs whose downloaded bytes begin with a NEW webm header (recreated recorder)
+  mp4HeaderSeqs: new Set<number>(), // seqs that begin with a NEW mp4 ftyp init (iOS recreated recorder)
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -54,12 +55,14 @@ vi.mock("@/lib/storage/assets", () => ({
     const seq = Number(storagePath.match(/\/(\d+)\.webm$/)?.[1] ?? -1);
     const bytes = state.headerSeqs.has(seq)
       ? Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 9, 9]) // a NEW webm header — a recreated-recorder segment
-      : Buffer.from([1, 2, 3]);
+      : state.mp4HeaderSeqs.has(seq)
+        ? Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 9, 9]) // a NEW mp4 ftyp init — iOS recreated recorder
+        : Buffer.from([1, 2, 3]);
     return { ok: true, bytes };
   },
 }));
 
-const { orderedChunkSeqs, startsWithEbmlHeader, stitchSessionAudio, chunkPrefix, chunkObjectPath, finalRecordingPath } = await import("../stitchSessionAudio");
+const { orderedChunkSeqs, startsWithEbmlHeader, startsWithMp4InitSegment, startsWithNewRecordingHeader, findSecondInitSegment, describeAudioBytes, stitchSessionAudio, chunkPrefix, chunkObjectPath, finalRecordingPath } = await import("../stitchSessionAudio");
 
 beforeEach(() => {
   state.audioUrl = null;
@@ -67,6 +70,7 @@ beforeEach(() => {
   state.uploaded = [];
   state.stamped = false;
   state.headerSeqs = new Set<number>();
+  state.mp4HeaderSeqs = new Set<number>();
 });
 
 describe("startsWithEbmlHeader — detect a new webm recording (recreated-recorder seam)", () => {
@@ -75,6 +79,44 @@ describe("startsWithEbmlHeader — detect a new webm recording (recreated-record
     expect(startsWithEbmlHeader(Buffer.from([0x1f, 0x43, 0xb6, 0x75]))).toBe(false); // a Cluster (media segment)
     expect(startsWithEbmlHeader(Buffer.from([0x1a, 0x45]))).toBe(false); // too short
     expect(startsWithEbmlHeader(Buffer.from([]))).toBe(false);
+  });
+});
+
+// The iOS mp4 twin — the gap that caused ElevenLabs "invalid_audio / corrupted" (2026-08-25): iOS records
+// audio/mp4, and the old webm-only reseam let two mp4 init segments concatenate into an unplayable file.
+const FTYP = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0, 0]); // box size 0x18, "ftyp" at offset 4
+const EBML = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0]);
+
+describe("startsWithMp4InitSegment — detect a new mp4 recording (ftyp init)", () => {
+  it("is true only for an ftyp box (type bytes at offset 4)", () => {
+    expect(startsWithMp4InitSegment(FTYP)).toBe(true);
+    expect(startsWithMp4InitSegment(EBML)).toBe(false); // webm, not mp4
+    expect(startsWithMp4InitSegment(Buffer.from([0, 0, 0, 0x18, 0x6d, 0x6f, 0x6f, 0x66]))).toBe(false); // "moof" = a continuation fragment, NOT a new recording
+    expect(startsWithMp4InitSegment(Buffer.from([0, 0, 0, 0x18]))).toBe(false); // too short
+  });
+});
+
+describe("startsWithNewRecordingHeader — webm OR mp4 recording start", () => {
+  it("matches both container init headers, nothing else", () => {
+    expect(startsWithNewRecordingHeader(EBML)).toBe(true);
+    expect(startsWithNewRecordingHeader(FTYP)).toBe(true);
+    expect(startsWithNewRecordingHeader(Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]))).toBe(false); // a media fragment
+  });
+});
+
+describe("findSecondInitSegment / describeAudioBytes — the bad-concat fingerprint (ground-truth capture)", () => {
+  it("finds a SECOND webm/mp4 init header concatenated in, and -1 for a clean file", () => {
+    expect(findSecondInitSegment(Buffer.concat([EBML, Buffer.from([5, 6, 7, 8])]))).toBe(-1); // single recording
+    // webm+webm and mp4+mp4 bad concats: the second header sits mid-file, past the first.
+    expect(findSecondInitSegment(Buffer.concat([EBML, Buffer.from([5, 6]), EBML]))).toBeGreaterThan(0);
+    expect(findSecondInitSegment(Buffer.concat([FTYP, Buffer.from([5, 6]), FTYP]))).toBeGreaterThan(4);
+  });
+  it("describeAudioBytes reports size/ct/head and flags a bad concat", () => {
+    const clean = describeAudioBytes(FTYP, "audio/mp4");
+    expect(clean).toContain("size=10");
+    expect(clean).toContain("ct=audio/mp4");
+    expect(clean).not.toContain("bad-concat");
+    expect(describeAudioBytes(Buffer.concat([FTYP, Buffer.from([5, 6]), FTYP]), "audio/mp4")).toContain("bad-concat");
   });
 });
 
@@ -138,5 +180,13 @@ describe("stitchSessionAudio idempotency + safety", () => {
     expect(r.stitched).toBe(true);
     // Only seqs 0 + 1 (the valid first segment, two 3-byte chunks) are concatenated — the seam at 2 is not crossed.
     expect(r.bytes).toBe(6);
+  });
+
+  it("stops at a NEW mp4 ftyp init mid-stream (iOS recorder recreated) — the 2026-08-25 corrupted-audio fix", async () => {
+    state.chunkNames = ["0.webm", "1.webm", "2.webm", "3.webm"];
+    state.mp4HeaderSeqs = new Set([2]); // seq 2 begins a fresh iOS mp4 recording — the old webm-only reseam missed this
+    const r = await stitchSessionAudio({ companyId: "co", sessionId: "s1" });
+    expect(r.stitched).toBe(true);
+    expect(r.bytes).toBe(6); // seqs 0 + 1 only — the mp4 seam at 2 is NOT crossed (no two-init unplayable file)
   });
 });
