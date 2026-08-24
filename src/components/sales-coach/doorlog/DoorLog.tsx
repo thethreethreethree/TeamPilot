@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList } from "lucide-react";
+import { ArrowLeft, Mic, Square, DoorClosed, DoorOpen, Check, ClipboardList, Sparkles, ChevronRight } from "lucide-react";
 import {
   transition,
   type DoorLogState,
@@ -73,6 +73,13 @@ function saveFailMessage(what: string, reason: SaveFailReason): string {
 export function DoorLog() {
   const [state, setState] = useState<DoorLogState>("idle");
   const [kpi, setKpi] = useState<Kpi | null>(null);
+  // "View last pitch result" (founder 2026-08-24): after a rep ends a session (saves a real recorded pitch), the
+  // Door Log returns to IDLE while the result processes async onto the separate Pitch Performance page. This
+  // OPTIONAL affordance appears in IDLE after such a save — a static link to the `/report-card/latest` redirect
+  // (server-side → that pitch's after-pitch detail), one tap vs tab → list → find. Set only on a real pitch save
+  // (not a knock / dropped-audio — no result to view). A plain Link (no useRouter) so it can't break the field
+  // flow and adds no navigation-hook dependency to the Door Log render tests.
+  const [justSavedPitch, setJustSavedPitch] = useState(false);
   const [name, setName] = useState("");
   const [pickedOutcome, setPickedOutcome] = useState<PitchOutcome>("sold");
   // `chunksUploaded` = how many ~15s chunks reached storage DURING recording (the durable path); `recordingId`
@@ -436,6 +443,9 @@ export function DoorLog() {
     ).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));
       else if (r.audioDropped) setNotice(audioDroppedMessage(r.dropReason ?? "no_capture"));
+      // A real recorded pitch saved (not a knock / dropped-audio) → offer the "View last pitch result" affordance
+      // in IDLE. The result itself processes async; the button just opens that pitch's report-card detail.
+      else setJustSavedPitch(true);
       void loadKpi();
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
@@ -498,6 +508,22 @@ export function DoorLog() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* "View last pitch result" (founder 2026-08-24) — appears in IDLE after the rep ends a session (saves a
+          recorded pitch), opening that pitch's after-pitch result in one tap instead of navigating to the Pitch
+          Performance page and finding it. OPTIONAL + non-blocking: a secondary affordance above the field flow,
+          never competing with the primary Record Pitch / No Answer thumb actions. Kept out of the bottom thumb
+          zone so it can't be mis-tapped mid-flow. */}
+      {state === "idle" && justSavedPitch && (
+        <Link
+          href="/dashboard/sales-coach/doors/report-card/latest"
+          className="mb-2 w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-ember-400/40 bg-ember-400/[0.06] px-4 py-3 text-sm font-semibold text-brand active:scale-[0.99] transition-transform"
+        >
+          <Sparkles className="w-4 h-4" aria-hidden />
+          View last pitch result
+          <ChevronRight className="w-4 h-4" aria-hidden />
+        </Link>
       )}
 
       {/* Field states keep the thumb-zone bottom anchor (justify-end). The NAMING state top-aligns instead:
