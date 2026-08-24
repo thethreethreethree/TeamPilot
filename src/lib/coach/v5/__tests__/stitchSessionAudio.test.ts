@@ -62,7 +62,7 @@ vi.mock("@/lib/storage/assets", () => ({
   },
 }));
 
-const { orderedChunkSeqs, startsWithEbmlHeader, startsWithMp4InitSegment, startsWithNewRecordingHeader, findSecondInitSegment, describeAudioBytes, stitchSessionAudio, chunkPrefix, chunkObjectPath, finalRecordingPath } = await import("../stitchSessionAudio");
+const { orderedChunkSeqs, startsWithEbmlHeader, startsWithMp4InitSegment, startsWithNewRecordingHeader, findSecondInitSegment, truncateAtSecondInitSegment, describeAudioBytes, stitchSessionAudio, chunkPrefix, chunkObjectPath, finalRecordingPath } = await import("../stitchSessionAudio");
 
 beforeEach(() => {
   state.audioUrl = null;
@@ -117,6 +117,21 @@ describe("findSecondInitSegment / describeAudioBytes — the bad-concat fingerpr
     expect(clean).toContain("ct=audio/mp4");
     expect(clean).not.toContain("bad-concat");
     expect(describeAudioBytes(Buffer.concat([FTYP, Buffer.from([5, 6]), FTYP]), "audio/mp4")).toContain("bad-concat");
+  });
+});
+
+describe("truncateAtSecondInitSegment — LAST-RESORT recovery: keep the valid FIRST segment of a bad concat", () => {
+  it("returns just the first segment when a second init is concatenated in (webm and mp4)", () => {
+    const webmConcat = Buffer.concat([EBML, Buffer.from([5, 6]), EBML]); // second EBML @ byte 8
+    expect(truncateAtSecondInitSegment(webmConcat)).toEqual(webmConcat.subarray(0, 8)); // the first recording only
+    const mp4Concat = Buffer.concat([FTYP, Buffer.from([5, 6]), FTYP]); // second ftyp mid-file
+    const salvaged = truncateAtSecondInitSegment(mp4Concat)!;
+    expect(salvaged.length).toBe(findSecondInitSegment(mp4Concat)); // cut exactly at the second init
+    expect(startsWithMp4InitSegment(salvaged)).toBe(true); // …and the head is still a valid mp4 start
+  });
+  it("returns null for a clean single recording (nothing to salvage — never truncate a good file)", () => {
+    expect(truncateAtSecondInitSegment(Buffer.concat([EBML, Buffer.from([5, 6, 7, 8])]))).toBe(null);
+    expect(truncateAtSecondInitSegment(FTYP)).toBe(null);
   });
 });
 

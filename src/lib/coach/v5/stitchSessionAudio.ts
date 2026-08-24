@@ -91,6 +91,22 @@ export function findSecondInitSegment(buf: Buffer): number {
 }
 
 /**
+ * LAST-RESORT recovery for a bad concat: if `buf` glues two recordings together (a SECOND init header mid-file —
+ * the exact shape ElevenLabs rejects as "invalid_audio / corrupted"), return just the valid FIRST segment;
+ * otherwise null. Use ONLY after STT has ALREADY rejected the full buffer, never proactively — findSecondInitSegment
+ * is a heuristic, so truncating a GOOD file could corrupt it, but a good file passes STT and never reaches this
+ * path; on an already-rejected buffer a wrong-offset split just fails STT the same way (one wasted call, no data
+ * harm). This salvages recordings stitched BEFORE the mp4-reseam fix — whose chunks are purged, so a re-stitch
+ * can't help, yet the cached bad file can still be split here — and is defense-in-depth for any future container
+ * the reseam doesn't yet recognise. Pure/testable.
+ */
+export function truncateAtSecondInitSegment(buf: Buffer): Buffer | null {
+  const at = findSecondInitSegment(buf);
+  if (at <= 0) return null; // no mid-file second init (or it's at 0 — not a concat) → nothing to salvage
+  return buf.subarray(0, at);
+}
+
+/**
  * Ground-truth signature of an audio buffer for a failure log (feedback_recurring_failure_instrument_dont_assume):
  * size, content-type, the first 16 bytes (magic → webm EBML / mp4 ftyp / garbage), and a mid-file second-init hint.
  * So when STT rejects audio as "corrupted", the log NAMES why (bad concat / wrong format / truncation) as DATA.

@@ -168,6 +168,41 @@ describe("processPitch — H3: a failed derived-table write is NEVER dressed as 
   });
 });
 
+// A recording stitched BEFORE the 2026-08-25 mp4-reseam fix may be a bad concat of two init segments (the shape
+// ElevenLabs rejects as "corrupted"). Its chunks are purged, so a re-stitch can't help — but the cached bad file
+// can be split at the second init and its valid FIRST segment transcribed. The recovery runs ONLY after STT has
+// already rejected the full buffer, so it can never harm a good recording.
+describe("processPitch — bad-concat recovery: salvage the first segment when STT rejects a two-init file", () => {
+  const EBML = [0x1a, 0x45, 0xdf, 0xa3];
+  const badConcat = Buffer.from([...EBML, 1, 2, 3, 4, ...EBML, 5, 6, 7, 8]); // second init @ byte 8
+  const singleCorrupt = Buffer.from([...EBML, 1, 2, 3, 4, 5, 6]); // one recording, no second init
+
+  it("retries STT with the truncated first segment and SUCCEEDS — pitch is not failed", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null; // no transcript → runs STT
+    vi.mocked(downloadAssetBytes).mockResolvedValueOnce({ ok: true, bytes: badConcat, contentType: "audio/webm" });
+    vi.mocked(transcribeSpeech)
+      .mockRejectedValueOnce(new Error("ElevenLabs STT failed: 400 invalid_audio — File is corrupted"))
+      .mockResolvedValueOnce("recovered transcript from the first segment");
+    await processPitch({ ...PITCH });
+    expect(transcribeSpeech).toHaveBeenCalledTimes(2); // full buffer rejected → retry with the salvaged head
+    const firstLen = (vi.mocked(transcribeSpeech).mock.calls[0]?.[0].audio as Buffer).length;
+    const secondLen = (vi.mocked(transcribeSpeech).mock.calls[1]?.[0].audio as Buffer).length;
+    expect(secondLen).toBe(8); // truncated to the first init segment (bytes 0..8)
+    expect(secondLen).toBeLessThan(firstLen);
+    expect(writePitchTranscript).toHaveBeenCalledTimes(1); // the recovered text is persisted
+    expect(failedWith(/corrupted|invalid_audio/i)).toBe(false); // NOT failed — it recovered
+  });
+
+  it("does NOT retry when the rejected audio has no second init (a genuine single-recording corruption)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(downloadAssetBytes).mockResolvedValueOnce({ ok: true, bytes: singleCorrupt, contentType: "audio/webm" });
+    vi.mocked(transcribeSpeech).mockRejectedValueOnce(new Error("ElevenLabs STT failed: 400 invalid_audio"));
+    await processPitch({ ...PITCH }); // attempts 1 → transient, backs off (not terminal)
+    expect(transcribeSpeech).toHaveBeenCalledTimes(1); // nothing to salvage → no wasted second call
+    expect(writePitchTranscript).not.toHaveBeenCalled();
+  });
+});
+
 describe("processPitch — the Next Door focus rollup fires on completion (founder 2026-08-22, 'never again')", () => {
   it("kicks the rep's pattern rollup after a pitch completes — so the focus generates without relying on the cron", async () => {
     scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to a clean complete

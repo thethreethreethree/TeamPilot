@@ -14,7 +14,7 @@ import {
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
-import { describeAudioBytes } from "@/lib/coach/v5/stitchSessionAudio";
+import { describeAudioBytes, truncateAtSecondInitSegment } from "@/lib/coach/v5/stitchSessionAudio";
 import { rollupRep } from "./rollupWorker";
 
 /**
@@ -145,7 +145,22 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
         const sig = describeAudioBytes(dl.bytes, dl.contentType);
         const msg = sttErr instanceof Error ? sttErr.message : String(sttErr);
         console.error(`[pitch worker] STT rejected audio for pitch ${pitch.id} — ${sig}`);
-        throw new Error(`${msg} [audio ${sig}]`);
+        // Last-resort recovery (2026-08-25): a recording stitched BEFORE the mp4-reseam fix — whose chunks are now
+        // purged, so a re-stitch can't help — may be a bad concat of two init segments, the exact shape STT rejects.
+        // Retry ONCE with just the valid FIRST segment. This runs ONLY after STT already rejected the full buffer,
+        // so it can't harm a good recording (a good recording passes STT and never reaches here) — worst case is a
+        // wrong-offset split that STT rejects the same way (one wasted call). Also defense-in-depth for any future
+        // container the reseam doesn't yet recognise. The mp4-reseam PREVENTS new bad concats; this SALVAGES old ones.
+        const salvaged = truncateAtSecondInitSegment(dl.bytes);
+        if (!salvaged) throw new Error(`${msg} [audio ${sig}]`);
+        try {
+          text = await transcribeSpeech({ audio: salvaged, mimeType: dl.contentType ?? "audio/webm" });
+          console.error(
+            `[pitch worker] recovered pitch ${pitch.id} from a bad concat — truncated ${dl.bytes.length}→${salvaged.length} bytes at the second init segment`
+          );
+        } catch {
+          throw new Error(`${msg} [audio ${sig}] (first-segment retry after bad-concat truncation ALSO failed)`);
+        }
       }
       // Empty/silent capture (audit H1, founder 2026-08-22): STT returned no words. Do NOT run the analysis on an
       // empty transcript — the rubric schema forces a non-empty summary + scores, so it would produce a HOLLOW
