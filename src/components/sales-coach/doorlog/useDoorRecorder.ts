@@ -63,6 +63,13 @@ export function useDoorRecorder() {
   const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // iOS Safari IGNORES MediaRecorder.start(timeslice) — it never fires periodic ondataavailable, so no chunks upload
+  // mid-recording (field data 2026-08-25: 12/12 empty captures were iOS, all chunksUploaded=0) and a long recording
+  // that loses its mic track is TOTALLY lost. This interval FORCES a chunk via requestData() whenever the timeslice
+  // hasn't delivered one — the documented iOS workaround. `lastDataAt` makes it adaptive: a no-op on browsers that DO
+  // honor timeslice (Chrome/Android keep it fresh), essential on iOS (it stays stale → we force each interval).
+  const chunkForceRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastDataAtRef = useRef(0);
   const unmountedRef = useRef(false);
   // Incremental-upload state (per recording).
   const recordingIdRef = useRef<string | null>(null);
@@ -230,6 +237,7 @@ export function useDoorRecorder() {
         // Capture the recorder's ACTUAL mimeType (post-construction) for the diagnostics.
         mimeTypeRef.current = rec.mimeType || chosenMime || "";
         rec.ondataavailable = (e) => {
+          lastDataAtRef.current = Date.now(); // timeslice IS delivering → the force-interval below stays a no-op
           if (e.data.size === 0) return;
           sawDataRef.current = true;
           capturedBytesRef.current += e.data.size; // real audio volume — distinguishes a media capture from a bare trailer
@@ -247,6 +255,22 @@ export function useDoorRecorder() {
         // Timeslice → ondataavailable fires every AUDIO_CHUNK_MS (not just once on stop), so chunks upload as we
         // go instead of one large blob at the end (the long-recording upload failure this fix exists to kill).
         rec.start(AUDIO_CHUNK_MS);
+        lastDataAtRef.current = Date.now();
+        // Force a chunk when the timeslice hasn't delivered one (iOS Safari never does). requestData() triggers an
+        // immediate ondataavailable WITHOUT stopping — its blob is a valid webm continuation chunk that byte-concats
+        // like a timeslice chunk (the server stitch already handles this), so partial audio becomes durable even if
+        // the mic track later ends mid-pitch (the track can die early even on a long pitch, so force from ~15s, not
+        // 30s). Best-effort: requestData can throw if unsupported → the clean-Stop blob remains the fallback.
+        // requestData() flushes only the DELTA since the last ondataavailable, so a chunk forced right after a
+        // timeslice chunk on a browser that honors timeslice is near-empty — never a duplicate/overlap.
+        if (chunkForceRef.current) clearInterval(chunkForceRef.current);
+        chunkForceRef.current = setInterval(() => {
+          const r = recorderRef.current;
+          if (!r || r.state !== "recording") return;
+          if (Date.now() - lastDataAtRef.current >= AUDIO_CHUNK_MS) {
+            try { r.requestData(); } catch { /* unsupported → nothing to force; fallback blob still resolves on stop */ }
+          }
+        }, AUDIO_CHUNK_MS);
         recorderRef.current = rec;
         startedAtRef.current = Date.now();
         setElapsedMs(0);
@@ -273,6 +297,7 @@ export function useDoorRecorder() {
   const stop = useCallback((): Promise<{ blob: Blob | null; durationMs: number; chunksUploaded: number; diag: CaptureDiag }> => {
     const durationMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     if (timerRef.current) clearInterval(timerRef.current);
+    if (chunkForceRef.current) clearInterval(chunkForceRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setRecording(false);
     setLevel(0);
@@ -337,6 +362,7 @@ export function useDoorRecorder() {
     return () => {
       unmountedRef.current = true;
       if (timerRef.current) clearInterval(timerRef.current);
+      if (chunkForceRef.current) clearInterval(chunkForceRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       releaseWakeLock();
       if (typeof document !== "undefined") delete document.body.dataset.recording;
