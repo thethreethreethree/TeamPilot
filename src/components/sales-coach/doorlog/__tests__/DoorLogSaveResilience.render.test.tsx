@@ -28,7 +28,7 @@ vi.mock("../useDoorRecorder", () => ({
     elapsedMs: 0,
     arm: vi.fn(async () => true),
     start: vi.fn(async () => true),
-    stop: vi.fn(async () => ({ blob: new Blob(["x"]), durationMs: 5000 })), // a real recording → exercises the sign path
+    stop: vi.fn(async () => ({ blob: new Blob([new Uint8Array(2048)]), durationMs: 5000 })), // a real recording → exercises the sign path
   }),
 }));
 

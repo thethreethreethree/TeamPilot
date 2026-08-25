@@ -12,6 +12,7 @@ import { computeLocalSalesDate, deviceTimeZone } from "@/lib/coach/doorlog/sales
 import { createClient } from "@/lib/supabase/client";
 import { isRetryableStatus, needsSessionRefresh, failReasonFor } from "@/lib/coach/doorlog/saveRetry";
 import { useDoorRecorder, type CaptureDiag } from "./useDoorRecorder";
+import { isCaptureViable } from "@/lib/coach/captureDiag";
 
 // Online-only send. The client offline queue (IndexedDB + auto-drain) is WITHHELD for now — founder
 // 2026-08-18: withhold the offline system until its build plan/structure is set, and until then keep it
@@ -400,10 +401,13 @@ export function DoorLog() {
         logKnockOutcome(outcome);
         return;
       }
-      // Recorded flow but NO audio at all — no clean-Stop blob AND no chunk reached storage: skip the pointless
-      // naming step and preserve the disposition as a knock with an honest note. A recording that streamed
-      // chunks but produced no final blob (it stopped early) DOES have audio and goes through the normal save.
-      const hasAudio = !!(recorded?.blob || (recorded?.chunksUploaded ?? 0) > 0);
+      // Recorded flow but NO USABLE audio — no durable chunk reached storage AND the clean-Stop blob is empty (a
+      // truthy-but-tiny stub captured only container overhead, no media). Skip the pointless naming step and
+      // preserve the disposition as a knock with an honest note, instead of creating a doomed pitch that fails
+      // downstream as a misleading "corrupted." Blob EXISTENCE ≠ blob HAS-AUDIO — the 2026-08-25 detection hole: a
+      // 5-byte iOS stub passed `!!recorded.blob` and became a pitch that died at STT. isCaptureViable closes it
+      // (chunks-uploaded OR blob ≥ MIN_VIABLE_AUDIO_BYTES). A recording that streamed chunks DOES have audio.
+      const hasAudio = isCaptureViable({ blobSize: recorded?.blob?.size ?? null, chunksUploaded: recorded?.chunksUploaded ?? 0 });
       if (!hasAudio) {
         // Report WHY capture produced nothing so the real cause is on the record, not assumed.
         if (recorded?.diag) reportCaptureFailure(recorded.diag);

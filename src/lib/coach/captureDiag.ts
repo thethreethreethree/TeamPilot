@@ -6,6 +6,8 @@
  */
 export type CaptureDiag = {
   sawData: boolean; // did ondataavailable ever fire with bytes?
+  capturedBytes: number; // TOTAL bytes across all data events — sawData can be true for a 5-byte trailer, so this
+  // is the real "was there audio" signal (2026-08-25: iOS produced 5-byte stubs that read as sawData=true)
   chunkCount: number; // local chunks captured
   chunksUploaded: number; // chunks that reached storage
   durationMs: number;
@@ -18,6 +20,26 @@ export type CaptureDiag = {
   hiddenDuringRecording: number; // times the tab went hidden while recording (backgrounded → iOS suspends audio)
   ua: string;
 };
+
+/**
+ * A recording that captured ACTUAL audio is at least ~1KB even for a fraction of a second (container header +
+ * a few opus frames). Below this, the capture produced only container overhead — a header/trailer with NO media,
+ * e.g. the 5-byte webm *Cues* stub observed 2026-08-25 on iOS. This is NOT a duration/length floor (it respects
+ * the founder's "NO minimum length" rule): a real ~1s pitch is several KB; this only catches captures that
+ * recorded no audio at all — the ones that otherwise upload a truthy-but-empty blob and fail downstream as a
+ * misleading "corrupted."
+ */
+export const MIN_VIABLE_AUDIO_BYTES = 1024;
+
+/**
+ * Did this recording actually capture audio? True if durable chunks reached storage (the real audio is already
+ * safe there, independent of the final blob) OR the final blob is large enough to contain media. A truthy but
+ * tiny blob (the stub) is NOT viable — closing the detection hole where blob-EXISTENCE was read as blob-HAS-AUDIO.
+ */
+export function isCaptureViable(args: { blobSize: number | null | undefined; chunksUploaded: number }): boolean {
+  if (args.chunksUploaded > 0) return true;
+  return (args.blobSize ?? 0) >= MIN_VIABLE_AUDIO_BYTES;
+}
 
 /** Which recorder produced the diagnostic — so `coach.capture_failed` events are filterable by surface. */
 export type CaptureSurface = "doorlog" | "live" | "meeting" | "care";
@@ -46,6 +68,7 @@ export function reportCaptureDiag(surface: CaptureSurface, diag: CaptureDiag, se
  */
 export function buildCaptureDiag(o: {
   sawData?: boolean;
+  capturedBytes?: number;
   chunkCount?: number;
   chunksUploaded?: number;
   durationMs?: number;
@@ -59,6 +82,7 @@ export function buildCaptureDiag(o: {
 }): CaptureDiag {
   return {
     sawData: o.sawData ?? false,
+    capturedBytes: o.capturedBytes ?? 0,
     chunkCount: o.chunkCount ?? 0,
     chunksUploaded: o.chunksUploaded ?? 0,
     durationMs: o.durationMs ?? 0,

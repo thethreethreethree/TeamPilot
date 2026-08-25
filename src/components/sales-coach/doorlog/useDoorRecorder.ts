@@ -73,6 +73,8 @@ export function useDoorRecorder() {
   const wakeLockGrantedRef = useRef(false);
   // Ground-truth capture observations (per recording) — feed CaptureDiag so a zero-audio outcome is explainable.
   const sawDataRef = useRef(false);
+  const capturedBytesRef = useRef(0); // TOTAL bytes across all data events — sawData is true even for a 5-byte trailer
+  //   (the iOS stub, 2026-08-25), so THIS is the real "was there audio" signal used to gate the save.
   const recorderErrorRef = useRef<string | null>(null);
   const trackEndedRef = useRef(false);
   const trackMutedRef = useRef(false);
@@ -192,6 +194,7 @@ export function useDoorRecorder() {
         recordingIdRef.current = recordingId ?? null;
         // Reset per-recording diagnostics + the live interruption flag.
         sawDataRef.current = false;
+        capturedBytesRef.current = 0;
         recorderErrorRef.current = null;
         trackEndedRef.current = false;
         trackMutedRef.current = false;
@@ -229,6 +232,7 @@ export function useDoorRecorder() {
         rec.ondataavailable = (e) => {
           if (e.data.size === 0) return;
           sawDataRef.current = true;
+          capturedBytesRef.current += e.data.size; // real audio volume — distinguishes a media capture from a bare trailer
           chunksRef.current.push(e.data);
           // Upload this chunk during recording (durability). seq is assigned in emission order.
           const rid = recordingIdRef.current;
@@ -279,6 +283,7 @@ export function useDoorRecorder() {
     const buildDiag = (): CaptureDiag =>
       buildCaptureDiag({
         sawData: sawDataRef.current,
+        capturedBytes: capturedBytesRef.current,
         chunkCount: chunksRef.current.length,
         chunksUploaded: uploadedRef.current,
         durationMs,

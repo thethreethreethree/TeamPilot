@@ -18,7 +18,7 @@ vi.mock("../useDoorRecorder", () => ({
     elapsedMs: 0,
     arm: vi.fn(async () => true),
     start: vi.fn(async () => true),
-    stop: vi.fn(async () => ({ blob: new Blob(["x"]), durationMs: 60_000, chunksUploaded: 0 })),
+    stop: vi.fn(async () => ({ blob: new Blob([new Uint8Array(2048)]), durationMs: 60_000, chunksUploaded: 0 })),
   }),
 }));
 // Storage upload FAILS (weak signal) → the single-blob fallback can't save the audio.
