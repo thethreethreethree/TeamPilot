@@ -8,6 +8,17 @@
  */
 
 export const MAX_PITCH_ATTEMPTS = 5;
+
+// The atomic claim lease MUST exceed the worker's processing budget. The kick route AND the cron both declare
+// `export const maxDuration = 300` (s), so a run can take up to 300s. If the lease equalled that (it did — the old
+// 5*60_000 = 300s), a pitch that runs the FULL budget has its lease expire at the exact moment maxDuration kills the
+// run, letting the cron re-claim it in the boundary window → a duplicate STT/LLM pass (double spend). The 60s→300s
+// route maxDuration bump (59005957) raised the KICK to the lease value and introduced that race on the kick path;
+// this restores lease > budget with a 60s margin. Consumed by claimPitchForProcessing as its default leaseMs. The
+// PITCH_LEASE_MS > PITCH_PROCESSING_MAX_MS invariant is drift-guarded in retryBackoff.test.ts.
+export const PITCH_PROCESSING_MAX_MS = 300_000; // must match the route + cron `export const maxDuration = 300`
+export const PITCH_LEASE_MS = PITCH_PROCESSING_MAX_MS + 60_000; // 360s — always keep > PITCH_PROCESSING_MAX_MS
+
 // Base backoff was 30s → a pitch that recovered on attempt 3 waited 30+60=90s+, and a full 5-attempt churn spanned
 // ~15min, which (2026-08-25 latency audit) is what inflated the after-pitch feedback AVERAGE to ~11min even though
 // the MEDIAN pitch completes in ~30s. Lowered to 7s so a genuine TRANSIENT hiccup recovers in seconds: 14,28,56,112s

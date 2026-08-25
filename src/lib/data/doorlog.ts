@@ -5,6 +5,7 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { KnockOutcome } from "@/lib/coach/doorlog/outcomes";
 import type { PatternRollupResult } from "@/lib/coach/doorlog/analysisSchema";
 import { periodStartLocal, averageScores, type MetricsPeriod } from "@/lib/coach/doorlog/period";
+import { PITCH_LEASE_MS } from "@/lib/coach/doorlog/retryBackoff";
 
 /**
  * Door Log / Report Card data layer (Macro Mode). Per AMD-006 L1 — every CRUD function lives here so
@@ -265,7 +266,7 @@ export async function claimPitchesToProcess(limit = 10) {
 export async function claimPitchForProcessing(
   pitchId: string,
   currentAttempts: number,
-  leaseMs = 5 * 60_000,
+  leaseMs = PITCH_LEASE_MS, // MUST exceed the 300s processing maxDuration (route + cron) — see retryBackoff.ts
 ): Promise<{ won: boolean; attempts: number }> {
   const sb = createAdminClient();
   // Advance `attempts` as part of the SAME conditional lease — so EVERY processing attempt consumes an attempt,

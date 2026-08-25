@@ -5,6 +5,8 @@ import {
   isTerminalFailure,
   isPermanentFailure,
   MAX_PITCH_ATTEMPTS,
+  PITCH_LEASE_MS,
+  PITCH_PROCESSING_MAX_MS,
 } from "../retryBackoff";
 
 /**
@@ -32,6 +34,14 @@ describe("pitch-processing retry backoff", () => {
     expect(isTerminalFailure(MAX_PITCH_ATTEMPTS - 1)).toBe(false);
     expect(isTerminalFailure(MAX_PITCH_ATTEMPTS)).toBe(true);
     expect(isTerminalFailure(MAX_PITCH_ATTEMPTS + 1)).toBe(true);
+  });
+
+  // DRIFT GUARD (2026-08-25): the claim lease MUST exceed the worker's processing budget (route + cron
+  // maxDuration = 300s). If lease <= budget, a pitch running the full budget has its lease expire as maxDuration
+  // kills the run → the cron double-claims it in the boundary window (duplicate STT/LLM spend). The 60s→300s route
+  // maxDuration bump made kick==lease; this test fails if a future maxDuration change re-closes that margin.
+  it("the claim lease exceeds the processing maxDuration (no double-claim at the budget boundary)", () => {
+    expect(PITCH_LEASE_MS).toBeGreaterThan(PITCH_PROCESSING_MAX_MS);
   });
 });
 
