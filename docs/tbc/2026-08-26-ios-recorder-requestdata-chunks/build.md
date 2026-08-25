@@ -24,9 +24,14 @@ targets THAT, not a guess (my earlier mp4 theory was refuted by this same teleme
 - Non-iOS unaffected (adaptive threshold). Clean-Stop full-blob fallback unchanged. Interval cleared on stop/teardown
   (no leak). 23 existing doorlog tests still pass.
 
-## A26 note
-Sole timeslice consumer for the Door Log recorder is this hook. The live/meeting recorders are a separate path
-(their own AudioContext-to-STT design) and are out of this fix's scope — flagged if the same iOS symptom appears there.
+## A26 note — CLASS SWEPT (all 3 recorders)
+The class is "a recorder using MediaRecorder.start(timeslice) for incremental chunk upload — broken on iOS Safari."
+Grep confirmed exactly 3 non-test callers: `useDoorRecorder.ts` (this P0), `useLiveCoaching.ts:1231`,
+`useMeetingCoaching.ts:381`. The SAME self-guarding, inert-on-non-iOS requestData force was applied to all three (live +
+meeting recover their review-recordings on iOS; their live transcription uses a separate realtime socket / segment
+flush, unaffected). The live/meeting instances were UNEXERCISED in the telemetry (all 12 capture_failed events were
+surface=doorlog — no recent iOS use of those surfaces), so their fix is preventive; it is INERT on the non-iOS
+platforms those features currently run on, so it cannot regress them.
 
 ## Honest limit
 jsdom can't reproduce iOS's timeslice bug — the unit test gates the interval logic; the AUTHORITATIVE proof is a live

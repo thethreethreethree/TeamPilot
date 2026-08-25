@@ -112,6 +112,11 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioSeqRef = useRef(0);
+  // iOS Safari IGNORES MediaRecorder.start(timeslice) → no periodic chunks → the meeting recording is lost on iOS
+  // (same class as the Door Log fix 34a8ab71). Force a chunk via requestData() when the timeslice hasn't delivered;
+  // adaptive via lastAudioDataAt (INERT on non-iOS that honor timeslice), self-guarding off a stopped/null recorder.
+  const chunkForceRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastAudioDataAtRef = useRef(0);
   // Count of chunks that actually landed in storage during the call (audit M4) — the durable-audio evidence the
   // clean-Stop persist falls back on. Accumulates across reconnects; reset only on a fresh start.
   const chunkOkRef = useRef(0);
@@ -176,6 +181,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
       /* ignore */
     }
     recorderRef.current = null;
+    if (chunkForceRef.current) { clearInterval(chunkForceRef.current); chunkForceRef.current = null; }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, [teardownTransport]);
@@ -330,6 +336,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
               captureRecorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
             };
             rec.ondataavailable = (e) => {
+              lastAudioDataAtRef.current = Date.now(); // timeslice IS delivering → the force-interval stays a no-op
               if (e.data.size === 0) return;
               captureSawDataRef.current = true;
               chunksRef.current.push(e.data);
@@ -379,6 +386,17 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
               }
             };
             rec.start(AUDIO_CHUNK_MS);
+            lastAudioDataAtRef.current = Date.now();
+            // Force a chunk when the timeslice hasn't delivered (iOS). requestData() flushes only the delta (no dup);
+            // its blob is a valid webm continuation chunk the upload path already handles. Cleared in teardown().
+            if (chunkForceRef.current) clearInterval(chunkForceRef.current);
+            chunkForceRef.current = setInterval(() => {
+              const r = recorderRef.current;
+              if (!r || r.state !== "recording") return;
+              if (Date.now() - lastAudioDataAtRef.current >= AUDIO_CHUNK_MS) {
+                try { r.requestData(); } catch { /* unsupported → the clean-Stop blob remains the fallback */ }
+              }
+            }, AUDIO_CHUNK_MS);
             recorderRef.current = rec;
           } catch {
             /* a recorder failure must never block live coaching — the transcript + cues still run */

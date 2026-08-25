@@ -383,6 +383,12 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // fresh recording; PERSISTS across a reconnect (the recorder + its stream survive the drop), so the uploaded
   // chunks stay one contiguous, byte-concatenatable webm.
   const audioChunkSeqRef = useRef(0);
+  // iOS Safari IGNORES MediaRecorder.start(timeslice) → no periodic chunks → the review-recording is lost on iOS
+  // (same class as the Door Log fix 34a8ab71). Force a chunk via requestData() when the timeslice hasn't delivered.
+  // Self-guarding (no-ops off a stopped/null recorder) + adaptive via lastAudioDataAt (INERT on Chrome/Android that
+  // honor timeslice — so it cannot regress current non-iOS live coaching; it only activates on iOS).
+  const chunkForceRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastAudioDataAtRef = useRef(0);
   // True once the MediaRecorder has been RECREATED mid-session (a mobile screen-lock ended the mic track → P0
   // rebuilt it). Then chunksRef spans two webm recordings, so the clean-Stop full blob would be corrupt at the
   // seam — onstop scans for the seam only in this case (the common single-recorder Stop is untouched).
@@ -906,6 +912,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       /* noop */
     }
     recorderRef.current = null;
+    if (chunkForceRef.current) { clearInterval(chunkForceRef.current); chunkForceRef.current = null; }
     try {
       procRef.current?.disconnect();
     } catch {
@@ -970,6 +977,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       /* noop */
     }
     recorderRef.current = null;
+    if (chunkForceRef.current) { clearInterval(chunkForceRef.current); chunkForceRef.current = null; }
     try {
       procRef.current?.disconnect();
     } catch {
@@ -1162,6 +1170,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             if (!unmountedRef.current) setAudioCapturing(false);
           };
           rec.ondataavailable = (e) => {
+            lastAudioDataAtRef.current = Date.now(); // timeslice IS delivering → the force-interval stays a no-op
             if (e.data.size === 0) return;
             captureSawDataRef.current = true;
             chunksRef.current.push(e.data);
@@ -1229,6 +1238,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // DURING the call. onstop still yields the full blob from chunksRef, so the clean-Stop persist is
           // byte-identical behaviour.
           rec.start(AUDIO_CHUNK_MS);
+          lastAudioDataAtRef.current = Date.now();
+          // Force a chunk when the timeslice hasn't delivered (iOS). requestData() flushes only the delta (no dup);
+          // its blob is a valid webm continuation chunk the upload path already handles. Cleared on teardown below.
+          if (chunkForceRef.current) clearInterval(chunkForceRef.current);
+          chunkForceRef.current = setInterval(() => {
+            const r = recorderRef.current;
+            if (!r || r.state !== "recording") return;
+            if (Date.now() - lastAudioDataAtRef.current >= AUDIO_CHUNK_MS) {
+              try { r.requestData(); } catch { /* unsupported → the clean-Stop blob remains the fallback */ }
+            }
+          }, AUDIO_CHUNK_MS);
           recorderRef.current = rec;
           // Audio is now being captured — true even if the STT feed later errors (the recorder
           // runs independently), which is exactly what keeps the "not recording" banner honest.

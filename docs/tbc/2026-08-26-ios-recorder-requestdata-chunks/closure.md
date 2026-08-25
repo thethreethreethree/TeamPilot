@@ -31,9 +31,10 @@ doorlog tests unchanged. Authoritative proof is a live iOS device (the founder's
   {
     "id": "R2",
     "item": "The live/meeting recorders share the timeslice pattern but were not changed here.",
-    "why_skipped": "They are a distinct capture path (AudioContext feeding Scribe STT) with their own reliability design, and no telemetry in this sweep implicated them (all 12 events were surface=doorlog). Flagged for the same requestData treatment IF their capture_failed events show the iOS chunksUploaded=0 signature.",
-    "confidence_it_does_not_matter": "medium",
-    "opened_at": null
+    "why_skipped": "Initially deferred, then SWEPT same-session: grep confirmed exactly 3 non-test start(timeslice) callers (doorlog + useLiveCoaching:1231 + useMeetingCoaching:381), so the same inert-on-non-iOS requestData force was applied to all 3 (A26 class boundary closed). Their fix is preventive (unexercised in telemetry) + inert on the non-iOS platforms they currently run on, so it cannot regress them; their review-recordings will now survive on iOS.",
+    "confidence_it_does_not_matter": "high",
+    "opened_at": "2026-08-26T04:12:00+08:00",
+    "outcome": "OPENED + RESOLVED — swept to all 3 recorders. 557 coach v5 tests + 23 doorlog tests pass; typecheck clean. The DRY-extraction of the ~8-line self-guarding interval (now duplicated 3×) is a low-priority follow-up (drift risk low — self-contained + identical), not done to avoid churn on 2 live files under P0."
   }
 ]
 ```
