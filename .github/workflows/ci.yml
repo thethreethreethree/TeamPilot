@@ -70,3 +70,15 @@ jobs:
       # chronically red + unnoticed for weeks (2026-08-04) — see docs/FOUNDER-ACTION-QUEUE.md "CI".
       - name: Build
         run: npm run build
+
+      # Guard against a SILENT knowledge-base-loss regression: the Coach + Sales coach read their KBs at RUNTIME via
+      # readFileSync(join(process.cwd(),"docs",...)). Next's file-tracing currently bundles docs/ into the standalone
+      # output (empirically verified 2026-08-25 — both files land in .next/standalone/docs/), but it's an AUTO-traced
+      # DYNAMIC path: a Next/nft upgrade could stop tracing it, silently leaving the coach with an EMPTY KB (the loader
+      # falls back to "" with only a console.error). The unit tests read the file directly, so they CANNOT catch a
+      # bundling regression — this post-build assertion can, and fails CI before such a build ever reaches production.
+      - name: Verify knowledge bases are bundled into the standalone output
+        run: |
+          test -f .next/standalone/docs/COACH_KNOWLEDGE_BASE.md || { echo "::error::COACH_KNOWLEDGE_BASE.md is NOT bundled into .next/standalone/docs — the Coach would run with an EMPTY knowledge base in production. Add outputFileTracingIncludes for it in next.config.ts."; exit 1; }
+          test -f .next/standalone/docs/SALES_KNOWLEDGE_BASE.md || { echo "::error::SALES_KNOWLEDGE_BASE.md is NOT bundled into .next/standalone/docs — the sales coach would run with an EMPTY knowledge base in production. Add outputFileTracingIncludes for it in next.config.ts."; exit 1; }
+          echo "Both knowledge bases are bundled into the standalone output."
