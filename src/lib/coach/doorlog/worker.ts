@@ -14,7 +14,7 @@ import {
 } from "@/lib/data/doorlog";
 import { backoffMs, isTerminalFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
-import { describeAudioBytes, truncateAtSecondInitSegment } from "@/lib/coach/v5/stitchSessionAudio";
+import { describeAudioBytes, truncateAtSecondInitSegment, startsWithNewRecordingHeader } from "@/lib/coach/v5/stitchSessionAudio";
 import { rollupRep } from "./rollupWorker";
 
 /**
@@ -131,6 +131,24 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       // LENGTH, not just presence. Nothing to transcribe → honest terminal, never a fabricated analysis (H1).
       if (!dl.bytes || dl.bytes.length === 0) {
         await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No audio was captured for this pitch." });
+        return;
+      }
+      // A NON-empty but UNPLAYABLE recording — one that doesn't begin with a valid container header (webm EBML /
+      // mp4 ftyp). Ground truth 2026-08-25: a near-empty capture on the single-blob fallback path produced a 5-byte
+      // webm *Cues* stub (head `1c53bb6b`), which is non-zero (so the length guard above passes) yet has no media.
+      // ElevenLabs rejects it as "invalid_audio / corrupted", which reads as a transcription bug when it is really an
+      // EMPTY capture. Fail HONESTLY (H1) — the true cause, not a misleading "corrupted" — and DON'T spend an STT
+      // call on an unplayable file. Terminal: an empty capture won't refill on retry. (The recovery below handles the
+      // opposite case — a VALID-header file that STT still rejects, e.g. a bad concat — so the two don't overlap.)
+      if (!startsWithNewRecordingHeader(dl.bytes)) {
+        console.error(
+          `[pitch worker] pitch ${pitch.id} recording has no valid container header (empty/unplayable) — ${describeAudioBytes(dl.bytes, dl.contentType)}`
+        );
+        await setPitchStatus({
+          pitchId: pitch.id,
+          status: "failed",
+          error: "No audio was captured for this pitch (the recording was empty or unplayable).",
+        });
         return;
       }
       // Ground-truth capture on an STT rejection (feedback_recurring_failure_instrument_dont_assume): when

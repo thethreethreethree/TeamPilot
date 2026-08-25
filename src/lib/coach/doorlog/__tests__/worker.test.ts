@@ -27,7 +27,9 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/care/voice/elevenlabs", () => ({ transcribeSpeech: vi.fn(async () => "fresh transcript") }));
 vi.mock("@/lib/storage/assets", () => ({
-  downloadAssetBytes: vi.fn(async () => ({ ok: true, bytes: Buffer.from("x"), contentType: "audio/webm" })),
+  // Default: a VALID-header webm recording (EBML magic) so it passes the worker's playable-container guard and
+  // reaches STT. Tests that need an empty/unplayable/bad-concat recording override this per-case.
+  downloadAssetBytes: vi.fn(async () => ({ ok: true, bytes: Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4]), contentType: "audio/webm" })),
 }));
 vi.mock("@/lib/coach/doorlog/analyze", () => ({
   ANALYSIS_PROMPT_VERSION: "v1",
@@ -122,6 +124,18 @@ describe("processPitch — H1: empty/silent audio never fabricates a 'complete' 
     await processPitch({ ...PITCH });
     expect(failedWith(/no audio was captured/i)).toBe(true);
     expect(transcribeSpeech).not.toHaveBeenCalled(); // empty Buffer is truthy — the LENGTH guard catches it
+    expect(analyzePitch).not.toHaveBeenCalled();
+  });
+
+  // Ground truth 2026-08-25: a near-empty capture on the single-blob fallback produced a NON-empty but unplayable
+  // 5-byte webm Cues stub (head 1c53bb6b, no valid container header). It passed the length guard and was sent to
+  // STT → ElevenLabs "invalid_audio/corrupted" — a misleading error for what is really an EMPTY capture.
+  it("a NON-empty but HEADERLESS recording (unplayable stub) → honest terminal, never sent to STT", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(downloadAssetBytes).mockResolvedValueOnce({ ok: true, bytes: Buffer.from([0x1c, 0x53, 0xbb, 0x6b, 0x80]), contentType: "audio/webm" });
+    await processPitch({ ...PITCH });
+    expect(failedWith(/empty or unplayable/i)).toBe(true); // the TRUE cause, not a relayed "corrupted"
+    expect(transcribeSpeech).not.toHaveBeenCalled(); // no wasted STT on an unplayable file
     expect(analyzePitch).not.toHaveBeenCalled();
   });
 
