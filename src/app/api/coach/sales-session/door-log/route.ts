@@ -47,8 +47,12 @@ const PitchBody = z.object({
 });
 const Body = z.discriminatedUnion("kind", [KnockBody, SignBody, PitchBody]);
 
-// Kicks the worker via after(), which awaits an LLM/STT chain — needs headroom beyond Vercel's short default.
-export const maxDuration = 60;
+// Kicks the worker via after(), which awaits the FULL STT + LLM chain. 60s was too little — a long recording's
+// chain exceeds it, the after() is killed mid-processing, and the pitch then waits out its ~5-min claim lease before
+// the cron re-claims it (2026-08-25 latency audit — the tail that inflated the after-pitch feedback average).
+// Aligned to 300s = the pitch-processing-cron's OWN budget so the kick finishes inline. The claim lease still
+// prevents double-processing if it ever does hand off to the cron.
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "door-log-write", windowMs: 60_000, max: 120 });
