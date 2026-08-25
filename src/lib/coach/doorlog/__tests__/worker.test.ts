@@ -217,6 +217,29 @@ describe("processPitch — bad-concat recovery: salvage the first segment when S
   });
 });
 
+// 2026-08-25 latency fix: a permanent failure (bad audio content / missing config) must terminalise on the FIRST
+// attempt, not churn the full 5-attempt backoff (~minutes) — that churn was inflating the after-pitch average.
+describe("processPitch — permanent failures terminalise immediately, transient ones still retry", () => {
+  it("a permanent error (missing brain config) → terminal 'failed' NOW, no retry backoff", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to analyze
+    vi.mocked(analyzePitch).mockRejectedValueOnce(new Error("No brain row for company co1. Ensure the companies_ table…"));
+    await processPitch({ ...PITCH }); // claim default → attempts 1 (well below MAX 5)
+    expect(failedWith(/no brain row/i)).toBe(true); // terminal on attempt 1, not after 5
+    const backoffCalls = vi.mocked(setPitchStatus).mock.calls.filter(([a]) => a?.status !== "failed" && a?.runAfter);
+    expect(backoffCalls).toHaveLength(0); // NOT a transient backoff
+  });
+
+  it("a TRANSIENT error still backs off for a retry (not terminalised early)", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" };
+    vi.mocked(analyzePitch).mockRejectedValueOnce(new Error("analysis returned no result (empty/malformed) — retryable"));
+    await processPitch({ ...PITCH }); // attempts 1 → transient → backoff, NOT terminal
+    const terminalCalls = vi.mocked(setPitchStatus).mock.calls.filter(([a]) => a?.status === "failed");
+    expect(terminalCalls).toHaveLength(0); // not terminalised
+    const backoffCalls = vi.mocked(setPitchStatus).mock.calls.filter(([a]) => a?.runAfter);
+    expect(backoffCalls.length).toBeGreaterThan(0); // backed off for the cron to re-claim
+  });
+});
+
 describe("processPitch — the Next Door focus rollup fires on completion (founder 2026-08-22, 'never again')", () => {
   it("kicks the rep's pattern rollup after a pitch completes — so the focus generates without relying on the cron", async () => {
     scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // has transcript → straight to a clean complete

@@ -12,7 +12,7 @@ import {
   claimPitchesToProcess,
   claimPitchForProcessing,
 } from "@/lib/data/doorlog";
-import { backoffMs, isTerminalFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
+import { backoffMs, isTerminalFailure, isPermanentFailure, MAX_PITCH_ATTEMPTS } from "./retryBackoff";
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
 import { describeAudioBytes, truncateAtSecondInitSegment, startsWithNewRecordingHeader } from "@/lib/coach/v5/stitchSessionAudio";
 import { rollupRep } from "./rollupWorker";
@@ -254,15 +254,21 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     // `attempts` was already advanced at lease time (audit H2) — do NOT increment again here, or a thrown error
     // would double-count and terminalise too early.
     const message = err instanceof Error ? err.message : String(err);
-    if (isTerminalFailure(attempts)) {
+    // A PERMANENT failure (bad audio content / missing account config) can't be fixed by retrying — terminalise NOW
+    // instead of churning the full backoff (~minutes) on an error that returns the identical result every attempt
+    // (2026-08-25 latency audit: these were the ~15-min-churn outliers inflating the after-pitch feedback average).
+    const permanent = isPermanentFailure(message);
+    if (permanent || isTerminalFailure(attempts)) {
       await recordFailureStatus({
         pitchId: pitch.id,
         status: "failed",
         attempts,
-        error: `Processing failed after ${attempts} attempts: ${message}`,
+        error: permanent
+          ? `Processing failed: ${message}` // permanent — retrying would not help
+          : `Processing failed after ${attempts} attempts: ${message}`,
       });
       Sentry.captureException(err instanceof Error ? err : new Error(message), {
-        tags: { feature: "macro-mode", stage: "pitch-processing" },
+        tags: { feature: "macro-mode", stage: "pitch-processing", permanent: String(permanent) },
         extra: { pitchId: pitch.id },
       });
     } else {
