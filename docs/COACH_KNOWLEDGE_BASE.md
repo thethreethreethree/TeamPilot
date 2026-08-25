@@ -1,13 +1,13 @@
 # Coach v5.0 — Knowledge Base
 
-> **Status:** 7 of 10 books verified across two adversarial-verification passes.
-> Verified: Zinsser, Crucial Conversations, Cialdini, Anderson/TED, Voss, Heath
-> Brothers, Rosenberg. Still unverified: Carnegie, Gladwell, Stone/Patton/Heen.
-> The Coach reasons from the 7-book foundation + cross-book convergence
-> principles. The 3 missing books overlap conceptually with verified ones
-> (Carnegie ≈ Cialdini Liking + Crucial Conv. Start with Heart; Stone/Patton/
-> Heen ≈ Crucial Conversations; Gladwell is unique but diagnostic-not-
-> prescriptive).
+> **Status:** 10 of 10 books verified across adversarial-verification passes.
+> The final 3 (Carnegie, Gladwell, Stone/Patton/Heen) were verified 2026-08-25 via a
+> fresh deep-research run — 3-vote against legitimate primary/author sources
+> (dalecarnegie.com + Carnegie's public-domain text; Hachette/Little-Brown + a Gladwell
+> interview + Levine's Truth-Default Theory; Harvard Program on Negotiation + co-author
+> Sheila Heen). Verified: Zinsser, Crucial Conversations, Cialdini, Anderson/TED, Voss,
+> Heath Brothers, Rosenberg, Carnegie, Gladwell, Stone/Patton/Heen. The Coach reasons
+> from the full 10-book foundation + cross-book convergence principles.
 >
 > **Source discipline:** Every principle on this page was verified 3-vote
 > against the named author's own publishing site or a credible primary source.
@@ -843,13 +843,118 @@ respect me"* (which is a judgment of the other person, not a feeling).
 
 ---
 
-## 8. Cross-Book Convergences
+## 8. How to Win Friends and Influence People — Dale Carnegie
+**Source:** Dale Carnegie Training (dalecarnegie.com), "Dale Carnegie's Secrets of Success"/Golden Book (30 principles); Carnegie's public-domain original text (1936).
+
+### 1. Give Honest, Sincere Appreciation
+**When it applies:** The draft leads with a request, correction, or demand and gives the recipient no recognition — or it uses hollow flattery ("great job!") that reads as manipulation.
+**Canonical move:** Open with specific, truthful appreciation of something the person actually did — distinct from flattery — before introducing your ask.
+**Language pattern:** Carnegie: "Give honest, sincere appreciation." Name the concrete act: "The way you [specific action] — that [specific effect]…" Appreciation is specific and earned; flattery is generic and self-serving.
+**Worked example:** Before: "Can you get me the report by Friday?" / After: "Your last report caught the pricing error nobody else flagged — could you turn the Q3 one around by Friday?" / Why: A specific, true observation makes the person feel seen before the ask, which per Carnegie raises willingness far more than a bare request.
+
+### 2. Make the Other Person Feel Important — Interest, Names, Listening
+**When it applies:** The message is transactional and self-centered — all "I need / I want," no curiosity about the other person, and often skips or mangles their name.
+**Canonical move:** Center the other person: use their name, show genuine interest in their situation, and invite them to talk rather than talking at them.
+**Language pattern:** Carnegie: "a person's name is to that person the sweetest and most important sound in any language"; "Become genuinely interested in other people"; "Be a good listener. Encourage others to talk about themselves." Lead with a question about them, not a statement about you.
+**Worked example:** Before: "I need the numbers for the deck." / After: "Priya, how's the rollout going on your end? When you get a sec, could you send the numbers for the deck?" / Why: Using the name and opening with interest in their world makes the person feel important — the deepest driver of cooperation Carnegie names.
+
+### 3. Try Honestly to See It Their Way
+**When it applies:** The draft argues only from the writer's position and treats the reader's likely objection as obstruction rather than a legitimate viewpoint.
+**Canonical move:** State the other person's point of view first, in good faith, before advancing your own.
+**Language pattern:** Carnegie: "Try honestly to see things from the other person's point of view." Shape: "From where you sit, [their concern] makes sense because… Given that, could we…"
+**Worked example:** Before: "You're overcomplicating this — just ship it." / After: "I can see why you want another test pass — a bad release lands on your team. Given that, what if we ship behind a flag so we can pull it fast?" / Why: Naming their viewpoint first defuses defensiveness and shows the proposal already accounts for their concern.
+
+### 4. Avoid the Argument; Never Say "You're Wrong"; Start with Agreement
+**When it applies:** The draft opens by contradicting, correcting, or telling the reader they're wrong — guaranteeing defensiveness and a lost argument.
+**Canonical move:** Skip the flat contradiction; show respect for their opinion, find common ground, and get them nodding "yes" before you introduce the difference.
+**Language pattern:** Carnegie: "The only way to get the best of an argument is to avoid it"; "Show respect for the other person's opinion. Never say, 'You're wrong.'"; "Get the other person saying 'yes, yes' immediately." Replace "You're wrong" with "You're right that… and here's what I'm seeing…"
+**Worked example:** Before: "That's wrong — the deadline was always the 15th." / After: "You're right that the timeline shifted a lot. My notes have the 15th — can we check the thread together?" / Why: Removing "you're wrong" and starting from agreement keeps the person open instead of forcing them to defend their position.
+
+### 5. Admit Your Own Error Quickly
+**When it applies:** The writer is at fault and the draft deflects, minimizes, or buries the admission.
+**Canonical move:** Own the mistake first, plainly and emphatically, before anyone has to point it out.
+**Language pattern:** Carnegie: "If you are wrong, admit it quickly and emphatically"; "Talk about your own mistakes before criticizing the other person." Shape: "I got this wrong — [what] — and here's how I'll fix it."
+**Worked example:** Before: "Well, the spec wasn't clear, so the bug isn't really on me." / After: "This one's on me — I misread the spec and shipped the wrong logic. I'm pushing a fix now." / Why: Quick, emphatic ownership disarms criticism and rebuilds trust faster than any defense.
+
+### 6. Let Them Save Face — Correct Indirectly, Begin with Praise
+**When it applies:** You must correct or redirect someone, and the draft criticizes bluntly or publicly in a way that shames them.
+**Canonical move:** Begin with honest praise, raise the mistake indirectly, and ask questions instead of giving orders so the person keeps their dignity.
+**Language pattern:** Carnegie: "Begin with praise and honest appreciation"; "Call attention to people's mistakes indirectly"; "Ask questions instead of giving direct orders"; "Let the other person save face." Prefer "What if we…?" over "Do X." Avoid "but" after praise (it erases it) — use "and."
+**Worked example:** Before: "This section is a mess — redo it." / After: "The opening is strong. What do you think about tightening the middle section so it matches that pace?" / Why: Praise plus an indirect question lets the person improve the work without feeling attacked — changing behavior without breeding resentment.
+
+---
+
+## 9. Talking to Strangers — Malcolm Gladwell
+**Source:** Official publisher page (Hachette / Little, Brown, hachettebookgroup.com); Gladwell interview (WebMD); the book's basis in Timothy Levine's Truth-Default Theory. This book is diagnostic, not prescriptive — each principle is a CAUTION the coach applies to how confidently a user reads a stranger.
+
+### 1. Default to Truth — Don't Mistake Your Trust for Evidence
+**When it applies:** The draft treats a stranger's or new contact's claim, promise, or self-report as established fact ("they said they'd handle it, so it's handled").
+**Canonical move:** Recognize you are wired to believe people by default; treat an unverified claim from someone you barely know as unconfirmed, and build in a light check rather than assuming honesty.
+**Language pattern:** Gladwell (via Levine): "Our operating assumption is that the people we are dealing with are honest… We're programmed to take people at face value." Coaching shape — turn an assumed fact into a verifiable one: "Just to confirm on my end…" / "Can you send the [artifact] when it's done?"
+**Worked example:** Before: "Great, sounds like it's all taken care of — talk soon!" / After: "Great — can you drop a note here once it's live so I can confirm on my end?" / Why: It respects the person while adding a verification step, guarding against the default-to-truth bias that lets confident strangers slide by unchecked.
+
+### 2. The Transparency Illusion — Don't Read Intent from Demeanor
+**When it applies:** The draft judges a stranger's honesty, mood, or intent from tone, facial expression, confidence, or writing style ("he seemed shifty," "she sounds annoyed with me").
+**Canonical move:** Drop the inference from surface cues; state the observable behavior only, and ask about the inner state rather than assuming it — demeanor is not a reliable window into what someone feels or means.
+**Language pattern:** Gladwell: "realize no one's transparent"; facial cues "do not provide transparent, accurate insight… one tribe's smile is another's grimace." Shape: replace "you seem X" with "I noticed [behavior] — what's going on?"
+**Worked example:** Before: "You're clearly not taking this seriously." / After: "I noticed the last two check-ins slipped — is something getting in the way?" / Why: It reports the fact and asks about intent instead of reading it off demeanor, avoiding the transparency error that produces false accusations.
+
+### 3. Coupling — Behavior Is Tied to Circumstance, Not Just Character
+**When it applies:** The draft explains a person's action as a fixed trait ("he's just careless," "she's unreliable") and ignores the specific context around it.
+**Canonical move:** Before attributing behavior to character, ask what circumstances it was coupled to; frame the issue around the situation you can change, not a verdict on the person.
+**Language pattern:** Gladwell: "understand that behavior is tied to unseen circumstances." Shape: "What was going on when [behavior] happened?" rather than "You always…"
+**Worked example:** Before: "You always miss deadlines — it's a pattern." / After: "Both misses landed during the audit crunch — is the workload the real bottleneck here?" / Why: Coupling the behavior to its context targets the fixable cause and avoids a character judgment that may be wrong and will provoke defensiveness.
+
+### 4. Caution and Humility — Ask, Don't Assume
+**When it applies:** The draft commits to a confident conclusion about a stranger's motives or honesty and acts on it as if certain.
+**Canonical move:** Accept the real limits of reading someone you don't know well; hold the judgment loosely and ask a clarifying question before acting on your read.
+**Language pattern:** Gladwell: "the search to understand a stranger has real limits… The right way to talk to strangers is with caution and humility." Shape: swap the verdict for a question — "Am I reading this right that…?"
+**Worked example:** Before: "It's obvious you don't want this deal to happen." / After: "I might be misreading — are you hesitant about the deal, or is it the timeline?" / Why: Humility plus a direct question replaces a confident (and likely wrong) mind-read with information you can actually use.
+
+---
+
+## 10. Difficult Conversations: How to Discuss What Matters Most — Douglas Stone, Bruce Patton & Sheila Heen
+**Source:** Harvard Program on Negotiation (pon.harvard.edu); the authors' Triad Consulting Group / Stone & Heen; co-author Sheila Heen (Coaching for Leaders interview). Framework of the Harvard Negotiation Project.
+
+### 1. Decode the Three Conversations — What Happened / Feelings / Identity
+**When it applies:** A hard message is about to be sent and the writer is treating it as a single argument about facts, missing the emotional and identity layers underneath.
+**Canonical move:** Before drafting, separate the exchange into its three layers — the "What Happened?" (facts/story), the Feelings, and the Identity ("what this says about me") — and address the layer actually driving the tension.
+**Language pattern:** PON: "all difficult conversations carry a common underlying structure that can be divided into three distinguishable categories"; "Decipher the underlying structure and challenge of every difficult conversation." Shape: name the layer — "Here's what I'm seeing (facts)… here's how it's landing for me (feelings)…"
+**Worked example:** Before: "You never loop me in and it's unprofessional." / After: "When decisions get made without me, I feel sidelined — and I start doubting whether I'm trusted here. Can we talk about how we decide?" / Why: Untangling the three conversations lets you address the real driver (identity/feelings) instead of fighting only about the facts.
+
+### 2. Separate Intent from Impact
+**When it applies:** The draft accuses the other person of a bad motive inferred from how their action made the writer feel ("you did that to undermine me").
+**Canonical move:** Distinguish the impact on you (which you know) from their intent (which you don't); describe the impact and ask about the intent instead of asserting it.
+**Language pattern:** Heen: "People with good intentions have bad impacts all the time." The error: "We feel hurt. Therefore, they intended to hurt us… often [our guesses] aren't [right]." Shape: "When you [action], the impact on me was [X]. What was going on for you?"
+**Worked example:** Before: "You cut me off in that meeting to make me look bad." / After: "When I got cut off in the meeting, I felt dismissed. That might not be what you intended — what was happening for you there?" / Why: Reporting impact and asking about intent avoids the intent-invention trap and keeps the person from going defensive over a motive you assumed.
+
+### 3. Shift to a Learning Conversation — Curiosity over Advocacy
+**When it applies:** The draft is built to win — to prove the writer right — rather than to understand why the two of you see it differently.
+**Canonical move:** Move your purpose from "make them see I'm right" to "understand why we see this so differently"; open with curiosity and offer your own story as one view, not the verdict.
+**Language pattern:** PON: shift "from having the other person see that you're right to understanding why you see things so differently" — "shift your stance to one of curiosity." Shape: "Here's how I see it — and I want to understand how it looks from where you are."
+**Worked example:** Before: "The data proves I'm right, so let's move on." / After: "Here's what the data tells me — but I know you're reading it differently, and I want to understand why before we decide." / Why: Trading advocacy for curiosity turns an escalating difficult conversation into a learning conversation — the book's core mechanism for actually resolving it.
+
+### 4. Guard the Identity Conversation
+**When it applies:** The topic threatens the other person's self-image (competent, good, worthy) — or the writer's — and the draft (often accidentally) attacks that identity.
+**Canonical move:** Recognize identity threat as the root of most difficult conversations; frame the issue so it doesn't force the person to defend who they are, and acknowledge the identity stakes openly when useful.
+**Language pattern:** PON: "threats to our identity are at the root of most difficult conversations and represent our greatest opportunities for growth." Shape: separate the specific behavior from the whole person — "this one call went sideways," not "you're bad at this."
+**Worked example:** Before: "You're not cut out for client work." / After: "This account got tense, and I want to figure out what happened — you handle most clients well, so this one stood out." / Why: Bounding the problem to a specific instance protects the person's identity, keeping them able to engage instead of shutting down to defend their self-worth.
+
+### 5. Raise the Issue Without Triggering Defensiveness
+**When it applies:** The draft opens with a blame verdict or a global accusation that will make the reader defend before they listen.
+**Canonical move:** Replace blame with contribution and lead from your own perspective (an "I" story about impact and what you noticed), inviting the other side's view rather than delivering a charge.
+**Language pattern:** Book (via PON): "Raise tough issues without triggering defensiveness"; "Manage strong emotions—yours and theirs." Shape a shared/"I" opening: "I've noticed… here's how it's affecting the work… I'd like to hear how you see it."
+**Worked example:** Before: "You tanked the launch." / After: "The launch missed its date, and I think we both had a hand in how it went — can we walk through what happened?" / Why: A contribution frame and an "I"/"we" opening let the person hear the issue without an identity attack, so the conversation starts instead of stalling in defense.
+
+---
+
+## 11. Cross-Book Convergences
 
 When two or more books teach the same operational move from different
 angles, the Coach should cite ONE principle, not multiple. The convergence
 becomes a higher-confidence single rule.
 
-### 8.1 Pre-Frame Before the Ask
+### 11.1 Pre-Frame Before the Ask
 
 **Books that converge:** Cialdini's *Authority* (third-party credentials
 before the request), Cialdini's *Liking* (shared similarities before
@@ -867,7 +972,7 @@ structurally weaker than drafts that pre-frame.
 pre-frame, suggest adding ONE pre-frame element (not all four) drawn from
 whichever book best matches the situation.
 
-### 8.2 Separate Fact from Story (Observation from Evaluation)
+### 11.2 Separate Fact from Story (Observation from Evaluation)
 
 **Books that converge:** Crucial Conversations' *Path to Action* (emotion
 lives in the story, not the facts), Crucial Conversations' *Tell Your
@@ -886,7 +991,7 @@ name the interpretation as interpretation ("the story I'm telling myself
 is…" or "what I'm making of that is…"), then ask. This is the highest-
 leverage move for de-escalating any contested message.
 
-### 8.3 Concrete Over Abstract
+### 11.3 Concrete Over Abstract
 
 **Books that converge:** Zinsser's *Anglo-Saxon over Latinate*, Zinsser's
 *Active verbs*, Anderson's *calibrated detail in storytelling*, Heath
@@ -904,7 +1009,7 @@ Base.
 The Coach can apply it to virtually any draft as a sub-improvement, even
 when the main principle being applied comes from a different book.
 
-### 8.4 Label What's Unsaid
+### 11.4 Label What's Unsaid
 
 **Books that converge:** Voss's *Labels* ("It seems like…"), Voss's
 *Accusation Audit* (preemptively voicing the recipient's likely worry),
@@ -923,7 +1028,7 @@ suggest adding a label of what's unsaid — drawing from whichever book best
 matches the situation (Voss for negotiation, Crucial Conv for clarifying
 intent, Rosenberg for naming the writer's own emotion).
 
-### 8.5 The Specific, Identifiable Person
+### 11.5 The Specific, Identifiable Person
 
 **Books that converge:** Heath Brothers' *Emotional* (feel for individuals,
 not abstractions), Anderson's *relatable character* (in four storytelling
@@ -938,9 +1043,13 @@ a category, or an abstract noun. Three books converge here.
 stakes abstractly ("users will be affected"), suggest replacing with a
 named, specific person whose situation embodies the stake.
 
+### 11.6 The Three Added Books — Convergence with the Verified Seven
+
+These three books repeatedly converge with each other and with the already-verified seven, so cite ONE source per shared move. Carnegie's "make the other person feel important" and "sincere appreciation" ≈ Cialdini's Liking (we say yes to those we like, via similarity + genuine praise) ≈ Rosenberg's needs-language — for warmth/appreciation, cite Carnegie. Carnegie's "see it their way" and Stone/Patton/Heen's Learning Conversation both ≈ Crucial Conversations' Start-with-Heart (the "What do I really want for the relationship?" self-check) and Voss's tactical empathy — for perspective-taking, cite Difficult Conversations. Difficult Conversations' "separate intent from impact" pairs with Crucial Conversations' refusing the Fool's Choice via an "and" stance — cite one. Gladwell is the counterweight, not a duplicate: default-to-truth and the transparency illusion are CAUTIONS against the confident reads the other books' techniques can produce — invoke Gladwell precisely when a user is about to act on a certain judgment of a stranger.
+
 ---
 
-## 9. How to Use This Knowledge
+## 12. How to Use This Knowledge
 
 The Coach v5.0 LLM consumes this Knowledge Base as a structured reference,
 not as prose to recite. Operational guidance for the LLM:
@@ -971,7 +1080,7 @@ don't mean before what you do mean, you pre-empt the misread."* Never as a
 list of principles. The single named move is what the user can take with
 them.
 
-**Step 5 — Watch for cross-book convergences (section 8).** When a principle
+**Step 5 — Watch for cross-book convergences (section 11).** When a principle
 is taught by 2+ books, cite the convergence (e.g., "Observation vs.
 Evaluation — Crucial Conversations and NVC both teach this") rather than
 naming both books separately. Convergences are higher-confidence rules.
@@ -983,67 +1092,12 @@ naming both books separately. Convergences are higher-confidence rules.
 **What the Coach must NOT do:**
 - Cite Anderson's "throughline" (verified refuted — see Refuted section below)
 - Cite Voss's "six trademarked Tactical Empathy tools" as a fixed-six enumeration (verified refuted — name the tactics individually instead)
-- Cite Carnegie, Gladwell, or Stone/Patton/Heen until their primary-source verification lands. Where their conceptual territory overlaps with verified books (Carnegie ≈ Cialdini Liking + Crucial Conv. Start with Heart; Stone/Patton/Heen ≈ Crucial Conversations), the verified equivalents are used.
+- Attribute Gladwell's "transparency illusion" as a faithful GLOSS, not his literal phrase (his term is "transparency"/"transparency assumption"), and never attribute the People-magazine praise-blurb wording ("stop assuming, realize no one's transparent…") verbatim to Gladwell — it is the book's argument, not his prose.
+- Cite Carnegie from dalecarnegie.com or the public-domain original text, never from a secondary blog.
 
 ---
 
-## 10. Books Not Yet Verified
-
-Three books from the original 10-book reading list did not produce
-verified primary-source principles across two adversarial-verification
-passes. They are documented here so the Coach prompt is honest about the
-gap, and so a future research pass has a starting point.
-
-### Carnegie — *How to Win Friends and Influence People*
-
-**Status:** Not verified from primary source. Dale Carnegie Training site
-(dalecarnegie.com) pages returned were marketing-shaped and did not
-publish the operational 30 Principles in extractable form. Secondary
-sources (Wikipedia, blog summaries) enumerate the principles but did not
-survive adversarial verification.
-
-**Conceptual coverage in verified books:** Most of Carnegie's core moves
-overlap with: Cialdini's *Liking* (3.5) — shared similarities and genuine
-compliments before business; Crucial Conversations' *Start with Heart*
-(2.1) — clarify intent before speaking; and the Pre-Frame Before the Ask
-convergence (8.1). The Coach can apply these in situations where Carnegie
-would have been the named source.
-
-### Gladwell — *Talking to Strangers*
-
-**Status:** Not verified from primary source. gladwell.com and Pushkin
-(Revisionist History) did not return author-controlled operational
-content for the book's frameworks (default-to-truth, transparency,
-coupling).
-
-**Note:** Gladwell's book is fundamentally diagnostic (it describes
-*why* cross-stranger communication fails), not prescriptive (it does not
-teach *what to do* differently). The Coach can use the absence as a
-flag — when a draft assumes the writer has correctly read a stranger or
-near-stranger, that assumption is exactly the failure mode Gladwell
-diagnoses — but the Coach should not claim Gladwell as a source for any
-specific rewrite tactic.
-
-### Stone, Patton & Heen — *Difficult Conversations* (Harvard Negotiation Project)
-
-**Status:** Not verified from primary source in extractable form. Harvard
-Program on Negotiation (pon.harvard.edu) and Triad Consulting Group pages
-were available but did not publish the Three Conversations framework
-(What Happened / Feelings / Identity) in operationally extractable form
-that survived verification.
-
-**Conceptual coverage in verified books:** Stone/Patton/Heen's territory
-substantially overlaps with Crucial Conversations: their *What Happened
-Conversation* ≈ Crucial Conv's *Path to Action* (2.2) and *STATE* (2.4);
-their *Feelings Conversation* ≈ NVC's OFNR Feelings component (7.1);
-their *Identity Conversation* ≈ Crucial Conv's *Start with Heart* (2.1)
-and *Contrasting Statement* (2.6). The Coach can apply Crucial
-Conversations principles in situations where Difficult Conversations
-would have been the named source.
-
----
-
-## 11. Refuted Claims (Do Not Cite)
+## 13. Refuted Claims (Do Not Cite)
 
 Both passes' refuted claims, with the source attempted and vote.
 

@@ -31,8 +31,8 @@ describe("Coach Knowledge Base — structural integrity (docs/COACH_KNOWLEDGE_BA
     expect(kb.length).toBeGreaterThan(5000); // the real KB is ~9k tokens; a truncated load fails here
   });
 
-  it("contains at least the verified book sections (regression floor — a dropped book fails)", () => {
-    expect(bookSections(kb).length).toBeGreaterThanOrEqual(7);
+  it("contains all 10 verified books (regression floor — a dropped book fails)", () => {
+    expect(bookSections(kb).length).toBeGreaterThanOrEqual(10); // 10/10 as of 2026-08-25 (D6 complete)
   });
 
   it("every book section carries the operational principle format the Coach reasons from", () => {
