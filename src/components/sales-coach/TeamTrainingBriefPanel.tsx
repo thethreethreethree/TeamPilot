@@ -97,19 +97,28 @@ export function TeamTrainingBriefPanel() {
         </div>
       </div>
       <p className="text-[11px] text-muted mb-3">
-        A team-wide brief from {period === "day" ? "the last day" : "the last 7 days"} of coaching — the shared patterns
-        to work on, a drill you can run, and one focus per rep. {readyNote && <span className="text-brand/80">· {readyNote}</span>}
+        Build a team brief from {period === "day" ? "the last day" : "the last 7 days"} of coaching — the shared
+        patterns to work on, a drill you can run, and one focus per rep.
       </p>
-      {brief &&
-        (brief.ok ? (
-          <TeamBriefCard brief={brief.brief} />
-        ) : (
-          <p className="text-[11px] text-muted">
-            {brief.reason === "insufficient"
-              ? "Not enough coached sessions in this window yet — the brief needs a few dissected calls to find the team's pattern."
-              : "Couldn't build a brief from the current signal — try again once more sessions are dissected."}
+      {brief && (
+        <>
+          {/* The DISPLAYED brief's own window (from its result), NOT the pending toggle — so toggling Day/Week without
+              rebuilding never mislabels the brief on screen (review F1). */}
+          <p className="text-[10px] text-muted mb-2">
+            Showing {brief.periodLabel}
+            {readyNote ? <span className="text-brand/80"> · {readyNote}</span> : null}
           </p>
-        ))}
+          {brief.ok ? (
+            <TeamBriefCard brief={brief.brief} />
+          ) : (
+            <p className="text-[11px] text-muted">
+              {brief.reason === "insufficient"
+                ? "Not enough coached sessions in this window yet — the brief needs a few dissected calls to find the team's pattern."
+                : "Couldn't build a brief from the current signal — try again once more sessions are dissected."}
+            </p>
+          )}
+        </>
+      )}
     </section>
   );
 }

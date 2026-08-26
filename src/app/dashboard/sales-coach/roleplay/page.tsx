@@ -75,6 +75,10 @@ export default function SalesCoachRoleplayPage() {
   // concrete, realistic situation. null = fall back to the plain focus seed.
   const [scenario, setScenario] = useState<PracticeScenario | null>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
+  // Which focus the AUTO-fetch has already attempted — so a null/error/rate-limited generation doesn't re-trigger the
+  // effect forever (the setScenario(null) + loading→false transition would otherwise re-satisfy the old guard). One
+  // attempt per focus; "New scenario" is an explicit user refetch that bypasses this latch.
+  const scenarioAttemptedRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -158,11 +162,14 @@ export default function SalesCoachRoleplayPage() {
     }
   }, []);
 
-  // Auto-generate a scenario the first time a focus practice opens the setup screen (not on "Practice again", which
-  // keeps the same scenario). Regenerate is an explicit button.
+  // Auto-generate a scenario ONCE per focus when the setup screen opens (not on "Practice again", which keeps the same
+  // scenario). Latched on the ref so a null/error result can't loop the effect; "New scenario" refetches explicitly.
   useEffect(() => {
-    if (practiceFocus && phase === "setup" && !scenario && !scenarioLoading) void loadScenario(practiceFocus);
-  }, [practiceFocus, phase, scenario, scenarioLoading, loadScenario]);
+    if (practiceFocus && phase === "setup" && scenarioAttemptedRef.current !== practiceFocus) {
+      scenarioAttemptedRef.current = practiceFocus;
+      void loadScenario(practiceFocus);
+    }
+  }, [practiceFocus, phase, loadScenario]);
 
   useEffect(() => {
     try {

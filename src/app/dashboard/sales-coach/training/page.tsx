@@ -176,7 +176,9 @@ function FocusItem({ text, practiceable }: { text: string; practiceable: boolean
   const toggleLearn = useCallback(async () => {
     const next = !open;
     setOpen(next);
-    if (next && material === undefined && !loading) {
+    // Fetch on first open (undefined) OR retry after a failed load (null) — so the "try again" the error text promises
+    // actually works on reopen. A successfully-loaded guide (an object) is kept, not refetched.
+    if (next && (material === undefined || material === null) && !loading) {
       setLoading(true);
       try {
         const res = await fetch("/api/coach/sales-session/coaching-material", {
