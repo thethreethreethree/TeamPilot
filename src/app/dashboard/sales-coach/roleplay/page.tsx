@@ -21,6 +21,8 @@ import {
   RotateCcw,
   Sparkles,
   ArrowRight,
+  Award,
+  GraduationCap,
 } from "lucide-react";
 
 /**
@@ -36,6 +38,9 @@ type Review = {
   toImprove: string[];
   correctLine: { line: string; why: string } | null;
 };
+// Focus-seeded practice scorecard (founder 2026-08-26). Present only when the roleplay was launched from a Training
+// focus (?focus=...) — a plain roleplay never scores.
+type Scorecard = { focus: string; applied: boolean; score: number; nextRep: string };
 type Phase = "setup" | "chat" | "review";
 
 const PERSONAS: { label: string; hint: string }[] = [
@@ -59,6 +64,10 @@ export default function SalesCoachRoleplayPage() {
   const [sending, setSending] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+  // The skill the rep is drilling, carried from the Training tab via ?focus=. When set, the prospect creates moments
+  // that test it and the end-review is scored against it. null = an ordinary (unscored) roleplay.
+  const [practiceFocus, setPracticeFocus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -82,12 +91,14 @@ export default function SalesCoachRoleplayPage() {
         context?: "in_person" | "video";
         persona?: string;
         custom?: string;
+        focus?: string;
         messages?: Msg[];
       };
       if (Array.isArray(s.messages) && s.messages.length > 0) {
         if (s.context) setContext(s.context);
         if (s.persona) setPersona(s.persona);
         if (typeof s.custom === "string") setCustom(s.custom);
+        if (typeof s.focus === "string" && s.focus) setPracticeFocus(s.focus);
         setMessages(s.messages);
         setPhase("chat");
       }
@@ -96,12 +107,24 @@ export default function SalesCoachRoleplayPage() {
     }
   }, []);
 
+  // Focus seed from the Training tab (?focus=...). Read once on mount from the URL (avoids useSearchParams' Suspense
+  // requirement in a client page). Sets the skill to drill; a recovered in-progress practice already restored its own
+  // focus above, so this only fills a fresh launch.
+  useEffect(() => {
+    try {
+      const f = new URLSearchParams(window.location.search).get("focus")?.trim();
+      if (f) setPracticeFocus((prev) => prev ?? f);
+    } catch {
+      /* ignore — the seed is optional */
+    }
+  }, []);
+
   useEffect(() => {
     try {
       if (phase === "chat" && messages.length > 0) {
         sessionStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ context, persona, custom, messages })
+          JSON.stringify({ context, persona, custom, focus: practiceFocus ?? undefined, messages })
         );
       } else if (phase === "chat") {
         // messages.length === 0 while in chat = a failed FIRST turn just rolled the optimistic rep
@@ -114,7 +137,7 @@ export default function SalesCoachRoleplayPage() {
     } catch {
       /* ignore */
     }
-  }, [phase, messages, context, persona, custom]);
+  }, [phase, messages, context, persona, custom, practiceFocus]);
 
   const start = () => {
     try {
@@ -124,6 +147,7 @@ export default function SalesCoachRoleplayPage() {
     }
     setMessages([]);
     setReview(null);
+    setScorecard(null);
     setError(null);
     setInput("");
     setPhase("chat");
@@ -138,6 +162,7 @@ export default function SalesCoachRoleplayPage() {
         context,
         persona,
         customPrompt: custom.trim() || undefined,
+        focus: practiceFocus ?? undefined,
         messages: msgs,
       }),
     });
@@ -177,8 +202,9 @@ export default function SalesCoachRoleplayPage() {
     setReviewing(true);
     setError(null);
     try {
-      const { review: rev } = await post("review", messages);
+      const { review: rev, scorecard: sc } = await post("review", messages);
       setReview(rev as Review);
+      setScorecard((sc as Scorecard | undefined) ?? null);
       setPhase("review");
       // Roleplay is done — drop the in-progress recovery copy.
       try {
@@ -202,6 +228,20 @@ export default function SalesCoachRoleplayPage() {
         {/* ── Setup ───────────────────────────────────────────────── */}
         {phase === "setup" && (
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-2xl mx-auto w-full space-y-4">
+            {practiceFocus && (
+              <DeckCard className="p-4 flex items-start gap-3 border-ember-400/40 bg-ember-400/[0.06]">
+                <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
+                  <GraduationCap className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted">You&apos;re practicing</p>
+                  <p className="text-sm text-primary font-medium leading-snug mt-0.5">{practiceFocus}</p>
+                  <p className="text-[11px] text-muted mt-1">
+                    The prospect will create moments that test this — you&apos;ll get a score on how well you applied it.
+                  </p>
+                </div>
+              </DeckCard>
+            )}
             <DeckCard className="p-4 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
                 <Target className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
@@ -392,6 +432,38 @@ export default function SalesCoachRoleplayPage() {
               A quick practice read. Your real calls get the full timeline and
               score in the After Pitch Summary.
             </p>
+
+            {/* Focus scorecard — only when this was a focus-seeded practice (?focus=). Scores how well the rep applied
+                the ONE skill they were drilling. applied:false is an honest outcome, shown plainly (no fake score). */}
+            {scorecard && (
+              <DeckCard className="p-4 border-ember-400/40 bg-ember-400/[0.05]">
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
+                    <Award className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted">Skill practiced</p>
+                    <p className="text-sm text-primary font-medium leading-snug mt-0.5">{scorecard.focus}</p>
+                    {scorecard.applied ? (
+                      <div className="flex items-baseline gap-1.5 mt-2">
+                        <span className="text-2xl font-bold text-brand tabular-nums">{scorecard.score}</span>
+                        <span className="text-[11px] text-muted">/ 100 on this skill</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-300 mt-2 leading-relaxed">
+                        You didn&apos;t get to this skill this time — run it again and look for the moment to use it.
+                      </p>
+                    )}
+                    {scorecard.nextRep && (
+                      <p className="text-xs text-secondary leading-relaxed mt-2">
+                        <span className="text-muted">Next attempt: </span>
+                        {scorecard.nextRep}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </DeckCard>
+            )}
 
             {review.summary ? (
               <DeckCard className="p-4">

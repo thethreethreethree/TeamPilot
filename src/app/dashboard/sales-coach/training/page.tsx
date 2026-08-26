@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GraduationCap } from "lucide-react";
+import Link from "next/link";
+import { GraduationCap, Dumbbell } from "lucide-react";
 import { TeamTrainingBriefPanel } from "@/components/sales-coach/TeamTrainingBriefPanel";
 
 /**
@@ -20,7 +21,34 @@ type RepTraining = {
 };
 type Mine = { dissectCount: number; growthAreas: string[]; strategies: string[]; strengths: string[] };
 
-function TrainingList({ growthAreas, strategies }: { growthAreas: string[]; strategies: string[] }) {
+// A single focus line. In the rep's own view it's practiceable — a "Practice" link seeds the roleplay with this exact
+// skill (?focus=...) so the rep drills it against the AI prospect and gets scored on it (founder 2026-08-26).
+function FocusItem({ text, practiceable }: { text: string; practiceable: boolean }) {
+  if (!practiceable) return <li className="text-secondary">{text}</li>;
+  return (
+    <li className="flex items-start justify-between gap-2 group">
+      <span className="text-secondary">{text}</span>
+      <Link
+        href={`/dashboard/sales-coach/roleplay?focus=${encodeURIComponent(text)}`}
+        className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-brand/80 hover:text-brand border border-ember-400/30 hover:border-ember-400/60 rounded-md px-1.5 py-0.5 transition-colors"
+        title="Practice this against the AI prospect"
+      >
+        <Dumbbell className="w-3 h-3" aria-hidden />
+        Practice
+      </Link>
+    </li>
+  );
+}
+
+function TrainingList({
+  growthAreas,
+  strategies,
+  practiceable = false,
+}: {
+  growthAreas: string[];
+  strategies: string[];
+  practiceable?: boolean;
+}) {
   if (growthAreas.length === 0 && strategies.length === 0) {
     return <p className="text-[11px] text-muted">No trainings yet — they appear as sessions are coached.</p>;
   }
@@ -29,9 +57,9 @@ function TrainingList({ growthAreas, strategies }: { growthAreas: string[]; stra
       {growthAreas.length > 0 && (
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted mb-1">Work on</p>
-          <ul className="list-disc list-inside text-secondary space-y-0.5">
+          <ul className={`space-y-1 ${practiceable ? "" : "list-disc list-inside"}`}>
             {growthAreas.map((g, i) => (
-              <li key={i}>{g}</li>
+              <FocusItem key={i} text={g} practiceable={practiceable} />
             ))}
           </ul>
         </div>
@@ -39,9 +67,9 @@ function TrainingList({ growthAreas, strategies }: { growthAreas: string[]; stra
       {strategies.length > 0 && (
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted mb-1">Moves to add</p>
-          <ul className="list-disc list-inside text-secondary space-y-0.5">
+          <ul className={`space-y-1 ${practiceable ? "" : "list-disc list-inside"}`}>
             {strategies.map((s, i) => (
-              <li key={i}>{s}</li>
+              <FocusItem key={i} text={s} practiceable={practiceable} />
             ))}
           </ul>
         </div>
@@ -133,7 +161,10 @@ export default function TrainingPage() {
       {mode === "rep" && mine && (
         <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
           <h2 className="text-sm font-semibold text-primary mb-2">Your trainings</h2>
-          <TrainingList growthAreas={mine.growthAreas ?? []} strategies={mine.strategies ?? []} />
+          <p className="text-[11px] text-muted mb-3">
+            Each is a skill from your coached calls — hit Practice to drill it against the AI prospect and get scored.
+          </p>
+          <TrainingList growthAreas={mine.growthAreas ?? []} strategies={mine.strategies ?? []} practiceable />
         </section>
       )}
     </div>
