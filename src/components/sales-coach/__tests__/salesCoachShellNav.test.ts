@@ -54,10 +54,11 @@ describe("SalesCoachShell — collapsible Manager Dashboard + Team Tools groups"
     );
   });
 
-  it("Team Tools groups Roleplay, One Liners, Team (in order)", () => {
+  it("Team Tools groups Roleplay, One Liners, Training, Team (in order)", () => {
     // "One Liners" is rendered via the ONE_LINERS_LABEL constant; assert on the stable /strategy route instead.
+    // Training (founder 2026-08-26) sits between One Liners and Team; the comment before it widens the gap.
     expect(SHELL).toMatch(
-      /header:\s*"Team Tools"[\s\S]{0,400}\/roleplay[\s\S]{0,200}\/strategy[\s\S]{0,200}\/team"/
+      /header:\s*"Team Tools"[\s\S]{0,400}\/roleplay[\s\S]{0,200}\/strategy[\s\S]{0,400}\/training"[\s\S]{0,200}\/team"/
     );
   });
 

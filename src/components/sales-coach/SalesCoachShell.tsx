@@ -107,6 +107,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
       { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
+      // Training (founder 2026-08-26): a manager sees the team brief + every rep's focuses; a rep sees their OWN
+      // trainings on their portal. NOT managerOnly — the page role-branches (manager team-read → 403 falls back to
+      // the rep's own /my-training), so both roles get a working destination (AMD-006 L3).
+      { label: "Training", href: "/dashboard/sales-coach/training", icon: GraduationCap },
       { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
     ],
   },

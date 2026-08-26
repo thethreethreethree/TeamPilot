@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
-import type { TeamBriefResult } from "@/lib/coach/v5/teamTrainingBrief"; // type-only (server-only module erased at build)
+import { TeamTrainingBriefPanel } from "@/components/sales-coach/TeamTrainingBriefPanel";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
@@ -64,53 +64,6 @@ function DoorMetrics({ kpi }: { kpi: AgentAssessment["doorKpi"] }) {
   );
 }
 
-// Renders a generated Team Training Brief — themes, a runnable drill, and a one-line focus per rep. Read-only.
-function TeamBriefCard({ brief }: { brief: Extract<TeamBriefResult, { ok: true }>["brief"] }) {
-  return (
-    <div className="space-y-3 text-[12px]">
-      {brief.themes.length > 0 && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted mb-1">Work on as a team</p>
-          <ul className="space-y-1.5">
-            {brief.themes.map((t, i) => (
-              <li key={i}>
-                <span className="font-semibold text-primary">{t.title}.</span>{" "}
-                <span className="text-secondary">{t.why}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {brief.drill.title && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted mb-1">Run this drill</p>
-          <p className="font-semibold text-primary">{brief.drill.title}</p>
-          {brief.drill.steps.length > 0 && (
-            <ol className="list-decimal list-inside text-secondary space-y-0.5 mt-1">
-              {brief.drill.steps.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
-      {brief.repFocus.length > 0 && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted mb-1">One focus each</p>
-          <ul className="space-y-1">
-            {brief.repFocus.map((r, i) => (
-              <li key={i}>
-                <span className="font-semibold text-primary">{r.rep}:</span>{" "}
-                <span className="text-secondary">{r.focus}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function CoachAssessmentPage() {
   const [team, setTeam] = useState<AgentAssessment[] | null>(null);
   const [isManager, setIsManager] = useState(true);
@@ -120,9 +73,6 @@ export default function CoachAssessmentPage() {
   const [degraded, setDegraded] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
-  // Team Training Brief (founder 2026-08-26) — generated on demand for the next team meeting.
-  const [brief, setBrief] = useState<TeamBriefResult | null>(null);
-  const [briefLoading, setBriefLoading] = useState(false);
   // Per-agent card collapse (founder 2026-07-10 annotated spec): each agent's
   // dissect detail (strategy tags + doing-well + coaching-focus) is collapsed by
   // default so the roster is scannable; clicking the agent's ELO badge reveals it.
@@ -193,23 +143,6 @@ export default function CoachAssessmentPage() {
       setBackfilling(false);
     }
   }, [load]);
-
-  // Generate the team training brief on demand (one LLM call). Manager-facing errors stay plain-English.
-  const runTeamBrief = useCallback(async () => {
-    setBriefLoading(true);
-    try {
-      const res = await fetch("/api/coach/sales-session/team-training-brief", { method: "POST" });
-      setBrief(
-        res.ok
-          ? ((await res.json()) as TeamBriefResult)
-          : { ok: false, reason: "llm_empty", dissectCount: 0, periodLabel: "the last 7 days" },
-      );
-    } catch {
-      setBrief({ ok: false, reason: "llm_empty", dissectCount: 0, periodLabel: "the last 7 days" });
-    } finally {
-      setBriefLoading(false);
-    }
-  }, []);
 
   const withContent = (team ?? []).filter((a) => a.dissectCount > 0);
   const noContent = (team ?? []).filter((a) => a.dissectCount === 0);
@@ -330,35 +263,10 @@ export default function CoachAssessmentPage() {
               </LearningHint>
             </div>
 
-            {/* Team Training Brief (founder 2026-08-26) — a team-level coaching brief for tomorrow's meeting. */}
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 mb-4">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <h2 className="text-sm font-semibold text-primary">Team training brief</h2>
-                <LoadingButton
-                  pending={briefLoading}
-                  onClick={() => void runTeamBrief()}
-                  icon={<ClipboardCheck className="w-3.5 h-3.5" aria-hidden />}
-                  pendingLabel="Building…"
-                  className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold border border-default text-secondary hover:text-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
-                >
-                  {brief?.ok ? "Rebuild" : "Build for the meeting"}
-                </LoadingButton>
-              </div>
-              <p className="text-[11px] text-muted mb-3">
-                A team-wide brief from the last 7 days of coaching — the shared patterns to work on, a drill you can
-                run, and one focus per rep.
-              </p>
-              {brief &&
-                (brief.ok ? (
-                  <TeamBriefCard brief={brief.brief} />
-                ) : (
-                  <p className="text-[11px] text-muted">
-                    {brief.reason === "insufficient"
-                      ? "Not enough coached sessions in the last 7 days yet — the brief needs a few dissected calls to find the team's pattern."
-                      : "Couldn't build a brief from the current signal — try again once more sessions are dissected."}
-                  </p>
-                ))}
-            </section>
+            {/* Team Training Brief (founder 2026-08-26) — shared panel, also on the Training tab. */}
+            <div className="mb-4">
+              <TeamTrainingBriefPanel />
+            </div>
 
             {withContent.length === 0 && (
               <LearningHint
