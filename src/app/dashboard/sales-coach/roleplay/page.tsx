@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import {
   DeckCard,
@@ -30,6 +30,9 @@ import {
  * 2026-07-06 decision). Setup → chat (AI plays the prospect) → review.
  * Ephemeral by design — practice, not a recorded call (see the API route).
  */
+
+// Type-only import (server-only module erased at build) — the scenario is fetched over HTTP, not imported.
+import type { PracticeScenario } from "@/lib/coach/v5/practiceScenario";
 
 type Msg = { role: "rep" | "prospect"; text: string };
 type Review = {
@@ -68,6 +71,10 @@ export default function SalesCoachRoleplayPage() {
   // The skill the rep is drilling, carried from the Training tab via ?focus=. When set, the prospect creates moments
   // that test it and the end-review is scored against it. null = an ordinary (unscored) roleplay.
   const [practiceFocus, setPracticeFocus] = useState<string | null>(null);
+  // AI-written scenario for the focus (founder 2026-08-27). Fetched when practising a focus; seeds the prospect with a
+  // concrete, realistic situation. null = fall back to the plain focus seed.
+  const [scenario, setScenario] = useState<PracticeScenario | null>(null);
+  const [scenarioLoading, setScenarioLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -126,6 +133,36 @@ export default function SalesCoachRoleplayPage() {
       /* ignore — the seed is optional */
     }
   }, []);
+
+  // Fetch an AI-written scenario for the focus and seed the setup from it. Best-effort: a null scenario (or a failure)
+  // leaves the plain focus seed in place, so practice still works.
+  const loadScenario = useCallback(async (focus: string) => {
+    setScenarioLoading(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/practice-scenario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ focus }),
+      });
+      const d = (res.ok ? await res.json() : { scenario: null }) as { scenario: PracticeScenario | null };
+      const sc = d?.scenario ?? null;
+      setScenario(sc);
+      if (sc) {
+        if (sc.persona) setPersona(sc.persona);
+        if (sc.situation) setCustom(sc.situation);
+      }
+    } catch {
+      setScenario(null);
+    } finally {
+      setScenarioLoading(false);
+    }
+  }, []);
+
+  // Auto-generate a scenario the first time a focus practice opens the setup screen (not on "Practice again", which
+  // keeps the same scenario). Regenerate is an explicit button.
+  useEffect(() => {
+    if (practiceFocus && phase === "setup" && !scenario && !scenarioLoading) void loadScenario(practiceFocus);
+  }, [practiceFocus, phase, scenario, scenarioLoading, loadScenario]);
 
   useEffect(() => {
     try {
@@ -250,6 +287,41 @@ export default function SalesCoachRoleplayPage() {
                 </div>
               </DeckCard>
             )}
+
+            {/* AI-written scenario for this focus (founder 2026-08-27) — a concrete, realistic situation that will test
+                the skill. Regenerate for a different one. Falls back silently to the plain focus seed if generation fails. */}
+            {practiceFocus && (scenarioLoading || scenario) && (
+              <DeckCard className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-muted">Your scenario</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadScenario(practiceFocus)}
+                    disabled={scenarioLoading}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand/80 hover:text-brand disabled:opacity-40"
+                    title="Write a different scenario"
+                  >
+                    <RotateCcw className="w-3 h-3" aria-hidden />
+                    New scenario
+                  </button>
+                </div>
+                {scenarioLoading && !scenario ? (
+                  <p className="text-xs text-muted flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                    Writing a scenario for you…
+                  </p>
+                ) : scenario ? (
+                  <>
+                    {scenario.title && <p className="text-sm text-primary font-semibold">{scenario.title}</p>}
+                    {scenario.persona && <p className="text-xs text-brand mt-0.5">{scenario.persona}</p>}
+                    {scenario.situation && (
+                      <p className="text-xs text-secondary leading-relaxed mt-1.5">{scenario.situation}</p>
+                    )}
+                  </>
+                ) : null}
+              </DeckCard>
+            )}
+
             <DeckCard className="p-4 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
                 <Target className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
