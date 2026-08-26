@@ -26,7 +26,11 @@ export type TeamBriefResult =
   | { ok: true; brief: TeamTrainingBrief; dissectCount: number; repCount: number; periodLabel: string }
   | { ok: false; reason: "insufficient" | "no_content" | "llm_empty"; dissectCount: number; periodLabel: string };
 
-const PERIOD_LABEL = `the last ${PERIOD_DAYS} days`;
+// Human label for the look-back window (founder day/week view). 1 → "the last day", else "the last N days".
+export function labelForDays(days: number): string {
+  return days <= 1 ? "the last day" : `the last ${days} days`;
+}
+export const TEAM_BRIEF_EVENT_KIND = "coach.team_brief_generated";
 
 // Rank names by frequency (most-common first), deduped, capped.
 function rankByFrequency(names: string[], cap: number): string[] {
@@ -39,18 +43,22 @@ function rankByFrequency(names: string[], cap: number): string[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, cap).map(([n]) => n);
 }
 
-export async function generateTeamTrainingBrief(companyId: string): Promise<TeamBriefResult> {
+export async function generateTeamTrainingBrief(
+  companyId: string,
+  periodDays: number = PERIOD_DAYS,
+): Promise<TeamBriefResult> {
   const admin = createAdminClient();
+  const periodLabel = labelForDays(periodDays);
 
   const { data: profs } = await admin.from("profiles").select("id, full_name").eq("company_id", companyId);
   const agents = (profs ?? []) as { id: string; full_name: string | null }[];
   const agentIds = agents.map((a) => a.id);
   if (agentIds.length === 0) {
-    return { ok: false, reason: "insufficient", dissectCount: 0, periodLabel: PERIOD_LABEL };
+    return { ok: false, reason: "insufficient", dissectCount: 0, periodLabel };
   }
   const nameById = new Map(agents.map((a) => [a.id, a.full_name ?? "Unnamed"]));
 
-  const cutoff = new Date(Date.now() - PERIOD_DAYS * 86_400_000).toISOString();
+  const cutoff = new Date(Date.now() - periodDays * 86_400_000).toISOString();
   const { data: dissects } = await admin
     .from("events")
     .select("payload, created_at, actor")
@@ -62,7 +70,7 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
   const rows = (dissects ?? []) as { payload: unknown; created_at: unknown; actor: string }[];
   const dissectCount = rows.length;
   if (dissectCount < MIN_DISSECTS) {
-    return { ok: false, reason: "insufficient", dissectCount, periodLabel: PERIOD_LABEL };
+    return { ok: false, reason: "insufficient", dissectCount, periodLabel: periodLabel };
   }
 
   // Pool the team's coaching content, frequency-ranked (the shared pattern the brief teaches).
@@ -71,7 +79,7 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
   const strategies = rankByFrequency(pooled.strategies, 8);
   const strengths = rankByFrequency(pooled.strengths, 6);
   if (growthAreas.length === 0 && strategies.length === 0 && strengths.length === 0) {
-    return { ok: false, reason: "no_content", dissectCount, periodLabel: PERIOD_LABEL };
+    return { ok: false, reason: "no_content", dissectCount, periodLabel: periodLabel };
   }
 
   // Team door activity (context) — best-effort sum over the company's reps; a read error just drops it to zeros.
@@ -113,7 +121,7 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
 
   const systemPrompt = buildTeamBriefSystemPrompt();
   const userMessage = buildTeamBriefUserMessage({
-    periodLabel: PERIOD_LABEL,
+    periodLabel: periodLabel,
     repCount: rowsByActor.size,
     dissectCount,
     growthAreas,
@@ -125,11 +133,11 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
 
   const r = await debriefCoachV5({ companyId, systemPrompt, userMessage, controlExempt: true });
   if (!r.text || !r.text.trim()) {
-    return { ok: false, reason: "llm_empty", dissectCount, periodLabel: PERIOD_LABEL };
+    return { ok: false, reason: "llm_empty", dissectCount, periodLabel: periodLabel };
   }
-  const brief = parseTeamBrief(r.text, PERIOD_LABEL, validRepNames);
-  if (!brief) return { ok: false, reason: "llm_empty", dissectCount, periodLabel: PERIOD_LABEL };
-  return { ok: true, brief, dissectCount, repCount: rowsByActor.size, periodLabel: PERIOD_LABEL };
+  const brief = parseTeamBrief(r.text, periodLabel, validRepNames);
+  if (!brief) return { ok: false, reason: "llm_empty", dissectCount, periodLabel: periodLabel };
+  return { ok: true, brief, dissectCount, repCount: rowsByActor.size, periodLabel: periodLabel };
 }
 
 // Parse + shape-guard the LLM JSON. Tolerant of a ```json fence; drops malformed items rather than throwing so a
@@ -165,4 +173,72 @@ export function parseTeamBrief(text: string, periodLabel: string, validReps: str
   // A brief with neither a theme nor a drill carries no teachable signal → treat as empty.
   if (themes.length === 0 && !drill.title) return null;
   return { themes, drill, repFocus, periodLabel };
+}
+
+export type CachedTeamBrief = { result: TeamBriefResult; periodDays: number; generatedAt: string };
+
+// Persist a generated brief as an append-only event (§3.1) so a manager sees the latest one "ready" without clicking
+// Build — the overnight pre-generation writes it. Best-effort (a missed cache just means the manager clicks Build).
+export async function storeTeamBrief(companyId: string, result: TeamBriefResult, periodDays: number): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin.from("events").insert({
+      company_id: companyId,
+      actor: null, // system-generated (the cron), no human actor
+      kind: TEAM_BRIEF_EVENT_KIND,
+      subject: `team_brief:${companyId}`,
+      payload: { result, period_days: periodDays, coach_version: "team-brief-v1" },
+    });
+  } catch {
+    /* best-effort — a missed cache just means the manager clicks Build */
+  }
+}
+
+// The most recent cached brief for a company (the pre-generated one). null if none yet.
+export async function getLatestTeamBrief(companyId: string): Promise<CachedTeamBrief | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("events")
+    .select("payload, created_at")
+    .eq("kind", TEAM_BRIEF_EVENT_KIND)
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const row = (data ?? [])[0] as { payload: unknown; created_at: unknown } | undefined;
+  if (!row) return null;
+  const p = (row.payload ?? {}) as Record<string, unknown>;
+  const result = p.result as TeamBriefResult | undefined;
+  if (!result || typeof result !== "object") return null;
+  return {
+    result,
+    periodDays: typeof p.period_days === "number" ? p.period_days : PERIOD_DAYS,
+    generatedAt: typeof row.created_at === "string" ? row.created_at : "",
+  };
+}
+
+// Overnight pre-generation (cron): generate + cache the WEEK brief for every company with coaching activity in the
+// window. SEQUENTIAL + capped so the burst of LLM calls stays bounded under maxDuration; a larger backlog just drains
+// over nightly runs. Best-effort per company (one failure never stops the sweep).
+export async function runTeamBriefPregeneration(cap = 10): Promise<{ companies: number; generated: number }> {
+  const admin = createAdminClient();
+  const cutoff = new Date(Date.now() - PERIOD_DAYS * 86_400_000).toISOString();
+  const rows = await fetchAllPaged<{ company_id: string }>(
+    (from, to) =>
+      admin.from("events").select("company_id").eq("kind", "coach.dissect_generated").gte("created_at", cutoff).range(from, to),
+    { label: "team-brief-pregen-companies" },
+  ).catch(() => [] as { company_id: string }[]);
+  const companyIds = [...new Set(rows.map((r) => String(r.company_id)).filter(Boolean))].slice(0, cap);
+  let generated = 0;
+  for (const companyId of companyIds) {
+    try {
+      const result = await generateTeamTrainingBrief(companyId, PERIOD_DAYS);
+      if (result.ok) {
+        await storeTeamBrief(companyId, result, PERIOD_DAYS);
+        generated += 1;
+      }
+    } catch {
+      /* best-effort per company */
+    }
+  }
+  return { companies: companyIds.length, generated };
 }

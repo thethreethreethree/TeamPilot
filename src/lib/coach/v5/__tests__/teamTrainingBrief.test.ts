@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseTeamBrief } from "../teamTrainingBrief";
+import { parseTeamBrief, labelForDays } from "../teamTrainingBrief";
 import { buildTeamBriefUserMessage } from "../teamTrainingBriefPrompt";
 
 /**
@@ -62,6 +62,17 @@ describe("parseTeamBrief", () => {
  * MUST carry those real names (+ each rep's own growth) — otherwise the model has nothing to attribute a focus to and
  * every name it invents is filtered out, making "one focus each" permanently empty. Lock the name into the prompt.
  */
+describe("labelForDays — the day/week look-back label (founder 2026-08-27)", () => {
+  it("labels a 1-day window as 'the last day' (never 'the last 1 days')", () => {
+    expect(labelForDays(1)).toBe("the last day");
+    expect(labelForDays(0)).toBe("the last day");
+  });
+  it("labels a multi-day window as 'the last N days'", () => {
+    expect(labelForDays(7)).toBe("the last 7 days");
+    expect(labelForDays(2)).toBe("the last 2 days");
+  });
+});
+
 describe("buildTeamBriefUserMessage — carries per-rep names into the prompt (F1)", () => {
   it("includes each repSignal's real name and their top focus", () => {
     const msg = buildTeamBriefUserMessage({

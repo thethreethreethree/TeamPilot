@@ -9,6 +9,10 @@
       "schedule": "0 */3 * * *"
     },
     {
+      "path": "/api/coach/sales-session/team-brief-cron",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/diagnosis/task-overrun-sweep-cron",
       "schedule": "0 6 * * *"
     },
