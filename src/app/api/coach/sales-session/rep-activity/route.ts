@@ -102,8 +102,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     sessions,
     totalCount: sessions.length,
+    // The list is capped at CAP most-recent; tell the client so it can say "showing most recent N" rather than
+    // implying the list is complete for a very active rep (review F2).
+    atCap: sessions.length >= CAP,
     lastActiveAt: sessions[0]?.startedAt ?? null,
     windowDays: WINDOW_DAYS,
+    cap: CAP,
     savingAvailable,
   });
 }

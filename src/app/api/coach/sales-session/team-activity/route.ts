@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * GET /api/coach/sales-session/team-activity — per-rep session ACTIVITY for the manager's roster (founder 2026-08-27:
@@ -13,7 +14,10 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 const WINDOW_DAYS = 30;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, { id: "coach-team-activity", windowMs: 60_000, max: 30 });
+  if (limited) return limited;
+
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });

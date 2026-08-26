@@ -30,6 +30,9 @@ function relDay(iso: string): string {
 export function StandardSessionsManagerView({ fallback }: { fallback: React.ReactNode }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [activity, setActivity] = useState<Record<string, Activity>>({});
+  // false until team-activity loads successfully — so a pending/failed aggregate does NOT render as "No sessions" for
+  // every rep (a failure dressed as no-data in the exact usage surface — review F1, §3.4).
+  const [activityLoaded, setActivityLoaded] = useState(false);
   const [isManager, setIsManager] = useState<boolean | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
@@ -45,10 +48,11 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
       })
       // §3.4: a failed read is not "not a manager"; show an honest error, never silently the rep view.
       .catch(() => { if (!cancelled) setError(true); });
-    // Per-rep usage summary (best-effort — the roster still renders without it).
+    // Per-rep usage summary (best-effort — the roster still renders without it). Only mark loaded on a real success,
+    // so a failure leaves the annotation blank (unknown) rather than claiming "No sessions" for everyone (F1).
     void fetch("/api/coach/sales-session/team-activity")
-      .then((r) => (r.ok ? r.json() : { byAgent: {} }))
-      .then((d) => { if (!cancelled) setActivity(d.byAgent ?? {}); })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("team-activity failed"))))
+      .then((d) => { if (!cancelled) { setActivity(d.byAgent ?? {}); setActivityLoaded(true); } })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -76,9 +80,11 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
               <span className="min-w-0">
                 <span className="block text-sm text-primary truncate">{m.fullName ?? "Unnamed rep"}</span>
                 <span className="block text-[11px] text-muted">
-                  {a && a.count > 0
-                    ? `${a.count} session${a.count === 1 ? "" : "s"} · last active ${relDay(a.lastActiveAt)}`
-                    : "No sessions in the last 30 days"}
+                  {!activityLoaded
+                    ? " " /* unknown (loading or failed) — never claim "No sessions" on a failed aggregate (F1) */
+                    : a && a.count > 0
+                      ? `${a.count} session${a.count === 1 ? "" : "s"} · last active ${relDay(a.lastActiveAt)}`
+                      : "No sessions in the last 30 days"}
                 </span>
               </span>
               <span className="text-[11px] text-muted shrink-0">{m.salesCoachRole ?? m.companyRole ?? ""} →</span>
@@ -102,6 +108,8 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [savingAvailable, setSavingAvailable] = useState(true);
   const [windowDays, setWindowDays] = useState(30);
+  const [atCap, setAtCap] = useState(false);
+  const [cap, setCap] = useState(100);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -116,6 +124,8 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
       setSessions(d.sessions ?? []);
       setSavingAvailable(d.savingAvailable !== false);
       setWindowDays(d.windowDays ?? 30);
+      setAtCap(Boolean(d.atCap));
+      setCap(d.cap ?? 100);
     } catch {
       setError(true); // §3.4: a failed read must not read as "no sessions".
     } finally {
@@ -149,7 +159,7 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
       <button onClick={onBack} className="text-[11px] text-muted hover:opacity-80 mb-3">← Team</button>
       <h2 className="text-sm font-semibold text-primary mb-1">{member.fullName ?? "Rep"}</h2>
       <p className="text-[11px] text-muted mb-4">
-        Sessions from the last {windowDays} days. A recording, when captured, can be saved to keep it longer.
+        {atCap ? `Most recent ${cap} sessions` : "Sessions"} from the last {windowDays} days. A recording, when captured, can be saved to keep it longer.
       </p>
 
       {loading ? (
