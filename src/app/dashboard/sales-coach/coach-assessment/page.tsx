@@ -106,7 +106,9 @@ export default function CoachAssessmentPage() {
       if (!res.ok) throw new Error(`failed (${res.status})`);
       const d = await res.json();
       setBackfillMsg(
-        `Generated ${d.generated ?? 0}${d.thinOrFailed ? `, ${d.thinOrFailed} too thin/failed` : ""}. ${d.remaining ?? 0} still missing.`
+        `Generated ${d.generated ?? 0}${d.thinOrFailed ? `, ${d.thinOrFailed} too thin` : ""}. ${d.remaining ?? 0} still to generate${
+          d.noContent ? ` · ${d.noContent} session${d.noContent === 1 ? "" : "s"} had no audio captured (nothing to assess)` : ""
+        }.`
       );
       await load();
     } catch {

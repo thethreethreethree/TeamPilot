@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   dissectEvents: [] as Array<{ subject: string }>, // coach.dissect_generated
   attemptEvents: [] as Array<{ subject: string }>, // coach.dissect_attempted (backoff)
   afterPitchExisting: [] as Array<{ session_id: string }>, // sessions that ALREADY have an after-pitch row
+  emptySessionIds: new Set<string>(), // sessions with ZERO transcript segments (empty capture) — content-aware split
   dissect: vi.fn(), // stands in for the whole artifact generation; resolves { dissect: { hasSignal } }
   afterPitch: vi.fn(), // generateAndStoreAfterPitch spy — asserts the de-dup guard skips existing summaries
 }));
@@ -23,7 +24,7 @@ vi.mock("@/lib/supabase/admin", () => {
   // resolve to different rows, and supports the `.gte(occurred_at)` the backoff query adds.
   const q = (table: string) => {
     const b: Record<string, unknown> = { _kind: null };
-    for (const m of ["select", "in", "order", "limit", "gte"]) b[m] = () => b;
+    for (const m of ["select", "in", "order", "limit", "gte", "range"]) b[m] = () => b;
     b.eq = (col: string, val: string) => {
       if (col === "kind") (b as { _kind: string | null })._kind = val;
       return b;
@@ -31,6 +32,9 @@ vi.mock("@/lib/supabase/admin", () => {
     b.then = (resolve: (v: unknown) => void) => {
       let data: unknown;
       if (table === "coaching_sessions") data = state.sessions;
+      // content-aware split: every session has a transcript segment EXCEPT those marked empty (0-segment capture).
+      else if (table === "coaching_transcript_segments")
+        data = state.sessions.filter((s) => !state.emptySessionIds.has(s.id)).map((s) => ({ session_id: s.id }));
       else if (table === "after_pitch_summaries") data = state.afterPitchExisting; // drives the de-dup guard
       else if ((b as { _kind: string | null })._kind === "coach.dissect_attempted") data = state.attemptEvents;
       else data = state.dissectEvents;
@@ -69,6 +73,7 @@ beforeEach(() => {
   state.dissectEvents = [];
   state.attemptEvents = [];
   state.afterPitchExisting = [];
+  state.emptySessionIds = new Set();
   state.dissect.mockReset();
   state.dissect.mockResolvedValue({ hasSignal: true });
   state.afterPitch.mockReset();
@@ -106,6 +111,30 @@ describe("runDissectBackfill", () => {
     state.attemptEvents = [{ subject: "sales_session:s2" }];
     const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
     expect(r.missingTotal).toBe(1); // s1 only
+  });
+
+  it("EXCLUDES empty (0-segment) sessions from missing and reports them as noContent (founder 2026-08-25)", async () => {
+    // The bug behind "Generate missing won't generate": ~80% of un-dissected sessions were EMPTY captures (no
+    // transcript). They polluted the batch — every click reported 0 generated because the batch filled with empties
+    // and the real transcripts stayed buried. Now an empty session is not "missing", it's noContent.
+    state.sessions = [session("s1"), session("s2"), session("s3")];
+    state.emptySessionIds = new Set(["s2"]); // s2 captured no audio → 0 segments
+    const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
+    expect(r.missingTotal).toBe(2); // s1, s3 (recoverable — have a transcript)
+    expect(r.noContent).toBe(1); // s2 (empty capture, nothing to assess)
+    expect(state.dissect).toHaveBeenCalledTimes(2); // only the two WITH content are processed — no wasted LLM on s2
+  });
+
+  it("a batch full of empty sessions generates 0 but reports them as noContent, not a frozen 'remaining'", async () => {
+    // The exact founder symptom: click generates 0. Post-fix, remaining reflects RECOVERABLE sessions (0 here), and
+    // the empties are surfaced honestly instead of looking like a stuck, un-generatable backlog.
+    state.sessions = [session("s1"), session("s2"), session("s3")];
+    state.emptySessionIds = new Set(["s1", "s2", "s3"]);
+    const r = await runDissectBackfill({ companyId: "c1", cap: 6 });
+    expect(r.missingTotal).toBe(0);
+    expect(r.remaining).toBe(0);
+    expect(r.noContent).toBe(3);
+    expect(state.dissect).not.toHaveBeenCalled(); // no LLM burned on empty captures
   });
 
   it("never exceeds the cap; the rest is reported as remaining (drains over runs)", async () => {

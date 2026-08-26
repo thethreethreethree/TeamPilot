@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionTranscriptAdmin } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 import { generateAndStoreAfterPitch } from "@/lib/coach/v5/generateAndStoreAfterPitch";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
  * Shared session-review backfill core (§A21 — one implementation, two callers):
@@ -51,6 +52,10 @@ export type DissectBackfillResult = {
   generated: number;
   thinOrFailed: number;
   remaining: number;
+  // Sessions that are un-dissected but have ZERO transcript segments — an empty/failed capture, NOT a recoverable
+  // "missing dissect" (§3.4 — you cannot assess a session with no content). Reported so the manager sees WHY the
+  // count isn't fully recoverable, instead of clicking a button that reports 0 forever (founder 2026-08-25).
+  noContent: number;
   // True when the session scan hit its limit — there may be older un-
   // dissected sessions beyond the window (honest bound, §3.4).
   scanBounded: boolean;
@@ -86,6 +91,7 @@ export async function runDissectBackfill(args: {
     generated: 0,
     thinOrFailed: 0,
     remaining: 0,
+    noContent: 0,
     scanBounded: sessions.length >= scanLimit,
   };
   if (sessions.length === 0) return emptyResult;
@@ -123,9 +129,31 @@ export async function runDissectBackfill(args: {
     )
   );
 
-  const missing = sessions.filter(
+  const missingAll = sessions.filter(
     (s) => !dissected.has(s.id as string) && !recentlyAttempted.has(s.id as string)
   );
+
+  // Content-aware (founder 2026-08-25 "Generate missing won't generate the missing sessions"): a session with ZERO
+  // transcript segments has no content to assess — it is an empty/failed capture (the iOS empty-capture class fixed
+  // in 34a8ab71), NOT a recoverable "missing dissect". Counting + batching those pollutes the button: the manager
+  // clicks, the batch fills with empty sessions, every run reports 0 generated, and the real transcripts stay buried.
+  // Split them out — only sessions WITH a transcript are recoverable; empty ones are reported honestly (noContent)
+  // and never block the batch. The check is live each run, so a later re-transcription auto-recovers a session.
+  const missingIds = missingAll.map((s) => s.id as string);
+  const contentRows = missingIds.length
+    ? await fetchAllPaged<{ session_id: string }>(
+        (from, to) =>
+          admin
+            .from("coaching_transcript_segments")
+            .select("session_id")
+            .in("session_id", missingIds)
+            .range(from, to),
+        { label: "backfill-content-check" },
+      )
+    : [];
+  const hasContent = new Set(contentRows.map((r) => String(r.session_id)));
+  const missing = missingAll.filter((s) => hasContent.has(s.id as string));
+  const noContent = missingAll.length - missing.length;
   const batch = missing.slice(0, args.cap);
 
   // Which of the batch ALREADY have an After-Pitch summary (generated on-view) — skip regenerating those, so a
@@ -193,6 +221,7 @@ export async function runDissectBackfill(args: {
     generated,
     thinOrFailed,
     remaining: Math.max(0, missing.length - batch.length),
+    noContent,
     scanBounded: sessions.length >= scanLimit,
   };
 }
