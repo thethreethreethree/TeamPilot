@@ -85,6 +85,13 @@ export default function SalesCoachRoleplayPage() {
   // with the deliberate "ephemeral, not persisted" design.
   useEffect(() => {
     try {
+      // A fresh "Practice this skill" launch (?focus=) must START CLEAN at setup — never resume a stale in-progress
+      // roleplay and graft the new skill onto it (which would score an unrelated conversation against a skill it never
+      // practiced). Skip recovery and drop the stale copy so the focus effect below seeds a fresh setup + banner.
+      if (new URLSearchParams(window.location.search).get("focus")?.trim()) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        return;
+      }
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw) as {
@@ -112,7 +119,8 @@ export default function SalesCoachRoleplayPage() {
   // focus above, so this only fills a fresh launch.
   useEffect(() => {
     try {
-      const f = new URLSearchParams(window.location.search).get("focus")?.trim();
+      // Clamp to the route's 600-char limit so an unusually long focus can't 400 every turn (dead-end practice).
+      const f = new URLSearchParams(window.location.search).get("focus")?.trim().slice(0, 600);
       if (f) setPracticeFocus((prev) => prev ?? f);
     } catch {
       /* ignore — the seed is optional */

@@ -93,15 +93,33 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
     /* door context is optional — the coaching signal is the point */
   }
 
-  const activeRepNames = [...new Set(rows.map((r) => nameById.get(r.actor) ?? "Unnamed"))];
+  // Per-rep signal for the "one focus each" line: each active rep's OWN most-common growth area. This MUST reach the
+  // prompt — without a rep's real name + their own signal the model has nothing to attribute a focus to, and every
+  // name it guesses is dropped by the validSet filter below (repFocus was always empty). §A18: a growth direction per
+  // rep, never a grade. Names are de-duplicated by actor; a rep with no growth point is omitted (no fabricated focus).
+  const rowsByActor = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const arr = rowsByActor.get(row.actor) ?? [];
+    arr.push(row);
+    rowsByActor.set(row.actor, arr);
+  }
+  const repSignals = [...rowsByActor.entries()]
+    .map(([actor, actorRows]) => ({
+      rep: nameById.get(actor) ?? "Unnamed",
+      topFocus: rankByFrequency(aggregateDissectContent(actorRows).growth, 1)[0] ?? "",
+    }))
+    .filter((s) => s.topFocus);
+  const validRepNames = repSignals.map((s) => s.rep);
+
   const systemPrompt = buildTeamBriefSystemPrompt();
   const userMessage = buildTeamBriefUserMessage({
     periodLabel: PERIOD_LABEL,
-    repCount: activeRepNames.length,
+    repCount: rowsByActor.size,
     dissectCount,
     growthAreas,
     strategies,
     strengths,
+    repSignals,
     door,
   });
 
@@ -109,9 +127,9 @@ export async function generateTeamTrainingBrief(companyId: string): Promise<Team
   if (!r.text || !r.text.trim()) {
     return { ok: false, reason: "llm_empty", dissectCount, periodLabel: PERIOD_LABEL };
   }
-  const brief = parseTeamBrief(r.text, PERIOD_LABEL, activeRepNames);
+  const brief = parseTeamBrief(r.text, PERIOD_LABEL, validRepNames);
   if (!brief) return { ok: false, reason: "llm_empty", dissectCount, periodLabel: PERIOD_LABEL };
-  return { ok: true, brief, dissectCount, repCount: activeRepNames.length, periodLabel: PERIOD_LABEL };
+  return { ok: true, brief, dissectCount, repCount: rowsByActor.size, periodLabel: PERIOD_LABEL };
 }
 
 // Parse + shape-guard the LLM JSON. Tolerant of a ```json fence; drops malformed items rather than throwing so a

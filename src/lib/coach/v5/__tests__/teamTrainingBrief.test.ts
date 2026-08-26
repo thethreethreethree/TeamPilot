@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseTeamBrief } from "../teamTrainingBrief";
+import { buildTeamBriefUserMessage } from "../teamTrainingBriefPrompt";
 
 /**
  * parseTeamBrief shape-guards the Team Training Brief LLM output. Honesty properties that matter (§3.4 / §A18):
@@ -53,5 +54,46 @@ describe("parseTeamBrief", () => {
     const b = parseTeamBrief(text, LABEL, REPS)!;
     expect(b.themes).toHaveLength(3);
     expect(b.drill.steps).toHaveLength(6);
+  });
+});
+
+/**
+ * F1 regression guard (review 2026-08-26): the engine whitelists repFocus against the reps' REAL names, so the prompt
+ * MUST carry those real names (+ each rep's own growth) — otherwise the model has nothing to attribute a focus to and
+ * every name it invents is filtered out, making "one focus each" permanently empty. Lock the name into the prompt.
+ */
+describe("buildTeamBriefUserMessage — carries per-rep names into the prompt (F1)", () => {
+  it("includes each repSignal's real name and their top focus", () => {
+    const msg = buildTeamBriefUserMessage({
+      periodLabel: "the last 7 days",
+      repCount: 2,
+      dissectCount: 6,
+      growthAreas: ["discovery"],
+      strategies: [],
+      strengths: [],
+      repSignals: [
+        { rep: "Anthony", topFocus: "Ask before pitching" },
+        { rep: "Humza", topFocus: "Slow the close" },
+      ],
+      door: { doorsKnocked: 10, presentations: 6, sold: 2 },
+    });
+    expect(msg).toContain("Anthony");
+    expect(msg).toContain("Humza");
+    expect(msg).toContain("Ask before pitching");
+    expect(msg).toMatch(/PER-REP SIGNAL/);
+  });
+
+  it("degrades honestly when there is no per-rep signal (omit repFocus, no fabricated names)", () => {
+    const msg = buildTeamBriefUserMessage({
+      periodLabel: "the last 7 days",
+      repCount: 0,
+      dissectCount: 4,
+      growthAreas: ["discovery"],
+      strategies: [],
+      strengths: [],
+      repSignals: [],
+      door: { doorsKnocked: 0, presentations: 0, sold: 0 },
+    });
+    expect(msg).toMatch(/omit repFocus/i);
   });
 });

@@ -79,40 +79,50 @@ function TrainingList({
 }
 
 export default function TrainingPage() {
-  const [mode, setMode] = useState<"loading" | "manager" | "rep">("loading");
+  const [mode, setMode] = useState<"loading" | "manager" | "rep" | "error">("loading");
   const [team, setTeam] = useState<RepTraining[]>([]);
   const [mine, setMine] = useState<Mine | null>(null);
   const [error, setError] = useState(false);
 
+  const fail = useCallback(() => {
+    setError(true);
+    setMode("error"); // never leave the page stuck on "Loading…" behind the error banner (F3)
+  }, []);
+
   const load = useCallback(async () => {
     try {
-      // Managers can read the team; reps get 403 → fall back to their own trainings.
+      // Managers can read the team; ONLY a 403 (not a manager) falls back to the rep's own trainings. A 5xx / network
+      // error must NOT silently downgrade a real manager to the rep view (F2) — it's an error, shown as one.
       const res = await fetch("/api/coach/sales-session/coach-assessment").catch(() => null);
       if (res && res.ok) {
         const d = await res.json();
-        if (d.degraded) setError(true);
+        if (d.degraded) fail();
         else {
           setTeam(((d.team ?? []) as RepTraining[]).filter((r) => r.growthAreas?.length || r.strategies?.length || r.dissectCount));
           setMode("manager");
         }
         return;
       }
-      // Rep portal — their own trainings.
+      if (!res || res.status !== 403) {
+        fail(); // a transient/server error — not a rep, so don't show the rep view
+        return;
+      }
+      // 403 → not a manager → the rep portal: their own trainings.
       const meRes = await fetch("/api/coach/sales-session/my-training").catch(() => null);
       if (meRes && meRes.ok) {
         const d = await meRes.json();
-        if (d.degraded) setError(true);
+        if (d.degraded) fail();
         else {
           setMine(d as Mine);
           setMode("rep");
         }
       } else {
-        setError(true);
+        fail();
       }
     } catch {
-      setError(true);
+      fail();
     }
-  }, []);
+  }, [fail]);
 
   useEffect(() => {
     void load();

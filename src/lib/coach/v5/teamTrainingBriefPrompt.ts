@@ -18,6 +18,10 @@ export type TeamTrainingBriefInput = {
   growthAreas: string[];
   strategies: string[];
   strengths: string[];
+  // Per-rep signal for the one-line focus each: a rep's name + their OWN top growth area (from their own Dissects).
+  // Without this the model has no real rep names and every focus it invents is filtered out (repFocus stays empty).
+  // §A18: this is a growth DIRECTION per rep, never a grade or ranking.
+  repSignals: { rep: string; topFocus: string }[];
   // Team door activity for context (objective results, not a ranking).
   door: { doorsKnocked: number; presentations: number; sold: number };
 };
@@ -41,7 +45,7 @@ export function buildTeamBriefSystemPrompt(): string {
     "RULES:",
     "- Coach the PATTERN, not the person. The team themes must come from the pooled growth areas / strategy gaps you were given — never invent a weakness the data doesn't show.",
     "- The drill must be concrete and runnable in ~10-15 minutes by a manager with no prep (name it; give 3-5 numbered steps; tie it to a theme).",
-    "- repFocus is ONE short coaching focus per named rep — a direction to grow, never a grade, ranking, or criticism. Only include reps present in the input.",
+    "- repFocus is ONE short coaching focus for each rep listed under PER-REP SIGNAL — phrase THAT rep's own growth area as a forward direction to grow, never a grade, ranking, or criticism. Use the rep's name EXACTLY as given. Only include reps listed under PER-REP SIGNAL.",
     "- Be specific and practical. No filler, no praise padding. If a field has thin signal, keep it short rather than padding it.",
     "- Do NOT use em dashes or en dashes; write plainly.",
     "",
@@ -63,6 +67,11 @@ export function buildTeamBriefUserMessage(input: TeamTrainingBriefInput): string
     "",
     "TEAM STRENGTHS to build on:",
     list(input.strengths),
+    "",
+    "PER-REP SIGNAL (write ONE grounded coaching focus for each rep below, from THEIR own growth area — a direction, never a grade):",
+    input.repSignals.length
+      ? input.repSignals.map((s) => `- ${s.rep}: ${s.topFocus}`).join("\n")
+      : "- (no per-rep signal this period — omit repFocus)",
     "",
     `DOOR ACTIVITY (context): ${input.door.doorsKnocked} knocked, ${input.door.presentations} presentations, ${input.door.sold} sold.`,
     "",
