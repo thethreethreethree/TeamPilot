@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { recordPracticeScore } from "@/lib/coach/v5/practiceAnalytics";
 // Prompt-injection fence — the roleplay transcript is conversation text; the AI
 // must stay in the prospect role and never obey commands embedded in it.
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
@@ -281,6 +282,13 @@ export async function POST(req: NextRequest) {
         { status: 502 }
       );
     }
+    // Record the attempt for practice analytics (append-only, best-effort, AFTER the response so a serverless freeze
+    // can't drop it). The rep sees the trend on their portal; the manager sees per-rep growth over time (§A18).
+    const repId = auth.user.id;
+    const sc = scored.scorecard;
+    after(() =>
+      recordPracticeScore({ companyId, repId, focus: sc.focus, applied: sc.applied, score: sc.score }),
+    );
     return NextResponse.json({ review: scored.review, scorecard: scored.scorecard });
   }
 

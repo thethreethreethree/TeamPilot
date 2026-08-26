@@ -4,6 +4,11 @@ import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 import { getAllTimeKpi } from "@/lib/data/doorlog";
+import {
+  PRACTICE_EVENT_KIND,
+  summarizePracticeForManager,
+  type ManagerPracticeSummary,
+} from "@/lib/coach/v5/practiceAnalytics";
 
 /**
  * GET /api/coach/sales-session/coach-assessment
@@ -110,11 +115,16 @@ export async function GET() {
     // not a coaching leaderboard (§A18 still holds: alphabetical, coaching is per-own-growth). Best-effort: a KPI
     // read error yields null (not a false 0, §3.4) and never degrades the coaching page.
     doorKpi: DoorKpi | null;
+    // Per-rep practice growth (founder 2026-08-26). §A18 "closest to the feedback": the manager sees each rep's
+    // practice ACTIVITY + growth DIRECTION over time (to coach from), rendered UNRANKED — never a score leaderboard.
+    // Best-effort: a read error yields null (not a false 0, §3.4).
+    practice: ManagerPracticeSummary | null;
   };
+  const PRACTICE_N = 200; // recent practice attempts per rep to derive the growth direction (bounded)
   const perRep = await Promise.all(
     agents.map(
       async (a): Promise<{ id: string; agg: Agg } | { error: true }> => {
-        const [countRes, contentRes, doorKpi] = await Promise.all([
+        const [countRes, contentRes, doorKpi, practiceRes] = await Promise.all([
           admin
             .from("events")
             .select("*", { count: "exact", head: true })
@@ -129,10 +139,21 @@ export async function GET() {
             .limit(DISSECT_CONTENT_N),
           // Best-effort — door metrics must never blank the coaching page (null on any error, never a false 0).
           getAllTimeKpi(a.id).catch(() => null),
+          // Best-effort — practice growth must never blank the coaching page.
+          admin
+            .from("events")
+            .select("payload, created_at")
+            .eq("kind", PRACTICE_EVENT_KIND)
+            .eq("actor", a.id)
+            .order("created_at", { ascending: false })
+            .limit(PRACTICE_N),
         ]);
         if (countRes.error || contentRes.error) return { error: true };
         const content = aggregateDissectContent(contentRes.data ?? []);
-        const agg: Agg = { ...content, count: countRes.count ?? 0, doorKpi };
+        const practice = practiceRes.error
+          ? null
+          : summarizePracticeForManager((practiceRes.data ?? []) as { payload: unknown; created_at: unknown }[]);
+        const agg: Agg = { ...content, count: countRes.count ?? 0, doorKpi, practice };
         return { id: a.id, agg };
       }
     )
@@ -158,6 +179,7 @@ export async function GET() {
         strategies: uniqTrim(d?.strategies ?? [], 4),
         lastAt: d?.lastAt ?? null,
         doorKpi: d?.doorKpi ?? null,
+        practice: d?.practice ?? null,
       };
     })
     // Only agents who have at least one dissect show coaching content; the
