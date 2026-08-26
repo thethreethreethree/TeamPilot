@@ -7,6 +7,7 @@ import { getAllTimeKpi } from "@/lib/data/doorlog";
 import {
   PRACTICE_EVENT_KIND,
   summarizePracticeForManager,
+  summarizeTeamPractice,
   type ManagerPracticeSummary,
 } from "@/lib/coach/v5/practiceAnalytics";
 
@@ -139,12 +140,15 @@ export async function GET() {
             .limit(DISSECT_CONTENT_N),
           // Best-effort — door metrics must never blank the coaching page (null on any error, never a false 0).
           getAllTimeKpi(a.id).catch(() => null),
-          // Best-effort — practice growth must never blank the coaching page.
+          // Best-effort — practice growth must never blank the coaching page. company_id-pinned as well as
+          // actor-pinned (defense-in-depth: symmetric with the write's tenant tag; keeps the read correct if a rep
+          // ever spans companies — INV15-style tenant scoping on the read).
           admin
             .from("events")
             .select("payload, created_at")
             .eq("kind", PRACTICE_EVENT_KIND)
             .eq("actor", a.id)
+            .eq("company_id", ctx.companyId)
             .order("created_at", { ascending: false })
             .limit(PRACTICE_N),
         ]);
@@ -186,5 +190,11 @@ export async function GET() {
     // rest are listed as "no sessions yet" by the page. Alphabetical.
     .sort((x, y) => x.agentName.localeCompare(y.agentName));
 
-  return NextResponse.json({ team });
+  // Team practice rollup (founder's "team-level data for the meeting") — a pure AGGREGATE over the per-rep practice
+  // summaries already computed, no individual named/rankable (§A18-safest). Honest zeros when nobody has practiced.
+  const teamPractice = summarizeTeamPractice(
+    team.map((t) => t.practice).filter((p): p is ManagerPracticeSummary => p !== null),
+  );
+
+  return NextResponse.json({ team, teamPractice });
 }

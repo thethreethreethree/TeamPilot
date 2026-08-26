@@ -26,8 +26,8 @@ type Attempt = { focus: string; applied: boolean; score: number; at: string };
 export type FocusTrend = {
   focus: string;
   attempts: number;
-  latest: number; // most-recent APPLIED score (0-100)
-  first: number; // earliest APPLIED score in the window
+  latest: number | null; // most-recent APPLIED score (0-100); null if the skill was drilled but never once executed
+  first: number | null; // earliest APPLIED score in the window; null if never applied
   trend: "up" | "flat" | "down";
 };
 
@@ -78,14 +78,17 @@ export function aggregateRepPractice(rows: PracticeScoreEventRow[]): RepPractice
   const byFocus: FocusTrend[] = [...byFocusMap.entries()]
     .map(([focus, list]) => {
       const applied = list.filter((a) => a.applied);
-      const first = applied[0]?.score ?? 0;
-      const latest = applied[applied.length - 1]?.score ?? 0;
+      // null (not 0) when the rep drilled this skill but never once executed it — a fabricated 0 would read as a real
+      // score (§3.4). The row renders "not applied yet" in that case.
+      const first = applied.length ? applied[0]!.score : null;
+      const latest = applied.length ? applied[applied.length - 1]!.score : null;
       return {
         focus,
         attempts: list.length,
         latest,
         first,
-        trend: applied.length >= 2 ? trendOf(first, latest) : ("flat" as const),
+        trend:
+          applied.length >= 2 ? trendOf(applied[0]!.score, applied[applied.length - 1]!.score) : ("flat" as const),
         lastAt: list[list.length - 1]?.at ?? "",
       };
     })
@@ -120,6 +123,33 @@ export type ManagerPracticeSummary = {
 export function summarizePracticeForManager(rows: PracticeScoreEventRow[]): ManagerPracticeSummary {
   const s = aggregateRepPractice(rows);
   return { attempts: s.totalAttempts, latest: s.latest, trend: s.trend };
+}
+
+// Team-level practice rollup for the manager's meeting (founder's original "team-level data" ask). §A18-SAFEST: a pure
+// AGGREGATE — how much the team is practicing and which way it's moving — with NO individual named or rankable. Built
+// from the per-rep summaries the manager view already computes (no extra query). §3.4: honest zeros/nulls when nobody
+// has practiced, never a fabricated average.
+export type TeamPracticeSummary = {
+  activeReps: number; // reps with >=1 practice attempt
+  totalAttempts: number;
+  avgLatest: number | null; // mean of reps' latest applied scores (reps who have one); null if none
+  improving: number; // reps trending up
+  slipping: number; // reps trending down
+};
+
+export function summarizeTeamPractice(perRep: ManagerPracticeSummary[]): TeamPracticeSummary {
+  const active = perRep.filter((r) => r.attempts > 0);
+  const withLatest = active.filter((r) => r.latest !== null) as (ManagerPracticeSummary & { latest: number })[];
+  const avgLatest = withLatest.length
+    ? Math.round(withLatest.reduce((sum, r) => sum + r.latest, 0) / withLatest.length)
+    : null;
+  return {
+    activeReps: active.length,
+    totalAttempts: active.reduce((sum, r) => sum + r.attempts, 0),
+    avgLatest,
+    improving: active.filter((r) => r.trend === "up").length,
+    slipping: active.filter((r) => r.trend === "down").length,
+  };
 }
 
 /**

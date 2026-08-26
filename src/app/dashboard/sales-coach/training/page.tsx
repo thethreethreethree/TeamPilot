@@ -5,7 +5,7 @@ import Link from "next/link";
 import { GraduationCap, Dumbbell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { TeamTrainingBriefPanel } from "@/components/sales-coach/TeamTrainingBriefPanel";
 // Type-only (the module is server-only — erased at build, so no runtime import of it into this client page).
-import type { RepPracticeSummary, ManagerPracticeSummary } from "@/lib/coach/v5/practiceAnalytics";
+import type { RepPracticeSummary, ManagerPracticeSummary, TeamPracticeSummary } from "@/lib/coach/v5/practiceAnalytics";
 
 /**
  * /dashboard/sales-coach/training — the Training tab (founder 2026-08-26).
@@ -39,6 +39,37 @@ function TrendChip({ trend }: { trend: "up" | "flat" | "down" | null }) {
   if (trend === "flat")
     return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted"><Minus className="w-3 h-3" aria-hidden />holding</span>;
   return null;
+}
+
+// Team practice rollup (founder's team-level meeting data). Pure aggregate — how much the team is practicing and which
+// way it's moving — no individual named (§A18-safest). Honest empty when nobody has practiced.
+function TeamPracticeCard({ team }: { team: TeamPracticeSummary }) {
+  if (team.activeReps === 0) {
+    return (
+      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+        <h2 className="text-sm font-semibold text-primary mb-1">Team practice</h2>
+        <p className="text-[11px] text-muted">No one has practiced yet — it fills in as reps drill their focuses.</p>
+      </section>
+    );
+  }
+  const Stat = ({ n, label }: { n: string; label: string }) => (
+    <div className="flex-1 min-w-0">
+      <div className="text-lg font-bold text-primary tabular-nums leading-none">{n}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted mt-1">{label}</div>
+    </div>
+  );
+  return (
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+      <h2 className="text-sm font-semibold text-primary mb-3">Team practice</h2>
+      <div className="flex items-start gap-3">
+        <Stat n={String(team.totalAttempts)} label="Practices" />
+        <Stat n={String(team.activeReps)} label="Reps practising" />
+        {team.avgLatest !== null && <Stat n={`${team.avgLatest}`} label="Avg score" />}
+        <Stat n={`${team.improving}`} label="Improving" />
+        {team.slipping > 0 && <Stat n={`${team.slipping}`} label="Slipping" />}
+      </div>
+    </section>
+  );
 }
 
 // Manager's per-rep practice line — activity + growth direction, UNRANKED (§A18). Never shows a bare leaderboard score.
@@ -78,8 +109,13 @@ function MyPractice({ practice }: { practice?: RepPracticeSummary }) {
             <li key={i} className="flex items-start justify-between gap-2">
               <span className="text-secondary min-w-0">{f.focus}</span>
               <span className="shrink-0 inline-flex items-center gap-1.5">
-                <span className="text-primary font-semibold tabular-nums">{f.latest}</span>
-                <TrendChip trend={f.attempts >= 2 ? f.trend : null} />
+                {f.latest !== null ? (
+                  <span className="text-primary font-semibold tabular-nums">{f.latest}</span>
+                ) : (
+                  // Drilled but never executed the skill — honest, not a fabricated 0 (§3.4).
+                  <span className="text-[10px] text-muted">not applied yet</span>
+                )}
+                <TrendChip trend={f.latest !== null && f.attempts >= 2 ? f.trend : null} />
               </span>
             </li>
           ))}
@@ -149,6 +185,7 @@ function TrainingList({
 export default function TrainingPage() {
   const [mode, setMode] = useState<"loading" | "manager" | "rep" | "error">("loading");
   const [team, setTeam] = useState<RepTraining[]>([]);
+  const [teamPractice, setTeamPractice] = useState<TeamPracticeSummary | null>(null);
   const [mine, setMine] = useState<Mine | null>(null);
   const [error, setError] = useState(false);
 
@@ -167,6 +204,7 @@ export default function TrainingPage() {
         if (d.degraded) fail();
         else {
           setTeam(((d.team ?? []) as RepTraining[]).filter((r) => r.growthAreas?.length || r.strategies?.length || r.dissectCount));
+          setTeamPractice((d.teamPractice as TeamPracticeSummary | undefined) ?? null);
           setMode("manager");
         }
         return;
@@ -217,6 +255,7 @@ export default function TrainingPage() {
       {mode === "manager" && (
         <>
           <TeamTrainingBriefPanel />
+          {teamPractice && <TeamPracticeCard team={teamPractice} />}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-primary">Per-rep trainings</h2>
             {team.length === 0 ? (

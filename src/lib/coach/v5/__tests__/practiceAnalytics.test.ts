@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateRepPractice, summarizePracticeForManager } from "../practiceAnalytics";
+import { aggregateRepPractice, summarizePracticeForManager, summarizeTeamPractice } from "../practiceAnalytics";
 
 /**
  * Practice analytics aggregation. Properties that matter (§3.4 honesty / §A18 growth-not-rank):
@@ -80,6 +80,43 @@ describe("aggregateRepPractice", () => {
       ev("New skill", 60, true, "2026-08-05T00:00:00Z"),
     ]);
     expect(s.byFocus[0]?.focus).toBe("New skill");
+  });
+
+  it("per-focus latest is NULL (not a fabricated 0) for a skill drilled but never applied (Finding 1, §3.4)", () => {
+    const s = aggregateRepPractice([
+      ev("Cold open", 10, false, "2026-08-01T00:00:00Z"),
+      ev("Cold open", 15, false, "2026-08-02T00:00:00Z"),
+    ]);
+    expect(s.byFocus[0]?.attempts).toBe(2); // counted as activity
+    expect(s.byFocus[0]?.latest).toBeNull(); // NOT 0
+    expect(s.byFocus[0]?.first).toBeNull();
+  });
+});
+
+describe("summarizeTeamPractice — pure aggregate, no individual named (§A18)", () => {
+  const m = (attempts: number, latest: number | null, trend: "up" | "flat" | "down" | null) => ({ attempts, latest, trend });
+
+  it("honest zeros when nobody has practiced", () => {
+    expect(summarizeTeamPractice([])).toEqual({ activeReps: 0, totalAttempts: 0, avgLatest: null, improving: 0, slipping: 0 });
+    expect(summarizeTeamPractice([m(0, null, null)])).toEqual({ activeReps: 0, totalAttempts: 0, avgLatest: null, improving: 0, slipping: 0 });
+  });
+
+  it("aggregates active reps, total attempts, avg latest, and trend counts", () => {
+    const t = summarizeTeamPractice([
+      m(5, 80, "up"),
+      m(3, 60, "down"),
+      m(0, null, null), // inactive — excluded from activeReps/avg
+      m(2, 70, "flat"),
+    ]);
+    expect(t.activeReps).toBe(3);
+    expect(t.totalAttempts).toBe(10);
+    expect(t.avgLatest).toBe(70); // (80+60+70)/3
+    expect(t.improving).toBe(1);
+    expect(t.slipping).toBe(1);
+  });
+
+  it("avgLatest is null when active reps have no applied score yet (no fabricated average)", () => {
+    expect(summarizeTeamPractice([m(2, null, null), m(1, null, null)]).avgLatest).toBeNull();
   });
 });
 
