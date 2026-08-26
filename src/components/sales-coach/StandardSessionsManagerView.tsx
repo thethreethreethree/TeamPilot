@@ -4,19 +4,32 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 /**
- * ELOSALES Standard revision (PDF Sessions item 1a/1b) — the MANAGER view of the Standard Sessions tab:
- * a roster of team members → click a name → that rep's recordings from the past 2 days. Each recording links
- * to the existing session detail (playback/transcript) and has a Save toggle so it survives the 2-day purge.
+ * ELOSALES Standard revision — the MANAGER view of the Standard Sessions tab: a roster of team members with each
+ * rep's recent USAGE (session count + last active), click a name → that rep's recent sessions. Each session links to
+ * the session detail (transcript/review) and, when a recording exists, has a Save toggle.
  *
- * A rep (non-manager) never sees this — they keep their own Sessions self-view (A10), passed as `fallback`.
- * Standard-only; Expert is untouched. Layer-4 polish restrained + open to iteration.
+ * Founder fix 2026-08-27 ("view session not working — active reps not showing up"): the old view only listed sessions
+ * that STILL HAD AUDIO within the last 2 days, so a rep who used the product but whose captures had no stored audio
+ * (or whose sessions were older than 2 days) was invisible and their usage unmonitorable. This now shows ACTIVITY —
+ * every session in the last 30 days, with a recording indicator — so the manager can actually see who's using it.
+ *
+ * A rep (non-manager) never sees this — they keep their own Sessions self-view (A10), passed as `fallback`. §A18:
+ * activity, never a ranking (unsorted, alphabetical by name).
  */
 
 type Member = { id: string; fullName: string | null; companyRole: string | null; salesCoachRole: "admin" | "staff" | null };
-type Recording = { id: string; clientLabel: string | null; createdAt: string; saved: boolean };
+type Activity = { count: number; lastActiveAt: string; withAudio: number };
+type Session = { id: string; clientLabel: string | null; status: string; startedAt: string; hasAudio: boolean; saved: boolean };
+
+function relDay(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export function StandardSessionsManagerView({ fallback }: { fallback: React.ReactNode }) {
   const [members, setMembers] = useState<Member[] | null>(null);
+  const [activity, setActivity] = useState<Record<string, Activity>>({});
   const [isManager, setIsManager] = useState<boolean | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
@@ -32,48 +45,63 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
       })
       // §3.4: a failed read is not "not a manager"; show an honest error, never silently the rep view.
       .catch(() => { if (!cancelled) setError(true); });
+    // Per-rep usage summary (best-effort — the roster still renders without it).
+    void fetch("/api/coach/sales-session/team-activity")
+      .then((r) => (r.ok ? r.json() : { byAgent: {} }))
+      .then((d) => { if (!cancelled) setActivity(d.byAgent ?? {}); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
   if (error) return <div className="text-sm text-muted">Couldn&apos;t load your team — refresh to try again.</div>;
   if (isManager === null) return <div className="text-sm text-muted">Loading team…</div>;
   if (isManager === false) return <>{fallback}</>;
-  if (selected) return <RepRecordings member={selected} onBack={() => setSelected(null)} />;
+  if (selected) return <RepActivity member={selected} onBack={() => setSelected(null)} />;
 
   return (
     <div className="glass-card p-5">
       <h2 className="text-sm font-semibold text-primary mb-1">Your team</h2>
-      {/* A27 — this line used to read "Recordings clear after 2 days unless saved." That PROMISED an invariant
-          nothing enforces: the retention purge is DORMANT (it needs 0187 applied plus CRON_SECRET and a schedule
-          entry), so nothing deletes anything today. What actually happens is this list FILTERS to the last 2
-          days — the recordings are hidden, not cleared, and they persist in storage. A promised-but-unenforced
-          invariant is worse than silence (§3.4), and this one is a false PRIVACY assurance: a rep reading
-          "clear" believes their calls are ephemeral when they are merely out of sight. The label now states
-          only what is actually true and verifiable from this surface; when the purge is wired, it can promise
-          deletion again — and A27's point is that the promise must follow the enforcement, never lead it. */}
       <p className="text-[11px] text-muted mb-4">
-        Open a rep to review their recent recordings. This list shows the last 2 days, plus anything saved.
+        Each rep&apos;s activity over the last 30 days. Open a rep to see their sessions and recordings.
       </p>
       <div className="flex flex-col divide-y divide-white/5">
-        {(members ?? []).map((m) => (
-          <button
-            key={m.id}
-            onClick={() => setSelected(m)}
-            className="flex items-center justify-between py-3 text-left hover:opacity-80"
-          >
-            <span className="text-sm text-primary">{m.fullName ?? "Unnamed rep"}</span>
-            <span className="text-[11px] text-muted">{m.salesCoachRole ?? m.companyRole ?? ""} →</span>
-          </button>
-        ))}
+        {(members ?? []).map((m) => {
+          const a = activity[m.id];
+          return (
+            <button
+              key={m.id}
+              onClick={() => setSelected(m)}
+              className="flex items-center justify-between py-3 text-left hover:opacity-80 gap-3"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm text-primary truncate">{m.fullName ?? "Unnamed rep"}</span>
+                <span className="block text-[11px] text-muted">
+                  {a && a.count > 0
+                    ? `${a.count} session${a.count === 1 ? "" : "s"} · last active ${relDay(a.lastActiveAt)}`
+                    : "No sessions in the last 30 days"}
+                </span>
+              </span>
+              <span className="text-[11px] text-muted shrink-0">{m.salesCoachRole ?? m.companyRole ?? ""} →</span>
+            </button>
+          );
+        })}
         {(members ?? []).length === 0 && <p className="py-3 text-sm text-muted">No team members yet.</p>}
       </div>
     </div>
   );
 }
 
-function RepRecordings({ member, onBack }: { member: Member; onBack: () => void }) {
-  const [recordings, setRecordings] = useState<Recording[] | null>(null);
+function statusLabel(s: string): string {
+  if (s === "reviewed") return "Reviewed";
+  if (s === "ended") return "Completed";
+  if (s === "active") return "In progress";
+  return s;
+}
+
+function RepActivity({ member, onBack }: { member: Member; onBack: () => void }) {
+  const [sessions, setSessions] = useState<Session[] | null>(null);
   const [savingAvailable, setSavingAvailable] = useState(true);
+  const [windowDays, setWindowDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -82,16 +110,14 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
     setLoading(true);
     setError(false);
     try {
-      const r = await fetch(`/api/coach/sales-session/recordings?agentId=${encodeURIComponent(member.id)}`);
-      if (!r.ok) throw new Error("recordings read failed");
+      const r = await fetch(`/api/coach/sales-session/rep-activity?agentId=${encodeURIComponent(member.id)}`);
+      if (!r.ok) throw new Error("activity read failed");
       const d = await r.json();
-      setRecordings(d.recordings ?? []);
-      // §3.4 honesty: the endpoint tells us whether the save-past-2-days column (0187) is live. When it isn't,
-      // don't render a Save button that can only silently fail — omit the affordance (AMD-006 L4).
+      setSessions(d.sessions ?? []);
       setSavingAvailable(d.savingAvailable !== false);
+      setWindowDays(d.windowDays ?? 30);
     } catch {
-      // §3.4: a failed read must not read as "no recordings".
-      setError(true);
+      setError(true); // §3.4: a failed read must not read as "no sessions".
     } finally {
       setLoading(false);
     }
@@ -99,22 +125,20 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
 
   useEffect(() => { void load(); }, [load]);
 
-  const toggleSave = async (rec: Recording) => {
-    setSavingId(rec.id);
-    // optimistic
-    setRecordings((rs) => (rs ?? []).map((x) => (x.id === rec.id ? { ...x, saved: !x.saved } : x)));
+  const toggleSave = async (s: Session) => {
+    setSavingId(s.id);
+    setSessions((xs) => (xs ?? []).map((x) => (x.id === s.id ? { ...x, saved: !x.saved } : x)));
     try {
-      const res = await fetch(`/api/coach/sales-session/${rec.id}/save-recording`, {
+      const res = await fetch(`/api/coach/sales-session/${s.id}/save-recording`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ saved: !rec.saved }),
+        body: JSON.stringify({ saved: !s.saved }),
       });
       if (!res.ok) {
-        // revert on failure
-        setRecordings((rs) => (rs ?? []).map((x) => (x.id === rec.id ? { ...x, saved: rec.saved } : x)));
+        setSessions((xs) => (xs ?? []).map((x) => (x.id === s.id ? { ...x, saved: s.saved } : x)));
       }
     } catch {
-      setRecordings((rs) => (rs ?? []).map((x) => (x.id === rec.id ? { ...x, saved: rec.saved } : x)));
+      setSessions((xs) => (xs ?? []).map((x) => (x.id === s.id ? { ...x, saved: s.saved } : x)));
     } finally {
       setSavingId(null);
     }
@@ -124,38 +148,36 @@ function RepRecordings({ member, onBack }: { member: Member; onBack: () => void 
     <div className="glass-card p-5">
       <button onClick={onBack} className="text-[11px] text-muted hover:opacity-80 mb-3">← Team</button>
       <h2 className="text-sm font-semibold text-primary mb-1">{member.fullName ?? "Rep"}</h2>
-      {/* A27 again — "Save one to keep it longer" implies the unsaved ones go away. They don't yet (dormant
-          purge, see the note above). Saving is real and does exempt a recording from the purge once it runs, so
-          the control is honest; the implied deletion is what had to go. */}
       <p className="text-[11px] text-muted mb-4">
-        Recordings from the last 2 days. Saving one keeps it in this list.
+        Sessions from the last {windowDays} days. A recording, when captured, can be saved to keep it longer.
       </p>
 
       {loading ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : error ? (
-        <p className="text-sm text-muted">Couldn&apos;t load recordings — try again.</p>
-      ) : (recordings ?? []).length === 0 ? (
-        <p className="text-sm text-muted">No recordings in the last 2 days.</p>
+        <p className="text-sm text-muted">Couldn&apos;t load activity — try again.</p>
+      ) : (sessions ?? []).length === 0 ? (
+        <p className="text-sm text-muted">No sessions in the last {windowDays} days.</p>
       ) : (
         <div className="flex flex-col divide-y divide-white/5">
-          {(recordings ?? []).map((rec) => (
-            <div key={rec.id} className="flex items-center justify-between py-3 gap-3">
-              <Link href={`/dashboard/sales-coach/${rec.id}`} className="min-w-0 hover:opacity-80">
-                <span className="block text-sm text-primary truncate">{rec.clientLabel ?? "Session"}</span>
+          {(sessions ?? []).map((s) => (
+            <div key={s.id} className="flex items-center justify-between py-3 gap-3">
+              <Link href={`/dashboard/sales-coach/${s.id}`} className="min-w-0 hover:opacity-80">
+                <span className="block text-sm text-primary truncate">{s.clientLabel ?? "Session"}</span>
                 <span className="block text-[11px] text-muted">
-                  {new Date(rec.createdAt).toLocaleString()}
+                  {new Date(s.startedAt).toLocaleString()} · {statusLabel(s.status)}
+                  {s.hasAudio ? " · 🎙 recording" : " · no recording"}
                 </span>
               </Link>
-              {savingAvailable && (
+              {savingAvailable && s.hasAudio && (
                 <button
-                  onClick={() => void toggleSave(rec)}
-                  disabled={savingId === rec.id}
+                  onClick={() => void toggleSave(s)}
+                  disabled={savingId === s.id}
                   className={`shrink-0 text-[11px] px-2 py-1 rounded border ${
-                    rec.saved ? "border-brand text-brand" : "border-white/15 text-muted"
+                    s.saved ? "border-brand text-brand" : "border-white/15 text-muted"
                   } hover:opacity-80 disabled:opacity-50`}
                 >
-                  {rec.saved ? "Saved" : "Save"}
+                  {s.saved ? "Saved" : "Save"}
                 </button>
               )}
             </div>
