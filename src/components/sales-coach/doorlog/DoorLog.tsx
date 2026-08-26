@@ -216,7 +216,8 @@ export function DoorLog() {
           fetch(DOOR_LOG_URL, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ kind: "sign" }),
+            // Send the blob's actual type so the stored file gets the right extension (iOS records mp4, not webm).
+            body: JSON.stringify({ kind: "sign", mimeType: audio.blob?.type || undefined }),
           }).catch(() => null);
         let signRes = await signOnce();
         if (signRes && needsSessionRefresh(signRes.status)) {

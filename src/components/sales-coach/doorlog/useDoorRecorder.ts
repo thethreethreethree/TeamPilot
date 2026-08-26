@@ -26,15 +26,30 @@ const DOOR_LOG_CHUNK_URL = "/api/coach/sales-session/door-log/audio-chunk";
 // MediaRecorder timeslice → ondataavailable fires this often, each firing a ~150-300 KB chunk we upload.
 const AUDIO_CHUNK_MS = 15_000;
 
+/** iPhone/iPod/iPad, plus iPadOS 13+ which masquerades as desktop Safari (Macintosh UA + a touch surface). */
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && typeof document !== "undefined" && "ontouchend" in document);
+}
+
 /**
- * Pick a mimeType the browser can ACTUALLY encode (founder 2026-08-23). Passing no type lets the browser choose,
- * which is usually fine — but being explicit + verified avoids a silent no-data start on a browser whose default
- * it can't encode. Prefer webm (the whole existing pipeline is webm) and fall back to mp4 ONLY where webm is
- * unsupported — i.e. iOS Safari, which already defaults to mp4 anyway. "" → let the browser default (old behavior).
+ * Pick a mimeType the browser can ACTUALLY encode. Passing no type lets the browser choose; being explicit avoids a
+ * silent no-data start on a browser whose default it can't encode.
+ *
+ * iOS REGRESSION FIX (founder 2026-08-27, field telemetry): iOS Safari 18.x now FALSELY reports audio/webm as
+ * supported (isTypeSupported → true), but MediaRecorder then produces a sub-1KB STUB with no audio — 100% of the empty
+ * DoorLog captures were iOS recording as "audio/webm;codecs=opus" (sawData=true, tiny blob, chunksUploaded=0, no track
+ * loss / no recorder error). The 2026-08-23 change preferred webm for EVERY browser, which is exactly what broke iOS.
+ * iOS reliably encodes mp4/aac, so prefer those on iOS; keep webm-first elsewhere (the pipeline is webm-native and
+ * Chrome/Android webm works). "" → let the browser default.
  */
-function pickSupportedMimeType(): string {
+export function pickSupportedMimeType(): string {
   if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") return "";
-  for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", "audio/mpeg"]) {
+  const order = isIOS()
+    ? ["audio/mp4", "audio/aac", "audio/mpeg", "audio/webm;codecs=opus", "audio/webm"]
+    : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", "audio/mpeg"];
+  for (const t of order) {
     try {
       if (MediaRecorder.isTypeSupported(t)) return t;
     } catch {

@@ -29,7 +29,18 @@ const KnockBody = z.object({
   localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   clientKnockId: z.string().max(100).optional(),
 });
-const SignBody = z.object({ kind: z.literal("sign") });
+// mimeType: the recorded blob's actual type, so the stored file gets the RIGHT extension. iOS now records mp4 (not
+// webm) — naming an mp4 blob "pitch.webm" can misparse in transcription. Optional (an older client omits it → webm).
+const SignBody = z.object({ kind: z.literal("sign"), mimeType: z.string().max(120).optional() });
+
+// Map a recorder mimeType to a storage filename extension. Defaults to webm (the non-iOS pipeline format).
+function extForMime(mime?: string): string {
+  const m = (mime ?? "").toLowerCase();
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "mp4";
+  if (m.includes("mpeg") || m.includes("mp3")) return "mp3";
+  if (m.includes("ogg")) return "ogg";
+  return "webm";
+}
 const PitchBody = z.object({
   kind: z.literal("pitch"),
   outcome: z.enum(["sold", "go_back", "non_decision_maker", "not_interested"]),
@@ -71,7 +82,8 @@ export async function POST(req: NextRequest) {
     const target = await createSignedUploadTarget({
       companyId,
       fileId: randomUUID(),
-      originalFilename: "pitch.webm",
+      // Extension reflects the ACTUAL recorded format (iOS records mp4, not webm) so transcription parses it right.
+      originalFilename: `pitch.${extForMime(body.mimeType)}`,
     });
     if (!target.ok) {
       // F7 (CWE-209): don't return the raw storage exception to the client; log it, send a generic message.

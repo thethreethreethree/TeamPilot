@@ -20,6 +20,9 @@ const Body = z.object({
   localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   diag: z.object({
     sawData: z.boolean().optional(),
+    // TOTAL bytes across all data events — THE signal that distinguishes a real-audio capture from a tiny stub
+    // (iOS webm produced sub-1KB stubs read as sawData=true). Was being stripped by this schema, blinding diagnosis.
+    capturedBytes: z.number().int().nonnegative().max(2_000_000_000).optional(),
     chunkCount: z.number().int().nonnegative().max(100_000).optional(),
     chunksUploaded: z.number().int().nonnegative().max(100_000).optional(),
     durationMs: z.number().nonnegative().max(86_400_000).optional(),
