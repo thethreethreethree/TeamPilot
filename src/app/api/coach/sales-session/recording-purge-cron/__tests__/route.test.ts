@@ -19,20 +19,32 @@ const req = (authHeader?: string) =>
     },
   }) as unknown as Parameters<typeof GET>[0];
 
-// .from("coaching_sessions").select().not().eq().lt().order().limit() -> { data, error }
-const adminRead = (o: { data?: unknown; error?: unknown }) => ({
+// Count-based retention: fetchAllPaged calls .from().select().not().eq().order().range(from,to). Return the rows on
+// the first page only (fetchAllPaged stops when a page is short). An `error` makes fetchAllPaged throw → 500.
+const adminRead = (o: { data?: unknown[]; error?: unknown }) => ({
   from: () => ({
     select: () => ({
       not: () => ({
         eq: () => ({
-          lt: () => ({
-            order: () => ({ limit: async () => ({ data: o.data ?? null, error: o.error ?? null }) }),
+          order: () => ({
+            range: async (from: number) =>
+              from === 0 ? { data: o.data ?? [], error: o.error ?? null } : { data: [], error: null },
           }),
         }),
       }),
     }),
   }),
 });
+// N recordings for ONE rep, NEWEST-first (i=0 newest). Beyond KEEP_PER_REP=20, the oldest are purge-eligible.
+const repRows = (n: number, opts: { malformedOldest?: boolean } = {}) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `s${i + 1}`,
+    company_id: "co1",
+    agent_id: "a1",
+    audio_asset_url:
+      opts.malformedOldest && i === n - 1 ? "https://example.com/full/url.mp3" : `assets-v1/co1/s${i + 1}/recording.webm`,
+    created_at: new Date(Date.now() - i * 1000).toISOString(),
+  }));
 const setAdmin = (v: unknown) =>
   (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(v);
 
@@ -64,26 +76,22 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     expect(JSON.stringify(await res.json())).not.toContain("internal pg detail");
   });
 
-  it("purges a valid recording: removes the audio + its chunk objects, then nulls the pointer", async () => {
-    // The happy path was previously untested. Covers the core purge AND the 2026-08-21 chunk cleanup — a
-    // clean-Stopped session's incremental audio chunks (orphaned once persistRecording set audio_asset_url)
-    // are removed here so they don't accumulate. Best-effort but consequential (a storage DELETE).
+  it("purges only the recordings BEYOND the rep's 20 most-recent (count-based retention), oldest first", async () => {
+    // The founder 2026-08-26 count rule: keep each rep's 20 newest recordings; purge older ones (so a rep who
+    // hasn't pitched recently still has a rolling window to pull from). 21 recordings → exactly the oldest (s21) is
+    // beyond the window and purged, with its chunk cleanup; s1..s20 are untouched.
     process.env.CRON_SECRET = "s3cret";
     const removed: string[] = [];
     const listed: string[] = [];
     const updated: string[] = [];
+    const rows = repRows(21);
     setAdmin({
       from: () => ({
         select: () => ({
           not: () => ({
             eq: () => ({
-              lt: () => ({
-                order: () => ({
-                  limit: async () => ({
-                    data: [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }],
-                    error: null,
-                  }),
-                }),
+              order: () => ({
+                range: async (from: number) => (from === 0 ? { data: rows, error: null } : { data: [], error: null }),
               }),
             }),
           }),
@@ -93,16 +101,16 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
       storage: {
         from: () => ({
           remove: async (paths: string[]) => { removed.push(...paths); return { error: null }; },
-          list: async (prefix: string) => { listed.push(prefix); return { data: [{ name: "0.webm" }, { name: "1.webm" }], error: null }; },
+          list: async (prefix: string) => { listed.push(prefix); return { data: [{ name: "0.webm" }], error: null }; },
         }),
       },
     });
     const body = await (await GET(req("Bearer s3cret"))).json();
-    expect(body.purged).toBe(1);
-    expect(removed).toContain("co1/s1/recording.webm"); // the final recording object
-    expect(listed).toContain("co1/s1/chunks"); // the chunk prefix was listed (the cleanup)
-    expect(removed).toContain("co1/s1/chunks/0.webm"); // and its chunk objects removed
-    expect(updated).toContain("s1"); // pointer nulled last
+    expect(body.purged).toBe(1); // exactly the 1 beyond the 20-window
+    expect(body.keepPerRep).toBe(20);
+    expect(removed).toContain("co1/s21/recording.webm"); // the OLDEST recording, not the recent ones
+    expect(listed).toContain("co1/s21/chunks"); // its chunks cleaned up
+    expect(updated).toEqual(["s21"]); // ONLY s21 nulled — s1..s20 (the kept window) are untouched
   });
 
   it("does NOT purge a pointer of an UNRECOGNIZED shape — flags it malformed, never silently orphans the audio", async () => {
@@ -111,7 +119,8 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     // that would leave the audio PII alive forever while the run reports retention ran). No storage/update
     // mock is needed — a malformed row is skipped before either call.
     process.env.CRON_SECRET = "s3cret";
-    setAdmin(adminRead({ data: [{ id: "s1", audio_asset_url: "https://example.com/full/url.mp3" }] }));
+    // 21 recordings; the OLDEST (s21, beyond the 20-window) carries a full-URL pointer this cron can't verify.
+    setAdmin(adminRead({ data: repRows(21, { malformedOldest: true }) }));
     const res = await GET(req("Bearer s3cret"));
     expect(res.status).toBe(200);
     const body = await res.json();

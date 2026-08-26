@@ -25,6 +25,17 @@ function reqWith(auth?: string) {
 // Admin mock: the coaching_sessions select chain resolves to `rows`; storage.remove records its calls;
 // the update chain resolves cleanly. `.update()` returns a distinct object so the select-chain `.eq`
 // (chainable) and the update-chain `.eq` (terminal) don't collide.
+// N recordings for ONE rep, newest-first (i=0 newest); beyond KEEP_PER_REP=20 the oldest are purge-eligible.
+function repRows(n: number, opts: { malformedOldest?: boolean } = {}) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `s${i + 1}`,
+    company_id: "company",
+    agent_id: "a1",
+    audio_asset_url:
+      opts.malformedOldest && i === n - 1 ? "https://external.example/orphan.mp3" : `${ASSETS_BUCKET}/company/s${i + 1}.webm`,
+    created_at: new Date(Date.now() - i * 1000).toISOString(),
+  }));
+}
 function adminWith(rows: unknown[], opts: { removeError?: { message: string } } = {}) {
   const removeCalls: string[][] = [];
   const b: Record<string, unknown> = {};
@@ -33,7 +44,10 @@ function adminWith(rows: unknown[], opts: { removeError?: { message: string } } 
   b.eq = () => b;
   b.lt = () => b;
   b.order = () => b;
+  // fetchAllPaged calls .range(from,to); return the rows on the first page only.
+  b.range = (from: number) => Promise.resolve(from === 0 ? { data: rows, error: null } : { data: [], error: null });
   b.limit = () => Promise.resolve({ data: rows, error: null });
+  b.list = () => Promise.resolve({ data: [], error: null }); // chunk-cleanup list (best-effort; no chunks here)
   b.update = () => ({ eq: () => Promise.resolve({ error: null }) });
   const admin = {
     from: () => b,
@@ -43,6 +57,7 @@ function adminWith(rows: unknown[], opts: { removeError?: { message: string } } 
           removeCalls.push(paths);
           return Promise.resolve({ error: opts.removeError ?? null });
         },
+        list: () => Promise.resolve({ data: [], error: null }), // chunk-cleanup list (no chunks in these fixtures)
       }),
     },
   };
@@ -74,9 +89,8 @@ describe("recording-purge-cron — auth gate", () => {
 describe("recording-purge-cron — malformed-pointer guard (false-ok prevention)", () => {
   it("REFUSES to purge a row whose audio_asset_url isn't a recognized bucket path", async () => {
     process.env.CRON_SECRET = "s3cret";
-    const { admin, removeCalls } = adminWith([
-      { id: "s1", audio_asset_url: "https://external.example/orphan.mp3" }, // not `${ASSETS_BUCKET}/…`
-    ]);
+    // The OLDEST (s21, beyond the 20-window) has an unrecognized pointer — the guard must refuse it.
+    const { admin, removeCalls } = adminWith(repRows(21, { malformedOldest: true }));
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
     const json = await (await GET(reqWith("Bearer s3cret"))).json();
     expect(json.malformed).toBe(1); // flagged, surfaced (never swallowed)
@@ -86,13 +100,12 @@ describe("recording-purge-cron — malformed-pointer guard (false-ok prevention)
 
   it("purges a well-formed bucket-relative pointer: removes the bytes, then nulls the pointer", async () => {
     process.env.CRON_SECRET = "s3cret";
-    const { admin, removeCalls } = adminWith([
-      { id: "s2", audio_asset_url: `${ASSETS_BUCKET}/company/rec.webm` },
-    ]);
+    // 21 recordings; s21 (oldest, beyond the 20-window) is well-formed → its bytes removed, pointer nulled.
+    const { admin, removeCalls } = adminWith(repRows(21));
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
     const json = await (await GET(reqWith("Bearer s3cret"))).json();
     expect(json.purged).toBe(1);
     expect(json.malformed).toBe(0);
-    expect(removeCalls).toEqual([["company/rec.webm"]]); // bucket-relative path, bytes removed first
+    expect(removeCalls).toEqual([["company/s21.webm"]]); // ONLY the oldest, bucket-relative path, bytes removed first
   });
 });

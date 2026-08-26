@@ -3,22 +3,26 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { ASSETS_BUCKET } from "@/lib/storage/assets";
 import { chunkPrefix } from "@/lib/coach/v5/stitchSessionAudio";
+import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
- * GET /api/coach/sales-session/recording-purge-cron — ELOSALES retention (PDF Sessions item 1b):
- * "deletes the recordings after 2 days (unless saved by the manager or user)."
+ * GET /api/coach/sales-session/recording-purge-cron — recording retention.
  *
- * Deletes the AUDIO asset + nulls audio_asset_url for coaching_sessions whose recording is older than
- * RETENTION_DAYS AND recording_saved = false. Transcript + scores are KEPT — the PDF deletes the recording,
- * not the analytics that feed the skill profile. Saved recordings (rep or manager) are exempt.
+ * RETENTION MODEL (founder 2026-08-26, revised from the old 2-day age rule): keep each rep's most-recent
+ * KEEP_PER_REP recordings; purge only the ones OLDER than that per-rep window. The age rule deleted a rep's
+ * recordings after 2 days, so a rep who didn't pitch for >2 days had NOTHING for the manager to pull from — the
+ * count rule guarantees a rolling window of recent recordings regardless of how long ago they pitched.
+ *
+ * Deletes the AUDIO asset + nulls audio_asset_url for the purge-eligible sessions (recording_saved = false,
+ * beyond the rep's KEEP_PER_REP most-recent). Transcript + scores are KEPT — we drop the recording bytes, not the
+ * analytics that feed the skill profile. Saved recordings (rep or manager) are exempt (never candidates).
  *
  * Auth: same CRON_SECRET Bearer pattern as the durability/task-overrun crons (constantTimeEqual).
- * DORMANT until: 0187 applied + CRON_SECRET set + a vercel.json entry added AFTER 0187 lands (else it errors
- * on the missing recording_saved column — same sequencing discipline as the finance deliver-cron).
  * Bounded batch with an honest `bounded` flag (§3.4) — never a silent "all done".
  */
 
-const RETENTION_DAYS = 2;
+// Keep each rep's N most-recent recordings; purge older ones. Founder-chosen N=20 ("save last 20 recordings").
+const KEEP_PER_REP = 20;
 // NB: this cron removes bytes SEQUENTIALLY (one storage.remove() per session, for per-row error isolation —
 // unlike the RCD cron which batches all removes into one call). So 500 sequential storage round-trips could
 // approach the 60s maxDuration under a FULL backlog. Steady-state daily volume is tiny (only sessions that
@@ -47,21 +51,41 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  // Oldest-first so a backlog can't starve the oldest expired recordings (mirrors the durability sweep).
-  const { data: expired, error } = await admin
-    .from("coaching_sessions")
-    .select("id, company_id, audio_asset_url")
-    .not("audio_asset_url", "is", null)
-    .eq("recording_saved", false)
-    .lt("created_at", cutoff)
-    .order("created_at", { ascending: true })
-    .limit(BATCH);
-  if (error) {
-    console.error("[coach/recording-purge-cron] query failed:", error);
+  // Count-based retention: fetch ALL purge-eligible recordings (unsaved, has audio), NEWEST-first, then keep each
+  // rep's first KEEP_PER_REP and mark the rest (their older recordings) for purge. fetchAllPaged is cap-safe — the
+  // candidate set is only sessions that still HAVE audio (a bounded, self-limiting set once the rule is steady).
+  let candidates: Array<{ id: string; company_id: string | null; agent_id: string | null; audio_asset_url: string; created_at: string }>;
+  try {
+    candidates = await fetchAllPaged(
+      (from, to) =>
+        admin
+          .from("coaching_sessions")
+          .select("id, company_id, agent_id, audio_asset_url, created_at")
+          .not("audio_asset_url", "is", null)
+          .eq("recording_saved", false)
+          .order("created_at", { ascending: false })
+          .range(from, to),
+      { label: "recording-purge-candidates" },
+    );
+  } catch (e) {
+    console.error("[coach/recording-purge-cron] query failed:", e);
     return NextResponse.json({ error: "Purge query failed." }, { status: 500 });
   }
+
+  // Per rep, the first KEEP_PER_REP (newest) stay; everything after is beyond the window → purge. A null agent_id
+  // (shouldn't happen) is treated as its own bucket so it's never mixed with a real rep's window.
+  const seenPerRep = new Map<string, number>();
+  const beyondWindow: typeof candidates = [];
+  for (const row of candidates) {
+    const key = row.agent_id ?? `__null:${row.id}`;
+    const n = (seenPerRep.get(key) ?? 0) + 1;
+    seenPerRep.set(key, n);
+    if (n > KEEP_PER_REP) beyondWindow.push(row);
+  }
+  // Purge OLDEST-first (candidates were newest-first, so the tail is oldest) and cap the batch; `bounded` self-heals.
+  beyondWindow.reverse();
+  const expired = beyondWindow.slice(0, BATCH);
 
   let purged = 0;
   let assetErrors = 0;
@@ -121,8 +145,10 @@ export async function GET(req: NextRequest) {
     // Rows whose pointer isn't in the shape this cron understands, so their audio could NOT be verified gone.
     // Non-zero means the retention promise is NOT being kept for those rows — surfaced, never swallowed (§3.4).
     malformed,
-    scanned: expired?.length ?? 0,
-    bounded: (expired?.length ?? 0) >= BATCH, // true = more may remain; not a silent "all clear"
-    retentionDays: RETENTION_DAYS,
+    scanned: expired.length,
+    candidates: candidates.length, // total recordings with audio (unsaved) considered this run
+    beyondWindow: beyondWindow.length, // recordings past the per-rep window (the true purge backlog)
+    bounded: beyondWindow.length > BATCH, // true = more beyond-window recordings remain; not a silent "all clear"
+    keepPerRep: KEEP_PER_REP,
   });
 }
