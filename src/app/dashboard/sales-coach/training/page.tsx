@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap, Dumbbell, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { GraduationCap, Dumbbell, TrendingUp, TrendingDown, Minus, BookOpen, Loader2, Lightbulb, AlertTriangle, Quote } from "lucide-react";
 import { TeamTrainingBriefPanel } from "@/components/sales-coach/TeamTrainingBriefPanel";
 // Type-only (the module is server-only — erased at build, so no runtime import of it into this client page).
 import type { RepPracticeSummary, ManagerPracticeSummary, TeamPracticeSummary } from "@/lib/coach/v5/practiceAnalytics";
+import type { CoachingMaterial } from "@/lib/coach/v5/coachingMaterial";
 
 /**
  * /dashboard/sales-coach/training — the Training tab (founder 2026-08-26).
@@ -125,21 +126,101 @@ function MyPractice({ practice }: { practice?: RepPracticeSummary }) {
   );
 }
 
-// A single focus line. In the rep's own view it's practiceable — a "Practice" link seeds the roleplay with this exact
-// skill (?focus=...) so the rep drills it against the AI prospect and gets scored on it (founder 2026-08-26).
+// A short coaching guide for one skill, generated from the company's methodology (founder 2026-08-27). Read alongside
+// the live practice. Honest "couldn't load" state; never a fabricated guide (§3.4).
+function MaterialPanel({ material, loading }: { material: CoachingMaterial | null | undefined; loading: boolean }) {
+  if (loading) {
+    return (
+      <p className="text-[11px] text-muted flex items-center gap-2 mt-2">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+        Writing a quick guide for you…
+      </p>
+    );
+  }
+  if (material === null) {
+    return <p className="text-[11px] text-muted mt-2">Couldn&apos;t load a guide right now — try again in a moment.</p>;
+  }
+  if (!material) return null;
+  return (
+    <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2.5 text-[12px]">
+      {material.overview && <p className="text-secondary leading-relaxed">{material.overview}</p>}
+      {material.keyMoves.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted mb-1 flex items-center gap-1"><Lightbulb className="w-3 h-3" aria-hidden />Key moves</p>
+          <ul className="list-disc list-inside text-secondary space-y-0.5">{material.keyMoves.map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </div>
+      )}
+      {material.watchOuts.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden />Watch out</p>
+          <ul className="list-disc list-inside text-secondary space-y-0.5">{material.watchOuts.map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </div>
+      )}
+      {material.exampleLines.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted mb-1 flex items-center gap-1"><Quote className="w-3 h-3" aria-hidden />Lines to try</p>
+          <ul className="space-y-1">{material.exampleLines.map((m, i) => <li key={i} className="text-primary">&ldquo;{m}&rdquo;</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A single focus line. In the rep's own view it's practiceable — "Practice" seeds the roleplay with this exact skill,
+// and "Learn" opens a short coaching guide generated from the company's methodology (founder 2026-08-26/27).
 function FocusItem({ text, practiceable }: { text: string; practiceable: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [material, setMaterial] = useState<CoachingMaterial | null | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+
+  const toggleLearn = useCallback(async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && material === undefined && !loading) {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/coach/sales-session/coaching-material", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ focus: text }),
+        });
+        const d = (res.ok ? await res.json() : { material: null }) as { material: CoachingMaterial | null };
+        setMaterial(d?.material ?? null);
+      } catch {
+        setMaterial(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [open, material, loading, text]);
+
   if (!practiceable) return <li className="text-secondary">{text}</li>;
   return (
-    <li className="flex items-start justify-between gap-2 group">
-      <span className="text-secondary">{text}</span>
-      <Link
-        href={`/dashboard/sales-coach/roleplay?focus=${encodeURIComponent(text)}`}
-        className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-brand/80 hover:text-brand border border-ember-400/30 hover:border-ember-400/60 rounded-md px-1.5 py-0.5 transition-colors"
-        title="Practice this against the AI prospect"
-      >
-        <Dumbbell className="w-3 h-3" aria-hidden />
-        Practice
-      </Link>
+    <li className="group">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-secondary min-w-0">{text}</span>
+        <span className="shrink-0 inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => void toggleLearn()}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-secondary hover:text-primary border border-default rounded-md px-1.5 py-0.5 transition-colors"
+            title="Read a quick guide to this skill"
+          >
+            <BookOpen className="w-3 h-3" aria-hidden />
+            Learn
+          </button>
+          <Link
+            href={`/dashboard/sales-coach/roleplay?focus=${encodeURIComponent(text)}`}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand/80 hover:text-brand border border-ember-400/30 hover:border-ember-400/60 rounded-md px-1.5 py-0.5 transition-colors"
+            title="Practice this against the AI prospect"
+          >
+            <Dumbbell className="w-3 h-3" aria-hidden />
+            Practice
+          </Link>
+        </span>
+      </div>
+      {open && <MaterialPanel material={material} loading={loading} />}
     </li>
   );
 }
