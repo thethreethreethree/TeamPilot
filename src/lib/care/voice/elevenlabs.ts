@@ -31,6 +31,12 @@ import "server-only";
 const TTS_ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech";
 const STT_ENDPOINT = "https://api.elevenlabs.io/v1/speech-to-text";
 
+// Force English transcription (founder 2026-08-26: Scribe's auto-detect sometimes mislabels accented / short /
+// noisy ENGLISH audio as Chinese, producing garbled non-English output the coach can't reason over). Scribe accepts
+// an ISO-639 language hint; pinning it stops the misdetection. "eng" (ISO-639-3) — VERIFIED accepted by the live
+// STT API 2026-08-26 (HTTP 200). The product is English-only today; make this a per-tenant setting if that changes.
+const STT_LANGUAGE_CODE = "eng";
+
 // Antoni — well-rounded conversational male. Default per §A4
 // until the per-tenant picker UI ships. User said "default to
 // one, will choose voice later." This is the one.
@@ -398,6 +404,7 @@ export async function transcribeSpeech(args: {
     "audio"
   );
   form.append("model_id", "scribe_v1");
+  form.append("language_code", STT_LANGUAGE_CODE); // force English (see STT_LANGUAGE_CODE) — no auto-detect misfires
 
   const response = await fetch(STT_ENDPOINT, {
     method: "POST",
@@ -456,6 +463,7 @@ export async function transcribeWithDiarization(args: {
     "audio"
   );
   form.append("model_id", "scribe_v1");
+  form.append("language_code", STT_LANGUAGE_CODE); // force English (see STT_LANGUAGE_CODE) — no auto-detect misfires
   form.append("diarize", "true");
   if (args.numSpeakers && args.numSpeakers > 1) {
     form.append("num_speakers", String(args.numSpeakers));

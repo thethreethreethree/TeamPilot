@@ -1302,7 +1302,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       //    the realtime AsyncAPI docs). audio_format matches our PCM rate.
       const ws = new WebSocket(
         `${REALTIME_WS}?token=${encodeURIComponent(token)}` +
-          `&model_id=scribe_v2_realtime&commit_strategy=vad&audio_format=pcm_${sr}`
+          // language_code=eng forces English so Scribe doesn't mislabel accented/noisy English as another language
+          // (founder 2026-08-26 — same fix as the batch STT; verified accepted by the batch API, extra query params
+          // are ignored by the realtime socket if unsupported, so it can't break the connection).
+          `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&audio_format=pcm_${sr}`
       );
       wsRef.current = ws;
 
