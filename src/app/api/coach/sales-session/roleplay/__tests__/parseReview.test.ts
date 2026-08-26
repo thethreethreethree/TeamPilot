@@ -13,6 +13,16 @@ describe("parseReview — parse failure is an error (null), valid-empty is kept"
     expect(parseReview("")).toBeNull(); // empty (starvation) -> JSON.parse throws -> null
   });
 
+  it("returns null (not a crash) on valid-JSON-but-non-object responses (audit 2026-08-26)", () => {
+    // `JSON.parse("null") === null`; `o.correctLine` on null would throw an uncaught TypeError -> route 500 instead
+    // of a clean 502. Also cover a bare number, string, boolean, and array.
+    expect(parseReview("null")).toBeNull();
+    expect(parseReview("42")).toBeNull();
+    expect(parseReview('"a string"')).toBeNull();
+    expect(parseReview("true")).toBeNull();
+    expect(parseReview("[1,2,3]")).toBeNull();
+  });
+
   it("keeps a VALID review with empty arrays (the legitimate 'too short' case, not an error)", () => {
     const r = parseReview(JSON.stringify({ summary: "", whatWorked: [], toImprove: [], correctLine: null }));
     expect(r).not.toBeNull();

@@ -10,7 +10,7 @@ $ npm run check
        Tests  3797 passed | 15 skipped (3812)
 GATE_EXIT=0
 ```
-(+2 F1 guard tests; existing brief/roleplay tests unchanged and passing.)
+(+2 F1 guard tests; existing brief/roleplay tests unchanged.)
 
 ## What the tests prove
 - F1 guard (+2 tests): `buildTeamBriefUserMessage` carries the per-rep names into the prompt, and degrades honestly

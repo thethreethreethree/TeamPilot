@@ -17,6 +17,12 @@ describe("parsePracticeReview — scorecard honesty seams", () => {
     expect(parsePracticeReview("", FOCUS)).toBeNull();
   });
 
+  it("returns null (not a crash) on valid-JSON-but-non-object responses (inherits the parseReview guard)", () => {
+    expect(parsePracticeReview("null", FOCUS)).toBeNull();
+    expect(parsePracticeReview("42", FOCUS)).toBeNull();
+    expect(parsePracticeReview("[1,2]", FOCUS)).toBeNull();
+  });
+
   it("parses a populated scored review and echoes OUR focus", () => {
     const r = parsePracticeReview(
       JSON.stringify({

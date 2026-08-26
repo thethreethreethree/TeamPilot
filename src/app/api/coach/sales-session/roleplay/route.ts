@@ -119,15 +119,20 @@ type RoleplayReview = {
 };
 
 export function parseReview(text: string): RoleplayReview | null {
-  let o: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    o = JSON.parse(text) as Record<string, unknown>;
+    parsed = JSON.parse(text) as unknown;
   } catch {
     // A malformed/empty (starved) response is an ERROR, not a legitimately-empty "too short" review — return
     // null so the route 502s (a retry), never a blank card indistinguishable from a real empty review (audit
     // 2026-08-19; mirrors the turn phase's parseReply null -> 502). A VALID parse with empty arrays is kept.
     return null;
   }
+  // A valid-JSON but non-object response (the literal `null`, a bare number/string, or an array) is still an error,
+  // not a review — return null (→ 502) rather than crash on `o.correctLine`. `typeof null === "object"`, so guard it
+  // explicitly (audit 2026-08-26).
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const o = parsed as Record<string, unknown>;
   const strArr = (v: unknown): string[] =>
     Array.isArray(v)
       ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "").map((s) => s.trim()).slice(0, 3)
