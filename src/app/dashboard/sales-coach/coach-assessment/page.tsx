@@ -37,7 +37,31 @@ type AgentAssessment = {
   growthAreas: string[];
   strategies: string[];
   lastAt: string | null;
+  // All-time door activity (founder 2026-08-26). null when the KPI read failed (shown as nothing, not a false 0).
+  doorKpi: { doorsKnocked: number; presentations: number; sold: number } | null;
 };
+
+// Compact per-rep door-activity row for the manager view — objective ACTIVITY (knocked / presentations / sold),
+// distinct from the coaching grade. Renders nothing when there's no activity so a quiet rep's card stays clean.
+function DoorMetrics({ kpi }: { kpi: AgentAssessment["doorKpi"] }) {
+  if (!kpi || kpi.doorsKnocked <= 0) return null;
+  const items: [string, number][] = [
+    ["knocked", kpi.doorsKnocked],
+    ["presentations", kpi.presentations],
+    ["sold", kpi.sold],
+  ];
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+      <span aria-hidden>🚪</span>
+      {items.map(([label, n], i) => (
+        <span key={label} className="tabular-nums">
+          <span className="font-semibold text-primary">{n}</span> {label}
+          {i < items.length - 1 ? <span className="text-muted/50"> ·</span> : null}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function CoachAssessmentPage() {
   const [team, setTeam] = useState<AgentAssessment[] | null>(null);
@@ -291,6 +315,9 @@ export default function CoachAssessmentPage() {
                   )}
                 </div>
 
+                {/* Per-rep door activity (founder 2026-08-26 "show their door metrics on the manager dashboard"). */}
+                <DoorMetrics kpi={a.doorKpi} />
+
                 {/* Agent Sales Effectivity Rating (founder 2026-07-07) — ELO vs.
                     the standard, NOT a leaderboard. Cards stay alphabetical (never
                     sorted by rating) so this doesn't become the ranking the page
@@ -487,10 +514,25 @@ export default function CoachAssessmentPage() {
                 how="Use this as a nudge — reach out to the reps here to get their first sessions captured so they start appearing above."
                 principle="The person with no data isn't doing fine — they're just invisible until you look."
               >
-                <p className="text-[11px] text-muted">
-                  No sessions yet:{" "}
-                  {noContent.map((a) => a.agentName).join(", ")}.
-                </p>
+                {/* Per-rep so an active rep with no COACHED session (e.g. audio didn't capture) still shows their
+                    door activity — they're working, just not yet assessable (founder 2026-08-26). */}
+                <div className="text-[11px] text-muted">
+                  <p className="mb-1">No coached sessions yet:</p>
+                  <ul className="space-y-1">
+                    {noContent.map((a) => (
+                      <li key={a.agentId} className="flex flex-wrap items-center gap-x-2">
+                        <span className="text-primary">{a.agentName}</span>
+                        {a.doorKpi && a.doorKpi.doorsKnocked > 0 ? (
+                          <span className="tabular-nums">
+                            🚪 <span className="font-semibold text-primary">{a.doorKpi.doorsKnocked}</span> knocked ·{" "}
+                            <span className="font-semibold text-primary">{a.doorKpi.presentations}</span> presentations ·{" "}
+                            <span className="font-semibold text-primary">{a.doorKpi.sold}</span> sold
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </LearningHint>
             )}
           </>

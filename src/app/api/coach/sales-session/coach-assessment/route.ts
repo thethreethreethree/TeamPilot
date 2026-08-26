@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
+import { getAllTimeKpi } from "@/lib/data/doorlog";
 
 /**
  * GET /api/coach/sales-session/coach-assessment
@@ -97,17 +98,23 @@ export async function GET() {
   // Queried per rep in parallel. §3.4: any failed query degrades the WHOLE page honestly (never renders a
   // rep as a fake-empty "no sessions yet").
   const DISSECT_CONTENT_N = 50;
+  type DoorKpi = { doorsKnocked: number; presentations: number; sold: number };
   type Agg = {
     strengths: string[];
     growth: string[];
     strategies: string[];
     count: number;
     lastAt: string | null;
+    // Per-rep door activity (founder 2026-08-26: "show their door metrics on the manager dashboard"). Objective
+    // ACTIVITY (knocked / presentations / sold), distinct from the growth-based coaching grade — manager visibility,
+    // not a coaching leaderboard (§A18 still holds: alphabetical, coaching is per-own-growth). Best-effort: a KPI
+    // read error yields null (not a false 0, §3.4) and never degrades the coaching page.
+    doorKpi: DoorKpi | null;
   };
   const perRep = await Promise.all(
     agents.map(
       async (a): Promise<{ id: string; agg: Agg } | { error: true }> => {
-        const [countRes, contentRes] = await Promise.all([
+        const [countRes, contentRes, doorKpi] = await Promise.all([
           admin
             .from("events")
             .select("*", { count: "exact", head: true })
@@ -120,10 +127,12 @@ export async function GET() {
             .eq("actor", a.id)
             .order("created_at", { ascending: false })
             .limit(DISSECT_CONTENT_N),
+          // Best-effort — door metrics must never blank the coaching page (null on any error, never a false 0).
+          getAllTimeKpi(a.id).catch(() => null),
         ]);
         if (countRes.error || contentRes.error) return { error: true };
         const content = aggregateDissectContent(contentRes.data ?? []);
-        const agg: Agg = { ...content, count: countRes.count ?? 0 };
+        const agg: Agg = { ...content, count: countRes.count ?? 0, doorKpi };
         return { id: a.id, agg };
       }
     )
@@ -148,6 +157,7 @@ export async function GET() {
         growthAreas: uniqTrim(d?.growth ?? [], 6),
         strategies: uniqTrim(d?.strategies ?? [], 4),
         lastAt: d?.lastAt ?? null,
+        doorKpi: d?.doorKpi ?? null,
       };
     })
     // Only agents who have at least one dissect show coaching content; the
