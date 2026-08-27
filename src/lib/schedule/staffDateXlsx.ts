@@ -49,6 +49,10 @@ export function parseSharedStrings(xml: string): string[] {
   return out;
 }
 
+/** Upper bound on columns per xlsx row — a real staff×date schedule is far under this; the cap stops a far-right
+ *  cell ref (up to column 16383) from amplifying each row into a 16k-element array in memory. */
+const MAX_XLSX_COLS = 256;
+
 /** A worksheet XML + the shared-strings table → a 2D cell grid (rows × columns, sparse cells filled ""). */
 export function xlsxSheetToCells(sheetXml: string, shared: string[]): string[][] {
   const rows: string[][] = [];
@@ -64,6 +68,10 @@ export function xlsxSheetToCells(sheetXml: string, shared: string[]): string[][]
       const inner = cm[2] ?? "";
       const refM = /r="([A-Za-z]+)\d+"/.exec(attrs);
       const col = refM ? colIndexOf(refM[1]!) : cells.length;
+      // Bound the sparse back-fill: a real staff×date grid is well under this, but a crafted cell with a far-right
+      // A1 ref (e.g. r="XFD1" → col 16383) would push 16k empty strings per row and exhaust memory. The
+      // decompression-bomb guard bounds the ENTRY size, not this in-memory amplification, so cap the column here.
+      if (col > MAX_XLSX_COLS) continue;
       const type = /t="([^"]+)"/.exec(attrs)?.[1];
       const vM = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
       let value = "";

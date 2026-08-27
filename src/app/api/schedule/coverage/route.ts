@@ -28,7 +28,10 @@ const Body = z.object({
   minByRole: z.record(z.string().min(1).max(60), z.number().int().nonnegative()).optional(),
 });
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // Finding F5: replays the full log + runs findResolutions per gap — rate-limit it like the coverage mutations.
+  const limited = rateLimit(req, { id: "schedule-coverage-read", windowMs: 60_000, max: 60 });
+  if (limited) return limited;
   const ctx = await getCurrentAuthContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const sb = await createClient();

@@ -6,6 +6,7 @@ import { Loader2, Upload, ArrowRight, CheckCircle2, AlertTriangle, FileText, Tab
 import { ScheduleNav } from "@/components/schedule/ScheduleNav";
 import { AssistantPanel } from "@/components/schedule/AssistantPanel";
 import { to24h, normalizeCodeMap, autoTimeRangeCodeMap } from "@/lib/schedule/importTime";
+import { oversizeMessage } from "@/lib/schedule/uploadLimits";
 
 /**
  * Schedule Management System — file-import screen (Phase 5, S3 + the VA presence-grid follow-up).
@@ -35,6 +36,9 @@ function fileToBase64(file: File): Promise<string> {
     r.readAsDataURL(file);
   });
 }
+
+// Pre-flight the raw file against the shared limit so a too-big upload gets a CLEAR message instead of the
+// platform's opaque 413 (§1.5.1 layer-2 — the advertised capacity must be the real one). See uploadLimits.ts.
 
 export default function ScheduleImportPage() {
   const [mode, setMode] = useState<"csv" | "va">("csv");
@@ -118,6 +122,8 @@ export default function ScheduleImportPage() {
   // to mapping the codes); a .docx comes back as raw labels (headerDates empty) so the manager clicks Analyze
   // to resolve them — same as pasted CSV. No positional guessing on the docx path.
   const extractGridFile = async (file: File) => {
+    const big = oversizeMessage(file.size);
+    if (big) { setError(big); return; } // clear limit BEFORE the platform's opaque 413
     setBusy("propose"); setError(null); setDone(null);
     try {
       const fileBase64 = await fileToBase64(file);
@@ -221,6 +227,8 @@ export default function ScheduleImportPage() {
 
   const vaRunPreview = async () => {
     if (!vaFile || !vaWeek) return;
+    const big = oversizeMessage(vaFile.size);
+    if (big) { setError(big); return; }
     setBusy("preview"); setError(null);
     try {
       const res = await fetch("/api/schedule/upload/va/preview", {
@@ -247,6 +255,8 @@ export default function ScheduleImportPage() {
 
   const vaCommit = async () => {
     if (!vaFile || !vaWeek || committingRef.current) return;
+    const big = oversizeMessage(vaFile.size);
+    if (big) { setError(big); return; }
     committingRef.current = true;
     setBusy("commit"); setError(null);
     try {

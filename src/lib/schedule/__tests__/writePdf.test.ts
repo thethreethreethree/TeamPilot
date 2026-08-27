@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildImagePdf, buildTablePdf } from "../writePdf";
+import { buildImagePdf, buildTablePdf, pdfText } from "../writePdf";
 import { buildExportGrid } from "../scheduleExport";
 import { isIsoHeaderGrid, isoGridFromItems, pdfGridToCsv } from "../pdfIsoGrid";
 import { parseCsvToGrid } from "../csvGrid";
@@ -12,6 +12,23 @@ const shift = (id: string, date: string, start: string, end: string, assigned: s
   ({ id, date, start, end, requiredHeadcount: 1, requiredByRole: {}, assigned, status: "published" });
 const emp = (id: string, name: string): Employee =>
   ({ id, name, role: null, employmentType: null, skills: [], certifications: [], maxHoursWeek: null, minHoursWeek: null, status: "active" } as unknown as Employee);
+
+describe("pdfText — Latin-1 sanitization (Helvetica/WinAnsi can't render non-Latin-1; strBytes is 1 byte/char)", () => {
+  it("transliterates Latin diacritics so a name stays readable + round-trippable", () => {
+    expect(pdfText("José Muñoz")).toBe("Jose Munoz"); // not mojibake
+    expect(pdfText("Zoë")).toBe("Zoe");
+  });
+  it("maps a non-transliterable char (CJK) to a visible placeholder, never corrupt bytes", () => {
+    expect(pdfText("李伟")).toBe("??");
+    expect(pdfText("Ali 李")).toBe("Ali ?");
+  });
+  it("still escapes the PDF metacharacters ( ) and backslash", () => {
+    expect(pdfText("A (B) \\C")).toBe("A \\(B\\) \\\\C");
+  });
+  it("leaves plain ASCII untouched", () => {
+    expect(pdfText("Darren OBrien")).toBe("Darren OBrien");
+  });
+});
 
 describe("buildImagePdf (visual)", () => {
   const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);

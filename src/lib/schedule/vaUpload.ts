@@ -9,11 +9,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractAndResolveVa, type VaImportResult } from "./vaImport";
+import { MAX_UPLOAD_BASE64_CHARS } from "./uploadLimits";
 import { UnsupportedFormatError, EmptyExtractionError, DecompressionLimitError } from "@/lib/documents/extractText";
 
 /** The upload body shared by both VA routes: the file (base64), its name, the target week, optional weekdays. */
 export const VaUploadBody = z.object({
-  fileBase64: z.string().min(1).max(6_000_000), // ~4.5MB file cap (under the Vercel body limit); schedules are tiny
+  // The base64 body cap (shared with the client pre-check + grid-pdf route). The old 6 MB cap was a lie — a 6 MB
+  // base64 body exceeds Vercel's ~4.5 MB request limit and never reaches this handler (opaque platform 413).
+  fileBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_CHARS),
   filename: z.string().min(1).max(255),
   weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   weekdayOffsets: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),

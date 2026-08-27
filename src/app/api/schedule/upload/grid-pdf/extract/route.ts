@@ -4,6 +4,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { decodeBase64 } from "@/lib/schedule/vaUpload";
+import { MAX_UPLOAD_BASE64_CHARS } from "@/lib/schedule/uploadLimits";
 import { extractPdfPages, gridToCsv, docxCellsToCsv, pdfItemsToStaffDateGrid } from "@/lib/schedule/staffDatePdf";
 import { pdfGridToCsv, isIsoHeaderGrid, isoGridFromItems } from "@/lib/schedule/pdfIsoGrid";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
@@ -27,12 +28,15 @@ import { unzipEntry } from "@/lib/documents/extractText";
  *   - .docx: a REAL Word table -> CSV directly (no positional guessing). Dates are raw LABELS, so headerDates
  *     is [] and the client runs the normal Analyze (LLM date-resolution + human confirm), same as pasted CSV.
  *
- * Manager-only. Read-only; the ~4.5MB base64 cap is the DoS guard (docx also rides the bomb-guarded unzipEntry).
+ * Manager-only. Read-only; the ~4.1MB base64 cap (≈3MB file) is the DoS guard + keeps the body under the Vercel
+ * request limit (docx also rides the bomb-guarded unzipEntry).
  */
 export const maxDuration = 60;
 
 const Body = z.object({
-  fileBase64: z.string().min(1).max(6_000_000), // ~4.5MB, under the Vercel body limit
+  // Shared base64 body cap (client pre-check + VA route). The old 6 MB cap was a lie — a 6 MB base64 body exceeds
+  // Vercel's ~4.5 MB request limit and is rejected before this handler runs (opaque platform 413).
+  fileBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_CHARS),
   filename: z.string().min(1).max(255),
 });
 

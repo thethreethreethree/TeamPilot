@@ -48,7 +48,18 @@ function assemblePdf(bodies: Uint8Array[], rootNum: number): Uint8Array {
   return concat(chunks);
 }
 
-const pdfText = (s: string) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+// The table PDF sets text in Helvetica (WinAnsi), and strBytes writes each char as a single byte — so a non-Latin-1
+// character (é, ñ, CJK) would be silently MANGLED in the re-importable text layer. Transliterate first: strip
+// combining diacritics (José→Jose, Muñoz→Munoz — still readable + round-trippable), then map any remaining
+// non-Latin-1 char to a visible '?' rather than corrupt bytes. Escape the PDF metacharacters LAST.
+export const pdfText = (s: string) =>
+  s
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "") // combining diacritics
+    .replace(/[^\x00-\xff]/g, "?") // anything still outside Latin-1 (e.g. CJK) → visible placeholder, not mojibake
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 
 export interface ImagePage { jpeg: Uint8Array; w: number; h: number }
 

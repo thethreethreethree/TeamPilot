@@ -51,4 +51,13 @@ describe("xlsxSheetToCells", () => {
     const sheet = `<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>3</v></c><c r="B1"/></row></sheetData></worksheet>`;
     expect(xlsxSheetToCells(sheet, shared)).toEqual([["ALICE", ""]]);
   });
+
+  it("bounds a far-right cell ref — a row cannot amplify into a 16k-element array (Finding F2)", () => {
+    // A crafted cell at r="XFD1" is column 16383; without the cap the row back-fills 16k empty strings, exhausting
+    // memory across many rows. The cell beyond the cap is dropped; A1 still resolves normally.
+    const sheet = `<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>3</v></c><c r="XFD1" t="s"><v>0</v></c></row></sheetData></worksheet>`;
+    const cells = xlsxSheetToCells(sheet, shared);
+    expect(cells[0]![0]).toBe("ALICE"); // A1 kept
+    expect(cells[0]!.length).toBeLessThanOrEqual(257); // NOT ~16384 — the far-right cell was bounded
+  });
 });

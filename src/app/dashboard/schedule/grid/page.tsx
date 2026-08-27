@@ -152,7 +152,7 @@ export default function ScheduleGridPage() {
     const dts = [0, 1, 2, 3, 4, 5, 6].map((n) => addDaysIso(ws, n)).filter((d): d is string => d !== null);
     const off = state ? Object.values(state.timeOff).filter((t) => t.status === "approved").map((t) => ({ employeeId: t.employeeId, start: t.start, end: t.end })) : [];
     const g = buildWeekGrid(state ? Object.values(state.shifts) : [], dts, off);
-    return { dts, cellFn: g.cell, rws: relevantRows(roster, g.scheduledIds) };
+    return { dts, cellFn: g.cell, rws: relevantRows(roster, g.scheduledIds), emptyShifts: g.emptyShiftsThisWeek };
   }, [state, roster]);
 
   // Render one or ALL weeks to a designed, COLOUR-CODED schedule graphic (no dependency). Shifts are tinted by
@@ -292,6 +292,13 @@ export default function ScheduleGridPage() {
     // Footer: when this was generated (so a printed copy's currency is clear).
     ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.fillText(`Generated ${new Date().toLocaleString()}`, pad, h - pad + 6);
+    // §3.4 honesty (Finding F3): the grid pivots by assignment, so a shift with NOBODY assigned renders no cell and
+    // the printed page would otherwise look fully staffed. Say it on the export, matching the on-screen banner.
+    const totalEmpty = blocks.reduce((s, b) => s + b.emptyShifts, 0);
+    if (totalEmpty > 0) {
+      ctx.fillStyle = "#b45309"; ctx.font = "bold 11px system-ui, sans-serif"; ctx.textAlign = "right";
+      ctx.fillText(`⚠ ${totalEmpty} shift${totalEmpty === 1 ? "" : "s"} ${totalEmpty === 1 ? "has" : "have"} no one assigned`, pad + gW, h - pad + 6);
+    }
     return canvas;
   }, [state, settings.workweekStart, settings.scheduleName, weekStart, weekGridData, companyName]);
 

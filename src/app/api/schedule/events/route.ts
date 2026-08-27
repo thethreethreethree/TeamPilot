@@ -158,7 +158,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id }, { status: 201 });
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // Finding F5: this GET replays the FULL event log + derives state on every call — rate-limit it like the POSTs
+  // so a burst can't hammer the replay (the mutations were limited; the expensive read wasn't).
+  const limited = rateLimit(req, { id: "schedule-events-read", windowMs: 60_000, max: 60 });
+  if (limited) return limited;
   const sb = await createClient();
   // Finding F4 (§3.4 honesty): the full event log is manager-only (RLS SELECT is manager-scoped, 0230). Gate on
   // isAdmin so a non-manager gets an explicit 403, not an empty {events:[], state} that reads as "the schedule is
