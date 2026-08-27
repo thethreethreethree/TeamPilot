@@ -34,7 +34,7 @@ const KnockBody = z.object({
 const SignBody = z.object({ kind: z.literal("sign"), mimeType: z.string().max(120).optional() });
 
 // Map a recorder mimeType to a storage filename extension. Defaults to webm (the non-iOS pipeline format).
-function extForMime(mime?: string): string {
+export function extForMime(mime?: string): string {
   const m = (mime ?? "").toLowerCase();
   if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "mp4";
   if (m.includes("mpeg") || m.includes("mp3")) return "mp3";
