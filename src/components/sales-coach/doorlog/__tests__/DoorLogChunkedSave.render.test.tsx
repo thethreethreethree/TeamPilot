@@ -18,7 +18,8 @@ vi.mock("../useDoorRecorder", () => ({
     elapsedMs: 0,
     arm: vi.fn(async () => true),
     start: vi.fn(async () => true),
-    stop: vi.fn(async () => ({ blob: new Blob(["x"]), durationMs: 60_000, chunksUploaded: 4 })),
+    // A fully-successful streamed upload: 4 chunks landed INCLUDING the header (seq 0) → stitch path is valid.
+    stop: vi.fn(async () => ({ blob: new Blob(["x"]), durationMs: 60_000, chunksUploaded: 4, seq0Uploaded: true })),
   }),
 }));
 vi.mock("@/lib/supabase/client", () => ({

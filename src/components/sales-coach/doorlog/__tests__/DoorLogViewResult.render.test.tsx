@@ -15,7 +15,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 // real pitch; chunksUploaded===0 with a blob → the fallback path (whose sign returns no storagePath under the
 // generic fetch mock) drops to an audio-less knock.
 const h = vi.hoisted(() => ({
-  stopResult: { blob: new Blob([new Uint8Array(2048)]) as Blob | null, durationMs: 5000, chunksUploaded: 0 },
+  stopResult: { blob: new Blob([new Uint8Array(2048)]) as Blob | null, durationMs: 5000, chunksUploaded: 0, seq0Uploaded: false as boolean },
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -64,7 +64,7 @@ afterEach(() => {
 
 describe("DoorLog — View last pitch result button", () => {
   it("appears in IDLE after a real recorded pitch is saved (and not before)", async () => {
-    h.stopResult = { blob: new Blob([new Uint8Array(2048)]), durationMs: 5000, chunksUploaded: 2 }; // primary path → real pitch
+    h.stopResult = { blob: new Blob([new Uint8Array(2048)]), durationMs: 5000, chunksUploaded: 2, seq0Uploaded: true }; // primary path → real pitch
     render(<DoorLog />);
     // Absent before any pitch this session.
     expect(screen.queryByText(BTN)).toBeNull();
@@ -79,7 +79,7 @@ describe("DoorLog — View last pitch result button", () => {
   it("does NOT appear when the save dropped to a knock (no audio to review — §3.4 honesty)", async () => {
     // Blob present (so the flow reaches naming/save), but no chunks → the fallback sign returns no storagePath
     // under the generic fetch mock → an audio-less knock (audioDropped) → no result exists → no button.
-    h.stopResult = { blob: new Blob([new Uint8Array(2048)]), durationMs: 5000, chunksUploaded: 0 };
+    h.stopResult = { blob: new Blob([new Uint8Array(2048)]), durationMs: 5000, chunksUploaded: 0, seq0Uploaded: false };
     render(<DoorLog />);
     await saveAPitch();
     // Give the fire-and-forget save's .then a tick to resolve, then assert the button stayed absent.

@@ -90,6 +90,7 @@ export function DoorLog() {
     blob: Blob | null;
     durationMs: number;
     chunksUploaded: number;
+    seq0Uploaded: boolean;
     recordingId: string | null;
     diag: CaptureDiag;
   } | null>(null);
@@ -190,13 +191,18 @@ export function DoorLog() {
   const sendPitch = useCallback(
     async (
       base: { outcome: PitchOutcome; name: string; durationMs: number | null; clientKnockId: string },
-      audio: { blob: Blob | null; recordingId: string | null; chunksUploaded: number }
+      audio: { blob: Blob | null; recordingId: string | null; chunksUploaded: number; seq0Uploaded: boolean }
     ): Promise<{ ok: boolean; failReason: SaveFailReason; audioDropped: boolean; dropReason?: DropReason }> => {
       // PRIMARY durability path (founder 2026-08-22): the recorder uploaded ~15s chunks DURING recording, so the
       // audio is already in storage. The pitch just references it by recordingId and the server stitches it —
       // NO large final upload (the long-recording upload failure this fix kills), and a recording that stopped
       // early (phone-lock) still keeps whatever streamed.
-      if (audio.chunksUploaded > 0 && audio.recordingId) {
+      //
+      // seq0Uploaded gate (audit 2026-08-27): the server stitch needs a CONTIGUOUS run from seq 0 (the header). If
+      // seq 0 was lost but later chunks uploaded, the stitch is unbuildable → "no audio" — yet the clean-Stop blob
+      // DOES contain the header. So only take the recordingId path when seq 0 actually landed; otherwise fall
+      // through to the whole-blob upload below (which has the header) instead of discarding a valid recording.
+      if (audio.chunksUploaded > 0 && audio.seq0Uploaded && audio.recordingId) {
         const r = await postDoorLog({
           kind: "pitch",
           outcome: base.outcome,
@@ -444,6 +450,7 @@ export function DoorLog() {
         blob: recorded?.blob ?? null,
         recordingId: recorded?.recordingId ?? null,
         chunksUploaded: recorded?.chunksUploaded ?? 0,
+        seq0Uploaded: recorded?.seq0Uploaded ?? false,
       }
     ).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("Your last pitch", r.failReason));

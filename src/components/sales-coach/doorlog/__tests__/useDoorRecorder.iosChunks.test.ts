@@ -63,3 +63,36 @@ describe("useDoorRecorder — iOS chunk-forcing (start(timeslice) is ignored on 
     expect(out.diag.chunkCount).toBeGreaterThan(0); // a forced chunk was captured despite the silent timeslice
   });
 });
+
+/**
+ * A30 gate for the seq-0 audio-loss fix (audit 2026-08-27). The server stitch needs a contiguous run FROM seq 0
+ * (the header). seq0Uploaded must be TRUE only when seq 0 actually reached storage — so the caller can fall back to
+ * the header-bearing clean-Stop blob when seq 0 was lost but later chunks uploaded, instead of a doomed stitch.
+ */
+describe("useDoorRecorder — seq0Uploaded reflects the header chunk's real upload outcome", () => {
+  it("is TRUE when the seq-0 chunk upload succeeds", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+    const { result } = renderHook(() => useDoorRecorder());
+    await act(async () => { await result.current.start("rid-ok"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(AUDIO_CHUNK_MS + 100); }); // forces seq 0
+    const out = await act(async () => result.current.stop());
+    expect(out.chunksUploaded).toBeGreaterThan(0);
+    expect(out.seq0Uploaded).toBe(true);
+  });
+
+  it("is FALSE when the seq-0 upload fails even though a later chunk uploads", async () => {
+    // Fail only the seq=0 request (both attempts); succeed for seq>=1.
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      const ok = !/[?&]seq=0(&|$)/.test(String(url));
+      return ok ? { ok: true, status: 200 } : { ok: false, status: 500 };
+    }));
+    const { result } = renderHook(() => useDoorRecorder());
+    await act(async () => { await result.current.start("rid-hdr-lost"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(AUDIO_CHUNK_MS + 100); }); // seq 0 (fails + retries)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });                 // let the seq-0 retry fail
+    await act(async () => { await vi.advanceTimersByTimeAsync(AUDIO_CHUNK_MS + 100); }); // seq 1 (succeeds)
+    const out = await act(async () => result.current.stop());
+    expect(out.chunksUploaded).toBeGreaterThan(0); // a later chunk DID upload
+    expect(out.seq0Uploaded).toBe(false);          // but the header did not → caller must use the blob fallback
+  });
+});

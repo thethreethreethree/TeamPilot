@@ -90,6 +90,10 @@ export function useDoorRecorder() {
   const recordingIdRef = useRef<string | null>(null);
   const seqRef = useRef(0);
   const uploadedRef = useRef(0); // count of chunks that reached storage (drives the chunked-vs-fallback save)
+  // Did seq 0 (the container header) specifically reach storage? The server stitch needs a contiguous run FROM 0, so
+  // if seq 0 is lost but later chunks upload, chunksUploaded>0 but the stitch is unbuildable — the caller must then
+  // fall back to the clean-Stop blob (which DOES contain the header) instead of the doomed recordingId path.
+  const seq0OkRef = useRef(false);
   // Screen wake lock — kept while recording so the phone doesn't lock/dim and end the mic track.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
   const wakeLockGrantedRef = useRef(false);
@@ -116,6 +120,7 @@ export function useDoorRecorder() {
       });
     const ok = () => {
       uploadedRef.current += 1;
+      if (seq === 0) seq0OkRef.current = true; // the header landed → the stitch has a valid start
     };
     void attempt()
       .then(ok)
@@ -213,6 +218,7 @@ export function useDoorRecorder() {
         chunksRef.current = [];
         seqRef.current = 0;
         uploadedRef.current = 0;
+        seq0OkRef.current = false;
         recordingIdRef.current = recordingId ?? null;
         // Reset per-recording diagnostics + the live interruption flag.
         sawDataRef.current = false;
@@ -309,7 +315,7 @@ export function useDoorRecorder() {
    * captured); `chunksUploaded` is how many ~15s chunks reached storage during recording (the caller saves via
    * the stitched recordingId when >0, and falls back to uploading `blob` when 0).
    */
-  const stop = useCallback((): Promise<{ blob: Blob | null; durationMs: number; chunksUploaded: number; diag: CaptureDiag }> => {
+  const stop = useCallback((): Promise<{ blob: Blob | null; durationMs: number; chunksUploaded: number; seq0Uploaded: boolean; diag: CaptureDiag }> => {
     const durationMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     if (timerRef.current) clearInterval(timerRef.current);
     if (chunkForceRef.current) clearInterval(chunkForceRef.current);
@@ -338,19 +344,19 @@ export function useDoorRecorder() {
     return new Promise((resolve) => {
       const chunksUploaded = uploadedRef.current;
       if (!rec || rec.state === "inactive") {
-        resolve({ blob: null, durationMs, chunksUploaded, diag: buildDiag() });
+        resolve({ blob: null, durationMs, chunksUploaded, seq0Uploaded: seq0OkRef.current, diag: buildDiag() });
         return;
       }
       rec.onstop = () => {
         const blob = chunksRef.current.length
           ? new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || "audio/webm" })
           : null;
-        resolve({ blob, durationMs, chunksUploaded: uploadedRef.current, diag: buildDiag() });
+        resolve({ blob, durationMs, chunksUploaded: uploadedRef.current, seq0Uploaded: seq0OkRef.current, diag: buildDiag() });
       };
       try {
         rec.stop();
       } catch {
-        resolve({ blob: null, durationMs, chunksUploaded, diag: buildDiag() });
+        resolve({ blob: null, durationMs, chunksUploaded, seq0Uploaded: seq0OkRef.current, diag: buildDiag() });
       }
     });
   }, [releaseWakeLock]);
