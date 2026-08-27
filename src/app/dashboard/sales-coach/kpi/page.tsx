@@ -34,6 +34,9 @@ type TeamAgent = {
   conversionRate: MetricResult;
   relianceReduction: MetricResult;
   quotaAttainment?: MetricResult;
+  objectionsPerSession?: MetricResult;
+  objectionResolutionRate?: MetricResult;
+  recommendationUptake?: MetricResult;
   slipping?: boolean;
   slippingReasons?: string[];
 };
@@ -215,13 +218,26 @@ export default function KpiAnalyticsPage() {
   // columns only (no fabricated ranking); "building" where a metric is gated. Quota column only when set.
   const exportTeamCsv = () => {
     if (!team) return;
-    const cols = ["Rep", "Sessions", "Conversion %", "Reliance /s", "Quota %", "Check-in"];
+    const cols = [
+      "Rep",
+      "Sessions",
+      "Conversion %",
+      "Reliance /s",
+      "Quota %",
+      "Objections /call",
+      "Objections resolved %",
+      "Recommendation uptake %",
+      "Check-in",
+    ];
     const rows = team.map((a) => ({
       Rep: a.name || "Agent",
       Sessions: a.sessionCount,
       "Conversion %": a.conversionRate.value ?? "building",
       "Reliance /s": a.relianceReduction.value ?? "building",
       "Quota %": teamQuotaTarget == null ? "" : (a.quotaAttainment?.value ?? "building"),
+      "Objections /call": a.objectionsPerSession?.value ?? "building",
+      "Objections resolved %": a.objectionResolutionRate?.value ?? "building",
+      "Recommendation uptake %": a.recommendationUptake?.value ?? "building",
       "Check-in": a.slipping ? (a.slippingReasons?.join(" + ") || "yes") : "",
     }));
     const csv = toCsv(rows, cols);
@@ -662,6 +678,24 @@ export default function KpiAnalyticsPage() {
                         </span>
                       </span>
                     )}
+                    <span
+                      title={
+                        a.objectionResolutionRate?.value == null
+                          ? undefined
+                          : `${a.objectionResolutionRate.value}% of objections met without a breakdown`
+                      }
+                    >
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Objections</span>
+                      <span className="block text-xs font-semibold text-primary tabular-nums">
+                        {a.objectionsPerSession?.value == null ? "building…" : `${a.objectionsPerSession.value}/call`}
+                      </span>
+                    </span>
+                    <span>
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Uptake</span>
+                      <span className="block text-xs font-semibold text-primary tabular-nums">
+                        {a.recommendationUptake?.value == null ? "building…" : `${a.recommendationUptake.value}%`}
+                      </span>
+                    </span>
                   </span>
                 </li>
               ))}

@@ -12,11 +12,18 @@ import {
   isSlippingSeries,
   overallQualityForSession,
   layer3InputFromPayload,
+  objectionInputFromPayload,
+  objectionsPerSession,
+  objectionResolutionRate,
+  recommendationInputFromPayload,
+  recommendationUptake,
   monthKeyUtc,
   ALERT_DROP_FRACTION,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
+  type ObjectionInput,
+  type RecommendationInput,
 } from "@/lib/coach/kpi/compute";
 
 /**
@@ -139,20 +146,36 @@ export async function GET() {
     for (const s of segRows ?? []) coachedSessions.add(s.session_id as string);
   }
 
-  // Per-session overall quality (Layer-3 after-pitch scores) — for the quality-slippage alert trigger. One
-  // query for the team; a session with no scored after-pitch simply has no entry (isSlippingSeries drops it).
+  // Per-session overall quality (Layer-3 after-pitch scores) — for the quality-slippage alert trigger — PLUS the
+  // per-agent Objections + Recommendation-uptake rollup (founder: surface the new /me metrics to the manager
+  // roster). All three read the SAME after_pitch_summaries payloads in ONE query (agent_id added so we can group
+  // per rep) — no extra round-trip. A session with no scored after-pitch simply has no quality entry, and a
+  // payload with no objection tally / flagged focus contributes nothing to those metrics (honest exclusion).
   const qualityBySession = new Map<string, number | null>();
+  const objectionRowsByAgent = new Map<string, ObjectionInput[]>();
+  const recRowsByAgent = new Map<string, RecommendationInput[]>();
+  // The session start time (for chronological ordering of recommendation-uptake pairs), from the sessions read.
+  const startBySession = new Map<string, string>();
+  for (const s of sessRows ?? []) startBySession.set(s.id as string, s.started_at as string);
   if (memberIds.length > 0) {
     // Paged (was unbounded, capped at 1000) — one after-pitch summary per session across the team crosses 1000
     // fast, silently dropping sessions from the quality-slippage trigger. Order by the uuid `id` PK.
     const apRows = await fetchAllPaged(
       (from, to) =>
-        sb.from("after_pitch_summaries").select("session_id, payload").in("agent_id", memberIds).order("id").range(from, to),
+        sb.from("after_pitch_summaries").select("session_id, agent_id, payload").in("agent_id", memberIds).order("id").range(from, to),
       { label: "team KPI after-pitch summaries" },
     ).catch(() => null);
     for (const r of apRows ?? []) {
-      const input = layer3InputFromPayload(r.session_id as string, r.payload);
-      qualityBySession.set(r.session_id as string, overallQualityForSession(input));
+      const sid = r.session_id as string;
+      const aid = r.agent_id as string;
+      qualityBySession.set(sid, overallQualityForSession(layer3InputFromPayload(sid, r.payload)));
+      const obj = objectionInputFromPayload(sid, r.payload);
+      if (obj) (objectionRowsByAgent.get(aid) ?? objectionRowsByAgent.set(aid, []).get(aid)!).push(obj);
+      const start = startBySession.get(sid);
+      if (start) {
+        const rec = recommendationInputFromPayload(sid, start, r.payload);
+        (recRowsByAgent.get(aid) ?? recRowsByAgent.set(aid, []).get(aid)!).push(rec);
+      }
     }
   }
 
@@ -202,6 +225,10 @@ export async function GET() {
     // underperformance" — the growth-not-leaderboard principle applied to newcomers.
     const firstSessionAt = rows.length > 0 ? rows[0]!.startedAt : null;
     const establishingBaseline = rows.length < 2 * MIN_SESSIONS;
+    // The new /me metrics, computed per rep from the SAME payloads (founder: managers compare these across reps).
+    // Same functions + gates as /me, so a rep's number matches between their own view and this rollup.
+    const objRows = objectionRowsByAgent.get(id) ?? [];
+    const recRows = recRowsByAgent.get(id) ?? [];
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
@@ -211,6 +238,9 @@ export async function GET() {
       conversionRate: conversion,
       relianceReduction: reliance,
       quotaAttainment: quota,
+      objectionsPerSession: objectionsPerSession(objRows),
+      objectionResolutionRate: objectionResolutionRate(objRows),
+      recommendationUptake: recommendationUptake(recRows),
       slipping: slippingReasons.length > 0,
       slippingReasons,
     };

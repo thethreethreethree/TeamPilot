@@ -343,6 +343,11 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         "establishingBaseline",
         "firstSessionAt",
         "name",
+        // Aggregate MetricResults (value/sampleSize/gated/sourceSessionIds) — growth-framed rollups like
+        // conversion/reliance, NOT raw per-session scores. Added when the new /me metrics were surfaced to the roster.
+        "objectionsPerSession",
+        "objectionResolutionRate",
+        "recommendationUptake",
         "quotaAttainment",
         "relianceReduction",
         "sessionCount",
