@@ -8,10 +8,11 @@ import { toCsv } from "@/lib/export/toCsv";
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
  *
- * Renders the caller's OWN KPIs, computed on-read via /api/coach/kpi/me. Layer 1/2 metrics that are wired
- * show a real value once past the Understanding Gate (>= 5 sessions) — otherwise "building". Metrics not yet
- * computed (Sales cycle, Win/loss, Quota, Talk-ratio, Objections, all of Layer 3/4) show "building" too, so
- * the surface never fabricates a number. Self-baseline framing throughout; Reliance Reduction featured.
+ * Renders the caller's OWN KPIs, computed on-read via /api/coach/kpi/me. A wired metric shows a real value once
+ * past the Understanding Gate (>= 5 sessions) — otherwise an honest "building". A metric that is NOT computable
+ * from data we capture today (Sales cycle, Follow-up rate — both need prospect-identity tracking across visits)
+ * is marked `blocked` and renders "needs prospect tracking", NOT "building", so the surface never implies a
+ * number is coming that isn't (§3.4). Self-baseline framing throughout; Reliance Reduction featured.
  */
 
 type MetricResult = { value: number | null; sampleSize: number; gated: boolean; sourceSessionIds: string[] };
@@ -44,7 +45,11 @@ function daysSince(iso: string): number {
 }
 
 type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
-type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean };
+// `blocked` = this metric is NOT computable from data we capture today (it needs a capability we don't have yet,
+// e.g. linking the same prospect across visits). It renders an honest "needs …" state, NOT "building…" — because
+// "building" implies the number is on its way once enough sessions land, and for a blocked metric it never is
+// (§3.4: an honest not-available, never a false "coming soon").
+type Metric = { name: string; note: string; apiKey?: string; fmt?: Fmt; headline?: boolean; blocked?: string };
 type Layer = { key: string; title: string; subtitle: string; icon: typeof Target; metrics: Metric[] };
 
 const LAYERS: Layer[] = [
@@ -59,7 +64,7 @@ const LAYERS: Layer[] = [
       { name: "Win/loss ratio", note: "wins per loss — builds until you have a loss to compare", apiKey: "winLossRatio", fmt: "num" },
       { name: "Average deal size", note: "revenue ÷ deals won", apiKey: "avgDealSize", fmt: "money" },
       { name: "Total revenue", note: "sum of won deal values", apiKey: "revenue", fmt: "money" },
-      { name: "Sales cycle length", note: "avg close − first contact" },
+      { name: "Sales cycle length", note: "avg close − first contact", blocked: "needs prospect tracking" },
       { name: "Quota attainment", note: "deals won this month ÷ your monthly target", apiKey: "quotaAttainment", fmt: "pct" },
     ],
   },
@@ -74,7 +79,7 @@ const LAYERS: Layer[] = [
       { name: "Talk share (yours)", note: "your share of the talking — lower leaves room to listen", apiKey: "l2_talk_ratio", fmt: "score" },
       { name: "Objections per session", note: "how much resistance you meet, per call", apiKey: "objectionsPerSession", fmt: "num" },
       { name: "Objections resolved", note: "of objections raised, the share you met without a breakdown", apiKey: "objectionResolutionRate", fmt: "pct" },
-      { name: "Follow-up rate", note: "prospects re-contacted" },
+      { name: "Follow-up rate", note: "prospects re-contacted", blocked: "needs prospect tracking" },
     ],
   },
   {
@@ -189,7 +194,8 @@ export default function KpiAnalyticsPage() {
         rows.push({
           Layer: layer.title,
           Metric: m.name,
-          Value: r && r.value !== null ? r.value : "building",
+          // A blocked metric exports its honest reason, not "building" (which would imply it's on its way).
+          Value: m.blocked ? m.blocked : r && r.value !== null ? r.value : "building",
           Sessions: r ? r.sampleSize : "",
           "Delta vs earlier": typeof delta === "number" ? delta : "",
         });
@@ -229,6 +235,13 @@ export default function KpiAnalyticsPage() {
   };
 
   const renderMetricValue = (m: Metric) => {
+    // A blocked metric is honestly "not available yet" (needs a capability we don't capture), never "building…".
+    if (m.blocked)
+      return (
+        <span className="text-[10px] font-mono text-muted/60 italic shrink-0 mt-0.5" title={`Not computable yet — ${m.blocked}.`}>
+          {m.blocked}
+        </span>
+      );
     if (!m.apiKey) return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;
     const r = data?.metrics?.[m.apiKey];
     if (!r || r.value === null) {
