@@ -83,7 +83,10 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
                   {!activityLoaded
                     ? " " /* unknown (loading or failed) — never claim "No sessions" on a failed aggregate (F1) */
                     : a && a.count > 0
-                      ? `${a.count} session${a.count === 1 ? "" : "s"} · last active ${relDay(a.lastActiveAt)}`
+                      ? // §3.4 honesty: a rep can be "active" while capturing NO usable audio (the iOS webm-stub
+                        // failure) — surface how many sessions actually recorded, so "44 sessions" never reads as
+                        // healthy when 0 had audio. ⚠ marks the all-failed case (the founder's exact monitoring need).
+                        `${a.count} session${a.count === 1 ? "" : "s"} · ${a.withAudio === 0 ? "⚠ none with audio" : `${a.withAudio} with audio`} · last active ${relDay(a.lastActiveAt)}`
                       : "No sessions in the last 30 days"}
                 </span>
               </span>
