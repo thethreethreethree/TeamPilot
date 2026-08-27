@@ -401,6 +401,63 @@ export function layer3InputFromPayload(sessionId: string, payload: unknown): Lay
 }
 
 /**
+ * Objections tallied in one analyzed session — the WHOLE-CALL count the after-pitch LLM pass emits (payload
+ * `objections`), NOT the 3-5 hero moments (those undercount — an objection only becomes a moment when it defined
+ * the call). `raised` = distinct customer objections; `resolved` = how many the rep moved the customer past.
+ */
+export type ObjectionInput = {
+  sessionId: string;
+  raised: number;
+  resolved: number;
+};
+
+/**
+ * Parse a raw after_pitch_summaries `payload` into an ObjectionInput, or NULL when the payload has no objection
+ * tally (a summary generated before the tally existed). Returning null — not a 0/0 — is the honesty guard: an
+ * un-tallied session is EXCLUDED from the KPI ("building"), never counted as a fabricated "no objections". Pure +
+ * defensive: clamps to non-negative integers and resolved ≤ raised.
+ */
+export function objectionInputFromPayload(sessionId: string, payload: unknown): ObjectionInput | null {
+  const p = (payload ?? {}) as { objections?: unknown };
+  const o = p.objections;
+  if (!o || typeof o !== "object") return null;
+  const t = o as { raised?: unknown; resolved?: unknown };
+  if (typeof t.raised !== "number" || !Number.isFinite(t.raised)) return null;
+  const raised = Math.max(0, Math.round(t.raised));
+  const resolvedRaw = typeof t.resolved === "number" && Number.isFinite(t.resolved) ? t.resolved : 0;
+  const resolved = Math.min(raised, Math.max(0, Math.round(resolvedRaw)));
+  return { sessionId, raised, resolved };
+}
+
+/**
+ * Objections per session (Layer 2) — the average number of objections a rep MEETS per analyzed call. A leading
+ * behavioural indicator: how much resistance the rep is drawing out (too few can mean they never surfaced the
+ * real hesitation; a healthy number met and resolved is the goal). A session with zero objections is a valid
+ * data point (counts toward the average). Gate: ≥ MIN_SESSIONS analyzed (tallied) sessions.
+ */
+export function objectionsPerSession(rows: ObjectionInput[]): MetricResult {
+  const ids = rows.map((r) => r.sessionId);
+  if (rows.length < MIN_SESSIONS) return gated(rows.length, ids);
+  const totalRaised = rows.reduce((a, r) => a + r.raised, 0);
+  return { value: round1(totalRaised / rows.length), sampleSize: rows.length, gated: false, sourceSessionIds: ids };
+}
+
+/**
+ * Objection resolution rate (%) — of every objection raised across the rep's analyzed calls, the share they met
+ * without a breakdown (the "and how many you resolve" half). Gate: ≥ MIN_SESSIONS analyzed sessions AND ≥1
+ * objection actually raised — a rate over zero objections is UNDEFINED, so it returns "building" rather than a
+ * fabricated 100% (§3.4: an honest insufficient-data, never a guessed number).
+ */
+export function objectionResolutionRate(rows: ObjectionInput[]): MetricResult {
+  const ids = rows.map((r) => r.sessionId);
+  if (rows.length < MIN_SESSIONS) return gated(rows.length, ids);
+  const totalRaised = rows.reduce((a, r) => a + r.raised, 0);
+  if (totalRaised === 0) return gated(rows.length, ids); // no objections yet — undefined rate, not a false 100%
+  const totalResolved = rows.reduce((a, r) => a + r.resolved, 0);
+  return { value: round1((totalResolved / totalRaised) * 100), sampleSize: rows.length, gated: false, sourceSessionIds: ids };
+}
+
+/**
  * A session's OVERALL quality = the mean of its non-caveat evidenced after-pitch scores (0-10). Mirrors
  * layer3Dimension's caveat-skip (a caveated score is "not enough evidence", so it must not drag the mean).
  * Null when the session has no usable score — the caller treats null as "no reading", never as zero.

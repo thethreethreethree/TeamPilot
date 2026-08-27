@@ -16,7 +16,7 @@ import {
   type CueOutcomeDetermination,
 } from "@/lib/data/salesCoach";
 import { generateSalesReview, type SalesReview } from "./salesReview";
-import { generateSalesMoments, type SalesMoment } from "./salesMoments";
+import { generateSalesMoments, type SalesMoment, type ObjectionTally } from "./salesMoments";
 import { generateSalesScores, type ScoreCategory } from "./salesScore";
 
 /**
@@ -58,6 +58,9 @@ export type AfterPitchSummary = {
   scores: ScoreCategory[];
   cueLoop: CueLoopEntry[];
   focus: NextDoorFocus;
+  /** Whole-call objection tally (raised/resolved). null on summaries generated before this field existed, or when
+   *  the model returned no usable tally — the Layer-2 KPI excludes such sessions (honest "building"). */
+  objections: ObjectionTally | null;
 };
 
 const EMPTY: AfterPitchSummary = {
@@ -67,6 +70,7 @@ const EMPTY: AfterPitchSummary = {
   scores: [],
   cueLoop: [],
   focus: null,
+  objections: null,
 };
 
 /**
@@ -205,7 +209,7 @@ export async function generateAfterPitchSummary(args: {
     // flagged red number can no longer appear on the same screen.
     const focus: NextDoorFocus = deriveFocus(scores, narrative.growthAreas[0]);
 
-    return { hasSignal: true, narrative, moments, scores, cueLoop, focus };
+    return { hasSignal: true, narrative, moments, scores, cueLoop, focus, objections: momentsRes.objections };
   } catch {
     return EMPTY;
   }

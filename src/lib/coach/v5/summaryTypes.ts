@@ -43,6 +43,16 @@ export type SalesMoment = {
   sentiment?: MomentSentiment;
 };
 
+/**
+ * Whole-call objection tally (founder 2026-08-28) — how many distinct objections the CUSTOMER raised across the
+ * call, and how many the rep RESOLVED (the customer moved past it). A COUNT over the full transcript, distinct
+ * from the 3-5 hero `moments` (which surface an objection only when it was a defining moment, so they undercount).
+ * Feeds the Layer-2 "Objections per session" + "Objections resolved" KPIs. Absent on summaries generated before
+ * this field existed → the KPI EXCLUDES that session (honest "building", never a fabricated 0), so it lights up as
+ * sessions are (re)analyzed.
+ */
+export type ObjectionTally = { raised: number; resolved: number };
+
 export type PivotDirection = "gained" | "lost";
 
 export type PivotMoment = {

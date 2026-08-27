@@ -28,6 +28,26 @@ describe("parseMoments — §3.4 grounding invariants", () => {
     expect(out!.moments[0]!.atSeq).toBe(2);
   });
 
+  it("parses the whole-call objection tally, clamping resolved ≤ raised", () => {
+    const out = parseMoments(
+      JSON.stringify({
+        hasSignal: true,
+        objections: { raised: 3, resolved: 5 }, // resolved > raised → clamped to raised
+        moments: [{ atSeq: 2, kind: "objection", label: "price pushback" }],
+      }),
+      SEGMENTS
+    );
+    expect(out!.objections).toEqual({ raised: 3, resolved: 3 });
+  });
+
+  it("objections is null when the model omits the tally (excluded from the KPI, not a false 0)", () => {
+    const out = parseMoments(
+      JSON.stringify({ hasSignal: true, moments: [{ atSeq: 2, kind: "objection", label: "x" }] }),
+      SEGMENTS
+    );
+    expect(out!.objections).toBeNull();
+  });
+
   it("DROPS a moment whose atSeq is NOT a real segment (no fabricated moments)", () => {
     const out = parseMoments(
       JSON.stringify({
@@ -149,7 +169,7 @@ describe("parseMoments — §3.4 grounding invariants", () => {
 
   it("hasSignal:false → EMPTY (honest 'nothing to show')", () => {
     const out = parseMoments(JSON.stringify({ hasSignal: false }), SEGMENTS);
-    expect(out).toEqual({ hasSignal: false, moments: [] });
+    expect(out).toEqual({ hasSignal: false, moments: [], objections: null });
   });
 
   it("malformed JSON → null (§3.4 honest failure)", () => {

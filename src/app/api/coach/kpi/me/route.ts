@@ -20,11 +20,15 @@ import {
   cueAcceptanceRate,
   cueToOutcomeCorrelation,
   relianceReductionFromFirstCue,
+  objectionInputFromPayload,
+  objectionsPerSession,
+  objectionResolutionRate,
   selfDelta,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
   type Layer3ScoreInput,
+  type ObjectionInput,
 } from "@/lib/coach/kpi/compute";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
@@ -133,6 +137,14 @@ export async function GET() {
   // Talk share (Layer 2) — the after-pitch already scores talk_ratio (rep's share of the talking, 0-100
   // after scaling; lower leaves more room to listen). Reuse the same evidenced-score aggregator.
   metrics.l2_talk_ratio = layer3Dimension(layer3Rows, "talk_ratio");
+  // Objections per session (Layer 2) — the whole-call tally the after-pitch pass now emits, read from the SAME
+  // payloads already fetched (no new read). Sessions analyzed BEFORE the tally existed return null and are
+  // EXCLUDED (honest "building" until enough sessions carry a tally), never counted as a false "0 objections".
+  const objectionRows: ObjectionInput[] = (apRows ?? [])
+    .map((r) => objectionInputFromPayload(r.session_id as string, r.payload))
+    .filter((r): r is ObjectionInput => r !== null);
+  metrics.objectionsPerSession = objectionsPerSession(objectionRows);
+  metrics.objectionResolutionRate = objectionResolutionRate(objectionRows);
   // Skill progression (Layer 4) — Δ in overall quality vs the agent's own earlier calls (value IS the delta).
   metrics.skillProgression = overallSkillProgression(layer3Rows);
   // Consistency (Layer 4) — how steady the agent's quality is call-to-call (0-100, higher = steadier).

@@ -23,11 +23,15 @@ import {
   isSlippingSeries,
   overallQualityForSession,
   layer3InputFromPayload,
+  objectionInputFromPayload,
+  objectionsPerSession,
+  objectionResolutionRate,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
   isOpportunity,
   type KpiSessionRow,
+  type ObjectionInput,
 } from "../compute";
 
 /**
@@ -528,5 +532,71 @@ describe("sumDollarsExact", () => {
   it("does not drift on classic float cases", () => {
     expect(sumDollarsExact([0.1, 0.2])).toBe(0.3);
     expect(sumDollarsExact([19.99, 0.01])).toBe(20);
+  });
+});
+
+describe("objections per session (Layer 2)", () => {
+  const O = (sessionId: string, raised: number, resolved: number): ObjectionInput => ({ sessionId, raised, resolved });
+
+  it("objectionInputFromPayload reads the whole-call tally, clamping resolved ≤ raised", () => {
+    expect(objectionInputFromPayload("s1", { objections: { raised: 3, resolved: 2 } })).toEqual({
+      sessionId: "s1",
+      raised: 3,
+      resolved: 2,
+    });
+    // resolved can never exceed raised (defensive clamp)
+    expect(objectionInputFromPayload("s2", { objections: { raised: 2, resolved: 9 } })).toEqual({
+      sessionId: "s2",
+      raised: 2,
+      resolved: 2,
+    });
+    // negative / fractional model output is clamped to a non-negative integer
+    expect(objectionInputFromPayload("s3", { objections: { raised: 2.6, resolved: -1 } })).toEqual({
+      sessionId: "s3",
+      raised: 3,
+      resolved: 0,
+    });
+  });
+
+  it("objectionInputFromPayload returns NULL (excluded, not a false 0) when no tally is present", () => {
+    // A summary generated before the tally existed, or a malformed one — must be EXCLUDED from the KPI, never
+    // counted as "0 objections" (that would drag the average down with a fabricated zero — §3.4).
+    expect(objectionInputFromPayload("s1", null)).toBeNull();
+    expect(objectionInputFromPayload("s1", {})).toBeNull();
+    expect(objectionInputFromPayload("s1", { moments: [] })).toBeNull(); // old moments-only payload
+    expect(objectionInputFromPayload("s1", { objections: { resolved: 1 } })).toBeNull(); // no numeric raised
+  });
+
+  it("objectionsPerSession = avg raised across analyzed sessions; a zero-objection session counts", () => {
+    const rows = [O("1", 2, 2), O("2", 0, 0), O("3", 1, 0), O("4", 1, 1), O("5", 1, 1)]; // total raised 5 / 5 sessions
+    const r = objectionsPerSession(rows);
+    expect(r.gated).toBe(false);
+    expect(r.value).toBe(1); // 5 / 5
+    expect(r.sampleSize).toBe(5);
+  });
+
+  it("objectionsPerSession gates below MIN_SESSIONS (building, not a guess)", () => {
+    const rows = Array.from({ length: MIN_SESSIONS - 1 }, (_, i) => O(String(i), 2, 1));
+    expect(objectionsPerSession(rows).value).toBeNull();
+    expect(objectionsPerSession(rows).gated).toBe(true);
+  });
+
+  it("objectionResolutionRate = resolved ÷ raised across all analyzed calls", () => {
+    const rows = [O("1", 2, 2), O("2", 0, 0), O("3", 2, 1), O("4", 1, 1), O("5", 1, 0)]; // 4 resolved of 6 raised
+    const r = objectionResolutionRate(rows);
+    expect(r.gated).toBe(false);
+    expect(r.value).toBe(66.7); // 4/6 → 66.7%
+  });
+
+  it("objectionResolutionRate gates (never fabricates 100%) when zero objections were raised", () => {
+    const rows = Array.from({ length: MIN_SESSIONS }, (_, i) => O(String(i), 0, 0)); // enough sessions, no objections
+    const r = objectionResolutionRate(rows);
+    expect(r.value).toBeNull(); // undefined rate over zero → building, NOT 100%
+    expect(r.gated).toBe(true);
+  });
+
+  it("objectionResolutionRate gates below MIN_SESSIONS even with objections present", () => {
+    const rows = Array.from({ length: MIN_SESSIONS - 1 }, (_, i) => O(String(i), 2, 1));
+    expect(objectionResolutionRate(rows).value).toBeNull();
   });
 });

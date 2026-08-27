@@ -55,6 +55,17 @@ For the BREAKDOWN moment ONLY, also produce the CORRECTION: the exact better
 line the rep should have used, and why it works — grounded in the methodology
 above.
 
+ALSO — separately from the 3-5 moments — TALLY the objections across the WHOLE
+call (this is a COUNT, not the hero moments):
+- "raised" = the number of DISTINCT objections or real pushbacks the CUSTOMER
+  voiced (e.g. price, timing, "not interested", "I need to think", trust, "I
+  already have someone"). Count each distinct concern once; do NOT count simple
+  questions or neutral clarifications. A call with no pushback is 0.
+- "resolved" = how many of those the rep ADDRESSED well enough that the customer
+  moved PAST it (dropped it, warmed, or advanced) — NOT the ones left hanging or
+  that ended the call. resolved can never exceed raised. Count honestly from the
+  transcript; if unsure whether one was resolved, do not count it as resolved.
+
 HARD HONESTY RULES (§3.4):
 - NEVER include a statistic or number like "top reps convert 42% higher" —
   that measured data does not exist. State what the methodology prescribes,
@@ -67,6 +78,7 @@ HARD HONESTY RULES (§3.4):
 OUTPUT — respond with ONLY a JSON object in this exact shape:
 {
   "hasSignal": true,
+  "objections": { "raised": number, "resolved": number },  // whole-call tally; resolved <= raised; 0 if none
   "moments": [
     {
       "atSeq": number,                         // the segment number this moment anchors on
@@ -89,6 +101,7 @@ Rules:
 - 3-5 moments, ordered by atSeq ascending.
 - atSeq must be a real segment number shown in the transcript.
 - at most one moment has isBreakdown:true; correction is non-null ONLY there.
+- objections is a whole-call COUNT (raised/resolved), independent of the 3-5 moments; resolved never exceeds raised.
 - output JSON only, no prose around it.`;
 }
 

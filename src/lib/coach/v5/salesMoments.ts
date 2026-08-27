@@ -36,19 +36,36 @@ export type {
   MomentKind,
   MomentCorrection,
   SalesMoment,
+  ObjectionTally,
 } from "./summaryTypes";
 import type {
   MomentKind,
   MomentCorrection,
   SalesMoment,
+  ObjectionTally,
 } from "./summaryTypes";
 
 export type SalesMoments = {
   hasSignal: boolean;
   moments: SalesMoment[];
+  /** Whole-call objection tally (raised/resolved). null when the model didn't return a usable tally. */
+  objections: ObjectionTally | null;
 };
 
-const EMPTY: SalesMoments = { hasSignal: false, moments: [] };
+const EMPTY: SalesMoments = { hasSignal: false, moments: [], objections: null };
+
+/** Parse the model's whole-call objection tally defensively: non-negative integers, resolved never exceeds
+ *  raised. Returns null when absent/invalid, so a session without a real tally is EXCLUDED from the KPI (honest
+ *  "building"), never counted as a fabricated 0-of-0. */
+function parseObjectionTally(raw: unknown): ObjectionTally | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as { raised?: unknown; resolved?: unknown };
+  if (typeof o.raised !== "number" || !Number.isFinite(o.raised)) return null;
+  const raised = Math.max(0, Math.round(o.raised));
+  const resolvedRaw = typeof o.resolved === "number" && Number.isFinite(o.resolved) ? o.resolved : 0;
+  const resolved = Math.min(raised, Math.max(0, Math.round(resolvedRaw)));
+  return { raised, resolved };
+}
 
 // Founder 2026-08-05: NO minimum-length gate — every session surfaces its moments,
 // however short (a brief call still has an opener + the customer's reaction). Only a
@@ -254,5 +271,5 @@ export function parseMoments(
   if (out.length === 0) return EMPTY;
   // Chronological by segment order.
   out.sort((a, b) => a.atSeq - b.atSeq);
-  return { hasSignal: true, moments: out.slice(0, 5) };
+  return { hasSignal: true, moments: out.slice(0, 5), objections: parseObjectionTally(o.objections) };
 }
