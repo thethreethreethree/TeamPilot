@@ -11,11 +11,16 @@
  * `isManager` is expected to be `false` while the caller's role is still loading — the
  * safe direction: hide manager-only items until the viewer is confirmed a manager.
  */
-export function filterManagerNav<T extends { managerOnly?: boolean }>(
+export function filterManagerNav<T extends { managerOnly?: boolean; repOnly?: boolean }>(
   items: T[],
   isManager: boolean
 ): T[] {
-  return items.filter((item) => !item.managerOnly || isManager);
+  // managerOnly → hidden from reps (the original rule). repOnly → hidden from MANAGERS: a rep-facing destination
+  // whose content is relocated for managers (founder 2026-08-28 — Analytics merged INTO Coach Assessment, so a
+  // manager sees it there, not as a separate item; reps keep their own Analytics).
+  return items.filter(
+    (item) => (!item.managerOnly || isManager) && (!item.repOnly || !isManager)
+  );
 }
 
 /**
@@ -25,7 +30,7 @@ export function filterManagerNav<T extends { managerOnly?: boolean }>(
  * predicate as filterManagerNav, lifted to sections and unit-tested so the empty-header-hiding can't regress.
  */
 export function filterManagerNavSections<
-  I extends { managerOnly?: boolean },
+  I extends { managerOnly?: boolean; repOnly?: boolean },
   S extends { items: I[] },
 >(sections: S[], isManager: boolean): S[] {
   return sections

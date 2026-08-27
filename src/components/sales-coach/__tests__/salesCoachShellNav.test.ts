@@ -50,7 +50,7 @@ describe("SalesCoachShell — collapsible Manager Dashboard + Team Tools groups"
 
   it("Manager Dashboard groups Coach Assessment, Analytics, Sessions (in order)", () => {
     expect(SHELL).toMatch(
-      /header:\s*"Manager Dashboard"[\s\S]{0,400}coach-assessment[\s\S]{0,200}\/analytics[\s\S]{0,200}\/sessions/
+      /header:\s*"Manager Dashboard"[\s\S]{0,400}coach-assessment[\s\S]{0,500}\/analytics[\s\S]{0,200}\/sessions/
     );
   });
 

@@ -57,6 +57,10 @@ type NavItem = {
   /** Manager-only destination (server-gated: sales_coach_role='admin' OR company admin). Hidden from
    *  the nav for reps so a staff user never clicks a nav item that bounces them (AMD-006 L3). */
   managerOnly?: boolean;
+  /** Rep-facing destination HIDDEN FROM MANAGERS — its content is relocated for managers (founder 2026-08-28:
+   *  Analytics is merged into the Coach Assessment card, so a manager sees it there, not as a separate item; reps
+   *  keep their own Analytics self-view). */
+  repOnly?: boolean;
   /** Destination OUTSIDE this fixed-overlay shell (e.g. the extension download page). Opens in a new tab
    *  (target=_blank) so the Sales Coach app stays open behind it, and is excluded from active-state —
    *  mirrors the C.A.R.E "Browser extension" nav entry (CareShell.tsx). */
@@ -97,7 +101,9 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
-      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3 },
+      // Analytics is merged INTO the Coach Assessment card for managers (founder 2026-08-28) — so it's rep-only here;
+      // reps keep their own Analytics self-view, managers find each rep's skill scores on the assessment card.
+      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
       { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
     ],
   },

@@ -18,6 +18,7 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { gradeSkill } from "@/lib/coach/v5/skillGrade";
 
 /**
  * Sales Coach → Coach Assessment (admin/manager). Per-agent coaching signal
@@ -63,6 +64,69 @@ function DoorMetrics({ kpi }: { kpi: AgentAssessment["doorKpi"] }) {
           {i < items.length - 1 ? <span className="text-muted/50"> ·</span> : null}
         </span>
       ))}
+    </div>
+  );
+}
+
+type SkillRow = { label: string; score: number | null };
+
+/**
+ * Per-rep skill scores (the former Analytics content, merged into the Coach Assessment card — founder 2026-08-28).
+ * Lazily fetches the rep's six /10 skill scores when their card is EXPANDED (this component mounts inside the
+ * expanded block), using scoresOnly=1 so the page never fires an LLM breakdown pass per rep. §3.4: a failed read
+ * says so; not-enough-sessions is an honest empty, not a zero score. The full AI breakdowns stay on the rep's own
+ * Analytics self-view.
+ */
+function SkillGrades({ agentId }: { agentId: string }) {
+  const [skills, setSkills] = useState<SkillRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    fetch(`/api/coach/sales-session/skills?agentId=${encodeURIComponent(agentId)}&scoresOnly=1`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("skills read failed"))))
+      .then((d) => {
+        if (cancelled) return;
+        setSkills((d.skills ?? []) as SkillRow[]);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId]);
+
+  const graded = (skills ?? []).map((s) => ({ ...s, grade: gradeSkill(s.score) }));
+  const scored = graded.filter((g) => g.grade.letter !== null);
+
+  return (
+    <div className="mt-4 pt-3 border-t border-white/5">
+      <p className="text-[10px] uppercase tracking-widest text-sky-300/80 font-bold mb-2">Skill scores</p>
+      {loading ? (
+        <p className="text-[11px] text-muted">Loading skill scores…</p>
+      ) : error ? (
+        <p className="text-[11px] text-muted">Couldn&apos;t load skill scores — reopen to retry.</p>
+      ) : scored.length === 0 ? (
+        <p className="text-[11px] text-muted">Not enough recorded sessions yet for skill scores.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+          {graded.map((g) => (
+            <div key={g.label} className="flex items-center justify-between text-xs">
+              <span className="text-secondary">{g.label}</span>
+              <span className="text-muted tabular-nums shrink-0 ml-2">
+                {g.grade.letter === null ? "—" : `${g.grade.letter} · ${g.grade.fromScore}/10`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -515,6 +579,8 @@ export default function CoachAssessmentPage() {
                     </div>
                   )}
                 </div>
+                {/* Analytics merged in (founder 2026-08-28): each rep's six skill scores now live on their card. */}
+                <SkillGrades agentId={a.agentId} />
                 </>
                 )}
               </section>

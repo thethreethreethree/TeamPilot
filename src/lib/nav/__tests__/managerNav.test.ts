@@ -32,6 +32,14 @@ describe("filterManagerNav", () => {
     }
   });
 
+  it("hides repOnly items from a MANAGER, keeps them for a rep (Analytics merged into Coach Assessment, 2026-08-28)", () => {
+    const withRepOnly = [{ label: "Home" }, { label: "Analytics", repOnly: true }, { label: "Coach Assessment", managerOnly: true }];
+    // Manager: no separate Analytics (it's on the assessment card); keeps Coach Assessment.
+    expect(filterManagerNav(withRepOnly, true).map((i) => i.label)).toEqual(["Home", "Coach Assessment"]);
+    // Rep: keeps Analytics (their own self-view); no Coach Assessment.
+    expect(filterManagerNav(withRepOnly, false).map((i) => i.label)).toEqual(["Home", "Analytics"]);
+  });
+
   it("is a no-op on a list with no managerOnly items", () => {
     const plain: { label: string; managerOnly?: boolean }[] = [{ label: "A" }, { label: "B" }];
     expect(filterManagerNav(plain, false)).toEqual(plain);

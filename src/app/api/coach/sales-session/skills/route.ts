@@ -115,10 +115,13 @@ export async function GET(req: NextRequest) {
 
   const skills = aggregateSkills(perSession, wpms);
 
-  // ONE cached LLM pass for the breakdowns (founder-confirmed): a single call names
-  // the one short thing behind each scored skill. Degrades to the deterministic band
-  // read if the model is unavailable or malformed — §3.4 degrade, never fabricate.
-  const withBreakdowns = await addBreakdowns(skills, companyId);
+  // scoresOnly (founder 2026-08-28 — Analytics merged into Coach Assessment): the manager card shows every rep's
+  // six skill SCORES, so the page would otherwise fire one LLM breakdown pass PER rep on load (Expert auto-expands
+  // all cards) — real cost for text the card doesn't show. The scores are deterministic (aggregateSkills above); this
+  // mode returns them with the deterministic band read (mergeBreakdowns with an empty map — the same honest degrade
+  // path) and NO LLM call. The full one-line AI breakdowns stay on the rep's own Analytics self-view.
+  const scoresOnly = new URL(req.url).searchParams.get("scoresOnly") === "1";
+  const withBreakdowns = scoresOnly ? mergeBreakdowns(skills, new Map()) : await addBreakdowns(skills, companyId);
 
   return NextResponse.json({
     skills: withBreakdowns,
