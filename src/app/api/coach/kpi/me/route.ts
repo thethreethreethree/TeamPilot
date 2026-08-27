@@ -23,12 +23,15 @@ import {
   objectionInputFromPayload,
   objectionsPerSession,
   objectionResolutionRate,
+  recommendationInputFromPayload,
+  recommendationUptake,
   selfDelta,
   MIN_SESSIONS,
   type KpiSessionRow,
   type MetricResult,
   type Layer3ScoreInput,
   type ObjectionInput,
+  type RecommendationInput,
 } from "@/lib/coach/kpi/compute";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
@@ -145,6 +148,17 @@ export async function GET() {
     .filter((r): r is ObjectionInput => r !== null);
   metrics.objectionsPerSession = objectionsPerSession(objectionRows);
   metrics.objectionResolutionRate = objectionResolutionRate(objectionRows);
+  // Recommendation uptake (Layer 4) — did last session's flagged focus improve next session? Deterministic from
+  // the SAME payloads (no LLM), ordered by the session's real start time. Sessions before the tally/flag existed
+  // simply carry scores; only a flagged-then-rescored pair is evaluable, else the metric honestly gates.
+  const startBySession = new Map<string, string>();
+  for (const r of data) startBySession.set(r.id as string, r.started_at as string);
+  const recommendationRows: RecommendationInput[] = (apRows ?? [])
+    .map((r) =>
+      recommendationInputFromPayload(r.session_id as string, startBySession.get(r.session_id as string) ?? "", r.payload)
+    )
+    .filter((r) => r.startedAt !== ""); // drop any summary whose session start time we can't resolve (can't order it)
+  metrics.recommendationUptake = recommendationUptake(recommendationRows);
   // Skill progression (Layer 4) — Δ in overall quality vs the agent's own earlier calls (value IS the delta).
   metrics.skillProgression = overallSkillProgression(layer3Rows);
   // Consistency (Layer 4) — how steady the agent's quality is call-to-call (0-100, higher = steadier).

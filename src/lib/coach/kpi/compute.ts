@@ -458,6 +458,88 @@ export function objectionResolutionRate(rows: ObjectionInput[]): MetricResult {
 }
 
 /**
+ * Recommendation uptake (Layer 4) input — one analyzed session's coachable focus + its dimension scores.
+ * `focusKey` = the flagged growth dimension that became the session's recommendation (null if none flagged with a
+ * known improvement direction). `scores` maps each scored dimension key → its 0-10 score, used to check whether
+ * the NEXT session moved the focus dimension in the improving direction. `startedAt` orders sessions in time.
+ */
+export type RecommendationInput = {
+  sessionId: string;
+  startedAt: string;
+  focusKey: string | null;
+  scores: Record<string, number>;
+};
+
+/**
+ * A flagged focus dimension sits at an EXTREME, so "uptake" = the next session moved it toward the healthy middle
+ * — and the improving direction is OPPOSITE per dimension. Getting this wrong INVERTS the metric (a rep who talked
+ * even MORE would score as "took the advice"). Only dimensions with a known direction are evaluable; any other
+ * flagged dimension is skipped rather than guessed. talk_ratio.score = rep's talk share (flagged ≥75 → improve by
+ * talking LESS); question_rate.score = questions asked (flagged ≤15 → improve by asking MORE). Kept in sync with
+ * salesScore.ts computeTalkRatio / computeQuestionRate.
+ */
+const FOCUS_IMPROVEMENT_DIR: Record<string, "lower" | "higher"> = {
+  talk_ratio: "lower",
+  question_rate: "higher",
+};
+
+/**
+ * Parse an after_pitch_summaries `payload` into a RecommendationInput. Pure + defensive: reads each non-caveat
+ * numeric dimension score, and picks the FIRST flagged dimension that has a known improvement direction as the
+ * session's focus (mirrors deriveFocus's "a flagged score wins"). A payload with no such flagged dimension yields
+ * focusKey=null → the session contributes scores for a NEXT-session comparison but starts no evaluable pair.
+ */
+export function recommendationInputFromPayload(
+  sessionId: string,
+  startedAt: string,
+  payload: unknown
+): RecommendationInput {
+  const p = (payload ?? {}) as { scores?: unknown };
+  const scoresRaw = Array.isArray(p.scores) ? p.scores : [];
+  const scores: Record<string, number> = {};
+  let focusKey: string | null = null;
+  for (const s of scoresRaw) {
+    const c = s as { key?: unknown; score?: unknown; flagged?: unknown; caveat?: unknown };
+    if (typeof c.key !== "string" || typeof c.score !== "number" || !Number.isFinite(c.score) || c.caveat) continue;
+    scores[c.key] = c.score;
+    if (focusKey === null && c.flagged === true && FOCUS_IMPROVEMENT_DIR[c.key]) focusKey = c.key;
+  }
+  return { sessionId, startedAt, focusKey, scores };
+}
+
+/**
+ * Recommendation uptake (%) (Layer 4) — of the sessions that surfaced a coachable focus, in how many did the NEXT
+ * session actually move that dimension toward the healthy middle? This is the coaching-works differentiator
+ * (§4/§3.6), measured by downstream CONSEQUENCE (did the behaviour change next time), never by "the rep agreed"
+ * (§3.5 — measuring agreement is grading your own homework). Deterministic from stored scores, no LLM. Dedups the
+ * append-only multi-view summary rows, orders sessions by time, and for each session N with a focus dimension D
+ * that N+1 also re-scored, counts "taken up" iff N+1 moved D in D's improving direction. Gate: ≥ MIN_SESSIONS
+ * evaluable pairs (focus flagged AND re-scored next session) — an honest "building" until the evidence exists.
+ */
+export function recommendationUptake(rows: RecommendationInput[]): MetricResult {
+  const bySession = new Map<string, RecommendationInput>();
+  for (const r of rows) bySession.set(r.sessionId, r);
+  const ordered = [...bySession.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+
+  let taken = 0;
+  const ids: string[] = [];
+  for (let i = 0; i < ordered.length - 1; i++) {
+    const cur = ordered[i];
+    const next = ordered[i + 1];
+    if (!cur || !next || !cur.focusKey) continue;
+    const dir = FOCUS_IMPROVEMENT_DIR[cur.focusKey];
+    if (!dir) continue;
+    const before = cur.scores[cur.focusKey];
+    const after = next.scores[cur.focusKey];
+    if (before === undefined || after === undefined) continue; // next session didn't re-score it → not evaluable
+    ids.push(cur.sessionId);
+    if (dir === "lower" ? after < before : after > before) taken++;
+  }
+  if (ids.length < MIN_SESSIONS) return gated(ids.length, ids);
+  return { value: round1((taken / ids.length) * 100), sampleSize: ids.length, gated: false, sourceSessionIds: ids };
+}
+
+/**
  * A session's OVERALL quality = the mean of its non-caveat evidenced after-pitch scores (0-10). Mirrors
  * layer3Dimension's caveat-skip (a caveated score is "not enough evidence", so it must not drag the mean).
  * Null when the session has no usable score — the caller treats null as "no reading", never as zero.

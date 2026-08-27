@@ -26,12 +26,15 @@ import {
   objectionInputFromPayload,
   objectionsPerSession,
   objectionResolutionRate,
+  recommendationInputFromPayload,
+  recommendationUptake,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
   isOpportunity,
   type KpiSessionRow,
   type ObjectionInput,
+  type RecommendationInput,
 } from "../compute";
 
 /**
@@ -532,6 +535,84 @@ describe("sumDollarsExact", () => {
   it("does not drift on classic float cases", () => {
     expect(sumDollarsExact([0.1, 0.2])).toBe(0.3);
     expect(sumDollarsExact([19.99, 0.01])).toBe(20);
+  });
+});
+
+describe("recommendation uptake (Layer 4)", () => {
+  const R = (
+    sessionId: string,
+    startedAt: string,
+    focusKey: string | null,
+    scores: Record<string, number>
+  ): RecommendationInput => ({ sessionId, startedAt, focusKey, scores });
+  const day = (n: number) => `2026-07-${String(n).padStart(2, "0")}T10:00:00.000Z`;
+
+  it("recommendationInputFromPayload picks the first flagged dimension WITH a known direction as the focus", () => {
+    const payload = {
+      scores: [
+        { key: "opener", score: 8, flagged: true }, // flagged but NO known direction → not the focus
+        { key: "talk_ratio", score: 9, flagged: true }, // first flagged WITH a known direction → focus
+        { key: "tone", score: 6, caveat: true }, // caveat → excluded from scores
+        { key: "close", score: 5 },
+      ],
+    };
+    const r = recommendationInputFromPayload("s1", day(1), payload);
+    expect(r.focusKey).toBe("talk_ratio");
+    expect(r.scores).toEqual({ opener: 8, talk_ratio: 9, close: 5 }); // caveat 'tone' excluded
+  });
+
+  it("talk_ratio uptake = the NEXT session talked LESS (score down); talking more is NOT uptake", () => {
+    // 6 sessions, each flags talk_ratio → 5 evaluable pairs. Scores: 9,8,9,8,9,7.
+    // pairs: 9→8 down(taken), 8→9 up(no), 9→8 down(taken), 8→9 up(no), 9→7 down(taken) = 3 of 5 = 60%.
+    const rows = [9, 8, 9, 8, 9, 7].map((v, i) => R(`s${i}`, day(i + 1), "talk_ratio", { talk_ratio: v }));
+    const r = recommendationUptake(rows);
+    expect(r.gated).toBe(false);
+    expect(r.sampleSize).toBe(5);
+    expect(r.value).toBe(60);
+  });
+
+  it("question_rate uptake = the NEXT session asked MORE (score up) — opposite direction from talk_ratio", () => {
+    // scores 1,2,1,2,1,3: pairs 1→2 up(taken),2→1 no,1→2 up(taken),2→1 no,1→3 up(taken) = 3 of 5 = 60%.
+    const rows = [1, 2, 1, 2, 1, 3].map((v, i) => R(`s${i}`, day(i + 1), "question_rate", { question_rate: v }));
+    expect(recommendationUptake(rows).value).toBe(60);
+  });
+
+  it("pairs sessions CHRONOLOGICALLY even when input is unordered", () => {
+    // Same data as the talk_ratio case, shuffled — the startedAt sort must restore the order.
+    const rows = [9, 8, 9, 8, 9, 7].map((v, i) => R(`s${i}`, day(i + 1), "talk_ratio", { talk_ratio: v }));
+    const shuffled = [rows[3]!, rows[0]!, rows[5]!, rows[2]!, rows[1]!, rows[4]!];
+    expect(recommendationUptake(shuffled).value).toBe(60);
+  });
+
+  it("dedups append-only multi-view rows (a session never pairs with itself)", () => {
+    // Two rows for s0 (a re-viewed session) must collapse to one — else s0→s0 is a false 0-delta pair.
+    const rows = [
+      R("s0", day(1), "talk_ratio", { talk_ratio: 9 }),
+      R("s0", day(1), "talk_ratio", { talk_ratio: 9 }), // duplicate
+      R("s1", day(2), "talk_ratio", { talk_ratio: 8 }),
+    ];
+    const r = recommendationUptake(rows);
+    expect(r.sampleSize).toBe(1); // exactly one pair (s0→s1), not two
+  });
+
+  it("a pair is NOT evaluable when the next session didn't re-score the focus dimension", () => {
+    const rows = [
+      R("s0", day(1), "talk_ratio", { talk_ratio: 9 }),
+      R("s1", day(2), null, { close: 5 }), // no talk_ratio score next session → not evaluable
+      R("s2", day(3), "talk_ratio", { talk_ratio: 8 }),
+      R("s3", day(4), "talk_ratio", { talk_ratio: 7 }),
+    ];
+    // Only (s2→s3) is evaluable (s0→s1 skipped: s1 has no talk_ratio). 1 pair < MIN_SESSIONS → gated.
+    expect(recommendationUptake(rows).sampleSize).toBe(1);
+    expect(recommendationUptake(rows).gated).toBe(true);
+  });
+
+  it("gates below MIN_SESSIONS evaluable pairs (building, not a guess)", () => {
+    const rows = Array.from({ length: MIN_SESSIONS }, (_, i) =>
+      R(`s${i}`, day(i + 1), "talk_ratio", { talk_ratio: 8 })
+    ); // MIN_SESSIONS sessions → only MIN_SESSIONS-1 pairs
+    expect(recommendationUptake(rows).value).toBeNull();
+    expect(recommendationUptake(rows).gated).toBe(true);
   });
 });
 
