@@ -143,9 +143,11 @@ export async function stitchSessionAudio(args: {
   if (order.length === 0) return { stitched: false, reason: "no chunks" };
 
   const parts: Buffer[] = [];
+  let chunkContentType = "audio/webm"; // preserved from the chunks — iOS Safari records audio/mp4, not webm
   for (let i = 0; i < order.length; i++) {
     const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, order[i]!) });
     if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
+    if (i === 0 && dl.contentType) chunkContentType = dl.contentType; // the recording's real format (mp4 on iOS)
     // A new recording header AFTER the first chunk = the recorder was recreated mid-session (mobile screen-lock
     // ended the mic track → P0 rebuilt it). The two segments can't be concatenated into one valid file, so stop
     // and keep the first (valid) segment — the pre-lock audio, still playable + transcribable. Container-aware
@@ -158,9 +160,14 @@ export async function stitchSessionAudio(args: {
   const merged = Buffer.concat(parts);
 
   const fpath = finalRecordingPath(args.companyId, args.sessionId);
+  // Label the stitched recording with the ACTUAL chunk format — mirrors the DoorLog twin stitchPitchAudio (fixed
+  // 2026-08-23). Hardcoding audio/webm mislabeled iOS's mp4 recording, so downloadAssetBytes read it back as webm
+  // and the worker/dissect handed mp4 bytes to STT labeled webm. Only the stitch (drop/phone-lock durability path)
+  // had this; the clean-Stop persistRecording already used blob.type. The chunk PATHS stay `.webm`-suffixed (an
+  // opaque storage key, format-independent) — only the stored contentType must be truthful for STT.
   const { error: upErr } = await admin.storage
     .from(ASSETS_BUCKET)
-    .upload(fpath, merged, { contentType: "audio/webm", upsert: true });
+    .upload(fpath, merged, { contentType: chunkContentType, upsert: true });
   if (upErr) return { stitched: false, reason: `upload: ${upErr.message}` };
 
   // Stamp the pointer in the SAME shape upload-recording writes + recording-purge-cron expects:

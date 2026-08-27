@@ -13,6 +13,8 @@ const state = vi.hoisted(() => ({
   audioUrl: null as string | null,
   chunkNames: [] as string[],
   uploaded: [] as string[],
+  uploadedContentType: null as string | null, // contentType the stitch stamped on the final recording
+  chunkContentType: "audio/webm" as string, // what the stored chunks are labeled (iOS = audio/mp4)
   stamped: false,
   headerSeqs: new Set<number>(), // seqs whose downloaded bytes begin with a NEW webm header (recreated recorder)
   mp4HeaderSeqs: new Set<number>(), // seqs that begin with a NEW mp4 ftyp init (iOS recreated recorder)
@@ -40,8 +42,9 @@ vi.mock("@/lib/supabase/admin", () => ({
     storage: {
       from: () => ({
         list: async () => ({ data: state.chunkNames.map((name) => ({ name })), error: null }),
-        upload: async (path: string) => {
+        upload: async (path: string, _bytes: unknown, opts?: { contentType?: string }) => {
           state.uploaded.push(path);
+          state.uploadedContentType = opts?.contentType ?? null;
           return { error: null };
         },
         remove: async () => ({ error: null }),
@@ -58,7 +61,7 @@ vi.mock("@/lib/storage/assets", () => ({
       : state.mp4HeaderSeqs.has(seq)
         ? Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 9, 9]) // a NEW mp4 ftyp init — iOS recreated recorder
         : Buffer.from([1, 2, 3]);
-    return { ok: true, bytes };
+    return { ok: true, bytes, contentType: state.chunkContentType };
   },
 }));
 
@@ -68,6 +71,8 @@ beforeEach(() => {
   state.audioUrl = null;
   state.chunkNames = [];
   state.uploaded = [];
+  state.uploadedContentType = null;
+  state.chunkContentType = "audio/webm";
   state.stamped = false;
   state.headerSeqs = new Set<number>();
   state.mp4HeaderSeqs = new Set<number>();
@@ -203,5 +208,26 @@ describe("stitchSessionAudio idempotency + safety", () => {
     const r = await stitchSessionAudio({ companyId: "co", sessionId: "s1" });
     expect(r.stitched).toBe(true);
     expect(r.bytes).toBe(6); // seqs 0 + 1 only — the mp4 seam at 2 is NOT crossed (no two-init unplayable file)
+  });
+
+  // DRIFT GUARD (A30) — the stitched recording must be labeled with the chunks' ACTUAL format, mirroring the
+  // DoorLog twin stitchPitchAudio (fixed 2026-08-23). Hardcoding audio/webm mislabeled an iOS mp4 recording that
+  // reached the stitch (drop/phone-lock durability path), so downloadAssetBytes read it back as webm and the
+  // worker/dissect handed mp4 bytes to STT labeled webm. The clean-Stop persist already used blob.type; only the
+  // stitch drifted. If this regresses to a hardcoded type, iOS coaching audio silently mislabels again.
+  it("labels the stitched recording with the chunks' real content-type (iOS mp4, NOT hardcoded webm)", async () => {
+    state.chunkNames = ["0.webm", "1.webm"];
+    state.chunkContentType = "audio/mp4"; // iOS Safari records mp4 even though the storage KEY stays .webm-suffixed
+    const r = await stitchSessionAudio({ companyId: "co", sessionId: "s1" });
+    expect(r.stitched).toBe(true);
+    expect(state.uploadedContentType).toBe("audio/mp4"); // preserved from the chunk, not overridden to webm
+  });
+
+  it("keeps audio/webm for a webm recording (the non-iOS pipeline default is untouched)", async () => {
+    state.chunkNames = ["0.webm", "1.webm"];
+    state.chunkContentType = "audio/webm";
+    const r = await stitchSessionAudio({ companyId: "co", sessionId: "s1" });
+    expect(r.stitched).toBe(true);
+    expect(state.uploadedContentType).toBe("audio/webm");
   });
 });
