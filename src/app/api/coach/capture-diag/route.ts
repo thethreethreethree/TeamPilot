@@ -21,6 +21,10 @@ const Body = z.object({
   sessionId: z.string().max(200).optional(),
   diag: z.object({
     sawData: z.boolean().optional(),
+    // TOTAL bytes across all data events — THE signal that distinguishes a real-audio capture from a tiny stub
+    // (iOS produced sub-1KB stubs read as sawData=true). buildCaptureDiag always emits it; this schema was
+    // stripping it for the live/meeting/care recorders — the same blindness the door-log capture-diag route fixed.
+    capturedBytes: z.number().int().nonnegative().max(2_000_000_000).optional(),
     chunkCount: z.number().int().nonnegative().max(1_000_000).optional(),
     chunksUploaded: z.number().int().nonnegative().max(1_000_000).optional(),
     durationMs: z.number().nonnegative().max(86_400_000).optional(),

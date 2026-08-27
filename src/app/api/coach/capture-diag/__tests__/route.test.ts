@@ -47,6 +47,16 @@ describe("POST /api/coach/capture-diag", () => {
     expect(payload.trackEnded).toBe(true);
   });
 
+  it("PERSISTS capturedBytes — the stub-vs-real-audio signal (was stripped by the schema; A30 drift guard)", async () => {
+    // buildCaptureDiag always emits capturedBytes; the door-log twin route was fixed to keep it, this one was missed.
+    // A tiny capturedBytes with sawData=true is the exact iOS-stub fingerprint the whole capture-diag system exists
+    // to record — if the schema strips it, live/meeting/care diagnosis goes blind on the one field that matters.
+    const res = await POST(req({ surface: "meeting", sessionId: "s1", diag: { sawData: true, capturedBytes: 5, chunksUploaded: 0 } }));
+    expect(res.status).toBe(200);
+    const payload = inserted[0]!.payload as Record<string, unknown>;
+    expect(payload.capturedBytes).toBe(5); // survived the schema, not stripped to undefined
+  });
+
   it("scopes to the REP when there is no sessionId (e.g. C.A.R.E)", async () => {
     const res = await POST(req({ surface: "care", diag: DIAG }));
     expect(res.status).toBe(200);
