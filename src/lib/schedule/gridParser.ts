@@ -17,6 +17,15 @@ export interface ShiftTimes {
 /** A shift-code → meaning map. A code maps to shift times, to "off", or is absent (→ unknown/flagged). */
 export type ShiftCodeMap = Record<string, ShiftTimes | "off">;
 
+/**
+ * Upper bound on staff rows a single grid import accepts. parseScheduleGrid emits one entry per row PER header
+ * date (rows × headerDates), and headerDates is capped at 400 — so without a row bound a 1MB CSV of ~500k trivial
+ * rows explodes to ~200M entry objects → serverless OOM/500 (an availability defect, manager-reachable by a large
+ * paste). A real roster is well under this; the routes reject a larger grid with a graceful 413, never a silent
+ * truncation (§3.4) nor an opaque crash. Bounds the entry count with the date cap: 1000 × 400 stays serializable.
+ */
+export const MAX_GRID_ROWS = 1000;
+
 export interface GridEntry {
   employeeName: string;
   date: string; // ISO YYYY-MM-DD

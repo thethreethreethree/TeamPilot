@@ -11,7 +11,7 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
-import { POST } from "../route";
+import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 const U = "11111111-1111-4111-8111-111111111111";
@@ -59,5 +59,17 @@ describe("POST /api/schedule/events — RQ6 role-per-event-type", () => {
     expect((await POST(req(shiftDefined))).status).toBe(401);
     asMock(getCurrentAuthContext).mockResolvedValue(manager);
     expect((await POST(req({ type: "NONSENSE", payload: {} }))).status).toBe(400);
+  });
+});
+
+describe("GET /api/schedule/events — manager-only, honest 403 (Finding F4)", () => {
+  it("a non-manager gets an explicit 403, NOT an empty {events:[]} that reads as 'schedule is empty'", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(member);
+    const res = await GET({} as unknown as Parameters<typeof GET>[0]);
+    expect(res.status).toBe(403); // permission denial is honest, never dressed as no-data (§3.4)
+  });
+  it("401 when unauthenticated", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(null);
+    expect((await GET({} as unknown as Parameters<typeof GET>[0])).status).toBe(401);
   });
 });

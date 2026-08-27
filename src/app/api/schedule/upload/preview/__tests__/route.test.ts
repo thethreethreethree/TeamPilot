@@ -42,6 +42,15 @@ describe("POST /api/schedule/upload/preview", () => {
     expect(j.off).toBe(1);
   });
 
+  it("rejects an oversized grid with a graceful 413 (row cap — a huge paste must not OOM the function)", async () => {
+    // parseScheduleGrid emits rows × headerDates entries; without a row bound a large paste explodes to an OOM.
+    // MAX_GRID_ROWS = 1000, so 1001 staff rows must be refused with an honest 413, not parsed into millions of entries.
+    asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u1", companyId: "c1", role: "admin", isAdmin: true });
+    const huge = ["NAME,d1", ...Array.from({ length: 1001 }, (_, i) => `P${i},6-3`)].join("\n");
+    const res = await POST(req({ csv: huge, headerDates: ["2026-08-16"], codeMap: MAP }));
+    expect(res.status).toBe(413);
+  });
+
   it("a non-manager is blocked (403)", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue({ userId: "u2", companyId: "c1", role: "Member", isAdmin: false });
     expect((await POST(req({ csv: CSV, headerDates: DATES, codeMap: MAP }))).status).toBe(403);

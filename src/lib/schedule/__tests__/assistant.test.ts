@@ -90,9 +90,18 @@ describe("parseAssistantReply", () => {
     expect(r.reply).not.toMatch(/[–—]/);
   });
 
-  it("malformed JSON degrades to a safe rephrase message, no actions", () => {
+  it("malformed (non-empty) JSON degrades to a safe rephrase message, no actions", () => {
     const r = parseAssistantReply("not json at all");
     expect(r.actions).toEqual([]);
     expect(r.reply.toLowerCase()).toContain("rephrasing");
+  });
+
+  it("an EMPTY response reports an honest system problem, NOT 'rephrase' (§3.4 — starvation is not user-fault)", () => {
+    for (const empty of ["", "   ", "\n"]) {
+      const r = parseAssistantReply(empty);
+      expect(r.actions).toEqual([]);
+      expect(r.reply.toLowerCase()).not.toContain("rephras"); // never blame the manager for a starved/empty model reply
+      expect(r.reply.toLowerCase()).toContain("problem"); // an honest system hiccup
+    }
   });
 });

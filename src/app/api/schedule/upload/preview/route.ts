@@ -5,7 +5,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
-import { parseScheduleGrid } from "@/lib/schedule/gridParser";
+import { parseScheduleGrid, MAX_GRID_ROWS } from "@/lib/schedule/gridParser";
 import { supersededShiftIds, dateSpan } from "@/lib/schedule/importPlanner";
 import { readExistingShifts } from "@/lib/schedule/commitImport";
 
@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
   if (!ctx.isAdmin) return NextResponse.json({ error: "Only a manager can import a schedule." }, { status: 403 });
 
   const grid = parseCsvToGrid(body.csv, { headerRowIndex: body.headerRowIndex });
+  // Bound rows BEFORE the rows × headerDates expansion (a large paste would otherwise OOM the function). Graceful
+  // 413 with the real count, never a silent truncation or an opaque crash (§3.4).
+  if (grid.rows.length > MAX_GRID_ROWS) {
+    return NextResponse.json(
+      { error: `That schedule has ${grid.rows.length} staff rows — the import limit is ${MAX_GRID_ROWS}. Split it into smaller files.` },
+      { status: 413 },
+    );
+  }
   const parsed = parseScheduleGrid({ headerDates: body.headerDates, rows: grid.rows, codeMap: body.codeMap });
 
   // Replace-the-week honesty (§3.4): how many EXISTING shifts a commit would supersede, so the manager sees

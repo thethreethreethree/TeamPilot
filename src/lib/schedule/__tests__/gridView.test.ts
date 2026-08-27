@@ -43,7 +43,7 @@ describe("buildWeekGrid", () => {
       WEEK,
     );
     expect(g.shiftsThisWeek).toBe(1); // s2 is next week, excluded
-    expect(g.cell("e1", "2026-08-18")).toEqual({ shiftId: "s1", label: "09:00-17:00", off: false });
+    expect(g.cell("e1", "2026-08-18")).toEqual({ shiftId: "s1", label: "09:00-17:00", off: false, segments: [{ shiftId: "s1", label: "09:00-17:00", off: false }] });
     expect(g.cell("e1", "2026-08-30")).toBeNull(); // outside the displayed week
   });
 
@@ -68,9 +68,21 @@ describe("buildWeekGrid", () => {
 
   it("gives every assignee their own cell + records each in scheduledIds", () => {
     const g = buildWeekGrid([shift("s1", "2026-08-19", "06:00", "14:00", ["e1", "e2"])], WEEK);
-    expect(g.cell("e1", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false });
-    expect(g.cell("e2", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false });
+    expect(g.cell("e1", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false, segments: [{ shiftId: "s1", label: "06:00-14:00", off: false }] });
+    expect(g.cell("e2", "2026-08-19")).toEqual({ shiftId: "s1", label: "06:00-14:00", off: false, segments: [{ shiftId: "s1", label: "06:00-14:00", off: false }] });
     expect([...g.scheduledIds].sort()).toEqual(["e1", "e2"]);
+  });
+
+  it("a SPLIT shift keeps BOTH shifts, earliest-first — never last-wins-drops the earlier half (Finding A)", () => {
+    // Jane works 18:00–22:00 AND 06:00–10:00 the same day; the shifts arrive evening-first (worst case for last-wins).
+    const g = buildWeekGrid(
+      [shift("pm", "2026-08-19", "18:00", "22:00", ["e1"]), shift("am", "2026-08-19", "06:00", "10:00", ["e1"])],
+      WEEK,
+    );
+    const c = g.cell("e1", "2026-08-19");
+    expect(c?.segments.map((s) => s.label)).toEqual(["06:00-10:00", "18:00-22:00"]); // both, earliest-first
+    expect(c?.label).toBe("06:00-10:00"); // primary = earliest (agrees with the data export's earliest-first)
+    expect(c?.shiftId).toBe("am");
   });
 
   it("empty week / no shifts → an empty grid", () => {

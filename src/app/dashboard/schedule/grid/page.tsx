@@ -264,8 +264,18 @@ export default function ScheduleGridPage() {
             const st = c.off ? BAND_STYLE.off : BAND_STYLE[bandFromLabel(c.label) ?? "day"];
             const pw = colW - 16, ph = 26;
             rrect(cx + 8, y + (rowH - ph) / 2, pw, ph, 8); ctx.fillStyle = st.bg; ctx.fill();
-            ctx.fillStyle = st.fg; ctx.font = "600 12px system-ui, sans-serif"; ctx.textAlign = "center";
-            ctx.fillText(c.off ? `${c.label} · off` : c.label, x, y + rowH / 2, pw - 8);
+            ctx.fillStyle = st.fg; ctx.textAlign = "center";
+            if (c.segments.length === 1) {
+              ctx.font = "600 12px system-ui, sans-serif";
+              ctx.fillText(c.off ? `${c.label} · off` : c.label, x, y + rowH / 2, pw - 8);
+            } else {
+              // Split shift — stack every segment so no shift is hidden on the printed/exported schedule (Finding A).
+              ctx.font = "600 9px system-ui, sans-serif";
+              const lines = c.segments.slice(0, 2).map((s) => (s.off ? `${s.label}·off` : s.label));
+              if (c.segments.length > 2) lines[1] = `${lines[1]} +${c.segments.length - 2}`;
+              const lh = 11;
+              lines.forEach((ln, k) => ctx.fillText(ln, x, y + rowH / 2 + (k - (lines.length - 1) / 2) * lh, pw - 6));
+            }
           } else {
             ctx.fillStyle = "#cbd5e1"; ctx.font = "13px system-ui, sans-serif"; ctx.textAlign = "center";
             ctx.fillText("·", x, y + rowH / 2);
@@ -524,19 +534,28 @@ export default function ScheduleGridPage() {
                     <td className="sticky left-0 bg-base text-primary text-xs px-3 py-2 border-b border-white/5 truncate min-w-[9rem]">{emp.name}</td>
                     {dates.map((d) => {
                       const c = cell(emp.id, d);
-                      const busy = c !== null && unassigning === `${c.shiftId}:${emp.id}`;
                       return (
                         <td key={d} className={`text-center text-[11px] px-2 py-2 border-b border-white/5 whitespace-nowrap tabular-nums ${c ? "text-primary" : "text-muted/40"}`}>
                           {c ? (
-                            <button
-                              type="button"
-                              onClick={() => unassign(c.shiftId, emp.id, emp.name)}
-                              disabled={busy}
-                              title={c.off ? `${emp.name} has APPROVED time off on this day — they won't work this shift. Click to unassign.` : `Unassign ${emp.name} from this shift`}
-                              className={`rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors ${c.off ? "text-amber-300 line-through decoration-amber-300/70" : ""}`}
-                            >
-                              {busy ? "…" : c.off ? `${c.label} (off)` : c.label}
-                            </button>
+                            // Every shift this person works that day gets its own clickable chip — a split shift shows
+                            // both (Finding A: the cell no longer hides the earlier half), each unassignable on its own.
+                            <span className="inline-flex flex-col gap-0.5">
+                              {c.segments.map((seg) => {
+                                const segBusy = unassigning === `${seg.shiftId}:${emp.id}`;
+                                return (
+                                  <button
+                                    key={seg.shiftId}
+                                    type="button"
+                                    onClick={() => unassign(seg.shiftId, emp.id, emp.name)}
+                                    disabled={segBusy}
+                                    title={seg.off ? `${emp.name} has APPROVED time off on this day — they won't work this shift. Click to unassign.` : `Unassign ${emp.name} from this shift`}
+                                    className={`rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-50 transition-colors ${seg.off ? "text-amber-300 line-through decoration-amber-300/70" : ""}`}
+                                  >
+                                    {segBusy ? "…" : seg.off ? `${seg.label} (off)` : seg.label}
+                                  </button>
+                                );
+                              })}
+                            </span>
                           ) : (
                             "·"
                           )}

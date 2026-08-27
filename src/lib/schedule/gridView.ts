@@ -7,13 +7,23 @@ import { crossesMidnight, addDaysIso, weekStartOf } from "./constraints";
  * inactive-staff accumulation filter). The component is left as thin wiring over these.
  */
 
-export interface WeekCell {
+/** One shift a person works on a given day. A split shift (e.g. 06:00–10:00 AND 18:00–22:00) yields two. */
+export interface WeekCellSegment {
   shiftId: string;
   /** "HH:mm-HH:mm" for display. */
   label: string;
   /** The assigned person has APPROVED time-off overlapping this date — so they won't actually work it. The
    *  grid shows the assignment; without this flag it looks staffed while Coverage (RQ15) flags it short. */
   off?: boolean;
+}
+
+export interface WeekCell extends WeekCellSegment {
+  // shiftId / label / off above are the PRIMARY (earliest) segment — kept flat for the click-to-unassign +
+  // colour-band consumers that act on a single shift.
+  /** ALL shifts this person works that day, earliest-first. A single shift → one segment; a split shift → two+.
+   *  Both the colour export and the screen grid render every segment, so a split shift is never silently dropped
+   *  (schedule audit 2026-08-27, Finding A — the old last-wins cell hid the earlier half of a split). */
+  segments: WeekCellSegment[];
 }
 
 /** Approved time-off spans (for marking assigned-but-off cells). */
@@ -49,7 +59,9 @@ export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: App
   // crosses midnight, the next calendar day too — so the grid marking agrees with what Coverage counts.
   const shiftHitsOff = (e: string, s: Shift) =>
     offOn(e, s.date) || (crossesMidnight(s.start, s.end) && offOn(e, addDaysIso(s.date, 1) ?? s.date));
-  const byEmpDate = new Map<string, Map<string, WeekCell>>();
+  // Accumulate ALL of a person's shifts per day (a split shift adds a second) instead of last-wins overwriting —
+  // the old single-value map silently dropped the earlier half of a split (Finding A).
+  const byEmpDate = new Map<string, Map<string, WeekCellSegment[]>>();
   let shiftsThisWeek = 0;
   let emptyShiftsThisWeek = 0;
   for (const s of shifts) {
@@ -58,11 +70,22 @@ export function buildWeekGrid(shifts: Shift[], dates: string[], approvedOff: App
     if (s.assigned.length === 0) emptyShiftsThisWeek += 1; // no cells rendered for this shift — surface it
     for (const empId of s.assigned) {
       if (!byEmpDate.has(empId)) byEmpDate.set(empId, new Map());
-      byEmpDate.get(empId)!.set(s.date, { shiftId: s.id, label: `${s.start}-${s.end}`, off: shiftHitsOff(empId, s) });
+      const m = byEmpDate.get(empId)!;
+      const segs = m.get(s.date) ?? [];
+      segs.push({ shiftId: s.id, label: `${s.start}-${s.end}`, off: shiftHitsOff(empId, s) });
+      m.set(s.date, segs);
     }
   }
   return {
-    cell: (employeeId, date) => byEmpDate.get(employeeId)?.get(date) ?? null,
+    cell: (employeeId, date) => {
+      const segs = byEmpDate.get(employeeId)?.get(date);
+      if (!segs || segs.length === 0) return null;
+      // Earliest-first — labels are zero-padded "HH:mm-…", so a lexical sort is chronological (matches the data
+      // export's earliest-first primary, so the two never disagree on which shift leads).
+      const sorted = [...segs].sort((a, b) => a.label.localeCompare(b.label));
+      const primary = sorted[0]!;
+      return { shiftId: primary.shiftId, label: primary.label, off: primary.off, segments: sorted };
+    },
     scheduledIds: new Set(byEmpDate.keys()),
     shiftsThisWeek,
     emptyShiftsThisWeek,

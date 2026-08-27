@@ -5,7 +5,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { parseCsvToGrid } from "@/lib/schedule/csvGrid";
-import { parseScheduleGrid } from "@/lib/schedule/gridParser";
+import { parseScheduleGrid, MAX_GRID_ROWS } from "@/lib/schedule/gridParser";
 import { planImport } from "@/lib/schedule/importPlanner";
 import { commitImport } from "@/lib/schedule/commitImport";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -50,6 +50,14 @@ export async function POST(req: NextRequest) {
 
   // Deterministic re-parse (never trust a client plan).
   const grid = parseCsvToGrid(body.csv, { headerRowIndex: body.headerRowIndex });
+  // Same bound the preview enforces — reject an oversized grid BEFORE the rows × headerDates expansion (§3.4 honest
+  // 413, not an OOM). Kept in lockstep with preview via the shared MAX_GRID_ROWS.
+  if (grid.rows.length > MAX_GRID_ROWS) {
+    return NextResponse.json(
+      { error: `That schedule has ${grid.rows.length} staff rows — the import limit is ${MAX_GRID_ROWS}. Split it into smaller files.` },
+      { status: 413 },
+    );
+  }
   const parsed = parseScheduleGrid({ headerDates: body.headerDates, rows: grid.rows, codeMap: body.codeMap });
   if (parsed.unknownCodes.length > 0) {
     return NextResponse.json(

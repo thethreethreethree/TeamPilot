@@ -71,6 +71,13 @@ Rules:
  * and dropped if it doesn't conform (a half-formed action is not a safe write). Exported for unit tests.
  */
 export function parseAssistantReply(raw: string): AssistantReply {
+  // An EMPTY model response is a SYSTEM problem (e.g. token starvation returning ""), not the manager being unclear.
+  // Reporting it as "try rephrasing" blames the user for a server-side hiccup — the error-dressed-as-user-fault
+  // anti-pattern (§3.4). Distinguish it: empty → honest system message; non-empty-but-unparseable keeps the rephrase
+  // guidance (the model DID produce text, just not the required JSON shape).
+  if (raw.trim() === "") {
+    return { reply: "The assistant had a problem generating a response — please try again in a moment.", actions: [] };
+  }
   let o: Record<string, unknown>;
   try {
     o = JSON.parse(raw) as Record<string, unknown>;
