@@ -122,36 +122,43 @@ export async function getKpiForDay(localDate: string, repId: string) {
 /**
  * All-time Macro Mode totals for a rep (the dashboard's Doors Knocked / Presentation / Sold bubbles).
  * Paged (fetchAllPaged) so a rep with >1000 active days can't silently undercount — summing a PostgREST
- * read truncated at 1000 rows is the honesty-thesis wrong-number class. A "presentation" = a door where the
- * rep actually pitched, i.e. any outcome other than No-Answer (doors_knocked − no_answer).
+ * read truncated at 1000 rows is the honesty-thesis wrong-number class.
+ *
+ * A "presentation" = a door where the rep actually RECORDED a pitch (founder decision 2026-08-28), counted as
+ * rows in `pitches`. The old proxy (doors_knocked − no_answer) OVER-counted: it credited every non-no-answer
+ * knock as a presentation even when the rep logged an outcome but never pitched-and-recorded. `pitches` is
+ * unique per knock_id (one pitch per door), so the row count = distinct doors actually pitched — the number
+ * the founder confirmed (Moses: 41 recorded pitches, not the 46 non-no-answer knocks). All statuses count:
+ * a pitch that recorded but later failed to analyze was still a presentation. rep_kpi_daily stays the source
+ * for knocked/sold.
  */
 export async function getAllTimeKpi(
   repId: string,
 ): Promise<{ doorsKnocked: number; presentations: number; sold: number }> {
   const sb = await createClient();
-  const rows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
-    (from, to) =>
-      sb
-        .from("rep_kpi_daily")
-        .select("doors_knocked, sold, no_answer")
-        .eq("rep_id", repId)
-        .range(from, to),
-    { label: "all-time door KPI" },
-  );
+  const [rows, pitchCountRes] = await Promise.all([
+    fetchAllPaged<{ doors_knocked: number; sold: number }>(
+      (from, to) =>
+        sb.from("rep_kpi_daily").select("doors_knocked, sold").eq("rep_id", repId).range(from, to),
+      { label: "all-time door KPI" },
+    ),
+    sb.from("pitches").select("id", { count: "exact", head: true }).eq("rep_id", repId),
+  ]);
+  // Honesty (INV22): a failed presentations count must NOT render as a fabricated 0 — throw so the caller
+  // degrades visibly (a 5xx / last-good) instead of showing a false "0 presentations".
+  if (pitchCountRes.error) throw new Error(`getAllTimeKpi presentations count failed: ${pitchCountRes.error.message}`);
   let doorsKnocked = 0;
   let sold = 0;
-  let noAnswer = 0;
   for (const r of rows) {
     doorsKnocked += Number(r.doors_knocked ?? 0);
     sold += Number(r.sold ?? 0);
-    noAnswer += Number(r.no_answer ?? 0);
   }
-  return { doorsKnocked, presentations: Math.max(0, doorsKnocked - noAnswer), sold };
+  return { doorsKnocked, presentations: pitchCountRes.count ?? 0, sold };
 }
 
 /**
  * Today's Metrics for a rep + period (Macro Mode, founder spec 2026-08-19): the KPI trio (doors / conversations
- * = presentations / sales), the Score-Chart averages across the period's analyzed pitches, and the Next-Door
+ * = presentations = recorded pitches in the window / sales), the Score-Chart averages across the period's analyzed pitches, and the Next-Door
  * focus + growth opportunities from the macro rollup. RLS-scoped (the caller sees their own; a manager may pass
  * a team member's repId, still RLS-authorized). Windows match the rollup (via the rep's device-tz local_date).
  */
@@ -180,10 +187,10 @@ export async function getTodaysMetrics(
   // KPIs, scores, and the rollup summary are independent (all key on the window resolved above) — run them in
   // PARALLEL so the rep waits on the slowest, not the sum. KPIs + scores are PAGED so a heavy rep's rows can't
   // silently truncate the sum/average (honesty thesis); the summary is the precomputed rollup (no LLM on view).
-  const [kpiRows, pitchRows, summaryRes] = await Promise.all([
-    fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
+  const [kpiRows, pitchRows, summaryRes, presentationsRes] = await Promise.all([
+    fetchAllPaged<{ doors_knocked: number; sold: number }>(
       (from, to) => {
-        const base = sb.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").eq("rep_id", repId);
+        const base = sb.from("rep_kpi_daily").select("doors_knocked, sold").eq("rep_id", repId);
         return (since ? base.gte("local_date", since) : base).range(from, to);
       },
       { label: "todays-metrics kpi" },
@@ -209,15 +216,27 @@ export async function getTodaysMetrics(
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Presentations for the window = RECORDED pitches (all statuses; founder 2026-08-28), NOT non-no-answer knocks.
+    // Period-scoped via the door_knocks.local_date join, mirroring the scores query's window. Distinct from that
+    // query — scores gate on status=complete (analyzed), presentations count every recorded pitch.
+    (() => {
+      const base = sb
+        .from("pitches")
+        .select("door_knocks!inner(local_date)", { count: "exact", head: true })
+        .eq("rep_id", repId);
+      return since ? base.gte("door_knocks.local_date", since) : base;
+    })(),
   ]);
+
+  // Honesty (INV22): a failed presentations count must not become a fabricated 0 — throw so the view degrades visibly.
+  if (presentationsRes.error)
+    throw new Error(`getTodaysMetrics presentations count failed: ${presentationsRes.error.message}`);
 
   let doorsKnocked = 0;
   let sold = 0;
-  let noAnswer = 0;
   for (const r of kpiRows) {
     doorsKnocked += Number(r.doors_knocked ?? 0);
     sold += Number(r.sold ?? 0);
-    noAnswer += Number(r.no_answer ?? 0);
   }
 
   const scoresList: Array<Record<string, number>> = [];
@@ -230,7 +249,7 @@ export async function getTodaysMetrics(
   const opportunities = (summaryRes.data?.patterns_bad as string[] | undefined) ?? [];
 
   return {
-    kpi: { doorsKnocked, conversations: Math.max(0, doorsKnocked - noAnswer), sold },
+    kpi: { doorsKnocked, conversations: presentationsRes.count ?? 0, sold },
     scores: averageScores(scoresList),
     // Next-Door focus = the rep's #1 recurring growth opportunity, surfaced automatically (founder decision).
     focus: opportunities[0] ?? null,
