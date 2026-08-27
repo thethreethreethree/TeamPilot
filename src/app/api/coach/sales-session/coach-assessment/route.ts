@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
+import { aggregateCoachingContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 import { getAllTimeKpi } from "@/lib/data/doorlog";
 import {
   PRACTICE_EVENT_KIND,
@@ -110,6 +110,9 @@ export async function GET() {
     growth: string[];
     strategies: string[];
     count: number;
+    // Door-pitch analyses count (founder 2026-08-27) — a rep's real door work now counts as coaching signal, and its
+    // strengths/improvements feed Doing Well / Coaching Focus alongside coaching-session dissects.
+    pitchCount: number;
     lastAt: string | null;
     // Per-rep door activity (founder 2026-08-26: "show their door metrics on the manager dashboard"). Objective
     // ACTIVITY (knocked / presentations / sold), distinct from the growth-based coaching grade — manager visibility,
@@ -125,7 +128,7 @@ export async function GET() {
   const perRep = await Promise.all(
     agents.map(
       async (a): Promise<{ id: string; agg: Agg } | { error: true }> => {
-        const [countRes, contentRes, doorKpi, practiceRes] = await Promise.all([
+        const [countRes, contentRes, pitchCountRes, pitchContentRes, doorKpi, practiceRes] = await Promise.all([
           admin
             .from("events")
             .select("*", { count: "exact", head: true })
@@ -136,6 +139,21 @@ export async function GET() {
             .select("payload, created_at")
             .eq("kind", "coach.dissect_generated")
             .eq("actor", a.id)
+            .order("created_at", { ascending: false })
+            .limit(DISSECT_CONTENT_N),
+          // Door-pitch coaching signal (founder 2026-08-27 — "feed door pitches into the assessment"). pitch_analyses
+          // is rep-scoped (rep_id + company_id); its strengths/improvements ARE the door coaching text. EXACT count
+          // (head, no rows — immune to the row cap) + the recent-N content for Doing Well / Coaching Focus.
+          admin
+            .from("pitch_analyses")
+            .select("*", { count: "exact", head: true })
+            .eq("rep_id", a.id)
+            .eq("company_id", ctx.companyId),
+          admin
+            .from("pitch_analyses")
+            .select("strengths, improvements, created_at")
+            .eq("rep_id", a.id)
+            .eq("company_id", ctx.companyId)
             .order("created_at", { ascending: false })
             .limit(DISSECT_CONTENT_N),
           // Best-effort — door metrics must never blank the coaching page (null on any error, never a false 0).
@@ -152,12 +170,13 @@ export async function GET() {
             .order("created_at", { ascending: false })
             .limit(PRACTICE_N),
         ]);
-        if (countRes.error || contentRes.error) return { error: true };
-        const content = aggregateDissectContent(contentRes.data ?? []);
+        if (countRes.error || contentRes.error || pitchCountRes.error || pitchContentRes.error) return { error: true };
+        // Merge coaching-session dissects + door-pitch analyses into the SAME Doing Well / Coaching Focus, newest-first.
+        const content = aggregateCoachingContent(contentRes.data ?? [], pitchContentRes.data ?? []);
         const practice = practiceRes.error
           ? null
           : summarizePracticeForManager((practiceRes.data ?? []) as { payload: unknown; created_at: unknown }[]);
-        const agg: Agg = { ...content, count: countRes.count ?? 0, doorKpi, practice };
+        const agg: Agg = { ...content, count: countRes.count ?? 0, pitchCount: pitchCountRes.count ?? 0, doorKpi, practice };
         return { id: a.id, agg };
       }
     )
@@ -178,6 +197,9 @@ export async function GET() {
         agentId: a.id,
         agentName: a.full_name ?? "Unnamed",
         dissectCount: d?.count ?? 0,
+        // Door pitches now count as coaching signal too (founder 2026-08-27). The page shows the combined total, so a
+        // rep who mostly pitches no longer reads as "no content".
+        pitchCount: d?.pitchCount ?? 0,
         strengths: uniqTrim(d?.strengths ?? [], 6),
         growthAreas: uniqTrim(d?.growth ?? [], 6),
         strategies: uniqTrim(d?.strategies ?? [], 4),

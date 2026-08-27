@@ -34,6 +34,9 @@ type AgentAssessment = {
   agentId: string;
   agentName: string;
   dissectCount: number;
+  // Door-pitch analyses count (founder 2026-08-27) — a rep's door work now counts as coaching signal and feeds the
+  // strengths/growth below, so a rep who mostly pitches is no longer blank.
+  pitchCount: number;
   strengths: string[];
   growthAreas: string[];
   strategies: string[];
@@ -144,8 +147,9 @@ export default function CoachAssessmentPage() {
     }
   }, [load]);
 
-  const withContent = (team ?? []).filter((a) => a.dissectCount > 0);
-  const noContent = (team ?? []).filter((a) => a.dissectCount === 0);
+  // A rep has content if they've been assessed via a coaching session OR a door pitch (founder 2026-08-27).
+  const withContent = (team ?? []).filter((a) => a.dissectCount > 0 || a.pitchCount > 0);
+  const noContent = (team ?? []).filter((a) => a.dissectCount === 0 && a.pitchCount === 0);
 
   return (
     <>
@@ -290,9 +294,16 @@ export default function CoachAssessmentPage() {
               // Expert: always expanded (full system). Standard: collapsed until the
               // user clicks this agent's ELO badge to reveal.
               const isExpanded = isExpert || expandedAgents.has(a.agentId);
+              // Coaching signal = sessions dissected + door pitches analyzed (founder 2026-08-27). Show whichever a
+              // rep has, so a pure-pitcher reads "N pitches analyzed" instead of "0 sessions".
               const dissectBadge = (
                 <span className="text-[10px] text-muted">
-                  {a.dissectCount} session{a.dissectCount === 1 ? "" : "s"} dissected
+                  {[
+                    a.dissectCount > 0 ? `${a.dissectCount} session${a.dissectCount === 1 ? "" : "s"} dissected` : "",
+                    a.pitchCount > 0 ? `${a.pitchCount} pitch${a.pitchCount === 1 ? "" : "es"} analyzed` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "0 sessions dissected"}
                 </span>
               );
               return (
