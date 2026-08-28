@@ -110,6 +110,9 @@ type Session = {
   startedAt?: string;
   endedAt?: string | null;
   outcome?: SalesOutcome | null;
+  // Deal value (Layer-1 KPI, 0205) — only meaningful on a 'sold' outcome. Captured here in the Standard flow
+  // (this screen replaces the session page), so Revenue / Avg-deal-size don't stay "building" for lack of the value.
+  dealValue?: number | null;
 };
 
 /** Conversation length for the header ("2m 43s"). Prefers the recording's REAL audio length when the
@@ -226,7 +229,7 @@ export default function AfterPitchPage() {
   // the first await, released in finally (a deliberate later re-record still works).
   const outcomeSubmitRef = useRef(false);
   const recordOutcome = useCallback(
-    async (outcome: SalesOutcome) => {
+    async (outcome: SalesOutcome, dealValue?: number | null) => {
       if (outcomeSubmitRef.current) return;
       outcomeSubmitRef.current = true;
       setSavingOutcome(outcome);
@@ -234,7 +237,8 @@ export default function AfterPitchPage() {
         const res = await fetch(`/api/coach/sales-session/${id}/outcome`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ outcome }),
+          // Send dealValue only when provided (omit = leave unchanged) — mirrors the session page's chokepoint.
+          body: JSON.stringify({ outcome, ...(dealValue !== undefined ? { dealValue } : {}) }),
         });
         if (res.ok) setSession((await res.json()).session);
       } finally {
@@ -244,6 +248,18 @@ export default function AfterPitchPage() {
     },
     [id]
   );
+  // Deal value — only meaningful on a 'sold' outcome (Layer-1 KPI, 0205). Optional; routes through recordOutcome
+  // (the append-only chokepoint), mirroring the session page so both surfaces validate + save the value identically.
+  const [dealDraft, setDealDraft] = useState("");
+  const [savingDeal, setSavingDeal] = useState(false);
+  const saveDealValue = useCallback(async () => {
+    const trimmed = dealDraft.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) return; // keep it simple: ignore an invalid entry
+    setSavingDeal(true);
+    await recordOutcome("sold", parsed);
+    setSavingDeal(false);
+  }, [dealDraft, recordOutcome]);
 
   // Returns the freshly-built summary so a caller can decide what to do next (e.g. route a first-visit
   // customer-missing read into auto-recover — 2026-08-14 finding ②). Null on latch-skip / error / 403.
@@ -813,6 +829,40 @@ export default function AfterPitchPage() {
                     </button>
                   ))}
                 </div>
+                {/* Deal value — only on a 'sold' outcome (Layer-1 KPI, 0205). Optional inline input (founder
+                    2026-08-28), mirroring the session page so Revenue / Avg-deal-size capture the value in the
+                    Standard flow instead of staying "building". */}
+                {session.outcome === "sold" && (
+                  <div className="flex items-end gap-2 pt-1">
+                    <div className="flex-1 min-w-0 max-w-[12rem]">
+                      <label className="block text-[10px] uppercase tracking-widest text-muted mb-1">
+                        Deal value (optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={dealDraft}
+                        onChange={(e) => setDealDraft(e.target.value)}
+                        placeholder={session.dealValue != null ? String(session.dealValue) : "e.g. 2500"}
+                        className="w-full bg-base border border-default rounded-md px-2.5 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void saveDealValue()}
+                      disabled={savingDeal}
+                      className="text-xs font-semibold text-brand border border-ember-400/40 hover:border-ember-400/70 bg-ember-400/5 px-3 py-1.5 rounded-md disabled:opacity-50"
+                    >
+                      {savingDeal ? "Saving…" : "Save value"}
+                    </button>
+                    {session.dealValue != null && (
+                      <span className="text-[11px] text-emerald-300 mb-1.5">
+                        Recorded: {session.dealValue.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {isOwner ? (
