@@ -88,3 +88,15 @@ every row (0 broken) and that the +131 rows disrupt no consumer (all dedup to la
    The fixes are DATA-CAPTURE / config (prompt outcome + deal value at session end; set a quota target) — product/UX
    decisions, NOT changed autonomously. This is likely the deepest driver of the original complaint, and it means
    the KPI page will fill in as capture improves — the honesty-thesis behavior, working as designed.
+
+5. **CORRECTION (§5 honesty — I overstated a "critical bug").** While auditing door-pitch health I reported ~24%
+   of pitches failing (STT "corrupted", 5-byte stubs) as a CURRENT critical bug and shipped a fix (commit
+   `8591184a`: `isCaptureViable` gates on byte volume, not chunk count). Deeper investigation then corrected me:
+   **every STT-corrupted-stub failure is from 08-24/08-25; ZERO were created on/after 08-26.** The class was
+   ALREADY resolved by the worker's header check (`startsWithNewRecordingHeader` rejects the 5-byte webm-Cues stub
+   WITHOUT calling STT — worker.ts:143) plus iOS switching to mp4 (both ~08-25). My "24% CURRENT" averaged over 7
+   days and swept in that historical batch — the real current rate for this class is **0**. The shipped fix is a
+   valid BELT-AND-SUSPENDERS client-side hardening (byte-volume is the correct signal; it adds a layer for the
+   chunks>0 case and restores capturedBytes diagnostics) — but it is NOT the fix for an active bug, and I claimed
+   otherwise in the commit message under pressure to find work. Recording the correction rather than leaving the
+   overclaim on the record. The fix does no harm (only rejects genuine <1KB stubs); the overstatement was the error.
