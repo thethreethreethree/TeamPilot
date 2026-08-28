@@ -69,3 +69,12 @@ every row (0 broken) and that the +131 rows disrupt no consumer (all dedup to la
    insufficient in practice.
 3. **Deploy verification** — could not confirm the Vercel deploy from the agent environment (`gh` unavailable, no
    prod URL in-repo). Confirm the commits deployed green in the Vercel dashboard.
+
+4. **Sparse session outcomes (a likely source of the "numbers feel off" complaint).** Audited the EXISTING
+   session KPIs (conversion/close/quota) against live data — they compute CORRECTLY (sanity checks pass:
+   sold ≤ opportunities, won ≤ resolved ≤ total). BUT most `coaching_sessions` have `outcome = null`: Moses
+   99/121, Johns 71/71. Conversion/close only count sessions with a recorded outcome (`isOpportunity` excludes
+   null/no_contact — correct), so they run over a small subset and a rep like Johns reads "building" forever
+   despite 71 sessions. This is a DATA-CAPTURE gap (reps not marking sold/no_sale), not a metric bug — a
+   product/UX decision (prompt the rep to set an outcome at session end, or infer it), NOT changed autonomously.
+   Likely a real contributor to the original "numbers are inaccurate" feeling: the KPIs are honest but thin.
