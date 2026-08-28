@@ -171,6 +171,52 @@ export default function SalesCoachRoleplayPage() {
     }
   }, [practiceFocus, phase, loadScenario]);
 
+  // Role-play FROM a recorded pitch (?pitchId=...): reconstruct THAT customer + objections from the real pitch and
+  // seed the setup, plus set the focus to the pitch's weak spot so the end review is SCORED on it. Mirrors the
+  // ?focus= seed. Latch scenarioAttemptedRef to the returned focus so the generic auto-scenario effect above does
+  // NOT then overwrite the pitch-reconstructed persona/situation with a made-up one.
+  const loadFromPitch = useCallback(async (pitchId: string) => {
+    setScenarioLoading(true);
+    try {
+      const res = await fetch("/api/coach/sales-session/practice-scenario/from-pitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pitchId }),
+      });
+      const d = (res.ok ? await res.json() : { scenario: null, focus: null }) as {
+        scenario: PracticeScenario | null;
+        focus: string | null;
+      };
+      const sc = d?.scenario ?? null;
+      setScenario(sc);
+      if (sc) {
+        if (sc.persona) setPersona(sc.persona);
+        if (sc.situation) setCustom(sc.situation);
+      }
+      const f = d?.focus?.trim().slice(0, 600);
+      if (f) {
+        setPracticeFocus((prev) => prev ?? f);
+        scenarioAttemptedRef.current = f; // the pitch already IS the scenario — don't let the focus effect regenerate
+      }
+    } catch {
+      setScenario(null);
+    } finally {
+      setScenarioLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const pid = new URLSearchParams(window.location.search).get("pitchId")?.trim();
+      if (!pid) return;
+      // Don't clobber a recovered in-progress practice; an explicit pitch launch otherwise starts a fresh replay.
+      if (sessionStorage.getItem(STORAGE_KEY)) return;
+      void loadFromPitch(pid);
+    } catch {
+      /* ignore — the pitch seed is optional; a plain roleplay still works */
+    }
+  }, [loadFromPitch]);
+
   useEffect(() => {
     try {
       if (phase === "chat" && messages.length > 0) {

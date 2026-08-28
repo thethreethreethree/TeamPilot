@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Drama } from "lucide-react";
 
 /**
  * Per-pitch detail (Macro Mode Report Card drill-down): transcript + per-pitch analysis (summary,
@@ -175,6 +175,25 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
                 </div>
               )}
             </>
+          )}
+
+          {/* Role Play (founder 2026-08-28): re-practice THIS exact pitch. The AI reconstructs the customer +
+              the objections they raised from the transcript below and plays them, scored on the pitch's weak
+              spot — repetition on the real thing. Only when a completed pitch has a transcript to rebuild from. */}
+          {detail.status === "complete" && detail.transcript && (
+            <div className="glass-card p-4 mb-5 border border-ember-400/30">
+              <h2 className="text-sm font-semibold text-primary">Practice this pitch</h2>
+              <p className="text-xs text-secondary mt-1 leading-relaxed">
+                Run it back as a role play. The coach plays this same customer and the objections they raised, so you
+                can re-pitch it until it lands.
+              </p>
+              <Link
+                href={`/dashboard/sales-coach/roleplay?pitchId=${detail.id}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-ember-400 px-4 py-2 text-sm font-semibold text-black hover:bg-ember-300 active:scale-[0.99] transition"
+              >
+                <Drama className="w-4 h-4" aria-hidden /> Role play
+              </Link>
+            </div>
           )}
 
           {/* Transcript */}
