@@ -348,6 +348,8 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         "objectionsPerSession",
         "objectionResolutionRate",
         "recommendationUptake",
+        "followUpRate",
+        "salesCycleLength",
         "quotaAttainment",
         "relianceReduction",
         "sessionCount",

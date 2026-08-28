@@ -37,6 +37,8 @@ type TeamAgent = {
   objectionsPerSession?: MetricResult;
   objectionResolutionRate?: MetricResult;
   recommendationUptake?: MetricResult;
+  followUpRate?: MetricResult;
+  salesCycleLength?: MetricResult;
   slipping?: boolean;
   slippingReasons?: string[];
 };
@@ -228,6 +230,8 @@ export default function KpiAnalyticsPage() {
       "Objections /call",
       "Objections resolved %",
       "Recommendation uptake %",
+      "Follow-up %",
+      "Sales cycle (days)",
       "Check-in",
     ];
     const rows = team.map((a) => ({
@@ -239,6 +243,8 @@ export default function KpiAnalyticsPage() {
       "Objections /call": a.objectionsPerSession?.value ?? "building",
       "Objections resolved %": a.objectionResolutionRate?.value ?? "building",
       "Recommendation uptake %": a.recommendationUptake?.value ?? "building",
+      "Follow-up %": a.followUpRate?.value ?? "building",
+      "Sales cycle (days)": a.salesCycleLength?.value ?? "building",
       "Check-in": a.slipping ? (a.slippingReasons?.join(" + ") || "yes") : "",
     }));
     const csv = toCsv(rows, cols);
@@ -695,6 +701,18 @@ export default function KpiAnalyticsPage() {
                       <span className="block text-[9px] uppercase tracking-widest text-muted">Uptake</span>
                       <span className="block text-xs font-semibold text-primary tabular-nums">
                         {a.recommendationUptake?.value == null ? "building…" : `${a.recommendationUptake.value}%`}
+                      </span>
+                    </span>
+                    <span>
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Follow-up</span>
+                      <span className="block text-xs font-semibold text-primary tabular-nums">
+                        {a.followUpRate?.value == null ? "building…" : `${a.followUpRate.value}%`}
+                      </span>
+                    </span>
+                    <span>
+                      <span className="block text-[9px] uppercase tracking-widest text-muted">Cycle</span>
+                      <span className="block text-xs font-semibold text-primary tabular-nums">
+                        {a.salesCycleLength?.value == null ? "building…" : `${a.salesCycleLength.value}d`}
                       </span>
                     </span>
                   </span>

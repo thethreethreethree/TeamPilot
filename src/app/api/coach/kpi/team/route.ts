@@ -17,6 +17,9 @@ import {
   objectionResolutionRate,
   recommendationInputFromPayload,
   recommendationUptake,
+  prospectKeyOf,
+  followUpRate,
+  salesCycleLengthDays,
   monthKeyUtc,
   ALERT_DROP_FRACTION,
   MIN_SESSIONS,
@@ -24,6 +27,7 @@ import {
   type MetricResult,
   type ObjectionInput,
   type RecommendationInput,
+  type ProspectSessionInput,
 } from "@/lib/coach/kpi/compute";
 
 /**
@@ -96,7 +100,7 @@ export async function GET() {
           // Cast the dynamic select to the with-column literal so the typed client infers the row shape; at
           // runtime the without-column variant simply omits it and the mapper reads `?? null` (A34 degrade).
           .select(
-            `id, agent_id, outcome, deal_value, started_at, ended_at${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds",
+            `id, agent_id, outcome, deal_value, started_at, ended_at, client_label${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, client_label, audio_duration_seconds",
           )
           .in("agent_id", memberIds)
           .order("started_at", { ascending: true })
@@ -180,6 +184,8 @@ export async function GET() {
   }
 
   const byAgent = new Map<string, KpiSessionRow[]>();
+  // Prospect inputs (client_label) per agent, for Follow-up rate + Sales cycle — same source rows, no extra read.
+  const prospectRowsByAgent = new Map<string, ProspectSessionInput[]>();
   for (const s of sessRows ?? []) {
     const aid = s.agent_id as string;
     const list = byAgent.get(aid) ?? [];
@@ -192,6 +198,12 @@ export async function GET() {
       audioDurationSeconds: (s.audio_duration_seconds as number | null) ?? null,
     });
     byAgent.set(aid, list);
+    (prospectRowsByAgent.get(aid) ?? prospectRowsByAgent.set(aid, []).get(aid)!).push({
+      sessionId: s.id as string,
+      prospectKey: prospectKeyOf((s as { client_label?: unknown }).client_label),
+      startedAt: s.started_at as string,
+      outcome: (s.outcome as KpiSessionRow["outcome"]) ?? null,
+    });
   }
 
   const agents = (members ?? []).map((m) => {
@@ -229,6 +241,7 @@ export async function GET() {
     // Same functions + gates as /me, so a rep's number matches between their own view and this rollup.
     const objRows = objectionRowsByAgent.get(id) ?? [];
     const recRows = recRowsByAgent.get(id) ?? [];
+    const prospectRows = prospectRowsByAgent.get(id) ?? [];
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
@@ -241,6 +254,8 @@ export async function GET() {
       objectionsPerSession: objectionsPerSession(objRows),
       objectionResolutionRate: objectionResolutionRate(objRows),
       recommendationUptake: recommendationUptake(recRows),
+      followUpRate: followUpRate(prospectRows),
+      salesCycleLength: salesCycleLengthDays(prospectRows),
       slipping: slippingReasons.length > 0,
       slippingReasons,
     };
