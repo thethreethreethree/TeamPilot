@@ -28,6 +28,9 @@ import {
   objectionResolutionRate,
   recommendationInputFromPayload,
   recommendationUptake,
+  prospectKeyOf,
+  followUpRate,
+  salesCycleLengthDays,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
@@ -35,6 +38,7 @@ import {
   type KpiSessionRow,
   type ObjectionInput,
   type RecommendationInput,
+  type ProspectSessionInput,
 } from "../compute";
 
 /**
@@ -535,6 +539,74 @@ describe("sumDollarsExact", () => {
   it("does not drift on classic float cases", () => {
     expect(sumDollarsExact([0.1, 0.2])).toBe(0.3);
     expect(sumDollarsExact([19.99, 0.01])).toBe(20);
+  });
+});
+
+describe("prospect metrics (Follow-up rate + Sales cycle) from client_label", () => {
+  const P = (
+    sessionId: string,
+    label: string,
+    startedAt: string,
+    outcome: KpiSessionRow["outcome"]
+  ): ProspectSessionInput => ({ sessionId, prospectKey: prospectKeyOf(label), startedAt, outcome });
+  const day = (n: number) => `2026-07-${String(n).padStart(2, "0")}T10:00:00.000Z`;
+
+  it("prospectKeyOf normalizes trim/case/whitespace; blank or non-string → ''", () => {
+    expect(prospectKeyOf("  John  Smith ")).toBe("john smith");
+    expect(prospectKeyOf("JOHN SMITH")).toBe("john smith");
+    expect(prospectKeyOf("")).toBe("");
+    expect(prospectKeyOf(null)).toBe("");
+    expect(prospectKeyOf(42)).toBe("");
+  });
+
+  it("followUpRate = distinct prospects re-contacted (>1 session) ÷ total; excludes unlabeled; gates below MIN_SESSIONS", () => {
+    // 5 distinct prospects; 2 of them re-contacted → 40%. An unlabeled session is excluded entirely.
+    const rows = [
+      P("s1", "Alice", day(1), null),
+      P("s2", "Alice", day(3), "sold"), // Alice re-contacted
+      P("s3", "Bob", day(1), null),
+      P("s4", "Bob", day(2), "no_sale"), // Bob re-contacted
+      P("s5", "Carol", day(1), null),
+      P("s6", "Dave", day(1), null),
+      P("s7", "Eve", day(1), null),
+      P("s8", "", day(1), null), // unlabeled → excluded
+    ];
+    const r = followUpRate(rows);
+    expect(r.gated).toBe(false);
+    expect(r.sampleSize).toBe(5); // 5 distinct labeled prospects
+    expect(r.value).toBe(40); // 2 of 5 re-contacted
+  });
+
+  it("followUpRate gates below MIN_SESSIONS distinct prospects", () => {
+    const rows = Array.from({ length: MIN_SESSIONS - 1 }, (_, i) => P(`s${i}`, `p${i}`, day(1), null));
+    expect(followUpRate(rows).value).toBeNull();
+    expect(followUpRate(rows).gated).toBe(true);
+  });
+
+  it("salesCycleLengthDays = avg (first→sold) over SOLD prospects; single-session sale = 0 days", () => {
+    // 5 sold prospects: cycles 2,0,4,0,4 → avg 2.0 days. A never-sold prospect is excluded.
+    const rows = [
+      P("a1", "A", day(1), null), P("a2", "A", day(3), "sold"), // 2 days
+      P("b1", "B", day(1), "sold"), // 0 (same session)
+      P("c1", "C", day(1), null), P("c2", "C", day(5), "sold"), // 4 days
+      P("d1", "D", day(2), "sold"), // 0
+      P("e1", "E", day(1), null), P("e2", "E", day(5), "sold"), // 4 days
+      P("z1", "Z", day(1), "no_sale"), // never sold → excluded
+    ];
+    const r = salesCycleLengthDays(rows);
+    expect(r.gated).toBe(false);
+    expect(r.sampleSize).toBe(5); // 5 sold prospects
+    expect(r.value).toBe(2); // (2+0+4+0+4)/5
+  });
+
+  it("salesCycleLengthDays gates below MIN_SESSIONS sold prospects (never fabricates a cycle)", () => {
+    const rows = [
+      P("a1", "A", day(1), "sold"),
+      P("b1", "B", day(1), "sold"),
+      P("c1", "C", day(1), "no_sale"), // not sold
+    ];
+    expect(salesCycleLengthDays(rows).value).toBeNull(); // only 2 sold prospects < MIN_SESSIONS
+    expect(salesCycleLengthDays(rows).gated).toBe(true);
   });
 });
 

@@ -47,7 +47,7 @@ function daysSince(iso: string): number {
   return Number.isFinite(ms) ? Math.max(0, Math.floor(ms / 86_400_000)) : 0;
 }
 
-type Fmt = "pct" | "money" | "num" | "min" | "score" | "slope" | "delta" | "corr";
+type Fmt = "pct" | "money" | "num" | "min" | "days" | "score" | "slope" | "delta" | "corr";
 // `blocked` = this metric is NOT computable from data we capture today (it needs a capability we don't have yet,
 // e.g. linking the same prospect across visits). It renders an honest "needs …" state, NOT "building…" — because
 // "building" implies the number is on its way once enough sessions land, and for a blocked metric it never is
@@ -67,7 +67,7 @@ const LAYERS: Layer[] = [
       { name: "Win/loss ratio", note: "wins per loss — builds until you have a loss to compare", apiKey: "winLossRatio", fmt: "num" },
       { name: "Average deal size", note: "revenue ÷ deals won", apiKey: "avgDealSize", fmt: "money" },
       { name: "Total revenue", note: "sum of won deal values", apiKey: "revenue", fmt: "money" },
-      { name: "Sales cycle length", note: "avg close − first contact", blocked: "needs prospect tracking" },
+      { name: "Sales cycle length", note: "avg days from first contact to sale, by prospect", apiKey: "salesCycleLength", fmt: "days" },
       { name: "Quota attainment", note: "deals won this month ÷ your monthly target", apiKey: "quotaAttainment", fmt: "pct" },
     ],
   },
@@ -82,7 +82,7 @@ const LAYERS: Layer[] = [
       { name: "Talk share (yours)", note: "your share of the talking — lower leaves room to listen", apiKey: "l2_talk_ratio", fmt: "score" },
       { name: "Objections per session", note: "how much resistance you meet, per call", apiKey: "objectionsPerSession", fmt: "num" },
       { name: "Objections resolved", note: "of objections raised, the share you met without a breakdown", apiKey: "objectionResolutionRate", fmt: "pct" },
-      { name: "Follow-up rate", note: "prospects re-contacted", blocked: "needs prospect tracking" },
+      { name: "Follow-up rate", note: "share of your prospects you re-contacted (by name)", apiKey: "followUpRate", fmt: "pct" },
     ],
   },
   {
@@ -119,6 +119,7 @@ function fmtValue(v: number, fmt?: Fmt): string {
   if (fmt === "pct") return `${v}%`;
   if (fmt === "money") return `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   if (fmt === "min") return `${v} min`;
+  if (fmt === "days") return v === 1 ? "1 day" : `${v} days`;
   if (fmt === "score") return `${v} / 100`;
   if (fmt === "slope") return `${v > 0 ? "+" : ""}${v}/session`;
   if (fmt === "delta") return v === 0 ? "0" : `${v > 0 ? "▲ +" : "▼ "}${Math.abs(v)}`;

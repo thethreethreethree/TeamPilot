@@ -25,6 +25,9 @@ import {
   objectionResolutionRate,
   recommendationInputFromPayload,
   recommendationUptake,
+  prospectKeyOf,
+  followUpRate,
+  salesCycleLengthDays,
   selfDelta,
   MIN_SESSIONS,
   type KpiSessionRow,
@@ -32,6 +35,7 @@ import {
   type Layer3ScoreInput,
   type ObjectionInput,
   type RecommendationInput,
+  type ProspectSessionInput,
 } from "@/lib/coach/kpi/compute";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
@@ -159,6 +163,17 @@ export async function GET() {
     )
     .filter((r) => r.startedAt !== ""); // drop any summary whose session start time we can't resolve (can't order it)
   metrics.recommendationUptake = recommendationUptake(recommendationRows);
+  // Prospect-level metrics (Layer 1/2) from the client_label the rep already enters (same label = same prospect,
+  // normalized). No new capture — 96% of sessions carry a label and reps re-contact the same prospect. An honest
+  // proxy (free-text, not an exact CRM id), so the surface frames it as such.
+  const prospectRows: ProspectSessionInput[] = data.map((r) => ({
+    sessionId: r.id as string,
+    prospectKey: prospectKeyOf(r.client_label),
+    startedAt: r.started_at as string,
+    outcome: (r.outcome as KpiSessionRow["outcome"]) ?? null,
+  }));
+  metrics.followUpRate = followUpRate(prospectRows);
+  metrics.salesCycleLength = salesCycleLengthDays(prospectRows);
   // Skill progression (Layer 4) — Δ in overall quality vs the agent's own earlier calls (value IS the delta).
   metrics.skillProgression = overallSkillProgression(layer3Rows);
   // Consistency (Layer 4) — how steady the agent's quality is call-to-call (0-100, higher = steadier).

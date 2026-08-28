@@ -540,6 +540,74 @@ export function recommendationUptake(rows: RecommendationInput[]): MetricResult 
 }
 
 /**
+ * One session reduced to its prospect identity + outcome, for the prospect-level metrics (Follow-up rate, Sales
+ * cycle). Prospect identity = the normalized client_label the rep already enters (see `prospectKeyOf`). An honest
+ * PROXY, not exact: free-text labels can mismatch ("Mr. Smith" ≠ "John Smith") or collide (two "John Smith"s), so
+ * these metrics read the rep's own labelling — the surface frames them as such, never as a precise CRM count.
+ */
+export type ProspectSessionInput = {
+  sessionId: string;
+  prospectKey: string; // "" when the session has no usable client_label (excluded from the prospect metrics)
+  startedAt: string;
+  outcome: KpiSessionRow["outcome"];
+};
+
+/** Normalize a free-text client_label into a prospect key (trim + lowercase + collapse inner whitespace). "" for
+ *  a blank/absent label. ONE normalizer so /me and /team group prospects identically (no cross-view drift). */
+export function prospectKeyOf(clientLabel: unknown): string {
+  return typeof clientLabel === "string" ? clientLabel.trim().toLowerCase().replace(/\s+/g, " ") : "";
+}
+
+/**
+ * Follow-up rate (%) (Layer 2) — of the rep's distinct prospects (by normalized client_label), the share they
+ * RE-CONTACTED (appeared in >1 session). A leading indicator of persistence / pipeline follow-through. Unlabeled
+ * sessions are excluded. Gate: ≥ MIN_SESSIONS distinct labeled prospects — an honest "building" until the rep has
+ * enough named prospects to rate.
+ */
+export function followUpRate(rows: ProspectSessionInput[]): MetricResult {
+  const sessionsByProspect = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.prospectKey) continue;
+    (sessionsByProspect.get(r.prospectKey) ?? sessionsByProspect.set(r.prospectKey, []).get(r.prospectKey)!).push(r.sessionId);
+  }
+  const prospects = [...sessionsByProspect.values()];
+  const ids = prospects.flat();
+  if (prospects.length < MIN_SESSIONS) return gated(prospects.length, ids);
+  const recontacted = prospects.filter((s) => s.length > 1).length;
+  return { value: round1((recontacted / prospects.length) * 100), sampleSize: prospects.length, gated: false, sourceSessionIds: ids };
+}
+
+/**
+ * Sales cycle length (days) (Layer 1) — for prospects the rep eventually SOLD, the average time from FIRST contact
+ * to the sale (0 for a same-session close). Prospect identity = normalized client_label. Gate: ≥ MIN_SESSIONS sold
+ * prospects — an honest "building" until enough closes exist to average a cycle.
+ */
+export function salesCycleLengthDays(rows: ProspectSessionInput[]): MetricResult {
+  const byProspect = new Map<string, { first: string; sold: string | null; ids: string[] }>();
+  for (const r of rows) {
+    if (!r.prospectKey) continue;
+    const e = byProspect.get(r.prospectKey) ?? { first: r.startedAt, sold: null, ids: [] };
+    if (r.startedAt < e.first) e.first = r.startedAt;
+    if (r.outcome === "sold" && (e.sold === null || r.startedAt < e.sold)) e.sold = r.startedAt;
+    e.ids.push(r.sessionId);
+    byProspect.set(r.prospectKey, e);
+  }
+  const cycles: number[] = [];
+  const ids: string[] = [];
+  for (const [, e] of byProspect) {
+    if (e.sold === null) continue;
+    const days = (Date.parse(e.sold) - Date.parse(e.first)) / 86_400_000;
+    if (Number.isFinite(days) && days >= 0) {
+      cycles.push(days);
+      ids.push(...e.ids);
+    }
+  }
+  if (cycles.length < MIN_SESSIONS) return gated(cycles.length, ids);
+  const avg = cycles.reduce((a, b) => a + b, 0) / cycles.length;
+  return { value: round1(avg), sampleSize: cycles.length, gated: false, sourceSessionIds: ids };
+}
+
+/**
  * A session's OVERALL quality = the mean of its non-caveat evidenced after-pitch scores (0-10). Mirrors
  * layer3Dimension's caveat-skip (a caveated score is "not enough evidence", so it must not drag the mean).
  * Null when the session has no usable score — the caller treats null as "no reading", never as zero.
