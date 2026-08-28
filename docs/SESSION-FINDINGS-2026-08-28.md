@@ -70,11 +70,21 @@ every row (0 broken) and that the +131 rows disrupt no consumer (all dedup to la
 3. **Deploy verification** — could not confirm the Vercel deploy from the agent environment (`gh` unavailable, no
    prod URL in-repo). Confirm the commits deployed green in the Vercel dashboard.
 
-4. **Sparse session outcomes (a likely source of the "numbers feel off" complaint).** Audited the EXISTING
-   session KPIs (conversion/close/quota) against live data — they compute CORRECTLY (sanity checks pass:
-   sold ≤ opportunities, won ≤ resolved ≤ total). BUT most `coaching_sessions` have `outcome = null`: Moses
-   99/121, Johns 71/71. Conversion/close only count sessions with a recorded outcome (`isOpportunity` excludes
-   null/no_contact — correct), so they run over a small subset and a rep like Johns reads "building" forever
-   despite 71 sessions. This is a DATA-CAPTURE gap (reps not marking sold/no_sale), not a metric bug — a
-   product/UX decision (prompt the rep to set an outcome at session end, or infer it), NOT changed autonomously.
-   Likely a real contributor to the original "numbers are inaccurate" feeling: the KPIs are honest but thin.
+4. **The real root of "the numbers are inaccurate": DATA-CAPTURE gaps, not metric bugs.** Audited every existing
+   session KPI's INPUT completeness against live data (Moses, 121 sessions). The metrics compute CORRECTLY (all
+   sanity checks pass); the Layer-1 outcome metrics are starved of captured input:
+
+   | KPI | Input status (Moses) | Effect |
+   |---|---|---|
+   | Conversion / Close | 99/121 sessions have `outcome = null` (Johns: 71/71) | run over a small subset; Johns reads "building" forever |
+   | Revenue / Avg deal size | 9 sold, but **0 have a `deal_value`** | "building" forever |
+   | Quota attainment | company `sales_coach_monthly_deal_target` **not set** | "building" forever |
+   | Avg session duration | 121/121 have `ended_at`/audio length | works |
+   | Layer-3 quality, Reliance, Cue-accept | 112 after-pitch summaries, 28 cues, 1019 segments | works |
+   | Objections / Uptake / Follow-up / Sales-cycle (new) | tally/scores/client_label present | works |
+
+   So the many "building" tiles are **honest-but-empty for lack of captured data**, not miscomputation: reps mark
+   "sold" without entering a deal value, most sessions get no outcome, and no company quota target is configured.
+   The fixes are DATA-CAPTURE / config (prompt outcome + deal value at session end; set a quota target) — product/UX
+   decisions, NOT changed autonomously. This is likely the deepest driver of the original complaint, and it means
+   the KPI page will fill in as capture improves — the honesty-thesis behavior, working as designed.
