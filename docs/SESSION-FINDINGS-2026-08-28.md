@@ -52,8 +52,20 @@ every row (0 broken) and that the +131 rows disrupt no consumer (all dedup to la
    Follow-up / Sales-cycle are computed **on-read** (rep view + roster, both working) but are **absent from
    `kpi_snapshot` history and any future email digest**. No consumer needs them today (digests are deferred), so
    this was NOT built — extend the cron if/when historical trends or digests should include them.
-2. **Role Play reconstruction quality** over a real non-diarized pitch is founder visual-verify (an LLM judgement).
-   If personas come out thin, switch the doorlog worker to the diarized STT (`transcribeSpeechDiarized`, already
-   used by the Live coach) for clean rep/customer separation.
+2. **Role Play reconstruction quality** over a real non-diarized pitch was verified GOOD on 3 real pitches
+   (faithful personas + the customer's actual objections; correct speaker inference from the blob). The objection
+   tally was also spot-checked as accurate (resolved signal correct; `raised` ±1 on messy diarization). So the
+   non-diarized blob is workable today.
+
+   **Diarization upgrade (scoped — a founder decision, not built).** For higher precision, switching the door
+   worker to `transcribeSpeechDiarized` is NOT a simple function swap. It requires: (a) the STT swap in
+   `worker.ts` (`transcribeSpeech` → diarized); (b) a NEW rep/customer assignment for door pitches — diarized STT
+   returns speaker CLUSTERS (`speaker_0/1`), and `autoSpeakerAssign.ts` decides rep-vs-customer by cross-matching
+   to the LIVE path's captured agent turns, which a single recorded door-pitch blob does NOT have (so it needs the
+   content-heuristic path, `guessSpeakerFromContent`, or a "which voice is you?" tap); (c) a storage-shape change
+   to `pitch_transcripts` (blob → labeled/diarized); (d) downstream updates to `analyze.ts`, the objection-tally
+   moments pass, and the Role Play reconstruction to consume the new shape; (e) handling the diarized STT's cost /
+   latency / failure differences. A real multi-part feature — scope it deliberately if the current quality proves
+   insufficient in practice.
 3. **Deploy verification** — could not confirm the Vercel deploy from the agent environment (`gh` unavailable, no
    prod URL in-repo). Confirm the commits deployed green in the Vercel dashboard.
