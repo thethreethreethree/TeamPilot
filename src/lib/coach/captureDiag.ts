@@ -32,11 +32,20 @@ export type CaptureDiag = {
 export const MIN_VIABLE_AUDIO_BYTES = 1024;
 
 /**
- * Did this recording actually capture audio? True if durable chunks reached storage (the real audio is already
- * safe there, independent of the final blob) OR the final blob is large enough to contain media. A truthy but
- * tiny blob (the stub) is NOT viable — closing the detection hole where blob-EXISTENCE was read as blob-HAS-AUDIO.
+ * Did this recording actually capture audio? The ground-truth signal is BYTE VOLUME, not chunk COUNT: iOS can
+ * stream a 5-byte container stub as "1 chunk" (2026-08-25), so `chunksUploaded > 0` is NOT proof of media — a
+ * stub that streamed a chunk still fails downstream at STT as a misleading "corrupted" (observed: ~24% of door
+ * pitches, `audio size=5`, 2026-08-28). So when the caller knows `capturedBytes` (the total across all data
+ * events, which the diag already tracks), it is AUTHORITATIVE: viable only if that cleared the media floor. Only
+ * when capturedBytes is unknown do we fall back to the older chunk/blob signals (backward-compatible for any
+ * caller that doesn't pass it). A tiny blob was already rejected; this also closes the streamed-a-stub hole.
  */
-export function isCaptureViable(args: { blobSize: number | null | undefined; chunksUploaded: number }): boolean {
+export function isCaptureViable(args: {
+  blobSize: number | null | undefined;
+  chunksUploaded: number;
+  capturedBytes?: number | null;
+}): boolean {
+  if (args.capturedBytes != null) return args.capturedBytes >= MIN_VIABLE_AUDIO_BYTES;
   if (args.chunksUploaded > 0) return true;
   return (args.blobSize ?? 0) >= MIN_VIABLE_AUDIO_BYTES;
 }

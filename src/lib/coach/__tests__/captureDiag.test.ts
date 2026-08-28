@@ -43,9 +43,9 @@ describe("buildCaptureDiag", () => {
 // Closes the 2026-08-25 detection hole: blob EXISTENCE was read as blob HAS-AUDIO, so a 5-byte iOS stub became a
 // pitch that died at STT as a misleading "corrupted." isCaptureViable gates the save on real audio, not presence.
 describe("isCaptureViable — durable chunks OR a blob large enough to hold media", () => {
-  it("is viable when durable chunks reached storage, regardless of the final blob", () => {
+  it("FALLBACK (no capturedBytes known): viable when durable chunks reached storage, regardless of the final blob", () => {
     expect(isCaptureViable({ blobSize: null, chunksUploaded: 3 })).toBe(true);
-    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1 })).toBe(true); // chunks safe → blob size irrelevant
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1 })).toBe(true); // no capturedBytes → old chunk fallback
   });
   it("is NOT viable for a truthy-but-tiny stub with no chunks (the 5-byte iOS Cues stub)", () => {
     expect(isCaptureViable({ blobSize: 5, chunksUploaded: 0 })).toBe(false);
@@ -55,5 +55,24 @@ describe("isCaptureViable — durable chunks OR a blob large enough to hold medi
   it("is viable for a real recording's blob (≥ the media threshold), even a short one", () => {
     expect(isCaptureViable({ blobSize: MIN_VIABLE_AUDIO_BYTES, chunksUploaded: 0 })).toBe(true);
     expect(isCaptureViable({ blobSize: 4000, chunksUploaded: 0 })).toBe(true); // ~1s of opus — NOT a length gate
+  });
+});
+
+// capturedBytes is the ground-truth audio-volume signal (2026-08-28): iOS streams a 5-byte stub as "1 chunk", so
+// chunksUploaded>0 was NOT proof of media and ~24% of pitches died at STT "corrupted, size=5". When capturedBytes
+// is known it is AUTHORITATIVE — this is the fix that closes the streamed-a-stub hole.
+describe("isCaptureViable — capturedBytes is authoritative when known (the streamed-stub fix)", () => {
+  it("REJECTS a stub that streamed a chunk but carried no real audio (capturedBytes < the floor)", () => {
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1, capturedBytes: 5 })).toBe(false); // the 24% bug
+    expect(isCaptureViable({ blobSize: null, chunksUploaded: 3, capturedBytes: 200 })).toBe(false); // chunks, but < 1KB total
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1, capturedBytes: 0 })).toBe(false);
+  });
+  it("keeps a real recording viable when capturedBytes clears the media floor", () => {
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1, capturedBytes: MIN_VIABLE_AUDIO_BYTES })).toBe(true);
+    expect(isCaptureViable({ blobSize: null, chunksUploaded: 3, capturedBytes: 50_000 })).toBe(true);
+  });
+  it("falls back to chunk/blob signals only when capturedBytes is unknown (backward compatible)", () => {
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1 })).toBe(true); // undefined → fallback
+    expect(isCaptureViable({ blobSize: 5, chunksUploaded: 1, capturedBytes: null })).toBe(true); // null → fallback
   });
 });

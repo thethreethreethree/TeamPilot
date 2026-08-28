@@ -412,9 +412,15 @@ export function DoorLog() {
       // truthy-but-tiny stub captured only container overhead, no media). Skip the pointless naming step and
       // preserve the disposition as a knock with an honest note, instead of creating a doomed pitch that fails
       // downstream as a misleading "corrupted." Blob EXISTENCE ≠ blob HAS-AUDIO — the 2026-08-25 detection hole: a
-      // 5-byte iOS stub passed `!!recorded.blob` and became a pitch that died at STT. isCaptureViable closes it
-      // (chunks-uploaded OR blob ≥ MIN_VIABLE_AUDIO_BYTES). A recording that streamed chunks DOES have audio.
-      const hasAudio = isCaptureViable({ blobSize: recorded?.blob?.size ?? null, chunksUploaded: recorded?.chunksUploaded ?? 0 });
+      // 5-byte iOS stub passed `!!recorded.blob` and became a pitch that died at STT. isCaptureViable closes it on
+      // BYTE VOLUME (capturedBytes — the diag's real "was there audio" signal), NOT chunk count: iOS streams a
+      // 5-byte stub as "1 chunk", so the old chunksUploaded>0 gate let stubs through and ~24% of pitches died at
+      // STT "corrupted" (2026-08-28). capturedBytes is authoritative here; blob/chunk are the fallback.
+      const hasAudio = isCaptureViable({
+        blobSize: recorded?.blob?.size ?? null,
+        chunksUploaded: recorded?.chunksUploaded ?? 0,
+        capturedBytes: recorded?.diag?.capturedBytes ?? null,
+      });
       if (!hasAudio) {
         // Report WHY capture produced nothing so the real cause is on the record, not assumed.
         if (recorded?.diag) reportCaptureFailure(recorded.diag);
