@@ -31,6 +31,7 @@ import {
   prospectKeyOf,
   followUpRate,
   salesCycleLengthDays,
+  latestSummaryPerSession,
   ALERT_DROP_FRACTION,
   baseline,
   sumDollarsExact,
@@ -539,6 +540,31 @@ describe("sumDollarsExact", () => {
   it("does not drift on classic float cases", () => {
     expect(sumDollarsExact([0.1, 0.2])).toBe(0.3);
     expect(sumDollarsExact([19.99, 0.01])).toBe(20);
+  });
+});
+
+describe("latestSummaryPerSession (append-only dedup)", () => {
+  it("keeps ONE row per session — the latest by created_at (no double-count)", () => {
+    const rows = [
+      { session_id: "a", created_at: "2026-07-01T10:00:00Z", payload: { v: 1 } },
+      { session_id: "a", created_at: "2026-07-03T10:00:00Z", payload: { v: 2 } }, // newer → wins for 'a'
+      { session_id: "b", created_at: "2026-07-02T10:00:00Z", payload: { v: 9 } },
+      { session_id: "a", created_at: "2026-07-02T10:00:00Z", payload: { v: 3 } }, // older than the winner
+    ];
+    const out = latestSummaryPerSession(rows);
+    expect(out).toHaveLength(2); // one per session
+    expect(out.find((r) => r.session_id === "a")?.payload).toEqual({ v: 2 }); // the newest 'a'
+    expect(out.find((r) => r.session_id === "b")?.payload).toEqual({ v: 9 });
+  });
+
+  it("with no created_at, still collapses to one per session (last-seen wins)", () => {
+    const rows = [
+      { session_id: "a", payload: { v: 1 } },
+      { session_id: "a", payload: { v: 2 } },
+    ];
+    const out = latestSummaryPerSession(rows);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.payload).toEqual({ v: 2 });
   });
 });
 

@@ -401,6 +401,24 @@ export function layer3InputFromPayload(sessionId: string, payload: unknown): Lay
 }
 
 /**
+ * Collapse append-only after_pitch_summaries to ONE row per session — the LATEST by created_at, which the table's
+ * own design calls "the current summary" (migration 0080). The KPI reads MUST dedup this way: a session whose
+ * after-pitch was re-generated (viewed more than once, or backfilled) has MULTIPLE rows, and counting them all
+ * double-counts that session in every payload-derived metric (inflating Layer-3 sample sizes, re-scoring the same
+ * call). Pure; on equal created_at the later-seen row wins (stable, deterministic). Rows must carry `created_at`
+ * for this to pick the true latest — without it every row ties and the last-seen wins (still one per session).
+ */
+export function latestSummaryPerSession<T extends { session_id: unknown; created_at?: unknown }>(rows: T[]): T[] {
+  const latest = new Map<string, T>();
+  for (const r of rows) {
+    const sid = String(r.session_id);
+    const prev = latest.get(sid);
+    if (!prev || String(r.created_at ?? "") >= String(prev.created_at ?? "")) latest.set(sid, r);
+  }
+  return [...latest.values()];
+}
+
+/**
  * Objections tallied in one analyzed session — the WHOLE-CALL count the after-pitch LLM pass emits (payload
  * `objections`), NOT the 3-5 hero moments (those undercount — an objection only becomes a moment when it defined
  * the call). `raised` = distinct customer objections; `resolved` = how many the rep moved the customer past.

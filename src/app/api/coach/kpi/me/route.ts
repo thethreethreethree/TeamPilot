@@ -28,6 +28,7 @@ import {
   prospectKeyOf,
   followUpRate,
   salesCycleLengthDays,
+  latestSummaryPerSession,
   selfDelta,
   MIN_SESSIONS,
   type KpiSessionRow,
@@ -104,21 +105,24 @@ export async function GET() {
       .select("sales_coach_monthly_deal_target")
       .eq("id", ctx.companyId)
       .maybeSingle(),
-    // Paged (was an unbounded .select capped at 1000): after_pitch_summaries has ONE row per session, and the
-    // Layer-3 quality/talk/skill/consistency metrics below aggregate ALL of them — a rep past ~1000 sessions
-    // would silently lose their older calls from every Layer-3 number. Ordered by the uuid `id` PK (unique,
-    // stable) so range paging returns each row once. Error handled as before (swallowed → apRows ?? [] below).
+    // Paged (was an unbounded .select capped at 1000). after_pitch_summaries is APPEND-ONLY, so a session whose
+    // after-pitch was re-generated (viewed twice, or backfilled) has MULTIPLE rows — `latestSummaryPerSession`
+    // below collapses to the latest per session (the table's "current summary"), so Layer-3/objection/uptake
+    // metrics count each call ONCE. `created_at` is selected to pick that latest. Ordered by the uuid `id` PK so
+    // range paging returns each row once. Error handled as before (swallowed → apRows ?? [] below).
     fetchAllPaged(
       (from, to) =>
         sb
           .from("after_pitch_summaries")
-          .select("session_id, payload")
+          .select("session_id, created_at, payload")
           .eq("agent_id", ctx.userId)
           .order("id")
           .range(from, to),
       { label: "my KPI after-pitch summaries" },
     ).catch(() => null),
   ]);
+  // Collapse the append-only rows to the latest per session BEFORE any payload metric reads them (no double-count).
+  const apLatest = latestSummaryPerSession(apRows ?? []);
   if (!coErr) monthlyTarget = (co?.sales_coach_monthly_deal_target as number | null) ?? null;
   const monthPrefix = monthKeyUtc(new Date());
   const dealsWonThisMonth = rows.filter(
@@ -137,7 +141,7 @@ export async function GET() {
 
   // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a
   // ScoreCategory[]. apRows was fetched above, in parallel with the company target.
-  const layer3Rows: Layer3ScoreInput[] = (apRows ?? []).map((r) =>
+  const layer3Rows: Layer3ScoreInput[] = apLatest.map((r) =>
     layer3InputFromPayload(r.session_id as string, r.payload)
   );
   for (const k of LAYER3_KEYS) metrics[`l3_${k}`] = layer3Dimension(layer3Rows, k);
@@ -147,7 +151,7 @@ export async function GET() {
   // Objections per session (Layer 2) — the whole-call tally the after-pitch pass now emits, read from the SAME
   // payloads already fetched (no new read). Sessions analyzed BEFORE the tally existed return null and are
   // EXCLUDED (honest "building" until enough sessions carry a tally), never counted as a false "0 objections".
-  const objectionRows: ObjectionInput[] = (apRows ?? [])
+  const objectionRows: ObjectionInput[] = apLatest
     .map((r) => objectionInputFromPayload(r.session_id as string, r.payload))
     .filter((r): r is ObjectionInput => r !== null);
   metrics.objectionsPerSession = objectionsPerSession(objectionRows);
@@ -157,7 +161,7 @@ export async function GET() {
   // simply carry scores; only a flagged-then-rescored pair is evaluable, else the metric honestly gates.
   const startBySession = new Map<string, string>();
   for (const r of data) startBySession.set(r.id as string, r.started_at as string);
-  const recommendationRows: RecommendationInput[] = (apRows ?? [])
+  const recommendationRows: RecommendationInput[] = apLatest
     .map((r) =>
       recommendationInputFromPayload(r.session_id as string, startBySession.get(r.session_id as string) ?? "", r.payload)
     )

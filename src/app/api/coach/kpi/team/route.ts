@@ -20,6 +20,7 @@ import {
   prospectKeyOf,
   followUpRate,
   salesCycleLengthDays,
+  latestSummaryPerSession,
   monthKeyUtc,
   ALERT_DROP_FRACTION,
   MIN_SESSIONS,
@@ -162,14 +163,16 @@ export async function GET() {
   const startBySession = new Map<string, string>();
   for (const s of sessRows ?? []) startBySession.set(s.id as string, s.started_at as string);
   if (memberIds.length > 0) {
-    // Paged (was unbounded, capped at 1000) — one after-pitch summary per session across the team crosses 1000
-    // fast, silently dropping sessions from the quality-slippage trigger. Order by the uuid `id` PK.
+    // Paged (was unbounded, capped at 1000). after_pitch_summaries is APPEND-ONLY, so a re-generated session has
+    // MULTIPLE rows — `latestSummaryPerSession` collapses to the latest per session (the table's "current
+    // summary"), so quality/objections/uptake count each call ONCE (no double-count). `created_at` selected to
+    // pick the latest. Order by the uuid `id` PK so range paging returns each row once.
     const apRows = await fetchAllPaged(
       (from, to) =>
-        sb.from("after_pitch_summaries").select("session_id, agent_id, payload").in("agent_id", memberIds).order("id").range(from, to),
+        sb.from("after_pitch_summaries").select("session_id, agent_id, created_at, payload").in("agent_id", memberIds).order("id").range(from, to),
       { label: "team KPI after-pitch summaries" },
     ).catch(() => null);
-    for (const r of apRows ?? []) {
+    for (const r of latestSummaryPerSession(apRows ?? [])) {
       const sid = r.session_id as string;
       const aid = r.agent_id as string;
       qualityBySession.set(sid, overallQualityForSession(layer3InputFromPayload(sid, r.payload)));
