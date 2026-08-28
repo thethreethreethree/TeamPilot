@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
 import { toCsv } from "@/lib/export/toCsv";
+import { byOrgRank } from "@/lib/roles";
 
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
@@ -28,6 +29,7 @@ type KpiResponse = {
 type TeamAgent = {
   agentId: string;
   name: string | null;
+  companyRole?: string | null;
   sessionCount: number;
   firstSessionAt?: string | null;
   establishingBaseline?: boolean;
@@ -143,7 +145,7 @@ export default function KpiAnalyticsPage() {
   const [alertDropPct, setAlertDropPct] = useState(15);
   const [teamQuotaTarget, setTeamQuotaTarget] = useState<number | null>(null);
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
-  const [teamSort, setTeamSort] = useState<"name" | "conversion" | "reliance">("name");
+  const [teamSort, setTeamSort] = useState<"org" | "name" | "conversion" | "reliance">("org");
 
   // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
   const loadMe = useCallback(async () => {
@@ -599,6 +601,7 @@ export default function KpiAnalyticsPage() {
             <span className="text-[10px] text-muted">Sort:</span>
             {(
               [
+                ["org", "Org"],
                 ["name", "Name"],
                 ["conversion", "Conversion"],
                 ["reliance", "Reliance"],
@@ -625,7 +628,9 @@ export default function KpiAnalyticsPage() {
                   ? (b.conversionRate.value ?? -1) - (a.conversionRate.value ?? -1)
                   : teamSort === "reliance"
                     ? (a.relianceReduction.value ?? 999) - (b.relianceReduction.value ?? 999)
-                    : (a.name || "").localeCompare(b.name || "")
+                    : teamSort === "name"
+                      ? (a.name || "").localeCompare(b.name || "")
+                      : byOrgRank((x: TeamAgent) => x.companyRole ?? null, (x) => x.name)(a, b)
               )
               .map((a) => (
                 <li key={a.agentId} className="flex items-center justify-between gap-3 py-2">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
+import { byOrgRank } from "@/lib/roles";
 
 /**
  * GET /api/care/agent/team
@@ -36,8 +37,12 @@ export async function GET() {
     .select("id, full_name, role, is_support_agent")
     .eq("company_id", auth.companyId)
     .order("full_name", { ascending: true });
+  // Order the roster TOP-TO-BOTTOM by org rank (C-Suite → Frontline), then A→Z within a tier (founder 2026-08-29).
+  const ordered = [...(profiles ?? [])].sort(
+    byOrgRank((r) => r.role as string | null, (r) => r.full_name as string | null)
+  );
   return NextResponse.json({
-    agents: (profiles ?? []).map((r) => ({
+    agents: ordered.map((r) => ({
       id: r.id as string,
       fullName: (r.full_name as string | null) ?? null,
       role: (r.role as string | null) ?? null,

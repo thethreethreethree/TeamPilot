@@ -4,6 +4,7 @@ import { readBody } from "@/lib/api/validate";
 import { requireCareAgent } from "@/lib/api/careAgentAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OPEN_CONVERSATION_STATUSES } from "@/lib/data/care";
+import { byOrgRank } from "@/lib/roles";
 
 async function requireCompanyAdmin() {
   const auth = await requireCareAgent();
@@ -60,8 +61,12 @@ export async function GET() {
     }
   }
 
+  // Order the roster TOP-TO-BOTTOM by org rank (C-Suite → Frontline), then A→Z within a tier (founder 2026-08-29).
+  const orderedProfiles = [...(profiles ?? [])].sort(
+    byOrgRank((r) => r.role as string | null, (r) => r.full_name as string | null)
+  );
   return NextResponse.json({
-    agents: (profiles ?? []).map((r) => {
+    agents: orderedProfiles.map((r) => {
       const id = r.id as string;
       const state = stateByAgent.get(id);
       return {

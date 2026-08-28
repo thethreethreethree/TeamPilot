@@ -4,6 +4,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { byOrgRank } from "@/lib/roles";
 import {
   conversionRate,
   quotaAttainment,
@@ -59,14 +60,19 @@ export async function GET() {
     return NextResponse.json({ error: "Manager access required." }, { status: 403 });
   }
 
-  // The team = sales-coach members in the manager's company.
+  // The team = sales-coach members in the manager's company. `role` is selected so the roster can default to the
+  // org hierarchy order (C-Suite → Frontline), consistent with every other team list (founder 2026-08-29).
   const { data: members } = await sb
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, role")
     .eq("company_id", ctx.companyId)
     .not("sales_coach_role", "is", null);
 
-  const memberIds = (members ?? []).map((m) => m.id as string);
+  // Default the roster to the org hierarchy (C-Suite → Frontline), then A→Z — the page can re-sort by a metric.
+  const orderedMembers = [...(members ?? [])].sort(
+    byOrgRank((m) => m.role as string | null, (m) => m.full_name as string | null)
+  );
+  const memberIds = orderedMembers.map((m) => m.id as string);
   if (memberIds.length === 0) return NextResponse.json({ agents: [] });
 
   // The company's monthly deals-won quota target (the manager set it in Coaching settings). This is the view
@@ -209,7 +215,7 @@ export async function GET() {
     });
   }
 
-  const agents = (members ?? []).map((m) => {
+  const agents = orderedMembers.map((m) => {
     const id = m.id as string;
     const rows = byAgent.get(id) ?? [];
     const conversion: MetricResult = conversionRate(rows);
@@ -248,6 +254,7 @@ export async function GET() {
     return {
       agentId: id,
       name: (m.full_name as string | null) ?? null,
+      companyRole: (m.role as string | null) ?? null, // org tier — the roster's default sort key
       sessionCount: rows.length,
       firstSessionAt,
       establishingBaseline,

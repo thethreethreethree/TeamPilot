@@ -339,6 +339,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
     expect(Object.keys(agent).sort()).toEqual(
       [
         "agentId",
+        "companyRole",
         "conversionRate",
         "establishingBaseline",
         "firstSessionAt",

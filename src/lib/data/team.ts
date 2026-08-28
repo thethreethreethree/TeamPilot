@@ -1,4 +1,5 @@
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { byOrgRank } from "@/lib/roles";
 
 export type TeamMember = {
   id: string;
@@ -50,14 +51,18 @@ export async function fetchTeam(): Promise<TeamSnapshot> {
       .order("invited_at", { ascending: false }),
   ]);
 
-  const members: TeamMember[] = (membersRes.data ?? []).map((row) => ({
-    id: row.id,
-    fullName: row.full_name,
-    role: row.role,
-    status: row.status as "active" | "removed",
-    removedAt: row.removed_at,
-    createdAt: row.created_at,
-  }));
+  // Order the company roster TOP-TO-BOTTOM by org rank (C-Suite → Frontline), then A→Z within a tier (founder
+  // 2026-08-29). This is the canonical org view, so the hierarchy reads here exactly as it does on every roster.
+  const members: TeamMember[] = (membersRes.data ?? [])
+    .map((row) => ({
+      id: row.id,
+      fullName: row.full_name,
+      role: row.role,
+      status: row.status as "active" | "removed",
+      removedAt: row.removed_at,
+      createdAt: row.created_at,
+    }))
+    .sort(byOrgRank((m) => m.role, (m) => m.fullName));
   const invitations: TeamInvitation[] = (invitesRes.data ?? []).map((row) => ({
     id: row.id,
     email: row.email,

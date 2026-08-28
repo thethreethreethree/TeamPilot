@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readBody } from "@/lib/api/validate";
+import { byOrgRank } from "@/lib/roles";
 
 /**
  * Sales Coach → Team management (Phase 3). Where sales_coach_role
@@ -84,9 +85,14 @@ export async function GET() {
   const pending = (invitesRes.data ?? [])
     .filter((i) => new Date(i.expires_at as string).getTime() > now) // hide expired (still occupy the slot until revoked)
     .map((i) => ({ id: i.id as string, email: i.email as string, invitedAt: i.invited_at as string }));
+  // Order TOP-TO-BOTTOM by org rank (C-Suite → Frontline) on the COMPANY role, then A→Z within a tier (founder
+  // 2026-08-29). The org hierarchy is the company role; sales_coach_role stays the per-product assignment.
+  const orderedMembers = [...(membersRes.data ?? [])].sort(
+    byOrgRank((m) => m.role as string | null, (m) => m.full_name as string | null)
+  );
   return NextResponse.json({
     isManager: ctx.isManager,
-    members: (membersRes.data ?? []).map((m) => ({
+    members: orderedMembers.map((m) => ({
       id: m.id,
       fullName: m.full_name,
       companyRole: m.role,
