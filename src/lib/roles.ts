@@ -133,3 +133,24 @@ export type AssignableOrgRole = (typeof ORG_ROLE_OPTIONS)[number]["role"];
 export function isAssignableOrgRole(role: unknown): role is AssignableOrgRole {
   return typeof role === "string" && (ASSIGNABLE_ORG_ROLES as readonly string[]).includes(role);
 }
+
+/**
+ * The invite-dialog role options, grouped by tier for the dropdown <optgroup>s.
+ *
+ * `canInviteAdmin` gates VISIBILITY (progressive disclosure, AMD-006 L3): an admin-tier group (any group whose
+ * roles include an ADMIN role — CEO/CFO/COO) is only shown when the viewer can actually assign it, so a non-admin
+ * never sees a C-Suite option that the route + RLS would 403. This is presentation-only — the ACTUAL escalation
+ * gate stays server-side (0141/0239 RLS + the /api/team isAdminRole check). Gating on `isAdminRole` (the verdict,
+ * §2.2) rather than a hardcoded "C-Suite" label means the visibility follows ADMIN_ROLES if it ever changes.
+ */
+export function inviteRoleGroups(
+  canInviteAdmin: boolean
+): { tier: string; roles: AssignableOrgRole[] }[] {
+  const groups = ORG_ROLE_OPTIONS.reduce<{ tier: string; roles: AssignableOrgRole[] }[]>((acc, opt) => {
+    const last = acc[acc.length - 1];
+    if (last && last.tier === opt.tier) last.roles.push(opt.role);
+    else acc.push({ tier: opt.tier, roles: [opt.role] });
+    return acc;
+  }, []);
+  return canInviteAdmin ? groups : groups.filter((g) => !g.roles.some((r) => isAdminRole(r)));
+}

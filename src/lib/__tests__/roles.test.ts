@@ -8,6 +8,7 @@ import {
   orgTierLabel,
   byOrgRank,
   ORG_TIERS,
+  inviteRoleGroups,
 } from "@/lib/roles";
 
 // Audit 2026-07-10 F4: single-source role vocabulary. These tests are the
@@ -62,6 +63,35 @@ describe("roles — invitable set", () => {
     expect(isInvitableRole("member")).toBe(false); // wrong case
     expect(isInvitableRole(null)).toBe(false);
     expect(isInvitableRole(42)).toBe(false);
+  });
+});
+
+describe("roles — inviteRoleGroups (invite dropdown, admin-gated visibility / R3)", () => {
+  const tiers = (canAdmin: boolean) => inviteRoleGroups(canAdmin).map((g) => g.tier);
+
+  it("an admin sees every tier group, top-to-bottom, C-Suite first", () => {
+    expect(tiers(true)).toEqual([
+      "C-Suite", "VP", "Director", "Manager", "Supervisor / Team Lead", "Frontline",
+    ]);
+    // C-Suite carries exactly the admin roles CEO/CFO/COO.
+    expect(inviteRoleGroups(true)[0]).toEqual({ tier: "C-Suite", roles: ["CEO", "CFO", "COO"] });
+  });
+
+  it("a non-admin never sees a group containing an admin role (no C-Suite options that would 403)", () => {
+    const groups = inviteRoleGroups(false);
+    expect(tiers(false)).not.toContain("C-Suite");
+    for (const g of groups) expect(g.roles.some((r) => isAdminRole(r))).toBe(false);
+    // still offers the non-admin tiers, incl. Frontline/Member (the default).
+    expect(tiers(false)).toEqual(["VP", "Director", "Manager", "Supervisor / Team Lead", "Frontline"]);
+    expect(groups.flatMap((g) => g.roles)).toContain("Member");
+  });
+
+  it("gates on isAdminRole (the verdict), not a hardcoded label — every hidden role is an ADMIN role", () => {
+    const adminVisible = inviteRoleGroups(true).flatMap((g) => g.roles);
+    const nonAdminVisible = inviteRoleGroups(false).flatMap((g) => g.roles);
+    const hidden = adminVisible.filter((r) => !nonAdminVisible.includes(r));
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const r of hidden) expect(isAdminRole(r)).toBe(true);
   });
 });
 

@@ -29,7 +29,7 @@ all 30 live invariants. The widened CHECK + the escalation-policy sync are pinne
     "why_skipped": "Out of R1's scope (invite-at-tier); the security is enforced at route + RLS. Filed as a UX follow-up, not a correctness gap.",
     "confidence_it_does_not_matter": "medium",
     "opened_at": "2026-08-29T10:05:00+08:00",
-    "outcome": "OPEN — pass the viewer's isAdmin into InviteMemberDialog and gate the C-Suite optgroup if you want to remove the 403-able options."
+    "outcome": "DONE (2026-08-29, same feature) — roles.ts inviteRoleGroups(canInviteAdmin) hides any admin-role tier group when the viewer isn't an admin; InviteMemberDialog derives amAdmin from isAdminRole(useCurrentUserRole()). Gated on the isAdminRole verdict (not a hardcoded 'C-Suite' label), null-role loads as non-admin (safe default), unit-tested in roles.test. Server-side gate unchanged — presentation only."
   },
   {
     "id": "R2",

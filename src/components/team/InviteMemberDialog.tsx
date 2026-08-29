@@ -11,7 +11,8 @@ import {
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { ORG_ROLE_OPTIONS, type AssignableOrgRole } from "@/lib/roles";
+import { inviteRoleGroups, isAdminRole, type AssignableOrgRole } from "@/lib/roles";
+import { useCurrentUserRole } from "@/lib/hooks/useCurrentUserRole";
 import { siteUrl } from "@/lib/siteUrl";
 
 /**
@@ -36,17 +37,9 @@ import { siteUrl } from "@/lib/siteUrl";
  */
 
 // Role vocabulary sourced from the single client-safe source (§A13, audit F4). The dropdown offers the curated
-// assignable tier roles (ORG_ROLE_OPTIONS) grouped by tier — the same set the assignment UI uses; the widened
+// assignable tier roles grouped by tier (inviteRoleGroups) — the same set the assignment UI uses; the widened
 // invite validity set (INVITABLE_ROLES, incl. legacy 'Lead') is a superset enforced at the route + RLS.
 type Role = AssignableOrgRole;
-
-// ORG_ROLE_OPTIONS is ordered by tier; fold consecutive same-tier entries into <optgroup>s for a legible dropdown.
-const ROLE_GROUPS = ORG_ROLE_OPTIONS.reduce<{ tier: string; roles: AssignableOrgRole[] }[]>((groups, opt) => {
-  const last = groups[groups.length - 1];
-  if (last && last.tier === opt.tier) last.roles.push(opt.role);
-  else groups.push({ tier: opt.tier, roles: [opt.role] });
-  return groups;
-}, []);
 
 export function InviteMemberDialog({
   open,
@@ -65,6 +58,13 @@ export function InviteMemberDialog({
   const [error, setError] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // Progressive disclosure (AMD-006 L3 / R3): only an admin sees the C-Suite (CEO/CFO/COO) invite options — the
+  // route + RLS would 403 a non-admin who picked one, so don't surface options that will bounce. Server-side gate
+  // is unchanged; this is presentation only. `useCurrentUserRole` is null while loading → treated as non-admin (the
+  // safe default: hide admin options until the viewer is confirmed an admin).
+  const amAdmin = isAdminRole(useCurrentUserRole());
+  const roleGroups = inviteRoleGroups(amAdmin);
 
   const reset = () => {
     setEmail("");
@@ -176,7 +176,7 @@ export function InviteMemberDialog({
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
               >
-                {ROLE_GROUPS.map((g) => (
+                {roleGroups.map((g) => (
                   <optgroup key={g.tier} label={g.tier}>
                     {g.roles.map((r) => (
                       <option key={r} value={r}>
