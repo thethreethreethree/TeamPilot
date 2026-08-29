@@ -11,7 +11,7 @@ import {
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { INVITABLE_ROLES, type InvitableRole } from "@/lib/roles";
+import { ORG_ROLE_OPTIONS, type AssignableOrgRole } from "@/lib/roles";
 import { siteUrl } from "@/lib/siteUrl";
 
 /**
@@ -35,8 +35,18 @@ import { siteUrl } from "@/lib/siteUrl";
  * when it doesn't would violate §5 honesty.
  */
 
-// Role vocabulary sourced from the single client-safe source (§A13, audit F4).
-type Role = InvitableRole;
+// Role vocabulary sourced from the single client-safe source (§A13, audit F4). The dropdown offers the curated
+// assignable tier roles (ORG_ROLE_OPTIONS) grouped by tier — the same set the assignment UI uses; the widened
+// invite validity set (INVITABLE_ROLES, incl. legacy 'Lead') is a superset enforced at the route + RLS.
+type Role = AssignableOrgRole;
+
+// ORG_ROLE_OPTIONS is ordered by tier; fold consecutive same-tier entries into <optgroup>s for a legible dropdown.
+const ROLE_GROUPS = ORG_ROLE_OPTIONS.reduce<{ tier: string; roles: AssignableOrgRole[] }[]>((groups, opt) => {
+  const last = groups[groups.length - 1];
+  if (last && last.tier === opt.tier) last.roles.push(opt.role);
+  else groups.push({ tier: opt.tier, roles: [opt.role] });
+  return groups;
+}, []);
 
 export function InviteMemberDialog({
   open,
@@ -157,19 +167,23 @@ export function InviteMemberDialog({
             as="block"
             category="Team · Invite"
             title="Role"
-            whatItIs="The role this person will hold when they accept — CEO, COO, Lead, or Member. It sets their baseline access across the platform."
-            why="Roles decide what a teammate can see and do. Setting it at invite time means they land with the right access from their first login, instead of joining under-permissioned and waiting on a fix."
-            how="Pick the role that matches how they'll actually work with the team. It can be changed later by an admin if their responsibilities shift."
-            principle="Set access at the door, so no one starts locked out of their own work.">
+            whatItIs="The org tier this person will hold when they accept — from C-Suite down to Frontline. It sets their place in the hierarchy and their baseline access across the platform."
+            why="Roles decide what a teammate can see and do, and where they sit in the org. Setting the tier at invite time means they land in the right place with the right access from their first login, instead of joining as a plain Member and waiting on a reassignment."
+            how="Pick the tier that matches how they'll actually work with the team. Only an admin can invite someone into a C-Suite tier (CEO/CFO/COO). It can be changed later by an admin if their responsibilities shift."
+            principle="Set access and org placement at the door, so no one starts locked out of their own work.">
             <Field label="Role">
               <Select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
               >
-                {INVITABLE_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
+                {ROLE_GROUPS.map((g) => (
+                  <optgroup key={g.tier} label={g.tier}>
+                    {g.roles.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </Select>
             </Field>

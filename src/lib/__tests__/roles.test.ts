@@ -43,12 +43,20 @@ describe("roles — admin gate (behavior preservation)", () => {
 });
 
 describe("roles — invitable set", () => {
-  it("is exactly the 0008 CHECK set CEO/COO/Lead/Member", () => {
-    expect([...INVITABLE_ROLES]).toEqual(["CEO", "COO", "Lead", "Member"]);
+  it("is the CHECK set: the 8 assignable tier roles + legacy 'Lead' (widened by 0239, conscious expansion)", () => {
+    expect([...INVITABLE_ROLES]).toEqual([
+      "CEO", "CFO", "COO", "VP", "Director", "Manager", "Supervisor", "Lead", "Member",
+    ]);
   });
 
-  it("isInvitableRole rejects the onboarding 'admin' role (not invitable) + junk", () => {
+  it("isInvitableRole accepts every tier role, rejects the onboarding 'admin' + junk", () => {
     expect(isInvitableRole("CEO")).toBe(true);
+    expect(isInvitableRole("CFO")).toBe(true); // now invitable — admin-gated at the route + RLS
+    expect(isInvitableRole("VP")).toBe(true);
+    expect(isInvitableRole("Director")).toBe(true);
+    expect(isInvitableRole("Manager")).toBe(true);
+    expect(isInvitableRole("Supervisor")).toBe(true);
+    expect(isInvitableRole("Lead")).toBe(true); // legacy value, still valid
     expect(isInvitableRole("Member")).toBe(true);
     expect(isInvitableRole("admin")).toBe(false); // onboarding-only, not invitable
     expect(isInvitableRole("member")).toBe(false); // wrong case

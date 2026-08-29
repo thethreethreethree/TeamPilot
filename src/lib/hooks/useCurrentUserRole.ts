@@ -10,7 +10,8 @@ import { isAdminRole } from "@/lib/roles";
  * from the profiles table. Returns `null` while loading or when
  * unauthenticated.
  *
- * Values: 'CEO' | 'COO' | 'admin' | 'Lead' | 'Member' | null
+ * Values: any org-tier role (roles.ts) — 'admin' (onboarding) / 'CEO' / 'CFO' / 'COO' / 'VP' /
+ * 'Director' / 'Manager' / 'Supervisor' / 'Lead' / 'Member' — or null while loading / unauthenticated.
  *
  * Why this exists: several surfaces (chat detail page, settings,
  * admin readouts) need to know whether the viewer is a company-level

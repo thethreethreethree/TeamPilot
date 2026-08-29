@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (!isAdminRole(me?.role as string | null | undefined)) {
       return NextResponse.json(
-        { error: "Only a company admin can invite someone as an admin (CEO/COO)." },
+        { error: "Only a company admin can invite someone into a C-Suite tier (CEO/CFO/COO)." },
         { status: 403 }
       );
     }

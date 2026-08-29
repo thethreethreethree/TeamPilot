@@ -32,7 +32,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
-import { INVITABLE_ROLES } from "@/lib/roles";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-ember-400/30",
@@ -195,7 +194,7 @@ function TeamChatListInner() {
               title="Invite member"
               whatItIs="Opens the invite dialog inline (without yanking you out of the chat surface). Generates a unique invite link tied to a specific email + role; the invitee clicks it, lands in the auth flow, and joins THIS company on accept."
               why="Most invite flows force a context shift — you leave whatever you were doing, navigate to a team page, fill the form, navigate back. The in-place dialog respects the user's flow: invite + return without losing position."
-              how={`Click. Type the teammate's email. Pick a role (${INVITABLE_ROLES.join(" / ")} — the role gates downstream access). Send. The invitee gets an email with the link. Track pending invites on /dashboard/team.`}
+              how="Click. Type the teammate's email. Pick their org tier (C-Suite down to Frontline — the tier sets their place in the hierarchy and gates downstream access). Create the invite, then deliver the link yourself by email or copy — the System doesn't auto-send. Track pending invites on /dashboard/team."
               principle="Context shifts add up. The inline dialog is structural anti-friction for a recurring action."
             >
               <button

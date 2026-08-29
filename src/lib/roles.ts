@@ -19,8 +19,17 @@
  *     the onboarding 'admin' AND the invitable 'CEO'/'COO'.
  */
 
-/** Roles a team invitation may assign. Mirrors the 0008 CHECK constraint exactly. */
-export const INVITABLE_ROLES = ["CEO", "COO", "Lead", "Member"] as const;
+/**
+ * Roles a team invitation may VALIDLY hold. Mirrors the team_invitations.role CHECK exactly (0008, widened by
+ * 0239 to the 8 assignable tier roles + legacy 'Lead') — the enumConstraintSync drift-guard pins this ≡ the CHECK.
+ * 'Lead' is retained for VALIDITY (existing invitation rows + backward-compat) but is NOT offered in the invite
+ * dropdown — that reads ORG_ROLE_OPTIONS (the curated 8; 'Supervisor' is Lead's modern replacement), the same
+ * presentation-vs-validity split the assignment UI uses. Admin-role invites (CEO/CFO/COO — see ADMIN_ROLES) are
+ * gated to existing admins at both the route and the 0141/0239 RLS policy.
+ */
+export const INVITABLE_ROLES = [
+  "CEO", "CFO", "COO", "VP", "Director", "Manager", "Supervisor", "Lead", "Member",
+] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
 /** The company-admin (leadership) role set = the C-Suite tier. 'admin' = the onboarding founder role (0046/0047);
