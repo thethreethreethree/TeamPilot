@@ -17,6 +17,7 @@
  */
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { byOrgRank } from "@/lib/roles";
 import { careQualityScore, type CareCoachAggregate } from "@/lib/care/careQualityGrade";
 import { deriveLearningGaps, type LearningGap } from "@/lib/care/careLearningGaps";
 
@@ -73,9 +74,11 @@ export async function fetchCoachAssessmentRoster(
   const [agentsRes, coachRes] = await Promise.all([
     sb
       .from("profiles")
-      .select("id, full_name")
-      .eq("company_id", companyId)
-      .or("is_support_agent.eq.true,role.in.(CEO,COO,admin)"),
+      // `role` added so the roster can order by org hierarchy (byOrgRank) below, not just fetch names.
+      .select("id, full_name, role")
+      // CFO folded into the coach-eligible admin set (2026-08-29 — CFO is C-Suite/admin like CEO/COO); a CFO who
+      // coaches would otherwise be silently excluded from this roster. Kept in step with roles.ts ADMIN_ROLES.
+      .or("is_support_agent.eq.true,role.in.(CEO,CFO,COO,admin)"),
     sb
       .from("support_messages")
       .select("author_id, coach_counts, created_at, support_conversations!inner(company_id)")
@@ -91,8 +94,9 @@ export async function fetchCoachAssessmentRoster(
   if (agentsRes.error) throw new Error(`care coach-assessment: agents read failed — ${agentsRes.error.message}`);
   if (coachRes.error) throw new Error(`care coach-assessment: counts read failed — ${coachRes.error.message}`);
 
-  const agents = (agentsRes.data ?? []) as { id: string; full_name: string | null }[];
+  const agents = (agentsRes.data ?? []) as { id: string; full_name: string | null; role: string | null }[];
   const nameById = new Map(agents.map((a) => [a.id, a.full_name]));
+  const roleById = new Map(agents.map((a) => [a.id, a.role]));
 
   const rows = (coachRes.data ?? []) as unknown as Array<{
     author_id: string | null;
@@ -163,14 +167,17 @@ export async function fetchCoachAssessmentRoster(
       trajectory,
     });
   }
-  // §A18 guardrail: ALWAYS alphabetical, NEVER sorted by grade.
-  withData.sort((a, b) => a.agentName.localeCompare(b.agentName));
+  // Ordered top-to-bottom by ORG hierarchy (founder directive 2026-08-29), name-tiebroken within a tier. This
+  // still honors the §A18 guardrail — org rank is NOT a performance grade, so order implies nothing about how
+  // well an agent coaches; it only reflects the org chart (the same reason the roster elsewhere is org-ordered).
+  withData.sort(byOrgRank((a) => roleById.get(a.agentId) ?? null, (a) => a.agentName));
 
   const withDataIds = new Set(withData.map((a) => a.agentId));
   const noData = agents
     .filter((a) => !withDataIds.has(a.id))
-    .map((a) => a.full_name ?? "Unnamed agent")
-    .sort((a, b) => a.localeCompare(b));
+    // sort the agent rows by org rank FIRST, then project to names (org rank needs the role, not just the name).
+    .sort(byOrgRank((a) => a.role, (a) => a.full_name))
+    .map((a) => a.full_name ?? "Unnamed agent");
 
   return { companyId, windowDays: 30, agents: withData, noData, bounded };
 }

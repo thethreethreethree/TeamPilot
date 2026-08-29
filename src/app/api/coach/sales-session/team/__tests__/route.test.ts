@@ -135,6 +135,31 @@ describe("GET /team — roster + pending invites", () => {
     ]);
   });
 
+  it("orders the roster by org hierarchy (founder directive), regardless of DB return order", async () => {
+    // The route sorts membersRes.data by byOrgRank in JS (route.ts) — the `order` mock is a no-op passthrough,
+    // so this exercises the REAL sort. Scrambled tiers in → C-Suite-first out. Guards a silent sort-drop that
+    // the single-member tests above would miss.
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      getClient({
+        profile: MANAGER,
+        members: [
+          { id: "a", full_name: "Zed Staff", role: "member", sales_coach_role: "staff" },
+          { id: "b", full_name: "Ann Boss", role: "CEO", sales_coach_role: null },
+          { id: "c", full_name: "Moe Mid", role: "Manager", sales_coach_role: null },
+          { id: "d", full_name: "Val Vp", role: "VP", sales_coach_role: null },
+        ],
+        invites: [],
+      }) as never
+    );
+    const body = await (await GET()).json();
+    expect(body.members.map((m: { fullName: string }) => m.fullName)).toEqual([
+      "Ann Boss", // CEO (0)
+      "Val Vp",   // VP (1)
+      "Moe Mid",  // Manager (3)
+      "Zed Staff", // member — Frontline (5)
+    ]);
+  });
+
   it("500 on a read error — an honest failure, not an empty team", async () => {
     (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
       getClient({ profile: MANAGER, members: [], invites: [], membersErr: { message: "timeout" } }) as never

@@ -20,7 +20,7 @@ const counts = (): Counts => ({
 });
 
 const state = vi.hoisted(() => ({
-  agents: [] as Array<{ id: string; full_name: string | null }>,
+  agents: [] as Array<{ id: string; full_name: string | null; role?: string | null }>,
   agentsError: null as { message: string } | null,
   rows: [] as Array<{ author_id: string | null; coach_counts: unknown; created_at: string }>,
   rowsError: null as { message: string } | null,
@@ -55,7 +55,9 @@ beforeEach(() => {
 });
 
 describe("fetchCoachAssessmentRoster", () => {
-  it("§A18: returns the roster ALPHABETICAL, never grade-sorted", async () => {
+  it("§A18: role-less agents fall back to alphabetical (never grade-sorted)", async () => {
+    // No roles set → all rank equal under byOrgRank → name tiebreak → alphabetical. Preserves the §A18 property
+    // (order is never a performance grade) for the common case where these coach rows carry no org role.
     state.agents = [
       { id: "z", full_name: "Zoe" },
       { id: "a", full_name: "Alice" },
@@ -68,6 +70,22 @@ describe("fetchCoachAssessmentRoster", () => {
     ];
     const r = await fetchCoachAssessmentRoster("c1");
     expect(r.agents.map((a) => a.agentName)).toEqual(["Alice", "Bob", "Zoe"]);
+  });
+
+  it("orders by org hierarchy when roles are present (founder directive), name-tiebroken within a tier", async () => {
+    // C-Suite → … → Frontline, regardless of input order; still NOT a grade (§A18) — org rank, not performance.
+    state.agents = [
+      { id: "m", full_name: "Zoe Rep", role: "Member" },
+      { id: "c", full_name: "Ada Chief", role: "CEO" },
+      { id: "d", full_name: "Ed Director", role: "Director" },
+    ];
+    state.rows = [
+      { author_id: "m", coach_counts: counts(), created_at: daysAgo(1) },
+      { author_id: "c", coach_counts: counts(), created_at: daysAgo(1) },
+      { author_id: "d", coach_counts: counts(), created_at: daysAgo(1) },
+    ];
+    const r = await fetchCoachAssessmentRoster("c1");
+    expect(r.agents.map((a) => a.agentName)).toEqual(["Ada Chief", "Ed Director", "Zoe Rep"]);
   });
 
   it("surfaces agents with no graded replies in noData (nobody silently invisible), sorted", async () => {

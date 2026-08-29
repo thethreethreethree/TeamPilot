@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId, isAdminRole } from "@/lib/supabase/auth-helpers";
 import { findAuthUserByEmail, createAdminClient } from "@/lib/supabase/admin";
-import { isInvitableRole } from "@/lib/roles";
+import { isInvitableRole, byOrgRank } from "@/lib/roles";
 import { randomBytes } from "crypto";
 
 function genCode(): string {
@@ -53,8 +53,15 @@ export async function GET() {
     );
   }
 
+  // Order the roster top-to-bottom by org hierarchy (founder directive) — the same ordering fetchTeam applies to
+  // the server-rendered team page; this endpoint (its API twin, feeding the file-access + finance-cover pickers)
+  // was left on created_at. byOrgRank ranks by tier then name; created_at no longer decides the order.
+  const members = [...(membersRes.data ?? [])].sort(
+    byOrgRank((m) => m.role as string | null, (m) => m.full_name as string | null)
+  );
+
   return NextResponse.json({
-    members: membersRes.data,
+    members,
     invitations: invitesRes.data,
   });
 }

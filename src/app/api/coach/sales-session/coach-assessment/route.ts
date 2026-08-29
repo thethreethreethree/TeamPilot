@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { byOrgRank } from "@/lib/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aggregateCoachingContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 import { getAllTimeKpi } from "@/lib/data/doorlog";
@@ -81,18 +82,20 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  // Company agents (alphabetical — order carries no meaning, §A18).
-  // §3.4: a failed query must NOT render as "no assessments yet" — degrade
-  // honestly so the page shows an error, not a fake empty team.
+  // Company agents, ordered top-to-bottom by ORG hierarchy (founder directive 2026-08-29). This still honors §A18
+  // — org rank is NOT a performance grade, so the order says nothing about how well an agent coaches; it only
+  // mirrors the org chart. `role` is selected so byOrgRank can rank the roster below.
+  // §3.4: a failed query must NOT render as "no assessments yet" — degrade honestly so the page shows an error.
   const { data: profs, error: profErr } = await admin
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, role")
     .eq("company_id", ctx.companyId)
     .is("removed_at", null);
   if (profErr) {
     return NextResponse.json({ degraded: true });
   }
-  const agents = (profs ?? []) as { id: string; full_name: string | null }[];
+  const agents = (profs ?? []) as { id: string; full_name: string | null; role: string | null }[];
+  const roleById = new Map(agents.map((a) => [a.id, a.role]));
 
   // Per-rep coaching signal (founder-approved 2026-08-06 — "per-rep, no migration", replacing the old
   // TEAM-WIDE recent-300 window). The old window pooled 300 dissects across the whole team, so an active
@@ -208,9 +211,9 @@ export async function GET() {
         practice: d?.practice ?? null,
       };
     })
-    // Only agents who have at least one dissect show coaching content; the
-    // rest are listed as "no sessions yet" by the page. Alphabetical.
-    .sort((x, y) => x.agentName.localeCompare(y.agentName));
+    // Only agents who have at least one dissect show coaching content; the rest are listed as "no sessions yet"
+    // by the page. Ordered by org hierarchy (name-tiebroken within a tier) — an org-chart order, not a grade (§A18).
+    .sort(byOrgRank((t) => roleById.get(t.agentId) ?? null, (t) => t.agentName));
 
   // Team practice rollup (founder's "team-level data for the meeting") — a pure AGGREGATE over the per-rep practice
   // summaries already computed, no individual named/rankable (§A18-safest). Honest zeros when nobody has practiced.

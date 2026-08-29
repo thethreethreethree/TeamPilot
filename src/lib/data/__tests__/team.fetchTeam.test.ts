@@ -101,3 +101,73 @@ describe("fetchTeam (live-error vs live-empty guard)", () => {
     expect(out.mode).toBe("live-error");
   });
 });
+
+/**
+ * Org-ordering regression guard (founder directive 2026-08-29: "an order of role organization system…
+ * C-Suite → VP → Director → Manager → Supervisor/Lead → Frontline"). fetchTeam sorts the roster by
+ * `byOrgRank` (team.ts). The live-error/empty tests above all use a single 'member', so they'd stay green
+ * if the sort were silently dropped — this locks the ACTUAL top-to-bottom order the founder asked for, so a
+ * regression that reverts to created_at/name/unsorted fails here instead of shipping.
+ */
+describe("fetchTeam — org hierarchy ordering (founder directive)", () => {
+  const calls: Array<[string, unknown[]]> = [];
+  const member = (id: string, full_name: string, role: string) => ({
+    id, full_name, role, status: "active", removed_at: null, created_at: "2026-07-01T00:00:00Z",
+  });
+
+  it("returns members top-to-bottom by tier, name-tiebroken within a tier — regardless of input order", async () => {
+    // Deliberately scrambled input order across every tier, plus two Frontline members for the name tiebreak.
+    mock(
+      {
+        profiles: {
+          data: [
+            member("m1", "Zoe Frontline", "Member"),
+            member("m2", "Bob Chief", "CEO"),
+            member("m3", "Amy Frontline", "Member"),
+            member("m4", "Cara Dir", "Director"),
+            member("m5", "Dan Veep", "VP"),
+            member("m6", "Eve Manager", "Manager"),
+            member("m7", "Fay Super", "Supervisor"),
+          ],
+          error: null,
+        },
+        team_invitations: { data: [], error: null },
+      },
+      calls
+    );
+    const out = await fetchTeam();
+    expect(out.mode).toBe("live-data");
+    expect(out.members.map((m) => m.fullName)).toEqual([
+      "Bob Chief",      // CEO — C-Suite (0)
+      "Dan Veep",       // VP (1)
+      "Cara Dir",       // Director (2)
+      "Eve Manager",    // Manager (3)
+      "Fay Super",      // Supervisor / Team Lead (4)
+      "Amy Frontline",  // Member — Frontline (5), A before Z
+      "Zoe Frontline",  // Member — Frontline (5)
+    ]);
+  });
+
+  it("sinks an unknown/blank role to the bottom of the roster", async () => {
+    mock(
+      {
+        profiles: {
+          data: [
+            member("m1", "Nobody Knows", "Contractor"), // unknown role → below every real tier
+            member("m2", "Cee Eeoh", "CEO"),
+            member("m3", "Reg Member", "Member"),
+          ],
+          error: null,
+        },
+        team_invitations: { data: [], error: null },
+      },
+      calls
+    );
+    const out = await fetchTeam();
+    expect(out.members.map((m) => m.fullName)).toEqual([
+      "Cee Eeoh",     // CEO (0)
+      "Reg Member",   // Member (5)
+      "Nobody Knows", // unknown → last
+    ]);
+  });
+});
