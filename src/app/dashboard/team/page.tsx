@@ -234,6 +234,7 @@ function TeamInner() {
         onClose={() => setInviting(false)}
         onInvited={refresh}
         companyName={companyName}
+        canInviteAdmin={amAdmin}
       />
     </div>
   );

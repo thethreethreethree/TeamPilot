@@ -14,6 +14,7 @@ import {
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { inviteRoleGroups } from "@/lib/roles";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 const industries = [
@@ -690,10 +691,19 @@ Always hand off to a human for:
                       }
                       className="bg-surface border border-default rounded-lg px-2 py-2 text-xs text-primary focus:outline-none focus:border-ember-400/50 focus:ring-1 focus:ring-ember-400/30"
                     >
-                      <option value="Member">Member</option>
-                      <option value="Lead">Lead</option>
-                      <option value="COO">COO</option>
-                      <option value="CEO">CEO</option>
+                      {/* Tier-grouped options from the single role source (roles.ts), matching InviteMemberDialog.
+                          The founder onboarding is the company admin, so all tiers incl. C-Suite are offered
+                          (inviteRoleGroups(true)) — previously this was hardcoded to only Member/Lead/COO/CEO,
+                          which hid CFO/VP/Director/Manager/Supervisor from the very first invite surface. */}
+                      {inviteRoleGroups(true).map((g) => (
+                        <optgroup key={g.tier} label={g.tier}>
+                          {g.roles.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                     <button
                       type="button"

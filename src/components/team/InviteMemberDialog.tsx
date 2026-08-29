@@ -11,8 +11,7 @@ import {
 import Modal from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { inviteRoleGroups, isAdminRole, type AssignableOrgRole } from "@/lib/roles";
-import { useCurrentUserRole } from "@/lib/hooks/useCurrentUserRole";
+import { inviteRoleGroups, type AssignableOrgRole } from "@/lib/roles";
 import { siteUrl } from "@/lib/siteUrl";
 
 /**
@@ -46,11 +45,18 @@ export function InviteMemberDialog({
   onClose,
   onInvited,
   companyName,
+  canInviteAdmin,
 }: {
   open: boolean;
   onClose: () => void;
   onInvited?: () => void;
   companyName?: string;
+  // Progressive disclosure (AMD-006 L3 / R3): whether the VIEWER may assign a C-Suite (CEO/CFO/COO) role. When
+  // false, those options are hidden from the dropdown — the route + RLS would 403 a non-admin who picked one, so
+  // don't surface options that will bounce. Passed by the parent (which already knows the viewer's admin status)
+  // so this dialog stays a pure presentational component and doesn't fire its own auth/profile fetch on every
+  // mount. Server-side gate is unchanged; this is presentation only.
+  canInviteAdmin: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("Member");
@@ -59,12 +65,7 @@ export function InviteMemberDialog({
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
-  // Progressive disclosure (AMD-006 L3 / R3): only an admin sees the C-Suite (CEO/CFO/COO) invite options — the
-  // route + RLS would 403 a non-admin who picked one, so don't surface options that will bounce. Server-side gate
-  // is unchanged; this is presentation only. `useCurrentUserRole` is null while loading → treated as non-admin (the
-  // safe default: hide admin options until the viewer is confirmed an admin).
-  const amAdmin = isAdminRole(useCurrentUserRole());
-  const roleGroups = inviteRoleGroups(amAdmin);
+  const roleGroups = inviteRoleGroups(canInviteAdmin);
 
   const reset = () => {
     setEmail("");

@@ -32,6 +32,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchHotkey } from "@/components/ui/useSearchHotkey";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
+import { useCurrentUserRole } from "@/lib/hooks/useCurrentUserRole";
+import { isAdminRole } from "@/lib/roles";
 
 const STATUS_BADGE: Record<string, string> = {
   open: "bg-surface-raised text-active-text border border-ember-400/30",
@@ -83,6 +85,9 @@ function TeamChatListInner() {
   const [inviting, setInviting] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [query, setQuery] = useState("");
+  // Whether the viewer may assign a C-Suite invite role — computed once here (not inside the always-mounted
+  // dialog) so the dialog stays presentational and doesn't fire a redundant auth/profile fetch. (R3 / efficiency)
+  const amAdmin = isAdminRole(useCurrentUserRole());
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   useSearchHotkey(searchInputRef);
 
@@ -360,6 +365,7 @@ function TeamChatListInner() {
         open={inviting}
         onClose={() => setInviting(false)}
         companyName={companyName}
+        canInviteAdmin={amAdmin}
       />
     </div>
   );
