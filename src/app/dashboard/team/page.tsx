@@ -7,6 +7,8 @@ import { supabaseEnabled } from "@/lib/supabase/client";
 import { siteUrl } from "@/lib/siteUrl";
 import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
+import { useCurrentUserRole } from "@/lib/hooks/useCurrentUserRole";
+import { isAdminRole, orgTierLabel, ORG_ROLE_OPTIONS } from "@/lib/roles";
 import {
   AlertTriangle,
   Copy,
@@ -31,6 +33,7 @@ export default function TeamPage() {
 
 function TeamInner() {
   const companyName = useCompanyName();
+  const amAdmin = isAdminRole(useCurrentUserRole()); // only an admin sees the org-role (tier) assignment control
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,7 +191,7 @@ function TeamInner() {
                   ) : (
                     <div className="divide-y divide-default">
                       {members.map((m) => (
-                        <MemberRow key={m.id} member={m} onRemoved={refresh} />
+                        <MemberRow key={m.id} member={m} amAdmin={amAdmin} onChanged={refresh} onRemoved={refresh} />
                       ))}
                     </div>
                   )}
@@ -253,13 +256,36 @@ function Section({
 
 function MemberRow({
   member,
+  amAdmin,
+  onChanged,
   onRemoved,
 }: {
   member: TeamMember;
+  amAdmin: boolean;
+  onChanged: () => void;
   onRemoved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [savingRole, setSavingRole] = useState(false);
   const toast = useToast();
+  // Change this member's org tier (the `role` field). Admin-only, enforced server-side; C-Suite = admin authority.
+  const setOrgRole = async (role: string) => {
+    if (role === member.role) return;
+    setSavingRole(true);
+    const res = await fetch("/api/team/set-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: member.id, role }),
+    });
+    setSavingRole(false);
+    if (res.ok) {
+      toast.success("Role updated", `${member.fullName ?? "Member"} is now ${orgTierLabel(role)}.`);
+      onChanged();
+    } else {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      toast.error("Couldn't change the role", data?.error ?? "Something went wrong — try again.");
+    }
+  };
   const remove = async () => {
     if (!confirm(`Remove ${member.fullName ?? "this member"}?`)) return;
     setBusy(true);
@@ -296,20 +322,44 @@ function MemberRow({
         <div className="min-w-0">
           <p className="text-sm text-primary truncate">{member.fullName ?? "—"}</p>
           <p className="text-[10px] text-muted font-mono truncate">
-            {member.role} · joined {member.createdAt.slice(0, 10)}
+            {orgTierLabel(member.role)} · joined {member.createdAt.slice(0, 10)}
           </p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={remove}
-        disabled={busy}
-        className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40 p-2 -m-2 shrink-0"
-        aria-label={`Remove member ${member.fullName ?? ""}`.trim()}
-        title="Remove member"
-      >
-        <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        {amAdmin && (
+          <select
+            value={ORG_ROLE_OPTIONS.some((o) => o.role === member.role) ? member.role : ""}
+            onChange={(e) => void setOrgRole(e.target.value)}
+            disabled={savingRole}
+            aria-label={`Set org role for ${member.fullName ?? "member"}`}
+            title="Set org role (tier)"
+            className="text-[11px] bg-base border border-default rounded-md px-1.5 py-1 text-secondary focus:outline-none focus:border-strong disabled:opacity-50 max-w-[9rem]"
+          >
+            {/* Show a current non-standard role (e.g. the onboarding 'admin') as a disabled hint, so the tier still reads. */}
+            {!ORG_ROLE_OPTIONS.some((o) => o.role === member.role) && (
+              <option value="" disabled>
+                {orgTierLabel(member.role)}
+              </option>
+            )}
+            {ORG_ROLE_OPTIONS.map((o) => (
+              <option key={o.role} value={o.role}>
+                {o.role === o.tier ? o.role : `${o.role} — ${o.tier}`}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          className="flex items-center gap-1.5 text-xs text-muted hover:text-red-400 disabled:opacity-40 p-2 -m-2"
+          aria-label={`Remove member ${member.fullName ?? ""}`.trim()}
+          title="Remove member"
+        >
+          <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

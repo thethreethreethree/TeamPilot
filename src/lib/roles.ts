@@ -23,10 +23,11 @@
 export const INVITABLE_ROLES = ["CEO", "COO", "Lead", "Member"] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
-/** The company-admin (leadership) role set. 'admin' = the onboarding founder role
- *  (0046/0047); 'CEO'/'COO' = the invitable admin roles. 'Lead'/'Member' are NOT
- *  admin. Exact match — no accidental broadening ("administrator" is NOT admin). */
-export const ADMIN_ROLES = ["CEO", "COO", "admin"] as const;
+/** The company-admin (leadership) role set = the C-Suite tier. 'admin' = the onboarding founder role (0046/0047);
+ *  'CEO'/'CFO'/'COO' = the C-Suite roles. 'CFO' added 2026-08-29 with the org hierarchy (founder: C-Suite = admin) —
+ *  a new value, so no existing user's authority changes. VP/Director/Manager/Supervisor/Lead/Member are NOT admin.
+ *  Exact match — no accidental broadening ("administrator" is NOT admin). */
+export const ADMIN_ROLES = ["CEO", "CFO", "COO", "admin"] as const;
 
 /** True iff the role is a company-admin (leadership) role. */
 export function isAdminRole(role: string | null | undefined): boolean {
@@ -96,4 +97,30 @@ export function byOrgRank<T>(
   return (a, b) =>
     orgRoleRank(getRole(a)) - orgRoleRank(getRole(b)) ||
     (getName(a) ?? "").localeCompare(getName(b) ?? "", undefined, { sensitivity: "base" });
+}
+
+/**
+ * The org roles an admin may ASSIGN to a team member (stage 2, founder 2026-08-29), grouped by tier for the
+ * assignment dropdown. C-Suite is admin authority (ADMIN_ROLES); the rest are not. The onboarding 'admin' bootstrap
+ * role isn't offered (it maps to C-Suite for display + ranking, and re-assigning a founder to 'CEO' keeps them
+ * admin). 'Supervisor' is the assignable Supervisor/Team-Lead value; the legacy invitable 'Lead' still ranks there.
+ */
+export const ORG_ROLE_OPTIONS = [
+  { role: "CEO", tier: "C-Suite" },
+  { role: "CFO", tier: "C-Suite" },
+  { role: "COO", tier: "C-Suite" },
+  { role: "VP", tier: "VP" },
+  { role: "Director", tier: "Director" },
+  { role: "Manager", tier: "Manager" },
+  { role: "Supervisor", tier: "Supervisor / Team Lead" },
+  { role: "Member", tier: "Frontline" },
+] as const;
+
+/** The set of role values an admin may assign (validation for the set-role route). */
+export const ASSIGNABLE_ORG_ROLES = ORG_ROLE_OPTIONS.map((o) => o.role);
+export type AssignableOrgRole = (typeof ORG_ROLE_OPTIONS)[number]["role"];
+
+/** True iff a string is an assignable org role. Reject anything else at the set-role route boundary. */
+export function isAssignableOrgRole(role: unknown): role is AssignableOrgRole {
+  return typeof role === "string" && (ASSIGNABLE_ORG_ROLES as readonly string[]).includes(role);
 }

@@ -15,17 +15,17 @@ import {
 // `role === 'CEO' || 'COO' || 'admin'` to isAdminRole() — the admit/deny set
 // MUST be identical, or the migration silently changed an authz gate.
 describe("roles — admin gate (behavior preservation)", () => {
-  it("admits exactly CEO / COO / admin — same set the inline gates used", () => {
-    // The exact set the ~20 inline gates checked. If this changes, every
-    // migrated gate's behavior changed with it.
-    expect([...ADMIN_ROLES].sort()).toEqual(["COO", "CEO", "admin"].sort());
+  it("admits the C-Suite tier CEO / CFO / COO / admin", () => {
+    // The admin set = the C-Suite tier. CFO added 2026-08-29 with the org hierarchy (founder: C-Suite = admin) — a
+    // CONSCIOUS expansion of a NEW value, not a silent drift of an existing gate (no user is 'CFO' yet).
+    expect([...ADMIN_ROLES].sort()).toEqual(["CEO", "CFO", "COO", "admin"].sort());
   });
 
-  it("isAdminRole matches the old inline predicate for every relevant value", () => {
-    const inline = (r: string | null | undefined) =>
-      r === "CEO" || r === "COO" || r === "admin";
-    for (const r of ["CEO", "COO", "admin", "Lead", "Member", "member", "", null, undefined, "administrator", "ADMIN"]) {
-      expect(isAdminRole(r)).toBe(inline(r));
+  it("isAdminRole admits exactly the C-Suite roles, nothing below", () => {
+    const cSuite = (r: string | null | undefined) =>
+      r === "CEO" || r === "CFO" || r === "COO" || r === "admin";
+    for (const r of ["CEO", "CFO", "COO", "admin", "VP", "Director", "Manager", "Supervisor", "Lead", "Member", "member", "", null, undefined, "administrator", "ADMIN"]) {
+      expect(isAdminRole(r)).toBe(cSuite(r));
     }
   });
 
