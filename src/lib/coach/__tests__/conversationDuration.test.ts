@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
+import { conversationDurationSeconds, MAX_WALLCLOCK_SECONDS } from "@/lib/coach/conversationDuration";
 
 /**
  * The shared "how long was this call" rule (audit F8) — the §3.5-critical prefer-audio logic that After-Pitch,
@@ -43,5 +43,24 @@ describe("conversationDurationSeconds", () => {
     expect(conversationDurationSeconds(null, endPlus4m, start)).toBeNull();
     // unparseable timestamp → NaN span → null
     expect(conversationDurationSeconds(null, "not-a-date", endPlus4m)).toBeNull();
+  });
+
+  it("CAPS an implausible wall-clock (unclosed / backfilled ended_at) → null, the '32051.9 min' bug", () => {
+    // The live incident: started in June, ended_at mass-backfilled to 2026-08-21 → ~54-day span.
+    const backfilledEnd = "2026-08-21T00:28:33.175Z";
+    const juneStart = "2026-06-27T06:45:36.508Z";
+    expect(conversationDurationSeconds(null, juneStart, backfilledEnd)).toBeNull();
+    // just over the cap → null; just under → the real span (a legit long session is kept)
+    const capStart = "2026-08-11T00:00:00.000Z";
+    const overCap = new Date(Date.parse(capStart) + (MAX_WALLCLOCK_SECONDS + 60) * 1000).toISOString();
+    const underCap = new Date(Date.parse(capStart) + (MAX_WALLCLOCK_SECONDS - 60) * 1000).toISOString();
+    expect(conversationDurationSeconds(null, capStart, overCap)).toBeNull();
+    expect(conversationDurationSeconds(null, capStart, underCap)).toBeCloseTo(MAX_WALLCLOCK_SECONDS - 60, 5);
+  });
+
+  it("NEVER caps a real uploaded audio length (the cap is wall-clock-only)", () => {
+    // A 3-hour uploaded meeting recording has a true audio length > the wall-clock cap edge cases — trust it.
+    const fiveHours = 5 * 60 * 60;
+    expect(conversationDurationSeconds(fiveHours, start, endPlus4m)).toBe(fiveHours);
   });
 });

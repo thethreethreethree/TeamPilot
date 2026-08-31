@@ -168,6 +168,23 @@ describe("Layer 2 math", () => {
     const r = avgSessionDurationMin(rows);
     expect(r.value).toBe(4); // 240s = 4m, NOT the 62m session open-time
   });
+
+  it("EXCLUDES an implausible wall-clock session (unclosed/backfilled) — the '32051.9 min' regression", () => {
+    // Five real 30-min live sessions + one session whose ended_at was backfilled ~54 days out (no audio length).
+    // The outlier must be EXCLUDED (over the cap → null), not averaged in — before the fix it produced a ~15,000-min
+    // average from the exact same data shape the founder saw as 32051.9.
+    const rows = [
+      S("sold", 100, "2026-07-01", 30, 1),
+      S("no_sale", null, "2026-07-01", 30, 2),
+      S("follow_up", null, "2026-07-01", 30, 3),
+      S("no_sale", null, "2026-07-01", 30, 4),
+      S("undecided", null, "2026-07-01", 30, 5),
+      S("sold", 100, "2026-06-27", 90000, 6), // 90000 min wall-clock, no audio → over the 4h cap → excluded
+    ];
+    const r = avgSessionDurationMin(rows);
+    expect(r.sampleSize).toBe(5); // the outlier is not counted
+    expect(r.value).toBe(30); // (30×5)/5 — the poison never reaches the average
+  });
 });
 
 describe("baseline (self-comparison)", () => {

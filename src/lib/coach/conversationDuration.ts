@@ -12,7 +12,16 @@
  * session wall-clock is just how long the session sat open; otherwise the started..ended wall-clock (correct
  * for a LIVE session); null when neither is known (never a fabricated number, §3.4). Guards a NaN/negative
  * wall-clock span (clock skew / bad timestamps) → null.
+ *
+ * UPPER SANITY CAP (2026-08-29, verified against live data): a wall-clock span beyond MAX_WALLCLOCK_SECONDS is
+ * NOT a real call — it is an unclosed session or a mass-backfilled `ended_at`. Live data showed 230 sessions with
+ * a >6h wall-clock and 200+ sharing a single backfilled `ended_at` (2026-08-21), started months earlier → spans of
+ * ~54 DAYS. Averaged in, ONE of those produced the founder-reported "32051.9 min" avg-session-duration. The
+ * audio-length path (real uploads) is unaffected — it is the trusted length and is never capped. A live span over
+ * the cap returns null (§3.4: excluded as unknown, never a fabricated/clamped number that would still be wrong).
  */
+export const MAX_WALLCLOCK_SECONDS = 4 * 60 * 60; // 4h — generous ceiling for any single call; real ones are minutes.
+
 export function conversationDurationSeconds(
   audioDurationSeconds: number | null | undefined,
   startedAt: string | null | undefined,
@@ -23,7 +32,12 @@ export function conversationDurationSeconds(
   }
   if (startedAt && endedAt) {
     const ms = Date.parse(endedAt) - Date.parse(startedAt);
-    if (Number.isFinite(ms) && ms > 0) return ms / 1000;
+    if (Number.isFinite(ms) && ms > 0) {
+      const sec = ms / 1000;
+      // A span beyond the cap is an unclosed/backfilled session, not a real call length → unknown, not a poison.
+      if (sec > MAX_WALLCLOCK_SECONDS) return null;
+      return sec;
+    }
   }
   return null;
 }

@@ -134,22 +134,25 @@ export function sessionsPerDay(sessions: KpiSessionRow[]): MetricResult {
 
 /** Average session duration (minutes) over ended sessions. Gate: ≥ MIN_SESSIONS ended sessions. */
 export function avgSessionDurationMin(sessions: KpiSessionRow[]): MetricResult {
-  const ended = sessions.filter((s) => s.endedAt !== null);
-  const ids = ended.map((s) => s.sessionId);
-  if (ended.length < MIN_SESSIONS) return gated(ended.length, ids);
   // Prefer the recording's REAL audio length for uploads over the session wall-clock (which is just how long
-  // an uploaded session sat open — it showed 62m for a 4m clip). Live sessions have no audio length and use
-  // the wall-clock, which is correct there. §3.5: a meeting-duration metric that doesn't match the audio is a
-  // dishonest metric, exactly what the constitution forbids.
-  // Sum the shared per-session length (audit F8): the prefer-audio + wall-clock + finite-guard rule now lives
-  // in ONE tested helper, conversationDurationSeconds — the After-Pitch header + Sessions list read the same
-  // rule, so they can't drift (the vein that let the "62m for a 4m clip" bug span three surfaces).
-  const totalSec = ended.reduce(
-    (acc, s) =>
-      acc + (conversationDurationSeconds(s.audioDurationSeconds, s.startedAt, s.endedAt) ?? 0),
-    0,
-  );
-  return { value: round1(totalSec / ended.length / 60), sampleSize: ended.length, gated: false, sourceSessionIds: ids };
+  // an uploaded session sat open — it showed 62m for a 4m clip). Live sessions use the wall-clock, now capped at
+  // MAX_WALLCLOCK_SECONDS so an unclosed/backfilled session (the "32051.9 min" cause, 2026-08-29) returns null.
+  // §3.5: a duration metric that doesn't match reality is dishonest — exactly what the constitution forbids.
+  //
+  // Average ONLY over sessions with a KNOWN duration (non-null). A null (no audio length AND an implausible
+  // wall-clock) is "unknown", so it is excluded from BOTH the sum and the count — NOT counted as a 0-minute call,
+  // which would drag the average down just as the uncapped outliers dragged it up. The shared rule lives in ONE
+  // tested helper, conversationDurationSeconds (audit F8), so the After-Pitch header + Sessions list can't drift.
+  const withDuration = sessions
+    .map((s) => ({
+      sessionId: s.sessionId,
+      sec: conversationDurationSeconds(s.audioDurationSeconds, s.startedAt, s.endedAt),
+    }))
+    .filter((s): s is { sessionId: string; sec: number } => s.sec !== null);
+  const ids = withDuration.map((s) => s.sessionId);
+  if (withDuration.length < MIN_SESSIONS) return gated(withDuration.length, ids);
+  const totalSec = withDuration.reduce((acc, s) => acc + s.sec, 0);
+  return { value: round1(totalSec / withDuration.length / 60), sampleSize: withDuration.length, gated: false, sourceSessionIds: ids };
 }
 
 // ---- Layer 3: Conversation quality (from the existing after-pitch evidenced scores) ------------------
