@@ -146,13 +146,18 @@ export default function KpiAnalyticsPage() {
   const [teamQuotaTarget, setTeamQuotaTarget] = useState<number | null>(null);
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
   const [teamSort, setTeamSort] = useState<"org" | "name" | "conversion" | "reliance">("org");
+  // KPI scope (founder 2026-08-29): an admin/owner defaults to the WHOLE-COMPANY aggregate — the per-rep view
+  // stays "building" for a long time because outcomes are sparse per rep, but pooled across the business the
+  // objective Layer-1 numbers show today. Set to "company" once the team fetch confirms the viewer is a manager.
+  // A non-admin never sends "company" (and the route falls back to self anyway), so it can't leak another business.
+  const [scope, setScope] = useState<"self" | "company">("self");
 
   // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
   const loadMe = useCallback(async () => {
     setLoadError(false);
     setLoading(true);
     try {
-      const res = await fetch("/api/coach/kpi/me");
+      const res = await fetch(`/api/coach/kpi/me?scope=${scope}`);
       if (res.ok) setData(await res.json());
       else setLoadError(true); // 401/500/etc — an error, NOT "no data yet"
     } catch {
@@ -160,7 +165,7 @@ export default function KpiAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void loadMe();
@@ -181,6 +186,10 @@ export default function KpiAnalyticsPage() {
           if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
           if (typeof j.monthlyQuotaTarget === "number") setTeamQuotaTarget(j.monthlyQuotaTarget);
           if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
+          // A 200 here = the viewer is a manager/admin (the route 403s non-managers). Default their headline
+          // cards to the WHOLE-COMPANY aggregate so Layer-1 shows real business numbers instead of a sparse
+          // per-rep "building" — the "per-business KPI" the founder asked for. They can toggle back to "Mine".
+          if (alive) setScope("company");
         }
       } catch {
         /* non-manager or error → no team section */
@@ -300,16 +309,39 @@ export default function KpiAnalyticsPage() {
             Measure growth, not just results — compared to your own past, never a leaderboard.
           </p>
         </div>
-        {data && (
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-secondary hover:text-primary border border-default hover:border-strong rounded-md px-2.5 py-1.5 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" aria-hidden />
-            Export CSV
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Company / Mine scope toggle — only a manager/admin sees it (team loaded ⇒ the /team route returned
+              200, which it only does for managers). Company pools the whole business's outcomes so Layer-1 shows
+              real numbers; Mine is the individual's own view. (Founder 2026-08-29.) */}
+          {team !== null && (
+            <div className="inline-flex items-center rounded-md border border-default overflow-hidden text-[11px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setScope("company")}
+                className={`px-2.5 py-1.5 transition-colors ${scope === "company" ? "bg-ember-400/15 text-brand" : "text-secondary hover:text-primary"}`}
+              >
+                Company
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("self")}
+                className={`px-2.5 py-1.5 border-l border-default transition-colors ${scope === "self" ? "bg-ember-400/15 text-brand" : "text-secondary hover:text-primary"}`}
+              >
+                Mine
+              </button>
+            </div>
+          )}
+          {data && (
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-secondary hover:text-primary border border-default hover:border-strong rounded-md px-2.5 py-1.5 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" aria-hidden />
+              Export CSV
+            </button>
+          )}
+        </div>
       </header>
 
       {loadError && !data && (

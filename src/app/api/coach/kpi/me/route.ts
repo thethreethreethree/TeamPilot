@@ -50,22 +50,44 @@ const LAYER3_KEYS = ["opener", "objection", "tone", "close", "question_rate", "n
  * carries the Understanding Gate ("building" until MIN_SESSIONS) + its sourceSessionIds for drill-down, so
  * nothing here asserts a number it can't trace to real sessions.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const sb = await createClient();
   const ctx = await getCurrentAuthContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  // The caller's own sessions (agent_id = self). RLS also permits same-company reads, so pin to self.
-  // Paged so a high-volume rep past 1000 lifetime sessions doesn't silently truncate their KPIs.
+  // Scope (founder 2026-08-29): a company owner/admin can view the WHOLE BUSINESS's aggregate — the per-rep view
+  // stays "building" for a long time because outcomes are sparse per rep, but pooled across the company there is
+  // enough for the objective Layer-1 numbers to show. `scope=company` requires company-admin (ctx.isAdmin); a
+  // non-admin falls back to self, never leaking another company. The SAME compute runs over the pooled rows, so
+  // conversion/close/win-loss/revenue are just computed across everyone's outcomes instead of one rep's.
+  const scope = new URL(req.url).searchParams.get("scope");
+  let agentIds: string[] = [ctx.userId];
+  let effectiveScope: "self" | "company" = "self";
+  if (scope === "company" && ctx.isAdmin) {
+    // The company's sales-coach members (same set the team roster uses). RLS permits an admin same-company reads.
+    const { data: members } = await sb
+      .from("profiles")
+      .select("id")
+      .eq("company_id", ctx.companyId)
+      .not("sales_coach_role", "is", null);
+    const ids = (members ?? []).map((m) => m.id as string);
+    if (ids.length > 0) {
+      agentIds = ids;
+      effectiveScope = "company";
+    }
+  }
+
+  // The scoped sessions (self, or every rep in the company for an admin's company view). RLS also permits
+  // same-company reads. Paged so a high-volume set past 1000 sessions doesn't silently truncate the KPIs.
   const data = await fetchAllPaged(
     (from, to) =>
       sb
         .from("coaching_sessions")
         .select("id, outcome, deal_value, started_at, ended_at, audio_duration_seconds, client_label")
-        .eq("agent_id", ctx.userId)
+        .in("agent_id", agentIds)
         .order("started_at", { ascending: true })
         .range(from, to),
-    { label: "my KPI sessions" },
+    { label: "KPI sessions" },
   ).catch(() => null);
 
   if (data === null) {
@@ -115,10 +137,10 @@ export async function GET() {
         sb
           .from("after_pitch_summaries")
           .select("session_id, created_at, payload")
-          .eq("agent_id", ctx.userId)
+          .in("agent_id", agentIds)
           .order("id")
           .range(from, to),
-      { label: "my KPI after-pitch summaries" },
+      { label: "KPI after-pitch summaries" },
     ).catch(() => null),
   ]);
   // Collapse the append-only rows to the latest per session BEFORE any payload metric reads them (no double-count).
@@ -269,6 +291,7 @@ export async function GET() {
   return NextResponse.json({
     sessionCount: rows.length,
     minSessions: MIN_SESSIONS,
+    scope: effectiveScope,
     metrics,
     deltas,
     sessions,
