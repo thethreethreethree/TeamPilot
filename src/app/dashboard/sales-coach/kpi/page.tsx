@@ -144,6 +144,12 @@ export default function KpiAnalyticsPage() {
   const [team, setTeam] = useState<TeamAgent[] | null>(null);
   const [alertDropPct, setAlertDropPct] = useState(15);
   const [teamQuotaTarget, setTeamQuotaTarget] = useState<number | null>(null);
+  // Quota-target editor (manager only). The PATCH endpoint existed but nothing called it, so the Quota metric
+  // could never leave "building" through the product — a layer-3 dead end (§1.5.1). This control closes it.
+  const [editingQuota, setEditingQuota] = useState(false);
+  const [quotaDraft, setQuotaDraft] = useState("");
+  const [savingQuota, setSavingQuota] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
   // Ranking is AVAILABLE but never the default frame (spec non-negotiable): default sorts by name.
   const [teamSort, setTeamSort] = useState<"org" | "name" | "conversion" | "reliance">("org");
   // KPI scope (founder 2026-08-29): an admin/owner defaults to the WHOLE-COMPANY aggregate — the per-rep view
@@ -171,34 +177,75 @@ export default function KpiAnalyticsPage() {
     void loadMe();
   }, [loadMe]);
 
-  useEffect(() => {
-    let alive = true;
-    // Manager rollup — 403 for non-managers (we just hide the section then).
-    (async () => {
-      try {
-        const res = await fetch("/api/coach/kpi/team");
-        if (res.ok && alive) {
-          const j = (await res.json()) as {
-            agents: TeamAgent[];
-            alertDropPct?: number;
-            monthlyQuotaTarget?: number | null;
-          };
-          if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
-          if (typeof j.monthlyQuotaTarget === "number") setTeamQuotaTarget(j.monthlyQuotaTarget);
-          if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
-          // A 200 here = the viewer is a manager/admin (the route 403s non-managers). Default their headline
-          // cards to the WHOLE-COMPANY aggregate so Layer-1 shows real business numbers instead of a sparse
-          // per-rep "building" — the "per-business KPI" the founder asked for. They can toggle back to "Mine".
-          if (alive) setScope("company");
-        }
-      } catch {
-        /* non-manager or error → no team section */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  // Manager rollup — 403 for non-managers (we just hide the section then). Extracted so saveQuota can re-run it:
+  // after a target changes, the per-rep Quota columns (which come from THIS route, not /me) must refresh too, or
+  // they'd stay "building" until a full reload — a layer-3 continuity gap. `initial` gates the one-time
+  // default-to-company scope so a quota refresh doesn't yank a manager back out of the "Mine" view they chose.
+  const loadTeam = useCallback(async (initial: boolean) => {
+    try {
+      const res = await fetch("/api/coach/kpi/team");
+      if (!res.ok) return;
+      const j = (await res.json()) as {
+        agents: TeamAgent[];
+        alertDropPct?: number;
+        monthlyQuotaTarget?: number | null;
+      };
+      if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
+      setTeamQuotaTarget(typeof j.monthlyQuotaTarget === "number" ? j.monthlyQuotaTarget : null);
+      if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
+      // A 200 here = the viewer is a manager/admin (the route 403s non-managers). On first load, default their
+      // headline cards to the WHOLE-COMPANY aggregate so Layer-1 shows real business numbers instead of a sparse
+      // per-rep "building" — the "per-business KPI" the founder asked for. They can toggle back to "Mine".
+      if (initial) setScope("company");
+    } catch {
+      /* non-manager or error → no team section */
+    }
   }, []);
+
+  useEffect(() => {
+    void loadTeam(true);
+  }, [loadTeam]);
+
+  // Save (or clear) the company's monthly quota target, then recompute so Quota leaves "building" immediately.
+  const saveQuota = useCallback(
+    async (raw: string) => {
+      setQuotaError(null);
+      const trimmed = raw.trim();
+      // Empty input clears the target (back to "building"); otherwise it must be a positive whole number.
+      let target: number | null;
+      if (trimmed === "") target = null;
+      else {
+        const n = Number(trimmed);
+        if (!Number.isInteger(n) || n <= 0 || n > 100000) {
+          setQuotaError("Enter a whole number of deals (1–100000), or leave blank to clear.");
+          return;
+        }
+        target = n;
+      }
+      setSavingQuota(true);
+      try {
+        const res = await fetch("/api/coach/sales-session/quota", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target }),
+        });
+        if (!res.ok) {
+          // 409 = migration not applied (soft), 403 = not a manager, else generic.
+          setQuotaError(res.status === 409 ? "Quota targets aren't enabled yet on this environment." : "Couldn't save — try again.");
+          return;
+        }
+        setTeamQuotaTarget(target);
+        setEditingQuota(false);
+        void loadMe(); // recompute the headline Quota (from /me) against the new target
+        void loadTeam(false); // refresh the per-rep Quota columns (from /team) so they don't lag behind
+      } catch {
+        setQuotaError("Couldn't save — check your connection and try again.");
+      } finally {
+        setSavingQuota(false);
+      }
+    },
+    [loadMe, loadTeam]
+  );
 
   // CSV export (spec: Exports). Client-side, routed through the formula-safe toCsv writer.
   const exportCsv = () => {
@@ -645,12 +692,77 @@ export default function KpiAnalyticsPage() {
             Per-agent growth, each measured against their own past. Ranking is optional — the default is by
             name, not a leaderboard.
           </p>
-          {teamQuotaTarget != null && (
-            <p className="text-[11px] text-secondary mb-2">
-              Monthly quota: <strong>{teamQuotaTarget}</strong> deal{teamQuotaTarget === 1 ? "" : "s"} per rep.
-              Attainment below is deals won this month ÷ target.
-            </p>
-          )}
+          {/* Monthly quota target — MANAGER-editable. When unset, the Quota metric can't compute, so make the
+              fix reachable right here instead of leaving a silent "building" the founder was told to resolve. */}
+          <div className="mb-2 rounded-lg border border-default bg-white/[0.02] px-3 py-2">
+            {editingQuota ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px] text-secondary" htmlFor="quota-target">
+                  Monthly deals-won target per rep:
+                </label>
+                <input
+                  id="quota-target"
+                  type="number"
+                  min={1}
+                  max={100000}
+                  autoFocus
+                  defaultValue={teamQuotaTarget ?? ""}
+                  onChange={(e) => setQuotaDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void saveQuota((e.target as HTMLInputElement).value);
+                    if (e.key === "Escape") { setEditingQuota(false); setQuotaError(null); }
+                  }}
+                  className="w-24 rounded border border-default bg-transparent px-2 py-1 text-xs text-primary tabular-nums focus:border-strong focus:outline-none"
+                  placeholder="e.g. 8"
+                />
+                <button
+                  type="button"
+                  disabled={savingQuota}
+                  onClick={() => void saveQuota(quotaDraft)}
+                  className="inline-flex items-center gap-1 rounded border border-ember-400/50 bg-ember-400/10 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-ember-400/20 disabled:opacity-50 transition-colors"
+                >
+                  {savingQuota && <Loader2 className="w-3 h-3 animate-spin" aria-hidden />} Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditingQuota(false); setQuotaError(null); }}
+                  className="text-[11px] text-muted hover:text-secondary"
+                >
+                  Cancel
+                </button>
+                {quotaError && <span className="w-full text-[10px] text-red-400">{quotaError}</span>}
+              </div>
+            ) : teamQuotaTarget != null ? (
+              <p className="text-[11px] text-secondary flex items-center gap-2">
+                <span>
+                  Monthly quota: <strong>{teamQuotaTarget}</strong> deal{teamQuotaTarget === 1 ? "" : "s"} per rep.
+                  Attainment below is deals won this month ÷ target.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setEditingQuota(true); setQuotaDraft(String(teamQuotaTarget)); }}
+                  className="text-[10px] font-semibold text-brand/80 hover:text-brand shrink-0"
+                >
+                  Edit
+                </button>
+              </p>
+            ) : (
+              <p className="text-[11px] text-secondary flex flex-wrap items-center gap-2">
+                <Target className="w-3.5 h-3.5 text-brand shrink-0" aria-hidden />
+                <span>
+                  <strong className="text-primary">Quota is off until you set a target.</strong> Set a monthly
+                  deals-won target per rep and the Quota metric activates for the team.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setEditingQuota(true); setQuotaDraft(""); }}
+                  className="inline-flex items-center gap-1 rounded border border-ember-400/50 bg-ember-400/10 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-ember-400/20 transition-colors shrink-0"
+                >
+                  Set target
+                </button>
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 mb-3">
             <span className="text-[10px] text-muted">Sort:</span>
             {(
