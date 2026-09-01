@@ -199,6 +199,8 @@ export default function AfterPitchPage() {
   // eat the viewport and bury the breakdown/scores below it (founder 2026-07-03).
   const [showWhatHappened, setShowWhatHappened] = useState(false);
   const [savingOutcome, setSavingOutcome] = useState<SalesOutcome | null>(null);
+  // Skippable "how did it go?" intercept shown when the rep taps Start Next Door with no outcome logged yet.
+  const [outcomePromptOpen, setOutcomePromptOpen] = useState(false);
   // Spec 1b: name the session AFTER recording, once the rep knows what it was.
   const [renaming, setRenaming] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
@@ -446,12 +448,27 @@ export default function AfterPitchPage() {
     void load();
   }, [load]);
 
+  // The move-on moment. Intercept it to lift outcome-capture adoption (founder 2026-08-29): reps skip the
+  // optional "How did it go?" below the fold, so ~90% of sessions carry no outcome and Layer-1 KPIs (conversion,
+  // close, revenue) starve at "building". If the outcome isn't logged yet, ask ONCE here — right where the rep is
+  // about to leave — and it is SKIPPABLE: a required field produces a rushed rep tapping whatever clears the
+  // screen, and §3.5 forbids nudging toward a fast/flattering answer. Answered or skipped, we then proceed.
   const startNextDoor = async () => {
+    if (!session || startingRef.current) return;
+    if (session.outcome == null && !outcomePromptOpen) {
+      setOutcomePromptOpen(true);
+      return;
+    }
+    await proceedToNextDoor();
+  };
+
+  const proceedToNextDoor = async () => {
     // Synchronous latch: the button is disabled only on `!session`, not while
     // the create POST is in flight, so a second click during the round-trip
     // would create a duplicate "next door" session.
     if (!session || startingRef.current) return;
     startingRef.current = true;
+    setOutcomePromptOpen(false);
     setStarting(true);
     setError(null);
     try {
@@ -863,6 +880,39 @@ export default function AfterPitchPage() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+            {/* Skippable outcome intercept (founder 2026-08-29): fires when the rep taps Start Next Door with no
+                outcome logged — the moment they'd otherwise leave it blank. One tap records it and moves on; "Skip"
+                moves on without one (never a forced field → no garbage taps, §3.5). This is the adoption lever for
+                Layer-1 KPIs, which starve at ~10% capture because the control below the fold gets scrolled past. */}
+            {isOwner && outcomePromptOpen && session && (
+              <div className="rounded-xl border border-ember-400/50 bg-ember-400/[0.07] p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-primary">
+                  Before the next door — how did this one go?
+                  <span className="ml-1 font-normal text-muted">A loss teaches the most; log the real result.</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {OUTCOME_ORDER.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={async () => { await recordOutcome(o); await proceedToNextDoor(); }}
+                      disabled={savingOutcome !== null || starting}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-ember-400/40 bg-ember-400/10 text-brand hover:border-ember-400/70 transition-colors disabled:opacity-50"
+                    >
+                      {OUTCOME_LABELS[o]}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void proceedToNextDoor()}
+                  disabled={starting}
+                  className="text-[11px] text-muted underline decoration-dotted hover:text-secondary disabled:opacity-50"
+                >
+                  Skip for now
+                </button>
               </div>
             )}
             {isOwner ? (
