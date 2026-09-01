@@ -268,6 +268,11 @@ export default function KpiAnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Scope-aware copy: in the company aggregate the page is showing the WHOLE business's pooled numbers, so the
+  // "these are YOUR numbers, vs your own past" framing is not just off-tone — it's dishonest (the banner otherwise
+  // asserts "measured against your own baseline, not your teammates" over data that IS every teammate pooled).
+  const isCompany = scope === "company";
+
   const renderMetricValue = (m: Metric) => {
     // A blocked metric is honestly "not available yet" (needs a capability we don't capture), never "building…".
     if (m.blocked)
@@ -306,7 +311,9 @@ export default function KpiAnalyticsPage() {
             <h1 className="text-lg font-semibold text-primary">KPI Analytics</h1>
           </div>
           <p className="text-xs text-muted mt-1">
-            Measure growth, not just results — compared to your own past, never a leaderboard.
+            {isCompany
+              ? "Your whole team's results, pooled — the business as a whole, across every rep."
+              : "Measure growth, not just results — compared to your own past, never a leaderboard."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -372,20 +379,31 @@ export default function KpiAnalyticsPage() {
         <div className="flex items-start gap-2.5">
           <Info className="w-4 h-4 text-brand shrink-0 mt-0.5" aria-hidden />
           <div className="text-xs text-secondary leading-relaxed space-y-1.5">
+            {isCompany ? (
+              <p>
+                <strong className="text-primary">These are the company&apos;s numbers.</strong> Every KPI is
+                pooled across <em>all your reps</em> — the business as a whole this month, not any single person.
+                Switch to <strong className="text-primary">Mine</strong> for your own.
+              </p>
+            ) : (
+              <p>
+                <strong className="text-primary">These numbers are yours.</strong> Every KPI is measured
+                against <em>your own</em> baseline — how you&apos;re doing versus how you were doing, not versus
+                your teammates.
+              </p>
+            )}
             <p>
-              <strong className="text-primary">These numbers are yours.</strong> Every KPI is measured
-              against <em>your own</em> baseline — how you&apos;re doing versus how you were doing, not versus
-              your teammates.
-            </p>
-            <p>
-              <strong className="text-primary">They build from your sessions.</strong> A metric stays{" "}
-              <span className="font-mono text-muted">building…</span> until you&apos;ve logged at least{" "}
-              {data?.minSessions ?? 5} relevant sessions — an honest &quot;insufficient data&quot;, never a
-              guessed number.
+              <strong className="text-primary">
+                {isCompany ? "They build from the team's sessions." : "They build from your sessions."}
+              </strong>{" "}
+              A metric stays <span className="font-mono text-muted">building…</span> until{" "}
+              {isCompany ? "the team has" : "you’ve"} logged at least {data?.minSessions ?? 5} relevant
+              sessions — an honest &quot;insufficient data&quot;, never a guessed number.
               {data && (
                 <>
                   {" "}
-                  You&apos;ve logged <strong className="text-primary">{data.sessionCount}</strong> so far.
+                  {isCompany ? "The team has" : "You’ve"} logged{" "}
+                  <strong className="text-primary">{data.sessionCount}</strong> so far.
                 </>
               )}
             </p>
@@ -423,7 +441,9 @@ export default function KpiAnalyticsPage() {
             <p className="text-sm leading-relaxed">
               {improved.length > 0 && (
                 <span className="text-emerald-300">
-                  <span className="font-semibold">Since your earlier calls, you&apos;re up in</span>{" "}
+                  <span className="font-semibold">
+                    {isCompany ? "Vs the company's earlier calls, up in" : "Since your earlier calls, you’re up in"}
+                  </span>{" "}
                   {improved.join(", ")}.
                 </span>
               )}
@@ -435,7 +455,9 @@ export default function KpiAnalyticsPage() {
               )}
             </p>
             <p className="text-[11px] text-muted mt-1">
-              Measured against your own past — the detail behind each is below.
+              {isCompany
+                ? "Measured against the company's recent trend — the detail behind each is below."
+                : "Measured against your own past — the detail behind each is below."}
             </p>
           </section>
         );
