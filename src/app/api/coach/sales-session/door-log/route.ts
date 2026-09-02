@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -72,10 +73,22 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  const sb = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so auth.getUser() and every RLS-scoped read below behave exactly as
+  // they do for a cookie caller. A web request gets the cookie client as before.
+  const scoped = callerScopedDb(req);
+  const sb = scoped ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  const companyId = (await getCurrentCompanyId()) ?? undefined;
+  // getCurrentCompanyId builds its OWN cookie client, so it is null for a mobile
+  // caller. Fall back to the company on the caller's own profile row, read
+  // through their scoped client — the same value by the same rules.
+  const companyId =
+    (await getCurrentCompanyId()) ??
+    ((
+      await sb.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle()
+    ).data?.company_id as string | undefined) ??
+    undefined;
   if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
 
   if (body.kind === "sign") {
@@ -163,7 +176,7 @@ export async function POST(req: NextRequest) {
  * never blocks on it.
  */
 export async function GET(req: NextRequest) {
-  const sb = await createClient();
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 

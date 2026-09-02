@@ -43,6 +43,20 @@ and it still describes it correctly. The suite is two tests larger than before t
 - `getSession` and `getSessionTranscript` both used `createServerClient()` — the cookie
   client. Both now take an optional client and default to it.
 
+## Re-run after the door-log route was added
+
+```
+$ npm run check
+exit code: 0
+  vitest run   Tests 3940 passed | 15 skipped (3955)
+  invariant    970 files · 0 violations
+  door-log     4 files, 20 tests, all passing — unmodified
+```
+
+The door-log route's own 20 tests pass **unchanged**, which is the same evidence
+the first eight routes gave: the cookie path is described in detail by those
+tests and they still describe it correctly.
+
 ## Findings
 
 ### F1 — /outcome was made to require a company context it never required

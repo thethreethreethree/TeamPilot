@@ -74,6 +74,28 @@ its own rules. Both names are added with the reason recorded in the comment abov
   it at the top, or allowlist here WITH the reason"). It is still a security guard, and it
   is the line in this branch most deserving of review.
 
+
+### Bearer identity on the door log
+
+`src/app/api/coach/sales-session/door-log/route.ts` — the same one substitution
+as the session routes: `const sb = callerScopedDb(req) ?? (await createClient())`,
+on both POST and GET, plus the profile fallback for `getCurrentCompanyId()`.
+
+Added after the first commit on this branch, because the phone app grew a Door
+Log and this is the route it writes to. It is the surface that matters most to a
+door-to-door rep — the owner's own web app runs in Macro Mode — and it was the
+one coach route still closed to the phone.
+
+- **write-path:** `POST { kind: "knock" }` creates the knock through
+  `createKnock`, which the route reaches with the caller's own client. The route
+  is idempotent on `client_knock_id`, and its own comment says why: *"offline
+  queue may retry"*. The app stamps that id at the tap, so a retry over a bad
+  connection cannot turn one door into three.
+- **read-path:** `GET ?date=YYYY-MM-DD` returns that local day's totals for the
+  caller alone — the row is pinned to `rep_id` so a manager does not sum the
+  whole team through RLS. The phone shows its own local count beside it rather
+  than blending the two, so a rep can see what the server actually has.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than
