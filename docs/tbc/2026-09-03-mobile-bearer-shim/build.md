@@ -127,6 +127,22 @@ The RLS scoping is what makes this safe with a Bearer token rather than a
 cookie: `repId` defaults to the caller, and a non-manager passing someone else's
 id gets zero rows because the policy — not the parameter — decides.
 
+
+### Bearer identity on Roleplay
+
+`src/app/api/coach/sales-session/roleplay/route.ts` — the same one substitution.
+
+- **write-path:** none that persists. The route is stateless by design — its own
+  comment says a roleplay "must NOT pollute the rep's session history or
+  metrics" — so the only write is the best-effort practice-score append on the
+  focus-seeded branch, which the phone does not use.
+- **read-path:** the phone holds the conversation and posts it whole each turn,
+  rendering the prospect's reply and, at the end, the review. Because nothing is
+  persisted, the phone is the only place a run exists while it is happening, and
+  the screen is built around that: the review unlocks early, starting over asks
+  first, and the 80-message cap is warned about before it is hit rather than
+  discovered as a 400 mid-run.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than
