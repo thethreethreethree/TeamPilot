@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 
 /**
  * GET /api/coach/sales-session/report-card — Pitch Performance: the rep's recordings list, each with its
@@ -8,7 +9,10 @@ import { createClient } from "@/lib/supabase/server";
  * so this route no longer takes a period (the pitch list was never period-filtered).
  */
 export async function GET(req: NextRequest) {
-  const sb = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so the RLS-scoped pitch read below returns exactly the rows it returns
+  // for a cookie caller — including zero rows for someone else's repId.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 

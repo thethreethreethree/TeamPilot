@@ -111,6 +111,22 @@ door-to-door surface.
   absent from `scores` is not drawn, because a phantom zero would tell a rep they
   never ask questions when nothing was ever measured.
 
+
+### Bearer identity on Pitch Performance
+
+`src/app/api/coach/sales-session/report-card/route.ts` — the same one
+substitution, completing the door-to-door trio the phone now mirrors.
+
+- **write-path:** none. Read-only.
+- **read-path:** the phone's Pitch Performance screen lists each recorded pitch
+  with its outcome and, once analysed, its summary. The route left-joins the
+  analysis because a fresh pitch has none; the screen says WHICH of those two a
+  missing summary is, since only one of them is worth waiting for.
+
+The RLS scoping is what makes this safe with a Bearer token rather than a
+cookie: `repId` defaults to the caller, and a non-manager passing someone else's
+id gets zero rows because the policy — not the parameter — decides.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than
