@@ -193,6 +193,29 @@ resolution is an RLS-scoped read, so a mobile caller's own JWT resolves them
 exactly as a cookie session does, and the manager path still goes through the
 service role and still strips.
 
+
+### Bearer identity on the skills analytics
+
+`src/app/api/coach/sales-session/skills/route.ts` — the same one substitution.
+
+Added because the phone's Analytics TAB pointed at the wrong screen. Both the
+KPI board and this are "numbers", so the mapping looked right from the tab's
+name; reading `dashboard/sales-coach/analytics` showed they answer different
+questions. The KPI board is what the calls added up to. This is how the rep
+sells — objection handling, questions, tone, listening, each graded.
+
+- **write-path:** none. Read-only.
+- **read-path:** the phone renders a letter grade, the /10 it summarises and the
+  sample size behind it. It reproduces this repo's own honesty rule rather than
+  inventing one: `skillGrade.ts` says an unmeasured skill "returns an honest
+  not-yet grade — NOT a low letter", so an unscored skill on the phone draws no
+  bar, no letter, and says it has not been measured. A rep who has never been
+  measured on questions must never see a D for it.
+
+The manager gate is why the substitution is safe here: `canManagerViewRepSkills`
+runs against an RLS-scoped read, so a mobile caller's own JWT resolves them
+exactly as a cookie session does.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than

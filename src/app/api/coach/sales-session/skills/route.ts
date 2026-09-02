@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
   getRecentAfterPitchSummariesAdmin,
@@ -47,7 +48,10 @@ export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "coach-skills", windowMs: 60_000, max: 30 });
   if (limited) return limited;
 
-  const sb = await createClient();
+  // ONE substitution: the client. The rep/manager resolution below is an
+  // RLS-scoped read, so a mobile caller's own JWT resolves them exactly as a
+  // cookie session does — including the manager gate on viewing someone else.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
