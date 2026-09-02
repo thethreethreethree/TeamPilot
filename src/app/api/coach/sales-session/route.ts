@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
@@ -40,19 +40,18 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, CreateSchema);
   if (body instanceof NextResponse) return body;
 
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) {
+  // Cookie first, then a mobile Bearer token. The client this used to build was
+  // only ever used for the auth check above — every write below goes through the
+  // data layer, which brings its own client.
+  const ctx = await resolveApiAuth(req);
+  if (!ctx) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const companyId = (await getCurrentCompanyId()) ?? undefined;
-  if (!companyId) {
-    return NextResponse.json({ error: "No company context." }, { status: 403 });
-  }
+  const companyId = ctx.companyId;
 
   const session = await createSession({
     companyId,
-    agentId: auth.user.id,
+    agentId: ctx.userId,
     context: body.context,
     clientLabel: body.clientLabel,
     territory: body.territory || null,

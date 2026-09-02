@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -40,9 +40,9 @@ import {
  * client presents it as per-agent detail, ranking available but never the default frame (per the spec's
  * non-negotiable design principle). All the same Understanding Gates apply, so a thin agent reads "building".
  */
-export async function GET() {
+export async function GET(req: Request) {
   const sb = await createClient();
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // Manager gate — read the caller's role, then check.
