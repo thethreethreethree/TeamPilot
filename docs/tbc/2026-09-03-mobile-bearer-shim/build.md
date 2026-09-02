@@ -170,6 +170,29 @@ every door-to-door rep the wrong product.
 `my-training` and `strategy-library` are read-only: the rep's own growth areas
 and the company's one-liners.
 
+
+### Bearer identity on the After Pitch debrief
+
+`src/app/api/coach/sales-session/[id]/after-pitch/route.ts` — both POST and GET.
+The GET's request parameter was named `_req` because it was unused; it is used
+now, so the underscore went with it.
+
+- **write-path:** POST runs the coaching engines over a whole call and stores the
+  summary. The phone never fires it automatically — a card that generated on open
+  would bill the company every time a rep glanced at a session — so it is offered
+  and the rep asks.
+- **read-path:** GET returns the latest, with `isOwner` alongside. The route
+  strips the private self-assessment scores for anyone who is not the call's
+  owner, because "the scores are a mirror for the rep, not a manager scorecard".
+  The phone renders what it is given and never reconstructs a score from
+  anything else; a manager is TOLD the scores were withheld rather than shown
+  blanks that would read as a bad result.
+
+That privacy boundary is why the substitution matters here: the owner/manager
+resolution is an RLS-scoped read, so a mobile caller's own JWT resolves them
+exactly as a cookie session does, and the manager path still goes through the
+service role and still strips.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than
