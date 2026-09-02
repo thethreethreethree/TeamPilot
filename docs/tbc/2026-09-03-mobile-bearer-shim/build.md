@@ -143,6 +143,33 @@ id gets zero rows because the policy — not the parameter — decides.
   first, and the 80-message cap is warned about before it is hit rather than
   discovered as a 400 mid-run.
 
+
+### Bearer identity on Macro Mode, Training and the strategy library
+
+Three more routes, the same one substitution each:
+`macro-mode` (GET and POST), `my-training`, `strategy-library`. `macro-mode`'s
+GET and `my-training` were declared with no request parameter and gained one, as
+`kpi/team` and `kpi/trajectory` did.
+
+**Macro Mode is the one that mattered most**, and not for its size. It is not a
+preference — it swaps the product. The web shell keys BOTH its mobile tab bar and
+its home layout off `profiles.macro_mode_enabled`, so a rep with it on gets the
+door-to-door surfaces and a rep without gets the standard coach. The phone app
+now mirrors that, which means this single boolean decides which of two apps a rep
+opens. Without this route the phone could not read the setting and would show
+every door-to-door rep the wrong product.
+
+- **write-path:** `POST { enabled }` updates the caller's own profile row.
+  RLS-scoped, so the policy rather than a parameter decides whose row is written.
+- **read-path:** the phone reads it on launch, caches the answer so the app opens
+  into the right product on the first frame, and corrects it when the server
+  replies. A FAILED read never flips the product — the cached answer stands,
+  because taking a rep's working layout away when they walk into a basement is
+  worse than being briefly out of date.
+
+`my-training` and `strategy-library` are read-only: the rep's own growth areas
+and the company's one-liners.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than

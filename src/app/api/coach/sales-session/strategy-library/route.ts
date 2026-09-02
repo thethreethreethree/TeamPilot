@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import {
   getCurrentSalesCorpus,
   listAgentSessions,
@@ -46,7 +47,10 @@ export async function GET(req: NextRequest) {
   });
   if (limited) return limited;
 
-  const sb = await createClient();
+  // ONE substitution: the client. The methodology/product corpus and the
+  // correct-line rows below are all RLS-scoped reads, so a mobile caller's own
+  // JWT returns exactly what a cookie caller's session would.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
