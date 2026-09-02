@@ -142,11 +142,28 @@ export async function stitchSessionAudio(args: {
   const order = orderedChunkSeqs((objects ?? []).map((o) => o.name));
   if (order.length === 0) return { stitched: false, reason: "no chunks" };
 
+  // Download the chunks with BOUNDED-CONCURRENCY parallelism, preserving order. Sequential downloads did not fit
+  // the request budget for a long session: a 41-min meeting is ~163 chunks and downloading them one-at-a-time took
+  // ~145s (measured, founder meeting 2026-09-01) — the meeting-dissect self-heal (which stitches in-request, then
+  // also transcribes + runs the LLM under one 300s cap) was killed BEFORE this loop finished, so audio_asset_url
+  // was never stamped and the review looped on "recording isn't ready" forever. Downloading in parallel cuts the
+  // same 163 chunks to ~3s. The pool preserves index order in `downloaded`; the ordered pass below is unchanged,
+  // so the stop-at-gap / stop-at-second-header semantics are identical — only the fetch is parallel.
+  const downloaded: (Awaited<ReturnType<typeof downloadAssetBytes>> | null)[] = new Array(order.length).fill(null);
+  const CONCURRENCY = 24;
+  let cursor = 0;
+  async function pump() {
+    for (let i = cursor++; i < order.length; i = cursor++) {
+      downloaded[i] = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, order[i]!) });
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, order.length) }, pump));
+
   const parts: Buffer[] = [];
   let chunkContentType = "audio/webm"; // preserved from the chunks — iOS Safari records audio/mp4, not webm
   for (let i = 0; i < order.length; i++) {
-    const dl = await downloadAssetBytes({ storagePath: chunkObjectPath(args.companyId, args.sessionId, order[i]!) });
-    if (!dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
+    const dl = downloaded[i];
+    if (!dl || !dl.ok || !dl.bytes) break; // stop at the first unreadable chunk — truncate the tail, keep the head
     if (i === 0 && dl.contentType) chunkContentType = dl.contentType; // the recording's real format (mp4 on iOS)
     // A new recording header AFTER the first chunk = the recorder was recreated mid-session (mobile screen-lock
     // ended the mic track → P0 rebuilt it). The two segments can't be concatenated into one valid file, so stop
