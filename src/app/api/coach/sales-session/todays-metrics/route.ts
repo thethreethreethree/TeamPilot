@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { getTodaysMetrics } from "@/lib/data/doorlog";
 import { isMetricsPeriod } from "@/lib/coach/doorlog/period";
 
@@ -11,7 +12,10 @@ import { isMetricsPeriod } from "@/lib/coach/doorlog/period";
  * Read-only, no LLM cost (the rollup summaries are precomputed).
  */
 export async function GET(req: NextRequest) {
-  const sb = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so auth.getUser() and the RLS-scoped rollup read below behave exactly
+  // as they do for a cookie caller. A web request is unchanged.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 

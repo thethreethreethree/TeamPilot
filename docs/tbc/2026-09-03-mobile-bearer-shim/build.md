@@ -96,6 +96,21 @@ one coach route still closed to the phone.
   whole team through RLS. The phone shows its own local count beside it rather
   than blending the two, so a rep can see what the server actually has.
 
+
+### Bearer identity on Today's Metrics
+
+`src/app/api/coach/sales-session/todays-metrics/route.ts` — the same one
+substitution. Added with the phone's Today's Metrics screen, the second
+door-to-door surface.
+
+- **write-path:** none. The route is read-only and says so; the rollups it reads
+  are precomputed, so no LLM or transcription cost sits behind it.
+- **read-path:** the phone's metrics screen renders the KPI trio, the score
+  chart, the next-door focus and the growth opportunities from this response. It
+  reproduces the route's own honesty rule rather than inventing one: a dimension
+  absent from `scores` is not drawn, because a phantom zero would tell a rep they
+  never ask questions when nothing was ever measured.
+
 ## What changed mid-build
 
 Two things were got wrong on the way and are recorded as findings in check.md rather than
