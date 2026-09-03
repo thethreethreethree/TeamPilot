@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Trophy, Loader2, Info } from "lucide-react";
 import { NotificationBell } from "@/components/sales-coach/NotificationBell";
+import { MyProgress } from "@/components/sales-coach/MyProgress";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
@@ -90,6 +91,9 @@ export function Scoreboard() {
         Ranked by total points (how well conversations were run). Ties break by higher average, then fewer sessions.
         Your own per-session breakdown stays private — this shows totals only.
       </p>
+
+      <MyProgress />
+
 
       {state === "loading" && (
         <div className="flex items-center gap-2 p-8 text-sm text-muted">
