@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
@@ -14,13 +15,15 @@ export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-leaderboard", windowMs: 60_000, max: 60 });
   if (limited) return limited;
 
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer (so the native app reuses this route)
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   const requested = new URL(req.url).searchParams.get("period") ?? "all";
   const period = requested === "week" || requested === "month" ? requested : "all";
 
-  const supabase = await createClient();
+  // Caller-scoped: the mobile Bearer client (so auth_company_id() resolves inside the SECURITY DEFINER RPC), or the
+  // web cookie client. Either way the RPC scopes to the caller's own company — never the service role.
+  const supabase = callerScopedDb(req) ?? (await createClient());
   const { data, error } = await supabase.rpc("gamification_leaderboard", { p_period: period });
   if (error) {
     // eslint-disable-next-line no-console

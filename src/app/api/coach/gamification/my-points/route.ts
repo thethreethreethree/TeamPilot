@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 
@@ -19,10 +20,12 @@ const TREND_WINDOW = 200;
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-my-points", windowMs: 60_000, max: 120 });
   if (limited) return limited;
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer (so the native app reuses this route)
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const supabase = await createClient();
+  // Caller-scoped read: the mobile Bearer client (auth.uid() resolves so the owner-RLS applies) or the web cookie
+  // client. The eq(agent_id) below is belt-and-suspenders on top of RLS.
+  const supabase = callerScopedDb(req) ?? (await createClient());
   // RLS: the caller reads their OWN ledger rows (agent_id = auth.uid()). session_score rows only — the per-session
   // banks (not corrections), oldest→newest so the trend reads left-to-right. Paged so the summary is over the FULL
   // set (not a truncated page), keeping total/avg/sessions consistent with the board.

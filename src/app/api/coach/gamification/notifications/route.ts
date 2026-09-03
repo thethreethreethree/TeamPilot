@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { z } from "zod";
@@ -16,10 +17,10 @@ import { z } from "zod";
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-notifications-list", windowMs: 60_000, max: 120 });
   if (limited) return limited;
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
-  const supabase = await createClient();
+  const supabase = callerScopedDb(req) ?? (await createClient());
   // RLS: recipient_id = auth.uid() — the caller reads only their own notifications.
   const { data, error } = await supabase
     .from("manager_notifications")
@@ -44,7 +45,7 @@ const MarkReadBody = z.union([
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-notifications-read", windowMs: 60_000, max: 60 });
   if (limited) return limited;
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const body = await readBody(req, MarkReadBody);
   if (body instanceof NextResponse) return body;

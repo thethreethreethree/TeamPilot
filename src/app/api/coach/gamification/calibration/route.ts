@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { z } from "zod";
@@ -34,8 +34,8 @@ function modelScores(payload: unknown): DimScores {
   return out;
 }
 
-async function requireManager(): Promise<{ userId: string; companyId: string } | null> {
-  const ctx = await getCurrentAuthContext();
+async function requireManager(req: NextRequest): Promise<{ userId: string; companyId: string } | null> {
+  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer
   if (!ctx) return null;
   // Manager = a company admin (ctx.isAdmin) OR sales_coach_role='admin' — the same predicate the coaching RLS uses.
   if (ctx.isAdmin) return { userId: ctx.userId, companyId: ctx.companyId };
@@ -47,7 +47,7 @@ async function requireManager(): Promise<{ userId: string; companyId: string } |
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-calibration-get", windowMs: 60_000, max: 60 });
   if (limited) return limited;
-  const mgr = await requireManager();
+  const mgr = await requireManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
 
   const admin = createAdminClient();
@@ -118,7 +118,7 @@ const SubmitBody = z.object({
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-calibration-post", windowMs: 60_000, max: 60 });
   if (limited) return limited;
-  const mgr = await requireManager();
+  const mgr = await requireManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
   const body = await readBody(req, SubmitBody);
   if (body instanceof NextResponse) return body;
