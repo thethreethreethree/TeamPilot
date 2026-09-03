@@ -39,6 +39,10 @@
     {
       "path": "/api/coach/sales-session/auto-close-stale-cron",
       "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/coach/gamification/weekly-digest-cron",
+      "schedule": "0 13 * * 1"
     }
   ]
 }
