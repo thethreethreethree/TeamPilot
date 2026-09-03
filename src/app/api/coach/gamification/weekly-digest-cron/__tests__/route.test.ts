@@ -5,7 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * is 503 without the secret, 401 with a wrong Bearer, and returns the run result (incl. emailConfigured) when armed.
  */
 const run = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/coach/gamification/weeklyDigest", () => ({ runWeeklyManagerDigest: run }));
+const runReps = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/coach/gamification/weeklyDigest", () => ({ runWeeklyManagerDigest: run, runWeeklyRepDigest: runReps }));
 
 import { GET } from "../route";
 
@@ -19,6 +20,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.CRON_SECRET = "s3cret";
   run.mockResolvedValue({ companies: 1, managersEmailed: 2, skippedNoActivity: 0, skippedNoEmail: 0, sendFailures: 0, emailConfigured: true });
+  runReps.mockResolvedValue({ repsEmailed: 5, skippedNoActivity: 0, skippedNoEmail: 0, sendFailures: 0, emailConfigured: true });
 });
 afterEach(() => {
   if (OLD === undefined) delete process.env.CRON_SECRET;
@@ -41,11 +43,12 @@ describe("GET weekly-digest-cron", () => {
     expect((await GET(req())).status).toBe(401);
   });
 
-  it("runs and returns the result with a correct Bearer", async () => {
+  it("runs BOTH digests and returns their results with a correct Bearer", async () => {
     const res = await GET(req("Bearer s3cret"));
     expect(res.status).toBe(200);
     expect(run).toHaveBeenCalledOnce();
+    expect(runReps).toHaveBeenCalledOnce();
     const body = await res.json();
-    expect(body).toMatchObject({ ok: true, managersEmailed: 2, emailConfigured: true });
+    expect(body).toMatchObject({ ok: true, managers: { managersEmailed: 2 }, reps: { repsEmailed: 5 } });
   });
 });
