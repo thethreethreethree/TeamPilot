@@ -17,7 +17,7 @@ import { deriveArena } from "@/lib/coach/gamification/arenaSummary";
  */
 
 type Row = { session_id: string | null; points: number; band: string | null; created_at: string };
-type MyPoints = { rows: Row[]; total: number; avg: number; sessions: number };
+type MyPoints = { rows: Row[]; total: number; avg: number; sessions: number; strong?: number };
 type LbRow = { agent_id: string; best_points: number; deals: number };
 type Lb = { rows: LbRow[]; meId: string; meRank: number | null };
 
@@ -192,6 +192,7 @@ export function RepArena() {
     best: meRow?.best_points ?? null,
     deals: meRow?.deals ?? null,
     rank: lb?.meRank ?? null,
+    strong: mp.strong ?? null, // full-history strong count (server-computed), not derived from the truncated rows
   });
   const barMax = Math.max(...bars.map((b) => b.points), 1);
 

@@ -21,6 +21,9 @@ export interface ArenaInput {
   best: number | null; // from the leaderboard row; null when the board didn't load
   deals: number | null;
   rank: number | null;
+  // strong-session count over the FULL history (from my-points). Falls back to counting the passed `rows` when
+  // absent — but `rows` may be a truncated recent window, so the server-computed value is the correct one.
+  strong?: number | null;
   nowMs?: number; // injectable for tests; defaults to Date.now()
 }
 
@@ -57,7 +60,8 @@ export function deriveArena(input: ArenaInput): ArenaSummary {
   // best/deals fall back to the rep's own history when the leaderboard row is absent (board didn't load).
   const best = input.best ?? (rows.length ? Math.max(...rows.map((r) => r.points)) : 0);
   const deals = input.deals ?? 0;
-  const strong = rows.filter((r) => r.points >= STRONG_SESSION_THRESHOLD).length;
+  // Prefer the server-computed full-history count; only fall back to the (possibly truncated) rows when absent.
+  const strong = input.strong ?? rows.filter((r) => r.points >= STRONG_SESSION_THRESHOLD).length;
   const band = bandFor(input.avg);
 
   const records: ArenaRecord[] = [...rows]

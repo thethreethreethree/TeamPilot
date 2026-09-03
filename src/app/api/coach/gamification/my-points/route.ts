@@ -4,6 +4,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
+import { STRONG_SESSION_THRESHOLD } from "@/lib/coach/gamification/bands";
 
 /**
  * GET /api/coach/gamification/my-points — the signed-in rep's OWN points history: each banked session's points +
@@ -53,10 +54,13 @@ export async function GET(req: NextRequest) {
     band: (r.detail?.band ?? null) as string | null,
     created_at: r.created_at,
   }));
-  // Authoritative summary over the FULL history (matches the leaderboard).
+  // Authoritative summary over the FULL history (matches the leaderboard). `strong` is counted here (not derived on
+  // the client from the truncated `rows`) so the Arena's "strong sessions X/Y" stays consistent — X and Y both over
+  // the full history, never X over the recent window and Y over everything.
   const total = all.reduce((s, r) => s + r.points, 0);
   const avg = all.length ? Math.round((total / all.length) * 10) / 10 : 0;
+  const strong = all.filter((r) => r.points >= STRONG_SESSION_THRESHOLD).length;
   // Trend payload: the most RECENT window, still ascending so it reads left→right.
   const rows = all.slice(-TREND_WINDOW);
-  return NextResponse.json({ rows, total, avg, sessions: all.length });
+  return NextResponse.json({ rows, total, avg, sessions: all.length, strong });
 }

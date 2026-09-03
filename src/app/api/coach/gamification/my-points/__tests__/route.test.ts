@@ -47,6 +47,7 @@ describe("GET my-points", () => {
     expect(body.sessions).toBe(2);
     expect(body.total).toBe(140);
     expect(body.avg).toBe(70);
+    expect(body.strong).toBe(1); // the 80-pt session is strong (>=80); the 60 is not
     expect(body.rows[0]).toMatchObject({ session_id: "s1", points: 60, band: "solid" });
   });
 

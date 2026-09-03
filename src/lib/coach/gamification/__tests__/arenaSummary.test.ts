@@ -32,6 +32,22 @@ describe("deriveArena", () => {
     expect(s.records[2]).toMatchObject({ band: "strong", floor: 80 });
   });
 
+  it("uses the server-computed full-history `strong` over counting the (possibly truncated) rows", () => {
+    // rows is a truncated recent window with only 1 strong, but the full history had 12 — the server value wins.
+    const s = deriveArena({
+      rows: [row(85, 1), row(40, 2)], total: 0, avg: 70, sessions: 250, best: 99, deals: 3, rank: 1, strong: 12, nowMs: NOW,
+    });
+    expect(s.strong).toBe(12); // not 1 (the count in the truncated rows)
+    expect(s.milestones.find((m) => m.key === "flame")!.on).toBe(true);
+  });
+
+  it("falls back to counting rows when `strong` is absent", () => {
+    const s = deriveArena({
+      rows: [row(85, 1), row(82, 2), row(40, 3)], total: 0, avg: 70, sessions: 3, best: 85, deals: 0, rank: null, nowMs: NOW,
+    });
+    expect(s.strong).toBe(2); // counted from rows
+  });
+
   it("bars are the most-recent 7 sessions in order", () => {
     const rows = Array.from({ length: 10 }, (_, i) => row(50 + i, 10 - i, `x${i}`));
     const s = deriveArena({ rows, total: 0, avg: 55, sessions: 10, best: 59, deals: 0, rank: null, nowMs: NOW });
