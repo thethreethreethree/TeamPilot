@@ -166,7 +166,12 @@ export function RepArena() {
   }, []);
 
   if (!loaded) {
-    return <div className="ra-wrap ra-empty">Loading your arena…</div>;
+    return (
+      <div className="ra-wrap ra-empty">
+        Loading your arena…
+        <ArenaStyles />
+      </div>
+    );
   }
   if (!mp || mp.sessions === 0) {
     return (
