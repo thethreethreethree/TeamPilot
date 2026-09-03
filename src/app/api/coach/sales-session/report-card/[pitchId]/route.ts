@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 
 /**
  * GET /api/coach/sales-session/report-card/[pitchId] — one pitch's detail for the Report Card drill-down:
@@ -7,10 +8,10 @@ import { createClient } from "@/lib/supabase/server";
  * Q4) — reading via the user client means a rep sees only their own; a manager sees the team's. Read-only.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ pitchId: string }> }
 ) {
-  const sb = await createClient();
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { pitchId } = await context.params;

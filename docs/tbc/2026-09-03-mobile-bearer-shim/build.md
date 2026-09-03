@@ -223,3 +223,44 @@ tidied away: `/outcome` briefly required a company context it never required, an
 (`resolveApiDb`) was written on an assumption about the `profiles` read and then deleted
 when reading the code showed the assumption was wrong. Reading `getSession` afterwards
 showed the real problem, which is what `callerScopedDb` addresses.
+
+## Three routes the first pass missed, found by sweeping rather than recalling
+
+The first fifteen routes were the ones I reasoned my way to. Sweeping the phone's
+source for every `/api/coach/...` string it actually calls and diffing that
+against the routes this branch touches produced four it had missed. That
+difference — a set I remembered versus a set I enumerated — is the whole reason
+the sweep is worth doing, and it is recorded here because the miss was mine.
+
+One of the four needed nothing: `/api/coach/extension/dissect` authenticates via
+`requireEntitledExtensionUser`, which already reads a Bearer token, because it
+was built for the browser extension. The phone is simply another Bearer caller
+on it. The remaining three:
+
+### `GET /api/coach/sales-session/report-card/[pitchId]`
+
+- **write-path:** none. Read-only.
+- **read-path:** the per-pitch drill-down — scores, summary, strengths, growth
+  areas, transcript. The route's own comment records that RLS on `pitches` is the
+  access proof ("a non-null row proves owner-or-manager access"), so the caller's
+  own JWT is exactly the right credential and a pitch the caller cannot see stays
+  a 404 rather than becoming another rep's transcript.
+
+### `GET`/`PATCH /api/coach/sales-session/[id]`
+
+- **write-path:** PATCH updates the session the caller owns; RLS is the boundary,
+  unchanged by the substitution.
+- **read-path:** a single session. GET took `_req` — an unused parameter — so
+  wiring the shim meant un-underscoring it. Worth stating plainly because the
+  first edit referenced a `req` that did not exist, and it was the typecheck in
+  `npm run check` that said so, not my reading of it.
+
+### `POST /api/coach/sales-session/practice-scenario/from-pitch`
+
+- **write-path:** none persisted; it generates a scenario and returns it.
+- **read-path:** reconstructs the customer and their real objections from a
+  recorded pitch so the rep can re-practise that exact call. This one is a
+  correctness dependency for the phone rather than a convenience: the pitch
+  detail screen offers "the coach plays this same customer", and without the
+  route that button silently degrades to a generic roleplay against an invented
+  prospect — the copy would be false.
