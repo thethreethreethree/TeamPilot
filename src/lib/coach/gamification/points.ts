@@ -1,5 +1,8 @@
 import type { ScoreCategory, ScoreKey } from "@/lib/coach/v5/summaryTypes";
-import { BANDS, POINTS_DIMENSIONS, POINTS_SCALE_MAX, type PointsBand } from "./rubric";
+import { POINTS_DIMENSIONS } from "./rubric";
+import { POINTS_SCALE_MAX, bandFor, type PointsBand } from "./bands";
+
+export { bandFor } from "./bands"; // re-export so points.test.ts + existing importers keep working
 
 /**
  * Gamification Phase 2 — the PURE points mapping. Given the session's EXISTING after-pitch dimension scores
@@ -17,13 +20,6 @@ export interface SessionPoints {
 }
 
 const COUNTED = new Set<ScoreKey>(POINTS_DIMENSIONS);
-
-/** Classify a 0..100 total into its band (BANDS is contiguous + covers the range — pinned by rubric.test.ts). */
-export function bandFor(points: number): PointsBand {
-  const clamped = Math.max(0, Math.min(POINTS_SCALE_MAX, Math.round(points)));
-  const hit = BANDS.find((b) => clamped >= b.min && clamped <= b.max);
-  return hit!.band; // BANDS covers 0..100 with no gap (tested), so this is always defined
-}
 
 export function computeSessionPoints(categories: readonly ScoreCategory[]): SessionPoints | null {
   const counted = categories.filter(

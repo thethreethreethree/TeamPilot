@@ -24,6 +24,7 @@ import {
   Library,
   MessageSquare,
   Mic,
+  Gauge,
   Presentation,
   Puzzle,
   Scale,
@@ -128,6 +129,9 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
       { label: "Scoreboard", href: "/dashboard/sales-coach/scoreboard", icon: Trophy },
+      // The rep's own gamification arena (points gauge / total / best pitches / milestones). Rep-facing — the page
+      // reads the caller's own points (owner-RLS), so it works for everyone, not managerOnly.
+      { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge },
       // Browser extension — mirrors the C.A.R.E sidebar's "Browser extension" nav entry (founder request:
       // surface the Sales Coach extension the same way C.A.R.E does, not only as inline page cards). Opens the
       // download + install page in a new tab (external → leaves this fixed-overlay shell cleanly).

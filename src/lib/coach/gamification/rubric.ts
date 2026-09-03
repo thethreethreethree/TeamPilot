@@ -29,22 +29,10 @@ export const POINTS_DIMENSIONS: readonly ScoreKey[] = [
   "question_rate",
 ] as const;
 
-/** Points scale. A per-session total is 0..POINTS_SCALE_MAX. */
-export const POINTS_SCALE_MAX = 100;
-
-/** Manager "strong session" alert fires at/above this (RUBRIC-SPEC 8 — the 80% band the founder described). */
-export const STRONG_SESSION_THRESHOLD = 80;
-
-/** Bands (RUBRIC-SPEC 6, scaled to 0–100). Stored on the ledger row's detail so changing boundaries later never
- *  silently rewrites past rows. */
-export type PointsBand = "elite" | "strong" | "solid" | "developing" | "needs_coaching";
-export const BANDS: ReadonlyArray<{ band: PointsBand; min: number; max: number; label: string }> = [
-  { band: "elite", min: 90, max: 100, label: "Elite" },
-  { band: "strong", min: 80, max: 89, label: "Strong" }, // manager alert line
-  { band: "solid", min: 60, max: 79, label: "Solid" },
-  { band: "developing", min: 40, max: 59, label: "Developing" },
-  { band: "needs_coaching", min: 0, max: 39, label: "Needs coaching" },
-] as const;
+// Points scale + bands live in the client-safe single source (bands.ts) so the rep Arena UI can share them without
+// pulling this server-only module. Re-exported here so existing importers of rubric.ts are unchanged (§2.2).
+export { POINTS_SCALE_MAX, STRONG_SESSION_THRESHOLD, BANDS, BAND_LABEL, bandFor, type PointsBand } from "./bands";
+import type { PointsBand } from "./bands"; // local binding for the row types below
 
 // ── Row types (mirror migration 0242) ────────────────────────────────────────────────────────────────────────
 
