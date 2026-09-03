@@ -1,5 +1,6 @@
 import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
+import { DEEPSEEK_NONREASONING_MODEL } from "@/lib/llm/deepseek";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MeetingAgenda, StrategyTranscriptSegment } from "../coachingStrategy";
 import { buildMeetingDissectSystemPrompt, buildMeetingDissectUserMessage } from "./meetingDissectPrompt";
@@ -35,7 +36,17 @@ export async function generateMeetingDissect(args: {
       agenda: args.agenda,
     });
 
-    const r = await dissectCoachV5({ companyId: args.companyId, systemPrompt, userMessage });
+    // A meeting transcript is UNBOUNDED (a 41-min meeting ≈ 10k tokens / 353 turns) — long enough that the
+    // DeepSeek reasoning model spends its ENTIRE completion budget on reasoning and returns an empty answer
+    // (measured 2026-09-03: 8000 reasoning tokens, 0 answer → this function's "transient" empty → the review
+    // "didn't generate"). Extraction needs no chain-of-thought, so route it to the non-reasoning model, which
+    // answers the full transcript directly. (The sales dissect keeps the reasoning model — its calls are shorter.)
+    const r = await dissectCoachV5({
+      companyId: args.companyId,
+      systemPrompt,
+      userMessage,
+      model: DEEPSEEK_NONREASONING_MODEL,
+    });
     // Control-suppressed → the LLM never ran; TRANSIENT (retry on the next view), never a permanent empty.
     if (r.suppressed) return { ...EMPTY_MEETING_DISSECT, outcome: "transient" };
 

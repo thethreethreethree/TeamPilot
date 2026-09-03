@@ -20,6 +20,9 @@ type CallArgs = {
   userContent: string;
   maxTokens?: number;
   expectJson?: boolean;
+  /** Per-call provider model override — e.g. the non-reasoning model for a long-transcript extraction. See
+   *  LlmCallArgs.model. */
+  model?: string;
   /** Sales-Coach-only: exempt from the §3.4 month-1 control gate (see
    *  runBrainCall). Elostate + C.A.R.E callers leave this unset. */
   controlExempt?: boolean;
@@ -46,6 +49,7 @@ async function call(args: CallArgs): Promise<CallResult> {
       expectJson: args.expectJson,
       controlExempt: args.controlExempt,
       experienceMode: args.experienceMode,
+      model: args.model,
     });
     // Consume runBrainCall's explicit `suppressed` VERDICT — never re-derive the gate decision here
     // (CLAUDE.md §2.2 / AMD-010 / A40). This wrapper once re-checked `!guidanceEnabled` alone, dropping the
@@ -75,6 +79,7 @@ async function call(args: CallArgs): Promise<CallResult> {
     maxTokens: args.maxTokens,
     expectJson: args.expectJson,
     experienceMode: args.experienceMode,
+    model: args.model,
   });
   return {
     text: r.text,
@@ -549,9 +554,14 @@ export async function dissectCoachV5(args: {
   companyId?: string;
   systemPrompt: string;
   userMessage: string;
+  /** Optional per-call model override. The MEETING dissect passes the non-reasoning model
+   *  (DEEPSEEK_NONREASONING_MODEL): a long meeting transcript starves the reasoning model to an empty answer. The
+   *  sales dissect leaves it unset (its calls are shorter → the reasoning model finishes). */
+  model?: string;
 }): Promise<CallResult> {
   return call({
     companyId: args.companyId,
+    model: args.model,
     expectJson: true,
     // maxTokens is the ANSWER budget only. The reasoning overhead of the deepseek reasoning model is added on TOP
     // by the provider's REASONING_HEADROOM_TOKENS (deepseek.ts), clamped to MAX_TOTAL_TOKENS. After the 2026-08-13
