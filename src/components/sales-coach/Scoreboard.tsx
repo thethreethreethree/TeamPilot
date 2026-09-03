@@ -5,6 +5,7 @@ import { Trophy, Loader2, Info } from "lucide-react";
 import { NotificationBell } from "@/components/sales-coach/NotificationBell";
 import { MyProgress } from "@/components/sales-coach/MyProgress";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
+import { BAND_LABEL, bandForWire, type PointsBand } from "@/lib/coach/gamification/bands";
 
 /**
  * Scoreboard — the team leaderboard (gamification Phase 5). Reads /api/coach/gamification/leaderboard, which
@@ -31,13 +32,35 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: "all", label: "All time" },
 ];
 
-/** Band from a 0–100 points value (mirrors the server BANDS; kept tiny + local for the chip). */
-function band(points: number): { label: string; cls: string } {
-  if (points >= 90) return { label: "Elite", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" };
-  if (points >= 80) return { label: "Strong", cls: "bg-sky-500/15 text-sky-700 dark:text-sky-300" };
-  if (points >= 60) return { label: "Solid", cls: "bg-white/10 text-secondary" };
-  if (points >= 40) return { label: "Developing", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" };
-  return { label: "Needs coaching", cls: "bg-red-500/15 text-red-700 dark:text-red-300" };
+/**
+ * The chip's COLOUR, keyed by band. The band itself, and its label, come from `bands.ts`.
+ *
+ * This used to be a local `band()` that re-derived the boundaries, with a comment describing itself as a mirror of
+ * the server's. It was not a mirror: `bandFor` ROUNDS before classifying and this did not, so a rep whose average
+ * was 89.6 read "Elite" everywhere else in the product and "Strong" here. `avg_points` is an average — fractions
+ * are the ordinary case, not a corner one.
+ *
+ * A colour is presentation and genuinely belongs to the chip; a boundary is a rule and belongs in one place.
+ * Keying by `PointsBand` also means a mistyped band name is now a compile error rather than a chip with no colour.
+ */
+const BAND_CLASS: Record<PointsBand, string> = {
+  elite: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  strong: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  solid: "bg-white/10 text-secondary",
+  developing: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  needs_coaching: "bg-red-500/15 text-red-700 dark:text-red-300",
+};
+
+/**
+ * The chip for one row's average.
+ *
+ * `avg_points` is a `numeric` in the 0243 aggregate, and PostgREST serialises numeric as a STRING to preserve
+ * precision — so the value arriving here may be "89.6" rather than 89.6. Coerced once, here, rather than relying on
+ * the comparison operators to do it invisibly.
+ */
+function band(points: number | string | null | undefined): { label: string; cls: string } {
+  const key = bandForWire(points);
+  return { label: BAND_LABEL[key], cls: BAND_CLASS[key] };
 }
 
 const RANK_ACCENT = ["text-amber-500", "text-slate-400", "text-orange-600"]; // 1st gold, 2nd silver, 3rd bronze

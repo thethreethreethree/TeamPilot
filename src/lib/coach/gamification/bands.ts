@@ -34,3 +34,26 @@ export function bandFor(points: number): PointsBand {
   const hit = BANDS.find((b) => clamped >= b.min && clamped <= b.max);
   return hit!.band; // BANDS covers 0..100 with no gap (tested), so this is always defined
 }
+
+/**
+ * `bandFor`, for a value that arrived over the wire.
+ *
+ * WHY IT IS SEPARATE FROM `bandFor`. That one takes a number and is right to: every caller inside the scoring code
+ * already has one. This is for the boundary where a value comes back from PostgREST, where two things are true
+ * that are not true anywhere else:
+ *
+ *   `avg_points` is a `numeric`, and PostgREST serialises numeric as a STRING to preserve precision. So the value
+ *   is "89.6" rather than 89.6, and every comparison in the caller silently coerces — which works right up until
+ *   someone compares it to another string.
+ *
+ *   It can be absent. `bandFor(undefined)` does not return a sensible band, it THROWS: `Math.round(undefined)` is
+ *   NaN, no band's range contains NaN, and the non-null assertion on the lookup then dereferences undefined. A
+ *   board row with no average would take the whole Scoreboard down.
+ *
+ * An unreadable average bands as the lowest rather than throwing, because a chip is not worth a blank screen — and
+ * a rep with no scored session is genuinely not in a higher band.
+ */
+export function bandForWire(value: number | string | null | undefined): PointsBand {
+  const n = typeof value === "string" ? Number(value) : value;
+  return bandFor(typeof n === "number" && Number.isFinite(n) ? n : 0);
+}
