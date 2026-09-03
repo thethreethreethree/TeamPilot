@@ -165,6 +165,31 @@ const ALLOWLIST = new Map([
   ["coaching_retranscribe_cache.update", "0213 service-role-only cache refresh (upsert on session_id) by the retranscribe route on a forced re-diarize."],
   ["coaching_retranscribe_cache.delete", "0213 service-role / FK-cascade only (removed when the session is deleted); a stale cache self-invalidates via the audio_asset_url compare, so no member delete path is needed."],
 
+  // 0242 agent_point_ledger — the gamification points ledger. RLS ENABLED; a SELECT policy grants the owner (and
+  // a company manager) read, but there is NO client write policy BY DESIGN. It is APPEND-ONLY: bankSessionPoints
+  // writes it through the service role, and migration 0242 installs a RAISING trigger that blocks UPDATE/DELETE
+  // even for the service role (mirrors fin_entries_immutable). SUM(points) is the truth — a client insert could
+  // forge points; a mutation could rewrite history. The absence of write policies is the control (§3.1 / §2.2).
+  ["agent_point_ledger.insert", "0242 service-role-only bank via bankSessionPoints; a client insert could forge points."],
+  ["agent_point_ledger.update", "0242 append-only (0242 raising trigger blocks it); SUM(points) is the truth, never edited."],
+  ["agent_point_ledger.delete", "0242 append-only ledger; a bank is permanent (corrections are new rows), never client-deletable."],
+
+  // 0242 manager_notifications — strong-session / deal-closed alerts to a company manager. RLS ENABLED; a SELECT
+  // policy scopes reads to recipient_id = the caller, but NO client write policy BY DESIGN. Inserts are written by
+  // notify.ts through the service role; mark-read UPDATE runs service-role in the notifications route, PINNED to
+  // recipient_id = the caller. A member must never mint a notification or mark another's as read directly.
+  ["manager_notifications.insert", "0242 service-role-only insert by notify.ts (strong session / deal closed); a client insert could forge an alert."],
+  ["manager_notifications.update", "0242 mark-read is service-role in the notifications route, pinned to recipient_id = caller; no direct client update path."],
+  ["manager_notifications.delete", "0242 not client-deletable; notifications age out / FK-cascade only."],
+
+  // 0244 gamification_calibration — a manager's BLIND hand-scores for calibration. RLS ENABLED; a SELECT policy
+  // grants company managers read, but NO client write policy BY DESIGN. Writes go through the calibration route's
+  // service-role client AFTER an auth + manager check; a re-score is a NEW row (append-only), so update/delete are
+  // not needed. A member must never write a calibration score directly.
+  ["gamification_calibration.insert", "0244 service-role-only insert by the calibration route after a manager check; a client insert could forge a blind score."],
+  ["gamification_calibration.update", "0244 append-only (a re-score is a new row per the unique index); never mutated in place."],
+  ["gamification_calibration.delete", "0244 the calibration record is the honesty audit trail; never client-deletable."],
+
   ["events.update", "§3.1 events are immutable historical record."],
   ["events.delete", "§3.1 events are immutable; cascades via FK only."],
   ["signals.update", "§3.1 signals are immutable derived facts."],
