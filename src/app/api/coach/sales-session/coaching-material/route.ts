@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { resolveApiAuth, resolveApiUserId } from "@/lib/api/resolveApiAuth";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import { dissectCoachV5 } from "@/lib/claude";
@@ -35,9 +35,24 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer (native app reuses this route)
-  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  if (!ctx) {
+    // WHY THIS IS NOT `if (!ctx) return 401`. resolveApiAuth returns null for BOTH "nobody is signed in" and
+    // "signed in with no company" — both auth paths refuse a company-less caller by returning null rather than a
+    // context with a null companyId (resolveApiAuth: `if (!profile || !profile.company_id …) return null`;
+    // getCurrentAuthContext: `if (!profile?.company_id) return null`).
+    //
+    // So a `if (!ctx.companyId) return 403` written after it is UNREACHABLE, and every company-less caller gets
+    // 401 "Not authenticated." — the one thing that is definitely untrue of them. They are authenticated; they
+    // have no company. Telling them to sign in sends them round a loop that cannot end.
+    //
+    // resolveApiUserId exists for exactly this: identity only, no company requirement. Its own comment records
+    // this same mistake being made once before, on /[id]/outcome, where it was caught only because that route had
+    // tests that started returning 401 instead of 200.
+    const userId = await resolveApiUserId(req);
+    if (!userId) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+    return NextResponse.json({ error: "No company context." }, { status: 403 });
+  }
   const companyId = ctx.companyId;
-  if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
 
   const corpus = await getCurrentSalesCorpus(companyId).catch(() => null);
   const r = await dissectCoachV5({
