@@ -61,3 +61,38 @@ export async function bankSessionPoints(sessionId: string): Promise<BankResult> 
     strong: computed.points >= STRONG_SESSION_THRESHOLD,
   };
 }
+
+/**
+ * Phase 3 backfill: bank points for every session that has an after-pitch summary but no session_score ledger row
+ * yet — the D14 seed (populate the board from the already-scored sessions) AND the durable net for any live
+ * session whose inline bank failed. Idempotent + re-runnable (bankSessionPoints is; the pre-filter just avoids the
+ * needless work). Returns counts. Service-role.
+ */
+export async function backfillSessionPoints(limit = 2000): Promise<{ scanned: number; banked: number; skipped: number }> {
+  const admin = createAdminClient();
+  const { data: aps } = await admin.from("after_pitch_summaries").select("session_id").limit(limit);
+  const sessionIds = [...new Set((aps ?? []).map((r) => String(r.session_id)))];
+  // Which already have a session_score row → skip (avoid re-reading + re-inserting into the immutable ledger).
+  const already = new Set<string>();
+  for (let i = 0; i < sessionIds.length; i += 200) {
+    const slice = sessionIds.slice(i, i + 200);
+    const { data: led } = await admin
+      .from("agent_point_ledger")
+      .select("session_id")
+      .eq("reason", "session_score")
+      .in("session_id", slice);
+    for (const r of led ?? []) already.add(String(r.session_id));
+  }
+  let banked = 0,
+    skipped = 0;
+  for (const sid of sessionIds) {
+    if (already.has(sid)) {
+      skipped++;
+      continue;
+    }
+    const r = await bankSessionPoints(sid);
+    if (r.banked) banked++;
+    else skipped++;
+  }
+  return { scanned: sessionIds.length, banked, skipped };
+}
