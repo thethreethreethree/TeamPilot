@@ -17,6 +17,37 @@ import { LearningHint } from "@/components/learning/LearningHint";
  * §3.1 (append-only) shapes the deletion section: we can redact
  * personally-identifying references on request, but the structural
  * record of what happened stays intact. We say so plainly.
+ *
+ * 2026-09-04 — RECORDED CONVERSATIONS. Two things were wrong here, and both
+ * were found by preparing the iOS App Store submission rather than by anyone
+ * reading the policy:
+ *
+ *   1. ElevenLabs was not listed as a processor at all, although every recorded
+ *      sales conversation is sent to it for transcription. A processor that
+ *      receives audio of two people talking is not an omission you can leave to
+ *      a later revision.
+ *
+ *   2. The Anthropic paragraph said "we do not send any data through Anthropic
+ *      that you haven't already authored in the product". That stopped being
+ *      true when Sales Coach began sending conversation transcripts for
+ *      analysis: the transcript contains what the PROSPECT said, and the
+ *      prospect has authored nothing here. The sentence is corrected rather
+ *      than deleted, because the reason it was written still holds for the rest
+ *      of the product.
+ *
+ * THE SWEEP FOUND TWO MORE (A26 — a reported problem is one instance of a class).
+ * Looking for "processors this policy does not name" rather than only for the one
+ * that started it turned up Postmark, which delivers the weekly digest emails and
+ * therefore handles names, points and deal counts; and Sentry, which is wired into
+ * next.config.ts and receives error reports wherever its DSN is set. Both are now
+ * listed. Whether Sentry is enabled in production is an environment question this
+ * file cannot answer, so its entry is written to be true either way.
+ *
+ * STILL NEEDS A HUMAN DECISION (marked, not guessed): how long a recording is
+ * kept, and whether a representative can delete one themselves. Neither is
+ * stated below because neither could be read out of the code — the retention
+ * section speaks to the append-only event chain, which is a different question
+ * from "how long do we hold the audio". See docs/tbc/2026-09-04-privacy-recording-disclosure.
  */
 export const metadata: Metadata = {
   title: "Privacy — ELOSTATE",
@@ -78,6 +109,44 @@ export default function PrivacyPage() {
               messages you pin, which tasks you complete steps on. The
               record is append-only so we can reason over patterns,
               not just snapshots.
+            </li>
+          </ul>
+        </Section>
+
+        <Section title="Recorded conversations (Sales Coach)">
+          This is the most sensitive thing the product does, so it gets
+          its own section rather than a line in a list.
+          <br />
+          <br />
+          A sales representative using Sales Coach can record a sales
+          conversation so it can be transcribed and coached afterwards.
+          <ul className="list-disc pl-5 space-y-1 mt-2">
+            <li>
+              <strong>It only records when a person starts it.</strong>{" "}
+              There is no ambient or automatic listening. Recording
+              begins when the representative presses record, is visible
+              on screen while it runs, and ends when they stop it.
+            </li>
+            <li>
+              <strong>The other person&apos;s voice is in the
+              recording.</strong> A sales conversation has two sides, and
+              the prospect is audible in the audio and named in nothing.
+              Representatives are responsible for recording lawfully
+              where they work — in some places that means telling the
+              other party, and in some it means asking them.
+            </li>
+            <li>
+              <strong>Who can hear it:</strong> the representative who
+              recorded it, and managers at their own company. Peers
+              cannot hear each other&apos;s recordings, and neither can
+              anyone at another company. This is enforced by database
+              policy, not by screen design.
+            </li>
+            <li>
+              <strong>What we derive from it:</strong> a transcript, a
+              per-conversation score across a fixed set of skills, and
+              coaching notes. Those are what the product is for; the
+              audio itself is kept so a representative can listen back.
             </li>
           </ul>
         </Section>
@@ -172,12 +241,37 @@ export default function PrivacyPage() {
               edge delivery.
             </li>
             <li>
+              <strong>ElevenLabs</strong> — speech-to-text. A recorded
+              sales conversation is sent to ElevenLabs to be turned into
+              a transcript, which means the audio of both speakers
+              leaves our systems and reaches theirs. They process it on
+              our instruction and do not own it.
+            </li>
+            <li>
               <strong>Anthropic Claude</strong> — the LLM behind the
               Coach. Your draft text passes through Anthropic&apos;s
               API to generate Coach analysis. Anthropic does not train
-              on API content per their commercial terms. We do not
-              send any data through Anthropic that you haven&apos;t
-              already authored in the product.
+              on API content per their commercial terms.
+              <br />
+              For Sales Coach, the transcript of a recorded conversation
+              also passes through it. That transcript contains what the
+              other party said, which is not something you authored in
+              the product — we say so here rather than let the sentence
+              above imply otherwise.
+            </li>
+            <li>
+              <strong>Postmark</strong> — transactional and weekly
+              digest email. The weekly summaries carry names, points
+              and deal counts to the address of the manager or
+              representative receiving them, so Postmark handles that
+              content in the course of delivering it.
+            </li>
+            <li>
+              <strong>Sentry</strong> — error monitoring, and only when
+              it is switched on. Where it is enabled it receives crash
+              and error reports. Tokens, signed links and anything that
+              looks like a credential are stripped before a report
+              leaves, and diagnostic attachments are dropped entirely.
             </li>
             <li>
               <strong>Web Push / VAPID</strong> for notifications —
