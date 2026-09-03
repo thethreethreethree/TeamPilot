@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Trophy, CircleDollarSign } from "lucide-react";
+import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
- * NotificationBell — the manager's in-app alerts (gamification Phase 4). Polls the unread count + list; opens a
- * dropdown with strong-session / deal-closed alerts, each linking to the session; mark-all-read. In-app only (no
- * email/push/realtime — the founder was explicit, and the codebase has no generic notifications realtime channel).
+ * NotificationBell — the manager's in-app alerts (gamification Phase 4). Opens a dropdown with strong-session /
+ * deal-closed alerts, each linking to the session; mark-all-read. Alerts arrive LIVE via Supabase Realtime (founder
+ * 2026-09-04): the bell subscribes to new manager_notifications INSERTs for the caller and re-fetches instantly.
+ * RLS (0242: recipient_id = auth.uid()) is enforced per-subscriber, so a manager only ever receives their OWN
+ * alerts. A 60s poll stays as the fallback for a dropped socket.
  */
 
 type Notif = {
@@ -55,8 +59,44 @@ export function NotificationBell() {
 
   useEffect(() => {
     void load();
-    const t = setInterval(load, 60_000); // poll (no realtime dependency added for this feature)
+    const t = setInterval(load, 60_000); // fallback poll (backstop for a dropped realtime socket)
     return () => clearInterval(t);
+  }, [load]);
+
+  // Realtime (founder 2026-09-04): push new alerts instantly. Subscribe to this manager's own notification INSERTs
+  // and re-fetch on each — a re-fetch (not a payload prepend) keeps the shape + unread count consistent with the
+  // poll and avoids coupling to the realtime row shape. A dropped socket is fine: the poll above is the fallback.
+  useEffect(() => {
+    if (!supabaseEnabled) return;
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        const uid = data.user?.id;
+        if (cancelled || !uid) return;
+        channel = supabase
+          .channel(`manager-notifs:${uid}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "manager_notifications", filter: `recipient_id=eq.${uid}` },
+            () => void load(),
+          )
+          .subscribe((status) => {
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              // eslint-disable-next-line no-console
+              console.warn(`[notifications] realtime ${status} — falling back to the poll`);
+            }
+          });
+      })
+      .catch(() => {
+        /* realtime unavailable → the poll covers it */
+      });
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, [load]);
 
   // Close on outside click.
