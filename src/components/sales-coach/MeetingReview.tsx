@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { exportMeetingReviewPdf } from "@/lib/coach/meeting/meetingReviewPdf";
 
 // Escape hatch shown in the error/pending states so a review is never a dead-end (audit L4).
 function BackToMeetingCoach() {
@@ -44,9 +45,19 @@ type Dissect = {
 // can always re-check.
 const MAX_PENDING_RETRIES = 3;
 
-export function MeetingReview({ sessionId }: { sessionId: string }) {
+export function MeetingReview({
+  sessionId,
+  meetingTitle,
+  meetingStartedAt,
+}: {
+  sessionId: string;
+  /** For the exported PDF header — the meeting's title + date, passed from the server page. Optional. */
+  meetingTitle?: string | null;
+  meetingStartedAt?: string | null;
+}) {
   const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio" | "no-recording">("loading");
   const [dissect, setDissect] = useState<Dissect | null>(null);
+  const [pdfBlocked, setPdfBlocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [retryable, setRetryable] = useState(true); // is the current error worth a Retry? (5xx/network yes; 4xx no — audit L3)
   const pendingRetriesRef = useRef(0); // consecutive 409s → hard terminal at MAX_PENDING_RETRIES (audit D5)
@@ -181,10 +192,31 @@ export function MeetingReview({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-primary">Meeting review</h1>
-        {dissect?.overall && <p className="mt-1 text-sm text-secondary">{dissect.overall}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-primary">Meeting review</h1>
+          {dissect?.overall && <p className="mt-1 text-sm text-secondary">{dissect.overall}</p>}
+        </div>
+        {!nothing && dissect && (
+          <button
+            type="button"
+            onClick={() => {
+              // Open the self-contained, print-ready PDF doc. If a popup blocker stops the new window, tell the
+              // user how to proceed (an honest, actionable failure — not a silent no-op).
+              const ok = exportMeetingReviewPdf(dissect, { title: meetingTitle ?? null, dateISO: meetingStartedAt ?? null });
+              setPdfBlocked(!ok);
+            }}
+            className="shrink-0 rounded-lg border border-default bg-surface px-3 py-1.5 text-sm font-medium text-primary hover:bg-white/5"
+          >
+            Export PDF
+          </button>
+        )}
       </div>
+      {pdfBlocked && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Your browser blocked the export window. Allow pop-ups for this site, then tap Export PDF again.
+        </p>
+      )}
 
       {nothing && (
         <p className="text-sm text-muted">

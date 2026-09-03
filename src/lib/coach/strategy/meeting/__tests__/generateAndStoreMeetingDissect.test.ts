@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { dissectCoachV5 } from "@/lib/claude";
+import { DEEPSEEK_NONREASONING_MODEL } from "@/lib/llm/deepseek";
 const { generateAndStoreMeetingDissect } = await import("../generateMeetingDissect");
 
 let s = 0;
@@ -29,6 +30,16 @@ beforeEach(() => {
 });
 
 describe("generateAndStoreMeetingDissect", () => {
+  it("DRIFT-GUARD: runs the meeting dissect on the NON-REASONING model (DISS-R1, A30)", async () => {
+    // A long meeting transcript makes the DeepSeek REASONING model spend its whole completion budget on reasoning
+    // and emit ZERO answer (measured 2026-09-03: 8000 reasoning tokens, 0 answer → the "transient" empty →
+    // "review didn't generate"). The extraction MUST run on the non-reasoning model. This gate fails if a refactor
+    // drops the model override and silently re-starves every long meeting.
+    state.dissectText = JSON.stringify({ decisions: [{ decision: "x", context: "" }], actions: [], openItems: [] });
+    await generateAndStoreMeetingDissect({ companyId: "co1", actorId: "u1", sessionId: "sX", segments: [seg("Al", "hi")] });
+    expect(dissectCoachV5).toHaveBeenCalledWith(expect.objectContaining({ model: DEEPSEEK_NONREASONING_MODEL }));
+  });
+
   it("stores a meeting.dissect_generated event with the consequence payload on signal", async () => {
     state.dissectText = JSON.stringify({
       decisions: [{ decision: "Ship Friday", context: "" }],
