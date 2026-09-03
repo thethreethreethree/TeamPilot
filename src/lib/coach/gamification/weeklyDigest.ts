@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTransactionalEmail } from "@/lib/care/email/outbound";
-import { STRONG_SESSION_THRESHOLD } from "./bands";
+import { STRONG_SESSION_THRESHOLD, bandFor, BAND_LABEL, type PointsBand } from "./bands";
 import { isAdminRole } from "@/lib/roles";
 
 /**
@@ -232,6 +232,177 @@ export async function runWeeklyManagerDigest(deps?: {
       if (sent.ok) result.managersEmailed += 1;
       else result.sendFailures += 1;
     }
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rep progress digest — each rep's OWN week (founder 2026-09-04, companion to the manager digest).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface RepWeekSummary {
+  points: number;
+  sessions: number;
+  strong: number;
+  deals: number;
+  avg: number;
+  band: PointsBand;
+  bandLabel: string;
+  best: { points: number; sessionId: string | null } | null;
+}
+
+/** Pure: fold a rep's own week (their ledger rows + deal count) into their personal summary. */
+export function summarizeRepWeek(
+  rows: ReadonlyArray<{ points: number; session_id: string | null }>,
+  dealCount: number,
+): RepWeekSummary {
+  const sessions = rows.length;
+  const points = rows.reduce((s, r) => s + r.points, 0);
+  const strong = rows.filter((r) => r.points >= STRONG_SESSION_THRESHOLD).length;
+  const avg = sessions ? Math.round((points / sessions) * 10) / 10 : 0;
+  const band = bandFor(avg);
+  const best = sessions ? rows.reduce((b, r) => (r.points > b.points ? r : b)) : null;
+  return {
+    points,
+    sessions,
+    strong,
+    deals: dealCount,
+    avg,
+    band,
+    bandLabel: BAND_LABEL[band],
+    best: best ? { points: best.points, sessionId: best.session_id } : null,
+  };
+}
+
+/** Pure: render the rep's personal digest (subject + HTML + text). Motivational, light, inline-styled. */
+export function renderRepDigestEmail(
+  summary: RepWeekSummary,
+  opts: { repName: string; weekLabel: string; arenaUrl: string; sessionBaseUrl: string },
+): { subject: string; htmlBody: string; textBody: string } {
+  const { repName, weekLabel, arenaUrl, sessionBaseUrl } = opts;
+  const first = (repName || "there").split(/\s+/)[0] || "there";
+  const subject = `Your week — ${summary.points} point${summary.points === 1 ? "" : "s"}${summary.strong ? `, ${summary.strong} strong` : ""}`;
+  const stat = (n: number | string, label: string) =>
+    `<td style="text-align:center;padding:12px 8px"><div style="font:800 26px/1 -apple-system,Segoe UI,sans-serif;color:#e8563a">${n}</div><div style="font:600 11px/1.4 -apple-system,Segoe UI,sans-serif;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">${label}</div></td>`;
+  const bestHtml = summary.best
+    ? `<tr><td style="padding:6px 28px 0;font:400 14px/1.5 -apple-system,Segoe UI,sans-serif;color:#444">Your best pitch this week scored <b style="color:#111">${summary.best.points}</b>${
+        summary.best.sessionId
+          ? ` — <a href="${esc(sessionBaseUrl)}/${esc(summary.best.sessionId)}/after-pitch" style="color:#e8563a;text-decoration:none">see the breakdown →</a>`
+          : ""
+      }</td></tr>`
+    : "";
+  const htmlBody = `<!doctype html><html><body style="margin:0;background:#f5f5f7;padding:24px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+  <table role="presentation" width="540" cellpadding="0" cellspacing="0" style="max-width:540px;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e6ea">
+    <tr><td style="background:#141418;padding:22px 28px">
+      <div style="font:700 12px/1 -apple-system,Segoe UI,sans-serif;color:#ff7a55;letter-spacing:.18em;text-transform:uppercase">ELOSTATE · Sales Coach</div>
+      <div style="font:800 22px/1.2 -apple-system,Segoe UI,sans-serif;color:#fff;margin-top:8px">Nice work this week, ${esc(first)}</div>
+      <div style="font:400 13px/1.4 -apple-system,Segoe UI,sans-serif;color:#a6abb5;margin-top:4px">${esc(weekLabel)} · you're at <span style="color:#ff7a55">${esc(summary.bandLabel)}</span> this week</div>
+    </td></tr>
+    <tr><td style="padding:8px 20px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${stat(summary.points.toLocaleString(), "Points")}
+        ${stat(summary.strong, "Strong sessions")}
+        ${stat(summary.deals, "Deals")}
+      </tr></table>
+    </td></tr>
+    ${bestHtml}
+    <tr><td style="padding:20px 28px 28px">
+      <a href="${esc(arenaUrl)}" style="display:inline-block;background:#e8563a;color:#fff;text-decoration:none;font:600 14px -apple-system,Segoe UI,sans-serif;padding:11px 20px;border-radius:9px">Open your Arena →</a>
+      <div style="font:400 12px/1.5 -apple-system,Segoe UI,sans-serif;color:#aaa;margin-top:18px">${summary.sessions} scored pitch${summary.sessions === 1 ? "" : "es"} this week. Your per-pitch breakdown stays private to you.</div>
+    </td></tr>
+  </table>
+  </td></tr></table></body></html>`;
+
+  const textBody = [
+    `Nice work this week, ${first} — ${weekLabel}`,
+    ``,
+    `You're at ${summary.bandLabel} this week.`,
+    `Points: ${summary.points}   Strong sessions: ${summary.strong}   Deals: ${summary.deals}`,
+    summary.best ? `Best pitch: ${summary.best.points} pts` : ``,
+    ``,
+    `Open your Arena: ${arenaUrl}`,
+  ].join("\n");
+  return { subject, htmlBody, textBody };
+}
+
+export interface RepDigestRunResult {
+  repsEmailed: number;
+  skippedNoActivity: number;
+  skippedNoEmail: number;
+  sendFailures: number;
+  emailConfigured: boolean;
+}
+
+/** Orchestrate the weekly REP digest: each rep with activity in the last 7 days gets their own progress email. */
+export async function runWeeklyRepDigest(deps?: {
+  admin?: SupabaseClient;
+  send?: typeof sendTransactionalEmail;
+  now?: number;
+  appBaseUrl?: string;
+}): Promise<RepDigestRunResult> {
+  const admin = deps?.admin ?? createAdminClient();
+  const send = deps?.send ?? sendTransactionalEmail;
+  const now = deps?.now ?? Date.now();
+  const sinceIso = new Date(now - WEEK_MS).toISOString();
+  const base = (deps?.appBaseUrl ?? process.env.APP_BASE_URL ?? "https://elostate.com").replace(/\/$/, "");
+  const weekLabel = new Date(now).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  const result: RepDigestRunResult = {
+    repsEmailed: 0,
+    skippedNoActivity: 0,
+    skippedNoEmail: 0,
+    sendFailures: 0,
+    emailConfigured: Boolean(process.env.POSTMARK_SERVER_TOKEN && process.env.CARE_EMAIL_HOST_DOMAIN),
+  };
+
+  const { data: weekRows } = await admin
+    .from("agent_point_ledger")
+    .select("agent_id, points, session_id")
+    .eq("reason", "session_score")
+    .gte("created_at", sinceIso);
+  const byAgent = new Map<string, { points: number; session_id: string | null }[]>();
+  for (const r of weekRows ?? []) {
+    const id = String((r as { agent_id: string }).agent_id);
+    if (!byAgent.has(id)) byAgent.set(id, []);
+    byAgent.get(id)!.push({ points: Number((r as { points: number }).points), session_id: (r as { session_id: string | null }).session_id });
+  }
+
+  // Deals this week, per agent (service-role; grouped in JS).
+  const { data: sold } = await admin.from("coaching_sessions").select("agent_id").eq("outcome", "sold").gte("created_at", sinceIso);
+  const dealsByAgent = new Map<string, number>();
+  for (const s of sold ?? []) {
+    const id = String((s as { agent_id: string }).agent_id);
+    dealsByAgent.set(id, (dealsByAgent.get(id) ?? 0) + 1);
+  }
+  // Also credit a deal-only rep (a deal but no scored pitch this week) so they still get a digest.
+  for (const id of dealsByAgent.keys()) if (!byAgent.has(id)) byAgent.set(id, []);
+
+  const agentIds = [...byAgent.keys()];
+  const { data: profs } = await admin.from("profiles").select("id, full_name").in("id", agentIds);
+  const nameById = new Map((profs ?? []).map((p) => [String((p as { id: string }).id), (p as { full_name: string | null }).full_name]));
+
+  for (const [agentId, rows] of byAgent) {
+    const summary = summarizeRepWeek(rows, dealsByAgent.get(agentId) ?? 0);
+    if (summary.sessions === 0 && summary.deals === 0) {
+      result.skippedNoActivity += 1;
+      continue;
+    }
+    const { data: userRes } = await admin.auth.admin.getUserById(agentId);
+    const to = userRes?.user?.email;
+    if (!to) {
+      result.skippedNoEmail += 1;
+      continue;
+    }
+    const email = renderRepDigestEmail(summary, {
+      repName: nameById.get(agentId) ?? "there",
+      weekLabel,
+      arenaUrl: `${base}/dashboard/sales-coach/my-progress`,
+      sessionBaseUrl: `${base}/dashboard/sales-coach`,
+    });
+    const sent = await send({ to, subject: email.subject, htmlBody: email.htmlBody, textBody: email.textBody, fromName: "ELOSTATE Sales Coach" });
+    if (sent.ok) result.repsEmailed += 1;
+    else result.sendFailures += 1;
   }
   return result;
 }

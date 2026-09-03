@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { summarizeTeamWeek, renderManagerDigestEmail } from "../weeklyDigest";
+import { summarizeTeamWeek, renderManagerDigestEmail, summarizeRepWeek, renderRepDigestEmail } from "../weeklyDigest";
 
 const row = (agent_id: string, points: number, agent_name: string | null = null) => ({ agent_id, agent_name, points });
 
@@ -68,5 +68,53 @@ describe("renderManagerDigestEmail", () => {
     });
     expect(e.htmlBody).toContain("&lt;b&gt;Eve&lt;/b&gt;");
     expect(e.htmlBody).not.toContain("<b>Eve</b>");
+  });
+});
+
+const rrow = (points: number, session_id: string | null = null) => ({ points, session_id });
+
+describe("summarizeRepWeek", () => {
+  it("folds the rep's own week: points, strong, avg→band, best pitch", () => {
+    const s = summarizeRepWeek([rrow(90, "s1"), rrow(60, "s2"), rrow(72, "s3")], 1);
+    expect(s.points).toBe(222);
+    expect(s.sessions).toBe(3);
+    expect(s.strong).toBe(1); // only 90 is >=80
+    expect(s.deals).toBe(1);
+    expect(s.avg).toBe(74); // 222/3
+    expect(s.bandLabel).toBe("Solid"); // band for 74
+    expect(s.best).toEqual({ points: 90, sessionId: "s1" }); // highest-scored pitch
+  });
+
+  it("a deal-only week (no scored pitch) → zeros + no best, but the deal counts", () => {
+    const s = summarizeRepWeek([], 2);
+    expect(s).toMatchObject({ points: 0, sessions: 0, strong: 0, deals: 2, best: null });
+  });
+});
+
+describe("renderRepDigestEmail", () => {
+  const summary = summarizeRepWeek([rrow(88, "s1"), rrow(70, "s2")], 1);
+  const e = renderRepDigestEmail(summary, {
+    repName: "Ann Lee",
+    weekLabel: "Sep 4",
+    arenaUrl: "https://elostate.com/dashboard/sales-coach/my-progress",
+    sessionBaseUrl: "https://elostate.com/dashboard/sales-coach",
+  });
+
+  it("greets by first name, states the band, and links the best pitch + the Arena", () => {
+    expect(e.htmlBody).toContain("Nice work this week, Ann");
+    expect(e.htmlBody).toContain(summary.bandLabel); // the rep's weekly band (avg 79 → Solid) appears in the header
+    expect(e.htmlBody).toContain("/dashboard/sales-coach/s1/after-pitch"); // best-pitch breakdown link
+    expect(e.htmlBody).toContain("https://elostate.com/dashboard/sales-coach/my-progress"); // Arena CTA
+    expect(e.subject).toMatch(/Your week — \d+ point/);
+  });
+
+  it("escapes the rep name in the greeting", () => {
+    const bad = renderRepDigestEmail(summarizeRepWeek([rrow(80, "s")], 0), {
+      repName: "<script>x</script>",
+      weekLabel: "Sep 4",
+      arenaUrl: "https://e.com/a",
+      sessionBaseUrl: "https://e.com/s",
+    });
+    expect(bad.htmlBody).not.toContain("<script>x</script>");
   });
 });
