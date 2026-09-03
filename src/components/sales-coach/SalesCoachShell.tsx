@@ -24,11 +24,14 @@ import {
   Library,
   MessageSquare,
   Mic,
+  Gauge,
   Presentation,
   Puzzle,
+  Scale,
   Settings,
   Target,
   TrendingUp,
+  Trophy,
   Users,
   Video,
   User,
@@ -101,6 +104,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
+      { label: "Score Calibration", href: "/dashboard/sales-coach/calibration", icon: Scale, managerOnly: true },
       // Analytics is merged INTO the Coach Assessment card for managers (founder 2026-08-28) — so it's rep-only here;
       // reps keep their own Analytics self-view, managers find each rep's skill scores on the assessment card.
       { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
@@ -124,6 +128,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
+      { label: "Scoreboard", href: "/dashboard/sales-coach/scoreboard", icon: Trophy },
+      // The rep's own gamification arena (points gauge / total / best pitches / milestones). Rep-facing — the page
+      // reads the caller's own points (owner-RLS), so it works for everyone, not managerOnly.
+      { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge },
       // Browser extension — mirrors the C.A.R.E sidebar's "Browser extension" nav entry (founder request:
       // surface the Sales Coach extension the same way C.A.R.E does, not only as inline page cards). Opens the
       // download + install page in a new tab (external → leaves this fixed-overlay shell cleanly).

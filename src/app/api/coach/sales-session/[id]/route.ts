@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { readBody } from "@/lib/api/validate";
 import {
   getSession,
@@ -18,11 +19,11 @@ import {
  */
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  const supabase = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -68,7 +69,7 @@ export async function PATCH(
   const body = await readBody(req, PatchSchema);
   if (body instanceof NextResponse) return body;
 
-  const supabase = await createClient();
+  const supabase = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/trajectory";
 
 /**
@@ -15,9 +15,9 @@ import { buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/tra
  * drawing a fake trend from one point. The reader returns the raw per-metric series; the delta/sparkline
  * framing is the UI's job.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const sb = await createClient();
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // Monthly snapshots only (period != 'current'). The two period kinds the cron writes are 'current'

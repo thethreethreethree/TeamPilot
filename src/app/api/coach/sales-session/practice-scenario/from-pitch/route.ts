@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import { dissectCoachV5 } from "@/lib/claude";
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  const sb = await createClient();
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data: profile } = await sb.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle();

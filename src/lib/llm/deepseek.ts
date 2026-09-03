@@ -94,6 +94,13 @@ async function* parseSseDeltas(
 // NOTE: v4 models are REASONING models — output arrives in `content` after `reasoning_content`;
 // verified `content` populates correctly at the normal token budgets (finish_reason: stop).
 const DEFAULT_MODEL = "deepseek-v4-flash";
+// The non-reasoning DeepSeek model. deepseek-v4-flash is a REASONING model whose reasoning_content counts against
+// max_tokens; on a LONG transcript (a 41-min meeting ≈ 10k tokens, 353 turns) it spends the entire 8000-token
+// completion budget reasoning and emits ZERO answer (measured 2026-09-03 — finish_reason:"length", 0 answer chars).
+// An EXTRACTION task (pull decisions/actions JSON from a transcript) does not need chain-of-thought; deepseek-chat
+// answers directly (verified: full transcript → valid JSON, 0 reasoning tokens, ~0.7s). Callers pass this as
+// `model` for extraction over unbounded-length input. See reference_reasoning_model_token_starvation.
+export const DEEPSEEK_NONREASONING_MODEL = "deepseek-chat";
 const ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 45_000;
 
@@ -149,7 +156,9 @@ export const deepseekProvider: Provider = {
       });
     }
 
-    const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+    // args.model is a per-call override (e.g. the non-reasoning DEEPSEEK_NONREASONING_MODEL for a long-transcript
+    // extraction that would starve the reasoning model). Falls back to the env/default reasoning model.
+    const model = args.model ?? process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
     const body = {
       model,
       messages: [
@@ -236,7 +245,9 @@ export const deepseekProvider: Provider = {
         retryable: false,
       });
     }
-    const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+    // args.model is a per-call override (e.g. the non-reasoning DEEPSEEK_NONREASONING_MODEL for a long-transcript
+    // extraction that would starve the reasoning model). Falls back to the env/default reasoning model.
+    const model = args.model ?? process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
     const body = {
       model,
       messages: [

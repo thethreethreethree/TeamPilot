@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 import { getAllTimeKpi } from "@/lib/data/doorlog";
@@ -15,8 +16,10 @@ import { PRACTICE_EVENT_KIND, aggregateRepPractice } from "@/lib/coach/v5/practi
 const CONTENT_N = 50;
 const PRACTICE_N = 200; // recent practice attempts to derive the rep's trend (bounded)
 
-export async function GET() {
-  const sb = await createClient();
+export async function GET(req: NextRequest) {
+  // ONE substitution: the client. This route was declared GET() with no
+  // parameter, so it gains `req` the same way kpi/team and kpi/trajectory did.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const uid = auth.user.id;

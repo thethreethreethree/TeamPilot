@@ -264,6 +264,9 @@ export async function runBrainCall(args: {
   messages: LlmCallArgs["messages"];
   maxTokens?: number;
   expectJson?: boolean;
+  /** Per-call provider model override (forwarded to llmCall) — e.g. the non-reasoning model for a
+   *  long-transcript extraction that would starve the reasoning model. See LlmCallArgs.model. */
+  model?: string;
   /**
    * Exempt this call from the §3.4 month-1 control window. The control window
    * governs the Elostate DIAGNOSTIC system that LEARNS a team over a month;
@@ -316,6 +319,7 @@ export async function runBrainCall(args: {
     maxTokens: args.maxTokens,
     expectJson: args.expectJson,
     experienceMode: args.experienceMode,
+    model: args.model,
   });
 
   return { ...result, gate, brainVersion: brain.version, suppressed: false };

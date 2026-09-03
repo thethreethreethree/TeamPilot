@@ -910,12 +910,15 @@ const PUBLIC_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/care/demo/ask/route.ts", "Public C.A.R.E demo: reachable without login. Scoped by resolveCareTenant + rate-limited + maxDuration-bounded; no tenant data beyond the demo tenant."],
   ["src/app/api/care/widget/presence/route.ts", "Public chat-widget presence beacon: a visitor's typing/online signal. Scoped by resolveCareTenantByEmbedToken (VALIDATES the embed token: care_tenant_config lookup + active + origin allowlist), not the pass-through resolveCareTenant; no session by design."],
 ]);
-// Recognised gates: a session (auth.getUser / getCurrentCompanyId / getCurrentAuthContext), a role gate
+// Recognised gates: a session (auth.getUser / getCurrentCompanyId / getCurrentAuthContext /
+// resolveApiAuth / resolveApiUserId — the last two resolve a Supabase user from the web cookie OR a
+// validated mobile Bearer token, failing closed on a removed account; see src/lib/api/resolveApiAuth.ts),
+// a role gate
 // (requireCareAgent / requireVendorAdmin / …), a per-conversation capability token (getCareConversationByToken),
 // or a shared secret (CRON/SWEEP/inbound-email). resolveCareTenant is deliberately NOT here — it is tenant
 // RESOLUTION for public widgets, not a session gate, so its routes are allowlisted individually above (which
 // forces a NEW resolveCareTenant route to be consciously classified rather than passing silently).
-const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
+const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|resolveApiAuth|resolveApiUserId|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
 const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
 for (const f of FILES) {
   if (!/^src\/app\/api\/.*route\.(ts|tsx)$/.test(f.path)) continue;
@@ -1421,6 +1424,9 @@ st("INV18 scope ignores a GET-only route", !MUTATION_EXPORT_RE.test("export asyn
 st("INV18 flags an ungated mutation body", !ROUTE_AUTH_RE.test("export async function POST(req){ await sb.rpc('close_problem', p); }"));
 st("INV18 accepts a session-gated route", ROUTE_AUTH_RE.test("const { data } = await supabase.auth.getUser();"));
 st("INV18 accepts a role-gated route", ROUTE_AUTH_RE.test("const agent = await requireCareAgent(req);"));
+st("INV18 accepts a mobile-or-cookie gated route", ROUTE_AUTH_RE.test("const userId = await resolveApiUserId(req);"));
+st("INV18 accepts a full-context gated route", ROUTE_AUTH_RE.test("const ctx = await resolveApiAuth(req);"));
+st("INV18 still REJECTS an ungated mutation", !ROUTE_AUTH_RE.test("const body = await req.json(); await db.insert(body);"));
 st("INV18 accepts a capability-token route", ROUTE_AUTH_RE.test("const conv = await getCareConversationByToken(token);"));
 st("INV18 accepts a shared-secret route", ROUTE_AUTH_RE.test('const ok = constantTimeEqual(h, process.env.SWEEP_SECRET);'));
 st("INV18 allowlist documents a known public route", PUBLIC_ROUTE_ALLOWLIST.has("src/app/api/sales/demo/roleplay/route.ts"));

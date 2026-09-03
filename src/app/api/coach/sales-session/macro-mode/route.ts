@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { readBody } from "@/lib/api/validate";
@@ -12,8 +13,10 @@ import { readBody } from "@/lib/api/validate";
  */
 const Body = z.object({ enabled: z.boolean() });
 
-export async function GET() {
-  const sb = await createClient();
+export async function GET(req: NextRequest) {
+  // ONE substitution: the client. Declared GET() with no parameter, so it gains
+  // `req` the same way kpi/team and my-training did.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data } = await sb
@@ -27,7 +30,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
-  const sb = await createClient();
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { error } = await sb

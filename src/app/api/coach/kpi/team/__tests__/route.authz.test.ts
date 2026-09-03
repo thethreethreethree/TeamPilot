@@ -13,6 +13,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { GET } from "../route";
 
+/** The route now resolves auth from the request (cookie first, then a mobile
+ *  Bearer token), so it needs one. Same helper shape as the kpi/me tests. */
+const req = () => new Request("http://localhost/api/coach/kpi/team");
+
 const setAuth = (v: unknown) =>
   (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
 
@@ -30,13 +34,13 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
   it("401 when unauthenticated", async () => {
     setAuth(null);
     setProfile(null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(req())).status).toBe(401);
   });
 
   it("403 for an authenticated NON-manager (member with no sales-coach admin)", async () => {
     setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
     setProfile({ role: "member", sales_coach_role: null, company_id: "co1" });
-    const res = await GET();
+    const res = await GET(req());
     expect(res.status).toBe(403);
   });
 
@@ -59,7 +63,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ agents: [] });
   });
@@ -98,7 +102,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       agents: { name: string; sessionCount: number; conversionRate: { value: number | null } }[];
@@ -143,7 +147,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       agents: { name: string; slipping: boolean }[];
@@ -190,7 +194,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     const body = (await res.json()) as {
       agents: { slipping: boolean; slippingReasons: string[]; conversionRate: { value: number | null } }[];
     };
@@ -235,7 +239,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     const body = (await res.json()) as {
       agents: { quotaAttainment: { value: number | null } }[];
       monthlyQuotaTarget: number | null;
@@ -280,7 +284,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     const body = (await res.json()) as { agents: { relianceReduction: { value: number | null } }[] };
     // Coached sessions flowed through → a real (negative) reliance slope, not gated to null.
     expect(body.agents[0]?.relianceReduction.value).not.toBeNull();
@@ -327,7 +331,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     const raw = await res.text();
     const body = JSON.parse(raw) as { agents: Record<string, unknown>[] };
     const agent = body.agents[0]!;
@@ -394,7 +398,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
         return chain;
       },
     });
-    const res = await GET();
+    const res = await GET(req());
     const body = (await res.json()) as {
       agents: { establishingBaseline: boolean; firstSessionAt: string | null }[];
     };

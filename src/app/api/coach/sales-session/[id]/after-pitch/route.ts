@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
@@ -98,7 +99,11 @@ export async function POST(
   if (limited) return limited;
 
   const { id } = await context.params;
-  const supabase = await createClient();
+  // ONE substitution: the client. The owner/manager resolution below is an
+  // RLS-scoped read, so a mobile caller's own JWT resolves them exactly as a
+  // cookie session does — including the manager path, which still reads through
+  // the service role and still strips the private scores.
+  const supabase = callerScopedDb(req) ?? (await createClient());
 
   const session = await getSession(id);
   if (!session) {
@@ -141,11 +146,17 @@ export async function POST(
 }
 
 export async function GET(
-  _req: NextRequest,
+  // Renamed from `_req`: the underscore marked it unused, and it is used now to
+  // resolve a mobile caller's own client.
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  // ONE substitution: the client. The owner/manager resolution below is an
+  // RLS-scoped read, so a mobile caller's own JWT resolves them exactly as a
+  // cookie session does — including the manager path, which still reads through
+  // the service role and still strips the private scores.
+  const supabase = callerScopedDb(req) ?? (await createClient());
 
   const session = await getSession(id);
   if (!session) {

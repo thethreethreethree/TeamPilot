@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   conversionRate,
@@ -52,7 +52,7 @@ const LAYER3_KEYS = ["opener", "objection", "tone", "close", "question_rate", "n
  */
 export async function GET(req: Request) {
   const sb = await createClient();
-  const ctx = await getCurrentAuthContext();
+  const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // Scope (founder 2026-08-29): a company owner/admin can view the WHOLE BUSINESS's aggregate — the per-rep view

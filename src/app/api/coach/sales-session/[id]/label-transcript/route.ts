@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import {
@@ -66,12 +67,17 @@ export async function POST(
   const body = await readBody(req, BodySchema);
   if (body instanceof NextResponse) return body;
 
-  const supabase = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so auth.getUser() and the RLS-scoped getSession below behave exactly
+  // as they do for a cookie caller. A web request gets the cookie client as
+  // before, so nothing about existing behaviour changes.
+  const scoped = callerScopedDb(req);
+  const supabase = scoped ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const session = await getSession(id);
+  const session = await getSession(id, scoped ?? undefined);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
@@ -103,7 +109,7 @@ export async function POST(
   // The [id]-page UI hiding the picker once a transcript exists is a third, purely-UX layer. Live coaching
   // writes via /finalize + /segments (NOT this route). EXCEPTION (2026-08-13): a BROKEN 0-agent-turns
   // transcript is replaceable by the recovery re-transcribe — see the gated delete just below.
-  const existing = await getSessionTranscript(id);
+  const existing = await getSessionTranscript(id, scoped ?? undefined);
   // A transcript WITH agent turns is CANONICAL — never clobber it (append-only, §A18): 409 the double-label.
   if (existing.some((s) => s.speaker === "agent")) {
     return NextResponse.json(
@@ -177,10 +183,21 @@ export async function POST(
   // still supply, so a hiccup scheduling it must NEVER fail the label.
   if (appended > 0) {
     try {
-      const companyId = (await getCurrentCompanyId()) ?? undefined;
+      // getCurrentCompanyId builds its OWN cookie client, so it is null for a
+  // mobile caller. Fall back to the company on the caller's own profile row.
+  const companyId =
+    (await getCurrentCompanyId()) ??
+    ((
+      await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", auth.user.id)
+        .maybeSingle()
+    ).data?.company_id as string | undefined) ??
+    undefined;
       if (companyId) {
         const actorId = auth.user.id;
-        const fullTranscript = await getSessionTranscript(id);
+        const fullTranscript = await getSessionTranscript(id, scoped ?? undefined);
         after(async () => {
           try {
             await generateSessionArtifacts({

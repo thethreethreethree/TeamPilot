@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -77,17 +78,35 @@ export async function POST(
   if (limited) return limited;
 
   const { id } = await context.params;
-  const supabase = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so auth.getUser(), the profiles read and the RLS-scoped getSession
+  // below behave exactly as they do for a cookie caller — no second auth path
+  // and no duplicated ownership rule. A web request gets the cookie client as
+  // before, so nothing about the existing behaviour changes.
+  const scoped = callerScopedDb(req);
+  const supabase = scoped ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const companyId = (await getCurrentCompanyId()) ?? undefined;
+  // getCurrentCompanyId builds its OWN cookie client, so it is null for a
+  // mobile caller. Fall back to the company on the caller's own profile row,
+  // read through their scoped client — the same value by the same rules.
+  const companyId =
+    (await getCurrentCompanyId()) ??
+    ((
+      await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", auth.user.id)
+        .maybeSingle()
+    ).data?.company_id as string | undefined) ??
+    undefined;
   if (!companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
   // RLS-scoped read authorizes access to this session.
-  const session = await getSession(id);
+  const session = await getSession(id, scoped ?? undefined);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },

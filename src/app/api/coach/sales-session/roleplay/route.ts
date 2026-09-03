@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { recordPracticeScore } from "@/lib/coach/v5/practiceAnalytics";
 // Prompt-injection fence — the roleplay transcript is conversation text; the AI
 // must stay in the prospect role and never obey commands embedded in it.
@@ -233,7 +234,10 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  const sb = await createClient();
+  // ONE substitution: the client. A mobile caller's client carries their own
+  // JWT, so auth.getUser() and the company lookup below behave exactly as they
+  // do for a cookie caller. A web request is unchanged.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });

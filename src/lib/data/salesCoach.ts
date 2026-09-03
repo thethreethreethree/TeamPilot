@@ -1,4 +1,5 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { selectWinningLines } from "@/lib/coach/v5/winningLines";
@@ -440,8 +441,22 @@ export async function appendCue(args: {
 }
 
 /** Read a session (RLS-scoped — caller must be in the same company). */
-export async function getSession(sessionId: string): Promise<SalesSession | null> {
-  const sb = await createServerClient();
+export async function getSession(
+  sessionId: string,
+  /**
+   * An RLS-scoped client to read through, for callers that are not the web
+   * cookie session.
+   *
+   * Optional and defaulted, so every existing caller is byte-for-byte unchanged.
+   * A mobile (Bearer) caller has no cookie, so the default client would read as
+   * anonymous, find nothing, and the route would 404 on a session that exists —
+   * see src/lib/api/callerScopedDb.ts. Passing the caller's own client keeps the
+   * access check exactly where it already is, in RLS, rather than copying an
+   * ownership rule into three routes where the copies would drift.
+   */
+  client?: SupabaseClient
+): Promise<SalesSession | null> {
+  const sb = client ?? (await createServerClient());
   const { data, error } = await sb
     .from("coaching_sessions")
     .select("*")
@@ -456,9 +471,21 @@ export async function getSession(sessionId: string): Promise<SalesSession | null
 
 /** Full ordered transcript for a session (RLS-scoped). */
 export async function getSessionTranscript(
-  sessionId: string
+  sessionId: string,
+  /**
+   * An RLS-scoped client to read through, for callers that are not the web
+   * cookie session. Optional and defaulted, so every existing caller is
+   * unchanged.
+   *
+   * This one matters more than it looks: /label-transcript uses this read to
+   * decide whether a canonical transcript already exists. A mobile caller
+   * reading through the cookie client sees NOTHING, concludes the session is
+   * empty, and takes the append path instead of the atomic replace — which is
+   * how one call ends up with a doubled transcript.
+   */
+  client?: SupabaseClient
 ): Promise<TranscriptSegment[]> {
-  const sb = await createServerClient();
+  const sb = client ?? (await createServerClient());
   const { data, error } = await sb
     .from("coaching_transcript_segments")
     .select("*")

@@ -14,6 +14,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { GET } from "../route";
 
+/** The route now resolves auth from the request (cookie first, then a mobile
+ *  Bearer token), so it needs one. Same helper shape as the kpi/me tests. */
+const req = () => new Request("http://localhost/api/coach/kpi/trajectory");
+
 const setAuth = (v: unknown) =>
   (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
 
@@ -57,13 +61,13 @@ describe("GET /api/coach/kpi/trajectory", () => {
   it("401 when unauthenticated", async () => {
     setAuth(null);
     setRows([]);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(req())).status).toBe(401);
   });
 
   it("pins to the caller (agent_id = self) and reads only the monthly snapshots (period != current)", async () => {
     setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
     setRows([]);
-    await GET();
+    await GET(req());
     expect(filters.eq).toContainEqual(["agent_id", "u1"]);
     expect(filters.neq).toContainEqual(["period", "current"]);
   });
@@ -74,7 +78,7 @@ describe("GET /api/coach/kpi/trajectory", () => {
       row("conversionRate", 1, 40, "2026-06"),
       row("conversionRate", 1, 46, "2026-07"),
     ]);
-    const res = await GET();
+    const res = await GET(req());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.building).toBe(false);
@@ -87,7 +91,7 @@ describe("GET /api/coach/kpi/trajectory", () => {
   it("a single month reads as building (no fabricated trend)", async () => {
     setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
     setRows([row("conversionRate", 1, 42, "2026-07")]);
-    const body = await (await GET()).json();
+    const body = await (await GET(req())).json();
     expect(body.building).toBe(true);
     expect(body.metrics[0].delta).toBeNull();
   });
