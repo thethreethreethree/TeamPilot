@@ -1,22 +1,21 @@
 "use client";
 
-import { useRef, useState, type TouchEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { RepArena } from "./RepArena";
 import { TodaysMetrics } from "./doorlog/TodaysMetrics";
 
 /**
- * TodaysMetricsPager — the Macro Mode "Today's Metrics" tab as ONE module with TWO swipeable pages (founder spec
- * 2026-09-04): the gamified rep dashboard (the Arena) as the DEFAULT landing page, and the original door
- * Today's-Metrics field read. Switched by a top segmented toggle AND a horizontal swipe (both, founder-chosen).
+ * TodaysMetricsPager — the Macro Mode "Today's Metrics" tab as ONE module with TWO pages (founder spec 2026-09-04):
+ * the gamified rep dashboard (the Arena) as the DEFAULT landing page, and the original door Today's-Metrics field
+ * read. Switched by a top segmented toggle, arrow keys (WAI-ARIA tabs), AND a finger-follow swipe.
  *
- * Why both controls: a swipe alone is invisible + inaccessible (AMD-006 layer-4). The toggle is the primary,
- * tappable/keyboard control; the swipe is the enhancement. The swipe uses a start/end delta (mirrors
- * CareRadialHome) with NO preventDefault, so each pane's native vertical scroll is untouched — only a
- * horizontal-dominant fling flips the page.
+ * The swipe TRACKS the finger (drag-follow, not snap-on-release): the track translates with the drag and snaps to
+ * the nearest page on release. Touch is handled natively (non-passive touchmove) so a horizontal-locked drag can
+ * preventDefault — but the axis is locked on the first move, so a vertical gesture is left entirely to the pane's
+ * own scroll (the drag never engages, nothing is prevented). Edge drags rubber-band (×0.35) instead of showing blank.
  *
- * Layout: this fills the shell's content slot (flex-1 min-h-0). Track is width:200% with two 50% panes translated
- * by page. Pane 0 wraps RepArena in an overflow-y-auto scroller (ra-wrap doesn't scroll itself); pane 1 holds
- * TodaysMetrics, which brings its own flex-1 min-h-0 overflow-y-auto.
+ * Layout: fills the shell's flex-1 min-h-0 slot. Track width:200% with two 50% panes. Pane 0 wraps RepArena in an
+ * overflow-y-auto scroller (ra-wrap doesn't scroll itself); pane 1 holds TodaysMetrics (its own scroll).
  */
 
 const PAGES = [
@@ -24,16 +23,83 @@ const PAGES = [
   { key: "metrics", label: "Metrics" },
 ] as const;
 
-const SWIPE_MIN_PX = 50; // a fling must move at least this far horizontally to count
-const SWIPE_H_RATIO = 1.5; // ...and be this much more horizontal than vertical (so it never hijacks scroll)
+const AXIS_LOCK_PX = 8; // movement past this decides the gesture's axis (horizontal drag vs vertical scroll)
+const EDGE_RESISTANCE = 0.35; // drag past an end rubber-bands at this fraction
+const SNAP_MIN_PX = 50; // floor for the release distance that commits a page change (jsdom has no layout width)
 
 export function TodaysMetricsPager() {
   const [page, setPage] = useState(0); // 0 = Progress (gamified, the default), 1 = Metrics
-  const start = useRef<{ x: number; y: number } | null>(null);
+  const [dragPx, setDragPx] = useState(0); // live horizontal offset while the finger is down
+  const [dragging, setDragging] = useState(false); // true = follow the finger (transition off)
+
+  const viewport = useRef<HTMLDivElement | null>(null);
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const axisRef = useRef<null | "h" | "v">(null);
+  const widthRef = useRef(0);
+  const pageRef = useRef(0);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  // Native touch listeners (attached once): touchmove is NON-passive so a horizontal-locked drag can preventDefault.
+  useEffect(() => {
+    const vp = viewport.current;
+    if (!vp) return;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startRef.current = { x: t.clientX, y: t.clientY };
+      axisRef.current = null;
+      widthRef.current = vp.clientWidth;
+    };
+    const onMove = (e: TouchEvent) => {
+      const s = startRef.current;
+      const t = e.touches[0];
+      if (!s || !t) return;
+      const dx = t.clientX - s.x;
+      const dy = t.clientY - s.y;
+      if (axisRef.current === null) {
+        if (Math.abs(dx) < AXIS_LOCK_PX && Math.abs(dy) < AXIS_LOCK_PX) return; // not enough to decide yet
+        axisRef.current = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+      }
+      if (axisRef.current !== "h") return; // vertical gesture → leave the pane's scroll alone (nothing prevented)
+      e.preventDefault(); // horizontal drag owns the gesture now
+      const atStartEdge = pageRef.current === 0 && dx > 0;
+      const atEndEdge = pageRef.current === PAGES.length - 1 && dx < 0;
+      setDragging(true);
+      setDragPx(atStartEdge || atEndEdge ? dx * EDGE_RESISTANCE : dx);
+    };
+    const onEnd = (e: TouchEvent) => {
+      const s = startRef.current;
+      startRef.current = null;
+      const wasHorizontal = axisRef.current === "h";
+      axisRef.current = null;
+      setDragging(false);
+      setDragPx(0);
+      const t = e.changedTouches[0];
+      if (!s || !t || !wasHorizontal) return;
+      const dx = t.clientX - s.x;
+      const threshold = Math.max(widthRef.current * 0.22, SNAP_MIN_PX);
+      if (Math.abs(dx) > threshold) {
+        setPage((p) => Math.max(0, Math.min(PAGES.length - 1, p + (dx < 0 ? 1 : -1))));
+      }
+    };
+
+    vp.addEventListener("touchstart", onStart, { passive: true });
+    vp.addEventListener("touchmove", onMove, { passive: false });
+    vp.addEventListener("touchend", onEnd, { passive: true });
+    vp.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      vp.removeEventListener("touchstart", onStart);
+      vp.removeEventListener("touchmove", onMove);
+      vp.removeEventListener("touchend", onEnd);
+      vp.removeEventListener("touchcancel", onEnd);
+    };
+  }, []);
 
   // WAI-ARIA tabs contract: declaring role=tablist means Arrow keys move between tabs (roving tabindex below).
-  // Left/Right wrap; Home/End jump to the ends. Selecting also moves focus, matching the pattern.
   const onTabKeyDown = (e: ReactKeyboardEvent) => {
     const n = PAGES.length;
     let next = page;
@@ -45,21 +111,6 @@ export function TodaysMetricsPager() {
     e.preventDefault();
     setPage(next);
     tabs.current[next]?.focus();
-  };
-
-  const onTouchStart = (e: TouchEvent) => {
-    const t = e.touches[0];
-    start.current = t ? { x: t.clientX, y: t.clientY } : null;
-  };
-  const onTouchEnd = (e: TouchEvent) => {
-    const s = start.current;
-    start.current = null;
-    const t = e.changedTouches[0];
-    if (!s || !t) return;
-    const dx = t.clientX - s.x;
-    const dy = t.clientY - s.y;
-    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * SWIPE_H_RATIO) return; // scroll / tap, not a swipe
-    setPage((p) => Math.max(0, Math.min(PAGES.length - 1, p + (dx < 0 ? 1 : -1)))); // left → next, right → prev
   };
 
   return (
@@ -91,11 +142,15 @@ export function TodaysMetricsPager() {
         ))}
       </div>
 
-      {/* Pager viewport — the swipe surface. overflow-hidden clips the off-screen pane. */}
-      <div className="min-h-0 flex-1 overflow-hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {/* Pager viewport — the swipe surface (native listeners above). overflow-hidden clips the off-screen pane. */}
+      <div ref={viewport} className="min-h-0 flex-1 overflow-hidden">
         <div
-          className="flex h-full transition-transform duration-300 ease-out motion-reduce:transition-none"
-          style={{ width: "200%", transform: `translateX(-${page * 50}%)` }}
+          className="flex h-full duration-300 ease-out motion-reduce:transition-none"
+          style={{
+            width: "200%",
+            transform: `translateX(calc(-${page * 50}% + ${dragPx}px))`,
+            transition: dragging ? "none" : "transform 300ms ease-out", // follow the finger; animate the snap
+          }}
         >
           {/* Pane 0 — the gamified Arena (needs a scroll parent). */}
           <div
