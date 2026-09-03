@@ -64,6 +64,28 @@ describe("TodaysMetricsPager — shell", () => {
     expect(track(container).style.transform).toBe("translateX(-0%)");
   });
 
+  it("fulfills the role=tablist keyboard contract (arrows + Home/End, roving tabindex)", () => {
+    const { container } = render(<TodaysMetricsPager />);
+    const progress = screen.getByRole("tab", { name: "Progress" });
+    const metrics = screen.getByRole("tab", { name: "Metrics" });
+    // roving tabindex: only the selected tab is in the tab order
+    expect(progress.getAttribute("tabindex")).toBe("0");
+    expect(metrics.getAttribute("tabindex")).toBe("-1");
+    // ArrowRight → Metrics
+    fireEvent.keyDown(progress, { key: "ArrowRight" });
+    expect(metrics.getAttribute("aria-selected")).toBe("true");
+    expect(track(container).style.transform).toBe("translateX(-50%)");
+    expect(metrics.getAttribute("tabindex")).toBe("0");
+    // ArrowLeft wraps? no — Left from Metrics → Progress
+    fireEvent.keyDown(metrics, { key: "ArrowLeft" });
+    expect(progress.getAttribute("aria-selected")).toBe("true");
+    // End → last, Home → first
+    fireEvent.keyDown(progress, { key: "End" });
+    expect(metrics.getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(metrics, { key: "Home" });
+    expect(progress.getAttribute("aria-selected")).toBe("true");
+  });
+
   it("cannot swipe past the ends (no third page)", () => {
     const { container } = render(<TodaysMetricsPager />);
     const vp = track(container).parentElement as HTMLElement;
