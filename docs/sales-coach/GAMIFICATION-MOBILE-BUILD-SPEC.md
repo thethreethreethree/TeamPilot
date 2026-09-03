@@ -158,6 +158,14 @@ until there is data (never a fabricated verdict).
 server banks one `session_score` row (idempotent), and if `points ≥ 80` notifies managers (`strong_session`); when a
 session's `outcome` is set to `sold`, it notifies managers (`deal_closed`). The mobile app only **reads** the results.
 
+### Best-pitch drill-down (also Bearer-ready)
+The Arena's "best pitches" tap opens a session's per-pitch detail. On mobile, use the Bearer-ready detail endpoints
+(verified accepting `Authorization: Bearer` via the same shim):
+- `GET /api/coach/sales-session/report-card/[pitchId]` — the pitch's Performance report (scores + breakdown).
+- `GET /api/coach/sales-session/[id]/after-pitch` — the between-doors debrief for that session.
+Both are owner-scoped (a rep sees their own; a manager their team's) — the same privacy model as the ledger. (The
+web `/dashboard/...` links in the UI specs below are page routes; the mobile app calls these APIs instead.)
+
 ---
 
 ## 4. Direct-Supabase alternative (if you skip the API layer)
