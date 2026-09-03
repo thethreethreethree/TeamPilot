@@ -17,12 +17,25 @@ import { deriveArena } from "@/lib/coach/gamification/arenaSummary";
  */
 
 type Row = { session_id: string | null; points: number; band: string | null; created_at: string };
-type MyPoints = { rows: Row[]; total: number; avg: number; sessions: number; strong?: number };
+type MyPoints = {
+  rows: Row[];
+  total: number;
+  avg: number;
+  sessions: number;
+  strong?: number;
+  milestones?: Partial<Record<string, string | null>>; // GAM-R13: milestone key → earned-at ISO (from my-points)
+};
 type LbRow = { agent_id: string; best_points: number; deals: number };
 type Lb = { rows: LbRow[]; meId: string; meRank: number | null };
 
 const prefersReducedMotion = () =>
   typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** A short earned-on date for a milestone badge, e.g. "28 Aug"; null on a bad date so the caption just hides. */
+function fmtEarned(iso: string): string | null {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 /** A count-up that lands on `value` (respects reduced-motion by jumping). Returns the current display number. */
 function useCountUp(value: number, ms = 900): number {
@@ -193,6 +206,7 @@ export function RepArena() {
     deals: meRow?.deals ?? null,
     rank: lb?.meRank ?? null,
     strong: mp.strong ?? null, // full-history strong count (server-computed), not derived from the truncated rows
+    milestones: mp.milestones, // GAM-R13: server-derived earned-at dates (from the full immutable history)
   });
   const barMax = Math.max(...bars.map((b) => b.points), 1);
 
@@ -259,13 +273,21 @@ export function RepArena() {
 
       <p className="ra-sect">Milestones</p>
       <div className="ra-badges">
-        {milestones.map((m) => (
-          <div key={m.key} className={`ra-badge ${m.on ? "ra-badge--on" : "ra-badge--off"}`} title={m.title}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {MILESTONE_ICON[m.key]}
-            </svg>
-          </div>
-        ))}
+        {milestones.map((m) => {
+          // GAM-R13: show the truthful earned date (derived from the immutable ledger) under each earned badge.
+          const when = m.on && m.earnedAt ? fmtEarned(m.earnedAt) : null;
+          const label = when ? `${m.title} — earned ${when}` : m.on ? m.title : `${m.title} (not yet earned)`;
+          return (
+            <div key={m.key} className="ra-badge-cell">
+              <div className={`ra-badge ${m.on ? "ra-badge--on" : "ra-badge--off"}`} role="img" title={label} aria-label={label}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {MILESTONE_ICON[m.key]}
+                </svg>
+              </div>
+              <span className="ra-badge-date">{when ?? " "}</span>
+            </div>
+          );
+        })}
       </div>
 
       <p className="ra-sect">Last 7 sessions · points</p>
@@ -344,7 +366,9 @@ function ArenaStyles() {
     .ra-pr__d{font-size:11px;font-weight:700;color:rgb(var(--text-secondary));min-width:40px;text-align:right}
     .ra-pr__d--new{color:rgb(var(--brand-text))}
 
-    .ra-badges{display:flex;justify-content:space-between;gap:8px}
+    .ra-badges{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .ra-badge-cell{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:0}
+    .ra-badge-date{font-size:10px;line-height:1;min-height:11px;color:rgb(var(--text-muted));font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap}
     .ra-badge{width:52px;height:58px;display:grid;place-items:center;background:rgb(var(--bg-surface-raised));
       clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)}
     .ra-badge svg{width:21px;height:21px}

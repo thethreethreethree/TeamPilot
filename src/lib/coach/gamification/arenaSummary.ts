@@ -1,4 +1,5 @@
 import { BANDS, BAND_LABEL, STRONG_SESSION_THRESHOLD, bandFor, type PointsBand } from "./bands";
+import { MILESTONE_TITLES, type MilestoneKey, type MilestoneDates } from "./milestones";
 
 /**
  * deriveArena — the PURE derivation behind the rep's Arena UI (RepArena.tsx). Given the rep's own points history
@@ -24,13 +25,17 @@ export interface ArenaInput {
   // strong-session count over the FULL history (from my-points). Falls back to counting the passed `rows` when
   // absent — but `rows` may be a truncated recent window, so the server-computed value is the correct one.
   strong?: number | null;
+  // Milestone earned-at dates, DERIVED server-side from the full history (GAM-R13). When present, a milestone's
+  // earnedAt is its truthful date; `on` still gates display (they agree — both read the same full-history counts).
+  milestones?: Partial<MilestoneDates>;
   nowMs?: number; // injectable for tests; defaults to Date.now()
 }
 
 export interface ArenaMilestone {
-  key: "spark" | "flame" | "deal" | "century" | "closer";
+  key: MilestoneKey;
   on: boolean;
   title: string;
+  earnedAt: string | null; // ISO date the milestone was first earned (from the immutable ledger), or null
 }
 export interface ArenaRecord {
   row: ArenaRow;
@@ -80,12 +85,19 @@ export function deriveArena(input: ArenaInput): ArenaSummary {
 
   const bars = rows.slice(-7);
 
+  const md = input.milestones ?? {};
+  const milestone = (key: MilestoneKey, on: boolean): ArenaMilestone => ({
+    key,
+    on,
+    title: MILESTONE_TITLES[key],
+    earnedAt: md[key] ?? null,
+  });
   const milestones: ArenaMilestone[] = [
-    { key: "spark", on: input.sessions >= 1, title: "First pitch scored" },
-    { key: "flame", on: strong >= 1, title: "A strong session (80+)" },
-    { key: "deal", on: deals >= 1, title: "First deal closed" },
-    { key: "century", on: input.sessions >= 100, title: "100 sessions" },
-    { key: "closer", on: deals >= 10, title: "10 deals — Closer" },
+    milestone("spark", input.sessions >= 1),
+    milestone("flame", strong >= 1),
+    milestone("deal", deals >= 1),
+    milestone("century", input.sessions >= 100),
+    milestone("closer", deals >= 10),
   ];
 
   return { band, bandLabel: BAND_LABEL[band], best, deals, rank: input.rank, strong, records, bars, milestones };

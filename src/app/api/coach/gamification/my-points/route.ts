@@ -5,6 +5,7 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { STRONG_SESSION_THRESHOLD } from "@/lib/coach/gamification/bands";
+import { deriveMilestoneDates } from "@/lib/coach/gamification/milestones";
 
 /**
  * GET /api/coach/gamification/my-points — the signed-in rep's OWN points history: each banked session's points +
@@ -60,7 +61,21 @@ export async function GET(req: NextRequest) {
   const total = all.reduce((s, r) => s + r.points, 0);
   const avg = all.length ? Math.round((total / all.length) * 10) / 10 : 0;
   const strong = all.filter((r) => r.points >= STRONG_SESSION_THRESHOLD).length;
+  // Milestone earned-at (GAM-R13): DERIVED from the full immutable history here (the Arena only gets the recent
+  // window, so it can't see the first/100th pitch). Deal milestones come from the rep's own sold sessions. Sold
+  // dates are best-effort — a failed read just leaves the deal/closer dates null, never blocks the points payload.
+  const { data: sold } = await supabase
+    .from("coaching_sessions")
+    .select("created_at")
+    .eq("agent_id", ctx.userId)
+    .eq("outcome", "sold")
+    .order("created_at", { ascending: true });
+  const milestones = deriveMilestoneDates(
+    all,
+    (sold ?? []).map((s) => String((s as { created_at: string }).created_at)),
+  );
+
   // Trend payload: the most RECENT window, still ascending so it reads left→right.
   const rows = all.slice(-TREND_WINDOW);
-  return NextResponse.json({ rows, total, avg, sessions: all.length, strong });
+  return NextResponse.json({ rows, total, avg, sessions: all.length, strong, milestones });
 }
