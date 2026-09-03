@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type TouchEvent } from "react";
+import { useRef, useState, type TouchEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { RepArena } from "./RepArena";
 import { TodaysMetrics } from "./doorlog/TodaysMetrics";
 
@@ -30,6 +30,22 @@ const SWIPE_H_RATIO = 1.5; // ...and be this much more horizontal than vertical 
 export function TodaysMetricsPager() {
   const [page, setPage] = useState(0); // 0 = Progress (gamified, the default), 1 = Metrics
   const start = useRef<{ x: number; y: number } | null>(null);
+  const tabs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // WAI-ARIA tabs contract: declaring role=tablist means Arrow keys move between tabs (roving tabindex below).
+  // Left/Right wrap; Home/End jump to the ends. Selecting also moves focus, matching the pattern.
+  const onTabKeyDown = (e: ReactKeyboardEvent) => {
+    const n = PAGES.length;
+    let next = page;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (page + 1) % n;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (page - 1 + n) % n;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = n - 1;
+    else return;
+    e.preventDefault();
+    setPage(next);
+    tabs.current[next]?.focus();
+  };
 
   const onTouchStart = (e: TouchEvent) => {
     const t = e.touches[0];
@@ -57,10 +73,15 @@ export function TodaysMetricsPager() {
         {PAGES.map((p, i) => (
           <button
             key={p.key}
+            ref={(el) => {
+              tabs.current[i] = el;
+            }}
             role="tab"
             type="button"
             aria-selected={page === i}
+            tabIndex={page === i ? 0 : -1} // roving tabindex: only the selected tab is in the tab order (WAI-ARIA)
             onClick={() => setPage(i)}
+            onKeyDown={onTabKeyDown}
             className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
               page === i ? "bg-brand text-white" : "bg-white/5 text-muted hover:text-primary"
             }`}
