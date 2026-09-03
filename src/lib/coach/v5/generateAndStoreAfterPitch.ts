@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateAfterPitchSummary, type AfterPitchSummary } from "@/lib/coach/v5/afterPitch";
 import { saveAfterPitchSummary, type SalesContext } from "@/lib/data/salesCoach";
 import { bankSessionPoints } from "@/lib/coach/gamification/bankPoints";
+import { notifyStrongSession } from "@/lib/coach/gamification/notify";
 import type { ExperienceMode } from "@/lib/experience/mode";
 
 /**
@@ -47,10 +48,20 @@ export async function generateAndStoreAfterPitch(args: {
   // ledger's unique index makes a re-run a no-op) + fast (a DB read+insert, NO LLM), so it runs inline and NEVER
   // throws into the after-pitch flow — a points failure must not break the review a rep is waiting for.
   try {
-    await bankSessionPoints(args.sessionId);
+    const banked = await bankSessionPoints(args.sessionId);
+    // A strong session (points at/above the alert line) fans out a manager notification. Best-effort + idempotent.
+    if (banked.banked && banked.strong) {
+      await notifyStrongSession({
+        companyId: args.companyId,
+        agentId: args.agentId,
+        sessionId: args.sessionId,
+        points: banked.points,
+        band: banked.band,
+      });
+    }
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error(`[gamification] bankSessionPoints failed for ${args.sessionId}:`, e instanceof Error ? e.message : e);
+    console.error(`[gamification] bank/notify failed for ${args.sessionId}:`, e instanceof Error ? e.message : e);
   }
 
   // Company-visible event — COARSE COUNTS ONLY, never the private scores.

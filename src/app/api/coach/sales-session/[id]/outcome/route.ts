@@ -10,6 +10,7 @@ import {
   SALES_OUTCOMES,
   type SalesOutcome,
 } from "@/lib/data/salesCoach";
+import { notifyDealClosed } from "@/lib/coach/gamification/notify";
 
 /**
  * POST /api/coach/sales-session/[id]/outcome  (Sessions Phase 2)
@@ -72,5 +73,17 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  // Gamification (Phase 4): a closed deal fans out a manager notification. Best-effort + idempotent (a re-record of
+  // 'sold' notifies at most once via the unique index); never blocks the outcome response.
+  if (body.outcome === "sold") {
+    await notifyDealClosed({
+      companyId: session.companyId,
+      agentId: session.agentId,
+      sessionId: id,
+      dealValue: body.dealValue ?? updated.dealValue ?? null,
+    });
+  }
+
   return NextResponse.json({ session: updated });
 }

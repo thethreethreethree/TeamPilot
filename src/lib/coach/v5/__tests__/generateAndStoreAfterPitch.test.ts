@@ -42,8 +42,11 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/coach/gamification/bankPoints", () => ({
   bankSessionPoints: vi.fn(async () => ({ banked: true, points: 60, band: "solid", strong: false })),
 }));
+// Phase 4: a strong session fans out a manager notification.
+vi.mock("@/lib/coach/gamification/notify", () => ({ notifyStrongSession: vi.fn(async () => {}) }));
 
 import { bankSessionPoints } from "@/lib/coach/gamification/bankPoints";
+import { notifyStrongSession } from "@/lib/coach/gamification/notify";
 const { generateAndStoreAfterPitch } = await import("../generateAndStoreAfterPitch");
 
 const args = { companyId: "c1", sessionId: "s1", agentId: "a1", actorId: "viewer1" };
@@ -54,6 +57,8 @@ beforeEach(() => {
   state.events = [];
   state.eventThrows = false;
   vi.mocked(bankSessionPoints).mockClear();
+  vi.mocked(bankSessionPoints).mockResolvedValue({ banked: true, points: 60, band: "solid", strong: false });
+  vi.mocked(notifyStrongSession).mockClear();
 });
 
 describe("generateAndStoreAfterPitch", () => {
@@ -69,6 +74,16 @@ describe("generateAndStoreAfterPitch", () => {
   it("banks gamification points (Phase 3 wire) after saving a signal-bearing summary", async () => {
     await generateAndStoreAfterPitch(args);
     expect(bankSessionPoints).toHaveBeenCalledWith("s1");
+  });
+
+  it("fans out a strong-session notification only when the banked session is strong (Phase 4 wire)", async () => {
+    // sub-threshold → no alert
+    await generateAndStoreAfterPitch(args);
+    expect(notifyStrongSession).not.toHaveBeenCalled();
+    // strong → alert fires with the session + points
+    vi.mocked(bankSessionPoints).mockResolvedValueOnce({ banked: true, points: 88, band: "strong", strong: true });
+    await generateAndStoreAfterPitch(args);
+    expect(notifyStrongSession).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "s1", points: 88, band: "strong" }));
   });
 
   it("stores NOTHING and emits NOTHING when the transcript is thin (hasSignal:false — no fabrication)", async () => {

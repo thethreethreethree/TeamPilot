@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Trophy, Loader2, Info } from "lucide-react";
+import { NotificationBell } from "@/components/sales-coach/NotificationBell";
+import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
  * Scoreboard — the team leaderboard (gamification Phase 5). Reads /api/coach/gamification/leaderboard, which
@@ -43,6 +45,7 @@ export function Scoreboard() {
   const [period, setPeriod] = useState<Period>("all");
   const [data, setData] = useState<Resp | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const isManager = useIsSalesCoachManager();
 
   const load = useCallback(async () => {
     setState("loading");
@@ -66,7 +69,9 @@ export function Scoreboard() {
         <h1 className="flex items-center gap-2 text-xl font-semibold text-primary">
           <Trophy size={22} className="text-amber-500" /> Scoreboard
         </h1>
-        <div className="flex rounded-lg border border-default p-0.5">
+        <div className="flex items-center gap-2">
+          {isManager && <NotificationBell />}
+          <div className="flex rounded-lg border border-default p-0.5">
           {PERIODS.map((p) => (
             <button
               key={p.key}
@@ -76,6 +81,7 @@ export function Scoreboard() {
               {p.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
