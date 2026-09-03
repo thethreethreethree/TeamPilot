@@ -26,6 +26,7 @@ import {
   Mic,
   Presentation,
   Puzzle,
+  Scale,
   Settings,
   Target,
   TrendingUp,
@@ -102,6 +103,7 @@ const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
+      { label: "Score Calibration", href: "/dashboard/sales-coach/calibration", icon: Scale, managerOnly: true },
       // Analytics is merged INTO the Coach Assessment card for managers (founder 2026-08-28) — so it's rep-only here;
       // reps keep their own Analytics self-view, managers find each rep's skill scores on the assessment card.
       { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
