@@ -21,6 +21,15 @@ export type LlmCallArgs = {
   /** Pass true when the caller wants raw text rather than parsed JSON. */
   expectJson?: boolean;
   /**
+   * Per-call model override for the SELECTED provider (else the provider's env/default model). Provider-specific
+   * — a provider ignores a model id that isn't its own (Anthropic keeps ANTHROPIC_MODEL). Used to route an
+   * EXTRACTION task off the DeepSeek REASONING model (deepseek-v4-flash) onto the non-reasoning deepseek-chat: a
+   * long transcript makes the reasoning model spend the entire completion budget on reasoning_content and emit
+   * ZERO answer (measured: a 41-min meeting → 8000 reasoning tokens, 0 answer → empty → the dissect's "transient"
+   * empty). A non-reasoning model answers directly and handles the full transcript. See DEEPSEEK_NONREASONING_MODEL.
+   */
+  model?: string;
+  /**
    * The acting user's Experience Mode (0110). When 'standard', llmCall/llmStream
    * append modeDirective() to the system prompt centrally, so EVERY AI surface
    * simplifies consistently (§A16). Omitted / 'expert' → no change (today's
