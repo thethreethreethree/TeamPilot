@@ -227,8 +227,10 @@ Both send via Postmark from the `weekly-digest-cron`; no app work required.
   - accent primary `#FACC15` (ember-400), pressed/hover `#EAB308` (ember-500); light-mode text-on-light `#A16207`.
   - ink surfaces: base `#09090B`, surface `#18181B`, raised `#27272A`; hairline borders ~`#2a2a34`.
   - text: primary near-white, secondary `~#A6ABB5`, muted `~#6B7079`.
-  - **Positive/accent is amber — never green** for gamification (green is reserved for door "Sales"/deals accents in
-    the Metrics page). Semantic warning also `#EAB308`.
+  - **Strictly mono-amber — NO second hue, and NO green anywhere.** Every accent (points, gauge, "on" badges, the
+    Sales KPI, deals) is amber; the web app renders the Sales card + deals in `text-brand` (amber), not green. Even
+    error/danger is **burnt amber, never red** (per the app's DESIGN-CONTRACT / BRAND.md — a second colour is banned).
+    Semantic warning is also `#EAB308`.
 - Arena specifics: gauge arc + "on" milestone badges + bars are **amber-gold** (`#FDE047`→`#EAB308` gradients);
   "off" badges are muted at ~0.4 opacity. Milestone badges are **hexagons**.
 - Restraint: no XP bars / levels / streak flames / confetti. Big-number tiles only where the number is the point
