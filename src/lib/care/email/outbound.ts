@@ -257,3 +257,50 @@ export async function dispatchOutboundEmailReply(args: {
 
   return { ok: true, providerMessageId };
 }
+
+/**
+ * sendTransactionalEmail — a GENERIC one-off send (HTML + text) via the same Postmark seam, for product emails that
+ * aren't a conversation reply (e.g. the weekly manager digest). Fails SAFE + LOUD: returns { ok:false, error } when
+ * Postmark isn't configured (POSTMARK_SERVER_TOKEN / CARE_EMAIL_HOST_DOMAIN), so a caller (a cron) can log + count
+ * skips instead of silently dropping mail. `to` is a bare, trusted address (no display-name injection surface); the
+ * From uses the verified host domain. No persistence here — the caller records its own outcome.
+ */
+export async function sendTransactionalEmail(args: {
+  to: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string;
+  fromName?: string;
+  fromLocalPart?: string; // defaults to "notifications"; must be a local-part on the verified domain
+}): Promise<DispatchResult> {
+  const apiToken = process.env.POSTMARK_SERVER_TOKEN;
+  if (!apiToken) return { ok: false, error: "Outbound email not configured (POSTMARK_SERVER_TOKEN missing)." };
+  const emailHostDomain = process.env.CARE_EMAIL_HOST_DOMAIN;
+  if (!emailHostDomain) return { ok: false, error: "Outbound email host domain not configured (CARE_EMAIL_HOST_DOMAIN missing)." };
+
+  const from = `${(args.fromLocalPart ?? "notifications").replace(/[^a-z0-9._-]/gi, "")}@${emailHostDomain}`;
+  try {
+    const response = await fetch(POSTMARK_API, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-Postmark-Server-Token": apiToken },
+      body: JSON.stringify({
+        From: formatEmailAddress(from, args.fromName ?? "ELOSTATE Sales Coach"),
+        To: sanitizeEmailHeaderValue(args.to),
+        Subject: sanitizeEmailHeaderValue(args.subject),
+        HtmlBody: args.htmlBody,
+        TextBody: args.textBody,
+        MessageStream: "outbound",
+      }),
+    });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "");
+      return { ok: false, error: `Postmark send failed: ${response.status} ${errBody.slice(0, 300)}` };
+    }
+    const result = (await response.json()) as { MessageID?: string };
+    return result.MessageID
+      ? { ok: true, providerMessageId: result.MessageID }
+      : { ok: false, error: "Postmark response missing MessageID." };
+  } catch (e) {
+    return { ok: false, error: `Outbound send error: ${e instanceof Error ? e.message : "unknown"}` };
+  }
+}
