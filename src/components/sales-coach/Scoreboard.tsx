@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/sales-coach/NotificationBell";
 import { MyProgress } from "@/components/sales-coach/MyProgress";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { BAND_LABEL, bandForWire, type PointsBand } from "@/lib/coach/gamification/bands";
+import { competitionRanks } from "@/lib/coach/gamification/competitionRank";
 
 /**
  * Scoreboard — the team leaderboard (gamification Phase 5). Reads /api/coach/gamification/leaderboard, which
@@ -87,6 +88,10 @@ export function Scoreboard() {
     void load();
   }, [load]);
 
+  // Computed once per render from the rows the aggregate already ordered. `data?.rows ?? []` and not `data.rows`
+  // — this runs before the null guard below, and reading it directly threw on first paint.
+  const ranks = competitionRanks(data?.rows ?? []);
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -145,12 +150,16 @@ export function Scoreboard() {
           {data.rows.map((r, i) => {
             const isMe = r.agent_id === data.meId;
             const b = band(r.avg_points);
+            // Competition ranking: equals share the higher place and the next distinct total takes the position it
+            // actually occupies — 1, 2, 2, 4. The row INDEX is not the rank; using it told one of two reps on an
+            // identical total that they came second, which is false and is the kind of thing a person remembers.
+            const rank = ranks[i] ?? i + 1;
             return (
               <div
                 key={r.agent_id}
                 className={`grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 border-b border-default px-4 py-3 last:border-b-0 ${isMe ? "bg-primary/5" : ""}`}
               >
-                <span className={`text-center text-lg font-bold ${RANK_ACCENT[i] ?? "text-muted"}`}>{i + 1}</span>
+                <span className={`text-center text-lg font-bold ${RANK_ACCENT[rank - 1] ?? "text-muted"}`}>{rank}</span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium text-primary">{r.full_name ?? "Rep"}</span>

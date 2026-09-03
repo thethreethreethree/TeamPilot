@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTransactionalEmail } from "@/lib/care/email/outbound";
 import { STRONG_SESSION_THRESHOLD, bandFor, BAND_LABEL, type PointsBand } from "./bands";
 import { isAdminRole } from "@/lib/roles";
+import { competitionRanks } from "./competitionRank";
 
 /**
  * Weekly manager digest (founder 2026-09-04) — a once-a-week email to each manager summarizing their team's last
@@ -78,9 +79,14 @@ export function renderManagerDigestEmail(
   const { companyName, weekLabel, boardUrl } = opts;
   const subject = `${companyName} — your team this week (${weekLabel})`;
   const medal = ["🥇", "🥈", "🥉"];
+  // Competition ranking, the same rule the Scoreboard uses: two reps on identical points share a place, and the
+  // place a tie consumed is skipped. A manager reading "🥇 Ana / 🥈 Ben" when both banked 200 is being told
+  // something false about their own team, in their own inbox — the digest must not disagree with the board.
+  const ranks = competitionRanks(summary.top.map((a) => ({ total_points: a.points })));
   const rowsHtml = summary.top
     .map((a, i) => {
-      const rank = i < 3 ? medal[i] : `${i + 1}.`;
+      const place = ranks[i] ?? i + 1;
+      const rank = place <= 3 ? medal[place - 1] : `${place}.`;
       const bits = [`${a.points} pts`, `${a.strong} strong`, a.deals ? `${a.deals} deal${a.deals === 1 ? "" : "s"}` : null]
         .filter(Boolean)
         .join(" · ");
@@ -125,7 +131,7 @@ export function renderManagerDigestEmail(
     `Points: ${summary.teamPoints}   Strong sessions: ${summary.teamStrong}   Deals: ${summary.teamDeals}`,
     ``,
     `Top performers:`,
-    ...summary.top.map((a, i) => `  ${i + 1}. ${a.name} — ${a.points} pts, ${a.strong} strong${a.deals ? `, ${a.deals} deal(s)` : ""}`),
+    ...summary.top.map((a, i) => `  ${ranks[i] ?? i + 1}. ${a.name} — ${a.points} pts, ${a.strong} strong${a.deals ? `, ${a.deals} deal(s)` : ""}`),
     summary.top.length ? `` : `  (no scored pitches this week)`,
     ``,
     `Open the Scoreboard: ${boardUrl}`,

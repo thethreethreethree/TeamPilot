@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rankOf } from "@/lib/coach/gamification/competitionRank";
 import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
@@ -37,6 +38,9 @@ export async function GET(req: NextRequest) {
     period,
     rows,
     meId: ctx.userId,
-    meRank: meIndex >= 0 ? meIndex + 1 : null, // the caller's rank (1-based), or null if they have no points yet
+    // rankOf, not meIndex + 1: equals share a place, so of two reps on an identical total neither is told they
+    // came second. Null when they are not on the board — a rep with no scored session has no standing yet, which
+    // is a different thing from being bottom of the list.
+    meRank: rankOf(rows, meIndex),
   });
 }

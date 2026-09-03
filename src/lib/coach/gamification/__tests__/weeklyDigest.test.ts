@@ -60,6 +60,32 @@ describe("renderManagerDigestEmail", () => {
     expect(email.textBody).toContain("Open the Scoreboard: https://elostate.com");
   });
 
+  it("gives two reps on identical points the SAME medal, in the html and the text", () => {
+    // The digest lands in the manager's inbox, about people they know. Telling them Ann came first and Bob
+    // second when both banked 200 is a false statement about their own team, and it would have disagreed with
+    // the Scoreboard those two reps open.
+    const tied = summarizeTeamWeek([row("a", 100, "Ann"), row("a", 100, "Ann"), row("b", 200, "Bob")], []);
+    const e = renderManagerDigestEmail(tied, { companyName: "Acme", weekLabel: "Sep 4", boardUrl: "https://e.com/b" });
+    expect(tied.top.map((t) => t.points)).toEqual([200, 200]);
+    expect(e.htmlBody.match(/\u{1F947}/gu) ?? []).toHaveLength(2); // two golds
+    expect(e.htmlBody).not.toContain("\u{1F948}"); // and no silver
+    expect(e.textBody).toMatch(/ 1\. Ann /);
+    expect(e.textBody).toMatch(/ 1\. Bob /);
+  });
+
+  it("skips the place a tie consumed, so the third rep is third", () => {
+    // 1, 1, 3 — not 1, 1, 2. The skip is what stops the rep below a tie from appearing to have beaten
+    // more people than they did.
+    const s = summarizeTeamWeek([row("a", 200, "Ann"), row("b", 200, "Bob"), row("c", 50, "Cal")], []);
+    const e = renderManagerDigestEmail(s, { companyName: "Acme", weekLabel: "Sep 4", boardUrl: "https://e.com/b" });
+    expect(e.textBody).toMatch(/ 3\. Cal /);
+    expect(e.textBody).not.toMatch(/ 2\. Cal /);
+    // Third place is still third place: Cal keeps the bronze, and no silver is awarded because nobody came
+    // second. Two golds, no silver, one bronze is the honest shape of this week.
+    expect(e.htmlBody).toContain("\u{1F949}&nbsp;Cal");
+    expect(e.htmlBody).not.toContain("\u{1F948}");
+  });
+
   it("escapes HTML in a rep name (no injection into the email body)", () => {
     const e = renderManagerDigestEmail(summarizeTeamWeek([row("x", 88, '<b>Eve</b>')], []), {
       companyName: "Acme",

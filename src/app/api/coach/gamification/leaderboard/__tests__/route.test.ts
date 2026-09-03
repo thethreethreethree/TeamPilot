@@ -64,4 +64,46 @@ describe("GET leaderboard", () => {
     const body = await (await GET(req())).json();
     expect(body.meRank).toBeNull();
   });
+
+  it("a rep TIED on points shares the higher rank, not second place", async () => {
+    // Founder decision, 4 September 2026. This used to be `meIndex + 1`, so the
+    // second of two identical reps was told they came second — which is false,
+    // and is the kind of thing a person remembers being told. The mobile app
+    // applies the same rule so the two surfaces never disagree.
+    setAuth({ userId: "u2", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "u1", full_name: "Ana", sessions: 8, total_points: 600, avg_points: 75, best_points: 88, deals: 2 },
+      { agent_id: "u2", full_name: "Me", sessions: 6, total_points: 600, avg_points: 100, best_points: 100, deals: 2 },
+      { agent_id: "u3", full_name: "Ben", sessions: 4, total_points: 300, avg_points: 75, best_points: 80, deals: 1 },
+    ]);
+    const body = await (await GET(req())).json();
+    expect(body.meRank).toBe(1);
+  });
+
+  it("the place a tie consumed is skipped, so third really is third", async () => {
+    // 1, 2, 2, 4 — not 1, 2, 2, 3. Without the skip a rep would appear to be
+    // beating more people than they are.
+    setAuth({ userId: "u4", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "u1", full_name: "A", sessions: 1, total_points: 900, avg_points: 90, best_points: 90, deals: 0 },
+      { agent_id: "u2", full_name: "B", sessions: 1, total_points: 600, avg_points: 60, best_points: 60, deals: 0 },
+      { agent_id: "u3", full_name: "C", sessions: 1, total_points: 600, avg_points: 60, best_points: 60, deals: 0 },
+      { agent_id: "u4", full_name: "Me", sessions: 1, total_points: 100, avg_points: 10, best_points: 10, deals: 0 },
+    ]);
+    const body = await (await GET(req())).json();
+    expect(body.meRank).toBe(4);
+  });
+
+  it("a bigint total arriving as a STRING still ties", async () => {
+    // total_points is a bigint in the 0243 aggregate and PostgREST serialises
+    // it as a string. Comparing raw values would make "600" and 600 look like
+    // different totals and silently break the tie — the bug hidden by a type.
+    setAuth({ userId: "u2", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "u1", full_name: "Ana", sessions: 8, total_points: "600", avg_points: 75, best_points: 88, deals: 2 },
+      { agent_id: "u2", full_name: "Me", sessions: 6, total_points: 600, avg_points: 100, best_points: 100, deals: 2 },
+    ]);
+    const body = await (await GET(req())).json();
+    expect(body.meRank).toBe(1);
+  });
 });
