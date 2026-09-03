@@ -12,8 +12,13 @@ import { describe, it, expect } from "vitest";
  * client component, unrenderable in the node test env (same posture as the extension-client guards).
  */
 const ROOT = process.cwd();
-const SHELL = readFileSync(join(ROOT, "src", "components", "sales-coach", "SalesCoachShell.tsx"), "utf-8");
-const CARE_SHELL = readFileSync(join(ROOT, "src", "components", "care", "CareShell.tsx"), "utf-8");
+// Normalize CRLF→LF: the assertions below use byte-sensitive char-window regexes ([\s\S]{0,N}) against the raw
+// source. On Windows (core.autocrlf=true) the working-tree copy is CRLF, and each extra \r overflows those windows,
+// red-failing tests that are green on CI/LF. Reading LF-normalized makes the test EOL-agnostic (the committed form
+// is LF regardless). See memory: source-text regex test fails on Windows CRLF.
+const readLF = (...p: string[]) => readFileSync(join(ROOT, ...p), "utf-8").replace(/\r\n/g, "\n");
+const SHELL = readLF("src", "components", "sales-coach", "SalesCoachShell.tsx");
+const CARE_SHELL = readLF("src", "components", "care", "CareShell.tsx");
 
 describe("SalesCoachShell — Browser extension nav parity with C.A.R.E", () => {
   it("surfaces the extension as a sidebar nav item pointing at the sales download page", () => {
