@@ -55,7 +55,12 @@ export function MyProgress() {
   return (
     <div className="rounded-xl border border-default bg-surface p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold text-primary">Your progress</h2>
+        {/* Links to the full arena (/my-progress) — this strip is the at-a-glance summary on the team board; the
+            Arena is the full personal view (gauge / odometer / milestones). Keeps both without duplicating the full view. */}
+        <Link href="/dashboard/sales-coach/my-progress" className="group flex items-baseline gap-1.5 text-sm font-semibold text-primary hover:text-brand">
+          Your progress
+          <span className="text-xs font-normal text-muted transition-colors group-hover:text-brand">View arena →</span>
+        </Link>
         <div className="flex gap-4 text-xs text-muted">
           <span><span className="font-semibold text-primary">{data.total.toLocaleString()}</span> pts</span>
           <span>avg <span className="font-semibold text-primary">{data.avg}</span></span>
