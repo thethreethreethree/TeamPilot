@@ -18,11 +18,13 @@ The CANONICAL gate, run whole rather than a self-chosen subset:
 $ TBC_BUILD=2026-09-04-brain-bearer-client npm run check
   typecheck . lint . theme:audit . rls:audit . invariant:audit . tbc . test
   invariant audit: 997 files scanned, 0 violations
-  tbc: docs / manifest / artifacts / residual / freshness all green
+  tbc: docs, manifest, artifacts, residual, freshness -- five of five clean
   Test Files  621 passed | 1 skipped (622)
        Tests  4099 passed | 15 skipped (4114)
 EXIT_CHECK=0
-``` The SS3.4 control gate was mutation-tested
+```
+
+The SS3.4 control gate was mutation-tested
 after the mock change and still fails correctly when suppression is disabled (transcript in check.md).
 
 ## The un-named reliance
@@ -49,7 +51,7 @@ after the mock change and still fails correctly when suppression is disabled (tr
     "why_skipped": "The cause is invisible from the repo. The wrap surfaces the real error on the next request, which identifies it without guessing.",
     "confidence_it_does_not_matter": "low",
     "opened_at": "2026-09-04T15:40:00+08:00",
-    "outcome": "OPEN - re-run the recorded probe after deploy and read the returned error."
+    "outcome": "RESOLVED 2026-09-04T16:10+08:00 - and this build's HYPOTHESIS WAS WRONG. The probe was re-run after deploy and roleplay returned 200 with a real prospect turn. It was never an Anthropic fault: src/lib/claude.ts line 4 imports runBrainCall, so dissectCoachV5 -> call() -> runBrainCall -> loadBrain reached the SAME cookie client this build fixed. The earlier trace read only the route file and missed the indirection through claude.ts - the exact across-modules blind spot A21 names, missed in the audit that cited A21. The real blast radius was the 35 routes importing @/lib/claude, not one. Verified individually after deploy: extension/suggest, roleplay, coaching-material and practice-scenario/from-pitch all return 200."
   }
 ]
 ```
