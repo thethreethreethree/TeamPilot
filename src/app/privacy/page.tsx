@@ -43,11 +43,28 @@ import { LearningHint } from "@/components/learning/LearningHint";
  * listed. Whether Sentry is enabled in production is an environment question this
  * file cannot answer, so its entry is written to be true either way.
  *
- * STILL NEEDS A HUMAN DECISION (marked, not guessed): how long a recording is
- * kept, and whether a representative can delete one themselves. Neither is
- * stated below because neither could be read out of the code — the retention
- * section speaks to the append-only event chain, which is a different question
- * from "how long do we hold the audio". See docs/tbc/2026-09-04-privacy-recording-disclosure.
+ * THE TWO OPEN QUESTIONS ARE NOW ANSWERED — FROM THE CODE, NOT FROM A GUESS.
+ * This file previously said how long a recording is kept and who can delete one
+ * "could not be read out of the code". That was wrong: it had not been looked
+ * for hard enough. `recording-purge-cron` has run nightly since 26 August and
+ * states the rule exactly, and it is NOT a duration —
+ *
+ *   - each representative's 20 MOST RECENT unsaved recordings keep their audio;
+ *   - anything older has its audio bytes deleted, transcript and scores kept;
+ *   - a recording anyone presses Save on is exempt and kept indefinitely.
+ *
+ * That is what is written below, because a policy must describe what the system
+ * does rather than what anyone intends it to do. Two things follow that are
+ * flagged rather than papered over:
+ *
+ *   1. NOBODY CAN DELETE ONE ON DEMAND. There is no delete endpoint for a
+ *      recording — not for a representative, not for a manager, not for an
+ *      administrator. The only deletion is the nightly purge. So this section
+ *      does not claim a control that does not exist.
+ *   2. A COUNT IS NOT A TIME LIMIT. A representative who stops recording keeps
+ *      their last twenty indefinitely, and a saved one is kept forever. Named
+ *      here because it is the first thing a regulator asks and the policy should
+ *      not imply an outer bound the system does not enforce.
  */
 export const metadata: Metadata = {
   title: "Privacy — ELOSTATE",
@@ -147,6 +164,31 @@ export default function PrivacyPage() {
               per-conversation score across a fixed set of skills, and
               coaching notes. Those are what the product is for; the
               audio itself is kept so a representative can listen back.
+            </li>
+            <li>
+              <strong>How long we keep the audio:</strong> we keep each
+              representative&apos;s twenty most recent recordings. A job
+              runs every night and deletes the audio of anything older
+              than that. The transcript, the score and the coaching
+              notes are kept — we drop the recording, not the coaching.
+            </li>
+            <li>
+              <strong>Recordings that are kept longer:</strong> a
+              representative or a manager can press Save on a recording.
+              A saved recording is exempt from the nightly deletion and
+              is kept until it is removed.
+            </li>
+            <li>
+              <strong>Deleting one:</strong> the product has no button
+              that deletes a recording from our servers on demand — not
+              for a representative, not for a manager, not for an
+              administrator. Recordings leave by the nightly rule above.
+              A representative can delete a recording from their own
+              phone before it is uploaded, and once it has uploaded that
+              copy on the phone is removed automatically. To have a
+              specific recording removed from our servers, use the
+              contact route in &ldquo;Retention and deletion&rdquo;
+              below.
             </li>
           </ul>
         </Section>
