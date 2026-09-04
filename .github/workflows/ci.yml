@@ -18,10 +18,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node 24, and the version is load-bearing rather than incidental.
+      #
+      # This was 20, and on 4 September that turned CI red with 25 identical
+      # errors: `webidl.util.markAsUncloneable is not a function`, thrown while
+      # each jsdom worker started. Not one assertion ran in those 25 files, and
+      # 4,028 tests still passed around them, so the failure looked like a test
+      # problem and was not one.
+      #
+      # The cause is a floor in the dependency tree, readable from the packages:
+      #   jsdom@30.0.1  engines: ^22.22.2 || ^24.15.0 || >=26.0.0
+      #   undici@8.10.0 engines: >=22.19.0   (jsdom depends on it)
+      # Node 20 is below both. Node 20 also passed end-of-life in April 2026.
+      #
+      # WHY 24 AND NOT 22, which is the lower of the two floors: 24 is what this
+      # project is developed on (v24.15.0), and the full suite is known to pass
+      # there. Matching CI to the machine the code is written on removes the
+      # whole class of "green locally, red in CI" for anything runtime-shaped.
+      #
+      # If you lower this, run the jsdom render tests before you push.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
