@@ -17,12 +17,16 @@ trusting the update. Every failure path leaves the row entirely untouched — as
 cleared pointer over live bytes is a recording of a real customer that nothing can find and nothing will ever
 remove. The transcript, the scores and the coaching notes are not touched at all.
 
-**read-path:** none yet, and that is the honest answer rather than an omission. **No screen calls this endpoint.**
-A destructive control needs a confirmation design of its own, and shipping a Delete button without one is worse
-than shipping no button. Until that exists the capability is reachable only by an authorised API call, which is
-enough to make the founder's stated policy true at the API layer and not enough to call the feature finished. The
-route's own effect IS readable, and by the surface that matters: a deleted recording stops appearing to the
-session view's player, because that reads `audio_asset_url` and it is now null.
+**read-path:** the manager's rep-activity list, `StandardSessionsManagerView` — a **Delete** button beside the
+existing Save on every session that has audio, and the row's annotation flips from "🎙 recording" to "no
+recording" once the server confirms. The confirmation is inline and replaces the buttons rather than sitting
+beside them, so the destructive action cannot be reached by a second click in the same place as the first. It
+names what is lost AND what survives, because the usual hesitation is not about the audio — it is whether the
+rep's scores go with it.
+
+**The delete is deliberately NOT optimistic**, unlike every other write on that screen. Being briefly wrong about
+a Save costs nothing; telling a manager a customer's audio is gone when it is not is something they might repeat
+to the customer. Proven by mutation: making it optimistic fails the named test.
 
 ### Removal logic, in one place instead of two
 

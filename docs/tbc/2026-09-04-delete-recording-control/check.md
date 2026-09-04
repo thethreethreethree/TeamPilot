@@ -34,7 +34,9 @@ Both guards were broken deliberately and the named tests were watched to fail. S
 ```
 manager gate removed (a rep may delete their own)        -> CAUGHT  (1 failed | 10 passed)
 storage failure no longer blocks clearing the pointer    -> CAUGHT  (2 failed |  9 passed)
-restored                                                 -> 11 passed
+the UI delete becomes optimistic                         -> CAUGHT  (1 failed |  5 passed)
+one click deletes, with no confirmation                  -> CAUGHT  (5 failed |  1 passed)
+restored                                                 -> 11 + 6 passed
 ```
 
 The second is the one worth the effort. Without it a failed storage call would still null `audio_asset_url`,
@@ -101,8 +103,8 @@ described code nobody had read; here, code changes under prose nobody re-read. R
 
 ## Inspected and NOT clean-billed (§3.3.5)
 
-**Inspected:** the new route and helper line by line, the refactored cron loop, both test files, the cron's
-pre-existing tests, and the two sites in the class sweep.
+**Inspected:** the new route and helper line by line, the refactored cron loop, all three test files, the cron's
+pre-existing tests, the manager view's delete control, and the two sites in the class sweep.
 
 **Not inspected:** the endpoint has **never been called against a live Supabase project**. Every storage
 interaction in the tests is a fake. The behaviour a fake cannot check is the one that matters — whether

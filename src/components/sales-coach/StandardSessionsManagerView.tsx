@@ -157,6 +157,43 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
     }
   };
 
+  /**
+   * Deleting a recording — two steps, and NOT optimistic.
+   *
+   * Every other write on this screen updates the row first and rolls back on failure, because being briefly
+   * wrong about a Save costs nothing. A delete is different in both directions: showing "gone" for a delete that
+   * failed tells a manager a customer's audio has been removed when it has not, and that is the one thing they
+   * might repeat to the customer. So the row changes only after the server says it did.
+   *
+   * The confirmation is inline rather than `window.confirm` for one reason: it can name what is lost AND what
+   * survives. "Are you sure?" cannot, and the most common hesitation here is not about the audio at all — it is
+   * whether the rep's scores go with it. They do not.
+   */
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteRecording = async (s: Session) => {
+    setDeletingId(s.id);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/coach/sales-session/${s.id}/delete-recording`, { method: "POST" });
+      if (!res.ok) {
+        // The server's own sentence, when it gave one. A 409 here means the pointer could not be interpreted
+        // and a person needs to look at it — quite different from "try again", so the two must not merge.
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setDeleteError(body.error ?? "Couldn't delete the recording. Nothing was changed.");
+        return;
+      }
+      setSessions((xs) => (xs ?? []).map((x) => (x.id === s.id ? { ...x, hasAudio: false, saved: false } : x)));
+      setConfirmingId(null);
+    } catch {
+      setDeleteError("Couldn't reach the server. Nothing was changed.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="glass-card p-5">
       <button onClick={onBack} className="text-[11px] text-muted hover:opacity-80 mb-3">← Team</button>
@@ -182,16 +219,62 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
                   {s.hasAudio ? " · 🎙 recording" : " · no recording"}
                 </span>
               </Link>
-              {savingAvailable && s.hasAudio && (
-                <button
-                  onClick={() => void toggleSave(s)}
-                  disabled={savingId === s.id}
-                  className={`shrink-0 text-[11px] px-2 py-1 rounded border ${
-                    s.saved ? "border-brand text-brand" : "border-white/15 text-muted"
-                  } hover:opacity-80 disabled:opacity-50`}
-                >
-                  {s.saved ? "Saved" : "Save"}
-                </button>
+              {s.hasAudio && confirmingId !== s.id && (
+                <div className="shrink-0 flex items-center gap-2">
+                  {savingAvailable && (
+                    <button
+                      onClick={() => void toggleSave(s)}
+                      disabled={savingId === s.id}
+                      className={`text-[11px] px-2 py-1 rounded border ${
+                        s.saved ? "border-brand text-brand" : "border-white/15 text-muted"
+                      } hover:opacity-80 disabled:opacity-50`}
+                    >
+                      {s.saved ? "Saved" : "Save"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setConfirmingId(s.id);
+                      setDeleteError(null);
+                    }}
+                    aria-label={`Delete the recording of ${s.clientLabel ?? "this session"}`}
+                    className="text-[11px] px-2 py-1 rounded border border-white/15 text-muted hover:opacity-80"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+
+              {/* The confirmation replaces the buttons rather than sitting beside them, so the destructive
+                  action cannot be reached by a second click in the same place as the first. */}
+              {confirmingId === s.id && (
+                <div className="shrink-0 text-right">
+                  <p className="text-[11px] text-primary">Delete this recording?</p>
+                  <p className="text-[11px] text-muted">
+                    The audio goes for good. The transcript and the scores stay.
+                  </p>
+                  <div className="mt-1 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setConfirmingId(null)}
+                      disabled={deletingId === s.id}
+                      className="text-[11px] px-2 py-1 rounded border border-white/15 text-muted hover:opacity-80 disabled:opacity-50"
+                    >
+                      Keep it
+                    </button>
+                    <button
+                      onClick={() => void deleteRecording(s)}
+                      disabled={deletingId === s.id}
+                      className="text-[11px] px-2 py-1 rounded border border-brand text-brand hover:opacity-80 disabled:opacity-50"
+                    >
+                      {deletingId === s.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                  {deleteError && (
+                    <p role="alert" className="mt-1 text-[11px] text-primary max-w-[16rem]">
+                      {deleteError}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           ))}

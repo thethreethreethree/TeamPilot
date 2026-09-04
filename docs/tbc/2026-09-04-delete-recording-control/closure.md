@@ -63,9 +63,10 @@ order would have published a privacy policy that contradicted the code. As stack
 
 **Merge `recording-retention-disclosure` first, then this.** Or merge this one, which contains both.
 
-**This is not a finished feature and should not be described as one.** There is **no button anywhere** that calls
-it. A destructive control needs its own confirmation design, and shipping one without is worse than shipping none.
-What exists is the capability at the API layer, which makes your stated policy true where it is enforced.
+**It has a button now**, on the manager's rep-activity list beside Save, with an inline confirmation that says
+what is lost and what survives. Two mutations prove the two properties that matter: one click never deletes, and
+the row does not change until the server says it did — a manager must never be told a customer's audio is gone
+when it is not.
 
 **The other half of your rule is still open.** A rep can exempt their own recording from deletion via
 `save-recording`. Narrowing that removes something reps have today, in the week you are submitting the app — so it
