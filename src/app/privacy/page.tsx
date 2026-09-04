@@ -57,10 +57,12 @@ import { LearningHint } from "@/components/learning/LearningHint";
  * does rather than what anyone intends it to do. Two things follow that are
  * flagged rather than papered over:
  *
- *   1. NOBODY CAN DELETE ONE ON DEMAND. There is no delete endpoint for a
- *      recording — not for a representative, not for a manager, not for an
- *      administrator. The only deletion is the nightly purge. So this section
- *      does not claim a control that does not exist.
+ *   1. WHO MAY DELETE ONE. When this was first written the honest answer was
+ *      "nobody" — there was no delete endpoint at all. The endpoint now exists
+ *      (`delete-recording`, managers and administrators only, the owning rep
+ *      deliberately excluded), so this section describes it. If that route is
+ *      ever removed, this paragraph becomes a promise of a control that does
+ *      not exist, which is the exact failure this file was corrected for.
  *   2. A COUNT IS NOT A TIME LIMIT. A representative who stops recording keeps
  *      their last twenty indefinitely, and a saved one is kept forever. Named
  *      here because it is the first thing a regulator asks and the policy should
@@ -179,16 +181,26 @@ export default function PrivacyPage() {
               is kept until it is removed.
             </li>
             <li>
-              <strong>Deleting one:</strong> the product has no button
-              that deletes a recording from our servers on demand — not
-              for a representative, not for a manager, not for an
-              administrator. Recordings leave by the nightly rule above.
-              A representative can delete a recording from their own
-              phone before it is uploaded, and once it has uploaded that
-              copy on the phone is removed automatically. To have a
-              specific recording removed from our servers, use the
-              contact route in &ldquo;Retention and deletion&rdquo;
-              below.
+              <strong>Deleting one:</strong> a manager or an
+              administrator at your company can have a specific
+              recording removed from our servers. A representative
+              cannot remove their own — a recording is a record of how
+              a call was handled, and the person it is about is not the
+              person who decides whether it is kept. Deleting a
+              recording removes the audio; the transcript and the
+              scores stay.
+            </li>
+            <li>
+              <strong>The copy on the phone:</strong> a representative
+              can delete a recording from their own device before it is
+              uploaded, and once it has uploaded that copy on the phone
+              is removed automatically.
+            </li>
+            <li>
+              <strong>If you are the person who was recorded:</strong>
+              you will not have an account here, so use the contact
+              route in &ldquo;Retention and deletion&rdquo; below and we
+              will act on it.
             </li>
           </ul>
         </Section>
