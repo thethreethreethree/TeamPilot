@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Coach v5 — Cross-Conversation Memory
@@ -81,10 +82,31 @@ const MAX_PATTERNS = 5;
  * snapshot, even if Supabase is unavailable or the user has no
  * history — falls back to the empty shape so callers don't need to
  * branch on auth/network failure.
+ *
+ * PASS THE CALLER'S CLIENT WHEN THERE IS ONE — the 4 September fix.
+ *
+ * This resolved its own client with `createClient()`, which reads a session from
+ * COOKIES. `care/extension/coach` authenticates with a BEARER token and sends no
+ * cookies, so `auth.getUser()` saw nobody and this returned EMPTY_SNAPSHOT —
+ * silently, with no error anywhere. `renderMemoryForPrompt` then returned null
+ * ("not enough signal — better silent than wrong"), so EVERY extension coach call
+ * ran as if the user had never been coached before.
+ *
+ * The memory was in the database the whole time; the client could not see it.
+ * That is an unknown dressed as a zero, and the thing it quietly switched off is
+ * the accumulated-behaviour thesis in §3.4 — the coach deriving its behaviour
+ * from each team's own data — for every extension user.
+ *
+ * The fallback stays for the genuine cases (no session, Supabase down). What
+ * changed is that a caller who KNOWS who is asking can now say so. Omitting `db`
+ * keeps the cookie behaviour exactly, so no web caller changes.
  */
-export async function loadCoachMemory(): Promise<CoachMemorySnapshot> {
+export async function loadCoachMemory(
+  /** The caller's own RLS client. Omit for the cookie session (web). */
+  db?: SupabaseClient,
+): Promise<CoachMemorySnapshot> {
   try {
-    const supabase = await createClient();
+    const supabase = db ?? (await createClient());
     const { data: auth } = await supabase.auth.getUser();
     if (!auth?.user) return EMPTY_SNAPSHOT;
 

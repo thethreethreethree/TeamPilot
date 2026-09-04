@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guardExtensionRequest } from "@/lib/api/extensionGuard";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProductContextForTenant } from "@/lib/care/config";
 import { analyzeCoachV5 } from "@/lib/claude";
@@ -61,7 +62,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const memory = await loadCoachMemory();
+    // The caller's own client. Without it this reads through a COOKIE session,
+    // which a Bearer caller does not have — so it silently returned an empty
+    // memory and the coach ran as if it had never met this user (4 September).
+    const memory = await loadCoachMemory(callerScopedDb(req) ?? undefined);
     const memoryBlock = renderMemoryForPrompt(memory);
 
     const systemPrompt = buildSystemPrompt({
