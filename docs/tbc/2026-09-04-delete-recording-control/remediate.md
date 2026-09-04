@@ -40,3 +40,23 @@ condition explicitly for the next author.
 
 No test, gate or rule was modified. The cron's nine pre-existing tests were run *against* the refactor rather than
 adjusted to fit it, which is the only reason the extraction can be claimed to preserve behaviour.
+
+## F3 — the refactor that was written but not committed
+
+**Fixed by committing it.** The cron now calls `removeRecordingAudio`, and the claim in build.md is true of the
+branch rather than only of my editor.
+
+**Gate or promise?** Neither, and I want to be exact about why rather than reaching for a gate that would not work.
+
+A check that compared the working tree to `HEAD` would fire on every legitimate work-in-progress, which is most of
+the time — the definition of a gate people learn to skip. A check that read this build's own prose and verified
+each claim against the commit is what an honest CHECK phase already is; the failure was that I ran it against the
+files on disk instead of against `git show`.
+
+**So the correction is to the method, and it is one line: a CHECK that cites a file must read it out of the commit,
+not out of the working tree.** §3.3.1 says "read the files, not the memory". This is the same rule one level up —
+the working tree is a kind of memory, and it remembers things the branch does not.
+
+**The near miss worth naming:** had `main` moved and this branch been merged as it stood, the duplicated deletion
+logic would have shipped with documentation asserting it had been unified. The next person to change the removal
+rule would have changed it in one place and been told by check.md that one place was enough.

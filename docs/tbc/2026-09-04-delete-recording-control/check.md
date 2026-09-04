@@ -73,7 +73,7 @@ remembered the same thing. No third site.
 
 ## Findings
 
-Two findings, both recorded below and both addressed in remediate.md. This is not a clean bill: see
+Three findings, all recorded below and all addressed in remediate.md. This is not a clean bill: see
 "Inspected and NOT clean-billed" for what was never exercised.
 
 ### F1 — THINK was written after the first file was edited
@@ -110,3 +110,21 @@ pre-existing tests, the manager view's delete control, and the two sites in the 
 interaction in the tests is a fake. The behaviour a fake cannot check is the one that matters — whether
 `storage.remove()` on a real object in `assets-v1` returns what this code assumes, and whether the service-role key
 is permitted to remove it. Residual, not a pass.
+
+### F3 — the cron refactor was written, then lost in a branch restack
+
+class: a change that exists in the working tree and not in the commit that claims it.
+sweep: `git show <commit>:<path> | grep -c removeRecordingAudio` against every file this build says it changed —
+  one of five was zero.
+severity: medium. Nothing was broken: the branch compiled, all 4,099 tests passed, and the cron kept working
+  because it still held its own correct copy. What was wrong was **this document**, which claimed a single shared
+  implementation that did not exist on the branch it described.
+
+The restack — moving this branch off `main` and onto the retention disclosure, itself the fix for F2 — went
+through `git stash push --staged`, a `reset --hard`, and a pop. The cron's modification survived into the working
+tree and was never re-staged, and I did not check: I listed the file in the `git add` and assumed the commit
+therefore contained it.
+
+**Found by diffing the working tree against the commits at the end**, not by any gate. `git status` had been
+showing ` M` on that path for three commits and I had been reading past it, because the same line also carried
+another session's unrelated modifications.

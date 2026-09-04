@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
-import { ASSETS_BUCKET } from "@/lib/storage/assets";
-import { chunkPrefix } from "@/lib/coach/v5/stitchSessionAudio";
+import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 
 /**
@@ -91,45 +90,28 @@ export async function GET(req: NextRequest) {
   let assetErrors = 0;
   let malformed = 0;
   for (const row of expired ?? []) {
-    const url = row.audio_asset_url as string;
-    // THREE writers touch this column and they do NOT agree on its shape: `upload-recording` writes
-    // `${ASSETS_BUCKET}/${storagePath}` (bucket-relative), the session PATCH route's zod accepts a full
-    // `z.string().url()`, and this cron consumes it. The original code here assumed the first shape and fell
-    // back to using the raw string as a path — which is the dangerous branch: `remove()` on a path that isn't
-    // there returns NO error, so we would null the pointer and count it `purged`. The audio then survives
-    // FOREVER, unreferenced and unfindable, while the run reports that retention ran. That is the false-ok
-    // write class (A26 — "a mutation returning ok without asserting the write landed") in the one place it must
-    // never exist: the code whose entire job is to make a deletion promise true.
-    //
-    // A pointer we don't recognize means we cannot know whether the object exists, so we must not touch the
-    // row. Flag it and leave it — a data-integrity signal, never a silent purge. ("Already gone" is different
-    // and still converges below: no error + nothing removed is a legitimate reason to clear the pointer.)
-    if (!url.startsWith(`${ASSETS_BUCKET}/`)) {
-      malformed += 1;
+    /**
+     * REMOVAL LIVES IN ONE PLACE NOW.
+     *
+     * This loop body used to hold the removal inline, including its most dangerous branch: `storage.remove()`
+     * on a path that does not exist returns NO error, so a pointer of an unrecognised shape would remove
+     * nothing, get its column nulled, and leave the audio alive forever while this run reported that retention
+     * had happened. When the manager delete control arrived it needed the identical logic, and copying that
+     * branch into a second file was not an option.
+     *
+     * `removeRecordingAudio` owns it, is unit-tested against a fake storage client, and reports the two
+     * outcomes this loop has always distinguished: a pointer we cannot interpret (flag it, touch nothing) and
+     * a real storage failure (leave the row for the next run rather than orphan a live asset's pointer).
+     */
+    const removal = await removeRecordingAudio(admin.storage, {
+      audioAssetUrl: row.audio_asset_url as string,
+      companyId: row.company_id as string | null,
+      sessionId: row.id as string,
+    });
+    if (!removal.ok) {
+      if (removal.reason === "malformed-pointer") malformed += 1;
+      else assetErrors += 1;
       continue;
-    }
-    const path = url.slice(ASSETS_BUCKET.length + 1);
-    const { error: rmErr } = await admin.storage.from(ASSETS_BUCKET).remove([path]);
-    // If the object is already gone, still null the pointer (converges). Only a real storage failure counts.
-    if (rmErr && !/not found|does not exist/i.test(rmErr.message)) {
-      assetErrors += 1;
-      continue; // leave the row for the next run rather than orphan a live asset's pointer
-    }
-    // Also drop the incremental audio CHUNK objects for this session (2026-08-21 audio build). A clean-Stopped
-    // session's chunks are orphaned — the full-blob persist set audio_asset_url so stitchSessionAudio (which
-    // deletes chunks on success) never ran. They live under `${company}/${session}/chunks/`, keyed on the
-    // session id (NOT derivable from the audio path, which uses a fileId), so we use the row's company_id + id.
-    // Best-effort + idempotent (a never-Stopped session's chunks were already removed by the stitch → no-op).
-    const companyId = row.company_id as string | null;
-    if (companyId) {
-      const prefix = chunkPrefix(companyId, row.id as string);
-      try {
-        const { data: chunkObjs } = await admin.storage.from(ASSETS_BUCKET).list(prefix, { limit: 2000 });
-        const names = (chunkObjs ?? []).map((o) => `${prefix}/${o.name}`);
-        if (names.length > 0) await admin.storage.from(ASSETS_BUCKET).remove(names);
-      } catch {
-        /* best-effort — orphan chunks are wasteful, not harmful; retried next run via the same row until purged */
-      }
     }
 
     const { error: updErr } = await admin
