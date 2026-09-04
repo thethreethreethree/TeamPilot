@@ -62,7 +62,7 @@ of which describe the consequence rather than the mechanism (transcript in check
     "why_skipped": "Chasing an unnamed intermittent failure is guesswork without a captured name.",
     "confidence_it_does_not_matter": "low",
     "opened_at": "2026-09-05T02:45:00+08:00",
-    "outcome": "OPEN - redirect npm test to a file on the next several runs until the failing name is caught."
+    "outcome": "OPEN - three further runs were captured to file after this build and all three were clean (4106 passed), so the rate is roughly one in seven and the name is still uncaught. Keep redirecting to a file; do not spend more than a run or two per session on it."
   },
   {
     "id": "CARE-R3",
