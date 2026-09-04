@@ -15,12 +15,13 @@ import { makeSupabaseClient } from "../../data/__tests__/_supabaseMock";
  * guarantee is `expect(llmCall).not.toHaveBeenCalled()` in the suppressed case.
  */
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/llm", () => ({
   llmCall: vi.fn().mockResolvedValue({ text: "REAL", model: "m", provider: "p" }),
   llmStream: vi.fn(),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { llmCall } from "@/lib/llm";
 import { runBrainCall } from "../index";
 
@@ -61,7 +62,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
   });
 
   it("SUPPRESSES during the control window: suppressed placeholder + provider NEVER called", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor(
         { ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null },
         calls
@@ -81,7 +82,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
   });
 
   it("CALLS the provider once guidance is enabled (window elapsed)", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor(
         { ai_guidance_enabled: false, ai_guidance_unlock_at: PAST, ai_guidance_enabled_at: null },
         calls
@@ -99,7 +100,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
   });
 
   it("controlExempt (Sales Coach) calls the provider EVEN while suppressed", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor(
         { ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null },
         calls

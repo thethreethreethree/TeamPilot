@@ -18,6 +18,7 @@ import { makeSupabaseClient } from "../../data/__tests__/_supabaseMock";
  * This converts that verification into a structural guard: removing the exemption term fails test 2.
  */
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 async function* fakeStream() {
   yield "Sug";
@@ -28,7 +29,7 @@ vi.mock("@/lib/llm", () => ({
   llmStream: vi.fn(() => fakeStream()),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { llmStream } from "@/lib/llm";
 import { runBrainStream } from "../index";
 
@@ -75,7 +76,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
   beforeEach(() => vi.mocked(llmStream).mockClear());
 
   it("SUPPRESSES during the control window: yields NOTHING + provider NEVER called", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null })
     );
     const { chunks, ret } = await drain(
@@ -88,7 +89,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
   });
 
   it("controlExempt (Sales Coach) STREAMS real deltas EVEN while suppressed", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null })
     );
     const { chunks, ret } = await drain(
@@ -106,7 +107,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
   });
 
   it("streams once guidance is enabled (window elapsed), no exemption needed", async () => {
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: PAST, ai_guidance_enabled_at: null })
     );
     const { chunks } = await drain(

@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { llmCall, llmStream, type LlmCallArgs, type LlmResult } from "@/lib/llm";
 import type { ExperienceMode } from "@/lib/experience/mode";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   BrainRecord,
   BrainPattern,
@@ -30,8 +31,34 @@ export * from "./types";
 
 /** Load the brain for a company. Throws if no row exists (should never happen
  *  because migration 0007 auto-creates one on company insert). */
+/**
+ * WHY THE SERVICE CLIENT AND NOT THE COOKIE CLIENT - the 4 September mobile outage.
+ *
+ * These two reads used `await createClient()`, which resolves a session FROM
+ * COOKIES. A browser has cookies, so the web app worked and nobody noticed. The
+ * mobile app and the browser extension authenticate with a BEARER TOKEN and send
+ * no cookies at all, so that client was anonymous, RLS returned nothing,
+ * `maybeSingle()` gave null, and this file threw "No brain row for company ...".
+ *
+ * The route caught that as a non-LLM failure and answered 502 "Couldn't draft a
+ * suggested response right now." Every AI suggestion in the mobile app failed
+ * that way, on a healthy account with healthy data - `company_brain` was on
+ * version 4 and `ai_guidance_enabled` was true throughout. Verified by reading
+ * both rows with the anon key (empty) and the service key (present).
+ *
+ * WHY THIS IS SAFE, ripple-traced across every caller before changing it. There
+ * are three, and not one takes a company id from a client:
+ *   - /api/brain          -> getCurrentCompanyId(), resolved from the session
+ *   - runBrainCall/Stream -> args.companyId, which every caller fills from the
+ *                            guard's server-resolved `user.companyId`
+ *   - coach/doorlog/*     -> the same guard-resolved id
+ * The id is server-resolved in all three, so reading the company's OWN config
+ * with the service client widens nothing. If a future caller ever accepts a
+ * company id from a request body, THAT caller must check it - the assumption
+ * now lives here.
+ */
 export async function loadBrain(companyId: string): Promise<BrainRecord> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("company_brain")
     .select(
@@ -88,7 +115,10 @@ export function evaluateControlGate(params: {
 
 /** Load the §3.4 control gate for a company. */
 export async function loadControlGate(companyId: string): Promise<ControlGate> {
-  const supabase = await createClient();
+  // Same reason as loadBrain above: a Bearer caller has no cookies, so an
+  // anonymous read of `companies` returned nothing - "Company not found" for a
+  // company that plainly exists.
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("companies")
     .select(

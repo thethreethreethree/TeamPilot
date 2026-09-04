@@ -11,6 +11,7 @@ import { extractObjectionGuidance } from "@/lib/coach/v5/objectionGuidance";
 import { dissectCoachV5 } from "@/lib/claude";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
 
 /**
  * Sales Coach → Roleplay Practice (founder 2026-07-05; text-first per the
@@ -220,7 +221,7 @@ export function parsePracticeReview(
 // LLM route: longer serverless budget than Vercel's short default (this route awaits a blocking LLM call).
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function handleRoleplay(req: NextRequest) {
   // Each turn + the review is an LLM call; cap per-user so a held Enter can't
   // spin unbounded cost. Mirrors the 27 sibling coach routes (audit F1, A13).
   // 30/min is far above a real typed conversation, so it only blocks abuse.
@@ -309,4 +310,34 @@ export async function POST(req: NextRequest) {
     );
   }
   return NextResponse.json({ review });
+}
+
+/**
+ * The route, with the one thing it was missing: somewhere for a throw to land.
+ *
+ * FOUND 4 SEPTEMBER. Every call from the mobile app came back as a bare 500 with
+ * an EMPTY BODY, on a request whose shape matched this route's own schema
+ * exactly. An empty body is the worst possible answer: the app's error reader
+ * synthesises "HTTP 500" for it, `humanError` rejects that as a status code
+ * wearing a sentence's clothes, and the screen falls all the way back to its own
+ * guess — which is how a rep on full signal was told to go and find signal.
+ *
+ * Nothing below `readBody` was inside a try, so any throw from `dissectCoachV5`,
+ * the parsers, or `recordPracticeScore` left the framework to answer.
+ *
+ * USES THE SHARED TAXONOMY rather than a hand-rolled catch (A21): an LlmError
+ * keeps its own status and `kind` — and `kind` is exactly what tells a client
+ * this 5xx body is a sentence somebody wrote rather than a framework default —
+ * while a non-LLM failure is logged server-side and answered with one honest
+ * line instead of nothing at all.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    return await handleRoleplay(req);
+  } catch (err) {
+    return llmErrorResponse(err, {
+      logTag: "coach/sales-session/roleplay",
+      fallbackMessage: "Couldn't run the roleplay right now.",
+    });
+  }
 }
