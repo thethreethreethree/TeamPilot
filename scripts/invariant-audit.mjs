@@ -1293,6 +1293,140 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 26 — a Bearer-reachable data read must not resolve its own COOKIE client ═══════════
+//
+// LEARNED: 2026-09-04/05, the hard way, FOUR times in two days — and each one was found by hand after a
+// user noticed, or nearly went unnoticed entirely.
+//
+//   lib/brain (loadBrain, loadControlGate)  every AI feature in the mobile app answered 502. The route
+//                                           caught it as a non-LLM failure, so a healthy account with
+//                                           healthy data presented as a broken model.
+//   lib/data/doorlog (five rep-facing fns)  the door tracker answered 200 with `{doorsKnocked:0,sold:0}`
+//                                           for a day holding 8 knocks and 6 sales. NO error at all.
+//   lib/coach/v5/memory (loadCoachMemory)   the C.A.R.E extension coach ran with NO user memory, silently,
+//                                           for every extension user.
+//
+// The mechanism is always the same. `createClient()` resolves a session from COOKIES. A caller
+// authenticating with a BEARER token — the mobile app, the browser extensions — sends none, so the client
+// is ANONYMOUS: RLS returns nothing and writes are refused. The reads are the dangerous half, because an
+// empty result is indistinguishable from "this user genuinely has nothing", and the code then reports a
+// confident zero, an empty memory, or a thrown "row not found".
+//
+// WHY THIS GUARD IS TRANSITIVE, and it is the whole point. Every hand-sweep of this class that checked
+// DIRECT route imports gave a confident WRONG answer, twice: sales-session/roleplay reaches brain through
+// src/lib/claude.ts, and care/extension/coach reaches memory through its own call — one hop further than
+// the eye goes. INVARIANT 16's own note records the same blind spot ("a route that hides the call behind a
+// helper isn't matched"). So this walks the import graph rather than the import list.
+//
+// careAgentAuth is DELIBERATELY not a Bearer mechanism below. `requireCareAgent()` is cookie-only with no
+// Bearer path, so counting it as one makes the analysis circular — it marks 37 web routes as at-risk. That
+// error was made and caught while writing this rule; it is encoded here so it cannot be made again.
+const BEARER_ROUTE_RE =
+  /\b(callerScopedDb|resolveApiAuth|resolveApiUserId|guardExtensionRequest|requireEntitledExtensionUser)\s*\(/;
+const COOKIE_CLIENT_RE = /await createClient\(\)/;
+
+// Modules that resolve a cookie client BY DESIGN. Each is the cookie path itself or its front door — a
+// Bearer caller reaching one is correct, because these are what TRY the cookie and then fall through.
+const COOKIE_BY_DESIGN = new Map([
+  ["src/lib/api/resolveApiAuth.ts", "IS the dual path: cookie session first, then the Bearer token."],
+  ["src/lib/supabase/auth-helpers.ts", "the cookie session resolver itself; resolveApiAuth's first branch."],
+  ["src/lib/api/careAgentAuth.ts", "cookie-only by design, serving the C.A.R.E web dashboard routes."],
+]);
+
+// Reached-but-fine, with the reason. A module belongs here only when a Bearer caller cannot make it run —
+// e.g. the cookie use sits in a function no Bearer route calls.
+const INV26_ALLOWLIST = new Map([
+  [
+    "src/lib/brain/index.ts",
+    "loadBrain + loadControlGate now use the service client (2026-09-04). The remaining `await createClient()` is unlockControlGate, whose only caller is the web-only /api/brain/unlock.",
+  ],
+  [
+    "src/lib/data/doorlog.ts",
+    "the five rep-facing functions take the caller's RLS client and fall back to the cookie session only when none is passed (2026-09-04); doorlog.callerClient.test.ts gates it.",
+  ],
+  [
+    "src/lib/coach/v5/memory.ts",
+    "loadCoachMemory takes the caller's RLS client and falls back to the cookie session only when none is passed (2026-09-05); memory.callerClient.test.ts gates it.",
+  ],
+]);
+
+const INV26_BY_PATH = new Map(FILES.map((f) => [f.path, f]));
+
+/** Resolve an import specifier to a file in FILES, or null for a package. */
+function inv26Resolve(fromPath, spec) {
+  let base;
+  if (spec.startsWith("@/")) base = "src/" + spec.slice(2);
+  else if (spec.startsWith(".")) {
+    const dir = fromPath.slice(0, fromPath.lastIndexOf("/"));
+    const parts = (dir + "/" + spec).split("/");
+    const out = [];
+    for (const p of parts) {
+      if (p === "." || p === "") continue;
+      if (p === "..") out.pop();
+      else out.push(p);
+    }
+    base = out.join("/");
+  } else return null;
+  for (const cand of [base + ".ts", base + ".tsx", base + "/index.ts", base + "/index.tsx", base]) {
+    if (INV26_BY_PATH.has(cand)) return cand;
+  }
+  return null;
+}
+
+const INV26_DEPS = new Map();
+for (const f of FILES) {
+  const deps = new Set();
+  for (const m of f.sql.matchAll(/from\s+["']([^"']+)["']/g)) {
+    const t = inv26Resolve(f.path, m[1]);
+    if (t) deps.add(t);
+  }
+  INV26_DEPS.set(f.path, deps);
+}
+
+/** Every cookie-client module reachable from `start` through the import graph. */
+function inv26Reaches(start) {
+  const seen = new Set();
+  const stack = [start];
+  const hit = new Set();
+  while (stack.length) {
+    const n = stack.pop();
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const f = INV26_BY_PATH.get(n);
+    if (
+      f &&
+      n !== start &&
+      n.startsWith("src/lib/") &&
+      COOKIE_CLIENT_RE.test(f.sql) &&
+      !COOKIE_BY_DESIGN.has(n) &&
+      !INV26_ALLOWLIST.has(n)
+    ) {
+      hit.add(n);
+    }
+    for (const d of INV26_DEPS.get(n) ?? []) stack.push(d);
+  }
+  return hit;
+}
+
+for (const f of FILES) {
+  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (!BEARER_ROUTE_RE.test(f.sql)) continue;
+  for (const lib of inv26Reaches(f.path)) {
+    findings.push({
+      rule: "Bearer-authenticated route reaches a library that resolves its own COOKIE client",
+      file: f.path,
+      why:
+        `this route accepts a Bearer token, and reaches ${lib}, which calls \`await createClient()\` —\n` +
+        "      a client that resolves its session from COOKIES. A Bearer caller (the mobile app, an\n" +
+        "      extension) sends none, so that client is ANONYMOUS: RLS returns nothing and writes are\n" +
+        "      refused. The read case is the dangerous one — an empty result reads as 'this user has\n" +
+        "      nothing' and ships as a confident zero. Give the library an optional caller client and pass\n" +
+        "      `callerScopedDb(req)`, as lib/data/doorlog and lib/coach/v5/memory do. If the cookie use is\n" +
+        "      in a function no Bearer route can run, allowlist it in INV26_ALLOWLIST WITH that reason.",
+    });
+  }
+}
+
 // ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
 //
 // The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid
@@ -1514,6 +1648,35 @@ if (selfTestFailures.length) {
   process.exit(3);
 }
 
+// INV26 (2026-09-05) — the transitive Bearer/cookie-client guard. Locked in BOTH directions because the
+// first hand-written version of this analysis was circular (it counted careAgentAuth as a Bearer
+// mechanism, marking 37 web routes at-risk), and because a one-hop version of it gave a confident wrong
+// answer twice.
+st("INV26 bearer regex flags guardExtensionRequest", BEARER_ROUTE_RE.test("const g = await guardExtensionRequest(req, {})"));
+st("INV26 bearer regex flags callerScopedDb", BEARER_ROUTE_RE.test("const sb = callerScopedDb(req) ?? (await createClient());"));
+st("INV26 bearer regex does NOT count careAgentAuth (cookie-only; counting it makes the sweep circular)", !BEARER_ROUTE_RE.test("const a = await requireCareAgent();"));
+st("INV26 cookie regex flags the cookie client", COOKIE_CLIENT_RE.test("const sb = await createClient();"));
+st("INV26 cookie regex ignores the service client", !COOKIE_CLIENT_RE.test("const sb = createAdminClient();"));
+st("INV26 cookie regex ignores a caller-supplied client with a cookie fallback only in the default", COOKIE_CLIENT_RE.test("const sb = db ?? (await createClient());"));
+st("INV26 resolver resolves an @/ specifier", inv26Resolve("src/app/api/x/route.ts", "@/lib/api/callerScopedDb") === "src/lib/api/callerScopedDb.ts");
+st("INV26 resolver resolves a relative specifier", inv26Resolve("src/lib/coach/v5/memory.ts", "./types") !== undefined);
+st("INV26 resolver returns null for a package", inv26Resolve("src/lib/x.ts", "next/server") === null);
+st("INV26 reachability is TRANSITIVE, not one hop", (() => {
+  // The exact shape that fooled two hand-sweeps: route -> helper -> cookie library.
+  const saveDeps = new Map(INV26_DEPS);
+  const savePaths = new Map(INV26_BY_PATH);
+  INV26_BY_PATH.set("src/app/api/__st/route.ts", { path: "src/app/api/__st/route.ts", sql: "guardExtensionRequest(req)" });
+  INV26_BY_PATH.set("src/lib/__st/helper.ts", { path: "src/lib/__st/helper.ts", sql: "// no client here" });
+  INV26_BY_PATH.set("src/lib/__st/leaf.ts", { path: "src/lib/__st/leaf.ts", sql: "const sb = await createClient();" });
+  INV26_DEPS.set("src/app/api/__st/route.ts", new Set(["src/lib/__st/helper.ts"]));
+  INV26_DEPS.set("src/lib/__st/helper.ts", new Set(["src/lib/__st/leaf.ts"]));
+  INV26_DEPS.set("src/lib/__st/leaf.ts", new Set());
+  const found = inv26Reaches("src/app/api/__st/route.ts").has("src/lib/__st/leaf.ts");
+  INV26_DEPS.clear(); for (const [k, v] of saveDeps) INV26_DEPS.set(k, v);
+  INV26_BY_PATH.clear(); for (const [k, v] of savePaths) INV26_BY_PATH.set(k, v);
+  return found;
+})());
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -1536,7 +1699,8 @@ if (findings.length === 0) {
       " every owner-required service-role append (cue / cue-outcome / transcript) carries a session-owner check (no cross-user injection) ·" +
       " every auth-middleware redirect preserves rotated session cookies (no intermittent logout) ·" +
       " every data-layer catch that swallows into a value classifies the error — rethrow or guard-predicate (no error-as-no-data) ·" +
-      " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection)."
+      " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection) ·" +
+      " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero)."
   );
   process.exit(0);
 }
