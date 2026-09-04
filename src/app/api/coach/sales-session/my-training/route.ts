@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   const rows = (events ?? []) as { payload: unknown; created_at: unknown }[];
   const content = aggregateDissectContent(rows);
-  const door = await getAllTimeKpi(uid).catch(() => null); // best-effort — never a false 0
+  const door = await getAllTimeKpi(uid, sb).catch(() => null); // best-effort — never a false 0
 
   // The rep's OWN practice history → their per-skill score trend (self-data; best-effort so a read error just omits it).
   const { data: practiceEvents } = await admin

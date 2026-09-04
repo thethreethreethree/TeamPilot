@@ -130,6 +130,10 @@ export async function POST(req: NextRequest) {
   // Both knock + pitch create a knock first (idempotent on client_knock_id). createKnock returns the id
   // even on a dedupe (F1), so a null here is a REAL failure — not the offline-retry case.
   const knock = await createKnock({
+    // The caller's own RLS client. Without it these helpers build a COOKIE
+    // client, which is anonymous for a Bearer caller — every knock from the
+    // app was refused by RLS and answered 500 (4 September).
+    db: sb,
     companyId,
     outcome: body.outcome,
     localDate: body.localDate,
@@ -146,6 +150,7 @@ export async function POST(req: NextRequest) {
   // Pitch: create the pitch row (idempotent on knock_id, F1) — proceed EVEN IF the knock deduped, so a
   // partial-failure retry (knock-yes/pitch-no) still lands the pitch. Then kick the worker fire-and-forget.
   const pitch = await createPitch({
+    db: sb,
     knockId: knock.id,
     companyId,
     name: body.name,
@@ -182,7 +187,7 @@ export async function GET(req: NextRequest) {
 
   // All-time totals for the dashboard's Macro Mode bubbles (Doors Knocked / Presentation / Sold).
   if (req.nextUrl.searchParams.get("range") === "all") {
-    return NextResponse.json(await getAllTimeKpi(auth.user.id));
+    return NextResponse.json(await getAllTimeKpi(auth.user.id, sb));
   }
 
   const date = req.nextUrl.searchParams.get("date") ?? "";
@@ -191,7 +196,7 @@ export async function GET(req: NextRequest) {
   }
   let rows: Awaited<ReturnType<typeof getKpiForDay>>;
   try {
-    rows = await getKpiForDay(date, auth.user.id);
+    rows = await getKpiForDay(date, auth.user.id, sb);
   } catch (e) {
     // Audit L1: a KPI read error returns a 5xx, NOT a fabricated 0 strip. Generic message (CWE-209); the client's
     // best-effort loadKpi keeps its last good values instead of blanking to zeros.

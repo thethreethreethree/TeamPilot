@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { KnockOutcome } from "@/lib/coach/doorlog/outcomes";
 import type { PatternRollupResult } from "@/lib/coach/doorlog/analysisSchema";
@@ -16,6 +17,25 @@ import { PITCH_LEASE_MS } from "@/lib/coach/doorlog/retryBackoff";
  *    their own rows; a manager sees the team; RLS enforces it.
  *  - The background WORKER uses the service-role client (`createAdminClient`, bypasses RLS) and is the
  *    ONLY writer to pitch_transcripts / pitch_analyses / rep_pattern_summaries (build spec 3.2).
+ *
+ * THE RLS CLIENT IS NOW SUPPLIED BY THE CALLER, and that is the 4 September fix.
+ * `createClient()` resolves a session from COOKIES. The mobile app authenticates with a
+ * BEARER TOKEN and sends no cookies, so every one of these functions ran ANONYMOUS for it:
+ * the reads returned nothing and the writes were refused by RLS. The whole door tracker was
+ * dead from the phone — `GET /door-log?date=2026-08-31` answered
+ * `{doorsKnocked:0, sold:0, goBacks:0, notInterested:0}` with a 200 for a day that holds
+ * eight knocks and five sales, and every knock POST came back 500.
+ *
+ * The zero is the dangerous half. A refused write returns an error the app can queue and
+ * retry; a refused READ looks exactly like a quiet day at the doors. A rep would have been
+ * shown a confident nothing for a day they sold five.
+ *
+ * NOT the service client, deliberately — unlike the company-config reads in lib/brain, RLS
+ * is doing REAL per-rep access control here (a rep sees their own rows, a manager the team's),
+ * so bypassing it would widen access rather than restore it. The caller passes the client that
+ * already represents them: `callerScopedDb(req)` for a Bearer caller, the cookie client for a
+ * browser. Both are RLS-scoped; only the transport differs. Omitting `db` keeps the previous
+ * behaviour exactly, so no web caller changes.
  */
 
 // ─── Rep-facing (RLS client) ─────────────────────────────────────────────────
@@ -28,8 +48,11 @@ export async function createKnock(args: {
   outcome: KnockOutcome;
   localDate: string;
   clientKnockId?: string | null;
+  /** The caller's RLS client. Omit for the cookie session (web). A Bearer caller
+   *  MUST pass `callerScopedDb(req)` or this runs anonymous — see the note above. */
+  db?: SupabaseClient;
 }): Promise<{ id: string; deduped?: boolean } | null> {
-  const sb = await createClient();
+  const sb = args.db ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return null;
   const { data, error } = await sb
@@ -69,8 +92,11 @@ export async function createPitch(args: {
   name: string;
   audioPath: string | null;
   durationMs: number | null;
+  /** The caller's RLS client. Omit for the cookie session (web). A Bearer caller
+   *  MUST pass `callerScopedDb(req)` or this runs anonymous — see the note above. */
+  db?: SupabaseClient;
 }): Promise<{ id: string } | null> {
-  const sb = await createClient();
+  const sb = args.db ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return null;
   const { data, error } = await sb
@@ -101,8 +127,8 @@ export async function createPitch(args: {
 }
 
 /** The rep's KPI strip for a local day (RLS-scoped; a manager may pass a rep's id via the view's RLS). */
-export async function getKpiForDay(localDate: string, repId: string) {
-  const sb = await createClient();
+export async function getKpiForDay(localDate: string, repId: string, db?: SupabaseClient) {
+  const sb = db ?? (await createClient());
   // Scope to the CALLER's own row. rep_kpi_daily is rep+manager RLS, so for a MANAGER an unscoped read returns
   // the whole team's rows and the caller would sum them — but the Door Log KPI strip is the acting rep's OWN
   // field session, so pin rep_id. (A rep's unscoped read already returned only theirs; this makes managers
@@ -134,8 +160,9 @@ export async function getKpiForDay(localDate: string, repId: string) {
  */
 export async function getAllTimeKpi(
   repId: string,
+  db?: SupabaseClient,
 ): Promise<{ doorsKnocked: number; presentations: number; sold: number }> {
-  const sb = await createClient();
+  const sb = db ?? (await createClient());
   const [rows, pitchCountRes] = await Promise.all([
     fetchAllPaged<{ doors_knocked: number; sold: number }>(
       (from, to) =>
@@ -165,13 +192,14 @@ export async function getAllTimeKpi(
 export async function getTodaysMetrics(
   repId: string,
   period: MetricsPeriod,
+  db?: SupabaseClient,
 ): Promise<{
   kpi: { doorsKnocked: number; conversations: number; sold: number };
   scores: Record<string, number>;
   focus: string | null;
   opportunities: string[];
 }> {
-  const sb = await createClient();
+  const sb = db ?? (await createClient());
 
   // The rep's local "today" = their latest knock's local_date (device-tz, already captured), UTC-today fallback.
   const { data: latest } = await sb

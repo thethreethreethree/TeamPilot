@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
   // getTodaysMetrics → fetchAllPaged throws on a read error. In prod Next returns a generic 500 (no leak) and the
   // client's res.ok check shows the honest error banner — but wrap it for controlled logging + a stable shape.
   try {
-    const metrics = await getTodaysMetrics(repId, period);
+    // Pass the caller's client: without it this read is anonymous for a Bearer
+    // caller and answers a confident 0 for a day that holds real knocks.
+    const metrics = await getTodaysMetrics(repId, period, sb);
     return NextResponse.json({ period, ...metrics });
   } catch (e) {
     console.error("[todays-metrics] load failed:", e); // CWE-209: log detail, return generic
