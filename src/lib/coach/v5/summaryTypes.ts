@@ -108,6 +108,23 @@ export type ScoreCategory = {
 };
 
 /**
+ * Process breakdown (partner meeting 9/2, John Ramos): a per-PHASE read of the pitch — intro, discovery,
+ * consultation, close — each rated 0-10 with ONE concrete improvement tip, so a manager can see at a glance which
+ * stage of the process a rep needs training on. This is the PHASE axis (where in the pitch), distinct from the
+ * ScoreCategory SKILL axis (opener/objection/tone/…). `score` is null when the phase didn't occur or couldn't be
+ * graded (an absent phase is honestly null, never a fabricated 0); the tip then says what to add.
+ */
+export const PROCESS_PHASES = ["intro", "discovery", "consultation", "close"] as const;
+export type ProcessPhaseKey = (typeof PROCESS_PHASES)[number];
+export type ProcessPhase = {
+  key: ProcessPhaseKey;
+  label: string;
+  score: number | null; // 0-10, or null = phase not present / not gradable
+  tip: string; // one concrete, evidenced improvement tip
+  citation: string | null; // a short quote from the call that grounds the read
+};
+
+/**
  * Conversation-intelligence extraction (founder 2026-07-07): competitors named
  * in the call + the topics discussed. Manager-visible observations (not scores).
  */

@@ -15,7 +15,8 @@ import {
   type SkillScore,
   type SkillBreakdown,
 } from "@/lib/coach/v5/skillAnalytics";
-import type { ScoreCategory } from "@/lib/coach/v5/summaryTypes";
+import type { ScoreCategory, ProcessPhase } from "@/lib/coach/v5/summaryTypes";
+import { aggregateProcessBreakdown } from "@/lib/coach/v5/processBreakdown";
 import { isSalesCoachManager, canManagerViewRepSkills } from "@/lib/coach/v5/skillAccess";
 
 /**
@@ -127,8 +128,18 @@ export async function GET(req: NextRequest) {
   const scoresOnly = new URL(req.url).searchParams.get("scoresOnly") === "1";
   const withBreakdowns = scoresOnly ? mergeBreakdowns(skills, new Map()) : await addBreakdowns(skills, companyId);
 
+  // Process breakdown (partner meeting 9/2) — the per-PHASE aggregate (intro/discovery/consultation/close), from
+  // each stored summary's processBreakdown. Deterministic (no LLM), so it rides on every response including
+  // scoresOnly. Sessions predating the field simply contribute nothing (honest — the average is over what exists).
+  const perSessionPhases: ProcessPhase[][] = recent.map((r) => {
+    const p = r.payload as { processBreakdown?: unknown } | null;
+    return Array.isArray(p?.processBreakdown) ? (p!.processBreakdown as ProcessPhase[]) : [];
+  });
+  const processBreakdown = aggregateProcessBreakdown(perSessionPhases);
+
   return NextResponse.json({
     skills: withBreakdowns,
+    processBreakdown,
     sampleSessions: recent.length,
   });
 }

@@ -18,6 +18,8 @@ import {
 import { generateSalesReview, type SalesReview } from "./salesReview";
 import { generateSalesMoments, type SalesMoment, type ObjectionTally } from "./salesMoments";
 import { generateSalesScores, type ScoreCategory } from "./salesScore";
+import { generateProcessBreakdown } from "./processBreakdown";
+import type { ProcessPhase } from "./summaryTypes";
 
 /**
  * After Pitch Summary — ASSEMBLER.
@@ -61,6 +63,9 @@ export type AfterPitchSummary = {
   /** Whole-call objection tally (raised/resolved). null on summaries generated before this field existed, or when
    *  the model returned no usable tally — the Layer-2 KPI excludes such sessions (honest "building"). */
   objections: ObjectionTally | null;
+  /** Per-phase process breakdown (intro/discovery/consultation/close) — partner meeting 9/2. Empty on summaries
+   *  generated before this field existed, or when there wasn't enough to read the process. */
+  processBreakdown: ProcessPhase[];
 };
 
 const EMPTY: AfterPitchSummary = {
@@ -71,6 +76,7 @@ const EMPTY: AfterPitchSummary = {
   cueLoop: [],
   focus: null,
   objections: null,
+  processBreakdown: [],
 };
 
 /**
@@ -153,8 +159,8 @@ export async function generateAfterPitchSummary(args: {
 
     if (segments.length === 0) return EMPTY;
 
-    // The four engines are independent — run them concurrently.
-    const [narrative, momentsRes, scoresRes, cueLoop] = await Promise.all([
+    // The engines are independent — run them concurrently.
+    const [narrative, momentsRes, scoresRes, cueLoop, processBreakdown] = await Promise.all([
       generateSalesReview({
         companyId: args.companyId,
         context: args.context,
@@ -177,6 +183,12 @@ export async function generateAfterPitchSummary(args: {
         sessionId: args.sessionId,
         segments,
       }),
+      // Process breakdown (partner meeting 9/2) — per-phase read (intro/discovery/consultation/close).
+      generateProcessBreakdown({
+        companyId: args.companyId,
+        context: args.context,
+        segments,
+      }),
     ]);
 
     const moments = momentsRes.moments;
@@ -188,7 +200,8 @@ export async function generateAfterPitchSummary(args: {
       narrative.hasSignal ||
       moments.length > 0 ||
       scores.length > 0 ||
-      cueLoop.length > 0;
+      cueLoop.length > 0 ||
+      processBreakdown.length > 0;
     if (!hasSignal) return EMPTY;
 
     // The ONE Next Door Focus. Reconciled across TWO engines, not one.
@@ -209,7 +222,7 @@ export async function generateAfterPitchSummary(args: {
     // flagged red number can no longer appear on the same screen.
     const focus: NextDoorFocus = deriveFocus(scores, narrative.growthAreas[0]);
 
-    return { hasSignal: true, narrative, moments, scores, cueLoop, focus, objections: momentsRes.objections };
+    return { hasSignal: true, narrative, moments, scores, cueLoop, focus, objections: momentsRes.objections, processBreakdown };
   } catch {
     return EMPTY;
   }
