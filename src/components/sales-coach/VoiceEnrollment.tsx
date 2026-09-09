@@ -38,6 +38,11 @@ export function VoiceEnrollment() {
   const samplesRef = useRef<(number | null)[]>([]);
   const voicedRef = useRef(0);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Re-entrancy latches (adversarial-review fixes): startingRef blocks a second start() while the first is
+  // still awaiting the mic-permission prompt (else two live audio graphs leak); stoppedRef makes the stop path
+  // fire ONCE (else the "Done" click racing the auto-stop double-submits).
+  const startingRef = useRef(false);
+  const stoppedRef = useRef(false);
 
   const teardown = useCallback(() => {
     if (stopTimerRef.current) { clearTimeout(stopTimerRef.current); stopTimerRef.current = null; }
@@ -47,6 +52,7 @@ export function VoiceEnrollment() {
     ctxRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    startingRef.current = false; // a fresh take may start once this one is fully torn down
   }, []);
 
   // Load current enrollment status.
@@ -90,12 +96,17 @@ export function VoiceEnrollment() {
   }, []);
 
   const stopAndSubmit = useCallback(() => {
+    if (stoppedRef.current) return; // fire once — the Done click and the auto-stop can race
+    stoppedRef.current = true;
     teardown();
     setLevel(0);
     void submit();
   }, [teardown, submit]);
 
   const start = useCallback(async () => {
+    if (startingRef.current) return; // a second click while the permission prompt is up would leak a 2nd graph
+    startingRef.current = true;
+    stoppedRef.current = false;
     setMessage(null);
     samplesRef.current = [];
     voicedRef.current = 0;
@@ -104,44 +115,53 @@ export function VoiceEnrollment() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      startingRef.current = false;
       setPhase("error");
       setMessage("We need microphone access to enroll your voice. Allow it and try again.");
       return;
     }
-    streamRef.current = stream;
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AC({ sampleRate: SAMPLE_RATE });
-    ctxRef.current = ctx;
-    const source = ctx.createMediaStreamSource(stream);
-    const proc = ctx.createScriptProcessor(BUFFER, 1, 1);
-    procRef.current = proc;
-    source.connect(proc);
-    // Muted gain keeps the ScriptProcessor alive without echoing the mic to the speakers (same as the live coach).
-    const muteGain = ctx.createGain();
-    muteGain.gain.value = 0;
-    proc.connect(muteGain);
-    muteGain.connect(ctx.destination);
+    // Build the audio graph inside try/catch: if the AudioContext throws (forced sampleRate unsupported,
+    // Safari autoplay quirks), the mic stream is already live — tear it down and surface an error, don't leak it.
+    try {
+      streamRef.current = stream;
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AC({ sampleRate: SAMPLE_RATE });
+      ctxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const proc = ctx.createScriptProcessor(BUFFER, 1, 1);
+      procRef.current = proc;
+      source.connect(proc);
+      // Muted gain keeps the ScriptProcessor alive without echoing the mic to the speakers (same as the live coach).
+      const muteGain = ctx.createGain();
+      muteGain.gain.value = 0;
+      proc.connect(muteGain);
+      muteGain.connect(ctx.destination);
 
-    setPhase("recording");
-    proc.onaudioprocess = (e) => {
-      const input = e.inputBuffer.getChannelData(0);
-      let sumSq = 0;
-      for (let i = 0; i < input.length; i++) { const s = input[i] ?? 0; sumSq += s * s; }
-      const rms = Math.sqrt(sumSq / Math.max(1, input.length));
-      setLevel((prev) => prev * 0.6 + Math.min(1, rms / 0.2) * 0.4);
-      if (rms > VOICE_NOISE_FLOOR) {
-        const f = detectF0(input, ctx.sampleRate);
-        samplesRef.current.push(f);
-        if (f != null) {
-          voicedRef.current += 1;
-          setVoiced(voicedRef.current);
-          if (voicedRef.current >= ENOUGH_VOICED) stopAndSubmit(); // plenty captured — finish early
+      setPhase("recording");
+      proc.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        let sumSq = 0;
+        for (let i = 0; i < input.length; i++) { const s = input[i] ?? 0; sumSq += s * s; }
+        const rms = Math.sqrt(sumSq / Math.max(1, input.length));
+        setLevel((prev) => prev * 0.6 + Math.min(1, rms / 0.2) * 0.4);
+        if (rms > VOICE_NOISE_FLOOR) {
+          const f = detectF0(input, ctx.sampleRate);
+          samplesRef.current.push(f);
+          if (f != null) {
+            voicedRef.current += 1;
+            setVoiced(voicedRef.current);
+            if (voicedRef.current >= ENOUGH_VOICED) stopAndSubmit(); // plenty captured — finish early
+          }
         }
-      }
-    };
-    // Hard cap so a silent room still ends the take (submit decides if it was enough).
-    stopTimerRef.current = setTimeout(stopAndSubmit, MAX_SECONDS * 1000);
-  }, [stopAndSubmit]);
+      };
+      // Hard cap so a silent room still ends the take (submit decides if it was enough).
+      stopTimerRef.current = setTimeout(stopAndSubmit, MAX_SECONDS * 1000);
+    } catch {
+      teardown();
+      setPhase("error");
+      setMessage("Couldn't start audio capture on this device. Try a different browser or device.");
+    }
+  }, [stopAndSubmit, teardown]);
 
   const progress = Math.min(100, Math.round((voiced / ENOUGH_VOICED) * 100));
 
