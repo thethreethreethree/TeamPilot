@@ -1,5 +1,36 @@
 # Founder action queue
 
+## ✅ 2026-09-09 — Voice-recognition gate (9/2 meeting #4), SLICE 1: BUILT, MIGRATION APPLIED, DEPLOYED, LIVE — needs your real-mic test + 1 later decision
+
+You directed this built now ("I am the founder, we need to build this now", annotated on the status report),
+reversing the earlier "founder team builds it". You chose **acoustic reference, not ML voiceprint** and rollout
+**"prompt now, hard-enforce after verified."** Slice 1 is merged (`9479b01e`), migration `0246` applied
+(post-apply verify passed all 30 invariants), deployed and LIVE (`/api/health` == `9479b01`; enrollment endpoint
+401-gated = live). `npm run check`: 4148 tests, 0 violations. Enrollment UI render-verified (LAW 1).
+
+**What it does now:** a rep enrolls once in **Settings → Account → Voice enrollment** (reads a prompt; we store a
+pitch NUMBER via the same `detectF0` the live coach uses — never audio). Un-enrolled reps see a non-blocking
+prompt on the Start panel. Enrolled reps' turns are anchored to their known pitch from turn 1 (seeds
+`PitchSeparator`), sharpening live speaker attribution. Files: `src/lib/coach/v5/voiceEnrollment.ts`,
+`/api/coach/voice-enrollment`, `src/components/sales-coach/VoiceEnrollment.tsx`, `pitchSeparation.ts`
+(`seedAgentCentroid`), `useLiveCoaching.ts` (fetch+seed), `StartSessionPanel.tsx` (prompt). TBC:
+`docs/tbc/2026-09-09-voice-enrollment-gate/`.
+
+**What's on YOU now:**
+
+1. **REAL-MIC TEST (the one thing unverifiable headless).** On a real device, go to Settings → Account → Voice
+   enrollment → "Start voice check", read the line, and confirm it saves ("Voice enrolled · N Hz"). Then start a
+   session and confirm attribution feels sharper. This is the gate on flipping the mandatory block on.
+
+2. **LATER DECISION — hard-enforcement flip (deferred by your rollout choice).** Once #1 is confirmed for real
+   reps, the mandatory hard gate (block session start until enrolled) is a small, well-scoped follow-up slice.
+   It needs a fail-open on migration-pending so a rollout race can't lock everyone out. I'll surface it as a
+   picker when you're ready — not before your real-mic confirmation.
+
+**Note:** stored value is a single F0 number (Hz), not a recording — deliberately off the biometric-data surface.
+
+---
+
 ## ✅ 2026-08-22 — Meeting Coach (Team-Sync) IN-PERSON MVP: BUILT, DEPLOYED, LIVE — needs your device run + 4 decisions
 
 **Your 3 decisions were made (2026-08-21) and the entire in-person MVP is built, review-hardened, §1.7-audited,
