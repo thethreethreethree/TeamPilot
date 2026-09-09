@@ -99,6 +99,15 @@ const ALLOWLIST = new Map([
   ["team_passwords.update", "0235 service-role-only: change/title edits go through the admin-gated route; a client update could alter another team's onboarding credential."],
   ["team_passwords.delete", "0235 service-role-only: soft-delete via the admin-gated route; a client delete could revoke a company's credential."],
 
+  // 0247 door home screen. Each absence is a control, not an oversight.
+  //   goal.delete: a manager SETS/UPDATES a rep's daily goal; there is no delete workflow — a stale goal is
+  //     overwritten, not removed. (select = rep or manager; insert/update = manager-only, already policied.)
+  //   day_target.update/delete: the day target is FROZEN by design (03/05-number-logic — a target that moves
+  //     during the day rewards stopping). It is insert-only per rep per local_date; a new day writes a new row.
+  ["rep_daily_sales_goal.delete", "0247 goals are manager-set/updated, never deleted — no delete workflow; a stale goal is overwritten."],
+  ["rep_day_target.update", "0247 the day target is FROZEN by design (a target that moves during the day rewards stopping) — insert-only, never updated."],
+  ["rep_day_target.delete", "0247 the frozen day target is a per-day record read by the rep + manager; no user delete workflow (a new day writes a new row)."],
+
   // 0214 founder-monitoring audit trail — written ONLY by the service-role monitoring API (bypasses RLS);
   // append-only. Each absence is the control: a client that could write here could forge or erase a
   // monitoring record. Reads are is_vendor_super_admin()-gated (TENANT_PIN_EXEMPT above).
