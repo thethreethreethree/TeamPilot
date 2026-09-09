@@ -1,5 +1,6 @@
 import type { ScoreCategory } from "./summaryTypes";
 import type { TranscriptSegment } from "@/lib/data/salesCoach";
+import { turnWpm } from "./liveStress"; // one source for per-turn WPM (words / speaking-duration)
 
 /**
  * Personal skill analytics (ELOSTATE spec p3, founder-confirmed 2026-07-15).
@@ -65,13 +66,19 @@ export const SKILL_LABELS: Record<SkillKey, string> = {
  *  75/25 call scores 5/10, a 100/0 call scores 0/10. */
 const TALK_IDEAL_REP_SHARE = 50;
 const TALK_PTS_PER_SKEW = 5;
-/** Speed: the comfortable words-per-minute band (inclusive) scores a full 10; each
+/** Speed: the comfortable SPEAKING-tempo band (inclusive) scores a full 10; each
  *  10 wpm outside the band costs a point. ~130 wpm is unhurried, clear delivery. */
 const SPEED_BAND_LOW = 110;
 const SPEED_BAND_HIGH = 150;
 const SPEED_WPM_PER_POINT = 10;
-/** Below this many timed words we won't compute a pace — too small to be honest. */
-const SPEED_MIN_WORDS = 40;
+/** Per-turn WPMs outside this range are discarded before the median: below MIN the turn's
+ *  duration is dominated by a pause (a long listen after the rep speaks would else read as
+ *  "too slow"); above MAX is a timestamp glitch. Keeps the read to actual speaking tempo. */
+const SPEED_PLAUSIBLE_MIN_WPM = 60;
+const SPEED_PLAUSIBLE_MAX_WPM = 320;
+/** Need at least this many clean timed turns for an honest median (§3.4) — a shorter session
+ *  returns null ("not enough yet") rather than a one-turn fluke. */
+const SPEED_MIN_TIMED_TURNS = 3;
 
 function clamp10(n: number): number {
   return Math.max(0, Math.min(10, Math.round(n)));
@@ -89,29 +96,45 @@ export function speedScore(wpm: number): number {
   return clamp10(10 - dist / SPEED_WPM_PER_POINT);
 }
 
-/** Words per minute for the AGENT only, across a session's timed segments. Returns
- *  null when there isn't enough timed speech to be honest (§3.4). */
+/**
+ * The AGENT's SPEAKING TEMPO across a session — how fast the rep talks WHEN talking, not verbal
+ * throughput. The prior version divided total agent words by the whole span from first to last agent
+ * utterance, which folds in every customer turn and pause, so a rep who speaks at a normal pace but
+ * listens well read as "too slow" (a §3.4 mislabel activated once timing capture landed, 9/2 meeting).
+ *
+ * Instead: estimate each agent turn's duration from the gap to the NEXT timed segment (any speaker),
+ * turn it into a per-turn WPM (reusing turnWpm), keep only turns whose rate is PLAUSIBLE for real speech
+ * (the filter discards pause-dominated turns and timestamp glitches), and take the MEDIAN — robust to the
+ * remaining approximation. Approximate by construction (spoken_at is per-utterance-start, not word-level);
+ * too few clean timed turns → null, never a one-turn fluke.
+ */
 export function agentWpm(segments: TranscriptSegment[]): number | null {
-  const timed = segments
-    .filter((s) => s.speaker === "agent" && s.spokenAt)
-    .map((s) => ({ t: Date.parse(s.spokenAt as string), words: wordCount(s.text) }))
-    .filter((x) => Number.isFinite(x.t));
-  if (timed.length < 2) return null;
-  const words = timed.reduce((sum, x) => sum + x.words, 0);
-  if (words < SPEED_MIN_WORDS) return null;
-  timed.sort((a, b) => a.t - b.t);
-  const first = timed[0];
-  const last = timed[timed.length - 1];
-  if (!first || !last) return null;
-  const spanMs = last.t - first.t;
-  if (spanMs <= 0) return null;
-  const minutes = spanMs / 60000;
-  return words / minutes;
-}
-
-function wordCount(text: string): number {
-  const t = text.trim();
-  return t ? t.split(/\s+/).length : 0;
+  const timed = segments.map((s) => ({
+    speaker: s.speaker,
+    text: s.text,
+    t: s.spokenAt ? Date.parse(s.spokenAt) : NaN,
+  }));
+  const wpms: number[] = [];
+  for (let i = 0; i < timed.length; i++) {
+    const cur = timed[i]!;
+    if (cur.speaker !== "agent" || !Number.isFinite(cur.t)) continue;
+    // The turn ends when the next TIMED segment (any speaker) starts.
+    let end = NaN;
+    for (let j = i + 1; j < timed.length; j++) {
+      if (Number.isFinite(timed[j]!.t)) { end = timed[j]!.t; break; }
+    }
+    if (!Number.isFinite(end)) continue; // the last turn has no boundary — skip it
+    const durationSec = (end - cur.t) / 1000;
+    if (durationSec <= 0) continue;
+    const wpm = turnWpm(cur.text, durationSec);
+    if (wpm !== null && wpm >= SPEED_PLAUSIBLE_MIN_WPM && wpm <= SPEED_PLAUSIBLE_MAX_WPM) {
+      wpms.push(wpm);
+    }
+  }
+  if (wpms.length < SPEED_MIN_TIMED_TURNS) return null;
+  wpms.sort((a, b) => a - b);
+  const mid = Math.floor(wpms.length / 2);
+  return wpms.length % 2 ? wpms[mid]! : (wpms[mid - 1]! + wpms[mid]!) / 2;
 }
 
 /** Parse the rep share (0–100) from a talk_ratio category. Its `display` is

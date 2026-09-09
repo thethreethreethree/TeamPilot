@@ -20,6 +20,7 @@ vi.mock("@/lib/data/salesCoach", () => ({
 
 import { createClient } from "@/lib/supabase/server";
 import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import { readBody } from "@/lib/api/validate";
 import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -51,6 +52,18 @@ describe("POST /api/coach/sales-session/[id]/segments — owner check (INV19)", 
     setUser("me");
     asMock(getSession).mockResolvedValue(null);
     expect((await POST(req(), ctx("nope"))).status).toBe(404);
+  });
+
+  it("forwards spokenAt to appendTranscriptSegment (the pace metric depends on this timing surviving the persist seam; 9/2 meeting)", async () => {
+    setUser("me");
+    asMock(getSession).mockResolvedValue({ id: "s1", agentId: "me", context: "in_person" });
+    asMock(readBody).mockResolvedValueOnce({
+      segments: [{ speaker: "agent", text: "hello", seq: 0, spokenAt: "2026-09-09T05:00:00.000Z" }],
+    });
+    await POST(req(), ctx("s1"));
+    expect(appendTranscriptSegment).toHaveBeenCalledWith(
+      expect.objectContaining({ spokenAt: "2026-09-09T05:00:00.000Z" }),
+    );
   });
 });
 

@@ -32,6 +32,17 @@ describe("selectUnflushedSegments (incremental transcript persistence)", () => {
     expect(selectUnflushedSegments(turns, new Set())).toEqual([{ speaker: "agent", text: "locked turn", seq: 0, source: "manual" }]);
   });
 
+  it("carries spokenAt when present (the after-pitch pace metric needs per-turn timing; 9/2 meeting fix)", () => {
+    const turns: FlushTurn[] = [
+      { text: "hi there", speaker: "agent", pending: false, spokenAt: "2026-09-09T05:00:00.000Z" },
+      { text: "no timing", speaker: "agent", pending: false }, // spokenAt absent → omitted, never a null/garbage value
+    ];
+    expect(selectUnflushedSegments(turns, new Set())).toEqual([
+      { speaker: "agent", text: "hi there", seq: 0, spokenAt: "2026-09-09T05:00:00.000Z" },
+      { speaker: "agent", text: "no timing", seq: 1 },
+    ]);
+  });
+
   it("drops empty/whitespace turns", () => {
     expect(selectUnflushedSegments([T("   ", "agent"), T("", "customer")], new Set())).toEqual([]);
   });

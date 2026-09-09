@@ -21,6 +21,10 @@ export interface FlushTurn {
   pending?: boolean;
   /** Why the label was chosen (video-mic | manual | content | pitch | loudness) — persisted for diagnosability. */
   source?: string;
+  /** ISO wall-clock time this utterance was SPOKEN (the utterance start, not the flush). Persisted as
+   *  spoken_at so the after-pitch pace metric (agentWpm/speedScore) and the call timeline have real timing.
+   *  Absent when the utterance start wasn't known — the metric then degrades honestly (§3.4). */
+  spokenAt?: string;
 }
 
 export interface FlushSegment {
@@ -28,6 +32,7 @@ export interface FlushSegment {
   text: string;
   seq: number;
   source?: string;
+  spokenAt?: string;
 }
 
 /**
@@ -47,7 +52,13 @@ export function selectUnflushedSegments(
     if (flushed.has(i)) continue;
     if (!includePending && t.pending) continue;
     if (!t.text || !t.text.trim()) continue;
-    out.push({ speaker: t.speaker, text: t.text, seq: i, ...(t.source ? { source: t.source } : {}) });
+    out.push({
+      speaker: t.speaker,
+      text: t.text,
+      seq: i,
+      ...(t.source ? { source: t.source } : {}),
+      ...(t.spokenAt ? { spokenAt: t.spokenAt } : {}),
+    });
   }
   return out;
 }
