@@ -1,128 +1,94 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildMeetingReviewHtml, exportMeetingReviewPdf } from "../meetingReviewPdf";
+import { buildMeetingReviewPdf, exportMeetingReviewPdf } from "../meetingReviewPdf";
 
-/**
- * buildMeetingReviewHtml is the pure, shareable-PDF document builder. These lock the things the founder asked for:
- * the content is present + broken into clear sections, the owner-less-action alarm is surfaced (the #1 meeting
- * failure), and — critically — all model/transcript text is HTML-ESCAPED (it is untrusted output that can contain
- * < & ").
- */
-describe("buildMeetingReviewHtml", () => {
-  const base = {
-    overall: "We aligned on the launch.",
-    decisions: [{ decision: "Ship Friday", context: "everyone agreed" }],
-    actions: [
-      { action: "Write the release notes", owner: "Dana" },
-      { action: "Book the venue", owner: null },
+const asText = (b: Uint8Array) => new TextDecoder("latin1").decode(b);
+
+const sample = {
+  overall: "We aligned on the launch.",
+  decisions: [{ decision: "Ship Friday", context: "everyone agreed" }],
+  actions: [
+    { action: "Write the release notes", owner: "Dana" },
+    { action: "Book the venue", owner: null },
+  ],
+  open_items: [{ item: "Budget sign-off", why: "finance was absent" }],
+  effectiveness: { focused: true, note: "stayed on agenda" },
+  balance: { balanced: false, note: "one voice led", dominantSharePct: 70 },
+  agenda: {
+    goal: "Lock the date",
+    goalAttained: "partial" as const,
+    note: "date set",
+    topics: [
+      { text: "launch date", covered: true },
+      { text: "budget", covered: false },
     ],
-    open_items: [{ item: "Budget sign-off", why: "finance was absent" }],
-    effectiveness: { focused: true, note: "stayed on agenda" },
-  };
+  },
+};
 
-  it("renders the title, summary, and every section with its content", () => {
-    const html = buildMeetingReviewHtml(base, { title: "Q3 Planning", dateISO: "2026-09-01T10:00:00Z" });
-    expect(html).toContain("Q3 Planning");
-    expect(html).toContain("We aligned on the launch.");
-    expect(html).toContain("Decisions reached");
-    expect(html).toContain("Ship Friday");
-    expect(html).toContain("Action items");
-    expect(html).toContain("Write the release notes");
-    expect(html).toContain("Left open");
-    expect(html).toContain("Budget sign-off");
+describe("buildMeetingReviewPdf (real dependency-free PDF)", () => {
+  it("produces a valid PDF byte stream (header, xref/trailer, EOF)", () => {
+    const pdf = buildMeetingReviewPdf(sample, { title: "Q3 sync", dateISO: "2026-09-03T18:00:00Z" });
+    expect(pdf).toBeInstanceOf(Uint8Array);
+    const s = asText(pdf);
+    expect(s.startsWith("%PDF-1.4")).toBe(true);
+    expect(s).toContain("/Type /Catalog");
+    expect(s).toContain("trailer");
+    expect(s.trimEnd().endsWith("%%EOF")).toBe(true);
   });
 
-  it("surfaces the owner on an owned action AND flags an owner-less one (the #1 failure indicator)", () => {
-    const html = buildMeetingReviewHtml(base);
-    expect(html).toContain("Dana");
-    expect(html).toContain("No owner");
-    // The top-of-doc quick chip counts the owner-less action, not a false "all owned".
-    expect(html).toContain("1 action with no owner");
-    expect(html).not.toContain("Every action owned");
+  it("embeds the content — decisions, action owners, the owner-less alarm, agenda, and the title", () => {
+    const s = asText(buildMeetingReviewPdf(sample, { title: "Q3 sync" }));
+    expect(s).toContain("Q3 sync"); // header title
+    expect(s).toContain("Ship Friday"); // decision
+    expect(s).toContain("Dana"); // action owner
+    expect(s).toContain("No owner"); // the owner-less alarm pill (#1 meeting failure)
+    expect(s).toContain("Agenda coverage");
+    expect(s).toContain("Decisions reached");
+    expect(s).toContain("Action items");
+    expect(s).toContain("missed"); // the uncovered agenda topic
   });
 
-  it("shows 'Every action owned' when all actions have owners", () => {
-    const html = buildMeetingReviewHtml({ actions: [{ action: "x", owner: "Al" }] });
-    expect(html).toContain("Every action owned");
-    expect(html).not.toContain("No owner");
+  it("declares both Helvetica + Helvetica-Bold fonts (headers/labels are bold)", () => {
+    const s = asText(buildMeetingReviewPdf(sample));
+    expect(s).toContain("/BaseFont /Helvetica");
+    expect(s).toContain("/BaseFont /Helvetica-Bold");
   });
 
-  it("HTML-escapes untrusted model text (no injection / no broken markup)", () => {
-    const html = buildMeetingReviewHtml({ decisions: [{ decision: "<script>alert(1)</script> & \"go\"", context: "" }] });
-    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;go&quot;");
-    expect(html).not.toContain("<script>alert(1)</script>");
+  it("escapes PDF metacharacters so the stream can't be corrupted", () => {
+    const s = asText(buildMeetingReviewPdf({ decisions: [{ decision: "Ship (v2) \\ soon" }] }));
+    expect(s).toContain("Ship \\(v2\\) \\\\ soon"); // ( ) \ escaped by pdfText
   });
 
-  it("shows the honest empty state when the meeting produced nothing", () => {
-    const html = buildMeetingReviewHtml({});
-    expect(html).toContain("didn't produce clear decisions");
-  });
-
-  it("renders agenda coverage with covered vs missed topics", () => {
-    const html = buildMeetingReviewHtml({
-      agenda: {
-        goal: "Lock the date",
-        goalAttained: "partial",
-        note: "date set",
-        topics: [
-          { text: "launch date", covered: true },
-          { text: "budget", covered: false },
-        ],
-      },
-    });
-    expect(html).toContain("Agenda coverage");
-    expect(html).toContain("Goal partially met");
-    expect(html).toContain("launch date");
-    expect(html).toContain("budget");
-    expect(html).toContain("missed");
+  it("paginates a long review into multiple /Page objects", () => {
+    const many = { decisions: Array.from({ length: 60 }, (_, i) => ({ decision: `Decision number ${i} that we reached together in the meeting today` })) };
+    const s = asText(buildMeetingReviewPdf(many, { title: "Big meeting" }));
+    const pageCount = (s.match(/\/Type \/Page\b(?! )/g) ?? s.match(/\/Type \/Page /g) ?? []).length;
+    expect(pageCount).toBeGreaterThan(1);
   });
 });
 
-/**
- * exportMeetingReviewPdf — the browser action. The 2026-09-09 bug: `noopener,noreferrer` in the window.open features
- * made the browser return null BY DESIGN, so the handle was lost — a BLANK page opened AND a false "pop-ups blocked"
- * warning fired even with pop-ups allowed. These lock the fix: we must NOT pass noopener/noreferrer (we need the
- * handle to write our own HTML), we DO write the built HTML, and a genuine null (real block) returns false.
- */
-describe("exportMeetingReviewPdf (browser action)", () => {
+describe("exportMeetingReviewPdf (browser download)", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  const fakeWin = () => {
-    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn(), readyState: "complete" as string };
-    return {
-      document: doc,
-      requestAnimationFrame: vi.fn((cb: FrameRequestCallback) => {
-        cb(0);
-        return 0;
-      }),
-      print: vi.fn(),
-      addEventListener: vi.fn(),
-    };
-  };
+  it("builds a PDF blob and downloads it as a .pdf — no popup, no print dialog", () => {
+    const clicks: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clicks.push(this.download);
+    });
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
 
-  it("opens WITHOUT noopener/noreferrer (else the handle is null) and writes the built HTML", () => {
-    const win = fakeWin();
-    const openSpy = vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
-    const ok = exportMeetingReviewPdf({ decisions: [{ decision: "Ship Friday" }] }, { title: "Q3 sync" });
+    const ok = exportMeetingReviewPdf(sample, { title: "Q3 Planning Sync" });
     expect(ok).toBe(true);
-    const features = String(openSpy.mock.calls[0]?.[2] ?? "");
-    expect(features).not.toMatch(/noopener|noreferrer/); // the regression guard
-    expect(win.document.write).toHaveBeenCalledOnce();
-    expect(win.document.write.mock.calls[0]![0]).toContain("Ship Friday"); // our HTML actually went into the window
-    expect(win.print).toHaveBeenCalled(); // print fires after paint
+    expect(clicks).toEqual(["q3-planning-sync.pdf"]); // downloaded, filename slugged from the title
+    URL.createObjectURL = origCreate;
   });
 
-  it("returns false when the popup is genuinely blocked (window.open → null)", () => {
-    vi.spyOn(window, "open").mockReturnValue(null);
-    expect(exportMeetingReviewPdf({ decisions: [{ decision: "x" }] })).toBe(false);
-  });
-});
-
-describe("buildMeetingReviewHtml — manual Save-as-PDF toolbar (iOS-safe)", () => {
-  it("includes a print button (hidden in print) so a device without auto-print still has a one-tap path", () => {
-    const html = buildMeetingReviewHtml({ decisions: [{ decision: "Ship Friday" }] });
-    expect(html).toContain('onclick="window.print()"'); // a real-tap print, not just the async auto-print
-    expect(html).toContain("Save as PDF");
-    expect(html).toContain(".no-print { display:none !important; }"); // toolbar hidden from the printed output
+  it("returns false (honest) if generation throws — the caller shows an error, not a lie", () => {
+    vi.spyOn(document, "createElement").mockImplementation(() => {
+      throw new Error("dom gone");
+    });
+    expect(exportMeetingReviewPdf(sample)).toBe(false);
   });
 });

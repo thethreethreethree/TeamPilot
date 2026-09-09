@@ -15,12 +15,14 @@ import type { ExportGrid } from "./scheduleExport";
 const LANDSCAPE = { w: 842, h: 595 } as const;
 
 // ---- byte helpers (a PDF mixes ASCII structure with binary image streams) ----
-function strBytes(s: string): Uint8Array {
+// Exported so other dependency-free PDF writers (e.g. the meeting-review PDF) reuse the same assembly + escaping
+// rather than re-deriving the object graph (single-source; see CLAUDE.md single-source-decisions).
+export function strBytes(s: string): Uint8Array {
   const b = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0xff;
   return b;
 }
-function concat(chunks: Uint8Array[]): Uint8Array {
+export function concat(chunks: Uint8Array[]): Uint8Array {
   const total = chunks.reduce((n, c) => n + c.length, 0);
   const out = new Uint8Array(total);
   let o = 0;
@@ -29,7 +31,7 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 }
 
 /** Assemble numbered objects (bodies[i] = object i+1) into a valid PDF with an xref table + trailer. */
-function assemblePdf(bodies: Uint8Array[], rootNum: number): Uint8Array {
+export function assemblePdf(bodies: Uint8Array[], rootNum: number): Uint8Array {
   const header = strBytes("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
   const chunks: Uint8Array[] = [header];
   let offset = header.length;

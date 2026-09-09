@@ -1,11 +1,13 @@
-// meetingReviewPdf.ts — build a polished, SHAREABLE PDF of a meeting review (founder 2026-09-03: "export to PDF …
+// meetingReviewPdf.ts — a SHAREABLE, colour-coded PDF of a meeting review (founder 2026-09-03: "export to PDF …
 // visually appealing … clear indicators … broken apart so the reader easily understands all the important info").
 //
-// Approach: a SELF-CONTAINED, print-optimized HTML document (inline CSS, no app theme / tailwind to fight) opened
-// in a new window that triggers the browser's Save-as-PDF. Self-contained = full design control + it prints in
-// COLOR (print-color-adjust: exact — the AMD-012 lesson: a monochrome export is a failed export when the founder
-// asked for color). `buildMeetingReviewHtml` is a PURE function (unit-tested); `exportMeetingReviewPdf` is the thin
-// browser action. All user/transcript-derived text is HTML-escaped (it can contain < & and is model output).
+// Approach (founder 2026-09-09 "bulletproof real-PDF"): generate a REAL .pdf FILE client-side, DEPENDENCY-FREE
+// (reusing the schedule system's raw-PDF primitives — assemblePdf/strBytes/concat/pdfText), and download it. This
+// has ZERO reliance on the browser's print dialog — so it works on iOS Safari, Android, and desktop identically
+// (the earlier window.open + window.print() path was blank on some browsers and flaky on mobile). `buildMeetingReviewPdf`
+// is a PURE bytes builder (unit-tested); `exportMeetingReviewPdf` is the thin browser download action.
+
+import { assemblePdf, strBytes, concat, pdfText } from "@/lib/schedule/writePdf";
 
 export type MeetingReviewDissect = {
   decisions?: { decision: string; context?: string }[];
@@ -25,14 +27,6 @@ export type MeetingReviewDissect = {
 
 export type MeetingReviewMeta = { title?: string | null; dateISO?: string | null };
 
-function esc(s: unknown): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function fmtDate(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -42,22 +36,49 @@ function fmtDate(iso?: string | null): string {
 
 /** The COLOR palette — deliberately chosen (not defaults), consistent indicators the reader learns once. */
 const C = {
-  ink: "#0f172a", muted: "#64748b", line: "#e2e8f0", card: "#f8fafc", page: "#ffffff",
-  brand: "#1e3a5f", brandBar: "#208aef",
+  ink: "#0f172a", muted: "#64748b", line: "#e2e8f0", card: "#f8fafc",
+  brand: "#1e3a5f", brandBar: "#208aef", white: "#ffffff", eyebrow: "#9fc3ee", dateInk: "#cfe0f3",
   good: "#059669", goodBg: "#ecfdf5", warn: "#b45309", warnBg: "#fffbeb", bad: "#dc2626", badBg: "#fef2f2",
 };
 
-/** A section header with an icon, title, and a count badge — the "broken apart, clearly indicated" structure. */
-function sectionHead(icon: string, title: string, count: number, accent: string): string {
-  return `<div class="sec-head" style="border-left-color:${accent}">
-    <span class="sec-icon" style="background:${accent}1a;color:${accent}">${icon}</span>
-    <h2>${esc(title)}</h2>
-    <span class="count" style="background:${accent}1a;color:${accent}">${count}</span>
-  </div>`;
+const PAGE = { w: 595, h: 842 } as const; // A4 portrait, points
+const M = 42; // page margin
+const CW = PAGE.w - 2 * M; // content width
+
+function rgb(hex: string): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return `${(((n >> 16) & 255) / 255).toFixed(3)} ${(((n >> 8) & 255) / 255).toFixed(3)} ${((n & 255) / 255).toFixed(3)}`;
 }
 
-/** PURE: the complete standalone HTML document for the review. Testable (asserts sections + the owner-less flag). */
-export function buildMeetingReviewHtml(dissect: MeetingReviewDissect, meta: MeetingReviewMeta = {}): string {
+// Approximate Helvetica advance widths (em fractions) for line wrapping — no font metrics library. Conservative
+// (a slight over-estimate wraps a touch early, never overflows the page).
+const HW: Record<string, number> = {
+  " ": 0.28, i: 0.22, l: 0.22, j: 0.22, I: 0.28, t: 0.3, f: 0.3, r: 0.33, ".": 0.28, ",": 0.28, ";": 0.28,
+  ":": 0.28, "'": 0.19, "!": 0.28, "(": 0.33, ")": 0.33, "|": 0.26, m: 0.83, w: 0.72, M: 0.83, W: 0.94,
+};
+function tw(s: string, size: number): number {
+  let u = 0;
+  for (const c of s) u += HW[c] ?? 0.56;
+  return u * size;
+}
+function wrap(s: string, maxW: number, size: number): string[] {
+  const words = String(s ?? "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? line + " " + word : word;
+    if (tw(test, size) > maxW && line) { lines.push(line); line = word; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+/**
+ * PURE: the review as a complete, dependency-free PDF byte stream (colour-coded, sectioned, paginated). Testable —
+ * asserts a valid PDF header + that the content text is present in the stream.
+ */
+export function buildMeetingReviewPdf(dissect: MeetingReviewDissect, meta: MeetingReviewMeta = {}): Uint8Array {
   const decisions = dissect.decisions ?? [];
   const actions = dissect.actions ?? [];
   const openItems = dissect.openItems ?? dissect.open_items ?? [];
@@ -65,7 +86,6 @@ export function buildMeetingReviewHtml(dissect: MeetingReviewDissect, meta: Meet
   const balance = dissect.balance ?? null;
   const agenda = dissect.agenda ?? null;
   const ownerless = actions.filter((a) => !a.owner).length;
-
   const GOAL: Record<string, { text: string; c: string; bg: string }> = {
     yes: { text: "Goal achieved", c: C.good, bg: C.goodBg },
     partial: { text: "Goal partially met", c: C.warn, bg: C.warnBg },
@@ -73,114 +93,191 @@ export function buildMeetingReviewHtml(dissect: MeetingReviewDissect, meta: Meet
     unknown: { text: "Goal outcome unclear", c: C.muted, bg: C.card },
   };
 
-  // Quick-read indicator chips (top of the doc): effectiveness, balance, owner-less-actions alarm.
-  const chips: string[] = [];
-  if (eff) chips.push(chip(eff.focused ? "Focused" : "Drifted", eff.focused ? C.good : C.warn, eff.focused ? C.goodBg : C.warnBg));
-  if (balance) chips.push(chip(balance.balanced ? "Balanced participation" : "Uneven participation", balance.balanced ? C.good : C.warn, balance.balanced ? C.goodBg : C.warnBg));
-  if (ownerless > 0) chips.push(chip(`${ownerless} action${ownerless > 1 ? "s" : ""} with no owner`, C.bad, C.badBg));
-  if (actions.length > 0 && ownerless === 0) chips.push(chip("Every action owned", C.good, C.goodBg));
+  const pages: string[] = [];
+  let ops: string[] = [];
+  let y = PAGE.h; // pen y, from the top; PDF origin is bottom-left so we subtract as we go down
 
+  const fill = (x: number, yy: number, w: number, h: number, hex: string) =>
+    ops.push(`${rgb(hex)} rg ${x.toFixed(1)} ${yy.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re f`);
+  const text = (x: number, yy: number, size: number, hex: string, s: string, bold = false) =>
+    ops.push(`BT /${bold ? "F2" : "F1"} ${size} Tf ${rgb(hex)} rg 1 0 0 1 ${x.toFixed(1)} ${yy.toFixed(1)} Tm (${pdfText(s)}) Tj ET`);
+  const newPage = () => { pages.push(ops.join("\n")); ops = []; y = PAGE.h - M; };
+  const ensure = (h: number) => { if (y - h < M + 28) newPage(); };
+
+  // ── Header band ──────────────────────────────────────────────────────────
+  const title = meta.title || "Meeting Review";
+  const titleLines = wrap(title, CW, 19).slice(0, 2);
+  const bandH = 74 + titleLines.length * 22;
+  fill(0, PAGE.h - bandH, PAGE.w, bandH, C.brand);
+  fill(0, PAGE.h - 6, PAGE.w, 6, C.brandBar); // top accent strip
+  text(M, PAGE.h - 30, 8.5, C.eyebrow, "MEETING REVIEW");
+  titleLines.forEach((ln, i) => text(M, PAGE.h - 52 - i * 22, 19, C.white, ln, true));
   const dateStr = fmtDate(meta.dateISO);
+  text(M, PAGE.h - 52 - titleLines.length * 22 + 4, 10, C.dateInk, (dateStr ? dateStr + "  ·  " : "") + "Elostate Sales Coach");
+  y = PAGE.h - bandH - 24;
+
+  // ── Summary ──────────────────────────────────────────────────────────────
+  if (dissect.overall) {
+    const lines = wrap(dissect.overall, CW - 28, 11);
+    const h = 30 + lines.length * 15;
+    ensure(h);
+    fill(M, y - h, CW, h, C.card);
+    text(M + 14, y - 18, 8, C.muted, "SUMMARY");
+    lines.forEach((ln, i) => text(M + 14, y - 34 - i * 15, 11, C.ink, ln));
+    y -= h + 18;
+  }
+
+  // ── Indicator chips ──────────────────────────────────────────────────────
+  const chips: { t: string; c: string; bg: string }[] = [];
+  if (eff) chips.push({ t: eff.focused ? "Focused" : "Drifted", c: eff.focused ? C.good : C.warn, bg: eff.focused ? C.goodBg : C.warnBg });
+  if (balance) chips.push({ t: balance.balanced ? "Balanced participation" : "Uneven participation", c: balance.balanced ? C.good : C.warn, bg: balance.balanced ? C.goodBg : C.warnBg });
+  if (ownerless > 0) chips.push({ t: `${ownerless} action${ownerless > 1 ? "s" : ""} with no owner`, c: C.bad, bg: C.badBg });
+  if (actions.length > 0 && ownerless === 0) chips.push({ t: "Every action owned", c: C.good, bg: C.goodBg });
+  if (chips.length) {
+    ensure(28);
+    let cx = M;
+    for (const ch of chips) {
+      const w = tw(ch.t, 10) + 20;
+      if (cx + w > M + CW) { y -= 26; cx = M; ensure(28); }
+      fill(cx, y - 18, w, 18, ch.bg);
+      text(cx + 10, y - 13, 10, ch.c, ch.t, true);
+      cx += w + 8;
+    }
+    y -= 34;
+  }
+
+  // ── Section helper ────────────────────────────────────────────────────────
+  const sectionHead = (title2: string, count: number, accent: string) => {
+    ensure(30);
+    fill(M, y - 16, 4, 16, accent); // left accent bar
+    text(M + 12, y - 13, 12.5, C.ink, title2, true);
+    const cntTxt = String(count);
+    text(M + CW - tw(cntTxt, 11) - 6, y - 12, 11, accent, cntTxt, true);
+    y -= 26;
+  };
+  const card = (mainLines: string[], subLines: string[], rightPill?: { t: string; c: string; bg: string }) => {
+    const h = 12 + mainLines.length * 14 + (subLines.length ? subLines.length * 13 + 2 : 0);
+    ensure(h + 6);
+    fill(M, y - h, CW, h, C.card);
+    const innerW = rightPill ? CW - 28 - (tw(rightPill.t, 9.5) + 20) : CW - 28;
+    // (mainLines were wrapped to innerW by the caller)
+    void innerW;
+    mainLines.forEach((ln, i) => text(M + 14, y - 16 - i * 14, 11.5, C.ink, ln));
+    subLines.forEach((ln, i) => text(M + 14, y - 16 - mainLines.length * 14 - 2 - i * 13, 10, C.muted, ln));
+    if (rightPill) {
+      const pw = tw(rightPill.t, 9.5) + 18;
+      fill(M + CW - pw - 10, y - 24, pw, 17, rightPill.bg);
+      text(M + CW - pw - 1, y - 19.5, 9.5, rightPill.c, rightPill.t, true);
+    }
+    y -= h + 8;
+  };
+
   const nothing = decisions.length === 0 && actions.length === 0 && openItems.length === 0 && !eff && !agenda;
+  if (nothing) {
+    const lines = wrap("This meeting didn't produce clear decisions or actions to capture - a short or exploratory discussion. That's an honest read, not a failure.", CW - 28, 11);
+    const h = 24 + lines.length * 15;
+    ensure(h);
+    fill(M, y - h, CW, h, C.card);
+    lines.forEach((ln, i) => text(M + 14, y - 20 - i * 15, 11, C.muted, ln));
+    y -= h + 16;
+  }
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Meeting Review${meta.title ? " — " + esc(meta.title) : ""}</title>
-<style>
-  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html,body { margin:0; padding:0; background:#eef2f6; color:${C.ink};
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  .page { max-width: 820px; margin: 24px auto; background:${C.page}; }
-  .band { background:${C.brand}; color:#fff; padding: 28px 40px; border-top: 6px solid ${C.brandBar}; }
-  .eyebrow { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color:#9fc3ee; margin:0 0 6px; }
-  .band h1 { font-size: 26px; margin:0; font-weight: 700; line-height:1.15; }
-  .band .meta { margin-top: 8px; font-size: 13px; color:#cfe0f3; }
-  .body { padding: 28px 40px 40px; }
-  .summary { background:${C.card}; border:1px solid ${C.line}; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; }
-  .summary .lbl { font-size: 11px; letter-spacing:.1em; text-transform:uppercase; color:${C.muted}; margin:0 0 6px; }
-  .summary p { margin:0; font-size: 15px; line-height:1.5; color:${C.ink}; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 24px; }
-  .chip { font-size: 12.5px; font-weight:600; padding: 5px 11px; border-radius: 999px; }
-  section { margin-bottom: 22px; page-break-inside: avoid; }
-  .sec-head { display:flex; align-items:center; gap:10px; border-left:4px solid; padding-left:12px; margin-bottom:12px; }
-  .sec-head h2 { font-size: 15px; margin:0; font-weight:700; letter-spacing:.01em; flex:1; }
-  .sec-icon { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px; }
-  .count { font-size:12px; font-weight:700; min-width:22px; text-align:center; padding:2px 7px; border-radius:999px; }
-  .card { border:1px solid ${C.line}; border-radius:9px; padding:12px 14px; margin-bottom:8px; page-break-inside:avoid; }
-  .card .t { font-size:14px; line-height:1.45; color:${C.ink}; margin:0; }
-  .card .sub { font-size:12.5px; color:${C.muted}; margin:4px 0 0; line-height:1.4; }
-  .act { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .pill { font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; white-space:nowrap; }
-  .num { display:inline-flex; width:20px; height:20px; border-radius:50%; background:${C.brand}; color:#fff; font-size:11px;
-    font-weight:700; align-items:center; justify-content:center; margin-right:8px; vertical-align:1px; }
-  .topic { display:flex; align-items:center; gap:9px; font-size:13.5px; padding:5px 0; border-bottom:1px solid ${C.line}; }
-  .topic:last-child { border-bottom:0; }
-  .goal { display:inline-block; font-size:12.5px; font-weight:600; padding:4px 11px; border-radius:999px; margin:8px 0; }
-  .foot { border-top:1px solid ${C.line}; margin-top:8px; padding: 16px 40px 26px; font-size:11px; color:${C.muted};
-    display:flex; justify-content:space-between; align-items:center; }
-  .empty { font-size:14px; color:${C.muted}; background:${C.card}; border:1px dashed ${C.line}; border-radius:10px; padding:18px; }
-  /* Screen-only toolbar: a RELIABLE manual "Save as PDF" for browsers where auto-print doesn't fire (iOS Safari
-     drops user-activation on an async window.print()). The button calls print() on a real tap, so it works
-     everywhere; it is hidden from the printed output. */
-  .no-print { display:flex; align-items:center; gap:12px; justify-content:center; flex-wrap:wrap;
-    background:${C.brand}; color:#fff; padding:12px 16px; font-size:13.5px; }
-  .no-print button { background:#fff; color:${C.brand}; border:0; border-radius:8px; padding:8px 16px;
-    font-size:14px; font-weight:700; cursor:pointer; }
-  .no-print span { color:#cfe0f3; }
-  @media print { html, body { background:#fff !important; } .page { margin:0; max-width:none; } .no-print { display:none !important; } @page { margin: 12mm; } }
-</style></head><body>
-  <div class="no-print">
-    <button type="button" onclick="window.print()">Save as PDF / Print</button>
-    <span>or use your browser's Share &rarr; Save to PDF</span>
-  </div>
-<div class="page">
-  <div class="band">
-    <p class="eyebrow">Meeting Review</p>
-    <h1>${esc(meta.title || "Meeting Review")}</h1>
-    <div class="meta">${dateStr ? esc(dateStr) + " · " : ""}Elostate Sales Coach</div>
-  </div>
-  <div class="body">
-    ${dissect.overall ? `<div class="summary"><p class="lbl">Summary</p><p>${esc(dissect.overall)}</p></div>` : ""}
-    ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}
-    ${nothing ? `<div class="empty">This meeting didn't produce clear decisions or actions to capture — a short or exploratory discussion. That's an honest read, not a failure.</div>` : ""}
-    ${agenda ? `<section>${sectionHead("&#127919;", "Agenda coverage", agenda.topics.length, C.brandBar)}
-      ${agenda.goal ? `<p class="card t"><strong>Goal:</strong> ${esc(agenda.goal)}</p>` : ""}
-      <div class="goal" style="color:${(GOAL[agenda.goalAttained] ?? GOAL.unknown!).c};background:${(GOAL[agenda.goalAttained] ?? GOAL.unknown!).bg}">${esc((GOAL[agenda.goalAttained] ?? GOAL.unknown!).text)}${agenda.note ? " — " + esc(agenda.note) : ""}</div>
-      ${agenda.topics.map((t) => `<div class="topic"><span style="color:${t.covered ? C.good : C.bad};font-weight:700">${t.covered ? "&#10003;" : "&#10007;"}</span><span style="color:${t.covered ? C.ink : C.muted}">${esc(t.text)}</span>${t.covered ? "" : `<span class="pill" style="color:${C.bad};background:${C.badBg}">missed</span>`}</div>`).join("")}
-    </section>` : ""}
-    ${decisions.length ? `<section>${sectionHead("&#9989;", "Decisions reached", decisions.length, C.good)}
-      ${decisions.map((d, i) => `<div class="card"><p class="t"><span class="num">${i + 1}</span>${esc(d.decision)}</p>${d.context ? `<p class="sub">${esc(d.context)}</p>` : ""}</div>`).join("")}
-    </section>` : ""}
-    ${actions.length ? `<section>${sectionHead("&#128205;", "Action items", actions.length, C.brandBar)}
-      ${actions.map((a) => `<div class="card act"><p class="t">${esc(a.action)}</p>${a.owner ? `<span class="pill" style="color:${C.good};background:${C.goodBg}">&#128100; ${esc(a.owner)}</span>` : `<span class="pill" style="color:${C.bad};background:${C.badBg}">&#9888; No owner</span>`}</div>`).join("")}
-    </section>` : ""}
-    ${openItems.length ? `<section>${sectionHead("&#128275;", "Left open", openItems.length, C.warn)}
-      ${openItems.map((o) => `<div class="card"><p class="t">${esc(o.item)}</p>${o.why ? `<p class="sub">${esc(o.why)}</p>` : ""}</div>`).join("")}
-    </section>` : ""}
-  </div>
-  <div class="foot"><span>Generated ${esc(fmtDate(new Date().toISOString()))} · Elostate Sales Coach</span><span>Confidential — share within your team</span></div>
-</div></body></html>`;
+  // ── Agenda coverage ───────────────────────────────────────────────────────
+  if (agenda) {
+    sectionHead("Agenda coverage", agenda.topics.length, C.brandBar);
+    if (agenda.goal) card(wrap("Goal: " + agenda.goal, CW - 28, 11.5), []);
+    const g = GOAL[agenda.goalAttained] ?? GOAL.unknown!;
+    const gt = g.text + (agenda.note ? " - " + agenda.note : "");
+    for (const ln of wrap(gt, CW - 28, 10.5)) { ensure(18); text(M + 2, y - 12, 10.5, g.c, ln, true); y -= 16; }
+    y -= 2;
+    for (const t of agenda.topics) {
+      const tl = wrap(t.text, CW - 70, 11);
+      const rowH = Math.max(16, tl.length * 13 + 3);
+      ensure(rowH);
+      fill(M + 3, y - 13, 8, 8, t.covered ? C.good : C.bad); // colored status dot (covered = green, missed = red)
+      tl.forEach((ln, i) => text(M + 22, y - 12 - i * 13, 11, t.covered ? C.ink : C.muted, ln));
+      if (!t.covered) text(M + CW - tw("missed", 9) - 12, y - 11, 9, C.bad, "missed", true);
+      y -= rowH;
+    }
+    y -= 10;
+  }
+
+  // ── Decisions ─────────────────────────────────────────────────────────────
+  if (decisions.length) {
+    sectionHead("Decisions reached", decisions.length, C.good);
+    decisions.forEach((d, i) => card(wrap(`${i + 1}.  ${d.decision}`, CW - 28, 11.5), d.context ? wrap(d.context, CW - 28, 10) : []));
+    y -= 4;
+  }
+
+  // ── Action items ──────────────────────────────────────────────────────────
+  if (actions.length) {
+    sectionHead("Action items", actions.length, C.brandBar);
+    for (const a of actions) {
+      const pill = a.owner
+        ? { t: (a.owner as string), c: C.good, bg: C.goodBg }
+        : { t: "No owner", c: C.bad, bg: C.badBg };
+      const mainW = CW - 28 - (tw(pill.t, 9.5) + 24);
+      card(wrap(a.action, mainW, 11.5), [], pill);
+    }
+    y -= 4;
+  }
+
+  // ── Left open ─────────────────────────────────────────────────────────────
+  if (openItems.length) {
+    sectionHead("Left open", openItems.length, C.warn);
+    openItems.forEach((o) => card(wrap(o.item, CW - 28, 11.5), o.why ? wrap(o.why, CW - 28, 10) : []));
+  }
+
+  // Footer on the final page.
+  text(M, 30, 8.5, C.muted, "Generated " + fmtDate(new Date().toISOString()) + "  ·  Elostate Sales Coach");
+  text(M + CW - tw("Confidential · share within your team", 8.5), 30, 8.5, C.muted, "Confidential · share within your team");
+  pages.push(ops.join("\n"));
+
+  // ── Assemble the PDF object graph ─────────────────────────────────────────
+  // obj 1 catalog, 2 pages, 3 Helvetica, 4 Helvetica-Bold, pages 5..4+k, contents 5+k..4+2k
+  const k = pages.length;
+  const kids = Array.from({ length: k }, (_, i) => `${5 + i} 0 R`).join(" ");
+  const bodies: Uint8Array[] = [
+    strBytes("<< /Type /Catalog /Pages 2 0 R >>"),
+    strBytes(`<< /Type /Pages /Kids [${kids}] /Count ${k} >>`),
+    strBytes("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),
+    strBytes("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"),
+  ];
+  for (let i = 0; i < k; i++) {
+    bodies.push(strBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.w} ${PAGE.h}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${5 + k + i} 0 R >>`));
+  }
+  for (let i = 0; i < k; i++) {
+    const cb = strBytes(pages[i]!);
+    bodies.push(concat([strBytes(`<< /Length ${cb.length} >>\nstream\n`), cb, strBytes("\nendstream")]));
+  }
+  return assemblePdf(bodies, 1);
 }
 
-function chip(text: string, color: string, bg: string): string {
-  return `<span class="chip" style="color:${color};background:${bg}">${esc(text)}</span>`;
+/** A filename-safe slug for the download. */
+function slug(s?: string | null): string {
+  return (s || "meeting-review").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "meeting-review";
 }
 
-/** Browser action: open the self-contained doc in a new window and invoke print → Save as PDF. Returns false if a
- *  popup blocker prevented it (the caller surfaces a hint). */
+/**
+ * Browser action: build the real PDF and download it. Returns false only if the DOM isn't available or generation
+ * throws (the caller surfaces an honest error). No pop-up, no print dialog — so nothing to be "blocked".
+ */
 export function exportMeetingReviewPdf(dissect: MeetingReviewDissect, meta: MeetingReviewMeta = {}): boolean {
-  if (typeof window === "undefined") return false;
-  const html = buildMeetingReviewHtml(dissect, meta);
-  // NO `noopener`/`noreferrer` here: those flags make window.open return null BY DESIGN (they sever the handle back
-  // to the opener), which nulled `w` even when pop-ups were allowed — so we never wrote the HTML (a BLANK page) AND
-  // wrongly reported "pop-ups blocked". We write our OWN trusted HTML into this window, so we require the handle;
-  // a real popup-block still returns null and is still caught below. (Bug: 2026-09-09.)
-  const w = window.open("", "_blank", "width=900,height=1000");
-  if (!w) return false; // popup genuinely blocked (no handle for any other reason now)
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  // Print after the document paints (two rAFs, mirroring the schedule export's "don't print a blank page" guard).
-  const go = () => w.requestAnimationFrame(() => w.requestAnimationFrame(() => w.print()));
-  if (w.document.readyState === "complete") go();
-  else w.addEventListener("load", go);
-  return true;
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  try {
+    const bytes = buildMeetingReviewPdf(dissect, meta);
+    const blob = new Blob([bytes.slice()], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug(meta.title)}.pdf`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return true;
+  } catch {
+    return false;
+  }
 }

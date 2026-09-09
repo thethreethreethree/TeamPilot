@@ -57,7 +57,7 @@ export function MeetingReview({
 }) {
   const [state, setState] = useState<"loading" | "ready" | "error" | "pending-audio" | "no-recording">("loading");
   const [dissect, setDissect] = useState<Dissect | null>(null);
-  const [pdfBlocked, setPdfBlocked] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [retryable, setRetryable] = useState(true); // is the current error worth a Retry? (5xx/network yes; 4xx no — audit L3)
   const pendingRetriesRef = useRef(0); // consecutive 409s → hard terminal at MAX_PENDING_RETRIES (audit D5)
@@ -201,10 +201,10 @@ export function MeetingReview({
           <button
             type="button"
             onClick={() => {
-              // Open the self-contained, print-ready PDF doc. If a popup blocker stops the new window, tell the
-              // user how to proceed (an honest, actionable failure — not a silent no-op).
+              // Generate + DOWNLOAD a real .pdf file (dependency-free, no browser print dialog — works on iOS too).
+              // Returns false only if generation itself failed; surface that honestly rather than a silent no-op.
               const ok = exportMeetingReviewPdf(dissect, { title: meetingTitle ?? null, dateISO: meetingStartedAt ?? null });
-              setPdfBlocked(!ok);
+              setPdfError(!ok);
             }}
             className="shrink-0 rounded-lg border border-default bg-surface px-3 py-1.5 text-sm font-medium text-primary hover:bg-white/5"
           >
@@ -212,9 +212,9 @@ export function MeetingReview({
           </button>
         )}
       </div>
-      {pdfBlocked && (
+      {pdfError && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          Your browser blocked the export window. Allow pop-ups for this site, then tap Export PDF again.
+          Couldn&apos;t generate the PDF just now. Please tap Export PDF again.
         </p>
       )}
 
