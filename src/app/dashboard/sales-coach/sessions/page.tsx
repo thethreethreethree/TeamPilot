@@ -11,6 +11,7 @@ import {
   FileText,
   Star,
   Mic,
+  MicOff,
   TrendingDown,
   CheckCircle2,
   ArrowRight,
@@ -63,6 +64,9 @@ type Row = {
   hasDissect: boolean;
   hasSummary: boolean;
   hasReview: boolean;
+  /** Honest "why no dissect": "one-sided" = the rep's side wasn't captured (0 agent turns), so the full
+   *  read is unavailable even though an After-Pitch may exist (9/2 meeting). Null when no such issue. */
+  captureIssue: "one-sided" | null;
   /** Interaction flag (founder 2026-07-09): "Needs Examination" (manager-only) or
    *  "Outstanding" (everyone). Null when the interaction was neutral or unanalyzed. */
   flag: SessionFlag | null;
@@ -754,6 +758,19 @@ export default function SalesCoachSessionsPage() {
                       {s.hasReview && <Badge icon={Star} label="Review" />}
                       {s.hasDissect && <Badge icon={Sparkles} label="Dissect" />}
                       {s.hasSummary && <Badge icon={FileText} label="Summary" />}
+                      {/* Honest "why no dissect" — the rep's side wasn't captured, so the full read can't run
+                          (not "broken", not "still processing"). Recover by re-recording or re-labeling speakers.
+                          Theme-aware amber: amber-600 holds on a light ground (amber-300 washes out to
+                          near-invisible on white — verified by render); amber-300 stays bright on the dark dashboard. */}
+                      {s.captureIssue === "one-sided" && !s.hasDissect && (
+                        <span
+                          title="The rep's side wasn't captured on this recording, so the full read (Dissect) can't be generated. Re-record or re-label the speakers to recover it."
+                          className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-300 border border-amber-500/50 dark:border-amber-400/40 rounded-full px-2 py-0.5"
+                        >
+                          <MicOff className="w-2.5 h-2.5" aria-hidden />
+                          One-sided
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>

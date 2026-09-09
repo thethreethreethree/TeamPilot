@@ -146,6 +146,34 @@ export async function GET(req: Request) {
     }
   }
 
+  // "One-sided capture" honest status (9/2 partner meeting — "pitch analyzed vs session dissected unclear").
+  // A session whose agent side wasn't captured (0 agent turns) produces an After-Pitch via customer-side moments
+  // but NO dissect / "Your read" — it reads "analyzed but not dissected" with no explanation. runAndStoreDissect
+  // records WHY via a coach.dissect_attempted event carrying payload.reason ("no_agent_turns" vs "no_signal"); we
+  // read the latest reason per session so the list can label the one-sided case honestly. Payload-bearing, so it's
+  // a separate query from the payload-free badge query above (mirrors the pivot/moments signal query). Latest wins.
+  const attemptReasonBySession = new Map<string, string>();
+  if (subjects.length > 0) {
+    const attempts = await fetchAllPaged<{ subject: string; payload: unknown; created_at: string }>(
+      (from, to) =>
+        admin
+          .from("events")
+          .select("subject, payload, created_at, id")
+          .eq("kind", "coach.dissect_attempted")
+          .in("subject", subjects)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      { label: "list dissect-attempt reasons" },
+    ).catch(() => null);
+    for (const e of attempts ?? []) {
+      const sid = String(e.subject ?? "").replace("sales_session:", "");
+      if (attemptReasonBySession.has(sid)) continue; // latest (created_at desc) already kept
+      const reason = (e.payload as { reason?: unknown } | null)?.reason;
+      if (typeof reason === "string") attemptReasonBySession.set(sid, reason);
+    }
+  }
+
   // Interaction-flag signals (founder 2026-07-09): the pivot + timeline-sentiment
   // payloads, per session. §A18: these are MANAGER-VISIBLE observations — the flag
   // deliberately does NOT read the owner-private After-Pitch scores, so it cannot
@@ -235,6 +263,12 @@ export async function GET(req: Request) {
       hasDissect: dissect.has(id),
       hasSummary: summary.has(id),
       hasReview: review.has(id),
+      // Honest "why no dissect": "one-sided" when the rep's side wasn't captured (0 agent turns). Only when
+      // there's genuinely no dissect — a later re-transcription that produced one clears it (hasDissect wins).
+      captureIssue:
+        !dissect.has(id) && attemptReasonBySession.get(id) === "no_agent_turns"
+          ? ("one-sided" as const)
+          : null,
       flag: flagFor(id, (s.outcome as string | null) ?? null, s.status as string),
     };
   });
