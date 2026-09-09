@@ -197,6 +197,12 @@ export class PitchSeparator {
    * grounded to a KNOWN F0 from turn 1 instead of the "first speaker is the agent" guess. Counts as an anchor
    * (like the manual "I'm speaking" toggle), so pitch may override loudness immediately. Ignores an out-of-range
    * seed (defensive — the API already validates). Call once, right after reset(), before the first frame.
+   *
+   * NOT CURRENTLY WIRED (2026-09-09): the adversarial review found that hard-anchoring a seed that differs from
+   * the rep's LIVE pitch (calm enrollment vs animated delivery, ≥ MIN_CLUSTER_GAP_HZ apart) inverts attribution
+   * — the rep's first live turn seeds the CUSTOMER cluster and the read collapses, worse than the bootstrap. The
+   * founder chose to un-wire it until a SELF-CORRECTING seed is validated (a soft prior the first ground-truth
+   * turn can move). This method + its tests stay as the ready primitive for that follow-up; no caller today.
    */
   seedAgentCentroid(f0: number): void {
     if (!(f0 >= MIN_F0 && f0 <= MAX_F0)) return;
