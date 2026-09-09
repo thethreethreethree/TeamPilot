@@ -191,7 +191,10 @@ export async function getAllTimeKpi(
  */
 export async function getTodaysMetrics(
   repId: string,
-  period: MetricsPeriod,
+  // A preset rolling window OR a custom inclusive {from,to} date range (partner meeting 9/2 — John wanted to filter
+  // the KPI trio by a custom date range). A custom range has no precomputed pattern rollup, so focus/opportunities
+  // are honestly empty for it (never fabricated); the KPIs + scores are computed live over the window.
+  period: MetricsPeriod | { from: string; to: string },
   db?: SupabaseClient,
 ): Promise<{
   kpi: { doorsKnocked: number; conversations: number; sold: number };
@@ -210,7 +213,9 @@ export async function getTodaysMetrics(
     .limit(1)
     .maybeSingle();
   const todayIso = (latest?.local_date as string | undefined) ?? new Date().toISOString().slice(0, 10);
-  const since = periodStartLocal(period, todayIso);
+  const custom = typeof period === "object";
+  const since = custom ? period.from : periodStartLocal(period, todayIso); // inclusive lower bound, or null (all_time)
+  const until = custom ? period.to : null; // inclusive upper bound, only for a custom range
 
   // KPIs, scores, and the rollup summary are independent (all key on the window resolved above) — run them in
   // PARALLEL so the rep waits on the slowest, not the sum. KPIs + scores are PAGED so a heavy rep's rows can't
@@ -219,7 +224,9 @@ export async function getTodaysMetrics(
     fetchAllPaged<{ doors_knocked: number; sold: number }>(
       (from, to) => {
         const base = sb.from("rep_kpi_daily").select("doors_knocked, sold").eq("rep_id", repId);
-        return (since ? base.gte("local_date", since) : base).range(from, to);
+        const lo = since ? base.gte("local_date", since) : base;
+        const bounded = until ? lo.lte("local_date", until) : lo;
+        return bounded.range(from, to);
       },
       { label: "todays-metrics kpi" },
     ),
@@ -232,18 +239,24 @@ export async function getTodaysMetrics(
           .select("pitch_analyses!inner(scores), door_knocks!inner(local_date)")
           .eq("rep_id", repId)
           .eq("status", "complete");
-        return (since ? base.gte("door_knocks.local_date", since) : base).range(from, to);
+        const lo = since ? base.gte("door_knocks.local_date", since) : base;
+        const bounded = until ? lo.lte("door_knocks.local_date", until) : lo;
+        return bounded.range(from, to);
       },
       { label: "todays-metrics scores" },
     ),
-    sb
-      .from("rep_pattern_summaries")
-      .select("patterns_bad")
-      .eq("period", period)
-      .eq("rep_id", repId)
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    // The pattern rollup is precomputed per FIXED period — a custom range has none, so we skip it and leave
+    // focus/opportunities honestly empty (never a fabricated read of an arbitrary window).
+    custom
+      ? Promise.resolve({ data: null as { patterns_bad?: unknown } | null })
+      : sb
+          .from("rep_pattern_summaries")
+          .select("patterns_bad")
+          .eq("period", period)
+          .eq("rep_id", repId)
+          .order("generated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
     // Presentations for the window = RECORDED pitches (all statuses; founder 2026-08-28), NOT non-no-answer knocks.
     // Period-scoped via the door_knocks.local_date join, mirroring the scores query's window. Distinct from that
     // query — scores gate on status=complete (analyzed), presentations count every recorded pitch.
@@ -252,7 +265,8 @@ export async function getTodaysMetrics(
         .from("pitches")
         .select("door_knocks!inner(local_date)", { count: "exact", head: true })
         .eq("rep_id", repId);
-      return since ? base.gte("door_knocks.local_date", since) : base;
+      const lo = since ? base.gte("door_knocks.local_date", since) : base;
+      return until ? lo.lte("door_knocks.local_date", until) : lo;
     })(),
   ]);
 

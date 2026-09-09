@@ -24,13 +24,21 @@ export async function GET(req: NextRequest) {
   // Default to the caller (a rep sees their OWN); a manager may pass a team member's id, still RLS-authorized.
   const repId = req.nextUrl.searchParams.get("repId") ?? auth.user.id;
 
+  // Custom date range (partner meeting 9/2 — John: filter the KPI trio by a custom range). from/to are inclusive
+  // local dates (YYYY-MM-DD). Validated strictly (format + from<=to) so a malformed value falls back to the preset
+  // rather than reaching the query as junk. When present, the window is the range, not the rolling preset.
+  const from = req.nextUrl.searchParams.get("from");
+  const to = req.nextUrl.searchParams.get("to");
+  const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const useRange = isDate(from) && isDate(to) && from <= to;
+
   // getTodaysMetrics → fetchAllPaged throws on a read error. In prod Next returns a generic 500 (no leak) and the
   // client's res.ok check shows the honest error banner — but wrap it for controlled logging + a stable shape.
   try {
     // Pass the caller's client: without it this read is anonymous for a Bearer
     // caller and answers a confident 0 for a day that holds real knocks.
-    const metrics = await getTodaysMetrics(repId, period, sb);
-    return NextResponse.json({ period, ...metrics });
+    const metrics = await getTodaysMetrics(repId, useRange ? { from, to } : period, sb);
+    return NextResponse.json({ period: useRange ? "custom" : period, range: useRange ? { from, to } : null, ...metrics });
   } catch (e) {
     console.error("[todays-metrics] load failed:", e); // CWE-209: log detail, return generic
     return NextResponse.json({ error: "Couldn't load your metrics." }, { status: 500 });

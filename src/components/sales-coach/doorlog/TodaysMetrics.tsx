@@ -37,15 +37,19 @@ type Metrics = {
 
 export function TodaysMetrics() {
   const [period, setPeriod] = useState<string>("day");
+  // Custom date range (partner meeting 9/2): inclusive from/to (YYYY-MM-DD). Only fetched once BOTH are set + valid.
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
   const [data, setData] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async (p: string) => {
+  const load = useCallback(async (p: string, range?: { from: string; to: string }) => {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(`/api/coach/sales-session/todays-metrics?period=${p}`);
+      const qs = range ? `from=${range.from}&to=${range.to}` : `period=${p}`;
+      const res = await fetch(`/api/coach/sales-session/todays-metrics?${qs}`);
       if (res.ok) {
         setData(await res.json());
       } else {
@@ -60,9 +64,15 @@ export function TodaysMetrics() {
     }
   }, []);
 
+  const rangeReady = period === "custom" && !!from && !!to && from <= to;
   useEffect(() => {
-    void load(period);
-  }, [period, load]);
+    if (period === "custom") {
+      if (rangeReady) void load("custom", { from, to });
+      else setLoading(false); // wait for both dates before fetching — no spurious error
+    } else {
+      void load(period);
+    }
+  }, [period, from, to, rangeReady, load]);
 
   const scoreDims = SCORE_ORDER.filter((d) => typeof data?.scores?.[d] === "number");
 
@@ -70,19 +80,53 @@ export function TodaysMetrics() {
     <div className="flex-1 min-h-0 overflow-y-auto bg-base px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-6 max-w-2xl mx-auto w-full">
       <h1 className="text-xl font-bold text-primary mb-4">Today&apos;s Metrics</h1>
 
-      {/* Period selector (moved here off the Report Card) */}
-      <div className="flex gap-2 mb-6">
-        {PERIODS.map((p) => (
+      {/* Period selector (moved here off the Report Card) + a custom date range (partner meeting 9/2). */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`flex-1 min-w-[64px] py-2 rounded-lg text-sm font-medium transition-colors ${
+                period === p.key ? "bg-ember-400 text-[#09090B]" : "bg-surface text-secondary"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
           <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === p.key ? "bg-ember-400 text-[#09090B]" : "bg-surface text-secondary"
+            onClick={() => setPeriod("custom")}
+            className={`flex-1 min-w-[64px] py-2 rounded-lg text-sm font-medium transition-colors ${
+              period === "custom" ? "bg-ember-400 text-[#09090B]" : "bg-surface text-secondary"
             }`}
           >
-            {p.label}
+            Custom
           </button>
-        ))}
+        </div>
+        {period === "custom" && (
+          <div className="flex items-center gap-2 mt-3">
+            <input
+              type="date"
+              aria-label="From date"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-white/10"
+            />
+            <span className="text-muted text-xs shrink-0">to</span>
+            <input
+              type="date"
+              aria-label="To date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-white/10"
+            />
+          </div>
+        )}
+        {period === "custom" && from && to && from > to && (
+          <p className="mt-2 text-xs text-amber-400">The start date is after the end date — pick a range that reads left to right.</p>
+        )}
       </div>
 
       {error ? (
@@ -92,7 +136,7 @@ export function TodaysMetrics() {
           </p>
           <button
             type="button"
-            onClick={() => void load(period)}
+            onClick={() => void (rangeReady ? load("custom", { from, to }) : load(period))}
             className="mt-3 text-sm font-semibold text-brand hover:underline"
           >
             Retry
@@ -102,6 +146,10 @@ export function TodaysMetrics() {
         <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           Loading…
+        </div>
+      ) : period === "custom" && !rangeReady ? (
+        <div className="flex items-center justify-center py-12 text-center text-xs text-muted">
+          Pick a start and end date above to see your doors, presentations, and sales for that range.
         </div>
       ) : (
         <div className="space-y-6">
