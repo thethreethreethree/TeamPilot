@@ -3,11 +3,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * runAndStoreDissect event emission — the dissect-cron cost-loop fix (2026-08-14). The load-bearing behavior:
  *   - hasSignal            → emit coach.dissect_generated (existing).
- *   - LLM ran, no signal   → emit coach.dissect_ATTEMPTED (the backoff marker, so the backfill stops re-running
- *                            a full LLM call on a stuck session forever).
- *   - thin (0 agent turns) → emit NOTHING (no LLM ran; a cheap re-check next pass is fine, no backoff needed).
+ *   - LLM ran, no signal   → emit coach.dissect_ATTEMPTED reason "no_signal" (backoff, so the backfill stops
+ *                            re-running a full LLM call on a stuck session forever).
+ *   - thin (0 agent turns) → emit coach.dissect_ATTEMPTED reason "no_agent_turns". (2026-09-09 fix: the old
+ *                            behavior emitted NOTHING here, so a customer-only/one-sided session carried no
+ *                            backoff marker and the backfill re-selected it EVERY pass forever — cap burn +
+ *                            "Generate missing" frozen above 0. The reason lets the sessions list show an
+ *                            honest "One-sided" status. Recovery is via re-transcription, which regenerates
+ *                            directly and bypasses this backoff, so the marker never blocks a real fix.)
  */
-const captured = vi.hoisted(() => ({ inserts: [] as Array<{ kind?: string; subject?: string }> }));
+const captured = vi.hoisted(() => ({ inserts: [] as Array<{ kind?: string; subject?: string; payload?: unknown }> }));
 
 vi.mock("@/lib/claude", () => ({ dissectCoachV5: vi.fn() }));
 vi.mock("@/lib/data/salesCoach", () => ({ getCurrentSalesCorpus: vi.fn(async () => null) }));
@@ -17,7 +22,7 @@ vi.mock("@/lib/care/toolPrompts", () => ({ CONVERSATION_IS_DATA: "" }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({
-      insert: async (row: { kind?: string; subject?: string }) => {
+      insert: async (row: { kind?: string; subject?: string; payload?: unknown }) => {
         captured.inserts.push(row);
         return { error: null };
       },
@@ -63,10 +68,24 @@ describe("runAndStoreDissect — event emission (cost-loop backoff)", () => {
     expect(captured.inserts[0]).toMatchObject({ kind: "coach.dissect_attempted", subject: "sales_session:sess1" });
   });
 
-  it("thin (0 agent turns) → emits NOTHING (no LLM ran; no backoff needed)", async () => {
+  it("thin (0 agent turns) → emits coach.dissect_attempted reason 'no_agent_turns' (backoff, no LLM ran)", async () => {
     asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "" });
     await run([seg("customer", 0), seg("customer", 1)]);
-    expect(captured.inserts).toHaveLength(0);
+    expect(captured.inserts).toHaveLength(1);
+    expect(captured.inserts[0]).toMatchObject({
+      kind: "coach.dissect_attempted",
+      subject: "sales_session:sess1",
+      payload: { reason: "no_agent_turns" },
+    });
     expect(dissectCoachV5).not.toHaveBeenCalled(); // short-circuited before the LLM
+  });
+
+  it("LLM ran, no signal → the attempted marker carries reason 'no_signal' (distinct from one-sided)", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "" });
+    await run([seg("agent", 0), seg("customer", 1)]);
+    expect(captured.inserts[0]).toMatchObject({
+      kind: "coach.dissect_attempted",
+      payload: { reason: "no_signal" },
+    });
   });
 });

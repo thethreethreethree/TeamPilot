@@ -148,15 +148,23 @@ export async function runAndStoreDissect(args: {
     } catch {
       /* best-effort — the dissect still returns */
     }
-  } else if (
-    args.segments.filter((s) => s.speaker === "agent").length >= MIN_AGENT_SEGMENTS
-  ) {
-    // The LLM RAN (agent turns present → past generateSalesDissect's MIN gate; dissect is controlExempt, never
-    // suppressed) but produced NO signal — starved (F3 corpus), tone-law-rejected (growth but no strengths), or
-    // genuinely empty-with-turns. Emit an ATTEMPTED marker so the backfill BACKS OFF (14d) instead of re-running
-    // a full ~20s LLM call on this stuck session every cron pass / button click forever (the dissect-cron cost
-    // loop, 2026-08-14). Without it the session never gets a dissect_generated marker, stays "missing", burns the
-    // daily cap, and freezes the manual button's "remaining" above 0. Best-effort — a missed emit just re-checks.
+  } else {
+    // No signal → emit an ATTEMPTED marker so the backfill (dissectBackfill.ts, which reads this by KIND) BACKS
+    // OFF (14d) instead of re-selecting this stuck session every cron pass / button click forever — the
+    // dissect-cron cost loop (2026-08-14). There are TWO no-signal shapes; `reason` distinguishes them for the
+    // sessions-list UI (list/route.ts reads it), while the backoff is identical for both:
+    //   - "no_signal": agent turns present, the LLM RAN (past generateSalesDissect's MIN gate; dissect is
+    //     controlExempt, never suppressed) but produced nothing — starved (F3 corpus), tone-law-rejected (growth
+    //     but no strengths), or empty-with-turns. Recoverable by a corpus-trim after the window.
+    //   - "no_agent_turns": 0 agent turns, so generateSalesDissect short-circuited BEFORE the LLM (line 60) — the
+    //     rep's side wasn't captured/attributed. The After-Pitch composite can still render via customer-side
+    //     moments, so this session reads "analyzed but not dissected" (the 9/2 partner-meeting bug). Recoverable
+    //     only by re-transcription / speaker re-label (which regenerates directly, bypassing this backoff).
+    // The 2026-08-14 fix guarded this marker on `agent turns >= MIN` and left the 0-agent case emitting NOTHING,
+    // so it stayed "missing" with no backoff and looped in the backfill forever (fixed 2026-09-09). Best-effort —
+    // a missed emit just re-checks next pass.
+    const agentTurns = args.segments.filter((s) => s.speaker === "agent").length;
+    const reason = agentTurns >= MIN_AGENT_SEGMENTS ? "no_signal" : "no_agent_turns";
     try {
       const admin = createAdminClient();
       await admin.from("events").insert({
@@ -164,7 +172,7 @@ export async function runAndStoreDissect(args: {
         actor: args.actorId,
         kind: "coach.dissect_attempted",
         subject: `sales_session:${args.sessionId}`,
-        payload: { reason: "no_signal", coach_version: "dissect-v1" },
+        payload: { reason, coach_version: "dissect-v1" },
       });
     } catch {
       /* best-effort — the backoff just doesn't apply this run */

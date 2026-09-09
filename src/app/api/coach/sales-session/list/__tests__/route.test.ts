@@ -95,6 +95,7 @@ function richAdmin(opts: {
   sessions: Array<Record<string, unknown>>;
   badgeEvents?: EventRow[];
   signalEvents?: EventRow[];
+  attemptEvents?: EventRow[];
   badgeError?: boolean;
 }) {
   const signalOrderCalls: Array<[string, unknown]> = [];
@@ -111,18 +112,30 @@ function richAdmin(opts: {
       return chain;
     }
     if (table === "events") {
+      // A query is one of three: badge (.in("kind",[…generated])), signal (.in("kind",[…pivot])), or the
+      // dissect-attempt reason read (.eq("kind","coach.dissect_attempted")). Track the kind from BOTH .in and .eq.
       let kinds: unknown = null;
+      let singleKind: string | null = null;
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.in = (col: string, vals: unknown) => {
         if (col === "kind") kinds = vals;
         return chain;
       };
+      chain.eq = (col: string, val: unknown) => {
+        if (col === "kind") singleKind = String(val);
+        return chain;
+      };
       chain.order = (col: string, o: unknown) => {
-        (isSignalKinds(kinds) ? signalOrderCalls : badgeOrderCalls).push([col, o]);
+        if (singleKind !== "coach.dissect_attempted") {
+          (isSignalKinds(kinds) ? signalOrderCalls : badgeOrderCalls).push([col, o]);
+        }
         return chain;
       };
       chain.range = (rangeFrom: number) => {
+        if (singleKind === "coach.dissect_attempted") {
+          return Promise.resolve({ data: rangeFrom > 0 ? [] : (opts.attemptEvents ?? []), error: null });
+        }
         const signal = isSignalKinds(kinds);
         if (!signal && opts.badgeError) {
           return Promise.resolve({ data: null, error: { message: "boom" } });
@@ -239,5 +252,63 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
     const body = await (await GET(req())).json();
     expect(body.badgesAvailable).toBe(false);
     expect(body.sessions[0].hasDissect).toBe(false);
+  });
+});
+
+/**
+ * captureIssue — the honest "why no dissect" status (9/2 partner meeting). A one-sided session (the rep's side
+ * wasn't captured → 0 agent turns) carries a coach.dissect_attempted event with payload.reason "no_agent_turns"
+ * and no coach.dissect_generated. The list surfaces captureIssue:"one-sided" so the absent Dissect badge reads as
+ * "one-sided", not "broken"/"processing". A later re-transcription that DOES produce a dissect must clear it.
+ */
+describe("GET /list — captureIssue (one-sided honest status)", () => {
+  it("no_agent_turns attempt + no dissect → captureIssue 'one-sided'", async () => {
+    setCaller("rep1", REP);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({
+        sessions: [session()],
+        attemptEvents: [
+          {
+            kind: "coach.dissect_attempted",
+            subject: "sales_session:s1",
+            id: "a1",
+            created_at: "2026-01-02T00:00:00Z",
+            payload: { reason: "no_agent_turns" },
+          },
+        ],
+      }),
+    );
+    const body = await (await GET(req())).json();
+    expect(body.sessions[0].captureIssue).toBe("one-sided");
+  });
+
+  it("reason 'no_signal' (two-sided, LLM starved) is NOT flagged one-sided", async () => {
+    setCaller("rep1", REP);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({
+        sessions: [session()],
+        attemptEvents: [
+          { kind: "coach.dissect_attempted", subject: "sales_session:s1", id: "a1", created_at: "2026-01-02T00:00:00Z", payload: { reason: "no_signal" } },
+        ],
+      }),
+    );
+    const body = await (await GET(req())).json();
+    expect(body.sessions[0].captureIssue).toBeNull();
+  });
+
+  it("a dissect that later landed clears the one-sided status (hasDissect wins)", async () => {
+    setCaller("rep1", REP);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({
+        sessions: [session()],
+        badgeEvents: [{ kind: "coach.dissect_generated", subject: "sales_session:s1", id: "b1" }],
+        attemptEvents: [
+          { kind: "coach.dissect_attempted", subject: "sales_session:s1", id: "a1", created_at: "2026-01-01T00:00:00Z", payload: { reason: "no_agent_turns" } },
+        ],
+      }),
+    );
+    const body = await (await GET(req())).json();
+    expect(body.sessions[0].hasDissect).toBe(true);
+    expect(body.sessions[0].captureIssue).toBeNull();
   });
 });
