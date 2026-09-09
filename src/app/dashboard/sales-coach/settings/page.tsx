@@ -20,6 +20,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
 import { VoiceEnrollment } from "@/components/sales-coach/VoiceEnrollment";
+import { RepGoalPanel } from "@/components/sales-coach/doorlog/RepGoalPanel";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -168,6 +169,8 @@ export default function SalesCoachSettingsPage() {
             {tab === "coaching" && isManager && ctx && (
               <div className="space-y-4">
                 <QuotaTargetPanel />
+                {/* Per-rep daily sales goal — the door tracker's target works back from it (9/2 door screen). */}
+                <RepGoalPanel />
                 <CorpusEditor />
 
                 <ProductEditor />
