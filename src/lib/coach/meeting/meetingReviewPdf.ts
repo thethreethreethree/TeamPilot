@@ -117,8 +117,20 @@ export function buildMeetingReviewHtml(dissect: MeetingReviewDissect, meta: Meet
   .foot { border-top:1px solid ${C.line}; margin-top:8px; padding: 16px 40px 26px; font-size:11px; color:${C.muted};
     display:flex; justify-content:space-between; align-items:center; }
   .empty { font-size:14px; color:${C.muted}; background:${C.card}; border:1px dashed ${C.line}; border-radius:10px; padding:18px; }
-  @media print { html, body { background:#fff !important; } .page { margin:0; max-width:none; } @page { margin: 12mm; } }
+  /* Screen-only toolbar: a RELIABLE manual "Save as PDF" for browsers where auto-print doesn't fire (iOS Safari
+     drops user-activation on an async window.print()). The button calls print() on a real tap, so it works
+     everywhere; it is hidden from the printed output. */
+  .no-print { display:flex; align-items:center; gap:12px; justify-content:center; flex-wrap:wrap;
+    background:${C.brand}; color:#fff; padding:12px 16px; font-size:13.5px; }
+  .no-print button { background:#fff; color:${C.brand}; border:0; border-radius:8px; padding:8px 16px;
+    font-size:14px; font-weight:700; cursor:pointer; }
+  .no-print span { color:#cfe0f3; }
+  @media print { html, body { background:#fff !important; } .page { margin:0; max-width:none; } .no-print { display:none !important; } @page { margin: 12mm; } }
 </style></head><body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Save as PDF / Print</button>
+    <span>or use your browser's Share &rarr; Save to PDF</span>
+  </div>
 <div class="page">
   <div class="band">
     <p class="eyebrow">Meeting Review</p>
