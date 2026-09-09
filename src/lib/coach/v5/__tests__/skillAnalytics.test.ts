@@ -49,19 +49,39 @@ describe("speedScore — full marks inside the comfortable band", () => {
   it("a crawling 60 wpm scores low", () => expect(speedScore(60)).toBeLessThanOrEqual(5));
 });
 
-describe("agentWpm — honest null when timing is absent (§3.4)", () => {
+describe("agentWpm — true speaking tempo, median of clean turns (§3.4)", () => {
+  const W = (n: number) => Array.from({ length: n }, () => "w").join(" ");
+  // t0 + `sec` seconds as ISO
+  const at = (sec: number) => new Date(Date.parse("2026-07-15T10:00:00.000Z") + sec * 1000).toISOString();
+
   it("returns null when segments carry no timestamps", () => {
-    expect(agentWpm([seg("one two three four five six seven eight", null)])).toBeNull();
+    expect(agentWpm([seg(W(12), null), seg(W(12), null), seg(W(12), null), seg(W(12), null)])).toBeNull();
   });
-  it("computes wpm from timed agent speech", () => {
-    // 120 words over 60s → 120 wpm
-    const words = Array.from({ length: 120 }, () => "w").join(" ");
-    const wpm = agentWpm([
-      seg(words, "2026-07-15T10:00:00Z"),
-      seg("done", "2026-07-15T10:01:00Z"),
-    ]);
+
+  it("returns null with too few clean timed turns (a one-turn fluke is not a read)", () => {
+    // Only two agent turns; the last has no boundary → one qualifying turn < SPEED_MIN_TIMED_TURNS.
+    expect(agentWpm([seg(W(12), at(0)), seg("done now please", at(6))])).toBeNull();
+  });
+
+  it("computes the median speaking tempo from clean back-to-back turns", () => {
+    // Three 12-word turns each spanning 6s → 120 wpm each; the 4th has no boundary and is skipped.
+    const wpm = agentWpm([seg(W(12), at(0)), seg(W(12), at(6)), seg(W(12), at(12)), seg("closing line here now ok", at(18))]);
     expect(wpm).not.toBeNull();
-    expect(Math.round(wpm as number)).toBeGreaterThan(100);
+    expect(Math.round(wpm as number)).toBe(120);
+  });
+
+  it("REGRESSION: a long listen pause does NOT drag the tempo down (the throughput bug this fix removes)", () => {
+    // Three clean 120-wpm turns, then one 12-word turn followed 60s later by the next segment (a long listen).
+    // Old span-based agentWpm folded that gap in and read the rep as slow; the per-turn median discards the
+    // pause-polluted turn (12 words / 60s = 12 wpm, below the plausible floor) and stays at the real tempo.
+    const wpm = agentWpm([
+      seg(W(12), at(0)),
+      seg(W(12), at(6)),
+      seg(W(12), at(12)),
+      seg(W(12), at(18)), // then a long gap to the next segment at +78s
+      seg("customer took a while to answer here", at(78)),
+    ]);
+    expect(Math.round(wpm as number)).toBe(120); // not dragged toward "too slow"
   });
 });
 

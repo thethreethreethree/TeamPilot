@@ -170,7 +170,7 @@ const QUIET_RATIO = 0.65;
 // A single attributed turn. Salesperson = "agent", prospect = "customer"
 // (the existing TranscriptSpeaker terms). `pending` = the instant
 // provisional label is showing; the content classifier hasn't returned yet.
-type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean; source?: string };
+type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean; source?: string; spokenAt?: string };
 
 /**
  * Proximity verdict from an utterance's mean loudness — the INSTANT,
@@ -841,7 +841,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       const segs = selectUnflushedSegments(turnsRef.current, flushedSegsRef.current, includePending).slice(0, 500);
       if (segs.length === 0) return;
       const seqs = segs.map((s) => s.seq);
-      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq, ...(s.source ? { source: s.source } : {}) })) };
+      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq, ...(s.source ? { source: s.source } : {}), ...(s.spokenAt ? { spokenAt: s.spokenAt } : {}) })) };
       const url = `/api/coach/sales-session/${sessionId}/segments`;
       const body = JSON.stringify(payload);
       if (useBeacon && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -891,6 +891,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             text: t.text,
             seq: i,
             ...(t.source ? { source: t.source } : {}),
+            ...(t.spokenAt ? { spokenAt: t.spokenAt } : {}),
           })),
         }),
         keepalive: true,
@@ -1584,7 +1585,16 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             // refine is coming. In-person: pending until the LLM settles it.
             // source (0236) records WHY this label was chosen (manual lock / video / content / pitch / loudness)
             // so an all-"agent" collapse is diagnosable afterward instead of indistinguishable from a real call.
-            { text, speaker: provisional, pending: !locked && !isVideo, source: attrSource },
+            // spokenAt = this utterance's START (utteranceStartRef, epoch ms) so the after-pitch pace metric
+            // (agentWpm/speedScore) and the call timeline get real per-turn timing; without it agentWpm is null
+            // for every session and the "speed" skill reads "not enough sessions yet" forever (9/2 meeting fix).
+            {
+              text,
+              speaker: provisional,
+              pending: !locked && !isVideo,
+              source: attrSource,
+              spokenAt: new Date(utteranceStartRef.current ?? Date.now()).toISOString(),
+            },
           ];
           setTurns(turnsRef.current);
           // eslint-disable-next-line no-console
