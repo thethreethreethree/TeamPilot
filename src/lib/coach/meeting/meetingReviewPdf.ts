@@ -157,8 +157,12 @@ function chip(text: string, color: string, bg: string): string {
 export function exportMeetingReviewPdf(dissect: MeetingReviewDissect, meta: MeetingReviewMeta = {}): boolean {
   if (typeof window === "undefined") return false;
   const html = buildMeetingReviewHtml(dissect, meta);
-  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
-  if (!w) return false; // popup blocked
+  // NO `noopener`/`noreferrer` here: those flags make window.open return null BY DESIGN (they sever the handle back
+  // to the opener), which nulled `w` even when pop-ups were allowed — so we never wrote the HTML (a BLANK page) AND
+  // wrongly reported "pop-ups blocked". We write our OWN trusted HTML into this window, so we require the handle;
+  // a real popup-block still returns null and is still caught below. (Bug: 2026-09-09.)
+  const w = window.open("", "_blank", "width=900,height=1000");
+  if (!w) return false; // popup genuinely blocked (no handle for any other reason now)
   w.document.open();
   w.document.write(html);
   w.document.close();

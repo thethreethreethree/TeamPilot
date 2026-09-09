@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { buildMeetingReviewHtml } from "../meetingReviewPdf";
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { buildMeetingReviewHtml, exportMeetingReviewPdf } from "../meetingReviewPdf";
 
 /**
  * buildMeetingReviewHtml is the pure, shareable-PDF document builder. These lock the things the founder asked for:
@@ -74,5 +75,45 @@ describe("buildMeetingReviewHtml", () => {
     expect(html).toContain("launch date");
     expect(html).toContain("budget");
     expect(html).toContain("missed");
+  });
+});
+
+/**
+ * exportMeetingReviewPdf — the browser action. The 2026-09-09 bug: `noopener,noreferrer` in the window.open features
+ * made the browser return null BY DESIGN, so the handle was lost — a BLANK page opened AND a false "pop-ups blocked"
+ * warning fired even with pop-ups allowed. These lock the fix: we must NOT pass noopener/noreferrer (we need the
+ * handle to write our own HTML), we DO write the built HTML, and a genuine null (real block) returns false.
+ */
+describe("exportMeetingReviewPdf (browser action)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const fakeWin = () => {
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn(), readyState: "complete" as string };
+    return {
+      document: doc,
+      requestAnimationFrame: vi.fn((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      }),
+      print: vi.fn(),
+      addEventListener: vi.fn(),
+    };
+  };
+
+  it("opens WITHOUT noopener/noreferrer (else the handle is null) and writes the built HTML", () => {
+    const win = fakeWin();
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
+    const ok = exportMeetingReviewPdf({ decisions: [{ decision: "Ship Friday" }] }, { title: "Q3 sync" });
+    expect(ok).toBe(true);
+    const features = String(openSpy.mock.calls[0]?.[2] ?? "");
+    expect(features).not.toMatch(/noopener|noreferrer/); // the regression guard
+    expect(win.document.write).toHaveBeenCalledOnce();
+    expect(win.document.write.mock.calls[0]![0]).toContain("Ship Friday"); // our HTML actually went into the window
+    expect(win.print).toHaveBeenCalled(); // print fires after paint
+  });
+
+  it("returns false when the popup is genuinely blocked (window.open → null)", () => {
+    vi.spyOn(window, "open").mockReturnValue(null);
+    expect(exportMeetingReviewPdf({ decisions: [{ decision: "x" }] })).toBe(false);
   });
 });
