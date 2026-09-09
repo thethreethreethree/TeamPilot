@@ -117,3 +117,12 @@ describe("exportMeetingReviewPdf (browser action)", () => {
     expect(exportMeetingReviewPdf({ decisions: [{ decision: "x" }] })).toBe(false);
   });
 });
+
+describe("buildMeetingReviewHtml — manual Save-as-PDF toolbar (iOS-safe)", () => {
+  it("includes a print button (hidden in print) so a device without auto-print still has a one-tap path", () => {
+    const html = buildMeetingReviewHtml({ decisions: [{ decision: "Ship Friday" }] });
+    expect(html).toContain('onclick="window.print()"'); // a real-tap print, not just the async auto-print
+    expect(html).toContain("Save as PDF");
+    expect(html).toContain(".no-print { display:none !important; }"); // toolbar hidden from the printed output
+  });
+});
