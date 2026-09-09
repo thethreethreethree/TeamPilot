@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { DoorDial } from "./DoorDial";
@@ -26,8 +27,15 @@ function greeting(name: string | null): string {
 }
 
 export function DoorScreen() {
+  const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [phase, setPhase] = useState<"loading" | "ok" | "unavailable" | "error">("loading");
+
+  // Logging model (John 2026-09-10): a dial tap OPENS the existing DoorLog (pick the knock outcome / record the
+  // pitch) — not a bare +1, because a knock needs an outcome and a "presentation" is a recorded pitch. On return
+  // the screen re-mounts and the counts refresh. (This supersedes Q5's long-press decrement, which assumed a
+  // bare +1: undo now lives in the DoorLog flow, so the dials pass no onDecrement.)
+  const openLog = useCallback(() => router.push("/dashboard/sales-coach/doors"), [router]);
 
   const load = useCallback(async () => {
     setPhase("loading");
@@ -90,12 +98,13 @@ export function DoorScreen() {
         </div>
       )}
 
-      {/* Three dials */}
+      {/* Three dials — tapping any opens the DoorLog to log a knock/pitch properly (with its outcome). */}
       <div className="grid grid-cols-3 gap-2">
-        <DoorDial count={today.doors} target={hasGoal ? target.doorsTarget : null} label="Doors" />
-        <DoorDial count={today.presentations} target={hasGoal ? target.presentationsTarget : null} label="Presentations" />
-        <DoorDial count={today.sold} target={hasGoal ? target.soldTarget : null} label="Sold" accent />
+        <DoorDial count={today.doors} target={hasGoal ? target.doorsTarget : null} label="Doors" onTap={openLog} />
+        <DoorDial count={today.presentations} target={hasGoal ? target.presentationsTarget : null} label="Presentations" onTap={openLog} />
+        <DoorDial count={today.sold} target={hasGoal ? target.soldTarget : null} label="Sold" accent onTap={openLog} />
       </div>
+      <p className="text-center text-[11px] text-muted -mt-2">Tap a dial to log a knock.</p>
 
       {/* Sales to goal (replaces the old $ box — number of sales, not cash) */}
       {hasGoal && (

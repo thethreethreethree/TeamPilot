@@ -78,7 +78,7 @@ export function DoorDial({
       onPointerUp={endPress}
       onPointerLeave={cancelPress}
       onContextMenu={(e) => e.preventDefault()} // long-press on mobile can raise the context menu
-      aria-label={`${label}: ${count}${target ? ` of ${target}` : ""}. Tap to add one${onDecrement ? "; long-press to remove one" : ""}.`}
+      aria-label={`${label}: ${count}${target ? ` of ${target}` : ""}.${onTap ? " Tap to log." : ""}${onDecrement ? " Long-press to remove one." : ""}`}
       className="relative flex flex-col items-center justify-center gap-1 rounded-2xl p-1 select-none touch-none active:scale-[0.97] transition-transform disabled:opacity-50"
     >
       <span className="relative inline-flex items-center justify-center">
