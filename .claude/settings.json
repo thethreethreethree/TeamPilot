@@ -3,6 +3,15 @@
     "Stop": [
       { "hooks": [ { "type": "command", "command": "node .claude/hooks/build-continue-guard.mjs" } ] },
       { "hooks": [ { "type": "command", "command": "node .claude/hooks/decision-picker-guard.mjs" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/evidence-protocol-guard.mjs" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Bash|Write|Edit|NotebookEdit", "hooks": [ { "type": "command", "command": "node .claude/hooks/graphic-inspection-gate.mjs" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Read", "hooks": [ { "type": "command", "command": "node .claude/hooks/graphic-inspection-ledger.mjs" } ] }
     ]
   }
 }

@@ -66,6 +66,10 @@ public/care-extension.zip
 # Transient screenshots pasted into .claude/ (not project assets)
 .claude/*.png
 
+# Evidence Protocol — the graphic-inspection ledger is per-machine RUNTIME state written by the
+# PostToolUse hook (absolute paths + session opens); it is evidence, not source. Never commit it.
+.claude/graphic-inspections.json
+
 # Founder IP — never commit (untracked local reference only)
 Thinkerthinker Build Key. MD.txt
 /Thinkerthinker*.txt
