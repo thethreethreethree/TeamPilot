@@ -1,19 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
 import { ATTRIBUTION_SOURCES } from "@/lib/coach/v5/speakerAttribution";
 
 /**
- * Live Sales Coach — append diarized transcript segments (append-only).
+ * Live Sales Coach — read (GET) / append (POST) diarized transcript segments.
  *
- * The realtime audio pipeline (subsystem 1, later) posts segments here
- * as speech is transcribed. Exposed now so the transcript path is
- * verifiable + testable before the pipeline exists (you can feed a
- * transcript by hand). Immutable: insert only (the DB enforces it).
+ * POST: the realtime audio pipeline posts segments here as speech is transcribed (append-only, OWNER-only).
+ * GET (partner meeting 9/2 — John: admin access to full session transcripts for testing/feedback): read the
+ * session's full transcript. RLS (0084) gates the read to the session's OWNER or a same-company admin/manager, so
+ * an admin can open any of their team's sessions and read the transcript, and a peer rep sees nothing.
  */
+
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const limited = rateLimit(req, { id: "sales-session-segments-get", windowMs: 60_000, max: 120 });
+  if (limited) return limited;
+  const { id } = await context.params;
+  // Caller-scoped (web cookie OR mobile Bearer) so the 0084 RLS applies for THIS user — never the service role.
+  const sb = callerScopedDb(req) ?? (await createClient());
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  const { data, error } = await sb
+    .from("coaching_transcript_segments")
+    .select("speaker, text, seq, spoken_at")
+    .eq("session_id", id)
+    .order("seq", { ascending: true });
+  if (error) {
+    console.error("[sales-session/segments GET] read failed:", error.message); // CWE-209: log detail, return generic
+    return NextResponse.json({ error: "Couldn't load the transcript." }, { status: 500 });
+  }
+  // An unauthorized session returns zero rows (RLS), so a peer sees an honest empty, never another rep's transcript.
+  return NextResponse.json({ segments: data ?? [] });
+}
 
 const SegmentSchema = z.object({
   speaker: z.enum(["agent", "customer", "unknown"]),

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
+import { SessionTranscript } from "@/components/sales-coach/SessionTranscript";
 import {
   PivotAndScores,
   type PivotMoment,
@@ -476,6 +477,9 @@ export default function SessionDetail() {
             </section>
           </LearningHint>
         )}
+
+        {/* Full transcript (partner meeting 9/2) — collapsible; RLS-gated to the owner or a same-company admin. */}
+        {!loading && <SessionTranscript sessionId={id} />}
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
