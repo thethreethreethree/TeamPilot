@@ -33,9 +33,11 @@ export type PitchLabel = {
   customerF0: number | null;
 };
 
-// Human speaking F0 lives ~70–400 Hz. Outside this we don't trust it.
-const MIN_F0 = 70;
-const MAX_F0 = 400;
+// Human speaking F0 lives ~70–400 Hz. Outside this we don't trust it. Exported as the SINGLE SOURCE for the
+// trusted human-voice range so voice enrollment (voiceEnrollment.ts) validates against the exact same band
+// the live detector uses — no second copy to drift (§2.2).
+export const MIN_F0 = 70;
+export const MAX_F0 = 400;
 // Below this RMS a frame is treated as silence/noise (unvoiced).
 const RMS_GATE = 0.012;
 // NSDF clarity: a real voiced peak sits high; noise doesn't.
@@ -188,6 +190,18 @@ export class PitchSeparator {
   /** True once a ground-truth agent frame has anchored the agent cluster. */
   isAnchored(): boolean {
     return this.anchored;
+  }
+
+  /**
+   * Seed the agent cluster from the rep's ENROLLED pitch (voice enrollment, 9/2 meeting) so their turns are
+   * grounded to a KNOWN F0 from turn 1 instead of the "first speaker is the agent" guess. Counts as an anchor
+   * (like the manual "I'm speaking" toggle), so pitch may override loudness immediately. Ignores an out-of-range
+   * seed (defensive — the API already validates). Call once, right after reset(), before the first frame.
+   */
+  seedAgentCentroid(f0: number): void {
+    if (!(f0 >= MIN_F0 && f0 <= MAX_F0)) return;
+    this.agentCentroid = f0;
+    this.anchored = true;
   }
 
   /**

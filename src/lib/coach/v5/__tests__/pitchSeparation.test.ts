@@ -177,3 +177,26 @@ describe("shouldNudgeAnchor — the pitch-anchor nudge spec (§4 thresholds)", (
     ).toBe(false);
   });
 });
+
+describe("PitchSeparator.seedAgentCentroid — voice enrollment grounds the agent cluster from turn 1", () => {
+  function runTurn(sep: PitchSeparator, freq: number) {
+    for (let k = 0; k < 12; k++) sep.pushFrame(detectF0(tone(freq), SR), false);
+    return sep.labelTurn();
+  }
+
+  it("anchors immediately and makes a DISTINCT first pitch the customer (not the bootstrap 'first speaker = agent')", () => {
+    const sep = new PitchSeparator();
+    sep.seedAgentCentroid(120); // the rep enrolled at ~120 Hz
+    expect(sep.isAnchored()).toBe(true);
+    // Without the seed, the first turn would bootstrap as "agent". Seeded to 120, a 220 Hz first turn is the OTHER voice.
+    expect(runTurn(sep, 220).speaker).toBe("customer");
+    // And a turn near the enrolled pitch is correctly the agent.
+    expect(runTurn(sep, 122).speaker).toBe("agent");
+  });
+
+  it("ignores an out-of-range seed (defensive — stays unanchored)", () => {
+    const sep = new PitchSeparator();
+    sep.seedAgentCentroid(5000);
+    expect(sep.isAnchored()).toBe(false);
+  });
+});

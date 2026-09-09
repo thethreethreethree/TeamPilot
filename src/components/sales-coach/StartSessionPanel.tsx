@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Video, DoorOpen, Mic } from "lucide-react";
 import {
@@ -27,6 +28,17 @@ export function StartSessionPanel() {
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // Voice-enrollment prompt (9/2 meeting): NON-BLOCKING for now (founder rollout choice — prompt now,
+  // hard-enforce after the flow is verified in prod). null = unknown/loading, false = show the prompt.
+  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    void fetch("/api/coach/voice-enrollment")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { enrolled?: boolean } | null) => { if (live) setVoiceEnrolled(d ? Boolean(d.enrolled) : null); })
+      .catch(() => { if (live) setVoiceEnrolled(null); });
+    return () => { live = false; };
+  }, []);
 
   const start = async () => {
     const label = clientLabel.trim();
@@ -75,6 +87,20 @@ export function StartSessionPanel() {
       <h2 className="text-sm font-semibold text-primary mb-3">
         Start a coaching session
       </h2>
+      {/* Voice-enrollment prompt — non-blocking (rep can still start). Enrolling seeds live speaker
+          attribution against the rep's own pitch so who-said-what is sharper. Links to Settings. */}
+      {voiceEnrolled === false && (
+        <Link
+          href="/dashboard/sales-coach/settings"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/[0.06] px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300 hover:border-amber-500/70 transition-colors"
+        >
+          <Mic className="w-3.5 h-3.5 shrink-0" aria-hidden />
+          <span>
+            <span className="font-semibold">Enroll your voice</span> for sharper speaker attribution — a
+            one-time 6-second check in Settings.
+          </span>
+        </Link>
+      )}
       <LearningHint
         as="block"
         category="Sales Coach · Session"

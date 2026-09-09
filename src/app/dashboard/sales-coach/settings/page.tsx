@@ -19,6 +19,7 @@ import { QuotaTargetPanel } from "@/components/sales-coach/QuotaTargetPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
+import { VoiceEnrollment } from "@/components/sales-coach/VoiceEnrollment";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -158,6 +159,9 @@ export default function SalesCoachSettingsPage() {
                 {/* Experience Mode — the SAME per-user dial (0110), present in
                     Sales Coach per founder spec; flipping here applies everywhere. */}
                 <ExperienceModePanel />
+                {/* Voice enrollment (9/2 meeting) — a per-rep one-time voice check that seeds live speaker
+                    attribution against the rep's own pitch. Stores a pitch NUMBER, not audio. */}
+                <VoiceEnrollment />
               </div>
             )}
 

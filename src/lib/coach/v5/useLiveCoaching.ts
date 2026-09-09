@@ -468,6 +468,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // alongside loudness + content (§A16). Fed per-frame F0; labels each committed
   // utterance by its pitch cluster with an honest confidence (§3.4).
   const pitchSepRef = useRef(new PitchSeparator());
+  // The rep's enrolled voice pitch (9/2 meeting) — fetched once, used to seed the agent cluster at each start.
+  const enrolledF0Ref = useRef<number | null>(null);
   // Volume/proximity attribution: per-utterance energy accumulator + the
   // learned loudness level for each side (salesperson near/loud, prospect
   // far/quiet).
@@ -1050,6 +1052,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     flushTimerRef.current = setInterval(() => flushSegments(false), 4000);
     utterEnergyRef.current = { sum: 0, count: 0 };
     pitchSepRef.current.reset();
+    // Voice enrollment (9/2 meeting): if the rep has enrolled, seed the agent pitch cluster with their KNOWN
+    // F0 so their turns are grounded from turn 1, instead of the "first speaker is the agent" bootstrap guess.
+    if (enrolledF0Ref.current != null) pitchSepRef.current.seedAgentCentroid(enrolledF0Ref.current);
     pitchAgreeRef.current = 0;
     // Reset the separation-accuracy tally too (audit 2026-07-09): only pitchAgreeRef
     // was reset here, so sepTotal/sepAgree carried across a stop→start and the logged
@@ -1786,6 +1791,19 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // the MIC ON with no visible session (a privacy + resource leak), plus an open
   // socket + AudioContext + live timers. Free everything via refs (always
   // current) on unmount. Empty deps → runs once, on teardown.
+  // Fetch the rep's enrolled voice pitch once (9/2 meeting). Best-effort: no enrollment → null → the pitch
+  // clusterer falls back to its existing first-speaker bootstrap, so attribution still works, just less grounded.
+  useEffect(() => {
+    let live = true;
+    void fetch("/api/coach/voice-enrollment")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { f0Hz?: number | null } | null) => {
+        if (live && d && typeof d.f0Hz === "number") enrolledF0Ref.current = d.f0Hz;
+      })
+      .catch(() => { /* attribution degrades gracefully without a seed */ });
+    return () => { live = false; };
+  }, []);
+
   useEffect(() => {
     // (Re)mount: clear the cancel flag so a remount (incl. React strict-mode double-invoke)
     // isn't permanently wedged into the "unmounted" branch of start().
