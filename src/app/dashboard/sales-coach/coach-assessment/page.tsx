@@ -77,8 +77,12 @@ type SkillRow = { label: string; score: number | null };
  * says so; not-enough-sessions is an honest empty, not a zero score. The full AI breakdowns stay on the rep's own
  * Analytics self-view.
  */
+// Process breakdown (partner meeting 9/2): per-phase aggregate rendered UNDER the skill scores.
+type PhaseRow = { key: string; label: string; avg: number | null; samples: number; tip: string };
+
 function SkillGrades({ agentId }: { agentId: string }) {
   const [skills, setSkills] = useState<SkillRow[] | null>(null);
+  const [phases, setPhases] = useState<PhaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -90,6 +94,7 @@ function SkillGrades({ agentId }: { agentId: string }) {
       .then((d) => {
         if (cancelled) return;
         setSkills((d.skills ?? []) as SkillRow[]);
+        setPhases((d.processBreakdown ?? []) as PhaseRow[]);
         setLoading(false);
       })
       .catch(() => {
@@ -107,6 +112,7 @@ function SkillGrades({ agentId }: { agentId: string }) {
   const scored = graded.filter((g) => g.grade.letter !== null);
 
   return (
+    <>
     <div className="mt-4 pt-3 border-t border-white/5">
       <p className="text-[10px] uppercase tracking-widest text-sky-300/80 font-bold mb-2">Skill scores</p>
       {loading ? (
@@ -128,6 +134,28 @@ function SkillGrades({ agentId }: { agentId: string }) {
         </div>
       )}
     </div>
+
+      {/* Process breakdown (partner meeting 9/2) — per-phase read + the tip from the rep's weakest session. */}
+      {!loading && !error && phases.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-white/5">
+          <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-bold mb-2">Process breakdown</p>
+          <div className="flex flex-col gap-2.5">
+            {phases.map((ph) => (
+              <div key={ph.key}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-secondary">{ph.label}</span>
+                  <span className="text-muted tabular-nums shrink-0 ml-2">
+                    {ph.avg === null ? "—" : `${ph.avg}/10`}
+                    {ph.samples ? ` · ${ph.samples} session${ph.samples === 1 ? "" : "s"}` : ""}
+                  </span>
+                </div>
+                {ph.tip && <p className="mt-0.5 text-[11px] leading-snug text-muted">{ph.tip}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
