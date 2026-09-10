@@ -10,7 +10,8 @@ import {
 } from "@/lib/coach/v5/salesMoments";
 import { runAndStoreIntel, type SalesIntel } from "@/lib/coach/v5/salesIntel";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
-import { withEngineTimeout } from "@/lib/coach/v5/engineTimeout";
+import { withEngineTimeout, COACH_ENGINE_TIMEOUT_MS } from "@/lib/coach/v5/engineTimeout";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Four LLM engines run concurrently below; each is bounded by an in-code timeout,
 // so the platform must allow the function to run at least that long or it would be
@@ -85,6 +86,19 @@ export async function POST(
   // The per-engine timeout (40s) is the shared withEngineTimeout helper, kept in sync with finalize (this is
   // also the AUTO-HEAL path — at the old 25s a heavy-reasoning review would re-time-out and STAY blank,
   // defeating the heal). See engineTimeout.ts / reference_reasoning_model_token_starvation.
+  /*
+    THE SAME NOTE THE ARTIFACT GENERATOR TAKES, for the same reason and swept here to the
+    boundary of the class (A26). A timeout resolves to the engine's empty fallback, which is
+    indistinguishable from an engine that genuinely had nothing to say — so an uncoached call
+    and a quiet one look identical, and neither the rep nor anyone else can tell which they
+    are looking at. Measured 2026-09-10: artifact coverage collapses as the transcript grows,
+    which is the shape a per-call time bound makes from outside.
+  */
+  const timedOut: string[] = [];
+  const note = (engine: string) => () => {
+    timedOut.push(engine);
+  };
+
   const [summary, moments, pivot, intel] = await Promise.all([
     withEngineTimeout(
       runAndStoreSummary({
@@ -93,7 +107,8 @@ export async function POST(
         sessionId: id,
         segments,
       }).catch(() => null),
-      null
+      null,
+      note("summary")
     ),
     withEngineTimeout(
       runAndStoreMoments({
@@ -104,7 +119,8 @@ export async function POST(
         outcome: session.outcome,
         segments,
       }).catch(() => [] as SalesMoment[]),
-      [] as SalesMoment[]
+      [] as SalesMoment[],
+      note("moments")
     ),
     withEngineTimeout(
       runAndStorePivot({
@@ -115,7 +131,8 @@ export async function POST(
         outcome: session.outcome,
         segments,
       }).catch(() => null),
-      null
+      null,
+      note("pivot")
     ),
     withEngineTimeout(
       runAndStoreIntel({
@@ -125,9 +142,41 @@ export async function POST(
         context: session.context,
         segments,
       }).catch(() => null),
-      null
+      null,
+      note("intel")
     ),
   ]);
+
+  if (timedOut.length > 0) {
+    const words = segments.reduce(
+      (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,
+      0
+    );
+    // eslint-disable-next-line no-console
+    console.error(
+      `[summarize] engines timed out session=${id} engines=${timedOut.join(",")} words=${words}`
+    );
+    try {
+      await createAdminClient()
+        .from("events")
+        .insert({
+          company_id: companyId,
+          actor: auth.user.id,
+          kind: "coach.engines_timed_out",
+          subject: `sales_session:${id}`,
+          payload: {
+            engines: timedOut,
+            transcriptWords: words,
+            timeoutMs: COACH_ENGINE_TIMEOUT_MS,
+            coach_version: "summarize-v1",
+          },
+        });
+    } catch {
+      // Best-effort: the console line still records it, and a note that cannot be taken
+      // must never fail the summarize it was describing.
+    }
+  }
+
   return NextResponse.json({ summary, moments, pivot, intel });
 }
 

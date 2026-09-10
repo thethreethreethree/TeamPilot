@@ -167,6 +167,12 @@ sampled result, not an anecdote. The 2000+ row is FIVE sessions and is reported 
 The consequence in plain terms: the longest, most valuable calls are the least likely to be coached, and
 nothing anywhere said so.
 
+SWEPT TO THE BOUNDARY, not fixed at one site (A26). `withEngineTimeout` has two callers -
+`generateSessionArtifacts` (5 engines, the upload + recovery path) and the `summarize` route (4 engines, the
+web on-demand + auto-heal path). Both were blind in exactly the same way and both now take the note. Fixing
+only the one where the measurement was taken would have left the class alive in the path a rep reaches by
+opening a call.
+
 NOT FIXED HERE, and deliberately: the bound was left at 40s. Whether to raise it trades latency and LLM
 cost against coverage, and that is the founder's decision, not this file's. What changed is that a timeout
 now REPORTS itself - `coach.engines_timed_out` names the engines and the transcript size that beat them -
