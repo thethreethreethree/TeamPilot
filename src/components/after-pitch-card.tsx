@@ -23,6 +23,7 @@ import {
   hasContent,
 } from '@/lib/after-pitch-empty';
 import {
+  TIMING_LOST_NOTE,
   type RecoveryStatus,
   canAskAgain,
   recoveryRecoveredWords,
@@ -54,6 +55,25 @@ import {
 import { transcriptOverdue } from '@/lib/transcript-wait';
 
 type Phase = 'idle' | 'loading' | 'working' | 'ready' | 'blocked' | 'error';
+
+/**
+ * What a recovery cost, when it cost something.
+ *
+ * ONE COMPONENT, USED IN THREE BRANCHES, because the alternative was the same six lines written
+ * three times and then drifting - and the one that drifted would be the one nobody read. It is
+ * quiet on purpose: a left rule and muted text, not an alert. Nothing is wrong with the rep's call
+ * and nothing is theirs to fix; they are simply being told what is missing before they notice it
+ * themselves and wonder.
+ */
+function TimingLostNote() {
+  return (
+    <View accessibilityLiveRegion="polite" className="mt-3 border-l-2 border-border-control pl-3">
+      <Text className="font-body text-sm leading-relaxed text-muted-foreground">
+        {TIMING_LOST_NOTE}
+      </Text>
+    </View>
+  );
+}
 
 export function AfterPitchCard({
   sessionId,
@@ -108,6 +128,8 @@ export function AfterPitchCard({
    * different causes, different sentences and different right next steps.
    */
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
+  /** The words came back and this call's pacing did not. Shown ALONGSIDE the outcome, not instead. */
+  const [timingLost, setTimingLost] = useState(false);
   const [rereading, setRereading] = useState(false);
   /** Why it is blocked — a session that ended, or a route that refused. */
   const [why, setWhy] = useState<AuthFailure | null>(null);
@@ -184,8 +206,9 @@ export function AfterPitchCard({
    */
   const reRead = useCallback(async () => {
     setRereading(true);
-    const status = await reReadRecording(sessionId);
+    const { status, timingLost: lost } = await reReadRecording(sessionId);
     setRecoveryStatus(status);
+    setTimingLost(lost);
     setRereading(false);
     if (recoveryRecoveredWords(status)) {
       // `make` sets its own phase and handles its own failures, including the case where the rebuilt
@@ -215,7 +238,18 @@ export function AfterPitchCard({
     */
     { overdue: transcriptOverdue(endedAt, startedAt, new Date()), agentTurnCount },
   );
-  if (availability !== 'ready') {
+  /*
+    THE PROPS ARE STALE THE MOMENT A RE-READ SUCCEEDS, and this is the bug that fixing them
+    prevents rather than a precaution.
+
+    `segmentCount`, `agentTurnCount` and the timestamps are counted by the SCREEN, from the
+    segments it loaded when it opened. A successful re-read writes a new transcript on the server;
+    the screen does not know that until it reloads. So the availability computed above still says
+    the words never arrived - and the card would go on saying so, immediately after telling the rep
+    they had come back, with the read sitting ready underneath.
+  */
+  const recoveredNow = recoveryStatus !== null && recoveryRecoveredWords(recoveryStatus);
+  if (availability !== 'ready' && !recoveredNow) {
     const recovery = recoveryStatus ? recoveryWording(recoveryStatus) : null;
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">
@@ -237,6 +271,7 @@ export function AfterPitchCard({
             </Text>
           </View>
         ) : null}
+        {timingLost ? <TimingLostNote /> : null}
 
         {/*
           The same button, from the other direction. Above, the transcript exists and holds one
@@ -372,6 +407,7 @@ export function AfterPitchCard({
             </Text>
           </View>
         ) : null}
+        {timingLost ? <TimingLostNote /> : null}
 
         {canRebuild(reason) ? (
           <Pressable
@@ -437,6 +473,14 @@ export function AfterPitchCard({
       >
         How this call went
       </Text>
+
+      {/*
+        THE PLACE THIS MATTERS MOST. A recovery that worked shows the read and says nothing about
+        mechanics - deliberately, because a wall of process over a rep's coaching would be noise.
+        But "it worked" is not the whole truth when the call's pacing was lost getting here, and
+        this is the only screen that will ever mention it.
+      */}
+      {timingLost ? <TimingLostNote /> : null}
 
       {/* What this call banked. Closes the loop from Your points, where a rep
           taps "84 points" and would otherwise land on a screen that never

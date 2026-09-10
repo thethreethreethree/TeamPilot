@@ -43,6 +43,35 @@ export function isRecoveryStatus(value: unknown): value is RecoveryStatus {
 }
 
 /**
+ * What a re-read cost, on top of what it achieved.
+ *
+ * `timingLost` means the words are back and this call's TIMING is gone, permanently. The server
+ * detects it by reading its own write back, and until 11 September it recorded that only in a log
+ * line and a database row - so the person who asked was told it worked and never told what it
+ * cost. Three real calls went that way on 10 September inside sixty seconds.
+ *
+ * It is not a small loss and it is not recoverable: `spoken_at` is what the pace skill reads, and
+ * the one-attempt marker is deliberately not released, so nothing will revisit the call later.
+ */
+export type RecoveryResult = { status: RecoveryStatus; timingLost: boolean };
+
+/**
+ * The extra sentence when a recovery succeeded but cost this call its timing.
+ *
+ * SEPARATE FROM `recoveryWording`, because it is not an alternative to the outcome - it is an
+ * addition to it. The words really did come back, and saying only "something was lost" would be as
+ * wrong in the other direction as saying only "it worked" was.
+ *
+ * NO BLAME AND NO JARGON. A rep did not cause this and cannot fix it; it is a database update
+ * their company has not applied yet. What they can do is know that this one call will not have a
+ * pace reading, so they are not left wondering later why it is the only one without.
+ */
+export const TIMING_LOST_NOTE =
+  'One thing did not come back: how this call was paced. Your words and the customer' +
+  '’s are all here, but the timing behind them was lost on the way, so this call will not ' +
+  'get a speed reading. Nothing you did caused it and there is nothing to redo.';
+
+/**
  * Did the words come back?
  *
  * Both of these mean the transcript on the server is now two-sided, so the card should rebuild the

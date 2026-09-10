@@ -25,7 +25,7 @@
  */
 import { coachGet, coachPost } from '@/lib/coach-api';
 import { authFailureOf, type AuthFailure } from '@/lib/auth-failure';
-import { type RecoveryStatus, isRecoveryStatus } from '@/lib/transcript-recovery';
+import { type RecoveryResult, isRecoveryStatus } from '@/lib/transcript-recovery';
 
 export type Strength = { point: string; example: string };
 export type Growth = { opportunity: string; nextStep: string };
@@ -99,13 +99,18 @@ export async function generateAfterPitch(sessionId: string): Promise<AfterPitchR
  * sentence for each, because "there is no saved recording" and "the speech service is down" ask
  * completely different things of the rep.
  */
-export async function reReadRecording(sessionId: string): Promise<RecoveryStatus> {
+export async function reReadRecording(sessionId: string): Promise<RecoveryResult> {
   try {
-    const data = await coachPost<{ status?: string }>(
+    const data = await coachPost<{ status?: string; timingLost?: boolean }>(
       `/api/coach/sales-session/${sessionId}/auto-recover`,
       {},
     );
-    return isRecoveryStatus(data?.status) ? data.status : 'failed';
+    return {
+      status: isRecoveryStatus(data?.status) ? data.status : 'failed',
+      // Strictly true, never merely truthy. An older server that does not send the field at all
+      // must read as "nothing was lost" rather than as a loss nobody can explain.
+      timingLost: data?.timingLost === true,
+    };
   } catch (e) {
     /**
      * The route answers 409 for `canonical` and for `no-audio`, and 4xx/5xx for `failed`, so those
@@ -115,7 +120,9 @@ export async function reReadRecording(sessionId: string): Promise<RecoveryStatus
      * this reason. A throw with no status string in it is a genuine failure.
      */
     const status = (e as { serverStatus?: string | null })?.serverStatus;
-    return isRecoveryStatus(status) ? status : 'failed';
+    // Every one of these is a route that did NOT write a transcript, so there is nothing that
+    // could have lost its timing.
+    return { status: isRecoveryStatus(status) ? status : 'failed', timingLost: false };
   }
 }
 

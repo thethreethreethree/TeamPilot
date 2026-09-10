@@ -26,6 +26,7 @@ import {
 } from '@/lib/after-pitch-empty';
 import {
   RECOVERY_STATUSES,
+  TIMING_LOST_NOTE,
   canAskAgain,
   isRecoveryStatus,
   recoveryRecoveredWords,
@@ -195,4 +196,33 @@ test('the statuses are exactly the eight the route can answer with', () => {
     'saved-unlabelled',
     'still-one-sided',
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// What the recovery COST
+//
+// The server detects, by reading its own write back, that a recovered call lost its timing —
+// `spoken_at` survives only from migration 0249 onward, and both versions of the write succeed. It
+// recorded that in a console line and a database row, and told the caller only that it worked.
+// Three real calls went that way on 10 September inside sixty seconds, and the ledger still ends at
+// 0248, so it is not over. The loss is permanent by design: the one-attempt marker is deliberately
+// NOT released, so nothing will ever revisit those calls.
+
+test('the note says what was lost, that it is not the rep’s doing, and offers no retry', () => {
+  assert.match(TIMING_LOST_NOTE, /paced|pacing|speed/i, 'name the thing that is missing');
+  assert.match(TIMING_LOST_NOTE, /nothing you did/i, 'a rep did not cause this');
+  assert.doesNotMatch(TIMING_LOST_NOTE, /try again|retry|again\b.*\?/i, 'there is nothing to redo');
+  // It is an ADDITION to the outcome, never a replacement — the words really did come back.
+  assert.doesNotMatch(TIMING_LOST_NOTE, /^(failed|error|sorry)/i);
+});
+
+test('the note never claims the words were lost, because they were not', () => {
+  assert.match(TIMING_LOST_NOTE, /all here|are here/i);
+});
+
+test('a recovery that kept its timing says nothing extra', () => {
+  // recoveryWording is null for a success, and the note is gated separately on the flag. Together
+  // that is "show the read, say nothing about mechanics" — which is the right default.
+  assert.equal(recoveryWording('recovered'), null);
+  assert.equal(recoveryWording('canonical'), null);
 });
