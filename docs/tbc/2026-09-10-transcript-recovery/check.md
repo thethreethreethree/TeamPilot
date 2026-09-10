@@ -864,3 +864,29 @@ recovery path has no pitch extraction, and that part really is a build.
 
 That is `stale-claims-in-code-and-docs` exactly - when the cause changes, grep for the CLAIM as well - and
 it is the second time in this build that a comment or a string outlived the code it described.
+
+### F37 - I shipped a chip that names a problem and gives the rep nothing to do about it
+class: an-affordance-added-without-the-action-behind-it
+sweep: every surface the app offers for a session's coaching artifacts, against what the web has
+severity: high
+Earlier tonight the sessions list started showing "Read didn't finish" on a call where the coach came back
+blank, unreadable, or threw. That is honest and it is an improvement on the silence it replaced. It is also
+a dead end: a rep taps the call and there is nothing there.
+
+Two things were missing, and I only noticed the second when I went looking for where the chip led.
+
+FIRST, THE APP HAS NEVER SHOWN THE READ AT ALL. Not a failed one - ANY of them. The web has had the deep
+whole-conversation evaluation since the coach was built: what worked, what to work on, and the play the rep
+ran without naming it. The phone showed the transcript, the debrief and the scores, and never that. A rep
+on the doors carries the phone; the single richest thing the coach produces lived where they were not.
+
+SECOND, THE ROUTE COULD NOT BE REACHED FROM A PHONE ANYWAY. `/api/coach/sales-session/dissect` was
+cookie-only on both verbs: `createClient()` for identity, `getCurrentCompanyId()` for the company, and both
+reads resolving their own client. Sixth instance of that class tonight. The GET's owner-or-manager gate -
+the one whose comment explains it exists to stop a same-company peer reading another rep's private read -
+was itself a bare `getSession(sessionId)`, so for a Bearer caller it would have 404'd everything while
+ALSO being weaker than intended.
+
+The lesson is the narrow one, and it is mine: I added the sentence before I added the thing. A chip that
+names a fault with no way to act on it tells a rep the app is broken and leaves them holding it, which is a
+worse state than the silence I was fixing.

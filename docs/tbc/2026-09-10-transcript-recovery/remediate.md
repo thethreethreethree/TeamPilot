@@ -326,3 +326,17 @@ the un-wiring decision is now quoted in the copy's own comment, so the claim and
 in the same place rather than three files apart.
 
 npm test (app) -> 1301 pass, 0 fail. node tools/gate.mjs -> G1-G4 PASS, G5 NOT RUN.
+
+### F37 - I shipped a chip that names a problem and gives the rep nothing to do about it
+fix (server half): `/api/coach/sales-session/dissect` takes the caller's scoped client on BOTH verbs and
+passes it THROUGH to `getSession` and `getSessionTranscript` - including the GET's owner-or-manager gate,
+where the scoped client is what makes the RLS that IS the gate apply to the actual caller.
+gate-or-promise: PROMISE for the route (its four existing tests still pass and cover the verbs, not the
+client), GATE for the app half in the mobile repo - four compiling mutations, each caught by its own named
+test: treating a speechless call as retryable, collapsing "we asked and it broke" into "nobody asked",
+accepting a signal-less read as a read, and counting the customer's words as the rep speaking.
+
+The app half is the actual product: a "Your read" card on the session screen, showing what worked, what to
+work on and the play the rep ran - with an honest empty state that offers a retry ONLY where retrying can
+help. A call whose recording caught no speech gets words and no button, because spending a real LLM call on
+a whole conversation to produce the same empty answer is not a kindness.
