@@ -172,7 +172,9 @@ export function VoiceEnrollment() {
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-primary">Voice enrollment</h2>
           <p className="text-[11px] text-muted mt-0.5">
-            A one-time voice check so the coach can tell your side of a conversation from the customer&apos;s. We
+            A one-time voice check. The number is kept on your profile and is <b>not being used yet</b> to
+            tell your side of a conversation from the customer&apos;s &mdash; a first version of that made the
+            guessing worse (un-wired 2026-09-09), so it is being reworked. We
             store a pitch reference (a number) — never a recording of your voice.
           </p>
         </div>

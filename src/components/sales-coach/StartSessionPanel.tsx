@@ -87,8 +87,10 @@ export function StartSessionPanel() {
       <h2 className="text-sm font-semibold text-primary mb-3">
         Start a coaching session
       </h2>
-      {/* Voice-enrollment prompt — non-blocking (rep can still start). Enrolling seeds live speaker
-          attribution against the rep's own pitch so who-said-what is sharper. Links to Settings. */}
+      {/* Voice-enrollment prompt — non-blocking (rep can still start). Links to Settings.
+          The copy no longer promises sharper attribution: the enrolled pitch is NOT seeded into the live
+          cluster (un-wired 2026-09-09 — a fixed seed >~25 Hz from the rep's live pitch inverts attribution,
+          worse than the bootstrap). Saying otherwise here teaches a rep that the app's claims are decorative. */}
       {voiceEnrolled === false && (
         <Link
           href="/dashboard/sales-coach/settings"
@@ -96,8 +98,8 @@ export function StartSessionPanel() {
         >
           <Mic className="w-3.5 h-3.5 shrink-0" aria-hidden />
           <span>
-            <span className="font-semibold">Enroll your voice</span> for sharper speaker attribution — a
-            one-time 6-second check in Settings.
+            <span className="font-semibold">Enroll your voice</span> — a one-time 6-second check in
+            Settings. Not used for speaker attribution yet; it is being reworked.
           </span>
         </Link>
       )}

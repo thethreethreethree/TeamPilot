@@ -314,3 +314,15 @@ answer to "does this guard need to exist"; this entry is the note that says whic
 gate-or-promise: PROMISE. There is no gate on a scratch query and rule 7 forbids building one. The habit is
 the fix and it is narrow enough to state as a rule: a query whose result will be shown to the founder gets
 `company_id` in the `select` or it does not get published.
+
+### F36 - three screens promise a thing the founder deliberately switched off two days ago
+fix: all three strings now say what is true - the number is kept, it is NOT being used yet, and why (a first
+version made the guessing worse). The comment above the web prompt carries the un-wiring date so the next
+person to read it does not re-promise it. Whether to keep ASKING at all is the founder's call and is already
+on the build board; the copy stops lying in the meantime rather than waiting on that.
+gate-or-promise: PROMISE. There is no gate that can tell a true sentence from a false one, and inventing a
+copy-linter for it would be the bureaucracy rule 7 forbids. The durable part is where the correction lives:
+the un-wiring decision is now quoted in the copy's own comment, so the claim and the reason it is false sit
+in the same place rather than three files apart.
+
+npm test (app) -> 1301 pass, 0 fail. node tools/gate.mjs -> G1-G4 PASS, G5 NOT RUN.

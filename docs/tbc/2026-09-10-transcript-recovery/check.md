@@ -839,3 +839,28 @@ The findings all survive rescoping and two get worse. That is not the point. The
 and I made it again four times in one night - because the scope is invisible in a `select` that omits the
 filter, and a plausible number looks the same either way. It is the same shape as everything else in this
 build: nothing said the figure was wrong.
+
+### F36 - three screens promise a thing the founder deliberately switched off two days ago
+class: copy-that-outlived-the-decision-it-described
+sweep: every string mentioning voice enrollment across both repositories, and every caller of `seedAgentCentroid`
+severity: medium
+The app's enrollment screen tells a rep, in the present tense: "It uses that to tell your side of a call
+from the customer's." The web says the same twice - "so the coach can tell your side of a conversation from
+the customer's", and "Enroll your voice for sharper speaker attribution".
+
+None of it is true, and it has not been since 9 September. `useLiveCoaching.ts` records the decision in full:
+`PitchSeparator.seedAgentCentroid` is built and tested, and the founder UN-WIRED it because an adversarial
+review found that a fixed seed sitting more than ~25 Hz from the rep's live pitch - calm while reading a
+line, animated at a door - INVERTS attribution and is worse than the bootstrap it replaced.
+
+The decision is right. The copy simply did not follow it, and a rep who enrols on that sentence and sees
+nothing change learns that this app's claims are decorative - which costs more than the feature is worth.
+
+I ALSO GOT THIS WRONG ON THE BOARD, in a way that mattered more than the copy. I told the founder "the half
+that reads the number does not exist" and that wiring it up would be "a real build, not an afternoon". The
+consumer exists, is tested, and was switched off by their own decision. I described a call they had made as
+a feature nobody had built. What IS still missing is narrower and worth stating precisely: the SERVER-side
+recovery path has no pitch extraction, and that part really is a build.
+
+That is `stale-claims-in-code-and-docs` exactly - when the cause changes, grep for the CLAIM as well - and
+it is the second time in this build that a comment or a string outlived the code it described.
