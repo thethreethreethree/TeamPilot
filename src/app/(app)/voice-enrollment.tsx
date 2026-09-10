@@ -178,9 +178,24 @@ export default function VoiceEnrollmentScreen() {
         <Text accessibilityRole="header" className="mt-4 font-heading text-2xl text-foreground">
           Your voice
         </Text>
+        {/*
+          SAYS WHAT IS TRUE TODAY, not what this was built for.
+
+          This used to read "It uses that to tell your side of a call from the customer's" — present
+          tense, and not true since 9 September 2026. The consumer exists and is tested
+          (PitchSeparator.seedAgentCentroid), and the founder deliberately UN-WIRED it: a review found
+          that a fixed starting point more than ~25 Hz from how a rep actually sounds on the day —
+          calm reading a line, animated at a door — INVERTS attribution and is worse than no seed.
+
+          A rep who enrols on that sentence and sees nothing change learns not to believe the app,
+          which costs more than the feature is worth. Whether to keep asking at all is the founder's
+          call and is on the build board; until then the screen does not claim a thing it is not doing.
+        */}
         <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
-          Read one line out loud and the app measures the pitch of your speaking voice. It uses that
-          to tell your side of a call from the customer&apos;s.
+          Read one line out loud and the app measures the pitch of your speaking voice, and keeps it
+          as a single number on your profile. It is <Text className="font-strong">not being used
+          yet</Text> to tell your side of a call from the customer&apos;s &mdash; a first version of
+          that made the guessing worse, so it is being reworked.
         </Text>
 
         {/* The promise sits ABOVE the button, where the decision is made. */}
