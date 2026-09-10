@@ -200,10 +200,26 @@ export async function recoverInterruptedRecording(userId: string | null): Promis
     // recordings slightly differently is one that would be exercised only in the
     // rare case and therefore only be found broken then.
     const recording = await persistRecording({
-      // Whoever is signed in NOW owns it. A call recorded under a previous
-      // sign-in goes to the unclaimed bucket and is claimed at the next sign-in,
-      // which is the rule the rest of this app already follows.
-      userId,
+      /*
+       * THE REP WHO RECORDED IT OWNS IT — not whoever is holding the phone now.
+       *
+       * This used to pass the CURRENT `userId`, and on a shared phone that hands
+       * one rep's customer conversation to another: rep A records, the app is
+       * killed, rep B signs in, and A's call is saved into B's account, uploaded
+       * under B's identity, transcribed, coached and scored as B's work. The
+       * marker has known who recorded it since the moment Record was pressed.
+       *
+       * When the marker has no user — a call recorded while signed out, which
+       * this app supports deliberately — it stays NULL and goes to the unclaimed
+       * bucket, where `claimUnclaimedRecordings` attaches it at the next sign-in
+       * behind a recency window that refuses to claim on a guess. Passing the
+       * current user here skipped that guard entirely.
+       *
+       * `userId` is still the argument this function takes, because the caller
+       * uses it for nothing else and removing it would change a public shape for
+       * no gain; it is deliberately not consulted for ownership.
+       */
+      userId: marker.userId,
       sourceUri: marker.uri,
       // Unknown, and left unknown. See the header.
       durationMs: 0,

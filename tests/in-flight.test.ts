@@ -196,3 +196,36 @@ test('a marker missing its uri is treated as no marker', async () => {
   );
   assert.equal(await readMarker(), null);
 });
+
+test('a recovered call belongs to the rep who RECORDED it, not whoever signs in next', async () => {
+  /*
+   * The shared-phone case, and the reason this is not a detail. Rep A records a
+   * customer conversation, the app is killed, rep B signs in and opens the app.
+   * Recovery used to pass the CURRENT user, so A's call landed in B's account —
+   * uploaded under B's identity, transcribed, coached and scored as B's work,
+   * with A's customer audible to someone who was never on the call.
+   *
+   * The marker has known who was recording since Record was pressed.
+   */
+  await start({ userId: 'rep-A' });
+  writeSource();
+
+  // Rep B is the one holding the phone now.
+  const result = await recoverInterruptedRecording('rep-B');
+  assert.equal(result.kind, 'recovered');
+
+  assert.equal((await listRecordings(storeKeyFor('rep-A'))).length, 1, "the recorder's own store is empty");
+  assert.equal((await listRecordings(storeKeyFor('rep-B'))).length, 0, "it landed in the wrong rep's store");
+});
+
+test('a call recorded while signed out stays unclaimed rather than seizing the current rep', async () => {
+  // Passing the current user here skipped `claimUnclaimedRecordings` entirely,
+  // and with it the recency window that refuses to claim on a guess.
+  await start({ userId: null });
+  writeSource();
+
+  const result = await recoverInterruptedRecording('rep-B');
+  assert.equal(result.kind, 'recovered');
+  assert.equal((await listRecordings(storeKeyFor(null))).length, 1, 'it did not go to the unclaimed bucket');
+  assert.equal((await listRecordings(storeKeyFor('rep-B'))).length, 0);
+});
