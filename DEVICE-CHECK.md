@@ -202,14 +202,14 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-one checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
 **Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 30** at the end, and check 28 is the one I would
+seen render are checks **27 to 31** at the end, and check 28 is the one I would
 most like a human on: it is a *keyboard* interaction, which is exactly the class
 no test here can reach.
 
@@ -940,6 +940,47 @@ when the chip appears.
 **Wrong looks like:** the chip on a call that already *has* a read; the chip on
 every session at once; or the chip and "One-sided" both showing on the same row —
 one-sided is meant to win.
+
+---
+
+### 31. "Your read" — a whole screen the app has never had (new, 11 September)
+
+**Background.** The web has shown the deep read of a call since the coach was
+built: what worked, what to work on, and the play you ran without naming it.
+**The app has never shown it at all.** You could see your transcript, your
+debrief and your scores on the phone, and not the one thing that reads the
+conversation end to end.
+
+I built it tonight because I had already shipped a chip that pointed at it.
+Check 30's *"Read didn't finish"* told a rep something was broken and gave them
+nowhere to go. This is where it goes.
+
+**What to do:** open any finished call with a real conversation in it. Under the
+debrief you should see **Your read**.
+
+You will hit one of four states, and all four are correct results:
+
+| What you see | What it means |
+|---|---|
+| **Your read**, with sections | It worked. Check the quoted lines are *yours* and read naturally. |
+| **No read yet** + **Read this call** | Nothing has been made. Tap it — it takes a moment, because it reads the whole conversation. |
+| **The read did not finish** + **Try again** | The coach failed on this one. It should say your recording is fine. |
+| **Nothing to read on this one**, *no button* | The recording caught no speech. **The absent button is the point** — see below. |
+
+**Wrong looks like:**
+
+- A **button on the "nothing to read" card.** There must not be one. Offering a
+  retry there spends a real charge to produce the same empty answer.
+- The words **"not enough of a conversation"** anywhere. That sentence reads as a
+  judgement of you and was taken back once already; if it has come back, tell me.
+- A read appearing **without you asking**. It should never generate on open —
+  that would spend a charge on someone who came to look at the transcript.
+- Quoted lines that are the **customer's** words attributed to you.
+- Any section heading with nothing under it.
+
+**The one I would look hardest at:** tap **Try again** or **Read this call** and
+watch the button. It should say **"Reading the call…"**, be visibly disabled, and
+not be tappable twice. Two taps means two charges.
 
 ---
 
