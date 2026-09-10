@@ -421,6 +421,33 @@ BOTH WERE FOUND BY PROBING, NOT READING, and the probe needs its own caveat: of 
 were paths I had invented and a THIRD was a web-only route the app never calls. A probe result is a list of
 suspects, and opening them is the only reason the two real ones can be stated as findings.
 
+### F24 - the class swept to its boundary: a rep's own scores were withheld from them
+class: a-scoped-client-resolved-and-then-not-passed-on
+sweep: every route mentioning `callerScopedDb` that then calls a data helper with no client argument
+severity: high
+F22 fixed one route. Sweeping the SHAPE rather than stopping at the instance found three more call sites
+across two routes - and one of them is worse than the 404 that started this.
+
+`GET /api/coach/sales-session/[id]/after-pitch` returns **200** with `{"summary":null,"isOwner":false}` for
+the founder's OWN sessions, using the founder's OWN token. Measured against production, three sessions, all
+three the same. `isOwner:false` is not a subtle wrong: the app withholds banked points and scores from a
+manager viewing somebody else's call, so a rep on their own phone was being shown their own call as though
+it belonged to someone else.
+
+It returns 200, so nothing anywhere errors. That is the same disease as every other finding in this build -
+the failure is indistinguishable from an honest empty answer.
+
+THE INSTANCE WAS NOT THE BOUNDARY. `segments` POST had it too; `segments` GET does NOT, because it reads
+`.from("coaching_transcript_segments")` with the scoped client directly - which is exactly why that endpoint
+returned 200 with real data in the probe and looked fine. Three of the four sites in these files were
+broken and the fourth was correct, so the file could not be judged as a whole.
+
+WHY THE AUDIT CANNOT SEE ANY OF IT, worth writing down rather than filing as bad luck: INVARIANT 26 looks
+for a route that never mentions `callerScopedDb`. All three of these mention it, use it for auth, and read
+anonymously anyway. A30's sentence exactly - a green gate is a statement about the gate's vocabulary, never
+about the system. I am NOT extending the audit here: that is the founder's call about their own gate, and
+this build has already spent its budget for changes made on my own judgement.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.

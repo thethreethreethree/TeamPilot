@@ -105,7 +105,18 @@ export async function POST(
   // the service role and still strips the private scores.
   const supabase = callerScopedDb(req) ?? (await createClient());
 
-  const session = await getSession(id);
+  /*
+   * THE CALLER'S OWN CLIENT HAS TO REACH THE READ. Resolving a Bearer-scoped client for
+   * AUTH and then calling `getSession(id)` with no client reads through the default cookie
+   * client — and a phone sends no cookie, so the read runs ANONYMOUSLY and RLS returns
+   * nothing. Measured against production 10 September 2026 with a real Bearer token: this
+   * route answered 200 with `isOwner: false` for the founder's OWN sessions, which is how
+   * the app came to withhold a rep's own scores from them on their own call.
+   *
+   * The invariant audit reads green on this shape: it looks for a route that never mentions
+   * `callerScopedDb`, and this one mentions it, uses it for auth, and still read anonymously.
+   */
+  const session = await getSession(id, supabase);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
@@ -158,7 +169,7 @@ export async function GET(
   // the service role and still strips the private scores.
   const supabase = callerScopedDb(req) ?? (await createClient());
 
-  const session = await getSession(id);
+  const session = await getSession(id, supabase);
   if (!session) {
     // 404 also covers "not allowed to read the session" (RLS returned null).
     return NextResponse.json({ summary: null, isOwner: false });
