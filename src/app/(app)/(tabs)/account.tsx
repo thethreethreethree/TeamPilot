@@ -490,6 +490,22 @@ export default function AccountScreen() {
           Lines of yours that worked, and why.
         </Text>
 
+        <Pressable
+          onPress={() => router.push('/(app)/voice-enrollment')}
+          accessibilityRole="button"
+          accessibilityLabel="Your voice"
+          className="mt-3 min-h-7 justify-center active:opacity-70"
+        >
+          <Text className="font-emphasis text-base text-primary">Your voice</Text>
+        </Pressable>
+        {/* The hint carries the promise, not just the feature. A rep reading a
+            list of links should know what recording their voice costs them
+            before they tap, not after. */}
+        <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          Read one line so the app can tell your side of a call from the customer&apos;s. It keeps
+          a single number, never a recording.
+        </Text>
+
         <Section title="Signing out" />
         <Text className="font-body text-sm leading-relaxed text-muted-foreground">
           Anything still waiting — recordings, changes, doors — stays on this phone and reaches
