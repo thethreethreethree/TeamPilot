@@ -108,15 +108,55 @@ test('an interrupted call whose audio the phone reclaimed is reported LOST', asy
   assert.equal(await readMarker(), null);
 });
 
-test('an empty file counts as lost, not as a recording', async () => {
+test('a zero-byte file DEFERS the first time it is seen, and is not written off', async () => {
+  /*
+   * `File.size` returns 0 both for a file that is empty and for one that cannot
+   * be READ. This used to be treated as one answer - lost - which cleared the
+   * marker and destroyed the only pointer to audio that might still be on the
+   * disk, with no later launch retrying because the marker was gone.
+   *
+   * The realistic trigger is not exotic: iOS cannot stat a protected file while
+   * the phone is locked, and being killed mid-call with the phone in a pocket is
+   * exactly the case recovery exists for.
+   */
   await start();
   new File(SOURCE).write('');
 
   const result = await recoverInterruptedRecording(REP);
-  // The recorder creates the file before it writes anything. Offering a rep an
-  // empty recording to send would be worse than telling them nothing was caught.
-  assert.equal(result.kind, 'lost');
+  assert.equal(result.kind, 'deferred');
+  // The marker SURVIVES, which is the whole point - it is what makes the retry
+  // possible at all.
+  const marker = await readMarker();
+  assert.ok(marker, 'the marker was cleared, so nothing can ever retry');
+  assert.ok(marker!.zeroSeenAt, 'the sighting was not written down');
   assert.equal((await listRecordings(storeKeyFor(REP))).length, 0);
+});
+
+test('a zero-byte file seen TWICE really is empty, and is called lost', async () => {
+  // One extra launch of patience, not indefinite deferral: a genuinely empty
+  // file must eventually be reported so the rep can re-record while they still
+  // remember the conversation.
+  await start();
+  new File(SOURCE).write('');
+
+  assert.equal((await recoverInterruptedRecording(REP)).kind, 'deferred');
+  const second = await recoverInterruptedRecording(REP);
+  assert.equal(second.kind, 'lost');
+  assert.equal(await readMarker(), null, 'a confirmed loss must clear the marker');
+  assert.equal((await listRecordings(storeKeyFor(REP))).length, 0);
+});
+
+test('a file that appears between the two launches is recovered, not lost', async () => {
+  // The case the old code could not reach: the first look could not read the
+  // file, the second can, and the call is saved instead of written off.
+  await start();
+  new File(SOURCE).write('');
+  assert.equal((await recoverInterruptedRecording(REP)).kind, 'deferred');
+
+  writeSource();
+  const second = await recoverInterruptedRecording(REP);
+  assert.equal(second.kind, 'recovered');
+  assert.equal((await listRecordings(storeKeyFor(REP))).length, 1);
 });
 
 test('a call recorded while signed out is recovered unattached', async () => {

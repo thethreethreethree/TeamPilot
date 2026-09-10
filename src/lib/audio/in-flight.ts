@@ -61,6 +61,25 @@ export type InFlightMarker = {
   userId: string | null;
   /** The name the rep had already typed, if they typed one before starting. */
   label: string | null;
+  /**
+   * ISO time a launch first saw this file reporting zero bytes.
+   *
+   * WHY A ZERO NEEDS REMEMBERING. `File.size` is documented as returning 0 both
+   * for a file that is empty AND for one that cannot be read - so a single look
+   * cannot tell "the app died before writing a note" from "the phone would not
+   * let us stat it just now". The first is genuinely lost; the second is a call
+   * still sitting on the disk.
+   *
+   * Seeing zero once now defers to the next launch. Seeing it twice means it is
+   * really empty. That is one extra launch of patience in exchange for never
+   * writing off a recording because of a momentary read failure - which on iOS
+   * is a real case, since a phone killed while LOCKED cannot stat a protected
+   * file until it is unlocked.
+   *
+   * Absent on every marker written before this existed, which reads as "not seen
+   * yet" and costs those markers one extra launch at worst.
+   */
+  zeroSeenAt?: string | null;
 };
 
 /** Written the moment recording starts, before a single second is captured. */
@@ -96,6 +115,7 @@ export async function readMarker(): Promise<InFlightMarker | null> {
       startedAt: parsed.startedAt,
       userId: typeof parsed.userId === 'string' ? parsed.userId : null,
       label: typeof parsed.label === 'string' ? parsed.label : null,
+      zeroSeenAt: typeof parsed.zeroSeenAt === 'string' ? parsed.zeroSeenAt : null,
     };
   } catch {
     return null;
@@ -138,13 +158,40 @@ export async function recoverInterruptedRecording(userId: string | null): Promis
 
   try {
     const source = new File(marker.uri);
-    // Zero bytes counts as gone. The recorder creates the file before it has
-    // written anything, so an empty one means the app died in the first moment —
-    // there is no call in it, and offering the rep an empty recording to send
-    // would be worse than telling them plainly that nothing was captured.
-    if (!source.exists || (source.size ?? 0) === 0) {
+
+    // A file that is not there at all is gone, and that answer needs no second
+    // look: the OS reclaimed the cache and no amount of waiting brings it back.
+    if (!source.exists) {
       await clearRecordingStarted();
       return { kind: 'lost', startedAt: marker.startedAt };
+    }
+
+    /*
+     * ZERO BYTES IS TWO DIFFERENT ANSWERS, and this used to treat it as one.
+     *
+     * `File.size` is documented as returning 0 both when a file is empty and
+     * when it CANNOT BE READ. The old code cleared the marker and told the rep
+     * the call was lost — so a momentary read failure destroyed the only pointer
+     * to audio that was still sitting on the disk, and no later launch retried,
+     * because the marker was already gone.
+     *
+     * The realistic trigger is not exotic: iOS cannot stat a protected file
+     * while the phone is LOCKED, and the app being killed mid-call with the
+     * phone in a pocket is exactly the case recovery exists for. Background
+     * recording makes it more likely, not less.
+     *
+     * So a zero is believed only the SECOND time it is seen. The first sighting
+     * is written down and the call is deferred, which keeps the marker and tells
+     * the rep plainly that the app will try again.
+     */
+    if (source.size === 0) {
+      if (marker.zeroSeenAt) {
+        // Seen empty on a previous launch too. It really is empty.
+        await clearRecordingStarted();
+        return { kind: 'lost', startedAt: marker.startedAt };
+      }
+      await markRecordingStarted({ ...marker, zeroSeenAt: new Date().toISOString() });
+      return { kind: 'deferred', startedAt: marker.startedAt };
     }
 
     // The same path a clean Stop takes — the move into documents, the size read
