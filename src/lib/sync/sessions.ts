@@ -66,6 +66,17 @@ export type SessionListRow = CoachingSession & {
    * The events read is best-effort for exactly that reason.
    */
   captureIssue: CaptureIssue;
+  /**
+   * Segments on this call whose speaker is `unknown`, or NULL when it was not read.
+   *
+   * Recovery saves a dropped call's words as `unknown` when it cannot tell which voice is
+   * the rep. Those words score nothing until somebody says whose they are, so this is what
+   * lets the list say "waiting on you" instead of the rep never finding out.
+   *
+   * Null, not zero, when the side query failed — see `needsVoiceAnswer`, which refuses to
+   * render a chip from an unknown.
+   */
+  unattributedCount: number | null;
 };
 
 /**
@@ -131,6 +142,40 @@ async function withCaptureIssues(rows: SessionListRow[]): Promise<SessionListRow
   const issues = await captureIssuesFor(rows.map((r) => r.id));
   if (issues.size === 0) return rows;
   return rows.map((r) => ({ ...r, captureIssue: issues.get(r.id) ?? null }));
+}
+
+/**
+ * Attach the unattributed-segment count to a page of rows. Never throws.
+ *
+ * CHEAP BY CONSTRUCTION, and worth saying why rather than leaving it to be rediscovered:
+ * this asks only for segments whose speaker is `unknown`. Every other path in the system
+ * writes `agent` or `customer`, so on a healthy company the query matches NOTHING and
+ * costs one empty round trip. It only returns rows for calls that were recovered without
+ * a confident attribution — which are exactly the calls this chip exists for.
+ *
+ * On failure every row gets NULL rather than 0. Zero would say "checked, nothing waiting"
+ * and silently hide a real question; null says "did not find out" and shows no chip.
+ */
+async function withVoiceQuestion(rows: SessionListRow[]): Promise<SessionListRow[]> {
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return rows;
+  try {
+    const { data, error } = await supabase
+      .from("coaching_transcript_segments")
+      .select("session_id")
+      .eq("speaker", "unknown")
+      .in("session_id", ids);
+    if (error) return rows.map((r) => ({ ...r, unattributedCount: null }));
+    const counts = new Map<string, number>();
+    for (const row of data ?? []) {
+      const id = (row as { session_id?: unknown }).session_id;
+      if (typeof id === "string") counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    // A session absent from the result genuinely has none — the query succeeded.
+    return rows.map((r) => ({ ...r, unattributedCount: counts.get(r.id) ?? 0 }));
+  } catch {
+    return rows.map((r) => ({ ...r, unattributedCount: null }));
+  }
 }
 
 async function captureIssuesFor(sessionIds: string[]): Promise<Map<string, CaptureIssue>> {
@@ -206,7 +251,7 @@ export async function listMySessions(
     const rows = (embedded.data ?? []).map(toListRow);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    return { rows: await withCaptureIssues(page), hasMore };
+    return { rows: await withVoiceQuestion(await withCaptureIssues(page)), hasMore };
   }
 
   const { data, error } = await supabase
@@ -220,6 +265,7 @@ export async function listMySessions(
     ...(r as CoachingSession),
     segmentCount: null,
     captureIssue: null as CaptureIssue,
+    unattributedCount: null,
   }));
   const hasMore = rows.length > limit;
   return { rows: hasMore ? rows.slice(0, limit) : rows, hasMore };
@@ -248,7 +294,9 @@ function toListRow(row: unknown): SessionListRow {
   }
   // `captureIssue` is filled in afterwards by the events read; null until then,
   // which is also what it stays if that read fails.
-  return { ...(r as CoachingSession), segmentCount, captureIssue: null };
+  // `captureIssue` and `unattributedCount` are filled in afterwards by their own reads;
+  // null until then, which is also what they stay if those reads fail.
+  return { ...(r as CoachingSession), segmentCount, captureIssue: null, unattributedCount: null };
 }
 
 /** One session by id (RLS enforces ownership/visibility — a foreign id returns nothing, not someone else's row). */

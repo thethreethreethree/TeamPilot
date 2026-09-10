@@ -39,6 +39,11 @@ import {
 } from '@/lib/sync/sessions';
 import { analysisChip, analysisSpoken, analysisState } from '@/lib/session-analysis';
 import { ONE_SIDED_CHIP, ONE_SIDED_SPOKEN } from '@/lib/capture-issue';
+import {
+  needsVoiceAnswer,
+  VOICE_QUESTION_CHIP,
+  VOICE_QUESTION_SPOKEN,
+} from '@/lib/voice-question';
 import { ownerLabel, ownerSpoken } from '@/lib/session-owner';
 import { readCachedSessions, writeCachedSessions } from '@/lib/sync/cache';
 import { listPendingAttributions, type PendingAttribution } from '@/lib/audio/attribution-store';
@@ -295,7 +300,15 @@ export default function SessionsScreen() {
           ? // Same reasoning as `segmentCount`: a cached row cannot know whether
             // the recording was one-sided, and a chip painted from a stale cache
             // would be a claim about a call that may since have been rescued.
-            cached.rows.map((r) => ({ ...r, segmentCount: null, captureIssue: null }))
+            // `unattributedCount` is null for the same reason: the rep may have
+            // answered the voice question on another device since this was cached,
+            // and a stale "Needs your voice" would send them to a tap that 409s.
+            cached.rows.map((r) => ({
+              ...r,
+              segmentCount: null,
+              captureIssue: null,
+              unattributedCount: null,
+            }))
           : prev,
       );
       setCachedAt((prev) => (prev === null && cached ? cached.at : prev));
@@ -809,6 +822,19 @@ function SessionRow({
   // differently from "still being analysed" — which is why it gets its own line
   // rather than being folded into the analysis chip.
   const oneSided = session.captureIssue === 'one-sided';
+  /*
+    WAITING ON THE REP, and the only place they would ever find out.
+
+    A call recovered from dropped audio keeps its words as `unknown` when the system
+    could not tell which voice is the rep. Every coaching engine reads `agent` turns, so
+    until somebody answers, that call is stored and scores nothing. The session screen
+    asks the question - but a rep does not reopen a call that showed them nothing months
+    ago, so without this line the question is never seen and the words stay unusable.
+  */
+  const needsVoice = needsVoiceAnswer({
+    segments: session.segmentCount,
+    unattributed: session.unattributedCount,
+  });
   // Null for a rep's own calls, so their list is unchanged. A manager's list
   // gets the one fact it was missing: whose call this is.
   const owner = ownerLabel(session.agent_id, viewerId, repNames);
@@ -824,6 +850,7 @@ function SessionRow({
     ownerSpoken(owner),
     queued ? 'not sent yet' : '',
     oneSided ? ONE_SIDED_SPOKEN : '',
+    needsVoice ? VOICE_QUESTION_SPOKEN : '',
     analysisSpoken(analysis),
     length,
     value,
@@ -880,6 +907,11 @@ function SessionRow({
         ) : null}
         {oneSided ? (
           <Text className="mt-1 font-emphasis text-sm text-primary">{ONE_SIDED_CHIP}</Text>
+        ) : null}
+        {/* Same accent as the one-sided chip and for the same reason: both ask the rep
+            to DO something, where the muted analysis line only asks them to wait. */}
+        {needsVoice ? (
+          <Text className="mt-1 font-emphasis text-sm text-primary">{VOICE_QUESTION_CHIP}</Text>
         ) : null}
         {analysisText ? (
           <Text className="mt-1 font-body text-sm text-muted-foreground">{analysisText}</Text>
