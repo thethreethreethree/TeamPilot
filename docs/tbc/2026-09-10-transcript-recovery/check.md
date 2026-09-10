@@ -392,6 +392,35 @@ answer somebody gave.
 The test name was overstating in exactly the same way ("that is the rep's ANSWER, not a gap") and now names
 the cost.
 
+### F22 - the session route read anonymously, and the audit reads green on it
+class: a-scoped-client-resolved-and-then-not-passed-on
+sweep: every endpoint the app calls, probed against production with a real Bearer token before deploying
+severity: high
+`GET /api/coach/sales-session/[id]` resolves a Bearer-scoped client for AUTH and then calls `getSession` and
+`getSessionTranscript` **with no client at all** - so those read through the default cookie client. A phone
+sends no cookie, so the read runs ANONYMOUSLY, RLS returns nothing, and the route answers 404 "not found or
+not accessible" for a session the caller owns. Verified: the founder's own session 404ed with the founder's
+own token.
+
+THE AUDIT READS GREEN ON THIS, and that is the part worth keeping. INVARIANT 26 looks for a BARE cookie
+client in a route that never mentions `callerScopedDb`. This route mentions it, uses it for auth, and still
+reads anonymously - so the check passes while the route is broken for every mobile caller. A30 exactly: an
+audit cannot detect the class it has no concept of, and a green gate is a statement about the gate's
+vocabulary, never about the system.
+
+### F23 - a typo in a URL returned 500
+class: a-server-error-where-an-honest-not-found-belongs
+sweep: malformed vs well-formed ids against the same live route
+severity: low
+`/sales-session/not-a-uuid` reached Postgres as a uuid comparison, the driver rejected it, `getSession`
+rethrew - correctly, it must never collapse a transient error into a silent null - and the caller got a 500.
+Measured: `not-a-uuid` and `zzzz` both 500; a well-formed but absent id correctly 404s. A 500 says "we
+broke"; a typo in a URL is the caller's. Shape-checked only - existence and permission stay with RLS.
+
+BOTH WERE FOUND BY PROBING, NOT READING, and the probe needs its own caveat: of five non-200 results, TWO
+were paths I had invented and a THIRD was a web-only route the app never calls. A probe result is a list of
+suspects, and opening them is the only reason the two real ones can be stated as findings.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.

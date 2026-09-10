@@ -23,19 +23,54 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
+
+  /*
+   * A MALFORMED ID IS NOT-FOUND, NOT A SERVER ERROR. Without this, `/sales-session/anything`
+   * reaches Postgres as a uuid comparison, the driver rejects it, `getSession` rethrows
+   * (deliberately — it must never collapse a transient error into a silent null), and the
+   * caller gets a 500. Verified against production 10 September 2026: `not-a-uuid` and
+   * `zzzz` both returned 500 while a well-formed but absent id correctly returned 404.
+   *
+   * A 500 says "we broke"; a typo in a URL is the caller's, and answering it honestly is a
+   * 404. The check is on the SHAPE only — whether the row exists, and whether this caller may
+   * see it, stays with RLS below.
+   */
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json(
+      { error: "Session not found or not accessible." },
+      { status: 404 }
+    );
+  }
+
   const supabase = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const session = await getSession(id);
+
+  /*
+   * THE CALLER'S OWN CLIENT HAS TO REACH THE READ, and it did not.
+   *
+   * This route already resolved a Bearer-scoped client for AUTH and then called `getSession`
+   * and `getSessionTranscript` with no client at all — so those read through the default
+   * cookie client. A phone sends no cookie, so the read ran ANONYMOUSLY, RLS returned
+   * nothing, and the route answered 404 "not found or not accessible" for a session the
+   * caller owns. Verified against production with a real Bearer token: the founder's own
+   * session 404ed.
+   *
+   * The invariant audit does not catch this shape. It looks for a BARE cookie client in a
+   * route that never mentions `callerScopedDb`; this route mentions it, uses it for auth, and
+   * still reads anonymously — so the audit reads green while the route is broken for every
+   * mobile caller.
+   */
+  const session = await getSession(id, supabase);
   if (!session) {
     return NextResponse.json(
       { error: "Session not found or not accessible." },
       { status: 404 }
     );
   }
-  const transcript = await getSessionTranscript(id);
+  const transcript = await getSessionTranscript(id, supabase);
   return NextResponse.json({ session, transcript });
 }
 
