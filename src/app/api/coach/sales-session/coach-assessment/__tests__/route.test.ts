@@ -7,10 +7,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// A phone sends a Bearer token and no cookie. Default: no Bearer, so every existing case is the
+// cookie caller it always was and the gate is measured on the SAME path it was written for.
+vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: vi.fn(() => null) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { GET } from "../route";
+
+/** The route only ever reads the request to look for a Bearer token, so an empty object is enough. */
+const req = () => ({}) as Parameters<typeof GET>[0];
 
 const setCaller = (userId: string | null, profile: unknown) =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -48,18 +55,54 @@ beforeEach(() => {
 describe("GET /coach-assessment — manager gate", () => {
   it("401 unauthenticated", async () => {
     setCaller(null, null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(req())).status).toBe(401);
   });
 
   it("403 for a rep (Coach Assessment is admins-only)", async () => {
     setCaller("rep1", REP);
-    expect((await GET()).status).toBe(403);
+    expect((await GET(req())).status).toBe(403);
     expect(createAdminClient).not.toHaveBeenCalled(); // never reaches the team read
   });
 
   it("200 for a manager, and the team read is company-scoped", async () => {
     setCaller("boss", MANAGER);
-    expect((await GET()).status).toBe(200);
+    expect((await GET(req())).status).toBe(200);
     expect(eqCalls).toContainEqual({ col: "company_id", val: "co1" });
+  });
+});
+
+/**
+ * REACHABLE FROM A PHONE (2026-09-11), and the gate is not what changed.
+ *
+ * This was cookie-only, so a manager holding a phone could not read their own team's coaching at all —
+ * which is why the app has no equivalent screen. Widening WHO can authenticate must not widen WHAT they
+ * may see, so these pin both halves: a Bearer manager gets in, a Bearer REP still gets the same 403, and
+ * the team read stays company-scoped either way.
+ */
+describe("GET /coach-assessment — a phone reaches it, and the gate is unchanged", () => {
+  /** Route the caller through a Bearer-scoped client instead of the cookie one. */
+  const asPhone = (userId: string | null, profile: unknown) =>
+    (callerScopedDb as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
+      from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile }) }) }) }),
+    });
+
+  it("200 for a manager on a phone, company-scoped, without ever building a cookie client", async () => {
+    asPhone("boss", MANAGER);
+    expect((await GET(req())).status).toBe(200);
+    expect(eqCalls).toContainEqual({ col: "company_id", val: "co1" });
+    // The load-bearing half: a cookie client resolved here would authenticate nobody and 401 the manager.
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("403 for a REP on a phone — a Bearer token buys authentication, never authority", async () => {
+    asPhone("rep1", REP);
+    expect((await GET(req())).status).toBe(403);
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("401 for an unauthenticated Bearer caller", async () => {
+    asPhone(null, null);
+    expect((await GET(req())).status).toBe(401);
   });
 });

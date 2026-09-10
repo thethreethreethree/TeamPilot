@@ -340,3 +340,18 @@ The app half is the actual product: a "Your read" card on the session screen, sh
 work on and the play the rep ran - with an honest empty state that offers a retry ONLY where retrying can
 help. A call whose recording caught no speech gets words and no button, because spending a real LLM call on
 a whole conversation to produce the same empty answer is not a kindness.
+
+### F38 - a manager holding a phone cannot read their own team's coaching
+fix (server half): `resolve(req)` takes the caller's scoped client. The MANAGER GATE IS UNTOUCHED and
+still reads the caller's own profile through the caller's own client - widening who can authenticate must
+not widen what they may see.
+gate-or-promise: GATE, two compiling mutations. Dropping the manager check fails "403 for a rep" AND "403
+for a REP on a phone - a Bearer token buys authentication, never authority", which is the pair that proves
+authority did not move. Reverting to a bare cookie client fails all three phone cases, including
+"...without ever building a cookie client" - the assertion that a cookie client is never resolved at all,
+because one resolved here would authenticate nobody and 401 the manager.
+
+A18 IS LOAD-BEARING FOR THE SCREEN THAT FOLLOWS, and is quoted here so it is not lost between repositories:
+these coaching notes are NOT a scoreboard. No ranking, no cross-agent comparison, each rep's growth
+relative to their own conversations, and the server's order is an org-chart order rather than a grade. Any
+app screen consuming this must preserve that order and must not re-sort, re-rank, or total it.

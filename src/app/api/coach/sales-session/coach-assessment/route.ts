@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { byOrgRank } from "@/lib/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,9 +29,16 @@ import {
  * fetched from /elo, not this route; see coach-assessment page 2026-07-07.)
  *
  * 403s non-managers — the endpoint IS the gate the page reads.
+ *
+ * REACHABLE FROM A PHONE (2026-09-11). This was cookie-only, so a manager holding a phone could not read
+ * their own team's coaching at all — the app has no equivalent screen, and this is why. The manager gate
+ * is UNCHANGED and still lives here: `resolve()` reads the caller's own profile through the caller's own
+ * client, so widening WHO can authenticate does not widen WHAT they may see. A rep authenticating with a
+ * Bearer token gets the same 403 a rep with a cookie gets.
  */
-async function resolve() {
-  const sb = await createClient();
+async function resolve(req: NextRequest) {
+  // A phone sends a Bearer token and no cookie; a bare cookie client reads as nobody and 401s a manager.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return { ok: false as const, status: 401 as const };
   const { data: profile } = await sb
@@ -65,8 +73,8 @@ function uniqTrim(values: unknown[], max: number): string[] {
   return out;
 }
 
-export async function GET() {
-  const ctx = await resolve();
+export async function GET(req: NextRequest) {
+  const ctx = await resolve(req);
   if (!ctx.ok) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }

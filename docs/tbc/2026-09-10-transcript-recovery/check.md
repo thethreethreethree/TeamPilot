@@ -890,3 +890,23 @@ ALSO being weaker than intended.
 The lesson is the narrow one, and it is mine: I added the sentence before I added the thing. A chip that
 names a fault with no way to act on it tells a rep the app is broken and leaves them holding it, which is a
 worse state than the silence I was fixing.
+
+### F38 - a manager holding a phone cannot read their own team's coaching
+class: a-whole-manager-surface-that-exists-only-in-a-browser
+sweep: every page under `dashboard/sales-coach/` against every screen under the app's `(app)/`, one to one
+severity: medium
+Enumerated rather than guessed, because "what is missing from the app" is exactly the question a list of
+files answers and an opinion does not. Twenty-one web pages, twenty-six app screens. Every web page has an
+app counterpart - sessions, kpi, analytics, scoreboard, training, calibration, team, chat, roleplay, the
+report card, today's metrics, my-progress, the strategy library (as `oneliners`) - except ONE.
+
+`coach-assessment` is not on the phone at all. It is the manager's team-wide coaching read-out: per rep,
+what they are doing well and where to grow, taken from the real text of their own dissects and door
+pitches rather than invented themes.
+
+And it could not have been, because the route is cookie-only: `resolve()` builds its own cookie client, so
+a Bearer caller is nobody and gets 401. Seventh instance of that class today, and the first one where the
+consequence is not a broken feature but an ABSENT one - the screen was never built because the data could
+not be reached, and the reason had gone unnamed.
+
+The founder is `admin`, and is about to audit this product on a phone.
