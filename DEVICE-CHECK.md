@@ -202,10 +202,16 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Twenty-four checks is a lot for one sitting.** If you only have twenty minutes,
-do **1, 5, 7, 16 and 21** — those are the five where a failure means a rep loses
-something (a recording they cannot re-take, unsent words, a shared photo that
-never appears) rather than merely seeing the wrong thing.
+**Twenty-nine checks is a lot for one sitting.** If you only have twenty minutes,
+do **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep
+loses something (a recording they cannot re-take, unsent words, a shared photo
+that never appears, a deal value that vanishes as they swipe back) rather than
+merely seeing the wrong thing.
+
+**Build 14 (10 September) added five things nobody has ever seen render.** They
+are checks **27 to 29** at the end, and check 28 is the one I would most like a
+human on: it is a *keyboard* interaction, which is exactly the class no test here
+can reach.
 
 ### 0. The name under the icon (new, 4 September)
 
@@ -789,6 +795,94 @@ overflows, so nothing looks broken; the figure has simply been pushed out of the
 row and off the screen.
 
 Put the text size back afterwards.
+
+---
+
+### 27. A dropped call asks whose voice it is (new, 10 September)
+
+**Background, so you can tell a pass from a bug.** Nine of your calls had audio
+saved and **no transcript at all** — the oldest from 25 July. The system now
+recovers them: it re-reads the audio, and where it can tell which voice is the
+rep it labels them automatically. Where it *cannot*, it saves the words anyway
+and asks you.
+
+Two of your sessions are in that state right now. On the **Sessions** tab, look
+for a call with **“Needs your voice”** under it.
+
+1. **Open it.** Above the transcript you should see **“Is this your voice?”**
+   with a sample line, and two answers: **That is me** and **That is the
+   customer**.
+2. **The transcript below it** should already be full of words, each line
+   labelled **Unattributed** — not empty, and not the word `UNKNOWN`.
+3. **The debrief card** should say **“Waiting on one answer”**, not offer a
+   read it cannot produce.
+4. **Answer it.** Within a few seconds the labels should become **You** and
+   **Customer**, the chip should disappear from the list, and the coaching
+   should generate.
+
+**Wrong looks like:** the word `UNKNOWN` above each line (that was a real bug on
+the website, fixed today — if it appears on the phone, tell me); a debrief card
+promising a read and then showing a blank one; or the question reappearing after
+you answered it.
+
+**One thing that is NOT a bug:** if you are looking at *someone else's* call as a
+manager, you should see **“Not scored yet”** rather than “Needs your voice”, and
+no question. Only the rep whose call it is can answer.
+
+---
+
+### 28. The deal value actually saves (new, 10 September)
+
+**This is the one I most want a human on**, and it is in the twenty-minute list.
+
+Measured today: of **14 sessions marked *sold* across your whole company, not one
+carries a deal value**. So Revenue and Average deal on the KPI board can never
+produce a number, for anybody. The field was not missing — it was *unreachable at
+the end*: it uses a number keypad, which on iOS has **no return key**, and the
+value only saved when the field lost focus. Type it, swipe back, gone, with
+nothing said.
+
+1. Open any call and set **How did it end** to **Sold**.
+2. A **“What was it worth?”** field appears. Type a number — say `1500`.
+3. **A Save button should appear** as soon as the number differs from what is
+   stored. Tap it.
+4. It should confirm: **“Saved — $1,500.”**
+5. **Now the real test.** Change the number, and instead of tapping Save, **swipe
+   back to the list, then reopen the call.** The new number should be there.
+
+**Wrong looks like:** no Save button appearing; tapping it and getting no
+confirmation; or — the original bug — the number being gone when you come back.
+
+**Why it matters beyond this screen:** every deal value that never saved is a
+number missing from your revenue metrics permanently. There is no way to recover
+one after the fact.
+
+---
+
+### 29. A recording with no audio in it says so, at the door
+
+**Background.** 14 of your 83 door pitches failed permanently, and one of them
+was a **five-byte file** carrying a recorded length of **129.8 seconds** — a rep
+recorded at a door for over two minutes and the phone handed back a container
+with no audio in it. It uploaded fine, the server took it, and it failed five
+retries later in a row nobody reads. The rep was never told.
+
+This one is **hard to trigger deliberately**, and I would rather say that than
+have you hunt for it. It happened when a recording was interrupted — the timer
+kept running while the capture had already stopped.
+
+**What to do:** record a normal pitch and confirm it sends as it always did. That
+is the check — that the new guard does **not** refuse a good recording.
+
+**If you can reproduce an interruption** (start recording, then force-quit or let
+the phone kill the app mid-recording), the pitch should refuse to send with:
+*“This recording came back empty — the phone saved the file but there is no audio
+in it… Everything else about this door is saved. If you are still there, record it
+again.”*
+
+**Wrong looks like:** a normal recording being refused with that message. That
+would mean the size floor is too high, and I would want the exact size from the
+Recordings screen.
 
 ---
 
