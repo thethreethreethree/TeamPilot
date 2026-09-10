@@ -16,6 +16,7 @@ import { isPitchOutcome } from './pitch-outcome';
 import type { UploadOutcome } from '@/lib/audio/upload';
 import type { PendingRecording } from '@/lib/audio/recording-store';
 import { uploadBlockedMessage } from '@/lib/blocked-state';
+import { checkRecordingIntegrity, integrityMessage } from '@/lib/audio/recording-integrity';
 
 export async function sendPitchRecording(
   rec: PendingRecording,
@@ -35,6 +36,24 @@ export async function sendPitchRecording(
       reason: 'not-ready',
       message: 'This pitch is missing the day it happened, so it cannot be sent.',
     };
+  }
+
+  /*
+   * AN EMPTY FILE IS A PERMANENT REFUSAL, and telling the rep is the whole point.
+   *
+   * Measured on production 10 September 2026: 14 of 83 door pitches failed permanently, and
+   * one was FIVE BYTES of Matroska container carrying `duration_ms = 129800` - a rep
+   * recorded at a door for over two minutes and the phone handed back a file with no media
+   * in it. It uploaded fine. The server took it. Five retries later the pipeline gave up and
+   * wrote the reason into a row nobody reads.
+   *
+   * Uploading it again would spend an attempt to reach the identical answer, which is what
+   * `not-ready` means here - the same permanent-refusal shape as a missing outcome, not a
+   * network error the sweep should retry.
+   */
+  const integrity = checkRecordingIntegrity(rec.sizeBytes, rec.durationMs);
+  if (!integrity.ok) {
+    return { ok: false, reason: 'not-ready', message: integrityMessage(integrity.reason) };
   }
 
   const result = await sendPitch({

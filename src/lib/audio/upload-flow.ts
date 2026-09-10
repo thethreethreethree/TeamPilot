@@ -24,6 +24,7 @@
  * removes the only coverage the upload path has.
  */
 import { MAX_UPLOAD_BYTES, sizeForUpload } from './recording-budget';
+import { checkRecordingIntegrity, integrityMessage } from './recording-integrity';
 import { uploadBlockedMessage } from '@/lib/blocked-state';
 import { authFailureOf } from '@/lib/auth-failure';
 import type { PendingRecording } from './recording-store';
@@ -124,6 +125,25 @@ export async function runUpload(
         MAX_UPLOAD_BYTES / 1024 / 1024,
       )} MB the server accepts, so it cannot be sent.`,
     };
+  }
+
+  /*
+   * THE MIRROR OF THE GUARD ABOVE, and the one that was missing. A file too LARGE has
+   * always been refused here with a reason; a file too small to contain any audio was sent
+   * cheerfully.
+   *
+   * Measured on production 10 September 2026 on the door-pitch pipeline, which shares this
+   * recorder: one upload was FIVE BYTES of Matroska container carrying a recorded duration
+   * of 129,800 ms. The rep recorded at a door for over two minutes and the phone handed
+   * back a file with no media in it. Nothing on the way to the server disagreed, and the
+   * failure surfaced five retries later in a row nobody reads.
+   *
+   * `not-ready` because retrying reaches the identical answer - the same permanent-refusal
+   * class as a missing outcome, never a network error worth another attempt.
+   */
+  const integrity = checkRecordingIntegrity(rec.sizeBytes, rec.durationMs);
+  if (!integrity.ok) {
+    return { ok: false, reason: 'not-ready', message: integrityMessage(integrity.reason) };
   }
 
   await deps.update(userId, rec.clientId, {
