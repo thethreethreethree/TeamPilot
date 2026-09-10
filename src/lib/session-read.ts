@@ -40,7 +40,7 @@ export type SessionRead = {
  *                  spending an LLM call on it would produce the same empty answer.
  *   'unfinished'   the coach ran and produced nothing. This is the retryable one.
  */
-export type NoReadReason = 'never-made' | 'no-speech' | 'unfinished';
+export type NoReadReason = 'never-made' | 'no-speech' | 'unfinished' | 'retried-and-failed';
 
 /** A transcript line, reduced to what the decision needs. */
 export type ReadSegment = { speaker: string; text: string };
@@ -77,14 +77,29 @@ export function noReadReason(args: {
   read: SessionRead | null;
   segments: ReadSegment[];
   attemptFailed?: boolean;
+  /** The rep asked for a read in THIS sitting, and it came back with nothing. */
+  justTried?: boolean;
 }): NoReadReason | null {
   if (args.read && args.read.hasSignal) return null;
   if (!hasReadableSpeech(args.segments)) return 'no-speech';
+  /*
+    THE ONE I NEARLY SHIPPED WITHOUT.
+
+    Tap "Try again", wait, and the read comes back empty a second time - and the card went straight back
+    to the identical sentence and the identical button. Nothing said the attempt had run. A rep would tap
+    it forever, and the screen would keep implying it was worth another go.
+
+    That is precisely the disease this whole build is about, in the feature built to cure it: a path that
+    produces nothing while nothing says so. It gets its own state, and its own words.
+  */
+  if (args.justTried) return 'retried-and-failed';
   return args.attemptFailed ? 'unfinished' : 'never-made';
 }
 
 /** Whether a rep can do anything about it. No button on a call with nothing to read - that is honest. */
 export function canRetryRead(reason: NoReadReason | null): boolean {
+  // Deliberately NOT 'retried-and-failed'. A second identical button after a failed attempt is an
+  // invitation to keep paying for the same nothing.
   return reason === 'never-made' || reason === 'unfinished';
 }
 
@@ -108,6 +123,12 @@ export function noReadWording(reason: NoReadReason): { title: string; body: stri
       title: 'The read did not finish',
       body: 'The coach started on this call and stopped before it produced anything. Your recording is fine — this is the write-up failing, and trying again usually fixes it.',
       action: 'Try again',
+    };
+  }
+  if (reason === 'retried-and-failed') {
+    return {
+      title: 'That did not work either',
+      body: 'The coach ran again and still produced nothing. Your recording is fine and your words are safe — this is the write-up failing, and asking again now will most likely do the same. It will be picked up automatically, and it is worth telling whoever runs your coach.',
     };
   }
   return {

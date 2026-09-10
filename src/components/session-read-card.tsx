@@ -49,6 +49,8 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
     "nobody has asked yet", which is the softer sentence and the right way to be wrong.
   */
   const [attemptFailed, setAttemptFailed] = useState(false);
+  /** The rep asked in THIS sitting and it came back empty - a different sentence from 'nobody asked'. */
+  const [justTried, setJustTried] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -91,7 +93,11 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
       const res = await coachPost<{ dissect: SessionRead | null }>('/api/coach/sales-session/dissect', {
         sessionId,
       });
-      setRead(res?.dissect ?? null);
+      const got = res?.dissect ?? null;
+      setRead(got);
+      // Remembered ONLY when the attempt produced nothing. On success the card shows the read and this
+      // never matters; on failure it is the difference between "ask again" and "asking again does this".
+      setJustTried(!got?.hasSignal);
       setPhase('ready');
     } catch (e) {
       const why = (e as { authFailure?: 'signed-out' | 'route' })?.authFailure;
@@ -125,7 +131,7 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
     );
   }
 
-  const reason = noReadReason({ read, segments, attemptFailed });
+  const reason = noReadReason({ read, segments, attemptFailed, justTried });
 
   if (reason) {
     const w = noReadWording(reason);

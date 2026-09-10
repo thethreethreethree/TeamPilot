@@ -99,3 +99,42 @@ test('a blank strategy name is not a strategy — the card must not draw an empt
   const s = readSections(read({ standoutStrategy: { name: '   ', example: '', why: '' } }));
   assert.equal(s.hasStrategy, false);
 });
+
+/**
+ * THE ONE I NEARLY SHIPPED WITHOUT.
+ *
+ * Tap "Try again", wait, and the read comes back empty a second time — and the card went straight back to
+ * the identical sentence and the identical button. Nothing said the attempt had run. A rep would tap it
+ * forever while the screen kept implying it was worth another go.
+ *
+ * That is precisely the disease this whole build is about — a path that produces nothing while nothing
+ * says so — in the feature built to cure it.
+ */
+test('a retry that produced nothing gets its own state, not the same message again', () => {
+  const r = noReadReason({ read: null, segments: REAL, attemptFailed: true, justTried: true });
+  assert.equal(r, 'retried-and-failed');
+  assert.notEqual(r, 'unfinished', 'the same sentence twice reads as though nothing happened');
+});
+
+test('and it offers NO button — a second identical button invites paying for the same nothing', () => {
+  assert.equal(canRetryRead('retried-and-failed'), false);
+});
+
+test('its words say the recording is safe, and that asking again will most likely do this', () => {
+  const w = noReadWording('retried-and-failed');
+  assert.match(w.title, /did not work either/);
+  assert.match(w.body, /your words are safe/i);
+  assert.match(w.body, /most likely do the same/);
+  assert.equal(w.action, undefined);
+});
+
+test('a retry that SUCCEEDED shows the read, never the failure state', () => {
+  assert.equal(noReadReason({ read: read(), segments: REAL, justTried: true }), null);
+});
+
+test('no-speech still wins over a failed retry — there was nothing to read either way', () => {
+  assert.equal(
+    noReadReason({ read: null, segments: [seg('agent', '[clicking]')], justTried: true }),
+    'no-speech',
+  );
+});
