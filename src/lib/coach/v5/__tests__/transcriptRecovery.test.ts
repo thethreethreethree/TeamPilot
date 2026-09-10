@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
+import { answerableSpeaker,
   stateOf,
   isRecoverable,
   mayOverwriteUnlabelled,
@@ -117,5 +117,70 @@ describe("stateOf — the counts the decisions read", () => {
 
   it("an empty transcript is a total of zero, not an absent reading", () => {
     expect(stateOf([])).toEqual({ total: 0, agent: 0, customer: 0, unknown: 0 });
+  });
+});
+
+/**
+ * answerableSpeaker — whose answer is this transcript still waiting for?
+ *
+ * The sweep must never overrule a rep; a rep must be able to overrule the machine. These pin the line
+ * between those two, which is `source`, not the label. Measured on production 2026-09-10: of 2,414 stored
+ * segments not one carries `source: "manual"`, so every label in the database today is a machine's guess.
+ */
+describe("answerableSpeaker", () => {
+  const seg = (speaker: string, source?: string | null) =>
+    ({ speaker, source }) as Parameters<typeof answerableSpeaker>[0][number];
+
+  it("an all-unknown transcript is answerable (the original case)", () => {
+    expect(answerableSpeaker([seg("unknown"), seg("unknown")])).toEqual({
+      answerable: true,
+      currentSpeaker: "unknown",
+    });
+  });
+
+  it("an all-CUSTOMER machine transcript is answerable — this is what was unfixable before", () => {
+    expect(answerableSpeaker([seg("customer", "loudness"), seg("customer", "loudness")])).toEqual({
+      answerable: true,
+      currentSpeaker: "customer",
+    });
+  });
+
+  it("an all-AGENT machine transcript is answerable too — the mistake runs both ways", () => {
+    expect(answerableSpeaker([seg("agent", "content")])).toEqual({
+      answerable: true,
+      currentSpeaker: "agent",
+    });
+  });
+
+  it("ONE manual segment makes the whole transcript unanswerable — a person already spoke", () => {
+    expect(answerableSpeaker([seg("customer", "loudness"), seg("customer", "manual")])).toEqual({
+      answerable: false,
+      reason: "already-answered",
+    });
+  });
+
+  it("two voices is canonical and refused, whatever wrote them", () => {
+    expect(answerableSpeaker([seg("agent", "loudness"), seg("customer", "loudness")])).toEqual({
+      answerable: false,
+      reason: "two-sided",
+    });
+  });
+
+  it("a mix of unknown and a label is refused too — it is no longer one voice", () => {
+    expect(answerableSpeaker([seg("unknown"), seg("customer", "loudness")])).toEqual({
+      answerable: false,
+      reason: "two-sided",
+    });
+  });
+
+  it("an empty transcript has nothing to answer", () => {
+    expect(answerableSpeaker([])).toEqual({ answerable: false, reason: "no-transcript" });
+  });
+
+  it("a missing source is not a human answer — an absent field never means somebody spoke", () => {
+    expect(answerableSpeaker([seg("customer", null), seg("customer", undefined)])).toEqual({
+      answerable: true,
+      currentSpeaker: "customer",
+    });
   });
 });

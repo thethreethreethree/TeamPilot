@@ -166,3 +166,26 @@ and it has exactly one member - which is now guarded at both of its ends.
 
 Recorded because a sweep that finds nothing is a result. Left unwritten, the same question gets asked from
 scratch by the next person, and the honest answer costs another hour to rediscover.
+
+### F30 - a rep could answer an unlabelled call but never correct a wrong one
+fix: `answerableSpeaker()` replaces the label test with an authorship test. A transcript is answerable when
+it carries ONE speaker throughout and NO segment was written by a person (`source: "manual"`), whichever
+label the machine chose. Two voices are still refused - re-attributing captured two-sided speech wholesale
+is a deletion, not a correction - and a transcript any human has answered is still refused, including
+against their own second opinion. `TranscriptSegment` now carries `source` (optional; both reads already
+selected `*`, so no query changed and no caller broke), and the update filter follows the speaker that was
+READ rather than the literal `"unknown"`.
+
+The recovery SWEEP is untouched and still refuses customer-only transcripts. That refusal was the right call
+and this does not weaken it: a machine second-guessing a rep and a rep correcting a machine are opposite
+acts, and only the second one is added here.
+
+Also added: an answer that already matches what is stored returns `unchanged` and writes nothing, instead of
+reporting a save over an empty write and paying for a regeneration of a read that already exists.
+gate-or-promise: GATE, four mutations, each caught by its own named test and no other. Removing the `manual`
+guard fails "REFUSES when a person already answered, even though there is only one voice". Letting a
+two-voice transcript through fails four tests across both files. Restoring the literal `"unknown"` filter
+fails "scopes that update to speaker=CUSTOMER - the filter follows what was read, not a literal", which is
+the one that matters most: left alone it would match no rows and report a successful save over a write that
+changed nothing. Removing the no-op branch fails "changes NOTHING and spends nothing when the answer already
+matches what is stored".

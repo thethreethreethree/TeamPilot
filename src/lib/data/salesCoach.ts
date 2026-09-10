@@ -75,6 +75,15 @@ export type TranscriptSegment = {
   text: string;
   seq: number;
   spokenAt: string | null;
+  /**
+   * WHY this speaker was assigned (0236): `loudness` / `content` are the diarizer's own heuristics,
+   * `manual` is a human answering "whose voice is this?", `null` predates the column.
+   *
+   * Surfaced on the type because WHO wrote a label is now load-bearing, not merely interesting: a rep may
+   * correct a machine's guess, and may never overwrite a person's answer. Both reads already select "*",
+   * so this costs no extra column.
+   */
+  source?: string | null;
 };
 
 export type Cue = {
@@ -135,6 +144,7 @@ function mapSegment(row: Record<string, unknown>): TranscriptSegment {
     text: row.text as string,
     seq: row.seq as number,
     spokenAt: (row.spoken_at as string | null) ?? null,
+    source: (row.source as string | null) ?? null,
   };
 }
 

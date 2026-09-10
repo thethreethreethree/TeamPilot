@@ -5,7 +5,7 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
-import { stateOf } from "@/lib/coach/v5/transcriptRecovery";
+import { answerableSpeaker } from "@/lib/coach/v5/transcriptRecovery";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 
 /**
@@ -34,10 +34,24 @@ import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifact
  * a failure. A transcript saved as `unknown` is by construction the case where the system
  * could not separate two voices, so there is exactly one voice to attribute.
  *
- * ONLY AN ENTIRELY UNATTRIBUTED TRANSCRIPT. If a single segment carries `agent` or
- * `customer`, somebody or something has already answered and this refuses — the same
- * precondition /label-transcript enforces, for the same reason: attributed speech is
- * canonical and is never rewritten by a later opinion.
+ * ONLY A ONE-VOICE TRANSCRIPT NO PERSON HAS ANSWERED. Two speakers on the record is
+ * canonical and is refused — re-attributing captured two-sided speech wholesale is not a
+ * correction, it is a deletion. A transcript a human has already answered (`source =
+ * "manual"`) is refused too, for the reason that has always applied here: a person's answer
+ * is not rewritten by a later opinion, including their own second one.
+ *
+ * WHAT WIDENED, AND WHY IT IS NOT THE THING THE SWEEP MUST NEVER DO (10 September 2026).
+ * This used to accept ONLY `unknown`, so a transcript the diarizer had labelled entirely
+ * `customer` was unfixable: the rep could see 160 words of their own pitch scoring nothing
+ * and had no way to say "that was me". Measured on production the same day — of 2,414
+ * stored segments, `source` is `null`, `loudness` or `content`, and NOT ONE is `manual`.
+ * Every label in the database is a machine's guess, and six sessions are labelled entirely
+ * `customer`, one of them opening "Okay. Well, the whole reason I got sent out here...".
+ *
+ * The recovery SWEEP still must not touch those, and does not: a machine second-guessing a
+ * customer-only transcript would replace a real reading with a guess. The distinction is not
+ * the label, it is WHO WROTE IT. A rep correcting a machine is the opposite act to a machine
+ * overruling a rep, and only one of them is happening here.
  *
  * OWNER-ONLY: this writes the canonical transcript through the service role, which bypasses
  * RLS by design, so the ownership check has to be made here or it is not made at all. A
@@ -101,32 +115,49 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const existing = await getSessionTranscript(id, db);
-  const state = stateOf(existing);
-  if (state.total === 0) {
-    return NextResponse.json(
-      { status: "no-transcript", error: "This call has no transcript to attribute yet." },
-      { status: 409 }
-    );
-  }
-  if (state.agent > 0 || state.customer > 0) {
+  const answer = answerableSpeaker(existing);
+  if (!answer.answerable) {
+    if (answer.reason === "no-transcript") {
+      return NextResponse.json(
+        { status: "no-transcript", error: "This call has no transcript to attribute yet." },
+        { status: 409 }
+      );
+    }
+    if (answer.reason === "already-answered") {
+      return NextResponse.json(
+        {
+          status: "already-attributed",
+          error: "Somebody already said who spoke on this call, so it was not changed.",
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       {
         status: "already-attributed",
-        error: "This call's transcript already says who spoke, so it was not changed.",
+        error: "This call caught both voices, so it already says who spoke and was not changed.",
       },
       { status: 409 }
     );
   }
 
   const speaker = body.mine ? "agent" : "customer";
+  // The rep's answer already matches what is stored. Say so plainly and change nothing — a no-op
+  // dressed as a save would claim work that did not happen, and re-running the engines would spend
+  // real money to produce the read that is already there.
+  if (answer.currentSpeaker === speaker) {
+    return NextResponse.json({ status: "unchanged", speaker, labeled: 0 });
+  }
   const admin = createAdminClient();
-  // Scoped to `speaker = unknown` as well as the session, so a concurrent answer cannot be
-  // overwritten by a slower one: the second update matches no rows and changes nothing.
+  // Scoped to the speaker we READ as well as the session, so a concurrent answer cannot be
+  // overwritten by a slower one: the second update matches no rows and changes nothing. (It was
+  // pinned to the literal "unknown" before; that would silently match nothing now that a machine
+  // `customer` label is answerable, and report a save that changed no rows.)
   const { data: updated, error } = await admin
     .from("coaching_transcript_segments")
     .update({ speaker, source: "manual" })
     .eq("session_id", id)
-    .eq("speaker", "unknown")
+    .eq("speaker", answer.currentSpeaker)
     .select("id");
   if (error) {
     // eslint-disable-next-line no-console

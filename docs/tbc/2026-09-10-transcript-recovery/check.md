@@ -670,3 +670,31 @@ I nearly reported it.
 This is the identical defect to the one the whole build is about, in the tool I was using to measure it. The
 helper now throws on any non-OK status or non-array body. A measuring instrument that reports zero when it is
 broken is worse than no instrument, because it is believed.
+
+### F30 - a rep could answer an unlabelled call but never correct a wrong one
+class: a-precondition-written-as-a-label-when-it-was-really-about-authorship
+sweep: `speaker` x `source` across all 2,414 stored segments, and the speaker composition of all 176 sessions
+severity: medium
+The answer route accepts a transcript only when every segment is `unknown`. That is right for the case it
+was built for and wrong for the one beside it. Composition of the 176 sessions carrying segments:
+
+    125  agent + customer     median 564 words   (canonical, nothing to do)
+     43  agent only           median 249 words, 65 seconds   (a short door interaction; plausible)
+      6  customer only        median   9 words
+      2  unknown only         median 691 words   (the flow already handles these)
+
+Four of the six customer-only sessions are a handful of words. Two are not: `d86baf84` holds 160 words
+opening "Okay. Well, the whole reason I got sent out here, we've just..." - that is a rep's own doorstep
+pitch, labelled end to end as the prospect. It declines with `no_agent_turns`, scores nothing, and the rep
+can see it and cannot fix it. Re-transcription cannot help either: neither session has audio left.
+
+WHY THE PRECONDITION WAS WRONG IN A WAY THAT LOOKED RIGHT. The rule is written as "only `unknown`", and its
+comment justifies it as "attributed speech is canonical and is never rewritten by a later opinion" - which
+is a true and important rule about A PERSON'S ANSWER. The code tests the LABEL instead of the AUTHOR, and
+those two agree only while every label is human. They are not: of 2,414 segments, `source` is `null`,
+`loudness` or `content` on every single one. NOT ONE is `manual`. No human has ever answered this question,
+so the thing the precondition was protecting does not yet exist, while the thing it blocks is a rep
+correcting a machine.
+
+This is the same shape as F25 four findings ago - a guard testing for the form the author expected the case
+to take rather than the property that actually mattered, with the two agreeing on every example tried.

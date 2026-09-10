@@ -171,6 +171,45 @@ export function labelFor(speakerId: string, agentSpeakerId: string | null): Tran
  * Three attempts absorbs a real outage. The fourth says the failure is not transient after
  * all, and the session keeps its marker so nothing spends on it again until a person asks.
  */
+/**
+ * Whose answer is this transcript still waiting for?
+ *
+ * The recovery SWEEP must never touch a customer-only transcript - that is a rep's own answer, or a
+ * genuine one-sided capture, and a machine second-guessing it would replace a real reading with a guess
+ * (the defect caught during this build, `isRecoverable` above). A REP saying "that was me" is the
+ * opposite act: a person correcting a machine. The rule that separates them is not the label, it is who
+ * wrote it.
+ *
+ * Measured 2026-09-10: of 2,414 stored segments, `source` is `null`, `loudness` or `content` - the
+ * diarizer's own heuristics. NOT ONE is `manual`. Every label in the database today is a machine's
+ * guess, and six sessions are labelled entirely `customer` while one of them opens "Okay. Well, the
+ * whole reason I got sent out here..." - 160 words of a rep's own pitch, scoring nothing, with no route
+ * back, because the answer flow only ever handled `unknown`.
+ *
+ * So: a transcript with ONE speaker throughout and no human answer on it is answerable, whichever label
+ * the machine chose. A transcript carrying two speakers is canonical and is refused - re-attributing
+ * captured two-sided speech wholesale is not a correction, it is a deletion. A transcript any human has
+ * already answered is refused for the reason that has always applied here: a person's answer is not
+ * overwritten by a later opinion, including their own second one.
+ */
+export type AnswerableTranscript =
+  | { answerable: true; currentSpeaker: TranscriptSpeaker }
+  | { answerable: false; reason: "no-transcript" | "two-sided" | "already-answered" };
+
+/** The `source` a human answer is written with. One place, because the route and this both test it. */
+export const MANUAL_SOURCE = "manual";
+
+export function answerableSpeaker(
+  segments: Pick<TranscriptSegment, "speaker" | "source">[]
+): AnswerableTranscript {
+  if (segments.length === 0) return { answerable: false, reason: "no-transcript" };
+  if (segments.some((s) => s.source === MANUAL_SOURCE))
+    return { answerable: false, reason: "already-answered" };
+  const speakers = new Set(segments.map((s) => s.speaker));
+  if (speakers.size !== 1) return { answerable: false, reason: "two-sided" };
+  return { answerable: true, currentSpeaker: [...speakers][0] as TranscriptSpeaker };
+}
+
 export const MAX_TRANSIENT_RETRIES = 3;
 
 /** Recorded per transient failure, so the retry budget survives a process restart. */

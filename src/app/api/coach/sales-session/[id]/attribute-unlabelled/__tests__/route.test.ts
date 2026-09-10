@@ -165,3 +165,79 @@ describe("POST attribute-unlabelled", () => {
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * A REP MAY CORRECT A MACHINE; A REP MAY NEVER OVERWRITE A PERSON (10 September 2026).
+ *
+ * The route used to accept `unknown` only, so a transcript the diarizer had labelled entirely
+ * `customer` was permanently unfixable — the rep could see 160 words of their own pitch scoring
+ * nothing and had no way to say "that was me". Measured on production that day: of 2,414 stored
+ * segments, `source` is `null`, `loudness` or `content`, and NOT ONE is `manual`. Every label in the
+ * database is a machine's guess, and six sessions are labelled entirely `customer` — one of them
+ * opening "Okay. Well, the whole reason I got sent out here...".
+ *
+ * The recovery SWEEP still must not touch those, and does not. The distinction is not the label, it
+ * is WHO WROTE IT: a rep correcting a machine is the opposite act to a machine overruling a rep.
+ */
+describe("POST attribute-unlabelled — correcting a machine's label", () => {
+  const machineCustomer = [
+    { speaker: "customer", text: "Okay. Well, the whole reason I got sent out here", seq: 0, source: "loudness" },
+    { speaker: "customer", text: "is we've just finished two roofs on this street.", seq: 1, source: "loudness" },
+  ];
+
+  it("relabels an all-CUSTOMER machine transcript to agent when the rep says it was them", async () => {
+    mk(getSessionTranscript).mockResolvedValue(machineCustomer);
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "attributed", speaker: "agent", labeled: 2 });
+    expect(updatePayload).toEqual({ speaker: "agent", source: "manual" });
+  });
+
+  it("scopes that update to speaker=CUSTOMER — the filter follows what was read, not a literal", async () => {
+    // Pinned because the old filter was the literal "unknown". Left alone it would now match no
+    // rows and report a save that changed nothing — a success message over an empty write.
+    mk(getSessionTranscript).mockResolvedValue(machineCustomer);
+    await POST(req({ mine: true }), ctx);
+    expect(eqFilters).toContainEqual(["session_id", "sess1"]);
+    expect(eqFilters).toContainEqual(["speaker", "customer"]);
+    expect(eqFilters).not.toContainEqual(["speaker", "unknown"]);
+  });
+
+  it("REFUSES when a person already answered, even though there is only one voice", async () => {
+    mk(getSessionTranscript).mockResolvedValue([
+      { speaker: "customer", text: "Not interested.", seq: 0, source: "manual" },
+      { speaker: "customer", text: "Bye.", seq: 1, source: "manual" },
+    ]);
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(409);
+    expect((await res.json()).status).toBe("already-attributed");
+    expect(updatePayload).toBeNull(); // a person's answer is not rewritten by a later opinion
+  });
+
+  it("REFUSES a two-voice transcript — re-attributing captured speech is a deletion, not a fix", async () => {
+    mk(getSessionTranscript).mockResolvedValue([
+      { speaker: "agent", text: "Morning, I'm from Elostate.", seq: 0, source: "loudness" },
+      { speaker: "customer", text: "How much is it?", seq: 1, source: "loudness" },
+    ]);
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(409);
+    expect(updatePayload).toBeNull();
+  });
+
+  it("changes NOTHING and spends nothing when the answer already matches what is stored", async () => {
+    mk(getSessionTranscript).mockResolvedValue([
+      { speaker: "agent", text: "Morning, I'm from Elostate.", seq: 0, source: "loudness" },
+    ]);
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "unchanged", speaker: "agent", labeled: 0 });
+    expect(updatePayload).toBeNull();
+    expect(generateSessionArtifacts).not.toHaveBeenCalled(); // no LLM spend to reproduce an existing read
+  });
+
+  it("still regenerates the coaching once a machine-customer transcript becomes agent turns", async () => {
+    mk(getSessionTranscript).mockResolvedValue(machineCustomer);
+    await POST(req({ mine: true }), ctx);
+    expect(generateSessionArtifacts).toHaveBeenCalled();
+  });
+});
