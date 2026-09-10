@@ -19,10 +19,11 @@ import type { CoachingSession, TranscriptSegment, CoachingCue } from "@/types/ba
 import {
   DISSECT_ATTEMPTED,
   DISSECT_GENERATED,
-  captureIssueFor,
-  latestReasonBySession,
+  readIssueFor,
+  latestAttemptBySession,
   sessionIdFromSubject,
-  type CaptureIssue,
+  type DissectShape,
+  type ReadIssue,
 } from '@/lib/capture-issue';
 
 /** The signed-in rep's own sessions, newest first. RLS guarantees these are theirs (or their company's if manager). */
@@ -65,7 +66,7 @@ export type SessionListRow = CoachingSession & {
    * chip that appears because a side query failed would be worse than no chip.
    * The events read is best-effort for exactly that reason.
    */
-  captureIssue: CaptureIssue;
+  readIssue: ReadIssue;
   /**
    * Segments on this call whose speaker is `unknown`, or NULL when it was not read.
    *
@@ -137,11 +138,11 @@ export async function repNamesFor(agentIds: string[]): Promise<Map<string, strin
   return out;
 }
 
-/** Attach the one-sided verdict to a page of rows. Never throws. */
-async function withCaptureIssues(rows: SessionListRow[]): Promise<SessionListRow[]> {
-  const issues = await captureIssuesFor(rows.map((r) => r.id));
+/** Attach the why-no-read verdict to a page of rows. Never throws. */
+async function withReadIssues(rows: SessionListRow[]): Promise<SessionListRow[]> {
+  const issues = await readIssuesFor(rows.map((r) => r.id));
   if (issues.size === 0) return rows;
-  return rows.map((r) => ({ ...r, captureIssue: issues.get(r.id) ?? null }));
+  return rows.map((r) => ({ ...r, readIssue: issues.get(r.id) ?? null }));
 }
 
 /**
@@ -178,8 +179,8 @@ async function withVoiceQuestion(rows: SessionListRow[]): Promise<SessionListRow
   }
 }
 
-async function captureIssuesFor(sessionIds: string[]): Promise<Map<string, CaptureIssue>> {
-  const out = new Map<string, CaptureIssue>();
+async function readIssuesFor(sessionIds: string[]): Promise<Map<string, ReadIssue>> {
+  const out = new Map<string, ReadIssue>();
   if (sessionIds.length === 0) return out;
   const subjects = sessionIds.map((id) => `sales_session:${id}`);
 
@@ -203,20 +204,35 @@ async function captureIssuesFor(sessionIds: string[]): Promise<Map<string, Captu
         .map((r) => sessionIdFromSubject((r as { subject: string | null }).subject))
         .filter((id): id is string => id !== null),
     );
-    const reasons = latestReasonBySession(
+    // `shape` says WHICH no-signal (server 3828776b) and is absent on every decline stored before
+    // 10 September 2026. That absence is meaningful and is preserved as null rather than guessed at.
+    const SHAPES = new Set([
+      "no_agent_turns",
+      "suppressed",
+      "llm_empty",
+      "unparsable",
+      "no_strengths",
+      "threw",
+    ]);
+    const attempts = latestAttemptBySession(
       (attempted.data ?? []).map((r) => {
         const row = r as { subject: string | null; created_at: string | null; payload: unknown };
-        const reason = (row.payload as { reason?: unknown } | null)?.reason;
+        const payload = row.payload as { reason?: unknown; shape?: unknown } | null;
+        const reason = payload?.reason;
+        const shape = payload?.shape;
         return {
           subject: row.subject,
           createdAt: row.created_at,
           reason:
             reason === "no_agent_turns" || reason === "no_signal" ? reason : null,
+          shape:
+            typeof shape === "string" && SHAPES.has(shape) ? (shape as DissectShape) : null,
         };
       }),
     );
     for (const id of sessionIds) {
-      out.set(id, captureIssueFor(withDissect.has(id), reasons.get(id) ?? null));
+      const a = attempts.get(id);
+      out.set(id, readIssueFor(withDissect.has(id), a?.reason ?? null, a?.shape ?? null));
     }
   } catch {
     // Decoration, never a reason to fail the list.
@@ -251,7 +267,7 @@ export async function listMySessions(
     const rows = (embedded.data ?? []).map(toListRow);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    return { rows: await withVoiceQuestion(await withCaptureIssues(page)), hasMore };
+    return { rows: await withVoiceQuestion(await withReadIssues(page)), hasMore };
   }
 
   const { data, error } = await supabase
@@ -264,7 +280,7 @@ export async function listMySessions(
   const rows = (data ?? []).map((r) => ({
     ...(r as CoachingSession),
     segmentCount: null,
-    captureIssue: null as CaptureIssue,
+    readIssue: null as ReadIssue,
     unattributedCount: null,
   }));
   const hasMore = rows.length > limit;
@@ -292,11 +308,9 @@ function toListRow(row: unknown): SessionListRow {
       segmentCount = typeof n === "number" && Number.isFinite(n) ? n : null;
     }
   }
-  // `captureIssue` is filled in afterwards by the events read; null until then,
-  // which is also what it stays if that read fails.
-  // `captureIssue` and `unattributedCount` are filled in afterwards by their own reads;
+  // `readIssue` and `unattributedCount` are filled in afterwards by their own reads;
   // null until then, which is also what they stay if those reads fail.
-  return { ...(r as CoachingSession), segmentCount, captureIssue: null, unattributedCount: null };
+  return { ...(r as CoachingSession), segmentCount, readIssue: null, unattributedCount: null };
 }
 
 /** One session by id (RLS enforces ownership/visibility — a foreign id returns nothing, not someone else's row). */

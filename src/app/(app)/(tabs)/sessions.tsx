@@ -38,7 +38,12 @@ import {
   subscribeMySessions,
 } from '@/lib/sync/sessions';
 import { analysisChip, analysisSpoken, analysisState } from '@/lib/session-analysis';
-import { ONE_SIDED_CHIP, ONE_SIDED_SPOKEN } from '@/lib/capture-issue';
+import {
+  ONE_SIDED_CHIP,
+  ONE_SIDED_SPOKEN,
+  UNFINISHED_CHIP,
+  UNFINISHED_SPOKEN,
+} from '@/lib/capture-issue';
 import { voiceQuestionWording } from '@/lib/voice-question';
 import { ownerLabel, ownerSpoken } from '@/lib/session-owner';
 import { readCachedSessions, writeCachedSessions } from '@/lib/sync/cache';
@@ -302,7 +307,7 @@ export default function SessionsScreen() {
             cached.rows.map((r) => ({
               ...r,
               segmentCount: null,
-              captureIssue: null,
+              readIssue: null,
               unattributedCount: null,
             }))
           : prev,
@@ -817,7 +822,20 @@ function SessionRow({
   // A one-sided recording is a CAPTURE problem the rep can fix, and it reads
   // differently from "still being analysed" — which is why it gets its own line
   // rather than being folded into the analysis chip.
-  const oneSided = session.captureIssue === 'one-sided';
+  const oneSided = session.readIssue === 'one-sided';
+  /*
+    THE COACH STOPPED, and the rep is not to blame for it.
+
+    Measured on production 10 September 2026: more than half of all coaching runs produce
+    nothing, and the ones that fail are the LONGER calls - median 683 transcript words
+    against 341 for the ones that succeed. Thin content would be SHORT, so for most of these
+    the rep did everything right and was shown NOTHING AT ALL: no read, no chip, no reason.
+
+    Only the shapes that mean the COACH failed reach here. A call the coach genuinely read
+    and found little in stays silent, exactly as before - offering a retry there would send a
+    rep back to a call that has nothing more to give.
+  */
+  const unfinished = session.readIssue === 'unfinished';
   /*
     WAITING ON THE REP, and the only place they would ever find out.
 
@@ -848,6 +866,7 @@ function SessionRow({
     ownerSpoken(owner),
     queued ? 'not sent yet' : '',
     oneSided ? ONE_SIDED_SPOKEN : '',
+    unfinished ? UNFINISHED_SPOKEN : '',
     voiceQuestion?.spoken ?? '',
     analysisSpoken(analysis),
     length,
@@ -905,6 +924,11 @@ function SessionRow({
         ) : null}
         {oneSided ? (
           <Text className="mt-1 font-emphasis text-sm text-primary">{ONE_SIDED_CHIP}</Text>
+        ) : null}
+        {/* Same accent, same reason as the other two: this one asks the rep to DO something
+            (open it and rebuild), where the muted analysis line only asks them to wait. */}
+        {unfinished ? (
+          <Text className="mt-1 font-emphasis text-sm text-primary">{UNFINISHED_CHIP}</Text>
         ) : null}
         {/* Same accent as the one-sided chip and for the same reason: both ask the rep
             to DO something, where the muted analysis line only asks them to wait. */}
