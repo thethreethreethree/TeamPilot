@@ -256,13 +256,13 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
 });
 
 /**
- * captureIssue — the honest "why no dissect" status (9/2 partner meeting). A one-sided session (the rep's side
+ * readIssue — the honest "why no dissect" status (9/2 partner meeting). A one-sided session (the rep's side
  * wasn't captured → 0 agent turns) carries a coach.dissect_attempted event with payload.reason "no_agent_turns"
- * and no coach.dissect_generated. The list surfaces captureIssue:"one-sided" so the absent Dissect badge reads as
+ * and no coach.dissect_generated. The list surfaces readIssue:"one-sided" so the absent Dissect badge reads as
  * "one-sided", not "broken"/"processing". A later re-transcription that DOES produce a dissect must clear it.
  */
-describe("GET /list — captureIssue (one-sided honest status)", () => {
-  it("no_agent_turns attempt + no dissect → captureIssue 'one-sided'", async () => {
+describe("GET /list — readIssue (why there is no read)", () => {
+  it("no_agent_turns attempt + no dissect → readIssue 'one-sided'", async () => {
     setCaller("rep1", REP);
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       richAdmin({
@@ -279,7 +279,7 @@ describe("GET /list — captureIssue (one-sided honest status)", () => {
       }),
     );
     const body = await (await GET(req())).json();
-    expect(body.sessions[0].captureIssue).toBe("one-sided");
+    expect(body.sessions[0].readIssue).toBe("one-sided");
   });
 
   it("reason 'no_signal' (two-sided, LLM starved) is NOT flagged one-sided", async () => {
@@ -293,7 +293,7 @@ describe("GET /list — captureIssue (one-sided honest status)", () => {
       }),
     );
     const body = await (await GET(req())).json();
-    expect(body.sessions[0].captureIssue).toBeNull();
+    expect(body.sessions[0].readIssue).toBeNull();
   });
 
   it("a dissect that later landed clears the one-sided status (hasDissect wins)", async () => {
@@ -309,6 +309,63 @@ describe("GET /list — captureIssue (one-sided honest status)", () => {
     );
     const body = await (await GET(req())).json();
     expect(body.sessions[0].hasDissect).toBe(true);
-    expect(body.sessions[0].captureIssue).toBeNull();
+    expect(body.sessions[0].readIssue).toBeNull();
+  });
+});
+
+/**
+ * readIssue "unfinished" — the coach failed, and until now that showed as nothing at all.
+ *
+ * Measured on production 2026-09-10: 92 of 100 stored declines say "no_signal", covering four genuinely
+ * different events, and the declined calls are systematically the LONGER ones — median 683 transcript words
+ * against 341 for the ones that succeeded. Thin content would be SHORT, so for most of these the rep did
+ * everything right and the dashboard showed them no read, no badge and no reason, on more than half of every
+ * session recorded. runAndStoreDissect now records WHICH empty it hit, so only the ones that mean the COACH
+ * failed are surfaced.
+ */
+describe("GET /list — readIssue 'unfinished' (the coach failed, not the call)", () => {
+  const attempt = (payload: Record<string, unknown>) => ({
+    kind: "coach.dissect_attempted",
+    subject: "sales_session:s1",
+    id: "a1",
+    created_at: "2026-01-02T00:00:00Z",
+    payload,
+  });
+  const listWith = async (payload: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
+    setCaller("rep1", REP);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({ sessions: [session()], attemptEvents: [attempt(payload)], ...extra }),
+    );
+    return (await (await GET(req())).json()).sessions[0];
+  };
+
+  it("shape 'llm_empty' → 'unfinished' — the starvation shape", async () => {
+    expect((await listWith({ reason: "no_signal", shape: "llm_empty" })).readIssue).toBe("unfinished");
+  });
+
+  it("shapes 'unparsable' and 'threw' → 'unfinished' as well", async () => {
+    expect((await listWith({ reason: "no_signal", shape: "unparsable" })).readIssue).toBe("unfinished");
+    expect((await listWith({ reason: "no_signal", shape: "threw" })).readIssue).toBe("unfinished");
+  });
+
+  it("shape 'no_strengths' stays SILENT — the coach read the call and honestly found little", async () => {
+    expect((await listWith({ reason: "no_signal", shape: "no_strengths" })).readIssue).toBeNull();
+  });
+
+  it("an OLDER decline with no shape stays silent — we do not know, so we do not guess", async () => {
+    expect((await listWith({ reason: "no_signal" })).readIssue).toBeNull();
+  });
+
+  it("one-sided still wins over a shape — it is the capture problem, and it is the fixable one", async () => {
+    expect((await listWith({ reason: "no_agent_turns", shape: "llm_empty" })).readIssue).toBe("one-sided");
+  });
+
+  it("a dissect that later landed clears 'unfinished' too", async () => {
+    const row = await listWith(
+      { reason: "no_signal", shape: "llm_empty" },
+      { badgeEvents: [{ kind: "coach.dissect_generated", subject: "sales_session:s1", id: "b1" }] },
+    );
+    expect(row.hasDissect).toBe(true);
+    expect(row.readIssue).toBeNull();
   });
 });

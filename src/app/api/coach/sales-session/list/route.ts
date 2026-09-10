@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { readIssueFor } from "@/lib/coach/v5/readIssue";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import {
   classifySession,
@@ -153,6 +154,9 @@ export async function GET(req: Request) {
   // read the latest reason per session so the list can label the one-sided case honestly. Payload-bearing, so it's
   // a separate query from the payload-free badge query above (mirrors the pivot/moments signal query). Latest wins.
   const attemptReasonBySession = new Map<string, string>();
+  // WHICH no-signal (3828776b). Absent on every decline stored before 10 September 2026, and that
+  // absence is meaningful - it is why an older decline stays silent instead of being guessed at.
+  const attemptShapeBySession = new Map<string, string>();
   if (subjects.length > 0) {
     const attempts = await fetchAllPaged<{ subject: string; payload: unknown; created_at: string }>(
       (from, to) =>
@@ -169,8 +173,11 @@ export async function GET(req: Request) {
     for (const e of attempts ?? []) {
       const sid = String(e.subject ?? "").replace("sales_session:", "");
       if (attemptReasonBySession.has(sid)) continue; // latest (created_at desc) already kept
-      const reason = (e.payload as { reason?: unknown } | null)?.reason;
+      const payload = e.payload as { reason?: unknown; shape?: unknown } | null;
+      const reason = payload?.reason;
       if (typeof reason === "string") attemptReasonBySession.set(sid, reason);
+      const shape = payload?.shape;
+      if (typeof shape === "string") attemptShapeBySession.set(sid, shape);
     }
   }
 
@@ -265,10 +272,11 @@ export async function GET(req: Request) {
       hasReview: review.has(id),
       // Honest "why no dissect": "one-sided" when the rep's side wasn't captured (0 agent turns). Only when
       // there's genuinely no dissect — a later re-transcription that produced one clears it (hasDissect wins).
-      captureIssue:
-        !dissect.has(id) && attemptReasonBySession.get(id) === "no_agent_turns"
-          ? ("one-sided" as const)
-          : null,
+      readIssue: readIssueFor(
+        dissect.has(id),
+        attemptReasonBySession.get(id) ?? null,
+        attemptShapeBySession.get(id) ?? null
+      ),
       flag: flagFor(id, (s.outcome as string | null) ?? null, s.status as string),
     };
   });

@@ -66,7 +66,7 @@ type Row = {
   hasReview: boolean;
   /** Honest "why no dissect": "one-sided" = the rep's side wasn't captured (0 agent turns), so the full
    *  read is unavailable even though an After-Pitch may exist (9/2 meeting). Null when no such issue. */
-  captureIssue: "one-sided" | null;
+  readIssue: "one-sided" | "unfinished" | null;
   /** Interaction flag (founder 2026-07-09): "Needs Examination" (manager-only) or
    *  "Outstanding" (everyone). Null when the interaction was neutral or unanalyzed. */
   flag: SessionFlag | null;
@@ -762,13 +762,28 @@ export default function SalesCoachSessionsPage() {
                           (not "broken", not "still processing"). Recover by re-recording or re-labeling speakers.
                           Theme-aware amber: amber-600 holds on a light ground (amber-300 washes out to
                           near-invisible on white — verified by render); amber-300 stays bright on the dark dashboard. */}
-                      {s.captureIssue === "one-sided" && !s.hasDissect && (
+                      {s.readIssue === "one-sided" && !s.hasDissect && (
                         <span
                           title="The rep's side wasn't captured on this recording, so the full read (Dissect) can't be generated. Re-record or re-label the speakers to recover it."
                           className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-300 border border-amber-500/50 dark:border-amber-400/40 rounded-full px-2 py-0.5"
                         >
                           <MicOff className="w-2.5 h-2.5" aria-hidden />
                           One-sided
+                        </span>
+                      )}
+                      {/* The coach itself failed on this call - it came back blank, unreadable, or threw.
+                          Measured 2026-09-10: 92 of 100 declines said only "no signal", and the declined
+                          calls are the LONGER ones (median 683 words against 341), so for most of these the
+                          rep did nothing wrong and this space showed them nothing at all. A call the coach
+                          genuinely read and found little in stays silent. Same amber pair as One-sided, and
+                          for the same reason: both ask somebody to act rather than to wait. */}
+                      {s.readIssue === "unfinished" && !s.hasDissect && (
+                        <span
+                          title="The coach started reading this call and stopped before it produced anything. The recording is fine - regenerate the read to try again."
+                          className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-300 border border-amber-500/50 dark:border-amber-400/40 rounded-full px-2 py-0.5"
+                        >
+                          <AlertTriangle className="w-2.5 h-2.5" aria-hidden />
+                          Read didn&rsquo;t finish
                         </span>
                       )}
                     </span>

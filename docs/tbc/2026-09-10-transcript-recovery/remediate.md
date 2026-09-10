@@ -236,3 +236,15 @@ the probe distinguishes the two without ever reaching a write.
 The boundary is worth stating precisely, because it is also the reason this went unseen: the GET probe run
 earlier in this build reported 19 of 19 healthy and was TRUE. The defect was on a POST, and no POST had
 ever been driven. A sweep is only as wide as its verb.
+
+### F32 - the dashboard had the same blind spot, and I had only fixed the phone
+fix: `src/lib/coach/v5/readIssue.ts` holds the rule for the web; the list route returns `readIssue` in place
+of `captureIssue` (renamed rather than added beside it - two fields expressing one overlapping verdict is
+how the two surfaces would drift again), and the sessions page renders a second badge. The badge uses
+`AlertTriangle` rather than `Sparkles`, because `Sparkles` already means "Dissect" on the very same row and
+one icon meaning two things is a defect a screenshot would not reveal.
+gate-or-promise: GATE, four mutations, each caught in BOTH the unit test and the route test - so the rule and
+its wiring are pinned separately rather than by one shared assertion. Putting `no_strengths` in the retry set
+fails the two silence tests. Treating a shapeless older decline as a failure fails three, including the
+pre-existing "reason 'no_signal' is NOT flagged one-sided" - which is the old invariant proving it still
+holds. Dropping the has-a-read short circuit fails three. Letting a shape outrank one-sided fails two.

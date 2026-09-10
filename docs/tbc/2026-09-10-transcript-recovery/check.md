@@ -731,3 +731,21 @@ codebase has already forgotten, and that the whole of F30 was UNREACHABLE from a
 passed and the gate read clean. A unit test cannot see this and neither can the invariant audit; only
 driving the real path with a real token can, which is rule 4 and the only reason it was found tonight
 rather than by a rep next week.
+
+### F32 - the dashboard had the same blind spot, and I had only fixed the phone
+class: one-verdict-implemented-on-one-surface-while-the-other-kept-the-old-rule
+sweep: every consumer of `captureIssue` in both repositories
+severity: medium
+F28 gave the decline marker a `shape`, and the mobile app was taught to use it: a call the coach CRASHED on
+now says so, while a call it genuinely read and found little in stays silent. The dashboard was left
+computing the old rule - `!dissect.has(id) && reason === "no_agent_turns"` - so on the surface the founder
+actually uses, more than half of all sessions still showed no read, no badge and no reason.
+
+That is a worse failure than the original, because it is the one this build already knew about. Shipping a
+fix to one of two surfaces leaves them disagreeing about the same call, which is precisely the condition the
+app's own `capture-issue.ts` docblock was written to warn against.
+
+The two cannot share code: the app reads `coaching_sessions` straight from Supabase and never calls the
+list route, which is a deliberate decision recorded in that same file. So the rule is mirrored, and both
+copies pin the SAME six shapes and the SAME precedence in their tests - a change to one that the other does
+not follow now fails rather than drifting.
