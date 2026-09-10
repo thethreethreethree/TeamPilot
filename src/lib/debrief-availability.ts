@@ -32,8 +32,15 @@
  *                       so this transcript reads as empty to all of them. Not a
  *                       wait and not a failure - it is one tap from ready, and the
  *                       picker above this card is where the tap goes.
- *   awaiting-transcript audio reached the server, the transcript has not landed.
- *                       Nothing is wrong; it is not ready YET.
+ *   awaiting-transcript audio reached the server, the transcript has not landed, and not
+ *                       enough time has passed to call that a failure. Nothing is wrong; it
+ *                       is not ready YET.
+ *   transcript-overdue  the same shape, waited out. Added 11 September, because "not ready
+ *                       yet" was being said to calls where it was never going to be ready:
+ *                       the website's sweep found nine sessions with saved audio and no
+ *                       transcript, the oldest forty-seven days old. That card told the rep
+ *                       to pull down to check again. See `transcript-wait.ts` for where the
+ *                       boundary between the two comes from.
  *   no-recording        no audio was ever sent. Not an error, not a wait, and
  *                       not something a retry will change.
  *
@@ -52,6 +59,7 @@ export type DebriefAvailability =
   | 'ready'
   | 'awaiting-voice'
   | 'awaiting-transcript'
+  | 'transcript-overdue'
   | 'no-recording';
 
 export function debriefAvailability(
@@ -67,6 +75,17 @@ export function debriefAvailability(
    * to withhold a debrief that may be perfectly ready.
    */
   unattributedCount = 0,
+  /**
+   * Has the wait for the transcript gone past what transcription can honestly take?
+   *
+   * PASSED IN RATHER THAN COMPUTED, because deciding it needs the current time and a rule that
+   * lives elsewhere - and a pure function that reads the clock is a pure function that cannot be
+   * tested. `transcriptOverdue` in `transcript-wait.ts` is what answers it.
+   *
+   * Defaulted to false so every existing caller keeps its exact behaviour: not asked means not
+   * overdue, which leaves the softer sentence rather than accusing a call of failing.
+   */
+  overdue = false,
 ): DebriefAvailability {
   if (Number.isFinite(segmentCount) && segmentCount > 0) {
     // ALL of them, not any. A transcript with one real turn already reads to the
@@ -81,7 +100,8 @@ export function debriefAvailability(
     }
     return 'ready';
   }
-  return hasAudio ? 'awaiting-transcript' : 'no-recording';
+  if (!hasAudio) return 'no-recording';
+  return overdue ? 'transcript-overdue' : 'awaiting-transcript';
 }
 
 /**
@@ -94,6 +114,7 @@ export function debriefAvailability(
 export function unavailableTitle(state: Exclude<DebriefAvailability, 'ready'>): string {
   if (state === 'no-recording') return 'No recording for this call';
   if (state === 'awaiting-voice') return 'Waiting on one answer';
+  if (state === 'transcript-overdue') return 'The words never came back from this call';
   return 'Waiting for the transcript';
 }
 
@@ -104,5 +125,25 @@ export function unavailableBody(state: Exclude<DebriefAvailability, 'ready'>): s
   if (state === 'awaiting-voice') {
     return 'We have what was said on this call, but only one voice came through and we could not tell whose it is. Say which above and the debrief is written from it — the words are already saved either way.';
   }
+  if (state === 'transcript-overdue') {
+    // NOT "still being turned into a transcript", which is what this said for as long as the
+    // waiting lasted - and for the calls that reach here, that was up to forty-seven days.
+    return 'Your recording is safe on the server, but it was never turned into words, and enough time has passed that it is not still coming. Nothing you did caused it. It can be read from the recording now, which usually recovers the whole conversation.';
+  }
   return 'The recording reached the server and is still being turned into a transcript. The debrief can be made as soon as that arrives — pull down to check again.';
+}
+
+/**
+ * Would re-reading the recording help from this state?
+ *
+ * ONLY when the wait is over. The recovery route was rewritten on 10 September precisely for this
+ * case - its own note says the old precondition made "a call with saved audio and NO transcript"
+ * answer not-applicable and stop, which is how nine of them sat untouched, and that the replacement
+ * "covers blank, unknown-only, customer-only and the original customer-missing gap alike".
+ *
+ * NOT while it is merely `awaiting-transcript`: spending a speech-to-text charge on work that is
+ * still in flight is the mistake that costs money rather than the one that costs a sentence.
+ */
+export function canReReadFrom(state: DebriefAvailability): boolean {
+  return state === 'transcript-overdue';
 }

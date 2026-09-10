@@ -46,10 +46,12 @@ import { fetchSessionPoints } from '@/lib/gamification/points-api';
 import { useOnline } from '@/lib/use-online';
 import { failureCause, reachFallback } from '@/lib/reach-failure';
 import {
+  canReReadFrom,
   debriefAvailability,
   unavailableBody,
   unavailableTitle,
 } from '@/lib/debrief-availability';
+import { transcriptOverdue } from '@/lib/transcript-wait';
 
 type Phase = 'idle' | 'loading' | 'working' | 'ready' | 'blocked' | 'error';
 
@@ -58,6 +60,8 @@ export function AfterPitchCard({
   hasAudio,
   segmentCount,
   unattributedCount = 0,
+  endedAt,
+  startedAt,
 }: {
   sessionId: string;
   /** Whether the server holds audio for this call. */
@@ -69,6 +73,15 @@ export function AfterPitchCard({
    * exactly as it was rather than withholding a debrief that may be ready.
    */
   unattributedCount?: number;
+  /**
+   * When the call finished, and when it began.
+   *
+   * Only ever used to tell "the transcript has not arrived yet" from "the transcript is never
+   * arriving". Both optional: a caller that does not know says nothing, and the card keeps the
+   * softer sentence rather than accusing a call of failing on no evidence.
+   */
+  endedAt?: string | null;
+  startedAt?: string | null;
 }) {
   // Read so the failure line names a cause it has checked, rather than blaming
   // the signal for every failure including a server fault.
@@ -179,8 +192,22 @@ export function AfterPitchCard({
    * as "the server does not accept the app's sign-in". Nothing is asked of the
    * server for a call that cannot have a debrief.
    */
-  const availability = debriefAvailability(hasAudio, segmentCount, unattributedCount);
+  const availability = debriefAvailability(
+    hasAudio,
+    segmentCount,
+    unattributedCount,
+    /*
+      READ AT RENDER, deliberately, rather than held in state.
+
+      There is no timer here and there does not need to be one. The boundary is fifteen minutes;
+      a rep who has a call open across it has already scrolled, pulled to refresh or left and come
+      back, and every one of those re-renders. A ticking clock would buy a sentence changing under
+      somebody's eyes, which nobody asked for, at the price of a timer per mounted card.
+    */
+    transcriptOverdue(endedAt, startedAt, new Date()),
+  );
   if (availability !== 'ready') {
+    const recovery = recoveryStatus ? recoveryWording(recoveryStatus) : null;
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">
         <Text className="font-emphasis text-base text-foreground">
@@ -189,6 +216,46 @@ export function AfterPitchCard({
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
           {unavailableBody(availability)}
         </Text>
+
+        {recovery ? (
+          <View
+            accessibilityLiveRegion="polite"
+            className="mt-3 border-l-2 border-border-control pl-3"
+          >
+            <Text className="font-strong text-sm text-foreground">{recovery.title}</Text>
+            <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+              {recovery.body}
+            </Text>
+          </View>
+        ) : null}
+
+        {/*
+          The same button, from the other direction. Above, the transcript exists and holds one
+          voice; here it does not exist at all. The route treats them as one problem - its rewrite
+          "covers blank, unknown-only, customer-only and the original customer-missing gap alike" -
+          and a rep should not have to know which of the two happened to them.
+
+          Not offered while the wait is still honest, and not offered after a settled answer: the
+          first would spend a charge on work already in flight, the second on work that has already
+          reached its conclusion.
+        */}
+        {canReReadFrom(availability) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
+          <Pressable
+            onPress={reRead}
+            disabled={rereading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: rereading, busy: rereading }}
+            accessibilityLabel="Read the recording again to recover this call's words"
+            className={`mt-3 min-h-7 flex-row items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 active:bg-primary-pressed ${
+              rereading ? 'opacity-60' : ''
+            }`}
+          >
+            {rereading ? <ActivityIndicator size="small" color={C['primary-foreground']} /> : null}
+            <Text className="font-strong text-base text-primary-foreground">
+              {rereading ? 'Reading the recording…' : 'Read the recording again'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }

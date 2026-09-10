@@ -123,6 +123,9 @@ type Row =
       segmentCount: number;
       /** Segments nobody has attributed - what makes a debrief 'waiting on one answer'. */
       unattributedCount: number;
+      /** What separates "the transcript has not arrived yet" from "it is never arriving". */
+      endedAt: string | null;
+      startedAt: string | null;
     }
   | { kind: 'outcome'; session: CoachingSession }
   | { kind: 'rename'; session: CoachingSession }
@@ -1126,6 +1129,8 @@ function RowView({
         hasAudio={row.hasAudio}
         segmentCount={row.segmentCount}
         unattributedCount={row.unattributedCount}
+        endedAt={row.endedAt}
+        startedAt={row.startedAt}
       />
     );
   }
@@ -1253,6 +1258,10 @@ function buildRows(
     // the card can be told why a debrief is not ready instead of promising one that
     // would come back blank.
     unattributedCount: segments.filter((s) => s.speaker === 'unknown').length,
+    // Already on the row the screen is holding. Without them the card can only say "still being
+    // turned into a transcript", which it was saying to calls up to forty-seven days old.
+    endedAt: session.ended_at,
+    startedAt: session.started_at,
   });
   /*
     "YOUR READ", under the debrief, and the app has never had it.
