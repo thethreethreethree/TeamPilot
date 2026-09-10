@@ -31,27 +31,45 @@ import type { TranscriptSegment } from '@/types/backend';
  * unused — an unused code path is a claim that something needs doing when it does not.
  */
 
+/** The `source` a human answer is written with — the server writes exactly this string. */
+const MANUAL_SOURCE = 'manual';
+
 /**
- * Is this a transcript that exists but has never been attributed?
+ * Is this a transcript the rep can still answer for?
  *
- * Every segment unknown, and at least one segment. An empty transcript is NOT this case —
- * there is nothing yet to ask about, and the screen has its own waiting state for it. A
- * transcript with even one attributed turn is not this case either: it has an answer, and
- * the server would refuse to change it.
+ * It used to mean "every segment is unknown", which matched the server's old precondition. Both were
+ * testing the LABEL when the rule is really about the AUTHOR (server 2fb2b5ae): a rep may correct a
+ * machine's guess and may never overwrite a person's answer. Measured on production 2026-09-10, of 2,414
+ * stored segments not one carries `source: 'manual'` — so a transcript the diarizer labelled entirely
+ * `customer` was a rep's own pitch they could read, watch score nothing, and never fix.
+ *
+ * THREE CONDITIONS, and the third is the one that keeps this quiet:
+ *   - ONE voice throughout. Two voices is a captured two-sided call; re-attributing it wholesale would be
+ *     a deletion, and the server refuses it anyway.
+ *   - NOBODY has answered. One `manual` segment and the question is closed, including to a second
+ *     opinion from the same rep.
+ *   - The current label is NOT `agent`. This is a UI judgement, not a server rule: an agent-labelled
+ *     transcript already produces coaching, so asking "was that you?" on it would put a question on 43 of
+ *     the 176 sessions that are working fine. The question is offered exactly where the rep is currently
+ *     getting NOTHING — an unknown or customer-only transcript scores zero, because every engine filters
+ *     on `speaker === 'agent'`.
  */
-export function isUnlabelled(segments: Pick<TranscriptSegment, 'speaker'>[]): boolean {
+export function isAnswerable(segments: Pick<TranscriptSegment, 'speaker' | 'source'>[]): boolean {
   if (segments.length === 0) return false;
-  return segments.every((s) => s.speaker === 'unknown');
+  if (segments.some((s) => s.source === MANUAL_SOURCE)) return false;
+  const speakers = new Set(segments.map((s) => s.speaker));
+  if (speakers.size !== 1) return false;
+  return [...speakers][0] !== 'agent';
 }
 
 /**
- * Rebuild the "whose voice is this?" question from a stored unlabelled transcript.
+ * Rebuild the "whose voice is this?" question from a stored transcript nobody has answered for.
  *
  * Returns null when there is nothing to ask — so the caller can use it as the condition
  * itself rather than testing twice and drifting.
  */
 export function speakersFromTranscript(segments: TranscriptSegment[]): PendingSpeaker[] | null {
-  if (!isUnlabelled(segments)) return null;
+  if (!isAnswerable(segments)) return null;
   // The sample is what the rep actually reads to decide, so it must be a line with WORDS in it.
   // "Words" is not "non-empty" (2026-09-10): a call that captured no speech comes back from STT as
   // `[clicking]` or `[outro jingle]`, never as "". Those pass .trim(), so the old check would put a

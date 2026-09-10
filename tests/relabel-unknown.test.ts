@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SOLO_SPEAKER_ID, isUnlabelled, speakersFromTranscript } from '../src/lib/audio/relabel-unknown';
+import { SOLO_SPEAKER_ID, isAnswerable, speakersFromTranscript } from '../src/lib/audio/relabel-unknown';
 import type { TranscriptSegment } from '../src/types/backend';
 
 /**
@@ -25,20 +25,20 @@ const seg = (over: Partial<TranscriptSegment>): TranscriptSegment => ({
 });
 
 test('an all-unknown transcript is the case that needs asking about', () => {
-  assert.equal(isUnlabelled([seg({ seq: 0 }), seg({ seq: 1 })]), true);
+  assert.equal(isAnswerable([seg({ seq: 0 }), seg({ seq: 1 })]), true);
 });
 
 test('an EMPTY transcript is not asked about — there is nothing to attribute yet', () => {
   // The screen has its own "still transcribing" state for this. Offering a voice question
   // with no voices in it would ask the rep about nothing.
-  assert.equal(isUnlabelled([]), false);
+  assert.equal(isAnswerable([]), false);
 });
 
 test('a transcript with even ONE attributed turn is never re-asked', () => {
   // The server refuses to change an attributed transcript, so asking would invite a tap
   // that 409s — and a question the system will not honour teaches the rep to ignore it.
-  assert.equal(isUnlabelled([seg({ seq: 0, speaker: 'agent' }), seg({ seq: 1 })]), false);
-  assert.equal(isUnlabelled([seg({ seq: 0, speaker: 'customer' }), seg({ seq: 1 })]), false);
+  assert.equal(isAnswerable([seg({ seq: 0, speaker: 'agent' }), seg({ seq: 1 })]), false);
+  assert.equal(isAnswerable([seg({ seq: 0, speaker: 'customer' }), seg({ seq: 1 })]), false);
 });
 
 test('the rebuilt question carries exactly one voice', () => {
@@ -107,4 +107,62 @@ test('a transcript of nothing but sound events still asks, with an EMPTY sample 
 test('a line that MIXES noise with speech is a real line, and is offered as the sample', () => {
   const speakers = speakersFromTranscript([seg({ seq: 0, text: "[background noise] I'm John." })]);
   assert.deepEqual(speakers, [{ speakerId: SOLO_SPEAKER_ID, sample: "[background noise] I'm John." }]);
+});
+
+/**
+ * A REP MAY CORRECT A MACHINE; A REP MAY NEVER OVERWRITE A PERSON (2026-09-10, mirrors server 2fb2b5ae).
+ *
+ * The gate used to mean "every segment is unknown". Both this and the server's precondition were testing
+ * the LABEL when the rule is really about the AUTHOR. Measured on production: of 2,414 stored segments not
+ * one carries source 'manual', and six sessions are labelled entirely 'customer' — one of them 160 words
+ * of a rep's own doorstep pitch, which they could read, watch score nothing, and never fix.
+ */
+test('a machine-labelled CUSTOMER transcript is answerable — this is what was unfixable', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, speaker: 'customer', source: 'loudness', text: 'Okay. Well, the whole reason I got sent out here' }),
+    seg({ seq: 1, speaker: 'customer', source: 'loudness', text: "is we've just finished two roofs on this street." }),
+  ]);
+  assert.deepEqual(speakers, [
+    { speakerId: SOLO_SPEAKER_ID, sample: 'Okay. Well, the whole reason I got sent out here' },
+  ]);
+});
+
+test('ONE manual segment closes the question — a person already answered', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, speaker: 'customer', source: 'loudness' }),
+    seg({ seq: 1, speaker: 'customer', source: 'manual' }),
+  ]);
+  assert.equal(speakers, null);
+});
+
+test('a two-voice transcript is never asked about — that call already says who spoke', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, speaker: 'agent', source: 'loudness' }),
+    seg({ seq: 1, speaker: 'customer', source: 'loudness' }),
+  ]);
+  assert.equal(speakers, null);
+});
+
+test('an AGENT-labelled transcript is NOT asked about — it already coaches, so the question is noise', () => {
+  // A UI judgement rather than a server rule: the server would accept the correction, but offering it
+  // here would put a question on 43 of the 176 sessions that are working fine. The question belongs
+  // exactly where the rep is currently getting nothing.
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, speaker: 'agent', source: 'loudness' }),
+    seg({ seq: 1, speaker: 'agent', source: 'loudness' }),
+  ]);
+  assert.equal(speakers, null);
+});
+
+test('a mix of unknown and a machine label is not one voice, so it is not asked about', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, speaker: 'unknown' }),
+    seg({ seq: 1, speaker: 'customer', source: 'loudness' }),
+  ]);
+  assert.equal(speakers, null);
+});
+
+test('an absent source is not a human answer — a missing field never means somebody spoke', () => {
+  const speakers = speakersFromTranscript([seg({ seq: 0, speaker: 'customer', source: null, text: 'Morning.' })]);
+  assert.deepEqual(speakers, [{ speakerId: SOLO_SPEAKER_ID, sample: 'Morning.' }]);
 });
