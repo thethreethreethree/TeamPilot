@@ -70,17 +70,32 @@ class ApiError extends Error {
    * a framework default.
    */
   readonly kind: string | null;
+  /**
+   * The server's own `status` string, when the body carries one.
+   *
+   * SOME ROUTES ANSWER AN OUTCOME WITH A NON-2xx CODE, and the code alone cannot say which. The
+   * transcript re-read is the clear case: it returns 409 for `canonical` (the transcript is already
+   * two-sided - good news) and 409 for `no-audio` (there is no recording to read - a dead end).
+   * Identical status, opposite meanings, opposite things to tell a rep. Without this the app could
+   * only guess, and guessing at a cause is the failure this codebase spends most of its effort on.
+   *
+   * Pulled out the same way `kind` is, and null whenever the body has no such string, so no caller
+   * can mistake its absence for a value.
+   */
+  readonly serverStatus: string | null;
 
   constructor(
     status: number,
     message: string,
     authFailure: AuthFailure | null = null,
     kind: string | null = null,
+    serverStatus: string | null = null,
   ) {
     super(message);
     this.status = status;
     this.kind = kind;
     this.authFailure = authFailure;
+    this.serverStatus = serverStatus;
   }
 }
 
@@ -140,6 +155,7 @@ async function coachWrite<T>(method: "POST" | "PATCH", path: string, body: unkno
       (data && (data as any).error) || `HTTP ${res.status}`,
       res.status === 401 ? await why401() : null,
       typeof (data as any)?.kind === "string" ? (data as any).kind : null,
+      typeof (data as any)?.status === "string" ? (data as any).status : null,
     );
   }
   return data as T;
@@ -175,6 +191,7 @@ export async function coachGet<T>(path: string): Promise<T> {
       (data && (data as any).error) || `HTTP ${res.status}`,
       res.status === 401 ? await why401() : null,
       typeof (data as any)?.kind === "string" ? (data as any).kind : null,
+      typeof (data as any)?.status === "string" ? (data as any).status : null,
     );
   }
   return data as T;

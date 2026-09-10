@@ -25,6 +25,7 @@
  */
 import { coachGet, coachPost } from '@/lib/coach-api';
 import { authFailureOf, type AuthFailure } from '@/lib/auth-failure';
+import { type RecoveryStatus, isRecoveryStatus } from '@/lib/transcript-recovery';
 
 export type Strength = { point: string; example: string };
 export type Growth = { opportunity: string; nextStep: string };
@@ -32,8 +33,16 @@ export type Growth = { opportunity: string; nextStep: string };
 export type AfterPitch = {
   hasSignal: boolean;
   narrative: { hasSignal: boolean; strengths: Strength[]; growthAreas: Growth[] };
-  /** Absent for a manager: stripped server-side, deliberately. */
-  scores?: { label?: string; score?: number }[];
+  /**
+   * Absent for a manager: stripped server-side, deliberately.
+   *
+   * `key` AND `caveat` WERE ON THE WIRE ALL ALONG and this type was dropping them. The scoring
+   * engine sets `caveat` on `talk_ratio` when the customer side carries zero transcribed words, and
+   * the website reads exactly that field to tell a one-sided call apart from a failed write-up.
+   * Narrowing them away here is why the app could not tell those two apart, and so offered a rebuild
+   * that could never work. See `customerSideMissing` in `after-pitch-empty.ts`.
+   */
+  scores?: { key?: string; label?: string; score?: number; caveat?: boolean }[];
   focus: { focus: string; why: string } | null;
 };
 
@@ -74,6 +83,39 @@ export async function generateAfterPitch(sessionId: string): Promise<AfterPitchR
     return { ok: true, summary: data?.summary ?? null, isOwner: Boolean(data?.isOwner) };
   } catch (e) {
     return classify(e);
+  }
+}
+
+/**
+ * Ask the server to read the saved recording again.
+ *
+ * WHY THE APP NEEDS THIS AT ALL, given the hourly sweep already recovers these calls unattended:
+ * the sweep is capped at six recoveries an hour across every company, so a rep who opens a blank
+ * call at a door can be waiting a long time and has no way to know anything is coming. This is the
+ * same route the website calls when a rep opens such a call, and the server's own
+ * `auto_recover_attempted_at` marker is what stops the work being paid for twice.
+ *
+ * EVERY OUTCOME IS A NAMED STATUS, never a throw swallowed into silence. The card says a different
+ * sentence for each, because "there is no saved recording" and "the speech service is down" ask
+ * completely different things of the rep.
+ */
+export async function reReadRecording(sessionId: string): Promise<RecoveryStatus> {
+  try {
+    const data = await coachPost<{ status?: string }>(
+      `/api/coach/sales-session/${sessionId}/auto-recover`,
+      {},
+    );
+    return isRecoveryStatus(data?.status) ? data.status : 'failed';
+  } catch (e) {
+    /**
+     * The route answers 409 for `canonical` and for `no-audio`, and 4xx/5xx for `failed`, so those
+     * arrive here as a throw. They are ANSWERS rather than faults, and the HTTP code cannot tell the
+     * first two apart - both are 409, one is good news and the other a dead end. So the server's own
+     * status string is preferred over the mere fact that it threw; `ApiError` carries it for exactly
+     * this reason. A throw with no status string in it is a genuine failure.
+     */
+    const status = (e as { serverStatus?: string | null })?.serverStatus;
+    return isRecoveryStatus(status) ? status : 'failed';
   }
 }
 

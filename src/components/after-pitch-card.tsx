@@ -15,14 +15,26 @@
  * manager scorecard" — so a manager sees the coaching substance and no numbers,
  * and this says so rather than rendering blanks that look like a bad result.
  */
-import { canRebuild, emptyReadReason, hasContent } from '@/lib/after-pitch-empty';
+import {
+  canRebuild,
+  canReRead,
+  emptyReadReason,
+  emptyReadWording,
+  hasContent,
+} from '@/lib/after-pitch-empty';
+import {
+  type RecoveryStatus,
+  canAskAgain,
+  recoveryRecoveredWords,
+  recoveryWording,
+} from '@/lib/transcript-recovery';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import {
   generateAfterPitch,
-
   readAfterPitch,
+  reReadRecording,
   type AfterPitch,
 } from '@/lib/after-pitch';
 import { blockedState } from '@/lib/blocked-state';
@@ -66,6 +78,15 @@ export function AfterPitchCard({
   const [phase, setPhase] = useState<Phase>('idle');
   /** The rep rebuilt it in this sitting and it still came back empty - a different sentence. */
   const [justTried, setJustTried] = useState(false);
+  /**
+   * What the last re-read of the recording answered, if the rep asked in this sitting.
+   *
+   * Null means they have not asked. It is NOT folded into `justTried`: that one is about the
+   * write-up being rebuilt, this one is about the words themselves being recovered, and they have
+   * different causes, different sentences and different right next steps.
+   */
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
+  const [rereading, setRereading] = useState(false);
   /** Why it is blocked — a session that ended, or a route that refused. */
   const [why, setWhy] = useState<AuthFailure | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -125,6 +146,31 @@ export function AfterPitchCard({
     setMessage(result.message ?? null);
     setPhase('error');
   }, [sessionId]);
+
+  /**
+   * Read the saved recording a second time, to recover the side that was never transcribed.
+   *
+   * ONLY EVER STARTED BY A TAP. The website fires the same route automatically when a rep opens such
+   * a call; this does not, and the difference is deliberate. Each attempt is a speech-to-text charge
+   * on a multi-minute recording, an hourly sweep already reaches these calls unattended, and a rep at
+   * a door on a metered connection should be the one who decides to spend it. What the app owes them
+   * is to say plainly that it can be done and what it will do - which the card now does.
+   *
+   * ON SUCCESS THE READ IS REBUILT, because recovering the words is only half of it: the debrief
+   * stored against this call is still the blank one written from the one-sided transcript, and
+   * without this the rep would be told it worked while still looking at nothing.
+   */
+  const reRead = useCallback(async () => {
+    setRereading(true);
+    const status = await reReadRecording(sessionId);
+    setRecoveryStatus(status);
+    setRereading(false);
+    if (recoveryRecoveredWords(status)) {
+      // `make` sets its own phase and handles its own failures, including the case where the rebuilt
+      // read is STILL empty - which then reads as "that did not work either" rather than silence.
+      await make();
+    }
+  }, [sessionId, make]);
 
   /**
    * ASKED BEFORE ANYTHING IS REQUESTED, and that ordering is the fix. The card
@@ -219,32 +265,38 @@ export function AfterPitchCard({
 
   const reason = emptyReadReason(summary, justTried);
   if (reason) {
+    /*
+      THE SENTENCES LIVE IN `after-pitch-empty.ts`, not here.
+
+      They were four nested ternaries in this file, and a fifth branch is exactly where a wrong
+      sentence hides. Every one of them exists because an earlier sentence was wrong about a real
+      rep's real call, so they are worth being able to read side by side - and to test, which they
+      now are.
+    */
+    const words = emptyReadWording(reason);
+    // What the LAST re-read answered, when the rep has asked in this sitting. Its own sentence, kept
+    // apart from the diagnosis above: one says what is wrong with the call, the other says what
+    // happened when we tried to fix it, and collapsing them loses whichever is not mentioned.
+    const recovery = recoveryStatus ? recoveryWording(recoveryStatus) : null;
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">
-        <Text className="font-strong text-base text-foreground">
-          {reason === 'retried-and-failed'
-            ? 'That did not work either'
-            : reason === 'none'
-              ? 'No debrief yet'
-              : reason === 'engine-blank'
-              ? // NOT "not enough in this call". This call WAS scored, so there was plenty
-                // to say — the write-up is what failed, and rebuilding usually fixes it.
-                'Your read did not come through'
-              : // NOT "not enough in this call" either. Measured 2026-09-11: 12 of the founder's own
-                // sessions have no scores and 100+ words from the rep, the largest 757 — and no word
-                // count separates them, since the smallest call that DID get scored has one word.
-                // Nothing records which of the two reasons it is, so the title claims neither.
-                'Nothing came back for this call'}
-        </Text>
+        <Text className="font-strong text-base text-foreground">{words.title}</Text>
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
-          {reason === 'retried-and-failed'
-            ? 'It ran again and still produced nothing. Your recording and your words are safe — this is the write-up failing, and asking again now will most likely do the same. It is worth telling whoever runs your coach.'
-            : reason === 'none'
-              ? 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'
-              : reason === 'engine-blank'
-              ? 'The call was captured and scored, but the coaching write-up came back empty. That is the write-up failing, not the call — try building it again.'
-              : 'There are no scores and no write-up for this one. That can mean there was little in the call, or that the coach did not finish — nothing recorded which, so I will not guess. Your recording and your words are safe either way.'}
+          {words.body}
         </Text>
+
+        {recovery ? (
+          <View
+            accessibilityLiveRegion="polite"
+            className="mt-3 border-l-2 border-border-control pl-3"
+          >
+            <Text className="font-strong text-sm text-foreground">{recovery.title}</Text>
+            <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+              {recovery.body}
+            </Text>
+          </View>
+        ) : null}
+
         {canRebuild(reason) ? (
           <Pressable
             onPress={make}
@@ -258,6 +310,33 @@ export function AfterPitchCard({
           >
             <Text className="font-strong text-base text-primary-foreground">
               {reason === 'none' ? 'Write it' : 'Build it again'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {/*
+          THE ACTION THAT CAN ACTUALLY WORK on a call whose customer side was never captured.
+
+          It is offered instead of "Build it again", never beside it - a rebuild here re-runs the
+          write-up over the same one-voice transcript and returns the same blank, at a real cost per
+          tap. Once a re-read has answered, it is offered again ONLY for a genuine outage: every
+          other outcome is settled, and a second identical button after a settled answer is an
+          invitation to keep paying for the same nothing. This app has already learned that twice.
+        */}
+        {canReRead(reason) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
+          <Pressable
+            onPress={reRead}
+            disabled={rereading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: rereading, busy: rereading }}
+            accessibilityLabel="Read the recording again to recover the missing side"
+            className={`mt-3 min-h-7 flex-row items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 active:bg-primary-pressed ${
+              rereading ? 'opacity-60' : ''
+            }`}
+          >
+            {rereading ? <ActivityIndicator size="small" color={C['primary-foreground']} /> : null}
+            <Text className="font-strong text-base text-primary-foreground">
+              {rereading ? 'Reading the recording…' : 'Read the recording again'}
             </Text>
           </Pressable>
         ) : null}
