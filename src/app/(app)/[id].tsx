@@ -53,6 +53,7 @@ import { OutcomePicker } from '@/components/outcome-picker';
 import { NOT_THE_REP, SpeakerPicker } from '@/components/speaker-picker';
 import { RecordingPlayer } from '@/components/recording-player';
 import { AfterPitchCard } from '@/components/after-pitch-card';
+import { SessionReadCard } from '@/components/session-read-card';
 import { RECORDING_AVAILABLE } from '@/lib/audio/module';
 import { signedRecordingUrl } from '@/lib/sync/recording-url';
 import {
@@ -110,6 +111,11 @@ type Row =
    * reported as the server refusing the app's sign-in. The screen has always
    * known better — it says so two rows above.
    */
+  | {
+      kind: 'read';
+      sessionId: string;
+      segments: { speaker: string; text: string }[];
+    }
   | {
       kind: 'debrief';
       sessionId: string;
@@ -1109,6 +1115,10 @@ function RowView({
     return <SessionAudio assetUrl={row.assetUrl} />;
   }
 
+  if (row.kind === 'read') {
+    return <SessionReadCard sessionId={row.sessionId} segments={row.segments} />;
+  }
+
   if (row.kind === 'debrief') {
     return (
       <AfterPitchCard
@@ -1243,6 +1253,26 @@ function buildRows(
     // the card can be told why a debrief is not ready instead of promising one that
     // would come back blank.
     unattributedCount: segments.filter((s) => s.speaker === 'unknown').length,
+  });
+  /*
+    "YOUR READ", under the debrief, and the app has never had it.
+
+    The debrief is the between-doors note; this is the deep read of the whole conversation - what
+    worked, what to work on, and the play the rep ran without naming it. The web has had it since the
+    coach was built and the phone never did, so a rep on the doors could see their transcript and their
+    scores but not the thing that reads the call.
+
+    It became load-bearing on 10 September, when the sessions list started showing "Read didn't finish"
+    on a call where the coach came back blank. That chip had nothing behind it until now.
+
+    The segments go in rather than a count: the card has to tell "no read yet" apart from "this
+    recording caught no speech", and only the words can say which. It never generates on open - a read
+    is a real LLM call over a whole conversation, so it is offered, not spent.
+  */
+  built.push({
+    kind: 'read',
+    sessionId: session.id,
+    segments: segments.map((s) => ({ speaker: s.speaker, text: s.text })),
   });
   // Directly under the facts, because setting it is the one thing a rep can
   // change about a finished call — and an unset outcome is the difference
