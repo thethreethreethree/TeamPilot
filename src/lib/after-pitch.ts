@@ -80,9 +80,20 @@ export async function generateAfterPitch(sessionId: string): Promise<AfterPitchR
 /**
  * Is there anything in this debrief worth showing?
  *
- * `hasSignal` is the server's own honesty flag — it is false when the call was
- * too short or too empty to say anything about. A summary with no signal must
- * read as "there was not enough here", never as a debrief with empty sections,
- * because empty sections look like a verdict nobody actually reached.
+ * Re-exported from `after-pitch-empty.ts`, which owns it. It moved because THIS file
+ * imports the network client (`coach-api` → `expo/fetch`, a native module), so a rule
+ * living here cannot be exercised by a test at all. Re-exporting rather than copying keeps
+ * ONE definition — this project has already paid for a duplicated rule, where a band
+ * threshold in two places told one rep "Elite" on one screen and "Strong" on another.
+ *
+ * A CORRECTION TO WHAT THIS COMMENT USED TO SAY, because it outlived its own truth by about
+ * an hour. It read: "a summary with no signal must read as 'there was not enough here'".
+ * That is right for a genuinely thin call and WRONG for the case that turns out to be most
+ * of them — measured 10 September 2026, the calls whose write-up came back empty are the
+ * LONGER ones, median 683 words against 362. Whether it was thin or the write-up failed is
+ * decided by `emptyReadReason` in the same module, on whether the call carries scores.
+ *
+ * What has not changed: empty sections must never be drawn. They look like a verdict nobody
+ * actually reached, which is the reason this predicate exists.
  */
 export { hasContent } from '@/lib/after-pitch-empty';
