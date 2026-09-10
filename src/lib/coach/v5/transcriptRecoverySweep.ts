@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recoverSessionTranscript, stateOf, isRecoverable } from "./transcriptRecovery";
+import { interleaveByCompany } from "./sweepFairness";
 
 /**
  * transcriptRecoverySweep — the unattended half of transcript recovery.
@@ -131,7 +132,21 @@ export async function runTranscriptRecoverySweep(args: {
     return out;
   }
 
-  for (const row of rows ?? []) {
+  /*
+   * COMPANIES TAKE TURNS, oldest-first within each. The query above orders oldest-first
+   * across EVERY company, which starves a tenant silently: one company sitting on a large
+   * old backlog fills every run forever, a second company's dropped calls are never reached,
+   * and their audio ages toward the same purge. Nothing errors — the sweep reports a healthy
+   * `recovered` count every hour and the starved tenant simply never appears in it.
+   *
+   * Not distant for this system: on 10 September 2026 the dropped sessions spanned three
+   * account prefixes. See sweepFairness.ts for why it takes turns rather than scoring.
+   */
+  const ordered = interleaveByCompany(
+    (rows ?? []).map((r) => ({ ...r, companyId: (r.company_id as string | null) ?? null }))
+  );
+
+  for (const row of ordered) {
     if (out.attempted >= args.cap) {
       out.bounded = true;
       break;

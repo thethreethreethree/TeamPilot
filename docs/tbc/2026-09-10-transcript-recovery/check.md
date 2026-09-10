@@ -244,6 +244,41 @@ internal identifiers, and inventing a label module for them would be churn. `adm
 the actual column value, and `unknown` there is informative rather than alarming. A grep result is a list of
 suspects.
 
+### F16 - my own sweep would have starved a tenant, silently and forever
+class: a-fair-looking-order-that-serves-one-queue
+sweep: the sweep's candidate ordering, read against a SECOND company rather than the one I measured
+severity: medium
+The sweep takes candidates OLDEST FIRST and stops at a per-run cap. Oldest-first is right and load-bearing -
+`recording-purge-cron` keeps only each rep's 20 most recent recordings, so the oldest dropped calls are the
+ones closest to losing their audio permanently.
+
+Applied across ALL companies at once it has a failure mode that never announces itself. One tenant sitting
+on a large backlog of old dropped calls fills every run, forever; a second company's dropped calls are never
+reached, and their audio ages toward the same purge. Nothing errors. The sweep reports a healthy `recovered`
+count every hour and the starved tenant simply never appears in it - the same shape as every other finding
+in this build: a failure indistinguishable from ordinary operation.
+
+Not distant for this system: today's dropped sessions span THREE account prefixes and the permanently-failed
+pitches span TWO companies. Companies now take turns, oldest-first within each. Deliberately not a weighting
+or a quota - those need a tuned number somebody has to maintain, and taking turns needs none.
+
+### F17 - a NUL byte in my own source file, found by a mutation that would not apply
+class: an-invisible-character-that-every-tool-tolerated
+sweep: ` ` across every file written today
+severity: low
+Three attempts to mutate one line of `sweepFairness.ts` reported "line not found" while the line was plainly
+there. The line held `" no-company"` - a NUL byte where I had written a space. `grep` had been calling the
+file BINARY and I had read that as noise.
+
+It broke nothing: any string serves as a map key, so the logic was correct and every gate passed - typecheck,
+lint, tests. That is the point. An invisible control character in shipped source is the kind of defect that
+survives indefinitely because nothing complains, and it makes the file opaque to exactly the tools someone
+would reach for when debugging it later. Replaced with `"__no-company__"`, and every other file written today
+swept and confirmed clean.
+
+The mutation that "failed" was the finding. A tool refusing to do something simple is worth one minute of
+attention before being dismissed.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
@@ -270,6 +305,9 @@ byte-identical with `diff`.
     T1  the raw column is printed again    -> x 3 tests, including "never prints an INTERNAL state word at a rep"
     T2  agent labelled "You"               -> x says Rep rather than You, because this page does not know who is looking
     T3  isUnattributed calls unknown attributed -> x is true only when nobody has said whose voice it is
+    U1  no interleaving (starvation restored)    -> x STOPS one company's backlog filling the whole run
+    U2  a no-company candidate is dropped        -> x a candidate with NO company is served in turn
+    U3  rotation sorted instead of first-seen    -> x a company's place in the rotation is set by its OLDEST call
 
     MD  the null-count guard flipped to && -> SURVIVED, and it is recorded rather than quietly dropped.
         `null <= 0` is true in JavaScript, so a null count already falls out at the next guard; no input
