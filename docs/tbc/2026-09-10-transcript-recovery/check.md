@@ -786,3 +786,30 @@ The two dead readers are the same trap sitting unused beside their live `Admin` 
 cookie-client landmine that looks like a supported API. They are deleted rather than fixed: this repository
 already holds the rule in `relabel-unknown.ts`, that "an unused code path is a claim that something needs
 doing when it does not".
+
+### F34 - my evidence for F33 was half wrong, and I nearly let it stand
+class: a-probe-that-read-a-field-that-does-not-exist
+sweep: the field names in every claim F33 made, checked against one raw response body
+severity: medium (the fix is right; the proof I gave for it was not)
+F33 said, as its headline measurement: "/strategy-library returns 13 correct lines with `sessionLabel` AND
+`outcome` null on ALL THIRTEEN". Both halves of that are wrong in different ways.
+
+FIRST, my probe counted `l.label`. The field is `sessionLabel`. `l.label` is `undefined` on every row of
+every response, so that column of my output was measuring nothing at all and would have read "0 of 13"
+against a perfectly working route.
+
+SECOND, `outcome` really was null on all thirteen - and it is null on all 28 of that rep's sessions IN THE
+DATABASE. It would be null under a perfect fix. I cited a true number as evidence of a defect it says
+nothing about.
+
+WHAT SAVED IT was deploying and re-running the probe instead of trusting the commit. The fix landed and the
+probe still printed "0 of 13", which is the only reason I re-diagnosed rather than moving on. Re-read with
+the right field name: 10 of 13 lines now carry a session label. Before the fix `sessions` was `[]`, `sess`
+was undefined, and `sessionLabel` was necessarily null on every line - so the defect was real and is now
+closed. The mechanism is proven; my measurement of it was not.
+
+The lesson is narrower and sharper than "check your probes". A probe that reads a field name that does not
+exist FAILS SILENTLY AND LOOKS LIKE A FINDING - it is the same disease as everything else in this build, a
+path that produces nothing while nothing says so, this time in the instrument. F30 was the same defect in
+the same tooling four hours earlier. Reading one RAW response body before counting anything would have
+caught both.

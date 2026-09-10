@@ -291,3 +291,17 @@ to it, exactly as INVARIANT 26 is blind to a route that mentions `callerScopedDb
 That is A30's real test, and the honest answer here is partial: the class is closed for the shapes I know,
 by evidence rather than by reading, and the next member of it will be found by driving a real path with a
 real token - as all three of tonight's were - rather than by a check.
+
+### F34 - my evidence for F33 was half wrong, and I nearly let it stand
+fix: the probe reads `sessionLabel`, and the `outcome` claim is withdrawn - `outcome` is null on all 28 of
+that rep's sessions in the database and proves nothing either way. F33's fix is unchanged and is VERIFIED:
+with `325263c` serving, 10 of 13 correct lines carry a session label where the mechanism guarantees all 13
+were null before.
+gate-or-promise: PROMISE, and a weak one, which is worth saying rather than dressing up. There is no gate on
+a scratch probe and I am not building one - rule 7. The structural answer is a habit: print ONE raw response
+body before counting anything in it. Both times my tooling lied to me today it was because I counted a shape
+I had assumed rather than one I had looked at.
+
+The commit message on F33 (325263cd) carries the overclaimed version and cannot be edited now it is pushed.
+This entry is the correction, and it is deliberately placed where the finding is rather than only in a
+message nobody re-reads.
