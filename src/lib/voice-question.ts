@@ -60,7 +60,7 @@ export function needsVoiceAnswer(counts: VoiceQuestionCounts): boolean {
   return unattributed >= segments;
 }
 
-/** The row chip. Short, because it sits beside the other chips on a narrow phone row. */
+/** The row chip, for the rep whose call it is. Short — the row is narrow. */
 export const VOICE_QUESTION_CHIP = 'Needs your voice';
 
 /**
@@ -72,3 +72,44 @@ export const VOICE_QUESTION_CHIP = 'Needs your voice';
  */
 export const VOICE_QUESTION_SPOKEN =
   'Waiting on you: say which voice is yours and this call can be coached.';
+
+/**
+ * The same fact, shown to a MANAGER looking at somebody else's call.
+ *
+ * TWO REASONS IT CANNOT BE THE SAME WORDS, and the second is the important one.
+ *
+ * The small reason: a manager cannot answer. The route is owner-only, so "Needs your
+ * voice" on their screen invites a tap that returns 403 — an affordance that lies, and a
+ * rep-facing instruction pointed at the wrong person.
+ *
+ * The real reason is A18: when a system surfaces human-behaviour data to somebody with
+ * authority over its subject, the LABEL decides what that authority is invited to do.
+ * A manager scrolling a rep's calls sees this one carrying no coaching scores at all. With
+ * no label the absence reads as the rep having done badly — a data gap presented as a
+ * measurement, and then acted on. With "Needs your voice" it reads as the rep having
+ * ignored something they were asked to do. Neither is true: the system could not tell which
+ * voice was theirs, and has not been told yet.
+ *
+ * So the manager's label names the SYSTEM's state, not the rep's, and points at the one
+ * thing that resolves it. It invites a reminder, never a mark against them.
+ */
+export const VOICE_QUESTION_CHIP_OTHER = 'Not scored yet';
+
+export const VOICE_QUESTION_SPOKEN_OTHER =
+  'Not scored yet: we could not tell which voice was the rep, so this call is waiting on a voice check from them.';
+
+/**
+ * Which wording this row gets, or null when it gets none.
+ *
+ * `isOwnCall` decides, not a role check — a manager scrolling their OWN calls is a rep
+ * looking at their own work and should get the actionable words.
+ */
+export function voiceQuestionWording(
+  counts: VoiceQuestionCounts,
+  isOwnCall: boolean,
+): { chip: string; spoken: string } | null {
+  if (!needsVoiceAnswer(counts)) return null;
+  return isOwnCall
+    ? { chip: VOICE_QUESTION_CHIP, spoken: VOICE_QUESTION_SPOKEN }
+    : { chip: VOICE_QUESTION_CHIP_OTHER, spoken: VOICE_QUESTION_SPOKEN_OTHER };
+}

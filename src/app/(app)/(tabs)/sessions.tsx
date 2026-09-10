@@ -39,11 +39,7 @@ import {
 } from '@/lib/sync/sessions';
 import { analysisChip, analysisSpoken, analysisState } from '@/lib/session-analysis';
 import { ONE_SIDED_CHIP, ONE_SIDED_SPOKEN } from '@/lib/capture-issue';
-import {
-  needsVoiceAnswer,
-  VOICE_QUESTION_CHIP,
-  VOICE_QUESTION_SPOKEN,
-} from '@/lib/voice-question';
+import { voiceQuestionWording } from '@/lib/voice-question';
 import { ownerLabel, ownerSpoken } from '@/lib/session-owner';
 import { readCachedSessions, writeCachedSessions } from '@/lib/sync/cache';
 import { listPendingAttributions, type PendingAttribution } from '@/lib/audio/attribution-store';
@@ -831,10 +827,12 @@ function SessionRow({
     asks the question - but a rep does not reopen a call that showed them nothing months
     ago, so without this line the question is never seen and the words stay unusable.
   */
-  const needsVoice = needsVoiceAnswer({
-    segments: session.segmentCount,
-    unattributed: session.unattributedCount,
-  });
+  const voiceQuestion = voiceQuestionWording(
+    { segments: session.segmentCount, unattributed: session.unattributedCount },
+    // Whose call this is, not what role the reader holds: a manager looking at their OWN
+    // call is a rep looking at their own work and gets the words that ask them to act.
+    session.agent_id === viewerId,
+  );
   // Null for a rep's own calls, so their list is unchanged. A manager's list
   // gets the one fact it was missing: whose call this is.
   const owner = ownerLabel(session.agent_id, viewerId, repNames);
@@ -850,7 +848,7 @@ function SessionRow({
     ownerSpoken(owner),
     queued ? 'not sent yet' : '',
     oneSided ? ONE_SIDED_SPOKEN : '',
-    needsVoice ? VOICE_QUESTION_SPOKEN : '',
+    voiceQuestion?.spoken ?? '',
     analysisSpoken(analysis),
     length,
     value,
@@ -910,8 +908,8 @@ function SessionRow({
         ) : null}
         {/* Same accent as the one-sided chip and for the same reason: both ask the rep
             to DO something, where the muted analysis line only asks them to wait. */}
-        {needsVoice ? (
-          <Text className="mt-1 font-emphasis text-sm text-primary">{VOICE_QUESTION_CHIP}</Text>
+        {voiceQuestion ? (
+          <Text className="mt-1 font-emphasis text-sm text-primary">{voiceQuestion.chip}</Text>
         ) : null}
         {analysisText ? (
           <Text className="mt-1 font-body text-sm text-muted-foreground">{analysisText}</Text>

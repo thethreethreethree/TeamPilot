@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { needsVoiceAnswer } from '../src/lib/voice-question';
+import {
+  needsVoiceAnswer,
+  voiceQuestionWording,
+  VOICE_QUESTION_CHIP,
+  VOICE_QUESTION_CHIP_OTHER,
+} from '../src/lib/voice-question';
 
 /**
  * voice-question — the row chip that tells a rep a recovered call is waiting on one tap.
@@ -41,4 +46,38 @@ test('an UNKNOWN count is never a chip — a failed side query must not invent o
 
 test('a nonsense negative count is refused rather than treated as data', () => {
   assert.equal(needsVoiceAnswer({ segments: -1, unattributed: -1 }), false);
+});
+
+/**
+ * Who is reading changes what the row is allowed to say (A18).
+ *
+ * A manager scrolling a rep's calls sees this one carrying no coaching scores. With no
+ * label the absence reads as the rep having done badly; with the rep's own wording it
+ * reads as them having ignored an instruction. Neither is true, and a manager cannot
+ * answer it anyway — the route is owner-only.
+ */
+
+test("the rep's own call gets the words that ask them to act", () => {
+  const w = voiceQuestionWording({ segments: 5, unattributed: 5 }, true);
+  assert.equal(w?.chip, VOICE_QUESTION_CHIP);
+  assert.match(w!.spoken, /say which voice is yours/);
+});
+
+test("somebody else's call names the SYSTEM's state, never the rep's", () => {
+  const w = voiceQuestionWording({ segments: 5, unattributed: 5 }, false);
+  assert.equal(w?.chip, VOICE_QUESTION_CHIP_OTHER);
+  // It must not tell a manager to do a thing the server will refuse them.
+  assert.doesNotMatch(w!.spoken, /your voice|which voice is yours/);
+  // And it must explain the blank scores, so the gap is not read as poor performance.
+  assert.match(w!.spoken, /could not tell which voice/);
+});
+
+test('a call that needs nothing says nothing, to either reader', () => {
+  assert.equal(voiceQuestionWording({ segments: 5, unattributed: 0 }, true), null);
+  assert.equal(voiceQuestionWording({ segments: 5, unattributed: 0 }, false), null);
+});
+
+test('an unknown count says nothing, to either reader', () => {
+  assert.equal(voiceQuestionWording({ segments: null, unattributed: 5 }, true), null);
+  assert.equal(voiceQuestionWording({ segments: 5, unattributed: null }, false), null);
 });
