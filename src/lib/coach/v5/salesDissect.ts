@@ -165,6 +165,29 @@ export async function runAndStoreDissect(args: {
     // a missed emit just re-checks next pass.
     const agentTurns = args.segments.filter((s) => s.speaker === "agent").length;
     const reason = agentTurns >= MIN_AGENT_SEGMENTS ? "no_signal" : "no_agent_turns";
+    /*
+     * HOW BIG WAS THE CALL THAT PRODUCED NOTHING. `reason` stays exactly as it is - the
+     * sessions-list UI reads that vocabulary - and this is added beside it, because the size
+     * is what turns a count into a diagnosis.
+     *
+     * Measured on production 10 September 2026: of 168 sessions the engines can read, 56 ran
+     * the LLM and produced nothing, and they are systematically the LONGER calls - median 683
+     * words against 362 for the ones that succeeded. Thin content would be SHORT, so "no
+     * signal" is the wrong story for most of these.
+     *
+     * The two candidate causes leave the same trace and need different fixes. A wall-clock
+     * TIMEOUT is fixed by raising the bound; TOKEN STARVATION - which this file's own header
+     * records costing two weeks of blank reads in the 2026-07-30 outage, a reasoning model
+     * spending its whole budget before writing any content - is made WORSE by a longer
+     * transcript and is not fixed by more time at all.
+     *
+     * Recording the size makes that separable from a database query instead of from a
+     * serverless log nobody reads, which is why the distinction has been invisible.
+     */
+    const transcriptWords = args.segments.reduce(
+      (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,
+      0
+    );
     try {
       const admin = createAdminClient();
       await admin.from("events").insert({
@@ -172,7 +195,7 @@ export async function runAndStoreDissect(args: {
         actor: args.actorId,
         kind: "coach.dissect_attempted",
         subject: `sales_session:${args.sessionId}`,
-        payload: { reason, coach_version: "dissect-v1" },
+        payload: { reason, agentTurns, transcriptWords, coach_version: "dissect-v1" },
       });
     } catch {
       /* best-effort — the backoff just doesn't apply this run */

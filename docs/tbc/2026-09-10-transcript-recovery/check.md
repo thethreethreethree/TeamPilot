@@ -279,6 +279,40 @@ swept and confirmed clean.
 The mutation that "failed" was the finding. A tool refusing to do something simple is worth one minute of
 attention before being dismissed.
 
+### F18 - I told the founder a cause I had inferred, and the measurement says it is probably the OTHER one
+class: a-hypothesis-reported-in-the-register-of-a-finding
+sweep: `coach.dissect_attempted` reasons and transcript sizes across all 168 readable sessions
+severity: medium
+F12 reported that coaching coverage collapses as transcripts grow, and said it "is the shape a per-call time
+bound makes". The collapse is real and measured. The CAUSE was an inference, and I wrote it as though it
+were the finding - including in the commit message and on the founder's board.
+
+Chasing it properly changed the picture twice.
+
+FIRST, my count of "missing dissects" was wrong. I counted sessions with no `dissect_generated` event, which
+conflates NEVER TRIED with TRIED AND HONESTLY DECLINED. Separating them: **0 never tried, 56 attempted and
+declined.** The backfill is working exactly as designed - it already carries a 14-day backoff marker so a
+session that produces no signal is not re-billed every run, added on 2026-08-14 for precisely this.
+
+SECOND, and this is the part that matters: those 56 are systematically the LONGER calls - **median 683 words
+against 362** for the ones that succeeded, mean 809 against 540. Thin content would be SHORT. So "no signal"
+is the wrong story for most of them, and the collapse is real.
+
+But TWO causes leave that same trace and need OPPOSITE fixes:
+  - a wall-clock TIMEOUT, fixed by raising the bound;
+  - TOKEN STARVATION, which `salesDissect.ts` records costing two weeks of blank reads in the 2026-07-30
+    outage - a reasoning model spending its whole budget before writing content - which a longer transcript
+    makes WORSE and which more time does not fix at all.
+
+I named the first. The length correlation fits the second at least as well, and the file's own header says
+the second has happened here before. **Raising the timeout could have been the wrong fix, chosen from my
+sentence rather than from data.**
+
+The instrument now separates them: `coach.dissect_attempted` carries `transcriptWords` and `agentTurns`
+beside the existing `reason`, so the correlation is a database query rather than a serverless log nobody
+reads - which is exactly why this has been invisible. `reason` itself is untouched, because the sessions-list
+UI reads that vocabulary.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
