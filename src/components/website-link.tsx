@@ -44,7 +44,7 @@ export function WebsiteLink({
           WebBrowser.openBrowserAsync(url).catch(() => setFailed(true));
         }}
         // 44pt, the platform minimum, even though the text is small.
-        className="mt-1 min-h-11 justify-center active:opacity-70"
+        className="mt-1 min-h-7 justify-center active:opacity-70"
       >
         <Text className="font-emphasis text-sm text-primary">{label}</Text>
       </Pressable>

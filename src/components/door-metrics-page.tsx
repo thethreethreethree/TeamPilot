@@ -217,7 +217,7 @@ export function DoorMetricsPage() {
               ? `Custom date range, showing ${rangeLabel(applied, dayLabel)}`
               : 'Choose a custom date range'
           }
-          className={`mt-2 min-h-11 items-center justify-center rounded-md border px-2 py-2 active:opacity-70 ${
+          className={`mt-2 min-h-7 items-center justify-center rounded-md border px-2 py-2 active:opacity-70 ${
             applied !== null ? 'border-primary bg-surface' : 'border-border-control'
           }`}
         >
@@ -268,7 +268,7 @@ export function DoorMetricsPage() {
               accessibilityLabel="Show the door numbers for this date range"
               accessibilityState={{ disabled: problem !== null }}
               style={problem !== null ? { opacity: 0.5 } : undefined}
-              className="mt-3 min-h-11 items-center justify-center rounded-md bg-primary px-4 active:opacity-80"
+              className="mt-3 min-h-7 items-center justify-center rounded-md bg-primary px-4 active:opacity-80"
             >
               <Text className="font-emphasis text-base text-primary-foreground">Show</Text>
             </Pressable>

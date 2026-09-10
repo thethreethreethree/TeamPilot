@@ -256,7 +256,7 @@ export function SwipePager({
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${page.label}, page ${i + 1} of ${pages.length}`}
               onPress={() => settle(i)}
-              className={`min-h-11 flex-1 items-center justify-center rounded-lg border active:opacity-70 ${
+              className={`min-h-7 flex-1 items-center justify-center rounded-lg border active:opacity-70 ${
                 active ? 'border-primary bg-primary' : 'border-border-control bg-surface'
               }`}
             >
@@ -332,14 +332,15 @@ export function SwipePager({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={hint(index)}
-              // The whole line, full width and 44pt tall: the mockup's hint text
-              // sits inside a target that clears the design law's floor without
-              // changing how the line looks.
+              // The whole line, full width and 48dp tall: the mockup's hint text
+              // sits inside a target that clears the design law's floor on BOTH
+              // platforms - 44pt is the iOS floor and 4dp short of Android's -
+              // without changing how the line looks.
               onPress={() => settle((index + 1) % pages.length)}
-              // No top margin: the 44pt box centres the line, which already puts
+              // No top margin: the 48dp box centres the line, which already puts
               // about 14pt between it and the dots - the mockup's gap, arrived at
               // by the target rather than added on top of it.
-              className="min-h-11 justify-center active:opacity-70"
+              className="min-h-7 justify-center active:opacity-70"
             >
               <Text className="text-center font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
                 {hint(index)}

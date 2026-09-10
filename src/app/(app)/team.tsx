@@ -353,7 +353,7 @@ function Member({ row }: { row: TeamRow }) {
         }
         accessibilityRole="button"
         accessibilityLabel={`Set the daily goal for ${row.name}`}
-        className="mt-4 min-h-11 justify-center border-t border-border pt-3 active:opacity-70"
+        className="mt-4 min-h-7 justify-center border-t border-border pt-3 active:opacity-70"
       >
         <Text className="font-emphasis text-base text-primary">Set daily goal</Text>
       </Pressable>

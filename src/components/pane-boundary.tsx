@@ -87,7 +87,7 @@ export class PaneBoundary extends Component<Props, State> {
           accessibilityRole="button"
           accessibilityLabel={`Try showing ${this.props.subject} again`}
           onPress={this.retry}
-          className="min-h-11 justify-center self-start rounded-lg border border-primary px-4 active:opacity-70"
+          className="min-h-7 justify-center self-start rounded-lg border border-primary px-4 active:opacity-70"
         >
           <Text className="font-emphasis text-base text-primary">Try again</Text>
         </Pressable>

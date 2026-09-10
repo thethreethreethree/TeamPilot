@@ -1047,7 +1047,7 @@ export default function SessionScreen() {
               }}
               accessibilityRole="button"
               accessibilityLabel="Save this call as a PDF"
-              className="mt-6 min-h-11 items-center justify-center rounded-lg border border-border-control px-4 active:bg-surface"
+              className="mt-6 min-h-7 items-center justify-center rounded-lg border border-border-control px-4 active:bg-surface"
             >
               <Text className="font-emphasis text-base text-primary">Save as PDF</Text>
             </Pressable>

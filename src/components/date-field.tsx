@@ -67,7 +67,7 @@ export function DateField({
         // whether the calendar is showing.
         accessibilityLabel={`${label} date${chosen ? `, ${chosen}` : ', not chosen yet'}`}
         accessibilityState={{ expanded: open }}
-        className="mt-1 min-h-11 justify-center rounded-lg border border-border-control bg-surface px-3 active:opacity-70"
+        className="mt-1 min-h-7 justify-center rounded-lg border border-border-control bg-surface px-3 active:opacity-70"
       >
         <Text
           className={`font-body text-base ${chosen ? 'text-foreground' : 'text-muted-foreground'}`}
@@ -120,7 +120,7 @@ export function DateField({
             <View key={`w${i}`} className="mt-1 flex-row">
               {week.map((iso, j) =>
                 iso === null ? (
-                  <View key={`b${j}`} className="min-h-11 flex-1" />
+                  <View key={`b${j}`} className="min-h-7 flex-1" />
                 ) : (
                   <Pressable
                     key={iso}
@@ -131,7 +131,7 @@ export function DateField({
                     accessibilityRole="button"
                     accessibilityLabel={daySpoken(iso)}
                     accessibilityState={{ selected: iso === value }}
-                    className={`min-h-11 flex-1 items-center justify-center rounded-md active:opacity-70 ${
+                    className={`min-h-7 flex-1 items-center justify-center rounded-md active:opacity-70 ${
                       iso === value ? 'bg-primary' : ''
                     }`}
                   >
@@ -174,7 +174,7 @@ function MonthStep({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="min-h-11 min-w-11 items-center justify-center rounded-md active:opacity-70"
+      className="min-h-7 min-w-7 items-center justify-center rounded-md active:opacity-70"
     >
       <Text
         accessibilityElementsHidden

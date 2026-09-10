@@ -231,7 +231,7 @@ export default function RepGoalScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Go back to the team"
-          className="mt-8 min-h-11 justify-center active:opacity-70"
+          className="mt-8 min-h-7 justify-center active:opacity-70"
         >
           <Text className="font-emphasis text-base text-primary">Back to the team</Text>
         </Pressable>

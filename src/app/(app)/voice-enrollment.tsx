@@ -305,7 +305,7 @@ export default function VoiceEnrollmentScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          className="mt-8 min-h-11 justify-center active:opacity-70"
+          className="mt-8 min-h-7 justify-center active:opacity-70"
         >
           <Text className="font-emphasis text-base text-primary">Back</Text>
         </Pressable>

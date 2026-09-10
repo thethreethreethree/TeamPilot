@@ -177,7 +177,7 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
             }
             accessibilityState={{ disabled: phase === 'working', busy: phase === 'working' }}
             style={phase === 'working' ? { opacity: 0.5 } : undefined}
-            className="mt-3 min-h-11 items-center justify-center rounded-md bg-primary px-5 py-3 active:bg-primary-pressed"
+            className="mt-3 min-h-7 items-center justify-center rounded-md bg-primary px-5 py-3 active:bg-primary-pressed"
           >
             <Text className="font-strong text-base text-primary-foreground">
               {phase === 'working' ? 'Reading the call…' : w.action}

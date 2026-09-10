@@ -319,7 +319,7 @@ function ReadyState({
         onPress={onLog}
         accessibilityRole="button"
         accessibilityLabel={`${FIX_TODAY_LABEL}. ${FIX_TODAY_HINT}`}
-        className="mt-3 min-h-11 items-center justify-center rounded-lg border border-border-control active:bg-surface"
+        className="mt-3 min-h-7 items-center justify-center rounded-lg border border-border-control active:bg-surface"
       >
         <Text className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
           {FIX_TODAY_LABEL}

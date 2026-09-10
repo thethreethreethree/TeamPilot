@@ -105,7 +105,7 @@ export function HeaderMenu({ items }: { items: MenuItem[] }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${item.label}. ${item.hint}`}
                 onPress={() => choose(item)}
-                className="min-h-11 justify-center border-b border-border py-3 active:opacity-70"
+                className="min-h-7 justify-center border-b border-border py-3 active:opacity-70"
               >
                 <Text className="font-emphasis text-base text-primary">{item.label}</Text>
                 <Text className="mt-0.5 font-body text-sm text-muted-foreground">{item.hint}</Text>
@@ -116,7 +116,7 @@ export function HeaderMenu({ items }: { items: MenuItem[] }) {
               accessibilityRole="button"
               accessibilityLabel="Close menu"
               onPress={() => setOpen(false)}
-              className="mt-4 min-h-11 items-center justify-center rounded-lg border border-border-control active:opacity-70"
+              className="mt-4 min-h-7 items-center justify-center rounded-lg border border-border-control active:opacity-70"
             >
               <Text className="font-emphasis text-base text-foreground">Close</Text>
             </Pressable>

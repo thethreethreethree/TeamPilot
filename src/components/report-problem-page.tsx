@@ -296,7 +296,7 @@ export function ReportProblemPage() {
             accessibilityLabel="Clear this list"
             accessibilityHint="Deletes the recorded failures from this phone"
             onPress={clear}
-            className="mt-6 min-h-11 items-center justify-center rounded-lg border border-border-control active:opacity-70"
+            className="mt-6 min-h-7 items-center justify-center rounded-lg border border-border-control active:opacity-70"
           >
             <Text className="font-emphasis text-base text-foreground">Clear this list</Text>
           </Pressable>

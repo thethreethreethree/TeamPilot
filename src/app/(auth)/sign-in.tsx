@@ -316,7 +316,7 @@ export default function SignInScreen() {
             accessibilityRole="button"
             accessibilityLabel="Report a problem signing in"
             accessibilityHint="Opens a screen where you can send what went wrong"
-            className="mt-6 min-h-11 justify-center active:opacity-70"
+            className="mt-6 min-h-7 justify-center active:opacity-70"
           >
             <Text className="font-emphasis text-sm text-foreground">
               Cannot get in? Report a problem
