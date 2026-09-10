@@ -15,12 +15,13 @@
  * manager scorecard" — so a manager sees the coaching substance and no numbers,
  * and this says so rather than rendering blanks that look like a bad result.
  */
+import { emptyReadReason } from '@/lib/after-pitch-empty';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import {
   generateAfterPitch,
-  hasContent,
+
   readAfterPitch,
   type AfterPitch,
 } from '@/lib/after-pitch';
@@ -211,25 +212,40 @@ export function AfterPitchCard({
     );
   }
 
-  if (!hasContent(summary)) {
+  const reason = emptyReadReason(summary);
+  if (reason) {
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">
         <Text className="font-strong text-base text-foreground">
-          {summary ? 'Not enough in this call to debrief' : 'No debrief yet'}
+          {reason === 'none'
+            ? 'No debrief yet'
+            : reason === 'engine-blank'
+              ? // NOT "not enough in this call". This call WAS scored, so there was plenty
+                // to say — the write-up is what failed, and rebuilding usually fixes it.
+                'Your read did not come through'
+              : 'Not enough in this call to debrief'}
         </Text>
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
-          {summary
-            ? 'There was not enough of a conversation here for the coach to say anything useful. That is a fact about the call, not about you.'
-            : 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'}
+          {reason === 'none'
+            ? 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'
+            : reason === 'engine-blank'
+              ? 'The call was captured and scored, but the coaching write-up came back empty. That is the write-up failing, not the call — try building it again.'
+              : 'There was not enough of a conversation here for the coach to say anything useful. That is a fact about the call, not about you.'}
         </Text>
-        {!summary ? (
+        {reason === 'none' || reason === 'engine-blank' ? (
           <Pressable
             onPress={make}
             accessibilityRole="button"
-            accessibilityLabel="Write the debrief for this call"
+            accessibilityLabel={
+              reason === 'none'
+                ? 'Write the debrief for this call'
+                : 'Build the debrief for this call again'
+            }
             className="mt-3 min-h-7 items-center justify-center rounded-md bg-primary px-5 py-3 active:bg-primary-pressed"
           >
-            <Text className="font-strong text-base text-primary-foreground">Write it</Text>
+            <Text className="font-strong text-base text-primary-foreground">
+              {reason === 'none' ? 'Write it' : 'Build it again'}
+            </Text>
           </Pressable>
         ) : null}
       </View>

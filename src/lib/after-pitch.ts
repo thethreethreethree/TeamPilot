@@ -85,12 +85,4 @@ export async function generateAfterPitch(sessionId: string): Promise<AfterPitchR
  * read as "there was not enough here", never as a debrief with empty sections,
  * because empty sections look like a verdict nobody actually reached.
  */
-export function hasContent(summary: AfterPitch | null): boolean {
-  if (!summary) return false;
-  if (summary.hasSignal === false && summary.narrative?.hasSignal === false) return false;
-  return (
-    (summary.narrative?.strengths?.length ?? 0) > 0 ||
-    (summary.narrative?.growthAreas?.length ?? 0) > 0 ||
-    Boolean(summary.focus)
-  );
-}
+export { hasContent } from '@/lib/after-pitch-empty';
