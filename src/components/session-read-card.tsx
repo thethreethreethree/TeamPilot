@@ -171,8 +171,20 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
         Your read
       </Text>
 
+      {/*
+        MEASURED AGAINST THE 121 READS ALREADY STORED, rather than designed against a guess. The real
+        shape: up to 4 strengths and 4 growth areas per read; the "point" line that reads like a label
+        runs to 248 characters; a quoted example to 357, with 55 of them over 200; `why` to 446; and
+        `overall` to 778. Four of each at that length is roughly six thousand characters in one column.
+
+        So every item gets its own bounded region. The design law says it plainly - common region
+        overrides proximity as a grouping cue, which is why cards work - and it is what lets a rep scan
+        the bold line of each item and stop at the one they care about, instead of reading a wall.
+      */}
       {sections.hasOverall ? (
-        <Text className="font-body text-base leading-relaxed text-foreground">{r.overall}</Text>
+        <View className="rounded-md border border-border-control px-4 py-3">
+          <Text className="font-body text-base leading-relaxed text-foreground">{r.overall}</Text>
+        </View>
       ) : null}
 
       {sections.strengths > 0 ? (
@@ -181,7 +193,7 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
             What worked
           </Text>
           {r.strengths.map((s, i) => (
-            <View key={`${s.point}-${i}`} className="gap-1">
+            <View key={`${s.point}-${i}`} className="gap-1 rounded-md border border-border px-4 py-3">
               <Text className="font-emphasis text-base leading-relaxed text-foreground">{s.point}</Text>
               {s.example.trim() ? (
                 // The rep's own words back to them. Quoted, because a line you actually said lands
@@ -204,7 +216,7 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
             To work on
           </Text>
           {r.growthAreas.map((g, i) => (
-            <View key={`${g.opportunity}-${i}`} className="gap-1">
+            <View key={`${g.opportunity}-${i}`} className="gap-1 rounded-md border border-border px-4 py-3">
               <Text className="font-emphasis text-base leading-relaxed text-foreground">
                 {g.opportunity}
               </Text>
