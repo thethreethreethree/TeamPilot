@@ -62,12 +62,36 @@ describe("getOrFreezeDayTarget", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
-  it("no manager goal → the empty state, and nothing is frozen", async () => {
+  it("no manager goal → the goal is DERIVED, not an empty screen", async () => {
+    /*
+     * This used to assert the empty state, and the founder asked for the
+     * opposite (2026-09-10): "I want the daily goal to be automatically decided
+     * by OUR AI system". Measured against production the same day, the company
+     * had 613 door knocks, zero recorded sales, and no company quota — so every
+     * rep in the business opened the app to "No daily goal set yet" and nothing
+     * else, indefinitely, because nobody had ever set a row.
+     *
+     * A manager's row still wins where one exists; this is the fallback.
+     */
     const insert = vi.fn();
     const db = mockDb({ frozen: null, goal: null, onInsert: insert });
     const r = await getOrFreezeDayTarget({ ...base, db });
-    expect(r).toMatchObject({ salesGoal: null, doorsTarget: 0, frozen: false, usedStarter: true });
-    expect(insert).not.toHaveBeenCalled();
+    expect(r.salesGoal).toBeGreaterThanOrEqual(1);
+    expect(r.doorsTarget).toBeGreaterThan(0);
+    expect(r.goalBasis).not.toBe("manager");
+    expect(r.frozen).toBe(false);
+    // And it IS frozen for the day, so the number cannot move under the rep
+    // between one open and the next.
+    expect(insert).toHaveBeenCalled();
+  });
+
+  it("a manager's goal still wins over the derivation", async () => {
+    // Deriving is the fallback, not a replacement. A human deciding a person's
+    // target is not something to take away from them.
+    const db = mockDb({ frozen: null, goal: 4, onInsert: vi.fn() });
+    const r = await getOrFreezeDayTarget({ ...base, db });
+    expect(r.salesGoal).toBe(4);
+    expect(r.goalBasis).toBe("manager");
   });
 
   it("qualified rep: computes the target from 30-day counts and FREEZES it", async () => {

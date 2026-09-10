@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deriveDailySalesGoal, type GoalBasis } from "./deriveGoal";
 import { calculateDayTarget, type DayTarget } from "./dayTarget";
 
 /**
@@ -27,12 +28,27 @@ export type DayTargetView = DayTarget & {
   saleValueCents: number | null;
   qualified: boolean;
   frozen: boolean; // true when returned from the stored (already-frozen) row
+  /**
+   * Where the goal came from: a manager, or which derivation.
+   *
+   * The rep is owed the reason a target is what it is. A figure with no visible
+   * derivation is indistinguishable from one somebody guessed.
+   */
+  goalBasis: GoalBasis | "manager" | null;
 };
 
-const EMPTY_NO_GOAL: DayTargetView = {
-  doorsTarget: 0, presentationsTarget: 0, soldTarget: 0, usedStarter: true,
-  salesGoal: null, closeRatio: null, contactRatio: null, saleValueCents: null, qualified: false, frozen: false,
-};
+/*
+ * THE EMPTY STATE IS GONE, and its removal is the point rather than a tidy-up.
+ *
+ * `EMPTY_NO_GOAL` existed for the case "no manager has set a goal", which was
+ * every rep in the company, forever, because nobody ever set one. The goal is
+ * derived now, so there is no longer a path that reaches this and the linter
+ * said so - which is the honest signal that the branch is really gone rather
+ * than merely unlikely.
+ *
+ * The screen's no-goal panel still exists in the app and is still reachable: a
+ * 503 before migration 0247 is answered by the route, not here.
+ */
 
 function windowStart(localDate: string): string {
   const d = new Date(`${localDate}T00:00:00Z`);
@@ -80,29 +96,51 @@ export async function getOrFreezeDayTarget(args: {
       saleValueCents,
       qualified: !frozen.used_starter,
       frozen: true,
+      // A frozen row does not record WHY the goal was what it was. It reports
+      // the manager's row when one exists now, and otherwise says nothing rather
+      // than inventing a derivation it cannot check.
+      goalBasis: salesGoal != null && salesGoal > 0 ? "manager" : null,
     };
   }
 
-  // 2. No goal → the empty state (don't freeze; the manager may set it later).
-  if (salesGoal == null || salesGoal <= 0) return EMPTY_NO_GOAL;
-
-  // 3. 30-day ratios from the existing tables.
+  // 2. The 30-day record. Read BEFORE the goal is settled, because when no
+  //    manager has set one the goal is DERIVED from exactly these numbers.
   const since = windowStart(localDate);
   const sinceTs = `${since}T00:00:00Z`;
-  const [doorsRes, soldRes, presRes] = await Promise.all([
+  const [doorsRes, soldRes, presRes, daysRes] = await Promise.all([
     db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
     db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).eq("outcome", "sold").gte("local_date", since).lte("local_date", localDate),
     db.from("pitches").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("recorded_at", sinceTs),
+    // The DAYS THE REP ACTUALLY WORKED, not the window length. Dividing by 30
+    // when somebody worked five days hands them a goal a sixth of what they can
+    // do, and they would meet it before lunch on day one.
+    db.from("door_knocks").select("local_date").eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
   ]);
   const doors = doorsRes.count ?? 0;
   const sold = soldRes.count ?? 0;
   const presentations = presRes.count ?? 0;
+  const activeDays = new Set(
+    ((daysRes.data ?? []) as { local_date: string }[]).map((r) => r.local_date),
+  ).size;
 
   const closeRatio = presentations > 0 ? sold / presentations : null;
   const contactRatio = doors > 0 ? presentations / doors : null;
   const qualified = presentations >= QUALIFY_MIN_PRESENTATIONS && sold >= QUALIFY_MIN_SALES;
 
-  const target = calculateDayTarget({ salesGoal, closeRatio, contactRatio, qualified });
+  /*
+   * 3. THE GOAL. A manager's row still wins where one exists - a human deciding
+   *    a person's target is not something to take away. Where none exists the
+   *    goal is DERIVED rather than left blank, which is the change the founder
+   *    asked for: the screen used to show "No daily goal set yet" and nothing
+   *    else, for every rep in a company that has never set one.
+   */
+  const derived = salesGoal == null || salesGoal <= 0
+    ? deriveDailySalesGoal({ sold, presentations, doors, activeDays })
+    : null;
+  const effectiveGoal = derived ? derived.goal : (salesGoal as number);
+  const goalBasis: GoalBasis | "manager" = derived ? derived.basis : "manager";
+
+  const target = calculateDayTarget({ salesGoal: effectiveGoal, closeRatio, contactRatio, qualified });
 
   // 4. Freeze it for today. Insert-only + PK(rep_id, local_date): a concurrent second open just no-ops.
   await db
@@ -111,7 +149,7 @@ export async function getOrFreezeDayTarget(args: {
       rep_id: repId,
       local_date: localDate,
       company_id: companyId,
-      sales_goal: salesGoal,
+      sales_goal: effectiveGoal,
       close_ratio: closeRatio,
       contact_ratio: contactRatio,
       doors_target: target.doorsTarget,
@@ -124,5 +162,14 @@ export async function getOrFreezeDayTarget(args: {
       () => undefined, // best-effort: a duplicate (already frozen by a racing open) is fine; the read path wins next time
     );
 
-  return { ...target, salesGoal, closeRatio, contactRatio, saleValueCents, qualified, frozen: false };
+  return {
+    ...target,
+    salesGoal: effectiveGoal,
+    closeRatio,
+    contactRatio,
+    saleValueCents,
+    qualified,
+    frozen: false,
+    goalBasis,
+  };
 }
