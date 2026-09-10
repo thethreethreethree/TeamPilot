@@ -72,3 +72,39 @@ test('nothing is asked about a transcript that already has an answer', () => {
   assert.equal(speakersFromTranscript([seg({ seq: 0, speaker: 'agent' })]), null);
   assert.equal(speakersFromTranscript([]), null);
 });
+
+/**
+ * A recovered call that captured no speech (2026-09-10).
+ *
+ * STT never returns "" for a silent recording — it returns the sound it heard, annotated. Measured
+ * against production: 28 of 73 stored door-pitch transcripts are exactly one bracketed sound event.
+ * The sample line is what a rep READS to decide whose voice it is, so a sound is not an answerable
+ * question — and storing whatever they guess is worse than not asking.
+ */
+test('the sample skips a sound-event line and shows the first line with real words', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, text: '[clicking]' }),
+    seg({ seq: 1, text: '[pause]' }),
+    seg({ seq: 2, text: 'Hi there, do you own the home?' }),
+  ]);
+  assert.deepEqual(speakers, [
+    { speakerId: SOLO_SPEAKER_ID, sample: 'Hi there, do you own the home?' },
+  ]);
+});
+
+test('a transcript of nothing but sound events still asks, with an EMPTY sample — never a zipper', () => {
+  // Same decision as the blank-lines case: the question stands because the transcript is real and
+  // unattributed. What must never happen is `[zipper closing]` being shown to a rep as a line they
+  // said. An empty sample is honest; a sound presented as speech is not.
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, text: '[clicking]' }),
+    seg({ seq: 1, text: '[outro jingle]' }),
+    seg({ seq: 2, text: '[zipper closing]' }),
+  ]);
+  assert.deepEqual(speakers, [{ speakerId: SOLO_SPEAKER_ID, sample: '' }]);
+});
+
+test('a line that MIXES noise with speech is a real line, and is offered as the sample', () => {
+  const speakers = speakersFromTranscript([seg({ seq: 0, text: "[background noise] I'm John." })]);
+  assert.deepEqual(speakers, [{ speakerId: SOLO_SPEAKER_ID, sample: "[background noise] I'm John." }]);
+});

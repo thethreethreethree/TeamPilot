@@ -1,3 +1,4 @@
+import { hasSpeech } from './speech-presence';
 import type { PendingSpeaker } from './attribution-store';
 import type { TranscriptSegment } from '@/types/backend';
 
@@ -51,9 +52,17 @@ export function isUnlabelled(segments: Pick<TranscriptSegment, 'speaker'>[]): bo
  */
 export function speakersFromTranscript(segments: TranscriptSegment[]): PendingSpeaker[] | null {
   if (!isUnlabelled(segments)) return null;
-  // The sample is what the rep actually reads to decide, so it must be a line with words in
-  // it — the first segment can easily be an empty or whitespace-only turn.
-  const sample = segments.find((s) => s.text.trim().length > 0)?.text.trim() ?? '';
+  // The sample is what the rep actually reads to decide, so it must be a line with WORDS in it.
+  // "Words" is not "non-empty" (2026-09-10): a call that captured no speech comes back from STT as
+  // `[clicking]` or `[outro jingle]`, never as "". Those pass .trim(), so the old check would put a
+  // SOUND in front of the rep as though it were something they had said.
+  //
+  // When nothing on the recording has speech the sample is empty and the question is STILL asked, for
+  // the reason the blank-lines case was decided on: there is a real unattributed transcript here, and
+  // an invented sample would put words in the rep's mouth. Silently dropping the question would leave
+  // exactly the state the top of this file exists to prevent — a transcript with no speakers and no
+  // way to answer.
+  const sample = segments.find((s) => hasSpeech(s.text))?.text.trim() ?? '';
   return [{ speakerId: SOLO_SPEAKER_ID, sample }];
 }
 
