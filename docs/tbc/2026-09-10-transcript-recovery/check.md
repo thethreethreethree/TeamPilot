@@ -813,3 +813,29 @@ exist FAILS SILENTLY AND LOOKS LIKE A FINDING - it is the same disease as everyt
 path that produces nothing while nothing says so, this time in the instrument. F30 was the same defect in
 the same tooling four hours earlier. Reading one RAW response body before counting anything would have
 caught both.
+
+### F35 - every number I put in front of the founder tonight spanned four companies
+class: a-count-with-no-scope-stated-in-the-same-breath
+sweep: every figure published to the build board today, re-run with `company_id` filtered to the founder's
+severity: medium (the engineering numbers are sound; the business numbers were not the founder's)
+This database holds seven companies. Every measurement in this build was taken across all of them, which is
+CORRECT for the questions the code had to answer - "does the guard need to exist", "how many rows carry this
+shape" - and WRONG for every number I put on the founder's decision board, because a founder deciding what to
+do about their reps needs their reps.
+
+Rescoped to the founder's own company:
+
+    speechless door pitches      28 of 73  ->  24 of 45   (53%, worse than I said, not better)
+    tone understated by          26 points ->  32 points
+    dissect declines             100/121   ->  43/37 since mid-August (54%)
+    declined vs generated words  683/341   ->  691/357
+    sessions carrying an outcome 38 of 363 ->  23 of 197, across three reps not six
+
+Three of the six reps in my first outcome table do not work for this founder. The `kpi/team` route quietly
+said so - it answers `agents=2` - and I read past it twice before it registered.
+
+The findings all survive rescoping and two get worse. That is not the point. The point is that
+`a-count-has-a-scope` is a note I have written to myself, in this project, after making this exact mistake,
+and I made it again four times in one night - because the scope is invisible in a `select` that omits the
+filter, and a plausible number looks the same either way. It is the same shape as everything else in this
+build: nothing said the figure was wrong.

@@ -305,3 +305,12 @@ I had assumed rather than one I had looked at.
 The commit message on F33 (325263cd) carries the overclaimed version and cannot be edited now it is pushed.
 This entry is the correction, and it is deliberately placed where the finding is rather than only in a
 message nobody re-reads.
+
+### F35 - every number I put in front of the founder tonight spanned four companies
+fix: every figure on the decision board is rescoped, and each panel carries the correction in the founder's
+own words rather than being quietly swapped - they had already read the wrong ones. The engineering numbers
+in this document and in the commit messages are left as they are, because a database-wide count is the right
+answer to "does this guard need to exist"; this entry is the note that says which scope each is.
+gate-or-promise: PROMISE. There is no gate on a scratch query and rule 7 forbids building one. The habit is
+the fix and it is narrow enough to state as a rule: a query whose result will be shown to the founder gets
+`company_id` in the `select` or it does not get published.
