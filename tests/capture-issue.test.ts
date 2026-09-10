@@ -13,7 +13,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  ONE_SIDED_BODY,
   readIssueFor,
   latestAttemptBySession,
   sessionIdFromSubject,
@@ -78,12 +77,19 @@ test('rows that cannot be placed are dropped rather than guessed at', () => {
   assert.equal(latestAttemptBySession(events).size, 0);
 });
 
-test('the explanation says what happened AND how to recover it', () => {
-  assert.match(ONE_SIDED_BODY, /not captured/);
-  assert.match(ONE_SIDED_BODY, /Re-record|set which voice/);
-  // It must not read as the app being broken, nor as work still in progress.
-  assert.ok(!/error|failed|went wrong|processing|still being/i.test(ONE_SIDED_BODY));
-});
+/*
+  THE ONE_SIDED_BODY TEST WAS HERE, and it went with the constant on 2026-09-11.
+
+  It asserted the body offered "Re-record|set which voice" - and that assertion is what kept a wrong
+  sentence alive. You cannot re-record a door knock that already happened, and there is no voice to
+  set on a call whose every segment is already labelled `customer`; that is the `awaiting-voice`
+  case, which has its own state and its own screen. The string was never rendered anywhere, so the
+  test was the only thing holding it, and it was holding it in the wrong shape.
+
+  The fact itself is still covered, and better: `unavailableBody('agent-missing')` in
+  `tests/transcript-wait.test.ts` pins a body that names what is missing and offers the action that
+  works. The chip and its spoken label are untouched and still tested above.
+*/
 
 /**
  * WHICH no-signal, and therefore what a rep should do about it (2026-09-10, server 3828776b).

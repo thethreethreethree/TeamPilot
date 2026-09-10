@@ -165,14 +165,21 @@ export function latestAttemptBySession(events: AttemptEvent[]): Map<string, Late
 /** What the chip says. Short, because it sits in a row beside four other facts. */
 export const ONE_SIDED_CHIP = 'One-sided';
 
-/**
- * The explanation, for the detail screen and the screen reader.
+/*
+ * ONE_SIDED_BODY WAS HERE, and it is deleted rather than wired up.
  *
- * Says what happened, what it costs, and what recovers it — in that order,
- * because a rep who reads only the first clause still learns the useful part.
+ * It was written "for the detail screen", was never rendered anywhere, and by 11 September its
+ * advice had become wrong in both halves: "Re-record the call" cannot be done to a door knock that
+ * already happened, and "set which voice is yours" describes the DIFFERENT case where the segments
+ * are still unlabelled - which `debriefAvailability` answers as `awaiting-voice` and which has its
+ * own screen. On a call whose every segment is already labelled `customer` there is nothing to set.
+ *
+ * The slot it was written for is now filled correctly: `unavailableBody('agent-missing')` says the
+ * same fact and offers the action that works - read the recording again. Keeping a second, wrong
+ * copy of the same sentence one import away from being rendered is exactly the duplicated-rule
+ * failure this codebase has already paid for once, when a band threshold in two places told one rep
+ * "Elite" on one screen and "Strong" on another.
  */
-export const ONE_SIDED_BODY =
-  'Your side of this call was not captured, so the full read cannot be made from it. Re-record the call, or set which voice is yours, and it can be recovered.';
 
 /** The same fact spoken as a sentence, appended to the row's name. */
 export const ONE_SIDED_SPOKEN = 'one-sided recording, your side was not captured';
