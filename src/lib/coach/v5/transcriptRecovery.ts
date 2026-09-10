@@ -51,16 +51,24 @@ import { generateSessionArtifacts } from "./generateSessionArtifacts";
  */
 
 /** What a transcript currently holds, reduced to the only thing the decision needs. */
-export type TranscriptState = { total: number; agent: number; customer: number };
+export type TranscriptState = {
+  total: number;
+  agent: number;
+  customer: number;
+  /** Segments nobody has attributed. Counted because its ABSENCE is what proves an answer. */
+  unknown: number;
+};
 
 export function stateOf(segments: Pick<TranscriptSegment, "speaker">[]): TranscriptState {
   let agent = 0;
   let customer = 0;
+  let unknown = 0;
   for (const s of segments) {
     if (s.speaker === "agent") agent += 1;
     else if (s.speaker === "customer") customer += 1;
+    else unknown += 1;
   }
-  return { total: segments.length, agent, customer };
+  return { total: segments.length, agent, customer, unknown };
 }
 
 /**
@@ -72,8 +80,38 @@ export function stateOf(segments: Pick<TranscriptSegment, "speaker">[]): Transcr
  * only risk replacing real captured speech with a second opinion.
  */
 export function isRecoverable(state: TranscriptState): boolean {
-  if (state.total === 0) return true;
-  return state.agent === 0 || state.customer === 0;
+  if (state.total === 0) return true; // blank — the case that started this
+  /*
+   * TWO-SIDED IS CANONICAL, EVEN WITH UNKNOWNS MIXED IN, and the order of these two checks
+   * is the whole point. `/segments` accepts `unknown` per turn, so a LIVE-coached call can
+   * legitimately hold agent, customer and unknown speech together. An earlier version of
+   * this function returned early on "any unknown", which would have let the sweep re-read
+   * the audio of a perfectly good two-sided call and replace it with a second opinion.
+   * Caught by the test that pins exactly that shape.
+   */
+  if (state.agent > 0 && state.customer > 0) return false;
+  /*
+   * A CUSTOMER-ONLY TRANSCRIPT WITH NOTHING UNKNOWN IS AN ANSWER, NOT A GAP.
+   *
+   * "Zero agent turns means recoverable" was the first rule here, and it was wrong in a
+   * way only the rep's own screen reveals. When a rep answers "that was the customer, not
+   * me" — the real one-sided capture the picker exists for — every segment is labelled
+   * `customer`. Under the old rule the sweep would see no agent turn, call it recoverable,
+   * and a declined re-assignment would overwrite their deliberate answer with `unknown`
+   * within the hour. The system would have argued with the person it asked.
+   *
+   * Nothing else produces this shape: recovery writes all-`unknown` or agent-plus-customer,
+   * and live capture writes agent turns. So customer-only with no unknowns can only be a
+   * human answer, and no unknowns is precisely the evidence that somebody answered.
+   *
+   * Agent-only is NOT symmetric and stays recoverable: that is the original customer-missing
+   * capture gap, where the rep was heard and the prospect was not, and re-reading the audio
+   * genuinely finds the missing side.
+   */
+  if (state.customer > 0 && state.agent === 0 && state.unknown === 0) return false;
+  // What is left is a genuine gap: blank-but-for-unknowns, agent-only (the customer-missing
+  // capture gap), or customer-plus-unknowns where nobody has answered yet.
+  return true;
 }
 
 /**
@@ -86,7 +124,10 @@ export function isRecoverable(state: TranscriptState): boolean {
  * strictly better than leaving the call blank.
  */
 export function mayOverwriteUnlabelled(state: TranscriptState): boolean {
-  return state.agent === 0;
+  // An agent turn is real attributed speech. So is a customer label a rep chose — see
+  // isRecoverable: a customer-only transcript is somebody's answer, not a gap, and an
+  // unlabelled re-read must not replace either of them.
+  return state.agent === 0 && state.customer === 0;
 }
 
 /** The label a diarized cluster gets. No assignment means `unknown` — never a guess. */

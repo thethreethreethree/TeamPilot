@@ -60,6 +60,22 @@ hour for a condition only a migration can clear.
 gate-or-promise: PROMISE, and a self-checking one - the code verifies its own write rather than trusting
 it, which is the part worth keeping. Nothing FAILS on recurrence, so it is named as a promise.
 
+### F8 - the sweep would have overwritten a rep's own answer
+fix: `stateOf` now counts `unknown` separately, because its ABSENCE is what proves somebody answered.
+`isRecoverable` checks two-sided FIRST, then refuses a customer-only transcript with no unknowns.
+`mayOverwriteUnlabelled` requires both agent and customer to be zero.
+gate-or-promise: GATE. `REFUSES a customer-only transcript - that is the rep's ANSWER, not a gap`,
+`REFUSES to overwrite a rep's customer-only answer with an unlabelled re-read`, and
+`still accepts a customer-only transcript that has UNKNOWN turns left in it` all fail on a regression;
+mutations M5, M6 and M7 were run and each was killed by the test that names it.
+
+### F9 - the sweep ran ahead of the migration
+fix: `timingMigrationApplied()` reads the project's own migration ledger; the unattended sweep returns
+`waitingForMigration` and spends nothing until 0249 is applied. Declines on an unreadable ledger too.
+gate-or-promise: PROMISE, deliberately - it is a runtime precondition, not a test. A gate cannot express
+"the production database has this function"; the honest structural answer is that the code refuses to act
+while unsure, and says so loudly in the log and in its own return value.
+
 ## The class, swept to its boundary (A26 -> A30)
 The class is not "auto-recover refused empty transcripts". It is **a session holds audio that no path
 will ever transcribe**. Fixing the one precondition would leave the class alive for the next path that

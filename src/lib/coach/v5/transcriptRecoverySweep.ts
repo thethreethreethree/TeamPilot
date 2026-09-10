@@ -27,6 +27,43 @@ import { recoverSessionTranscript, stateOf, isRecoverable } from "./transcriptRe
  * and is picked up on a later tick; a definitive outcome keeps it and is never retried.
  */
 
+/**
+ * The migration that lets a recovered transcript keep its timing.
+ *
+ * `replace_session_transcript` carries `spokenAt` only from 0249; the 0212 version selects
+ * a literal null. Both succeed, so a sweep running ahead of the migration recovers the
+ * words perfectly and drops the timing — and because the at-most-once marker is then set,
+ * getting that timing back means clearing markers and paying for transcription twice.
+ *
+ * On 10 September 2026 exactly that happened: the first sweep recovered a 42-minute call
+ * with 106 segments and every `spoken_at` null, because production's ledger ended at 0248.
+ * The founder's decision was "apply 0249 first, THEN sweep", so this makes that decision
+ * hold rather than depending on a person beating an hourly cron.
+ *
+ * ONLY THE UNATTENDED SWEEP WAITS. A rep opening a call and triggering recovery is a human
+ * choosing to have their words back now; that path is untouched.
+ */
+const TIMING_MIGRATION = "0249";
+
+/**
+ * Has the timing migration been applied?
+ *
+ * Reads the project's own migration ledger. Returns null when the question cannot be
+ * answered — the caller then does NOT sweep, because spending money on an irreversible
+ * write while unsure is worse than waiting an hour.
+ */
+async function timingMigrationApplied(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<boolean | null> {
+  const { data, error } = await admin
+    .from("_agent_migrations")
+    .select("name")
+    .like("name", `${TIMING_MIGRATION}%`)
+    .limit(1);
+  if (error) return null;
+  return (data?.length ?? 0) > 0;
+}
+
 export type SweepResult = {
   scanned: number;
   attempted: number;
@@ -36,6 +73,13 @@ export type SweepResult = {
   failed: number;
   /** true when the cap stopped this run short — the rest drains on the next tick (§3.4). */
   bounded: boolean;
+  /**
+   * Set when the run did nothing because the timing migration is not applied yet.
+   *
+   * Named rather than reported as an ordinary empty run, so "nothing happened" can never
+   * be mistaken for "nothing needed doing" (§3.4).
+   */
+  waitingForMigration?: string;
 };
 
 /** How many candidate sessions to read per run. Cheap: one row each, no audio touched. */
@@ -56,6 +100,18 @@ export async function runTranscriptRecoverySweep(args: {
     failed: 0,
     bounded: false,
   };
+
+  const timingReady = await timingMigrationApplied(admin);
+  if (timingReady !== true) {
+    out.waitingForMigration = TIMING_MIGRATION;
+    // eslint-disable-next-line no-console
+    console.error(
+      timingReady === null
+        ? `[transcriptRecoverySweep] could not read the migration ledger — not sweeping (would risk recovering without timing)`
+        : `[transcriptRecoverySweep] migration ${TIMING_MIGRATION} is not applied — not sweeping; recovered transcripts would permanently lose spoken_at`
+    );
+    return out;
+  }
 
   // Candidates: saved audio, never attempted. Both conditions are indexed columns on the
   // session row, so this stays cheap however large the table gets.

@@ -69,6 +69,44 @@ likely to exceed the 300-second function budget. **The one case with the most to
 would have looped.** Bounded by `MAX_TRANSIENT_RETRIES = 3`, tallied in an append-only event so the budget
 survives a restart, and failing CLOSED when the tally cannot be read.
 
+### F8 - the sweep would have argued with the person it asked
+class: the-automation-overwriting-the-human-answer-it-solicited
+sweep: every transcript shape a REP can produce through the picker, not only the shapes the system writes
+severity: high
+Found by walking what a rep actually does with the new picker rather than by a test. When they answer
+"that was the customer, not me" - the one-sided capture the picker exists for - every segment is labelled
+`customer`. `isRecoverable` said "zero agent turns means recoverable" and `mayOverwriteUnlabelled` said
+"zero agent turns means safe to overwrite", so the next sweep would have replaced their deliberate answer
+with `unknown` within the hour. The system would have asked a question, been answered, and then overruled
+the answer on a timer.
+
+A customer-only transcript with no unknowns can ONLY be a human answer: recovery writes all-`unknown` or
+agent-plus-customer, live capture writes agent turns. Agent-only is not symmetric and stays recoverable -
+that is the original customer-missing gap.
+
+FIXING IT PRODUCED THE OPPOSITE ERROR, and the existing suite caught that too. My first attempt returned
+early on "any unknown turn", which would have let the sweep re-read a perfectly good TWO-SIDED call:
+`/segments` accepts `unknown` per turn, so a live-coached transcript can hold agent, customer and unknown
+together. `refuses a two-sided transcript even when unknown turns are mixed in` failed immediately. The
+two-sided check now runs first.
+
+### F9 - the sweep ran ahead of the migration, in production, today
+class: a-race-i-described-in-my-own-record-and-then-lost
+sweep: the production migration ledger against the first live sweep run
+severity: high
+think.md's Ripple section named this exact risk - "a deploy-before-migrate loses the timing" - and then it
+happened at 17:20 while the founder was still being handed the command to apply 0249. The sweep recovered
+a 42-minute call as 106 correctly attributed segments with every `spoken_at` null, and F7's read-back
+guard logged `coach.transcript_recovery_timing_lost` naming it. The guard worked; the race was still lost.
+Because the at-most-once marker is now set, recovering that timing means clearing markers and paying for
+transcription a second time.
+
+Writing a risk down is not mitigating it. The UNATTENDED sweep now reads the migration ledger and does
+nothing until 0249 is applied, returning `waitingForMigration` so an empty run can never be read as
+"nothing needed doing". An unreadable ledger also declines - spending money on an irreversible write while
+unsure is worse than waiting an hour. The on-open path is untouched: a rep triggering recovery is a human
+choosing to have their words back now.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.

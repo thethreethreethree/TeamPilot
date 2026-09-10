@@ -28,8 +28,20 @@ describe("isRecoverable — a transcript missing an entire SIDE can still be imp
     expect(isRecoverable(stateOf([seg("unknown"), seg("unknown")]))).toBe(true);
   });
 
-  it("accepts a CUSTOMER-only transcript — the rep's side was never captured", () => {
-    expect(isRecoverable(stateOf([seg("customer"), seg("customer")]))).toBe(true);
+  it("REFUSES a customer-only transcript — that is the rep's ANSWER, not a gap", () => {
+    /*
+      The bug this pins, found by walking what a rep actually does with the picker. When
+      they answer "that was the customer, not me" — the one-sided capture the picker exists
+      for — every segment becomes `customer`. The first rule here was "zero agent turns
+      means recoverable", so the sweep would have overwritten their deliberate answer with
+      `unknown` within the hour. The system would have argued with the person it asked.
+    */
+    expect(isRecoverable(stateOf([seg("customer"), seg("customer")]))).toBe(false);
+  });
+
+  it("still accepts a customer-only transcript that has UNKNOWN turns left in it", () => {
+    // No answer has been given here — the unknowns are the proof of that.
+    expect(isRecoverable(stateOf([seg("customer"), seg("unknown")]))).toBe(true);
   });
 
   it("accepts an AGENT-only transcript — the original customer-missing capture gap", () => {
@@ -54,6 +66,10 @@ describe("mayOverwriteUnlabelled — what a DECLINED assignment is allowed to re
 
   it("allows overwriting an unknown-only transcript", () => {
     expect(mayOverwriteUnlabelled(stateOf([seg("unknown")]))).toBe(true);
+  });
+
+  it("REFUSES to overwrite a rep's customer-only answer with an unlabelled re-read", () => {
+    expect(mayOverwriteUnlabelled(stateOf([seg("customer"), seg("customer")]))).toBe(false);
   });
 
   it("REFUSES to overwrite real agent speech with an unlabelled re-read", () => {
@@ -85,12 +101,12 @@ describe("labelFor — attribution is never invented", () => {
 });
 
 describe("stateOf — the counts the decisions read", () => {
-  it("counts each side and ignores unknown in the side totals", () => {
+  it("counts each side and counts the unknowns separately", () => {
     const s = stateOf([seg("agent"), seg("unknown"), seg("customer"), seg("customer")]);
-    expect(s).toEqual({ total: 4, agent: 1, customer: 2 });
+    expect(s).toEqual({ total: 4, agent: 1, customer: 2, unknown: 1 });
   });
 
   it("an empty transcript is a total of zero, not an absent reading", () => {
-    expect(stateOf([])).toEqual({ total: 0, agent: 0, customer: 0 });
+    expect(stateOf([])).toEqual({ total: 0, agent: 0, customer: 0, unknown: 0 });
   });
 });
