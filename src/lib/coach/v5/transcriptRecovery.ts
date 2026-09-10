@@ -367,6 +367,53 @@ export async function recoverSessionTranscript(args: {
     };
   }
 
+  /*
+   * DID THE TIMING ACTUALLY LAND? Read it back rather than assume.
+   *
+   * `replace_session_transcript` only carries `spokenAt` from migration 0249 onward; the
+   * 0212 version selects a literal null and ignores it. Both versions RETURN A COUNT AND
+   * SUCCEED, so a deploy that runs ahead of the migration recovers the words perfectly and
+   * silently drops the timing — and the pace skill reads nothing, with nothing anywhere
+   * saying why.
+   *
+   * That is not hypothetical: on 10 September 2026 this code shipped while production's
+   * ledger still ended at 0248. Rather than depending on a human applying a migration
+   * before an hourly cron next fires, the recovery checks its own work: if it sent
+   * timestamps and none survived, it records WHICH session so those calls can be
+   * re-recovered once the migration lands, instead of the loss being discovered months
+   * later by a rep wondering why one call has no pace reading.
+   *
+   * It does NOT release the marker. The words are safe and correct; re-running would spend
+   * transcription again on every session, every hour, for a condition only a migration can
+   * clear. An honest record beats an expensive loop.
+   */
+  const sentTiming = labeled.some((l) => l.spokenAt !== null);
+  if (sentTiming) {
+    const { data: back } = await admin
+      .from("coaching_transcript_segments")
+      .select("spoken_at")
+      .eq("session_id", sessionId)
+      .not("spoken_at", "is", null)
+      .limit(1);
+    if ((back?.length ?? 0) === 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[transcriptRecovery] TIMING LOST session=${sessionId} — replace_session_transcript is pre-0249; words saved, spoken_at dropped`
+      );
+      try {
+        await admin.from("events").insert({
+          company_id: companyId,
+          actor: actorId,
+          kind: "coach.transcript_recovery_timing_lost",
+          subject: `sales_session:${sessionId}`,
+          payload: { reason: "rpc-pre-0249", coach_version: "transcript-recovery-v1" },
+        });
+      } catch {
+        /* best-effort — the log line above still records it */
+      }
+    }
+  }
+
   // Best-effort: the transcript is already saved and the recovery does not depend on this.
   if (durationSeconds > 0) {
     const { error: durErr } = await admin

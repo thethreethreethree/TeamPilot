@@ -49,6 +49,17 @@ gate-or-promise: PROMISE, and named as one. The budget is enforced in code and c
 suite, but nothing FAILS if a future caller adds a seventh release path that skips the tally. The honest
 statement is that this is a bounded loop, not a gated one.
 
+### F7 - the recovery could succeed and silently drop the timing
+fix: after the atomic replace, if timestamps were SENT, read one back. `replace_session_transcript`
+carries `spokenAt` only from 0249; the 0212 version selects a literal null, and BOTH return a count and
+succeed - so a deploy ahead of the migration recovers the words perfectly and loses the timing with
+nothing anywhere saying why. Production's ledger still ended at 0248 when this shipped. The check records
+`coach.transcript_recovery_timing_lost` naming the session, so those calls can be re-recovered once the
+migration lands. It deliberately does NOT release the marker: re-running would spend transcription every
+hour for a condition only a migration can clear.
+gate-or-promise: PROMISE, and a self-checking one - the code verifies its own write rather than trusting
+it, which is the part worth keeping. Nothing FAILS on recurrence, so it is named as a promise.
+
 ## The class, swept to its boundary (A26 -> A30)
 The class is not "auto-recover refused empty transcripts". It is **a session holds audio that no path
 will ever transcribe**. Fixing the one precondition would leave the class alive for the next path that
