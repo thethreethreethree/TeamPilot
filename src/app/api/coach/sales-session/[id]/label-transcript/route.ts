@@ -12,6 +12,7 @@ import {
   replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { spokenAtFor } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * POST /api/coach/sales-session/[id]/label-transcript (Live Sales Coach S1a)
@@ -46,6 +47,15 @@ const BodySchema = z.object({
         speakerId: z.string().min(1).max(64),
         text: z.string().min(1).max(8000),
         seq: z.number().int().nonnegative(),
+        /**
+         * Seconds into the audio, echoed back from the upload-recording response.
+         *
+         * OPTIONAL, because it must stay optional: a client that predates this
+         * (an app build already on a phone, a browser tab open since before the
+         * deploy) still labels its transcript successfully and simply gets no
+         * pace score, which is exactly what it gets today.
+         */
+        startSeconds: z.number().nonnegative().optional(),
       })
     )
     .min(1)
@@ -134,10 +144,18 @@ export async function POST(
   // insert-new in ONE transaction, rolled back together on any failure. A delete-then-append pair could delete
   // the old segments then fail the re-insert (appendTranscriptSegment swallows errors), leaving the transcript
   // destroyed-and-unreplaced or a locked partial. The atomic replace leaves the original intact on any failure.
+  //
+  // THE TIMING, which is what makes the pace ("speed") skill work at all for an
+  // uploaded recording. The offsets are relative to the start of the audio and
+  // `spoken_at` is a wall clock, so they are joined at the session's own
+  // start time — see segmentTiming.ts for why a base that is a few seconds
+  // out changes no score. A segment with no offset stays null rather than being
+  // stamped with the start of the call.
   const labeled = body.segments.map((seg) => ({
     speaker: (seg.speakerId === body.agentSpeakerId ? "agent" : "customer") as "agent" | "customer",
     text: seg.text,
     seq: seg.seq,
+    spokenAt: spokenAtFor(session.startedAt, seg.startSeconds),
   }));
 
   let appended = 0;
@@ -159,6 +177,7 @@ export async function POST(
         speaker: seg.speaker,
         text: seg.text,
         seq: seg.seq,
+        spokenAt: seg.spokenAt,
       });
       if (r) appended += 1;
     }

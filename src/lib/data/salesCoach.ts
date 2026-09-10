@@ -370,12 +370,21 @@ export async function appendTranscriptSegment(args: {
  */
 export async function replaceSessionTranscript(
   sessionId: string,
-  segments: { speaker: TranscriptSpeaker; text: string; seq: number }[]
+  segments: { speaker: TranscriptSpeaker; text: string; seq: number; spokenAt?: string | null }[]
 ): Promise<{ ok: boolean; count: number }> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb.rpc("replace_session_transcript", {
     p_session_id: sessionId,
-    p_segments: segments.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq })),
+    // `spokenAt` is read by the RPC from 0249 onward. Sending it against a
+    // pre-0249 function is harmless — that version selects a literal null and
+    // ignores every other key — so a deploy-before-migrate loses the timing
+    // rather than the transcript. (Migration-coupling: never assert.)
+    p_segments: segments.map((s) => ({
+      speaker: s.speaker,
+      text: s.text,
+      seq: s.seq,
+      spokenAt: s.spokenAt ?? null,
+    })),
   });
   if (error) {
     // eslint-disable-next-line no-console

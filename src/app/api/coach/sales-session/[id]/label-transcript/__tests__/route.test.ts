@@ -206,3 +206,52 @@ describe("POST /label-transcript", () => {
     expect(generateSessionArtifacts).not.toHaveBeenCalled(); // scheduling failed, but the label stands
   });
 });
+
+describe("spoken_at from the recording's own offsets", () => {
+  /**
+   * The pace ("speed") skill reads spoken_at and needs three timed agent turns.
+   * Every UPLOADED recording had none — the diarizer's per-segment offset was
+   * dropped in upload-recording's response, so this route had nothing to write.
+   * These pin the repair end to end, because the failure is silent: the label
+   * succeeds either way and the skill just says "not enough sessions yet".
+   */
+  it("joins each offset to the session's start time", async () => {
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "sess1",
+      agentId: "rep1",
+      startedAt: "2026-09-10T12:00:00.000Z",
+    });
+    setAuth("rep1");
+    await POST(
+      req({
+        agentSpeakerId: "spk_A",
+        segments: [
+          { speakerId: "spk_A", text: "Hi, I'm from Acme.", seq: 0, startSeconds: 0 },
+          { speakerId: "spk_B", text: "Not interested.", seq: 1, startSeconds: 4.5 },
+          { speakerId: "spk_A", text: "One question?", seq: 2, startSeconds: 9 },
+        ],
+      }),
+      ctx,
+    );
+    const calls = (appendTranscriptSegment as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.map((c) => c[0].spokenAt)).toEqual([
+      "2026-09-10T12:00:00.000Z",
+      "2026-09-10T12:00:04.500Z",
+      "2026-09-10T12:00:09.000Z",
+    ]);
+  });
+
+  it("leaves a segment with no offset unstamped rather than at the start of the call", async () => {
+    // Stamping it with the base would make the NEXT turn's gap measure from a
+    // time nobody spoke at — a wrong pace, worse than none on a measured skill.
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "sess1",
+      agentId: "rep1",
+      startedAt: "2026-09-10T12:00:00.000Z",
+    });
+    setAuth("rep1");
+    await POST(req(BODY), ctx);
+    const calls = (appendTranscriptSegment as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.every((c) => c[0].spokenAt === null)).toBe(true);
+  });
+});

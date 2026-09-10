@@ -21,8 +21,16 @@ import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 /** Distinct speakers + a sample line each, for the one-tap "which voice is you?" UI.
  *  Shared by both entry points (multipart upload + direct-to-storage finalize) so their
  *  response shape can't drift. */
+/*
+ * `startSeconds` IS CARRIED BACK, and used to be dropped here.
+ * transcribeWithDiarization already computes each segment's offset into the audio from the
+ * provider's per-word timestamps; this function typed it away, so label-transcript had
+ * nothing to write into `spoken_at`, so the pace ("speed") skill read "not enough sessions
+ * yet" forever for every UPLOADED recording — web and native app alike. The client echoes it
+ * back with the speaker choice; see lib/coach/v5/segmentTiming.ts.
+ */
 function buildSpeakerResponse(
-  segments: Array<{ speakerId: string; text: string }>
+  segments: Array<{ speakerId: string; text: string; start?: number }>
 ) {
   const speakerIds = Array.from(new Set(segments.map((s) => s.speakerId)));
   const speakers = speakerIds.map((sid) => ({
@@ -34,6 +42,11 @@ function buildSpeakerResponse(
       speakerId: s.speakerId,
       text: s.text,
       seq: i,
+      // Seconds into the audio. Omitted, never zeroed: a 0 would claim the turn
+      // opened the call, and label-transcript treats an absent offset as unknown.
+      ...(typeof s.start === "number" && Number.isFinite(s.start)
+        ? { startSeconds: s.start }
+        : {}),
     })),
     speakers,
   };
