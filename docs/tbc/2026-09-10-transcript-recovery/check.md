@@ -335,6 +335,36 @@ It deliberately does NOT re-record a timeout. An engine the bound abandoned is a
 `coach.engines_timed_out`, and counting it twice would make the empty count look worse than it is - which
 would be the same overstatement F18 is a correction for.
 
+### F20 - I reported a FIXED defect as a live one, and made it the headline
+class: a-historical-failure-reported-in-the-present-tense
+sweep: pitch failures either side of the founder's own 2026-08-27 iOS fix
+severity: high (as a reporting failure; the underlying defect is closed)
+F-the-five-byte-recording said "14 of 83 door pitches failed permanently - 17%" and framed it as something
+happening now. It is true of the whole table and FALSE as a present-tense statement:
+
+    BEFORE the 27 August iOS fix ....... 14 failed of 66   (21%)
+    SINCE  the 27 August fix ...........  0 failed of 17
+
+The founder found and fixed this on 2026-08-27 from field telemetry, and the fix is documented in
+`useDoorRecorder.ts`: *"iOS Safari 18.x now FALSELY reports audio/webm as supported... DoorLog captures were
+iOS recording as audio/webm;codecs=opus (sawData=true, TINY BLOB, chunksUploaded=0)"*. That is the five-byte
+file exactly. The container preference list now puts `audio/mp4` first on iOS, and not one pitch has failed
+since.
+
+I had the evidence and did not read it. The failed rows were all dated 20-25 August, the fix 27 August, and
+the gap between those dates was the whole story. I ran the query that proves it only after noticing the app
+records `m4a` while the failures were `webm` - which should have been the FIRST question, not the last.
+
+WHAT SURVIVES, stated separately so the correction does not throw away the real part:
+  - the four recoverable pitches still hold ~34 MB of real audio, and that decision stands;
+  - the integrity guard is still worth having - it catches an empty recording AT THE DOOR, where the rep can
+    re-record, rather than in a `pitches` row five retries later that nobody reads. That value does not
+    depend on the cause being live, and it covers the APP path, which the web fix does not.
+
+The lesson is the one this build keeps re-learning from the other side: I check whether a claim is stale
+before believing someone else's; I did not check my own. A finding with dates in it should always be asked
+"and what happened after the last one?".
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
