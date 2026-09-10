@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/trajectory";
 
 /**
@@ -16,7 +17,17 @@ import { buildTrajectory, type TrajectorySnapshotRow } from "@/lib/coach/kpi/tra
  * framing is the UI's job.
  */
 export async function GET(req: Request) {
-  const sb = await createClient();
+  // THE CALLER'S OWN CLIENT, not the cookie one. `resolveApiAuth` below widens
+  // IDENTITY only - it returns an AuthContext and never a database client - so a
+  // mobile Bearer caller used to authenticate here and then read every row
+  // through a client with no session. RLS answered honestly: nothing. The route
+  // returned 200 with zeros, and the app showed a rep with 73 sessions
+  // "building". Measured against production on 10 September 2026.
+  //
+  // callerScopedDb's own header says "resolveApiAuth widens IDENTITY, which is
+  // all the KPI routes needed". That sentence is why this route was left out of
+  // the fix that repaired the session routes, and it was wrong.
+  const sb = callerScopedDb(req) ?? (await createClient());
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 

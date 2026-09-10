@@ -64,7 +64,10 @@ export async function POST(
   const body = await readBody(req, BodySchema);
   if (body instanceof NextResponse) return body;
 
-  const supabase = await createClient();
+  // The GET beside this one is caller-scoped and this was not, which is the
+  // shape that hides: a route reads correctly for the app on one verb and
+  // anonymously on the other.
+  const supabase = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });

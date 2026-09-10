@@ -1350,6 +1350,38 @@ const INV26_ALLOWLIST = new Map([
   ],
 ]);
 
+// Routes whose OWN `await createClient()` is genuinely web-only, with the reason.
+// A route belongs here only when a Bearer caller cannot reach that client — not
+// because the route "looks fine".
+const INV26_SELF_ALLOWLIST = new Map([]);
+
+// THE CORRECT PATTERN CONTAINS THE WRONG STRING, which is why this counts rather
+// than matches. `callerScopedDb(req) ?? (await createClient())` is exactly the
+// fix, and it necessarily mentions `await createClient()` as its fallback — so a
+// rule that flagged the mere presence of that call flagged all 27 Bearer routes,
+// including every correctly-fixed one. A gate that cries wolf on correct code is
+// one people learn to skip, and then the real leak rides in behind the noise.
+//
+// So: flag only a BARE cookie client — one that is not the right-hand side of a
+// `callerScopedDb(...) ??`.
+// The guard is written two ways in this repo, and BOTH are correct:
+//     const sb = callerScopedDb(req) ?? (await createClient());
+//     const scoped = callerScopedDb(req);  const sb = scoped ?? (await createClient());
+// A rule that only understood the one-line form reported four correct routes as
+// broken. So what counts as guarded is the FALLBACK POSITION - a cookie client on
+// the right of a `??` - in a file that imports callerScopedDb at all.
+const GUARDED_COOKIE_RE = /\?\?\s*\(?\s*await createClient\(\)/g;
+const ANY_COOKIE_RE = /await createClient\(\)/g;
+
+/** How many cookie clients this file resolves WITHOUT the caller-scoped guard. */
+function bareCookieClients(src) {
+  const total = (src.match(ANY_COOKIE_RE) ?? []).length;
+  // No import, no guard: a `??` fallback onto something else is not this pattern.
+  if (!/callerScopedDb/.test(src)) return total;
+  const guarded = (src.match(GUARDED_COOKIE_RE) ?? []).length;
+  return total - guarded;
+}
+
 const INV26_BY_PATH = new Map(FILES.map((f) => [f.path, f]));
 
 /** Resolve an import specifier to a file in FILES, or null for a package. */
@@ -1408,9 +1440,39 @@ function inv26Reaches(start) {
   return hit;
 }
 
+// THE ROUTE'S OWN BODY COUNTS, and it did not until 2026-09-10. `inv26Reaches`
+// skips the start node (`n !== start`) and only considers `src/lib/` modules, so
+// a route calling `await createClient()` IN ITS OWN HANDLER was invisible to the
+// very guard written for this class.
+//
+// That was not a small gap. It is why FOUR MORE routes shipped broken and stayed
+// broken while this audit reported 0 violations: coach/kpi/me, coach/kpi/team,
+// coach/kpi/trajectory and coach/sales-session/quota. Measured against production
+// on 10 September 2026 with a real mobile token: kpi/me answered
+// `{"sessionCount":0}` for an account holding 73 sessions, trajectory answered
+// `{"building":true,"monthsCovered":0}` against 24 snapshot rows, team answered
+// 403 "Manager access required" to a company admin, and quota answered 401 to a
+// valid token.
+//
+// The lesson is the boundary, not the content: the four bugs this rule was BUILT
+// from all happened to live in libraries, so "library" was written into the rule
+// as though it were the class. It was a property of the sample.
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;
   if (!BEARER_ROUTE_RE.test(f.sql)) continue;
+  if (bareCookieClients(f.sql) > 0 && !INV26_SELF_ALLOWLIST.has(f.path)) {
+    findings.push({
+      rule: "Bearer-authenticated route resolves its OWN cookie client",
+      file: f.path,
+      why:
+        "this route accepts a Bearer token and then calls `await createClient()` itself — a client\n" +
+        "      that resolves its session from COOKIES. A Bearer caller sends none, so every query below\n" +
+        "      it runs ANONYMOUS: RLS returns nothing, and the route answers 200 with zeros. Authenticating\n" +
+        "      the caller and then reading as nobody is the exact shape of the four bugs of 2026-09-04/05.\n" +
+        "      Use `callerScopedDb(req) ?? (await createClient())`. If the cookie client is genuinely only\n" +
+        "      used on a web-only branch, allowlist it in INV26_SELF_ALLOWLIST WITH that reason.",
+    });
+  }
   for (const lib of inv26Reaches(f.path)) {
     findings.push({
       rule: "Bearer-authenticated route reaches a library that resolves its own COOKIE client",

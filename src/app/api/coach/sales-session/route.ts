@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
@@ -67,8 +68,13 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ session });
 }
 
-export async function GET() {
-  const supabase = await createClient();
+// TAKES THE REQUEST, and did not before. `export async function GET()` cannot see
+// an Authorization header even in principle, so this route could never have
+// answered a mobile caller. The app happens not to call it - it reads sessions
+// straight from Supabase - so this is a trap rather than a live bug, and it is
+// closed here rather than left for whoever wires it up next.
+export async function GET(req: NextRequest) {
+  const supabase = callerScopedDb(req) ?? (await createClient());
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });

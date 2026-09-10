@@ -42,24 +42,36 @@ const setDb = (profileRow: unknown, companyTarget: number | null) =>
     },
   });
 
-const req = (body: unknown) => ({ json: async () => body }) as unknown as Parameters<typeof PATCH>[0];
+// `headers` is present and empty on purpose: the route now falls back to a
+// Bearer token when there is no cookie session, so a fake request without
+// headers throws instead of testing what it means to test.
+const req = (body: unknown) =>
+  ({ json: async () => body, headers: { get: () => null } }) as unknown as Parameters<
+    typeof PATCH
+  >[0];
 
 beforeEach(() => {
   vi.clearAllMocks();
   captured.update = undefined;
 });
 
+// GET now takes the request, because `export async function GET(noAuthHeader())` could not see
+// an Authorization header and so could never answer the mobile app. A request
+// with no such header keeps these tests on the cookie path, unchanged.
+const noAuthHeader = () =>
+  ({ headers: { get: () => null } }) as unknown as Parameters<typeof GET>[0];
+
 describe("GET /api/coach/sales-session/quota", () => {
   it("401 when unauthenticated", async () => {
     setAuth(null);
     setDb(null, null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(noAuthHeader())).status).toBe(401);
   });
 
   it("returns the company's target for an authenticated caller", async () => {
     setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
     setDb({ role: "member", sales_coach_role: null, company_id: "co1" }, 12);
-    const body = await (await GET()).json();
+    const body = await (await GET(noAuthHeader())).json();
     expect(body.target).toBe(12);
   });
 });
@@ -126,7 +138,7 @@ describe("PATCH /api/coach/sales-session/quota — manager write gate", () => {
         return chain;
       },
     });
-    const getRes = await GET();
+    const getRes = await GET(noAuthHeader());
     expect(getRes.status).toBe(500);
     const getBody = await getRes.json();
     expect(getBody.error).toBe("Couldn't load the quota target.");

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { readBody } from "@/lib/api/validate";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
@@ -16,9 +18,13 @@ import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 
 const PatchSchema = z.object({ target: z.number().int().positive().max(100000).nullable() }).strict();
 
-export async function GET() {
-  const sb = await createClient();
-  const ctx = await getCurrentAuthContext();
+// TAKES THE REQUEST NOW, and it did not before - `export async function GET()`
+// cannot see an Authorization header even in principle, so this route could
+// never have answered the app. Measured against production on 10 September
+// 2026: 401 "Not authenticated." to a valid mobile token.
+export async function GET(req: NextRequest) {
+  const sb = callerScopedDb(req) ?? (await createClient());
+  const ctx = (await getCurrentAuthContext()) ?? (await resolveApiAuth(req));
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   const { data, error } = await sb
@@ -38,8 +44,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const sb = await createClient();
-  const ctx = await getCurrentAuthContext();
+  const sb = callerScopedDb(req) ?? (await createClient());
+  const ctx = (await getCurrentAuthContext()) ?? (await resolveApiAuth(req));
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   // Manager gate (a rep can't set the team's quota).
