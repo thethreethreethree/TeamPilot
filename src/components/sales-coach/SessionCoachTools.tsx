@@ -37,7 +37,38 @@ type DissectView = {
   growthAreas: { opportunity: string; nextStep: string; why: string }[];
   standoutStrategy: { name: string; example: string; why: string } | null;
   overall?: string;
+  /** WHICH empty this was (3828776b). Absent on a read stored before 2026-09-10. */
+  emptyShape?: string;
 };
+
+/** The shapes that mean the COACH failed, not the call. Mirrors the app's `capture-issue.ts`. */
+const COACH_FAILED = new Set(["llm_empty", "unparsable", "threw"]);
+
+/**
+ * What to say when a dissect comes back with nothing.
+ *
+ * THIS USED TO SAY "Not enough of your side of the conversation to teach from yet." — the exact sentence
+ * this project already withdrew from the mobile app, because it is FALSE for most of these calls and it
+ * reads as a judgement of the rep. Measured on production 2026-09-10: the sessions whose dissect comes
+ * back empty are the LONGER ones — median 691 transcript words against 357 for the ones that succeed.
+ * Thin content would be SHORT. Telling somebody their 691-word conversation was not enough of a
+ * conversation is both wrong and discouraging, and it was still being said here.
+ *
+ * The coach now records which empty it hit, and the POST returns it, so this can say the true thing.
+ */
+export function emptyDissectMessage(shape: string | undefined): string {
+  if (shape && COACH_FAILED.has(shape)) {
+    return "The coach started reading this call and stopped before it produced anything. The recording is fine — this is the write-up failing, and running it again usually works.";
+  }
+  if (shape === "no_agent_turns") {
+    return "Your side of this call was not captured, so there is nothing to teach from. Re-labelling the speakers can recover it.";
+  }
+  if (shape === "no_strengths") {
+    return "The coach read this call through and did not find a moment it could teach from. That is about this conversation, not about you.";
+  }
+  // No shape: an older read, or a shape we do not recognise. Say what is certainly true and nothing more.
+  return "The coach ran and produced nothing for this call. Running it again often works.";
+}
 
 export function SessionCoachTools({
   sessionId,
@@ -196,9 +227,7 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
       const d = await res.json();
       setDissect((d.dissect as DissectView) ?? null);
       if (!d.dissect?.hasSignal) {
-        setError(
-          "Not enough of your side of the conversation to teach from yet."
-        );
+        setError(emptyDissectMessage((d.dissect as DissectView | null)?.emptyShape));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't run the dissect.");

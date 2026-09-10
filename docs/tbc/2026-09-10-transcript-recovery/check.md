@@ -910,3 +910,23 @@ consequence is not a broken feature but an ABSENT one - the screen was never bui
 not be reached, and the reason had gone unnamed.
 
 The founder is `admin`, and is about to audit this product on a phone.
+
+### F39 - the sentence this project withdrew from the app was still being said on the web
+class: a-correction-applied-to-one-surface-and-not-the-other
+sweep: the empty-state copy of every dissect surface, in both repositories
+severity: medium
+Build 15 corrected the mobile debrief, which told a rep "there was not enough of a conversation here for
+the coach to say anything useful. That is a fact about the call, not about you." Kind, and false: measured
+on production, the sessions whose read comes back empty are the LONGER ones - median 691 transcript words
+against 357 for the ones that succeed. Thin content would be SHORT.
+
+`SessionCoachTools` on the web says the same thing in different words - "Not enough of your side of the
+conversation to teach from yet." - and has said it the whole time. The correction went to the app and
+stopped there, which is F32's shape again: a fix applied to one of two surfaces, on the one the founder
+actually uses.
+
+It is also a judgement rather than a description. A rep who talked for 691 words and is told it was not
+enough of a conversation learns something untrue about themselves, not about the write-up that failed.
+
+The fix was available and unused: `runAndStoreDissect` records WHICH empty it hit, the POST already
+returns it in the dissect object, and nothing on the web was reading it.

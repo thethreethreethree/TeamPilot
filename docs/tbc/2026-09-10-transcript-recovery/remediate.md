@@ -355,3 +355,15 @@ A18 IS LOAD-BEARING FOR THE SCREEN THAT FOLLOWS, and is quoted here so it is not
 these coaching notes are NOT a scoreboard. No ranking, no cross-agent comparison, each rep's growth
 relative to their own conversations, and the server's order is an org-chart order rather than a grade. Any
 app screen consuming this must preserve that order and must not re-sort, re-rank, or total it.
+
+### F39 - the sentence this project withdrew from the app was still being said on the web
+fix: `emptyDissectMessage(shape)` says the true thing per shape - the coach failed and the recording is
+fine (`llm_empty` / `unparsable` / `threw`), the rep's side was not captured and re-labelling recovers it
+(`no_agent_turns`), or the coach read it through and found nothing to teach from, which is about the
+conversation and not the person (`no_strengths`). A read stored before the shape existed says only what is
+certainly true and claims no cause.
+gate-or-promise: GATE, two compiling mutations. Restoring the withdrawn sentence fails "never tells a rep
+their conversation was too short" - which asserts it across EVERY shape, so the sentence cannot come back
+through any branch. Removing the `no_strengths` branch fails "says it is about the conversation, not the
+person", which also asserts the absence of "again": a call the coach read through and found nothing in
+should not be offered false hope of a retry.
