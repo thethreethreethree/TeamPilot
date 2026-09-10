@@ -45,7 +45,15 @@ export type EmptyReadReason =
    * it used to be called `thin`, which was a claim, and the claim was wrong for 12 of the founder's own
    * sessions, the largest of them 757 words.
    */
-  | 'unexplained';
+  | 'unexplained'
+  /**
+   * The rep asked for a rebuild in THIS sitting and it came back empty again.
+   *
+   * Without this the card put the same message and the same button back, saying nothing about the
+   * attempt that had just run - so a rep taps forever, and each tap is a real charge. The same defect
+   * was found and fixed on the read card an hour earlier; this is the other place it lived.
+   */
+  | 'retried-and-failed';
 
 /**
  * Is there anything in this debrief worth drawing?
@@ -68,8 +76,29 @@ export function hasContent(summary: AfterPitch | null): boolean {
 }
 
 /** Null when there IS something to show, so a caller can use it as the condition itself. */
-export function emptyReadReason(summary: AfterPitch | null): EmptyReadReason | null {
-  if (!summary) return 'none';
+export function emptyReadReason(
+  summary: AfterPitch | null,
+  /** The rep rebuilt it in this sitting and it still came back with nothing. */
+  justTried?: boolean,
+): EmptyReadReason | null {
+  if (!summary) return justTried ? 'retried-and-failed' : 'none';
   if (hasContent(summary)) return null;
+  if (justTried) return 'retried-and-failed';
   return (summary.scores?.length ?? 0) > 0 ? 'engine-blank' : 'unexplained';
+}
+
+/**
+ * Is there anything a rebuild could still produce?
+ *
+ * YES FOR `unexplained`, which is the change here and it is not obvious. That case has no scores AND no
+ * write-up, and a rebuild runs the scoring engine as well as the narrative - so for a call that has real
+ * words and simply never got scored, this button is the only route to either. Measured 2026-09-11 in the
+ * founder's own company: 12 sessions carry 100+ words from the rep and no scores at all, the largest 757
+ * words. Those twelve had no button at all, on a card that told them nothing came back.
+ *
+ * NO for `retried-and-failed`. A second identical button after a failed attempt is an invitation to keep
+ * paying for the same nothing.
+ */
+export function canRebuild(reason: EmptyReadReason | null): boolean {
+  return reason === 'none' || reason === 'engine-blank' || reason === 'unexplained';
 }

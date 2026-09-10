@@ -15,7 +15,7 @@
  * manager scorecard" — so a manager sees the coaching substance and no numbers,
  * and this says so rather than rendering blanks that look like a bad result.
  */
-import { emptyReadReason } from '@/lib/after-pitch-empty';
+import { canRebuild, emptyReadReason, hasContent } from '@/lib/after-pitch-empty';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
@@ -64,6 +64,8 @@ export function AfterPitchCard({
   const [summary, setSummary] = useState<AfterPitch | null>(null);
   const [isOwner, setIsOwner] = useState(true);
   const [phase, setPhase] = useState<Phase>('idle');
+  /** The rep rebuilt it in this sitting and it still came back empty - a different sentence. */
+  const [justTried, setJustTried] = useState(false);
   /** Why it is blocked — a session that ended, or a route that refused. */
   const [why, setWhy] = useState<AuthFailure | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -109,6 +111,9 @@ export function AfterPitchCard({
     if (result.ok) {
       setSummary(result.summary);
       setIsOwner(result.isOwner);
+      // Remembered ONLY when the rebuild produced nothing. On success the card shows the debrief and
+      // this never matters; on failure it is the difference between "try again" and "that did not work".
+      setJustTried(!hasContent(result.summary));
       setPhase('ready');
       return;
     }
@@ -212,14 +217,16 @@ export function AfterPitchCard({
     );
   }
 
-  const reason = emptyReadReason(summary);
+  const reason = emptyReadReason(summary, justTried);
   if (reason) {
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">
         <Text className="font-strong text-base text-foreground">
-          {reason === 'none'
-            ? 'No debrief yet'
-            : reason === 'engine-blank'
+          {reason === 'retried-and-failed'
+            ? 'That did not work either'
+            : reason === 'none'
+              ? 'No debrief yet'
+              : reason === 'engine-blank'
               ? // NOT "not enough in this call". This call WAS scored, so there was plenty
                 // to say — the write-up is what failed, and rebuilding usually fixes it.
                 'Your read did not come through'
@@ -230,13 +237,15 @@ export function AfterPitchCard({
                 'Nothing came back for this call'}
         </Text>
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
-          {reason === 'none'
-            ? 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'
-            : reason === 'engine-blank'
+          {reason === 'retried-and-failed'
+            ? 'It ran again and still produced nothing. Your recording and your words are safe — this is the write-up failing, and asking again now will most likely do the same. It is worth telling whoever runs your coach.'
+            : reason === 'none'
+              ? 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'
+              : reason === 'engine-blank'
               ? 'The call was captured and scored, but the coaching write-up came back empty. That is the write-up failing, not the call — try building it again.'
               : 'There are no scores and no write-up for this one. That can mean there was little in the call, or that the coach did not finish — nothing recorded which, so I will not guess. Your recording and your words are safe either way.'}
         </Text>
-        {reason === 'none' || reason === 'engine-blank' ? (
+        {canRebuild(reason) ? (
           <Pressable
             onPress={make}
             accessibilityRole="button"

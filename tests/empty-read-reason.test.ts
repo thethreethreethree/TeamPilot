@@ -14,7 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { emptyReadReason } from '@/lib/after-pitch-empty';
+import { canRebuild, emptyReadReason } from '@/lib/after-pitch-empty';
 import type { AfterPitch } from '@/lib/after-pitch';
 
 const ap = (over: Partial<AfterPitch>): AfterPitch =>
@@ -99,4 +99,42 @@ test('the no-scores case is named for what is observed, not for a cause nothing 
 
 test('a scored call with a blank write-up is still the write-up failing — that half always held', () => {
   assert.equal(emptyReadReason(ap({ scores: [{ label: 'tone', value: 70 }] as never })), 'engine-blank');
+});
+
+/**
+ * The rebuild that ran and said nothing (2026-09-11).
+ *
+ * Tap "Build it again", wait, and if it came back empty a second time the card put the SAME message and
+ * the SAME button back. Nothing said the attempt had run, so a rep taps forever and each tap is a real
+ * charge. The identical defect was found on the read card an hour earlier; this is the other place it
+ * lived, and finding it there is the only reason I looked here.
+ */
+test('a rebuild that produced nothing gets its own state, not the same card again', () => {
+  assert.equal(emptyReadReason(ap({ scores: [] }), true), 'retried-and-failed');
+  assert.equal(emptyReadReason(null, true), 'retried-and-failed');
+});
+
+test('and it offers NO button — a second identical button invites paying for the same nothing', () => {
+  assert.equal(canRebuild('retried-and-failed'), false);
+});
+
+test('a rebuild that SUCCEEDED shows the debrief, never the failure state', () => {
+  assert.equal(emptyReadReason(ap({ focus: 'Ask one more question' } as never), true), null);
+});
+
+/**
+ * The 12 sessions that had no button at all.
+ *
+ * `unexplained` means no scores AND no write-up. Rebuilding runs the SCORING engine as well as the
+ * narrative, so for a call with real words that simply never got scored, this button is the only route to
+ * either. Measured in the founder's own company: 12 sessions carry 100+ words from the rep and no scores,
+ * the largest 757 words — and the card offered them nothing while telling them nothing came back.
+ */
+test('the no-scores case can be rebuilt — a rebuild runs the scoring engine too', () => {
+  assert.equal(canRebuild('unexplained'), true);
+});
+
+test('the cases that could always be rebuilt still can', () => {
+  assert.equal(canRebuild('none'), true);
+  assert.equal(canRebuild('engine-blank'), true);
 });
