@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type PointerEvent } from "react";
 import { dialFill } from "@/lib/coach/doorlog/dayTarget";
 
 /**
@@ -55,23 +55,43 @@ export function DoorDial({
   const litCount = target && target > 0 ? Math.round(dialFill(count, target) * TOTAL_TICKS) : 0;
   const longTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLong = useRef(false);
+  // Drag vs tap: a horizontal drag STARTING on a dial must swipe the pager (and must NOT log). We record the
+  // pointer origin and, once it moves past a small tolerance, mark it a drag so pointerup won't fire a tap.
+  // `touch-action` is left at the browser default (NOT touch-none) so the pager/page can actually pan from the
+  // dial — touch-none dead-locked the swipe and let a drag-release fire a tap (logging by accident).
+  const startPt = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+  const DRAG_TOL_PX = 10;
 
-  const startPress = useCallback(() => {
+  const startPress = useCallback((e: PointerEvent) => {
     if (disabled) return;
     didLong.current = false;
+    moved.current = false;
+    startPt.current = { x: e.clientX, y: e.clientY };
     if (onDecrement) {
       longTimer.current = setTimeout(() => { didLong.current = true; onDecrement(); }, LONG_PRESS_MS);
     }
   }, [disabled, onDecrement]);
 
+  const movePress = useCallback((e: PointerEvent) => {
+    if (!startPt.current) return;
+    if (Math.abs(e.clientX - startPt.current.x) > DRAG_TOL_PX || Math.abs(e.clientY - startPt.current.y) > DRAG_TOL_PX) {
+      moved.current = true; // a drag / swipe / scroll — no longer a tap
+      if (longTimer.current) { clearTimeout(longTimer.current); longTimer.current = null; }
+    }
+  }, []);
+
   const endPress = useCallback(() => {
     if (longTimer.current) { clearTimeout(longTimer.current); longTimer.current = null; }
-    if (disabled || didLong.current) return; // a long-press already decremented — don't also tap
+    const wasDrag = moved.current;
+    startPt.current = null;
+    if (disabled || didLong.current || wasDrag) return; // a long-press or a drag/swipe — not a tap
     onTap?.();
   }, [disabled, onTap]);
 
   const cancelPress = useCallback(() => {
     if (longTimer.current) { clearTimeout(longTimer.current); longTimer.current = null; }
+    startPt.current = null;
   }, []);
 
   return (
@@ -79,11 +99,13 @@ export function DoorDial({
       type="button"
       disabled={disabled}
       onPointerDown={startPress}
+      onPointerMove={movePress}
       onPointerUp={endPress}
       onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
       onContextMenu={(e) => e.preventDefault()} // long-press on mobile can raise the context menu
       aria-label={`${label}: ${count}${target ? ` of ${target}` : ""}.${onTap ? " Tap to log." : ""}${onDecrement ? " Long-press to remove one." : ""}`}
-      className="relative flex flex-col items-center justify-center gap-1 rounded-2xl p-1 select-none touch-none active:scale-[0.97] transition-transform disabled:opacity-50"
+      className="relative flex flex-col items-center justify-center gap-1 rounded-2xl p-1 select-none active:scale-[0.97] transition-transform disabled:opacity-50"
     >
       <span className="relative inline-flex items-center justify-center">
         <svg viewBox="0 0 110 110" className="w-[104px] h-[104px]" aria-hidden>

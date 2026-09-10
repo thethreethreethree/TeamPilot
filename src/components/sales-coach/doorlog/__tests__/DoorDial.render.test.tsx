@@ -34,6 +34,26 @@ describe("DoorDial gestures", () => {
     expect(onTap).not.toHaveBeenCalled(); // the long-press already handled it
   });
 
+  it("a horizontal DRAG suppresses the tap (swipe the pager, don't log)", () => {
+    const onTap = vi.fn();
+    render(<DoorDial count={3} target={80} label="Doors" onTap={onTap} />);
+    const btn = screen.getByRole("button");
+    fireEvent.pointerDown(btn, { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(btn, { clientX: 40, clientY: 2 }); // past the drag tolerance
+    fireEvent.pointerUp(btn, { clientX: 40, clientY: 2 });
+    expect(onTap).not.toHaveBeenCalled();
+  });
+
+  it("a tiny jitter within tolerance still counts as a tap", () => {
+    const onTap = vi.fn();
+    render(<DoorDial count={3} target={80} label="Doors" onTap={onTap} />);
+    const btn = screen.getByRole("button");
+    fireEvent.pointerDown(btn, { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(btn, { clientX: 8, clientY: 6 }); // < 10px, still a tap
+    fireEvent.pointerUp(btn, { clientX: 8, clientY: 6 });
+    expect(onTap).toHaveBeenCalledTimes(1);
+  });
+
   it("leaving before release cancels (no tap, no decrement)", () => {
     const onTap = vi.fn(); const onDecrement = vi.fn();
     render(<DoorDial count={3} target={80} label="Doors" onTap={onTap} onDecrement={onDecrement} />);
