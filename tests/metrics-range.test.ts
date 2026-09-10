@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 
 import {
   RANGE_NOT_HONOURED,
+  RANGE_NO_PATTERN,
   echoMatchesRange,
   isCalendarDay,
   isSendableRange,
@@ -84,4 +85,15 @@ test('the refusal copy says the numbers are NOT being shown', () => {
 test('the query is encoded, and the label is human', () => {
   assert.equal(rangeQuery(RANGE), 'from=2026-08-25&to=2026-09-04');
   assert.equal(rangeLabel(RANGE, (iso) => iso.slice(5)), '08-25 to 09-04');
+});
+
+test('the range explains why the focus is empty without blaming the rep', () => {
+  // The screen's other empty-focus line is "once a few pitches have been
+  // analysed". Under a custom range that is a flat lie to a rep with two
+  // hundred analysed pitches: the rollup is precomputed per FIXED period and is
+  // skipped for a range on purpose (web `doorlog.ts`).
+  assert.ok(!/analysed|analyzed|not enough|few/i.test(RANGE_NO_PATTERN), RANGE_NO_PATTERN);
+  // It has to name the move that fixes it, not just the absence — copy.md.
+  assert.match(RANGE_NO_PATTERN, /Day, Week, Month and All time/);
+  assert.ok(!/error|failed/i.test(RANGE_NO_PATTERN));
 });

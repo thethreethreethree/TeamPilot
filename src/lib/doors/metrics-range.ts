@@ -119,6 +119,21 @@ export const RANGE_NOT_HONOURED =
 /** The label on the chip that opens the picker. */
 export const CUSTOM_CHIP = 'Custom';
 
+/**
+ * Why the Next-Door focus is empty under a custom range.
+ *
+ * IT IS NOT "once a few pitches have been analysed", which is what the screen
+ * says when the focus is missing for a preset — and which would be a flat lie to
+ * a rep with two hundred analysed pitches who happened to pick a date range.
+ *
+ * The pattern rollup is precomputed per FIXED period; the web skips it for a
+ * custom window rather than computing a fresh read of an arbitrary one
+ * (`doorlog.ts`: "leave focus/opportunities honestly empty"). So the honest
+ * sentence names the real cause and gives the rep the move that fixes it.
+ */
+export const RANGE_NO_PATTERN =
+  'Your focus and growth opportunities are worked out for the Day, Week, Month and All time views. Pick one of those to see them.';
+
 /** How a chosen window reads on screen, e.g. "25 Aug to 4 Sep". */
 export function rangeLabel(range: DateRange, format: (iso: string) => string): string {
   return `${format(range.from)} to ${format(range.to)}`;

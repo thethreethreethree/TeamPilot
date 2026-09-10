@@ -25,7 +25,7 @@
  * scroll and nothing else, which is what lets a rep scroll it without the swipe
  * stealing the gesture.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -37,6 +37,20 @@ import {
   type Metrics,
   type MetricsPeriod,
 } from '@/lib/doors/metrics-view';
+import {
+  CUSTOM_CHIP,
+  RANGE_MALFORMED,
+  RANGE_NO_PATTERN,
+  RANGE_NOT_HONOURED,
+  RANGE_PROMPT,
+  RANGE_REVERSED,
+  rangeLabel,
+  rangeProblem,
+  type DateRange,
+} from '@/lib/doors/metrics-range';
+import { dayLabel } from '@/lib/doors/calendar';
+import { DateField } from '@/components/date-field';
+import { localDate } from '@/lib/doors/knock-store';
 import { C } from '@/lib/theme';
 import { authFailureMessage } from '@/lib/auth-failure';
 import { blockedState } from '@/lib/blocked-state';
@@ -51,12 +65,23 @@ export function DoorMetricsPage() {
   const stacked = useLargeText();
   const router = useRouter();
   const [period, setPeriod] = useState<MetricsPeriod>('day');
+  /** True once the rep opens the Custom chip. The fields show; nothing is sent. */
+  const [customOpen, setCustomOpen] = useState(false);
+  const [from, setFrom] = useState<string | null>(null);
+  const [to, setTo] = useState<string | null>(null);
+  /**
+   * The range actually being SHOWN, which is not the same as the one being
+   * typed. A rep half-way through choosing an end date has a nonsense window on
+   * screen for a moment, and refetching on every tap would caption the numbers
+   * with it. Nothing is sent until they press Show.
+   */
+  const [applied, setApplied] = useState<DateRange | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (p: MetricsPeriod) => {
+  const load = useCallback(async (p: MetricsPeriod | DateRange) => {
     const result = await fetchMetrics(p);
     if (result.ok) {
       setMetrics(result.metrics);
@@ -74,18 +99,48 @@ export function DoorMetricsPage() {
       setMessage(authFailureMessage('signed-out'));
       return;
     }
+    // A range the server did not honour is NOT a failure the rep caused and not
+    // one a retry fixes silently: the route answers a reversed or malformed
+    // window with 200 and TODAY's figures. Saying so plainly is the only thing
+    // between the rep and eight doors captioned as ten days' work.
+    if (result.reason === 'range-not-honoured') {
+      setPhase('error');
+      setMessage(RANGE_NOT_HONOURED);
+      return;
+    }
     setPhase(result.reason === 'needs-shim' ? 'needs-shim' : 'error');
     setMessage(result.reason === 'failed' ? (result.message ?? null) : null);
   }, []);
 
+  /**
+   * What is on screen: the applied range if there is one, else the preset.
+   *
+   * MEMOISED because it feeds the focus effect. A fresh object every render
+   * would re-run the effect every render, which is a refetch loop on a screen
+   * that refetches over the network.
+   */
+  const shown = useMemo<MetricsPeriod | DateRange>(() => applied ?? period, [applied, period]);
+
   useFocusEffect(
     useCallback(() => {
-      load(period);
-    }, [load, period]),
+      load(shown);
+    }, [load, shown]),
   );
 
   const view = buildMetricsView(metrics);
   const periodLabel = PERIODS.find((p) => p.key === period)?.label.toLowerCase() ?? 'period';
+  // "this 25 Aug 2026 to 4 Sep 2026" is not English. A window gets its own phrase.
+  const windowPhrase = applied ? 'in that date range' : `this ${periodLabel}`;
+  const problem = rangeProblem(from, to);
+  const rangeHint =
+    problem === 'incomplete'
+      ? RANGE_PROMPT
+      : problem === 'reversed'
+        ? RANGE_REVERSED
+        : problem === 'malformed'
+          ? RANGE_MALFORMED
+          : null;
+  const today = localDate();
 
   return (
     <>
@@ -101,7 +156,7 @@ export function DoorMetricsPage() {
             onRefresh={async () => {
               setRefreshing(true);
               try {
-                await load(period);
+                await load(shown);
               } finally {
                 setRefreshing(false);
               }
@@ -120,6 +175,11 @@ export function DoorMetricsPage() {
                 key={p.key}
                 onPress={() => {
                   setPeriod(p.key);
+                  // A preset REPLACES the window. Leaving the applied range in
+                  // place would show the range's numbers under the preset's
+                  // highlight, which is the same lie in the other direction.
+                  setApplied(null);
+                  setCustomOpen(false);
                   setPhase('loading');
                 }}
                 accessibilityRole="button"
@@ -138,6 +198,82 @@ export function DoorMetricsPage() {
             );
           })}
         </View>
+
+        {/*
+          CUSTOM SITS ON ITS OWN ROW, not as a fifth chip in the row above.
+
+          Five chips at equal width leave "All time" about fifty points to render
+          in, and at an accessibility text size it clips rather than wraps —
+          which no layout check sees. Its own full-width row also gives the two
+          date fields somewhere to open into, directly under the control that
+          reveals them.
+        */}
+        <Pressable
+          onPress={() => setCustomOpen((o) => !o)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: applied !== null, expanded: customOpen }}
+          accessibilityLabel={
+            applied
+              ? `Custom date range, showing ${rangeLabel(applied, dayLabel)}`
+              : 'Choose a custom date range'
+          }
+          className={`mt-2 min-h-11 items-center justify-center rounded-md border px-2 py-2 active:opacity-70 ${
+            applied !== null ? 'border-primary bg-surface' : 'border-border-control'
+          }`}
+        >
+          <Text
+            className={`font-emphasis text-sm ${
+              applied !== null ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            {applied ? rangeLabel(applied, dayLabel) : CUSTOM_CHIP}
+          </Text>
+        </Pressable>
+
+        {customOpen ? (
+          <View>
+            {/*
+              STACKED, NEVER SIDE BY SIDE, and it is a measurement rather than a
+              taste. Two calendars sharing a phone's width leave each grid about
+              165 points for seven columns — a 23-point day cell, half the 44pt
+              floor the design law sets for any interactive control. Full width
+              gives each day about 50 points, which is a real target.
+            */}
+            <DateField label="From" value={from} today={today} onChange={setFrom} />
+            <DateField label="To" value={to} today={today} onChange={setTo} />
+
+            {/* "Pick a start and an end date" is the ORDINARY state between
+                opening this and choosing the second day — said in the muted
+                voice, never as an error. Only a reversed or impossible date is
+                shown as a fault, and it is the rep's to fix. */}
+            {rangeHint ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                className={`mt-3 font-body text-sm leading-relaxed ${
+                  problem === 'incomplete' ? 'text-muted-foreground' : 'text-destructive'
+                }`}
+              >
+                {rangeHint}
+              </Text>
+            ) : null}
+
+            <Pressable
+              onPress={() => {
+                if (problem !== null || !from || !to) return;
+                setApplied({ from, to });
+                setPhase('loading');
+              }}
+              disabled={problem !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Show the door numbers for this date range"
+              accessibilityState={{ disabled: problem !== null }}
+              style={problem !== null ? { opacity: 0.5 } : undefined}
+              className="mt-3 min-h-11 items-center justify-center rounded-md bg-primary px-4 active:opacity-80"
+            >
+              <Text className="font-emphasis text-base text-primary-foreground">Show</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {phase === 'loading' ? (
           <View className="mt-16 items-center">
@@ -206,7 +342,7 @@ export function DoorMetricsPage() {
             {view.noScores ? (
               <View className="gap-3">
               <Text className="font-body text-base leading-relaxed text-muted-foreground">
-                No scored pitches yet this {periodLabel}. The chart fills in as your recorded
+                No scored pitches yet {windowPhrase}. The chart fills in as your recorded
                 pitches get analysed.
               </Text>
               {/* The action, not only the explanation — copy.md. */}
@@ -267,6 +403,13 @@ export function DoorMetricsPage() {
                   Focus on this for your next ten doors, then come back for a new one.
                 </Text>
               </>
+            ) : applied ? (
+              /* The focus is not MISSING under a range, it is not computed for
+                 one — see RANGE_NO_PATTERN. "Once a few pitches have been
+                 analysed" would be a flat lie to a rep with two hundred. */
+              <Text className="font-body text-base leading-relaxed text-muted-foreground">
+                {RANGE_NO_PATTERN}
+              </Text>
             ) : (
               <Text className="font-body text-base leading-relaxed text-muted-foreground">
                 Your focus appears once a few pitches have been analysed — it is the one habit
