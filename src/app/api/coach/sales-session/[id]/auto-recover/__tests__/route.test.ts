@@ -170,13 +170,67 @@ describe("POST /auto-recover", () => {
     expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
-  it("not-applicable (200) when there is no transcript / no agent turns", async () => {
+  /*
+   * THE NINE-SESSION PRODUCTION FAILURE, now pinned as the opposite expectation.
+   *
+   * This test used to assert `not-applicable`: a session with saved audio and an EMPTY
+   * transcript was refused, because the precondition read computeTalkRatio, which returns
+   * null for an empty transcript. On 10 September 2026 production held NINE such sessions
+   * — the oldest from 25 July, the newest the founder's own 149-second test that morning —
+   * and every one had auto_recover_attempted_at = null. Nothing had ever tried to fix them,
+   * and this test is why: the refusal was written down as correct.
+   *
+   * The rule now is that a transcript missing an entire SIDE is recoverable. Blank is the
+   * extreme case of that, and it is the one that mattered.
+   */
+  it("RECOVERS a blank transcript — a call with audio and no words is exactly the case to fix", async () => {
     setAuth("rep1");
     mk(getSessionTranscript).mockResolvedValue([]);
     const res = await POST(req(), ctx);
     expect(res.status).toBe(200);
-    expect((await res.json()).status).toBe("not-applicable");
-    expect(transcribeWithDiarization).not.toHaveBeenCalled();
+    expect((await res.json()).status).toBe("recovered");
+    expect(transcribeWithDiarization).toHaveBeenCalled();
+    expect(replaceSessionTranscript).toHaveBeenCalled();
+  });
+
+  it("saves a blank transcript as UNKNOWN when the voice cannot be identified — never lost, never guessed", async () => {
+    // The founder's rule, 10 September 2026: save unlabelled, then ask. An undecidable
+    // recording must still leave its words on the record; what it must NOT leave is a
+    // confident wrong label sitting under every coaching score.
+    setAuth("rep1");
+    mk(getSessionTranscript).mockResolvedValue([]);
+    mk(autoAssignAgentCluster).mockReturnValueOnce({
+      decided: false,
+      reason: "single-cluster",
+      clusterIds: ["speaker_0"],
+    });
+    const res = await POST(req(), ctx);
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("saved-unlabelled");
+    const call = mk(replaceSessionTranscript).mock.calls[0];
+    expect(call).toBeDefined();
+    const written = call![1] as { speaker: string }[];
+    expect(written.length).toBeGreaterThan(0);
+    expect(written.every((seg) => seg.speaker === "unknown")).toBe(true);
+    // No coaching verdict is manufactured from speech nobody has attributed.
+    expect(generateSessionArtifacts).not.toHaveBeenCalled();
+  });
+
+  it("REFUSES to overwrite real agent speech with an unlabelled re-read (one-sided stays intact)", async () => {
+    // The other side of the same rule: a one-sided transcript holds genuinely attributed
+    // rep speech, so a declined assignment must leave it alone rather than downgrade it.
+    setAuth("rep1");
+    mk(getSessionTranscript).mockResolvedValue([
+      { speaker: "agent", text: "Let me walk you through the plan.", seq: 0 },
+    ]);
+    mk(autoAssignAgentCluster).mockReturnValueOnce({
+      decided: false,
+      reason: "single-cluster",
+      clusterIds: ["speaker_0"],
+    });
+    const res = await POST(req(), ctx);
+    expect((await res.json()).status).toBe("still-one-sided");
+    expect(replaceSessionTranscript).not.toHaveBeenCalled();
   });
 
   it("already-attempted: the marker claim returns 0 rows → 200 and NO STT (cost-loop guard)", async () => {

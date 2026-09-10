@@ -33,7 +33,7 @@ was. It was caught by opening the residual I had marked as not mattering.
     "item": "Zero of 73 coaching_sessions carry an outcome, which I read as meaning the derivation could never reach its own-sales basis.",
     "why_skipped": "I took one count from one table as the answer to 'does this company record sales'.",
     "confidence_it_does_not_matter": "medium",
-    "opened_at": "%(NOW)s",
+    "opened_at": "2026-09-10T15:58:00+08:00",
     "outcome": "OPENED, and the premise was WRONG. door_knocks.outcome = 'sold' holds 38 rows company-wide, and that is the column the day-target engine counts - so own-sales is reachable today for any rep who has sold a door. The founder's own account has 6 knocks, 0 sold and 2 working days, so it lands on own-activity: 3 doors a day through the starter funnel gives a goal of 1 sale, which the engine turns into 9 presentations and 40 doors. Separately, coaching_sessions.outcome being 0 of 73 remains a real open question - whether the session outcome write is broken or simply unused - and it is surfaced to the founder rather than answered here, because it blanks every money metric on the KPI screen." },
   { "id": "R3-goal-moves-day-to-day",
     "item": "A derived goal is recomputed each morning from a rolling 30-day window, so it can differ from yesterday's without the rep changing anything.",

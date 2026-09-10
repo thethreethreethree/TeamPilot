@@ -37,6 +37,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/coach/sales-session/recover-transcripts-cron",
+      "schedule": "20 * * * *"
+    },
+    {
       "path": "/api/coach/sales-session/auto-close-stale-cron",
       "schedule": "15 * * * *"
     },

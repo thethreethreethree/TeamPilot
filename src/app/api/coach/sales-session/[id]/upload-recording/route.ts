@@ -5,7 +5,8 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { getSession } from "@/lib/data/salesCoach";
+import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
+import { spokenAtFor } from "@/lib/coach/v5/segmentTiming";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   buildStoragePath,
@@ -21,6 +22,65 @@ import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
 /** Distinct speakers + a sample line each, for the one-tap "which voice is you?" UI.
  *  Shared by both entry points (multipart upload + direct-to-storage finalize) so their
  *  response shape can't drift. */
+/**
+ * Save the transcript the MOMENT it exists, before anyone is asked anything.
+ *
+ * THE FAILURE THIS ENDS. The transcript used to be written only when the rep
+ * answered "which voice is you?" — so a recording whose diarizer found a single
+ * voice was never asked about, and its transcript was never written at all. The
+ * audio was stored, the real duration was stamped from the transcription's own
+ * word timestamps, and then the words were dropped on the floor. Silently:
+ * nothing failed, nothing said so, and the coach later reported the thread came
+ * through empty.
+ *
+ * Measured on production 10 September 2026: of 16 uploaded recordings, 13 had
+ * audio and NO transcript. The founder's requirement, in their words: "there
+ * should be 0% why any recording that has valid audio (people speaking) should
+ * not have any transcript".
+ *
+ * So the words land here, unconditionally, as `unknown` speakers. Attribution
+ * becomes a REFINEMENT rather than a precondition: when the rep says which voice
+ * is theirs, `label-transcript` replaces this transcript with a labelled one —
+ * which its existing zero-agent-turns rule already permits, because nothing here
+ * writes an 'agent' turn.
+ *
+ * ON THE SERVER, not in the app, and deliberately: it cannot then be skipped by
+ * a client that crashes between uploading and posting, it works for every client
+ * including the web, and this is the only place that already holds both the
+ * segments and the session's start time.
+ *
+ * BEST-EFFORT BY DESIGN. A failure here must not fail the upload — the audio is
+ * already safe and re-transcribing is possible — so it is logged and swallowed.
+ * The alternative is telling a rep their recording failed when it did not.
+ */
+async function saveUnattributedTranscript(
+  sessionId: string,
+  startedAt: string | null | undefined,
+  segments: Array<{ speakerId: string; text: string; start?: number }>,
+): Promise<void> {
+  try {
+    for (const [i, seg] of segments.entries()) {
+      await appendTranscriptSegment({
+        sessionId,
+        // UNKNOWN, never a guess. Which voice is the rep is exactly what nobody
+        // has established yet, and inventing it would put a fabricated speaker
+        // label under every coaching score that reads this transcript.
+        speaker: "unknown",
+        text: seg.text,
+        seq: i,
+        spokenAt: spokenAtFor(startedAt, seg.start),
+      });
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[upload-recording] transcript save failed session=${sessionId}: ${
+        e instanceof Error ? e.message : "unknown"
+      }`
+    );
+  }
+}
+
 /*
  * `startSeconds` IS CARRIED BACK, and used to be dropped here.
  * transcribeWithDiarization already computes each segment's offset into the audio from the
@@ -294,6 +354,7 @@ export async function POST(
           `[upload-recording] failed to stamp audio_duration_seconds session=${id}: ${durErr.message}`
         );
     }
+    await saveUnattributedTranscript(id, session?.startedAt, jsonSegments);
     return NextResponse.json(buildSpeakerResponse(jsonSegments));
   }
 
@@ -409,5 +470,6 @@ export async function POST(
   }
 
   // 3. Distinct speakers + a sample line each, for the one-tap UI.
+  await saveUnattributedTranscript(id, session?.startedAt, segments);
   return NextResponse.json(buildSpeakerResponse(segments));
 }
