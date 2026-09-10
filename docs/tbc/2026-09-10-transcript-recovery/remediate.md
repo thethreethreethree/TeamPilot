@@ -262,3 +262,32 @@ and never resolves a cookie client" and nothing else.
 
 The verification that counts is not the test. The same probe that found it, re-run after the deploy, is
 what says a rep's lines carry their call again.
+
+## The cookie-client class, swept to its REAL boundary (A26 -> A30)
+The cron sweep that produced F33 found it by luck: `salesCoach.ts` happens to be imported by a worker as
+well as by two routes. The class's boundary is not crons. It is any route that accepts a phone - such a
+route resolves a scoped client for identity, hands off to a helper, and if the helper resolves its OWN
+cookie client the read is anonymous and comes back as an honest-looking empty. F22, F31 and F33 are all
+that one sentence.
+
+So the sweep was re-run from the right entry points: every `route.ts` mentioning `callerScopedDb` or
+`resolveApiAuth`. 33 routes, 105 helper files on their import graphs.
+
+    SUSPECTS - helpers on a Bearer path resolving their own cookie client: 1
+    lib/brain/index.ts:160   (reached by 10 routes)   const supabase = await createClient();
+
+One suspect, and it is a false positive of a module-level graph: those ten routes import `@/lib/brain` for
+`runBrainCall`, not for `unlockControlGate`, which is the function on line 160. Its only caller anywhere is
+`app/api/brain/unlock/route.ts`, a cookie-only web route - opened and confirmed, not assumed.
+
+So after F33 there is no other helper on any Bearer-reachable route that reads through a client of its own.
+
+TWO LIMITS OF THIS SWEEP, stated because an over-claimed clean result is worse than no result. It is
+MODULE-level, not function-level, so a hit means "this module is imported", which is why the single hit
+needed a human to close it. And it only knows the shapes it was taught - `createClient()` from
+`@/lib/supabase/server`, bare or `??`-defaulted. A helper reaching for cookies some other way is invisible
+to it, exactly as INVARIANT 26 is blind to a route that mentions `callerScopedDb` and then reads without it.
+
+That is A30's real test, and the honest answer here is partial: the class is closed for the shapes I know,
+by evidence rather than by reading, and the next member of it will be found by driving a real path with a
+real token - as all three of tonight's were - rather than by a check.
