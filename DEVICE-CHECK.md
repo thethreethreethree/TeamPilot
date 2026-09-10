@@ -221,15 +221,31 @@ something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
-**Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 35** at the end, and check 28 is the one I would
-most like a human on: it is a *keyboard* interaction, which is exactly the class
-no test here can reach.
+**Build 16 (11 September, ~02:45) is what to test.** It went to TestFlight while
+you were asleep; Apple processes for five to ten minutes before it appears. It
+is build 15 plus two fixes I would not have wanted you to hit:
 
-**Check 30 is on build 15 too, but it is a SERVER change** — the chip itself
-shipped after build 15, so it will appear on the next build rather than this one.
-Read it now anyway: it explains why more than half your coaching runs have been
-producing nothing, which is the largest single thing I measured.
+- **The first page dot on the door tracker could not be tapped** — its touch
+  area was completely covered by the second dot's, so the only non-swipe route
+  back to page 0 was dead. Check **36** is that fix.
+- **Crashes outside a screen, and every failed background task, were never
+  recorded.** They are the two classes you would most want to send me from a
+  device pass, and `Report a problem` could not see either. See the note on
+  check **25**.
+
+The things nobody has ever seen render are checks **27 to 36** at the end, and
+check 28 is the one I would most like a human on: it is a *keyboard*
+interaction, which is exactly the class no test here can reach.
+
+**Check 30 is a SERVER change** — it has been live since before build 15, and the
+chip that goes with it is in build 16. Read it either way: it explains why more
+than half your coaching runs have been producing nothing, which is the largest
+single thing I measured.
+
+**Three fixes are NOT in build 16**, deliberately, so that what you find means
+one thing: nineteen controls raised from 44dp to the 48dp Android floor, a call
+recorded from one side no longer offering a rebuild that cannot work, and five
+Expo patch updates. They go in build 17, after you have been through this list.
 
 ### 0. The name under the icon (new, 4 September)
 
