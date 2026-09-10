@@ -23,6 +23,21 @@ export function MobileHomePager({ pages }: { pages: ReactNode[] }) {
     setActive(0);
   }, []);
 
+  // iOS PWA: returning from background can restore the document from the bfcache WITHOUT a fresh React mount,
+  // which would leave the rep on whatever page they last swiped to. A `pageshow` with persisted=true is exactly
+  // that restore — effectively a re-launch — so reset to page 0 there too (Q6: open on page 0 each launch).
+  // Normal in-app navigation is client-side and fires no pageshow, so this never over-resets mid-use.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const el = scrollerRef.current;
+      if (el) el.scrollLeft = 0;
+      setActive(0);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   // Home bottom-tab → snap back to page 0 (Q8). SalesCoachShell fires this when Home is tapped while already
   // on the home route (Next.js won't remount the page in that case, so an event is how we hear about it).
   useEffect(() => {

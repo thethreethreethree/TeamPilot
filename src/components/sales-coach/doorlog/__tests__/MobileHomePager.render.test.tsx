@@ -24,4 +24,17 @@ describe("MobileHomePager", () => {
     // Still mounted and on page 0's hint after the snap request.
     expect(screen.getByText(/swipe left for your home screen/i)).toBeTruthy();
   });
+
+  it("resets to page 0 on a bfcache restore (pageshow persisted) without throwing", () => {
+    render(<MobileHomePager pages={[<div key="a">DOOR PAGE</div>, <div key="b">HOME PAGE</div>]} />);
+    act(() => {
+      const e = new Event("pageshow") as Event & { persisted?: boolean };
+      Object.defineProperty(e, "persisted", { value: true });
+      window.dispatchEvent(e);
+    });
+    expect(screen.getByText(/swipe left for your home screen/i)).toBeTruthy();
+    // A non-persisted pageshow (a normal fresh load) is a no-op — it must not throw either.
+    act(() => { window.dispatchEvent(new Event("pageshow")); });
+    expect(screen.getByText(/swipe left for your home screen/i)).toBeTruthy();
+  });
 });
