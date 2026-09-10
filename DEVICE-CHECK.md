@@ -1152,16 +1152,18 @@ not silently do nothing.
 **What to do, in order:**
 
 1. Run `npm run db:apply`.
-2. The recovery sweep stops declining. Within the hour the **six held calls**
-   should gain transcripts — including your 149-second one from 10 September.
+2. **Wait for twenty past the hour.** That is exactly when the recovery sweep
+   runs — so if you run the migration at 9:05, look at 9:20; at 9:25, look at
+   10:20. It takes up to 200 calls in one pass and there are six, so one pass
+   does all of them, including your 149-second one from 10 September.
 3. **Record one new call** of a minute or two, with real speech.
 4. Open its **debrief**. Where Speed was blank, there should now be a pace read.
 5. Open **Account → your skills**. **Speed** should show a score and a call count
    of at least 1 — it needs three properly timed turns in a call before it will
    say anything, which is deliberate.
 
-**Wrong looks like:** the six calls still empty an hour later (the sweep is still
-declining — tell me, the ledger check is one query); or a **new** call still
+**Wrong looks like:** the six calls still empty after the next twenty-past (the
+sweep is still declining — tell me, the ledger check is one query); or a **new** call still
 showing no Speed after step 3, which would mean a link in that chain I traced is
 broken somewhere I could not see from here.
 
