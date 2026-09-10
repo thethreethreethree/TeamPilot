@@ -55,6 +55,7 @@ import { homeMenuItems } from '@/lib/home-menu';
 import { SwipePager } from '@/components/swipe-pager';
 import { PaneBoundary } from '@/components/pane-boundary';
 import { DoorHomePage } from '@/components/door-home-page';
+import { SWIPE_HINT } from '@/lib/doors/door-screen-view';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -189,6 +190,12 @@ export default function HomeScreen() {
         <View className="px-5 pt-2">{menu}</View>
         <SwipePager
           subscribeReset={subscribeHomeTab}
+          // The founder's mockup: two dots and a swipe hint under the page,
+          // rather than a segmented control above it. The dots are real buttons
+          // - see swipe-pager.tsx for why that matters and why it still looks
+          // identical to the mockup.
+          control="dots"
+          hint={SWIPE_HINT}
           pages={[
             {
               key: 'doors',

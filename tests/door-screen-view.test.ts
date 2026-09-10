@@ -13,6 +13,7 @@ import {
   NO_GOAL_BODY,
   dateEyebrow,
   doorScreenState,
+  goalBasisLine,
   greeting,
   partOfDay,
   pendingNote,
@@ -44,7 +45,9 @@ test('a missing name never leaves a dangling comma', () => {
 test('the eyebrow is built from the SERVER local date, not the device clock', () => {
   // The server froze the target against a particular local day. A phone that has
   // ticked past midnight must not caption yesterday's target with today.
-  assert.equal(dateEyebrow('2026-09-10'), 'Thursday, 10 September');
+  // A MIDDLE DOT, matching the founder's mockup: "TUESDAY · 9 SEPTEMBER".
+  // The screen uppercases it; the separator is decided here.
+  assert.equal(dateEyebrow('2026-09-10'), 'Thursday · 10 September');
 });
 
 test('a malformed local date yields no eyebrow rather than a wrong one', () => {
@@ -90,4 +93,27 @@ test('the pending line promises the work is not lost and asks nothing of the rep
   // Never spatial — "not counted above" is meaningless in a screen reader.
   assert.ok(!/above|below|on the right|on the left/i.test(line), line);
   assert.ok(!/error|failed|lost/i.test(line), line);
+});
+
+test('the rep is told where their daily goal came from, in every case', () => {
+  // The goal is derived automatically now. A number that appears from nowhere is
+  // indistinguishable from one somebody guessed, and this screen's whole
+  // argument is that it does not guess.
+  for (const basis of ['manager', 'own-sales', 'own-activity', 'starter'] as const) {
+    const line = goalBasisLine(basis, 2)!;
+    assert.ok(line && line.length > 0, `${basis} said nothing`);
+    assert.match(line, /2 sales/);
+    assert.ok(!/error|failed|unknown/i.test(line), line);
+  }
+  assert.match(goalBasisLine('manager', 2)!, /manager/i);
+  assert.match(goalBasisLine('own-activity', 2)!, /doors you have been knocking/i);
+});
+
+test('one sale reads as one sale, not "1 sales"', () => {
+  assert.match(goalBasisLine('starter', 1)!, /1 sale a day/);
+});
+
+test('a server that says nothing gets NO line, never an invented reason', () => {
+  // An older deployment, or a frozen row from before the derivation existed.
+  assert.equal(goalBasisLine(null, 2), null);
 });

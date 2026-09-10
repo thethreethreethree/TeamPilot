@@ -77,7 +77,12 @@ export function dateEyebrow(localDate: string, locale = 'en-GB'): string {
       month: 'long',
       timeZone: 'UTC',
     }).format(d);
-    return `${weekday}, ${dayMonth}`;
+    // A MIDDLE DOT, not a comma, and uppercase at the call site. The founder's
+    // mockup reads "TUESDAY · 9 SEPTEMBER" in the accent colour - the separator
+    // is part of the design, not punctuation left to a formatter. A middle dot
+    // is also the one separator the house style allows in generated copy, where
+    // em and en dashes are banned.
+    return `${weekday} · ${dayMonth}`;
   } catch {
     return '';
   }
@@ -111,20 +116,19 @@ export const TARGET_HEADING = "Today's door target";
 /** The hint under the dials. */
 export const TAP_HINT = 'Tap a dial to log one';
 
-/*
- * THE SPEC'S "two page dots + a 'Swipe left for your home screen' hint" IS NOT
- * BUILT, and its absence is a decision rather than an omission.
+/**
+ * The line under the page dots, matching the founder's mockup.
  *
- * Dots and a swipe hint make the gesture the only way to reach page 1, and this
- * project's design law is explicit that primary navigation is "never hidden
- * behind a gesture or an unlabelled icon... hidden navigation measurably
- * destroys findability; this is not a style preference." The conflict was put to
- * the owner, who chose the app's existing SwipePager: a labelled two-tab control
- * that reaches both pages on its own, with the swipe kept as an enhancement.
+ * IT WAS NOT BUILT AT FIRST, and the reversal is worth recording. The mockup
+ * pairs the dots with this hint and nothing else, which would leave page 1
+ * reachable by swiping alone - and the design law is explicit that navigation is
+ * "never hidden behind a gesture or an unlabelled icon".
  *
- * So the hint has no dots to sit under, and a constant nothing renders would
- * read to the next author as a thing somebody forgot to wire up.
+ * The founder asked for the mockup exactly, so the resolution is not to drop the
+ * dots but to make them CONTROLS: they render identically and each is a button
+ * with a real name. The look is the mockup's; the reachability is the law's.
  */
+export const SWIPE_HINT = 'Swipe left for the original home screen';
 
 /** What a rep with no goal reads. Names who can fix it, because they cannot. */
 export const NO_GOAL_TITLE = 'No daily goal set yet';
@@ -166,4 +170,35 @@ export function pendingNote(pending: number): string | null {
   return pending === 1
     ? '1 door logged on this phone has not reached the server yet, so it is not in these counts. It will send on its own.'
     : `${pending} doors logged on this phone have not reached the server yet, so they are not in these counts. They will send on their own.`;
+}
+
+/**
+ * Where the rep's daily goal came from, in words.
+ *
+ * WHY THIS IS ON THE SCREEN AT ALL. The goal used to be typed in by a manager,
+ * and a rep could ask them. From 10 September it is derived automatically, and a
+ * number that appears from nowhere is indistinguishable from one somebody
+ * guessed. The line is short and it is always there.
+ *
+ * Null when the server did not say — an older deployment, or a frozen row that
+ * predates the derivation. Then nothing is shown, rather than a reason invented
+ * to fill the space.
+ */
+export function goalBasisLine(
+  basis: 'manager' | 'own-sales' | 'own-activity' | 'starter' | null,
+  goal: number,
+): string | null {
+  const sales = goal === 1 ? '1 sale' : `${goal} sales`;
+  switch (basis) {
+    case 'manager':
+      return `Your manager set this to ${sales} a day.`;
+    case 'own-sales':
+      return `Set to ${sales} a day from what you have actually been closing.`;
+    case 'own-activity':
+      return `Set to ${sales} a day from the doors you have been knocking. It follows your own close rate once you have a few sales in.`;
+    case 'starter':
+      return `Set to ${sales} a day to start. It follows your own numbers once you have knocked a few days.`;
+    default:
+      return null;
+  }
 }

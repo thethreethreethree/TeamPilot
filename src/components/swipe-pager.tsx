@@ -40,6 +40,8 @@ export type PagerPage = {
 export function SwipePager({
   pages,
   subscribeReset,
+  control = 'tabs',
+  hint,
 }: {
   pages: PagerPage[];
   /**
@@ -59,6 +61,24 @@ export function SwipePager({
    * take the page away from them without being asked to.
    */
   subscribeReset?: (goToFirst: () => void) => () => void;
+  /**
+   * How the pager offers itself.
+   *
+   * 'tabs'  a labelled segmented control above the pages. The default, and what
+   *         Today's Metrics uses.
+   * 'dots'  two dots and a swipe hint BELOW the pages, matching the founder's
+   *         door-tracker mockup exactly.
+   *
+   * THE DOTS ARE BUTTONS, and that is not a detail. The design law is explicit
+   * that navigation is "never hidden behind a gesture or an unlabelled icon" -
+   * and a dot that only reports position leaves page 1 reachable by swiping
+   * alone. Rendered as controls they look identical to the mockup's dots, carry
+   * a real name for a screen reader, and keep a non-gesture route to every page.
+   * The swipe stays what it always was here: an enhancement on top.
+   */
+  control?: 'tabs' | 'dots';
+  /** The line under the dots. Only used by 'dots'. */
+  hint?: string;
 }) {
   /**
    * OPTED OUT OF THE REACT COMPILER, for one component, with a reason.
@@ -214,6 +234,7 @@ export function SwipePager({
     <View className="flex-1">
       {/* The primary control. A tablist, so a keyboard or switch user moves
           between the two with the same words a sighted rep reads. */}
+      {control === 'tabs' ? (
       <View accessibilityRole="tablist" className="flex-row gap-2 px-4 pb-3 pt-2">
         {pages.map((page, i) => {
           const active = i === index;
@@ -239,6 +260,7 @@ export function SwipePager({
           );
         })}
       </View>
+      ) : null}
 
       <GestureDetector gesture={pan}>
         <View className="flex-1 overflow-hidden">
@@ -274,6 +296,35 @@ export function SwipePager({
           </Animated.View>
         </View>
       </GestureDetector>
+
+      {/* The mockup's dots and hint, under the page and above the tab bar. */}
+      {control === 'dots' ? (
+        <View className="pb-2 pt-3">
+          <View accessibilityRole="tablist" className="flex-row items-center justify-center gap-2">
+            {pages.map((page, i) => {
+              const active = i === index;
+              return (
+                <Pressable
+                  key={page.key}
+                  onPress={() => settle(i)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`${page.label}, page ${i + 1} of ${pages.length}`}
+                  // The dot is 6pt to match the mockup; the TARGET is 44 via
+                  // hitSlop, which is the design law's floor for any control.
+                  hitSlop={19}
+                  className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary' : 'bg-border-control'}`}
+                />
+              );
+            })}
+          </View>
+          {hint ? (
+            <Text className="mt-3 text-center font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+              {hint}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

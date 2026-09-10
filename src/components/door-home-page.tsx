@@ -43,6 +43,7 @@ import {
   UNAVAILABLE_TITLE,
   dateEyebrow,
   doorScreenState,
+  goalBasisLine,
   greeting,
   pendingNote,
 } from '@/lib/doors/door-screen-view';
@@ -144,7 +145,12 @@ export function DoorHomePage() {
     >
       <View className="mt-4">
         {eyebrow ? (
-          <Text className="font-body text-sm text-muted-foreground">{eyebrow}</Text>
+          // AMBER AND UPPERCASE, which is the mockup's treatment and not a
+          // decoration: it is the only accent above the fold, and it is what
+          // makes the date read as a heading rather than as small print.
+          <Text className="font-emphasis text-xs uppercase tracking-widest text-primary">
+            {eyebrow}
+          </Text>
         ) : null}
         <Text accessibilityRole="header" className="mt-1 font-heading text-3xl text-foreground">
           {hello}
@@ -225,6 +231,13 @@ function ReadyState({
             view.usedStarter,
           )}
         </Text>
+        {/* WHERE THE NUMBER CAME FROM. The goal is derived automatically now, and
+            a target that appears from nowhere reads as a guess. */}
+        {goalBasisLine(view.goalBasis, view.salesGoal ?? view.soldTarget) ? (
+          <Text className="mt-2 font-body text-xs leading-relaxed text-muted-foreground">
+            {goalBasisLine(view.goalBasis, view.salesGoal ?? view.soldTarget)}
+          </Text>
+        ) : null}
       </View>
 
       {/* The funnel, in the order it happens. Wraps rather than squeezing, so a
@@ -253,7 +266,9 @@ function ReadyState({
         />
       </View>
 
-      <Text className="mt-3 text-center font-body text-sm text-muted-foreground">{TAP_HINT}</Text>
+      <Text className="mt-3 text-center font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+        {TAP_HINT}
+      </Text>
 
       {holding ? (
         <Text className="mt-2 text-center font-body text-xs leading-relaxed text-muted-foreground">
@@ -266,17 +281,22 @@ function ReadyState({
         {box.kind === 'money' ? (
           <View className="flex-row flex-wrap items-end justify-between gap-3">
             <View>
-              <Text className="font-body text-sm text-muted-foreground">Earned today</Text>
-              <Text className="mt-1 font-heading text-4xl tabular-nums text-primary">
+              {/* The label is small, dim and letter-spaced; the FIGURE is the
+                  loudest thing on the screen. That order is the mockup's whole
+                  point - the money is the reason to keep knocking. */}
+              <Text className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+                Earned today
+              </Text>
+              <Text className="mt-1 font-heading text-5xl tabular-nums text-primary">
                 {money(box.earnedCents)}
               </Text>
             </View>
             <View className="items-end">
-              <Text className="font-body text-sm tabular-nums text-muted-foreground">
+              <Text className="font-body text-xs tabular-nums text-muted-foreground">
                 {money(box.perSaleCents)} per sale
               </Text>
-              <Text className="mt-1 font-emphasis text-base tabular-nums text-foreground">
-                {box.goalMet ? 'Goal met' : `${money(box.toGoalCents)} to goal`}
+              <Text className="mt-1 font-body text-xs tabular-nums text-muted-foreground">
+                {box.goalMet ? 'goal met' : `${money(box.toGoalCents)} to goal`}
               </Text>
             </View>
           </View>

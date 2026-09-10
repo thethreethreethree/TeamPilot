@@ -30,6 +30,18 @@
  */
 import type { AuthFailure } from '@/lib/auth-failure';
 
+/** The reasons a goal can have. 'manager' means a person set it deliberately. */
+export type GoalBasis = 'manager' | 'own-sales' | 'own-activity' | 'starter';
+
+const BASES: GoalBasis[] = ['manager', 'own-sales', 'own-activity', 'starter'];
+
+/** Only a basis this app knows the words for. Anything else reads as no reason. */
+function readBasis(value: unknown): GoalBasis | null {
+  return typeof value === 'string' && (BASES as string[]).includes(value)
+    ? (value as GoalBasis)
+    : null;
+}
+
 export type DayTargetView = {
   /** The rep's local day, as the server reckoned it from the tz we sent. */
   localDate: string;
@@ -40,6 +52,17 @@ export type DayTargetView = {
   usedStarter: boolean;
   /** Null when no manager has set a goal. This is the no-goal state. */
   salesGoal: number | null;
+  /**
+   * Where the goal came from: a manager, or which automatic derivation.
+   *
+   * The rep is owed the reason a target is what it is. A number with no visible
+   * derivation is indistinguishable from one somebody guessed, and the whole
+   * argument of this screen is that it does not guess.
+   *
+   * Null from a server that predates the derivation, which reads as "no reason
+   * given" and simply shows no line - never an invented one.
+   */
+  goalBasis: GoalBasis | null;
   closeRatio: number | null;
   contactRatio: number | null;
   /** Manager-set value per sale, in CENTS. Null means show sales, not money. */
@@ -84,6 +107,7 @@ export function readDayTarget(payload: unknown): DayTargetView | null {
     // NULL, not 0. A zero goal reads as "your goal is nothing"; null is "nobody
     // has set one", and only one of those asks the rep to go and find a manager.
     salesGoal: nullableNum(t.salesGoal),
+    goalBasis: readBasis(t.goalBasis),
     closeRatio: nullableNum(t.closeRatio),
     contactRatio: nullableNum(t.contactRatio),
     saleValueCents: nullableNum(t.saleValueCents),
