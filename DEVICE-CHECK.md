@@ -202,16 +202,21 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Twenty-nine checks is a lot for one sitting.** If you only have twenty minutes,
-do **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep
-loses something (a recording they cannot re-take, unsent words, a shared photo
-that never appears, a deal value that vanishes as they swipe back) rather than
-merely seeing the wrong thing.
+**Thirty checks is a lot for one sitting.** If you only have twenty minutes, do
+**1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
+something (a recording they cannot re-take, unsent words, a shared photo that
+never appears, a deal value that vanishes as they swipe back) rather than merely
+seeing the wrong thing.
 
-**Build 14 (10 September) added five things nobody has ever seen render.** They
-are checks **27 to 29** at the end, and check 28 is the one I would most like a
-human on: it is a *keyboard* interaction, which is exactly the class no test here
-can reach.
+**Build 15 (10 September) is what is on your phone.** The things nobody has ever
+seen render are checks **27 to 30** at the end, and check 28 is the one I would
+most like a human on: it is a *keyboard* interaction, which is exactly the class
+no test here can reach.
+
+**Check 30 is on build 15 too, but it is a SERVER change** — the chip itself
+shipped after build 15, so it will appear on the next build rather than this one.
+Read it now anyway: it explains why more than half your coaching runs have been
+producing nothing, which is the largest single thing I measured.
 
 ### 0. The name under the icon (new, 4 September)
 
@@ -883,6 +888,40 @@ again.”*
 **Wrong looks like:** a normal recording being refused with that message. That
 would mean the size floor is too high, and I would want the exact size from the
 Recordings screen.
+
+---
+
+### 30. A call the coach failed on now says so (new, 11 September)
+
+**Background.** This is the biggest number I measured all day: **more than half of
+all coaching runs produce nothing**, and the rep was shown nothing about it — no
+read, no chip, no reason. 92 of 100 stored declines carried the single word
+"no signal", which covered four completely different events.
+
+The ones that fail are the **longer** calls: median 683 transcript words against
+341 for the ones that succeed. Thin content would be short, so for most of these
+the rep did everything right.
+
+The coach now records *which* empty it hit. A call where the coach **crashed or
+came back blank** shows a chip in the sessions list reading **"Read didn't
+finish"**, in the same accent as "One-sided" and "Needs your voice", because all
+three ask you to do something. A call the coach genuinely read and found little
+in stays silent, as it always did.
+
+**What to do:** open Sessions and look down the list. Confirm the chips render on
+one line, do not clip at the right edge, and are readable at your normal text
+size and at the largest one.
+
+**Important:** you may see **no "Read didn't finish" chips at all**, and that is a
+correct result, not a failure. Only declines recorded from tonight onward carry
+the new information — every older one stays deliberately silent, because we do
+not know which kind it was and guessing would send you to retry a call with
+nothing to give. If you record a fresh call and the coach fails on it, that is
+when the chip appears.
+
+**Wrong looks like:** the chip on a call that already *has* a read; the chip on
+every session at once; or the chip and "One-sided" both showing on the same row —
+one-sided is meant to win.
 
 ---
 
