@@ -206,3 +206,33 @@ been the same error as the one being fixed.
 VERIFIED AGAINST PRODUCTION, not just tested: the same probe that found the 403 is what confirms the fix,
 run again after the deploy. A unit test could never have found this and did not - all 4,297 passed while
 the route was unreachable from every phone.
+
+## The cookie-client class, swept to its boundary a second time (A26 -> A30)
+F31 was found by driving ONE route with a real token. The question that decides whether that was a fix or
+a lucky catch is how many others answer the same way, and the honest way to find out is to drive them all
+rather than read them.
+
+Enumerated from the APP's own call sites, not from the server: every `coachPost` / `coachPatch` in the
+mobile codebase, 36 call sites resolving to 9 distinct write paths. Every one was then driven against
+production with a real Bearer token for a real rep.
+
+ZERO-RISK BY CONSTRUCTION, which is what made it worth doing at all: each session-scoped route was given a
+random UUID belonging to no session, so the route MUST refuse and cannot write. Company resolution happens
+before the session lookup, so a route still carrying the defect answers "No company context." anyway —
+the probe distinguishes the two without ever reaching a write.
+
+    ok  404  POST   .../attribute-unlabelled      Session not found or not accessible.
+    ok  400  POST   .../label-transcript          Validation failed. (segments)
+    ok  404  POST   .../auto-recover              Session not found or not accessible.
+    ok  400  POST   .../outcome                   Validation failed. (outcome)
+    ok  400  PATCH  /api/coach/sales-session/<id>  Validation failed. (nothing to update)
+    ok  404  POST   .../upload-recording/sign     Session not found or not accessible.
+    ok  404  POST   .../upload-recording          Session not found or not accessible.
+    ok  400  POST   /api/coach/sales-session/door-log        Validation failed. (kind)
+    ok  400  POST   /api/coach/gamification/notifications    Validation failed.
+
+9 of 9 resolve the caller's company from a phone token.
+
+The boundary is worth stating precisely, because it is also the reason this went unseen: the GET probe run
+earlier in this build reported 19 of 19 healthy and was TRUE. The defect was on a POST, and no POST had
+ever been driven. A sweep is only as wide as its verb.
