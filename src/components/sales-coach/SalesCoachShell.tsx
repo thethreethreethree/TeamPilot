@@ -426,6 +426,14 @@ export function SalesCoachShell({
             <Link
               key={tab.href}
               href={tab.href}
+              // Home tab → snap the mobile Home pager back to page 0 (the door tracker) — Q8. Next.js won't
+              // remount the page when Home is tapped while already on the home route, so MobileHomePager listens
+              // for this event. Harmless on other routes (the pager only mounts on Home).
+              onClick={() => {
+                if (tab.href === "/dashboard/sales-coach") {
+                  window.dispatchEvent(new CustomEvent("elostate:home-tab"));
+                }
+              }}
               className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium transition-colors ${
                 active ? "text-brand" : "text-white/50 hover:text-white/80"
               }`}

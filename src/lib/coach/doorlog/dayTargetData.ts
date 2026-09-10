@@ -22,13 +22,16 @@ export type DayTargetView = DayTarget & {
   salesGoal: number | null; // null when the manager hasn't set one → the empty state, not a fabricated target
   closeRatio: number | null;
   contactRatio: number | null;
+  /** Manager-set dollar value per sale, in CENTS (0248). null → the cash box degrades to "sales to goal"
+   *  rather than fabricating $0 (§3.4). Read LIVE (not frozen) — it's a display rate, not a target. */
+  saleValueCents: number | null;
   qualified: boolean;
   frozen: boolean; // true when returned from the stored (already-frozen) row
 };
 
 const EMPTY_NO_GOAL: DayTargetView = {
   doorsTarget: 0, presentationsTarget: 0, soldTarget: 0, usedStarter: true,
-  salesGoal: null, closeRatio: null, contactRatio: null, qualified: false, frozen: false,
+  salesGoal: null, closeRatio: null, contactRatio: null, saleValueCents: null, qualified: false, frozen: false,
 };
 
 function windowStart(localDate: string): string {
@@ -46,7 +49,19 @@ export async function getOrFreezeDayTarget(args: {
 }): Promise<DayTargetView> {
   const { db, repId, companyId, localDate } = args;
 
-  // 1. Already frozen for today → return it unchanged (never recompute intra-day).
+  // The manager-set goal row FIRST — it carries both the daily goal and the $-per-sale value the cash box needs.
+  // select("*") not a named projection so a pre-0248 DB (sale_value_cents not yet added) doesn't error (A34); the
+  // column reads as undefined and the cash box degrades to "sales to goal". Read LIVE on every open (not frozen)
+  // because it's a display rate the manager may change intra-day — unlike the targets, which freeze.
+  const { data: goalRow } = await db
+    .from("rep_daily_sales_goal")
+    .select("*")
+    .eq("rep_id", repId)
+    .maybeSingle();
+  const salesGoal = (goalRow?.sales_goal as number | null) ?? null;
+  const saleValueCents = (goalRow?.sale_value_cents as number | null | undefined) ?? null;
+
+  // 1. Already frozen for today → return it unchanged (never recompute intra-day), with the LIVE $-per-sale.
   const { data: frozen } = await db
     .from("rep_day_target")
     .select("doors_target, presentations_target, sold_target, used_starter, sales_goal, close_ratio, contact_ratio")
@@ -62,18 +77,13 @@ export async function getOrFreezeDayTarget(args: {
       salesGoal: (frozen.sales_goal as number | null) ?? null,
       closeRatio: (frozen.close_ratio as number | null) ?? null,
       contactRatio: (frozen.contact_ratio as number | null) ?? null,
+      saleValueCents,
       qualified: !frozen.used_starter,
       frozen: true,
     };
   }
 
-  // 2. The manager-set daily sales goal. No goal → the empty state (don't freeze; the manager may set it later).
-  const { data: goalRow } = await db
-    .from("rep_daily_sales_goal")
-    .select("sales_goal")
-    .eq("rep_id", repId)
-    .maybeSingle();
-  const salesGoal = (goalRow?.sales_goal as number | null) ?? null;
+  // 2. No goal → the empty state (don't freeze; the manager may set it later).
   if (salesGoal == null || salesGoal <= 0) return EMPTY_NO_GOAL;
 
   // 3. 30-day ratios from the existing tables.
@@ -114,5 +124,5 @@ export async function getOrFreezeDayTarget(args: {
       () => undefined, // best-effort: a duplicate (already frozen by a racing open) is fine; the read path wins next time
     );
 
-  return { ...target, salesGoal, closeRatio, contactRatio, qualified, frozen: false };
+  return { ...target, salesGoal, closeRatio, contactRatio, saleValueCents, qualified, frozen: false };
 }

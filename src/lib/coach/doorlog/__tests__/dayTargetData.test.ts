@@ -15,6 +15,7 @@ type Counts = { doors: number; sold: number; presentations: number };
 function mockDb(opts: {
   frozen?: Record<string, unknown> | null;
   goal?: number | null;
+  saleValueCents?: number | null;
   counts?: Counts;
   onInsert?: (row: Record<string, unknown>) => void;
 }) {
@@ -28,7 +29,7 @@ function mockDb(opts: {
     builder.lte = chain;
     builder.maybeSingle = async () => {
       if (table === "rep_day_target") return { data: opts.frozen ?? null, error: null };
-      if (table === "rep_daily_sales_goal") return { data: opts.goal == null ? null : { sales_goal: opts.goal }, error: null };
+      if (table === "rep_daily_sales_goal") return { data: opts.goal == null ? null : { sales_goal: opts.goal, sale_value_cents: opts.saleValueCents ?? null }, error: null };
       return { data: null, error: null };
     };
     builder.insert = (row: Record<string, unknown>) => ({
@@ -93,6 +94,18 @@ describe("getOrFreezeDayTarget", () => {
     expect(r.qualified).toBe(false);
     expect(r.usedStarter).toBe(true);
     expect(r.doorsTarget).toBe(80);
+  });
+
+  it("passes the manager-set $-per-sale (cents) through to the view for the cash box", async () => {
+    const db = mockDb({ frozen: null, goal: 2, saleValueCents: 18500, counts: { doors: 30, sold: 1, presentations: 8 } });
+    const r = await getOrFreezeDayTarget({ ...base, db });
+    expect(r.saleValueCents).toBe(18500);
+  });
+
+  it("null $-per-sale when the manager hasn't set one (cash box degrades to sales-to-goal)", async () => {
+    const db = mockDb({ frozen: null, goal: 2, counts: { doors: 30, sold: 1, presentations: 8 } });
+    const r = await getOrFreezeDayTarget({ ...base, db });
+    expect(r.saleValueCents).toBeNull();
   });
 
   it("WINDOW_DAYS is 30", () => expect(WINDOW_DAYS).toBe(30));

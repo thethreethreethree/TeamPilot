@@ -21,6 +21,8 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { MacroModeToggle } from "@/components/sales-coach/doorlog/MacroModeToggle";
+import { DoorScreen } from "@/components/sales-coach/doorlog/DoorScreen";
+import { MobileHomePager } from "@/components/sales-coach/doorlog/MobileHomePager";
 import {
   DeckShell,
   DeckCard,
@@ -85,14 +87,6 @@ export default function SalesCoachHome() {
   // non-door-to-door cards and swap the stat pills for the 3 all-time door KPIs (founder 2026-08-18).
   const [macroOn, setMacroOn] = useState<boolean | null>(null);
   const [macroSaving, setMacroSaving] = useState(false);
-  const [macroTotals, setMacroTotals] = useState<{
-    doorsKnocked: number;
-    presentations: number;
-    sold: number;
-  } | null>(null);
-  // A totals FETCH error, distinct from a genuine zero — the bubbles show "—" on error, never a false "0"
-  // (error-dressed-as-no-data / §3.4). The authoritative numbers live on Today's Metrics; these are a glance.
-  const [macroTotalsError, setMacroTotalsError] = useState(false);
 
   useEffect(() => {
     fetch("/api/coach/sales-session/macro-mode")
@@ -100,16 +94,6 @@ export default function SalesCoachHome() {
       .then((d) => setMacroOn(Boolean(d.enabled)))
       .catch(() => setMacroOn(false));
   }, []);
-
-  // All-time door KPIs for the 3 bubbles — fetched only while Macro Mode is on.
-  useEffect(() => {
-    if (!macroOn) return;
-    setMacroTotalsError(false);
-    fetch("/api/coach/sales-session/door-log?range=all")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("totals unavailable"))))
-      .then((d) => setMacroTotals(d))
-      .catch(() => setMacroTotalsError(true));
-  }, [macroOn]);
 
   const toggleMacro = useCallback(async () => {
     if (macroOn === null || macroSaving) return;
@@ -213,7 +197,68 @@ export default function SalesCoachHome() {
 
   return (
     <>
-      {/* ── Mobile PWA home — the 2×2 launchpad (founder 2026-07-04) ─────── */}
+      {/* ── Mobile PWA home ─────────────────────────────────────────────── */}
+      {macroOn === true ? (
+        // Macro Mode → the swipeable two-page Home (founder "Door Tracker Screen" mockup 2026-09-10): page 0 is
+        // the door tracker, swipe left for the original Macro home (page 1). "Back to ELOSTATE" stays ABOVE the
+        // pager so it's reachable from either page. The 3 all-time door bubbles were REMOVED from page 1 — page 0
+        // owns the funnel numbers now (founder decision, INSPECTION.md).
+        <div className="md:hidden flex-1 min-h-0 flex flex-col bg-base pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="shrink-0 px-4 pb-1">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
+              Back to ELOSTATE
+            </Link>
+          </div>
+          <MobileHomePager
+            pages={[
+              <DoorScreen key="door" />,
+              <div key="home" className="px-4 pt-1 pb-5">
+                {/* Welcome */}
+                <div className="text-center pt-1 pb-5">
+                  <h1 className="text-2xl font-bold text-brand inline-flex items-center gap-2">
+                    Welcome
+                    <Star className="w-5 h-5 fill-ember-400 text-ember-400" aria-hidden />
+                  </h1>
+                  <p className="text-2xl font-bold text-brand leading-tight">{name ?? "back"}</p>
+                </div>
+                {/* Door Log — the remaining primary door-to-door surface (Today's Metrics + Pitch Performance
+                    live in the bottom nav). */}
+                <div className="flex justify-center">
+                  <div className="w-[calc(50%-0.375rem)]">
+                    <MobileCard href="/dashboard/sales-coach/doors" icon={DoorOpen} title="Door Log" sub="Log every door, fast" />
+                  </div>
+                </div>
+                <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
+                <Link
+                  href="/extension/download-sales"
+                  className="mt-3 hidden sm:flex items-center justify-between gap-2 rounded-xl border border-ember-400/30 bg-ember-400/[0.06] px-4 py-3 hover:bg-ember-400/[0.1] transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Get the Sales Coach extension
+                  </span>
+                  <span className="text-[11px] text-muted">Install &amp; coach anywhere →</span>
+                </Link>
+                <div className="mt-4">
+                  <DeckButton
+                    icon={<DoorOpen className="w-4 h-4" aria-hidden />}
+                    onClick={() => router.push("/dashboard/sales-coach/doors")}
+                    className="w-full"
+                  >
+                    Start Knocking
+                  </DeckButton>
+                </div>
+              </div>,
+            ]}
+          />
+        </div>
+      ) : (
       <div className="md:hidden flex-1 overflow-y-auto bg-base px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
         {/* Exit back to the main ELOSTATE app. The desktop sidebar carries
             this at its footer, but that sidebar is hidden on mobile — so the
@@ -252,21 +297,6 @@ export default function SalesCoachHome() {
               <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] h-[88px] animate-pulse" />
             ))}
           </div>
-        ) : macroOn ? (
-          // Founder revision 2026-08-23 (annotated mockup): Today's Metrics + Pitch Performance moved OUT of the
-          // Macro home grid and INTO the bottom nav (MACRO_MOBILE_TABS in SalesCoachShell) for one-tap access — a
-          // true move, so they're no longer duplicated as cards here. Door Log is the remaining primary surface;
-          // it keeps the same half-width card proportions (centered) rather than a lone stretched slab.
-          <div className="flex justify-center">
-            <div className="w-[calc(50%-0.375rem)]">
-              <MobileCard
-                href="/dashboard/sales-coach/doors"
-                icon={DoorOpen}
-                title="Door Log"
-                sub="Log every door, fast"
-              />
-            </div>
-          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <MobileCard
@@ -303,33 +333,10 @@ export default function SalesCoachHome() {
         {/* Macro Mode — per-rep door-to-door toggle (reveals Door Log + Report Card). */}
         <MacroModeToggle enabled={macroOn} saving={macroSaving} onToggle={toggleMacro} />
 
-        {/* Stat bubbles — Macro Mode shows the 3 door-to-door KPIs (all-time); otherwise Pitches + Roleplays
-            (Roleplays is honestly 0 until Roleplay Practice ships — the no-instant-results honesty rule).
-            Held while macroOn===null so the wrong pills/bubbles don't flash. */}
-        {macroOn === null ? null : macroOn ? (
-          <div className="grid grid-cols-3 gap-3 mt-3">
-            {[
-              // "—" on a fetch error so a failed load can't read as a genuine "0" (§3.4 honesty).
-              { label: "Doors Knocked", val: macroTotalsError ? "—" : macroTotals?.doorsKnocked ?? 0, accent: false },
-              { label: "Presentation", val: macroTotalsError ? "—" : macroTotals?.presentations ?? 0, accent: false },
-              { label: "Sold", val: macroTotalsError ? "—" : macroTotals?.sold ?? 0, accent: true },
-            ].map((b) => (
-              <div
-                key={b.label}
-                className={`rounded-xl border px-2 py-2.5 flex flex-col items-center justify-center text-center gap-0.5 ${
-                  b.accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-white/10 bg-white/[0.02]"
-                }`}
-              >
-                <span className={`text-lg font-bold tabular-nums ${b.accent ? "text-brand" : "text-primary"}`}>
-                  {b.val}
-                </span>
-                <span className="text-[9px] uppercase tracking-wide text-muted font-bold leading-tight">
-                  {b.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
+        {/* Stat bubbles — Pitches + Roleplays (the non-macro home; Roleplays is honestly 0 until Roleplay
+            Practice ships — the no-instant-results honesty rule). Held while macroOn===null so nothing flashes
+            before the mode resolves. (The 3 all-time door bubbles moved to page 0 of the Macro pager.) */}
+        {macroOn === false && (
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Pitches</span>
@@ -362,18 +369,7 @@ export default function SalesCoachHome() {
         {/* Start CTA — reveals the existing capture form (a title is required
             before a session can begin, § our rule). */}
         <div className="mt-4">
-          {macroOn === null ? null : macroOn ? (
-            // Macro Mode (founder 2026-08-19): a door-to-door rep's primary action is the Door Log, not a
-            // pitch-capture session — so the big CTA jumps STRAIGHT to the Door Log instead of opening the
-            // capture flow. Gated on macroOn, so the normal Sales Coach dashboard CTA is unchanged when off.
-            <DeckButton
-              icon={<DoorOpen className="w-4 h-4" aria-hidden />}
-              onClick={() => router.push("/dashboard/sales-coach/doors")}
-              className="w-full"
-            >
-              Start Knocking
-            </DeckButton>
-          ) : !showCapture ? (
+          {macroOn === null ? null : !showCapture ? (
             <DeckButton
               icon={<Mic className="w-4 h-4" aria-hidden />}
               onClick={() => setShowCapture(true)}
@@ -431,6 +427,7 @@ export default function SalesCoachHome() {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Desktop dashboard (unchanged) ───────────────────────────────── */}
       <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">

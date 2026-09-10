@@ -40,6 +40,17 @@ function stubFetch(macroEnabled: boolean) {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/macro-mode")) return { ok: true, json: async () => ({ enabled: macroEnabled }) };
+      // Macro home is now the swipeable pager; page 0 (DoorScreen) fetches the day target.
+      if (url.includes("day-target"))
+        return {
+          ok: true,
+          json: async () => ({
+            localDate: "2026-09-10",
+            repName: "Rep",
+            target: { doorsTarget: 80, presentationsTarget: 18, soldTarget: 2, usedStarter: true, salesGoal: 2, closeRatio: null, contactRatio: null, saleValueCents: null },
+            today: { doors: 3, presentations: 2, sold: 1 },
+          }),
+        };
       if (url.includes("/door-log")) return { ok: true, json: async () => ({ doorsKnocked: 3, presentations: 2, sold: 1 }) };
       if (url.includes("/dashboard"))
         return {
@@ -118,24 +129,24 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().getByText("—")).toBeTruthy(); // honest load-failure marker (only the Pitches pill renders "—" here)
   });
 
-  it("Macro ON: the home shows the Door Log card + door bubbles + Start Knocking; Metrics & Pitch moved to the nav (founder 2026-08-23)", async () => {
+  it("Macro ON: the home is the swipeable pager — door tracker (page 0) + the original Macro home (page 1) with Door Log + Start Knocking (founder 2026-09-10)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);
     const m = () => mobile(container);
-    // Door Log is the remaining Macro home surface.
-    await waitFor(() => expect(m().getByText("Door Log")).toBeTruthy());
-    // Founder revision 2026-08-23: Today's Metrics + Pitch Performance MOVED to the Macro bottom nav
-    // (MACRO_MOBILE_TABS in SalesCoachShell) — a true move, so they are NO LONGER cards on the home grid.
-    expect(m().queryByText("Today's Metrics")).toBeNull();
-    expect(m().queryByText("Pitch Performance")).toBeNull();
-    // The normal launchpad cards are gone in Macro Mode.
-    expect(m().queryByText("Live AI Coach & Sessions")).toBeNull();
-    expect(m().queryByText("One Liners")).toBeNull();
-    // Bubbles, not pills; the CTA goes straight to the Door Log.
-    expect(m().getByText("Doors Knocked")).toBeTruthy();
-    expect(m().getByText("Sold")).toBeTruthy();
-    expect(m().queryByText("Roleplays")).toBeNull();
+    // Page 0 — the door tracker: the target sentence + the tap hint render once the day-target fetch resolves.
+    await waitFor(() => expect(m().getByText(/Today's door target/i)).toBeTruthy());
+    expect(m().getByText(/Tap a dial to log one/i)).toBeTruthy();
+    // The pager itself: two dots + the swipe hint (the "make it swipeable" piece).
+    expect(m().getByText(/Swipe left for your home screen/i)).toBeTruthy();
+    // Page 1 — the original Macro home is still reachable by swipe: Door Log card + Start Knocking CTA.
+    expect(m().getByText("Door Log")).toBeTruthy();
     expect(m().getByText("Start Knocking")).toBeTruthy();
     expect(m().queryByText("Start Next Pitch Session")).toBeNull();
+    // The normal launchpad cards + the removed page-1 door bubbles are gone in Macro Mode.
+    expect(m().queryByText("Live AI Coach & Sessions")).toBeNull();
+    expect(m().queryByText("One Liners")).toBeNull();
+    expect(m().queryByText("Doors Knocked")).toBeNull(); // the 3 all-time bubbles were removed (page 0 owns the funnel)
+    expect(m().queryByText("Today's Metrics")).toBeNull();
+    expect(m().queryByText("Pitch Performance")).toBeNull();
   });
 });
