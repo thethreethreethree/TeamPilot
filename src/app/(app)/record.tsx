@@ -33,6 +33,14 @@ import { useAuth } from '@/lib/auth-context';
 import { CALL_RECORDING_OPTIONS } from '@/lib/audio/recording-options';
 import { CALL_AUDIO_MODE, RELEASED_AUDIO_MODE } from '@/lib/audio/audio-modes';
 import {
+  partLabel,
+  pitchCeilingText,
+  shouldSplit,
+  shouldWarnOfSplit,
+  splitNoticeText,
+  splitWarningText,
+} from '@/lib/audio/recording-split';
+import {
   MAX_RECORDING_SECONDS,
   diskSpaceForRecording,
   persistRecording,
@@ -153,6 +161,21 @@ function Recorder() {
    *  these can be downloaded again, and recordings cannot. */
   const [cacheSize, setCacheSize] = useState(0);
   const startedAt = useRef<number | null>(null);
+  /**
+   * Which part of a long call is being recorded, counting from 1.
+   *
+   * A REF RATHER THAN STATE, and deliberately: the split runs inside an effect
+   * that reads it and writes it in the same tick, and a state value would still
+   * hold the previous number when the second part is labelled. It is never
+   * rendered, so nothing needs a re-render when it changes.
+   */
+  const part = useRef(1);
+  /** True while a part is being closed and the next started. Guards re-entry. */
+  const splitting = useRef(false);
+  /** So the five-minute warning is said once, not on every poll. */
+  const warnedOfSplit = useRef(false);
+  /** What the rep is told about a split. Separate from `error`: nothing failed. */
+  const [splitNote, setSplitNote] = useState<string | null>(null);
   /** `stop` is defined below this listener; a ref keeps the listener honest
    *  without shuffling the file to satisfy declaration order. */
   const stopRef = useRef<() => Promise<void>>(async () => {});
@@ -370,6 +393,11 @@ function Recorder() {
       await recorder.prepareToRecordAsync();
       startedAt.current = Date.now();
       recorder.record();
+      // A fresh call is part one again. Without this the second call of the day
+      // would carry on numbering from wherever the first one stopped.
+      part.current = 1;
+      warnedOfSplit.current = false;
+      setSplitNote(null);
 
       // Written AFTER record() has been called, because only then does the
       // recorder have a uri to write down, and before anything else, because
@@ -404,6 +432,74 @@ function Recorder() {
     // megabytes in the out-of-space message, where a stale figure tells someone
     // that sending their recordings frees an amount that is not true.
   }, [recorder, userId, pending, pendingSize, cacheSize]);
+
+  /**
+   * Close the current part and carry straight on in the next one.
+   *
+   * WHY IT DOES NOT GO THROUGH `stop()`. Stop releases the audio session, clears
+   * the recovery marker and puts an alert on screen, all of which are right when
+   * a call has ENDED and all of which are wrong here: the conversation is still
+   * happening, and handing the session back for even a moment would drop the
+   * microphone and the background slot mid-sentence.
+   *
+   * THE ORDER IS THE POINT. The part is persisted BEFORE the next one starts, so
+   * a crash between the two loses at most the join rather than the part that was
+   * already recorded. The recovery marker is re-stamped straight after the new
+   * recorder has a uri, because from that instant it is the only thing that knows
+   * a call is in progress.
+   */
+  const splitPart = useCallback(async () => {
+    if (splitting.current) return;
+    splitting.current = true;
+    const finished = part.current;
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      const durationMs = startedAt.current ? Date.now() - startedAt.current : 0;
+      if (!uri) throw new Error('The recorder produced no file.');
+
+      // Named, because automatic sending only ever touches a recording that has
+      // a name and the rep did not ask for this one to exist.
+      await persistRecording({
+        userId,
+        sourceUri: uri,
+        durationMs,
+        label: partLabel(finished),
+      });
+
+      // Straight back on. The audio mode is deliberately NOT re-set: it is still
+      // held from the start of the call, and releasing it here is what would
+      // drop the recording.
+      await recorder.prepareToRecordAsync();
+      startedAt.current = Date.now();
+      recorder.record();
+      part.current = finished + 1;
+      warnedOfSplit.current = false;
+      if (recorder.uri) {
+        await markRecordingStarted({
+          uri: recorder.uri,
+          startedAt: new Date().toISOString(),
+          userId,
+          label: null,
+        });
+      }
+      setSplitNote(splitNoticeText(finished));
+      await refreshPending();
+    } catch (e) {
+      // The part may or may not have been saved; either way the app is no longer
+      // recording, and saying so is the only honest thing left. The rep can press
+      // Stop, which will save whatever the recorder still holds.
+      startedAt.current = null;
+      setError(
+        humanError(
+          e,
+          'The call could not be continued in a new part. Press Stop to save what has been recorded.',
+        ),
+      );
+    } finally {
+      splitting.current = false;
+    }
+  }, [recorder, userId, refreshPending]);
 
   const stop = useCallback(async () => {
     if (!state.isRecording && !state.canRecord) return;
@@ -528,6 +624,59 @@ function Recorder() {
   const remaining = MAX_RECORDING_SECONDS - elapsed;
 
   /**
+   * Watch the clock and cut the call into parts before it becomes unsendable.
+   *
+   * WHY A CALL IS CUT AT ALL. The server refuses an upload over 25 MB, about a
+   * hundred minutes of this app's speech settings. A recording that runs past it
+   * is not degraded, it is REFUSED — the audio survives on the phone and can
+   * never be transcribed or coached. Background recording, now that it works,
+   * makes running past it far easier: the phone is in a pocket and the clock is
+   * genuinely still going.
+   *
+   * A DOOR PITCH IS STOPPED, NOT SPLIT. A doorstep pitch past an hour and a half
+   * is not a pitch, and a second part would be recording something the outcome
+   * prompt has no question for. It takes the ordinary Stop path, which saves it
+   * and asks how it went.
+   *
+   * THE WARNING COMES FIRST because this app has never ended a recording on its
+   * own, and doing that with no warning is indistinguishable from it breaking.
+   */
+  useEffect(() => {
+    if (!state.isRecording) return;
+    /*
+     * A TIMER READING THE RECORDER, not an effect reading render state.
+     *
+     * The recorder's own `currentTime` is the length of the FILE, which is what
+     * the server's ceiling is actually about - a render-derived value would be
+     * one poll behind and, worse, acting on it in an effect body is setState in
+     * an effect, which cascades renders and which this repo's lint refuses.
+     * Ticking a clock and acting in the CALLBACK is what a subscription to an
+     * external system looks like, and the recorder is exactly that.
+     *
+     * Ten seconds is fine: the split has two minutes of headroom below the
+     * ceiling, so a tick's worth of lateness costs nothing, and a rep in a long
+     * appointment does not need a per-second poll running in their pocket.
+     */
+    const tick = setInterval(() => {
+      if (!recorder.isRecording) return;
+      const seconds = recorder.currentTime;
+      if (shouldWarnOfSplit(seconds) && !warnedOfSplit.current) {
+        warnedOfSplit.current = true;
+        if (!isPitch) setSplitNote(splitWarningText());
+        return;
+      }
+      if (!shouldSplit(seconds)) return;
+      if (isPitch) {
+        setSplitNote(pitchCeilingText());
+        void stopRef.current();
+        return;
+      }
+      void splitPart();
+    }, 10_000);
+    return () => clearInterval(tick);
+  }, [state.isRecording, isPitch, recorder, splitPart]);
+
+  /**
    * A pitch has stopped and is waiting for its outcome.
    *
    * FOUR OUTCOMES, NOT THE DOOR LOG'S FIVE: somebody opened the door and the rep
@@ -640,6 +789,15 @@ function Recorder() {
           <Text className="font-emphasis text-base text-muted-foreground">
             {state.isRecording ? 'Recording' : 'Ready to record'}
           </Text>
+
+          {splitNote ? (
+            <Text
+              accessibilityLiveRegion="polite"
+              className="mt-2 text-center font-body text-sm leading-relaxed text-muted-foreground"
+            >
+              {splitNote}
+            </Text>
+          ) : null}
 
           {state.isRecording && remaining < 300 ? (
             <Text
