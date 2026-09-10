@@ -69,6 +69,8 @@ import type {
 import { C } from '@/lib/theme';
 import { clockTime, duration, money, outcomeLabel, parseMoney, shortDate } from '@/lib/format';
 import { authFailureMessage } from '@/lib/auth-failure';
+import { buildSessionDoc } from '@/lib/pdf/session-doc';
+import { shareSessionPdf } from '@/lib/pdf/share-session-pdf';
 
 /** How long a network read stays fresh enough that returning to this screen
  *  should not spend three more queries on it. */
@@ -940,6 +942,50 @@ export default function SessionScreen() {
         maxToRenderPerBatch={20}
         windowSize={11}
         renderItem={({ item }) => <RowView row={item} onSetOutcome={setOutcome} onRename={rename} />}
+        /*
+         * The PDF export sits AFTER the transcript rather than in the header or
+         * beside the primary action, and both of those were the alternatives.
+         *
+         * The header already carries Share, and a second text button next to it
+         * truncates the title on a long client label. The footer bar carries this
+         * screen's ONE primary action (ask the coach), and the design law is
+         * explicit that five emphasised elements means none are.
+         *
+         * Here it lands where the intent does: a rep who has just read the call
+         * to the end is the rep who wants to send it. It is a real control with a
+         * real label, not a gesture and not an icon.
+         */
+        ListFooterComponent={
+          exportSource ? (
+            <Pressable
+              onPress={async () => {
+                setNotice(null);
+                const doc = buildSessionDoc(exportSource);
+                const out = await shareSessionPdf(doc, exportSource.session.started_at);
+                if (out.ok) return;
+                if (out.reason === 'unavailable') {
+                  setNotice(
+                    'This device cannot share files. Share still sends the call as text.',
+                  );
+                  return;
+                }
+                // The platform's own message is not put on screen - see the note
+                // on the Share button for why "The operation couldn't be
+                // completed" is worse for a rep than a sentence naming a likely
+                // cause. The detail goes where somebody can act on it.
+                void recordCrash(out.error, 'Exporting a session PDF');
+                setNotice(
+                  'Could not make the PDF. Try again, and use Share to send the call as text if it keeps failing.',
+                );
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Save this call as a PDF"
+              className="mt-6 min-h-11 items-center justify-center rounded-lg border border-border-control px-4 active:bg-surface"
+            >
+              <Text className="font-emphasis text-base text-primary">Save as PDF</Text>
+            </Pressable>
+          ) : null
+        }
       />
 
       {/* This screen's one primary action. A16: the transcript above and the
