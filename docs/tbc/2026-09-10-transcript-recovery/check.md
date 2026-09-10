@@ -225,6 +225,25 @@ MY OWN TEST WAS WRONG FIRST, and rightly failed. I asserted the output never equ
 false, because "customer" is a perfectly good English word and "Customer" is its correct label. The real
 property is narrower: values that mean something only inside the system must never reach the screen.
 
+### F15 - the KPI drill-down printed snake_case at the reader checking whether to trust the number
+class: an-internal-state-word-reaching-a-human-screen
+sweep: every `{x.speaker}`, `{x.outcome}` and `{x.status}` rendered in a .tsx, opened rather than counted
+severity: medium
+Swept from F14, and it found the same leak somewhere it costs more. The KPI page's source-session list -
+the DRILL-DOWN that justifies a metric, which is the one place a reader looks when deciding whether to
+believe it - rendered `s.outcome` raw. So the evidence for a conversion rate read `no_sale`, `follow_up`,
+`no_contact`. A snake_case identifier on the evidence for a number undermines the number.
+
+`outcomeLabel` already existed for exactly this, and its own header says why: "one source instead of four
+copies", client-safe so pages can import it. The page simply was not using it. The fix is an import.
+
+TWO OF THE THREE SUSPECTS WERE NOT DEFECTS, and opening them is the reason I can say so.
+`sessions/page.tsx` renders `s.status` - but `active`, `ended` and `reviewed` are ordinary English words, not
+internal identifiers, and inventing a label module for them would be churn. `admin/monitoring` renders
+`seg.speaker` raw - and should: it is an internal diagnostic view where an admin debugging attribution wants
+the actual column value, and `unknown` there is informative rather than alarming. A grep result is a list of
+suspects.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
 import { toCsv } from "@/lib/export/toCsv";
 import { byOrgRank } from "@/lib/roles";
+import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 
 /**
  * /dashboard/sales-coach/kpi — KPI Analytics (SalesCoach-KPI-System.md).
@@ -615,7 +616,13 @@ export default function KpiAnalyticsPage() {
                                   <span className="truncate">
                                     {s?.label || "Session"}
                                     {s?.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
-                                    {s?.outcome ? ` · ${s.outcome}` : ""}
+                                    {/* outcomeLabel, not the column. This list is the
+                                        DRILL-DOWN that justifies a KPI number — the one
+                                        place a reader is checking whether to trust it — and
+                                        it was printing `no_sale`, `follow_up`, `no_contact`
+                                        raw. A snake_case identifier on the evidence for a
+                                        metric undermines the metric. */}
+                                    {s?.outcome ? ` · ${outcomeLabel(s.outcome)}` : ""}
                                   </span>
                                 </Link>
                               </li>
