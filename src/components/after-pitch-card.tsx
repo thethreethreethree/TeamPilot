@@ -317,13 +317,21 @@ export function AfterPitchCard({
         {/*
           THE ACTION THAT CAN ACTUALLY WORK on a call whose customer side was never captured.
 
+          OWNER ONLY, STATED RATHER THAN INHERITED. The route refuses anybody but the session's
+          rep - it writes the canonical transcript, so a colleague must not trigger it on someone
+          else's record. A manager would not see this button anyway, because their payload has the
+          scores stripped and the diagnosis keys on one of them - but that is an accident of a
+          privacy rule, not a permission check, and the day scores reach a manager it becomes a
+          button that 403s. Two independent reasons for the same correct behaviour is the cheapest
+          insurance there is.
+
           It is offered instead of "Build it again", never beside it - a rebuild here re-runs the
           write-up over the same one-voice transcript and returns the same blank, at a real cost per
           tap. Once a re-read has answered, it is offered again ONLY for a genuine outage: every
           other outcome is settled, and a second identical button after a settled answer is an
           invitation to keep paying for the same nothing. This app has already learned that twice.
         */}
-        {canReRead(reason) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
+        {isOwner && canReRead(reason) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
           <Pressable
             onPress={reRead}
             disabled={rereading}
