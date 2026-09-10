@@ -465,6 +465,31 @@ export default function AccountScreen() {
           Strong calls and closed deals on a team you manage. Empty if you do not manage one.
         </Text>
 
+        {/*
+          TEAM COACHING, next to the other manager tools rather than in a tab.
+
+          It is the manager's read-out of what each rep is doing well and where they can grow. Until
+          2026-09-11 it existed only in a browser - the route was cookie-only, so a manager holding a
+          phone could not read their own team's coaching at all.
+
+          A LABELLED LINK, not a hidden one: the design law is explicit that navigation is never behind
+          a gesture or an unlabelled icon. And it is offered to everyone rather than gated here on a
+          role - the ROUTE is the gate, and re-deciding who is a manager in the app is how two answers
+          to one question start to disagree. A rep who taps it is told plainly that it is for managers.
+        */}
+        <Pressable
+          onPress={() => router.push('/(app)/coach-assessment')}
+          accessibilityRole="button"
+          accessibilityLabel="Team coaching"
+          className="mt-3 min-h-7 justify-center active:opacity-70"
+        >
+          <Text className="font-emphasis text-base text-primary">Team coaching</Text>
+        </Pressable>
+        <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          For managers: what each of your reps is doing well and where they can grow, in the words of
+          their own calls. Not a ranking.
+        </Text>
+
         <Pressable
           onPress={() => router.push('/(app)/calibration')}
           accessibilityRole="button"
