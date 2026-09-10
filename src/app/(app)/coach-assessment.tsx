@@ -181,12 +181,15 @@ function RepCard({ member }: { member: TeamMember }) {
       ) : null}
 
       {member.strengths.length > 0 ? (
-        <View className="gap-1">
+        <View className="gap-2">
           <Text accessibilityRole="header" className="font-emphasis text-xs uppercase tracking-wide text-muted-foreground">
             Doing well
           </Text>
           {member.strengths.map((s, i) => (
-            <Text key={`s-${i}`} className="font-body text-base leading-relaxed text-foreground">
+            <Text
+              key={`s-${i}`}
+              className="border-l-2 border-border-control pl-3 font-body text-base leading-relaxed text-foreground"
+            >
               {s}
             </Text>
           ))}
@@ -194,12 +197,15 @@ function RepCard({ member }: { member: TeamMember }) {
       ) : null}
 
       {member.growthAreas.length > 0 ? (
-        <View className="gap-1">
+        <View className="gap-2">
           <Text accessibilityRole="header" className="font-emphasis text-xs uppercase tracking-wide text-muted-foreground">
             To coach on
           </Text>
           {member.growthAreas.map((g, i) => (
-            <Text key={`g-${i}`} className="font-body text-base leading-relaxed text-foreground">
+            <Text
+              key={`g-${i}`}
+              className="border-l-2 border-border-control pl-3 font-body text-base leading-relaxed text-foreground"
+            >
               {g}
             </Text>
           ))}
@@ -207,12 +213,15 @@ function RepCard({ member }: { member: TeamMember }) {
       ) : null}
 
       {member.strategies.length > 0 ? (
-        <View className="gap-1">
+        <View className="gap-2">
           <Text accessibilityRole="header" className="font-emphasis text-xs uppercase tracking-wide text-muted-foreground">
             Plays they ran
           </Text>
           {member.strategies.map((t, i) => (
-            <Text key={`t-${i}`} className="font-body text-base leading-relaxed text-foreground">
+            <Text
+              key={`t-${i}`}
+              className="border-l-2 border-border-control pl-3 font-body text-base leading-relaxed text-foreground"
+            >
               {t}
             </Text>
           ))}
