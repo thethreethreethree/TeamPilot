@@ -180,14 +180,27 @@ npx expo start
 > **Read this first — it changes how to interpret everything below.**
 >
 > I spent two days telling the owner that twelve screens were blocked waiting for
-> a backend branch to be merged. **It was already merged.** I checked the
-> repository on 4 September: the shim is on `main` and twenty coach routes use
-> it, and of the twenty-six routes this app calls, **exactly one** still refuses a
-> phone (the "How to do this" guide in check 19).
+> a backend branch to be merged. **It was already merged.**
 >
-> So if a screen shows no data, the likely cause is **not** a missing backend
-> change. It is either genuinely empty, or `main` is not deployed to
-> `elostate.com`. Those look identical from a phone.
+> **And then I got the correction wrong too.** On 4 September I wrote here that of
+> the twenty-six routes this app calls, "exactly one" still refused a phone. Both
+> halves of that were untrue by 11 September:
+>
+> - **That one was fixed.** The "How to do this" guide route was merged and takes
+>   a phone token now.
+> - **Seven others were refusing phones, and my check could not see them.** It
+>   looked for routes that never mention the mobile helper. These all mention it,
+>   use it to work out *who you are*, and then read the data without it — so they
+>   answered "nothing" to every phone while looking correct to any check. Two of
+>   them broke things you use: the voice question, and the Strategy Library.
+>   All seven are fixed and re-checked against the live site.
+>
+> **So read the old guidance with care.** "If a screen shows no data the cause is
+> not a backend change" was exactly wrong for those seven. It is closer to true
+> now than it has ever been — but the way that class was finally caught was
+> driving the real path with a real sign-in, not trusting a claim in a document
+> like this one. **If a screen is empty and you think it should not be, tell me
+> rather than assuming it is your data.**
 >
 > **The wording changed on 4 September, and it matters for reading these checks.**
 > Ten screens used to say *"Not switched on yet — nothing is wrong with your
