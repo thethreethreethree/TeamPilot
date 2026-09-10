@@ -202,14 +202,14 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-two checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-three checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
 **Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 32** at the end, and check 28 is the one I would
+seen render are checks **27 to 33** at the end, and check 28 is the one I would
 most like a human on: it is a *keyboard* interaction, which is exactly the class
 no test here can reach.
 
@@ -1049,6 +1049,41 @@ saying so.
 **One thing that is NOT a bug:** hand your phone to a rep and open it — they
 should see **"For managers"**, plainly, not an error. I checked that tonight:
 Rebecca gets refused by the server, not by the screen.
+
+---
+
+### 33. What an empty debrief says now (changed, 11 September)
+
+**Background.** An empty debrief used to say *"there was not enough of a
+conversation here for the coach to say anything useful. That is a fact about the
+call, not about you."* Build 15 removed that from one case and left it on
+another. I found it still live tonight, on **any call with no scores at all** —
+and measured **12 of your sessions in that state with more than 100 words from
+the rep, the largest 757 words.** Every one of them was reading that sentence.
+
+There is no way to tell "a thin call" from "the scoring failed": the smallest
+call that *did* get scored has **one** word from the rep, the largest that did
+**not** has 1,153. So it no longer claims either.
+
+**What to do:** open a call whose debrief is empty. You should see one of:
+
+| What you see | What it means |
+|---|---|
+| **No debrief yet** + **Write it** | Nobody has asked for one. |
+| **Your read did not come through** + **Build it again** | It was scored, so there was plenty to say; the write-up failed. |
+| **Nothing came back for this call** + **Build it again** | No scores and no write-up. **This button is new** — rebuilding runs the scoring too, so it is the only way out for those 12. |
+| **That did not work either**, *no button* | You rebuilt it and it still produced nothing. |
+
+**Wrong looks like:**
+
+- The words **"not enough of a conversation"** anywhere. That sentence is gone
+  from all three places it lived; if it is back, tell me.
+- **"Nothing came back for this call"** with **no button** — those calls are
+  exactly the ones that need one.
+- Tapping **Build it again**, waiting, and getting the *same* card back. It
+  should change to **"That did not work either"** and stop offering the button.
+  Every tap is a real charge, so a button that invites a second identical attempt
+  is the defect.
 
 ---
 
