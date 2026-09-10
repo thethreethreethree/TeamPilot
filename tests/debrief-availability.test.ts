@@ -49,3 +49,41 @@ test('neither message reads as an error, and neither offers a pointless retry', 
 test('the no-recording message still tells a rep the call counts', () => {
   assert.match(unavailableBody('no-recording'), /counts this call in your numbers/);
 });
+
+/**
+ * `awaiting-voice` — the state added on 10 September, when recovery started saving a
+ * dropped call's words as `unknown`. Before it, such a call had a transcript, so this
+ * said "ready" and the card offered a debrief that would come back blank: every coaching
+ * engine filters on `speaker === 'agent'`, so an unattributed transcript reads as empty
+ * to all of them.
+ */
+
+test('an entirely unattributed transcript is waiting on the rep, not ready', () => {
+  assert.equal(debriefAvailability(true, 12, 12), 'awaiting-voice');
+});
+
+test('a transcript with even ONE attributed turn is ready', () => {
+  // The server 409s an attributed transcript, so asking again would send the rep at a
+  // question that cannot be answered — and the engines can already read this one.
+  assert.equal(debriefAvailability(true, 12, 11), 'ready');
+});
+
+test('a caller that does not know the count gets exactly the old behaviour', () => {
+  // Defaulted to 0. Omitting it must never withhold a debrief that is perfectly ready.
+  assert.equal(debriefAvailability(true, 12), 'ready');
+});
+
+test('an unattributed count cannot conjure a transcript that is not there', () => {
+  assert.equal(debriefAvailability(true, 0, 5), 'awaiting-transcript');
+  assert.equal(debriefAvailability(false, 0, 5), 'no-recording');
+});
+
+test('the waiting-on-a-voice copy points at the answer, and never reads as a failure', () => {
+  const title = unavailableTitle('awaiting-voice');
+  const body = unavailableBody('awaiting-voice');
+  assert.equal(title, 'Waiting on one answer');
+  // It must say the words are safe — a rep who reads "no debrief" as "my call was lost"
+  // is the exact misreading this module was written to stop.
+  assert.match(body, /already saved/);
+  assert.doesNotMatch(body, /error|failed|problem/i);
+});

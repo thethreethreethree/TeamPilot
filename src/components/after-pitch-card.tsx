@@ -44,12 +44,18 @@ export function AfterPitchCard({
   sessionId,
   hasAudio,
   segmentCount,
+  unattributedCount = 0,
 }: {
   sessionId: string;
   /** Whether the server holds audio for this call. */
   hasAudio: boolean;
   /** How many transcript segments exist. */
   segmentCount: number;
+  /**
+   * Segments nobody has attributed. Defaulted, so a caller that does not know stays
+   * exactly as it was rather than withholding a debrief that may be ready.
+   */
+  unattributedCount?: number;
 }) {
   // Read so the failure line names a cause it has checked, rather than blaming
   // the signal for every failure including a server fault.
@@ -121,7 +127,7 @@ export function AfterPitchCard({
    * as "the server does not accept the app's sign-in". Nothing is asked of the
    * server for a call that cannot have a debrief.
    */
-  const availability = debriefAvailability(hasAudio, segmentCount);
+  const availability = debriefAvailability(hasAudio, segmentCount, unattributedCount);
   if (availability !== 'ready') {
     return (
       <View className="mt-4 rounded-md border border-border-control px-4 py-3">

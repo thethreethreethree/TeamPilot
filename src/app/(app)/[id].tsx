@@ -110,7 +110,14 @@ type Row =
    * reported as the server refusing the app's sign-in. The screen has always
    * known better — it says so two rows above.
    */
-  | { kind: 'debrief'; sessionId: string; hasAudio: boolean; segmentCount: number }
+  | {
+      kind: 'debrief';
+      sessionId: string;
+      hasAudio: boolean;
+      segmentCount: number;
+      /** Segments nobody has attributed - what makes a debrief 'waiting on one answer'. */
+      unattributedCount: number;
+    }
   | { kind: 'outcome'; session: CoachingSession }
   | { kind: 'rename'; session: CoachingSession }
   | { kind: 'heading'; text: string; count: number }
@@ -1108,6 +1115,7 @@ function RowView({
         sessionId={row.sessionId}
         hasAudio={row.hasAudio}
         segmentCount={row.segmentCount}
+        unattributedCount={row.unattributedCount}
       />
     );
   }
@@ -1231,6 +1239,10 @@ function buildRows(
     sessionId: session.id,
     hasAudio: Boolean(session.audio_asset_url),
     segmentCount: segments.length,
+    // Counted here rather than asked for: the screen already holds every segment, so
+    // the card can be told why a debrief is not ready instead of promising one that
+    // would come back blank.
+    unattributedCount: segments.filter((s) => s.speaker === 'unknown').length,
   });
   // Directly under the facts, because setting it is the one thing a rep can
   // change about a finished call — and an unset outcome is the difference
