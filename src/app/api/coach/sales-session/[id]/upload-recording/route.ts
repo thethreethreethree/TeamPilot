@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
 import { spokenAtFor } from "@/lib/coach/v5/segmentTiming";
@@ -162,19 +162,7 @@ export async function POST(
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  // getCurrentCompanyId builds its OWN cookie client, so it is null for a
-  // mobile caller. Fall back to the company on the caller's own profile row,
-  // read through their scoped client — the same value by the same rules.
-  const companyId =
-    (await getCurrentCompanyId()) ??
-    ((
-      await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", auth.user.id)
-        .maybeSingle()
-    ).data?.company_id as string | undefined) ??
-    undefined;
+  const companyId = await callerCompanyId(supabase, auth.user.id);
   if (!companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }

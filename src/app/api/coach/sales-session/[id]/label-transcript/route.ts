@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
@@ -202,18 +202,7 @@ export async function POST(
   // still supply, so a hiccup scheduling it must NEVER fail the label.
   if (appended > 0) {
     try {
-      // getCurrentCompanyId builds its OWN cookie client, so it is null for a
-  // mobile caller. Fall back to the company on the caller's own profile row.
-  const companyId =
-    (await getCurrentCompanyId()) ??
-    ((
-      await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", auth.user.id)
-        .maybeSingle()
-    ).data?.company_id as string | undefined) ??
-    undefined;
+  const companyId = await callerCompanyId(supabase, auth.user.id);
       if (companyId) {
         const actorId = auth.user.id;
         const fullTranscript = await getSessionTranscript(id, scoped ?? undefined);

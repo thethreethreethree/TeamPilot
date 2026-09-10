@@ -189,3 +189,20 @@ fails "scopes that update to speaker=CUSTOMER - the filter follows what was read
 the one that matters most: left alone it would match no rows and report a successful save over a write that
 changed nothing. Removing the no-op branch fails "changes NOTHING and spends nothing when the answer already
 matches what is stored".
+
+### F31 - the route I had just extended answered 403 to every phone caller
+fix: `callerCompanyId(db, userId)` - one helper, tried cookie-first so the web path is byte-for-byte
+unchanged, falling back to the caller's own profile row read THROUGH THE CALLER'S OWN CLIENT so RLS still
+decides. All six routes now call it, including the four that had their own working copy. Those four were
+folded in deliberately rather than left alone: four copies of a rule is how two routes came to be missing
+it, and the next route somebody writes would have made it five.
+gate-or-promise: GATE, two compiling mutations. Making the helper return the cookie value only - the
+original defect exactly - fails "falls back to the caller's own profile row when there is NO cookie - the
+phone path" and "reads through the client it is GIVEN, so RLS still decides". Pointing the fallback at
+another user's row fails the same two. My first attempt at the first mutation did not typecheck; it is
+recorded because a mutation that does not compile proves nothing, and reporting it as a pass would have
+been the same error as the one being fixed.
+
+VERIFIED AGAINST PRODUCTION, not just tested: the same probe that found the 403 is what confirms the fix,
+run again after the deploy. A unit test could never have found this and did not - all 4,297 passed while
+the route was unreachable from every phone.

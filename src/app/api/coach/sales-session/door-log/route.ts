@@ -3,7 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSignedUploadTarget } from "@/lib/storage/assets";
@@ -80,15 +80,7 @@ export async function POST(req: NextRequest) {
   const sb = scoped ?? (await createClient());
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  // getCurrentCompanyId builds its OWN cookie client, so it is null for a mobile
-  // caller. Fall back to the company on the caller's own profile row, read
-  // through their scoped client — the same value by the same rules.
-  const companyId =
-    (await getCurrentCompanyId()) ??
-    ((
-      await sb.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle()
-    ).data?.company_id as string | undefined) ??
-    undefined;
+  const companyId = await callerCompanyId(sb, auth.user.id);
   if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
 
   if (body.kind === "sign") {

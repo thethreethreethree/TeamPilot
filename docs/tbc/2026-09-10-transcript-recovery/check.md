@@ -698,3 +698,36 @@ correcting a machine.
 
 This is the same shape as F25 four findings ago - a guard testing for the form the author expected the case
 to take rather than the property that actually mattered, with the two agreeing on every example tried.
+
+### F31 - the route I had just extended answered 403 to every phone caller
+class: the-cookie-client-class-again-this-time-in-the-half-that-resolves-the-company
+sweep: every route reachable from the app, taken from the APP's own 34 fetch sites, cross-referenced against how each resolves the company
+severity: critical
+I finished F30, deployed it, and probed it against production with a real Bearer token for a real rep on
+their own session. Every call answered:
+
+    two-sided session    79bea05b -> 403 {"error":"No company context."}
+    no answer in body             -> 403 {"error":"No company context."}
+    another rep's call   77a7cba0 -> 403 {"error":"No company context."}
+
+Not one of those reached the logic I had spent the hour on. The route resolves identity correctly -
+`callerScopedDb(req) ?? await createClient()` - and then calls `getCurrentCompanyId()`, which builds its OWN
+cookie client, ignores the one already resolved, finds no cookie, and returns null. The route turns that
+into 403. An authenticated rep is told they have no company.
+
+It is the same class as F22 and it is quieter, because the failure is indistinguishable from a genuine
+permission problem in both the response and the log. `getCurrentCompanyId` also swallows every error into
+`null`, so a transient database failure produces the identical 403.
+
+WHAT THE SWEEP FOUND, done from the app's 34 fetch sites rather than by reading the server and guessing:
+FOUR routes already carried a six-line inline fallback for exactly this, each with its own copy of the
+comment explaining why - door-log, label-transcript, upload-recording, upload-recording/sign. TWO did not:
+`attribute-unlabelled` and `auto-recover`. Those two are the answer-whose-voice-this-is flow and the
+recover-my-dropped-call button, which are precisely the two things a rep reaches for when a call did not
+come out right.
+
+The lesson is not "two routes were missed". It is that a rule living in four copies is a rule half the
+codebase has already forgotten, and that the whole of F30 was UNREACHABLE from a phone while every test
+passed and the gate read clean. A unit test cannot see this and neither can the invariant audit; only
+driving the real path with a real token can, which is rule 4 and the only reason it was found tonight
+rather than by a rep next week.

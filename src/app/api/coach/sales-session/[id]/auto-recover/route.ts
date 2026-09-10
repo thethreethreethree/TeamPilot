@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
-import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
+import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { recoverSessionTranscript } from "@/lib/coach/v5/transcriptRecovery";
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const companyId = (await getCurrentCompanyId()) ?? undefined;
+  const companyId = await callerCompanyId(db, auth.user.id);
   if (!companyId) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
