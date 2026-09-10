@@ -217,9 +217,27 @@ const RETRY_EVENT_KIND = "coach.transcript_recovery_retry";
 
 export type RecoveryResult =
   /** Labelled agent/customer and the coaching artifacts regenerated — nothing to ask. */
-  | { status: "recovered"; appended: number; source: "cross-match" | "content-tell" }
+  | {
+      status: "recovered";
+      appended: number;
+      source: "cross-match" | "content-tell";
+      /**
+       * The words are back and the TIMING is not, permanently for this call.
+       *
+       * Detected below by reading the write back, and until now it went only to a console line
+       * and an events row — so the person who asked for the recovery was told it succeeded and
+       * never told what it cost. That is the shape this whole subsystem exists to remove: a
+       * partial result reported as a whole one.
+       *
+       * It matters more than it looks. `spoken_at` is what the pace skill is computed from, the
+       * skill that has never produced a reading for anybody, and a call that loses it here does
+       * not get it back: the one-attempt marker is deliberately NOT released, so no sweep will
+       * ever revisit this session. Absent means the timing survived.
+       */
+      timingLost?: boolean;
+    }
   /** Words saved as `unknown`. Safe, readable, and one rep tap from being coachable. */
-  | { status: "saved-unlabelled"; appended: number; reason: string }
+  | { status: "saved-unlabelled"; appended: number; reason: string; timingLost?: boolean }
   /** Two-sided already. Untouched, deliberately. */
   | { status: "canonical" }
   /** One-sided WITH real agent turns, and the assignment declined — original left intact. */
@@ -484,6 +502,7 @@ export async function recoverSessionTranscript(args: {
    * transcription again on every session, every hour, for a condition only a migration can
    * clear. An honest record beats an expensive loop.
    */
+  let timingLost = false;
   const sentTiming = labeled.some((l) => l.spokenAt !== null);
   if (sentTiming) {
     const { data: back } = await admin
@@ -493,6 +512,9 @@ export async function recoverSessionTranscript(args: {
       .not("spoken_at", "is", null)
       .limit(1);
     if ((back?.length ?? 0) === 0) {
+      // Returned to the caller as well as recorded here. The events row is how these sessions
+      // are found again once the migration lands; this is how the PERSON who asked finds out.
+      timingLost = true;
       // eslint-disable-next-line no-console
       console.error(
         `[transcriptRecovery] TIMING LOST session=${sessionId} — replace_session_transcript is pre-0249; words saved, spoken_at dropped`
@@ -531,6 +553,7 @@ export async function recoverSessionTranscript(args: {
     // here would manufacture a coaching verdict from speech nobody has attributed —
     // exactly the fabrication the decline exists to avoid. The rep's one tap unlocks it.
     return {
+      timingLost,
       status: "saved-unlabelled",
       appended: replaced.count,
       reason: assign.decided ? "decided" : assign.reason,
@@ -549,5 +572,6 @@ export async function recoverSessionTranscript(args: {
     status: "recovered",
     appended: replaced.count,
     source: assign.decided ? assign.source : "content-tell",
+    timingLost,
   };
 }

@@ -83,6 +83,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         status: "recovered",
         appended: result.appended,
         source: result.source,
+        // What the recovery COST, passed on rather than left in a server log. Three sessions lost
+        // their timing this way on 10 September and every caller was told only that it worked.
+        timingLost: result.timingLost === true,
       });
     case "saved-unlabelled":
       // The words are SAVED. The rep is asked only to say whose voice is whose, and the
@@ -91,6 +94,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         status: "saved-unlabelled",
         appended: result.appended,
         reason: result.reason,
+        timingLost: result.timingLost === true,
       });
     case "still-one-sided":
       // Preserve the original two-way split: a genuine single-voice recording is a terminal
