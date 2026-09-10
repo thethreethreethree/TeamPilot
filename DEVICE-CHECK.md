@@ -202,14 +202,14 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-three checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-four checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
 **Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 33** at the end, and check 28 is the one I would
+seen render are checks **27 to 34** at the end, and check 28 is the one I would
 most like a human on: it is a *keyboard* interaction, which is exactly the class
 no test here can reach.
 
@@ -1084,6 +1084,26 @@ call that *did* get scored has **one** word from the rep, the largest that did
   should change to **"That did not work either"** and stop offering the button.
   Every tap is a real charge, so a button that invites a second identical attempt
   is the defect.
+
+---
+
+### 34. Search your team by name (new, 11 September)
+
+**Background.** The search on **Sessions** looked at the call name, the outcome,
+the territory, the approach and the offer — everything visible on a row **except
+whose call it was**, which is printed right under the title on a manager's list.
+
+So the most obvious thing a manager would do — read **"Moses: to coach on…"** on
+the new Team coaching screen, then go and find his calls — returned an empty
+list while his calls sat in it with his name on them.
+
+**What to do:** on **Sessions**, type a rep's first name, then their surname,
+then part of it in lower case. Each should narrow the list to that rep's calls.
+
+**Wrong looks like:** an empty list for a name you can see on screen; or a rep
+seeing *other people's* calls appear — the name search only has anything to match
+against on a manager's list, and a rep's own list should behave exactly as it did
+before.
 
 ---
 
