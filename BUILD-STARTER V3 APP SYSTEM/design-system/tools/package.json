@@ -1,0 +1,18 @@
+{
+  "name": "master-design-guide-line-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Verification tools for the Master Design Guide Line. Zero runtime dependencies for the static gates; playwright + axe are needed only for the runtime audit.",
+  "scripts": {
+    "lint": "node design-lint.mjs",
+    "tokens": "node token-gen.mjs --out ../app/globals.css",
+    "contrast": "node contrast-audit.mjs",
+    "audit": "node runtime-audit.mjs --url http://localhost:3000",
+    "gate": "node gate.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "playwright": "^1.62.1"
+  }
+}

@@ -1,0 +1,101 @@
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useColors } from "@/lib/theme";
+
+/**
+ * The bottom tab bar — the app's top-level shape.
+ *
+ * Navigation IS design (03-DESIGN-BLUEPRINT §9): the number of destinations, the
+ * icons, and the header treatment are decisions, not defaults to accept unseen.
+ * Keep it to 3–5 destinations (matching the design law and this foundation's
+ * README). Fewer than three usually wants a different pattern; more than five and
+ * the targets crowd below a comfortable size and the labels truncate.
+ *
+ * Each `Tabs.Screen` name maps to a file in this folder:
+ *   app/(tabs)/index.tsx   → the first tab
+ *   app/(tabs)/browse.tsx  → the second
+ *   app/(tabs)/settings.tsx→ the third
+ * The `(tabs)` group parentheses keep the segment out of the URL/path.
+ *
+ * TODO(project): rename the tabs to your real destinations and create the
+ * matching screen files. A tab pointing at a file that does not exist is a broken
+ * build, not an unfinished one (build sequence Phase 7).
+ */
+export default function TabsLayout() {
+  // Tab tint is an IMPERATIVE colour (the bar paints its own icons/labels, no
+  // className reaches them), so it comes from the theme bridge, not a class.
+  const c = useColors();
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.mutedForeground,
+        tabBarStyle: {
+          backgroundColor: c.background,
+          borderTopColor: c.border,
+        },
+        headerStyle: { backgroundColor: c.background },
+        headerTitleStyle: { color: c.foreground },
+        headerShadowVisible: false,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Home",
+          // The label is read by the tab, but an explicit accessibility label
+          // makes the spoken name deliberate rather than inherited — and lets it
+          // differ from the visible label where the visible one is an icon-only
+          // or abbreviated form.
+          tabBarAccessibilityLabel: "Home tab",
+          tabBarIcon: ({ color, size }) => (
+            // aria-hidden equivalent: the icon is decorative; the tab's
+            // accessibility label already names it, so the icon must not be
+            // announced a second time.
+            <Ionicons
+              name="home-outline"
+              size={size}
+              color={color}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="browse"
+        options={{
+          title: "Browse",
+          tabBarAccessibilityLabel: "Browse tab",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="search-outline"
+              size={size}
+              color={color}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarAccessibilityLabel: "Settings tab",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="settings-outline"
+              size={size}
+              color={color}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}

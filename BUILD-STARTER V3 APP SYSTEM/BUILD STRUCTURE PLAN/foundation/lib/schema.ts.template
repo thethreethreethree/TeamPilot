@@ -1,0 +1,147 @@
+/**
+ * On-device schema and post-release migrations (expo-sqlite).
+ *
+ * THE RULE: every statement here is safe to re-run against a database in an
+ * unknown state. On a device this is not a nicety — the SAME install carries its
+ * database across every app update, so `db.ts` replays this on EVERY launch,
+ * against a store that may have been created by any prior version of the app, or
+ * left half-migrated by a launch the user killed. "It ran once on a fresh
+ * install" is not the bar. "It runs identically on the tenth launch of an
+ * upgraded install" is.
+ *
+ * `create table if not exists` and `create index if not exists` are idempotent
+ * and belong here. `alter table add column` is NOT — see ADDED_COLUMNS below.
+ *
+ * TODO(project): replace the domain tables with yours. Keep the patterns:
+ * integer-cent money, soft-delete, created/updated timestamps.
+ */
+
+export const SCHEMA = `
+-- ────────────────────────────────────────────────────────────── domain
+-- TODO(project): this is the shape, not the content. Rename freely; keep the
+-- column-level patterns (integer money, soft-delete, timestamps).
+
+create table if not exists items (
+  id            integer primary key autoincrement,
+  -- A STABLE natural key you control, so a seed upsert and a future sync have
+  -- something to match on that is not the autoincrement id (which differs
+  -- between two installs that created the same logical row).
+  slug          text    not null unique,
+  name          text    not null,
+  blurb         text    not null default '',
+
+  -- Money is ALWAYS an integer. Minor units (cents) for the primary currency,
+  -- whole units for a currency without them. A float here is a bug a customer
+  -- finds. See lib/money.ts.
+  price_minor   integer not null default 0,
+
+  sort_order    integer not null default 0,
+
+  -- SOFT-DELETE. On a device the user expects "undo" and an offline sync needs
+  -- to know a row was deleted (a hard-deleted row just reappears from the other
+  -- device on the next merge). NULL = live; an ISO instant = when it was
+  -- removed. Every read that shows live data must filter `deleted_at is null` —
+  -- see the partial indexes below, which only cover live rows for that reason.
+  deleted_at    text,
+
+  created_at    text    not null default (datetime('now')),
+  updated_at    text    not null default (datetime('now'))
+);
+
+-- One row per physical or finite unit, if your domain has capacity. Availability
+-- counts THESE, not items. Delete this table if your domain has no scarce units.
+create table if not exists units (
+  id          integer primary key autoincrement,
+  item_id     integer not null references items(id),
+  ref         text    not null unique,
+  status      text    not null default 'available'
+              check (status in ('available','maintenance','retired')),
+  deleted_at  text,
+  created_at  text    not null default (datetime('now'))
+);
+
+-- A local record of something the user did — a booking, a log, an order.
+-- THE TRANSACTION-BOUNDARY PATTERN (carried over from the web foundation): when
+-- a write must not oversell a finite thing, do the availability CHECK and the
+-- INSERT inside ONE db.withTransactionSync(...) block (see lib/db.ts). Two taps
+-- racing for the last unit cannot then both succeed. On-device that race is rare
+-- but not impossible (a retry, a background task), and the guarantee costs
+-- nothing to keep.
+create table if not exists records (
+  id           integer primary key autoincrement,
+  ref          text    not null unique,
+  item_id      integer not null references items(id),
+
+  -- ISO dates, end EXCLUSIVE for availability (a unit returned on the 5th is free
+  -- on the 5th). Decide inclusive-vs-exclusive ONCE and write it down — you will
+  -- second-guess it later. See lib/format.ts for the UTC-safe date helpers.
+  start_date   text,
+  end_date     text,
+
+  quantity     integer not null default 1,
+  total_minor  integer not null default 0,
+
+  status       text    not null default 'pending'
+               check (status in ('pending','confirmed','active','completed','cancelled')),
+
+  -- Offline-first bookkeeping: has this row been pushed to a backend yet? 0 = a
+  -- local-only change still to sync. If the app is 100% on-device, leave it 0 and
+  -- ignore it; the column costs nothing and saves a migration if you add sync.
+  synced       integer not null default 0,
+
+  deleted_at   text,
+  created_at   text    not null default (datetime('now')),
+  updated_at   text    not null default (datetime('now'))
+);
+
+-- ────────────────────────────────────────────────── infrastructure (keep)
+
+-- App-local key/value for small settings the user sets (a chosen unit, a
+-- last-used filter). NOT for secrets — those go in expo-secure-store, never in
+-- SQLite, which is plaintext on disk. See lib/secure.ts.
+create table if not exists app_meta (
+  key        text primary key,
+  value      text not null,
+  updated_at text not null default (datetime('now'))
+);
+
+-- Partial indexes covering ONLY live rows. A soft-deleted row is dead weight in
+-- an index the app never queries with it; scoping the index keeps lookups on the
+-- live set fast and small.
+create index if not exists idx_items_live   on items(sort_order)          where deleted_at is null;
+create index if not exists idx_units_item   on units(item_id, status)      where deleted_at is null;
+create index if not exists idx_records_item on records(item_id, start_date, end_date) where deleted_at is null;
+create index if not exists idx_records_sync on records(synced)             where synced = 0;
+`;
+
+/**
+ * Columns added AFTER the first release.
+ *
+ * `alter table add column` is NOT idempotent — it throws if the column already
+ * exists — so putting one in SCHEMA above breaks every launch after the one that
+ * first applied it. The runner in db.ts inspects each table first and adds only
+ * what is missing, which is safe on a fresh install, a fully-migrated one, and
+ * one left halfway by a killed launch alike.
+ *
+ * Keep this as the SINGLE mechanism for added columns. Two parallel mechanisms is
+ * how one of them silently stops being applied. APPEND here; never edit or
+ * reorder an existing entry — an installed device has already run the old ones.
+ *
+ * SQLite's `alter table add column` cannot add a column with a non-constant
+ * default (e.g. `default (datetime('now'))`) or a `unique`/`primary key`
+ * constraint. Add the column plain, then backfill in a follow-up statement if
+ * you need one — do that backfill in db.ts, guarded so it too is replay-safe.
+ */
+export const ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
+  // { table: "records", column: "note", ddl: "text not null default ''" },
+];
+
+/**
+ * A monotonically increasing number you bump by hand whenever you change SCHEMA
+ * or append to ADDED_COLUMNS. db.ts writes it into SQLite's `PRAGMA user_version`
+ * so a launch can cheaply tell "this store is already at the current shape" and
+ * skip the migration work. See the note in db.ts on why the guarded runner still
+ * runs regardless — user_version is an optimisation and a breadcrumb, not the
+ * safety mechanism.
+ */
+export const SCHEMA_VERSION = 1;

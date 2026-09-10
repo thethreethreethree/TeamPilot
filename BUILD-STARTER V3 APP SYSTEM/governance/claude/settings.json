@@ -1,0 +1,87 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/law-session-start.mjs"
+            ],
+            "timeout": 45,
+            "statusMessage": "Loading governing law"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/law-prompt-anchor.mjs"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/law-read-gate.mjs"
+            ],
+            "timeout": 20,
+            "statusMessage": "Checking the governing law"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/law-read-record.mjs"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Write(./00-START-HERE.md)",
+      "Edit(./00-START-HERE.md)",
+      "Write(./01-CONSTITUTION.md)",
+      "Edit(./01-CONSTITUTION.md)",
+      "Write(./03-ANTI-FAULT.md)",
+      "Edit(./03-ANTI-FAULT.md)",
+      "Write(./**/00-START-HERE.md)",
+      "Edit(./**/00-START-HERE.md)",
+      "Write(./**/01-CONSTITUTION.md)",
+      "Edit(./**/01-CONSTITUTION.md)",
+      "Write(./**/03-ANTI-FAULT.md)",
+      "Edit(./**/03-ANTI-FAULT.md)",
+      "Write(./tools/**)",
+      "Edit(./tools/**)",
+      "Write(./.claude/hooks/**)",
+      "Edit(./.claude/hooks/**)",
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/settings.json)"
+    ]
+  }
+}

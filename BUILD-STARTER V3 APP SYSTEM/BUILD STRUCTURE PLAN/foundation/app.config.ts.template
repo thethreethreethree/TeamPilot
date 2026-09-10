@@ -1,0 +1,136 @@
+import type { ExpoConfig, ConfigContext } from "expo/config";
+
+/**
+ * Expo app configuration.
+ *
+ * This is the native manifest: the name on the home screen, the bundle/package
+ * ids the stores key your app to, the icons and splash, the permission strings
+ * the OS shows, and the config plugins that wire native modules at prebuild. It
+ * replaces the web foundation's metadata/sitemap/robots entirely — an app has no
+ * URLs, share cards, or crawlers; it has a listing and an OS.
+ *
+ * Using `app.config.ts` (a function) rather than a static `app.json` so values
+ * can come from the environment at build time — but NEVER a secret. Anything
+ * returned here ships inside the app bundle in cleartext; a key placed here is a
+ * key handed to every user. Secrets belong in EAS (`eas secret`) and in
+ * expo-secure-store on the device (see lib/secure.ts), never in this file.
+ *
+ * (verify current) — the ExpoConfig field names, the config-plugin list, and the
+ * splash/icon mechanism ALL move between Expo SDKs (the `expo-splash-screen`
+ * config plugin replaced the top-level `splash` key in recent SDKs, for
+ * example). Treat every plugin entry and asset key below as "confirm against the
+ * installed SDK before relying on it".
+ */
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+
+  // TODO(project): the human name (home screen) and the slug (EAS project url).
+  name: "TODO(project)",
+  slug: "todo-project",
+
+  // Bump on every user-facing release; the store shows this. Build numbers
+  // (ios.buildNumber / android.versionCode) are derived by EAS at build time —
+  // let `autoIncrement` in eas.json own them, never a number typed here that goes
+  // stale (05-DEPLOYMENT-METHOD §1).
+  version: "1.0.0",
+  orientation: "portrait",
+  scheme: "todoproject", // deep-link scheme; must match your links and +not-found handling
+  userInterfaceStyle: "automatic", // let the phone choose light/dark — the design law requires both work
+
+  // The icon is a design surface, not an afterthought (03-DESIGN-BLUEPRINT §9).
+  icon: "./assets/icon.png",
+
+  // Splash is the first painted frame — match it to the first real screen so
+  // launch feels continuous. The backgroundColor here is an OUT-OF-TREE literal
+  // (no class reaches it) and MUST be kept in sync with the generated theme's
+  // background token by hand (03-DESIGN-BLUEPRINT §2).
+  splash: {
+    image: "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: "#111111", // TODO(project): mirror theme background
+  },
+
+  ios: {
+    // TODO(project): reverse-DNS you control, e.g. "com.acme.todoproject".
+    bundleIdentifier: "com.example.todoproject",
+    supportsTablet: true, // a tablet is not a big phone — design for it (§5) or set false deliberately
+    infoPlist: {
+      // iOS shows THIS sentence in its permission prompt. It must say WHY, in the
+      // user's terms, and agree with lib/permissions.ts BLOCKED_MESSAGE. A vague
+      // or missing string is an App Store rejection, not just bad UX.
+      // TODO(project): keep ONLY the ones your app actually uses. An unused usage
+      // string still forces the OS to advertise a capability you do not need.
+      NSCameraUsageDescription:
+        "TODO(project): explain why the app uses the camera, e.g. to scan a code.",
+      NSPhotoLibraryUsageDescription:
+        "TODO(project): explain why the app reads photos, e.g. to attach an image.",
+      NSLocationWhenInUseUsageDescription:
+        "TODO(project): explain why the app uses location while open.",
+      NSFaceIDUsageDescription:
+        "TODO(project): explain why the app uses Face ID, e.g. to unlock your data.",
+    },
+  },
+
+  android: {
+    // TODO(project): reverse-DNS you control; conventionally matches the iOS id.
+    package: "com.example.todoproject",
+    // Android's adaptive icon: a foreground layer the OS masks into varying
+    // shapes over this background. Design the foreground with safe margins so no
+    // shape crops it (§9). backgroundColor is another out-of-tree literal to keep
+    // in sync with the theme by hand.
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#111111", // TODO(project): mirror theme background
+    },
+    // Declare ONLY what you use. Each entry is a line item on the Play Data Safety
+    // form and a reason a cautious user declines to install.
+    // TODO(project): trim to the real set.
+    permissions: [
+      "android.permission.CAMERA",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.USE_BIOMETRIC",
+    ],
+  },
+
+  // Config plugins run at prebuild and inject the native code these modules need.
+  // A module used without its plugin often works in Expo Go and then FAILS in a
+  // release build — the failure you least want to find late. List every native
+  // module's plugin here.
+  // (verify current) — plugin names and their option shapes change; several
+  // modules also autolink without an explicit entry. Confirm each against its
+  // current docs. Keep only the modules you actually install.
+  plugins: [
+    "expo-router",
+    "expo-secure-store",
+    "expo-font",
+    [
+      "expo-local-authentication",
+      {
+        faceIDPermission:
+          "TODO(project): explain why the app uses Face ID to unlock.",
+      },
+    ],
+    // [ "expo-camera", { cameraPermission: "..." } ],
+    // [ "expo-image-picker", { photosPermission: "..." } ],
+    // [ "expo-location", { locationWhenInUsePermission: "..." } ],
+    // [ "expo-notifications", { ... } ],
+  ],
+
+  experiments: {
+    typedRoutes: true, // expo-router typed links — catches a dead route at compile time
+  },
+
+  extra: {
+    // Non-secret build-time values (a public API base url, a feature flag) can go
+    // here and are read via expo-constants. Secrets do NOT — see the header note.
+    // eas: { projectId: "..." }  // written by `eas init`
+  },
+
+  // NativeWind/babel note (verify current): NativeWind v4 is wired through
+  // babel.config.js (its preset / jsxImportSource) and metro.config.js
+  // (withNativeWind pointing at your global.css), NOT here. This file does not
+  // configure NativeWind — it is listed only so you remember both must be in
+  // place before the token step (build sequence Phase 3), or no className
+  // resolves. Confirm the exact babel/metro setup against the installed
+  // NativeWind version's docs.
+});

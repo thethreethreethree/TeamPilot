@@ -1,0 +1,209 @@
+import { useState, type ReactNode } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  type TextInputProps,
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import { useColors } from "@/lib/theme";
+
+/**
+ * One wrapper that gives every form its loading, error, and SUCCESS states.
+ *
+ * Without it each form reimplements the same branches and one of them always
+ * ships missing — usually the error one, which is the version nobody notices
+ * until a user hits it on a bad connection. Centralising the three states is the
+ * point: a form built on this cannot forget one.
+ *
+ * DESIGN NOTES that are easy to get wrong on a device:
+ *
+ *  - SUCCESS IS NEUTRAL, NOT DESTRUCTIVE. A green-vs-red instinct puts success in
+ *    a "positive" colour and error in red, but the design law uses the accent
+ *    sparingly and never signals with colour alone. Success here is a calm,
+ *    muted confirmation with a check icon glyph; error is the destructive token
+ *    with an alert. Both carry an ICON and TEXT, so neither depends on colour.
+ *
+ *  - THE KEYBOARD COVERS THE SUBMIT BUTTON. On a phone the on-screen keyboard
+ *    hides the bottom of the form — including the button — unless the view lifts
+ *    out of the way. KeyboardAvoidingView does that; the behavior differs by
+ *    platform (iOS pads, Android resizes), hence the Platform.select.
+ *
+ *  - EVERY STATE MESSAGE IS ANNOUNCED. `accessibilityLiveRegion` (Android) and
+ *    the alert/status roles (read by VoiceOver) make the result reach a
+ *    screen-reader user without them hunting for it. An error a sighted user
+ *    sees appear is invisible to someone who has already moved focus past it.
+ *
+ * The submit handler returns a result; this component owns the pending flag and
+ * the messages. Keep your action pure of UI state — return `{ ok }` or
+ * `{ error }` and let this render it.
+ */
+
+export type SubmitResult = { ok: string } | { error: string };
+
+export function StatefulForm({
+  onSubmit,
+  submitLabel,
+  pendingLabel = "Saving",
+  children,
+}: {
+  onSubmit: () => Promise<SubmitResult>;
+  submitLabel: string;
+  pendingLabel?: string;
+  children: ReactNode;
+}) {
+  const c = useColors();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  async function handle() {
+    if (pending) return; // Guard the double-tap: a slow submit invites a second.
+    setPending(true);
+    setError(null);
+    setOk(null);
+    try {
+      const result = await onSubmit();
+      if ("error" in result) {
+        setError(result.error);
+        // A distinct, non-alarming buzz for failure — meaningful action, so it
+        // earns haptics (03-DESIGN-BLUEPRINT §8). Fire-and-forget; never await UI
+        // feedback.
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
+          () => {}
+        );
+      } else {
+        setOk(result.ok);
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        ).catch(() => {});
+      }
+    } catch (e) {
+      // An unexpected throw is still the user's problem to be told about, not a
+      // silent swallow. Keep the message human; log the detail for yourself.
+      console.error("[StatefulForm] submit threw", e);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.select({ ios: "padding", android: undefined })}
+      className="w-full"
+    >
+      {children}
+
+      {error ? (
+        <View
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          className="mt-4 flex-row items-start gap-2 border border-destructive bg-destructive/10 p-3"
+        >
+          <Text aria-hidden className="text-sm text-destructive">
+            {"⚠"}
+          </Text>
+          <Text className="flex-1 text-sm text-destructive">{error}</Text>
+        </View>
+      ) : null}
+
+      {ok ? (
+        <View
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+          // Neutral surface — muted, NOT a success-green. Colour carries no
+          // meaning here; the check glyph and the words do.
+          className="mt-4 flex-row items-start gap-2 border border-border bg-muted p-3"
+        >
+          <Text aria-hidden className="text-sm text-foreground">
+            {"✓"}
+          </Text>
+          <Text className="flex-1 text-sm text-foreground">{ok}</Text>
+        </View>
+      ) : null}
+
+      <Pressable
+        onPress={handle}
+        disabled={pending}
+        accessibilityRole="button"
+        accessibilityLabel={pending ? pendingLabel : submitLabel}
+        accessibilityState={{ disabled: pending, busy: pending }}
+        // min-h-12 = 48dp (Android floor; iOS wants ≥ 44pt) — the design law's
+        // touch-target minimum, which a hand-rolled button routinely misses.
+        className="mt-5 min-h-12 flex-row items-center justify-center gap-2 bg-primary px-5 active:opacity-90 disabled:opacity-50"
+      >
+        {pending ? (
+          // ActivityIndicator's colour is imperative (no className reaches it),
+          // so it comes from the theme bridge.
+          <ActivityIndicator color={c.primaryForeground} />
+        ) : null}
+        <Text className="font-mono text-sm uppercase tracking-widest text-primary-foreground">
+          {pending ? pendingLabel : submitLabel}
+        </Text>
+      </Pressable>
+    </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * A labelled text field.
+ *
+ * EVERY input gets a VISIBLE label AND an accessibilityLabel. A placeholder is
+ * never a label: it disappears the moment the user types, and RN does not expose
+ * it reliably to screen readers. The visible label orients a sighted user; the
+ * accessibilityLabel names the field for VoiceOver/TalkBack even when the visible
+ * text is styled small or set apart.
+ *
+ * `focused` state drives a visible ring, because RN has no CSS `:focus-visible`
+ * — a keyboard/switch-control user needs to see where they are, and the platform
+ * will not draw it for a bare TextInput.
+ */
+export function Field({
+  label,
+  hint,
+  ...inputProps
+}: {
+  label: string;
+  hint?: string;
+} & TextInputProps) {
+  const c = useColors();
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <View className="mt-4">
+      <Text className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+        {label}
+      </Text>
+
+      <TextInput
+        {...inputProps}
+        accessibilityLabel={label}
+        accessibilityHint={hint}
+        placeholderTextColor={c.mutedForeground}
+        // These MUST come after the spread so the composed handlers win — they
+        // still call the caller's onFocus/onBlur, so nothing is lost. If the
+        // spread came last it would clobber setFocused and break the focus ring.
+        onFocus={(e) => {
+          setFocused(true);
+          inputProps.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          inputProps.onBlur?.(e);
+        }}
+        className={`mt-2 min-h-12 border bg-background px-3 text-base text-foreground ${
+          focused ? "border-primary" : "border-border"
+        }`}
+      />
+
+      {hint ? (
+        <Text className="mt-1 text-xs text-muted-foreground">{hint}</Text>
+      ) : null}
+    </View>
+  );
+}

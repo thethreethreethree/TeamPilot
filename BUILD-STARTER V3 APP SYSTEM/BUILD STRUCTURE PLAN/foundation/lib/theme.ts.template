@@ -1,0 +1,145 @@
+/**
+ * The theme BRIDGE.
+ *
+ * There are two theme files and it matters that you do not confuse them:
+ *
+ *   1. THE GENERATED ONE — written by `token-gen --theme`. Hex colours, dp
+ *      sizes, radii, the type ladder. It is generated from DESIGN-CONTRACT.md and
+ *      you never hand-edit it: the next regeneration silently reverts you. It
+ *      lands wherever your token step writes it (project root `theme.ts` by the
+ *      blueprint's default). See 03-DESIGN-BLUEPRINT.md §1.
+ *
+ *   2. THIS ONE — a tiny, hand-written bridge that re-exports the generated
+ *      values and adds the ONE thing a generated file cannot: a hook that picks
+ *      the light or dark set based on the phone's current appearance.
+ *
+ * WHY A BRIDGE AT ALL. React Native has no CSS custom properties, so the phone
+ * cannot swap `--foreground` under you the way a browser does. Anything that
+ * reads a colour from a NativeWind class (`text-foreground`) is already handled —
+ * NativeWind resolves `dark:` for you. This bridge is for the OTHER case: an
+ * IMPERATIVE colour value handed to a native API that takes no class —
+ * an `ActivityIndicator` `color`, a navigator/`Tabs` theme tint, an
+ * `android_ripple` colour, a `StatusBar` style. Those need a real hex, chosen
+ * for the current scheme, at call time. That is exactly what `useColors()` gives.
+ *
+ * The rule from the design law still holds: a raw hex literal belongs in a token
+ * definition file (the generated `theme.ts`, or native config for out-of-tree
+ * surfaces — see app.config.ts), and NOWHERE in a component. Import from here;
+ * never type a colour into a screen.
+ */
+import { useColorScheme } from "react-native";
+
+// TODO(project): point this at wherever `token-gen --theme` actually wrote the
+// generated theme. The blueprint's default is a project-root `theme.ts`, so this
+// import assumes `@/theme`. If your token step writes elsewhere (some setups use
+// `styles/theme.ts` or `lib/tokens/theme.ts`), fix the path here — this is the
+// single place the whole app reaches the generated values, so there is one edit,
+// not twenty.
+//
+// WHAT THE GENERATOR ACTUALLY EXPORTS, which is not what you might assume:
+//
+//   export const colors = { light: { "primary-foreground": "#FFF", ... },
+//                           dark:  { ... } }
+//   export const brand, ink, radius, fontSize, fontFamily
+//
+// Two shape mismatches this bridge exists to absorb, so that nothing downstream
+// has to know about either:
+//
+//   1. The schemes are NESTED under `colors`, not exported as top-level `light`
+//      and `dark`. Importing `{ light, dark }` from the generated module is a
+//      type error, not a token.
+//   2. The keys are KEBAB-CASE ("primary-foreground"), because they are the CSS
+//      custom-property names the same generator emits for the web target. React
+//      components want `c.primaryForeground`. The map below is that translation,
+//      done once, here.
+import { colors, radius, fontSize } from "@/theme";
+
+/**
+ * The 4dp spacing scale.
+ *
+ * Declared here rather than imported, because token-gen does NOT emit a spacing
+ * scale — it emits colours, radii, type sizes and families. NativeWind's own
+ * spacing utilities cover the `className` path; this exists only for the
+ * imperative case (a `hitSlop`, a `contentContainerStyle` gap, an icon size)
+ * where a number is required and must still land on the grid.
+ *
+ * The values are the canonical scale from the design law
+ * (design-system/reference/04-layout-and-space.md), not invented here: 4dp base,
+ * opening up as it grows, because even steps at large sizes spend tokens on
+ * distinctions nobody perceives. If the generator ever emits a spacing scale,
+ * delete this and re-export that instead.
+ */
+export const space = {
+  1: 4, 2: 8, 3: 12, 4: 16, 5: 24,
+  6: 32, 7: 48, 8: 64, 9: 96, 10: 128,
+} as const;
+
+export type ColorRole =
+  | "background"
+  | "foreground"
+  | "primary"
+  | "primaryForeground"
+  | "muted"
+  | "mutedForeground"
+  | "border"
+  | "destructive";
+
+export type ColorSet = Record<ColorRole, string>;
+
+// Re-export the scheme-independent scales verbatim. Sizes do not change with
+// light/dark, so they need no hook — import them directly where an imperative
+// API wants a dp number.
+export { radius, fontSize };
+
+/**
+ * Kebab-case generated key -> camelCase role used in components.
+ *
+ * Kept as an explicit map rather than a generic string transform so that a role
+ * the generator stops emitting becomes a visible failure here — in the one file
+ * that owns the translation — instead of an `undefined` colour silently reaching
+ * a native API, where it renders as black and looks like a design decision.
+ */
+const ROLE_KEYS: Record<ColorRole, string> = {
+  background: "background",
+  foreground: "foreground",
+  primary: "primary",
+  primaryForeground: "primary-foreground",
+  muted: "muted",
+  mutedForeground: "muted-foreground",
+  border: "border",
+  destructive: "destructive",
+};
+
+function toSet(scheme: Record<string, string>): ColorSet {
+  const out = {} as ColorSet;
+  for (const role of Object.keys(ROLE_KEYS) as ColorRole[]) {
+    // A missing key means the generated theme and this bridge have drifted.
+    // Fail loudly in development rather than shipping a black control.
+    const value = scheme[ROLE_KEYS[role]];
+    if (__DEV__ && value === undefined) {
+      console.warn(
+        `[theme] the generated theme has no "${ROLE_KEYS[role]}" token. ` +
+          `Regenerate with token-gen --theme, or update ROLE_KEYS in lib/theme.ts.`
+      );
+    }
+    out[role] = value;
+  }
+  return out;
+}
+
+const light = toSet(colors.light);
+const dark = toSet(colors.dark);
+
+// Also re-export the resolved sets, for the rare non-React context (a navigation
+// theme object built once at module load) that cannot call a hook.
+export const COLORS = { light, dark } as const;
+
+export function useColors(): ColorSet {
+  const scheme = useColorScheme();
+  return scheme === "dark" ? dark : light;
+}
+
+/** The current scheme as a definite value, never null. */
+export function useScheme(): "light" | "dark" {
+  return useColorScheme() === "dark" ? "dark" : "light";
+}

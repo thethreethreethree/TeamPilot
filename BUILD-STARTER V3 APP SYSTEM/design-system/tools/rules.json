@@ -1,0 +1,497 @@
+{
+  "$comment": "Machine-readable rule registry. Every rule has a stable ID that appears in hook messages, lint output, and the manual. Severity 'block' = hard gate, the build cannot ship and PreToolUse will refuse the write. 'warn' = must be justified in DESIGN-CONTRACT.md under `waivers`.",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "DS-001",
+      "name": "No raw colour literals in components",
+      "severity": "block",
+      "rationale": "Every colour must resolve through a semantic token so themes, dark mode and contrast gates stay authoritative. A hex in a component is invisible to the contrast auditor.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.ts",
+        "**/*.js"
+      ],
+      "excludes": [
+        "**/globals.css",
+        "**/tokens/**",
+        "**/*.config.*",
+        "**/node_modules/**",
+        "**/theme.ts",
+        "**/theme.tsx",
+        "**/constants/theme.ts",
+        "**/constants/theme.tsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "(?<![\\w-])(?<!href=\")(?<!href=')(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\\b(?![\\w-])|rgba?\\(\\s*\\d+|hsla?\\(\\s*\\d+|oklch\\(\\s*[\\d.]+)"
+      },
+      "fix": "Use a semantic token: bg-primary / text-muted-foreground / border-border. If no token fits, add it to the DESIGN-CONTRACT and regenerate theme.ts — never inline a hex in a style prop."
+    },
+    {
+      "id": "DS-002",
+      "name": "No off-scale spacing",
+      "severity": "block",
+      "rationale": "Arbitrary spacing values destroy the rhythm the whole layout depends on. The 4px base grid is what makes unrelated components feel like one system.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "\\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y|w|h|min-w|min-h|max-w|max-h|top|right|bottom|left|inset|size)-\\[(\\d*\\.?\\d+)px\\]"
+      },
+      "validate": "divisibleBy4",
+      "fix": "Use a scale utility (p-4, gap-6). If the value is genuinely required, it must be divisible by 4, or the step must be added to theme.ts (regenerate from the contract)."
+    },
+    {
+      "id": "DS-003",
+      "name": "No arbitrary type sizes",
+      "severity": "block",
+      "rationale": "A type scale only works if nothing sits between its steps. One off-scale size is enough to make a page read as unresolved.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "\\btext-\\[[^\\]]*(?:px|rem|em)\\]"
+      },
+      "fix": "Use a scale step (text-sm .. text-6xl) or add a named step to theme.ts fontSize (regenerate from the contract)."
+    },
+    {
+      "id": "DS-004",
+      "name": "Focus indicator must never be removed",
+      "severity": "block",
+      "rationale": "WCAG 2.4.7 (AA). Removing the outline without a replacement makes the product unusable by keyboard. This is the single most common accessibility regression in AI-written UI.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.css"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "outline-none|outline:\\s*none|outline-hidden"
+      },
+      "requireNearby": "focus-visible|focus-within|:focus-visible|ring-",
+      "nearbyWindow": 400,
+      "fix": "Pair with a visible focus-visible ring: focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    },
+    {
+      "id": "DS-005",
+      "name": "Placeholder is not a label",
+      "severity": "block",
+      "rationale": "The label vanishes on focus, contrast is below AA by UA default, and assistive-technology exposure is inconsistent. Documented failure at NN/g and GOV.UK.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "jsx-input-without-label"
+      },
+      "fix": "Add a visible <Text> label above the field AND an accessibilityLabel on the TextInput carrying the same words. Keep the placeholder only as a format example (you@company.com, MM / YY)."
+    },
+    {
+      "id": "DS-006",
+      "name": "Interactive elements must be real controls",
+      "severity": "block",
+      "rationale": "A div with onClick is invisible to keyboard and screen readers. WCAG 2.1.1 and 4.1.2.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "clickable-non-control"
+      },
+      "fix": "Use Pressable / TouchableOpacity with accessibilityRole=\"button\" and an accessibilityLabel. A bare View with onPress is invisible to VoiceOver / TalkBack."
+    },
+    {
+      "id": "DS-007",
+      "name": "Images need an accessible name",
+      "severity": "block",
+      "rationale": "WCAG 1.1.1 (A). Decorative images need alt=\"\" explicitly so AT skips them.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "image-without-alt"
+      },
+      "fix": "Give the image an accessible name: accessibilityLabel=\"description\" (or alt= on expo-image / RN 0.73+). If it is purely decorative, mark it accessibilityElementsHidden importantForAccessibility=\"no\" so the screen reader skips it rather than announcing a filename."
+    },
+    {
+      "id": "DS-008",
+      "name": "Use expo-image, not a raw img",
+      "severity": "warn",
+      "rationale": "Raw <img> skips responsive srcset and format negotiation, and is the most common LCP regression in Next projects.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "<img\\b"
+      },
+      "fix": "In React Native use expo-image's <Image> for remote/cached images (caching + priority). A raw <img> does not exist in RN."
+    },
+    {
+      "id": "DS-009",
+      "name": "Reserved (Next.js image priority — N/A in React Native)",
+      "severity": "warn",
+      "rationale": "Web-only rule retired for the App Edition. expo-image uses `priority` legitimately, so flagging it would be a false positive.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "__DS009_DISABLED_NEVER_MATCHES__"
+      },
+      "fix": "N/A in React Native — use expo-image `priority` as intended."
+    },
+    {
+      "id": "DS-010",
+      "name": "Responsive images need sizes",
+      "severity": "warn",
+      "rationale": "Without `sizes`, Next emits only a 1x/2x srcset and the browser assumes 100vw — usually downloading an image several times larger than needed.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "image-without-sizes"
+      },
+      "fix": "Add sizes=\"(max-width: 768px) 100vw, 50vw\" matching the real layout."
+    },
+    {
+      "id": "DS-011",
+      "name": "External links need rel",
+      "severity": "warn",
+      "rationale": "target=\"_blank\" without rel=\"noopener\" exposes window.opener. Also warn the user the link leaves the site.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "blank-without-rel"
+      },
+      "fix": "Add rel=\"noopener noreferrer\"."
+    },
+    {
+      "id": "DS-012",
+      "name": "No !important",
+      "severity": "block",
+      "rationale": "An !important means the cascade has already been lost, and it makes the token layer non-authoritative. Tailwind's `!` modifier (`!text-red-500` in v3, `text-red-500!` in v4) is the same problem in a different notation.",
+      "appliesTo": [
+        "**/*.css",
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "!important|className=\"(?:[^\"]*\\s)?![a-z-]|className=\"[^\"]*[a-z0-9\\]]!(?:\\s|\")"
+      },
+      "allowIn": [
+        "**/globals.css"
+      ],
+      "fix": "Fix specificity at the source. Reduced-motion overrides in globals.css are the only sanctioned exception."
+    },
+    {
+      "id": "DS-013",
+      "name": "No off-scale z-index",
+      "severity": "warn",
+      "rationale": "z-9999 wars are a symptom of no stacking model. Layers must come from the named scale.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.css"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "z-\\[?(\\d{3,})\\]?|z-index:\\s*(\\d{3,})|zIndex:\\s*(\\d{3,})"
+      },
+      "fix": "Use the layer scale: base 0, raised 10, sticky 20, overlay 30, modal 40, toast 50, tooltip 60."
+    },
+    {
+      "id": "DS-014",
+      "name": "Tailwind v3 class names",
+      "severity": "block",
+      "rationale": "These renamed in Tailwind v4 and now mean something different or nothing. Silent visual drift.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "\\b(?:flex-shrink-|flex-grow-|overflow-ellipsis\\b|decoration-clone\\b|decoration-slice\\b)"
+      },
+      "fix": "shrink-*, grow-*, text-ellipsis, box-decoration-clone, box-decoration-slice."
+    },
+    {
+      "id": "DS-015",
+      "name": "Wrong motion package",
+      "severity": "block",
+      "rationale": "In React Native, animation is react-native-reanimated (with react-native-gesture-handler for gestures), not a web motion library. framer-motion targets the DOM and will not run in an app.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "from\\s+[\"']framer-motion[\"']"
+      },
+      "fix": "Use react-native-reanimated for animation; keep it on the UI thread (native driver) and respect Reduce Motion via useReducedMotion()."
+    },
+    {
+      "id": "DS-016",
+      "name": "Motion must respect Reduce Motion (verified on-device)",
+      "severity": "warn",
+      "rationale": "WCAG 2.3.3. In React Native this is honoured in code via useReducedMotion / AccessibilityInfo, not a CSS block — so it is verified on-device, not statically by the linter.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "__DS016_DISABLED_NEVER_MATCHES__"
+      },
+      "fix": "Honour Reduce Motion with useReducedMotion() / AccessibilityInfo.isReduceMotionEnabled(); confirm on a device with Reduce Motion on."
+    },
+    {
+      "id": "DS-017",
+      "name": "Banned generic gradient",
+      "severity": "block",
+      "rationale": "The purple-to-blue gradient hero is the single strongest tell of machine-generated design. It signals template, not brand.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.css"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "(?:from-(?:purple|violet|indigo|fuchsia)-\\d{2,3}[^\"'`]{0,60}?\\bto-(?:blue|indigo|cyan|sky|violet|purple)-\\d{2,3})|(?:from-(?:blue|indigo|cyan)-\\d{2,3}[^\"'`]{0,60}?\\bto-(?:purple|violet|fuchsia|pink)-\\d{2,3})"
+      },
+      "fix": "Use a brand-derived surface. If a gradient is genuinely part of the art direction, declare it in DESIGN-CONTRACT.md under `gradients` with its OKLCH stops."
+    },
+    {
+      "id": "DS-018",
+      "name": "No emoji as interface icons",
+      "severity": "warn",
+      "rationale": "Emoji render differently per platform, carry unintended tone, and are announced literally by screen readers.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "emoji-in-jsx"
+      },
+      "fix": "Use a lucide-react-native icon marked decorative (importantForAccessibility=\"no\" / accessibilityElementsHidden), or give it a real accessibilityLabel."
+    },
+    {
+      "id": "DS-019",
+      "name": "Design tokens: one source of truth (theme.ts)",
+      "severity": "warn",
+      "rationale": "NativeWind REQUIRES a tailwind.config, so the web rule 'config must not exist' is inverted for the App Edition. The single source of truth is theme.ts, generated from the contract; tailwind.config should consume it, never diverge from it.",
+      "appliesTo": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "__DS019_DISABLED_NEVER_MATCHES__"
+      },
+      "fix": "Keep colours/spacing/type in theme.ts (regenerate from the contract); have tailwind.config import them rather than redefining."
+    },
+    {
+      "id": "DS-020",
+      "name": "Primary navigation hidden behind a drawer",
+      "severity": "block",
+      "rationale": "Measured: hidden nav is used 27% vs 48% visible, is >20% worse for content discovery, and makes desktop tasks at least 39% slower (NN/g, n=179). This is the largest single UX effect in the whole evidence base.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "desktop-hamburger"
+      },
+      "fix": "Primary destinations belong in a persistent, visible bottom tab bar of 3-5 co-equal items, each with an icon AND a label. A drawer as the ONLY navigation reproduces the hidden-nav penalty (>20% discoverability loss, >=39% slower tasks). Beyond five top-level areas, the fifth tab is a labelled More list, not a sixth tab."
+    },
+    {
+      "id": "DS-021",
+      "name": "Tap targets below the floor",
+      "severity": "warn",
+      "rationale": "WCAG 2.5.8 requires 24x24 CSS px. Apple recommends 44pt, Material 48dp. 24 is a legal floor, not a design target.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "small-tap-target"
+      },
+      "fix": "Primary touch controls: 44px minimum. Icon buttons: size-11 with the icon inset, not size-4."
+    },
+    {
+      "id": "DS-022",
+      "name": "Body text below the legibility floor",
+      "severity": "block",
+      "rationale": "Below 16px on mobile, iOS zooms the viewport on input focus and reading speed degrades. Critical print size is ~0.2 degrees of visual angle.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.css"
+      ],
+      "detect": {
+        "type": "regex",
+        "pattern": "\\btext-\\[(?:[0-9]|1[0-3])px\\]|font-size:\\s*(?:[0-9]|1[0-3])px"
+      },
+      "fix": "16px minimum for body copy, 14px floor for dense secondary UI, never below 12px for anything a user must read."
+    },
+    {
+      "id": "DS-023",
+      "name": "Unbounded line length",
+      "severity": "warn",
+      "rationale": "WCAG 1.4.8 caps at 80 characters. Long measures cost return-sweep accuracy.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "prose-without-measure"
+      },
+      "fix": "Constrain running text with max-w-prose or max-w-[68ch]."
+    },
+    {
+      "id": "DS-024",
+      "name": "More than one primary action per view",
+      "severity": "warn",
+      "rationale": "Distinctiveness is relational (Hunt 1995). A view with five emphasised elements has none.",
+      "appliesTo": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "detect": {
+        "type": "multiple-primary-cta"
+      },
+      "fix": "One primary. Everything else secondary, outline, or ghost."
+    },
+    {
+      "id": "DS-025",
+      "name": "Design contract missing",
+      "severity": "block",
+      "rationale": "Without a contract there is no art direction, no token derivation, and nothing for the gates to check against. Every project drifts to the same default without one.",
+      "appliesTo": [
+        "*"
+      ],
+      "detect": {
+        "type": "contract-required"
+      },
+      "fix": "Run /design-intake to produce DESIGN-CONTRACT.md before writing UI code."
+    }
+  ],
+  "bannedPatterns": {
+    "$comment": "Aesthetic bans. These are the machine-generated-design tells. Each may be waived only by an explicit entry in DESIGN-CONTRACT.md `waivers` with a stated reason.",
+    "items": [
+      {
+        "id": "BAN-01",
+        "pattern": "purple-to-blue gradient hero",
+        "reason": "Strongest single tell of generated design."
+      },
+      {
+        "id": "BAN-02",
+        "pattern": "glassmorphism on large surfaces",
+        "reason": "Exhausted, and backdrop-filter is a real paint cost on low-end devices. Permitted only on nav and modals."
+      },
+      {
+        "id": "BAN-03",
+        "pattern": "bento grid as the whole page",
+        "reason": "Performs fine, aesthetically spent. Allowed as one section, never as the layout thesis."
+      },
+      {
+        "id": "BAN-04",
+        "pattern": "outline icon in a rounded square, three-across feature grid",
+        "reason": "The default template shape. Carries no information about this client."
+      },
+      {
+        "id": "BAN-05",
+        "pattern": "uniform grey logo wall labelled 'Trusted by'",
+        "reason": "Decorative, unverifiable, and universally ignored."
+      },
+      {
+        "id": "BAN-06",
+        "pattern": "blob / amoeba background shapes",
+        "reason": "2020 landing-page vernacular."
+      },
+      {
+        "id": "BAN-07",
+        "pattern": "kinetic typography hero",
+        "reason": "Fights screen readers and crawlers, adds CLS, rarely survives to production."
+      },
+      {
+        "id": "BAN-08",
+        "pattern": "WebGL / 3D hero on a marketing page",
+        "reason": "Wins galleries, fails Core Web Vitals. Needs an explicit performance budget waiver."
+      },
+      {
+        "id": "BAN-09",
+        "pattern": "AI-generated hero illustration in current house styles",
+        "reason": "Dates instantly and reads as filler."
+      },
+      {
+        "id": "BAN-10",
+        "pattern": "emoji as section markers",
+        "reason": "Tone drift and inconsistent rendering."
+      },
+      {
+        "id": "BAN-11",
+        "pattern": "everything centred",
+        "reason": "Centre-aligned everything removes the asymmetry hierarchy depends on."
+      },
+      {
+        "id": "BAN-12",
+        "pattern": "Inter as the display face",
+        "reason": "Not a legibility problem — a differentiation problem. Inter is the default of the default. Fine for UI, never for the voice."
+      },
+      {
+        "id": "BAN-13",
+        "pattern": "auto-rotating carousel",
+        "reason": "WCAG 2.2.2 failure, and measured near-zero engagement past slide one."
+      },
+      {
+        "id": "BAN-14",
+        "pattern": "lorem ipsum in any committed file",
+        "reason": "Placeholder copy hides layout failures that only real content reveals."
+      }
+    ]
+  },
+  "gates": {
+    "$comment": "Numeric gates. All must pass before a build may be declared done.",
+    "contrast": {
+      "bodyText": 4.5,
+      "largeText": 3,
+      "uiComponent": 3,
+      "focusIndicator": 3,
+      "note": "WCAG 2.2. Values are truncated, never rounded up: 4.499 fails."
+    },
+    "layout": {
+      "spacingBase": 4,
+      "maxHorizontalOverflowPx": 0,
+      "minTapTargetPx": 24,
+      "recommendedTapTargetPx": 44,
+      "maxProseMeasureCh": 75,
+      "minBodyFontPx": 16
+    },
+    "performance": {
+      "lcpMs": 2500,
+      "inpMs": 200,
+      "cls": 0.1,
+      "percentile": 75,
+      "note": "Core Web Vitals 'good' thresholds at p75. INP replaced FID in March 2024."
+    },
+    "accessibility": {
+      "axeViolations": 0,
+      "wcagLevel": "2.2 AA",
+      "note": "Automated tooling catches roughly a third of WCAG failures. A green axe run is necessary, never sufficient."
+    }
+  }
+}

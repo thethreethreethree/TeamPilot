@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Generated gate output, not source.
+.design/

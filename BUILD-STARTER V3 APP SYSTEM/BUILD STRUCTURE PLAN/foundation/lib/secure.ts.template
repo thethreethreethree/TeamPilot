@@ -1,0 +1,132 @@
+import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
+
+/**
+ * Secrets, and the biometric gate.
+ *
+ * TWO STORES, ONE RULE. The app has two places to keep data and the line between
+ * them is not negotiable:
+ *
+ *   - SQLite (lib/db.ts) is PLAINTEXT on disk. Fine for app data. NEVER for a
+ *     token, a password, a PIN, an API key, or anything whose leak would matter.
+ *   - expo-secure-store is the OS keystore — Keychain on iOS, Keystore on
+ *     Android — hardware-backed where the device supports it. Secrets go HERE and
+ *     nowhere else. Not in SQLite, not in AsyncStorage, not in a bundled config
+ *     file, not in the repo.
+ *
+ * A secret in the JS bundle is a secret you have shipped to every user's disk in
+ * cleartext — the bundle is not a secret. If a value must ship with the app AND
+ * stay private, it cannot; that design needs a backend. This file is for secrets
+ * the app RECEIVES or GENERATES on-device (a session token, a user PIN).
+ *
+ * (verify current) — SecureStore's `keychainAccessible` constants and the
+ * `requireAuthentication` option have shifted across SDKs; confirm the names
+ * against the installed version.
+ */
+
+// SecureStore keys must match /^[A-Za-z0-9._-]+$/ — no slashes, no spaces. A key
+// that violates this throws at runtime, not at build. Centralise them so a typo
+// is a compile error, not a silent miss.
+export const KEYS = {
+  sessionToken: "session_token",
+  // TODO(project): add your app's secret keys here.
+} as const;
+
+/**
+ * Store a secret.
+ *
+ * `WHEN_UNLOCKED_THIS_DEVICE_ONLY`: the value is readable only while the device
+ * is unlocked, and — critically — it is NOT copied to a new device by an
+ * encrypted backup/restore. A session token restored onto a different phone is a
+ * token leak; keeping secrets device-local is the safe default. Loosen this only
+ * for a value you have a concrete reason to migrate between devices.
+ */
+export async function setSecret(key: string, value: string): Promise<void> {
+  await SecureStore.setItemAsync(key, value, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
+}
+
+export async function getSecret(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key);
+}
+
+export async function deleteSecret(key: string): Promise<void> {
+  await SecureStore.deleteItemAsync(key);
+}
+
+/* ----------------------------------------------------------- biometric gate */
+
+export type GateResult =
+  | { ok: true }
+  | { ok: false; reason: "unavailable" | "not_enrolled" | "failed" | "cancelled" };
+
+/**
+ * Require the user to prove it is them (Face ID / Touch ID / device passcode)
+ * before a sensitive action.
+ *
+ * IT FAILS CLOSED. Every path that is not an explicit success returns `ok:false`.
+ * The opposite default — "no biometric hardware, so let them through" — is how a
+ * gate becomes decorative: it protects the users who have a fingerprint set up
+ * and waves through everyone who does not, which is exactly backwards. If the
+ * action truly needs protecting, an unavailable gate must BLOCK and offer another
+ * factor, not open.
+ *
+ * `disableDeviceFallback: false` (the default we rely on) lets the OS offer the
+ * device passcode when biometrics fail or are not enrolled — a passcode is still
+ * a real factor. Set it true only if your threat model demands biometric
+ * specifically, and then handle `not_enrolled` by refusing the action, not by
+ * skipping the check.
+ *
+ * WHAT THIS IS NOT: it is not encryption and it is not authorisation. It gates a
+ * moment ("is the person holding the phone the owner?"); it does not by itself
+ * keep the protected value secret. Pair it with SecureStore for the value and,
+ * where the platform supports it, `requireAuthentication` on the stored item so
+ * the OS enforces the check at read time too.
+ */
+export async function requireAuth(
+  promptMessage: string
+): Promise<GateResult> {
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  if (!hasHardware) return { ok: false, reason: "unavailable" };
+
+  const enrolled = await LocalAuthentication.isEnrolledAsync();
+  if (!enrolled) return { ok: false, reason: "not_enrolled" };
+
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage,
+    // A stable label for the cancel affordance; the OS shows it.
+    cancelLabel: "Cancel",
+    // Let the OS fall back to the device passcode — still a real factor.
+    disableDeviceFallback: false,
+  });
+
+  if (result.success) return { ok: true };
+
+  // The user backing out is a distinct outcome from a failed match: one is
+  // "not now", the other may be "not you". The caller often wants to treat them
+  // differently (silent vs. a warning), so report which it was.
+  const cancelled =
+    result.error === "user_cancel" ||
+    result.error === "system_cancel" ||
+    result.error === "app_cancel";
+  return { ok: false, reason: cancelled ? "cancelled" : "failed" };
+}
+
+/**
+ * A human sentence for a non-success gate result — for the UI, so a screen does
+ * not have to switch on the reason itself. "unavailable"/"not_enrolled" point the
+ * user at what to do; "failed"/"cancelled" are just neutral.
+ */
+export function gateMessage(reason: Exclude<GateResult, { ok: true }>["reason"]): string {
+  switch (reason) {
+    case "unavailable":
+      return "This device has no biometric or passcode lock set up. Add one in Settings to protect this.";
+    case "not_enrolled":
+      return "No fingerprint or face is enrolled on this device. Add one in Settings to continue.";
+    case "cancelled":
+      return "Cancelled.";
+    case "failed":
+      return "That did not match. Try again.";
+  }
+}

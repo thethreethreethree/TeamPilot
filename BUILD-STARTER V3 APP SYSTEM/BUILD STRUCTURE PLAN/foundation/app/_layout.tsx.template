@@ -1,0 +1,169 @@
+import { useCallback, useEffect, useState } from "react";
+import { AccessibilityInfo, View } from "react-native";
+import { Stack } from "expo-router";
+import {
+  ThemeProvider,
+  DefaultTheme,
+  DarkTheme,
+  type Theme,
+} from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+import { useColors, useScheme } from "@/lib/theme";
+
+// NativeWind v4 needs the compiled CSS imported ONCE, at the app entry, or no
+// className resolves and every screen renders unstyled. (verify current) — the
+// filename ("global.css") and whether it is imported here or wired through the
+// babel/metro config depends on your NativeWind setup; scaffold NativeWind first
+// (build sequence Phase 3), then confirm.
+// import "../global.css";
+
+// Keep the native splash up until fonts are ready, so the user never sees a
+// flash of the system font before ours loads (a visible fault — see
+// 03-DESIGN-BLUEPRINT §3). This call belongs at MODULE scope so it runs before
+// first paint. It can reject if the splash is already hidden; that is harmless.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/**
+ * Reduce Motion, read once and kept live.
+ *
+ * Users who set "Reduce Motion" are telling the OS that animation makes them
+ * unwell or is hard to track. Honour it: we hand `animation: "none"` to the
+ * navigator so screen transitions do not slide. Read it at start AND subscribe,
+ * because the user can toggle it in Settings while the app is backgrounded.
+ */
+function useReduceMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (mounted) setReduced(v);
+    });
+    const sub = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduced
+    );
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
+  return reduced;
+}
+
+/**
+ * Build a React Navigation theme from our generated tokens, so the frame the
+ * navigator paints itself — header background, the hairline between header and
+ * content, the default text colour during a transition — matches the app instead
+ * of the library's stock blue-on-white. Everything INSIDE a screen still uses
+ * NativeWind classes; this only colours the chrome the navigator owns.
+ * (verify current) — the Theme type's field list has grown across React
+ * Navigation versions; extend if your installed version wants more.
+ */
+function useNavigationTheme(): Theme {
+  const c = useColors();
+  const scheme = useScheme();
+  const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: c.background,
+      card: c.background,
+      text: c.foreground,
+      border: c.border,
+      primary: c.primary,
+      notification: c.destructive,
+    },
+  };
+}
+
+export default function RootLayout() {
+  // TODO(project): load your real faces. Keep rendering gated on this — a screen
+  // that mounts before its font is ready flashes the system font first. Use
+  // vendored font files bundled with the app (require(...)) rather than a URL:
+  // an app cannot download a font at first paint, and must not try.
+  const [fontsLoaded, fontError] = useFonts({
+    // "Display-Bold": require("../assets/fonts/Display-Bold.otf"),
+    // "Body-Regular": require("../assets/fonts/Body-Regular.otf"),
+  });
+
+  // Hide the splash the moment the first real frame is laid out — not on a timer.
+  // A fixed delay is either too short (flash) or too long (dead air); tying it to
+  // layout makes the handoff continuous.
+  const onLayoutRoot = useCallback(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, fontError]);
+
+  // A font that fails to load is not a reason to show a blank app forever. Log
+  // it and fall through to the system font rather than trapping the user behind
+  // the splash. Render nothing only while we are still genuinely loading.
+  if (!fontsLoaded && !fontError) return null;
+
+  return (
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }} onLayout={onLayoutRoot}>
+        <Providers />
+      </View>
+    </SafeAreaProvider>
+  );
+}
+
+// Split so the theme hooks (which read the color scheme) sit INSIDE the
+// providers and re-render on a light/dark switch.
+function Providers() {
+  const theme = useNavigationTheme();
+  const reduceMotion = useReduceMotion();
+  const scheme = useScheme();
+
+  return (
+    <ThemeProvider value={theme}>
+      {/* The status bar paints OUTSIDE the React tree, so it takes a value, not a
+          class — "light"/"dark" here is the CONTENT colour, chosen to contrast
+          the current scheme's background. */}
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          animation: reduceMotion ? "none" : "default",
+          // A back title/header is a per-screen decision; the tab group sets its
+          // own header off below. Keep the root stack minimal — it hosts the tab
+          // navigator and the full-screen routes (not-found, a modal).
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        {/* +not-found is picked up automatically; listing it is optional. */}
+      </Stack>
+    </ThemeProvider>
+  );
+}
+
+/**
+ * Route-level error boundary for the WHOLE app.
+ *
+ * expo-router renders the nearest exported `ErrorBoundary` when a screen throws
+ * during render. Exporting one from the root layout means a crash in any screen
+ * shows THIS — a human sentence and a way onward — instead of the red-box
+ * LogBox (dev) or a silent white screen / native crash (production). On a
+ * commercial app a bare crash reads as "this company is broken" at the worst
+ * possible moment.
+ *
+ * The copy matters as much as the retry. Answer the user's real question first —
+ * "did I lose what I was doing?" — then give them the button. `retry()` re-mounts
+ * the failed segment; it does not reload the whole app, so unsaved local state
+ * elsewhere survives.
+ *
+ * (verify current) — `ErrorBoundaryProps` is exported by expo-router; confirm
+ * the prop names (`error`, `retry`) against the installed version.
+ */
+export { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// Ensure the first route resolved is a known one, and deep links that miss fall
+// to +not-found rather than a blank stack. (verify current) — `unstable_settings`
+// is expo-router's mechanism for the initial route; the key name has changed
+// across versions.
+export const unstable_settings = {
+  initialRouteName: "(tabs)",
+};

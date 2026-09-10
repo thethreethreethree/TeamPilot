@@ -1,0 +1,105 @@
+/**
+ * Display helpers. The EDGE of the app: integers and ISO strings become
+ * human-readable text here and only here.
+ *
+ * Two failure modes these exist to prevent:
+ *   - money shown as a float ("$12.5", "$12.500000001") — always format from the
+ *     stored integer, never from a divided-then-passed-around number
+ *   - a date that means two different days depending on who reads it ("12/09")
+ *     or that shifts by one for a user in another timezone
+ *
+ * TODO(project): set the currency symbol/placement and the locale.
+ */
+
+// TODO(project): your primary currency's symbol and whether it leads or trails.
+const CURRENCY_SYMBOL = "$";
+const MINOR_PER_MAJOR = 100; // 100 for cents/pence; 1 for a no-minor-unit currency.
+
+/**
+ * Primary currency, from stored MINOR units.
+ *
+ * Shows whole amounts without a trailing ".00" (`$12`) and fractional ones with
+ * exactly two places (`$12.50`). Built from the integer with string maths so it
+ * cannot drift the way `(minor/100).toFixed(2)` can on large values.
+ */
+export function money(minorAmount: number): string {
+  const negative = minorAmount < 0;
+  const abs = Math.abs(Math.trunc(minorAmount));
+  const whole = Math.floor(abs / MINOR_PER_MAJOR);
+  const frac = abs % MINOR_PER_MAJOR;
+
+  const wholeGrouped = whole.toLocaleString("en-US");
+  const body =
+    frac === 0
+      ? wholeGrouped
+      : `${wholeGrouped}.${String(frac).padStart(2, "0")}`;
+
+  return `${negative ? "-" : ""}${CURRENCY_SYMBOL}${body}`;
+}
+
+/**
+ * Secondary currency, stored in WHOLE units, quoted not converted.
+ * Some locales group with dots rather than commas — match local convention or
+ * the number reads as wrong to the people who actually pay it.
+ *
+ * TODO(project): append the local symbol; a bare number is ambiguous next to the
+ * primary currency.
+ */
+export function moneyAlt(whole: number): string {
+  return whole.toLocaleString("en-US");
+}
+
+/* --------------------------------------------------------------- dates (UTC) */
+//
+// Dates are stored as ISO `YYYY-MM-DD` and parsed AS UTC everywhere. Parsing a
+// bare date string in local time is the off-by-one that appears only for users
+// east or west of you — it works on your phone and fails on theirs. Anchoring to
+// UTC (`T00:00:00Z`) removes the timezone from the arithmetic entirely.
+
+export function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Whole days between two ISO dates. UTC by construction — see the note above. */
+export function daysBetween(startIso: string, endIso: string): number {
+  const a = Date.parse(`${startIso}T00:00:00Z`);
+  const b = Date.parse(`${endIso}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** "Fri 12 Sep" — never "12/09", which is two different dates depending on who
+ *  is reading it. `timeZone: "UTC"` keeps the shown day equal to the stored day. */
+export function prettyDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * A wall-clock timestamp for the user, from a stored ISO instant.
+ *
+ * Unlike the date-only helpers above, a timestamp SHOULD render in the phone's
+ * local zone — "created 3 minutes ago" is about the user's now, not UTC. Leaving
+ * `timeZone` unset uses the device zone, which is what you want here.
+ */
+export function prettyTime(isoInstant: string): string {
+  const d = new Date(isoInstant);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}

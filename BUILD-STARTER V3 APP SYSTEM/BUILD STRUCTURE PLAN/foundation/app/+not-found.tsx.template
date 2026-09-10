@@ -1,0 +1,56 @@
+import { View, Text, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack, useRouter } from "expo-router";
+
+/**
+ * The catch-all route. expo-router renders `app/+not-found.tsx` for any path it
+ * cannot match — and on a device that is not a mistyped URL, it is a DEEP LINK or
+ * a PUSH NOTIFICATION that pointed at something no longer there: a record the
+ * user deleted, a screen a new build removed, a share link from a friend on a
+ * different version. The person arrives mid-intent with no context, so this
+ * screen has one job — get them somewhere real, without implying they broke
+ * anything.
+ *
+ * It offers a definite way HOME rather than a browser-style "go back": the back
+ * stack may be empty (a cold launch straight into the dead link), in which case
+ * there is nothing to go back to. `router.replace("/")` always resolves.
+ */
+export default function NotFound() {
+  const router = useRouter();
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      {/* Give the screen a real title in the header for orientation. */}
+      <Stack.Screen options={{ title: "Not found" }} />
+
+      <View className="flex-1 justify-center px-6">
+        <Text className="font-mono text-xs uppercase tracking-widest text-primary">
+          Not found
+        </Text>
+
+        <Text
+          accessibilityRole="header"
+          className="mt-4 text-3xl font-extrabold tracking-tight text-foreground"
+        >
+          That is not here.
+        </Text>
+
+        <Text className="mt-4 text-base leading-relaxed text-muted-foreground">
+          The thing this link pointed to may have moved or been removed. Nothing
+          you were doing was lost.
+        </Text>
+
+        <Pressable
+          onPress={() => router.replace("/")}
+          accessibilityRole="button"
+          accessibilityLabel="Go to the home screen"
+          className="mt-10 min-h-12 items-center justify-center self-start bg-primary px-6 active:opacity-90"
+        >
+          <Text className="font-mono text-sm uppercase tracking-widest text-primary-foreground">
+            Back to home
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}

@@ -1,0 +1,65 @@
+import { useEffect } from "react";
+import { View, Text, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { ErrorBoundaryProps } from "expo-router";
+
+/**
+ * The app-wide failure surface. Re-exported from app/_layout.tsx as the router's
+ * `ErrorBoundary`, so any screen that throws during render lands here instead of
+ * a red LogBox (dev) or a white/native crash (production).
+ *
+ * WHY IT LIVES IN A COMPONENT FILE, not inline in the layout: a boundary that is
+ * defined in the same module it protects can be taken down by the very error it
+ * is meant to catch. Keeping it here keeps it simple and independently mountable.
+ *
+ * Colours come entirely from NativeWind token classes — no imperative colour is
+ * needed on this screen, so none is imported. Every size is a token class too;
+ * the one thing to keep is the 44/48dp minimum touch target on the retry control
+ * (min-h-12 = 48dp), which the design law requires and a crash screen forgets.
+ *
+ * (verify current) — `ErrorBoundaryProps` (`{ error, retry }`) is exported by
+ * expo-router; confirm the shape against the installed version.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    // Not a monitoring system, but the failure is at least not invisible.
+    // TODO(project): forward to real crash reporting (Sentry, Bugsnag) if you
+    // add one — a boundary that only logs to the console tells you nothing about
+    // crashes on a stranger's phone.
+    console.error("[ErrorBoundary]", error);
+  }, [error]);
+
+  return (
+    <SafeAreaView className="flex-1 bg-background" accessibilityRole="alert">
+      <View className="flex-1 justify-center px-6">
+        <Text className="font-mono text-xs uppercase tracking-widest text-destructive">
+          Something broke
+        </Text>
+
+        <Text
+          accessibilityRole="header"
+          className="mt-4 text-3xl font-extrabold tracking-tight text-foreground"
+        >
+          That did not work.
+        </Text>
+
+        <Text className="mt-4 text-base leading-relaxed text-muted-foreground">
+          Our fault, not yours. Nothing you saved was lost.
+        </Text>
+
+        {/* Pressable, not a bare Touchable: it gives us the pressed state the
+            design law requires, and the min height keeps the target ≥ 48dp. */}
+        <Pressable
+          onPress={retry}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+          className="mt-10 min-h-12 items-center justify-center self-start bg-primary px-6 active:opacity-90"
+        >
+          <Text className="font-mono text-sm uppercase tracking-widest text-primary-foreground">
+            Try again
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}

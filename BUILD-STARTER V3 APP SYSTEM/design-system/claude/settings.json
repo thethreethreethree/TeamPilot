@@ -1,0 +1,106 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start.mjs"
+            ],
+            "timeout": 20,
+            "statusMessage": "Loading design system status"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/prompt-anchor.mjs"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-write-guard.mjs"
+            ],
+            "timeout": 45,
+            "statusMessage": "Checking design rules"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-write-lint.mjs"
+            ],
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.mjs"
+            ],
+            "timeout": 240,
+            "statusMessage": "Running the design gate"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(node tools/design-lint.mjs:*)",
+      "Bash(node tools/token-gen.mjs:*)",
+      "Bash(node tools/contrast-audit.mjs:*)",
+      "Bash(node tools/runtime-audit.mjs:*)",
+      "Bash(node tools/gate.mjs:*)",
+      "Read(//**)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ],
+    "ask": [
+      "Write(./tools/**)",
+      "Edit(./tools/**)",
+      "Write(./.claude/hooks/**)",
+      "Edit(./.claude/hooks/**)",
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/settings.json)",
+      "Bash(rm:*tools*)",
+      "Bash(mv:*tools*)"
+    ]
+  }
+}

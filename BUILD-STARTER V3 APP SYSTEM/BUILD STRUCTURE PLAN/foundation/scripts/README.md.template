@@ -1,0 +1,80 @@
+# scripts — there is no server backup, and that is the point
+
+The web foundation shipped `deploy.sh` and `backup.sh`: a server to push source
+to, and a cron job to snapshot its database. **A native app has neither.** There
+is no box you own, no always-on process, and no central database to back up. So
+those two scripts have no app analogue and are gone rather than faked.
+
+This file is the honest replacement: it says where the two responsibilities they
+covered — **release** and **the user's data surviving** — actually live now.
+
+---
+
+## Release, not deploy
+
+You do not deploy an app; you **release** it through a platform lifecycle that
+ends on someone else's phone and inside someone else's review queue. There is no
+script here because the release path is EAS plus two store consoles, and it is
+documented in full — with the standing credentials, the survey-before-you-build
+rule, and the nine ways it goes wrong — in:
+
+> **`../../05-DEPLOYMENT-METHOD.md`**
+
+The short shape (see that doc for the real steps):
+
+```
+eas build     — signed release builds, both platforms   (Phase 11)
+eas submit    — hand them to App Store Connect / Play    (Phase 13)
+TestFlight / Play internal testing — real testers first  (Phase 12)
+```
+
+Two rules from that doc are worth repeating because getting them wrong is
+unrecoverable, not merely annoying:
+
+- **Never commit signing material** — a keystore, `.p8`/`.p12`, provisioning
+  profile, or service-account JSON. A key that was ever committed is
+  compromised. Add it to `.gitignore` before it exists.
+- **Back up the Android upload keystore off the machine the day it is created.**
+  Lose it and, in the worst case, you can never update the app again under the
+  same listing. `eas credentials` can download it. This is the one artefact whose
+  loss has no workaround.
+
+---
+
+## The user's data surviving — the real "backup" question
+
+On-device data (the SQLite file, `lib/db.ts`) lives in the app's private sandbox
+on one phone. There is no server copy because there is no server. It survives — or
+not — through **two mechanisms, and the user owns both**:
+
+1. **OS backup.** iOS backs the app's data up via iCloud/finder; Android via
+   Auto Backup / Google One — *if the user has it switched on and the data is not
+   excluded*. You get this largely for free, but you do not control it and must
+   not promise it: a user with backups off has no safety net.
+
+   - Note the deliberate exception in `lib/secure.ts`: secrets are stored
+     `THIS_DEVICE_ONLY`, so they are **excluded** from that backup on purpose — a
+     session token restored onto a different phone is a token leak. App data is
+     backed up; secrets are not. That is correct, not a gap.
+
+2. **User-driven export.** The mechanism you actually control. Give the user a
+   way to export their own data — a share sheet writing a JSON/CSV file
+   (`expo-file-system` + `expo-sharing`), or a document they can save to Files /
+   Drive. This is what lets someone move to a new phone, or recover after
+   uninstalling, without you holding their data at all — which for an
+   offline-first, on-device app is a feature, not a limitation.
+
+**TODO(project):** decide and build the export path (a screen action, not a
+script), and **tell the user in plain words** what is and is not backed up.
+Assuming iCloud has them covered is exactly the assumption that loses someone's
+data — say it out loud, the way the web foundation's backup script says "still
+your job to copy these off the machine."
+
+---
+
+## Why this folder has no `.sh` files
+
+Everything above is a store console action, an EAS command, or in-app code — none
+of it is a shell script that belongs in the repo. If you find yourself writing one
+here, check it is not really an `eas.json` build profile or a screen action in
+disguise.

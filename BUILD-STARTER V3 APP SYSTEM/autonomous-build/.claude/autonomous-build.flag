@@ -1,0 +1,28 @@
+STOP
+================================================================================
+Autonomous build — HARD MODE
+
+The FIRST LINE of this file is the control switch, read by the Stop hook
+(.claude/hooks/build-continue-guard.mjs). Only the first non-empty line matters;
+everything below is notes. Wrapping <> and quotes are ignored, so <ACTIVE>,
+<Pause>, "STOP" all work.
+
+  • ACTIVE  → the agent may NOT stop. Every attempt to end a turn is blocked and
+             the agent keeps building. There is no self-authorized stop.
+
+  • PAUSE   → your <Pause> command. The agent is allowed to stop and hold.
+  • STOP    → your <Stop> command. The agent is allowed to stop.
+             (HALT / STAND DOWN / END / DONE / CEASE also work.)
+
+This file ships set to STOP (disarmed) so it is safe by default. To ARM the loop,
+change the first line to  ACTIVE .
+
+HOW YOU HALT IT once armed:
+  • Type <Pause> or <Stop> in chat  → the agent writes that word to this first line
+        and stops, OR
+  • Edit this first line yourself to  PAUSE  or  STOP , OR
+  • Delete this file.
+
+Nothing else — not "hard-blocked", not "nothing buildable", not "waiting on you" —
+lets the agent stop. Only your <Pause>/<Stop> command.
+================================================================================

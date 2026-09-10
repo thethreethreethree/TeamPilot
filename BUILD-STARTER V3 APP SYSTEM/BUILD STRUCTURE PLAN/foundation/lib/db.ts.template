@@ -1,0 +1,162 @@
+import * as SQLite from "expo-sqlite";
+import { ADDED_COLUMNS, SCHEMA, SCHEMA_VERSION } from "./schema";
+
+/**
+ * On-device SQLite (expo-sqlite).
+ *
+ * The whole dataset lives in one file inside the app's sandbox. No server, no
+ * network, nothing to bill, and it works in airplane mode — which for an
+ * offline-first app is the point, not a bonus. For most apps this is the right
+ * store far more often than it feels like it should be.
+ *
+ * (verify current) — expo-sqlite's API changed at SDK 51: the synchronous
+ * `openDatabaseSync`, `execSync`, `getFirstSync`, `getAllSync`, `runSync` and
+ * `withTransactionSync` used here are the CURRENT ("next") API. Older code you
+ * find online uses the legacy `openDatabase(...).transaction(tx => ...)` callback
+ * API, which is a DIFFERENT and now-deprecated surface. Confirm the method names
+ * against the installed SDK version before trusting a snippet from elsewhere.
+ *
+ * TWO THINGS THAT WILL CATCH YOU:
+ *
+ *  1. The handle is cached at module scope, so open() — and therefore MIGRATIONS
+ *     — runs ONCE per app process, at first import. A schema change does not
+ *     apply until the app is relaunched. In dev, Fast Refresh keeps the process
+ *     alive across code edits, so a schema edit needs a full reload, not just a
+ *     save. This will confuse you exactly once.
+ *
+ *  2. This module must be imported from JS that runs AFTER the app has a
+ *     filesystem — i.e. inside the React tree or a function it calls, never at
+ *     the top level of a module that loads before the app is ready. Reaching for
+ *     the database in a module side-effect is how you get an obscure "database is
+ *     not open" on cold start.
+ */
+
+// TODO(project): name the database file after the project. It is created inside
+// the app's private SQLite directory; you never build a path by hand.
+const DB_NAME = "app.db";
+
+// A module-scope cache. Fast Refresh re-runs modules; without a single cached
+// handle you would open a new connection on every refresh until the app is
+// holding dozens of them.
+let handle: SQLite.SQLiteDatabase | null = null;
+
+function open(): SQLite.SQLiteDatabase {
+  const db = SQLite.openDatabaseSync(DB_NAME);
+
+  // WAL: readers do not block on a writer, which keeps the UI thread responsive
+  // while a background write is in flight. Foreign keys are OFF by default in
+  // SQLite — the `references` constraints in the schema do NOTHING without this.
+  db.execSync("pragma journal_mode = WAL");
+  db.execSync("pragma foreign_keys = ON");
+
+  migrate(db);
+  seed(db);
+  return db;
+}
+
+export function getDb(): SQLite.SQLiteDatabase {
+  if (!handle) handle = open();
+  return handle;
+}
+
+/**
+ * Bring any existing store up to the current shape, replayably.
+ *
+ * Order matters: create the base tables/indexes first (idempotent), THEN add
+ * post-release columns (guarded), so a column added to a table created in the
+ * same run has its table to attach to.
+ *
+ * Why the guarded runner still runs even when user_version already matches: the
+ * `if not exists` / column-inspection checks are cheap and make the function
+ * safe against a store left in a half-migrated state by a launch the user killed
+ * mid-write. user_version is a fast-path breadcrumb and a debugging aid, NOT the
+ * safety mechanism — the idempotency is. We read it, we write it, but we never
+ * trust it enough to SKIP the guarded work.
+ */
+function migrate(db: SQLite.SQLiteDatabase) {
+  // Base schema — every statement idempotent.
+  db.execSync(SCHEMA);
+
+  // Post-release columns — inspect, then add only what is missing.
+  addMissingColumns(db);
+
+  // Record where we are. A future launch can log or branch on this; some
+  // heavier migrations (a table rebuild) legitimately want to run once and gate
+  // on it. For plain add-column work the guarded runner above already handles
+  // replay, so this is a breadcrumb, not a gate.
+  const current = readUserVersion(db);
+  if (current !== SCHEMA_VERSION) {
+    db.execSync(`pragma user_version = ${SCHEMA_VERSION}`);
+  }
+}
+
+function readUserVersion(db: SQLite.SQLiteDatabase): number {
+  const row = db.getFirstSync<{ user_version: number }>("pragma user_version");
+  return row?.user_version ?? 0;
+}
+
+/**
+ * Apply post-release columns, skipping any that already exist.
+ *
+ * Safe against a database in any state: fresh, fully migrated, or halfway through
+ * an earlier attempt that died. `pragma table_info` is the source of truth for
+ * "does this column exist", not a version number that a killed launch may not
+ * have written.
+ */
+function addMissingColumns(db: SQLite.SQLiteDatabase) {
+  for (const { table, column, ddl } of ADDED_COLUMNS) {
+    const cols = db.getAllSync<{ name: string }>(
+      `pragma table_info(${table})`
+    );
+    if (cols.some((c) => c.name === column)) continue;
+    db.execSync(`alter table ${table} add column ${column} ${ddl}`);
+  }
+}
+
+/**
+ * Seed.
+ *
+ * Upsert keyed on a STABLE natural key (slug), so re-running on every launch
+ * never duplicates.
+ *
+ * THE RULE THAT MATTERS: refresh only the fields YOU own — editorial defaults a
+ * new build ships. NEVER overwrite anything the USER can edit, above all a value
+ * they may have corrected. Clobbering the user's edited data on every app update
+ * is the worst bug this file could contain, and on a device it is silent: they
+ * open the updated app and their change is simply gone.
+ *
+ * TODO(project): replace with your own seed rows, or delete if the app starts
+ * empty. An honest empty state (see the screens) beats an invented sample row
+ * the user then has to figure out how to delete.
+ */
+function seed(db: SQLite.SQLiteDatabase) {
+  // Example of the safe upsert shape:
+  //
+  // for (const item of SEED_ITEMS) {
+  //   const existing = db.getFirstSync<{ id: number }>(
+  //     "select id from items where slug = ?",
+  //     item.slug
+  //   );
+  //   if (existing) {
+  //     // editorial fields the build owns — NEVER price, NEVER user-edited text
+  //     db.runSync(
+  //       "update items set name = ?, blurb = ? where slug = ?",
+  //       item.name, item.blurb, item.slug
+  //     );
+  //   } else {
+  //     db.runSync(
+  //       "insert into items (slug, name, blurb, price_minor) values (?, ?, ?, ?)",
+  //       item.slug, item.name, item.blurb, item.priceMinor
+  //     );
+  //   }
+  // }
+}
+
+/**
+ * Reset the cached handle (tests, or a "sign out and wipe" flow that closes and
+ * reopens). Prefer this over reaching at the module variable from outside.
+ */
+export function closeDb() {
+  handle?.closeSync();
+  handle = null;
+}

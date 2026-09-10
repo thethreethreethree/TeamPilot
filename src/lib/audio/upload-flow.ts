@@ -1,0 +1,250 @@
+/**
+ * The upload, as a sequence — with nothing native in it.
+ *
+ * WHY IT LIVES APART FROM `upload.ts`, and it is the same reason
+ * `outbox-classify.ts` lives apart from the HTTP client, stated in that file:
+ * a rule that can only be exercised through a native filesystem is a rule that
+ * will not be exercised. `upload.ts` imports expo-file-system, supabase and
+ * react-native, and this project's test runner strips types rather than
+ * compiling them, so it cannot load that module at all. The consequence was not
+ * theoretical: the ordering below — the single guarantee standing between a rep
+ * and a lost customer conversation — had NO test, and moving one line would have
+ * destroyed every recording while 1,073 tests still passed.
+ *
+ * THE GUARANTEE, and everything here exists to keep it:
+ *
+ *     await deps.post(.../upload-recording)   the server confirms it has the file
+ *     deps.deleteFile(rec.fileUri)            and ONLY then does the phone let go
+ *
+ * Every side effect arrives through `deps`, so the whole sequence runs in a test
+ * with no device, no network and no filesystem. `upload.ts` supplies the real
+ * ones and is now a thin wrapper; nothing about the shipped behaviour changed.
+ *
+ * Imports here must stay PURE. Adding a native import to this file silently
+ * removes the only coverage the upload path has.
+ */
+import { MAX_UPLOAD_BYTES, sizeForUpload } from './recording-budget';
+import { uploadBlockedMessage } from '@/lib/blocked-state';
+import { authFailureOf } from '@/lib/auth-failure';
+import type { PendingRecording } from './recording-store';
+import type { PendingSpeaker, PendingSegment } from './attribution-store';
+// TYPE-ONLY, and that is load-bearing: `import type` is erased before this file
+// runs, so naming the heavy module here creates no runtime dependency on it.
+import type { UploadDeps, UploadOutcome, CallContext } from './upload';
+
+type CreatedSession = { session?: { id?: string }; id?: string };
+type SignResult = { bucket: string; storagePath: string; token: string };
+// The REAL stored shapes, not a simplified copy. Writing my own looser version
+// here would have quietly widened what reaches the attribution store.
+type FinalizeResult = {
+  speakers?: PendingSpeaker[];
+  segments?: PendingSegment[];
+};
+
+/** The HTTP status an error carries, when it carries one. */
+function statusOf(e: unknown): number | undefined {
+  return (e as { status?: number })?.status;
+}
+
+export async function runUpload(
+  userId: string,
+  rec: PendingRecording,
+  meta: { clientLabel: string; context?: CallContext },
+  deps: UploadDeps,
+): Promise<UploadOutcome> {
+  const clientLabel = meta.clientLabel.trim();
+  if (!clientLabel) {
+    return { ok: false, reason: 'failed', message: 'Give this call a name before sending it.' };
+  }
+
+  // Checked before anything is attempted: an entry whose file has gone would
+  // otherwise create an empty session on the server and then fail.
+  if (!deps.fileExists(rec.fileUri)) {
+    return {
+      ok: false,
+      reason: 'file-gone',
+      message: 'The audio for this recording is no longer on the phone.',
+    };
+  }
+
+  if (rec.sizeBytes > MAX_UPLOAD_BYTES) {
+    return {
+      ok: false,
+      reason: 'too-large',
+      message: `This recording is larger than the ${Math.round(
+        MAX_UPLOAD_BYTES / 1024 / 1024,
+      )} MB the server accepts, so it cannot be sent.`,
+    };
+  }
+
+  await deps.update(userId, rec.clientId, {
+    attempts: rec.attempts + 1,
+    lastError: null,
+  });
+
+  // Declared outside the try so the catch can tell "we never got a session" from
+  // "we had one and the server then could not see it" — two failures that look
+  // identical from the status code alone and mean opposite things.
+  let sessionId = rec.sessionId;
+
+  try {
+    // ── 1. the session ────────────────────────────────────────────────────
+    // Reused if a previous attempt already made one. Creating a second would
+    // leave the rep with a duplicate of the same conversation.
+    if (!sessionId) {
+      // Optional fields are omitted rather than sent empty: the route treats
+      // them as optional strings, and an empty one would file a session as
+      // having a blank territory rather than none.
+      const created = await deps.post<CreatedSession>('/api/coach/sales-session', {
+        context: meta.context ?? 'in_person',
+        clientLabel,
+        ...(rec.territory?.trim() ? { territory: rec.territory.trim() } : {}),
+        ...(rec.approach?.trim() ? { approach: rec.approach.trim() } : {}),
+        ...(rec.offer?.trim() ? { offer: rec.offer.trim() } : {}),
+      });
+      sessionId = created.session?.id ?? created.id ?? null;
+      if (!sessionId) throw new Error('The server did not return a session for this call.');
+      await deps.update(userId, rec.clientId, { sessionId, label: clientLabel });
+    }
+
+    // ── 1b. how it ended ──────────────────────────────────────────────────
+    //
+    // Sent as soon as the session exists, and BEFORE the audio, because it is
+    // the cheap part: a few bytes that decide whether this call counts toward
+    // conversion rate, close rate and revenue at all. A session with no outcome
+    // contributes to none of them.
+    //
+    // Its failure does NOT fail the upload. The audio is the irreplaceable half;
+    // an outcome can be set again later from the website or from a retry, and
+    // refusing to save a recording because a one-line write failed would trade
+    // something recoverable for something that is not.
+    if (rec.outcome) {
+      try {
+        await deps.post(`/api/coach/sales-session/${sessionId}/outcome`, {
+          outcome: rec.outcome,
+          ...(rec.dealValue !== null && rec.dealValue !== undefined
+            ? { dealValue: rec.dealValue }
+            : {}),
+        });
+      } catch {
+        // QUEUED, not merely reported. This used to write an error string onto
+        // the recording and move on — which meant the rep's outcome existed
+        // nowhere except in a sentence asking them to type it again, and only if
+        // they went looking at the right screen for it.
+        //
+        // The write queue exists for exactly this, so the instruction goes there
+        // and is sent when it can be. The error line stays as well: the queue is
+        // silent by design, and a rep who set an outcome deserves to know it did
+        // not land on the first try even though it is safe.
+        await deps.enqueue(userId, {
+          sessionId,
+          kind: 'outcome',
+          outcome: rec.outcome,
+          // Absent and null are different instructions to the server, and the
+          // same distinction the request above makes is preserved here.
+          ...(rec.dealValue !== null && rec.dealValue !== undefined
+            ? { dealValue: rec.dealValue }
+            : {}),
+        }).catch(() => {
+          /* the error line below still tells the rep; a failed queue write must
+             not fail an upload whose audio has already gone */
+        });
+        await deps.update(userId, rec.clientId, {
+          lastError:
+            'The recording was sent. The outcome did not save on the first try and is waiting on this phone — it will send on its own.',
+        });
+      }
+    }
+
+    // ── 2. the signed target ──────────────────────────────────────────────
+    const signed = await deps.post<SignResult>(
+      `/api/coach/sales-session/${sessionId}/upload-recording/sign`,
+      {
+        filename: `${rec.clientId}.m4a`,
+        // Whole bytes: the route's schema is `int()`, and the value comes from
+        // a native filesystem call whose exact type I cannot observe from here.
+        sizeBytes: sizeForUpload(rec.sizeBytes),
+        mimeType: rec.mimeType,
+      },
+    );
+
+    // ── 3. the bytes, direct to Storage ───────────────────────────────────
+    //
+    // Read whole rather than streamed. The ceiling is 25 MB and this runs once
+    // per call, so the memory is bounded and brief; a streaming upload would be
+    // better and is worth doing once there is a device to measure it on, but a
+    // clever untested upload path is the wrong place to spend a rep's only copy
+    // of a conversation.
+    const bytes = await deps.readBytes(rec.fileUri);
+    const { error: storageError } = await deps.uploadToStorage(
+      signed.bucket,
+      signed.storagePath,
+      signed.token,
+      bytes,
+      rec.mimeType,
+    );
+    if (storageError) throw new Error(storageError.message || 'The upload did not complete.');
+
+    // ── 4. tell the server it is there ────────────────────────────────────
+    //
+    // This is the step that transcribes, so its answer carries the diarized
+    // speakers. Those ids exist ONLY in this response — the stored transcript is
+    // flattened to agent/customer and cannot be asked again — so if the payload
+    // is not kept here the call can never be attributed.
+    const finalized = await deps.post<FinalizeResult>(
+      `/api/coach/sales-session/${sessionId}/upload-recording`,
+      { storagePath: signed.storagePath },
+    );
+
+    const speakers = finalized?.speakers ?? [];
+    const segments = finalized?.segments ?? [];
+    // Two or more voices is the only case worth asking about. One voice means
+    // there is nothing to choose between, and asking would be the app pretending
+    // to offer a decision it has already made.
+    if (speakers.length >= 2 && segments.length > 0) {
+      await deps.writeAttribution(
+        { sessionId, label: clientLabel, speakers, segments },
+        userId,
+      );
+    }
+
+    // Only now is the phone no longer the only place this call exists.
+    await deps.update(userId, rec.clientId, { status: 'uploaded', lastError: null });
+    deps.deleteFile(rec.fileUri);
+    await deps.remove(userId, rec.clientId);
+
+    return { ok: true, sessionId };
+  } catch (e) {
+    const status = statusOf(e);
+
+    // A 404 AFTER the session was created is the signature of a server that
+    // authenticated the caller and then could not see their own session — the
+    // access check reading through a client that has no session. Retrying cannot
+    // fix it, so it is treated like the 401 case rather than as a transient
+    // failure the rep should keep tapping at. Saying "not found" here would be
+    // worse than useless: the session exists, and they would go looking for it.
+    const serverCannotRead = status === 404 && Boolean(sessionId);
+
+    const message =
+      status === 401 || status === 403 || serverCannotRead
+        ? uploadBlockedMessage(authFailureOf(e))
+        : status === 413
+          ? 'The server refused this recording for being too large.'
+          : e instanceof Error && e.message
+            ? e.message
+            : 'Could not send this recording. It is still on your phone.';
+
+    await deps.update(userId, rec.clientId, { status: 'failed', lastError: message });
+
+    return {
+      ok: false,
+      reason:
+        status === 401 || status === 403 || serverCannotRead
+          ? 'needs-shim'
+          : status === 413
+            ? 'too-large'
+            : 'failed',
+      message,
+    };
+  }
+}

@@ -1,23 +1,36 @@
 {
   "expo": {
-    "name": "Elostate-Sales-coach",
+    "name": "Elostate Coach",
     "slug": "Elostate-Sales-coach",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "elostatesalescoach",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.elostate.salescoach",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleName": "Elostate Coach",
+        "CFBundleDisplayName": "Elostate Coach",
+        "NSMicrophoneUsageDescription": "Elostate records your sales calls so they can be transcribed and coached. Recording only starts when you press record, and you can stop it at any time.",
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
+      "package": "com.elostate.salescoach",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/splash-icon.png",
+        "backgroundColor": "#09090B"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MICROPHONE"
+      ]
     },
     "web": {
       "output": "static",
@@ -28,15 +41,31 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#09090B",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
         }
-      ]
+      ],
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Elostate records your sales calls so they can be transcribed and coached. Recording only starts when you press record, and you can stop it at any time."
+        }
+      ],
+      "expo-sharing",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d4c83bd4-5718-4fb4-9701-8189f945add4"
+      }
+    },
+    "owner": "elostate"
   }
 }

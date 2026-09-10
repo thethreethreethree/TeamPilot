@@ -1,0 +1,113 @@
+import { Linking } from "react-native";
+
+/**
+ * Request a device permission IN CONTEXT, and handle "no" like an adult.
+ *
+ * The single most common permission mistake is asking on launch, before the user
+ * knows why. The OS gives them one clear shot to allow; spend it at the moment
+ * the value is obvious — the tap on "Scan", not the splash screen. So this helper
+ * does NOT request anything on its own; you call it from the handler of the
+ * action that needs the capability.
+ *
+ * The SECOND most common mistake is treating a denial as an error state and
+ * dead-ending. A denied permission is a normal answer. The app must keep working
+ * in a reduced form and, if the user changes their mind, tell them exactly where
+ * to do it — because once the OS has recorded a denial, the app can no longer
+ * show the system prompt again. The only route back is the Settings app, and the
+ * user cannot be expected to know that. `openSettings()` takes them straight
+ * there.
+ *
+ * This file deliberately imports NO permission library. Each Expo permission
+ * module (expo-camera, expo-image-picker, expo-location, expo-notifications, …)
+ * exposes its own `request*PermissionsAsync()` that returns the same shape; you
+ * pass that function in. That keeps this helper dependency-free and means adding
+ * a new permission is a call site, not an edit here.
+ *
+ * (verify current) — the exact requester names per module move between SDKs
+ * (e.g. media library vs. camera roll). Confirm against the installed versions.
+ */
+
+/**
+ * The common shape every Expo permission response shares. `status` is the
+ * canonical field; `granted` is a convenience the modules also provide.
+ * `canAskAgain` is the one that decides your fork: false means the system prompt
+ * is spent and Settings is the only way.
+ */
+export type PermissionResponseLike = {
+  status: "granted" | "denied" | "undetermined";
+  granted?: boolean;
+  canAskAgain?: boolean;
+};
+
+export type PermissionOutcome =
+  /** Proceed — the capability is available. */
+  | { state: "granted" }
+  /** Denied, but the OS will still show its prompt — a later attempt may succeed. */
+  | { state: "denied_can_retry" }
+  /** Denied for good; the system prompt is spent. Only Settings can change it. */
+  | { state: "blocked" };
+
+/**
+ * Run a module's requester and classify the result into the three cases a UI
+ * actually needs to branch on. Collapsing "can retry" and "blocked" into one
+ * "denied" is what produces the dead-end where a button silently does nothing.
+ *
+ * @param request the module's `request*PermissionsAsync` (or a `getAsync` you
+ *        want to check without prompting). Pass the function, not its result.
+ *
+ * @example
+ *   import * as ImagePicker from "expo-image-picker";
+ *   const r = await ensurePermission(
+ *     ImagePicker.requestMediaLibraryPermissionsAsync
+ *   );
+ *   if (r.state === "granted")     openPicker();
+ *   else if (r.state === "blocked") showSettingsNudge();   // else: try again later
+ */
+export async function ensurePermission(
+  request: () => Promise<PermissionResponseLike>
+): Promise<PermissionOutcome> {
+  const res = await request();
+
+  if (res.status === "granted" || res.granted) {
+    return { state: "granted" };
+  }
+
+  // `canAskAgain === false` (or an already-denied status the OS will not
+  // re-prompt for) means the in-app prompt is spent. Default the unknown case to
+  // "can retry" — the worse failure is telling a user to go to Settings when a
+  // simple retry would have worked.
+  if (res.canAskAgain === false) {
+    return { state: "blocked" };
+  }
+  return { state: "denied_can_retry" };
+}
+
+/**
+ * Open the app's own page in the system Settings, so a user who blocked a
+ * permission can turn it back on. On both platforms `openSettings()` deep-links
+ * to THIS app's settings, not the top level.
+ *
+ * Always pair the call with a sentence that says WHAT to toggle — "Turn on
+ * Camera to scan" — because the Settings screen does not explain why they are
+ * there. Never call this without that context; a silent jump to Settings reads
+ * as a bug.
+ */
+export async function openSettings(): Promise<void> {
+  await Linking.openSettings();
+}
+
+/**
+ * Copy for the blocked case, per capability. Kept here so every screen phrases
+ * the nudge the same way and none of them dead-ends.
+ *
+ * TODO(project): match these to the permissions your app actually requests, and
+ * to the usage strings in app.config.ts — the reason you give the user here
+ * should agree with the reason iOS shows in its own prompt.
+ */
+export const BLOCKED_MESSAGE: Record<string, string> = {
+  camera: "Camera access is off. Turn it on in Settings to scan or take a photo.",
+  photos: "Photo access is off. Turn it on in Settings to choose an image.",
+  location: "Location is off. Turn it on in Settings to use nearby features.",
+  notifications:
+    "Notifications are off. Turn them on in Settings to get reminders.",
+};

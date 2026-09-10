@@ -1,0 +1,83 @@
+/**
+ * Money is ALWAYS an integer.
+ *
+ * Store and compute in MINOR units (cents, pence) for a currency that has them,
+ * or WHOLE units for one that does not. A float anywhere in this path is a bug a
+ * customer eventually finds: 0.1 + 0.2 is not 0.3 in IEEE-754, and once a rounded
+ * total disagrees with the sum of its lines by a cent, you are reconciling books
+ * by hand.
+ *
+ * On a device this matters MORE than on the web, not less: an offline-first app
+ * does its arithmetic locally, syncs later, and any drift accumulates unseen
+ * until two devices disagree about what something cost. Keep every amount an
+ * integer from input to storage, and turn it into a string only at the very edge
+ * — in `format.ts`, for display.
+ *
+ * These helpers are deliberately tiny and pure. They do no formatting (that is
+ * `format.ts`) and no I/O. Keep them that way — money maths you can read at a
+ * glance is money maths you can trust.
+ */
+
+/** A branded integer-minor-units amount, so a stray float cannot pose as money.
+ *  The brand is compile-time only; at runtime it is just a number. */
+export type Minor = number & { readonly __brand: "minor" };
+
+/** Assert-and-brand. Throws on a non-integer, because a fractional cent is
+ *  always a mistake upstream that you want to find at the source, not swallow. */
+export function minor(n: number): Minor {
+  if (!Number.isInteger(n)) {
+    throw new Error(`money: ${n} is not an integer number of minor units.`);
+  }
+  return n as Minor;
+}
+
+/**
+ * Parse a human-typed major-unit amount ("12.50") into integer minor units.
+ *
+ * Returns `null` on anything unparseable rather than 0 — silently writing 0 over
+ * a price because of a typo is far worse than refusing the edit. The caller
+ * decides what "unparseable" means for its field (keep the old value, show an
+ * error), which it cannot do if this pretends a bad input was zero.
+ *
+ * @param minorPerMajor 100 for cents/pence, 1 for a currency with no minor unit.
+ */
+export function parseMajor(
+  input: string,
+  minorPerMajor: 1 | 100 = 100
+): Minor | null {
+  // Strip anything a human legitimately types around a number — currency
+  // symbols, spaces, thousands separators — but keep one decimal point and a
+  // leading minus. A comma is treated as a thousands separator here; if your
+  // locale uses it as the DECIMAL separator, normalise it BEFORE calling this.
+  const cleaned = input.trim().replace(/[^0-9.\-]/g, "");
+  if (cleaned === "" || cleaned === "-" || cleaned === ".") return null;
+
+  const major = Number(cleaned);
+  if (!Number.isFinite(major)) return null;
+
+  // Round at the end, once, so 19.99 → 1999 exactly instead of 1998.9999999.
+  return minor(Math.round(major * minorPerMajor));
+}
+
+/** Add amounts. Integer in, integer out — no rounding to go wrong. */
+export function add(...amounts: Minor[]): Minor {
+  return minor(amounts.reduce((sum, a) => sum + a, 0));
+}
+
+/** Multiply an amount by a whole count (a quantity, a number of nights). The
+ *  count is truncated to an integer: "2.5 of a thing" is a bug, not a price. */
+export function times(amount: Minor, count: number): Minor {
+  return minor(amount * Math.trunc(count));
+}
+
+/**
+ * Apply a percentage and round HALF-UP to the nearest minor unit.
+ *
+ * Rounding policy is a decision, not a default: pick one, write it down, and use
+ * this everywhere so tax and discounts round the same way across the app. Half-up
+ * is the common retail choice; if your jurisdiction mandates another (banker's
+ * rounding, always-round-down), change it HERE, once.
+ */
+export function percentOf(amount: Minor, percent: number): Minor {
+  return minor(Math.round((amount * percent) / 100));
+}

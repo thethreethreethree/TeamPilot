@@ -1,56 +1,79 @@
-# Welcome to your Expo app 👋
+# Elostate Sales Coach
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The mobile half of Elostate's Sales Coach, for representatives who knock doors for a living.
 
-## Get started
+It mirrors the web app at `elostate.com/dashboard/sales-coach` — same Supabase backend, same routes, same scoring
+rules — on the surface a phone is better at than a laptop: the ninety seconds between one door and the next.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Shipping it
 
-2. Start the app
+The app is feature-complete against both build specs. If you are trying to get it onto a phone or into the App
+Store, these are the files, in the order you need them:
 
-   ```bash
-   npx expo start
-   ```
+| File | What it is for |
+|---|---|
+| **`DEVICE-CHECK.md`** | 26 checks on a real device. If you have five minutes, do check 1. |
+| **`APP-STORE-SUBMISSION.md`** | The App Review notes, App Privacy answers, what a reviewer will ask, and the pre-submission tidy-up. |
+| **`APP-STORE-LISTING.md`** | Name, subtitle, description, keywords — written and ready to paste. |
 
-In the output, you'll find options to open the app in a
+`CONTINUE-HERE.md` is the architecture hand-off. `PHASE-3-SHIM-TO-APPLY.md` is superseded and kept for history.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Running it
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Recording needs a **development build**, not Expo Go — the audio module is native. `npx eas build --platform ios
+--profile development` produces one, and the app says so plainly on the recorder screen rather than failing
+silently when it is missing.
 
-### Other setup steps
+`.env.local` at this root holds the three settings the app needs. It is gitignored. The service-role key is
+deliberately absent and must never be added — row-level security is what protects the data, and the anon key is
+designed to ship inside a client.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+---
 
-## Learn more
+## Checks
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm test            # 930 tests, node --test
+npx tsc --noEmit    # types
+npm run lint        # 293 files
+node ../tools/gate.mjs   # the design gates, G1-G4
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Every guard in this codebase was proven by breaking it.** A test that has never been watched to fail is a claim,
+not a check — so when something matters, the source was mutated, the named test was observed failing, and the
+source restored. That habit found more real defects here than any linter did.
 
-## Join the community
+The one gate that cannot run from a laptop is **G5**, the runtime audit. It needs a phone. Nothing in this
+repository can tell you the product works; it can only tell you the code is right, which is a different claim.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## How it is put together
+
+- **Expo SDK 57 / React Native 0.86**, `expo-router` file-based routing under `src/app/`.
+- **NativeWind** for styling. Every colour comes from a token in `src/lib/tokens/` — there is not one hand-typed
+  colour class in the app, and the identity is deliberately a single amber ramp on matte black.
+- **Logic lives in `src/lib/`, not in screens.** This is the load-bearing decision: `node --test` cannot load
+  native modules, so anything that decides what to tell a representative is a pure module that can be tested, and
+  the screen renders what it returns. When a bug is found, that split is usually why it was findable.
+- **Two products in one app.** Macro Mode swaps the tab bar between the door-to-door surfaces and the standard
+  coaching ones. `useMacroMode` decides; the tab bar and Home both read it.
+
+## Two rules the code keeps
+
+**An unknown number is never a zero.** A figure that could not be read renders as an em dash, and the screen says
+why. A rep whose forty doors are safely on the server must never be shown "0 doors today" because a request timed
+out.
+
+**A failure says what to do about it.** "You have been signed out" and "the server turned this down" are different
+sentences with different fixes, and the app tells them apart rather than showing one message for both. It used to
+show one, and it told signed-out reps to wait for a deploy that would never come.
