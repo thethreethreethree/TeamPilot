@@ -264,10 +264,10 @@ or a quota - those need a tuned number somebody has to maintain, and taking turn
 
 ### F17 - a NUL byte in my own source file, found by a mutation that would not apply
 class: an-invisible-character-that-every-tool-tolerated
-sweep: ` ` across every file written today
+sweep: `\x00` across every file written today
 severity: low
 Three attempts to mutate one line of `sweepFairness.ts` reported "line not found" while the line was plainly
-there. The line held `" no-company"` - a NUL byte where I had written a space. `grep` had been calling the
+there. The line held `"\x00no-company"` - a NUL byte where I had written a space. `grep` had been calling the
 file BINARY and I had read that as noise.
 
 It broke nothing: any string serves as a map key, so the logic was correct and every gate passed - typecheck,
@@ -392,7 +392,7 @@ answer somebody gave.
 The test name was overstating in exactly the same way ("that is the rep's ANSWER, not a gap") and now names
 the cost.
 
-### F22 - the session route read anonymously, and the audit reads green on it
+### F22 - the session route read anonymously, and the audit does not flag it
 class: a-scoped-client-resolved-and-then-not-passed-on
 sweep: every endpoint the app calls, probed against production with a real Bearer token before deploying
 severity: high
@@ -402,10 +402,10 @@ sends no cookie, so the read runs ANONYMOUSLY, RLS returns nothing, and the rout
 not accessible" for a session the caller owns. Verified: the founder's own session 404ed with the founder's
 own token.
 
-THE AUDIT READS GREEN ON THIS, and that is the part worth keeping. INVARIANT 26 looks for a BARE cookie
+THE AUDIT DOES NOT FLAG THIS, and that is the part worth keeping. INVARIANT 26 looks for a BARE cookie
 client in a route that never mentions `callerScopedDb`. This route mentions it, uses it for auth, and still
 reads anonymously - so the check passes while the route is broken for every mobile caller. A30 exactly: an
-audit cannot detect the class it has no concept of, and a green gate is a statement about the gate's
+audit cannot detect the class it has no concept of, and a clean gate is a statement about the gate's
 vocabulary, never about the system.
 
 ### F23 - a typo in a URL returned 500
@@ -444,7 +444,7 @@ broken and the fourth was correct, so the file could not be judged as a whole.
 
 WHY THE AUDIT CANNOT SEE ANY OF IT, worth writing down rather than filing as bad luck: INVARIANT 26 looks
 for a route that never mentions `callerScopedDb`. All three of these mention it, use it for auth, and read
-anonymously anyway. A30's sentence exactly - a green gate is a statement about the gate's vocabulary, never
+anonymously anyway. A30's sentence exactly - a clean gate is a statement about the gate's vocabulary, never
 about the system. I am NOT extending the audit here: that is the founder's call about their own gate, and
 this build has already spent its budget for changes made on my own judgement.
 
@@ -559,3 +559,66 @@ not a dropped transcript.
 - No dropped session has been recovered WITH its timing intact. That needs the migration first.
 - G5, the real-device runtime audit, has never been run on this app. Nobody has seen the picker, the
   "Needs your voice" chip, or the new deal-value Save button render on a phone.
+
+### F25 - 28 door pitches were graded on a recording with nobody talking in it
+class: a-guard-that-tested-for-empty-when-the-failure-mode-is-annotated
+sweep: `pitch_transcripts` stripped of every `[bracketed]` / `(parenthesised)` sound event, across all 73 rows
+severity: high
+The worker has refused to analyze an empty transcript since audit H1 (founder 2026-08-22), for exactly the
+right reason, written in the comment: the rubric schema forces a non-empty summary + scores, so analyzing
+nothing produces a hollow "complete" pitch with made-up scores. The guard is `if (!text.trim())`.
+
+STT does not return an empty string for a silent recording. It returns the sound it heard, annotated.
+Measured 2026-09-10 against production: 28 of 73 stored transcripts are one bracketed sound event and not
+one word of speech - `[clicking]` x8, `[pause]` x6, `[outro jingle]` x5, `[background noise]` x2, plus
+`[wind blowing]`, `[zipper closing]`, `[phone ringing]`, `[typing]`, `[singing]`, `[silence]`, `[click]`.
+Every one is truthy. Every one sailed through the guard and was graded.
+
+24 came back with every dimension zero. Those zeros are averaged by `getTodaysMetrics` into what a rep reads
+as their score: company-wide tone 46 against a speech-only 72, objection 33 against 52, talk_listen 34
+against 52. Moses Maniquiz has 22 speechless pitches of 42 - more than half - and reads 37 for tone against
+a true 69.
+
+The other four are the ones that matter more. They came back with real-looking marks. `[typing]` was graded
+tone 85 / close 80 / objection 75 - a top-quartile door pitch invented from the sound of someone typing, and
+nothing on any screen distinguishes it from a pitch that happened. A rule of the shape "drop the all-zero
+rows" would have left it in place, which is why the test is speech-presence and not score-shape.
+
+The lesson is not "add sound-event strings to a list". It is that the guard tested for the SHAPE the author
+imagined the failure would take (empty) rather than the PROPERTY that actually mattered (no words in it) -
+and the two agreed on every case the author tried.
+
+### F26 - the finding about NUL bytes contained a NUL byte
+class: an-invisible-character-that-every-tool-tolerated
+sweep: `tr -dc '\000'` over every file under `src/`, `scripts/` and this build directory
+severity: low
+F17 recorded a NUL byte in `sweepFairness.ts` that made `grep` call the file binary and three mutations
+report "line not found". I wrote that finding up by quoting the character literally, so `check.md` itself
+became a binary file - `grep -n "^### F" check.md` answered "Binary file check.md matches" and listed
+nothing. The document explaining why an invisible byte breaks every tool was unreadable by those tools, and
+it was committed that way at 8664f8b6.
+
+The sweep that found it also found one more, in a file F17 never covered: `buildStoragePath.test.ts` holds a
+literal NUL inside `"name.php\x00.png"`, a deliberate NUL-injection attack string. The byte was doing real
+work there - it is what makes the test a real test - but it made that security test's file binary too.
+
+Both are now the four printable characters, and both still mean exactly what they meant: `\u0000` parses to
+a NUL at runtime (length 13, `.includes("\u0000") === true`), so the injection test is unchanged.
+
+### F27 - I reformatted 100 lines of a file I had changed three lines of
+class: a-tool-run-from-habit-rather-than-from-the-repository
+sweep: `.prettierrc*`, a `prettier` key in `package.json`, and `printWidth` anywhere in the lint config
+severity: low
+Having edited `worker.ts` I ran `npx prettier --write` on it, the way I would in a repository that uses
+prettier. This one does not. There is no `.prettierrc`, no `prettier` key in `package.json`, and the
+canonical gate is `typecheck && lint && theme:audit && rls:audit && invariant:audit && tbc && test` with no
+formatting step in it. So prettier fell back to its own defaults - 80 columns against this repository's
+~110 - and rewrote every import, signature and call in both files it touched.
+
+The first commit was therefore 142 changed lines in `worker.ts` and 163 in `worker.test.ts` for a change
+that is 17 and 31. Nothing broke: lint passed, types passed, 4267 tests passed. That is the point worth
+recording - every gate was clean and the commit was still wrong, because the damage was to the next
+person's ability to read the diff, and no gate here measures that.
+
+The tell was available before I ran it and I did not look: the file I was about to reformat was already
+formatted a different way, by the people who own it.

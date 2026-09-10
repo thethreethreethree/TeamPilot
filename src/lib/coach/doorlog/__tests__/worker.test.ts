@@ -139,9 +139,40 @@ describe("processPitch — H1: empty/silent audio never fabricates a 'complete' 
     expect(analyzePitch).not.toHaveBeenCalled();
   });
 
+  // Measured 2026-09-10: STT does not return "" for a silent recording — it returns "[clicking]" or
+  // "[outro jingle]". 28 of 73 stored transcripts are exactly this, all 28 were analyzed, and one
+  // ("[typing]") was graded tone 85. The .trim() guard above cannot see it; transcriptHasSpeech can.
+  it("STT returns a SOUND EVENT ('[clicking]') → same terminal, never analyzed", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(transcribeSpeech).mockResolvedValueOnce("[clicking]"); // verbatim, 8 rows in production
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(true);
+    expect(writePitchTranscript).not.toHaveBeenCalled();
+    expect(analyzePitch).not.toHaveBeenCalled();
+    expect(writePitchAnalysis).not.toHaveBeenCalled(); // the 85-for-typing row is what this prevents
+  });
+
+  it("a transcript that MIXES an annotation with real speech is still a pitch, and IS analyzed", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(transcribeSpeech).mockResolvedValueOnce("[background noise] Hi, I'm John from Elostate.");
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(false);
+    expect(writePitchTranscript).toHaveBeenCalled();
+    expect(analyzePitch).toHaveBeenCalled(); // the guard must not cost a real pitch its coaching
+  });
+
   it("a previously-persisted EMPTY transcript is not analyzed either (defense-in-depth)", async () => {
     scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" }; // transcript row exists → skip STT
     scripts["pitch_transcripts:text"] = { text: "   " }; // …but it is empty
+    await processPitch({ ...PITCH });
+    expect(failedWith(/no speech was detected/i)).toBe(true);
+    expect(analyzePitch).not.toHaveBeenCalled();
+    expect(writePitchAnalysis).not.toHaveBeenCalled();
+  });
+
+  it("a previously-persisted SOUND-EVENT transcript is not analyzed either — the 28 stored rows, if reprocessed", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" };
+    scripts["pitch_transcripts:text"] = { text: "[outro jingle]" }; // verbatim, 5 rows in production
     await processPitch({ ...PITCH });
     expect(failedWith(/no speech was detected/i)).toBe(true);
     expect(analyzePitch).not.toHaveBeenCalled();

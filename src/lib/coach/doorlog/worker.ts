@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { transcribeSpeech } from "@/lib/care/voice/elevenlabs";
 import { downloadAssetBytes } from "@/lib/storage/assets";
 import { analyzePitch, ANALYSIS_PROMPT_VERSION } from "./analyze";
+import { NO_SPEECH_ERROR, transcriptHasSpeech } from "./speechPresence";
 import {
   writePitchTranscript,
   writePitchAnalysis,
@@ -184,8 +185,11 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       // empty transcript — the rubric schema forces a non-empty summary + scores, so it would produce a HOLLOW
       // "complete" pitch with MADE-UP scores (the "captured nothing but looks fine" trust-killer). Mark it
       // honestly instead. Terminal (an empty recording won't get less empty on retry).
-      if (!text.trim()) {
-        await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No speech was detected in this recording." });
+      // "No words" is NOT "empty string" (2026-09-10): STT annotates what it heard, so a silent recording comes
+      // back as "[clicking]" or "[outro jingle]" — truthy, and it sailed through this guard 28 times. Ask
+      // transcriptHasSpeech instead of trusting .trim().
+      if (!transcriptHasSpeech(text)) {
+        await setPitchStatus({ pitchId: pitch.id, status: "failed", error: NO_SPEECH_ERROR });
         return;
       }
       await writePitchTranscript({
@@ -205,10 +209,11 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       .eq("pitch_id", pitch.id)
       .maybeSingle();
     const transcript = (tr?.text as string | undefined) ?? "";
-    // Defense-in-depth (H1): never analyze an empty transcript — even if one was already persisted (an older
-    // pitch reprocessed, or a silent recording). Analyzing "" fabricates a hollow "complete"; fail honestly.
-    if (!transcript.trim()) {
-      await setPitchStatus({ pitchId: pitch.id, status: "failed", error: "No speech was detected in this recording." });
+    // Defense-in-depth (H1): never analyze a speechless transcript — even if one was already persisted (an
+    // older pitch reprocessed, or a silent recording). Analyzing it fabricates a hollow "complete"; fail
+    // honestly. This is the site that catches the 28 already-stored sound-event transcripts if reprocessed.
+    if (!transcriptHasSpeech(transcript)) {
+      await setPitchStatus({ pitchId: pitch.id, status: "failed", error: NO_SPEECH_ERROR });
       return;
     }
     const ctx = await pitchContext(pitch.id);

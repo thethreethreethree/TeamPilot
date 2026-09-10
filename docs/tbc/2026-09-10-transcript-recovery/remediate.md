@@ -88,3 +88,40 @@ The boundary is therefore not a document and not a code comment. It is the sweep
 That query does not know or care which code path created the session. A future upload route that stores
 audio and forgets the words is repaired within the hour by machinery its author never has to know about -
 which is A30's actual test: *does anything mechanical notice, without the author's cooperation?*
+
+### F25 - 28 door pitches were graded on a recording with nobody talking in it
+fix: `speechPresence.ts` owns one predicate - `transcriptHasSpeech()` strips every `[bracketed]`,
+`(parenthesised)` and `*asterisked*` sound event plus all punctuation, and asks whether a letter or digit
+survives. Both worker guards now call it instead of `.trim()`, and both report the one shared
+`NO_SPEECH_ERROR` string. A transcript that mixes noise WITH speech ("[background noise] Hi, I'm John") is
+still a real pitch and is still coached.
+gate-or-promise: GATE, four mutations deep. Reverting the predicate to `text.trim().length > 0` fails
+`[clicking] carries no speech` and `STT returns a SOUND EVENT ('[clicking]') -> same terminal, never
+analyzed`. Reverting either worker guard individually fails its own named test and only its own. Forcing the
+predicate to always return false fails `a transcript that MIXES an annotation with real speech is still a
+pitch, and IS analyzed` - so the guard is pinned in BOTH directions and cannot quietly start refusing real
+pitches. Every non-speech string in the test file is a verbatim production transcript, not an invention.
+
+The 28 rows already stored are NOT touched by this fix. Excluding them from the averages changes numbers a
+rep has already seen, and deleting or flagging stored analysis is the founder's call - it is on the build
+board as `dead-analyses` with the measured impact table and a recommendation.
+
+### F26 - the finding about NUL bytes contained a NUL byte
+fix: both literals are now the four printable characters `\x00` (in the prose) and `\u0000` (in the test
+source). `check.md` is text again - `grep -c "" check.md` answers 561 where it previously answered nothing.
+gate-or-promise: GATE for the test, PROMISE for the prose. `buildStoragePath.test.ts` still passes 4 of 4
+with the escape, and `\u0000` parses to a real NUL, so the injection case is byte-identical at runtime. The
+prose has no gate - there is no check that a document stays greppable, and I am not adding one: rule 7 is
+explicit that I build the product, not the machine that watches me build it.
+
+### F27 - I reformatted 100 lines of a file I had changed three lines of
+fix: both files restored from 8664f8b6 and the three guard edits plus the three tests re-applied by anchored
+substitution, so the diff is now 17 lines in `worker.ts` and 31 in `worker.test.ts`. The new
+`speechPresence.ts` was hand-set to the repository's own width rather than prettier's. All four mutation
+proofs re-run against the restored files - M1 had to be re-anchored because its target line had changed
+shape, and it reported "1 passed" rather than a false failure while it was mis-anchored, which is the
+behaviour a mutation harness must have.
+gate-or-promise: PROMISE. There is no formatting gate in this repository and I am not adding one - rule 7,
+and A33: a gate that fires on style in a codebase that has deliberately chosen not to enforce style is
+noise. The structural answer is smaller than a gate: do not run a formatter the repository does not
+configure.
