@@ -9,7 +9,7 @@
  * Transcript and cues are APPEND-ONLY on the server. This screen reads; it never
  * assumes it can edit history.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -60,6 +60,7 @@ import {
   readPendingAttribution,
   type PendingAttribution,
 } from '@/lib/audio/attribution-store';
+import { attributionFromTranscript } from '@/lib/audio/relabel-unknown';
 import type {
   CoachingCue,
   CoachingSession,
@@ -182,6 +183,15 @@ export default function SessionScreen() {
    *  rep. Null once answered, declined, or when there was only one voice. */
   const [attribution, setAttribution] = useState<PendingAttribution | null>(null);
   const [attributing, setAttributing] = useState<string | null>(null);
+  /**
+   * The call whose voice question the rep has waved away this visit.
+   *
+   * The local prompt is dismissed by deleting its stored row. The REBUILT one has no row
+   * to delete — it is derived from the transcript, so it would reappear on the next
+   * render — and it must still be dismissable. Held by session id rather than a bare
+   * boolean so opening a different call does not inherit the dismissal.
+   */
+  const [dismissedQuestion, setDismissedQuestion] = useState<string | null>(null);
 
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -569,6 +579,27 @@ export default function SessionScreen() {
   );
 
   /**
+   * The voice question actually shown, from whichever source can answer it.
+   *
+   * TWO SOURCES, ONE QUESTION. The local store is written when THIS phone uploaded the
+   * recording, and it is the right source for a call the rep just finished — it still
+   * holds the diarized clusters, so a two-voice call can ask which is which. It is EMPTY
+   * for a call the server recovered: the sweep re-reads audio dropped weeks ago and saves
+   * the words as `unknown`, and no device has any record of it. Rebuilding the question
+   * from the transcript is what stops that recovered call being a wall of unattributed
+   * text the rep can look at but never fix.
+   *
+   * Derived rather than stored, deliberately: a second piece of state set from an effect
+   * is how the two sources would drift, and the labelled transcript that comes back after
+   * an answer makes this fall to null on its own with nothing to reset.
+   */
+  const question = useMemo(() => {
+    if (attribution) return attribution;
+    if (dismissedQuestion === id) return null;
+    return attributionFromTranscript(exportSource?.session, exportSource?.segments ?? []);
+  }, [attribution, dismissedQuestion, id, exportSource]);
+
+  /**
    * Tell the server which voice is the rep.
    *
    * The segments are echoed back because the labelling route needs them: the
@@ -577,12 +608,12 @@ export default function SessionScreen() {
    */
   const attribute = useCallback(
     async (agentSpeakerId: string) => {
-      if (!id || !userId || !attribution) return;
+      if (!id || !userId || !question) return;
       setAttributing(agentSpeakerId);
       try {
         await coachPost(`/api/coach/sales-session/${id}/label-transcript`, {
           agentSpeakerId,
-          segments: attribution.segments,
+          segments: question.segments,
         });
         await clearPendingAttribution(userId, id);
         setAttribution(null);
@@ -616,7 +647,7 @@ export default function SessionScreen() {
         setAttributing(null);
       }
     },
-    [id, userId, attribution, load, online],
+    [id, userId, question, load, online],
   );
 
   // Show the cached copy first if there is one, so a session opens to content
@@ -770,18 +801,21 @@ export default function SessionScreen() {
             ) : null,
         }}
       />
-      {attribution ? (
+      {question ? (
         <View className="mx-5 mt-3 rounded-md border border-primary px-3 py-3">
           <SpeakerPicker
-            speakers={attribution.speakers}
+            speakers={question.speakers}
             onPick={attribute}
             busySpeakerId={attributing}
           />
           <Pressable
             onPress={async () => {
               if (!userId || !id) return;
+              // Clear both sources: the stored row if this phone made the recording, and
+              // the derived one, which has no row and would otherwise return next render.
               await clearPendingAttribution(userId, id);
               setAttribution(null);
+              setDismissedQuestion(id);
             }}
             accessibilityRole="button"
             accessibilityLabel="Not now — leave the transcript unattributed"

@@ -80,9 +80,18 @@ export async function readPendingAttribution(
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as PendingAttribution;
-    // Fewer than two voices is not a question worth asking — there is nothing to
-    // choose between, and a one-option picker is a decision the app already made.
-    if (!parsed?.sessionId || !Array.isArray(parsed.speakers) || parsed.speakers.length < 2) {
+    /*
+     * THE SAME RULE, WRITTEN TWICE, AND I ONLY FIXED ONE. The write guard below
+     * refused a single-voice payload; this one discarded it on the way back out.
+     * Changing the write alone made the store accept a payload it would never
+     * return — and the test that caught it was the one asserting the new
+     * behaviour, not any existing test.
+     *
+     * A voice count is a rule about whether there is a QUESTION to ask, and it
+     * now lives in one place: `writePendingAttribution`. This side only checks
+     * that what came back is structurally usable.
+     */
+    if (!parsed?.sessionId || !Array.isArray(parsed.speakers) || parsed.speakers.length < 1) {
       return null;
     }
     if (!Array.isArray(parsed.segments) || parsed.segments.length === 0) return null;
@@ -109,7 +118,22 @@ export async function writePendingAttribution(
   entry: Omit<PendingAttribution, 'at'>,
   userId: string,
 ): Promise<boolean> {
-  if (entry.speakers.length < 2 || entry.segments.length === 0) return false;
+  /*
+   * ONE SPEAKER IS STILL A QUESTION WORTH ASKING, and this used to refuse it.
+   *
+   * The guard was `< 2`, on the reasoning that one voice leaves nothing to
+   * choose between. The consequence was not "no prompt" - it was NO TRANSCRIPT
+   * AT ALL, ever, silently: the transcript is only written when the rep answers,
+   * so a solo recording was transcribed, its duration stamped, and then dropped.
+   * Measured on production 10 September 2026: of 16 uploaded recordings, 13 had
+   * audio and no transcript.
+   *
+   * With one voice the question changes but does not disappear. "Is this you, or
+   * the customer?" has a real answer that the app cannot work out for itself -
+   * one-sided capture, where only the prospect was picked up, genuinely happens
+   * and is what doc 08's one-sided status exists for.
+   */
+  if (entry.speakers.length < 1 || entry.segments.length === 0) return false;
   try {
     const payload = JSON.stringify({ ...entry, at: new Date().toISOString() });
     if (payload.length > MAX_BYTES) return false;

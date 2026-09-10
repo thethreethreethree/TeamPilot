@@ -247,10 +247,19 @@ export async function runUpload(
 
     const speakers = finalized?.speakers ?? [];
     const segments = attributionSegments(finalized?.segments);
-    // Two or more voices is the only case worth asking about. One voice means
-    // there is nothing to choose between, and asking would be the app pretending
-    // to offer a decision it has already made.
-    if (speakers.length >= 2 && segments.length > 0) {
+    /*
+     * ANY voice at all is worth asking about. This was `>= 2`, and the sentence
+     * that justified it - "one voice means there is nothing to choose between" -
+     * was wrong in the way that mattered: the transcript is only written when the
+     * rep answers, so refusing to ask did not skip a prompt, it threw the whole
+     * transcript away. Silently, with the audio and the duration still saved, so
+     * everything looked fine and the coach said the thread came through empty.
+     *
+     * With one voice the question is "is this you, or the customer?", which the
+     * app cannot answer for itself: a one-sided capture that got only the
+     * prospect is a real thing, and doc 08 exists for it.
+     */
+    if (speakers.length >= 1 && segments.length > 0) {
       await deps.writeAttribution(
         { sessionId, label: clientLabel, speakers, segments },
         userId,

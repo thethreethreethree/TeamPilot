@@ -20,6 +20,17 @@ import { Pressable, Text, View } from 'react-native';
 
 import type { PendingSpeaker } from '@/lib/audio/attribution-store';
 
+/**
+ * The answer meaning "the only voice on this call was NOT mine".
+ *
+ * It is deliberately a value no diarizer will ever produce. `label-transcript`
+ * labels a segment 'agent' when its speaker id matches the one sent and
+ * 'customer' otherwise - so sending an id that matches nothing marks the whole
+ * call as the customer speaking, which is exactly what one-sided capture means.
+ * No server change was needed for that; the route already had the behaviour.
+ */
+export const NOT_THE_REP = '__not-the-rep__';
+
 export function SpeakerPicker({
   speakers,
   onPick,
@@ -27,19 +38,27 @@ export function SpeakerPicker({
   disabled = false,
 }: {
   speakers: PendingSpeaker[];
+  /** The chosen voice, or NOT_THE_REP when the only voice was the customer's. */
   onPick: (speakerId: string) => void;
   /** The one being submitted, if any. */
   busySpeakerId?: string | null;
   disabled?: boolean;
 }) {
+  // One voice asks a different question, and gets an extra answer below.
+  const solo = speakers.length === 1;
+
   return (
     <View className="mt-4">
       <Text accessibilityRole="header" className="font-strong text-base text-foreground">
-        Which voice is you?
+        {solo ? 'Is this your voice?' : 'Which voice is you?'}
       </Text>
       <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
-        Two people spoke on this call. Until you say which is you, the transcript
-        cannot tell you apart — and neither can the coach.
+        {solo
+          ? // ONE VOICE IS STILL A QUESTION. The app cannot tell whether it
+            // caught the rep or only the customer, and answering either way is
+            // what saves the transcript at all.
+            'Only one voice came through on this call. Say whose it is and the transcript is saved either way — without an answer there is nothing for the coach to read.'
+          : 'Two people spoke on this call. Until you say which is you, the transcript cannot tell you apart — and neither can the coach.'}
       </Text>
 
       <View className="mt-3 gap-2">
@@ -65,17 +84,50 @@ export function SpeakerPicker({
               } ${disabled ? 'opacity-50' : ''}`}
             >
               <Text className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
-                {busy ? 'Saving' : `Voice ${index + 1}`}
+                {busy ? 'Saving' : solo ? 'The only voice' : `Voice ${index + 1}`}
               </Text>
               <Text className="mt-1 font-body text-base leading-relaxed text-foreground">
                 {sample
                   ? `“${sample}”`
-                  : 'This voice has no readable line — pick the other one if it sounds like you.'}
+                  : solo
+                    ? 'This voice has no readable line.'
+                    : 'This voice has no readable line — pick the other one if it sounds like you.'}
               </Text>
-              <Text className="mt-2 font-strong text-base text-primary">This is me</Text>
+              <Text className="mt-2 font-strong text-base text-primary">
+                {solo ? 'That is me' : 'This is me'}
+              </Text>
             </Pressable>
           );
         })}
+
+        {/*
+          THE SECOND ANSWER, and the reason this whole screen now appears for a
+          solo recording at all. One voice does not mean it is the rep's: a call
+          where only the prospect was picked up is exactly what doc 08's
+          one-sided status is for. Both answers save the transcript, which is the
+          point - without one, nothing is written and the coach has nothing to
+          read.
+        */}
+        {solo ? (
+          <Pressable
+            onPress={() => onPick(NOT_THE_REP)}
+            disabled={disabled || Boolean(busySpeakerId)}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: disabled || Boolean(busySpeakerId) }}
+            accessibilityLabel="That is not me, it is the customer. The transcript is saved as the customer speaking."
+            className={`min-h-7 justify-center rounded-md border border-border-control px-4 py-3 active:opacity-70 ${
+              disabled ? 'opacity-50' : ''
+            }`}
+          >
+            <Text className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+              Not me
+            </Text>
+            <Text className="mt-1 font-body text-base leading-relaxed text-foreground">
+              Only the customer came through. Your side was not picked up.
+            </Text>
+            <Text className="mt-2 font-strong text-base text-primary">That is the customer</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

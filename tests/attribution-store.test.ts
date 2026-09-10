@@ -55,14 +55,39 @@ test('a diarized transcript is kept, whole', async () => {
   assert.equal(got?.label, 'Rowan & Co');
 });
 
-test('one voice is never asked about', async () => {
-  // Nothing to choose between. A one-option picker is a decision already made.
+test('ONE voice is still asked about, because the transcript depends on the answer', async () => {
+  /*
+   * THIS TEST USED TO ASSERT THE OPPOSITE, and asserting it is how the bug
+   * shipped. The reasoning was "nothing to choose between; a one-option picker
+   * is a decision already made" — true about the picker, and wrong about the
+   * consequence: the transcript is only written when the rep answers, so
+   * refusing to ask did not skip a prompt, it threw the whole transcript away.
+   *
+   * Measured on production 10 September 2026: 13 of 16 uploaded recordings had
+   * audio, a stamped duration — so transcription ran — and no transcript at all.
+   * The founder recorded a two-minute test, opened Ask the coach, and was told
+   * the thread came through empty.
+   *
+   * With one voice the question is not "which of these is you" but "is this you
+   * or the customer", which the app genuinely cannot answer for itself.
+   */
   const kept = await writePendingAttribution(
     entry({ speakers: [speakers[0]], segments: [segments[0]] }),
     'rep-1',
   );
-  assert.equal(kept, false);
-  assert.equal(await readPendingAttribution('rep-1', 'sess-1'), null);
+  assert.equal(kept, true);
+  const back = await readPendingAttribution('rep-1', 'sess-1');
+  assert.ok(back, 'a single-voice call was dropped instead of asked about');
+  assert.equal(back!.speakers.length, 1);
+  assert.equal(back!.segments.length, 1);
+});
+
+test('a call with NO voices at all is still refused', async () => {
+  // Nothing was captured, so there is no question to ask and nothing to save.
+  assert.equal(
+    await writePendingAttribution(entry({ speakers: [], segments: [segments[0]] }), 'rep-1'),
+    false,
+  );
 });
 
 test('a payload with no segments is refused', async () => {
