@@ -180,6 +180,25 @@ so the decision can be made from a measured rate instead of from this one-off pr
 of a `Promise.race` is not cancelled, so a timed-out engine may still persist its own result later or may
 be killed when the function freezes, and which of those happened was never recorded either.
 
+### F13 - a failed lookup could have silently stopped the weekly team brief for every company
+class: a-failure-that-is-indistinguishable-from-a-legitimate-absence
+sweep: every `.catch(() => <value>)` in src/lib/coach, opened rather than counted
+severity: medium
+The same sweep, one more instance, and this one had the widest blast radius for its size.
+`runTeamBriefPregeneration` chooses which companies get a brief by querying the events table, and caught
+that query into `[]`. A transient database error therefore produced zero companies, zero briefs, and a
+cheerful `{ ok: true, companies: 0, generated: 0 }` from the cron route - which is EXACTLY what a genuinely
+quiet week produces. The weekly brief could stop for every company on the platform and the only symptom
+would be a success response with two zeroes in it, once a week, seen by nobody.
+
+The empty fallback is KEPT - one bad query must not throw away a whole run - but the run now says which
+zero it is, and the cron route returns 500 rather than ok when the lookup failed.
+
+WHAT THE SWEEP DID NOT FIND, which matters as much: the `.catch` calls in `dissectBackfill` look identical
+to a grep and are NOT the same thing. They are per-session inside a batch, annotated with why, and the run
+reports counts either way - a considered decision that one session must not stop the batch. Opened rather
+than counted, per the standing rule that a grep result is a list of suspects.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
@@ -201,6 +220,8 @@ byte-identical with `diff`.
     P1  the timeout stops reporting itself -> x REPORTS the timeout, so an abandoned engine is not filed as quiet
     P2  onTimeout fires even on success    -> x 5 of 6 tests in the file
     P3  the note's throw may escape        -> x a note that throws never becomes the failure it was recording
+    R1  the lookup failure stops being recorded     -> x says the lookup FAILED, so an outage is not a quiet week
+    R2  every run claims a failure         -> x a genuinely quiet week reports zero WITHOUT claiming a failure
 
     MD  the null-count guard flipped to && -> SURVIVED, and it is recorded rather than quietly dropped.
         `null <= 0` is true in JavaScript, so a null count already falls out at the next guard; no input

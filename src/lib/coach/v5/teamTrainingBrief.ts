@@ -219,14 +219,40 @@ export async function getLatestTeamBrief(companyId: string): Promise<CachedTeamB
 // Overnight pre-generation (cron): generate + cache the WEEK brief for every company with coaching activity in the
 // window. SEQUENTIAL + capped so the burst of LLM calls stays bounded under maxDuration; a larger backlog just drains
 // over nightly runs. Best-effort per company (one failure never stops the sweep).
-export async function runTeamBriefPregeneration(cap = 10): Promise<{ companies: number; generated: number }> {
+export async function runTeamBriefPregeneration(
+  cap = 10
+): Promise<{ companies: number; generated: number; lookupFailed?: true }> {
   const admin = createAdminClient();
   const cutoff = new Date(Date.now() - PERIOD_DAYS * 86_400_000).toISOString();
+
+  /*
+   * A FAILED LOOKUP IS NOT AN EMPTY WEEK, and until 2026-09-10 this could not tell them
+   * apart. The query below decides which companies get a brief at all; catching it into
+   * `[]` meant a transient database error produced zero companies, zero briefs, and a
+   * cheerful `{ ok: true, companies: 0, generated: 0 }` from the cron route. The weekly
+   * team brief could stop for every company on the platform and the only symptom would be
+   * a success response with two zeroes in it — indistinguishable from a genuinely quiet
+   * week, which is a real and expected state.
+   *
+   * Found by sweeping the class the transcript build was about: a path that produces
+   * nothing while nothing says so. The empty fallback is kept, because one bad query must
+   * not throw away a whole run, but the run now SAYS which zero it is.
+   */
+  let lookupFailed = false;
   const rows = await fetchAllPaged<{ company_id: string }>(
     (from, to) =>
       admin.from("events").select("company_id").eq("kind", "coach.dissect_generated").gte("created_at", cutoff).range(from, to),
     { label: "team-brief-pregen-companies" },
-  ).catch(() => [] as { company_id: string }[]);
+  ).catch((err) => {
+    lookupFailed = true;
+    // eslint-disable-next-line no-console
+    console.error(
+      `[teamTrainingBrief] company lookup failed — NO briefs generated this run: ${
+        err instanceof Error ? err.message : "unknown"
+      }`
+    );
+    return [] as { company_id: string }[];
+  });
   const companyIds = [...new Set(rows.map((r) => String(r.company_id)).filter(Boolean))].slice(0, cap);
   let generated = 0;
   for (const companyId of companyIds) {
@@ -240,5 +266,7 @@ export async function runTeamBriefPregeneration(cap = 10): Promise<{ companies: 
       /* best-effort per company */
     }
   }
-  return { companies: companyIds.length, generated };
+  // `lookupFailed` is present only when it is true, so a healthy run's shape is unchanged
+  // and a caller reading `result.lookupFailed` gets undefined rather than a false alarm.
+  return { companies: companyIds.length, generated, ...(lookupFailed ? { lookupFailed: true as const } : {}) };
 }

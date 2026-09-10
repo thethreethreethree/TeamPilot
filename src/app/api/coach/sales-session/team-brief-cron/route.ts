@@ -28,6 +28,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runTeamBriefPregeneration();
+    // A run that could not read WHICH companies to brief generated nothing, and must not
+    // report ok — otherwise a total outage of the weekly brief looks identical to a quiet
+    // week. 500 so a cron monitor sees it, with the counts kept for the reader.
+    if (result.lookupFailed) {
+      return NextResponse.json(
+        { ok: false, error: "Couldn't read which companies to brief — no briefs generated.", ...result },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("[coach/team-brief-cron] failed:", err);
