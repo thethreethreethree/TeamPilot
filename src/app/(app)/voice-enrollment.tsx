@@ -31,6 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { audio } from '@/lib/audio/module';
+import { ENROLL_AUDIO_MODE, RELEASED_AUDIO_MODE } from '@/lib/audio/audio-modes';
 import { C } from '@/lib/theme';
 import { authFailureMessage } from '@/lib/auth-failure';
 import { reachError } from '@/lib/reach-failure';
@@ -103,7 +104,7 @@ export default function VoiceEnrollmentScreen() {
     try {
       await recorder.stop();
       uri = recorder.uri ?? null;
-      await audio?.setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+      await audio?.setAudioModeAsync(RELEASED_AUDIO_MODE).catch(() => {});
     } catch {
       // Fall through: a stop that threw still may have left a file.
       uri = recorder.uri ?? null;
@@ -154,7 +155,7 @@ export default function VoiceEnrollmentScreen() {
         );
         return;
       }
-      await audio.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audio.setAudioModeAsync(ENROLL_AUDIO_MODE);
       await recorder.prepareToRecordAsync();
       recorder.record();
       setPhase('recording');

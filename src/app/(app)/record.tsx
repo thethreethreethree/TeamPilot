@@ -31,6 +31,7 @@ import { audio, RECORDING_AVAILABLE } from '@/lib/audio/module';
 
 import { useAuth } from '@/lib/auth-context';
 import { CALL_RECORDING_OPTIONS } from '@/lib/audio/recording-options';
+import { CALL_AUDIO_MODE, RELEASED_AUDIO_MODE } from '@/lib/audio/audio-modes';
 import {
   MAX_RECORDING_SECONDS,
   diskSpaceForRecording,
@@ -170,7 +171,7 @@ function Recorder() {
    */
   useEffect(() => {
     return () => {
-      audio?.setAudioModeAsync({ allowsRecording: false }).catch(() => {
+      audio?.setAudioModeAsync(RELEASED_AUDIO_MODE).catch(() => {
         // Nothing left to report to; the screen is gone.
       });
     };
@@ -337,18 +338,34 @@ function Recorder() {
       // holds the audio session. It is set at start rather than on mount so the
       // app does not take the audio session for a screen the rep only opened.
       //
-      // shouldPlayInBackground is the one that matters most in the field: a rep
-      // pockets the phone the moment the conversation starts, and without it iOS
-      // suspends the app and the recording simply stops — losing everything from
-      // the point the screen went dark, which is the whole conversation. It
-      // pairs with UIBackgroundModes: ["audio"] in app.json; the flag alone does
-      // nothing without the declaration, and the declaration alone does nothing
-      // without the flag.
-      await audio!.setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-      });
+      // `allowsBackgroundRecording` IS THE ONE THAT KEEPS A CALL RECORDING, and
+      // this used to set only `shouldPlayInBackground` while a comment right here
+      // claimed that was the one that mattered. It is not, and the difference is
+      // the whole bug the founder reported: switch to another app mid-call and
+      // the recording stopped.
+      //
+      // The two flags guard different things, and expo-audio's own
+      // `AudioModule.swift` says so plainly:
+      //
+      //     OnAppEntersBackground {
+      //       if !shouldPlayInBackground   { pauseAllPlayers() }
+      //       if !allowsBackgroundRecording { pauseAllRecorders() }
+      //     }
+      //
+      // `allowsBackgroundRecording` defaults to FALSE, so the module was pausing
+      // the recorder itself the instant the app went to the background. No error
+      // was raised and nothing was lost from before that moment — the rep simply
+      // came back to a recording that had stopped without being asked to.
+      //
+      // Both halves are still needed and neither is sufficient alone:
+      //   UIBackgroundModes: ["audio"]   in app.json  - iOS lets the app run at all
+      //   allowsBackgroundRecording      here         - expo-audio leaves the recorder alone
+      //
+      // ANDROID IS NOT SOLVED BY THIS. The flag is accepted there, but Android
+      // needs a foreground service to keep a microphone open in the background.
+      // This app has never been compiled for Android; that is the piece to build
+      // when it is, and it is a real gap rather than an oversight.
+      await audio!.setAudioModeAsync(CALL_AUDIO_MODE);
 
       await recorder.prepareToRecordAsync();
       startedAt.current = Date.now();
@@ -371,7 +388,7 @@ function Recorder() {
       // it back matters: leaving it held keeps this app owning the microphone
       // and the background audio slot for a recording that never began, which
       // other apps — and the next attempt — would feel and nothing would explain.
-      await audio!.setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+      await audio!.setAudioModeAsync(RELEASED_AUDIO_MODE).catch(() => {});
       startedAt.current = null;
       setError(
         humanError(
@@ -399,7 +416,7 @@ function Recorder() {
       startedAt.current = null;
 
       // Release the audio session so other apps (and the coach) behave normally.
-      await audio!.setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+      await audio!.setAudioModeAsync(RELEASED_AUDIO_MODE).catch(() => {});
 
       if (!uri) throw new Error('The recorder produced no file. Nothing was saved.');
 
