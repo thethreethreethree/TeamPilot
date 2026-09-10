@@ -215,7 +215,7 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-five checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-six checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
@@ -755,6 +755,16 @@ would mean migration 0245 has not been applied, not that the app is wrong.
 The point of this one is that **it is the screen you will use to tell me about
 every other failure in this list**, so it is worth checking first.
 
+> **Changed 11 September, and it changes what an empty list means.** Until this
+> build the log only ever heard about a screen that threw, plus the send failures
+> the outbox classifies. Two whole classes were silent: anything thrown outside a
+> screen's render, and every failed background task — React Native only watches
+> for those in a developer build, so in the app you are holding they vanished
+> without trace. Both now reach this screen. You cannot make either happen on
+> purpose, so there is no step for it below; what it means is that from now on
+> **an empty log after something visibly went wrong is a real signal**, and worth
+> telling me about rather than shrugging at.
+
 1. On **Home**, tap the **⋮** menu in the top corner.
 2. Two rows: **Account** and **Report a problem**. Tap the second.
 3. On a phone where nothing has gone wrong yet it should say *"Nothing has been
@@ -1170,6 +1180,41 @@ broken somewhere I could not see from here.
 **Not wrong:** your *older* calls still showing no Speed. Nothing back-fills them
 — the timing was never captured for those, and inventing it is exactly what this
 system does not do.
+
+---
+
+### 36. The door tracker's two pages (fixed 11 September)
+
+This is the second dashboard — the founder's mockup: your door target, with the
+original home screen one page across. Macro Mode on, **Home** tab.
+
+> **The dots used to be the buttons and the first one could not be tapped.** Each
+> was given a 44pt touch area to clear the accessibility floor, but the two dots
+> sit 14pt apart, so the second one's area completely covered the first one and,
+> being drawn on top, took every tap aimed at it. The only way back to page 0
+> without a swipe was the one control a finger could not reach. The roles have
+> swapped: the dots now just show where you are, and **the line underneath is the
+> button**. Nothing about the look moved.
+
+1. Open **Home** with Macro Mode on. You should land on **your door target** —
+   the dials — with **two dots** underneath, the left one filled amber.
+2. Under the dots: **"SWIPE OR TAP FOR THE ORIGINAL HOME SCREEN"**. **Tap that
+   line.** The page should move across to the home screen. This is the step that
+   was broken — if tapping does nothing, that is the whole point of this check.
+3. Now read the line again. It should have **changed** to **"SWIPE OR TAP FOR
+   YOUR DOOR TARGET"**. Tap it and you should come back.
+4. **Swipe** between the two as well, both ways. Tapping the line and swiping
+   must land in the same place.
+5. Go to another tab and come back to **Home**. It should be showing **page 0**,
+   the door target, again — the page you are on is deliberately not remembered.
+6. With a screen reader on, the dots should announce as one phrase — *"Your door
+   target, page 1 of 2"* — rather than as two anonymous buttons.
+
+**Wrong looks like:** tapping the line does nothing; the line reads the same on
+both pages; the line still says "swipe **left**" (it should name a page, never a
+direction — on one of the two pages a direction is always wrong); the dots
+respond to taps *instead of* the line; or the page you left on is still showing
+when you come back to the tab.
 
 ---
 
