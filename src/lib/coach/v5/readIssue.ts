@@ -3,9 +3,11 @@ import type { DissectEmptyShape } from "./salesDissect";
 /**
  * Why a session has no read, in the only terms that change what somebody should DO about it.
  *
- * Measured on production 2026-09-10: 92 of 100 stored declines say `no_signal`, and they are
- * systematically the LONGER calls — median 683 transcript words against 341 for the ones that
- * succeeded. Thin content would be SHORT, so for most of these the rep did everything right and the
+ * Measured on production 2026-09-10, ACROSS ALL SEVEN COMPANIES in the database — the right scope for
+ * "does this rule need to exist", and not the scope for a number shown to one founder: 92 of 100 stored
+ * declines say `no_signal`, and they are systematically the LONGER calls — median 683 transcript words
+ * against 341 for the ones that succeeded. (One company alone: 43 against 37 since mid-August, 691 words
+ * against 357 — the same shape.) Thin content would be SHORT, so for most of these the rep did everything right and the
  * dashboard showed them nothing at all: no read, no badge, no reason, on more than half of every
  * session recorded.
  *

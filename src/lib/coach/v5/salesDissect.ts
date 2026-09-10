@@ -48,6 +48,8 @@ export type SalesDissect = {
  * was thrown away at the `return EMPTY` boundary — so the durable record collapsed them into one word while
  * the distinction lived only in a serverless log nobody reads. That is why half of all coaching runs
  * producing nothing has stayed undiagnosable: 92 of 100 declines say "no_signal" and cannot say which.
+ * (Counted across every company in the database, which is the scope that decides whether this needs to
+ * exist; a single founder's own figures are necessarily smaller and are not what this comment is about.)
  *
  *   no_agent_turns — 0 agent turns; short-circuited BEFORE the LLM. Not a model failure at all.
  *   suppressed     — the control window declined the call. Not a failure either.

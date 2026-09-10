@@ -7,8 +7,9 @@
  * returns the sound it heard, annotated — `[clicking]`, `[pause]`, `[outro jingle]`, `[wind blowing]`,
  * `[zipper closing]`. Every one of those is truthy, so `!text.trim()` waves it straight through.
  *
- * Measured 2026-09-10: 28 of 73 stored pitch transcripts are a single bracketed sound event and NOT ONE
- * word of speech. All 28 were analyzed anyway. 24 came back with every dimension at zero — and those zeros
+ * Measured 2026-09-10, across ALL companies in the database — the right scope for "does this guard need
+ * to exist": 28 of 73 stored pitch transcripts are a single bracketed sound event and NOT ONE word of
+ * speech. All 28 were analyzed anyway. 24 came back with every dimension at zero — and those zeros
  * are averaged into Today's Metrics as though a rep had been graded. The other 4 are worse: `[typing]` was
  * scored tone 85 / close 80 / objection 75, a top-quartile door pitch invented from a typing sound.
  *
