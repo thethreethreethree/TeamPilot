@@ -622,3 +622,51 @@ person's ability to read the diff, and no gate here measures that.
 
 The tell was available before I ran it and I did not look: the file I was about to reformat was already
 formatted a different way, by the people who own it.
+
+### F28 - half of all coaching produces nothing, and the record cannot say which nothing
+class: four-different-failures-writing-down-the-same-word
+sweep: `coach.dissect_attempted` payloads, all 100, grouped by `reason`; and every `return EMPTY` in `generateSalesDissect`
+severity: high
+Measured on production 2026-09-10, from the events table rather than from a log:
+
+    month     declined  generated   decline rate
+    2026-06          0          1     0%
+    2026-07          0         35     0%
+    2026-08         77         63    55%
+    2026-09         23         22    51%
+
+FIRST, THE CORRECTION, because I have been carrying the wrong reading of this shape. The jump from 0% to
+55% is NOT a change in behaviour. `coach.dissect_attempted` was introduced by c70ecb13 on 14 August as the
+dissect-backfill backoff marker; the first event is 2026-08-13T23:42Z, eighty minutes after that commit
+landed. Before it, a decline wrote nothing at all. The declines were invisible, not absent, and any story
+that starts "something broke in August" is a story about the instrument's birthday.
+
+WHAT IS REAL is the rate itself and its shape: 92 of the 100 declines say `no_signal`, and the declined
+calls are systematically the LONGER ones - median 683 transcript words against 341 for the ones that
+succeeded, over the most recent 40 of each. None of the 40 declined had zero words. Thin content would be
+SHORT. "No signal" is the wrong story for most of these.
+
+THE DEFECT. `generateSalesDissect` has FOUR distinct empty exits, and each already had its own
+`console.error` with its own sentence: a suppressed call, an EMPTY model response, unparsable text, and
+valid text the tone law refuses for carrying no strengths. All four `return EMPTY`. The type carries no
+room for which, so the distinction dies at that boundary and the stored marker writes one word for all of
+them. The console lines survive in a serverless log nobody reads and are gone within the retention window.
+
+That is why the model question on the build board is unanswerable. Token starvation and a wall-clock timeout
+leave the same trace TODAY - but they do not have to. Starvation is `llm_empty`: the model returns no text at
+all, which this file's own header records costing two weeks of blank reads in the 2026-07-30 outage. A call
+with genuinely nothing to praise is `no_strengths`. They are different rows in the same table and were being
+written as the same row.
+
+### F29 - my own probe reported "0 of 0" from a 400
+class: a-helper-that-turned-an-error-into-an-honest-looking-empty
+sweep: the paged-read helper used by every measurement in this build
+severity: medium
+My paging helper treated any non-array response body as "no more rows". Querying `events` for a column that
+does not exist (`session_id`) returned 400, the helper returned `[]`, and the script printed "sessions where
+a dissect was ATTEMPTED and never GENERATED: 0 of 0" - a clean, plausible, entirely fabricated measurement.
+I nearly reported it.
+
+This is the identical defect to the one the whole build is about, in the tool I was using to measure it. The
+helper now throws on any non-OK status or non-array body. A measuring instrument that reports zero when it is
+broken is worse than no instrument, because it is believed.

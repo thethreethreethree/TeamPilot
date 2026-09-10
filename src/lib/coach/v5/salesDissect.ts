@@ -36,7 +36,36 @@ export type SalesDissect = {
   growthAreas: DissectGrowth[];
   standoutStrategy: DissectStrategy | null;
   overall?: string;
+  /** Which empty this is (see DissectEmptyShape). Absent when hasSignal. */
+  emptyShape?: DissectEmptyShape;
 };
+
+/**
+ * WHICH empty a dissect is. `reason` on the stored marker stays "no_signal" / "no_agent_turns" because the
+ * sessions-list UI reads that vocabulary; this sits BESIDE it and says which of the shapes actually happened.
+ *
+ * Every one of these already existed here as a separate `console.error` with its own sentence, and every one
+ * was thrown away at the `return EMPTY` boundary — so the durable record collapsed them into one word while
+ * the distinction lived only in a serverless log nobody reads. That is why half of all coaching runs
+ * producing nothing has stayed undiagnosable: 92 of 100 declines say "no_signal" and cannot say which.
+ *
+ *   no_agent_turns — 0 agent turns; short-circuited BEFORE the LLM. Not a model failure at all.
+ *   suppressed     — the control window declined the call. Not a failure either.
+ *   llm_empty      — the model returned NO text. This is the starvation shape: the 2026-07-30 outage, a
+ *                    reasoning model spending its whole budget before writing any content. A longer
+ *                    transcript makes it WORSE, and more wall-clock time does not help it at all.
+ *   unparsable     — text came back and was not valid dissect JSON.
+ *   no_strengths   — valid JSON, but no strengths, so the tone law refuses it (never criticism-only). This
+ *                    is the only shape that means what "no signal" sounds like it means.
+ *   threw          — an exception on the path.
+ */
+export type DissectEmptyShape =
+  | "no_agent_turns"
+  | "suppressed"
+  | "llm_empty"
+  | "unparsable"
+  | "no_strengths"
+  | "threw";
 
 const EMPTY: SalesDissect = {
   hasSignal: false,
@@ -44,6 +73,11 @@ const EMPTY: SalesDissect = {
   growthAreas: [],
   standoutStrategy: null,
 };
+
+/** The honest empty state, carrying which empty it is. */
+function emptyBecause(shape: DissectEmptyShape): SalesDissect {
+  return { ...EMPTY, emptyShape: shape };
+}
 
 // Founder 2026-08-05: NO minimum-length gate — every session gets a dissect, however
 // short. Only a genuinely empty rep side (0 agent turns) is excluded (§3.4).
@@ -57,7 +91,7 @@ export async function generateSalesDissect(args: {
 }): Promise<SalesDissect> {
   try {
     const agentSegments = args.segments.filter((s) => s.speaker === "agent");
-    if (agentSegments.length < MIN_AGENT_SEGMENTS) return EMPTY;
+    if (agentSegments.length < MIN_AGENT_SEGMENTS) return emptyBecause("no_agent_turns");
 
     const [corpus, product] = await Promise.all([
       getCurrentSalesCorpus(args.companyId).catch(() => null),
@@ -77,7 +111,7 @@ export async function generateSalesDissect(args: {
       systemPrompt,
       userMessage,
     });
-    if (r.suppressed) return EMPTY;
+    if (r.suppressed) return emptyBecause("suppressed");
 
     // Do NOT swallow an EMPTY LLM response as "honest empty state" — that is the error-dressed-as-no-data
     // failure (INV22). The 2026-07-30 outage was exactly this: deepseek-v4-flash (a reasoning model) burned
@@ -89,7 +123,7 @@ export async function generateSalesDissect(args: {
       console.error(
         `[generateSalesDissect] LLM returned EMPTY text (model=${r.model}, provider=${r.provider}) — likely token-budget starvation on a reasoning model. Dissect will be blank.`
       );
-      return EMPTY;
+      return emptyBecause("llm_empty");
     }
     const parsed = parseDissect(r.text);
     if (!parsed || !parsed.hasSignal) {
@@ -97,7 +131,9 @@ export async function generateSalesDissect(args: {
       console.error(
         `[generateSalesDissect] parseDissect produced no signal (textLen=${r.text.length}, model=${r.model}) — JSON parse failure or no strengths extracted.`
       );
-      return EMPTY;
+      // parseDissect returns null on malformed JSON and the empty state when the tone law refuses a
+      // strengths-less read. Those are different problems with different fixes, so they are recorded apart.
+      return emptyBecause(parsed ? "no_strengths" : "unparsable");
     }
     return parsed;
   } catch (e) {
@@ -105,7 +141,7 @@ export async function generateSalesDissect(args: {
     console.error(
       `[generateSalesDissect] threw: ${e instanceof Error ? e.message : String(e)}`
     );
-    return EMPTY;
+    return emptyBecause("threw");
   }
 }
 
@@ -195,7 +231,17 @@ export async function runAndStoreDissect(args: {
         actor: args.actorId,
         kind: "coach.dissect_attempted",
         subject: `sales_session:${args.sessionId}`,
-        payload: { reason, agentTurns, transcriptWords, coach_version: "dissect-v1" },
+        payload: {
+          reason,
+          // WHICH no-signal this is. `reason` keeps its two-word vocabulary for the sessions list; `shape`
+          // is what makes "half of all coaching produces nothing" answerable from a query instead of a guess
+          // — llm_empty means starvation (more time will not help), no_strengths means the call really had
+          // nothing to praise.
+          shape: dissect.emptyShape ?? null,
+          agentTurns,
+          transcriptWords,
+          coach_version: "dissect-v1",
+        },
       });
     } catch {
       /* best-effort — the backoff just doesn't apply this run */

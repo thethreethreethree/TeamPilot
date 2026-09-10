@@ -94,3 +94,64 @@ describe("generateSalesDissect — length behaviour + never-throws", () => {
     spy.mockRestore();
   });
 });
+
+/**
+ * WHICH empty (2026-09-10). Measured on production: 92 of 100 stored declines say "no_signal" and cannot say
+ * which of four different things happened. Each shape below already had its own console.error sentence here
+ * and each was discarded at `return EMPTY`, so the durable record could never separate token starvation —
+ * which a longer transcript makes WORSE and more time does not fix — from a call that genuinely had nothing
+ * to praise. These pin the distinction so it cannot be collapsed again.
+ */
+describe("generateSalesDissect — the empty carries WHICH empty it is", () => {
+  it("0 agent turns → no_agent_turns, and the LLM is never called", async () => {
+    const out = await gen([seg("customer", 0)]);
+    expect(out.emptyShape).toBe("no_agent_turns");
+    expect(dissectCoachV5).not.toHaveBeenCalled();
+  });
+
+  it("a suppressed response → suppressed (a policy decline, NOT a model failure)", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: true, text: "" });
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.emptyShape).toBe("suppressed");
+  });
+
+  it("EMPTY text back from the model → llm_empty — this is the starvation shape", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "   " });
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.emptyShape).toBe("llm_empty");
+    expect(out.hasSignal).toBe(false);
+  });
+
+  it("text that is not dissect JSON → unparsable, NOT llm_empty (a different fix entirely)", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "I'm sorry, I can't help." });
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.emptyShape).toBe("unparsable");
+  });
+
+  it("valid JSON with growth but NO strengths → no_strengths — the tone law refusing criticism-only", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({
+      suppressed: false,
+      text: JSON.stringify({
+        strengths: [],
+        growthAreas: [{ opportunity: "ask more", nextStep: "prepare two questions", why: "discovery was thin" }],
+        standoutStrategy: null,
+      }),
+    });
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.emptyShape).toBe("no_strengths");
+  });
+
+  it("a throw on the path → threw, and still never throws to the caller", async () => {
+    asMock(dissectCoachV5).mockRejectedValue(new Error("upstream exploded"));
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.emptyShape).toBe("threw");
+    expect(out.hasSignal).toBe(false);
+  });
+
+  it("a dissect WITH signal carries no shape at all — the field means 'which empty', not 'which outcome'", async () => {
+    asMock(dissectCoachV5).mockResolvedValue(dissectOk);
+    const out = await gen([seg("agent", 0), seg("customer", 1)]);
+    expect(out.hasSignal).toBe(true);
+    expect(out.emptyShape).toBeUndefined();
+  });
+});

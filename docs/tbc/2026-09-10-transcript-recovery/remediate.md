@@ -125,3 +125,44 @@ gate-or-promise: PROMISE. There is no formatting gate in this repository and I a
 and A33: a gate that fires on style in a codebase that has deliberately chosen not to enforce style is
 noise. The structural answer is smaller than a gate: do not run a formatter the repository does not
 configure.
+
+### F28 - half of all coaching produces nothing, and the record cannot say which nothing
+fix: `SalesDissect` gains `emptyShape`, and each of the six empty exits says which it is - `no_agent_turns`,
+`suppressed`, `llm_empty`, `unparsable`, `no_strengths`, `threw`. `runAndStoreDissect` writes it to the
+marker as `shape`, BESIDE `reason` rather than instead of it: the sessions-list route reads that two-word
+vocabulary and it is unchanged. Nothing about which sessions are declined, or the 14-day backoff, moves.
+gate-or-promise: GATE, three mutations. Collapsing `unparsable` into `no_strengths` fails "text that is not
+dissect JSON → unparsable, NOT llm_empty" and "non-JSON text stores shape 'unparsable'". Cutting the shape
+out of the payload fails all four marker tests and none of the generator tests, so the two halves are pinned
+separately. Reporting an empty model response as `no_strengths` - the mutation that matters, because it is
+the one that would quietly re-merge starvation with a genuinely quiet call - fails "EMPTY text back from the
+model → llm_empty - this is the starvation shape".
+
+What this does NOT do is fix the decline rate. It makes the next month of declines answerable: `llm_empty`
+means starvation and a longer transcript makes it worse, `no_strengths` means the call really had nothing to
+praise. That is the evidence the `dissect-model` decision on the build board needs and has never had, and it
+accumulates on its own from here.
+
+### F29 - my own probe reported "0 of 0" from a 400
+fix: the paged read throws on any non-OK status or non-array body instead of returning `[]`.
+gate-or-promise: PROMISE. It is a scratch script, not shipped code, and putting a gate on a throwaway would
+be exactly the bureaucracy rule 7 forbids. The durable part is the finding: I built the failure I was hunting
+into the instrument I was hunting it with, which is A36 - the thing I was most confident in was the thing
+hiding the defect.
+
+## The speechless-transcript class, swept to its boundary (A26 -> A30)
+F25 fixed door pitches being graded on a recording with nobody talking in it. The question that decides
+whether the fix is a fix or a patch is whether the same thing happens on the OTHER transcript path - the
+sales sessions the five coaching engines read.
+
+Swept: all 2,414 rows of `coaching_transcript_segments`, stripped of every bracketed and parenthesised
+event. Of 176 sessions carrying segments, ZERO have no speech in any segment. Of 2,414 individual segments
+exactly one is pure non-speech, and it is a CJK full stop, not a sound event.
+
+The reason is structural rather than lucky. The session path uses DIARIZED transcription, which emits a
+segment per speaker turn; the door-pitch path takes ONE FLAT transcription of the whole file, and that is
+the output shape that carries `[clicking]`. So the boundary of the class is the flat-transcription path,
+and it has exactly one member - which is now guarded at both of its ends.
+
+Recorded because a sweep that finds nothing is a result. Left unwritten, the same question gets asked from
+scratch by the next person, and the honest answer costs another hour to rediscover.

@@ -89,3 +89,57 @@ describe("runAndStoreDissect — event emission (cost-loop backoff)", () => {
     });
   });
 });
+
+/**
+ * The marker says WHICH no-signal (2026-09-10). `reason` keeps its two-word vocabulary because the sessions
+ * list reads it; `shape` sits beside it. Measured on production: 92 of 100 declines say "no_signal", and
+ * they are systematically the LONGER calls — median 683 transcript words against 341 for the ones that
+ * succeeded. Thin content would be SHORT, so "no signal" is the wrong story for most of them, and until the
+ * shape is stored there is no way to tell starvation from a call that genuinely had nothing to praise.
+ */
+describe("runAndStoreDissect — the marker records WHICH no-signal", () => {
+  it("an EMPTY model response stores shape 'llm_empty' beside reason 'no_signal'", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "" });
+    await run([seg("agent", 0), seg("customer", 1)]);
+    expect(captured.inserts[0]).toMatchObject({
+      kind: "coach.dissect_attempted",
+      payload: { reason: "no_signal", shape: "llm_empty" },
+    });
+  });
+
+  it("a strengths-less but VALID read stores shape 'no_strengths' — same reason, different problem", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({
+      suppressed: false,
+      text: JSON.stringify({
+        strengths: [],
+        growthAreas: [{ opportunity: "ask more", nextStep: "prepare two questions", why: "thin discovery" }],
+        standoutStrategy: null,
+      }),
+    });
+    await run([seg("agent", 0), seg("customer", 1)]);
+    expect(captured.inserts[0]).toMatchObject({
+      payload: { reason: "no_signal", shape: "no_strengths" },
+    });
+  });
+
+  it("non-JSON text stores shape 'unparsable'", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "I'm sorry, I can't help." });
+    await run([seg("agent", 0), seg("customer", 1)]);
+    expect(captured.inserts[0]).toMatchObject({ payload: { reason: "no_signal", shape: "unparsable" } });
+  });
+
+  it("0 agent turns stores shape 'no_agent_turns', matching its reason", async () => {
+    await run([seg("customer", 0)]);
+    expect(captured.inserts[0]).toMatchObject({
+      payload: { reason: "no_agent_turns", shape: "no_agent_turns" },
+    });
+  });
+
+  it("the transcript SIZE still travels with it — the size is what turns a count into a diagnosis", async () => {
+    asMock(dissectCoachV5).mockResolvedValue({ suppressed: false, text: "" });
+    await run([seg("agent", 0), seg("customer", 1)]);
+    const payload = captured.inserts[0]?.payload as { transcriptWords?: number; agentTurns?: number };
+    expect(payload.transcriptWords).toBe(2); // one word ("x") per segment
+    expect(payload.agentTurns).toBe(1);
+  });
+});
