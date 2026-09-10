@@ -24,26 +24,52 @@
  * with counts, because "sign out" reads as "finish for the day" and the thing
  * they need to know is that nobody else can send their calls for them.
  */
-import { listOutbox } from '@/lib/sync/outbox';
-import { listKnocks } from '@/lib/doors/knock-store';
-import { pendingAtSignOut } from '@/lib/audio/recording-store';
-import { draftsHeld } from '@/lib/chat/draft-store';
+import { countOutboxOrUnknown } from '@/lib/sync/outbox';
+import { countKnocksOrUnknown } from '@/lib/doors/knock-store';
+import { countPendingOrUnknown } from '@/lib/audio/recording-store';
+import { countDraftsOrUnknown } from '@/lib/chat/draft-store';
+import type { StrandedCount } from '@/lib/stranded-count';
+
+export type Stranded = {
+  recordings: StrandedCount;
+  writes: StrandedCount;
+  knocks: StrandedCount;
+  drafts: StrandedCount;
+};
 
 /**
  * What will still be on this phone afterwards.
  *
  * Returns the counts rather than a sentence so the caller can word it for its
  * own screen, and so this can be tested without a dialog.
+ *
+ * NULL IS NOT ZERO HERE, AND THAT IS THE WHOLE POINT OF THIS FUNCTION. These
+ * four reads used to fall back to 0 on failure, and `signOutMessage` only speaks
+ * about a count when it is above zero - so a single failed read did not degrade
+ * the warning, it DELETED it. A rep with eight unsent recordings was shown the
+ * generic line and nothing else, and signed out believing nothing was waiting.
+ *
+ * Nothing is lost when that happens: these stores survive sign-out by design.
+ * What is lost is the one thing this module exists to say - that the work is
+ * still here and nobody else can send it for them. An unknown is never a zero,
+ * least of all in the sentence a rep reads before walking away from their day's
+ * work.
  */
-export async function strandedAtSignOut(
-  userId: string | null,
-): Promise<{ recordings: number; writes: number; knocks: number; drafts: number }> {
+export async function strandedAtSignOut(userId: string | null): Promise<Stranded> {
+  // Signed out already: genuinely nothing of this rep's is waiting, so these are
+  // real zeros rather than unknowns.
   if (!userId) return { recordings: 0, writes: 0, knocks: 0, drafts: 0 };
+  // The `...OrUnknown` readers, NOT the list readers. `listKnocks` and friends
+  // turn a storage failure into an empty list inside themselves, so counting
+  // their length can only ever produce a confident zero - which is precisely the
+  // silence this function exists to break. A first attempt wrapped the list
+  // readers in `.catch(() => null)` and changed nothing at all, because they
+  // never reject.
   const [recordings, writes, knocks, drafts] = await Promise.all([
-    pendingAtSignOut(userId).then((r) => r.length).catch(() => 0),
-    listOutbox(userId).then((w) => w.length).catch(() => 0),
-    listKnocks(userId).then((k) => k.length).catch(() => 0),
-    draftsHeld(userId).catch(() => 0),
+    countPendingOrUnknown(userId),
+    countOutboxOrUnknown(userId),
+    countKnocksOrUnknown(userId),
+    countDraftsOrUnknown(userId),
   ]);
   return { recordings, writes, knocks, drafts };
 }
@@ -55,19 +81,33 @@ export async function strandedAtSignOut(
  * are covered by a test rather than by whoever last edited the screen.
  */
 export function signOutMessage(stranded: {
-  recordings: number;
-  writes: number;
-  knocks: number;
-  drafts?: number;
+  recordings: StrandedCount;
+  writes: StrandedCount;
+  knocks: StrandedCount;
+  drafts?: StrandedCount;
 }): string {
   const lines = [
     'You will need a connection to sign back in, and this phone will not show your sessions until you do.',
   ];
 
-  if (stranded.recordings > 0) {
-    const one = stranded.recordings === 1;
+  // SAID ONCE, AND SAID FIRST, when any of the four could not be counted. A rep
+  // deciding whether to sign out needs to know the difference between "nothing
+  // is waiting" and "we could not find out" - the second one is the one where
+  // signing out might strand a day of work they were never told about.
+  const unknown = [stranded.recordings, stranded.writes, stranded.knocks, stranded.drafts].some(
+    (n) => n === null,
+  );
+  if (unknown) {
     lines.push(
-      `${stranded.recordings} ${one ? 'recording has' : 'recordings have'} not been sent yet. ${
+      'This phone could not be checked for work that has not been sent yet. Anything unsent stays here and will be waiting when you sign back in, but only you can send it.',
+    );
+  }
+
+  if ((stranded.recordings ?? 0) > 0) {
+    const n = stranded.recordings ?? 0;
+    const one = n === 1;
+    lines.push(
+      `${n} ${one ? 'recording has' : 'recordings have'} not been sent yet. ${
         one ? 'It stays' : 'They stay'
       } on this phone and will be here when you sign back in — but nobody else can send ${
         one ? 'it' : 'them'
@@ -75,19 +115,21 @@ export function signOutMessage(stranded: {
     );
   }
 
-  if (stranded.writes > 0) {
-    const one = stranded.writes === 1;
+  if ((stranded.writes ?? 0) > 0) {
+    const n = stranded.writes ?? 0;
+    const one = n === 1;
     lines.push(
-      `${stranded.writes} ${one ? 'change has' : 'changes have'} not reached the server yet. ${
+      `${n} ${one ? 'change has' : 'changes have'} not reached the server yet. ${
         one ? 'It stays' : 'They stay'
       } on this phone until you sign back in here.`,
     );
   }
 
-  if (stranded.knocks > 0) {
-    const one = stranded.knocks === 1;
+  if ((stranded.knocks ?? 0) > 0) {
+    const n = stranded.knocks ?? 0;
+    const one = n === 1;
     lines.push(
-      `${stranded.knocks} ${one ? 'door has' : 'doors have'} not reached the server yet. ${
+      `${n} ${one ? 'door has' : 'doors have'} not reached the server yet. ${
         one ? 'It stays' : 'They stay'
       } on this phone until you sign back in here.`,
     );

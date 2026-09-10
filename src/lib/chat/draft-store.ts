@@ -14,6 +14,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { HeldDraft } from './draft';
+import { countKeysWithPrefix, type StrandedCount } from '@/lib/stranded-count';
 
 const keyFor = (userId: string, topicId: string) => `chat-draft.v1.${userId}.${topicId}`;
 
@@ -79,4 +80,17 @@ export async function draftsHeld(userId: string): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+/**
+ * How many drafts are held, or NULL when the key list could not be read.
+ *
+ * `draftsHeld` above keeps returning 0 on failure for its existing callers; this
+ * one exists so the sign-out warning can tell "no drafts" from "could not look".
+ */
+export function countDraftsOrUnknown(userId: string): Promise<StrandedCount> {
+  return countKeysWithPrefix(
+    () => AsyncStorage.getAllKeys(),
+    `chat-draft.v1.${userId}.`,
+  );
 }

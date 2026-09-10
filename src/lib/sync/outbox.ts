@@ -61,6 +61,7 @@ import type { SessionOutcome } from '@/types/backend';
 import type { SendOutcome } from './outbox-classify';
 import { recordCrash } from '../crash-log-store';
 import { noteFor, shouldRecord, subjectOfKind, whereFor } from '../crash-notable';
+import { countStored, type StrandedCount } from '@/lib/stranded-count';
 
 export type { SendOutcome };
 
@@ -208,6 +209,18 @@ export async function enqueue(
 /** Everything waiting, oldest first — the order it will be sent in. */
 export async function listOutbox(userId: string): Promise<OutboxEntry[]> {
   return readAll(userId);
+}
+
+/**
+ * How many are waiting, or NULL when the store could not be read.
+ *
+ * Used only by the sign-out warning, which speaks solely when a count is above
+ * zero - so a read failure returning 0 does not soften that warning, it deletes
+ * it. `listX` above still returns an empty list on failure, which is right for
+ * the screens that render one.
+ */
+export function countOutboxOrUnknown(userId: string): Promise<StrandedCount> {
+  return countStored((k) => AsyncStorage.getItem(k), keyFor(userId));
 }
 
 /**

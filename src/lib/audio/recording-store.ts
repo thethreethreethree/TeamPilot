@@ -28,6 +28,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SessionOutcome } from '@/types/backend';
+import type { StrandedCount } from '@/lib/stranded-count';
 
 const KEY_PREFIX = 'recordings.v1';
 
@@ -275,6 +276,33 @@ export async function removeRecording(userId: string, clientId: string): Promise
  */
 export async function pendingAtSignOut(userId: string): Promise<PendingRecording[]> {
   return (await readAll(userId)).filter((r) => r.status !== 'uploaded');
+}
+
+/**
+ * How many recordings are still unsent, or NULL when the store could not be read.
+ *
+ * Counted from the raw entries rather than through `readAll`, because `readAll`
+ * turns a failure into an empty list - which is right for a list screen and
+ * fatal for the sign-out warning, whose whole job is to say that unsent work is
+ * still here. The 'uploaded' filter is applied to whatever was readable.
+ */
+export async function countPendingOrUnknown(userId: string): Promise<StrandedCount> {
+  let raw: string | null;
+  try {
+    raw = await AsyncStorage.getItem(keyFor(userId));
+  } catch {
+    return null;
+  }
+  if (raw === null || raw === undefined) return 0;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter(
+      (r) => Boolean(r) && (r as { status?: string }).status !== 'uploaded',
+    ).length;
+  } catch {
+    return null;
+  }
 }
 
 /**

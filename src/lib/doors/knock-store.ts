@@ -27,6 +27,7 @@
  * doors that failed to send for a week is still their day. They stay until sent.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { countStored, type StrandedCount } from '@/lib/stranded-count';
 
 /** The server's own vocabulary, from the door-log route's Zod schema. */
 export type KnockOutcome =
@@ -133,6 +134,18 @@ export async function addKnock(
 /** Everything not yet sent, oldest first — the order it will be sent in. */
 export async function listKnocks(userId: string): Promise<Knock[]> {
   return readAll(userId);
+}
+
+/**
+ * How many are waiting, or NULL when the store could not be read.
+ *
+ * Used only by the sign-out warning, which speaks solely when a count is above
+ * zero - so a read failure returning 0 does not soften that warning, it deletes
+ * it. `listX` above still returns an empty list on failure, which is right for
+ * the screens that render one.
+ */
+export function countKnocksOrUnknown(userId: string): Promise<StrandedCount> {
+  return countStored((k) => AsyncStorage.getItem(k), keyFor(userId));
 }
 
 /** Remove one, once the server has confirmed it. */
