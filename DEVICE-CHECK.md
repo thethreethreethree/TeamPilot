@@ -215,14 +215,14 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-four checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-five checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
 **Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 34** at the end, and check 28 is the one I would
+seen render are checks **27 to 35** at the end, and check 28 is the one I would
 most like a human on: it is a *keyboard* interaction, which is exactly the class
 no test here can reach.
 
@@ -1117,6 +1117,50 @@ then part of it in lower case. Each should narrow the list to that rep's calls.
 seeing *other people's* calls appear — the name search only has anything to match
 against on a manager's list, and a rep's own list should behave exactly as it did
 before.
+
+---
+
+### 35. After you run the migration: does Speed appear? (new, 11 September)
+
+**Do this one AFTER `npm run db:apply`, not before.** It is how you confirm the
+migration did what it is for.
+
+**Background.** You have six skills. **Speed has never worked for anybody** — not
+for you, not for any rep, not once. Open **Account → your skills** now and it
+reads no score, from zero calls. That is correct behaviour, not a bug: it refuses
+to invent a number, and it has never had an input.
+
+I traced why, across the app, the server and the database:
+
+1. The transcriber returns a **start time for every segment**. It always has.
+2. The app **sends it** with every recording.
+3. The server **works it out and passes it on** — on both the upload path and the
+   recovery path.
+4. **One database function drops it.** That function is what 0249 replaces.
+
+**So `npm run db:apply` is not "unblock six calls".** Every call transcribed after
+it carries timing, and Speed starts working — for every rep, on every call, from
+then on.
+
+**What to do, in order:**
+
+1. Run `npm run db:apply`.
+2. The recovery sweep stops declining. Within the hour the **six held calls**
+   should gain transcripts — including your 149-second one from 10 September.
+3. **Record one new call** of a minute or two, with real speech.
+4. Open its **debrief**. Where Speed was blank, there should now be a pace read.
+5. Open **Account → your skills**. **Speed** should show a score and a call count
+   of at least 1 — it needs three properly timed turns in a call before it will
+   say anything, which is deliberate.
+
+**Wrong looks like:** the six calls still empty an hour later (the sweep is still
+declining — tell me, the ledger check is one query); or a **new** call still
+showing no Speed after step 3, which would mean a link in that chain I traced is
+broken somewhere I could not see from here.
+
+**Not wrong:** your *older* calls still showing no Speed. Nothing back-fills them
+— the timing was never captured for those, and inventing it is exactly what this
+system does not do.
 
 ---
 
