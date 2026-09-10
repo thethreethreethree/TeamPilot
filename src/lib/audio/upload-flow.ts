@@ -41,6 +41,55 @@ type FinalizeResult = {
   segments?: PendingSegment[];
 };
 
+/**
+ * The segments to echo back when the rep says which voice is theirs.
+ *
+ * WHY THIS IS A FUNCTION AND NOT `finalized.segments`. The payload is stored and
+ * re-sent as JSON, so every field the server sent survives whether anyone meant
+ * it to or not — including `startSeconds`, which is what the pace skill is built
+ * on. That is an accident, and accidents get tidied away: one `.map()` that
+ * rebuilds these objects from the three fields anybody remembers and the skill
+ * goes quiet with no test failing and no error anywhere. So the keeping is
+ * explicit, and pinned by a test.
+ *
+ * ALL OR NOTHING. A malformed entry refuses the WHOLE payload rather than being
+ * dropped: the labelling route relabels the transcript from exactly this list,
+ * so a list with a hole in it relabels part of a call and silently loses the
+ * rest — which attribution-store already names as worse than leaving it
+ * unattributed and saying so.
+ */
+export function attributionSegments(raw: unknown): PendingSegment[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const out: PendingSegment[] = [];
+  for (const item of raw) {
+    const s = item as Partial<PendingSegment> | null;
+    if (
+      !s ||
+      typeof s.speakerId !== 'string' ||
+      !s.speakerId ||
+      typeof s.text !== 'string' ||
+      !s.text ||
+      typeof s.seq !== 'number' ||
+      !Number.isInteger(s.seq) ||
+      s.seq < 0
+    ) {
+      return [];
+    }
+    const timed =
+      typeof s.startSeconds === 'number' &&
+      Number.isFinite(s.startSeconds) &&
+      s.startSeconds >= 0;
+    // OMITTED when unknown, never zeroed: a 0 claims the turn opened the call,
+    // and the server treats an absent offset as "we do not know".
+    out.push(
+      timed
+        ? { speakerId: s.speakerId, text: s.text, seq: s.seq, startSeconds: s.startSeconds }
+        : { speakerId: s.speakerId, text: s.text, seq: s.seq },
+    );
+  }
+  return out;
+}
+
 /** The HTTP status an error carries, when it carries one. */
 function statusOf(e: unknown): number | undefined {
   return (e as { status?: number })?.status;
@@ -197,7 +246,7 @@ export async function runUpload(
     );
 
     const speakers = finalized?.speakers ?? [];
-    const segments = finalized?.segments ?? [];
+    const segments = attributionSegments(finalized?.segments);
     // Two or more voices is the only case worth asking about. One voice means
     // there is nothing to choose between, and asking would be the app pretending
     // to offer a decision it has already made.

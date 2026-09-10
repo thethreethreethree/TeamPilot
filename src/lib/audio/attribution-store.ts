@@ -37,7 +37,26 @@ const MAX_BYTES = 1024 * 1024;
 export type PendingSpeaker = { speakerId: string; sample: string };
 
 /** One segment exactly as the labelling route wants it echoed back. */
-export type PendingSegment = { speakerId: string; text: string; seq: number };
+export type PendingSegment = {
+  speakerId: string;
+  text: string;
+  seq: number;
+  /**
+   * Seconds into the audio, when the server knew it.
+   *
+   * IT IS THE PACE SKILL, and it is the only thing that makes it work. The
+   * server stamps `spoken_at` from this when the transcript is labelled, and the
+   * "speed" skill needs three timed agent turns before it will score anything.
+   * Without it every uploaded call reads "not enough sessions yet" forever.
+   *
+   * DECLARED HERE RATHER THAN LEFT TO SURVIVE BY ACCIDENT. The payload is stored
+   * and echoed as JSON, so an undeclared field rides along on its own — until
+   * somebody normalises this list and the skill goes quiet again with nothing
+   * failing. See `attributionSegments` in upload-flow.ts, which keeps it on
+   * purpose and is tested for it.
+   */
+  startSeconds?: number;
+};
 
 export type PendingAttribution = {
   sessionId: string;
