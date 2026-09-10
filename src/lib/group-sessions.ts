@@ -53,6 +53,11 @@ export function groupByDay<T extends CoachingSession>(
   rows: T[],
   query = '',
   now: Date = new Date(),
+  /**
+   * Rep id → name, for a MANAGER's list. Optional: a rep viewing their own calls has no owner
+   * names on screen, so there is nothing extra to search and nothing changes for them.
+   */
+  names?: ReadonlyMap<string, string>,
 ): SessionSection<T>[] {
   const q = query.trim().toLowerCase();
 
@@ -77,6 +82,18 @@ export function groupByDay<T extends CoachingSession>(
       s.territory,
       s.approach,
       s.offer,
+      /*
+        THE REP'S NAME, when there is one on screen (2026-09-11).
+        
+        This rule already existed above and this field was missing from it. A manager's list shows
+        whose call each row is - the name is right there under the title - and typing it found
+        nothing. So the one search a manager most obviously reaches for, after reading "Moses: to
+        coach on X" on the team screen, was the one that did not work.
+        
+        Passed in rather than looked up, because the id→name map already lives on the screen and a
+        second source would be a second answer to "who is this".
+      */
+      names?.get(s.agent_id ?? '') ?? null,
     ].some((field) => (field ?? '').toLowerCase().includes(q));
 
   const today = dayKey(now.toISOString());

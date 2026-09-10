@@ -495,7 +495,13 @@ export default function SessionsScreen() {
 
     return items;
   }, [needVoice, pendingRecordings, sendingHalted, writesHalted, queuedWrites, unscored, filtering, hasMore, router]);
-  const sections = useMemo(() => groupByDay(visible, query), [visible, query]);
+  // repNames is passed so a manager can find a call by whose it is — the name is on the row, and
+  // the search rule in group-sessions.ts is "everything the rep can SEE". For a rep viewing their
+  // own calls the map is empty and nothing changes.
+  const sections = useMemo(
+    () => groupByDay(visible, query, new Date(), repNames),
+    [visible, query, repNames],
+  );
   const matchCount = useMemo(
     () => sections.reduce((n, s) => n + s.data.length, 0),
     [sections],

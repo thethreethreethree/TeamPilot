@@ -154,3 +154,44 @@ test('an empty query still returns everything', () => {
   const rows = [withContext({ id: 'a' }), withContext({ id: 'b' })];
   assert.equal(found(rows, '').length, 2);
 });
+
+/**
+ * A MANAGER CAN FIND A CALL BY WHOSE IT IS (2026-09-11).
+ *
+ * The rule at the top of `groupByDay` already said it: a search looks at everything the rep can SEE about
+ * a session, and nothing they cannot. On a manager's list the owner's name is right there under the title
+ * - and it was the one visible field the search did not read. So the search a manager most obviously
+ * reaches for, after the team screen says "Moses: to coach on X", was the one that found nothing.
+ */
+const owned = (id: string, agentId: string, label: string | null): CoachingSession =>
+  ({ ...session(id, at(2026, 9, 2, 13, 10), label), agent_id: agentId }) as CoachingSession;
+
+const NAMES = new Map([['rep-moses', 'Moses Maniquiz']]);
+const ids = (out: ReturnType<typeof groupByDay>) => out.flatMap((sec) => sec.data.map((r) => r.id));
+
+test('a manager can search by the rep whose call it is', () => {
+  const out = groupByDay(
+    [owned('a', 'rep-moses', 'Corner house'), owned('b', 'rep-other', 'Blue door')],
+    'moses',
+    NOW,
+    NAMES,
+  );
+  assert.deepEqual(ids(out), ['a']);
+});
+
+test('it matches a surname and is case-insensitive, like every other field', () => {
+  for (const q of ['Maniquiz', 'MANIQUIZ', 'mani']) {
+    assert.equal(ids(groupByDay([owned('a', 'rep-moses', null)], q, NOW, NAMES)).length, 1, q);
+  }
+});
+
+test('a rep searching their OWN list is unchanged - no names map, nothing new matches', () => {
+  const rows = [owned('a', 'me', 'Corner house')];
+  assert.equal(ids(groupByDay(rows, 'moses', NOW)).length, 0);
+  assert.equal(ids(groupByDay(rows, 'corner', NOW)).length, 1);
+});
+
+test('a session whose owner is not in the map is never matched by an empty name', () => {
+  const out = groupByDay([owned('a', 'unknown-rep', null)], 'moses', NOW, NAMES);
+  assert.equal(ids(out).length, 0);
+});
