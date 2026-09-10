@@ -138,6 +138,22 @@ export async function repNamesFor(agentIds: string[]): Promise<Map<string, strin
   return out;
 }
 
+/**
+ * The why-no-read verdict for ONE session.
+ *
+ * The session screen needs the same answer the list already computes, for a reason worth stating: the
+ * list says "Read didn't finish" on a call, and if tapping through then said "No read yet" the two
+ * surfaces would be describing the same call differently — which is the drift this verdict was made
+ * single-source to prevent. One helper, both callers.
+ *
+ * Never throws. A failed events read means null, which the card reads as "nobody has asked yet" — the
+ * softer of the two sentences, and the right way to be wrong.
+ */
+export async function readIssueForSession(sessionId: string): Promise<ReadIssue> {
+  const issues = await readIssuesFor([sessionId]);
+  return issues.get(sessionId) ?? null;
+}
+
 /** Attach the why-no-read verdict to a page of rows. Never throws. */
 async function withReadIssues(rows: SessionListRow[]): Promise<SessionListRow[]> {
   const issues = await readIssuesFor(rows.map((r) => r.id));

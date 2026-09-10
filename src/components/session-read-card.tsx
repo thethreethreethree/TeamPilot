@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { coachGet, coachPost } from '@/lib/coach-api';
+import { readIssueForSession } from '@/lib/sync/sessions';
 import { authFailureMessage } from '@/lib/auth-failure';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
@@ -32,20 +33,22 @@ import {
 
 type Phase = 'loading' | 'ready' | 'working' | 'error';
 
-export function SessionReadCard({
-  sessionId,
-  segments,
-  attemptFailed,
-}: {
-  sessionId: string;
-  segments: ReadSegment[];
-  /** The sessions list already worked out that the coach RAN and produced nothing. */
-  attemptFailed?: boolean;
-}) {
+export function SessionReadCard({ sessionId, segments }: { sessionId: string; segments: ReadSegment[] }) {
   const online = useOnline();
   const [phase, setPhase] = useState<Phase>('loading');
   const [read, setRead] = useState<SessionRead | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  /*
+    WHY THIS CARD ASKS THE SAME QUESTION THE LIST ALREADY ANSWERED.
+
+    The sessions list shows "Read didn't finish" on a call where the coach ran and produced nothing. If
+    tapping into that call then said "No read yet", the two screens would be describing the same call
+    differently - and one of them would be wrong. Same helper, both surfaces.
+
+    Best-effort by construction: a failed events read leaves this null, and the card falls back to
+    "nobody has asked yet", which is the softer sentence and the right way to be wrong.
+  */
+  const [attemptFailed, setAttemptFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +73,16 @@ export function SessionReadCard({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let live = true;
+    void readIssueForSession(sessionId).then((issue) => {
+      if (live) setAttemptFailed(issue === 'unfinished');
+    });
+    return () => {
+      live = false;
+    };
+  }, [sessionId]);
 
   const make = useCallback(async () => {
     setPhase('working');
