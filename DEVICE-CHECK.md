@@ -215,7 +215,7 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-six checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-eight checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
@@ -233,7 +233,7 @@ is build 15 plus two fixes I would not have wanted you to hit:
   device pass, and `Report a problem` could not see either. See the note on
   check **25**.
 
-The things nobody has ever seen render are checks **27 to 36** at the end, and
+The things nobody has ever seen render are checks **27 to 38** at the end, and
 check 28 is the one I would most like a human on: it is a *keyboard*
 interaction, which is exactly the class no test here can reach.
 
@@ -1231,6 +1231,72 @@ both pages; the line still says "swipe **left**" (it should name a page, never a
 direction — on one of the two pages a direction is always wrong); the dots
 respond to taps *instead of* the line; or the page you left on is still showing
 when you come back to the tab.
+
+---
+
+### 37. A call recorded from one side (new, 11 September — build 17)
+
+**Your company has 20 of these.** The transcript holds only your voice: the mic
+caught you and not the person at the door.
+
+> **What was wrong.** The coach had no conversation to read, so the debrief came
+> back blank — but the call still carries scores, because two of them are worked
+> out from your side alone. The app saw "scored, but empty write-up", concluded
+> the write-up had failed, and offered **Build it again**. Rebuilding runs the
+> same write-up over the same one-voice transcript and comes back blank every
+> time. **Each tap is a real charge.** So it named the wrong cause and then sold
+> you a retry that could not work.
+
+1. Open a call whose debrief is empty. If you cannot find one, the sessions list
+   is the fastest route — anything with no read on it.
+2. Where it used to say *"Your read did not come through"* with **Build it
+   again**, a one-sided call should now say **"Only your side of this call was
+   recorded"**, explain that the customer's words were never captured, and say
+   the recording is safe.
+3. There must be **no "Build it again" button** on that card. That is the
+   defect. If you see one, tell me.
+4. Instead there should be **Read the recording again**. Tap it. It spends a real
+   transcription, so do it once, on one call.
+5. Watch what comes back. Any of these is correct, and each says something
+   different: the read appears (it worked); *"The words are back — one question
+   left"* (it recovered them but needs you to say which voice is yours);
+   *"The recording really does hold one voice"* (nothing was lost in writing it
+   down — the second voice was never on the recording); or *"It could not
+   separate the voices"*.
+6. **After any of those except a success, the button must not come back.** Only a
+   genuine outage re-offers it. A button that returns after a settled answer is
+   an invitation to keep paying for the same nothing.
+
+**Wrong looks like:** "Build it again" still offered on a one-sided call; the
+same button reappearing after step 5; or a blank space where the outcome sentence
+should be.
+
+### 38. A call whose words never arrived (new, 11 September — build 17)
+
+**Your company has 4 of these right now** — two have waited **eight days**, one
+six, one is from today.
+
+> **What was wrong.** They told you *"The recording reached the server and is
+> still being turned into a transcript… pull down to check again."* Nothing was
+> coming. The website's sweep found the same class sitting in production with the
+> oldest **forty-seven days** old. A rep pulling down to check again would have
+> pulled for seven weeks.
+
+1. Find a call with a recording but no transcript. Three of the four are yours.
+2. It should now say **"The words never came back from this call"** — that your
+   recording is safe, that it was never turned into words, that enough time has
+   passed that it is not still coming, and **that nothing you did caused it**.
+3. There should be a **Read the recording again** button, and it behaves exactly
+   as in check 37.
+4. **The opposite case matters just as much.** Record something new and open its
+   debrief within a minute or two, before the transcript lands. It must still say
+   **"Waiting for the transcript"** and offer **no** button. The cut-off is
+   fifteen minutes. If a fresh recording is being called a failure, that is worse
+   than the bug this fixed — tell me immediately.
+
+**Wrong looks like:** an eight-day-old call still saying "still being turned into
+a transcript"; a call from two minutes ago saying the words never came back; or
+the re-read button appearing on a fresh recording.
 
 ---
 
