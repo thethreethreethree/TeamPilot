@@ -83,7 +83,9 @@ export async function GET(req: NextRequest) {
   // Session labels/outcomes for context, fetched once (avoid N+1). Window
   // matched to the summaries query so a correct line's label isn't dropped
   // for a rep with many sessions (audit F7).
-  const sessions = await listAgentSessions(auth.user.id, 200).catch(() => []);
+  // Through the SAME scoped client as every other read here. Without it this returned [] for a phone,
+  // and every correct line below lost its session label and its outcome (measured live, 13 of 13).
+  const sessions = await listAgentSessions(auth.user.id, 200, sb).catch(() => []);
   const bySession = new Map(sessions.map((s) => [s.id, s]));
 
   const seenSession = new Set<string>();

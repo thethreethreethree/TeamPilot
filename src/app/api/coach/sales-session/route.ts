@@ -79,6 +79,8 @@ export async function GET(req: NextRequest) {
   if (!auth?.user) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const sessions = await listAgentSessions(auth.user.id);
+  // The scoped client goes THROUGH, not just to auth.getUser(). Resolving it and then reading without
+  // it is the defect this route's own comment above was written about.
+  const sessions = await listAgentSessions(auth.user.id, 50, supabase);
   return NextResponse.json({ sessions });
 }

@@ -547,17 +547,6 @@ function mapCueOutcome(row: Record<string, unknown>): CueOutcome {
   };
 }
 
-/** Delivered cues for a session, oldest → newest (RLS-scoped user read).
- *  Used by surfaces; the After Pitch assembler uses the admin read below. */
-export async function getSessionCues(sessionId: string): Promise<Cue[]> {
-  const sb = await createServerClient();
-  const { data } = await sb
-    .from("coaching_cues")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("delivered_at", { ascending: true });
-  return (data ?? []).map(mapCue);
-}
 
 /** Service-role cue read for the post-call summary assembler (no user
  *  session in some contexts, mirrors getSessionTranscriptAdmin). Access is
@@ -738,22 +727,6 @@ export async function saveAfterPitchSummary(args: {
   return !error;
 }
 
-/** Read back the latest After Pitch Summary for a session (RLS owner-only —
- *  a manager reading this gets null by policy, which is the privacy contract).
- *  Returns the stored payload or null. */
-export async function getLatestAfterPitchSummary(
-  sessionId: string
-): Promise<unknown | null> {
-  const sb = await createServerClient();
-  const { data } = await sb
-    .from("after_pitch_summaries")
-    .select("payload")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.payload ?? null;
-}
 
 /** Service-role read of the latest summary (bypasses the owner-only RLS).
  *  Used by the route ONLY after it has verified the caller is the session's
@@ -818,12 +791,26 @@ export async function getAgentCoachStart(agentId: string): Promise<string | null
   return (data?.started_at as string | null) ?? null;
 }
 
-/** An agent's sessions, most recent first (RLS-scoped). */
+/**
+ * An agent's sessions, most recent first (RLS-scoped).
+ *
+ * TAKES THE CALLER'S CLIENT, and did not before. Both callers are Bearer-reachable routes that resolve a
+ * scoped client for auth and then called this, which resolved its OWN cookie client - the F22 shape
+ * exactly: scoped for identity, anonymous for the read. A phone sends no cookies, so this returned an
+ * empty array and the caller could not tell that from "this rep has no sessions".
+ *
+ * Confirmed live on 2026-09-11, not inferred. /strategy-library with a real rep's Bearer token returned
+ * 13 correct lines, and `sessionLabel` and `outcome` were null on ALL THIRTEEN - both are read from this
+ * list. A rep opening their Strategy Library on the phone saw their own best lines stripped of which call
+ * they came from and whether it sold.
+ */
 export async function listAgentSessions(
   agentId: string,
-  limit = 50
+  limit = 50,
+  /** An RLS-scoped client for callers that are not the web cookie session. Defaulted, so no caller broke. */
+  client?: SupabaseClient
 ): Promise<SalesSession[]> {
-  const sb = await createServerClient();
+  const sb = client ?? (await createServerClient());
   const { data, error } = await sb
     .from("coaching_sessions")
     .select("*")

@@ -248,3 +248,17 @@ its wiring are pinned separately rather than by one shared assertion. Putting `n
 fails the two silence tests. Treating a shapeless older decline as a failure fails three, including the
 pre-existing "reason 'no_signal' is NOT flagged one-sided" - which is the old invariant proving it still
 holds. Dropping the has-a-read short circuit fails three. Letting a shape outrank one-sided fails two.
+
+### F33 - the Strategy Library showed a rep their best lines with no idea which call they came from
+fix: `listAgentSessions` takes an optional RLS-scoped client, defaulted so no caller broke, and both
+Bearer-reachable callers now pass the one they already resolved. `getSessionCues` and
+`getLatestAfterPitchSummary` are deleted - zero callers, and each a cookie-client trap beside a live Admin
+twin.
+gate-or-promise: GATE. `listAgentSessions.scopedClient.test.ts` pins BOTH directions: the passed client is
+what gets read, AND no cookie client is resolved when one is passed - the second assertion is the one that
+matters, because a fallback that still fires would pass a naive "it returned the right rows" test on the
+web while staying broken on a phone. Reverting the parameter fails "reads through the client it is GIVEN,
+and never resolves a cookie client" and nothing else.
+
+The verification that counts is not the test. The same probe that found it, re-run after the deploy, is
+what says a rep's lines carry their call again.

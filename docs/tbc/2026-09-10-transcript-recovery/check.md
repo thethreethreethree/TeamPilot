@@ -749,3 +749,40 @@ The two cannot share code: the app reads `coaching_sessions` straight from Supab
 list route, which is a deliberate decision recorded in that same file. So the rule is mirrored, and both
 copies pin the SAME six shapes and the SAME precedence in their tests - a change to one that the other does
 not follow now fails rather than drifting.
+
+### F33 - the Strategy Library showed a rep their best lines with no idea which call they came from
+class: the-cookie-client-class-a-fifth-time-this-time-inside-a-data-helper-the-route-trusted
+sweep: the import graph from all 12 cron routes and 3 workers (95 files), plus every caller of each bare cookie read it found
+severity: high
+After F31 I stopped trusting my reading and built the graph. Starting from every cron route and worker
+entry point - contexts that never have cookies - and walking local imports, 95 files are reachable and
+exactly three resolve a cookie client. Two of those pass it in from the caller. The bare ones were six
+calls across `lib/brain/index.ts` and `lib/data/salesCoach.ts`.
+
+Opening each caller rather than counting the grep, which is what turned a list of suspects into one finding
+and four honest negatives:
+
+  - `unlockControlGate`        one caller, a cookie-only web route. Correct as it stands.
+  - `listAgentMeetingSessions` one caller, cookie-only. Correct.
+  - `getCueRelianceSeries`     two callers, both cookie-only. Correct.
+  - `getSessionCues`           ZERO callers anywhere, tests included. Dead.
+  - `getLatestAfterPitchSummary` ZERO callers anywhere. Dead.
+  - `listAgentSessions`        TWO callers, and BOTH are Bearer-reachable.
+
+`listAgentSessions` is the finding. Both callers resolve a scoped client, use it for `auth.getUser()`, and
+then call this - which resolved its own COOKIE client. Scoped for identity, anonymous for the read: F22's
+shape exactly, five months after F22, in a data helper the routes trusted rather than in the routes.
+
+MEASURED LIVE, because reading the code is what let this survive: `/strategy-library` with a real rep's
+Bearer token returns 200 and 13 correct lines, with `sessionLabel` AND `outcome` null on ALL THIRTEEN. Both
+are read from that list. A rep opening their Strategy Library on the phone sees their own best lines
+stripped of which call they came from and whether it sold - the context that makes a line worth keeping.
+
+344 tests across these routes passed while that was true. So did the invariant audit, for the reason A30
+names: the route DOES mention `callerScopedDb`, so INVARIANT 26 sees a compliant route and the anonymous
+read happens one function call away, where it cannot look.
+
+The two dead readers are the same trap sitting unused beside their live `Admin` twins - each one a
+cookie-client landmine that looks like a supported API. They are deleted rather than fixed: this repository
+already holds the rule in `relabel-unknown.ts`, that "an unused code path is a claim that something needs
+doing when it does not".
