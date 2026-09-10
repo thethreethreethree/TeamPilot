@@ -138,6 +138,42 @@ had to open the asset to supply one. The new route states the reason in plain wo
 pre-existing miscitations in the neighbouring routes are left alone - rewriting other builds' comments is
 not this build's business - but they are recorded here so the next reader knows they are decoration.
 
+### F12 - the same class again, one layer up: the coaching engines report a timeout as silence
+class: a-failure-that-is-indistinguishable-from-a-legitimate-absence
+sweep: every early `return null` in the nine coach engines, then artifact coverage across all 168 sessions holding a readable transcript, bucketed by transcript length
+severity: high
+Found by sweeping the class this whole build is about (A26) rather than by looking for a new bug. The
+transcript failure was "produced nothing, said nothing". `withEngineTimeout` is the same thing one layer
+up: on timeout it RESOLVES to the engine's empty fallback. It does not reject, and it recorded nothing - so
+an engine that ran out of time and an engine with genuinely nothing to say produced identical results, and
+the difference is the whole question a rep asks when a call comes back uncoached. The file even called that
+fallback "honest", which it is not.
+
+MEASURED, because "engines sometimes time out" is a guess and this is not. Across the 168 sessions holding
+a transcript any engine can read (they all filter on `speaker === "agent"`):
+
+    words in transcript   sessions   summary   dissect   pivot   moments
+    0-50                        15       93%       93%     93%       87%
+    50-200                      20      100%       95%     85%       75%
+    200-600                     63       78%       63%     52%       29%
+    600-2000                    65       78%       57%     57%       32%
+    2000+                        5      100%       20%     60%       20%
+
+That is BACKWARDS from any "no signal" explanation - a 600-word sales conversation has more to analyse
+than a 50-word one, not less. Coverage collapses as the transcript grows, which is the shape a per-call
+time bound makes from the outside. The 200-600 and 600-2000 buckets are 63 and 65 sessions, so this is a
+sampled result, not an anecdote. The 2000+ row is FIVE sessions and is reported as suggestive only.
+
+The consequence in plain terms: the longest, most valuable calls are the least likely to be coached, and
+nothing anywhere said so.
+
+NOT FIXED HERE, and deliberately: the bound was left at 40s. Whether to raise it trades latency and LLM
+cost against coverage, and that is the founder's decision, not this file's. What changed is that a timeout
+now REPORTS itself - `coach.engines_timed_out` names the engines and the transcript size that beat them -
+so the decision can be made from a measured rate instead of from this one-off probe. Also noted: the loser
+of a `Promise.race` is not cancelled, so a timed-out engine may still persist its own result later or may
+be killed when the function freezes, and which of those happened was never recorded either.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
@@ -156,6 +192,9 @@ byte-identical with `diff`.
     N2  the unknown-only update scope dropped       -> x scopes the update to speaker=unknown
     N3  a missing answer defaults to "it was me"    -> x REFUSES to guess when the answer is missing
     N4  any colleague may answer           -> x 403s a colleague - only the session's own rep may answer
+    P1  the timeout stops reporting itself -> x REPORTS the timeout, so an abandoned engine is not filed as quiet
+    P2  onTimeout fires even on success    -> x 5 of 6 tests in the file
+    P3  the note's throw may escape        -> x a note that throws never becomes the failure it was recording
 
     MD  the null-count guard flipped to && -> SURVIVED, and it is recorded rather than quietly dropped.
         `null <= 0` is true in JavaScript, so a null count already falls out at the next guard; no input
