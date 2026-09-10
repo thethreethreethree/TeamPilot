@@ -50,7 +50,7 @@ import { useOnline, isOffline } from '@/lib/use-online';
 import { reachError } from '@/lib/reach-failure';
 import { useLargeText } from '@/lib/use-large-text';
 import { OutcomePicker } from '@/components/outcome-picker';
-import { SpeakerPicker } from '@/components/speaker-picker';
+import { NOT_THE_REP, SpeakerPicker } from '@/components/speaker-picker';
 import { RecordingPlayer } from '@/components/recording-player';
 import { AfterPitchCard } from '@/components/after-pitch-card';
 import { RECORDING_AVAILABLE } from '@/lib/audio/module';
@@ -60,7 +60,7 @@ import {
   readPendingAttribution,
   type PendingAttribution,
 } from '@/lib/audio/attribution-store';
-import { attributionFromTranscript } from '@/lib/audio/relabel-unknown';
+import { speakersFromTranscript } from '@/lib/audio/relabel-unknown';
 import type {
   CoachingCue,
   CoachingSession,
@@ -594,9 +594,16 @@ export default function SessionScreen() {
    * an answer makes this fall to null on its own with nothing to reset.
    */
   const question = useMemo(() => {
-    if (attribution) return attribution;
+    if (attribution) {
+      // From THIS device's store: it still holds the diarized clusters, so a two-voice call
+      // can ask which is which, and the answer maps cluster to speaker.
+      return { from: 'device' as const, speakers: attribution.speakers, segments: attribution.segments };
+    }
     if (dismissedQuestion === id) return null;
-    return attributionFromTranscript(exportSource?.session, exportSource?.segments ?? []);
+    const speakers = speakersFromTranscript(exportSource?.segments ?? []);
+    // From the SERVER's transcript: one voice, no clusters, and nothing to send back —
+    // the server relabels rows it already has.
+    return speakers ? { from: 'transcript' as const, speakers, segments: [] } : null;
   }, [attribution, dismissedQuestion, id, exportSource]);
 
   /**
@@ -611,10 +618,23 @@ export default function SessionScreen() {
       if (!id || !userId || !question) return;
       setAttributing(agentSpeakerId);
       try {
-        await coachPost(`/api/coach/sales-session/${id}/label-transcript`, {
-          agentSpeakerId,
-          segments: question.segments,
-        });
+        if (question.from === 'transcript') {
+          /*
+            The words are already on the server, with their timing. Sending them back would
+            mean rebuilding every offset from `spoken_at` and re-uploading a payload that a
+            long call could overflow — and a payload that forgot the offsets would delete
+            the timing while making the call coachable. This route relabels the stored rows
+            and never touches `spoken_at`, so neither failure is reachable.
+          */
+          await coachPost(`/api/coach/sales-session/${id}/attribute-unlabelled`, {
+            mine: agentSpeakerId !== NOT_THE_REP,
+          });
+        } else {
+          await coachPost(`/api/coach/sales-session/${id}/label-transcript`, {
+            agentSpeakerId,
+            segments: question.segments,
+          });
+        }
         await clearPendingAttribution(userId, id);
         setAttribution(null);
         lastLoad.current = 0;
