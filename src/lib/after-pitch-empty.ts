@@ -15,10 +15,18 @@ import type { AfterPitch } from '@/lib/after-pitch';
  * spends real effort avoiding everywhere else — an absence explained with a confident wrong
  * reason — except this one lands on the rep, about their own work.
  *
- * SCORES ARE THE DISCRIMINATOR, and the website already uses exactly this test, so the two
- * products agree about what happened. A score means the call WAS substantial enough to
- * measure. A blank write-up on a scored call is the write-up failing, not the call being
- * thin.
+ * SCORES ARE THE DISCRIMINATOR IN ONE DIRECTION ONLY, and that took a second measurement to see. A
+ * score means the call WAS substantial enough to measure, so a blank write-up on a scored call is the
+ * write-up failing. That half holds. THE CONVERSE DOES NOT: no score does not mean the call was thin.
+ *
+ * Measured 2026-09-11, in the founder's own company: 12 sessions carry 100+ words FROM THE REP and no
+ * scores at all, the largest of them 757 words. Every one of those was being told "there was not enough
+ * of a conversation here" — the same false sentence this file was created to remove, one branch over.
+ *
+ * AND THERE IS NO LENGTH THRESHOLD THAT WOULD FIX IT. Across every company: the smallest call that DID
+ * get scored has ONE rep word; the largest that did NOT has 1,153. Scoring succeeds or fails for reasons
+ * that have nothing to do with how much was said, so no word count can separate "thin" from "the scoring
+ * failed" — which is exactly why the honest answer is to stop claiming to know which.
  *
  * IT LIVES IN ITS OWN FILE for the reason this codebase already records: `after-pitch.ts`
  * imports the network client, which reaches `expo/fetch` — a native module that cannot load
@@ -31,8 +39,13 @@ export type EmptyReadReason =
   | 'none'
   /** Scored, so there was plenty to say, and the write-up came back empty. Rebuilding works. */
   | 'engine-blank'
-  /** No scores either. Genuinely little to go on — the only case the original sentence fits. */
-  | 'thin';
+  /**
+   * No scores and no write-up, and NOTHING RECORDS WHICH of the two reasons it is: little in the call,
+   * or the scoring itself failing. Named for what is observed rather than for a cause we cannot see —
+   * it used to be called `thin`, which was a claim, and the claim was wrong for 12 of the founder's own
+   * sessions, the largest of them 757 words.
+   */
+  | 'unexplained';
 
 /**
  * Is there anything in this debrief worth drawing?
@@ -58,5 +71,5 @@ export function hasContent(summary: AfterPitch | null): boolean {
 export function emptyReadReason(summary: AfterPitch | null): EmptyReadReason | null {
   if (!summary) return 'none';
   if (hasContent(summary)) return null;
-  return (summary.scores?.length ?? 0) > 0 ? 'engine-blank' : 'thin';
+  return (summary.scores?.length ?? 0) > 0 ? 'engine-blank' : 'unexplained';
 }

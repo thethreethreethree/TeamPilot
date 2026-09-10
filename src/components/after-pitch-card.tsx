@@ -223,14 +223,18 @@ export function AfterPitchCard({
               ? // NOT "not enough in this call". This call WAS scored, so there was plenty
                 // to say — the write-up is what failed, and rebuilding usually fixes it.
                 'Your read did not come through'
-              : 'Not enough in this call to debrief'}
+              : // NOT "not enough in this call" either. Measured 2026-09-11: 12 of the founder's own
+                // sessions have no scores and 100+ words from the rep, the largest 757 — and no word
+                // count separates them, since the smallest call that DID get scored has one word.
+                // Nothing records which of the two reasons it is, so the title claims neither.
+                'Nothing came back for this call'}
         </Text>
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
           {reason === 'none'
             ? 'Nothing has been written for this call yet. Making one reads the whole conversation, so it takes a moment.'
             : reason === 'engine-blank'
               ? 'The call was captured and scored, but the coaching write-up came back empty. That is the write-up failing, not the call — try building it again.'
-              : 'There was not enough of a conversation here for the coach to say anything useful. That is a fact about the call, not about you.'}
+              : 'There are no scores and no write-up for this one. That can mean there was little in the call, or that the coach did not finish — nothing recorded which, so I will not guess. Your recording and your words are safe either way.'}
         </Text>
         {reason === 'none' || reason === 'engine-blank' ? (
           <Pressable

@@ -33,8 +33,8 @@ test('THE WRONG SENTENCE: a SCORED call with no write-up is not a thin call', ()
 });
 
 test('a call with NO scores and no write-up is genuinely thin — the sentence is true there', () => {
-  assert.equal(emptyReadReason(ap({ scores: [] })), 'thin');
-  assert.equal(emptyReadReason(ap({})), 'thin');
+  assert.equal(emptyReadReason(ap({ scores: [] })), 'unexplained');
+  assert.equal(emptyReadReason(ap({})), 'unexplained');
 });
 
 test('nothing written yet is neither — it is an offer to write it', () => {
@@ -76,4 +76,27 @@ test('the scored-but-blank case is decided by SCORES, not by hasSignal', () => {
     }),
   );
   assert.equal(r, 'engine-blank');
+});
+
+/**
+ * The sentence, again, one branch over (2026-09-11).
+ *
+ * This file was created to remove "there was not enough of a conversation here for the coach to say
+ * anything useful" from the ENGINE-BLANK case. It stayed on the other branch, where scores are absent —
+ * on the reasoning that a missing score means a thin call.
+ *
+ * That reasoning holds in one direction only. Measured in the founder's own company: 12 sessions have
+ * 100+ words FROM THE REP and no scores at all, the largest 757 words. And no threshold would rescue it —
+ * across every company the smallest call that DID get scored has ONE rep word, and the largest that did
+ * NOT has 1,153. Length is simply not the discriminator, so nothing in the app can tell the two apart.
+ *
+ * The name says what is observed; these pin that it claims no cause.
+ */
+test('the no-scores case is named for what is observed, not for a cause nothing recorded', () => {
+  assert.equal(emptyReadReason(ap({ scores: [] })), 'unexplained');
+  assert.notEqual(emptyReadReason(ap({ scores: [] })), 'thin', 'thin was a claim, and it was wrong');
+});
+
+test('a scored call with a blank write-up is still the write-up failing — that half always held', () => {
+  assert.equal(emptyReadReason(ap({ scores: [{ label: 'tone', value: 70 }] as never })), 'engine-blank');
 });
