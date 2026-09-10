@@ -5,9 +5,11 @@
  * the sound it heard, annotated: `[clicking]`, `[pause]`, `[outro jingle]`, `[wind blowing]`. Every one of
  * those is a non-empty string, so every `.trim().length > 0` check waves it straight through.
  *
- * Measured against production on 2026-09-10: 28 of 73 stored door-pitch transcripts are a single bracketed
- * sound event and not one word of speech. All 28 were graded anyway — 24 scored zero on every dimension,
- * and `[typing]` was scored tone 85.
+ * Measured against production on 2026-09-10, across ALL companies in the database - the right scope for
+ * "does this guard need to exist": 28 of 73 stored door-pitch transcripts are a single bracketed sound
+ * event and not one word of speech. All 28 were graded anyway — 24 scored zero on every dimension, and
+ * `[typing]` was scored tone 85. (In the founder's own company: 24 of 45, and that `[typing]` row is one
+ * of theirs.)
  *
  * This is the app's copy of the web repository's `src/lib/coach/doorlog/speechPresence.ts`. The two cannot
  * import from each other, so they are kept honest by their tests: both pin the SAME verbatim production

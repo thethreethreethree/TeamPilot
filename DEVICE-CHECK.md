@@ -840,7 +840,7 @@ no question. Only the rep whose call it is can answer.
 
 **This is the one I most want a human on**, and it is in the twenty-minute list.
 
-Measured today: of **14 sessions marked *sold* across your whole company, not one
+Measured today: of **9 sessions your company has marked *sold*, not one
 carries a deal value**. So Revenue and Average deal on the KPI board can never
 produce a number, for anybody. The field was not missing — it was *unreachable at
 the end*: it uses a number keypad, which on iOS has **no return key**, and the
@@ -898,8 +898,8 @@ all coaching runs produce nothing**, and the rep was shown nothing about it — 
 read, no chip, no reason. 92 of 100 stored declines carried the single word
 "no signal", which covered four completely different events.
 
-The ones that fail are the **longer** calls: median 683 transcript words against
-341 for the ones that succeed. Thin content would be short, so for most of these
+The ones that fail are the **longer** calls: median 691 transcript words against
+357 for the ones that succeed. Thin content would be short, so for most of these
 the rep did everything right.
 
 The coach now records *which* empty it hit. A call where the coach **crashed or

@@ -101,11 +101,14 @@ const COACH_FAILED: ReadonlySet<string> = new Set<DissectShape>(['llm_empty', 'u
  * session must NOT be shown as a capture problem is right and is kept: telling that rep their audio
  * failed would send them to re-record a call that recorded fine.
  *
- * WHAT IS NEW is that `no_signal` is no longer one thing. Measured on production 10 September 2026:
- * 92 of 100 declines say `no_signal`, and they are systematically the LONGER calls - median 683
- * transcript words against 341 for the ones that succeeded. Thin content would be SHORT. So for most
- * of these the story was never "there was little to read", and the rep was shown NOTHING AT ALL: no
- * read, no badge, no explanation, on more than half of every session recorded.
+ * WHAT IS NEW is that `no_signal` is no longer one thing. Measured on production 10 September 2026,
+ * ACROSS ALL SEVEN COMPANIES in the database - which is the right scope for "does this rule need to
+ * exist", and NOT the scope for any number shown to one founder: 92 of 100 declines say `no_signal`,
+ * and they are systematically the LONGER calls - median 683 transcript words against 341 for the ones
+ * that succeeded. Thin content would be SHORT. So for most of these the story was never "there was
+ * little to read", and the rep was shown NOTHING AT ALL: no read, no badge, no explanation, on more
+ * than half of every session recorded. (For the founder's own company alone the same shape holds:
+ * 43 declines against 37 reads since mid-August, 691 words against 357.)
  *
  * Now the coach records which empty it hit, and only the three that mean IT failed are surfaced.
  * `no_strengths` stays silent, because there the coach really did read the call and found little -
