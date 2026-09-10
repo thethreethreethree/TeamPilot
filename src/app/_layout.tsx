@@ -19,7 +19,7 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { startCrashReporting } from '@/lib/crash-init';
+import { installUncaughtHandlers, startCrashReporting } from '@/lib/crash-init';
 
 // Hold the native splash until the fonts are ready, so text never flashes in the
 // system face and then reflows. Module scope: this must run before first paint.
@@ -30,6 +30,13 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // crash-init.ts. Deliberately NOT inside a component: an error thrown while the
 // tree mounts is exactly the one worth having.
 startCrashReporting();
+// AFTER the line above, deliberately. When a DSN is set, Sentry.init installs
+// its own global error handler, and this one chains to whatever is already
+// there - so installing second means Sentry still receives the crash and the
+// phone also keeps its own copy. Without this, an uncaught throw outside a
+// render, and every unhandled promise rejection in a release build, left no
+// trace at all: Report a problem showed an empty log after a real crash.
+installUncaughtHandlers();
 
 /**
  * The auth gate. A signed-out user is sent to (auth); a signed-in user is sent

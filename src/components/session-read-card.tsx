@@ -15,6 +15,7 @@
  * never spent on a rep who only wanted to check the transcript.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { coachGet, coachPost } from '@/lib/coach-api';
@@ -72,9 +73,20 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
     }
   }, [sessionId, online]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  /*
+    A FOCUS EFFECT RATHER THAN A PLAIN ONE, matching the eleven screens that already load this way.
+
+    Two reasons, and the second is the one that matters. It reloads when the screen is returned to, so a
+    rep who backs out, changes something and comes back is not reading a stale answer. And a plain effect
+    calling a loader that sets state is what `react-hooks/set-state-in-effect` refuses - the rule is right
+    that an effect should not drive a render cascade, and the fix is the codebase's own idiom rather than
+    a suppression comment written over the top of it.
+  */
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   /*
     ONLY ASKED WHEN THERE IS NO READ, which is the only time the answer is used.

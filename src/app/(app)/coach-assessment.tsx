@@ -16,7 +16,8 @@
  *
  * The route 403s a non-manager and IS the gate — this screen does not re-implement it, it reports it.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -67,9 +68,20 @@ export default function CoachAssessmentScreen() {
     }
   }, [online]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  /*
+    A FOCUS EFFECT RATHER THAN A PLAIN ONE, matching the eleven screens that already load this way.
+
+    Two reasons, and the second is the one that matters. It reloads when the screen is returned to, so a
+    rep who backs out, changes something and comes back is not reading a stale answer. And a plain effect
+    calling a loader that sets state is what `react-hooks/set-state-in-effect` refuses - the rule is right
+    that an effect should not drive a render cascade, and the fix is the codebase's own idiom rather than
+    a suppression comment written over the top of it.
+  */
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
