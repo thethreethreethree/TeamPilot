@@ -201,9 +201,40 @@ Two invariants in the audit apply directly to the new cron and reported 0 violat
 route registered in vercel.json (no silently-dead cron)* and *every LLM/transcription route exports
 maxDuration (no prod timeout)*.
 
-## What is NOT verified
-The recovery has not been run against production audio. Every number in think.md is a real read of the
-production database, and every gate above is a real exit code, but **no dropped session has actually been
-recovered yet** - that happens when this deploys and the cron fires. Until then the claim is "the path
-exists and is proven in test", not "the nine are fixed". G5, the real-device runtime audit, has still
-never been run on this app.
+## VERIFIED IN PRODUCTION - the sweep ran and the recovered transcript is usable
+This section replaces the "not verified yet" note that stood here until 17:20, because leaving it would
+have been a stale claim outliving its cause.
+
+The first sweep fired at 17:20 and attempted six sessions. Measured before and after:
+
+    transcript segments ............ 2268  ->  2414   (+146)
+    audio + NO transcript ..........    9  ->     6
+    audio + unknown-only ...........    0  ->     2
+    audio + two-sided ..............    6  ->     7
+
+Session `76f8ae8b` - the 42.9 MB recording from 27 August that had held zero words since - came back as
+**106 segments, auto-attributed agent/customer with no rep tap**, and `audio_duration_seconds` was stamped
+at 2560 (42.7 minutes) from the transcription's own word timestamps. Its opening lines read as a real
+conversation, not a diarizer artifact.
+
+THE SECOND HALF OF THE FOUNDER'S INSTRUCTION, which is the part that could not be proven in test: every
+existing coaching feature consumed it, within 40 seconds, unprompted:
+
+    09:21:13  coach.session_intel_generated
+    09:21:14  coach.session_moments_generated
+    09:21:24  coach.session_pivot_generated
+    09:21:24  coach.session_summary_generated
+    09:21:41  coach.dissect_generated
+
+The stored summary is a structured, accurate meeting record - attendees, agenda, logistics, requests.
+`salesSummary` only writes its event when the generated text is non-empty, so the event's existence is
+already evidence, but it was opened and read rather than inferred.
+
+Two of the six wrote nothing and were right to: 9 KB and 60 KB files with no speech in them. Silence is
+not a dropped transcript.
+
+## What is STILL not verified
+- Every recovered `spoken_at` is null, because 0249 is not applied - F9, and the sweep is now gated on it.
+- No dropped session has been recovered WITH its timing intact. That needs the migration first.
+- G5, the real-device runtime audit, has never been run on this app. Nobody has seen the picker, the
+  "Needs your voice" chip, or the new deal-value Save button render on a phone.

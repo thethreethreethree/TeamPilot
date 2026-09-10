@@ -18,9 +18,17 @@ refactor flattened a 500/502 distinction the route had made deliberately, and th
 and the rep's one tap would have destroyed the recovered timing in the act of making the call coachable -
 which nothing would have caught, because there is no test for a feature quietly getting worse.
 
-**What is not done: nothing has actually been recovered yet.** The numbers here are real production reads
-and the gates are real exit codes, but no dropped session has been repaired - that happens when this
-deploys and the cron first fires. Saying otherwise would be the exact failure §3.4 names.
+**It works, and it was watched working.** The first sweep recovered a 42-minute call that had held zero
+words since 27 August: 106 segments, attributed automatically with no rep tap, and every existing coaching
+engine consumed it within 40 seconds. The summary it produced is a real, structured meeting record. That
+is the founder's whole instruction - a transcript, AND features that can use it - demonstrated on their own
+production data rather than argued from a test.
+
+**What it cost, and I am not smoothing this over.** think.md named the deploy-before-migrate race in its
+own Ripple section, and then I lost it: the sweep fired while the founder was still reading the command to
+apply 0249, so those recovered segments have no timing and the at-most-once marker is now set against them.
+Writing a risk down is not mitigating it. The sweep is now gated on the migration, which is what the
+founder had actually chosen when they picked "apply 0249 first, then sweep".
 
 ```json
 [
