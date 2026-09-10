@@ -111,8 +111,20 @@ export const TARGET_HEADING = "Today's door target";
 /** The hint under the dials. */
 export const TAP_HINT = 'Tap a dial to log one';
 
-/** The hint under the page dots. */
-export const SWIPE_HINT = 'Swipe left for your home screen';
+/*
+ * THE SPEC'S "two page dots + a 'Swipe left for your home screen' hint" IS NOT
+ * BUILT, and its absence is a decision rather than an omission.
+ *
+ * Dots and a swipe hint make the gesture the only way to reach page 1, and this
+ * project's design law is explicit that primary navigation is "never hidden
+ * behind a gesture or an unlabelled icon... hidden navigation measurably
+ * destroys findability; this is not a style preference." The conflict was put to
+ * the owner, who chose the app's existing SwipePager: a labelled two-tab control
+ * that reaches both pages on its own, with the swipe kept as an enhancement.
+ *
+ * So the hint has no dots to sit under, and a constant nothing renders would
+ * read to the next author as a thing somebody forgot to wire up.
+ */
 
 /** What a rep with no goal reads. Names who can fix it, because they cannot. */
 export const NO_GOAL_TITLE = 'No daily goal set yet';
@@ -132,3 +144,26 @@ export const DIALS = [
 ] as const;
 
 export type DialKey = (typeof DIALS)[number]['key'];
+
+/**
+ * What a rep is told about doors this phone is still holding.
+ *
+ * WHY THIS EXISTS AT ALL. The dials read the SERVER's counts for today. Until an
+ * outbox drains, the phone is holding knocks the server has never seen — so the
+ * dial says 6 when the rep knocked 8, and says it with the same confidence it
+ * would say a true 6.
+ *
+ * The macro home's three bubbles used to carry this caveat, and the 10 September
+ * update removes them in favour of these dials. Dropping the caveat with them
+ * would move the funnel onto the screen a rep now LANDS on and quietly delete the
+ * one sentence that made an undercount legible. So it moves here with the numbers.
+ *
+ * It says "they will send on their own" because that is the part a rep needs: the
+ * work is not lost, and there is nothing for them to do about it.
+ */
+export function pendingNote(pending: number): string | null {
+  if (!Number.isFinite(pending) || pending <= 0) return null;
+  return pending === 1
+    ? '1 door logged on this phone has not reached the server yet, so it is not in these counts. It will send on its own.'
+    : `${pending} doors logged on this phone have not reached the server yet, so they are not in these counts. They will send on their own.`;
+}

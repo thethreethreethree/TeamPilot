@@ -37,7 +37,29 @@ export type PagerPage = {
   render: () => React.ReactNode;
 };
 
-export function SwipePager({ pages }: { pages: PagerPage[] }) {
+export function SwipePager({
+  pages,
+  subscribeReset,
+}: {
+  pages: PagerPage[];
+  /**
+   * Subscribe to an external "go back to the first page" signal, returning the
+   * unsubscribe. Spec 06 §3: "the page index is NOT persisted; the Home tab also
+   * snaps back to page 0."
+   *
+   * A SUBSCRIPTION RATHER THAN A COUNTER PROP, and the difference is not
+   * cosmetic. A counter would have to be turned back into an action inside an
+   * effect — setting state synchronously in an effect body, which cascades
+   * renders and which this repo's lint refuses on sight. A tab press genuinely
+   * IS an external event, so it arrives the way external events are supposed to:
+   * the pager subscribes, and the page changes in the callback.
+   *
+   * OPTIONAL, and absent on Today's Metrics on purpose: that tab has no such
+   * rule, and a pager that silently rewound whenever a rep came back to it would
+   * take the page away from them without being asked to.
+   */
+  subscribeReset?: (goToFirst: () => void) => () => void;
+}) {
   /**
    * OPTED OUT OF THE REACT COMPILER, for one component, with a reason.
    *
@@ -137,6 +159,16 @@ export function SwipePager({ pages }: { pages: PagerPage[] }) {
     translate.value = restingOffset(index, width);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, index]);
+
+  // The Home tab, tapped. The screen stays mounted across tab presses, so
+  // `useState(0)` on mount cannot be the whole of it — the owner supplies the
+  // signal and the rewind happens in the callback, never in the effect body.
+  // Re-subscribing when `settle` changes (a rotation, Reduce Motion) is free: it
+  // swaps the listener and moves nothing.
+  useEffect(() => {
+    if (!subscribeReset) return;
+    return subscribeReset(() => settle(0));
+  }, [subscribeReset, settle]);
 
   const pan = Gesture.Pan()
     .onUpdate((e) => {

@@ -15,6 +15,7 @@ import {
   doorScreenState,
   greeting,
   partOfDay,
+  pendingNote,
 } from '@/lib/doors/door-screen-view';
 
 const at = (h: number) => new Date(2026, 8, 10, h, 0, 0);
@@ -73,4 +74,20 @@ test('loading and failures win over the goal, in that order', () => {
 test('the no-goal copy names who fixes it, because the rep cannot', () => {
   assert.match(NO_GOAL_BODY, /manager/i);
   assert.ok(!/error|wrong|failed/i.test(NO_GOAL_BODY));
+});
+test('doors this phone is still holding are named, never left to look like a shortfall', () => {
+  // The dials read the SERVER's counts. A rep who knocked 8 with two still in the
+  // outbox sees 6 — and without this line, 6 is indistinguishable from a true 6.
+  assert.equal(pendingNote(0), null);
+  assert.equal(pendingNote(-1), null);
+  assert.match(pendingNote(1)!, /^1 door logged on this phone has not reached/);
+  assert.match(pendingNote(2)!, /^2 doors logged on this phone have not reached/);
+});
+
+test('the pending line promises the work is not lost and asks nothing of the rep', () => {
+  const line = pendingNote(3)!;
+  assert.match(line, /send on their own/);
+  // Never spatial — "not counted above" is meaningless in a screen reader.
+  assert.ok(!/above|below|on the right|on the left/i.test(line), line);
+  assert.ok(!/error|failed|lost/i.test(line), line);
 });

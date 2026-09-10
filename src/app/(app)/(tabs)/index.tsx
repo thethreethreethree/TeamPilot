@@ -37,7 +37,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth-context';
 import { listMySessions } from '@/lib/sync/sessions';
@@ -47,13 +47,14 @@ import { readMyProfile } from '@/lib/profile';
 import { buildHomeView, type HomeStat } from '@/lib/home-view';
 import { useMacroMode } from '@/lib/doors/macro-context';
 import { countByOutcome, listKnocks, localDate } from '@/lib/doors/knock-store';
-import { fetchDayTotals, type DoorTotals } from '@/lib/doors/door-log-api';
-import { buildDoorTiles } from '@/lib/doors/door-tiles';
 import { useLargeText } from '@/lib/use-large-text';
 import type { CoachingSession } from '@/types/backend';
 import { C } from '@/lib/theme';
 import { HeaderMenu } from '@/components/header-menu';
 import { homeMenuItems } from '@/lib/home-menu';
+import { SwipePager } from '@/components/swipe-pager';
+import { PaneBoundary } from '@/components/pane-boundary';
+import { DoorHomePage } from '@/components/door-home-page';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -66,7 +67,6 @@ export default function HomeScreen() {
   const [sessions, setSessions] = useState<CoachingSession[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [waiting, setWaiting] = useState<number | null>(null);
-  const [doorTotals, setDoorTotals] = useState<DoorTotals | null>(null);
   const [doorsWaiting, setDoorsWaiting] = useState({ total: 0, sold: 0, goBack: 0 });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -83,8 +83,6 @@ export default function HomeScreen() {
       sold: counts.sold,
       goBack: counts.go_back,
     });
-    fetchDayTotals(today).then(setDoorTotals);
-
     const cached = await readCachedSessions(userId).catch(() => null);
     if (cached) setSessions((prev) => prev ?? cached.rows);
     setWaiting(await countPending(userId).catch(() => null));
@@ -104,6 +102,23 @@ export default function HomeScreen() {
     }, [load]),
   );
 
+  /**
+   * The Home tab, tapped — spec 06 §3: "the Home tab also snaps back to page 0."
+   *
+   * IT IS THE TAB PRESS, not focus. Focus also fires when a rep comes BACK from
+   * the Door Log, and rewinding them there would take the page away from someone
+   * who never asked to move. The web fires its own `elostate:home-tab` event on
+   * the same gesture, and this is that event's native equivalent.
+   */
+  const navigation = useNavigation();
+  const subscribeHomeTab = useCallback(
+    (goToFirst: () => void) =>
+      // `tabPress` is a bottom-tabs event rather than a base-navigator one, so
+      // the type is widened at the call rather than the listener rewritten.
+      navigation.addListener('tabPress' as never, goToFirst as never),
+    [navigation],
+  );
+
   const view = buildHomeView({
     sessions,
     hasMore,
@@ -114,6 +129,99 @@ export default function HomeScreen() {
 
   const isMacro = macro.enabled === true;
 
+  const menu = (
+    /* The overflow menu sits above the welcome, on its own row, so the greeting
+       stays centred on the screen rather than being pushed off centre by a
+       control beside it. Account lives in here now — see header-menu.tsx for why
+       it left the tab bar. */
+    <View className="flex-row justify-end">
+      <HeaderMenu
+        items={homeMenuItems(isMacro).map((item) => ({
+          ...item,
+          onPress: () => router.push(item.route as Parameters<typeof router.push>[0]),
+        }))}
+      />
+    </View>
+  );
+
+  const welcome = (
+    /* The web's header, with its own fallback: no name reads "Welcome back",
+       never an email. */
+    <View className="items-center pb-6">
+      <Text accessibilityRole="header" className="text-center font-heading text-2xl text-primary">
+        Welcome
+      </Text>
+      <Text className="text-center font-heading text-2xl leading-tight text-primary">
+        {view.fullName ?? view.firstName ?? 'back'}
+      </Text>
+    </View>
+  );
+
+  const refresh = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        try {
+          await load();
+        } finally {
+          setRefreshing(false);
+        }
+      }}
+      tintColor={C['muted-foreground']}
+    />
+  );
+
+  /**
+   * MACRO MODE IS THE ONLY MODE THAT PAGES, which is the web's own shape — its
+   * home renders the pager under `macroOn === true` and the plain launchpad
+   * otherwise. A rep coaching phone calls has no door funnel, and opening them
+   * on a door tracker would be the app insisting they are somebody else.
+   *
+   * THE MENU SITS ABOVE THE PAGER, not inside page 1 — the web keeps its own
+   * shared control ("Back to ELOSTATE") above the track for the same reason.
+   * Account and the rest have to be reachable from the page a rep LANDS on, and
+   * burying them one swipe away would be hiding navigation behind a gesture.
+   */
+  if (isMacro) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+        <View className="px-5 pt-2">{menu}</View>
+        <SwipePager
+          subscribeReset={subscribeHomeTab}
+          pages={[
+            {
+              key: 'doors',
+              label: 'Doors',
+              render: () => (
+                // Each pane has its OWN boundary: a throw in the door target must
+                // not take the launchpad with it, and vice versa.
+                <PaneBoundary name="door-home" subject="Your door target">
+                  <DoorHomePage />
+                </PaneBoundary>
+              ),
+            },
+            {
+              key: 'home',
+              label: 'Home',
+              render: () => (
+                <PaneBoundary name="macro-home" subject="Your home screen">
+                  <ScrollView
+                    contentContainerClassName="grow justify-center px-5 pb-6"
+                    refreshControl={refresh}
+                  >
+                    {welcome}
+                    <MacroHome router={router} waiting={doorsWaiting} macro={macro} />
+                  </ScrollView>
+                </PaneBoundary>
+              ),
+            },
+          ]}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <ScrollView
@@ -121,87 +229,50 @@ export default function HomeScreen() {
         // phone rather than jammed under the status bar with dead space below,
         // and a long one still scrolls.
         contentContainerClassName="grow justify-center px-5 py-6"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              try {
-                await load();
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            tintColor={C['muted-foreground']}
-          />
-        }
+        refreshControl={refresh}
       >
-        {/* The overflow menu sits above the welcome, on its own row, so the
-            greeting stays centred on the screen rather than being pushed off
-            centre by a control beside it. Account lives in here now — see
-            header-menu.tsx for why it left the tab bar. */}
-        <View className="flex-row justify-end">
-          <HeaderMenu
-            items={homeMenuItems(isMacro).map((item) => ({
-              ...item,
-              onPress: () => router.push(item.route as Parameters<typeof router.push>[0]),
-            }))}
-          />
-        </View>
-
-        {/* The welcome, centred and in the brand colour — the web's header, with
-            its own fallback: no name reads "Welcome back", never an email. */}
-        <View className="items-center pb-6">
-          <Text
-            accessibilityRole="header"
-            className="text-center font-heading text-2xl text-primary"
-          >
-            Welcome
-          </Text>
-          <Text className="text-center font-heading text-2xl leading-tight text-primary">
-            {view.fullName ?? view.firstName ?? 'back'}
-          </Text>
-        </View>
-
-        {isMacro ? (
-          <MacroHome
-            router={router}
-            stacked={stacked}
-            totals={doorTotals}
-            waiting={doorsWaiting}
-            macro={macro}
-          />
-        ) : (
-          <StandardHome router={router} stacked={stacked} stats={view.stats} partial={view.partial} macro={macro} />
-        )}
+        {menu}
+        {welcome}
+        <StandardHome
+          router={router}
+          stacked={stacked}
+          stats={view.stats}
+          partial={view.partial}
+          macro={macro}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 /**
- * The door-to-door home.
+ * The door-to-door home — page 1 of the pager.
  *
  * ONE hero card, as on the web — the Door Log is the only thing a knocking rep
  * opens this screen to do, and four equal cards would make it one of four.
+ *
+ * THE THREE COUNT BUBBLES ARE GONE (spec 06 §5, and the web's own commit
+ * `0433058b`). Doors knocked / go backs / sold now live on page 0 as dials with
+ * targets, and the same three numbers on both pages would have been two answers
+ * to one question, one of them without a target to read it against.
+ *
+ * WHAT DID NOT GO WITH THEM is the outbox line: doors this phone is holding are
+ * still named here, and now on page 0 as well (see `pendingNote`). That sentence
+ * was the only thing standing between an undercount and a rep believing they had
+ * knocked fewer doors than they had, so it moved rather than being deleted.
+ *
+ * `stacked` (the large-text signal) is no longer taken: the row it would have
+ * governed was the bubble row, and nothing left here lays out side by side.
  */
 function MacroHome({
   router,
-  stacked,
-  totals,
   waiting,
   macro,
 }: {
   router: ReturnType<typeof useRouter>;
-  stacked: boolean;
-  totals: DoorTotals | null;
   waiting: { total: number; sold: number; goBack: number };
   macro: ReturnType<typeof useMacroMode>;
 }) {
-  // Never `?? 0`. A failed totals read used to render as "0 DOORS TODAY" for a
-  // rep whose forty doors were all safely on the server — see door-tiles.ts.
-  const { tiles, anyPartial } = buildDoorTiles({ waiting, totals });
-
   return (
     <>
       <Pressable
@@ -216,40 +287,16 @@ function MacroHome({
 
       <MacroSwitch macro={macro} />
 
-      <View className="mt-3 flex-row gap-3">
-        {tiles.map((t) => (
-          <Tile
-            key={t.key}
-            value={t.value}
-            label={t.label}
-            emphasis={t.emphasis}
-            spoken={t.spoken}
-          />
-        ))}
-      </View>
-
       {/*
-        Said ONCE, under the row, rather than repeated on every tile — and both
-        of these, when both are true.
-
-        They used to be an if / else-if, so a rep saw one or the other. The case
-        where both apply is OFFLINE, which is when a door rep most needs each of
-        them: one says the figure above is incomplete, the other says the work
-        they are holding is not lost. Suppressing either in that moment is
-        suppressing it in the only moment it mattered.
-
-        The same defect, in the opposite order, was on the Door Log screen.
+        The outbox, said in full rather than as a footnote to a row of numbers
+        that is no longer here. "These" had a referent when three bubbles sat
+        above it; without them the sentence has to carry its own subject.
       */}
-      {anyPartial ? (
-        <Text className="mt-2 font-body text-xs leading-relaxed text-muted-foreground">
-          Today&apos;s totals could not be read from the server, so these show only what this
-          phone has logged. Your earlier doors are safe — they are just not counted here yet.
-        </Text>
-      ) : null}
       {waiting.total > 0 ? (
-        <Text className="mt-2 font-body text-xs leading-relaxed text-muted-foreground">
-          {waiting.total} of these {waiting.total === 1 ? 'is' : 'are'} still on this phone and
-          will send on their own.
+        <Text className="mt-3 font-body text-xs leading-relaxed text-muted-foreground">
+          {waiting.total} {waiting.total === 1 ? 'door' : 'doors'} logged on this phone{' '}
+          {waiting.total === 1 ? 'has' : 'have'} not reached the server yet.{' '}
+          {waiting.total === 1 ? 'It' : 'They'} will send on their own.
         </Text>
       ) : null}
 

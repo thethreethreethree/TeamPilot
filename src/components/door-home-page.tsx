@@ -28,6 +28,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { DoorDial } from '@/components/door-dial';
 import { useAuth } from '@/lib/auth-context';
 import { readMyProfile } from '@/lib/profile';
+import { countByOutcome, listKnocks, localDate } from '@/lib/doors/knock-store';
 import { C } from '@/lib/theme';
 import { cashBox, dialFill, money, salesToGoalText, targetSentence } from '@/lib/doors/day-target';
 import { fetchDayTarget } from '@/lib/doors/day-target-api';
@@ -43,6 +44,7 @@ import {
   dateEyebrow,
   doorScreenState,
   greeting,
+  pendingNote,
 } from '@/lib/doors/door-screen-view';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
@@ -60,8 +62,18 @@ export function DoorHomePage() {
   const [failure, setFailure] = useState<'unavailable' | 'error' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  /** Doors this phone has logged today that the server has not seen yet. */
+  const [pending, setPending] = useState(0);
 
   const load = useCallback(async () => {
+    // Read the outbox FIRST and separately, because it is the half that never
+    // needs a network: whatever the server says next, this count is exact.
+    const id = user?.id;
+    if (id) {
+      const knocks = await listKnocks(id).catch(() => []);
+      const counts = countByOutcome(knocks, localDate());
+      setPending(Object.values(counts).reduce((a, b) => a + b, 0));
+    }
     const result = await fetchDayTarget(deviceTimeZone());
     setLoading(false);
     if (result.ok) {
@@ -83,7 +95,7 @@ export function DoorHomePage() {
         ? result.message
         : reachError(null, online, 'your door target'),
     );
-  }, [online]);
+  }, [online, user?.id]);
 
   // Refetch on every focus: the rep comes back here straight after logging a
   // knock, and a stale count is the one thing this screen cannot show.
@@ -164,7 +176,7 @@ export function DoorHomePage() {
       {state === 'no-goal' ? <Panel title={NO_GOAL_TITLE} body={NO_GOAL_BODY} /> : null}
 
       {state === 'ready' && view ? (
-        <ReadyState view={view} onLog={() => router.push('/(app)/doors')} />
+        <ReadyState view={view} onLog={() => router.push('/(app)/doors')} pending={pending} />
       ) : null}
     </ScrollView>
   );
@@ -182,8 +194,20 @@ function Panel({ title, body }: { title: string; body: string }) {
   );
 }
 
-function ReadyState({ view, onLog }: { view: DayTargetView; onLog: () => void }) {
+function ReadyState({
+  view,
+  onLog,
+  pending,
+}: {
+  view: DayTargetView;
+  onLog: () => void;
+  pending: number;
+}) {
   const box = cashBox(view.today.sold, view.soldTarget, view.saleValueCents);
+  // The dials are the SERVER's counts. When the phone is holding knocks it has
+  // not managed to send, the dials are a floor and the rep is told so — see
+  // pendingNote. The macro home's bubbles used to carry this; they are gone.
+  const holding = pendingNote(pending);
 
   return (
     <>
@@ -230,6 +254,12 @@ function ReadyState({ view, onLog }: { view: DayTargetView; onLog: () => void })
       </View>
 
       <Text className="mt-3 text-center font-body text-sm text-muted-foreground">{TAP_HINT}</Text>
+
+      {holding ? (
+        <Text className="mt-2 text-center font-body text-xs leading-relaxed text-muted-foreground">
+          {holding}
+        </Text>
+      ) : null}
 
       {/* The cash box. Money only when a manager has set a value per sale. */}
       <View className="mt-6 rounded-xl border border-border-control px-4 py-4">
