@@ -119,11 +119,12 @@ export async function generateSessionArtifacts(args: {
     ),
   ]);
 
+  const words = segments.reduce(
+    (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,
+    0
+  );
+
   if (timedOut.length > 0) {
-    const words = segments.reduce(
-      (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,
-      0
-    );
     // eslint-disable-next-line no-console
     console.error(
       `[generateSessionArtifacts] engines timed out session=${sessionId} engines=${timedOut.join(",")} words=${words}`
@@ -146,6 +147,58 @@ export async function generateSessionArtifacts(args: {
     } catch {
       // Best-effort: the console line above still records it, and a note that cannot be
       // taken must never fail the generation it was describing.
+    }
+  }
+
+  /*
+   * WHICH ENGINES RAN AND PRODUCED NOTHING, which until now left no trace at all.
+   *
+   * `salesDissect` records its own declines (a `coach.dissect_attempted` marker, so the
+   * backfill backs off instead of re-billing a stuck session). The other four do not: a
+   * summary, pivot, intel or moments run that comes back empty writes NO event, so "the
+   * engine never ran" and "the engine ran and found nothing" are indistinguishable
+   * afterwards. Measured on production 10 September 2026 across the 168 sessions the engines
+   * can read: summary 83%, intel 70%, pivot 62%, MOMENTS 40% — and for none of that missing
+   * 60% could anyone say which of the two it was.
+   *
+   * Recorded HERE rather than in four engines because this layer already holds all five
+   * results and the transcript they were given. One event per session at most, and only when
+   * something actually came back empty.
+   *
+   * It deliberately does NOT re-record a timeout: an engine the bound abandoned is already
+   * named in `coach.engines_timed_out` above, and counting it twice would make the empty
+   * count look worse than it is.
+   */
+  const empty: string[] = [];
+  if (!dissect) empty.push("dissect");
+  if (!summary) empty.push("summary");
+  if (!moments || moments.length === 0) empty.push("moments");
+  if (!pivot) empty.push("pivot");
+  if (!intel) empty.push("intel");
+  const emptyNotTimedOut = empty.filter((e) => !timedOut.includes(e));
+
+  if (emptyNotTimedOut.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[generateSessionArtifacts] engines produced nothing session=${sessionId} engines=${emptyNotTimedOut.join(",")} words=${words}`
+    );
+    try {
+      await createAdminClient()
+        .from("events")
+        .insert({
+          company_id: companyId,
+          actor: actorId,
+          kind: "coach.engines_empty",
+          subject: `sales_session:${sessionId}`,
+          payload: {
+            engines: emptyNotTimedOut,
+            transcriptWords: words,
+            coach_version: "artifacts-v1",
+          },
+        });
+    } catch {
+      // Best-effort, for the same reason as the timeout note: a record that cannot be taken
+      // must never fail the generation it was describing.
     }
   }
 

@@ -313,6 +313,28 @@ beside the existing `reason`, so the correlation is a database query rather than
 reads - which is exactly why this has been invisible. `reason` itself is untouched, because the sessions-list
 UI reads that vocabulary.
 
+### F19 - four of the five coaching engines vanish silently when they produce nothing
+class: a-failure-that-is-indistinguishable-from-a-legitimate-absence
+sweep: event writes in all five engine modules, counted then opened
+severity: medium
+`salesDissect` records its own declines - a `coach.dissect_attempted` marker, so the backfill backs off
+rather than re-billing a stuck session. It is the only one that does. A summary, pivot, intel or moments run
+that comes back empty writes NO event at all, so afterwards "the engine never ran" and "the engine ran and
+found nothing" are indistinguishable.
+
+That is not academic: measured across the 168 sessions the engines can read, coverage is summary 83%, intel
+70%, pivot 62% and MOMENTS 40% - and for none of that missing 60% could anyone say which of the two it was.
+It is the same class as the transcript failure this whole build is about, and F12, and F13: a path that
+produces nothing while nothing says so.
+
+Recorded at `generateSessionArtifacts` rather than inside four engines, because that layer already holds all
+five results AND the transcript they were given - one change instead of four, at the only place that can see
+the whole set. One event per session at most, and only when something actually came back empty.
+
+It deliberately does NOT re-record a timeout. An engine the bound abandoned is already named in
+`coach.engines_timed_out`, and counting it twice would make the empty count look worse than it is - which
+would be the same overstatement F18 is a correction for.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
