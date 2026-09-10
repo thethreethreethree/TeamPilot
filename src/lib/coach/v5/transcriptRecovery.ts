@@ -91,18 +91,35 @@ export function isRecoverable(state: TranscriptState): boolean {
    */
   if (state.agent > 0 && state.customer > 0) return false;
   /*
-   * A CUSTOMER-ONLY TRANSCRIPT WITH NOTHING UNKNOWN IS AN ANSWER, NOT A GAP.
+   * A CUSTOMER-ONLY TRANSCRIPT IS TREATED AS AN ANSWER, NOT A GAP — and the limit of that
+   * is written down here rather than left as confidence.
    *
-   * "Zero agent turns means recoverable" was the first rule here, and it was wrong in a
-   * way only the rep's own screen reveals. When a rep answers "that was the customer, not
-   * me" — the real one-sided capture the picker exists for — every segment is labelled
-   * `customer`. Under the old rule the sweep would see no agent turn, call it recoverable,
-   * and a declined re-assignment would overwrite their deliberate answer with `unknown`
-   * within the hour. The system would have argued with the person it asked.
+   * "Zero agent turns means recoverable" was the first rule, and it was wrong in a way only
+   * the rep's own screen reveals. When a rep answers "that was the customer, not me" — the
+   * real one-sided capture the picker exists for — every segment is labelled `customer`.
+   * Under that rule the sweep would call it recoverable, and a declined re-assignment would
+   * overwrite their deliberate answer within the hour. The system would have argued with
+   * the person it asked.
    *
-   * Nothing else produces this shape: recovery writes all-`unknown` or agent-plus-customer,
-   * and live capture writes agent turns. So customer-only with no unknowns can only be a
-   * human answer, and no unknowns is precisely the evidence that somebody answered.
+   * A CORRECTION TO MY OWN REASONING, measured 10 September 2026. This comment used to say
+   * "nothing else produces this shape — customer-only can ONLY be a human answer". That is
+   * FALSE. Production holds SIX customer-only transcripts dated 23 July to 18 August, all
+   * predating the answer flow entirely: live capture attributed the customer and never
+   * attributed the rep, which is exactly what the dissect's `no_agent_turns` decline counts.
+   *
+   * WHY THE BEHAVIOUR IS STILL RIGHT, which is a different claim from the one I made:
+   *   - all six carry NO saved audio, so the sweep — which only ever considers sessions with
+   *     `audio_asset_url` — cannot reach them regardless of this rule;
+   *   - and if such a session ever did have audio, `mayOverwriteUnlabelled` already refuses
+   *     to replace it with an unlabelled re-read, so the rep's answer is protected by that
+   *     guard rather than by this one.
+   *
+   * THE LIMIT, stated plainly: a genuine capture gap that leaves customer-only turns AND has
+   * saved audio would not be re-read. That set is empty today. It is not distinguishable
+   * from a rep's answer with what the row carries — `source` would settle it, but the older
+   * label path writes none, so marking every human answer would need a migration. Recorded
+   * rather than guessed at, and it is a smaller mistake to skip a re-read than to overwrite
+   * an answer somebody gave.
    *
    * Agent-only is NOT symmetric and stays recoverable: that is the original customer-missing
    * capture gap, where the rep was heard and the prospect was not, and re-reading the audio

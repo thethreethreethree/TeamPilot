@@ -365,6 +365,33 @@ The lesson is the one this build keeps re-learning from the other side: I check 
 before believing someone else's; I did not check my own. A finding with dates in it should always be asked
 "and what happened after the last one?".
 
+### F21 - I tested my own assumption against the data and it was false
+class: a-premise-asserted-as-a-fact-inside-a-guard
+sweep: every customer-only transcript in production, against the dates the answer flow shipped
+severity: medium (the reasoning; the behaviour is safe today)
+F8 added a rule refusing to recover a customer-only transcript, on the stated ground that "nothing else
+produces this shape - customer-only can ONLY be a human answer". I wrote that as a fact. It is false.
+
+Production holds **six** customer-only transcripts dated 23 July to 18 August - all predating the answer
+flow, which shipped today. They come from live capture attributing the customer and never attributing the
+rep, which is exactly what the dissect's `no_agent_turns` decline counts. So the rule also refuses a genuine
+capture gap.
+
+THE BEHAVIOUR IS STILL RIGHT, and that is a different claim from the one I made:
+  - all six carry NO saved audio, and the sweep only ever considers sessions that have some, so it cannot
+    reach them regardless of this rule;
+  - if such a session ever did have audio, `mayOverwriteUnlabelled` already refuses to replace it with an
+    unlabelled re-read - the rep's answer is protected by that guard, not by this one.
+
+WHAT I DID NOT DO, deliberately: change the behaviour. The set is empty, the trade is genuinely ambiguous,
+and "I guessed at a rule from my own reasoning" is how this defect got here. `source` would settle it -
+`manual` marks a human answer - but the older label path writes none, so marking every answer needs a
+migration. Recorded as a known limit instead: skipping a re-read is a smaller mistake than overwriting an
+answer somebody gave.
+
+The test name was overstating in exactly the same way ("that is the rep's ANSWER, not a gap") and now names
+the cost.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.

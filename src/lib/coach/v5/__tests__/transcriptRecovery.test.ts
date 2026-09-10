@@ -28,13 +28,22 @@ describe("isRecoverable — a transcript missing an entire SIDE can still be imp
     expect(isRecoverable(stateOf([seg("unknown"), seg("unknown")]))).toBe(true);
   });
 
-  it("REFUSES a customer-only transcript — that is the rep's ANSWER, not a gap", () => {
+  it("REFUSES a customer-only transcript, protecting a rep's answer at a known cost", () => {
     /*
-      The bug this pins, found by walking what a rep actually does with the picker. When
-      they answer "that was the customer, not me" — the one-sided capture the picker exists
-      for — every segment becomes `customer`. The first rule here was "zero agent turns
-      means recoverable", so the sweep would have overwritten their deliberate answer with
-      `unknown` within the hour. The system would have argued with the person it asked.
+      Found by walking what a rep actually does with the picker. When they answer "that was
+      the customer, not me" — the one-sided capture the picker exists for — every segment
+      becomes `customer`. The first rule here was "zero agent turns means recoverable", so
+      the sweep would have overwritten their deliberate answer within the hour. The system
+      would have argued with the person it asked.
+
+      THE COST, because this test used to be named as if there were none. Customer-only is
+      NOT only ever a human answer: production holds six such transcripts from 23 July to
+      18 August, all predating the answer flow, where live capture attributed the customer
+      and never attributed the rep. So this rule also refuses a genuine capture gap.
+
+      It is safe today because every one of those six has NO saved audio, and the sweep only
+      ever considers sessions that have some. The trade is deliberate: skipping a re-read is
+      a smaller mistake than overwriting an answer somebody gave.
     */
     expect(isRecoverable(stateOf([seg("customer"), seg("customer")]))).toBe(false);
   });
