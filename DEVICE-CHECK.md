@@ -811,8 +811,26 @@ recovers them: it re-reads the audio, and where it can tell which voice is the
 rep it labels them automatically. Where it *cannot*, it saves the words anyway
 and asks you.
 
-Two of your sessions are in that state right now. On the **Sessions** tab, look
-for a call with **“Needs your voice”** under it.
+**Two of your own calls are in that state right now**, both from 27 August, and I
+have checked them tonight rather than assuming:
+
+| Call | Words waiting |
+|---|---|
+| **“Initial meeting”** | **691** — it opens *“…the last thing that I messaged you about, Moses, was…”* |
+| **“John's Initial Meeting.”** | **121** |
+
+Both were recovered from audio that had been dropped. Both have had four of the
+five coaching engines run on them already; only the deep read is missing, and it
+is missing for one reason: nothing knows which voice is yours.
+
+**This check matters more than it did this morning.** Until tonight, answering
+that question *from a phone was impossible* — the route refused every request
+from the app with a permissions error, and the app translated that into “this
+call belongs to someone else.” On your own call. That is fixed and verified
+against the live site, but no human has done it on a phone yet, and you are the
+only person who can: they are your calls.
+
+On the **Sessions** tab, look for a call with **“Needs your voice”** under it.
 
 1. **Open it.** Above the transcript you should see **“Is this your voice?”**
    with a sample line, and two answers: **That is me** and **That is the
