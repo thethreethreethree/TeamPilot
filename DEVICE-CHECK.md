@@ -966,6 +966,7 @@ You will hit one of four states, and all four are correct results:
 | **No read yet** + **Read this call** | Nothing has been made. Tap it — it takes a moment, because it reads the whole conversation. |
 | **The read did not finish** + **Try again** | The coach failed on this one. It should say your recording is fine. |
 | **Nothing to read on this one**, *no button* | The recording caught no speech. **The absent button is the point** — see below. |
+| **That did not work either**, *no button* | You tapped the button and it still produced nothing. |
 
 **Wrong looks like:**
 
@@ -981,6 +982,16 @@ You will hit one of four states, and all four are correct results:
 **The one I would look hardest at:** tap **Try again** or **Read this call** and
 watch the button. It should say **"Reading the call…"**, be visibly disabled, and
 not be tappable twice. Two taps means two charges.
+
+**And what happens if it fails.** I shipped this an hour before writing this and
+it had the exact defect it exists to cure: a failed retry put the *same* card
+back, with the *same* button, saying nothing about the attempt that had just run.
+A rep would tap it forever, paying each time.
+
+So if a retry comes back empty you should now see **"That did not work either"**
+— saying your recording is fine, your words are safe, and that asking again now
+will most likely do the same — and **no button at all**. If you get the original
+message and a live button a second time, that is the bug, and I want to know.
 
 **And the other one: find a LONG read.** I could not see this render, so I
 measured the 121 reads already stored to find out how big they really get:
