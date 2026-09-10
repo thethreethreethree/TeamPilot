@@ -1142,6 +1142,13 @@ I traced why, across the app, the server and the database:
 it carries timing, and Speed starts working — for every rep, on every call, from
 then on.
 
+**One thing I checked so you do not waste the trip.** The sweep only unblocks
+itself if it can *recognise* that 0249 has been applied — it looks for a migration
+whose name starts `0249`. Your ledger stores names like
+`0248_door_home_screen_sale_value.sql`, so I ran that exact lookup against **0248,
+which IS applied**, and it matched. The gate will open. Running the command will
+not silently do nothing.
+
 **What to do, in order:**
 
 1. Run `npm run db:apply`.
