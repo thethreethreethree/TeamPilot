@@ -1308,6 +1308,105 @@ function BlankReadRecovery({
   autoRecoverOutcome: string | null;
   onRecovered: () => void;
 }) {
+  /*
+    IS THE TRANSCRIPT ALREADY HERE, JUST UNATTRIBUTED?
+
+    Recovery now saves a dropped call's words as `unknown` when it cannot confidently say
+    which voice is the rep. Those words are in the database, with their timing. The card
+    below would have offered to RE-TRANSCRIBE the audio to fix that — a second speech-to-text
+    charge, on a recording of up to 42 minutes, to obtain words we already have. And its copy
+    would have been wrong: the read is not blank, it is unattributed.
+
+    `null` while unknown, so nothing is asserted before the answer arrives. Hooks run
+    unconditionally and the branching happens in the render below.
+  */
+  const [unlabelled, setUnlabelled] = useState<boolean | null>(null);
+  const [answering, setAnswering] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/coach/sales-session/${sessionId}/segments`);
+        if (!r.ok) return;
+        const d = (await r.json()) as { segments?: { speaker?: string }[] };
+        const segs = d.segments ?? [];
+        // Words present AND every one of them unattributed. A transcript with even one real
+        // turn already has an answer, and an empty one has nothing to ask about.
+        if (!cancelled) {
+          setUnlabelled(segs.length > 0 && segs.every((x) => x.speaker === "unknown"));
+        }
+      } catch {
+        /* stays null — the existing card behaviour is the honest fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const answer = useCallback(
+    async (mine: boolean) => {
+      setAnswering(true);
+      setAnswerError(null);
+      try {
+        const r = await fetch(`/api/coach/sales-session/${sessionId}/attribute-unlabelled`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mine }),
+        });
+        if (!r.ok) {
+          const d = (await r.json().catch(() => ({}))) as { error?: string };
+          setAnswerError(d.error ?? "Couldn't save that — your transcript is unchanged.");
+          return;
+        }
+        onRecovered();
+      } catch {
+        setAnswerError("Couldn't reach the server — your transcript is unchanged.");
+      } finally {
+        setAnswering(false);
+      }
+    },
+    [sessionId, onRecovered]
+  );
+
+  // THE WORDS ARE ALREADY HERE. Ask the one question that unlocks them, rather than paying
+  // to transcribe the same audio twice.
+  if (unlabelled === true) {
+    return (
+      <section className="rounded-2xl border border-ember-400/30 bg-ember-400/[0.05] p-4 space-y-3">
+        <div>
+          <p className="text-xs text-primary font-medium">Whose voice is on this recording?</p>
+          <p className="text-[11px] text-muted leading-relaxed mt-1">
+            We recovered what was said on this call, but only one voice came through and we
+            can&apos;t tell whose it is. Say which, and the coaching read is built from it —
+            nothing is re-recorded and nothing is lost either way.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void answer(true)}
+            disabled={answering}
+            className="min-h-11 rounded-lg bg-ember-400/15 px-4 text-xs font-medium text-primary hover:bg-ember-400/25 disabled:opacity-50"
+          >
+            {answering ? "Saving…" : "That’s me"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void answer(false)}
+            disabled={answering}
+            className="min-h-11 rounded-lg border border-default px-4 text-xs font-medium text-secondary hover:bg-surface disabled:opacity-50"
+          >
+            That&apos;s the customer
+          </button>
+        </div>
+        {answerError ? <p className="text-[11px] text-rose-300">{answerError}</p> : null}
+      </section>
+    );
+  }
+
   // Automatic recovery in flight — a working state, not the manual tap card.
   if (autoRecovering) {
     return (

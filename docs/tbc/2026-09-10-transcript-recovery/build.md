@@ -45,6 +45,17 @@
 - read-path: the pace skill keeps working on a recovered call. An unknown time is `undefined`, never 0 -
   stamping untimed lines at the opening of the call would invent a pace reading.
 
+### Answering without paying to transcribe the same audio twice
+- write-path: `POST /api/coach/sales-session/[id]/attribute-unlabelled` relabels the rows the server
+  ALREADY holds - `{ mine: boolean }`, scoped to `speaker = unknown` so a slower concurrent answer changes
+  nothing. `/label-transcript` could not do this cheaply: it rebuilds the transcript from a client payload,
+  against a 5,000-segment cap, with `spoken_at` reconstructed and re-sent - and a payload that forgets it
+  deletes the timing in the act of making the call coachable.
+- read-path: the web After-Pitch card asked the wrong question. For a recovered `unknown` transcript its
+  only offer was to RE-TRANSCRIBE the saved audio - a second speech-to-text charge on a recording of up to
+  42 minutes, to obtain words already sitting in the table - under copy claiming the read "came back
+  blank" when it had not. It now asks whose voice it is and spends nothing.
+
 ### The gate (A30)
 - write-path: `__tests__/transcriptRecovery.test.ts` (14) and `tests/relabel-unknown.test.ts` (10). In the
   route test, `not-applicable (200) when there is no transcript` was REWRITTEN to

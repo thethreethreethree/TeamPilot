@@ -107,6 +107,37 @@ nothing until 0249 is applied, returning `waitingForMigration` so an empty run c
 unsure is worse than waiting an hour. The on-open path is untouched: a rep triggering recovery is a human
 choosing to have their words back now.
 
+### F10 - the web offered to re-transcribe words it already had
+class: an-affordance-that-outlived-the-problem-it-solved
+sweep: every path a rep can reach an unattributed transcript from, web and phone
+severity: medium
+The After-Pitch recovery card predates this build and was correct when written: a blank read meant the
+words were genuinely missing, so re-transcribing was the only cure. Recovery changed that premise without
+changing the card. For a recovered `unknown` transcript it would have charged a second full transcription
+of a 42-minute recording to recover words already in the database, under copy asserting the read "came
+back blank" - which was no longer true. Replaced with the direct question. The card is unchanged for every
+case where the words really are missing.
+
+Also caught by reading rather than by any gate: `{answering ? "Saving…" : "That&apos;s me"}` puts an HTML
+entity inside a JAVASCRIPT string, where nothing decodes it - the button would have rendered the literal
+characters `That&apos;s me`. Typecheck and lint both pass on it. Only looking at it finds it.
+
+### F11 - I cited a constitutional asset I had not opened, and it did not say what I assumed
+class: the-citation-that-travels-faster-than-the-reading
+sweep: `A18` across the coach routes; then A18 itself, opened
+severity: medium
+The routes this build sits beside attribute the owner-only transcript rule to "A18", and I copied that into
+a new route without opening it. A18 is about the LABEL on human-behaviour data surfaced to a leader - that
+"Warning" invites enforcement where "Needs Guidance" invites mentorship - and says nothing whatever about
+who may write a transcript. The RULE is real and load-bearing (the service role bypasses RLS, so the
+ownership check is the only thing between a colleague and another rep's canonical transcript); the citation
+was decoration, and it was wrong.
+
+This is A22's exact mechanic, caught only because the commit hook demanded a Session-Reads timestamp and I
+had to open the asset to supply one. The new route states the reason in plain words instead. The
+pre-existing miscitations in the neighbouring routes are left alone - rewriting other builds' comments is
+not this build's business - but they are recorded here so the next reader knows they are decoration.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
@@ -118,6 +149,18 @@ byte-identical with `diff`.
     MA  an unknown time becomes zero      -> x an unknown time is never a zero
     MB  an empty transcript is askable    -> x an EMPTY transcript is not asked about
     MC  a negative offset is accepted     -> x a NEGATIVE offset is corrupt, not "slightly before the start"
+    M5  a rep's customer-only answer is recoverable -> x REFUSES a customer-only transcript - that is the ANSWER
+    M6  the two-sided guard weakened       -> x refuses a two-sided transcript even with unknown turns mixed in
+    M7  a customer-only answer may be overwritten   -> x REFUSES to overwrite a rep's customer-only answer
+    N1  attributed speech may be rewritten -> x 409s a transcript that already says who spoke
+    N2  the unknown-only update scope dropped       -> x scopes the update to speaker=unknown
+    N3  a missing answer defaults to "it was me"    -> x REFUSES to guess when the answer is missing
+    N4  any colleague may answer           -> x 403s a colleague - only the session's own rep may answer
+
+    MD  the null-count guard flipped to && -> SURVIVED, and it is recorded rather than quietly dropped.
+        `null <= 0` is true in JavaScript, so a null count already falls out at the next guard; no input
+        distinguishes the two spellings, so NO test can prove that line. It stays as documentation and now
+        says so in its own comment, to stop a future reader believing a test is holding it.
 
 ## Gates
 A38 first, because it applies to me here and the honest answer is not the flattering one.
