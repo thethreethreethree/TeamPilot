@@ -1458,6 +1458,39 @@ function OutcomeRow({
   const [saving, setSaving] = useState(false);
   const [value, setValue] = useState(session.deal_value == null ? '' : String(session.deal_value));
   const [focused, setFocused] = useState(false);
+  // Shown after a real save, so the rep sees that the number landed. The form rules ask
+  // for this explicitly: "confirm success visibly".
+  const [saved, setSaved] = useState(false);
+
+  /*
+    WHY THERE IS A BUTTON HERE AND NOT JUST A BLUR HANDLER.
+
+    Measured on production 10 September 2026: of 14 sessions marked SOLD across the company,
+    NOT ONE carries a deal value - so `revenue` and `avgDealSize` on the KPI screen can
+    never produce a number for anybody, for any rep.
+
+    The field was not missing. It was unreachable at the end. `keyboardType="decimal-pad"`
+    renders a keypad with NO return key on iOS, so `returnKeyType="done"` is a no-op and the
+    only way to blur - the only thing that saved - was to tap somewhere else on the screen.
+    A rep who types the amount and swipes back loses it, and is told nothing.
+
+    So the commit is now an explicit, visible action with a 44pt target, and the blur is
+    kept as well: whichever the rep reaches first, the number is saved.
+  */
+  const parsed = parseMoney(value);
+  const stored = session.deal_value ?? null;
+  const unsaved = parsed !== stored;
+
+  const commit = useCallback(async () => {
+    if (!unsaved) return;
+    setSaving(true);
+    try {
+      await onSet('sold', parsed);
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }, [unsaved, parsed, onSet]);
 
   return (
     <View className="mt-6 border-t border-border pt-2">
@@ -1498,23 +1531,50 @@ function OutcomeRow({
             placeholder="1500"
             placeholderTextColor={C['muted-foreground']}
             returnKeyType="done"
-            onFocus={() => setFocused(true)}
-            onBlur={async () => {
+            onFocus={() => {
+              setFocused(true);
+              setSaved(false);
+            }}
+            onBlur={() => {
               setFocused(false);
-              const parsed = parseMoney(value);
-              // Unchanged, or unreadable and already absent: nothing to send.
-              if (parsed === (session.deal_value ?? null)) return;
-              setSaving(true);
-              try {
-                await onSet('sold', parsed);
-              } finally {
-                setSaving(false);
-              }
+              void commit();
             }}
             className={`mt-2 min-h-7 rounded-md border px-3 py-3 font-body text-base tabular-nums text-foreground ${
               focused ? 'border-primary' : 'border-border-control'
             }`}
           />
+
+          {/* The reachable end of the field. Present only when there is something to save,
+              so it never sits there inviting a tap that would do nothing. */}
+          {unsaved ? (
+            <Pressable
+              onPress={() => void commit()}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={
+                parsed == null
+                  ? 'Save, leaving what it was worth blank'
+                  : `Save what it was worth, ${money(parsed)}`
+              }
+              accessibilityState={{ disabled: saving }}
+              className={`mt-3 min-h-7 items-center justify-center rounded-md bg-primary px-5 py-3 active:bg-primary-pressed ${
+                saving ? 'opacity-50' : ''
+              }`}
+            >
+              <Text className="font-strong text-base text-primary-foreground">
+                {saving ? 'Saving' : 'Save'}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {saved && !unsaved ? (
+            <Text
+              accessibilityRole="text"
+              className="mt-2 font-emphasis text-sm text-muted-foreground"
+            >
+              {stored == null ? 'Saved — left blank.' : `Saved — ${money(stored)}.`}
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </View>
