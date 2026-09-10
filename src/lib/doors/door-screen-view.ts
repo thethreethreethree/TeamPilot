@@ -124,11 +124,39 @@ export const TAP_HINT = 'Tap a dial to log one';
  * reachable by swiping alone - and the design law is explicit that navigation is
  * "never hidden behind a gesture or an unlabelled icon".
  *
- * The founder asked for the mockup exactly, so the resolution is not to drop the
- * dots but to make them CONTROLS: they render identically and each is a button
- * with a real name. The look is the mockup's; the reachability is the law's.
+ * THE FIRST ANSWER WAS THE DOTS, AND THE GEOMETRY DEFEATED IT. They were made
+ * buttons, each with a real name and a 19pt hitSlop to clear the 44pt floor. But
+ * a 6pt dot and an 8pt gap put the two centres 14pt apart, while the slop makes
+ * each hit rect 44pt wide - so the second dot's rect covered the first one
+ * entirely, and being the later sibling it sat on top and took every tap. The
+ * control that existed to guarantee a non-gesture route back to page 0 was the
+ * one thing on the screen a finger could not reach. Two 44pt targets cannot sit
+ * 14pt apart; that is arithmetic, not a bug to be tuned away.
+ *
+ * SO THE HINT IS THE CONTROL AND THE DOTS ARE THE INDICATOR - which is what each
+ * is actually for. The hint is already full width and already directly under the
+ * dots, so it clears 44pt without moving a pixel of the mockup, and it is the
+ * only element on the pair that can carry a label a person can read.
+ *
+ * AND IT NAMES THE PAGE IT GOES TO, per page. The single constant said "swipe
+ * left" on both pages, so on page 1 it named the direction that goes further
+ * away from the thing it offered.
  */
-export const SWIPE_HINT = 'Swipe left for the original home screen';
+export const HOME_PAGER_HINTS = [
+  'Swipe or tap for the original home screen',
+  'Swipe or tap for your door target',
+] as const;
+
+/**
+ * The hint for the page a rep is on.
+ *
+ * Falls back to the first sentence rather than throwing: a hint is the least
+ * important thing on the screen, and a pager that crashed over one would be a
+ * worse failure than a hint that named the wrong page.
+ */
+export function homePagerHint(index: number): string {
+  return HOME_PAGER_HINTS[index] ?? HOME_PAGER_HINTS[0];
+}
 
 /** What a rep with no goal reads. Names who can fix it, because they cannot. */
 export const NO_GOAL_TITLE = 'No daily goal set yet';

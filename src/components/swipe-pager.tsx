@@ -69,16 +69,27 @@ export function SwipePager({
    * 'dots'  two dots and a swipe hint BELOW the pages, matching the founder's
    *         door-tracker mockup exactly.
    *
-   * THE DOTS ARE BUTTONS, and that is not a detail. The design law is explicit
-   * that navigation is "never hidden behind a gesture or an unlabelled icon" -
-   * and a dot that only reports position leaves page 1 reachable by swiping
-   * alone. Rendered as controls they look identical to the mockup's dots, carry
-   * a real name for a screen reader, and keep a non-gesture route to every page.
-   * The swipe stays what it always was here: an enhancement on top.
+   * UNDER 'dots' THE HINT IS THE CONTROL, not the dots. The design law is
+   * explicit that navigation is "never hidden behind a gesture or an unlabelled
+   * icon", so something here has to be tappable and named. The dots were tried
+   * first and the arithmetic refused them: 6pt dots 14pt apart cannot each own a
+   * 44pt target without overlapping, and the overlap handed every tap to
+   * whichever was on top - leaving the other page reachable by swipe alone,
+   * which is the exact thing the buttons were added to prevent. The hint line is
+   * already full width and already there, so it carries the label and clears the
+   * floor without moving a pixel of the mockup. The swipe stays what it always
+   * was: an enhancement on top.
    */
   control?: 'tabs' | 'dots';
-  /** The line under the dots. Only used by 'dots'. */
-  hint?: string;
+  /**
+   * The line under the dots, and the control that goes with it. Only used by 'dots'.
+   *
+   * A FUNCTION OF THE PAGE, because a fixed sentence is wrong on at least one of
+   * them: "swipe left for the home screen" read identically on the page that was
+   * already the home screen, naming the direction that leads away from what it
+   * offered.
+   */
+  hint?: (index: number) => string;
 }) {
   /**
    * OPTED OUT OF THE REACT COMPILER, for one component, with a reason.
@@ -300,28 +311,40 @@ export function SwipePager({
       {/* The mockup's dots and hint, under the page and above the tab bar. */}
       {control === 'dots' ? (
         <View className="pb-2 pt-3">
-          <View accessibilityRole="tablist" className="flex-row items-center justify-center gap-2">
-            {pages.map((page, i) => {
-              const active = i === index;
-              return (
-                <Pressable
-                  key={page.key}
-                  onPress={() => settle(i)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${page.label}, page ${i + 1} of ${pages.length}`}
-                  // The dot is 6pt to match the mockup; the TARGET is 44 via
-                  // hitSlop, which is the design law's floor for any control.
-                  hitSlop={19}
-                  className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary' : 'bg-border-control'}`}
-                />
-              );
-            })}
+          {/* POSITION, NOT NAVIGATION. Two 6pt dots 14pt apart cannot each carry a
+              44pt target - the rects overlap and the topmost one takes every tap,
+              which is how the first dot became untappable. So the dots report
+              where the rep is, as one phrase rather than two anonymous circles,
+              and the labelled control below is what moves. */}
+          <View
+            accessibilityRole="text"
+            accessibilityLabel={`${pages[index]?.label ?? ''}, page ${index + 1} of ${pages.length}`}
+            className="flex-row items-center justify-center gap-2"
+          >
+            {pages.map((page, i) => (
+              <View
+                key={page.key}
+                className={`h-1.5 w-1.5 rounded-full ${i === index ? 'bg-primary' : 'bg-border-control'}`}
+              />
+            ))}
           </View>
           {hint ? (
-            <Text className="mt-3 text-center font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
-              {hint}
-            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={hint(index)}
+              // The whole line, full width and 44pt tall: the mockup's hint text
+              // sits inside a target that clears the design law's floor without
+              // changing how the line looks.
+              onPress={() => settle((index + 1) % pages.length)}
+              // No top margin: the 44pt box centres the line, which already puts
+              // about 14pt between it and the dots - the mockup's gap, arrived at
+              // by the target rather than added on top of it.
+              className="min-h-11 justify-center active:opacity-70"
+            >
+              <Text className="text-center font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+                {hint(index)}
+              </Text>
+            </Pressable>
           ) : null}
         </View>
       ) : null}

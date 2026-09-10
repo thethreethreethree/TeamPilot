@@ -10,11 +10,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  HOME_PAGER_HINTS,
   NO_GOAL_BODY,
   dateEyebrow,
   doorScreenState,
   goalBasisLine,
   greeting,
+  homePagerHint,
   partOfDay,
   pendingNote,
 } from '@/lib/doors/door-screen-view';
@@ -116,4 +118,38 @@ test('one sale reads as one sale, not "1 sales"', () => {
 test('a server that says nothing gets NO line, never an invented reason', () => {
   // An older deployment, or a frozen row from before the derivation existed.
   assert.equal(goalBasisLine(null, 2), null);
+});
+
+// ---------------------------------------------------------------------------
+// The pager hint — which is also the only labelled way off a page
+//
+// It stopped being decoration when the dots stopped being buttons. Two 6pt dots 14pt apart cannot each own a
+// 44pt target: the hit rects overlap, the later sibling sits on top, and the first dot became untappable — so
+// the page it led to was reachable by swipe alone, which is what the design law refuses. The hint line carries
+// the label now, so its words are load-bearing.
+
+test('each page names the OTHER one, so the hint never offers the page you are on', () => {
+  assert.equal(HOME_PAGER_HINTS.length, 2, 'one sentence per page of the home pager');
+  assert.notEqual(homePagerHint(0), homePagerHint(1));
+  assert.match(homePagerHint(0), /home screen/i, 'page 0 is the door target, so it offers the home screen');
+  assert.match(homePagerHint(1), /door target/i, 'page 1 is the home screen, so it offers the door target');
+});
+
+test('the hint says it can be tapped, because it is now the control', () => {
+  HOME_PAGER_HINTS.forEach((line) => {
+    assert.match(line, /tap/i, `"${line}" is the only labelled route off the page and must say so`);
+  });
+});
+
+test('no hint names a swipe DIRECTION, which was wrong on one page by construction', () => {
+  // "Swipe left for the original home screen" read identically on the home screen itself, where left leads
+  // away from what the sentence offers. A hint that names the destination cannot go stale that way.
+  HOME_PAGER_HINTS.forEach((line) => {
+    assert.doesNotMatch(line, /\b(left|right)\b/i, `"${line}" names a direction that is wrong on one page`);
+  });
+});
+
+test('an index outside the pages falls back rather than rendering undefined', () => {
+  assert.equal(homePagerHint(9), HOME_PAGER_HINTS[0]);
+  assert.equal(homePagerHint(-1), HOME_PAGER_HINTS[0]);
 });
