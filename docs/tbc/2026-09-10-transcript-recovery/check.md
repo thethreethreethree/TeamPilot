@@ -199,6 +199,32 @@ to a grep and are NOT the same thing. They are per-session inside a batch, annot
 reports counts either way - a considered decision that one session must not stop the batch. Opened rather
 than counted, per the standing rule that a grep result is a list of suspects.
 
+### F14 - the website printed the raw database column at a rep, and my own fix made it visible
+class: an-internal-state-word-reaching-a-human-screen
+sweep: every place a transcript speaker is rendered, web and phone
+severity: medium
+The session page rendered `{seg.speaker}` directly, uppercased by CSS - so a transcript read `AGENT` and
+`CUSTOMER`. Harmless-looking until today, when recovery began saving a dropped call's words BEFORE anyone
+had attributed them: those two sessions now read **`UNKNOWN`** above every single line, live, on the screen
+the founder would open to answer the voice question.
+
+`unknown` is an honest internal state. Printed at a rep it reads as a verdict on their call, or as an
+error - the same absence-presented-as-measurement failure this build spent all day removing. The PHONE
+already got this right and says "Unattributed"; the website was showing the column.
+
+DELIBERATELY NOT "You", which is what the phone says. The phone is in the rep's hand. This page has no idea
+who is looking - a manager can open a rep's call - so "You" would be a claim it cannot support. "Rep" is
+true for every viewer, and the one-noun divergence is the honest trade.
+
+NOT reusing `speakerLabel` from coach/strategy/renderTurns.ts, which exists and looks applicable. That one
+renders speakers INTO AN LLM PROMPT for multi-party meetings: the audience is a model, the speaker is a
+participant name rather than a role, and shouting UNKNOWN is the correct signal there. Reusing it would have
+put prompt vocabulary on a rep's screen.
+
+MY OWN TEST WAS WRONG FIRST, and rightly failed. I asserted the output never equals the column value -
+false, because "customer" is a perfectly good English word and "Customer" is its correct label. The real
+property is narrower: values that mean something only inside the system must never reach the screen.
+
 ## Mutation testing (A30 - a guard nobody can break is not a guard)
 Each guard was broken in source and the NAMED test watched to fail, then the source restored and confirmed
 byte-identical with `diff`.
@@ -222,6 +248,9 @@ byte-identical with `diff`.
     P3  the note's throw may escape        -> x a note that throws never becomes the failure it was recording
     R1  the lookup failure stops being recorded     -> x says the lookup FAILED, so an outage is not a quiet week
     R2  every run claims a failure         -> x a genuinely quiet week reports zero WITHOUT claiming a failure
+    T1  the raw column is printed again    -> x 3 tests, including "never prints an INTERNAL state word at a rep"
+    T2  agent labelled "You"               -> x says Rep rather than You, because this page does not know who is looking
+    T3  isUnattributed calls unknown attributed -> x is true only when nobody has said whose voice it is
 
     MD  the null-count guard flipped to && -> SURVIVED, and it is recorded rather than quietly dropped.
         `null <= 0` is true in JavaScript, so a null count already falls out at the next guard; no input

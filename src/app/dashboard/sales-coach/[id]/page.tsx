@@ -28,6 +28,7 @@ import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordingUpload";
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { speakerName } from "@/lib/coach/v5/speakerName";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   OUTCOME_LABELS,
@@ -1080,7 +1081,7 @@ export default function SessionDetail() {
                       }`}
                     >
                       <span className="text-[10px] uppercase tracking-widest font-bold text-muted">
-                        {seg.speaker}
+                        {speakerName(seg.speaker)}
                       </span>
                       <p className="text-secondary mt-0.5">{seg.text}</p>
                     </div>
