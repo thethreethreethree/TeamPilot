@@ -76,7 +76,19 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
     void load();
   }, [load]);
 
+  /*
+    ONLY ASKED WHEN THERE IS NO READ, which is the only time the answer is used.
+
+    This costs two more queries on a screen a rep opens constantly, and it exists solely to choose
+    between two sentences on an EMPTY card - "nobody has asked yet" against "the coach tried and
+    failed". When a read came back, `noReadReason` returns null and neither sentence is ever shown, so
+    paying for the verdict would buy nothing at all.
+
+    Most calls have a read. So most of the time this now costs nothing, and the cost falls exactly on
+    the calls where the extra sentence is worth having.
+  */
   useEffect(() => {
+    if (phase !== 'ready' || read?.hasSignal) return;
     let live = true;
     void readIssueForSession(sessionId).then((issue) => {
       if (live) setAttemptFailed(issue === 'unfinished');
@@ -84,7 +96,7 @@ export function SessionReadCard({ sessionId, segments }: { sessionId: string; se
     return () => {
       live = false;
     };
-  }, [sessionId]);
+  }, [sessionId, phase, read]);
 
   const make = useCallback(async () => {
     setPhase('working');
