@@ -126,6 +126,8 @@ type Row =
       /** What separates "the transcript has not arrived yet" from "it is never arriving". */
       endedAt: string | null;
       startedAt: string | null;
+      /** Segments that are the rep's own - zero of them, all labelled, means only the customer was caught. */
+      agentTurnCount: number;
     }
   | { kind: 'outcome'; session: CoachingSession }
   | { kind: 'rename'; session: CoachingSession }
@@ -1131,6 +1133,7 @@ function RowView({
         unattributedCount={row.unattributedCount}
         endedAt={row.endedAt}
         startedAt={row.startedAt}
+        agentTurnCount={row.agentTurnCount}
       />
     );
   }
@@ -1262,6 +1265,7 @@ function buildRows(
     // turned into a transcript", which it was saying to calls up to forty-seven days old.
     endedAt: session.ended_at,
     startedAt: session.started_at,
+    agentTurnCount: segments.filter((s) => s.speaker === 'agent').length,
   });
   /*
     "YOUR READ", under the debrief, and the app has never had it.

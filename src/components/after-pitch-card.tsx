@@ -62,6 +62,7 @@ export function AfterPitchCard({
   unattributedCount = 0,
   endedAt,
   startedAt,
+  agentTurnCount,
 }: {
   sessionId: string;
   /** Whether the server holds audio for this call. */
@@ -82,6 +83,14 @@ export function AfterPitchCard({
    */
   endedAt?: string | null;
   startedAt?: string | null;
+  /**
+   * How many segments are the rep's own.
+   *
+   * Left undefined by a caller that has not counted, which reads as "not asked" rather than as
+   * "none" - see the default in `debriefAvailability`. Getting that backwards would declare every
+   * call agent-missing.
+   */
+  agentTurnCount?: number;
 }) {
   // Read so the failure line names a cause it has checked, rather than blaming
   // the signal for every failure including a server fault.
@@ -204,7 +213,7 @@ export function AfterPitchCard({
       back, and every one of those re-renders. A ticking clock would buy a sentence changing under
       somebody's eyes, which nobody asked for, at the price of a timer per mounted card.
     */
-    transcriptOverdue(endedAt, startedAt, new Date()),
+    { overdue: transcriptOverdue(endedAt, startedAt, new Date()), agentTurnCount },
   );
   if (availability !== 'ready') {
     const recovery = recoveryStatus ? recoveryWording(recoveryStatus) : null;

@@ -35,6 +35,13 @@
  *   awaiting-transcript audio reached the server, the transcript has not landed, and not
  *                       enough time has passed to call that a failure. Nothing is wrong; it
  *                       is not ready YET.
+ *   agent-missing       there are words, every one of them is labelled, and NONE of them is
+ *                       the rep. Only the customer was recorded. Every coaching engine filters
+ *                       on `speaker === 'agent'`, so this transcript reads as EMPTY to all of
+ *                       them - a debrief asked for here comes back blank, at the cost of an LLM
+ *                       call, and the card then told the rep it could not tell whether the call
+ *                       was thin or the coach had failed. It was neither, and the app already
+ *                       held what it needed to say so: the segments are on the screen.
  *   transcript-overdue  the same shape, waited out. Added 11 September, because "not ready
  *                       yet" was being said to calls where it was never going to be ready:
  *                       the website's sweep found nine sessions with saved audio and no
@@ -58,6 +65,7 @@
 export type DebriefAvailability =
   | 'ready'
   | 'awaiting-voice'
+  | 'agent-missing'
   | 'awaiting-transcript'
   | 'transcript-overdue'
   | 'no-recording';
@@ -76,17 +84,34 @@ export function debriefAvailability(
    */
   unattributedCount = 0,
   /**
-   * Has the wait for the transcript gone past what transcription can honestly take?
+   * The two newer signals, NAMED rather than positional, and that is a correction to my own work.
    *
-   * PASSED IN RATHER THAN COMPUTED, because deciding it needs the current time and a rule that
-   * lives elsewhere - and a pure function that reads the clock is a pure function that cannot be
-   * tested. `transcriptOverdue` in `transcript-wait.ts` is what answers it.
-   *
-   * Defaulted to false so every existing caller keeps its exact behaviour: not asked means not
-   * overdue, which leaves the softer sentence rather than accusing a call of failing.
+   * They went in as a fourth and fifth positional argument - one boolean, one number - and within
+   * minutes the call site passed them in the wrong order. The compiler caught that one because the
+   * types happened to differ; two booleans, or two numbers, would have compiled and shipped a card
+   * that quietly said the wrong thing. The first three stay positional because they are the
+   * original contract and every caller reads clearly; anything past three gets a name.
    */
-  overdue = false,
+  extra: {
+    /**
+     * How many segments are the REP's.
+     *
+     * Absent means NOT ASKED, which is deliberately different from 0. Zero is a real answer -
+     * "none of them are the rep" - and a caller that simply does not count agent turns must not
+     * have every call it shows declared agent-missing.
+     */
+    agentTurnCount?: number;
+    /**
+     * Has the wait for the transcript gone past what transcription can honestly take?
+     *
+     * PASSED IN RATHER THAN COMPUTED, because deciding it needs the current time and a rule that
+     * lives elsewhere - and a pure function that reads the clock is a pure function that cannot be
+     * tested. `transcriptOverdue` in `transcript-wait.ts` is what answers it.
+     */
+    overdue?: boolean;
+  } = {},
 ): DebriefAvailability {
+  const { agentTurnCount, overdue = false } = extra;
   if (Number.isFinite(segmentCount) && segmentCount > 0) {
     // ALL of them, not any. A transcript with one real turn already reads to the
     // engines, and telling a rep to answer a question the server would refuse
@@ -98,6 +123,15 @@ export function debriefAvailability(
     ) {
       return 'awaiting-voice';
     }
+    /**
+     * NONE OF IT IS THE REP, and all of it is labelled.
+     *
+     * `unattributedCount === 0` is load-bearing. A transcript that still holds unknown segments
+     * might have the rep inside one of them, and `awaiting-voice` above already asks about that -
+     * so this only fires once every segment has been attributed and not one of them came back as
+     * the rep. Then it is not a labelling question, it is a recording that caught one person.
+     */
+    if (agentTurnCount === 0 && unattributedCount === 0) return 'agent-missing';
     return 'ready';
   }
   if (!hasAudio) return 'no-recording';
@@ -114,6 +148,7 @@ export function debriefAvailability(
 export function unavailableTitle(state: Exclude<DebriefAvailability, 'ready'>): string {
   if (state === 'no-recording') return 'No recording for this call';
   if (state === 'awaiting-voice') return 'Waiting on one answer';
+  if (state === 'agent-missing') return 'Only the customer was recorded on this call';
   if (state === 'transcript-overdue') return 'The words never came back from this call';
   return 'Waiting for the transcript';
 }
@@ -124,6 +159,12 @@ export function unavailableBody(state: Exclude<DebriefAvailability, 'ready'>): s
   }
   if (state === 'awaiting-voice') {
     return 'We have what was said on this call, but only one voice came through and we could not tell whose it is. Say which above and the debrief is written from it — the words are already saved either way.';
+  }
+  if (state === 'agent-missing') {
+    // NOT "there was not enough in this call", and not "nothing recorded which". Both were
+    // available and both would have been false: the transcript is full of words, and the app can
+    // see that every one of them is the other person.
+    return 'This call has plenty of words in it, but every one of them is the customer - your own side was not picked up. The coach reads what YOU said, so there is nothing here for it to work from. The recording is safe and holds both voices, so it can be read again, which usually finds your side.';
   }
   if (state === 'transcript-overdue') {
     // NOT "still being turned into a transcript", which is what this said for as long as the
@@ -145,5 +186,5 @@ export function unavailableBody(state: Exclude<DebriefAvailability, 'ready'>): s
  * still in flight is the mistake that costs money rather than the one that costs a sentence.
  */
 export function canReReadFrom(state: DebriefAvailability): boolean {
-  return state === 'transcript-overdue';
+  return state === 'transcript-overdue' || state === 'agent-missing';
 }

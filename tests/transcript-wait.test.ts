@@ -85,19 +85,19 @@ test('started_at is the fallback, and only ever answers LATER than ended_at woul
 // What the card actually shows
 
 test('audio with no transcript is a wait first and a failure only later', () => {
-  assert.equal(debriefAvailability(true, 0, 0, false), 'awaiting-transcript');
-  assert.equal(debriefAvailability(true, 0, 0, true), 'transcript-overdue');
+  assert.equal(debriefAvailability(true, 0, 0, { overdue: false }), 'awaiting-transcript');
+  assert.equal(debriefAvailability(true, 0, 0, { overdue: true }), 'transcript-overdue');
 });
 
 test('overdue never overrides a call that has no recording at all', () => {
   // There is nothing to re-read, so "the words never came back" would send a rep to a button that
   // cannot help. No recording is the older, simpler, still-correct answer.
-  assert.equal(debriefAvailability(false, 0, 0, true), 'no-recording');
+  assert.equal(debriefAvailability(false, 0, 0, { overdue: true }), 'no-recording');
 });
 
 test('overdue never overrides a call that HAS its words', () => {
-  assert.equal(debriefAvailability(true, 12, 0, true), 'ready');
-  assert.equal(debriefAvailability(true, 12, 12, true), 'awaiting-voice');
+  assert.equal(debriefAvailability(true, 12, 0, { overdue: true, agentTurnCount: 6 }), 'ready');
+  assert.equal(debriefAvailability(true, 12, 12, { overdue: true }), 'awaiting-voice');
 });
 
 test('every caller that does not pass the flag behaves exactly as before', () => {
@@ -122,6 +122,7 @@ test('the overdue message does not promise a transcript, and the waiting one doe
 test('each state says something different — a shared sentence is two causes reading as one', () => {
   const states: Exclude<DebriefAvailability, 'ready'>[] = [
     'awaiting-voice',
+    'agent-missing',
     'awaiting-transcript',
     'transcript-overdue',
     'no-recording',
@@ -138,4 +139,52 @@ test('the re-read is offered only once the wait is over', () => {
   assert.equal(canReReadFrom('no-recording'), false, 'there is nothing to read');
   assert.equal(canReReadFrom('awaiting-voice'), false, 'the words are already here');
   assert.equal(canReReadFrom('ready'), false);
+});
+
+// ---------------------------------------------------------------------------
+// The mirror image: only the CUSTOMER was recorded
+//
+// Three calls in the founder's company hold nothing but the other person's voice. Every coaching
+// engine filters on `speaker === 'agent'`, so the transcript reads as empty to all of them — and
+// the card said "nothing came back… that can mean there was little in the call, or the coach did
+// not finish". It was neither, and the app already held what it needed to say so: the segments are
+// on the screen it is rendering.
+
+test('a transcript with words but none of them the rep is named, not guessed at', () => {
+  assert.equal(
+    debriefAvailability(true, 14, 0, { agentTurnCount: 0 }),
+    'agent-missing',
+  );
+});
+
+test('NOT ASKED is not the same as none — or every call would be agent-missing', () => {
+  // The reason `agentTurnCount` is absent rather than 0 by default. A caller that does not count
+  // agent turns must keep its old behaviour exactly.
+  assert.equal(debriefAvailability(true, 14, 0), 'ready');
+  assert.equal(debriefAvailability(true, 14, 0, {}), 'ready');
+  assert.equal(debriefAvailability(true, 14, 0, { overdue: true }), 'ready');
+});
+
+test('an unlabelled transcript stays a question, not a verdict', () => {
+  // The rep may BE one of the unknown voices, and `awaiting-voice` already asks. Declaring
+  // agent-missing here would tell them their side was never recorded when it may be right there.
+  assert.equal(debriefAvailability(true, 14, 14, { agentTurnCount: 0 }), 'awaiting-voice');
+  assert.equal(debriefAvailability(true, 14, 3, { agentTurnCount: 0 }), 'ready');
+});
+
+test('a call with the rep in it is untouched', () => {
+  assert.equal(debriefAvailability(true, 14, 0, { agentTurnCount: 7 }), 'ready');
+  assert.equal(debriefAvailability(true, 14, 0, { agentTurnCount: 1 }), 'ready');
+});
+
+test('the customer-only message says whose voice is missing and that the recording is safe', () => {
+  const body = unavailableBody('agent-missing');
+  assert.doesNotMatch(body, /not enough/i, 'the call is full of words');
+  assert.doesNotMatch(body, /did not finish/i, 'the coach did not fail — it had nothing of the rep to read');
+  assert.match(body, /safe/i);
+  assert.match(body, /read again|read a second time/i);
+});
+
+test('the re-read is offered for it, because the route covers customer-only', () => {
+  assert.equal(canReReadFrom('agent-missing'), true);
 });
