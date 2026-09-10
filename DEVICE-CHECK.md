@@ -202,14 +202,14 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-one checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-two checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
 seeing the wrong thing.
 
 **Build 15 (10 September) is what is on your phone.** The things nobody has ever
-seen render are checks **27 to 31** at the end, and check 28 is the one I would
+seen render are checks **27 to 32** at the end, and check 28 is the one I would
 most like a human on: it is a *keyboard* interaction, which is exactly the class
 no test here can reach.
 
@@ -999,6 +999,45 @@ care — otherwise it is a wall. **What to check:** that the boxes are actually
 distinguishable from each other, that nothing overflows its border at your text
 size, and that you can still find your way down it. If it reads as a wall, the
 boxes are not doing their job and I want to know.
+
+---
+
+### 32. Team coaching — a manager screen the app has never had (new, 11 September)
+
+**Background.** I listed all 21 coach pages on the website against all 26 screens
+in the app. Every one had a counterpart except this: **the manager's read-out of
+what each rep is doing well and where they can grow**, in the words of their own
+calls and door pitches.
+
+It could not have had one. The route was browser-only, so a manager holding a
+phone could not read their team's coaching at all — the seventh time today I
+found that same fault, and the only one where the result was not a broken
+feature but a **missing** one.
+
+**Where it is:** **Account → Team coaching**, with the other manager tools.
+
+**What you should see** (checked against the live site tonight, so these are your
+real numbers): **seven people**, including **you** (29 calls, 3 door pitches) and
+**Moses** (44 calls, 42 door pitches), each with up to six things they are doing
+well and six to coach on. Teammates with nothing recorded are **listed anyway**,
+saying so.
+
+**Wrong looks like — and this one matters more than a layout bug:**
+
+- **Anything that reads as a ranking.** No positions, no "top", no totals
+  comparing one rep to another. The order is your org chart, not a table. If it
+  reads like a leaderboard, that is a real defect — the whole surface is built on
+  it not being one.
+- **A rep with nothing being dropped from the list.** A shorter list is a
+  different answer to "how is my team doing".
+- **A partial team shown as if complete.** If part of the read fails it should
+  say "Not everyone came back" and show nothing, rather than most of it.
+- Anything that reads as a judgement of a person rather than a note about their
+  work.
+
+**One thing that is NOT a bug:** hand your phone to a rep and open it — they
+should see **"For managers"**, plainly, not an error. I checked that tonight:
+Rebecca gets refused by the server, not by the screen.
 
 ---
 
