@@ -982,6 +982,24 @@ You will hit one of four states, and all four are correct results:
 watch the button. It should say **"Reading the call…"**, be visibly disabled, and
 not be tappable twice. Two taps means two charges.
 
+**And the other one: find a LONG read.** I could not see this render, so I
+measured the 121 reads already stored to find out how big they really get:
+
+| Part | Longest actually stored |
+|---|---|
+| The bold line of an item | **248 characters** — a sentence, not a label |
+| A quoted line | **357** (55 of them are over 200) |
+| The explanation under it | **446** |
+| The opening summary | **778** |
+| Items in one read | up to **4** strengths and **4** to work on |
+
+At the top of that range a read is roughly **six thousand characters**. I gave
+every item its own bordered box so you can skim the bold lines and stop where you
+care — otherwise it is a wall. **What to check:** that the boxes are actually
+distinguishable from each other, that nothing overflows its border at your text
+size, and that you can still find your way down it. If it reads as a wall, the
+boxes are not doing their job and I want to know.
+
 ---
 
 ## What to send back
