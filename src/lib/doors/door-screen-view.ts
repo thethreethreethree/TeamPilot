@@ -202,3 +202,25 @@ export function goalBasisLine(
       return null;
   }
 }
+
+/**
+ * The control at the foot of the mockup, and why it does not say "Reset".
+ *
+ * The founder's drawing has a full-width "RESET THE DAY" button. The dials above
+ * it are not a tally the app owns — they are REAL LOGGED EVENTS: door knocks with
+ * outcomes, and recorded pitches. The constitution's §3.1 makes events
+ * append-only, and the manager's figures and the coach's scoring are built on
+ * the same rows. A button that zeroed them would delete a rep's actual work, and
+ * a mis-tap at the end of a shift would take the day with it.
+ *
+ * So the control is drawn exactly as designed and points at the place where
+ * correcting a number is already possible and already safe: the Door Log, where
+ * undo removes ONE knock at a time and the count follows visibly.
+ *
+ * The label changed with it. "Reset the day" promises something this button does
+ * not do, and a control's label is a promise — copy.md: "A control's label is a
+ * promise. Match the confirmation to it."
+ */
+export const FIX_TODAY_LABEL = 'Fix today\u2019s numbers';
+export const FIX_TODAY_HINT =
+  'Opens the Door Log, where you can take back a door you logged by mistake.';

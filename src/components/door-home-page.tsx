@@ -22,7 +22,7 @@
  * per sale has been set.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { DoorDial } from '@/components/door-dial';
@@ -41,6 +41,8 @@ import {
   TARGET_HEADING,
   UNAVAILABLE_BODY,
   UNAVAILABLE_TITLE,
+  FIX_TODAY_HINT,
+  FIX_TODAY_LABEL,
   dateEyebrow,
   doorScreenState,
   goalBasisLine,
@@ -309,6 +311,20 @@ function ReadyState({
           </>
         )}
       </View>
+
+      {/* The mockup's full-width control at the foot of the screen. It does not
+          reset anything - see FIX_TODAY_LABEL for why - it opens the one place
+          where a mis-logged door can already be taken back safely. */}
+      <Pressable
+        onPress={onLog}
+        accessibilityRole="button"
+        accessibilityLabel={`${FIX_TODAY_LABEL}. ${FIX_TODAY_HINT}`}
+        className="mt-3 min-h-11 items-center justify-center rounded-lg border border-border-control active:bg-surface"
+      >
+        <Text className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground">
+          {FIX_TODAY_LABEL}
+        </Text>
+      </Pressable>
     </>
   );
 }
