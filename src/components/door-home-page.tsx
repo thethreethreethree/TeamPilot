@@ -242,9 +242,20 @@ function ReadyState({
         ) : null}
       </View>
 
-      {/* The funnel, in the order it happens. Wraps rather than squeezing, so a
-          large text size makes the row taller instead of clipping a number. */}
-      <View className="mt-6 flex-row flex-wrap items-start justify-center gap-2">
+      {/*
+        THE FUNNEL, IN THE ORDER IT HAPPENS, AND ON ONE LINE.
+
+        This used to wrap. The reasoning written here was that wrapping beat clipping at a large
+        text size - but three 132pt dials never fit a phone row at ANY text size, so it wrapped
+        always, and the founder's screenshot shows what that looks like: two dials and a third
+        stranded underneath, a triangle that reads as a layout accident because it is one.
+
+        Wrapping is gone and the dials are three flex-1 columns instead, so the row divides the
+        width rather than overflowing it. The number inside is still safe at a large text size: the
+        ring is fixed geometry, and the one thing that could outgrow its column - the label - is now
+        held to a single line that shrinks to fit.
+      */}
+      <View className="mt-6 flex-row items-start justify-center gap-2">
         <DoorDial
           label="Doors"
           count={view.today.doors}

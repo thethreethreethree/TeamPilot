@@ -35,13 +35,29 @@ import { Pressable, Text, View } from 'react-native';
 
 import { C, TOUCH_TARGET } from '@/lib/theme';
 
-const SIZE = 132;
+/**
+ * THE RING, SIZED SO THREE FIT IN ONE ROW.
+ *
+ * It was 132, and three of those cannot sit side by side on a phone: 3 x 132 plus two 8pt gaps is
+ * 412, against roughly 327 of usable width once the screen's px-5 is taken off a 375pt device. The
+ * row wrapped, and the founder's screenshot shows the result - two dials above, one stranded below,
+ * in a triangle nobody designed.
+ *
+ * 96 is the largest size that leaves the row honest on the narrowest phone we target:
+ * (327 - 16) / 3 is about 103 per column, so a 96 ring clears with room for its border of ticks.
+ * The web reaches the same answer from the other direction - a 104px SVG inside a three-column grid
+ * capped at max-w-md.
+ *
+ * Still far past the 48dp touch floor, and the whole column is the control, not just the ring.
+ */
+const SIZE = 96;
 /** The spec's tick count and sweep. */
 const TICKS = 26;
 const SWEEP_DEG = 300;
 const START_DEG = -150;
-const TICK_H = 11;
-const TICK_W = 2.9;
+/** Scaled with the ring, so the band of ticks stays the same fraction of it. */
+const TICK_H = 9;
+const TICK_W = 2.6;
 
 export function DoorDial({
   label,
@@ -66,16 +82,27 @@ export function DoorDial({
     <Pressable
       onPress={onTap}
       accessibilityRole="button"
+      /*
+        "Tap to log one" was false and had been since the dials were built - this tap opens the Door
+        Log and has never logged anything. The same sentence was removed from the visible hint under
+        the dials earlier today; this copy of it was missed, because a sweep for the WORDS found the
+        hint and not the accessible name. A screen-reader user was the only one still being told it.
+      */
       accessibilityLabel={
         hasTarget
-          ? `${label}: ${count} of ${target}. Tap to log one.`
-          : `${label}: ${count}. No target set. Tap to log one.`
+          ? `${label}: ${count} of ${target}. Opens the door log.`
+          : `${label}: ${count}. No target set. Opens the door log.`
       }
       accessibilityValue={hasTarget ? { min: 0, max: target, now: count } : undefined}
-      // The whole dial is the control, and it is comfortably past the 44pt floor.
-      style={{ width: SIZE, height: SIZE, minWidth: TOUCH_TARGET, minHeight: TOUCH_TARGET }}
-      className="items-center justify-center active:opacity-70"
+      /*
+        FLEX-1, NOT A FIXED WIDTH. Three equal columns share whatever the screen gives them, so the
+        row divides instead of overflowing and wrapping. The ring inside keeps its fixed geometry;
+        only the column around it flexes.
+      */
+      style={{ minHeight: TOUCH_TARGET }}
+      className="flex-1 items-center active:opacity-70"
     >
+      <View style={{ width: SIZE, height: SIZE }} className="items-center justify-center">
       {Array.from({ length: TICKS }, (_, i) => {
         const angle = START_DEG + (i * SWEEP_DEG) / (TICKS - 1);
         const lit = i < litTicks;
@@ -98,9 +125,34 @@ export function DoorDial({
 
       <Text className="font-heading text-3xl tabular-nums text-foreground">{count}</Text>
       {hasTarget ? (
-        <Text className="font-body text-sm tabular-nums text-muted-foreground">of {target}</Text>
+        <Text className="font-body text-xs tabular-nums text-muted-foreground">of {target}</Text>
       ) : null}
-      <Text className="mt-1 font-body text-xs uppercase tracking-widest text-muted-foreground">
+      </View>
+
+      {/*
+        THE LABEL SITS BELOW THE RING, NOT INSIDE IT.
+
+        This was the second half of the founder's note - "the text inside needs to be fixed, it's
+        going over the circle". It was a child of the ring's own fixed box, so a word wider than the
+        ring had nowhere to go: "PRESENTATIONS" is thirteen characters of uppercase at the widest
+        tracking on the scale, and it broke out over the ticks and into the next dial.
+
+        Out here it belongs to the whole column instead, which is wider than the ring. The web does
+        the same thing - its label is a sibling under the SVG, never inside it.
+
+        `tracking-wide` rather than `tracking-widest`: the extra letter-spacing bought nothing and
+        cost about a character's width on the longest label of the three.
+
+        `adjustsFontSizeToFit` is the floor under all of it. The smallest size on this project's
+        type scale is 12, so there is no smaller token to reach for, and "PRESENTATIONS" at 12 is
+        still a shade wider than a third of a narrow phone. One line, shrink to fit, never spill -
+        rather than a word that silently overlaps its neighbour on exactly the devices nobody tests.
+      */}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        className="mt-1 font-body text-xs uppercase tracking-wide text-muted-foreground"
+      >
         {label}
       </Text>
     </Pressable>
