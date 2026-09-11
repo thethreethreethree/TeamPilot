@@ -29,6 +29,7 @@ import { listRecordings, uploaderFor, type PendingRecording } from './recording-
 import { sendability } from './recording-budget';
 import type { UploadOutcome } from './upload';
 import { recordCrash } from '../crash-log-store';
+import { filedAs } from './auto-title';
 import { shouldRecordUpload, uploadNoteFor } from '../crash-notable';
 
 /**
@@ -110,8 +111,15 @@ export type AutoSendResult = {
  */
 export function isSendable(rec: PendingRecording): boolean {
   if (rec.status === 'uploaded') return false;
-  // No name means the rep has not said to send it yet.
-  if (!rec.label || !rec.label.trim()) return false;
+  /*
+    THE NAME NO LONGER GATES THIS, and removing that line is the point of the change.
+
+    It read "No name means the rep has not said to send it yet." The intent was consent. The
+    result was a queue: fifteen recordings on the founder's phone on 10 September, twelve of them
+    unnameable-therefore-unsendable, and nothing on any screen saying so. Consent lives at the
+    moment the rep pressed record; a recording nobody named is still a conversation they chose to
+    have coached. `filedAs` supplies the name - see auto-title.ts.
+  */
   if (rec.attempts >= MAX_AUTO_ATTEMPTS) return false;
   // The server refuses anything over its ceiling, and the upload path returns
   // BEFORE counting an attempt — so an oversize recording never ages out. It
@@ -163,7 +171,9 @@ export async function runAutoSend(
     // that has been waiting longest.
     for (const rec of [...queue].reverse()) {
       attempted++;
-      const result = await send(userId, rec, { clientLabel: rec.label! });
+      // `filedAs`, not `rec.label!` — the non-null assertion was only safe while the gate
+      // above refused unnamed recordings, and it is the first thing that would have crashed.
+      const result = await send(userId, rec, { clientLabel: filedAs(rec) });
 
       /**
        * A RECORDING THAT CAN NEVER BE SENT LEAVES A TRACE.
@@ -176,7 +186,9 @@ export async function runAutoSend(
        */
       if (!result.ok && shouldRecordUpload(result.reason)) {
         void recordCrash(
-          new Error(uploadNoteFor(result.reason, rec.label ?? null)),
+          // The FILED name, not the raw one: an unnamed recording would put "null" into a
+          // problem report, and the whole point of that report is that somebody can identify it.
+          new Error(uploadNoteFor(result.reason, filedAs(rec))),
           'Sending a recording',
         );
       }

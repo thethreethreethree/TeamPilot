@@ -29,6 +29,7 @@ import {
   type PendingRecording,
 } from '@/lib/audio/recording-store';
 import { deleteRecordingFile, recordingFileExists } from '@/lib/audio/capture';
+import { autoTitle, filedAs, isAutoTitled } from '@/lib/audio/auto-title';
 import { sendability } from '@/lib/audio/recording-budget';
 import { RECORDING_AVAILABLE } from '@/lib/audio/module';
 import { RecordingPlayer } from '@/components/recording-player';
@@ -198,14 +199,22 @@ export default function RecordingsScreen() {
   const send = useCallback(
     async (rec: PendingRecording) => {
       if (!userId) return;
-      const label = (labels[rec.clientId] ?? rec.label ?? '').trim();
-      if (!label) {
-        Alert.alert(
-          'Name this call first',
-          'The server files a recording under the customer it belongs to, so it needs a name before it can be sent.',
-        );
-        return;
-      }
+      /*
+        NO LONGER REFUSED FOR WANT OF A NAME (REV 1, 2026-09-11).
+
+        This used to stop here with "Name this call first", explaining that "the server files a
+        recording under the customer it belongs to, so it needs a name before it can be sent."
+        The server never required it. The app did, in `isSendable`, and this alert was the
+        hand-sent half of the same rule - so a rep watching the screen was told a fact about the
+        server that was not true, about a refusal that was ours.
+
+        `filedAs` gives an unnamed recording a name made of what is actually known.
+      */
+      const label = filedAs({
+        label: labels[rec.clientId] ?? rec.label,
+        recordedAt: rec.recordedAt,
+        kind: rec.kind,
+      });
       setBusyId(rec.clientId);
       try {
         // BRANCHES ON THE PIPELINE, exactly as the automatic sweep does. This
@@ -637,6 +646,26 @@ function Row({
             editable={!busy}
             placeholder="Rowan & Co, the corner unit"
           />
+
+          {/*
+            WHAT HAPPENS IF THEY TYPE NOTHING, said out loud (REV 1, 2026-09-11).
+
+            An unnamed recording now sends itself, which is the whole point of the change - but a
+            name the rep never typed must not simply appear on their sessions list later with no
+            explanation. This says what it will be, and by saying it invites a better one: "Rowan
+            & Co, the corner unit" is findable in a month and "Door, 10 Sep at 4:53 PM" is not.
+
+            Only while the field is empty. Once they type, the sentence has nothing to add.
+          */}
+          {isAutoTitled({ label }) ? (
+            <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+              Leave this blank and it is filed as{' '}
+              <Text className="text-foreground">
+                {autoTitle({ recordedAt: rec.recordedAt, kind: rec.kind })}
+              </Text>
+              . It still sends either way.
+            </Text>
+          ) : null}
 
           <OutcomePicker
             value={outcome}

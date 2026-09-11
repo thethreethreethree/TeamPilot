@@ -59,8 +59,12 @@ const add = (clientId: string, over: { label?: string | null } = {}) =>
 /** A sender that records what it was asked to send and returns a fixed verdict. */
 function stubUpload(outcome: (clientId: string) => UploadOutcome) {
   const calls: string[] = [];
-  const send: Sender = async (userId, rec: PendingRecording) => {
+  /** The NAME each recording actually went under. Separate from `calls` so every existing
+   *  assertion on that array keeps working unchanged. */
+  const labels: string[] = [];
+  const send: Sender = async (userId, rec: PendingRecording, meta) => {
     calls.push(rec.clientId);
+    labels.push(meta.clientLabel);
     const result = outcome(rec.clientId);
     // The real uploader records the outcome against the recording before it
     // returns. A stub that skipped that would leave a "sent" recording looking
@@ -72,7 +76,7 @@ function stubUpload(outcome: (clientId: string) => UploadOutcome) {
     });
     return result;
   };
-  return { calls, send };
+  return { calls, labels, send };
 }
 
 beforeEach(() => {
@@ -92,24 +96,41 @@ test('a named recording is sent', async () => {
   assert.equal(result.skipped, false);
 });
 
-test('an UNNAMED recording is never sent on its own', async () => {
-  // Naming is consent. Without it the app would be uploading a conversation the
-  // rep has not decided to keep.
+test('an UNNAMED recording IS sent on its own — this is the reversal', async () => {
+  /*
+    THIS TEST USED TO ASSERT THE OPPOSITE, and the comment above it read: "Naming is consent.
+    Without it the app would be uploading a conversation the rep has not decided to keep."
+
+    The reasoning was sound and the outcome was not. Consent was already given - the rep pressed
+    record - and what the rule actually produced was a queue nobody could see: fifteen recordings
+    on the founder's phone on 10 September 2026, 13.5 MB, with the Send-all button offering three.
+    The other twelve were unnamed, and no screen anywhere said that was why they were stuck. It
+    also made the app break a promise it makes out loud, in the alert after saving a door pitch:
+    "It is on this phone and sends itself when you have signal."
+
+    Reversed at the founder's instruction (REV 1): "After every pitch, they need to title it ...
+    This should happen automatically."
+  */
   await add('a', { label: null });
-  const { calls, send } = stubUpload(() => ({ ok: true, sessionId: 'sess-1' }));
+  const { calls, labels, send } = stubUpload(() => ({ ok: true, sessionId: 'sess-1' }));
 
   const result = await runAutoSend('rep-1', { send });
 
-  assert.deepEqual(calls, []);
-  assert.equal(result.skipped, true);
-  assert.equal(result.reason, 'nothing-to-send');
+  assert.equal(calls.length, 1, 'it goes');
+  assert.equal(result.sent, 1);
+  // And it goes under a name made of what is known, never an empty one — an empty name would put
+  // it straight back into the queue this change exists to drain.
+  assert.ok(labels[0].trim().length > 0);
 });
 
-test('a recording with a blank name is treated as unnamed', async () => {
+test('a blank name is still no name, and still sends', async () => {
+  // Whitespace was never a name. What changed is that it is no longer a reason to hold a
+  // conversation on a phone for ever.
   await add('a', { label: '   ' });
-  const { calls, send } = stubUpload(() => ({ ok: true, sessionId: 'sess-1' }));
+  const { calls, labels, send } = stubUpload(() => ({ ok: true, sessionId: 'sess-1' }));
   await runAutoSend('rep-1', { send });
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 1);
+  assert.ok(labels[0].trim().length > 0, 'and not under a blank name');
 });
 
 test('an already-sent recording is left alone', async () => {
@@ -291,7 +312,13 @@ test('isSendable is the same rule a "send all" button must count by', async () =
   const rows = await listRecordings('rep-1');
   const sendable = rows.filter(isSendable).map((r) => r.clientId);
 
-  assert.deepEqual(sendable, ['named'], 'only the named, unsent, still-retryable one');
+  // Sorted: which of the two comes back first is the store's business, not this rule's, and
+  // asserting it would make this test fail for a reason it is not about.
+  assert.deepEqual(
+    [...sendable].sort(),
+    ['named', 'unnamed'],
+    'unsent and still-retryable — the NAME is no longer part of this rule',
+  );
 });
 
 test('what isSendable counts is exactly what a sweep attempts', async () => {
