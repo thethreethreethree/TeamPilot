@@ -167,6 +167,18 @@ export async function runUpload(
       const created = await deps.post<CreatedSession>('/api/coach/sales-session', {
         context: meta.context ?? 'in_person',
         clientLabel,
+        /*
+          WHEN THE CONVERSATION HAPPENED, not when the phone finally had a bar.
+
+          This route is reached at UPLOAD, and a recording can sit on the device for days - the
+          longest observed in production is 47. Without this the session is dated by the insert, so
+          a call recorded on the 4th and sent on the 11th appeared in the rep's history on the 11th.
+          Nothing surfaced it while recordings rarely sent; they send themselves now.
+
+          The server does not simply trust it: a phone's clock can be anything, and a value outside
+          a believable window is refused and the column's own default used instead.
+        */
+        startedAt: rec.recordedAt,
         ...(rec.territory?.trim() ? { territory: rec.territory.trim() } : {}),
         ...(rec.approach?.trim() ? { approach: rec.approach.trim() } : {}),
         ...(rec.offer?.trim() ? { offer: rec.offer.trim() } : {}),
