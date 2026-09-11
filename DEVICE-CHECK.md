@@ -215,7 +215,7 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-eight checks is a lot for one sitting.** If you only have twenty minutes, do
+**Thirty-nine checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
@@ -233,7 +233,7 @@ is build 15 plus two fixes I would not have wanted you to hit:
   device pass, and `Report a problem` could not see either. See the note on
   check **25**.
 
-The things nobody has ever seen render are checks **27 to 38** at the end, and
+The things nobody has ever seen render are checks **27 to 39** at the end, and
 check 28 is the one I would most like a human on: it is a *keyboard*
 interaction, which is exactly the class no test here can reach.
 
@@ -1297,6 +1297,49 @@ six, one is from today.
 **Wrong looks like:** an eight-day-old call still saying "still being turned into
 a transcript"; a call from two minutes ago saying the words never came back; or
 the re-read button appearing on a fresh recording.
+
+---
+
+### 39. The fifteen recordings on your phone (REV 1 — build 17)
+
+**This is the one to do first, and it is the one with a real consequence
+if I have got it wrong.** Your screenshot showed 15 recordings held on the
+phone, 13.5 MB, with the button offering to send 3. Twelve of them had no
+name typed, and a recording could not be sent until it had one.
+
+> **What changed.** The name is no longer required. Consent is pressing
+> record — a rep who recorded a call meant to record it. An unnamed
+> recording is now filed under what is actually known: *"Door, Thu 10 Sep
+> at 4:53 PM"*. It does **not** guess who the call was with; the app
+> cannot know that and will not pretend to.
+
+1. Open **Record a call → the waiting list** on the phone with the 15.
+2. The header still says how many are on the phone. The **Send-all button
+   should now offer all of the sendable ones, not 3.**
+3. On any card with an empty name field, there should be a line reading
+   **"Leave this blank and it is filed as Door, ⟨day⟩ at ⟨time⟩. It still
+   sends either way."**
+4. Type a name on one card. That line should **disappear** — once you have
+   named it, the app has nothing to add.
+5. **Now the part that matters.** With signal on, leave the screen a
+   moment. The recordings should start sending on their own, oldest
+   first, one at a time. Watch that they actually clear.
+6. **Then check where they landed.** Open Sessions. The unnamed ones
+   should be there under their automatic names, not missing and not
+   blank-titled.
+7. Try the per-card **Send** on an unnamed one. It must NOT say *"Name
+   this call first"* any more — that alert claimed the server needed a
+   name, and the server never did.
+
+**Wrong looks like:** anything sending under an empty or "null" name; the
+Send-all count still stuck at 3; recordings that clear from this screen
+but never appear under Sessions; or the "Name this call first" alert.
+
+> **Tell me what this costs you in data.** Twelve recordings going at once
+> is 13.5 MB, and the app cannot currently tell wifi from cellular — it
+> sends on whatever connection it has. That was already true for named
+> recordings; what is new is how many go at once. If that is a problem for
+> your reps, say so and I will hold sending to wifi.
 
 ---
 
