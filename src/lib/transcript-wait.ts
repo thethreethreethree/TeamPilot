@@ -49,6 +49,44 @@ export const TRANSCRIPT_GRACE_MS = 15 * 60 * 1000;
  * and telling a rep their call failed because their date is set wrong would be a new false claim
  * replacing the one this removes.
  */
+/**
+ * What the sessions list says about a call whose words never arrived.
+ *
+ * SHORT, because it sits in a row beside four other facts. It names the CALL's problem rather than
+ * the system's - a rep does not care that a transcription did not return, they care that this
+ * conversation has no words in it and that something can still be done.
+ */
+export const NO_WORDS_CHIP = 'No words came back';
+
+/** The same fact spoken as a sentence, appended to the row's accessible name. */
+export const NO_WORDS_SPOKEN = 'no words came back from this call';
+
+/**
+ * Should the list flag this row?
+ *
+ * COMPUTED FROM WHAT THE LIST ALREADY HOLDS - the segment count, whether the server has audio, and
+ * the two timestamps - so this costs no extra request. That is the whole reason it can exist: the
+ * obvious flag for this class would need a per-row query, and a list that fires one of those per
+ * row is a list nobody keeps.
+ *
+ * `segmentCount` NULL MEANS THE COUNT COULD NOT BE READ, and is deliberately not flagged. Only an
+ * exact zero is a real answer. Flagging an unknown would put a red mark on a healthy call because a
+ * side query failed, which is the same error this whole area exists to remove.
+ */
+export function noWordsCameBack(
+  row: {
+    segmentCount: number | null;
+    audio_asset_url: string | null;
+    ended_at: string | null;
+    started_at: string;
+  },
+  now: Date,
+): boolean {
+  if (row.segmentCount !== 0) return false;
+  if (!row.audio_asset_url) return false;
+  return transcriptOverdue(row.ended_at, row.started_at, now);
+}
+
 export function transcriptOverdue(
   endedAt: string | null | undefined,
   startedAt: string | null | undefined,

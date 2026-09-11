@@ -15,7 +15,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TRANSCRIPT_GRACE_MS, transcriptOverdue } from '@/lib/transcript-wait';
+import {
+  NO_WORDS_CHIP,
+  NO_WORDS_SPOKEN,
+  TRANSCRIPT_GRACE_MS,
+  noWordsCameBack,
+  transcriptOverdue,
+} from '@/lib/transcript-wait';
 import {
   canReReadFrom,
   debriefAvailability,
@@ -187,4 +193,54 @@ test('the customer-only message says whose voice is missing and that the recordi
 
 test('the re-read is offered for it, because the route covers customer-only', () => {
   assert.equal(canReReadFrom('agent-missing'), true);
+});
+
+// ---------------------------------------------------------------------------
+// The calls nobody reopens, made visible in the list
+//
+// A call whose recording reached the server and whose words never did looks like any other row.
+// A rep does not go back to a call that showed them nothing, so it stays invisible — which is the
+// same reasoning the recovery sweep gives for existing at all: "This is the trigger that reaches
+// the calls nobody reopens."
+//
+// The load-bearing test is the NULL one. `segmentCount` is null when the count could not be read,
+// and flagging that would put a mark on a healthy call because a side query failed — the exact
+// error this whole area exists to remove.
+
+const ROW = {
+  segmentCount: 0 as number | null,
+  audio_asset_url: 'https://example/audio.m4a' as string | null,
+  ended_at: ENDED as string | null,
+  started_at: ENDED,
+};
+
+test('a call with audio, no words, and time passed is flagged', () => {
+  assert.equal(noWordsCameBack(ROW, at(TRANSCRIPT_GRACE_MS + 1)), true);
+});
+
+test('a count that could not be READ is never flagged', () => {
+  // Null is "did not find out", not "zero". A red mark here would be the app blaming a call for a
+  // failed side query.
+  assert.equal(noWordsCameBack({ ...ROW, segmentCount: null }, at(47 * 24 * 60 * MINUTE)), false);
+});
+
+test('a call that HAS words is never flagged', () => {
+  assert.equal(noWordsCameBack({ ...ROW, segmentCount: 12 }, at(47 * 24 * 60 * MINUTE)), false);
+});
+
+test('a call with no recording is not this problem', () => {
+  // Nothing was ever sent, so nothing failed to come back. "No recording" is its own honest state.
+  assert.equal(noWordsCameBack({ ...ROW, audio_asset_url: null }, at(47 * 24 * 60 * MINUTE)), false);
+});
+
+test('a fresh recording is not flagged while it is still being turned into words', () => {
+  assert.equal(noWordsCameBack(ROW, at(0)), false);
+  assert.equal(noWordsCameBack(ROW, at(TRANSCRIPT_GRACE_MS)), false);
+});
+
+test('the chip names the call’s problem, not the system’s', () => {
+  assert.match(NO_WORDS_CHIP, /words/i);
+  assert.doesNotMatch(NO_WORDS_CHIP, /transcri|server|error|failed/i);
+  assert.ok(NO_WORDS_CHIP.length <= 24, 'it sits in a row beside four other facts');
+  assert.match(NO_WORDS_SPOKEN, /words/i);
 });

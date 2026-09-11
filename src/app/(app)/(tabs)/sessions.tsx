@@ -62,6 +62,7 @@ import { SearchField } from '@/components/search-field';
 import { C } from '@/lib/theme';
 import { useLargeText } from '@/lib/use-large-text';
 import { clockTime, duration, money, outcomeLabel, shortDate } from '@/lib/format';
+import { NO_WORDS_CHIP, NO_WORDS_SPOKEN, noWordsCameBack } from '@/lib/transcript-wait';
 import { groupByDay } from '@/lib/group-sessions';
 import { useOnline, isOffline } from '@/lib/use-online';
 import { reachError } from '@/lib/reach-failure';
@@ -860,6 +861,20 @@ function SessionRow({
   // Null for a rep's own calls, so their list is unchanged. A manager's list
   // gets the one fact it was missing: whose call this is.
   const owner = ownerLabel(session.agent_id, viewerId, repNames);
+  /*
+    Read at render rather than held in state, for the same reason the door screen's does: the
+    boundary is fifteen minutes, and any row a rep is looking at across it has already re-rendered
+    from a scroll, a refresh or a return to the tab.
+  */
+  const noWords = noWordsCameBack(
+    {
+      segmentCount: session.segmentCount,
+      audio_asset_url: session.audio_asset_url,
+      ended_at: session.ended_at,
+      started_at: session.started_at,
+    },
+    new Date(),
+  );
 
   // The whole row is one control with one accessible name that reads as a
   // sentence — not four separate stops for a screen-reader user to reassemble.
@@ -871,6 +886,7 @@ function SessionRow({
     outcome,
     ownerSpoken(owner),
     queued ? 'not sent yet' : '',
+    noWords ? NO_WORDS_SPOKEN : '',
     oneSided ? ONE_SIDED_SPOKEN : '',
     unfinished ? UNFINISHED_SPOKEN : '',
     voiceQuestion?.spoken ?? '',
@@ -927,6 +943,18 @@ function SessionRow({
           <Text numberOfLines={1} className="mt-0.5 font-body text-sm text-muted-foreground">
             {owner}
           </Text>
+        ) : null}
+        {/*
+          THE CALLS NOBODY REOPENS.
+
+          A call whose recording reached the server and whose words never did is invisible from
+          here - it looks like any other row - and a rep does not go back to a call that showed them
+          nothing. The founder's own company had four of these, the oldest waiting eight days.
+
+          Costs no request: the count, the audio pointer and the timestamps are already on the row.
+        */}
+        {noWords ? (
+          <Text className="mt-1 font-emphasis text-sm text-primary">{NO_WORDS_CHIP}</Text>
         ) : null}
         {oneSided ? (
           <Text className="mt-1 font-emphasis text-sm text-primary">{ONE_SIDED_CHIP}</Text>
