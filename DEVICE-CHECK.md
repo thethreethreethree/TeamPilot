@@ -215,7 +215,7 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Thirty-nine checks is a lot for one sitting.** If you only have twenty minutes, do
+**Forty checks is a lot for one sitting.** If you only have twenty minutes, do
 **1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
 something (a recording they cannot re-take, unsent words, a shared photo that
 never appears, a deal value that vanishes as they swipe back) rather than merely
@@ -233,7 +233,7 @@ is build 15 plus two fixes I would not have wanted you to hit:
   device pass, and `Report a problem` could not see either. See the note on
   check **25**.
 
-The things nobody has ever seen render are checks **27 to 39** at the end, and
+The things nobody has ever seen render are checks **27 to 40** at the end, and
 check 28 is the one I would most like a human on: it is a *keyboard*
 interaction, which is exactly the class no test here can reach.
 
@@ -1371,6 +1371,51 @@ but never appear under Sessions; or the "Name this call first" alert.
 > sends on whatever connection it has. That was already true for named
 > recordings; what is new is how many go at once. If that is a problem for
 > your reps, say so and I will hold sending to wifi.
+
+---
+
+### 40. The Door Log, after REV 1 (build 17)
+
+Macro Mode on, **Home → Door Log**.
+
+1. The first tile reads **"Doors knocked"**, not "Doors today".
+2. Directly under the three counts: **"NEXT 5 DOOR FOCUS"**. If the coach
+   has worked one out it is there with *"Focus on this for your next 5
+   doors, then come back for a new one."* If it has not, it says the focus
+   appears once a few pitches have been analysed. **If the whole box is
+   absent**, that means the request for it failed — which is deliberate,
+   because a heading with nothing under it reads as broken. Tell me if it
+   is never there.
+3. **"See today's metrics" is gone**, and so is **"Undo last"**.
+4. "See how your pitches went" and "Open my last pitch" are still there.
+5. On **Today's Metrics**, the focus should now say **five** doors too,
+   not ten. One number, both screens.
+
+> **The part I need your answer on, and it is my mistake rather than a
+> question about taste.**
+>
+> You asked me to take out "Undo last". I did, and I wrote that the
+> numbers were still correctable from the home page's **"Fix today's
+> numbers"**. **That was wrong.** That button *navigates to the Door Log* —
+> its whole purpose was to reach the control I had just removed, and its
+> screen-reader hint said so out loud: *"Opens the Door Log, where you can
+> take back a door you logged by mistake."*
+>
+> So right now **a door logged by mistake cannot be taken back anywhere in
+> the app**, on dials that are deliberately big targets pressed in a hurry
+> between houses. The Door Log's own reasoning, written long before
+> tonight, is *"a number you cannot correct is a number you stop
+> trusting."*
+>
+> I have not put it back — you asked for it gone and I am not undoing your
+> instruction quietly. The four places that still advertised the ability
+> now tell the truth instead. **Whether it comes back, and where, is on the
+> build board.** Tap a dial by accident once and you will know the answer
+> faster than I can reason it out.
+
+**Wrong looks like:** "Doors today" still showing; the focus box saying
+ten doors; "See today's metrics" or "Undo last" still present; or the
+focus box present but permanently empty.
 
 ---
 
