@@ -22,6 +22,27 @@
 export const WEB_PATHS = {
   topic: (topicId: string) => `/dashboard/chats/${encodeURIComponent(topicId)}`,
   calibration: () => '/dashboard/sales-coach/calibration',
+  /**
+   * THE ONE LINK HERE THAT IS NOT AN UNBLOCKING LINK, and the exception is deliberate.
+   *
+   * The rule stated above this object is "is the person blocked at this moment, and does that page
+   * unblock them?" - which is what keeps ten passing mentions of the website from all becoming
+   * controls. A privacy policy passes no such test and belongs here anyway, because it is not a note
+   * about where data lives: it is a document this app is REQUIRED to put in front of the person
+   * using it, and it was missing entirely.
+   *
+   * This app records other people's voices. The policy at this address names who receives that
+   * audio - it was corrected on 4 September precisely because preparing the App Store submission
+   * showed it did not name ElevenLabs, which receives every recorded conversation for
+   * transcription, and claimed nothing reached Anthropic that the user had not authored, which
+   * stopped being true when transcripts containing the CUSTOMER's words began being sent for
+   * analysis. A rep cannot consent to what they are not shown.
+   *
+   * OUTSIDE THE LOGIN. `/privacy` is not in the website's middleware matcher, which guards only
+   * /dashboard, /onboarding and the two login routes. Verified 11 September: 200, no redirect. A
+   * policy that requires an account to read is not published.
+   */
+  privacy: () => '/privacy',
 } as const;
 
 /**
@@ -50,4 +71,17 @@ export function webTopicUrl(apiBase: string | null | undefined, topicId: string)
 /** The website's Score Calibration page. */
 export function webCalibrationUrl(apiBase: string | null | undefined): string | null {
   return webUrl(apiBase, WEB_PATHS.calibration());
+}
+
+/**
+ * The published Privacy Policy.
+ *
+ * ALWAYS RESOLVES FOR A REAL BUILD, unlike the two links above: `ENV.API_BASE` falls back to
+ * the production host rather than to empty, so this cannot come back null in an app anyone
+ * has installed. That matters more here than it does for a convenience link - `WebsiteLink`
+ * renders nothing without a URL, which is the right answer for a shortcut and the wrong one
+ * for a document that has to be reachable.
+ */
+export function webPrivacyUrl(apiBase: string | null | undefined): string | null {
+  return webUrl(apiBase, WEB_PATHS.privacy());
 }

@@ -26,6 +26,8 @@ import { router } from 'expo-router';
 import { ENV } from '@/lib/env';
 import { signInMessage } from '@/lib/sign-in-message';
 import { C } from '@/lib/theme';
+import { webPrivacyUrl } from '@/lib/web-links';
+import { WebsiteLink } from '@/components/website-link';
 
 export default function SignInScreen() {
   const { signIn, endedUnexpectedly, acknowledgeEnded } = useAuth();
@@ -322,6 +324,24 @@ export default function SignInScreen() {
               Cannot get in? Report a problem
             </Text>
           </Pressable>
+
+          {/*
+            THE POLICY HAS TO BE READABLE BEFORE SIGNING IN, not only after.
+
+            Account carries the same link, and on its own that is not enough: a person who has not
+            signed in cannot reach Account at all. They are also the person for whom it matters
+            most - somebody deciding whether to hand this app a microphone has not agreed to
+            anything yet, and "read it once you are inside" is not a choice.
+
+            Quiet, beneath the problem report, for the same reason that one is: it must be findable
+            without competing with the sign-in button for a rep who is simply signing in.
+          */}
+          <WebsiteLink
+            url={webPrivacyUrl(ENV.API_BASE)}
+            label="Privacy policy"
+            spoken="Read the Elostate privacy policy on the website"
+            whereInstead="It is at elostate.com/privacy."
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

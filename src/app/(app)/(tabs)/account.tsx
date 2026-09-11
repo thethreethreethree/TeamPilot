@@ -51,6 +51,9 @@ import {
   readPendingPreferences,
 } from '@/lib/preferences-store';
 import { C } from '@/lib/theme';
+import { ENV } from '@/lib/env';
+import { webPrivacyUrl } from '@/lib/web-links';
+import { WebsiteLink } from '@/components/website-link';
 
 /** Megabytes, one decimal. Bytes are not a unit a rep can act on. */
 function mb(bytes: number): string {
@@ -552,6 +555,31 @@ export default function AccountScreen() {
           Read one line so the app can tell your side of a call from the customer&apos;s. It keeps
           a single number, never a recording.
         </Text>
+
+        {/*
+          THE POLICY THIS APP IS REQUIRED TO SHOW, AND DID NOT.
+
+          There was no privacy policy anywhere in this app - not a link, not a line. That is a gap
+          in an app whose core action is RECORDING ANOTHER PERSON'S VOICE, and Apple requires the
+          policy be reachable inside the app rather than only in the store listing.
+
+          It sits directly above signing out and below the voice section on purpose: those are the
+          two places a rep is already thinking about what this app holds about them.
+
+          The page is public - verified 11 September, 200 and no redirect to a login. A policy you
+          need an account to read is not a published policy.
+        */}
+        <Section title="Your privacy" />
+        <Text className="font-body text-sm leading-relaxed text-muted-foreground">
+          This app records sales conversations, so it handles other people&apos;s voices as well as
+          yours. The policy says who receives that audio, what is kept and for how long.
+        </Text>
+        <WebsiteLink
+          url={webPrivacyUrl(ENV.API_BASE)}
+          label="Read the privacy policy"
+          spoken="Read the Elostate privacy policy on the website"
+          whereInstead="It is at elostate.com/privacy."
+        />
 
         <Section title="Signing out" />
         <Text className="font-body text-sm leading-relaxed text-muted-foreground">
