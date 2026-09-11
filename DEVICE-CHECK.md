@@ -228,8 +228,13 @@ The rest are the ones where a failure means a rep LOSES something — a recordin
 they cannot re-take, unsent words, a deal value that vanishes as they swipe back
 — rather than merely seeing the wrong thing.
 
-**Build 20 or later is what to test** — take whatever TestFlight offers you as
-newest, and check the build number against this note before you start.
+**Build 21 or later is what to test** — take whatever TestFlight offers you as
+newest, and check the build number before you start.
+
+**You can now check it inside the app**, which you could not before: the foot of
+the **Account** screen reads `Sales Coach 1.0.0 (21)`. It said just "1.0.0" until
+build 21, which is the same on every build ever uploaded — so I had been asking
+you to confirm something the app could not tell you.
 
 Build 16 went up at 02:45 and was superseded the same morning by your REV 1
 revisions, which include the fifteen held recordings. Build 17 carries those.
