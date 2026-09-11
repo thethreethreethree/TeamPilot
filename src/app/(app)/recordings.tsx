@@ -15,7 +15,7 @@
  * DELETING IS DELIBERATELY AWKWARD. Everything else in this app can be fetched
  * again; a recording cannot. The confirmation says what is actually lost.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
@@ -486,6 +486,41 @@ function LabelledInput({
   placeholder: string;
 }) {
   const [focused, setFocused] = useState(false);
+
+  /*
+    WHAT THE REP TYPED SURVIVES LEAVING THE SCREEN.
+
+    This committed on blur and on the return key. Both require the rep to finish deliberately, and
+    a swipe-back does neither: the screen pops, the input is UNMOUNTED rather than blurred, and
+    `onBlur` does not reliably fire when that happens. The same shape cost this product every deal
+    value it has ever been told - 14 sessions marked sold, not one carrying a number - which is why
+    the session screen now saves on unmount too.
+
+    ONLY WHEN IT CHANGED. `committed` remembers what was last handed over, so closing a list of
+    fifteen recordings does not fire fifteen writes for fields nobody touched.
+
+    Refs rather than dependencies: an effect that depended on `value` would re-run its cleanup on
+    every keystroke and commit once per character. Empty dependencies mean this runs once, on
+    unmount, reading the latest values when it does.
+  */
+  const committed = useRef(value);
+  const latest = useRef({ value, onDone });
+  useEffect(() => {
+    latest.current = { value, onDone };
+  });
+  useEffect(
+    () => () => {
+      if (latest.current.value !== committed.current) {
+        latest.current.onDone(latest.current.value);
+      }
+    },
+    [],
+  );
+  const handOver = (next: string) => {
+    committed.current = next;
+    onDone(next);
+  };
+
   return (
     <View className="mt-4">
       <Text className="font-emphasis text-sm text-muted-foreground">{label}</Text>
@@ -498,11 +533,11 @@ function LabelledInput({
         placeholder={placeholder}
         placeholderTextColor={C['muted-foreground']}
         returnKeyType="done"
-        onSubmitEditing={() => onDone(value)}
+        onSubmitEditing={() => handOver(value)}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false);
-          onDone(value);
+          handOver(value);
         }}
         className={`mt-2 min-h-7 rounded-md border px-3 py-3 font-body text-base text-foreground ${
           focused ? 'border-primary' : 'border-border-control'
