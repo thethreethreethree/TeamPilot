@@ -216,14 +216,29 @@ reach; 7–12 are the standing checks the design law requires; 13–24 cover wha
 shipped on 4 September.
 
 **Forty checks is a lot for one sitting.** If you only have twenty minutes, do
-**1, 5, 7, 16, 21 and 28** — those are the six where a failure means a rep loses
-something (a recording they cannot re-take, unsent words, a shared photo that
-never appears, a deal value that vanishes as they swipe back) rather than merely
-seeing the wrong thing.
+**39 first**, then **1, 5, 7, 21 and 28**.
 
-**Build 16 (11 September, ~02:45) is what to test.** It went to TestFlight while
-you were asleep; Apple processes for five to ten minutes before it appears. It
-is build 15 plus two fixes I would not have wanted you to hit:
+**39 leads now because it is the one with fifteen real conversations riding on
+it** — your own, held on your own phone, and it is also the first exercise the
+transcription path has had since it was fixed. Everything else on this list is
+the app being wrong at you; that one is the app having been silently unable to
+do its job.
+
+The rest are the ones where a failure means a rep LOSES something — a recording
+they cannot re-take, unsent words, a deal value that vanishes as they swipe back
+— rather than merely seeing the wrong thing.
+
+**Build 17 or later is what to test** — take whatever TestFlight offers you as
+newest, and check the build number against this note before you start.
+
+Build 16 went up at 02:45 and was superseded the same morning by your REV 1
+revisions, which include the fifteen held recordings. Build 17 carries those.
+**If 18 is there, take 18**: 17 shipped with a defect in the new "Next 5 door
+focus" panel — a failed request for it shows the "appears once a few pitches
+have been analysed" sentence instead of showing nothing, which contradicts what
+check 40 tells you to expect.
+
+Build 16 was build 15 plus two fixes I would not have wanted you to hit:
 
 - **The first page dot on the door tracker could not be tapped** — its touch
   area was completely covered by the second dot's, so the only non-swipe route
