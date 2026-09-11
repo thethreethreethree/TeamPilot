@@ -16,7 +16,9 @@
  *     answers. Waiting on a network to acknowledge a door is how a rep in a
  *     basement stops believing the app.
  *   - Undo is one tap and sits beside the buttons, because fast tapping produces
- *     mis-taps and a number you cannot correct is a number you stop trusting.
+ *     mis-taps and a number you cannot correct is a number you stop trusting. (That reasoning
+ *     is why "Undo last" existed. REV 1 removed it on 2026-09-11; the sentence is kept because
+ *     the reasoning did not stop being true, and the gap it now describes is on the build board.)
  *
  * WHAT IT WILL NOT DO. It will not show a total it cannot stand behind. The
  * server's own route refuses to return a strip of zeros when a read fails, and
@@ -355,11 +357,18 @@ export default function DoorsScreen() {
         {/*
           "UNDO LAST" WAS HERE, removed at the founder's instruction (REV 1, 2026-09-11).
 
-          SAYING WHAT THIS COSTS, because it is not nothing: this was the only way to take back a
-          door logged by accident, and the dials are large targets pressed in a hurry between
-          houses. A mis-tapped "Sold" is now permanent from this screen. The figure can still be
-          corrected from the home page - "Fix today's numbers" opens the place that owns it - so
-          the ability is not gone, only the shortcut from here.
+          SAYING WHAT THIS COSTS, and the first version of this note got it WRONG. It said the
+          figure "can still be corrected from the home page - Fix today's numbers opens the place
+          that owns it - so the ability is not gone, only the shortcut from here."
+
+          That was false, and checking it is what found the real shape. "Fix today's numbers"
+          NAVIGATES TO THIS SCREEN; its whole purpose was to reach the control that used to be
+          here. `removeKnock` is called only by the send sweep. So removing this took away the
+          only way to take back a door logged by accident, anywhere in the app - on dials that are
+          large targets pressed in a hurry between houses.
+
+          The removal stands, because it was asked for. Whether the ability comes back, and where,
+          is on the build board with the trade written out.
 
           THE ROW WENT WITH IT. It was a `justify-between` pair - the control on the left, this
           notice on the right - and with one child left it was a layout container arranging

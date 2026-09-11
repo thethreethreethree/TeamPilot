@@ -312,9 +312,13 @@ function ReadyState({
         )}
       </View>
 
-      {/* The mockup's full-width control at the foot of the screen. It does not
-          reset anything - see FIX_TODAY_LABEL for why - it opens the one place
-          where a mis-logged door can already be taken back safely. */}
+      {/* The mockup's full-width control at the foot of the screen. It does not reset anything
+          - see FIX_TODAY_LABEL for why - it opens the Door Log.
+
+          IT USED TO SAY "the one place where a mis-logged door can already be taken back safely",
+          which was true until REV 1 removed "Undo last" from that screen on 2026-09-11. There is
+          now no route to taking a door back at all, and whether to restore one is on the build
+          board. */}
       <Pressable
         onPress={onLog}
         accessibilityRole="button"

@@ -278,5 +278,13 @@ export function goalBasisLine(
  * promise. Match the confirmation to it."
  */
 export const FIX_TODAY_LABEL = 'Fix today\u2019s numbers';
-export const FIX_TODAY_HINT =
-  'Opens the Door Log, where you can take back a door you logged by mistake.';
+/*
+  THIS SAID "where you can take back a door you logged by mistake", and on 2026-09-11 that stopped
+  being true: REV 1 removed "Undo last" from the Door Log, and it was the only route to it. A
+  screen-reader user would have been told, in so many words, that an ability exists which does not.
+
+  The label above still says "Fix today's numbers" - the founder's mockup wording - and whether the
+  ABILITY comes back, and where, is their decision and is on the build board. Until it is answered
+  this describes only what the button actually does.
+*/
+export const FIX_TODAY_HINT = 'Opens the Door Log, where today\u2019s doors are logged.';
