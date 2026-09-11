@@ -215,7 +215,7 @@ Work down the list. Items 1–6 are the fixes from 3 September that no test can
 reach; 7–12 are the standing checks the design law requires; 13–24 cover what
 shipped on 4 September.
 
-**Forty checks is a lot for one sitting.** If you only have twenty minutes, do
+**Forty-one checks is a lot for one sitting.** If you only have twenty minutes, do
 **39 first**, then **1, 5, 7, 21 and 28**.
 
 **39 leads now because it is the one with fifteen real conversations riding on
@@ -248,7 +248,7 @@ Build 16 was build 15 plus two fixes I would not have wanted you to hit:
   device pass, and `Report a problem` could not see either. See the note on
   check **25**.
 
-The things nobody has ever seen render are checks **27 to 40** at the end, and
+The things nobody has ever seen render are checks **27 to 41** at the end, and
 check 28 is the one I would most like a human on: it is a *keyboard*
 interaction, which is exactly the class no test here can reach.
 
@@ -1466,6 +1466,36 @@ Macro Mode on, **Home → Door Log**.
 **Wrong looks like:** "Doors today" still showing; the focus box saying
 ten doors; "See today's metrics" or "Undo last" still present; or the
 focus box present but permanently empty.
+
+---
+
+### 41. The calls nobody reopens are visible now (build 20)
+
+**You have four of these**, the oldest waiting eight days. Until this they
+looked like any other row in your Sessions list.
+
+1. Open **Sessions** and look for **"No words came back"** on a row.
+2. Tap one. It should say **"The words never came back from this call"**,
+   that your recording is safe, and that nothing you did caused it — and
+   offer **Read the recording again** (check 37 step 5 covers what each
+   answer means).
+3. A call recorded in the last few minutes must **not** carry this chip.
+   The cut-off is fifteen minutes; flagging a fresh recording would be
+   worse than the problem.
+4. With a screen reader on, the row's spoken name should include
+   **"no words came back from this call"** rather than leaving a sighted
+   rep with a fact nobody else gets.
+
+**Wrong looks like:** the chip on a call that has words; the chip on a
+call with no recording at all (nothing was sent, so nothing failed to come
+back); or the chip on every row, which would mean the segment count is
+failing to read and being treated as a zero.
+
+> **This one costs no extra request**, which is why it exists at all. The
+> count, the audio pointer and the timestamps are already on each row. The
+> one-sided calls do NOT get a chip for the opposite reason: their signal
+> would need a query matching nearly every segment in the table, and a list
+> that fires one of those per row is a list nobody keeps.
 
 ---
 
