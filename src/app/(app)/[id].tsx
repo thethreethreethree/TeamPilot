@@ -1454,6 +1454,32 @@ function RenameRow({
   const [focused, setFocused] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /*
+    THE NAME SURVIVES LEAVING THE SCREEN, for the same reason the deal value below it does.
+
+    This saved on blur only. A swipe-back pops the screen and unmounts the input rather than
+    blurring it, so a rep who typed a new name and swiped away lost it - and was told nothing,
+    which is how the deal value went missing fourteen times out of fourteen.
+
+    The guards are the SAME ones the blur applies, deliberately: a blank is not sent (the server
+    requires a label, and clearing it would ask for a rejection), and an unchanged name is not
+    re-sent. Refs rather than dependencies, so the cleanup runs once on unmount and reads the
+    latest text, instead of once per keystroke.
+  */
+  const latest = useRef({ text, current, onRename });
+  useEffect(() => {
+    latest.current = { text, current, onRename };
+  });
+  useEffect(
+    () => () => {
+      const { text: typed, current: was, onRename: save } = latest.current;
+      const next = typed.trim();
+      if (!next || next === was.trim()) return;
+      void save(next);
+    },
+    [],
+  );
+
   return (
     <View className="mt-6">
       <Text className="font-emphasis text-sm text-muted-foreground">Who this was with</Text>
