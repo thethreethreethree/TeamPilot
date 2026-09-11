@@ -1381,6 +1381,15 @@ but never appear under Sessions; or the "Name this call first" alert.
 > different fault from the one I fixed, and fifteen silent calls is how it
 > would announce itself.
 
+> **Your door numbers may MOVE, and that is not a bug.** A recording made
+> from the Door Log is a *pitch*, and a pitch upload posts to the door-log
+> route — which creates a knock as well as a pitch, so it counts toward
+> doors knocked. Each one carries the date it was RECORDED, not today's,
+> so they land on the day they happened rather than inflating today. If
+> some of your fifteen are door pitches, expect past days' counts to go up
+> when they send. Re-sending cannot double-count them: the recording's own
+> id is the knock id and the route de-duplicates on it.
+
 > **Tell me what this costs you in data.** Twelve recordings going at once
 > is 13.5 MB, and the app cannot currently tell wifi from cellular — it
 > sends on whatever connection it has. That was already true for named
