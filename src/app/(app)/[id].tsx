@@ -37,6 +37,7 @@ import {
 import { readAnswer } from '@/lib/sync/coach-answers';
 import { coachPatch, coachPost } from '@/lib/coach-api';
 import { classify } from '@/lib/sync/outbox-classify';
+import { discardedMessage, queuedEntryLabel } from '@/lib/sync/outbox-label';
 import {
   clearOutboxStop,
   enqueue,
@@ -218,6 +219,8 @@ export default function SessionScreen() {
    *
    * So the words are recoverable and this screen was the only thing still not saying so.
    */
+  /** What the last discard removed, said out loud. Null until one happens. */
+  const [discarded, setDiscarded] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
   const [timingLost, setTimingLost] = useState(false);
   const [rereading, setRereading] = useState(false);
@@ -1020,6 +1023,21 @@ export default function SessionScreen() {
         </View>
       ) : null}
 
+      {/*
+        OUTSIDE the queue block on purpose. Discarding the LAST queued change empties that block and
+        unmounts it, so a confirmation nested inside would disappear at the exact moment it was
+        needed — the same shape as the timing note that had to be lifted out of the wait notice.
+      */}
+      {discarded ? (
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          className="mx-5 mt-3 font-body text-sm leading-relaxed text-muted-foreground"
+        >
+          {discarded}
+        </Text>
+      ) : null}
+
       {queued.length > 0 ? (
         <View className="mx-5 mt-3 rounded-md border border-border-control px-3 py-3">
           <Text className="font-emphasis text-sm text-foreground">Waiting to send</Text>
@@ -1030,11 +1048,7 @@ export default function SessionScreen() {
             <View key={entry.id} className="mt-3 flex-row items-start gap-3">
               <View className="flex-1">
                 <Text className="font-body text-sm text-foreground">
-                  {entry.kind === 'rename'
-                    ? `Name it “${entry.clientLabel}”`
-                    : `Mark it ${outcomeLabel(entry.outcome ?? null)}${
-                        entry.dealValue != null ? ` · ${money(entry.dealValue)}` : ''
-                      }`}
+                  {queuedEntryLabel(entry)}
                 </Text>
                 {/* The server's own words when there are any. "Could not save
                     that" tells a rep to try the same thing again; "Deal value
@@ -1048,8 +1062,11 @@ export default function SessionScreen() {
               <Pressable
                 onPress={async () => {
                   if (!userId) return;
+                  // Read BEFORE the entry is gone — afterwards there is nothing left to describe.
+                  const said = discardedMessage(entry);
                   await removeEntry(userId, entry.id);
                   await refreshQueued();
+                  setDiscarded(said);
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={
