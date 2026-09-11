@@ -55,6 +55,7 @@ import { C } from '@/lib/theme';
 import { authFailureMessage } from '@/lib/auth-failure';
 import { blockedState } from '@/lib/blocked-state';
 import { useLargeText } from '@/lib/use-large-text';
+import { FOCUS_HEADING, FOCUS_HINT, FOCUS_PENDING } from '@/lib/doors/door-screen-view';
 
 /** One paragraph, written once. See blocked-state.ts for why it is not written here. */
 const BLOCKED = blockedState('route', "today's doors");
@@ -393,14 +394,14 @@ export function DoorMetricsPage() {
               </View>
             )}
 
-            <Heading>Next door focus</Heading>
+            <Heading>{FOCUS_HEADING}</Heading>
             {view.focus ? (
               <>
                 <Text className="font-body text-base leading-relaxed text-foreground">
                   {view.focus}
                 </Text>
                 <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-                  Focus on this for your next ten doors, then come back for a new one.
+                  {FOCUS_HINT}
                 </Text>
               </>
             ) : applied ? (
@@ -412,8 +413,7 @@ export function DoorMetricsPage() {
               </Text>
             ) : (
               <Text className="font-body text-base leading-relaxed text-muted-foreground">
-                Your focus appears once a few pitches have been analysed — it is the one habit
-                worth drilling next.
+                {FOCUS_PENDING}
               </Text>
             )}
 

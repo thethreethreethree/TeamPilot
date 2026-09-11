@@ -64,7 +64,7 @@ test('blank and non-string list entries are dropped rather than rendered', () =>
 
 test('the empty-state sentence does not blame the rep', () => {
   assert.ok(!/you (failed|have not|did not)/i.test(NO_MATERIAL));
-  assert.match(NO_MATERIAL, /Practising it still works/);
+  assert.match(NO_MATERIAL, /Practicing it still works/);
 });
 
 test('a route that refuses the app is NOT reported as "nothing to say"', () => {
@@ -115,6 +115,6 @@ test('the unavailable sentence still tells the rep what DOES work', () => {
    */
   for (const why of ['signed-out', 'route'] as const) {
     const text = materialUnavailable(blockedState(why, 'this guide').body);
-    assert.match(text, /Practising the skill works now/, `${why} lost the reassurance`);
+    assert.match(text, /Practicing the skill works now/, `${why} lost the reassurance`);
   }
 });

@@ -117,6 +117,34 @@ export const TARGET_HEADING = "Today's door target";
 export const TAP_HINT = 'Tap a dial to log one';
 
 /**
+ * How many doors a focus is meant to last.
+ *
+ * FIVE, set by the founder in REV 1 (2026-09-11). It was ten, and only on Today's Metrics.
+ *
+ * ONE NUMBER IN ONE PLACE, because the focus now appears on two screens - the Door Log, where it
+ * was asked for, and Today's Metrics, where it already lived. Two copies of a number like this is
+ * how a rep reads "your next five doors" on one screen and "your next ten" on another, which is the
+ * duplicated-rule failure this codebase has already paid for once.
+ */
+export const NEXT_DOORS = 5;
+
+/** The heading over the focus, in the founder's own words. */
+export const FOCUS_HEADING = `Next ${NEXT_DOORS} door focus`;
+
+/** What to do with it. Says the number, so the heading is not the only place it appears. */
+export const FOCUS_HINT = `Focus on this for your next ${NEXT_DOORS} doors, then come back for a new one.`;
+
+/**
+ * What the Door Log says when there is no focus yet.
+ *
+ * NOT "nothing to show". A rep who has knocked all morning and reads that would reasonably think
+ * the app lost their work; the truth is that a focus is worked out from pitches that have been
+ * analysed, and it arrives on its own.
+ */
+export const FOCUS_PENDING =
+  'Your focus appears once a few pitches have been analysed — it is the one habit worth drilling next.';
+
+/**
  * The line under the page dots, matching the founder's mockup.
  *
  * IT WAS NOT BUILT AT FIRST, and the reversal is worth recording. The mockup

@@ -35,11 +35,12 @@ import {
   countByOutcome,
   listKnocks,
   localDate,
-  undoLastKnock,
   type Knock,
   type KnockOutcome,
 } from '@/lib/doors/knock-store';
 import { PITCH_OUTCOME_LABEL as LABEL } from '@/lib/doors/outcome-label';
+import { fetchMetrics } from '@/lib/doors/metrics-api';
+import { FOCUS_HEADING, FOCUS_HINT, FOCUS_PENDING } from '@/lib/doors/door-screen-view';
 import { fetchDayTotals, type DoorTotals } from '@/lib/doors/door-log-api';
 import { useKnockSender, knockSendingStopped } from '@/lib/doors/use-knock-sender';
 import { useLargeText } from '@/lib/use-large-text';
@@ -74,6 +75,16 @@ export default function DoorsScreen() {
   const [totals, setTotals] = useState<DoorTotals | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openingLast, setOpeningLast] = useState(false);
+  /**
+   * The one habit worth drilling next, brought onto this screen by REV 1.
+   *
+   * THREE STATES, NOT TWO. `null` is "not asked yet or could not find out" and shows nothing at
+   * all; an empty string is "asked, and there isn't one yet", which shows the pending sentence.
+   * Folding those together would either put a permanent placeholder on a screen a rep opens fifty
+   * times a day, or hide a real answer behind a failed request.
+   */
+  const [focus, setFocus] = useState<string | null>(null);
+  const [focusAsked, setFocusAsked] = useState(false);
   const today = localDate();
 
   const refresh = useCallback(async () => {
@@ -99,6 +110,31 @@ export default function DoorsScreen() {
     };
   }, [today, queue.length]);
 
+  /*
+    BEST-EFFORT, AND ASKED ONCE PER OPENING OF THIS SCREEN.
+
+    The focus changes when pitches are analysed, not when a door is logged, so this deliberately
+    does NOT re-run on every knock - a rep tapping a dial forty times would otherwise send forty
+    requests for a sentence that cannot have changed. A failure leaves `focus` null and this screen
+    simply does not mention it, which is right: the Door Log's job is logging doors, and a coaching
+    line that could not be fetched must not become an error message in the middle of it.
+  */
+  useEffect(() => {
+    let cancelled = false;
+    fetchMetrics('day')
+      .then((r) => {
+        if (cancelled) return;
+        setFocusAsked(true);
+        setFocus(r.ok ? (r.metrics.focus?.trim() || '') : null);
+      })
+      .catch(() => {
+        /* null, and the section stays off the screen */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const waiting = countByOutcome(queue, today);
   const waitingTotal = Object.values(waiting).reduce((a, b) => a + b, 0);
 
@@ -115,23 +151,20 @@ export default function DoorsScreen() {
     [userId, refresh, flush],
   );
 
-  const undo = useCallback(async () => {
-    if (!userId) return;
-    const undone = await undoLastKnock(userId);
-    await refresh();
-    setNotice(
-      undone
-        ? `${LABEL[undone.outcome]} taken back`
-        : 'Nothing left to take back — everything is on the server.',
-    );
-  }, [userId, refresh]);
+  /*
+    THE `undo` CALLBACK WENT WITH ITS BUTTON (REV 1, 2026-09-11).
+
+    `undoLastKnock` itself is untouched and still exported - it is the local half of the door
+    log and removing it would be a change to how knocks are stored, which is not what was asked.
+    What is gone is this screen's route to it.
+  */
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <ScrollView contentContainerClassName="px-5 pb-10">
         {/* TODAY, from this phone. Exact, always, with no network involved. */}
         <View className="mt-4 flex-row gap-3">
-          <Tile value={String(waitingTotal + (totals?.doorsKnocked ?? 0))} label="Doors today" />
+          <Tile value={String(waitingTotal + (totals?.doorsKnocked ?? 0))} label="Doors knocked" />
           <Tile
             value={String(waiting.sold + (totals?.sold ?? 0))}
             label="Sold"
@@ -142,6 +175,39 @@ export default function DoorsScreen() {
             label="Go backs"
           />
         </View>
+
+        {/*
+          NEXT 5 DOOR FOCUS, directly under the three counts (REV 1, 2026-09-11).
+
+          Here rather than only on Today's Metrics because this is the screen a rep has open
+          between houses - a focus for "your next five doors" is worth nothing on a screen they
+          open at the end of the day. The count lives in `door-screen-view.ts` so this and Today's
+          Metrics cannot drift into telling a rep two different numbers.
+
+          Hidden entirely while the answer is unknown. A heading with nothing under it reads as
+          something broken, and this screen must not look broken while a rep is working.
+        */}
+        {focusAsked ? (
+          <View className="mt-4 rounded-lg border border-border-control px-4 py-3">
+            <Text className="font-emphasis text-xs uppercase tracking-widest text-primary">
+              {FOCUS_HEADING}
+            </Text>
+            {focus ? (
+              <>
+                <Text className="mt-2 font-body text-base leading-relaxed text-foreground">
+                  {focus}
+                </Text>
+                <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+                  {FOCUS_HINT}
+                </Text>
+              </>
+            ) : (
+              <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+                {FOCUS_PENDING}
+              </Text>
+            )}
+          </View>
+        ) : null}
 
         {/* Said plainly rather than folded into the numbers above. A rep who
             cannot tell what the server has from what their phone is still
@@ -241,17 +307,14 @@ export default function DoorsScreen() {
           <Text className="font-strong text-base text-primary-foreground">Record this pitch</Text>
         </Pressable>
 
-        {/* Where a rep goes after a street: how the day is actually going.
-            Below the buttons, because logging is what this screen is FOR. */}
-        <Pressable
-          onPress={() => router.push('/(app)/(tabs)/metrics')}
-          accessibilityRole="button"
-          accessibilityLabel="See today's metrics"
-          className="mt-5 min-h-7 justify-center active:opacity-70"
-        >
-          <Text className="font-emphasis text-base text-primary">See today&apos;s metrics</Text>
-        </Pressable>
+        {/*
+          "SEE TODAY'S METRICS" WAS HERE, and it is removed at the founder's instruction
+          (REV 1, 2026-09-11) along with "Undo last" below.
 
+          The day's figures are the three tiles at the top of this screen and the dials on the
+          home page, so the link was a third route to a number the rep is already looking at.
+          Today's Metrics is still reachable from its own tab.
+        */}
         <Pressable
           onPress={() => router.push('/(app)/(tabs)/pitches')}
           accessibilityRole="button"
@@ -292,15 +355,15 @@ export default function DoorsScreen() {
         </Pressable>
 
         <View className={`mt-4 ${stacked ? 'gap-3' : 'flex-row items-center justify-between gap-3'}`}>
-          <Pressable
-            onPress={undo}
-            accessibilityRole="button"
-            accessibilityLabel="Take back the last door logged"
-            className="min-h-7 justify-center active:opacity-70"
-          >
-            <Text className="font-emphasis text-base text-primary">Undo last</Text>
-          </Pressable>
+          {/*
+            "UNDO LAST" WAS HERE, removed at the founder's instruction (REV 1, 2026-09-11).
 
+            SAYING WHAT THIS COSTS, because it is not nothing: this was the only way to take
+            back a door logged by accident, and the dials are large targets pressed in a hurry
+            between houses. A mis-tapped "Sold" is now permanent from this screen. The figure
+            can still be corrected from the home page - "Fix today's numbers" opens the place
+            that owns it - so the ability is not gone, only the shortcut from here.
+          */}
           {/* One live region, so a screen reader hears "Sold logged" rather than
               a number changing silently somewhere above. */}
           <Text

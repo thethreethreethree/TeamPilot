@@ -50,6 +50,7 @@ import { countByOutcome, listKnocks, localDate } from '@/lib/doors/knock-store';
 import { useLargeText } from '@/lib/use-large-text';
 import type { CoachingSession } from '@/types/backend';
 import { C } from '@/lib/theme';
+import { MACRO_UNSYNCED, macroModeBody } from '@/lib/doors/macro-mode-copy';
 import { HeaderMenu } from '@/components/header-menu';
 import { homeMenuItems } from '@/lib/home-menu';
 import { SwipePager } from '@/components/swipe-pager';
@@ -427,13 +428,22 @@ function MacroSwitch({ macro }: { macro: ReturnType<typeof useMacroMode> }) {
     <View className="mt-3 flex-row items-center gap-3 rounded-lg border border-border-control px-4 py-3">
       <View className="flex-1">
         <Text className="font-strong text-base text-foreground">Macro Mode</Text>
+        {/*
+          WHAT THE MODE IS FOR, not what it does to the tab bar (REV 1, 2026-09-11).
+
+          The old line described the app's own furniture. A rep deciding whether to flip this
+          needs to know which of them it is FOR, which is what "short form" and "long form"
+          answer - see macro-mode-copy.ts, including which way round the founder's note was read.
+        */}
         <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
-          Door-to-door: fast Door Log and a macro Report Card, with the door surfaces in the tab
-          bar.
-          {macro.unsynced
-            ? ' Saved on this phone — it has not reached the server, so the website still shows the old setting.'
-            : ''}
+          {macroModeBody(macro.enabled)}
         </Text>
+        {/* The save, kept as its own sentence: it is a fact about syncing, not about the mode. */}
+        {macro.unsynced ? (
+          <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+            {MACRO_UNSYNCED}
+          </Text>
+        ) : null}
       </View>
       <Switch
         value={macro.enabled}

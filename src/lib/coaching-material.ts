@@ -61,7 +61,7 @@ export function readCoachingMaterial(payload: unknown): CoachingMaterial | null 
 
 /** What the screen says when the coach had nothing to add. Never blames the rep. */
 export const NO_MATERIAL =
-  'The coach has nothing written up for this one yet. Practising it still works.';
+  'The coach has nothing written up for this one yet. Practicing it still works.';
 
 /**
  * What the screen says when the REQUEST could not be made at all.
@@ -96,7 +96,7 @@ export { blockedState } from './blocked-state';
  * reassurance. Both belong: the rep needs to know why the guide is missing AND
  * that the thing they came here to do is unaffected.
  */
-export const MATERIAL_STILL_WORKS = 'Practising the skill works now.';
+export const MATERIAL_STILL_WORKS = 'Practicing the skill works now.';
 
 /** The whole sentence for a guide that could not be fetched. */
 export function materialUnavailable(body: string): string {

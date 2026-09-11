@@ -302,7 +302,7 @@ export default function RoleplayScreen() {
                different rather than implying a rebuilt customer. */
             <View className="mt-5 gap-1 rounded-lg border border-primary px-4 py-3">
               <Text className="font-strong text-base text-foreground">
-                Practising one skill
+                Practicing one skill
               </Text>
               <Text className="font-body text-sm leading-relaxed text-muted-foreground">
                 Pick a prospect and start. The review at the end scores whether
@@ -409,12 +409,12 @@ export default function RoleplayScreen() {
             accessibilityLabel={
               replay
                 ? `Start replaying your pitch against ${replay.persona}`
-                : `Start practising with a ${persona} prospect`
+                : `Start practicing with a ${persona} prospect`
             }
             className="mt-6 min-h-7 items-center justify-center rounded-lg bg-primary px-5 py-4 active:bg-primary-pressed"
           >
             <Text className="font-strong text-base text-primary-foreground">
-              Start practising
+              Start practicing
             </Text>
           </Pressable>
         </ScrollView>
@@ -434,7 +434,7 @@ export default function RoleplayScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text className="mt-4 font-body text-sm text-muted-foreground">
-            Practising with a {persona.toLowerCase()} prospect. Nothing is
+            Practicing with a {persona.toLowerCase()} prospect. Nothing is
             saved.
           </Text>
 
