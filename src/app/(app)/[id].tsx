@@ -1547,6 +1547,39 @@ function OutcomeRow({
     }
   }, [unsaved, parsed, onSet]);
 
+  /*
+    AND IF THE REP REACHES NEITHER.
+
+    The comment above ends "whichever the rep reaches first, the number is saved" - the blur or the
+    button. The founder's own device check tests the case where they reach NEITHER: type the amount,
+    do not tap Save, swipe back. A swipe-back pops this screen, and a TextInput that is unmounted
+    rather than blurred does not reliably fire `onBlur` - which is how the amount went missing in
+    the first place, and why that check exists.
+
+    So the last thing this component does is save what is still unsaved. It writes through the
+    outbox, which is durable and which REPLACES a same-kind entry for the same session rather than
+    queueing a second - so a rep who taps Save and then swipes back cannot produce a double write.
+
+    Refs rather than dependencies, deliberately: an effect that depended on `unsaved`, `parsed` or
+    `onSet` would re-run its cleanup on every keystroke, firing a save per character typed. Empty
+    dependencies mean this cleanup runs once, on unmount, and reads the latest values when it does.
+    Nothing sets state here - the component is already gone.
+  */
+  const pendingRef = useRef({ unsaved, parsed });
+  const onSetRef = useRef(onSet);
+  useEffect(() => {
+    pendingRef.current = { unsaved, parsed };
+    onSetRef.current = onSet;
+  }, [unsaved, parsed, onSet]);
+  useEffect(
+    () => () => {
+      const { unsaved: stillUnsaved, parsed: amount } = pendingRef.current;
+      if (!stillUnsaved) return;
+      void onSetRef.current('sold', amount);
+    },
+    [],
+  );
+
   return (
     <View className="mt-6 border-t border-border pt-2">
       <OutcomePicker
