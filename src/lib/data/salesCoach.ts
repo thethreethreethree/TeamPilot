@@ -172,6 +172,15 @@ export async function createSession(args: {
   territory?: string | null;
   approach?: string | null;
   offer?: string | null;
+  /**
+   * When the conversation happened, when that is NOT when this row is being made.
+   *
+   * Absent leaves the column to its default, which is `now()` and is right for the web, where a
+   * session is created as the rep starts talking. The phone is the other case: a recording waits
+   * on the device until there is signal, so the insert can be days after the conversation. See
+   * `sessionStartedAt` for why the value is bounded before it reaches here.
+   */
+  startedAt?: string | null;
 }): Promise<SalesSession | null> {
   const sb = createServiceRoleClient();
   const base = {
@@ -182,6 +191,9 @@ export async function createSession(args: {
     territory: args.territory ?? null,
     approach: args.approach ?? null,
     offer: args.offer ?? null,
+    // OMITTED when absent rather than sent as null: the column's default is `now()`, and an
+    // explicit null would overwrite that default with nothing.
+    ...(args.startedAt ? { started_at: args.startedAt } : {}),
   };
   // A34 migration-coupling: only WRITE session_kind for a non-default (meeting/huddle) session. The sales path
   // omits it entirely → byte-identical to pre-0237 and cannot fail if the column isn't applied yet. A meeting

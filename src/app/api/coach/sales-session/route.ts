@@ -5,6 +5,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { sessionStartedAt } from "@/lib/coach/v5/sessionStartedAt";
 import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
 
 /**
@@ -28,6 +29,18 @@ const CreateSchema = z.object({
   territory: z.string().trim().max(200).optional(), // WHERE
   approach: z.string().trim().max(200).optional(), // HOW
   offer: z.string().trim().max(500).optional(), // WHAT
+  /**
+   * WHEN the conversation happened, for a caller that is not creating the session as it starts.
+   *
+   * The phone is that caller: a recording is held on the device until there is signal, so this
+   * route is reached at UPLOAD. Without this, a call recorded on the 4th and sent on the 11th
+   * became a session dated the 11th, and the rep's own history said the conversation happened on
+   * a day it did not.
+   *
+   * Accepted loosely here and judged in `sessionStartedAt` — the shape is a string, the question
+   * of whether to believe it is a rule with a reason and belongs in one tested place.
+   */
+  startedAt: z.string().trim().max(40).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -58,6 +71,9 @@ export async function POST(req: NextRequest) {
     territory: body.territory || null,
     approach: body.approach || null,
     offer: body.offer || null,
+    // Null when the claim is not believable — a phone's clock can be anything, and the fallback is
+    // the column default, which is exactly the behaviour that existed before this field.
+    startedAt: sessionStartedAt(body.startedAt, new Date()),
   });
   if (!session) {
     return NextResponse.json(
