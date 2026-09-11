@@ -53,14 +53,32 @@ export const NOT_THE_REP = '__not-the-rep__';
  * see the answer to teaches them to dismiss the next one. What they need is a reason to READ the
  * line rather than tap the first option - which is what naming the permanence does.
  *
- * NOT SHOWN FOR THE SOLO CASE. A one-voice call has its own two answers below, and the "not me"
- * branch writes a transcript with ZERO agent turns - which the route's one narrow exception lets a
- * recovery replace. That answer is genuinely not final, so saying it is would be a lie in the
- * other direction.
+ * A CORRECTION, 11 September. This was first written to skip the one-voice case, on the reasoning
+ * that its "not me" answer writes zero agent turns and so could be replaced by a later recovery.
+ * That reasoning came from `/label-transcript`, and the one-voice answer does not go there. It goes
+ * to `/attribute-unlabelled`, which stamps the rows `source: "manual"` and then refuses any
+ * transcript already carrying that - three separate 409s. BOTH one-voice answers are final, and the
+ * skip left the more damaging of the two unwarned.
+ *
+ * It stopped being hypothetical the same day. A recovered call of the founder's came back with 317
+ * segments and 6,861 words - a real two-person conversation - and every row labelled `unknown`,
+ * because the diarizer never separated the voices. That is presented as the one-voice question. So
+ * the tap is offered on a call where BOTH answers are wrong and the wrong one sticks.
  */
 export const ATTRIBUTION_IS_FINAL =
   'Read the line before you tap - this is a one-time answer. It cannot be changed afterwards, and '
   + 'picking the wrong voice labels the whole call backwards.';
+
+/**
+ * The same fact for a one-voice call, where the risk has a different shape.
+ *
+ * Not the sentence above. There is no "wrong voice" to pick here and no second option to compare
+ * against - the danger is that the answer applies to EVERY line at once. On a call the system could
+ * not split, that can mean a whole conversation filed as one person talking.
+ */
+export const SOLO_ATTRIBUTION_IS_FINAL =
+  'This is a one-time answer and cannot be changed afterwards. It applies to every line in the '
+  + 'call, so listen back first if you are not sure.';
 
 export function SpeakerPicker({
   speakers,
@@ -92,12 +110,10 @@ export function SpeakerPicker({
           : 'Two people spoke on this call. Until you say which is you, the transcript cannot tell you apart — and neither can the coach.'}
       </Text>
 
-      {/* Only where the answer really is final — see ATTRIBUTION_IS_FINAL. */}
-      {solo ? null : (
-        <Text className="mt-2 font-emphasis text-sm leading-relaxed text-foreground">
-          {ATTRIBUTION_IS_FINAL}
-        </Text>
-      )}
+      {/* Both answers are final, on both paths — see the correction in ATTRIBUTION_IS_FINAL. */}
+      <Text className="mt-2 font-emphasis text-sm leading-relaxed text-foreground">
+        {solo ? SOLO_ATTRIBUTION_IS_FINAL : ATTRIBUTION_IS_FINAL}
+      </Text>
 
       <View className="mt-3 gap-2">
         {speakers.map((speaker, index) => {

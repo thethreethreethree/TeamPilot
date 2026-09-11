@@ -28,7 +28,11 @@ const src = readFileSync(join(process.cwd(), 'src/components/speaker-picker.tsx'
 
 test('the warning exists and reaches the screen', () => {
   assert.match(src, /export const ATTRIBUTION_IS_FINAL =/);
-  assert.match(src, /\{ATTRIBUTION_IS_FINAL\}/, 'declared but never rendered is the same as absent');
+  assert.match(
+src,
+    /ATTRIBUTION_IS_FINAL\}/,
+    'declared but never rendered is the same as absent',
+  );
 });
 
 test('it says the two things a rep has to know', () => {
@@ -38,18 +42,42 @@ test('it says the two things a rep has to know', () => {
   assert.match(src, /backwards/);
 });
 
-test('it is NOT shown on a one-voice call, where it would be false', () => {
+test('BOTH paths warn, because both answers are final', () => {
   /*
-    THE HALF THAT IS EASY TO GET WRONG, and it is wrong in the opposite direction.
+    THE CORRECTION THIS TEST REPLACES, and it was mine.
 
-    A solo call's "not me" answer writes a transcript with ZERO agent turns, and the route's one
-    narrow exception lets a recovery re-transcribe replace exactly that. So that answer genuinely is
-    not final. Telling a rep it cannot be undone would be a fabricated constraint - and this project
-    treats a confident wrong reason as the failure, whichever way it points.
+    The first version of this asserted the OPPOSITE: that a one-voice call must NOT be warned,
+    because its "not me" answer writes zero agent turns and a later recovery could replace it. That
+    reasoning was taken from `/label-transcript`. The one-voice answer does not go there — it goes to
+    `/attribute-unlabelled`, which updates the rows with `source: "manual"` and then refuses any
+    transcript already carrying that, across three separate 409s. Both one-voice answers are final,
+    and the old test actively pinned the more damaging one as unwarned.
+
+    It is not hypothetical. A recovered call came back the same day with 317 segments and 6,861
+    words — a real two-person conversation — every row labelled `unknown` because the diarizer never
+    separated the voices. A call like that is shown the ONE-VOICE question, where both answers are
+    wrong and the wrong one sticks.
   */
-  const guard = src.indexOf('{solo ? null : (');
-  const render = src.indexOf('{ATTRIBUTION_IS_FINAL}');
-  assert.notEqual(guard, -1, 'the warning must be gated on there being two voices');
-  assert.ok(guard < render, 'the solo guard must wrap the warning, not sit after it');
-  assert.ok(render - guard < 300, 'the guard must be the one wrapping this warning');
+  assert.match(src, /export const ATTRIBUTION_IS_FINAL =/);
+  assert.match(src, /export const SOLO_ATTRIBUTION_IS_FINAL =/);
+
+  // Rendered unconditionally: a ternary picking the wording, never a branch that skips it.
+  assert.match(
+    src,
+    /\{solo \? SOLO_ATTRIBUTION_IS_FINAL : ATTRIBUTION_IS_FINAL\}/,
+    'the warning must render on both paths — only the wording differs',
+  );
+  assert.doesNotMatch(
+    src,
+    /\{solo \? null :/,
+    'a solo-skips-the-warning branch is the bug this test exists for',
+  );
+});
+
+test('the one-voice wording fits the one-voice risk', () => {
+  // There is no "wrong voice" to pick when only one is offered; the danger is that the answer
+  // applies to every line at once. Reusing the two-voice sentence would describe a choice the rep
+  // is not being given.
+  assert.match(src, /applies to every line/);
+  assert.match(src, /cannot be changed afterwards/);
 });
