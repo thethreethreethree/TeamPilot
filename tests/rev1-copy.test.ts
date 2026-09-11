@@ -25,6 +25,7 @@ import {
   FOCUS_HINT,
   FOCUS_PENDING,
   NEXT_DOORS,
+  TAP_HINT,
   focusSection,
 } from '@/lib/doors/door-screen-view';
 
@@ -120,4 +121,19 @@ test('only the pending state gets the pending sentence', () => {
   // Pins the pairing, so a future edit cannot hand FOCUS_PENDING to the hidden state again.
   assert.equal(focusSection(null) === 'pending', false);
   assert.match(FOCUS_PENDING, /analysed|analyzed/i);
+});
+
+// ---------------------------------------------------------------------------
+// The dials say what tapping them does
+//
+// TAP_HINT read "Tap a dial to log one". A dial does not log one: every dial's onTap is the same
+// handler and it navigates to the Door Log. That has been true since the app was first committed,
+// so it was a standing inaccuracy rather than a regression — a rep told the tap moves the number,
+// then watching a different screen open.
+//
+// The behaviour is correct and unchanged: a door carries an outcome, and one tap cannot say which.
+
+test('the hint names where the tap goes, and does not claim the tap logs', () => {
+  assert.match(TAP_HINT, /door log/i, 'say where it actually goes');
+  assert.doesNotMatch(TAP_HINT, /log one\b/i, 'the tap does not log one');
 });

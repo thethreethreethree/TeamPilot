@@ -113,8 +113,19 @@ export function doorScreenState(input: {
 /** The heading over the target sentence. */
 export const TARGET_HEADING = "Today's door target";
 
-/** The hint under the dials. */
-export const TAP_HINT = 'Tap a dial to log one';
+/**
+ * The hint under the dials.
+ *
+ * IT SAID "Tap a dial to log one", and a dial does not log one. Every dial's `onTap` is the same
+ * handler, and that handler navigates to the Door Log - it has done since the app was first
+ * committed, so this is a standing inaccuracy rather than a regression.
+ *
+ * The BEHAVIOUR is right and is not changed here: a door carries an outcome (sold, go back, not
+ * interested, no answer), and a single tap on a dial cannot say which. Choosing it is what the Door
+ * Log is for. What was wrong was a rep being told the tap itself moves the number, then watching a
+ * different screen open instead.
+ */
+export const TAP_HINT = 'Tap a dial to open the door log';
 
 /**
  * How many doors a focus is meant to last.
