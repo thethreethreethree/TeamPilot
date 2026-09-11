@@ -31,6 +31,37 @@ import type { PendingSpeaker } from '@/lib/audio/attribution-store';
  */
 export const NOT_THE_REP = '__not-the-rep__';
 
+/**
+ * THE ANSWER IS ONCE ONLY, AND NOTHING SAID SO.
+ *
+ * This component was already careful in every other way - no default, no guess, each option
+ * leading with a real line from the call, and a comment stating that a wrong attribution is worse
+ * than none. What it never said is that there is no second go.
+ *
+ * `label-transcript` writes an APPEND-ONLY canonical transcript. Once it holds agent turns it is
+ * never clobbered: a second attempt is refused with 409 and the words
+ * "This session already has a transcript - start a new session to log a different call", which is
+ * useless advice about a call that has already happened.
+ *
+ * SO A WRONG TAP IS PERMANENT AND SILENT. Every line is attributed backwards, the coach reads the
+ * customer's objections as the rep's, and talk ratio, questions and listening are all measured on
+ * the wrong person - on a transcript that looks completely normal. Nothing in the app would ever
+ * show them it was the tap that did it.
+ *
+ * WHY IT IS ONE PLAIN SENTENCE AND NOT A CONFIRMATION STEP. The rep can answer correctly in a
+ * second by reading the quoted line, and an "are you sure?" on top of a question they can already
+ * see the answer to teaches them to dismiss the next one. What they need is a reason to READ the
+ * line rather than tap the first option - which is what naming the permanence does.
+ *
+ * NOT SHOWN FOR THE SOLO CASE. A one-voice call has its own two answers below, and the "not me"
+ * branch writes a transcript with ZERO agent turns - which the route's one narrow exception lets a
+ * recovery replace. That answer is genuinely not final, so saying it is would be a lie in the
+ * other direction.
+ */
+export const ATTRIBUTION_IS_FINAL =
+  'Read the line before you tap - this is a one-time answer. It cannot be changed afterwards, and '
+  + 'picking the wrong voice labels the whole call backwards.';
+
 export function SpeakerPicker({
   speakers,
   onPick,
@@ -60,6 +91,13 @@ export function SpeakerPicker({
             'Only one voice came through on this call. Say whose it is and the transcript is saved either way — without an answer there is nothing for the coach to read.'
           : 'Two people spoke on this call. Until you say which is you, the transcript cannot tell you apart — and neither can the coach.'}
       </Text>
+
+      {/* Only where the answer really is final — see ATTRIBUTION_IS_FINAL. */}
+      {solo ? null : (
+        <Text className="mt-2 font-emphasis text-sm leading-relaxed text-foreground">
+          {ATTRIBUTION_IS_FINAL}
+        </Text>
+      )}
 
       <View className="mt-3 gap-2">
         {speakers.map((speaker, index) => {
