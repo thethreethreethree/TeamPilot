@@ -1327,6 +1327,15 @@ name typed, and a recording could not be sent until it had one.
 6. **Then check where they landed.** Open Sessions. The unnamed ones
    should be there under their automatic names, not missing and not
    blank-titled.
+6a. **And tell me how that row READS**, because I cannot see it and the
+   arithmetic says it may be ugly. The list groups by day, shows the time
+   in its own column, and the automatic name contains both — so a row can
+   say *"Door, Thu 10 Sep at 4:53 PM"* next to *"4:53 PM"* under a *"Thu
+   10 Sep"* heading. That is the date three times. I kept the full name
+   deliberately: it is stored data that appears in places with no date
+   beside it, and a name that collides across days is a worse fault than
+   one that repeats itself. But if it looks bad on the actual screen, say
+   so and I will shorten it to just the time.
 7. Try the per-card **Send** on an unnamed one. It must NOT say *"Name
    this call first"* any more — that alert claimed the server needed a
    name, and the server never did.
