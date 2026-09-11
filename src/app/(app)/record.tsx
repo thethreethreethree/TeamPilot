@@ -458,8 +458,11 @@ function Recorder() {
       const durationMs = startedAt.current ? Date.now() - startedAt.current : 0;
       if (!uri) throw new Error('The recorder produced no file.');
 
-      // Named, because automatic sending only ever touches a recording that has
-      // a name and the rep did not ask for this one to exist.
+      // NAMED, and still named — but no longer for the reason written here before, which was
+      // "automatic sending only ever touches a recording that has a name". That rule is gone.
+      // A split part keeps its own name because the rep did not ask for this recording to
+      // exist: the app cut a long call into pieces on its own, and "part 2" is the only thing
+      // that makes the second piece make sense in a list.
       await persistRecording({
         userId,
         sourceUri: uri,
@@ -556,10 +559,16 @@ function Recorder() {
             `${clock(durationMs / 1000)} recorded. It stays here until it has been sent — you can walk away from signal without losing it.` +
             (autoSendStopped()
               ? '\n\nThe server turned the last send down, so it is being held here safely.'
-              : '\n\nName it now and it sends itself as soon as you have a bar.')
+              // WAS "Name it now and it sends itself as soon as you have a bar", which stopped
+              // being true when the name stopped gating the send. It now goes either way, and a
+              // name is worth typing for a different reason: finding the call again in a month.
+              : '\n\nIt sends itself as soon as you have a bar. Naming it makes it easy to find later.')
           : `${clock(durationMs / 1000)} recorded and saved. You are signed out, so it is being held on this phone — sign in and it will be waiting.`,
         [
           { text: 'Later', style: 'cancel' },
+          // Still offered, and still at the one moment the rep is certainly thinking about the
+          // conversation - but it is now an invitation rather than the thing standing between
+          // this recording and the coach.
           { text: 'Name it now', onPress: () => router.push('/(app)/recordings') },
         ],
       );

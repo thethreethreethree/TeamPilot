@@ -79,9 +79,9 @@ export default function RecordingsScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
 
-  /** Recordings that are named and not already sent — the ones "send all" would
-   *  actually touch. Counted from the same rule auto-send uses, so the button
-   *  never promises to send something the sender will skip. */
+  /** Recordings that can still go — the ones "send all" would actually touch. Counted from the
+   *  same rule auto-send uses, so the button never promises to send something the sender will
+   *  skip. It said "named and not already sent" until the name stopped being part of that rule. */
   const readyToSend = (rows ?? []).filter(isSendable).length;
 
   /**
@@ -265,15 +265,15 @@ export default function RecordingsScreen() {
   /**
    * Flush everything that is ready, now.
    *
-   * Automatic sending already covers named recordings, but only on its own
-   * triggers and behind a cooldown — which is right for something running
-   * unattended and wrong for a rep who has just walked back into signal and
-   * wants them gone. `force` skips the cooldown; it deliberately does NOT
-   * override the hard stop, because that means the server is refusing these and
-   * no amount of asking changes it.
+   * Automatic sending already covers these, but only on its own triggers and behind a
+   * cooldown — which is right for something running unattended and wrong for a rep who has just
+   * walked back into signal and wants them gone. `force` skips the cooldown; it deliberately does
+   * NOT override the hard stop, because that means the server is refusing these and no amount of
+   * asking changes it.
    *
-   * Unnamed recordings are untouched, here as everywhere: naming one is how the
-   * rep says it should go.
+   * UNNAMED RECORDINGS GO TOO, which is the reversal. This used to read "Unnamed recordings are
+   * untouched, here as everywhere: naming one is how the rep says it should go" — and that rule is
+   * what left twelve conversations on a phone with nothing on screen explaining why.
    */
   const sendAll = useCallback(async () => {
     if (!userId) return;
@@ -392,7 +392,9 @@ If you want to keep it, use "Save a copy" first.`,
                 onPress={sendAll}
                 disabled={sendingAll || busyId !== null}
                 accessibilityRole="button"
-                accessibilityLabel={`Send all ${readyToSend} named recordings now`}
+                // NOT "named recordings" any more. A screen-reader user would have been told
+                // the button covered a subset, and been given no way to reach the rest.
+                accessibilityLabel={`Send all ${readyToSend} recordings now`}
                 accessibilityState={{ disabled: sendingAll, busy: sendingAll }}
                 className="mt-4 min-h-7 flex-row items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 active:bg-primary-pressed disabled:opacity-50"
               >
