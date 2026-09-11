@@ -53,6 +53,14 @@ import { OutcomePicker } from '@/components/outcome-picker';
 import { NOT_THE_REP, SpeakerPicker } from '@/components/speaker-picker';
 import { RecordingPlayer } from '@/components/recording-player';
 import { AfterPitchCard } from '@/components/after-pitch-card';
+import { reReadRecording } from '@/lib/after-pitch';
+import {
+  TIMING_LOST_NOTE,
+  type RecoveryStatus,
+  canAskAgain,
+  recoveryRecoveredWords,
+  recoveryWording,
+} from '@/lib/transcript-recovery';
 import { SessionReadCard } from '@/components/session-read-card';
 import { RECORDING_AVAILABLE } from '@/lib/audio/module';
 import { signedRecordingUrl } from '@/lib/sync/recording-url';
@@ -193,6 +201,25 @@ export default function SessionScreen() {
    * screen opened, so there is nothing to wait for and no reason to poll.
    */
   const [waitReason, setWaitReason] = useState<WaitReason>('waited');
+  /**
+   * THE CALL WHOSE WORDS NEVER CAME, AND WHAT A REP CAN DO ABOUT IT.
+   *
+   * This screen has always been able to say that no transcript is coming. It could not offer the
+   * one thing that fixes it, and the door-pitch card two hundred lines away could - the same
+   * failure, on the same table, with two different amounts of help depending on which screen the
+   * rep happened to open.
+   *
+   * The server closed its half of this on 10 September: `/auto-recover` used to REFUSE a call with
+   * audio and no transcript at all, because its precondition read a talk ratio that an empty
+   * transcript cannot have. Its own note records nine such sessions sitting in production, none
+   * ever attempted. The rule is now "a transcript missing an entire SIDE is recoverable", and a
+   * blank one is missing both.
+   *
+   * So the words are recoverable and this screen was the only thing still not saying so.
+   */
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
+  const [timingLost, setTimingLost] = useState(false);
+  const [rereading, setRereading] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
   /** A coach answer already saved for this session, if there is one. */
@@ -329,6 +356,27 @@ export default function SessionScreen() {
       );
     }
   }, [id, userId, present]);
+
+  /**
+   * Read the saved recording a second time, to recover words that were never written down.
+   *
+   * ONLY EVER STARTED BY A TAP, matching the door-pitch card. The website fires this route on its
+   * own when a rep opens such a call; this does not. Each attempt is a speech-to-text charge on a
+   * multi-minute recording, an hourly sweep already reaches these calls unattended, and a rep on a
+   * metered connection should be the one who decides to spend it.
+   *
+   * ON SUCCESS THE SCREEN RELOADS, because recovering the words is the whole point: the transcript
+   * this screen is currently showing as absent is now on the server, and without the reload the rep
+   * would be told it worked while still looking at nothing.
+   */
+  const reRead = useCallback(async () => {
+    setRereading(true);
+    const { status, timingLost: lost } = await reReadRecording(id);
+    setRecoveryStatus(status);
+    setTimingLost(lost);
+    setRereading(false);
+    if (recoveryRecoveredWords(status)) await load();
+  }, [id, load]);
 
   /**
    * Record how the call ended.
@@ -783,6 +831,22 @@ export default function SessionScreen() {
     );
   }
 
+  /*
+    WHOSE CALL THIS IS.
+
+    Read from the loaded session rather than assumed from the fact that the screen opened. A manager
+    can open a rep's call from the team screens, and re-reading a recording WRITES that rep's
+    canonical transcript under the service role - so the offer is the owner's alone (A18).
+
+    Undefined when the session has not loaded, which reads as false and shows no button. That is the
+    right way round: an ownership check that cannot be made must not resolve to "yes".
+  */
+  const ownsThisCall = Boolean(userId) && exportSource?.session.agent_id === userId;
+
+  /** What the last re-read came back with, in words. Null before any attempt, and null for the two
+   *  statuses that recovered the words - see recoveryWording. */
+  const recoveryAttempt = recoveryStatus ? recoveryWording(recoveryStatus) : null;
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <Stack.Screen
@@ -868,6 +932,30 @@ export default function SessionScreen() {
           the screen says so in the transcript note itself; announcing "still
           checking" twice would be noise, and announcing it after it stopped
           would be a lie. */}
+      {/*
+        DELIBERATELY NOT INSIDE THE NOTICE ABOVE.
+
+        A re-read that works reloads this screen, the transcript arrives, and the "no words are
+        coming" notice is torn down on the spot - taking anything nested in it with it. This note is
+        the one thing that must OUTLIVE that moment: it is what a rep reads when the words came back
+        and the call's timing did not, and a sentence that appears only while the news it explains
+        is still absent is a sentence nobody ever reads.
+
+        It says nothing until an attempt has actually lost something, so it costs an untouched
+        screen nothing.
+      */}
+      {timingLost ? (
+        <View
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          className="mx-5 mt-3 rounded-md border border-border-control px-3 py-3"
+        >
+          <Text className="font-body text-sm leading-relaxed text-muted-foreground">
+            {TIMING_LOST_NOTE}
+          </Text>
+        </View>
+      ) : null}
+
       {pollingGaveUp ? (
         <View
           accessibilityRole="alert"
@@ -880,6 +968,49 @@ export default function SessionScreen() {
           <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
             {transcriptWaitBody(waitReason)}
           </Text>
+
+          {/* What the last attempt actually did, in the server's own terms. Null for the two
+              statuses that recovered the words, because by then the transcript itself is on
+              screen above and a sentence about the mechanics would be noise over the top of it. */}
+          {recoveryAttempt ? (
+            <View className="mt-3 border-t border-border pt-3">
+              <Text className="font-strong text-base text-foreground">
+                {recoveryAttempt.title}
+              </Text>
+              <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+                {recoveryAttempt.body}
+              </Text>
+            </View>
+          ) : null}
+
+          {/*
+            OWNER ONLY, and that is the server's rule rather than a courtesy: /auto-recover writes
+            the canonical transcript through the service role, so a manager reading a rep's call
+            must not be able to trigger it on their record (A18).
+
+            Not offered after a settled answer either - every terminal except `failed` means asking
+            again would run the same work over the same audio and reach the same place, at another
+            charge. `canAskAgain` owns that rule; this screen does not restate it.
+          */}
+          {ownsThisCall && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
+            <Pressable
+              onPress={reRead}
+              disabled={rereading}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: rereading, busy: rereading }}
+              accessibilityLabel="Read the recording again to recover this call's words"
+              className={`mt-3 min-h-7 flex-row items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 active:bg-primary-pressed ${
+                rereading ? 'opacity-60' : ''
+              }`}
+            >
+              {rereading ? (
+                <ActivityIndicator size="small" color={C['primary-foreground']} />
+              ) : null}
+              <Text className="font-strong text-base text-primary-foreground">
+                {rereading ? 'Reading the recording…' : 'Read the recording again'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
