@@ -32,6 +32,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 
 import { coachGet } from '@/lib/coach-api';
+import { pitchStillProcessing } from '@/lib/pitch-detail';
 import { useOnline } from '@/lib/use-online';
 import { reachError } from '@/lib/reach-failure';
 import { clockTime, shortDate } from '@/lib/format';
@@ -303,7 +304,13 @@ function Row({ pitch }: { pitch: Pitch }) {
   // Whether an analysis is still coming, or was never going to. The route
   // left-joins it, so an absent summary is expected on a fresh pitch and means
   // something entirely different on an old one.
-  const processing = !pitch.summary && pitch.status !== 'analyzed' && pitch.status !== 'failed';
+  /*
+    ONE RULE, SHARED WITH THE DETAIL SCREEN. This was its own inline copy - `status !== 'analyzed'
+    && status !== 'failed'` - which left out `'complete'`. A pitch that had FINISHED with no
+    analysis saved was told here that it was still being analysed, while the detail screen, reading
+    the same row, called it lost. The spinner never resolves for a thing that is not coming.
+  */
+  const processing = pitchStillProcessing(pitch.status, Boolean(pitch.summary));
 
   return (
     <Pressable
@@ -342,7 +349,10 @@ function Row({ pitch }: { pitch: Pitch }) {
         </Text>
       ) : (
         <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-          No summary for this pitch.
+          {/* Reached only when the pitch is FINISHED and carries no analysis - so it is not
+              coming, and the rep should not be left waiting on it. The detail screen calls this
+              same state "lost" and says more about it; this row says the true short version. */}
+          The analysis did not come through for this one.
         </Text>
       )}
     </Pressable>

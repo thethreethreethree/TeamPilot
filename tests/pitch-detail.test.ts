@@ -19,6 +19,7 @@ import {
   canRolePlay,
   dimensionLabel,
   orderedScores,
+  pitchStillProcessing,
   scoreWidth,
   type PitchDetail,
 } from '@/lib/pitch-detail';
@@ -130,4 +131,59 @@ test('dimension names read as English', () => {
   assert.equal(dimensionLabel('price_framing'), 'Price framing');
   assert.equal(dimensionLabel('objection-handling'), 'Objection handling');
   assert.equal(dimensionLabel('rapport'), 'Rapport');
+});
+
+// ---------------------------------------------------------------------------
+// The list and the detail screen must agree about the same pitch
+//
+// They did not. `pitches.tsx` carried its own copy of this condition —
+// `status !== 'analyzed' && status !== 'failed'` — which omits `'complete'`. So a pitch that had
+// FINISHED with no analysis saved was told, on the list, "Still being analysed. The summary appears
+// here when it is done", while the detail screen read the same row and called it `lost`.
+//
+// This file's own header already warned against exactly that sentence: "Saying 'still processing'
+// here shows a spinner that will never resolve — the rep waits forever for a thing that is not
+// coming." The warning was written, and then the list was built with a second copy of the rule that
+// ignored it. That is the duplicated-rule failure, with the documentation on the losing side.
+
+test('a FINISHED pitch with no analysis is not "still being analysed"', () => {
+  // The case the list got wrong, and the whole reason the rule is now shared.
+  assert.equal(pitchStillProcessing('complete', false), false);
+});
+
+test('the two surfaces reach the same verdict from the same row', () => {
+  const base: PitchDetail = {
+    id: 'p1',
+    name: 'Door, Thu 10 Sep at 4:53 PM',
+    status: 'complete',
+    error: null,
+    recordedAt: '2026-09-10T16:53:00.000Z',
+    outcome: 'sold',
+    transcript: 'some words',
+    analysis: null,
+  };
+  // Detail: lost. List: not processing. Neither leaves the rep waiting.
+  assert.equal(analysisState(base).kind, 'lost');
+  assert.equal(pitchStillProcessing(base.status, Boolean(base.analysis)), false);
+});
+
+test('a pitch that really is still moving still says so', () => {
+  assert.equal(pitchStillProcessing('pending', false), true);
+  assert.equal(pitchStillProcessing('transcribing', false), true);
+  // An unknown status is treated as still moving, which is the right way to be wrong: it waits
+  // rather than declaring a failure the app cannot actually see.
+  assert.equal(pitchStillProcessing('some-new-status', false), true);
+});
+
+test('an analysis that exists is never "still being analysed"', () => {
+  assert.equal(pitchStillProcessing('pending', true), false);
+  assert.equal(pitchStillProcessing('analyzed', true), false);
+});
+
+test('a failed pitch is not processing either — it has its own sentence', () => {
+  assert.equal(pitchStillProcessing('failed', false), false);
+  assert.equal(analysisState({
+    id: 'p2', name: 'n', status: 'failed', error: 'Speech service was down',
+    recordedAt: '2026-09-10T16:53:00.000Z', outcome: 'no_sale', transcript: null, analysis: null,
+  }).kind, 'failed');
 });

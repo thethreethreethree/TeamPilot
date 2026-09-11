@@ -60,6 +60,26 @@ export type AnalysisState =
 /** The statuses the route treats as terminal. Anything else is still moving. */
 const TERMINAL = new Set(['complete', 'analyzed', 'failed']);
 
+/**
+ * Is this pitch genuinely still being analysed?
+ *
+ * EXPORTED BECAUSE THE LIST HAD ITS OWN COPY OF THIS, AND THE COPY WAS WRONG. `pitches.tsx` tested
+ * `status !== 'analyzed' && status !== 'failed'` - omitting `'complete'` - so a pitch that had
+ * FINISHED with no analysis saved was told "Still being analysed. The summary appears here when it
+ * is done." The detail screen, from the same row, called it `lost`.
+ *
+ * Two screens, one pitch, opposite claims, and the list's was the one this file already warns
+ * against in its own header: "Saying 'still processing' here shows a spinner that will never
+ * resolve - the rep waits forever for a thing that is not coming."
+ *
+ * So the rule lives here, once, beside `analysisState`, which is the only way the two surfaces can
+ * be made to agree about the same pitch.
+ */
+export function pitchStillProcessing(status: string, hasAnalysis: boolean): boolean {
+  if (hasAnalysis) return false;
+  return !TERMINAL.has(status);
+}
+
 export function analysisState(detail: PitchDetail): AnalysisState {
   if (detail.status === 'failed') {
     return {
