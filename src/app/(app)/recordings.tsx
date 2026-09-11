@@ -44,6 +44,7 @@ import {
 import { useOnline, isOffline } from '@/lib/use-online';
 import { clockTime, parseMoney, shortDate } from '@/lib/format';
 import { OutcomePicker } from '@/components/outcome-picker';
+import { pitchOutcomeLabel } from '@/lib/doors/outcome-label';
 import type { SessionOutcome } from '@/types/backend';
 import { C } from '@/lib/theme';
 
@@ -556,6 +557,21 @@ function Row({
   // the one thing this screen most needs to say out loud — a rep was otherwise
   // finding out by tapping Send, and could tap it forever.
   const canSend = sendability(rec.sizeBytes);
+  /*
+    A DOOR PITCH IS NOT A COACHING SESSION, AND THIS CARD WAS TREATING THEM AS ONE.
+
+    The outcome picker below writes `rec.outcome`, in the SESSION vocabulary - sold, follow-up, no
+    sale, no contact, undecided. A pitch's outcome is `rec.pitchOutcome`, in the DOOR vocabulary,
+    and it is set when the rep saves the recording from the Door Log. `sendPitchRecording` reads
+    `rec.pitchOutcome` and never looks at `rec.outcome`.
+
+    So on a held pitch this card offered the wrong five words, wrote them to a field the pitch
+    upload does not read, and captioned it "Without this the call is not counted in your numbers" -
+    which is untrue twice over: the value changes nothing, and the pitch already HAS an outcome.
+
+    Pitches reach this screen like everything else; `listRecordings` does not filter by kind.
+  */
+  const isPitch = uploaderFor(rec) === 'door-log';
 
   return (
     <View className="mt-4 rounded-md border border-border-control p-4">
@@ -669,27 +685,47 @@ function Row({
             </Text>
           ) : null}
 
-          <OutcomePicker
-            value={outcome}
-            onChange={(next) => {
-              setOutcome(next);
-              onOutcome({ outcome: next });
-            }}
-            disabled={busy}
-            hint="Without this the call is not counted in your numbers."
-          />
+          {isPitch ? (
+            /*
+              A pitch's outcome is already recorded, so this states it rather than asking again.
+              Read-only on purpose: it was chosen at the door, it is what the upload will send, and
+              a second control offering different words would be a way to change something that is
+              not actually changed.
+            */
+            <View className="mt-3">
+              <Text className="font-emphasis text-sm text-muted-foreground">How it ended</Text>
+              <Text className="mt-1 font-body text-base text-foreground">
+                {pitchOutcomeLabel(rec.pitchOutcome)}
+              </Text>
+              <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+                You set this at the door when you saved it. It sends with the pitch.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <OutcomePicker
+                value={outcome}
+                onChange={(next) => {
+                  setOutcome(next);
+                  onOutcome({ outcome: next });
+                }}
+                disabled={busy}
+                hint="Without this the call is not counted in your numbers."
+              />
 
-          {outcome === 'sold' ? (
-            <LabelledInput
-              label="What was it worth?"
-              hint="Dollars. Leave blank if you would rather not say."
-              value={dealValue}
-              onChangeText={setDealValue}
-              onDone={(text) => onOutcome({ dealValue: text })}
-              editable={!busy}
-              placeholder="1500"
-            />
-          ) : null}
+              {outcome === 'sold' ? (
+                <LabelledInput
+                  label="What was it worth?"
+                  hint="Dollars. Leave blank if you would rather not say."
+                  value={dealValue}
+                  onChangeText={setDealValue}
+                  onDone={(text) => onOutcome({ dealValue: text })}
+                  editable={!busy}
+                  placeholder="1500"
+                />
+              ) : null}
+            </>
+          )}
 
           {/* Collapsed by default, and it stays that way. These three fields are
               what the website asks for and what the numbers read, so a recorded
