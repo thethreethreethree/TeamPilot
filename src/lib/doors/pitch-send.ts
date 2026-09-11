@@ -13,6 +13,7 @@
  */
 import { sendPitch } from './pitch-upload';
 import { isPitchOutcome } from './pitch-outcome';
+import { autoTitle } from '@/lib/audio/auto-title';
 import type { UploadOutcome } from '@/lib/audio/upload';
 import type { PendingRecording } from '@/lib/audio/recording-store';
 import { uploadBlockedMessage } from '@/lib/blocked-state';
@@ -63,9 +64,20 @@ export async function sendPitchRecording(
     durationMs: rec.durationMs,
     outcome: rec.pitchOutcome,
     localDate: rec.pitchLocalDate,
-    // The route requires a non-empty name. The rep's own words when they gave
-    // them; otherwise the day, which is true and readable, never a generated id.
-    name: meta.clientLabel.trim() || `Door on ${rec.pitchLocalDate}`,
+    /*
+      The route requires a non-empty name. The rep's own words when they gave them; otherwise the
+      one automatic name this app has.
+
+      IT USED TO BE `Door on ${rec.pitchLocalDate}` HERE, and that is worth a sentence rather than
+      a silent deletion. This sender already knew how to name an unnamed pitch - it has since it
+      was written - while `isSendable` upstream was refusing to hand it one at all. The gate was
+      not protecting anything this code needed; it was stopping work that was ready.
+
+      Now there is one rule instead of two. Two fallbacks for one situation is how a rep finds
+      "Door on 2026-09-10" under Pitch Performance and "Door, Thu 10 Sep at 4:53 PM" on the phone,
+      for the same call.
+    */
+    name: meta.clientLabel.trim() || autoTitle(rec),
     // The recording's own id doubles as the knock id: it is generated once and
     // never regenerated, which is exactly what the route de-duplicates on.
     clientKnockId: rec.clientId,
