@@ -1342,6 +1342,14 @@ name typed, and a recording could not be sent until it had one.
 6. **Then check where they landed.** Open Sessions. The unnamed ones
    should be there under their automatic names, not missing and not
    blank-titled.
+6b. **Check the DATES they land on.** A recording carries the instant it
+   was made, and until this morning the server dated a session by when it
+   was UPLOADED — so a call recorded last week would have appeared as
+   today. That is fixed, but only for uploads from **build 19 or later**.
+   If you send your fifteen from an earlier build they will all land on
+   today; from 19 they land on the days they actually happened. Either
+   way, tell me which you see, because it tells me whether the fix
+   reached them.
 6a. **And tell me how that row READS**, because I cannot see it and the
    arithmetic says it may be ugly. The list groups by day, shows the time
    in its own column, and the automatic name contains both — so a row can
