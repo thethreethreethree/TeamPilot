@@ -228,7 +228,7 @@ The rest are the ones where a failure means a rep LOSES something — a recordin
 they cannot re-take, unsent words, a deal value that vanishes as they swipe back
 — rather than merely seeing the wrong thing.
 
-**Build 17 or later is what to test** — take whatever TestFlight offers you as
+**Build 20 or later is what to test** — take whatever TestFlight offers you as
 newest, and check the build number against this note before you start.
 
 Build 16 went up at 02:45 and was superseded the same morning by your REV 1
@@ -918,6 +918,24 @@ produce a number, for anybody. The field was not missing — it was *unreachable
 the end*: it uses a number keypad, which on iOS has **no return key**, and the
 value only saved when the field lost focus. Type it, swipe back, gone, with
 nothing said.
+
+> **Changed again on 11 September, and it changes what a PASS looks like here.**
+> A Save button was added in build 14, and it only helps a rep who reaches it.
+> This check tests the case where they reach neither the blur nor the button —
+> and as the code stood, that could still lose the number, because a swipe-back
+> *unmounts* the field rather than blurring it and `onBlur` does not reliably
+> fire then.
+>
+> From **build 20** the last thing that screen does is save what is still
+> unsaved, through the same durable queue, and a same-kind entry replaces rather
+> than duplicates so tapping Save and then swiping back cannot double-write. The
+> same rescue was applied to the session **rename** and to the name and deal
+> value on a **waiting recording** — three fields, all of which lost what a rep
+> typed if they swiped away.
+>
+> So step 4 below should now pass deliberately rather than by luck. **If it does
+> not, that is worth interrupting me for**: it would mean the unmount never runs,
+> which would make every one of those three fixes false.
 
 1. Open any call and set **How did it end** to **Sold**.
 2. A **“What was it worth?”** field appears. Type a number — say `1500`.
