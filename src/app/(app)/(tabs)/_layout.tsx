@@ -92,6 +92,23 @@ export default function TabsLayout() {
         name="pitches"
         options={{
           title: 'Pitch Performance',
+          /*
+            THE TAB SAYS "PITCHES" BECAUSE "PITCH PERFORMANCE" DOES NOT FIT, AND DID NOT.
+
+            The founder's own screenshot shows it rendered as "Pitch Performa..." - clipped
+            mid-word, in the one place this screen is ever named. `headerShown` is false for the tab
+            group and this screen has no standing heading of its own, so the tab label IS the name.
+            A truncated one is the navigation rule's "clearly labelled" failing quietly.
+
+            Measured rather than guessed: it is 17 characters against a tab roughly a quarter of a
+            375pt screen. "Today's Metrics" is 15 and renders in full in the same screenshot, so 15
+            fits and 17 does not. It is the only label of the eight over 15.
+
+            "Pitches" is this screen's own word, not a new one - its route is `pitches`, its empty
+            state reads "No pitches yet", and its body talks about a pitch appearing once you record
+            one at a door. `title` keeps the full name for anywhere that shows one.
+          */
+          tabBarLabel: 'Pitches',
           tabBarIcon: icon('mic'),
           href: macro ? undefined : null,
         }}
