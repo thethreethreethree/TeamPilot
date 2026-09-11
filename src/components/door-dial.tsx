@@ -20,11 +20,16 @@
  * THE COUNT IS TEXT, never colour alone. A rep glancing at a dial between doors
  * reads the number; the lit ticks are the shape of the progress, not the fact.
  *
- * TAP ONLY, NO LONG-PRESS. The 10 September update dropped the long-press
- * decrement: a knock is an immutable logged event with an outcome attached, so
- * there is nothing to take back from here. Undo USED to live in the door log itself; REV 1
- * removed it on 2026-09-11 and nothing replaced it, so at present a logged door cannot be taken
- * back anywhere. That is on the build board as a decision rather than left as a surprise.
+ * THE TAP NAVIGATES; IT DOES NOT LOG. Every dial's `onTap` is the same handler and it opens the
+ * Door Log. That is correct and deliberate: a door carries an outcome - sold, go back, not
+ * interested, no answer - and one tap on a dial cannot say which. The hint under the dials said
+ * "Tap a dial to log one" until 2026-09-11, which described something this control has never done.
+ *
+ * NO LONG-PRESS. The 10 September update dropped the long-press decrement: a knock is an immutable
+ * logged event with an outcome attached, so there is nothing to take back from here. Undo USED to
+ * live in the door log itself; REV 1 removed it on 2026-09-11 and nothing replaced it, so at
+ * present a logged door cannot be taken back anywhere. That is on the build board as a decision
+ * rather than left as a surprise.
  */
 import { Pressable, Text, View } from 'react-native';
 
