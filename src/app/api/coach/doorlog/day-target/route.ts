@@ -31,12 +31,33 @@ export async function GET(req: NextRequest) {
   try {
     const target = await getOrFreezeDayTarget({ db: sb, repId: auth.user.id, companyId, localDate });
 
-    // Today's three counts (rep-local day). Presentations by recorded_at (pitches carry no local_date) — for a
-    // single day this is close enough; the exact boundary lives in door_knocks.local_date for doors/sold.
+    /*
+      Today's three counts, ALL from door_knocks and all on the rep's local day.
+
+      PRESENTATIONS USED TO BE COUNTED FROM `pitches` — recorded audio. Doors and sold came from
+      door_knocks, so the middle of the funnel was measured from a different table than the two ends,
+      and a door logged as sold without a recording never counted as a presentation.
+
+      The founder's own home screen showed the result on 11 September 2026: "0 of 9 PRESENTATIONS"
+      beside "9 of 1 SOLD" — nine sales from zero presentations, which cannot happen. The screen
+      presents these three as a funnel, and a funnel asserts containment the two sources could not
+      guarantee.
+
+      A presentation is now a door where the rep actually spoke to somebody: every outcome except
+      `no_answer`. Founder's decision, 11 September. Across production that moves the count from 86
+      to 264 against 723 knocks — the close ratio falls from an implausible 78% to about 25%, which
+      is the more believable number and always was.
+
+      THE DOOR TARGET BARELY MOVES, which is why this is safe to change under a live team:
+      `doorsTarget = ceil(soldTarget / close) / contact`, and with close = sold/presentations and
+      contact = presentations/doors the presentations term cancels — only the intermediate ceil()
+      survives. What genuinely changes is the PRESENTATIONS target, which stops being derived from a
+      denominator that only ever saw the doors somebody remembered to record.
+    */
     const [doorsRes, soldRes, presRes] = await Promise.all([
       sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("local_date", localDate),
       sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("outcome", "sold").eq("local_date", localDate),
-      sb.from("pitches").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).gte("recorded_at", `${localDate}T00:00:00Z`),
+      sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).neq("outcome", "no_answer").eq("local_date", localDate),
     ]);
     if (doorsRes.error || soldRes.error || presRes.error) {
       // INV22 honesty: a failed count must not render as a fabricated 0 — surface the failure.

@@ -21,10 +21,15 @@ function mockDb(opts: {
 }) {
   const from = (table: string) => {
     let outcomeSold = false;
+    // All three counts now come from door_knocks, so the table no longer tells them apart: doors is
+    // unfiltered, sold is .eq("outcome","sold"), and presentations is .neq("outcome","no_answer").
+    // The stub has to watch the FILTER, not the table, or two of the three resolve to the same number.
+    let spokenTo = false;
     const builder: Record<string, unknown> = {};
     const chain = () => builder;
     builder.select = chain;
     builder.eq = (col: string, val: unknown) => { if (col === "outcome" && val === "sold") outcomeSold = true; return builder; };
+    builder.neq = (col: string, val: unknown) => { if (col === "outcome" && val === "no_answer") spokenTo = true; return builder; };
     builder.gte = chain;
     builder.lte = chain;
     builder.maybeSingle = async () => {
@@ -38,7 +43,7 @@ function mockDb(opts: {
     // The count queries are awaited directly on the builder (thenable).
     (builder as { then: unknown }).then = (res: (v: unknown) => unknown) => {
       const c = opts.counts ?? { doors: 0, sold: 0, presentations: 0 };
-      const count = table === "pitches" ? c.presentations : outcomeSold ? c.sold : c.doors;
+      const count = spokenTo ? c.presentations : outcomeSold ? c.sold : c.doors;
       return Promise.resolve(res({ count, error: null }));
     };
     return builder;

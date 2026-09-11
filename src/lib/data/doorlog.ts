@@ -150,42 +150,58 @@ export async function getKpiForDay(localDate: string, repId: string, db?: Supaba
  * Paged (fetchAllPaged) so a rep with >1000 active days can't silently undercount — summing a PostgREST
  * read truncated at 1000 rows is the honesty-thesis wrong-number class.
  *
- * A "presentation" = a door where the rep actually RECORDED a pitch (founder decision 2026-08-28), counted as
- * rows in `pitches`. The old proxy (doors_knocked − no_answer) OVER-counted: it credited every non-no-answer
- * knock as a presentation even when the rep logged an outcome but never pitched-and-recorded. `pitches` is
- * unique per knock_id (one pitch per door), so the row count = distinct doors actually pitched — the number
- * the founder confirmed (Moses: 41 recorded pitches, not the 46 non-no-answer knocks). All statuses count:
- * a pitch that recorded but later failed to analyze was still a presentation. rep_kpi_daily stays the source
- * for knocked/sold.
+ * A "presentation" = a door where the rep SPOKE TO SOMEBODY: doors_knocked − no_answer.
+ *
+ * THIS REVERSES A PRIOR DECISION, and the reversal is recorded rather than the old reasoning deleted,
+ * because the old reasoning was right when it was made.
+ *
+ * On 2026-08-28 the founder chose `pitches` — a RECORDED pitch — over this same doors_knocked − no_answer
+ * proxy, on the grounds that the proxy over-counted, and confirmed it against Moses: 41 recorded against 46
+ * non-no-answer knocks. At a five-door gap the sharper measure was plainly the better one.
+ *
+ * That gap did not hold. Measured 2026-09-11: Moses is 126 spoken to against 50 recorded, and the founder's
+ * own row is 18 spoken to, 3 recorded, and 10 SOLD — a close ratio of 333%, because sales are counted from
+ * knocks and the denominator was counted from audio. Sold exceeding presentations is not a definition
+ * preference; it is a broken denominator, and it reached the founder's home screen as "0 of 9 PRESENTATIONS"
+ * beside "9 of 1 SOLD".
+ *
+ * So the definition follows the knock, and the recording gap becomes a thing to fix in coaching rather than a
+ * thing that silently rewrites everyone's ratios. Founder's decision 2026-09-11, taken with those numbers in
+ * front of them.
+ *
+ * ONE SOURCE. Presentations now come out of the SAME rep_kpi_daily rows that already supply knocked and sold,
+ * rather than a second table — which is the fault this whole change is about. It also drops a query.
  */
 export async function getAllTimeKpi(
   repId: string,
   db?: SupabaseClient,
 ): Promise<{ doorsKnocked: number; presentations: number; sold: number }> {
   const sb = db ?? (await createClient());
-  const [rows, pitchCountRes] = await Promise.all([
-    fetchAllPaged<{ doors_knocked: number; sold: number }>(
-      (from, to) =>
-        sb.from("rep_kpi_daily").select("doors_knocked, sold").eq("rep_id", repId).range(from, to),
-      { label: "all-time door KPI" },
-    ),
-    sb.from("pitches").select("id", { count: "exact", head: true }).eq("rep_id", repId),
-  ]);
-  // Honesty (INV22): a failed presentations count must NOT render as a fabricated 0 — throw so the caller
-  // degrades visibly (a 5xx / last-good) instead of showing a false "0 presentations".
-  if (pitchCountRes.error) throw new Error(`getAllTimeKpi presentations count failed: ${pitchCountRes.error.message}`);
+  const rows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
+    (from, to) =>
+      sb
+        .from("rep_kpi_daily")
+        .select("doors_knocked, sold, no_answer")
+        .eq("rep_id", repId)
+        .range(from, to),
+    { label: "all-time door KPI" },
+  );
   let doorsKnocked = 0;
   let sold = 0;
+  let noAnswer = 0;
   for (const r of rows) {
     doorsKnocked += Number(r.doors_knocked ?? 0);
     sold += Number(r.sold ?? 0);
+    noAnswer += Number(r.no_answer ?? 0);
   }
-  return { doorsKnocked, presentations: pitchCountRes.count ?? 0, sold };
+  // Floored at zero: a rollup row that somehow counted more no-answers than knocks must not produce a
+  // NEGATIVE presentation count, which would read as a number rather than as the nonsense it is.
+  return { doorsKnocked, presentations: Math.max(0, doorsKnocked - noAnswer), sold };
 }
 
 /**
  * Today's Metrics for a rep + period (Macro Mode, founder spec 2026-08-19): the KPI trio (doors / conversations
- * = presentations = recorded pitches in the window / sales), the Score-Chart averages across the period's analyzed pitches, and the Next-Door
+ * = presentations = doors spoken to in the window, founder 2026-09-11 / sales), the Score-Chart averages across the period's analyzed pitches, and the Next-Door
  * focus + growth opportunities from the macro rollup. RLS-scoped (the caller sees their own; a manager may pass
  * a team member's repId, still RLS-authorized). Windows match the rollup (via the rep's device-tz local_date).
  */
@@ -257,16 +273,18 @@ export async function getTodaysMetrics(
           .order("generated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
-    // Presentations for the window = RECORDED pitches (all statuses; founder 2026-08-28), NOT non-no-answer knocks.
-    // Period-scoped via the door_knocks.local_date join, mirroring the scores query's window. Distinct from that
-    // query — scores gate on status=complete (analyzed), presentations count every recorded pitch.
+    // Presentations for the window = doors where somebody was SPOKEN TO (founder 2026-09-11, superseding the
+    // 2026-08-28 recorded-pitch rule — see getAllTimeKpi's note for the numbers that reversed it). Counted
+    // straight off door_knocks, the same table the trio's other two figures come from, so the window and the
+    // source both match instead of only the window.
     (() => {
       const base = sb
-        .from("pitches")
-        .select("door_knocks!inner(local_date)", { count: "exact", head: true })
-        .eq("rep_id", repId);
-      const lo = since ? base.gte("door_knocks.local_date", since) : base;
-      return until ? lo.lte("door_knocks.local_date", until) : lo;
+        .from("door_knocks")
+        .select("id", { count: "exact", head: true })
+        .eq("rep_id", repId)
+        .neq("outcome", "no_answer");
+      const lo = since ? base.gte("local_date", since) : base;
+      return until ? lo.lte("local_date", until) : lo;
     })(),
   ]);
 

@@ -10,9 +10,11 @@ import { calculateDayTarget, type DayTarget } from "./dayTarget";
  * a target that moves during the day rewards stopping, so it is computed once at the first open and stored).
  *
  * Uses the CALLER-SCOPED db (RLS: a rep sees/writes only their own; a same-company manager can read). The
- * ratio window mixes two date sources honestly: doors/sold by door_knocks.local_date (the rep's sales day),
- * presentations by pitches.recorded_at (pitches carry no local_date; each links to a knock, but a 30-day
- * ratio does not need day-exact precision — noted so it is not mistaken for a bug).
+ * All three figures now come from door_knocks.local_date (the rep's sales day). Presentations were read
+ * from pitches.recorded_at until 11 September 2026, and that mixed-source note used to end "noted so it is
+ * not mistaken for a bug" — it WAS a bug in everything but the arithmetic: a door logged as sold without a
+ * recording counted as a sale and as no presentation, so the funnel could show nine sales from zero
+ * presentations, which it did, on the founder's own screen.
  */
 
 export const WINDOW_DAYS = 30;
@@ -106,11 +108,15 @@ export async function getOrFreezeDayTarget(args: {
   // 2. The 30-day record. Read BEFORE the goal is settled, because when no
   //    manager has set one the goal is DERIVED from exactly these numbers.
   const since = windowStart(localDate);
-  const sinceTs = `${since}T00:00:00Z`;
   const [doorsRes, soldRes, presRes, daysRes] = await Promise.all([
     db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
     db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).eq("outcome", "sold").gte("local_date", since).lte("local_date", localDate),
-    db.from("pitches").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("recorded_at", sinceTs),
+    // A presentation is a door where somebody was actually spoken to — every outcome but `no_answer`
+    // (founder, 11 September 2026). It was `pitches` (recorded audio), which measured the middle of
+    // the funnel from a different table than its two ends and let a sold door count as zero
+    // presentations. See the route's note for the screenshot that surfaced it and why the door
+    // target is almost unmoved by the change.
+    db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).neq("outcome", "no_answer").gte("local_date", since).lte("local_date", localDate),
     // The DAYS THE REP ACTUALLY WORKED, not the window length. Dividing by 30
     // when somebody worked five days hands them a goal a sixth of what they can
     // do, and they would meet it before lunch on day one.
