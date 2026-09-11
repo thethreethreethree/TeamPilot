@@ -574,6 +574,32 @@ export default function AccountScreen() {
           This app records sales conversations, so it handles other people&apos;s voices as well as
           yours. The policy says who receives that audio, what is kept and for how long.
         </Text>
+        {/*
+          THE TWO FACTS A REP ACTUALLY COMES HERE FOR, and neither was anywhere in the app.
+
+          Both are read out of the server's own code rather than described from memory. The
+          retention rule is the purge job's: each rep's twenty most recent recordings are kept and
+          older audio is dropped, while the transcript and scores stay, because those are what a
+          skill profile is built from. The deletion rule is `delete-recording`'s, and the owning rep
+          is excluded from it deliberately - a rep who could delete their own worst call could
+          curate what their manager sees.
+
+          SAID HERE RATHER THAN ON THE SEND BUTTON. Sending is what this app is for, and a warning
+          over the one action a rep takes fifteen times a day is noise they learn to skip. The
+          person who needs this is the one who recorded something by accident and has gone looking
+          for how to undo it - and this is where they look.
+
+          The phone cannot mark a recording to be kept. &ldquo;Save a copy&rdquo; on a pending
+          recording writes a file somewhere else on the device; the server&rsquo;s keep-forever flag
+          is a different thing, and nothing in this app sets it. So this does not offer it.
+        */}
+        <Text className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">
+          Two things worth knowing before you send one. Your twenty most recent recordings are
+          kept; past that the audio is deleted on its own, though the write-up and your scores
+          stay. And once a recording has left this phone, only a manager or an administrator can
+          delete it — not you. While it is still waiting to send, you can delete it here and it is
+          gone for good.
+        </Text>
         <WebsiteLink
           url={webPrivacyUrl(ENV.API_BASE)}
           label="Read the privacy policy"

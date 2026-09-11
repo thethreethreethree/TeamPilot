@@ -64,3 +64,28 @@ test('somebody who has not signed in can reach it too', () => {
   assert.match(signIn, /webPrivacyUrl\(ENV\.API_BASE\)/);
   assert.match(signIn, /Privacy policy/);
 });
+
+test('Account states the two retention facts, and states them accurately', () => {
+  /*
+    READ OUT OF THE SERVER, NOT FROM MEMORY, and pinned here because both numbers are the kind
+    that drift silently. The purge job keeps each rep's twenty most recent recordings and drops
+    older AUDIO while keeping transcript and scores. `delete-recording` is managers and
+    administrators only, with the owning rep excluded on purpose.
+
+    If either server rule changes, this test still passes while the app starts lying - so the
+    comment above names the two files to check. What it CAN catch is the sentence being softened
+    or dropped in an edit, which is how a promise like this usually disappears.
+  */
+  const account = read('src/app/(app)/(tabs)/account.tsx');
+  assert.match(account, /twenty most recent recordings/);
+  assert.match(
+    account,
+    /only a manager or an administrator can[\s\S]{0,20}delete it/,
+    'a rep must be told they cannot remove a sent recording themselves',
+  );
+  assert.match(
+    account,
+    /the write-up and your scores[\s\S]{0,40}stay/,
+    'dropping the audio is not dropping the coaching - say so, or it reads as losing everything',
+  );
+});
