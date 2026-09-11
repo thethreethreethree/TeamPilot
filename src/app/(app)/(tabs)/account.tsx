@@ -22,6 +22,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Switch, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
+import { versionLine } from '@/lib/crash-log';
 
 import { useAuth } from '@/lib/auth-context';
 import { pendingBytes, countPending } from '@/lib/audio/recording-store';
@@ -178,8 +179,29 @@ export default function AccountScreen() {
   // app name would be the kind of small wrongness that makes everything above it
   // look unmaintained.
   const runtime = Constants.expoConfig?.runtimeVersion;
-  const version =
+  const marketing =
     Constants.expoConfig?.version ?? (typeof runtime === 'string' ? runtime : null);
+  /*
+    THE BUILD NUMBER, NOT JUST "1.0.0".
+
+    `crash-log.ts` worked this out for the problem report and says why: the marketing version stays
+    1.0.0 across every upload, "so a report from build 3 and a report from build 7 read
+    identically - and the first question anyone asks about a bug is which build it came from."
+
+    This screen was still showing the bare 1.0.0, which is the one place a person looks to answer
+    that question for themselves. It matters right now: the device-check list asks the founder to
+    confirm which build they are testing, and builds 16 to 20 went out inside one morning.
+
+    Same helper as the report, so the number a rep reads here and the number they send cannot
+    disagree.
+  */
+  const version = versionLine(
+    marketing,
+    Constants.platform?.ios?.buildNumber ??
+      (Constants.platform?.android?.versionCode != null
+        ? String(Constants.platform.android.versionCode)
+        : null),
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -546,8 +568,12 @@ export default function AccountScreen() {
           <Text className="font-strong text-base text-destructive">Sign out</Text>
         </Pressable>
 
-        {version ? (
-          <Text className="mt-8 font-body text-xs text-muted-foreground">
+        {version && version !== 'unknown' ? (
+          <Text
+            accessibilityRole="text"
+            accessibilityLabel={`Sales Coach, version ${version}`}
+            className="mt-8 font-body text-xs text-muted-foreground"
+          >
             Sales Coach {version}
           </Text>
         ) : null}
