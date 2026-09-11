@@ -72,6 +72,35 @@ export const TIMING_LOST_NOTE =
   'get a speed reading. Nothing you did caused it and there is nothing to redo.';
 
 /**
+ * WHAT A RE-READ CAN COST, SAID BEFORE IT IS SPENT AND NOT AFTER.
+ *
+ * `TIMING_LOST_NOTE` explains the loss once it has happened. That is the wrong moment to learn
+ * about it and it took shipping the button to see it: a recovery started today can permanently
+ * cost the call its pacing, the rep is told so afterwards, and there is no undo. An action whose
+ * price is disclosed only after payment is not a choice the person made.
+ *
+ * WHY IT CAN HAPPEN AT ALL. The timing lives in a column the recovery writes, and the migration
+ * that protects it is pending on this product's database. Both versions of the write succeed and
+ * both report a count, so nothing looks wrong from here - and the recovery deliberately never
+ * retries, correctly, because retrying would re-run a paid transcription every hour for something
+ * only an administrator can fix. So for that call the loss is permanent.
+ *
+ * WRITTEN TO STAY TRUE AFTER THE FIX, because a warning that goes stale is its own defect and this
+ * app has paid for that before. It states a possibility rather than a certainty, and it never
+ * mentions a migration: the person tapping is a rep who cannot apply one and should not have to
+ * know the word. Once the database is fixed the risk simply stops materialising, and the sentence
+ * remains accurate rather than becoming a lie.
+ *
+ * NOT SHOWN AS A WARNING STRIPE. The recovery is still the right thing to do for a call that
+ * otherwise has nothing at all - words without pacing beat silence. This informs the tap; it does
+ * not argue against it.
+ */
+export const RECOVERY_COST_NOTE =
+  'This can cost the call its speed reading. The words come back either way; the timing behind ' +
+  'them - who spoke when - sometimes does not, and that part cannot be recovered later. ' +
+  'Everything else about the call is unaffected, and you will be told if it happened.';
+
+/**
  * Did the words come back?
  *
  * Both of these mean the transcript on the server is now two-sided, so the card should rebuild the

@@ -23,6 +23,7 @@ import {
   hasContent,
 } from '@/lib/after-pitch-empty';
 import {
+  RECOVERY_COST_NOTE,
   TIMING_LOST_NOTE,
   type RecoveryStatus,
   canAskAgain,
@@ -284,7 +285,12 @@ export function AfterPitchCard({
           reached its conclusion.
         */}
         {canReReadFrom(availability) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
-          <Pressable
+          <>
+            {/* The price, before it is spent rather than after. See RECOVERY_COST_NOTE. */}
+            <Text className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">
+              {RECOVERY_COST_NOTE}
+            </Text>
+            <Pressable
             onPress={reRead}
             disabled={rereading}
             accessibilityRole="button"
@@ -298,7 +304,8 @@ export function AfterPitchCard({
             <Text className="font-strong text-base text-primary-foreground">
               {rereading ? 'Reading the recording…' : 'Read the recording again'}
             </Text>
-          </Pressable>
+            </Pressable>
+          </>
         ) : null}
       </View>
     );
@@ -444,7 +451,12 @@ export function AfterPitchCard({
           invitation to keep paying for the same nothing. This app has already learned that twice.
         */}
         {isOwner && canReRead(reason) && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
-          <Pressable
+          <>
+            {/* The price, before it is spent rather than after. See RECOVERY_COST_NOTE. */}
+            <Text className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">
+              {RECOVERY_COST_NOTE}
+            </Text>
+            <Pressable
             onPress={reRead}
             disabled={rereading}
             accessibilityRole="button"
@@ -458,7 +470,8 @@ export function AfterPitchCard({
             <Text className="font-strong text-base text-primary-foreground">
               {rereading ? 'Reading the recording…' : 'Read the recording again'}
             </Text>
-          </Pressable>
+            </Pressable>
+          </>
         ) : null}
       </View>
     );

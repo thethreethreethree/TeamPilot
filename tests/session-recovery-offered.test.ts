@@ -27,8 +27,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
-const detail = readFileSync(join(process.cwd(), 'src/app/(app)/[id].tsx'), 'utf8');
+const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
+const detail = read('src/app/(app)/[id].tsx');
 
 test('the session screen can actually start a re-read', () => {
   assert.match(
@@ -83,4 +85,60 @@ test('the timing-loss note is not nested in the notice that success destroys', (
     note < notice,
     'TIMING_LOST_NOTE must render outside the notice — a successful re-read unmounts that notice',
   );
+});
+
+test('EVERY re-read button states its price before the tap, not after', () => {
+  /*
+    THE DEFECT THIS EXISTS FOR, and it was mine.
+
+    Recovering a call can permanently cost it its pacing - the words come back, the timing behind
+    them does not, and nothing retries. The app explained that only AFTERWARDS, in
+    TIMING_LOST_NOTE. An action whose price is disclosed after payment is not a choice the person
+    made, and there is no undo: six real calls in production carry this button right now, the
+    oldest recorded on 10 August.
+
+    SWEPT RATHER THAN LISTED. The rule is "wherever this button renders, the cost renders above
+    it" - so the test finds the buttons itself. Naming the two files I happened to know about
+    would pass forever while a third screen shipped the button bare, which is exactly how the
+    session screen came to offer a fix the pitch card had offered for weeks.
+  */
+  const BUTTON = "'Reading the recording…' : 'Read the recording again'";
+  const files = [
+    'src/app/(app)/[id].tsx',
+    'src/components/after-pitch-card.tsx',
+  ];
+
+  // First: the list above is still the whole set. A new file carrying the button must join it.
+  const swept = execSync(
+    'git grep -l "Read the recording again" -- "src/**/*.tsx"',
+    { cwd: process.cwd(), encoding: 'utf8' },
+  )
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  assert.deepEqual(
+    swept.slice().sort(),
+    files.slice().sort(),
+    'a new screen offers the re-read — give it the cost note and add it here',
+  );
+
+  for (const rel of files) {
+    const src = read(rel);
+    let from = 0;
+    let seen = 0;
+    for (;;) {
+      const btn = src.indexOf(BUTTON, from);
+      if (btn === -1) break;
+      seen += 1;
+      const note = src.lastIndexOf('{RECOVERY_COST_NOTE}', btn);
+      assert.notEqual(note, -1, `${rel}: a re-read button with no price stated`);
+      // Within the same block, not left over from an earlier one further up the file.
+      assert.ok(
+        btn - note < 2000,
+        `${rel}: the cost note is too far above this button to belong to it`,
+      );
+      from = btn + 1;
+    }
+    assert.ok(seen > 0, `${rel}: expected at least one re-read button`);
+  }
 });

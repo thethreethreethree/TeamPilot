@@ -55,6 +55,7 @@ import { RecordingPlayer } from '@/components/recording-player';
 import { AfterPitchCard } from '@/components/after-pitch-card';
 import { reReadRecording } from '@/lib/after-pitch';
 import {
+  RECOVERY_COST_NOTE,
   TIMING_LOST_NOTE,
   type RecoveryStatus,
   canAskAgain,
@@ -993,7 +994,11 @@ export default function SessionScreen() {
             charge. `canAskAgain` owns that rule; this screen does not restate it.
           */}
           {ownsThisCall && (!recoveryStatus || canAskAgain(recoveryStatus)) ? (
-            <Pressable
+            <>
+              <Text className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">
+                {RECOVERY_COST_NOTE}
+              </Text>
+              <Pressable
               onPress={reRead}
               disabled={rereading}
               accessibilityRole="button"
@@ -1009,7 +1014,8 @@ export default function SessionScreen() {
               <Text className="font-strong text-base text-primary-foreground">
                 {rereading ? 'Reading the recording…' : 'Read the recording again'}
               </Text>
-            </Pressable>
+              </Pressable>
+            </>
           ) : null}
         </View>
       ) : null}
