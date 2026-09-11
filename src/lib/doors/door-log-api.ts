@@ -53,7 +53,8 @@ import { authFailureOf, type AuthFailure } from '@/lib/auth-failure';
  *                           `/door-log` route's reducer does not return it. To
  *                           show it, the route has to sum it first.
  *
- * WHAT IS NOT A GAP, checked rather than assumed: "Doors today" already counts
+ * WHAT IS NOT A GAP, checked rather than assumed: the "Doors knocked" tile (called "Doors
+ * today" until REV 1 renamed it) already counts
  * not-the-decision-maker knocks. `doors_knocked` in `rep_kpi_daily` is
  * `count(*)` over every outcome, so the headline figure is complete — only the
  * BREAKDOWN omits that one, and no screen shows a tile for it.

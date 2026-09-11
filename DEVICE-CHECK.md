@@ -1344,6 +1344,28 @@ name typed, and a recording could not be sent until it had one.
 Send-all count still stuck at 3; recordings that clear from this screen
 but never appear under Sessions; or the "Name this call first" alert.
 
+> **These fifteen are also the first real test of the transcription path,
+> and that is worth knowing before you read the results.**
+>
+> Two September sessions have a recording, a stamped duration, and **no
+> words at all** — the 7-second one from 4 September and your 149-second
+> test from the 10th. I traced why rather than guessing: the duration is
+> stamped *from the transcription's own output*, so transcription RAN on
+> both and the transcript was then never written. That was a real bug, and
+> it was fixed on **10 September at 17:00** (`b15240df`, "no recording with
+> speech in it is left without a transcript").
+>
+> Your test recording was at **07:52 that morning — nine hours before the
+> fix**. Nothing has been uploaded since. So the fix is real, the cause of
+> those two blanks is understood, and **not one recording has ever
+> exercised it**. These fifteen will.
+>
+> What that means for step 6: if the calls arrive under Sessions **with
+> words in them**, the path works and those two blanks were the old bug. If
+> they arrive with audio and no words, tell me immediately — that is a
+> different fault from the one I fixed, and fifteen silent calls is how it
+> would announce itself.
+
 > **Tell me what this costs you in data.** Twelve recordings going at once
 > is 13.5 MB, and the app cannot currently tell wifi from cellular — it
 > sends on whatever connection it has. That was already true for named
