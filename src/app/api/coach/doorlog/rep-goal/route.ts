@@ -68,6 +68,15 @@ export async function PATCH(req: NextRequest) {
   const companyId = (me?.company_id as string | null) ?? null;
   if (!companyId) return NextResponse.json({ error: "No company." }, { status: 400 });
 
+  // Defense in depth (also enforced by RLS in 0250): the target rep MUST be in the manager's own company. Without
+  // this, a manager who knows a foreign rep's UUID could stamp a goal onto a rep in another company (the row is
+  // pinned to the manager's company, so the company_id check alone passes). Reading the rep's profile is itself
+  // caller-scoped, so a foreign rep returns no row → 403. This holds even before 0250 applies.
+  const { data: rep } = await sb.from("profiles").select("company_id").eq("id", body.repId).maybeSingle();
+  if (!rep || (rep.company_id as string | null) !== companyId) {
+    return NextResponse.json({ error: "That rep isn't on your team." }, { status: 403 });
+  }
+
   // Upsert the rep's standing goal. company_id is pinned to the manager's own company (RLS also checks this).
   const base = {
     rep_id: body.repId,

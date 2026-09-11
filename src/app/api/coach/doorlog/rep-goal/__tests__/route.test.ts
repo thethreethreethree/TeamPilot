@@ -16,16 +16,19 @@ const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 const req = () => ({ url: "https://x/api/coach/doorlog/rep-goal" }) as unknown as Parameters<typeof PATCH>[0];
 
 /** profile = the caller's role row; captures any upsert. */
-function client(userId: string | null, profile: Record<string, unknown> | null, opts: { selectGoal?: number | null; selectValueCents?: number | null } = {}) {
+function client(userId: string | null, profile: Record<string, unknown> | null, opts: { selectGoal?: number | null; selectValueCents?: number | null; repProfile?: Record<string, unknown> | null } = {}) {
   const captured: { upsert?: Record<string, unknown> } = {};
+  // The target-rep company check reuses `profile` unless `repProfile` is given (even as null), so the caller's
+  // role lookup (id = userId) and the target-rep lookup (id = repId) can differ — how a cross-company rep is tested.
+  const repProfile = "repProfile" in opts ? opts.repProfile ?? null : profile;
   return {
     captured,
     sb: {
       auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
       from: (table: string) => ({
-        select: () => ({ eq: () => ({ maybeSingle: async () =>
+        select: () => ({ eq: (_col: string, val: string) => ({ maybeSingle: async () =>
           table === "profiles"
-            ? { data: profile, error: null }
+            ? { data: val === userId ? profile : repProfile, error: null }
             : { data: opts.selectGoal == null ? null : { sales_goal: opts.selectGoal, sale_value_cents: opts.selectValueCents ?? null }, error: null } }) }),
         upsert: (row: Record<string, unknown>) => { captured.upsert = row; return Promise.resolve({ error: null }); },
       }),
@@ -65,6 +68,24 @@ describe("PATCH /api/coach/doorlog/rep-goal — manager gate", () => {
     expect(res.status).toBe(200);
     expect(c.captured.upsert).toMatchObject({ sales_goal: 2, sale_value_cents: 18500 });
     expect(await res.json()).toMatchObject({ salesGoal: 2, saleValueCents: 18500 });
+  });
+
+  it("a MANAGER cannot set a goal for a rep in ANOTHER company → 403, no write (cross-tenant guard)", async () => {
+    asMock(readBody).mockResolvedValue({ repId: "00000000-0000-0000-0000-000000000009", salesGoal: 3 });
+    const c = client("boss", MANAGER, { repProfile: { company_id: "co2" } }); // target rep is in co2, caller in co1
+    asMock(createClient).mockResolvedValue(c.sb);
+    const res = await PATCH(req());
+    expect(res.status).toBe(403);
+    expect(c.captured.upsert).toBeUndefined();
+  });
+
+  it("a MANAGER is 403'd when the target rep profile is missing (unknown/foreign id)", async () => {
+    asMock(readBody).mockResolvedValue({ repId: "00000000-0000-0000-0000-000000000009", salesGoal: 3 });
+    const c = client("boss", MANAGER, { repProfile: null });
+    asMock(createClient).mockResolvedValue(c.sb);
+    const res = await PATCH(req());
+    expect(res.status).toBe(403);
+    expect(c.captured.upsert).toBeUndefined();
   });
 
   it("401 when unauthenticated", async () => {
