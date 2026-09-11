@@ -141,6 +141,28 @@ export const FOCUS_HINT = `Focus on this for your next ${NEXT_DOORS} doors, then
  * the app lost their work; the truth is that a focus is worked out from pitches that have been
  * analysed, and it arrives on its own.
  */
+/**
+ * What the focus section should do, from the one value that decides it.
+ *
+ * THREE STATES, AND CONFLATING TWO OF THEM IS A REAL BUG I SHIPPED. The Door Log first tracked
+ * this with a value AND a separate "asked" flag, and set the flag before checking whether the
+ * request had succeeded - so a failed read rendered "your focus appears once a few pitches have
+ * been analysed", which is a confident, specific and wrong reason for a request that simply did
+ * not come back.
+ *
+ *   null  not asked, or asked and could not find out  -> draw NOTHING
+ *   ''    asked, and there is no focus yet            -> say so
+ *   text  asked, and here it is                       -> show it
+ *
+ * A heading with nothing under it reads as broken, which is why the unknown case draws nothing at
+ * all rather than an empty box. Pure, so the mapping is a tested rule instead of two booleans in a
+ * render that agreed with each other right up until they did not.
+ */
+export function focusSection(focus: string | null | undefined): 'hidden' | 'pending' | 'shown' {
+  if (focus === null || focus === undefined) return 'hidden';
+  return focus.trim() ? 'shown' : 'pending';
+}
+
 export const FOCUS_PENDING =
   'Your focus appears once a few pitches have been analysed — it is the one habit worth drilling next.';
 

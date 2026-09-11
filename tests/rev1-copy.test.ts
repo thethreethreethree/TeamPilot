@@ -25,6 +25,7 @@ import {
   FOCUS_HINT,
   FOCUS_PENDING,
   NEXT_DOORS,
+  focusSection,
 } from '@/lib/doors/door-screen-view';
 
 // ---------------------------------------------------------------------------
@@ -83,4 +84,40 @@ test('the heading is the founder’s own words', () => {
 test('the empty state does not tell a rep their work is missing', () => {
   assert.doesNotMatch(FOCUS_PENDING, /nothing to show|no data|error|failed/i);
   assert.match(FOCUS_PENDING, /analysed|analyzed/i, 'it says what it is waiting ON');
+});
+
+// ---------------------------------------------------------------------------
+// The focus section's three states — a bug I shipped and then caught
+//
+// The Door Log first tracked this with a value AND a separate "asked" flag, and set the flag before
+// checking whether the request had succeeded. So a FAILED read rendered "your focus appears once a
+// few pitches have been analysed" — a confident, specific, wrong reason for a request that simply
+// did not come back. That is the exact failure the rest of this app spends its time removing, and I
+// introduced it an hour after removing three of them.
+//
+// Two booleans in a render agreed with each other right up until they did not, and nothing could
+// have caught it. One function can be held.
+
+test('not knowing draws nothing at all', () => {
+  // A heading with nothing under it reads as broken, and this screen must not look broken while a
+  // rep is working. Null covers both "not asked yet" and "asked and could not find out".
+  assert.equal(focusSection(null), 'hidden');
+  assert.equal(focusSection(undefined), 'hidden');
+});
+
+test('asked-and-there-is-none is NOT the same as could-not-find-out', () => {
+  // This is the distinction the flag destroyed.
+  assert.equal(focusSection(''), 'pending');
+  assert.equal(focusSection('   '), 'pending', 'whitespace is not a focus');
+  assert.notEqual(focusSection(''), focusSection(null));
+});
+
+test('a real focus is shown', () => {
+  assert.equal(focusSection('Ask one more question before pitching'), 'shown');
+});
+
+test('only the pending state gets the pending sentence', () => {
+  // Pins the pairing, so a future edit cannot hand FOCUS_PENDING to the hidden state again.
+  assert.equal(focusSection(null) === 'pending', false);
+  assert.match(FOCUS_PENDING, /analysed|analyzed/i);
 });

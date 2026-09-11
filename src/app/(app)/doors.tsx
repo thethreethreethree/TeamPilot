@@ -42,7 +42,12 @@ import {
 } from '@/lib/doors/knock-store';
 import { PITCH_OUTCOME_LABEL as LABEL } from '@/lib/doors/outcome-label';
 import { fetchMetrics } from '@/lib/doors/metrics-api';
-import { FOCUS_HEADING, FOCUS_HINT, FOCUS_PENDING } from '@/lib/doors/door-screen-view';
+import {
+  FOCUS_HEADING,
+  FOCUS_HINT,
+  FOCUS_PENDING,
+  focusSection,
+} from '@/lib/doors/door-screen-view';
 import { fetchDayTotals, type DoorTotals } from '@/lib/doors/door-log-api';
 import { useKnockSender, knockSendingStopped } from '@/lib/doors/use-knock-sender';
 import { fetchLatestPitchId } from '@/lib/doors/door-log-api';
@@ -84,7 +89,6 @@ export default function DoorsScreen() {
    * times a day, or hide a real answer behind a failed request.
    */
   const [focus, setFocus] = useState<string | null>(null);
-  const [focusAsked, setFocusAsked] = useState(false);
   const today = localDate();
 
   const refresh = useCallback(async () => {
@@ -124,8 +128,18 @@ export default function DoorsScreen() {
     fetchMetrics('day')
       .then((r) => {
         if (cancelled) return;
-        setFocusAsked(true);
-        setFocus(r.ok ? (r.metrics.focus?.trim() || '') : null);
+        /*
+          ONLY A SUCCESSFUL READ SAYS ANYTHING.
+
+          This set an `asked` flag before checking `r.ok`, so a FAILED request rendered the
+          "your focus appears once a few pitches have been analysed" sentence - a confident,
+          specific, wrong reason for what was actually a request that did not come back. It is
+          the exact failure this app spends its time removing, introduced by me an hour after
+          removing three of them. The three states in the comment above were right; the second
+          flag is what broke them, so it is gone rather than repaired.
+        */
+        if (!r.ok) return;
+        setFocus(r.metrics.focus?.trim() || '');
       })
       .catch(() => {
         /* null, and the section stays off the screen */
@@ -187,12 +201,12 @@ export default function DoorsScreen() {
           Hidden entirely while the answer is unknown. A heading with nothing under it reads as
           something broken, and this screen must not look broken while a rep is working.
         */}
-        {focusAsked ? (
+        {focusSection(focus) !== 'hidden' ? (
           <View className="mt-4 rounded-lg border border-border-control px-4 py-3">
             <Text className="font-emphasis text-xs uppercase tracking-widest text-primary">
               {FOCUS_HEADING}
             </Text>
-            {focus ? (
+            {focusSection(focus) === 'shown' ? (
               <>
                 <Text className="mt-2 font-body text-base leading-relaxed text-foreground">
                   {focus}
