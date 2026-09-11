@@ -43,7 +43,6 @@ import { fetchMetrics } from '@/lib/doors/metrics-api';
 import { FOCUS_HEADING, FOCUS_HINT, FOCUS_PENDING } from '@/lib/doors/door-screen-view';
 import { fetchDayTotals, type DoorTotals } from '@/lib/doors/door-log-api';
 import { useKnockSender, knockSendingStopped } from '@/lib/doors/use-knock-sender';
-import { useLargeText } from '@/lib/use-large-text';
 import { fetchLatestPitchId } from '@/lib/doors/door-log-api';
 import { latestPitchTarget } from '@/lib/doors/latest-pitch';
 
@@ -68,7 +67,6 @@ export default function DoorsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const stacked = useLargeText();
   const { flush } = useKnockSender(userId);
 
   const [queue, setQueue] = useState<Knock[]>([]);
@@ -354,25 +352,28 @@ export default function DoorsScreen() {
           </Text>
         </Pressable>
 
-        <View className={`mt-4 ${stacked ? 'gap-3' : 'flex-row items-center justify-between gap-3'}`}>
-          {/*
-            "UNDO LAST" WAS HERE, removed at the founder's instruction (REV 1, 2026-09-11).
+        {/*
+          "UNDO LAST" WAS HERE, removed at the founder's instruction (REV 1, 2026-09-11).
 
-            SAYING WHAT THIS COSTS, because it is not nothing: this was the only way to take
-            back a door logged by accident, and the dials are large targets pressed in a hurry
-            between houses. A mis-tapped "Sold" is now permanent from this screen. The figure
-            can still be corrected from the home page - "Fix today's numbers" opens the place
-            that owns it - so the ability is not gone, only the shortcut from here.
-          */}
-          {/* One live region, so a screen reader hears "Sold logged" rather than
-              a number changing silently somewhere above. */}
-          <Text
-            accessibilityLiveRegion="polite"
-            className="font-body text-sm text-muted-foreground"
-          >
-            {notice ?? ''}
-          </Text>
-        </View>
+          SAYING WHAT THIS COSTS, because it is not nothing: this was the only way to take back a
+          door logged by accident, and the dials are large targets pressed in a hurry between
+          houses. A mis-tapped "Sold" is now permanent from this screen. The figure can still be
+          corrected from the home page - "Fix today's numbers" opens the place that owns it - so
+          the ability is not gone, only the shortcut from here.
+
+          THE ROW WENT WITH IT. It was a `justify-between` pair - the control on the left, this
+          notice on the right - and with one child left it was a layout container arranging
+          nothing, plus a large-text branch choosing between two ways of arranging nothing. The
+          notice is a line of text and is now written as one.
+        */}
+        {/* One live region, so a screen reader hears "Sold logged" rather than a number changing
+            silently somewhere above. */}
+        <Text
+          accessibilityLiveRegion="polite"
+          className="mt-4 font-body text-sm text-muted-foreground"
+        >
+          {notice ?? ''}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
