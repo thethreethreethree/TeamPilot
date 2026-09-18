@@ -42,11 +42,24 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user) return unauth("Invalid or expired session.", 401);
 
-  const { data: profile } = await admin
+  // Combined read, with a FALLBACK to the original two columns if must_change_password is absent (unapplied
+  // migration 0235). Selecting a non-existent column errors the WHOLE query and yields a null profile, which
+  // would then read as "no company" and 403 every extension user — so the fallback keeps the migration-coupling
+  // discipline the dashboard layout uses, without paying an extra round-trip on the normal path.
+  let { data: profile } = await admin
     .from("profiles")
-    .select("company_id, status")
+    .select("company_id, status, must_change_password")
     .eq("id", data.user.id)
     .maybeSingle();
+  let pwGateReadable = true;
+  if (!profile) {
+    pwGateReadable = false;
+    ({ data: profile } = await admin
+      .from("profiles")
+      .select("company_id, status")
+      .eq("id", data.user.id)
+      .maybeSingle());
+  }
 
   // Audit A2 (2026-07-22): match the app's own requireCareAgent — a REMOVED/deactivated user must not
   // reach a paid feature even with a lingering company_id. Fail closed.
@@ -62,6 +75,30 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
 
   const companyId = (profile?.company_id as string | null) ?? null;
   if (!companyId) return unauth("No company associated with this account.", 403);
+
+  // Forced first-login password change (0235) — enforced HERE, not only in the dashboard layout.
+  //
+  // Why this belongs on the extension path: an admin adds a new hire with a SHARED team password
+  // (api/team/add-member, mode "new") and distributes that one secret to several people. The forced rotation is
+  // the only thing that retires the shared credential from each account. Until now the single enforcement point
+  // was src/app/dashboard/layout.tsx, and the middleware matcher does not cover /api/*, so a rep who works
+  // entirely inside the browser extension — the actual daily surface for a salesperson — never met the gate and
+  // kept the shared password live indefinitely. Putting it in requireExtensionAuth (the one authority every
+  // extension route funnels through) gates them all at once, rather than six copies that drift.
+  //
+  // Distinct machine-readable `code` so the client can route to /set-password instead of showing a bare error.
+  if (pwGateReadable && profile?.must_change_password === true) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: "Set your own password before using the extension — open Elostate and finish at /set-password.",
+          code: "must_change_password",
+        },
+        { status: 403 },
+      ),
+    };
+  }
 
   return { ok: true, userId: data.user.id, companyId };
 }

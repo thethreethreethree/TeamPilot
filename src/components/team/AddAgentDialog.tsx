@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, UserPlus, X, KeyRound, Mail } from "lucide-react";
+import { Loader2, UserPlus, X, KeyRound, Mail, User } from "lucide-react";
 
 /**
  * Streamlined "Add agent" (2026-08-21). Two paths, no manual invite link:
@@ -16,6 +16,7 @@ type CoachRole = "staff" | "admin" | null;
 export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (msg: string) => void }) {
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [coachRole, setCoachRole] = useState<CoachRole>("staff");
   const [passwords, setPasswords] = useState<TeamPassword[] | null>(null);
   const [teamPasswordId, setTeamPasswordId] = useState<string>("");
@@ -24,7 +25,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
 
   useEffect(() => {
     if (!open) return;
-    setEmail(""); setError(null); setMode("existing"); setCoachRole("staff");
+    setEmail(""); setFullName(""); setError(null); setMode("existing"); setCoachRole("staff");
     // Load team passwords (for the "new user" path picker).
     void (async () => {
       const res = await fetch("/api/team/passwords").catch(() => null);
@@ -48,7 +49,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
     setBusy(true); setError(null);
     try {
       const payload = mode === "new"
-        ? { mode: "new", email: addr, teamPasswordId, salesCoachRole: coachRole }
+        ? { mode: "new", email: addr, teamPasswordId, salesCoachRole: coachRole, fullName: fullName.trim() || undefined }
         : { mode: "existing", email: addr, salesCoachRole: coachRole };
       const res = await fetch("/api/team/add-member", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -97,6 +98,21 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
                 : "No account yet — they'll be created with the team password below and set their own on first login."}
             </p>
           </div>
+
+          {mode === "new" && (
+            <div>
+              <label className="block text-[11px] font-medium text-secondary mb-1">Full name</label>
+              <div className="relative">
+                <User className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" maxLength={120} placeholder="Jane Ramirez"
+                  className="w-full rounded-lg bg-base border border-white/10 pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted" />
+              </div>
+              <p className="text-[10px] text-muted mt-1">
+                How they appear on the team list and the leaderboard. Leave blank and we&apos;ll fall back to the part
+                of their email before the @ — which usually reads like <span className="text-secondary">jramirez92</span>.
+              </p>
+            </div>
+          )}
 
           {mode === "new" && (
             <div>

@@ -25,7 +25,16 @@ export const maxDuration = 20;
 const SalesCoachRole = z.enum(["staff", "admin"]).nullable().optional();
 const Body = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("existing"), email: z.string().email().max(200), salesCoachRole: SalesCoachRole }),
-  z.object({ mode: z.literal("new"), email: z.string().email().max(200), teamPasswordId: z.string().uuid(), salesCoachRole: SalesCoachRole }),
+  z.object({
+    mode: z.literal("new"),
+    email: z.string().email().max(200),
+    teamPasswordId: z.string().uuid(),
+    salesCoachRole: SalesCoachRole,
+    // Optional display name. Omitted → handle_new_user (0011) falls back to split_part(email,'@',1), which is
+    // why members added this way were landing in the roster as "naryk333". The older invite-accept path already
+    // captured a name (accept/route.ts p_full_name); the 2026-08-21 fast path dropped it. This restores parity.
+    fullName: z.string().max(120).optional(),
+  }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -89,10 +98,14 @@ export async function POST(req: NextRequest) {
 
   // Create the auth login with the team password as the initial credential (email pre-confirmed — the admin
   // vouches for them; no confirmation email to chase).
+  // full_name seeded into user_metadata so handle_new_user's coalesce picks the REAL name over the email
+  // local-part; the profiles upsert below is the authority and repeats it, so the two can never disagree.
+  const fullName = body.fullName?.trim() || null;
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email,
     password: tp.secret,
     email_confirm: true,
+    ...(fullName ? { user_metadata: { full_name: fullName } } : {}),
   });
   if (createErr || !created?.user) {
     console.error("[team/add-member new] createUser failed:", createErr?.message);
@@ -104,7 +117,17 @@ export async function POST(req: NextRequest) {
   const { error: profErr } = await sb
     .from("profiles")
     .upsert(
-      { id: created.user.id, company_id: ctx.companyId, role: "Member", sales_coach_role: salesCoachRole, must_change_password: true, status: "active" },
+      {
+        id: created.user.id,
+        company_id: ctx.companyId,
+        role: "Member",
+        sales_coach_role: salesCoachRole,
+        must_change_password: true,
+        status: "active",
+        // Only when supplied — omitting the key leaves the trigger's email-derived placeholder rather than
+        // overwriting it with null, which would render the roster row nameless instead of merely ugly.
+        ...(fullName ? { full_name: fullName } : {}),
+      },
       { onConflict: "id" },
     );
   if (profErr) {

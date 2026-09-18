@@ -20,7 +20,7 @@ const reqWith = (auth?: string): NextRequest =>
 function mockAdmin(opts: {
   user?: { id: string } | null;
   userError?: unknown;
-  profile?: { company_id?: string | null; status?: string | null } | null;
+  profile?: { company_id?: string | null; status?: string | null; must_change_password?: boolean } | null;
 }) {
   const builder: Record<string, unknown> = {};
   builder.select = () => builder;
@@ -148,5 +148,62 @@ describe("requireEntitledExtensionUser", () => {
       expect(r.ok).toBe(false);
       if (!r.ok) expect((await r.response.json()).error).toBe("Your plan doesn't include the Sales Coach extension.");
     });
+  });
+});
+
+/**
+ * Forced first-login password change on the EXTENSION path (0235).
+ *
+ * Regression guard for a real hole: must_change_password was enforced ONLY in src/app/dashboard/layout.tsx, and
+ * the middleware matcher does not cover /api/*. A rep who worked entirely inside the extension never met the
+ * gate, so the SHARED team password an admin handed several new hires stayed live on their account forever.
+ * Both branches of the flag are exercised — the exemption-shaped term (the flag being false/absent) is exactly
+ * the kind that gets dropped in a copy and silently defeats the gate.
+ */
+describe("requireExtensionAuth — must_change_password gate", () => {
+  it("flag set → 403 with a machine-readable code the client can route on", async () => {
+    mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active", must_change_password: true } });
+    const r = await requireExtensionAuth(reqWith("Bearer t"));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.response.status).toBe(403);
+      const body = await r.response.json();
+      expect(body.code).toBe("must_change_password");
+      expect(body.error).toContain("/set-password");
+    }
+  });
+
+  it("flag false → passes (a rotated user is not bounced)", async () => {
+    mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "active", must_change_password: false } });
+    const r = await requireExtensionAuth(reqWith("Bearer t"));
+    expect(r.ok).toBe(true);
+  });
+
+  it("removed user is still rejected FIRST, even while the flag is set", async () => {
+    mockAdmin({ user: { id: "u" }, profile: { company_id: "c", status: "removed", must_change_password: true } });
+    const r = await requireExtensionAuth(reqWith("Bearer t"));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect((await r.response.json()).error).toBe("This account has been deactivated.");
+  });
+
+  it("column absent (migration 0235 unapplied) → falls back and does NOT lock every extension user out", async () => {
+    // First select (with must_change_password) yields nothing, as a missing column would; the retry with the
+    // original columns succeeds. The gate goes inactive rather than 403-ing the whole extension userbase.
+    let call = 0;
+    const builder: Record<string, unknown> = {};
+    builder.select = () => builder;
+    builder.eq = () => builder;
+    builder.maybeSingle = async () => {
+      call += 1;
+      return call === 1 ? { data: null, error: { message: 'column "must_change_password" does not exist' } } : { data: { company_id: "c", status: "active" }, error: null };
+    };
+    vi.mocked(createAdminClient).mockReturnValue({
+      auth: { getUser: async () => ({ data: { user: { id: "u" } }, error: null }) },
+      from: () => builder,
+    } as never);
+
+    const r = await requireExtensionAuth(reqWith("Bearer t"));
+    expect(r.ok).toBe(true);
+    expect(call).toBe(2); // the fallback actually ran
   });
 });
