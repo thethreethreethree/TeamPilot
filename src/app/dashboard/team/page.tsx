@@ -12,6 +12,8 @@ import { isAdminRole, orgTierLabel, ORG_ROLE_OPTIONS } from "@/lib/roles";
 import {
   AlertTriangle,
   Copy,
+  Check,
+  KeyRound,
   Loader2,
   Mail,
   ShieldOff,
@@ -268,7 +270,36 @@ function MemberRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [savingRole, setSavingRole] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  // The generated password is shown ONCE, in a panel the admin can copy from — never a toast. A credential that
+  // auto-dismisses after four seconds is a credential the admin has to ask for again.
+  const [reset, setReset] = useState<{ password: string; forced: boolean; note?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const toast = useToast();
+
+  const resetPassword = async () => {
+    if (!confirm(`Reset the password for ${member.fullName ?? "this member"}?
+
+Their current password stops working immediately.`)) return;
+    setResetting(true);
+    const res = await fetch("/api/team/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: member.id }),
+    });
+    setResetting(false);
+    const data = (await res.json().catch(() => null)) as
+      | { password?: string; mustChangeOnLogin?: boolean; error?: string }
+      | null;
+    // The 500-with-a-password case is deliberate, not a bug: the credential HAS changed, so swallowing it would
+    // leave this person locked out holding nothing. Show it, and say the rotation wasn't forced.
+    if (data?.password) {
+      setCopied(false);
+      setReset({ password: data.password, forced: data.mustChangeOnLogin === true, note: res.ok ? undefined : data.error });
+      return;
+    }
+    toast.error("Couldn't reset the password", data?.error ?? "Something went wrong — try again.");
+  };
   // Change this member's org tier (the `role` field). Admin-only, enforced server-side; C-Suite = admin authority.
   const setOrgRole = async (role: string) => {
     if (role === member.role) return;
@@ -350,6 +381,24 @@ function MemberRow({
             ))}
           </select>
         )}
+        {/* Admin-only, and hidden for admin rows — which also hides the admin's OWN row, since an admin's row is
+            an admin row. Matches the route, where a self-reset is 400 and an admin target is 403. */}
+        {amAdmin && !isAdminRole(member.role) && (
+          <button
+            type="button"
+            onClick={() => void resetPassword()}
+            disabled={resetting}
+            className="flex items-center gap-1.5 text-xs text-muted hover:text-brand disabled:opacity-40 p-2 -m-2"
+            aria-label={`Reset password for ${member.fullName ?? ""}`.trim()}
+            title="Reset password"
+          >
+            {resetting ? (
+              <Loader2 aria-hidden="true" className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <KeyRound aria-hidden="true" className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
         <button
           type="button"
           onClick={remove}
@@ -361,6 +410,63 @@ function MemberRow({
           <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {reset && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60" onClick={() => setReset(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <KeyRound className="w-4 h-4 text-brand" aria-hidden />
+              <h2 className="text-sm font-semibold text-primary">
+                Temporary password for {member.fullName ?? "this member"}
+              </h2>
+            </div>
+
+            <p className="text-[11px] text-secondary mb-2">
+              Shown once. Copy it now — we don&apos;t store it, and closing this box loses it.
+            </p>
+
+            <div className="flex items-center gap-2 rounded-lg bg-base border border-white/10 px-3 py-2 mb-3">
+              <code className="text-sm text-primary font-mono tracking-wide select-all flex-1 break-all">{reset.password}</code>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(reset.password).then(
+                    () => setCopied(true),
+                    // Clipboard can be denied (insecure origin, permissions). Say so instead of a silent no-op —
+                    // the admin would otherwise paste whatever was on the clipboard before.
+                    () => toast.error("Couldn't copy", "Select the password and copy it manually."),
+                  );
+                }}
+                className="text-muted hover:text-brand shrink-0"
+                aria-label="Copy password"
+                title="Copy"
+              >
+                {copied ? <Check aria-hidden className="w-4 h-4 text-emerald-400" /> : <Copy aria-hidden className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {reset.forced ? (
+              <p className="text-[11px] text-secondary">
+                They&apos;ll be asked to choose their own password the first time they sign in, so this one stops
+                working straight away.
+              </p>
+            ) : (
+              <p className="text-[11px] text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-2">
+                {reset.note ?? "The password was reset, but we couldn't force a change on first login."} Ask them to
+                change it themselves in Settings.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setReset(null)}
+              className="mt-4 w-full rounded-lg bg-ember-400 text-[#09090B] font-semibold text-xs py-2 hover:bg-ember-300 transition-colors"
+            >
+              Done — I&apos;ve copied it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
