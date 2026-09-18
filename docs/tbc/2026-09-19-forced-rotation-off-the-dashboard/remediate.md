@@ -51,3 +51,44 @@ removed and the plugin reinstated. The next author debugging path resolution cou
 `vite-tsconfig-paths` in `package.json`, assume it is load-bearing, and restore the exact
 configuration this fixed. That is R5, and it is why R5 is opened rather than dismissed as a tidy-up
 — the dependency being harmless at runtime is not the same as it being harmless to a reader.
+
+### R1 follow-on — the duplicated fail-closed decision now has the drift guard §2.2 requires
+gate-or-promise: gate
+
+The founder chose to leave resolveApiAuth's missing password check open. That decision stands. What
+was NOT a decision, and was simply absent, is the drift guard §2.2 requires *whenever* a
+re-derivation is left in place: resolveApiAuth.ts had no unit test at all, only route-level tests
+that mock it away entirely. So three copies of "a removed account is not authenticated" —
+requireExtensionAuth, resolveApiAuth, resolveApiUserId — were held together by a comment saying
+"mirrors requireExtensionAuth" and nothing else.
+
+`src/lib/api/__tests__/resolveApiAuth.test.ts` — 13 tests, both branches of every term, plus the
+difference between the two functions (resolveApiAuth requires a company, resolveApiUserId
+deliberately does not) which a tidy unification once broke on /[id]/outcome.
+
+Asserted as BEHAVIOUR, not source shape, on purpose (A33): collapsing the three copies into one
+shared helper is the correct fix and must keep this file passing. Only a change that stops failing
+closed should fail it.
+
+Proven by mutation rather than asserted:
+
+    dropped `profile.status === "removed"` from resolveApiAuth
+    -> × removed account -> null (the denying branch)
+       AssertionError: expected { userId: 'u', companyId: 'c1', ... } to be null
+       Tests  1 failed | 12 passed (13)
+
+The second mutation is the one worth the trouble. requireExtensionAuth's own comment records that
+the denylist is safe ONLY while profiles.status is CHECK-constrained to ('active','removed') — add
+a third status and all three gates silently FAIL OPEN, because a suspended user is !== 'removed'.
+That warning lived in a comment, in one of the three files. It is now a test:
+
+    added 'suspended' to the 0008 CHECK
+    -> × profiles.status is still constrained to exactly ('active','removed')
+       AssertionError: profiles.status gained a value. Three fail-closed denylists check
+       `status === 'removed'` and would now let the new status through: requireExtensionAuth
+       (src/lib/api/extensionAuth.ts), resolveApiAuth and resolveApiUserId
+       (src/lib/api/resolveApiAuth.ts). Flip all three to an allowlist (status === 'active') so a
+       new status defaults to no access, then update this test.
+
+Both migrations/sources were restored and the full suite re-run: 647 files / 4349 tests, exit 0.
+
