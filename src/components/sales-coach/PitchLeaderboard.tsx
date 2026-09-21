@@ -277,9 +277,16 @@ function Board({ data }: { data: Resp }) {
         </ul>
       )}
 
+      {/*
+        The tie rule is MANAGER-ONLY, and this is the ruling's tail rather than a style choice.
+        "Equal totals share a place" explains ranking, and since 2026-09-22 a rep is shown no rank
+        — so for them it was a sentence about a thing they cannot see, on a card that already
+        carries four other lines. Found by auditing the card's density after the ruling, not by the
+        ruling itself, which is the kind of dead copy a behaviour change leaves behind.
+      */}
       <p className="text-[11px] text-muted">
-        Total points from counted pitches. A pitch counts once it reaches 40 base points; equal
-        totals share a place.
+        Total points from counted pitches. A pitch counts once it reaches 40 base points.
+        {managerView && " Equal totals share a place."}
       </p>
 
       {/*

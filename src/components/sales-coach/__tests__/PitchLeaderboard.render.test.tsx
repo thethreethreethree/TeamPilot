@@ -187,7 +187,16 @@ describe("the board says what it ranks", () => {
     respond({ ok: true, body: MANAGER });
     render(<PitchLeaderboard />);
     expect(await screen.findByText(/Total points from counted pitches/i)).toBeTruthy();
-    expect(screen.getByText(/equal totals share a place/i)).toBeTruthy();
+    expect(screen.getByText(/Equal totals share a place/i)).toBeTruthy();
+  });
+
+  it("does not explain ties to a rep, who is shown no ranks", async () => {
+    // The ruling's tail: a sentence about a thing they cannot see, on a card that already carries
+    // four other lines. Found by auditing the card's density, not by the ruling itself.
+    respond({ ok: true, body: REP });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/Total points from counted pitches/i)).toBeTruthy();
+    expect(screen.queryByText(/share a place/i)).toBeNull();
   });
 
   it("reports pitches too old to place rather than folding them in at zero", async () => {

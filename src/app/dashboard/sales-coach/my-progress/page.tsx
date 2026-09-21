@@ -1,37 +1,34 @@
-import { RepArena } from "@/components/sales-coach/RepArena";
-import { PitchBreakdown } from "@/components/sales-coach/PitchBreakdown";
-import { PitchMilestones } from "@/components/sales-coach/PitchMilestones";
+import { RepDashboardTabs } from "@/components/sales-coach/RepDashboardTabs";
 
 /**
- * /dashboard/sales-coach/my-progress — the rep's own gamification arena (gauge / odometer / stats /
- * best pitches / milestones / recent bars), followed by their Pitch Score milestones and their
- * rubric Breakdown. Rep-facing (not managerOnly); all three read the caller's own data through
- * owner-RLS. The SalesCoachShell layout provides the nav.
+ * /dashboard/sales-coach/my-progress — the rep's own dashboard.
  *
- * THREE SECTIONS, IN THIS ORDER, matching the 2026-09-19 rep dashboard: Progress first — where the
- * rep stands — then Milestones — what they have reached — then Breakdown — why. The arena answers
- * "how am I doing"; the breakdown answers "what do I practise". Reversing them would open on a
- * wall of thirty percentages before the rep has any reason to care about them.
+ * THREE TABS, matching the 2026-09-19 rep dashboard sheet: Progress | Breakdown | Metrics.
  *
- * TWO MILESTONE STRIPS ON ONE PAGE, and that is deliberate rather than an oversight. The Arena's
- * strip counts SESSIONS on the points ledger; this one counts COUNTED PITCHES. A rep records
- * sessions that never qualify, so the two diverge permanently and the same rep reaches them on
- * different days. Merging them would mean picking one denominator and silently moving every
- * earned-at date the Arena has already shown — and those dates are derived from the immutable
- * ledger precisely so they cannot move. So both stand, each saying what it counts, which is the
- * same resolution the scoreboard page uses for its two leaderboards.
+ *   Progress   the Arena (gauge / odometer / stats / best pitches / milestones) plus the Pitch
+ *              Score milestone strip — where the rep stands.
+ *   Breakdown  the rubric averages, section by section — why.
+ *   Metrics    the founder's 2026-08-19 Macro field read: Next-Door focus, the doors /
+ *              conversations / sales trio, the score chart, the day's opportunities.
  *
- * Each section renders its own loading, failed and empty states, so a rep with no scored pitches
- * yet sees honest "not yet" badges beneath a working arena rather than a broken-looking page.
+ * The sheet names all three and draws only the first two; the Metrics tab's contents are the
+ * existing Macro component by founder decision (2026-09-22) rather than anything inferred from the
+ * word on the tab.
+ *
+ * THE ORDER IS AN ARGUMENT, not a layout. Where you stand, then why, then the field read. Opening
+ * on the Breakdown would put thirty percentages in front of a rep before they have any reason to
+ * care about them; opening on Metrics would answer a question they did not ask.
+ *
+ * TWO MILESTONE STRIPS SIT ON THE PROGRESS TAB, deliberately. The Arena's count SESSIONS on the
+ * points ledger; the Pitch Score strip counts COUNTED PITCHES. A rep records sessions that never
+ * qualify, so the two diverge permanently, and merging them would mean picking one denominator and
+ * silently moving dates the Arena has already shown — dates derived from the immutable ledger
+ * precisely so they cannot move.
+ *
+ * This page stays a SERVER component. The tab state lives in `RepDashboardTabs`, because route
+ * segment config is silently ignored in a `"use client"` file (INVARIANT 27), and a page that has
+ * to become a client component to hold a `useState` is a page that can no longer export one.
  */
 export default function MyProgressPage() {
-  return (
-    <>
-      <RepArena />
-      <div className="px-4 md:px-8 pb-8 max-w-4xl mx-auto w-full space-y-8">
-        <PitchMilestones />
-        <PitchBreakdown />
-      </div>
-    </>
-  );
+  return <RepDashboardTabs />;
 }
