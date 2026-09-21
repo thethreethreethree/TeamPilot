@@ -362,3 +362,101 @@ Both were also independently supported by the folder's text (the navigation spec
 board list), which is why the built work is not being reverted. But they are marked
 unconfirmed until the founder re-sends the image at a smaller size or states the
 instruction in text. Recorded here rather than left in the transcript, per §3.1.
+
+
+---
+
+## I. The record-sweep (2026-09-21)
+
+B3 was found by accident — I opened the door log for an unrelated number and discovered a
+question I had marked *open* had been settled three months earlier. Finding one that way means
+there may be others, so every remaining quarantined or inferred decision in this register was
+checked against the product record rather than against the guide.
+
+**The method, so it is repeatable:** for each decision, find where in the *product* that decision
+would already have to live if it had been made, and read it. Not "search the guide harder" — the
+guide is the thing that was stale.
+
+| | Where the answer would live | Result |
+|---|---|---|
+| **B3** presentations source | `lib/data/doorlog.ts` KPI readers | **WAS WRONG.** Settled 2026-09-11 by reversal. Corrected. |
+| **B4** does a Partial count as a miss | the existing pattern layer | **GENUINELY OPEN.** `lib/coach/doorlog/` rollup is LLM-narrative (`patterns_good` / `patterns_bad`); it has no hit/partial/missed vocabulary at all, so the product has never had to answer this. Stays quarantined — verified, not assumed. |
+| **B5** counted card vs. column | guide's own Step 3 | Already resolved in this register; unchanged. |
+| **C2** training priorities from the brief, not rubric gaps | `getTodaysMetrics` | **CORROBORATED.** `focus = opportunities[0]`, and `opportunities = patterns_bad` — the narrative growth list, not the biggest score gap. The inference matches the shipped behaviour. |
+| **B1 / B2** pitch detail surface, nav restructure | — | **STILL UNCONFIRMED**, and not for a reason the record can fix: they rest on an instruction image the API rejected and never displayed. Only the founder can settle these. |
+
+**A consistency check that came out clean.** The door log computes presentations twice — 
+`getAllTimeKpi` as `doors_knocked − no_answer` off the daily rollup, and `getTodaysMetrics` as a
+count of `door_knocks` where `outcome ≠ 'no_answer'`. Different tables, different shapes, same
+definition. With `countPresentations` corrected, three implementations now agree.
+
+**§1.7 point 3 says an empty flag list is itself suspicious**, so: this sweep found nothing new,
+and the reason to trust that is that the *same method* found B3 one build earlier. A sweep whose
+technique has never caught anything proves nothing; this one has a catch to its name.
+
+What it does **not** cover: decisions the guide states as settled which the product has since
+changed. B3 was a guide question with a product answer; the inverse — a guide *answer* the
+product has moved past — would carry no flag at all and is not detectable by re-reading the
+register, because nothing in the register marks it.
+
+
+---
+
+## J. What the sweep's own stated gap then caught (2026-09-21)
+
+Section I ends by naming what the sweep could not cover:
+
+> *"a guide **answer** the product has moved past — would carry no flag at all and is not
+> detectable by re-reading the register, because nothing in the register marks it."*
+
+Following that thread immediately found one, and I had created it the same day.
+
+### The score bands
+
+`storePitchScore.bandFor` defined its own: **Strong ≥80, Solid ≥60, Developing ≥40, Early below**,
+with a comment calling the thresholds *"an ASSUMPTION, stated as one"* because *"the only evidence
+available is the mockups showing Strong beside 80.3 and Solid beside 77.0."*
+
+The evidence was not only the mockups. `src/lib/coach/gamification/bands.ts` has been the tested
+single source of truth for bands all along, and its docblock says exactly why:
+
+> *"nothing re-derives these values (§2.2 — a duplicated band boundary would drift)."*
+
+I re-derived them.
+
+| | Authority (`gamification/bands.ts`) | My copy |
+|---|---|---|
+| 90-100 | **Elite** | *(absent)* |
+| 80-89 | Strong | Strong (≥80) |
+| 60-79 | Solid | Solid |
+| 40-59 | Developing | Developing |
+| 0-39 | **Needs coaching** | **Early** |
+
+**The boundaries I inferred were right. The set was not.** 80, 60 and 40 are exactly the
+authority's lines — which is precisely why the copy looked correct and why its two tests passed.
+It was missing a band at the top and had renamed the one at the bottom.
+
+**It was already visible on one screen.** `/dashboard/sales-coach/my-progress` renders the rep
+Arena — which uses the authority — directly above the Pitch Score boards, which used the copy. A
+95-point pitch would have read **Elite** in the gauge and **Strong** in the card beneath it. A
+20-point one, *"Needs coaching"* above *"Early"*. Same rep, same page, same number.
+
+**Applied.** `bandFor` now returns `BAND_LABEL[gamificationBandFor(total)]`. Scores run 0-130 and
+the band scale is 0-100, but `bandFor` already clamps — so a 106.5 pitch bands as Elite, which is
+the right answer and one the four-band copy could not produce at all.
+
+**Gated.** A test now asserts the two agree at every half-point from 0 to 130, plus explicit cases
+for Elite and for the bottom label. Reinstating the old copy fails three tests; before the guard
+existed it failed none, because 80.3 and 77.0 happen to fall where both versions agree.
+
+### The pattern, stated three times in one day
+
+| | The copy | Agreed with its authority when written? |
+|---|---|---|
+| manager predicate (calibration route) | `ctx.isAdmin \|\| sales_coach_role === "admin"` | yes |
+| `lowestSectionId` (Breakdown board) | identical four lines | yes |
+| `bandFor` (pitch storage) | same three boundaries | **yes** |
+
+Every one of them was correct on the day it was written. That is what makes the class invisible:
+a duplicate is never wrong when you write it. Two were found by looking; this one was found by
+writing down what the previous sweep could not see, and then looking there.

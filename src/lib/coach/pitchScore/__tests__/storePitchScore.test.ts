@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { storePitchScore, bandFor } from "../storePitchScore";
+import { BAND_LABEL, bandFor as gamificationBandFor } from "@/lib/coach/gamification/bands";
 import { scorePitch } from "../scorePitch";
 import { BONUSES, BONUS_CAP, ELEMENTS, SECTIONS, VIOLATIONS, OBJECTION_ELEMENT_ID } from "../rubric";
 import type { GradedElement } from "../scorePitch";
@@ -417,5 +418,26 @@ describe("bandFor", () => {
 
   it("never returns an empty band, at any score the rubric can produce", () => {
     for (let n = 0; n <= 130; n += 0.5) expect(bandFor(n)).toBeTruthy();
+  });
+
+  it("agrees with the rep Arena on EVERY score — they render on the same page", () => {
+    // The drift guard, and it is the test that was missing. The two assertions above passed
+    // against a local four-band copy that had no Elite and called the bottom band "Early",
+    // because 80.3 and 77.0 happen to land where both agree. My Progress renders the Arena
+    // directly above these boards, so a 95-point pitch read "Elite" in the gauge and "Strong"
+    // in the card beneath it.
+    for (let n = 0; n <= 130; n += 0.5) {
+      expect(bandFor(n), `score ${n}`).toBe(BAND_LABEL[gamificationBandFor(n)]);
+    }
+  });
+
+  it("bands a 90+ pitch as Elite, which the old four-band copy could not produce at all", () => {
+    expect(bandFor(95)).toBe("Elite");
+    // Scores run to 130; the band scale is 0-100 and clamps, so a bonus-heavy pitch is Elite.
+    expect(bandFor(106.5)).toBe("Elite");
+  });
+
+  it("uses the authority's wording for the bottom band", () => {
+    expect(bandFor(20)).toBe("Needs coaching");
   });
 });

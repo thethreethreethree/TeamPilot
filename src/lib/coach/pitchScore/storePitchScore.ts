@@ -1,4 +1,5 @@
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
+import { BAND_LABEL, bandFor as gamificationBandFor } from "@/lib/coach/gamification/bands";
 import type { PitchScoreResult } from "./generatePitchScore";
 
 /**
@@ -38,18 +39,31 @@ export type StorePitchScoreArgs = {
 };
 
 /**
- * Display band for the score.
+ * Display band for the score — from the codebase's OWN band table, not a second one.
  *
- * Lives here rather than in rubric.ts because the bands are a presentation choice the founder may
- * retune and nothing computes with them. The thresholds are an ASSUMPTION, stated as one: the only
- * evidence available is the mockups showing "Strong" beside 80.3 and "Solid" beside 77.0, which
- * pins one boundary between those two numbers and leaves the rest inferred.
+ * This function used to define its own: Strong ≥80, Solid ≥60, Developing ≥40, Early below, with
+ * a comment calling the thresholds "an ASSUMPTION, stated as one" because "the only evidence
+ * available is the mockups showing Strong beside 80.3 and Solid beside 77.0."
+ *
+ * That was wrong about the evidence. `lib/coach/gamification/bands.ts` has been the tested single
+ * source of truth for bands all along, and its own docblock says why: *"nothing re-derives these
+ * values (§2.2 — a duplicated band boundary would drift)."* I re-derived them.
+ *
+ * What makes the near-miss instructive is that the BOUNDARIES I inferred were right — 80, 60, 40,
+ * exactly. The SET was not. The authority has five bands; mine had four. It was missing **Elite**
+ * (90-100) and renamed the bottom one from "Needs coaching" to "Early".
+ *
+ * The consequence was already on one screen: My Progress renders the rep Arena (which uses the
+ * authority) directly above the Pitch Score boards (which used this). A 95-point pitch would have
+ * read **Elite** in the gauge and **Strong** in the card beneath it, and a 20-point one would have
+ * read "Needs coaching" above "Early". Same rep, same page, same number.
+ *
+ * Scores here run 0-130 (base 100 + bonus 30) while the band scale is 0-100. `bandFor` already
+ * clamps, so a 106.5 pitch bands as Elite — which is the right answer, and one this function's own
+ * four-band version could not produce at all.
  */
 export function bandFor(total: number): string {
-  if (total >= 80) return "Strong";
-  if (total >= 60) return "Solid";
-  if (total >= 40) return "Developing";
-  return "Early";
+  return BAND_LABEL[gamificationBandFor(total)];
 }
 
 /** First detection wins, matching how the scorer resolves a repeated id. */
