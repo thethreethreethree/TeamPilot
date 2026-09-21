@@ -7,9 +7,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+// The ranking gate added 2026-09-22 (founder ruling: the KPI document wins on anything a rep
+// sees). These cases are about the BOARD, so the caller is a manager throughout; the
+// non-manager path has its own describe block.
+vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { GET } from "../route";
 
 const setAuth = (v: unknown) => (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
@@ -26,6 +31,9 @@ const req = (period?: string) => new Request(`http://localhost/api/coach/gamific
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (requireSalesCoachManager as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    userId: "mgr", companyId: "co1",
+  });
   lastPeriod = undefined;
 });
 
@@ -104,6 +112,69 @@ describe("GET leaderboard", () => {
       { agent_id: "u2", full_name: "Me", sessions: 6, total_points: 600, avg_points: 100, best_points: 100, deals: 2 },
     ]);
     const body = await (await GET(req())).json();
+    expect(body.meRank).toBe(1);
+  });
+});
+
+describe("a rep is not shown a cross-agent ranking", () => {
+  /**
+   * Founder ruling, 2026-09-22: where the rubric sheet and SalesCoach-KPI-System.md conflict on
+   * anything a REP sees, the KPI document wins. Its clause, marked non-negotiable:
+   *
+   *   "Cross-agent ranking exists for managers only, is never the default view, and is never how
+   *    results are framed to the agent."
+   *
+   * This route had served the full ranked board, with names, to every company member since it was
+   * built. It was found by sweeping rep-facing surfaces against the document AFTER the ruling —
+   * applying the ruling only where I had already made a call would have left it in place.
+   */
+  const asRep = () =>
+    (requireSalesCoachManager as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+  it("sends no rows and no rank", async () => {
+    setAuth({ userId: "rep1", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "other", full_name: "Someone Else", sessions: 9, total_points: 900, avg_points: 100, best_points: 120, deals: 4 },
+      { agent_id: "rep1", full_name: "Me", sessions: 2, total_points: 100, avg_points: 50, best_points: 60, deals: 0 },
+    ]);
+    asRep();
+
+    const body = await (await GET(req())).json();
+    expect(body.managerView).toBe(false);
+    expect(body.rows).toBeUndefined();
+    expect(body.meRank).toBeUndefined();
+  });
+
+  it("leaks no other rep's name or total, even though the RPC returned them", async () => {
+    // The stronger assertion: the aggregate RAN and its rows were discarded. A filtered board
+    // would still be a board, and a rank is a rank however few people are on it.
+    setAuth({ userId: "rep1", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "other", full_name: "Someone Else", sessions: 9, total_points: 900, avg_points: 100, best_points: 120, deals: 4 },
+    ]);
+    asRep();
+
+    const wire = JSON.stringify(await (await GET(req())).json());
+    expect(wire).not.toContain("Someone Else");
+    expect(wire).not.toContain("900");
+    expect(wire).not.toMatch(/"rank"|"meRank"/);
+  });
+
+  it("still tells the caller who they are, so the page can render something", async () => {
+    setAuth({ userId: "rep1", companyId: "c1", isAdmin: false });
+    setRpc([]);
+    asRep();
+    expect((await (await GET(req())).json()).meId).toBe("rep1");
+  });
+
+  it("gives a manager the board, unchanged", async () => {
+    setAuth({ userId: "mgr", companyId: "c1", isAdmin: false });
+    setRpc([
+      { agent_id: "mgr", full_name: "Boss", sessions: 3, total_points: 300, avg_points: 100, best_points: 110, deals: 1 },
+    ]);
+    const body = await (await GET(req())).json();
+    expect(body.managerView).toBe(true);
+    expect(body.rows).toHaveLength(1);
     expect(body.meRank).toBe(1);
   });
 });

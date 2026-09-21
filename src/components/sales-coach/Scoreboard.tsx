@@ -24,7 +24,20 @@ type Row = {
   best_points: number;
   deals: number;
 };
-type Resp = { period: "week" | "month" | "all"; rows: Row[]; meId: string; meRank: number | null };
+/**
+ * `rows` and `meRank` are OPTIONAL because the route no longer sends them to a non-manager
+ * (founder ruling 2026-09-22 — the KPI document wins on anything a rep sees, and it calls
+ * cross-agent ranking manager-only). Optional rather than a separate shape so one component
+ * handles both callers, and so the board branches on what it was GIVEN rather than on a flag it
+ * could get wrong.
+ */
+type Resp = {
+  period: "week" | "month" | "all";
+  managerView?: boolean;
+  rows?: Row[];
+  meId: string;
+  meRank?: number | null;
+};
 
 type Period = "week" | "month" | "all";
 const PERIODS: { key: Period; label: string }[] = [
@@ -91,6 +104,9 @@ export function Scoreboard() {
   // Computed once per render from the rows the aggregate already ordered. `data?.rows ?? []` and not `data.rows`
   // — this runs before the null guard below, and reading it directly threw on first paint.
   const ranks = competitionRanks(data?.rows ?? []);
+  // No rows means the caller is not a manager, not that the board is empty. The two states are
+  // rendered differently below, because "nobody has scored" is a claim about the team.
+  const withheld = state === "ready" && data != null && data.rows == null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 p-6">
@@ -134,13 +150,33 @@ export function Scoreboard() {
         </div>
       )}
 
-      {state === "ready" && data && data.rows.length === 0 && (
+      {/*
+        NOT an empty board, and not an error. The route withholds the ranked list from a rep
+        because cross-agent ranking is manager-only, and saying so plainly beats an empty panel
+        that reads as "nobody on your team has scored".
+
+        What a rep is pointed at instead is their own progress, framed against their own past —
+        which is what the same document asks for in place of a ranking.
+      */}
+      {withheld && (
+        <div className="rounded-xl border border-default bg-surface p-4">
+          <p className="text-[12px] text-secondary">
+            The team points board is for managers.
+          </p>
+          <p className="mt-1 text-[11px] text-muted">
+            Your own points and progress are on your dashboard, measured against your own past
+            rather than against other reps.
+          </p>
+        </div>
+      )}
+
+      {state === "ready" && data && data.rows != null && data.rows.length === 0 && (
         <div className="rounded-lg border border-default bg-surface p-6 text-sm text-muted">
           No scored sessions in this period yet. Points appear here after a session gets its after-pitch review.
         </div>
       )}
 
-      {state === "ready" && data && data.rows.length > 0 && (
+      {state === "ready" && data && data.rows != null && data.rows.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-default">
           <div className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 border-b border-default bg-surface px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
             <span className="text-center">#</span>
@@ -180,7 +216,7 @@ export function Scoreboard() {
         </div>
       )}
 
-      {state === "ready" && data && data.meRank === null && data.rows.length > 0 && (
+      {state === "ready" && data && data.rows != null && data.meRank === null && data.rows.length > 0 && (
         <p className="text-xs text-muted">You don&apos;t have any scored sessions in this period yet — run a session to get on the board.</p>
       )}
     </div>

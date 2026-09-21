@@ -15,9 +15,14 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+// The ranking gate added 2026-09-22 (founder ruling: the KPI document wins on anything a rep
+// sees). These cases are about the BOARD, so the caller is a manager throughout; the
+// non-manager path has its own describe block.
+vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { GET } from "../route";
 
 const bearerReq = () =>
@@ -35,6 +40,9 @@ function scopedClientWithRpc(rows: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (requireSalesCoachManager as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    userId: "mgr", companyId: "co1",
+  });
   lastPeriod = undefined;
 });
 

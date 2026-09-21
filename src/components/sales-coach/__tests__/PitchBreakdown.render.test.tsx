@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
-import { PitchBreakdown, biggestOpportunity } from "../PitchBreakdown";
+import { PitchBreakdown, biggestOpportunity, strongestElement } from "../PitchBreakdown";
 // The board consumes the rubric's own lowestSection rather than carrying a copy; these tests
 // exercise the authority directly, which is what makes them a guard on the board's behaviour
 // rather than on a duplicate that happens to agree.
@@ -54,6 +54,41 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(cleanup);
+
+describe("picking the strength", () => {
+  /**
+   * Unit tests rather than another render assertion, because the render fixture has two elements
+   * and cannot distinguish the two wrong implementations — both survived a mutation against it.
+   * The pure function can be handed the cases that separate them.
+   */
+  const el = (label: string, maxPoints: number, avgPoints: number) =>
+    ({ elementId: label, section: "close", label, maxPoints, avgPoints, hitRate: 0, partialRate: 0, missedRate: 0, gradedIn: 10 }) as const;
+
+  it("picks CLOSEST TO ITS CEILING, not the highest raw points", () => {
+    // A 2-point element hit every time is a strength. A 9-point element hit half the time is not,
+    // even though it scores more — the question is what the rep does WELL.
+    const consistent = el("Consistent", 2, 2);
+    const bigger = el("Bigger", 9, 4.5);
+    expect(strongestElement([bigger, consistent])?.label).toBe("Consistent");
+  });
+
+  it("does not call an element they never scored a strength", () => {
+    // Never attempted is a gap of its full value, so a naive smallest-gap pick would choose it the
+    // moment every attempted element was imperfect — and tell a rep their strength is a thing they
+    // have never done.
+    const never = el("Never", 1, 0);
+    const good = el("Good", 8, 7.5);
+    expect(strongestElement([never, good])?.label).toBe("Good");
+  });
+
+  it("returns nothing for an empty period", () => {
+    expect(strongestElement([])).toBeNull();
+  });
+
+  it("returns nothing when nothing has been scored at all", () => {
+    expect(strongestElement([el("A", 3, 0), el("B", 5, 0)])).toBeNull();
+  });
+});
 
 describe("ranking the opportunity", () => {
   it("ranks by POINTS lost, not by hit rate", () => {
@@ -181,5 +216,44 @@ describe("the board", () => {
     render(<PitchBreakdown repId="rep9" />);
     await screen.findByText(/Biggest opportunity/i);
     expect(String(fetchMock.mock.calls[0]![0])).toContain("repId=rep9");
+  });
+});
+
+describe("the board leads with a strength, then the gap", () => {
+  /**
+   * `docs/SalesCoach-KPI-System.md`, agent view: *"Growth-framed — lead with what improved, then
+   * growth areas, per the coaching philosophy."* This board used to open on BIGGEST OPPORTUNITY,
+   * which is a deficit. The founder's 2026-09-22 ruling makes that document win on anything a rep
+   * sees.
+   *
+   * The same two facts in the other order are a different message to the person reading them, so
+   * the ORDER is what these tests pin, not merely the presence of both.
+   */
+  const ready = async () => {
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0 } });
+    const r = render(<PitchBreakdown />);
+    await screen.findByText(/Biggest opportunity/i);
+    return r;
+  };
+
+  it("names the strongest element", async () => {
+    await ready();
+    // deliv.tone averages 6.9 of 7 — the smallest gap to its ceiling.
+    expect(screen.getByText(/Your strongest/i)).toBeTruthy();
+    expect(screen.getByText(/Tone and certainty: averaging 6.9 of 7/)).toBeTruthy();
+  });
+
+  it("puts the strength ABOVE the opportunity", async () => {
+    const { container } = await ready();
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Your strongest")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Biggest opportunity")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Your strongest")).toBeLessThan(text.indexOf("Biggest opportunity"));
+  });
+
+  it("still shows the opportunity — growth areas follow, they are not removed", async () => {
+    await ready();
+    expect(screen.getByText(/Biggest opportunity/i)).toBeTruthy();
+    expect(screen.getByText(/Into paperwork/)).toBeTruthy();
   });
 });

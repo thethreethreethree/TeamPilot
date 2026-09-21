@@ -53,6 +53,39 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
  * losing two. Ranking by rate would send them after the second, which is the smaller prize and
  * feels like being nagged about something that barely counts.
  */
+/**
+ * What the rep is doing BEST — the element they hit closest to its ceiling.
+ *
+ * Exists because of the founder's 2026-09-22 ruling and `docs/SalesCoach-KPI-System.md`, whose
+ * agent-view clause is not only about ranking: *"Growth-framed — lead with what improved, then
+ * growth areas, per the coaching philosophy."* This board opened with BIGGEST OPPORTUNITY, which
+ * is a deficit, and led with it.
+ *
+ * HONEST ABOUT WHAT THIS IS NOT. The document says lead with what IMPROVED, which is a comparison
+ * against the rep's own past and needs a period-over-period read this board does not have. Leading
+ * with a strength is the growth-framing that today's data can support; it is not the clause's
+ * literal requirement, and the gap is recorded rather than papered over.
+ *
+ * Measured as the smallest gap to the ceiling rather than the highest raw points, so a 2-point
+ * element hit every time beats a 4-point element hit half the time — the question is what the rep
+ * does WELL, not which element is worth most.
+ */
+export function strongestElement(stats: readonly ElementStat[]): ElementStat | null {
+  let best: ElementStat | null = null;
+  let bestGap = Infinity;
+  for (const s of stats) {
+    // Never scored is not a strength. An element with no attempts has a gap of its full value and
+    // would otherwise win whenever every attempted element had been imperfect.
+    if (s.maxPoints <= 0 || s.avgPoints <= 0) continue;
+    const gap = s.maxPoints - s.avgPoints;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = s;
+    }
+  }
+  return best;
+}
+
 export function biggestOpportunity(stats: readonly ElementStat[]): ElementStat | null {
   let best: ElementStat | null = null;
   let bestGap = 0;
@@ -186,6 +219,7 @@ function Board({
   }
 
   const opportunity = biggestOpportunity(agg.elementStats);
+  const strength = strongestElement(agg.elementStats);
   const lowest = lowestSection(agg.sectionAverages);
 
   return (
@@ -195,6 +229,26 @@ function Board({
         {agg.notCounted > 0 && ` · ${agg.notCounted} not counted`}
         {skipped > 0 && ` · ${skipped} scored before section totals were recorded`}
       </p>
+
+      {/*
+        WHAT IS GOING WELL, ABOVE THE GAP. The KPI document's agent-view clause asks for a board
+        that leads with strength and follows with growth areas; this board used to open on the
+        biggest deficit. The order is the whole point — the same two facts, read in the other
+        sequence, are a different message to the person reading them.
+      */}
+      {strength && (
+        <div className="rounded-xl border border-emerald-600/40 bg-surface p-4">
+          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Your strongest
+          </p>
+          <p className="mt-1 text-[13px] font-semibold text-primary">
+            {strength.label}: averaging {strength.avgPoints} of {strength.maxPoints}
+          </p>
+          <p className="mt-1 text-[11px] text-muted">
+            Across your {agg.counted} counted pitch{agg.counted === 1 ? "" : "es"}.
+          </p>
+        </div>
+      )}
 
       {opportunity && (
         <section className="rounded-xl border border-brand/40 bg-brand/5 p-4">

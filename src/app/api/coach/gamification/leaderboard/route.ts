@@ -4,13 +4,31 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 
 /**
  * GET /api/coach/gamification/leaderboard?period=week|month|all
  *
  * The team scoreboard: per-agent rank + totals + deals for the caller's company. Reads the security-definer
  * aggregate function (0243) — NOT the ledger rows — so it exposes only the public layer (rank+totals), never
- * per-session score detail (which stays rep-private, A18). Every company member may view it. One DB query.
+ * per-session score detail (which stays rep-private, A18). One DB query.
+ *
+ * MANAGER-ONLY AS OF 2026-09-22, and it was not before. The founder ruled that where the rubric sheet and
+ * `docs/SalesCoach-KPI-System.md` conflict on anything a REP sees, the KPI document wins — and that document
+ * says, in a clause it marks non-negotiable:
+ *
+ *   "Cross-agent ranking exists for managers only, is never the default view, and is never how results are
+ *    framed to the agent."
+ *
+ * and again of the agent view: *"No cross-agent ranking here."*
+ *
+ * This route had served the full ranked board, with names, to every company member. It was built before the
+ * ruling existed and was found by sweeping rep-facing surfaces against the document afterwards — the ruling is
+ * general, and applying it only where I had already made a call would have left the older violation in place.
+ *
+ * A non-manager now receives no rows and no rank. Not a filtered board: a board of one is a wrong board, and a
+ * rank is a rank however few people are on it. Their own points remain on the Arena, framed against their own
+ * past, which is what the same document asks for.
  */
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-leaderboard", windowMs: 60_000, max: 60 });
@@ -33,9 +51,18 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = (data ?? []) as Array<{ agent_id: string; full_name: string | null; sessions: number; total_points: number; avg_points: number; best_points: number; deals: number }>;
+
+  // The ranking gate, performed HERE rather than in the component. A value that never leaves the server cannot
+  // be exposed by a rendering bug, and the board is a client component that anyone may refactor.
+  const manager = await requireSalesCoachManager(req);
+  if (!manager) {
+    return NextResponse.json({ period, managerView: false, meId: ctx.userId });
+  }
+
   const meIndex = rows.findIndex((r) => r.agent_id === ctx.userId);
   return NextResponse.json({
     period,
+    managerView: true,
     rows,
     meId: ctx.userId,
     // rankOf, not meIndex + 1: equals share a place, so of two reps on an identical total neither is told they
