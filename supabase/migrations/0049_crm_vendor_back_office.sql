@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0049 — Vendor-side CRM (customer management for ELOSTATE itself).
 --
 -- Per CLAUDE.md + AMD-006 four-layer build:
@@ -36,7 +49,9 @@
 -- ─────────────────────────────────────────────────────────────
 -- crm_accounts — one per signed-up company
 -- ─────────────────────────────────────────────────────────────
-create type crm_lifecycle_stage as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_lifecycle_stage') then
+    create type crm_lifecycle_stage as enum (
   'trial',
   'control_month',
   'activated',
@@ -45,14 +60,20 @@ create type crm_lifecycle_stage as enum (
   'churned',
   'archived'
 );
+  end if;
+end $guard$;
 
-create type crm_account_source as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_account_source') then
+    create type crm_account_source as enum (
   'self_signup',
   'invited',
   'referral',
   'imported',
   'unknown'
 );
+  end if;
+end $guard$;
 
 create table if not exists crm_accounts (
   id            uuid primary key default gen_random_uuid(),
@@ -122,15 +143,21 @@ create unique index if not exists crm_contacts_primary_unique
 -- crm_subscriptions — plan + billing state per account
 -- Stubbed billing. Schema is real; collection is off.
 -- ─────────────────────────────────────────────────────────────
-create type crm_plan_tier as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_plan_tier') then
+    create type crm_plan_tier as enum (
   'pilot',           -- free, founder-led
   'team_small',      -- placeholder; live tiers go in a future migration
   'team_medium',
   'team_large',
   'enterprise'
 );
+  end if;
+end $guard$;
 
-create type crm_subscription_status as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_subscription_status') then
+    create type crm_subscription_status as enum (
   'inactive',        -- account exists, no subscription opened
   'trialing',        -- pre-paying period
   'control_month',   -- month-1 baseline window
@@ -139,6 +166,8 @@ create type crm_subscription_status as enum (
   'past_due',
   'cancelled'
 );
+  end if;
+end $guard$;
 
 create table if not exists crm_subscriptions (
   id           uuid primary key default gen_random_uuid(),
@@ -178,7 +207,9 @@ create unique index if not exists crm_subscriptions_active_unique
 -- ─────────────────────────────────────────────────────────────
 -- crm_invoices — generated but not collected while billing is off
 -- ─────────────────────────────────────────────────────────────
-create type crm_invoice_status as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_invoice_status') then
+    create type crm_invoice_status as enum (
   'draft',
   'not_collecting',  -- generated for the record but no charge attempted
   'sent',
@@ -186,6 +217,8 @@ create type crm_invoice_status as enum (
   'overdue',
   'voided'
 );
+  end if;
+end $guard$;
 
 create table if not exists crm_invoices (
   id              uuid primary key default gen_random_uuid(),
@@ -217,7 +250,9 @@ create index if not exists crm_invoices_status_idx on crm_invoices (status);
 -- ─────────────────────────────────────────────────────────────
 -- crm_activity_events — append-only per §3.1
 -- ─────────────────────────────────────────────────────────────
-create type crm_activity_kind as enum (
+do $guard$ begin
+  if not exists (select 1 from pg_type where typname = 'crm_activity_kind') then
+    create type crm_activity_kind as enum (
   'account_created',
   'lifecycle_changed',
   'subscription_changed',
@@ -231,6 +266,8 @@ create type crm_activity_kind as enum (
   'health_changed',
   'owner_assigned'
 );
+  end if;
+end $guard$;
 
 create table if not exists crm_activity_events (
   id          uuid primary key default gen_random_uuid(),
@@ -275,18 +312,22 @@ begin
 end;
 $$;
 
+drop trigger if exists crm_accounts_touch on crm_accounts;
 create trigger crm_accounts_touch
   before update on crm_accounts
   for each row execute function crm_touch_updated_at();
 
+drop trigger if exists crm_contacts_touch on crm_contacts;
 create trigger crm_contacts_touch
   before update on crm_contacts
   for each row execute function crm_touch_updated_at();
 
+drop trigger if exists crm_subscriptions_touch on crm_subscriptions;
 create trigger crm_subscriptions_touch
   before update on crm_subscriptions
   for each row execute function crm_touch_updated_at();
 
+drop trigger if exists crm_notes_touch on crm_notes;
 create trigger crm_notes_touch
   before update on crm_notes
   for each row execute function crm_touch_updated_at();
@@ -332,6 +373,7 @@ begin
 end;
 $$;
 
+drop trigger if exists crm_bootstrap_account_trigger on companies;
 drop trigger if exists crm_bootstrap_account_trigger on companies;
 create trigger crm_bootstrap_account_trigger
   after insert on companies
@@ -412,6 +454,7 @@ end;
 $$;
 
 drop trigger if exists crm_accounts_emit_lifecycle on crm_accounts;
+drop trigger if exists crm_accounts_emit_lifecycle on crm_accounts;
 create trigger crm_accounts_emit_lifecycle
   before update on crm_accounts
   for each row execute function crm_emit_lifecycle_change();
@@ -438,6 +481,7 @@ begin
 end;
 $$;
 
+drop trigger if exists crm_subscriptions_emit on crm_subscriptions;
 drop trigger if exists crm_subscriptions_emit on crm_subscriptions;
 create trigger crm_subscriptions_emit
   after update on crm_subscriptions
@@ -484,10 +528,12 @@ end;
 $$;
 
 drop trigger if exists crm_invoices_emit_insert on crm_invoices;
+drop trigger if exists crm_invoices_emit_insert on crm_invoices;
 create trigger crm_invoices_emit_insert
   after insert on crm_invoices
   for each row execute function crm_emit_invoice_event();
 
+drop trigger if exists crm_invoices_emit_paid on crm_invoices;
 drop trigger if exists crm_invoices_emit_paid on crm_invoices;
 create trigger crm_invoices_emit_paid
   after update on crm_invoices
@@ -512,6 +558,7 @@ begin
 end;
 $$;
 
+drop trigger if exists crm_notes_emit on crm_notes;
 drop trigger if exists crm_notes_emit on crm_notes;
 create trigger crm_notes_emit
   after insert on crm_notes
@@ -550,10 +597,12 @@ end;
 $$;
 
 drop trigger if exists crm_contacts_emit_insert on crm_contacts;
+drop trigger if exists crm_contacts_emit_insert on crm_contacts;
 create trigger crm_contacts_emit_insert
   after insert on crm_contacts
   for each row execute function crm_emit_contact_event();
 
+drop trigger if exists crm_contacts_emit_delete on crm_contacts;
 drop trigger if exists crm_contacts_emit_delete on crm_contacts;
 create trigger crm_contacts_emit_delete
   after delete on crm_contacts
@@ -596,35 +645,43 @@ as $$
 $$;
 
 -- crm_accounts: read for vendor admins; write for vendor admins.
+drop policy if exists "crm_accounts_select" on crm_accounts;
 create policy "crm_accounts_select" on crm_accounts
   for select using (is_vendor_super_admin());
+drop policy if exists "crm_accounts_update" on crm_accounts;
 create policy "crm_accounts_update" on crm_accounts
   for update using (is_vendor_super_admin())
   with check (is_vendor_super_admin());
+drop policy if exists "crm_accounts_insert" on crm_accounts;
 create policy "crm_accounts_insert" on crm_accounts
   for insert with check (is_vendor_super_admin());
 
 -- crm_contacts
+drop policy if exists "crm_contacts_all" on crm_contacts;
 create policy "crm_contacts_all" on crm_contacts
   for all using (is_vendor_super_admin())
   with check (is_vendor_super_admin());
 
 -- crm_subscriptions
+drop policy if exists "crm_subscriptions_all" on crm_subscriptions;
 create policy "crm_subscriptions_all" on crm_subscriptions
   for all using (is_vendor_super_admin())
   with check (is_vendor_super_admin());
 
 -- crm_invoices
+drop policy if exists "crm_invoices_all" on crm_invoices;
 create policy "crm_invoices_all" on crm_invoices
   for all using (is_vendor_super_admin())
   with check (is_vendor_super_admin());
 
 -- crm_activity_events: read-only for vendor admins. Inserts go
 -- through SECURITY DEFINER triggers / admin routes.
+drop policy if exists "crm_activity_events_select" on crm_activity_events;
 create policy "crm_activity_events_select" on crm_activity_events
   for select using (is_vendor_super_admin());
 
 -- crm_notes
+drop policy if exists "crm_notes_all" on crm_notes;
 create policy "crm_notes_all" on crm_notes
   for all using (is_vendor_super_admin())
   with check (is_vendor_super_admin());
@@ -632,7 +689,8 @@ create policy "crm_notes_all" on crm_notes
 -- ─────────────────────────────────────────────────────────────
 -- Convenience view: account summary with derived counts
 -- ─────────────────────────────────────────────────────────────
-create or replace view crm_account_summary as
+drop view if exists crm_account_summary cascade;
+create view crm_account_summary as
 select
   a.id,
   a.company_id,

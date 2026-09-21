@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0149 — Financial System, PHASE 5 (increment 1): Budgeting + variance + runway (founder-confirmed
 -- 2026-07-13: account × cost-center, quarterly, budget+variance+runway; forecasts deferred).
 --
@@ -38,7 +51,13 @@ create index if not exists fin_budget_lines_budget_idx on fin_budget_lines (budg
 -- ── Budget vs actual: each budget line's actual (posted, same account × cost-center × quarter of the
 --    fiscal year) and the variance. Actual is in the account's NATURAL direction (so an expense
 --    budget vs expense actual compare like-for-like). period_index 0 = the whole fiscal year. ──
-create or replace view fin_budget_variance with (security_invoker = true) as
+-- CASCADE, and it matters who reads this. Re-running the WHOLE history is safe: the
+-- dependents are rebuilt by their own migrations, which run after this one. Running
+-- THIS FILE ALONE by hand will drop views created in 0182, 0191 and NOT
+-- bring them back — re-run those too. The drop is required because a later migration
+-- widens this view, and `create or replace` cannot remove a column.
+drop view if exists fin_budget_variance cascade;
+create view fin_budget_variance with (security_invoker = true) as
 select
   bl.id as budget_line_id, bl.company_id, bl.budget_id, b.fiscal_year, b.name as budget_name,
   bl.account_id, a.code, a.name as account_name, a.type,

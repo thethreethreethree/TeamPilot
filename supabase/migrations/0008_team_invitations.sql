@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0008 — Team invitations + member lifecycle
 --
 -- Production team management. Adds:
@@ -74,13 +87,16 @@ create trigger team_invitations_immutable
 alter table team_invitations enable row level security;
 
 -- Company members can see and create invitations for their own company.
+drop policy if exists "team_invitations - select" on team_invitations;
 create policy "team_invitations - select" on team_invitations
   for select using (company_id = auth_company_id());
+drop policy if exists "team_invitations - insert" on team_invitations;
 create policy "team_invitations - insert" on team_invitations
   for insert with check (company_id = auth_company_id());
 -- Updates (accept / revoke) require company membership OR the accept_invitation()
 -- SQL function below which runs with security definer for the accept path (a
 -- prospective member won't be in the company yet).
+drop policy if exists "team_invitations - update" on team_invitations;
 create policy "team_invitations - update" on team_invitations
   for update using (company_id = auth_company_id());
 

@@ -407,11 +407,14 @@ export function PitchDetail({
       )}
 
       {/* ── The rep's own disputes, and what came back ────────────────────────────────── */}
-      {pitch.disputes.length > 0 && (
+      {/* Same `?? []` and the same reason as the corrections section above. Guarding one
+          field and not its neighbour, in one file, through the identical cast, reads as a
+          style choice — and the next person copies whichever they saw last. */}
+      {(pitch.disputes ?? []).length > 0 && (
         <section>
           <h3 className="text-[10px] uppercase tracking-widest text-muted mb-2">Your disputes</h3>
           <ul className="space-y-2">
-            {pitch.disputes.map((d) => (
+            {(pitch.disputes ?? []).map((d) => (
               <li key={d.id} className="rounded-xl border border-default bg-surface p-4">
                 <p className="text-[12px] font-medium text-primary">
                   You disputed{" "}

@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0244 — Gamification Phase 6: the calibration store.
 --
 -- Phase 6 asks the honest question the leaderboard depends on: does the score actually measure what it claims,
@@ -22,6 +35,7 @@ create unique index if not exists gamification_calibration_scorer_session
 
 alter table gamification_calibration enable row level security;
 -- Company managers read the calibration (it is a manager tool); writes go through the service-role route.
+drop policy if exists "gamification_calibration - manager read" on gamification_calibration;
 create policy "gamification_calibration - manager read" on gamification_calibration
   for select using (
     company_id = auth_company_id() and exists (

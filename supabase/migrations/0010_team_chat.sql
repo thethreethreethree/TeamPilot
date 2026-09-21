@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0010 — Team Chat (the primary user surface for the §3.1 chain)
 --
 -- Constitutional positioning: a chat_topic is a multi-user diagnosis space —
@@ -169,26 +182,32 @@ alter table chat_messages     enable row level security;
 alter table chat_pins         enable row level security;
 
 -- chat_topics: company members can see all topics in their company.
+drop policy if exists "chat_topics - select" on chat_topics;
 create policy "chat_topics - select" on chat_topics
   for select using (company_id = auth_company_id());
+drop policy if exists "chat_topics - insert" on chat_topics;
 create policy "chat_topics - insert" on chat_topics
   for insert with check (company_id = auth_company_id());
+drop policy if exists "chat_topics - update" on chat_topics;
 create policy "chat_topics - update" on chat_topics
   for update using (company_id = auth_company_id());
 
 -- chat_participants: any company member can see participation rosters.
+drop policy if exists "chat_participants - select" on chat_participants;
 create policy "chat_participants - select" on chat_participants
   for select using (
     exists (select 1 from chat_topics t
             where t.id = chat_participants.topic_id
               and t.company_id = auth_company_id())
   );
+drop policy if exists "chat_participants - insert" on chat_participants;
 create policy "chat_participants - insert" on chat_participants
   for insert with check (
     exists (select 1 from chat_topics t
             where t.id = chat_participants.topic_id
               and t.company_id = auth_company_id())
   );
+drop policy if exists "chat_participants - update" on chat_participants;
 create policy "chat_participants - update" on chat_participants
   for update using (
     exists (select 1 from chat_topics t
@@ -199,6 +218,7 @@ create policy "chat_participants - update" on chat_participants
 -- chat_messages: only visible to participants of the topic (privacy by default).
 -- This is stricter than the company-wide policy on topics — a topic might be
 -- listed in /dashboard/chats but its messages only readable to participants.
+drop policy if exists "chat_messages - select" on chat_messages;
 create policy "chat_messages - select" on chat_messages
   for select using (
     company_id = auth_company_id()
@@ -209,6 +229,7 @@ create policy "chat_messages - select" on chat_messages
         and p.left_at is null
     )
   );
+drop policy if exists "chat_messages - insert" on chat_messages;
 create policy "chat_messages - insert" on chat_messages
   for insert with check (
     company_id = auth_company_id()
@@ -222,8 +243,10 @@ create policy "chat_messages - insert" on chat_messages
 
 -- chat_pins: company-wide select (pins are organizational assets);
 -- insert restricted to participants.
+drop policy if exists "chat_pins - select" on chat_pins;
 create policy "chat_pins - select" on chat_pins
   for select using (company_id = auth_company_id());
+drop policy if exists "chat_pins - insert" on chat_pins;
 create policy "chat_pins - insert" on chat_pins
   for insert with check (
     company_id = auth_company_id()
@@ -234,6 +257,7 @@ create policy "chat_pins - insert" on chat_pins
         and p.left_at is null
     )
   );
+drop policy if exists "chat_pins - update" on chat_pins;
 create policy "chat_pins - update" on chat_pins
   for update using (
     company_id = auth_company_id()

@@ -405,9 +405,13 @@ describe("corrections a manager made", () => {
     // show nothing. Six tests in PitchScorePanel failed exactly this way before the guard.
     const legacy = { ...PITCH } as Partial<StoredPitch>;
     delete legacy.overrides;
+    // `disputes` too: it reaches this component through the identical cast, and guarding one field
+    // and not its neighbour in one file reads as a style choice rather than a defence.
+    delete legacy.disputes;
     render(<PitchDetail pitch={legacy as StoredPitch} />);
     expect(screen.getByText("80.4")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /A manager (corrected|made)/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /Your disputes/i })).toBeNull();
   });
 
   it("shows nothing at all when no manager has touched the pitch", () => {

@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0018 — feedback + smoke test schema
 --
 -- Why this lands as a constitutional feature, not a side-channel
@@ -326,13 +339,16 @@ alter table smoke_test_results    enable row level security;
 -- only triage in the application code, not the policy, so the
 -- constitution remains "the admin role is a discipline, not a
 -- privilege wall" (per §3.3 spirit).
+drop policy if exists "feedback - select" on feedback;
 create policy "feedback - select" on feedback
   for select using (company_id = auth_company_id());
+drop policy if exists "feedback - insert" on feedback;
 create policy "feedback - insert" on feedback
   for insert with check (
     company_id = auth_company_id()
     and author_id = auth.uid()
   );
+drop policy if exists "feedback - update" on feedback;
 create policy "feedback - update" on feedback
   for update using (company_id = auth_company_id());
 
@@ -340,10 +356,13 @@ create policy "feedback - update" on feedback
 -- application-gated to admin role — we don't enforce role at the
 -- policy layer because the role taxonomy is still settling and
 -- having the policy say "admin only" would lock us into that name.
+drop policy if exists "smoke_test_versions - select" on smoke_test_versions;
 create policy "smoke_test_versions - select" on smoke_test_versions
   for select using (company_id = auth_company_id());
+drop policy if exists "smoke_test_versions - insert" on smoke_test_versions;
 create policy "smoke_test_versions - insert" on smoke_test_versions
   for insert with check (company_id = auth_company_id());
+drop policy if exists "smoke_test_versions - update" on smoke_test_versions;
 create policy "smoke_test_versions - update" on smoke_test_versions
   for update using (company_id = auth_company_id());
 
@@ -351,11 +370,13 @@ create policy "smoke_test_versions - update" on smoke_test_versions
 -- (per the "separate data storage so they don't overwrite each other"
 -- requirement). Aggregate views are reconstructed by the admin inbox
 -- via a server route using the service role.
+drop policy if exists "smoke_test_results - select - own" on smoke_test_results;
 create policy "smoke_test_results - select - own" on smoke_test_results
   for select using (
     company_id = auth_company_id()
     and tester_id = auth.uid()
   );
+drop policy if exists "smoke_test_results - insert" on smoke_test_results;
 create policy "smoke_test_results - insert" on smoke_test_results
   for insert with check (
     company_id = auth_company_id()

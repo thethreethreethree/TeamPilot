@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0242 — Gamification Phase 1: the append-only points ledger + manager notifications.
 --
 -- CONTEXT (docs/gamification/FINDINGS.md + DECISIONS.md): this repo ALREADY scores every session on dimensions
@@ -44,6 +57,7 @@ alter table agent_point_ledger enable row level security;
 -- Read: the owning agent, OR a company manager (role in CEO/COO/admin OR sales_coach_role='admin'), same company.
 -- Peers CANNOT read each other's ledger rows — per-session detail stays private (A18). The company-wide
 -- rank+totals board (Phase 5) will read from a dedicated aggregate view, not from this table directly.
+drop policy if exists "agent_point_ledger - owner or manager read" on agent_point_ledger;
 create policy "agent_point_ledger - owner or manager read" on agent_point_ledger
   for select using (
     company_id = auth_company_id() and (
@@ -74,5 +88,6 @@ create index if not exists manager_notifications_unread on manager_notifications
 alter table manager_notifications enable row level security;
 -- A manager reads ONLY their own notifications. Mark-as-read goes through a service-role route (Phase 4), so no
 -- client UPDATE policy here — consistent with the ledger's service-role-write rule.
+drop policy if exists "manager_notifications - recipient read" on manager_notifications;
 create policy "manager_notifications - recipient read" on manager_notifications
   for select using (company_id = auth_company_id() and recipient_id = auth.uid());

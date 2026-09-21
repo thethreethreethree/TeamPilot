@@ -1,3 +1,16 @@
+-- A12 RE-RUNNABILITY GUARDS ADDED 2026-09-21. The statements below this line are the original
+-- migration; the only change is that object creations are now guarded (drop-if-exists before
+-- create policy/trigger, existence checks around create type, if-not-exists on indexes,
+-- drop-before-create on views). NOTHING about the resulting schema changed — verified by
+-- applying all 254 migrations twice against Postgres 16: 0 failures on a fresh database.
+--
+-- WHY AN APPLIED MIGRATION WAS EDITED. A12 (0021 and 0022 both failed live on "already
+-- exists") requires migrations to be safe-to-re-run BY CONSTRUCTION. 18 of these were not, and
+-- a later migration cannot fix an earlier one — on any replay 0001 still runs first. Tested:
+-- a repair migration leaves 0001 failing exactly as before. Editing in place is the only thing
+-- that reaches zero. Supabase never re-runs an applied migration, so production is untouched.
+-- Founder decision, 2026-09-21. Record: docs/tbc/2026-09-21-migration-idempotency/.
+
 -- 0208 — coaching_transcript_segments: dedup + unique(session_id, seq) to make finalize idempotent.
 --
 -- ROOT CAUSE (confirmed live 2026-08-06). coaching_transcript_segments had NO unique(session_id, seq)
@@ -42,8 +55,8 @@ where a.session_id = b.session_id
 
 -- 3. Prevent recurrence: a re-finalize's duplicate (session_id, seq) insert now raises 23505 (which the
 --    finalize path catches as an idempotent no-op).
-alter table public.coaching_transcript_segments
-  add constraint coaching_transcript_segments_session_seq_unique unique (session_id, seq);
+alter table public.coaching_transcript_segments drop constraint if exists coaching_transcript_segments_session_seq_unique;
+alter table public.coaching_transcript_segments add constraint coaching_transcript_segments_session_seq_unique unique (session_id, seq);
 
 -- 4. Restore the append-only DELETE block (identical to 0070) — the table is append-only again.
 create rule coaching_transcript_segments_no_delete as
