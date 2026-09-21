@@ -64,6 +64,13 @@ export type AggregableScore = Pick<
 >;
 
 export type AggregablePitch = {
+  /**
+   * Whose pitch it is. Optional because the per-rep aggregate never needed it — a rep board is
+   * read with a repId filter, so every row already belongs to one person. The company-wide read
+   * has no such filter, and without this the rows cannot be grouped at all: the leaderboard was
+   * unbuildable on this type, not merely awkward.
+   */
+  repId?: string;
   score: AggregableScore;
   /** The grades that produced the score — needed for the per-element hit/partial/missed rates. */
   elements: ReadonlyArray<{ elementId: string; grade: Grade }>;

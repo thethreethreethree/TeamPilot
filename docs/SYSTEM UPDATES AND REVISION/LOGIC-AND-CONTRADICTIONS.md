@@ -519,3 +519,68 @@ A confident constraint invented by the builder is harder to spot than a duplicat
 nothing disagrees with it. The only thing that catches it is checking whether the rule has a
 source — and *"the rubric PDF, page 7"* is a source, while *"if replying could adjust points…"* is
 an argument. Both read the same in a docblock.
+
+
+---
+
+## L. Two authorities, both in the tree, that cannot both be fully honoured (2026-09-21)
+
+Building the Pitch Score competition board forced a question neither document answers alone.
+
+**`docs/SalesCoach-KPI-System.md`**, which marks the clause non-negotiable:
+
+> *"Measure against the agent's own baseline, not a leaderboard. The primary comparison is
+> agent-vs-their-own-past (self-Elo). Cross-agent ranking exists for managers only, is never the
+> default view, and is never how results are framed to the agent. This is non-negotiable — it's
+> what keeps the system a growth tool instead of a stress machine."*
+
+**The rubric sheet (p.6)**: Pitch Score **is** the competition leaderboard.
+
+A competition no competitor can see is not a competition. A leaderboard a rep browses is exactly
+what the KPI document forbids. Both are in the working tree; neither is older or weaker.
+
+### What was built, and what it concedes
+
+| | Manager | Rep |
+|---|---|---|
+| Sees the field | yes | **no** |
+| Sees their own rank | yes | yes — "3rd of 9" |
+| Sees another rep's name or total | yes | **never** |
+
+The rep knows where they stand, so the competition is real to them. They cannot browse anyone
+else's numbers, so cross-agent ranking is not how their results are framed. That is the most of
+both documents that can be true at once, and it is a **concession, not a resolution** — the KPI
+document says cross-agent ranking is *manager-only*, and telling a rep their rank is cross-agent
+ranking reaching the rep, in a reduced form.
+
+### The database had already decided, and that is the interesting part
+
+Migration 0252, written before this question was asked:
+
+```sql
+create policy "pitch_scores - select" on pitch_scores
+  for select using (
+    company_id = auth_company_id()
+    and (rep_id = auth.uid() or is_sales_coach_manager())
+  );
+```
+
+A rep can read their own pitches and no one else's. The KPI document's rule was already encoded in
+RLS by someone solving a different problem — which meant a rep reading the board through their own
+client would have received **a board containing only themselves, ranked first, every time.** Not an
+error, not an empty state: a plausible, wrong, flattering board.
+
+That is why the route reads with the service role and splits the response itself. The protection
+moved from the database to the route, so the route now has to perform it, and its tests exist
+largely to prove it still does.
+
+### The shape worth remembering
+
+Sections G-J were **duplicated decisions that drifted**. Section K was **a constraint the builder
+invented**. This one is neither: two legitimate authorities, both consulted, that disagree.
+
+The failure available here was not writing the wrong code — it was picking whichever document was
+read most recently and never noticing the other existed. Both were read this session because the
+question *"who is allowed to see this"* has to be answered before a leaderboard route can be
+written at all. A surface that needed no access decision would have shipped under one authority
+with nobody aware there was a second.

@@ -39,6 +39,16 @@ export type PeriodRead = {
 
 export async function readPitchPeriod(
   args: {
+    /**
+     * REQUIRED when the caller passes a service-role client, and the reason is not style.
+     *
+     * A caller-scoped client is filtered by RLS, so omitting this is safe there. The service role
+     * has no RLS at all: the same query without this filter returns every pitch in every company
+     * on the instance, and the leaderboard built from it would rank strangers together. There is
+     * no error, no empty result and nothing in a type to catch it — just a board that looks
+     * plausible and is a cross-tenant leak.
+     */
+    companyId?: string;
     /** One rep's board. Omit for the whole company (a manager's team view). */
     repId?: string;
     /** Inclusive ISO start. Omit for all time. */
@@ -63,6 +73,7 @@ export async function readPitchPeriod(
     .from("pitch_scores")
     .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome");
 
+  if (args.companyId) q = q.eq("company_id", args.companyId);
   if (args.repId) q = q.eq("rep_id", args.repId);
   if (args.from) q = q.gte("recorded_at", args.from);
   if (args.to) q = q.lt("recorded_at", args.to);
@@ -152,6 +163,7 @@ export async function readPitchPeriod(
     const outcome = r.outcome as string | null;
 
     pitches.push({
+      repId: (r.rep_id as string | null) ?? undefined,
       score: {
         base: num(r.base),
         bonus: num(r.bonus),
