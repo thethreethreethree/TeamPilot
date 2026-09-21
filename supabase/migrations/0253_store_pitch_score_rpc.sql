@@ -1,48 +1,30 @@
--- 0254 — store the scorer's own verdicts instead of leaving them to be re-derived
+-- 0253 — store_pitch_score: write a scored pitch and its evidence in ONE transaction
 --
--- Found while writing the data-layer wrapper for 0253. Two things scorePitch() DECIDES were not
--- being stored, so every reader would have had to work them out again from the raw rows — the
--- §2.2 duplicated-condition shape, and in both cases the re-derivation is not even possible to
--- get right.
+-- WHY AN RPC AND NOT THREE INSERTS FROM THE DATA LAYER. supabase-js cannot span statements in a
+-- transaction, so a data-layer write would insert the pitch, then the elements, then the events —
+-- and a failure between them leaves a Pitch Score with no evidence behind it. That row is the
+-- "unexplainable number" the rubric exists to prevent: the rep's Pitch detail shows a score with
+-- no element rows, the Dispute button has nothing to point at, and Pattern Interrupt later scans
+-- pitch_score_elements and simply cannot see that pitch. All of it silent.
 --
--- 1. SECTION TOTALS. The launch checklist requires that the six section totals sum to `base`.
---    They do not sum from `pitch_score_elements.points` whenever Delivery is scaled: with no objection,
---    the five remaining Delivery skills are scored out of 27 and scaled to 35, so the raw element
---    points are ~77% of the section total that actually went into base. A Breakdown screen adding
---    up element rows would show a Delivery figure that disagrees with the score on the same page,
---    on every objection-free pitch.
+-- One function, one transaction: either the score and every piece of its evidence land, or none
+-- of it does.
 --
---    The alternative was storing pre-scaled points on each element row, which keeps the sum but
---    makes each row lie: "Tonality 3.9" against a 3-point element. Element rows stay at rubric
---    weight so they read true, and the section verdict is stored as a verdict.
+-- NOT CLIENT-CALLABLE. This is a SECURITY DEFINER function taking a company id as a PARAMETER,
+-- which is exactly the shape INVARIANT 4 of the invariant audit exists to catch: PostgREST exposes
+-- every public function as an RPC, so without the revoke below any authenticated user could call
+-- it with somebody else's company id and write into their tenant. Scoring is a server-side job
+-- with the service role, so the revoke removes the attack surface rather than defending it — the
+-- audit's own stated preference, because a guard is a rule the next author forgets.
 --
--- 2. REJECTED LOW-CONFIDENCE BONUSES. scorePitch already collects these, for a stated reason:
---    "a rejected one is recorded rather than dropped silently, so the dispute has something to
---    point at." Nothing stored them, so the promise was unkept — a rep asking "why didn't I get
---    the inside-the-home bonus" would have got exactly the answer the comment says is not good
---    enough ("the AI didn't see it") instead of "it saw it at 0.62 confidence, below the 0.80
---    floor". That is the difference between a dispute a manager can settle and one they cannot.
+-- Idempotent on the session: re-scoring an already-scored session REPLACES its evidence rather
+-- than accumulating a second copy. The existing dissect pipeline already re-runs on auto-heal, so
+-- this path is real, not hypothetical.
 
--- Six section totals as { "introduction": 9.5, ... }. Not a set of columns: the sections are
--- rubric config and a rubric revision that adds one must not need a migration.
-alter table pitch_scores add column if not exists section_points jsonb;
-
-comment on column pitch_scores.section_points is
-  'Per-section totals as decided by scorePitch, POST Delivery scaling. Sums to base. Stored rather than derived from pitch_score_elements, which are at raw rubric weight.';
-
--- A third event kind. Not a bonus (it awarded nothing) and not a violation (it cost nothing) —
--- folding it into either would make it sum wrong in the one place both are totalled.
-alter table pitch_score_events drop constraint if exists pitch_score_events_type_check;
-alter table pitch_score_events add constraint pitch_score_events_type_check
-  check (type in ('bonus', 'violation', 'rejected_bonus'));
-
--- The signature changes, so the old overload must GO rather than linger. `create or replace` with
--- a new parameter list creates a SECOND function; the old one would keep working AND a newly
--- created overload defaults to EXECUTE for public, quietly undoing 0253's INVARIANT 4 revoke.
-drop function if exists store_pitch_score(
-  uuid, uuid, timestamptz, text, numeric, numeric, numeric, numeric, boolean, text, boolean,
-  jsonb, jsonb, uuid, integer, text, text, text, text
-);
+-- One pitch per coaching session. Without this, an auto-heal re-run silently creates a second
+-- scored pitch for the same recording and the rep's average is computed over a duplicate.
+create unique index if not exists pitches_one_per_session
+  on pitch_scores (session_id) where session_id is not null;
 
 create or replace function store_pitch_score(
   p_company_id           uuid,
@@ -58,10 +40,8 @@ create or replace function store_pitch_score(
   p_delivery_scaled      boolean,
   -- [{ "element_id": "...", "grade": "hit|partial|missed", "points": 3, "timestamp_s": 12, "evidence": "..." }]
   p_elements             jsonb,
-  -- [{ "type": "bonus|violation|rejected_bonus", "item_id": "...", "points": 5, "timestamp_s": 130, "evidence": "...", "confidence": 0.92 }]
+  -- [{ "type": "bonus|violation", "item_id": "...", "points": 5, "timestamp_s": 130, "evidence": "...", "confidence": 0.92 }]
   p_events               jsonb,
-  -- { "introduction": 9.5, "discovery": 12.0, ... } — the scorer's own section verdict.
-  p_section_points       jsonb,
   p_session_id           uuid default null,
   p_duration_s           integer default null,
   p_audio_url            text default null,
@@ -73,7 +53,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $fn$
+as $$
 declare
   v_pitch_id uuid;
 begin
@@ -94,11 +74,11 @@ begin
     insert into pitch_scores (
       company_id, rep_id, session_id, recorded_at, duration_s, audio_url, transcript, outcome,
       base, bonus, violations, total, band, qualifying, not_qualifying_reason, delivery_scaled,
-      section_points, rubric_version
+      rubric_version
     ) values (
       p_company_id, p_rep_id, p_session_id, p_recorded_at, p_duration_s, p_audio_url, p_transcript,
       p_outcome, p_base, p_bonus, p_violations, p_total, p_band, p_qualifying,
-      p_not_qualifying_reason, p_delivery_scaled, p_section_points, p_rubric_version
+      p_not_qualifying_reason, p_delivery_scaled, p_rubric_version
     )
     returning id into v_pitch_id;
   else
@@ -110,8 +90,7 @@ begin
       outcome = coalesce(p_outcome, outcome),
       base = p_base, bonus = p_bonus, violations = p_violations, total = p_total,
       band = p_band, qualifying = p_qualifying, not_qualifying_reason = p_not_qualifying_reason,
-      delivery_scaled = p_delivery_scaled, section_points = p_section_points,
-      rubric_version = p_rubric_version
+      delivery_scaled = p_delivery_scaled, rubric_version = p_rubric_version
     where id = v_pitch_id;
 
     -- Replace, never accumulate. A re-score that appended would double every element and break
@@ -147,10 +126,10 @@ begin
 
   return v_pitch_id;
 end;
-$fn$;
+$$;
 
 -- INVARIANT 4. Scoring runs server-side with the service role; nothing client-side may reach this.
 revoke execute on function store_pitch_score(
   uuid, uuid, timestamptz, text, numeric, numeric, numeric, numeric, boolean, text, boolean,
-  jsonb, jsonb, jsonb, uuid, integer, text, text, text, text
+  jsonb, jsonb, uuid, integer, text, text, text, text
 ) from public, anon, authenticated;

@@ -6,7 +6,7 @@ import { replayDisputes, type DisputeEventRow, type DisputeRow } from "./readDis
 /**
  * Read back a stored Pitch Score with its evidence — the other half of storePitchScore.
  *
- * Read through the CALLER's client, not the service role. `pitches` RLS already says who may see
+ * Read through the CALLER's client, not the service role. `pitch_scores` RLS already says who may see
  * a score (the rep who gave it, or a manager in the same company), and reading with the service
  * role would replace that rule with whatever the route remembered to check. A phone caller sends
  * a Bearer token and no cookie, so the default client would read as anonymous, find nothing, and
@@ -83,7 +83,7 @@ export async function readPitchScore(
   const sb = client ?? (await createServerClient());
 
   const { data: pitch, error } = await sb
-    .from("pitches")
+    .from("pitch_scores")
     .select("*")
     .eq("session_id", sessionId)
     .maybeSingle();
@@ -101,8 +101,8 @@ export async function readPitchScore(
   const pitchId = pitch.id as string;
 
   const [{ data: elementRows }, { data: eventRows }, { data: disputeEvents }] = await Promise.all([
-    sb.from("pitch_elements").select("*").eq("pitch_id", pitchId),
-    sb.from("pitch_events").select("*").eq("pitch_id", pitchId),
+    sb.from("pitch_score_elements").select("*").eq("pitch_id", pitchId),
+    sb.from("pitch_score_events").select("*").eq("pitch_id", pitchId),
     // Through the CALLER's client, like everything else here. `events` RLS is company-wide, but
     // the caller has already proven they may see THIS pitch, and the subject filter keeps the read
     // to this pitch's threads. Ascending, because the replay needs answers before disputes.

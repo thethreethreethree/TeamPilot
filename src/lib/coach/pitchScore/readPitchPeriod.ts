@@ -10,14 +10,14 @@ import type { AggregablePitch } from "./aggregate";
  * tested, with no caller — the same orphan shape the engine had, and worth naming as such rather
  * than quietly wiring up. A31: schema-complete is not built.
  *
- * READ THROUGH THE CALLER'S CLIENT. `pitches` RLS already says who may see which scores (the rep
+ * READ THROUGH THE CALLER'S CLIENT. `pitch_scores` RLS already says who may see which scores (the rep
  * who gave them, or a manager in the same company), so passing the caller's client makes the
  * policy the access rule rather than whatever the route remembered to check. A Bearer caller
  * without it reads as anonymous and gets a confident, empty, wrong aggregate — which on this
  * surface means a rep is shown a zero average for a week they actually worked.
  *
  * NOTHING IS RECOMPUTED. Section totals come from the stored `section_points` verdict, and the
- * bonus and violation breakdowns are read back from `pitch_events` at the points the scorer
+ * bonus and violation breakdowns are read back from `pitch_score_events` at the points the scorer
  * AWARDED, not at rubric face value. Re-deriving either is the defect migration 0254 exists to
  * prevent, and doing it here would corrupt every average on the board rather than one pitch.
  */
@@ -60,7 +60,7 @@ export async function readPitchPeriod(
   // an un-generic SupabaseClient, which loosens these calls to `any`. Found by a test that
   // records which filters were actually applied rather than trusting that they were.
   let q = sb
-    .from("pitches")
+    .from("pitch_scores")
     .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome");
 
   if (args.repId) q = q.eq("rep_id", args.repId);
@@ -87,8 +87,8 @@ export async function readPitchPeriod(
 
   const [{ data: elementRows, error: elError }, { data: eventRows, error: evError }] =
     await Promise.all([
-      sb.from("pitch_elements").select("pitch_id, element_id, grade").in("pitch_id", ids),
-      sb.from("pitch_events").select("pitch_id, type, item_id, points").in("pitch_id", ids),
+      sb.from("pitch_score_elements").select("pitch_id, element_id, grade").in("pitch_id", ids),
+      sb.from("pitch_score_events").select("pitch_id, type, item_id, points").in("pitch_id", ids),
     ]);
 
   if (elError || evError) {

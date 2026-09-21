@@ -38,7 +38,7 @@ const setup = (opts: {
   inserted = null;
   insertError = null;
   const from = vi.fn((table: string) => {
-    if (table === "pitches") {
+    if (table === "pitch_scores") {
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.eq = () => chain;

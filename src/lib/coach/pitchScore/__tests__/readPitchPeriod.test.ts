@@ -53,7 +53,7 @@ const mockDb = (opts: {
   applied = { eq: [], gte: [], lt: [], limit: null };
   asMock(createClient).mockResolvedValue({
     from: (table: string) => {
-      if (table === "pitches") {
+      if (table === "pitch_scores") {
         const chain: Record<string, unknown> = {};
         chain.select = () => chain;
         chain.order = () => chain;
@@ -78,7 +78,7 @@ const mockDb = (opts: {
         };
         return chain;
       }
-      const rows = table === "pitch_elements" ? (opts.elements ?? []) : (opts.events ?? []);
+      const rows = table === "pitch_score_elements" ? (opts.elements ?? []) : (opts.events ?? []);
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.in = async () => ({

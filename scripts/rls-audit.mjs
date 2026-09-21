@@ -104,6 +104,39 @@ const ALLOWLIST = new Map([
   //     overwritten, not removed. (select = rep or manager; insert/update = manager-only, already policied.)
   //   day_target.update/delete: the day target is FROZEN by design (03/05-number-logic — a target that moves
   //     during the day rewards stopping). It is insert-only per rep per local_date; a new day writes a new row.
+  // 0252 Pitch Score system. Every absence below is a control, and they share one reason: a rep must
+  // never be able to influence their own score, and a manager must never be able to correct one
+  // invisibly. Scoring is done server-side with the service role; the only client-writable surfaces
+  // are the rep's own door count and the two pattern actions the rep board offers.
+  //   rubric_config.*: versioned scoring config, written by migration/service-role only. pitch_scores pin
+  //     rubric_version, so EDITING a version in place would silently re-interpret every score already
+  //     awarded under it — the reason a change means a new version, never an update.
+  //   pitch_scores.* / pitch_score_elements.* / pitch_score_events.*: written by the scoring engine.
+  //     A rep who could insert would
+  //     award themselves a Hit; one who could update could erase the evidence behind a violation. The
+  //     rubric is explicit that bonuses come from the recording and "never from rep self-reporting".
+  //     Corrections exist — they go through score_overrides, which is logged.
+  // (rep_activity, patterns, pattern_events, recording_comments and score_overrides were in an
+  //  earlier draft of 0252 and were removed: they back Projects 3 to 5 and had no application code,
+  //  which the invariant audit correctly rejected. Their allowlist entries land with their migrations.)
+  ["rubric_config.insert", "0252 versioned scoring config — service-role/migration only; a client insert could introduce a rubric nobody ratified."],
+  ["rubric_config.update", "0252 a version is immutable once scores reference it — editing one re-interprets every score already awarded under it."],
+  ["rubric_config.delete", "0252 pitch_scores pin rubric_version; deleting a version would orphan the explanation of every score computed under it."],
+  // RENAMED 2026-09-21 (pitches → pitch_scores, pitch_elements → pitch_score_elements, pitch_events
+  // → pitch_score_events). The old name collided with the Door Log's `pitches` from 0215, and the
+  // collision was hiding a real gap HERE: pitch_scores.insert/update had no allowlist entry and the
+  // audit reported green, because it was seeing the door-log table's policies under the same name.
+  // Both symptoms of one bug, and only the rename made the second one visible.
+  ["pitch_scores.insert", "0252 scores are written ONLY by store_pitch_score (service-role RPC) — a client insert is a rep awarding themselves a score."],
+  ["pitch_scores.update", "0252 a stored score is the record of what happened; a re-score replaces it through the same RPC, and any other edit is an invisible correction."],
+  ["pitch_scores.delete", "0252 deleting a score erases a rep's evidence trail and their dispute's subject; a wrong score is re-scored or overridden, never removed."],
+  ["pitch_score_elements.insert", "0252 written by the scoring engine — a client insert would let a rep award themselves a Hit."],
+  ["pitch_score_elements.update", "0252 grades are evidence; corrections go through the logged score_overrides path, not a silent edit."],
+  ["pitch_score_elements.delete", "0252 deleting a graded element would remove the evidence behind a score without changing the score."],
+  ["pitch_score_events.insert", "0252 bonuses come from the recording, never rep self-reporting — a client insert is a self-awarded bonus."],
+  ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
+  ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
+
   ["rep_daily_sales_goal.delete", "0247 goals are manager-set/updated, never deleted — no delete workflow; a stale goal is overwritten."],
   ["rep_day_target.update", "0247 the day target is FROZEN by design (a target that moves during the day rewards stopping) — insert-only, never updated."],
   ["rep_day_target.delete", "0247 the frozen day target is a per-day record read by the rep + manager; no user delete workflow (a new day writes a new row)."],

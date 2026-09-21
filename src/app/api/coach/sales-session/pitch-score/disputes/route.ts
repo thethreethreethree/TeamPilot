@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   // in another tenant by guessing a uuid — `events` is filtered by company on the way OUT, but
   // this is a write and the tenant has to be proven on the way IN.
   const { data: pitch, error: readError } = await admin
-    .from("pitches")
+    .from("pitch_scores")
     .select("id, rep_id, company_id")
     .eq("id", body.pitchId)
     .maybeSingle();

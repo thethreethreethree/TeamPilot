@@ -33,7 +33,7 @@ const setDb = (opts: { pitch?: unknown; readError?: { message: string } | null }
   insertError = null;
   asMock(createAdminClient).mockReturnValue({
     from: (table: string) => {
-      if (table === "pitches") {
+      if (table === "pitch_scores") {
         const chain: Record<string, unknown> = {};
         chain.select = () => chain;
         chain.eq = () => chain;

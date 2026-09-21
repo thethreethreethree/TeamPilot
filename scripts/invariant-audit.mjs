@@ -1545,6 +1545,68 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 28 — two migrations must not `create table if not exists` the SAME table ═══════
+//
+// LEARNED: 2026-09-21, and it is the worst near-miss of that session.
+//
+// Migration 0215 created `pitches` for the Door Log: knock_id, name, audio_path, status, with
+// pitch_transcripts and pitch_analyses hanging off it and five library functions reading it.
+// Migration 0252 then wrote `create table if not exists pitches (...)` for an ENTIRELY different
+// table — base, bonus, violations, qualifying, section_points, rubric_version.
+//
+// `if not exists` does not warn. It prints "relation already exists, skipping" and moves on, and
+// what happens next depends on luck:
+//   - on a fresh database the second definition wins and everything appears to work
+//   - on the real one the FIRST table survives, the second migration's indexes and policies then
+//     reference columns that do not exist, and its child tables FK to the WRONG parent
+//
+// Reproduced on Postgres 16: 0252 died at `ERROR: column "qualifying" does not exist`, so the
+// whole Pitch Score system could never have deployed. That is the merciful outcome. The one to
+// fear is a collision where the two shapes overlap enough to apply — then two features share a
+// table and corrupt each other's rows with no error anywhere.
+//
+// WHY IT WAS NOT CAUGHT: the migration WAS verified against real Postgres, twice, against a
+// hand-written prelude that created only the tables the new migration referenced. The prelude
+// omitted 0215 because nothing pointed at it. A38 at the schema layer — the verification recipe
+// was invented by the author and left out the thing that mattered.
+//
+// PRECISE BY CONSTRUCTION (A33): this needs no judgement. Two `create table` statements naming
+// the same table in two different migration files is always a bug, whatever the shapes are.
+const CREATE_TABLE_RE = /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi;
+const tableFirstSeen = new Map();
+const INV28_ALLOWLIST = new Map();
+
+// FILES only walks src/ for .ts — migrations are read separately, the way INVARIANT 12 does it.
+// The first version of this loop iterated FILES looking for migration paths and therefore matched
+// nothing; its own self-test caught that, which is the second time today a self-test has caught a
+// guard that had silently stopped looking.
+for (const name of migs) {
+  const sql = readFileSync(join(MIG_DIR, name), "utf8");
+  const seenHere = new Set();
+  for (const m of sql.matchAll(CREATE_TABLE_RE)) {
+    const table = m[1].toLowerCase();
+    if (seenHere.has(table)) continue; // one report per table per file
+    seenHere.add(table);
+    const first = tableFirstSeen.get(table);
+    if (!first) {
+      tableFirstSeen.set(table, name);
+      continue;
+    }
+    if (INV28_ALLOWLIST.has(table)) continue;
+    findings.push({
+      rule: `two migrations create the same table (${table})`,
+      file: `supabase/migrations/${name}`,
+      why:
+        `also created in ${first}. If the shapes differ, \`if not exists\` makes the SECOND ` +
+        "definition a silent no-op on any database that already ran the first — its indexes and\n" +
+        "      policies then reference columns that do not exist, and its child tables FK to the WRONG\n" +
+        "      parent. A fresh database hides this completely, which is how it survives review.\n" +
+        "      Rename one of them. If two migrations genuinely evolve one table, the later one should\n" +
+        "      ALTER rather than CREATE.",
+    });
+  }
+}
+
 // ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
 //
 // The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid
@@ -1775,6 +1837,15 @@ st("INV27 flags revalidate", SEGMENT_CONFIG_RE.test("export const revalidate = 6
 st("INV27 ignores an ordinary export", !SEGMENT_CONFIG_RE.test("export const dynamicThing = 1;"));
 st("INV27 would have caught the 2026-09-21 build breaker", hasUseClientDirective('"use client";\nexport const dynamic = "force-dynamic";\n') && SEGMENT_CONFIG_RE.test('export const dynamic = "force-dynamic";'));
 st("INV27 passes the shipped fix (server shell, config honoured)", !hasUseClientDirective('import { R } from "@/c";\nexport const dynamic = "force-dynamic";\n'));
+
+// INV28 (2026-09-21) — the duplicate-CREATE-TABLE guard. Self-tested because its matcher is a
+// regex over SQL, and a regex that silently stops matching reports zero and means nothing.
+st("INV28 matches a plain create table", [..."create table foo (".matchAll(CREATE_TABLE_RE)].length === 1);
+st("INV28 matches create table if not exists", [..."create table if not exists bar (".matchAll(CREATE_TABLE_RE)].length === 1);
+st("INV28 matches a public-qualified name", [..."create table if not exists public.baz (".matchAll(CREATE_TABLE_RE)].length === 1);
+st("INV28 does NOT match create index", [..."create index if not exists x on y (z)".matchAll(CREATE_TABLE_RE)].length === 0);
+st("INV28 saw the migrations at all (the map is populated)", tableFirstSeen.size > 20);
+st("INV28 knows the door log's pitches table", tableFirstSeen.has("pitches"));
 
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +

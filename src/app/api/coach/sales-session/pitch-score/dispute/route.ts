@@ -28,7 +28,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
  * would let a rep edit their own leaderboard position by complaining, and would destroy the one
  * thing that makes the number worth anything. A manager override is a separate, gated action.
  *
- * THE GATE IS THE READ. `pitches` RLS scopes a select to the rep who gave the pitch or a manager
+ * THE GATE IS THE READ. `pitch_scores` RLS scopes a select to the rep who gave the pitch or a manager
  * in the same company. Reading the pitch through the CALLER's client and 404-ing on null is
  * therefore the whole access check — a same-company peer rep cannot dispute someone else's score,
  * and no ownership rule is copied into this file to drift from the policy.
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   // RLS IS the gate — see the docblock. Null means "not yours and you are not a manager".
   const { data: pitch, error: readError } = await supabase
-    .from("pitches")
+    .from("pitch_scores")
     .select("id, rep_id, session_id, company_id")
     .eq("id", body.pitchId)
     .maybeSingle();

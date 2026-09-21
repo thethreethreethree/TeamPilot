@@ -61,7 +61,7 @@ const EVENT_ROWS = [
 
 const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEvents?: unknown[] } = {}) => {
   const from = vi.fn((table: string) => {
-    if (table === "pitches") {
+    if (table === "pitch_scores") {
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.eq = () => chain;
@@ -80,7 +80,7 @@ const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEve
       chain.limit = async () => ({ data: opts.disputeEvents ?? [], error: null });
       return chain;
     }
-    const rows = table === "pitch_elements" ? ELEMENT_ROWS : EVENT_ROWS;
+    const rows = table === "pitch_score_elements" ? ELEMENT_ROWS : EVENT_ROWS;
     const chain: Record<string, unknown> = {};
     chain.select = () => chain;
     chain.eq = async () => ({ data: rows, error: null });
