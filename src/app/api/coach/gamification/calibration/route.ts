@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { z } from "zod";
@@ -34,20 +34,17 @@ function modelScores(payload: unknown): DimScores {
   return out;
 }
 
-async function requireManager(req: NextRequest): Promise<{ userId: string; companyId: string } | null> {
-  const ctx = await resolveApiAuth(req); // web cookie OR mobile Bearer
-  if (!ctx) return null;
-  // Manager = a company admin (ctx.isAdmin) OR sales_coach_role='admin' — the same predicate the coaching RLS uses.
-  if (ctx.isAdmin) return { userId: ctx.userId, companyId: ctx.companyId };
-  const admin = createAdminClient();
-  const { data: p } = await admin.from("profiles").select("sales_coach_role").eq("id", ctx.userId).maybeSingle();
-  return p?.sales_coach_role === "admin" ? { userId: ctx.userId, companyId: ctx.companyId } : null;
-}
+// The manager predicate used to be RE-DERIVED here as `ctx.isAdmin || sales_coach_role === "admin"`.
+// It agreed with the authority (isSalesCoachManager, extracted and unit-tested in skillAccess.ts so
+// that "a future weakening fails CI, not just review") — right up until the authority gained a term
+// this copy did not. That is the §2.2 drift shape exactly: two copies of one condition, both green,
+// one quietly wrong. Replaced 2026-09-21 with the shared helper, which fetches and then lets the
+// authority decide.
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-calibration-get", windowMs: 60_000, max: 60 });
   if (limited) return limited;
-  const mgr = await requireManager(req);
+  const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
 
   const admin = createAdminClient();
@@ -118,7 +115,7 @@ const SubmitBody = z.object({
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "gamification-calibration-post", windowMs: 60_000, max: 60 });
   if (limited) return limited;
-  const mgr = await requireManager(req);
+  const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
   const body = await readBody(req, SubmitBody);
   if (body instanceof NextResponse) return body;

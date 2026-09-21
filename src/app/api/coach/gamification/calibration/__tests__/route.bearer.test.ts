@@ -34,7 +34,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("calibration — mobile Bearer path (manager gate)", () => {
   it("a Bearer-authenticated manager passes the gate and gets the report", async () => {
-    (resolveApiAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: "mgr", companyId: "c1", isAdmin: true });
+    (resolveApiAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
     setTables({
       after_pitch_summaries: { data: [{ session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } }] },
       gamification_calibration: { data: [] },
@@ -48,7 +48,7 @@ describe("calibration — mobile Bearer path (manager gate)", () => {
   });
 
   it("403 when the Bearer caller is neither admin nor a sales_coach manager", async () => {
-    (resolveApiAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: "u1", companyId: "c1", isAdmin: false });
+    (resolveApiAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: "u1", companyId: "c1", role: "member", isAdmin: false });
     setTables({ profiles: { data: { sales_coach_role: "member" } } });
     expect((await GET(bearerReq())).status).toBe(403);
   });

@@ -918,7 +918,7 @@ const PUBLIC_ROUTE_ALLOWLIST = new Map([
 // or a shared secret (CRON/SWEEP/inbound-email). resolveCareTenant is deliberately NOT here — it is tenant
 // RESOLUTION for public widgets, not a session gate, so its routes are allowlisted individually above (which
 // forces a NEW resolveCareTenant route to be consciously classified rather than passing silently).
-const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|resolveApiAuth|resolveApiUserId|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
+const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|resolveApiAuth|resolveApiUserId|requireSalesCoachManager|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
 const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
 for (const f of FILES) {
   if (!/^src\/app\/api\/.*route\.(ts|tsx)$/.test(f.path)) continue;
@@ -1322,7 +1322,7 @@ for (const f of FILES) {
 // Bearer path, so counting it as one makes the analysis circular — it marks 37 web routes as at-risk. That
 // error was made and caught while writing this rule; it is encoded here so it cannot be made again.
 const BEARER_ROUTE_RE =
-  /\b(callerScopedDb|resolveApiAuth|resolveApiUserId|guardExtensionRequest|requireEntitledExtensionUser)\s*\(/;
+  /\b(callerScopedDb|resolveApiAuth|resolveApiUserId|requireSalesCoachManager|guardExtensionRequest|requireEntitledExtensionUser)\s*\(/;
 const COOKIE_CLIENT_RE = /await createClient\(\)/;
 
 // Modules that resolve a cookie client BY DESIGN. Each is the cookie path itself or its front door — a
@@ -1675,6 +1675,8 @@ st("INV18 scope matches a const DELETE export", MUTATION_EXPORT_RE.test("export 
 st("INV18 scope ignores a GET-only route", !MUTATION_EXPORT_RE.test("export async function GET() { return NextResponse.json({}); }"));
 st("INV18 flags an ungated mutation body", !ROUTE_AUTH_RE.test("export async function POST(req){ await sb.rpc('close_problem', p); }"));
 st("INV18 accepts a session-gated route", ROUTE_AUTH_RE.test("const { data } = await supabase.auth.getUser();"));
+st("INV18 accepts the shared sales-coach manager gate (added 2026-09-21 with the dispute queue)", ROUTE_AUTH_RE.test("const mgr = await requireSalesCoachManager(req);"));
+st("INV18 still rejects a route with no gate at all", !ROUTE_AUTH_RE.test("const body = await readBody(req, Schema);"));
 st("INV18 accepts a role-gated route", ROUTE_AUTH_RE.test("const agent = await requireCareAgent(req);"));
 st("INV18 accepts a mobile-or-cookie gated route", ROUTE_AUTH_RE.test("const userId = await resolveApiUserId(req);"));
 st("INV18 accepts a full-context gated route", ROUTE_AUTH_RE.test("const ctx = await resolveApiAuth(req);"));

@@ -14,6 +14,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { GET, POST } from "../route";
 
+// `role` is set alongside `isAdmin` because production ALWAYS derives one from the other
+// (`isAdmin = isAdminRole(role)`, in both getCurrentAuthContext and resolveApiAuth). A fixture
+// with isAdmin:true and no role is a state the real code cannot produce, and it hid a real
+// difference when the gate moved to the shared isSalesCoachManager authority (2026-09-21):
+// these tests failed on a change that is behaviour-preserving in production.
 const setAuth = (v: unknown) => (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
 
 /** A per-table chainable builder: every method returns the builder, and the builder resolves to the table's data. */
@@ -54,7 +59,7 @@ describe("calibration route — manager gate", () => {
   });
 
   it("403 for a non-admin without sales_coach_role='admin'", async () => {
-    setAuth({ userId: "u1", companyId: "c1", isAdmin: false });
+    setAuth({ userId: "u1", companyId: "c1", role: "member", isAdmin: false });
     setTables({ profiles: { data: { sales_coach_role: "member" } } });
     expect((await GET(getReq())).status).toBe(403);
   });
@@ -62,7 +67,7 @@ describe("calibration route — manager gate", () => {
 
 describe("GET — report + anonymized next transcript", () => {
   it("anonymizes the transcript to speaker roles (never the rep name) and reports agreement", async () => {
-    setAuth({ userId: "mgr", companyId: "c1", isAdmin: true });
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
     setTables({
       after_pitch_summaries: {
         data: [
@@ -98,7 +103,7 @@ describe("GET — report + anonymized next transcript", () => {
 
 describe("POST — store blind score then reveal the model", () => {
   it("upserts the manager's score and returns the model's judged scores", async () => {
-    setAuth({ userId: "mgr", companyId: "c1", isAdmin: true });
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
     const cap = setTables({
       gamification_calibration: { error: null },
       after_pitch_summaries: { data: { payload: { scores: [{ key: "opener", score: 9 }, { key: "close", score: 4 }] } } },

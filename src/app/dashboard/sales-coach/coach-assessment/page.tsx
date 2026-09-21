@@ -10,6 +10,7 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -17,6 +18,8 @@ import { TeamTrainingBriefPanel } from "@/components/sales-coach/TeamTrainingBri
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
+import { ScoringRubricSheet } from "@/components/sales-coach/ScoringRubricSheet";
+import { DisputeQueue } from "@/components/sales-coach/DisputeQueue";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { gradeSkill } from "@/lib/coach/v5/skillGrade";
 
@@ -160,6 +163,8 @@ function SkillGrades({ agentId }: { agentId: string }) {
 }
 
 export default function CoachAssessmentPage() {
+  // Opens the read-only scoring rubric sheet from this page's header (2026-09-19 manager board).
+  const [rubricOpen, setRubricOpen] = useState(false);
   const [team, setTeam] = useState<AgentAssessment[] | null>(null);
   const [isManager, setIsManager] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -246,7 +251,28 @@ export default function CoachAssessmentPage() {
   return (
     <>
       <TopBar title="Coach Assessment" subtitle="How the team is growing" />
+      {/* "Scoring rubric" sits in this page's header in the 2026-09-19 manager board. It opens the
+          same read-only sheet the rep boards open from "View scoring rubric", so both roles read
+          one rubric rendered from one config and neither copy can go stale. */}
+      <div className="px-4 md:px-8 pt-3 max-w-4xl mx-auto w-full flex justify-end">
+        <button
+          type="button"
+          onClick={() => setRubricOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-default bg-surface px-3 py-1.5 text-[11px] text-secondary hover:text-primary hover:border-strong transition-colors"
+        >
+          <Info className="w-3.5 h-3.5 text-brand" aria-hidden />
+          Scoring rubric
+        </button>
+      </div>
+      {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-4xl mx-auto w-full space-y-4 bg-base">
+        {/* Score disputes, ABOVE the assessment. A rep who says the AI got their pitch wrong is
+            the highest-priority thing on a coaching manager's screen: it is the one item where
+            somebody is already waiting on a reply, and the reason the rep-facing dispute exists
+            at all is that a score nobody can contest is a verdict rather than coaching.
+            It renders its own empty state, so it costs nothing on a quiet week. */}
+        <DisputeQueue />
+
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
