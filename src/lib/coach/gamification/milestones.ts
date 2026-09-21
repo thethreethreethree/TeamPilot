@@ -12,8 +12,19 @@ import { STRONG_SESSION_THRESHOLD } from "./bands";
 export const MILESTONE_KEYS = ["spark", "flame", "deal", "century", "closer"] as const;
 export type MilestoneKey = (typeof MILESTONE_KEYS)[number];
 
+/**
+ * RELABELLED 2026-09-21: `spark` was "First pitch scored".
+ *
+ * It is not about a pitch. It is the rep's first row on the POINTS LEDGER — their first scored
+ * session, which includes sessions the Pitch Score system refuses to count. Pitch Score now has
+ * its own "First pitch" badge on a different denominator, and a rep seeing both under the same
+ * words would reasonably conclude one of them was wrong.
+ *
+ * Only the label changed. The derivation is untouched, so no earned-at date moved — which matters,
+ * because these dates are derived from the immutable ledger precisely so they cannot.
+ */
 export const MILESTONE_TITLES: Record<MilestoneKey, string> = {
-  spark: "First pitch scored",
+  spark: "First session scored",
   flame: "A strong session (80+)",
   deal: "First deal closed",
   century: "100 sessions",

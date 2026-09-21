@@ -71,6 +71,13 @@ export type AggregablePitch = {
    * unbuildable on this type, not merely awkward.
    */
   repId?: string;
+  /**
+   * When the pitch was recorded. Optional for the same reason as `repId`: the period aggregate
+   * never needed it, because the caller had already filtered to a window. Milestones need it —
+   * "First pitch" and "Century" are DATES, and a set of pitches with no dates can say a rep earned
+   * a milestone but not when.
+   */
+  recordedAt?: string;
   score: AggregableScore;
   /** The grades that produced the score — needed for the per-element hit/partial/missed rates. */
   elements: ReadonlyArray<{ elementId: string; grade: Grade }>;

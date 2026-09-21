@@ -584,3 +584,74 @@ read most recently and never noticing the other existed. Both were read this ses
 question *"who is allowed to see this"* has to be answered before a leaderboard route can be
 written at all. A surface that needed no access decision would have shipped under one authority
 with nobody aware there was a second.
+
+
+---
+
+## M. The definitions I was about to invent, and the summary that invited it (2026-09-22)
+
+The milestone strip was the last mapped collision. `TWO-SCORING-SYSTEMS.md` row 33 recorded it
+precisely:
+
+> **UNBUILT, AND TWO ALREADY OVERLAP.** `spark` is *"First pitch scored"* and the design has
+> *"First pitch"*. `century` is *"100 sessions"* and the design has *"Century — 100 scored
+> pitches"*.
+
+What that row records is the six badge **names**. What it does not record is what any of them
+**means**. Building from it means inventing six definitions from six words, and two of mine were
+ready and wrong:
+
+| I was going to write | The sheet actually says |
+|---|---|
+| Clean sweep = a pitch with no violations | **"Every phase fully hit"** |
+| Full bundle = several bonuses in one pitch | **"DTV + Wireless + ADT in one pitch"** |
+
+Clean sweep is about the **rubric** being fully hit, not about the rep's conduct. A rep could take
+a `viol.talkingOver` and still earn it; a rep could have a spotless record and hit half the rubric
+and not. My version would have fired on the wrong pitches, looked entirely reasonable, and **no
+test could have known** — a test can check that a badge fires when its condition is met, and its
+condition was the thing that was wrong.
+
+The fix was `pdftotext -layout` on a file already in the repository. Thirty seconds.
+
+### Why this belongs in this document
+
+Sections G–J were duplicated decisions that drifted. K was a constraint I invented. L was two
+authorities that disagreed. This is a fourth shape: **a summary that reads like a specification.**
+
+The map is an index. It is accurate about what it records. Its failure mode is what it *omits* —
+and an index that lists six names is indistinguishable, at a glance, from a spec that defines six
+badges. I wrote that map the same morning, which is the part worth keeping: the person most likely
+to mistake an index for a source is the person who made it and remembers roughly what is in it.
+
+A22 says this about constitutional assets — *"the agent cites the asset's section labels without
+consulting its actual content"*. This is the same failure with a product document, and the
+correction is identical: **the summary never discharges the source.**
+
+### What remains inferred, and the reason it is worth a glance
+
+`Triple digits` and `In the door` carry no caption on the sheet. Their definitions — a single
+pitch over 100, and the rubric's own `bonus.inside` — are mine, and they are marked as inferred in
+the code rather than presented as specified.
+
+That marking matters more than usual here. Of the four badges whose meaning the sheet *does* give,
+my name-based reading was wrong on **two**. A two-in-four failure rate against this particular
+sheet is the strongest available evidence that the two I could not check are also wrong.
+
+### The resolution of the collision itself
+
+Both milestone sets stand, each saying what it counts, and one misleading label was changed:
+`spark` said *"First pitch scored"* about a **session**, and now says *"First session scored"*.
+Only the label; the derivation is untouched, so no earned-at date moved — which matters, because
+those dates come from the immutable ledger precisely so that they cannot.
+
+Merging the two sets is not a style question. A rep records sessions that never qualify, so the
+two counts diverge permanently; merging means choosing one denominator and silently moving dates
+the Arena has already shown a rep.
+
+**But this is now the second "name both" resolution in one day**, after the two leaderboards. Each
+is defensible on its own arithmetic, and the defence is available every time, which means it does
+not discriminate. The product now asks a rep to hold two scoring systems, two leaderboards and two
+milestone sets in their head, each individually correct. That is recorded as R2 of the build's
+closure, and it is a founder decision — which system is *the* system — that has never been asked,
+because every individual collision looked survivable on its own.

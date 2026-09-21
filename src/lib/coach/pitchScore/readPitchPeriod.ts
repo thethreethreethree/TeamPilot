@@ -56,6 +56,15 @@ export async function readPitchPeriod(
     /** Exclusive ISO end. Omit for no upper bound. */
     to?: string;
     limit?: number;
+    /**
+     * Read the OLDEST pitches first instead of the newest.
+     *
+     * The default is newest-first, which is right for a period board: if the cap bites you want
+     * this week's pitches, not the first 900 a rep ever recorded. Milestones are the opposite —
+     * every one of them is a "first" or an "Nth" — so a newest-first read that hit the cap would
+     * date "First pitch" to the 900th-most-recent pitch and be confidently wrong about it.
+     */
+    oldestFirst?: boolean;
   },
   client?: SupabaseClient
 ): Promise<PeriodRead | null> {
@@ -79,7 +88,7 @@ export async function readPitchPeriod(
   if (args.to) q = q.lt("recorded_at", args.to);
 
   const { data: pitchRows, error } = await q
-    .order("recorded_at", { ascending: false })
+    .order("recorded_at", { ascending: args.oldestFirst === true })
     .limit(limit);
 
   if (error) {
@@ -164,6 +173,7 @@ export async function readPitchPeriod(
 
     pitches.push({
       repId: (r.rep_id as string | null) ?? undefined,
+      recordedAt: (r.recorded_at as string | null) ?? undefined,
       score: {
         base: num(r.base),
         bonus: num(r.bonus),
