@@ -44,12 +44,12 @@ const MANAGER = {
   capped: false,
 };
 
+/** A rep's payload: no rank, no board size, no cushion. The server strips all three. */
 const REP = {
   period: "week",
   managerView: false,
-  standing: { repId: "me", total_points: 70, counted: 2, pitchesTotal: 3, avgPitchScore: 35, bestPitchScore: 40, prizeEligible: false, rank: 3 },
-  gaps: { behind: 62, ahead: 118 },
-  boardSize: 9,
+  standing: { repId: "me", total_points: 70, counted: 2, pitchesTotal: 3, avgPitchScore: 35, bestPitchScore: 40, prizeEligible: false },
+  gaps: { behind: 62, ahead: null },
   skippedPreVerdict: 0,
   capped: false,
 };
@@ -89,18 +89,27 @@ describe("empty and failed are different", () => {
 });
 
 describe("a rep sees their standing and nothing about anyone else", () => {
-  it("shows the ordinal and the size of the field", async () => {
+  it("leads with their own total instead of a rank", async () => {
     respond({ ok: true, body: REP });
     render(<PitchLeaderboard />);
-    expect(await screen.findByText("3rd")).toBeTruthy();
-    expect(screen.getByText(/of 9/)).toBeTruthy();
-    expect(screen.getByText(/70 points from 2 counted pitches/)).toBeTruthy();
+    expect(await screen.findByText("70")).toBeTruthy();
+    expect(screen.getByText(/From 2 counted pitches/i)).toBeTruthy();
+  });
+
+  it("shows no ordinal and no field size", async () => {
+    // Nothing to show — the server sent neither. The component branches on the FIELD's presence,
+    // not on managerView, so a wrong flag still cannot produce a rank out of nothing.
+    respond({ ok: true, body: REP });
+    render(<PitchLeaderboard />);
+    await screen.findByText("70");
+    expect(screen.queryByText(/\b\d+(st|nd|rd|th)\b/)).toBeNull();
+    expect(screen.queryByText(/of \d+/)).toBeNull();
   });
 
   it("renders no list of other reps at all", async () => {
     respond({ ok: true, body: REP });
     render(<PitchLeaderboard />);
-    await screen.findByText("3rd");
+    await screen.findByText("70");
     // The route withholds them; this asserts the component does not invent a list from `standing`
     // or fall back to rendering rows that are not there.
     expect(screen.queryByRole("list")).toBeNull();
@@ -111,7 +120,7 @@ describe("a rep sees their standing and nothing about anyone else", () => {
     // still not render them — it branches on the VERDICT, never on whether rows happen to exist.
     respond({ ok: true, body: { ...REP, rows: MANAGER.rows } });
     render(<PitchLeaderboard />);
-    await screen.findByText("3rd");
+    await screen.findByText("70");
     expect(screen.queryByText("Ada Vance")).toBeNull();
     expect(screen.queryByText("Bo Iqbal")).toBeNull();
   });
@@ -126,11 +135,12 @@ describe("a rep sees their standing and nothing about anyone else", () => {
     ).toBeTruthy();
   });
 
-  it("says no standing is not last place", async () => {
+  it("says nothing counted, without mentioning a board or a last place", async () => {
+    // The old copy denied a ranking in order to explain itself. A rep is no longer shown one.
     respond({ ok: true, body: { ...REP, standing: null } });
     render(<PitchLeaderboard />);
-    expect(await screen.findByText(/not on the board for this period/i)).toBeTruthy();
-    expect(screen.getByText(/not last place/i)).toBeTruthy();
+    expect(await screen.findByText(/No pitch of yours has counted/i)).toBeTruthy();
+    expect(screen.queryByText(/last place|the board/i)).toBeNull();
   });
 });
 
@@ -259,13 +269,13 @@ describe("a truncated period is said out loud", () => {
 });
 
 describe("the gaps either side, without naming anyone", () => {
-  it("shows both distances", async () => {
+  it("shows the distance to close and never the cushion below", async () => {
+    // A target, not a position to defend. The server sends `ahead: null` to a rep.
     respond({ ok: true, body: REP });
     render(<PitchLeaderboard />);
     expect(await screen.findByText(/pts behind the rep above/i)).toBeTruthy();
     expect(screen.getByText("62")).toBeTruthy();
-    expect(screen.getByText(/pts ahead of the rep below/i)).toBeTruthy();
-    expect(screen.getByText("118")).toBeTruthy();
+    expect(screen.queryByText(/pts ahead of the rep below/i)).toBeNull();
   });
 
   it("names nobody, which is the only reason a rep may see it", async () => {
@@ -278,7 +288,8 @@ describe("the gaps either side, without naming anyone", () => {
   });
 
   it("says nothing about being behind when the rep is top", async () => {
-    respond({ ok: true, body: { ...REP, gaps: { behind: null, ahead: 40 } } });
+    // A manager still sees both halves; this exercises the ahead-only branch through that payload.
+    respond({ ok: true, body: { ...MANAGER, gaps: { behind: null, ahead: 40 } } });
     render(<PitchLeaderboard />);
     expect(await screen.findByText(/pts ahead of the rep below/i)).toBeTruthy();
     expect(screen.queryByText(/pts behind the rep above/i)).toBeNull();
@@ -302,7 +313,7 @@ describe("the gaps either side, without naming anyone", () => {
   it("renders nothing at all when there is nobody either side", async () => {
     respond({ ok: true, body: { ...REP, gaps: { behind: null, ahead: null } } });
     render(<PitchLeaderboard />);
-    await screen.findByText("3rd");
+    await screen.findByText("70");
     expect(screen.queryByText(/pts behind|pts ahead/i)).toBeNull();
   });
 
@@ -311,6 +322,6 @@ describe("the gaps either side, without naming anyone", () => {
     const { gaps: _gaps, ...noGaps } = REP;
     respond({ ok: true, body: noGaps });
     render(<PitchLeaderboard />);
-    expect(await screen.findByText("3rd")).toBeTruthy();
+    expect(await screen.findByText("70")).toBeTruthy();
   });
 });

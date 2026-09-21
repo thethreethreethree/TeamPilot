@@ -655,3 +655,62 @@ not discriminate. The product now asks a rep to hold two scoring systems, two le
 milestone sets in their head, each individually correct. That is recorded as R2 of the build's
 closure, and it is a founder decision — which system is *the* system — that has never been asked,
 because every individual collision looked survivable on its own.
+
+
+---
+
+## L (resolved) — the founder ruled, 2026-09-22
+
+Section L recorded two authorities that disagree about whether a rep may see a cross-agent ranking,
+and my own answer: a split that gave a rep their rank and nothing else. I described it at the time
+as *"a concession, not a resolution"* and flagged it as the decision in that build most likely to
+be wrong.
+
+It was. **The founder's ruling: when the rubric sheet and `SalesCoach-KPI-System.md` conflict on
+anything a REP sees, the KPI document wins.**
+
+### What that overturned
+
+By the time the question was put, I had made three of these calls, each in a different build, each
+defensible on its own:
+
+| | My call | Under the ruling |
+|---|---|---|
+| Does a rep see their rank? | yes — "3rd of 9" | **no** |
+| Is a rep notified when their score is corrected? | yes | yes — kept |
+| Does a rep see the gap to the rep below? | yes — "118 pts ahead" | **no** |
+
+Two of three reversed. What a rep sees now is their own totals, and **one** distance: how far
+behind the rep immediately above them.
+
+### The line the ruling draws, which is sharper than mine
+
+I had been asking *how much* cross-agent ranking a rep could see. The ruling asks a different
+question: **is this a target or a position?**
+
+- A distance you can close by pitching better is a **goal**. It survives.
+- A rank, and a cushion you can lose, are **positions**. They do not.
+
+That distinction does real work. It keeps the competition meaningful to a rep — they know how much
+better they need to be — while removing the two things the KPI document was actually worried about:
+*"it's what keeps the system a growth tool instead of a stress machine."*
+
+### Where it is enforced, and why there
+
+The rank and the field size are stripped **at the route**, not hidden in the component. A value that
+never leaves the server cannot be exposed by a rendering bug, and the component is the layer most
+likely to be refactored by someone who has not read the reasoning. The component branches on
+whether the field is PRESENT rather than on the `managerView` flag, so even a wrong flag cannot
+produce a rank out of nothing.
+
+Six mutations cover it, including the one that matters most — sending a rep their rank anyway.
+
+### The lesson worth keeping
+
+Each of my three calls was individually defensible, and the defence was available every time. What
+was not defensible was the pattern: a product shaped by my judgement of what is humane, inside a
+system whose own document has an explicit and stated position on exactly that.
+
+The failure was not choosing wrongly twice. It was **choosing at all, three times, without asking**
+— and only noticing when I wrote the third one down next to the other two. A contradiction
+between two authorities is not a thing to resolve carefully; it is a thing to escalate.

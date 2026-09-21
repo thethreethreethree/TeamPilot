@@ -34,14 +34,24 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 
 type WireRow = LeaderboardRow & { fullName: string | null };
+
+/**
+ * A rep's standing carries no `rank` and no board size, because the route does not send them
+ * (founder ruling 2026-09-22: the KPI document wins on anything a rep sees). Typed as optional
+ * rather than as two separate shapes so one component renders both callers — and so a manager's
+ * rank is read from a field that is simply absent for a rep, rather than from a flag that could be
+ * got wrong.
+ */
+type Standing = Omit<LeaderboardRow, "rank"> & { rank?: number };
+
 type Resp = {
   period: Period;
   managerView: boolean;
   rows?: WireRow[];
   meId?: string;
-  standing: LeaderboardRow | null;
+  standing: Standing | null;
   gaps: Gaps;
-  boardSize: number;
+  boardSize?: number;
   skippedPreVerdict: number;
   capped: boolean;
 };
@@ -161,14 +171,31 @@ function Board({ data }: { data: Resp }) {
       {/* The rep's own standing, shown to BOTH — a manager competes too. */}
       {standing ? (
         <div className="rounded-xl border border-brand/40 bg-surface p-4">
-          <p className="text-[10px] uppercase tracking-widest text-muted">Where you stand</p>
-          <p className="mt-1 text-2xl font-bold text-brand tabular-nums">
-            {ordinal(standing.rank)}{" "}
-            <span className="text-sm font-medium text-secondary">of {boardSize}</span>
+          <p className="text-[10px] uppercase tracking-widest text-muted">
+            {standing.rank != null ? "Where you stand" : "Your pitches"}
           </p>
+          {/*
+            A RANK ONLY WHEN THE SERVER SENT ONE. It does not send one to a rep — cross-agent
+            ranking is manager-only — so the headline becomes the rep's own total instead of their
+            position. Branching on the field's presence rather than on `managerView` means a rep
+            could not be shown a rank even if the flag were wrong, because there is nothing to show.
+          */}
+          {standing.rank != null ? (
+            <p className="mt-1 text-2xl font-bold text-brand tabular-nums">
+              {ordinal(standing.rank)}{" "}
+              {boardSize != null && (
+                <span className="text-sm font-medium text-secondary">of {boardSize}</span>
+              )}
+            </p>
+          ) : (
+            <p className="mt-1 text-2xl font-bold text-brand tabular-nums">
+              {standing.total_points}{" "}
+              <span className="text-sm font-medium text-secondary">points</span>
+            </p>
+          )}
           <p className="mt-1 text-[12px] text-secondary tabular-nums">
-            {standing.total_points} points from {standing.counted} counted{" "}
-            {standing.counted === 1 ? "pitch" : "pitches"}
+            {standing.rank != null ? `${standing.total_points} points from ` : "From "}
+            {standing.counted} counted {standing.counted === 1 ? "pitch" : "pitches"}
           </p>
           {/*
             The sheet's Progress board: "62 pts behind #1 · 118 pts ahead of #3". Distances to the
@@ -206,10 +233,14 @@ function Board({ data }: { data: Resp }) {
         </div>
       ) : (
         <div className="rounded-xl border border-default bg-surface p-4">
-          <p className="text-[12px] text-secondary">You are not on the board for this period.</p>
-          {/* Not last. No standing at all, which is a different thing and must read that way. */}
+          <p className="text-[12px] text-secondary">No pitch of yours has counted this period.</p>
+          {/*
+            Deliberately says nothing about a board or a last place. It used to read "you are not
+            on the board — that is not last place", which had to deny a ranking in order to explain
+            itself, and a rep is no longer shown rankings at all.
+          */}
           <p className="mt-1 text-[11px] text-muted">
-            That is not last place — it means no pitch of yours has counted yet.
+            A pitch counts once it reaches 40 base points.
           </p>
         </div>
       )}

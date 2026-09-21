@@ -131,24 +131,53 @@ describe("a rep gets their standing, never the field", () => {
     expect(wire).not.toContain(OTHER);
     expect(wire).not.toContain("Someone Else");
     expect(wire).not.toContain("90");
+    // And no ranking of any kind, which is the founder ruling rather than only a privacy measure.
+    expect(wire).not.toMatch(/"rank"|"boardSize"/);
   });
 
-  it("still tells them where they stand, and how big the field is", async () => {
+  it("withholds the rank and the size of the field", async () => {
+    // Founder ruling 2026-09-22: the KPI document wins on anything a rep sees, and it calls
+    // cross-agent ranking manager-only. Stripped at the SERVER, so a rendering bug cannot expose
+    // a value that never left it.
     const body = await (await GET(req())).json();
-    // Me: 60 + 10 = 70, behind the other rep's 90.
-    expect(body.standing).toMatchObject({ repId: ME, rank: 2, total_points: 70 });
-    expect(body.boardSize).toBe(2);
+    expect(body.standing.rank).toBeUndefined();
+    expect(body.boardSize).toBeUndefined();
+    expect(JSON.stringify(body)).not.toMatch(/"rank"/);
   });
 
-  it("returns a null standing rather than a last place when they have no scored pitch", async () => {
+  it("still gives them their own totals", async () => {
+    // Me: 60 + 10 = 70 from two counted pitches. Their own numbers are not cross-agent ranking.
+    const body = await (await GET(req())).json();
+    expect(body.standing).toMatchObject({ repId: ME, total_points: 70, counted: 2 });
+  });
+
+  it("gives the distance to close, and not the cushion below", async () => {
+    // THREE reps, with ME in the middle — so there genuinely IS someone below. The default fixture
+    // puts ME last, where `ahead` is null anyway and a route that leaked the cushion would look
+    // identical. A mutation proved that; this fixture is the fix.
+    asMock(readPitchPeriod).mockResolvedValue({
+      pitches: [pitch(OTHER, 90), pitch(ME, 70), pitch("rep-below", 25)],
+      skippedPreVerdict: 0,
+    });
+    const body = await (await GET(req())).json();
+    // A target they can close by pitching better.
+    expect(body.gaps.behind).toBe(20);
+    // A position to defend, which is the stress machine the KPI document names. There IS a rep
+    // 45 points below; the rep is not told.
+    expect(body.gaps.ahead).toBeNull();
+    expect(JSON.stringify(body)).not.toContain("45");
+  });
+
+  it("returns a null standing when they have no scored pitch", async () => {
     asMock(readPitchPeriod).mockResolvedValue({
       pitches: [pitch(OTHER, 90)],
       skippedPreVerdict: 0,
     });
     const body = await (await GET(req())).json();
-    // A rep who has not been recorded this week has not lost the competition.
+    // Null, not a zero row — and still no field size, which would tell them how many people they
+    // are not competing against.
     expect(body.standing).toBeNull();
-    expect(body.boardSize).toBe(1);
+    expect(body.boardSize).toBeUndefined();
   });
 
   it("does not look up names for a rep", async () => {

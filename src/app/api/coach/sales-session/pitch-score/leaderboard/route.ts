@@ -31,13 +31,27 @@ import { buildPitchLeaderboard, standingOf, gapsAround } from "@/lib/coach/pitch
  *   The rubric sheet (p.6): Pitch Score IS the competition leaderboard — and a competition no
  *   competitor can see is not one.
  *
- * The split honours both halves that can be honoured: the competition is real for the rep (they
- * know where they stand) without cross-agent ranking becoming how their results are framed (they
- * cannot browse other people's scores). The database already said this first — 0252's select
- * policy is `rep_id = auth.uid() or is_sales_coach_manager()` — so a rep reading through their own
- * client would have received a board containing only themselves, ranked first, every time. That
- * failure mode is the reason the rep path uses an explicitly-scoped service-role read instead:
- * a board of one is not a smaller board, it is a wrong one.
+ * FOUNDER RULING, 2026-09-22: when the rubric sheet and the KPI document conflict on anything a
+ * REP sees, the KPI document wins. That settled three calls I had made myself, and it overturned
+ * two of them.
+ *
+ * So a rep no longer receives their RANK or the size of the field. "3rd of 9" is cross-agent
+ * ranking reaching the agent, which the KPI document forbids in as many words, and my earlier
+ * reading — that a reduced form was a fair compromise — was the builder deciding how much of a
+ * non-negotiable clause to honour.
+ *
+ * What a rep still gets is their OWN totals and ONE distance: how far behind the rep immediately
+ * above them. That is kept because it is a target rather than a position — a number they can close
+ * by pitching better. The gap to the rep BELOW is gone for the mirror reason: a cushion is a
+ * position to defend, and defending a position is the stress machine the KPI document names.
+ *
+ * The database said the same thing first — 0252's select policy is
+ * `rep_id = auth.uid() or is_sales_coach_manager()` — so a rep reading through their own client
+ * would have received a board containing only themselves, ranked first, every time. That failure
+ * mode is why the rep path uses an explicitly-scoped service-role read: a board of one is not a
+ * smaller board, it is a wrong one.
+ *
+ * Recorded in LOGIC-AND-CONTRADICTIONS.md section L.
  */
 
 const PERIODS = new Set(["week", "month", "all"]);
@@ -93,13 +107,29 @@ export async function GET(req: NextRequest) {
   const gaps = gapsAround(rows, ctx.userId);
 
   if (!manager) {
-    // A rep. Their own standing, the size of the field, and nothing that names anyone else.
+    // A rep. Their own totals, and ONE distance.
+    //
+    // `rank` and `boardSize` are withheld deliberately, not omitted for brevity: they are the
+    // cross-agent ranking the KPI document says is manager-only. They are stripped HERE rather
+    // than hidden in the component, because a value that never leaves the server cannot be
+    // exposed by a rendering bug — and the component is the layer most likely to be refactored by
+    // someone who has not read this docblock.
     return NextResponse.json({
       period,
       managerView: false,
-      standing,
-      gaps,
-      boardSize: rows.length,
+      standing: standing
+        ? {
+            repId: standing.repId,
+            total_points: standing.total_points,
+            counted: standing.counted,
+            pitchesTotal: standing.pitchesTotal,
+            avgPitchScore: standing.avgPitchScore,
+            bestPitchScore: standing.bestPitchScore,
+            prizeEligible: standing.prizeEligible,
+          }
+        : null,
+      // A target, not a cushion. `ahead` is dropped for the same reason `rank` is.
+      gaps: { behind: gaps.behind, ahead: null },
       skippedPreVerdict: read.skippedPreVerdict,
       capped: read.capped,
     });
