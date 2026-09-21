@@ -46,6 +46,7 @@ const PITCH: StoredPitch = {
     { elementId: "deliv.pace", label: "Pace", section: "delivery", grade: "hit", points: 4, maxPoints: 4, timestampS: null, evidence: null },
     { elementId: "retired.thing", label: "retired.thing", section: null, grade: "hit", points: 2, maxPoints: null, timestampS: null, evidence: null },
   ],
+  disputes: [],
   events: [
     { type: "bonus", itemId: "bonus.directv", points: 5, timestampS: 482, evidence: "Tied to sports usage", confidence: null },
     { type: "violation", itemId: "viol.talkingOver", points: 2, timestampS: 312, evidence: "Cut in on the deposit question", confidence: null },
@@ -160,6 +161,63 @@ describe("bonuses, and the ones that were heard but not awarded", () => {
   it("omits the section entirely when nothing was rejected", () => {
     render(<PitchDetail pitch={{ ...PITCH, events: PITCH.events.filter((e) => e.type !== "rejected_bonus") }} />);
     expect(screen.queryByText(/Heard, not awarded/i)).toBeNull();
+  });
+});
+
+describe("what came back", () => {
+  const WAITING = {
+    id: "d1",
+    pitchId: "p1",
+    sessionId: "s1",
+    repId: "rep1",
+    actorId: "rep1",
+    itemId: "deliv.tone",
+    itemLabel: "Tone and certainty",
+    timestampS: 200,
+    note: "I was confident the whole way through.",
+    filedAt: "2026-09-20T10:00:00.000Z",
+    open: true,
+    answer: null,
+  };
+  const ANSWERED = {
+    ...WAITING,
+    open: false,
+    answer: { note: "Listened back — you are right, re-scored.", actorId: "mgr1", answeredAt: "2026-09-20T11:00:00.000Z" },
+  };
+
+  it("shows the manager's reply beside the grade it is about", () => {
+    render(<PitchDetail pitch={{ ...PITCH, disputes: [ANSWERED] }} />);
+    expect(screen.getByText(/Your manager replied/i)).toBeTruthy();
+    expect(screen.getByText(/you are right, re-scored/)).toBeTruthy();
+  });
+
+  it("says WAITING out loud when there is no reply yet", () => {
+    // A dispute shown with no status reads as "nothing happened" — which is what a rep concludes
+    // when a complaint disappears, and concluding it once is enough to stop them filing a second.
+    render(<PitchDetail pitch={{ ...PITCH, disputes: [WAITING] }} />);
+    expect(screen.getByText(/Waiting on your manager/i)).toBeTruthy();
+    expect(screen.queryByText(/Your manager replied/i)).toBeNull();
+  });
+
+  it("tells the rep the score does not move while they wait", () => {
+    render(<PitchDetail pitch={{ ...PITCH, disputes: [WAITING] }} />);
+    expect(screen.getByText(/score stays as it is until they respond/i)).toBeTruthy();
+  });
+
+  it("names which element the dispute was about", () => {
+    render(<PitchDetail pitch={{ ...PITCH, disputes: [WAITING] }} />);
+    expect(screen.getByText(/You disputed/)).toBeTruthy();
+    expect(screen.getAllByText("Tone and certainty").length).toBeGreaterThan(0);
+  });
+
+  it("shows a whole-score dispute as such", () => {
+    render(<PitchDetail pitch={{ ...PITCH, disputes: [{ ...WAITING, itemId: null, itemLabel: null }] }} />);
+    expect(screen.getByText(/the whole score/)).toBeTruthy();
+  });
+
+  it("shows nothing at all when the rep has not disputed anything", () => {
+    render(<PitchDetail pitch={PITCH} />);
+    expect(screen.queryByText(/Your disputes/i)).toBeNull();
   });
 });
 

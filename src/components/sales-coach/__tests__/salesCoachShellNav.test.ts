@@ -41,33 +41,97 @@ describe("SalesCoachShell — Browser extension nav parity with C.A.R.E", () => 
 });
 
 /**
- * Guards the collapsible-group nav structure (founder mockup 2026-08-12). This grouping was tried on
- * 2026-07-31, REVERTED to a flat list on 2026-08-01, then re-requested WITH a collapse affordance on
- * 2026-08-12 (see docs/tbc/2026-08-12-xm-…). Because it has flip-flopped before, this test locks the current
- * founder-desired shape so it can't silently regress to a flat list (or lose the collapsibility) — A30. Same
- * source-substring form as the extension-parity guard above (client component, unrenderable in node env).
+ * Guards the collapsible-group nav structure.
+ *
+ * HISTORY, because this has flip-flopped and the history is the reason the guard exists: grouped
+ * 2026-07-31, flattened 2026-08-01, re-grouped WITH collapse 2026-08-12, and restructured again by the
+ * 2026-09-19 coaching redesign (docs/SYSTEM UPDATES AND REVISION). The redesign splits the two roles
+ * apart — a manager gets "Manager Dashboard", a rep gets the new "My Coaching" — and promotes the old
+ * ungrouped bottom run into a headed "Team Tools" group.
+ *
+ * The assertions below pin the 2026-09-19 shape. The final test is the important one: it locks the
+ * items the redesign's mockups did NOT draw but which were deliberately RETAINED, so a later pass
+ * cannot quietly delete a working feature on the authority of a drawing of a different page.
  */
-describe("SalesCoachShell — collapsible Manager Dashboard + Team Tools groups", () => {
-  it("declares both groups as collapsible sections", () => {
-    expect(SHELL).toMatch(/header:\s*"Manager Dashboard"[\s\S]{0,120}collapsible:\s*true/);
-    expect(SHELL).toMatch(/header:\s*"Team Tools"[\s\S]{0,120}collapsible:\s*true/);
+describe("SalesCoachShell — role-split nav groups (2026-09-19 redesign)", () => {
+  it("declares all three groups as collapsible sections", () => {
+    expect(SHELL).toMatch(/header:\s*"Manager Dashboard"[\s\S]{0,400}collapsible:\s*true/);
+    expect(SHELL).toMatch(/header:\s*"My Coaching"[\s\S]{0,400}collapsible:\s*true/);
+    expect(SHELL).toMatch(/header:\s*"Team Tools"[\s\S]{0,400}collapsible:\s*true/);
   });
 
-  it("Manager Dashboard groups Coach Assessment, Analytics, Sessions (in order)", () => {
+  it("Manager Dashboard puts Pattern Interrupt immediately after Score Calibration", () => {
+    // Position is explicit in the build guide: "Add Pattern Interrupt to the side menu under Manager
+    // Dashboard, after Score Calibration."
     expect(SHELL).toMatch(
-      /header:\s*"Manager Dashboard"[\s\S]{0,400}coach-assessment[\s\S]{0,500}\/analytics[\s\S]{0,200}\/sessions/
+      /header:\s*"Manager Dashboard"[\s\S]{0,900}coach-assessment[\s\S]{0,400}\/calibration[\s\S]{0,400}\/pattern-interrupt/
     );
   });
 
-  it("Team Tools groups Roleplay, One Liners, Training, Team (in order)", () => {
-    // "One Liners" is rendered via the ONE_LINERS_LABEL constant; assert on the stable /strategy route instead.
-    // Training (founder 2026-08-26) sits between One Liners and Team; the comment before it widens the gap.
+  it("My Coaching is the rep's group: My Progress, Pattern Interrupt, Role Play (in order)", () => {
     expect(SHELL).toMatch(
-      /header:\s*"Team Tools"[\s\S]{0,400}\/roleplay[\s\S]{0,200}\/strategy[\s\S]{0,400}\/training"[\s\S]{0,200}\/team"/
+      /header:\s*"My Coaching"[\s\S]{0,900}\/my-progress[\s\S]{0,400}\/pattern-interrupt[\s\S]{0,400}\/roleplay/
     );
   });
 
-  it("Coach Assessment + Team remain manager-only inside their groups", () => {
+  it("the two workspace groups are cleanly role-split, so neither role sees a group it cannot use", () => {
+    // Every Manager Dashboard item managerOnly and every My Coaching item repOnly is what makes
+    // filterManagerNavSections drop the whole group for the other role (AMD-006 L3 — no bare header,
+    // no nav item that bounces you).
+    // Slice each group by its header rather than regex across newlines: the group bodies contain
+    // braces and comments, which a brace-matching pattern gets wrong.
+    const sliceGroup = (header: string) => {
+      const from = SHELL.indexOf(`header: "${header}"`);
+      if (from < 0) return "";
+      const next = SHELL.indexOf("header: \"", from + 10);
+      return SHELL.slice(from, next < 0 ? SHELL.length : next);
+    };
+    const managerGroup = sliceGroup("Manager Dashboard");
+    const repGroup = sliceGroup("My Coaching");
+    expect(managerGroup).toBeTruthy();
+    expect(repGroup).toBeTruthy();
+
+    const managerItems = managerGroup.match(/\{ label: "[^"]+", href:[^}]+\}/g) ?? [];
+    const repItems = repGroup.match(/\{ label: "[^"]+", href:[^}]+\}/g) ?? [];
+    expect(managerItems.length).toBeGreaterThan(0);
+    expect(repItems.length).toBeGreaterThan(0);
+    for (const item of managerItems) expect(item).toContain("managerOnly: true");
+    for (const item of repItems) expect(item).toContain("repOnly: true");
+  });
+
+  it("Pattern Interrupt is reachable by BOTH roles and carries the NEW badge", () => {
+    // The guide gives reps their own view of the same screen ("Rep web view ... the same Patterns
+    // screen limited to the rep's own patterns"), so exactly two entries point at the route.
+    const entries = SHELL.match(/\/dashboard\/sales-coach\/pattern-interrupt/g) ?? [];
+    expect(entries.length).toBe(2);
+    expect(SHELL).toMatch(/pattern-interrupt"[\s\S]{0,120}managerOnly:\s*true[\s\S]{0,60}badge:\s*"NEW"/);
+    expect(SHELL).toMatch(/pattern-interrupt"[\s\S]{0,120}repOnly:\s*true[\s\S]{0,60}badge:\s*"NEW"/);
+  });
+
+  it("Team Tools is a headed group and KPI Analytics stays manager-only", () => {
+    // The rep board's Team Tools shows four items (no KPI Analytics; My Progress has moved up into
+    // My Coaching), the manager board six.
+    expect(SHELL).toMatch(/header:\s*"Team Tools"[\s\S]{0,900}\/team-chat[\s\S]{0,900}\/settings/);
+    expect(SHELL).toMatch(/\/kpi"[\s\S]{0,140}managerOnly:\s*true/);
+  });
+
+  it("RETAINS the destinations the 2026-09-19 mockups did not draw", () => {
+    // An omission in a mockup OF A DIFFERENT PAGE is not an instruction to delete a feature, and
+    // deleting is the one move a later mockup cannot undo. Sessions, Training, Team (member
+    // management — add / reset password / remove), One Liners and the rep's Analytics were all kept.
+    // If the founder later decides to drop one, this test is where that decision gets recorded.
+    for (const href of [
+      "/dashboard/sales-coach/sessions",
+      "/dashboard/sales-coach/training",
+      "/dashboard/sales-coach/team",
+      "/dashboard/sales-coach/strategy",
+      "/dashboard/sales-coach/analytics",
+    ]) {
+      expect(SHELL).toContain(href);
+    }
+  });
+
+  it("Coach Assessment + Team remain manager-only", () => {
     expect(SHELL).toMatch(/coach-assessment[\s\S]{0,140}managerOnly:\s*true/);
     expect(SHELL).toMatch(/\/team"[\s\S]{0,140}managerOnly:\s*true/);
   });

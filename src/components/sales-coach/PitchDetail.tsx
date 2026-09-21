@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Play, Flag } from "lucide-react";
+import { ChevronDown, ChevronRight, Play, Flag, MessageSquare, Clock } from "lucide-react";
 import { BONUSES_BY_ID, VIOLATIONS_BY_ID, type SectionId } from "@/lib/coach/pitchScore/rubric";
 import type { StoredPitch, PitchElementRow } from "@/lib/coach/pitchScore/readPitchScore";
 
@@ -301,6 +301,45 @@ export function PitchDetail({
                 <span className="shrink-0 w-10 text-right text-[13px] font-semibold tabular-nums text-red-700 dark:text-red-400">
                   −{v.points}
                 </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── The rep's own disputes, and what came back ────────────────────────────────── */}
+      {pitch.disputes.length > 0 && (
+        <section>
+          <h3 className="text-[10px] uppercase tracking-widest text-muted mb-2">Your disputes</h3>
+          <ul className="space-y-2">
+            {pitch.disputes.map((d) => (
+              <li key={d.id} className="rounded-xl border border-default bg-surface p-4">
+                <p className="text-[12px] font-medium text-primary">
+                  You disputed{" "}
+                  <span className="text-brand">{d.itemLabel ?? "the whole score"}</span>
+                </p>
+                <p className="mt-1 text-[11px] text-secondary leading-snug whitespace-pre-wrap">{d.note}</p>
+
+                {d.answer ? (
+                  <div className="mt-3 rounded-lg border border-default bg-base/40 p-3">
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted">
+                      <MessageSquare className="w-3 h-3" aria-hidden />
+                      Your manager replied
+                    </p>
+                    <p className="mt-1 text-[12px] text-primary whitespace-pre-wrap">{d.answer.note}</p>
+                  </div>
+                ) : (
+                  /*
+                    Waiting is a real state and it is said out loud. Showing the dispute with no
+                    status reads as "nothing happened", which is what a rep concludes when a
+                    complaint disappears — and concluding that once is enough to stop them filing
+                    a second one, which costs the scorer the only correction signal it has.
+                  */
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted">
+                    <Clock className="w-3 h-3" aria-hidden />
+                    Waiting on your manager. The score stays as it is until they respond.
+                  </p>
+                )}
               </li>
             ))}
           </ul>

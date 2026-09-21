@@ -32,6 +32,7 @@ const SCORED = {
   sectionPoints: [{ id: "introduction", label: "Introduction", points: 9.5, maxPoints: 12 }],
   elements: [],
   events: [],
+  disputes: [],
 };
 
 const fetchMock = vi.fn();

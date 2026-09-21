@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { ELEMENTS_BY_ID, SECTIONS, type SectionId } from "./rubric";
+import { replayDisputes, type DisputeEventRow, type DisputeRow } from "./readDisputes";
 
 /**
  * Read back a stored Pitch Score with its evidence — the other half of storePitchScore.
@@ -62,6 +63,15 @@ export type StoredPitch = {
   sectionPoints: { id: SectionId; label: string; points: number; maxPoints: number }[];
   elements: PitchElementRow[];
   events: PitchEventRow[];
+  /**
+   * The rep's own disputes on this pitch, with any manager reply.
+   *
+   * Here rather than on a separate endpoint because the answer is only useful beside the grade it
+   * is about — a rep who has to go somewhere else to find out whether anyone replied will assume
+   * nobody did. Replayed by the SAME function the manager's queue uses, so the two sides cannot
+   * disagree about whether a thread is still open.
+   */
+  disputes: DisputeRow[];
 };
 
 const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) || 0);
@@ -90,9 +100,19 @@ export async function readPitchScore(
 
   const pitchId = pitch.id as string;
 
-  const [{ data: elementRows }, { data: eventRows }] = await Promise.all([
+  const [{ data: elementRows }, { data: eventRows }, { data: disputeEvents }] = await Promise.all([
     sb.from("pitch_elements").select("*").eq("pitch_id", pitchId),
     sb.from("pitch_events").select("*").eq("pitch_id", pitchId),
+    // Through the CALLER's client, like everything else here. `events` RLS is company-wide, but
+    // the caller has already proven they may see THIS pitch, and the subject filter keeps the read
+    // to this pitch's threads. Ascending, because the replay needs answers before disputes.
+    sb
+      .from("events")
+      .select("id, actor, kind, subject, payload, created_at")
+      .eq("subject", `pitch:${pitchId}`)
+      .in("kind", ["coach.pitch_score_disputed", "coach.pitch_score_answered"])
+      .order("created_at", { ascending: true })
+      .limit(200),
   ]);
 
   // Rubric order, not insertion order. The model returns elements in whatever order it graded
@@ -122,6 +142,15 @@ export async function readPitchScore(
     evidence: (r.evidence as string | null) ?? null,
     confidence: r.confidence == null ? null : num(r.confidence),
   }));
+
+  // Answers first, then disputes newest-first — the order replayDisputes expects, and the order
+  // a rep reads their own threads in.
+  const raw = (disputeEvents ?? []) as DisputeEventRow[];
+  const disputes = replayDisputes(
+    [...raw.filter((r) => r.kind === "coach.pitch_score_answered"),
+     ...raw.filter((r) => r.kind === "coach.pitch_score_disputed").reverse()],
+    { includeAnswered: true }
+  );
 
   // The stored verdict, presented in rubric order with labels. A pitch stored before 0254 has no
   // section_points; it gets an empty list rather than a re-summed guess, because a wrong
@@ -156,5 +185,6 @@ export async function readPitchScore(
     sectionPoints,
     elements,
     events,
+    disputes,
   };
 }

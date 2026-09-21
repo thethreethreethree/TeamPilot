@@ -59,6 +59,83 @@ const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? 
 const numOrNull = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
+/** The raw shape both readers hand to the replay. */
+export type DisputeEventRow = {
+  id: string | number;
+  actor: string | null;
+  kind: string;
+  subject?: string | null;
+  payload: unknown;
+  created_at: string;
+};
+
+/**
+ * Turn dispute and answer events into threads — the ONE place "is this still open" is decided.
+ *
+ * Pure, and exported, because two readers need the answer and §2.2 forbids the second one working
+ * it out again: the manager's queue reads the whole company with the service role, and the rep's
+ * Pitch detail reads one pitch through their own client. Two copies of "an answer filed before the
+ * dispute does not close it" would drift, and the drift would be invisible — one side would show
+ * a thread as handled while the other showed it open, and nobody would get an error.
+ *
+ * `rows` must contain the answers BEFORE the disputes, and the disputes in the order the caller
+ * wants them out.
+ */
+export function replayDisputes(
+  rows: readonly DisputeEventRow[],
+  opts: { repId?: string; includeAnswered?: boolean } = {}
+): DisputeRow[] {
+  // Answers, keyed by the thing they answer. Replayed in ascending time, so the LAST answer for a
+  // key wins — a manager who replies twice has changed their mind, and the later reply is current.
+  const answers = new Map<string, { note: string; actorId: string; answeredAt: string }>();
+  for (const r of rows) {
+    if (r.kind !== ANSWER_KIND) continue;
+    const p = (r.payload ?? {}) as Record<string, unknown>;
+    const pitchId = str(p.pitch_id);
+    if (!pitchId) continue;
+    answers.set(`${pitchId}::${str(p.item_id) ?? ""}`, {
+      note: str(p.note) ?? "",
+      actorId: String(r.actor ?? ""),
+      answeredAt: String(r.created_at),
+    });
+  }
+
+  const out: DisputeRow[] = [];
+  for (const r of rows) {
+    if (r.kind !== DISPUTE_KIND) continue;
+    const p = (r.payload ?? {}) as Record<string, unknown>;
+    const pitchId = str(p.pitch_id);
+    if (!pitchId) continue;
+
+    const repId = str(p.rep_id) ?? "";
+    if (opts.repId && repId !== opts.repId) continue;
+
+    const itemId = str(p.item_id);
+    const answer = answers.get(`${pitchId}::${itemId ?? ""}`) ?? null;
+    // An answer that predates this dispute answers an EARLIER one. Re-filing after a reply opens
+    // the thread again, which is the behaviour a rep expects when the first answer did not land.
+    const stillOpen = !answer || answer.answeredAt <= String(r.created_at);
+
+    if (!opts.includeAnswered && !stillOpen) continue;
+
+    out.push({
+      id: String(r.id),
+      pitchId,
+      sessionId: str(p.session_id),
+      repId,
+      actorId: String(r.actor ?? ""),
+      itemId,
+      itemLabel: labelForItem(itemId),
+      timestampS: numOrNull(p.timestamp_s),
+      note: str(p.note) ?? "",
+      filedAt: String(r.created_at),
+      open: stillOpen,
+      answer: stillOpen ? null : answer,
+    });
+  }
+  return out;
+}
+
 export async function readDisputes(args: {
   companyId: string;
   /** Limit to one rep's disputes. Omitted = the whole company. */
@@ -126,54 +203,7 @@ export async function readDisputes(args: {
   const rows = [...answerRows, ...disputes];
 
 
-  // Answers, keyed by the thing they answer. Replayed in ascending time, so the LAST answer for a
-  // key wins — a manager who replies twice has changed their mind, and the later reply is current.
-  const answers = new Map<string, { note: string; actorId: string; answeredAt: string }>();
-  for (const r of rows) {
-    if (r.kind !== ANSWER_KIND) continue;
-    const p = (r.payload ?? {}) as Record<string, unknown>;
-    const pitchId = str(p.pitch_id);
-    if (!pitchId) continue;
-    answers.set(`${pitchId}::${str(p.item_id) ?? ""}`, {
-      note: str(p.note) ?? "",
-      actorId: String(r.actor ?? ""),
-      answeredAt: String(r.created_at),
-    });
-  }
-
-  const out: DisputeRow[] = [];
-  for (const r of rows) {
-    if (r.kind !== DISPUTE_KIND) continue;
-    const p = (r.payload ?? {}) as Record<string, unknown>;
-    const pitchId = str(p.pitch_id);
-    if (!pitchId) continue;
-
-    const repId = str(p.rep_id) ?? "";
-    if (args.repId && repId !== args.repId) continue;
-
-    const itemId = str(p.item_id);
-    const answer = answers.get(`${pitchId}::${itemId ?? ""}`) ?? null;
-    // An answer that predates this dispute answers an EARLIER one. Re-filing after a reply opens
-    // the thread again, which is the behaviour a rep expects when the first answer did not land.
-    const stillOpen = !answer || answer.answeredAt <= String(r.created_at);
-
-    if (!args.includeAnswered && !stillOpen) continue;
-
-    out.push({
-      id: String(r.id),
-      pitchId,
-      sessionId: str(p.session_id),
-      repId,
-      actorId: String(r.actor ?? ""),
-      itemId,
-      itemLabel: labelForItem(itemId),
-      timestampS: numOrNull(p.timestamp_s),
-      note: str(p.note) ?? "",
-      filedAt: String(r.created_at),
-      open: stillOpen,
-      answer: stillOpen ? null : answer,
-    });
-  }
+  const out = replayDisputes(rows, args);
 
   // Already newest-first: the dispute query ordered descending and they are iterated in order.
   return out;

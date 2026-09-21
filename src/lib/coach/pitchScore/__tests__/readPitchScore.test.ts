@@ -59,7 +59,7 @@ const EVENT_ROWS = [
   { type: "rejected_bonus", item_id: "bonus.inside", points: 0, timestamp_s: 91, evidence: "a door, maybe", confidence: 0.62 },
 ];
 
-const mockDb = (opts: { pitch?: unknown; error?: { message: string } } = {}) => {
+const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEvents?: unknown[] } = {}) => {
   const from = vi.fn((table: string) => {
     if (table === "pitches") {
       const chain: Record<string, unknown> = {};
@@ -69,6 +69,15 @@ const mockDb = (opts: { pitch?: unknown; error?: { message: string } } = {}) => 
         data: "pitch" in opts ? opts.pitch : PITCH,
         error: opts.error ?? null,
       });
+      return chain;
+    }
+    // `events` is the dispute/answer thread — a different query shape (in + order + limit) from
+    // the two pitch child tables, so the mock has to answer it differently or the reader gets
+    // element rows where it expects events.
+    if (table === "events") {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "in", "order"]) chain[m] = () => chain;
+      chain.limit = async () => ({ data: opts.disputeEvents ?? [], error: null });
       return chain;
     }
     const rows = table === "pitch_elements" ? ELEMENT_ROWS : EVENT_ROWS;
@@ -156,6 +165,57 @@ describe("events", () => {
       confidence: 0.62,
       evidence: "a door, maybe",
     });
+  });
+});
+
+describe("the rep's own dispute threads come back with the pitch", () => {
+  const ev = (kind: string, at: string, extra: Record<string, unknown> = {}) => ({
+    id: `${kind}-${at}`,
+    actor: kind.endsWith("answered") ? "mgr1" : "rep1",
+    kind,
+    subject: "pitch:p1",
+    created_at: at,
+    payload: { pitch_id: "p1", rep_id: "rep1", item_id: "deliv.tone", note: "n", ...extra },
+  });
+
+  it("pairs an answer with the dispute it answers", async () => {
+    mockDb({
+      disputeEvents: [
+        ev("coach.pitch_score_disputed", "2026-09-20T10:00:00Z", { note: "I was confident" }),
+        ev("coach.pitch_score_answered", "2026-09-20T11:00:00Z", { note: "You are right" }),
+      ],
+    });
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.disputes).toHaveLength(1);
+    expect(pitch!.disputes[0]!.answer?.note).toBe("You are right");
+    expect(pitch!.disputes[0]!.open).toBe(false);
+  });
+
+  it("shows an unanswered dispute as still open", async () => {
+    mockDb({ disputeEvents: [ev("coach.pitch_score_disputed", "2026-09-20T10:00:00Z")] });
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.disputes[0]!.open).toBe(true);
+    expect(pitch!.disputes[0]!.answer).toBeNull();
+  });
+
+  it("agrees with the manager's queue about a RE-FILED dispute being open again", async () => {
+    // The same replay function decides this on both sides, which is the point. Two copies of the
+    // rule would let the rep see "answered" while the manager sees "open", or the reverse.
+    mockDb({
+      disputeEvents: [
+        ev("coach.pitch_score_disputed", "2026-09-20T10:00:00Z"),
+        ev("coach.pitch_score_answered", "2026-09-20T11:00:00Z"),
+        ev("coach.pitch_score_disputed", "2026-09-20T12:00:00Z", { note: "Still wrong" }),
+      ],
+    });
+    const pitch = await readPitchScore("sess1");
+    const newest = pitch!.disputes[0]!;
+    expect(newest).toMatchObject({ note: "Still wrong", open: true });
+  });
+
+  it("returns an empty list when the rep has never disputed anything", async () => {
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.disputes).toEqual([]);
   });
 });
 
