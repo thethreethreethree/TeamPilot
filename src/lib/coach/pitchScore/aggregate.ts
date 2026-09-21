@@ -288,38 +288,59 @@ export type ActivityKpis = {
 /**
  * Presentations.
  *
- * OPEN DECISION — the build guide's own #1, unresolved: "Presentations source: recorded pitches,
- * or a separate rep log? The mockups assume recorded pitches," and Step 2's KPI list says
- * "Presentations: recorded pitches (confirm this with John before building)."
+ * THE BUILD GUIDE CALLS THIS OPEN. IT IS NOT — the founder settled it on 2026-09-11, and the
+ * decision is implemented in `src/lib/data/doorlog.ts` (getAllTimeKpi / getTodaysMetrics).
  *
- * It is load-bearing: presentations is the numerator of door→presentation % and the denominator of
- * close rate, so choosing wrong moves two headline KPIs on every screen at once.
+ *   A presentation is a door where the rep SPOKE TO SOMEBODY:  doors_knocked − no_answer.
+ *   It is NOT a recorded pitch.
  *
- * The mockup's assumption is implemented as the default and isolated HERE, in one named function,
- * so switching to a rep log later is a change to this body and nothing else. It is a default with
- * its provenance stated, not a settled fact.
- * See docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md B3.
+ * This reverses an earlier choice, and the reversal is what makes it binding rather than
+ * arbitrary. On 2026-08-28 the founder DID pick recorded pitches, checked against one rep: 41
+ * recorded against 46 non-no-answer knocks, so the sharper measure looked better. That gap did
+ * not hold. Measured 2026-09-11: the same rep was 126 spoken-to against 50 recorded, and the
+ * founder's own row read 18 spoken to, 3 recorded, 10 SOLD — a 333% close rate, because sales
+ * are counted from knocks and the denominator was being counted from audio. It reached their
+ * home screen as "0 of 9 PRESENTATIONS" beside "9 of 1 SOLD".
+ *
+ * Sold exceeding presentations is not a definition preference. It is a broken denominator.
+ *
+ * WHY THIS FUNCTION WAS WRONG UNTIL NOW. It defaulted to recorded pitches and flagged the choice
+ * as awaiting the founder, because it was written from the build guide — which predates the
+ * decision and says "confirm with John before building". John confirmed, in production, three
+ * months later and with numbers in front of him. The guide was not wrong; it was old, and
+ * treating a written question as still-open without checking the record is the §0.1 failure:
+ * the answer was in the working tree.
+ *
+ * Worse than merely wrong: with the old default, the Pitch Score boards and the Door Log's own
+ * KPI bubbles would have shown DIFFERENT presentation counts for the same rep on the same day,
+ * in the same product. Two definitions of one decision (§2.2), one per screen.
+ *
+ * The switch survives so a future reversal is one argument rather than a rewrite — the founder
+ * has changed this once already on evidence, and may again.
  */
 export function countPresentations(args: {
-  recordedPitches: number;
-  repLoggedPresentations?: number;
-  source?: "recorded_pitches" | "rep_log";
+  /** doors_knocked − no_answer, from rep_kpi_daily. The founder's 2026-09-11 definition. */
+  doorsSpokenTo: number;
+  /** Kept so the reversed definition remains one argument away, not a rewrite. */
+  recordedPitches?: number;
+  source?: "doors_spoken_to" | "recorded_pitches";
 }): number {
-  return (args.source ?? "recorded_pitches") === "rep_log"
-    ? args.repLoggedPresentations ?? 0
-    : args.recordedPitches;
+  return (args.source ?? "doors_spoken_to") === "recorded_pitches"
+    ? args.recordedPitches ?? 0
+    : args.doorsSpokenTo;
 }
 
 export function computeActivityKpis(args: {
   doorsKnocked: number;
-  recordedPitches: number;
+  /** doors_knocked − no_answer. See countPresentations for why this, and not recorded pitches. */
+  doorsSpokenTo: number;
   sold: number;
-  repLoggedPresentations?: number;
-  presentationsSource?: "recorded_pitches" | "rep_log";
+  recordedPitches?: number;
+  presentationsSource?: "doors_spoken_to" | "recorded_pitches";
 }): ActivityKpis {
   const presentations = countPresentations({
+    doorsSpokenTo: args.doorsSpokenTo,
     recordedPitches: args.recordedPitches,
-    repLoggedPresentations: args.repLoggedPresentations,
     source: args.presentationsSource,
   });
 

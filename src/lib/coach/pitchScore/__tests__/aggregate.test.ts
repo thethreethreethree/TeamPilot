@@ -143,8 +143,11 @@ describe("the launch-checklist reconciliations", () => {
   });
 
   it("rep totals sum to team totals", () => {
+    // `p` is doors SPOKEN TO — the founder's 2026-09-11 definition of a presentation — not a
+    // count of recorded pitches. The mockup's team row (671 / 98 / 20) is unchanged by the
+    // correction because the row reports presentations, whatever produces them.
     const kpis = (d: number, p: number, s: number) =>
-      computeActivityKpis({ doorsKnocked: d, recordedPitches: p, sold: s });
+      computeActivityKpis({ doorsKnocked: d, doorsSpokenTo: p, sold: s });
     // The five reps from the manager board.
     const team = sumTeamTotals([
       { totalPoints: 1844, counted: 25, kpis: kpis(138, 25, 8) },
@@ -242,33 +245,44 @@ describe("bonus and violation stats", () => {
 
 describe("activity KPIs", () => {
   it("matches the team activity row: 671 doors, 98 presentations, 20 sold", () => {
-    const k = computeActivityKpis({ doorsKnocked: 671, recordedPitches: 98, sold: 20 });
+    const k = computeActivityKpis({ doorsKnocked: 671, doorsSpokenTo: 98, sold: 20 });
     expect(Math.round(k.doorToPresentationRate! * 100)).toBe(15); // 14.6% -> 15%
     expect(Math.round(k.closeRate! * 100)).toBe(20); // 20.4% -> 20%
   });
 
   it("returns null, not 0%, when the denominator is empty", () => {
     // A rep's first morning shows "—", not a 0% that reads as failure.
-    const k = computeActivityKpis({ doorsKnocked: 0, recordedPitches: 0, sold: 0 });
+    const k = computeActivityKpis({ doorsKnocked: 0, doorsSpokenTo: 0, sold: 0 });
     expect(k.doorToPresentationRate).toBeNull();
     expect(k.closeRate).toBeNull();
   });
 
-  it("presentations default to recorded pitches, and the source is switchable in one place", () => {
-    // Guide open decision #1 — unresolved, so the mockup's assumption is a default with its
-    // provenance stated, and the alternative is already wired.
-    expect(countPresentations({ recordedPitches: 98 })).toBe(98);
+  it("counts a presentation as a door SPOKEN TO, which is the founder's 2026-09-11 decision", () => {
+    // Not recorded pitches. That was the 2026-08-28 choice and it was REVERSED on evidence: the
+    // founder's own row read 18 spoken to, 3 recorded, 10 sold — a 333% close rate, because
+    // sales come from knocks and the denominator was coming from audio.
+    expect(countPresentations({ doorsSpokenTo: 98 })).toBe(98);
+    expect(computeActivityKpis({ doorsKnocked: 671, doorsSpokenTo: 98, sold: 20 }).presentations).toBe(98);
+  });
+
+  it("cannot report more sales than presentations on the founder's own numbers", () => {
+    // The literal screen that caused the reversal: "0 of 9 PRESENTATIONS" beside "9 of 1 SOLD".
+    // Under the recorded-pitch definition this rep had 3 presentations and 10 sales.
+    const broken = computeActivityKpis({
+      doorsKnocked: 20, doorsSpokenTo: 18, sold: 10, recordedPitches: 3,
+      presentationsSource: "recorded_pitches",
+    });
+    expect(broken.closeRate!).toBeGreaterThan(1); // 333% — the defect, reproduced
+
+    const fixed = computeActivityKpis({ doorsKnocked: 20, doorsSpokenTo: 18, sold: 10, recordedPitches: 3 });
+    expect(fixed.closeRate!).toBeLessThanOrEqual(1);
+    expect(fixed.presentations).toBe(18);
+  });
+
+  it("keeps the reversed definition one argument away, not a rewrite", () => {
+    // The founder has changed this once on evidence and may again.
     expect(
-      countPresentations({ recordedPitches: 98, repLoggedPresentations: 61, source: "rep_log" })
-    ).toBe(61);
-    expect(
-      computeActivityKpis({
-        doorsKnocked: 671,
-        recordedPitches: 98,
-        repLoggedPresentations: 61,
-        sold: 20,
-        presentationsSource: "rep_log",
-      }).presentations
+      countPresentations({ doorsSpokenTo: 98, recordedPitches: 61, source: "recorded_pitches" })
     ).toBe(61);
   });
 });

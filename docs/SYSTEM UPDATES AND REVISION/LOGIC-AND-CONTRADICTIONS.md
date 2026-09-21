@@ -108,15 +108,44 @@ because Team and One Liners have to live somewhere and the drawings do not say w
 Pinned by `salesCoachShellNav.test.ts`, which asserts the group shapes, the role split, and
 that all six relocated routes still exist — so a later pass cannot quietly drop one.
 
-### B3. Presentations: recorded pitches, or a separate log?
+### B3. Presentations: recorded pitches, or a separate log? — **NOT OPEN. SETTLED 2026-09-11.**
 
-The guide's own **Open decision #1**, and it is load-bearing: presentations feed the team
-activity row, door→presentation %, and close rate. The mockups assume recorded pitches, and
-the guide says *confirm with John before building*.
+> Corrected 2026-09-21. The entry below was wrong, and the way it was wrong is the point.
 
-**Not applied.** `presentations` is computed behind one named function with the assumption
-stated at its definition, so switching the source later touches one place. Until confirmed,
-the mockup's assumption is used **as a default with the flag visible**, never as a fact.
+The guide calls this its **Open decision #1** and says *confirm with John before building*. I
+read that, recorded it here as unresolved, and defaulted to the mockups' assumption (recorded
+pitches) with the flag visible.
+
+**John had already confirmed it — on 2026-09-11, in production, with numbers in front of him.**
+The decision is implemented and documented in `src/lib/data/doorlog.ts`
+(`getAllTimeKpi` / `getTodaysMetrics`):
+
+> **A presentation is a door where the rep SPOKE TO SOMEBODY: `doors_knocked − no_answer`.**
+
+And it is a *reversal*, which is what makes it binding rather than arbitrary. On **2026-08-28**
+the founder did pick recorded pitches, checked against one rep: 41 recorded against 46
+non-no-answer knocks — at a five-door gap the sharper measure was plainly better. That gap did
+not hold. Measured **2026-09-11**: the same rep was 126 spoken-to against 50 recorded, and the
+founder's own row read 18 spoken to, 3 recorded, and **10 sold** — a close rate of 333%, because
+sales are counted from knocks and the denominator was being counted from audio. It reached their
+home screen as *"0 of 9 PRESENTATIONS"* beside *"9 of 1 SOLD"*.
+
+Sold exceeding presentations is not a definition preference. It is a broken denominator.
+
+**What this entry got wrong, and why it matters beyond this row.** The guide was not incorrect —
+it was *old*. It asked a question that had since been answered, in the working tree, three months
+later. Treating a written "confirm this" as still-open without checking the record is the §0.1
+failure exactly: the methodology was present and not consulted, and the answer was a file away.
+
+**The cost, had it shipped.** The Pitch Score boards and the Door Log's own KPI bubbles would have
+shown *different presentation counts for the same rep on the same day, in the same product* — two
+definitions of one decision (§2.2), one per screen — and the Pitch Score side would have been the
+one the founder had already reversed for producing impossible close rates.
+
+**Applied.** `countPresentations` now defaults to `doors_spoken_to` and cites the decision. The
+switch survives, because the founder has changed this once on evidence and may again. Two tests
+pin it: one asserts the settled definition, one reproduces the 333% close rate under the old
+default and asserts the corrected one cannot exceed 100%.
 
 ### B4. Partial grades in pattern detection
 
