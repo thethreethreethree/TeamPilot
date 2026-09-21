@@ -4,6 +4,7 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchPeriod } from "@/lib/coach/pitchScore/readPitchPeriod";
 import { aggregatePitches } from "@/lib/coach/pitchScore/aggregate";
+import { biggestImprovement } from "@/lib/coach/pitchScore/improvement";
 
 /**
  * GET /api/coach/sales-session/pitch-score/breakdown?period=week[&repId=]
@@ -44,6 +45,28 @@ export function periodStart(period: Period, now: Date): string | undefined {
   return new Date(now.getTime() - ms * 24 * 60 * 60 * 1000).toISOString();
 }
 
+/**
+ * The window immediately BEFORE the current one, same length.
+ *
+ * "Last week" for a week, "the previous 30 days" for a month. Returned as a half-open range so the
+ * two windows cannot both contain a pitch on the boundary — a pitch counted in both periods would
+ * appear as its own baseline and flatten every comparison toward zero.
+ *
+ * Undefined for "all time", which has no before.
+ */
+export function previousWindow(
+  period: Period,
+  now: Date
+): { from: string; to: string } | undefined {
+  const days = { day: 1, week: 7, month: 30 }[period as "day" | "week" | "month"];
+  if (!days) return undefined;
+  const ms = days * 24 * 60 * 60 * 1000;
+  return {
+    from: new Date(now.getTime() - 2 * ms).toISOString(),
+    to: new Date(now.getTime() - ms).toISOString(),
+  };
+}
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "coach-pitch-breakdown", windowMs: 60_000, max: 60 });
   if (limited) return limited;
@@ -75,9 +98,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Could not load your scores." }, { status: 500 });
   }
 
+  const aggregate = aggregatePitches(read.pitches);
+
+  // The rep against their own past. A SECOND read, and it is worth the round trip: without a
+  // baseline this board can only say what a rep is best AT, which is a fact about them rather than
+  // about their growth — and growth is what the KPI document asks this surface to lead with.
+  //
+  // Best-effort. A failed baseline read must not fail the board: the current period is still true,
+  // and the verdict below degrades to "not enough evidence", which is a state the surface already
+  // has to render.
+  const prevWindow = previousWindow(period, new Date());
+  const previous = prevWindow
+    ? await readPitchPeriod(
+        { repId: repId ?? auth.user.id, from: prevWindow.from, to: prevWindow.to },
+        supabase
+      )
+    : null;
+
   return NextResponse.json({
     period,
-    aggregate: aggregatePitches(read.pitches),
+    aggregate,
     skippedPreVerdict: read.skippedPreVerdict,
+    /**
+     * A VERDICT, not a number. "Insufficient data" is a valid visible state here by requirement
+     * — the KPI document's third principle and §3.2 — so the surface is told which case it is in
+     * rather than being handed a null to interpret.
+     */
+    improvement: previous
+      ? biggestImprovement(aggregate, aggregatePitches(previous.pitches))
+      : { status: "insufficient", reason: period === "all" ? "there is no period before all time" : "your earlier pitches could not be read" },
   });
 }

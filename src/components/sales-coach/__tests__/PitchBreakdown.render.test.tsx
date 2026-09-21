@@ -257,3 +257,67 @@ describe("the board leads with a strength, then the gap", () => {
     expect(screen.getByText(/Into paperwork/)).toBeTruthy();
   });
 });
+
+describe("the board leads with what improved", () => {
+  /**
+   * `docs/SalesCoach-KPI-System.md` principle 1 — "the primary comparison is
+   * agent-vs-their-own-past (self-Elo)" — and of this surface, "lead with what improved".
+   *
+   * The state that matters most is INSUFFICIENT. Principle 3 makes "not enough evidence" a state a
+   * rep must be able to SEE, so a board that quietly showed the strength instead would be
+   * answering a question it had not answered.
+   */
+  const withVerdict = async (improvement: unknown) => {
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0, improvement } });
+    const r = render(<PitchBreakdown />);
+    await screen.findByText(/Biggest opportunity/i);
+    return r;
+  };
+
+  it("names the element that rose, with before and after", async () => {
+    await withVerdict({
+      status: "improved",
+      top: { elementId: "deliv.tone", label: "Tone and certainty", before: 4.5, after: 6.9, gained: 2.4 },
+    });
+    expect(screen.getByText(/Most improved/i)).toBeTruthy();
+    expect(screen.getByText(/Tone and certainty: 4.5 → 6.9 per pitch/)).toBeTruthy();
+    expect(screen.getByText(/Up 2.4 points a pitch/)).toBeTruthy();
+  });
+
+  it("puts what improved ABOVE what is strongest", async () => {
+    const { container } = await withVerdict({
+      status: "improved",
+      top: { elementId: "a", label: "Tone and certainty", before: 1, after: 5, gained: 4 },
+    });
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Most improved")).toBeLessThan(text.indexOf("Your strongest"));
+  });
+
+  it("says nothing rose, rather than pretending it could not tell", async () => {
+    await withVerdict({ status: "no_change" });
+    expect(screen.getByText(/Nothing moved up against the period before/i)).toBeTruthy();
+    expect(screen.queryByText(/Not enough to compare/i)).toBeNull();
+  });
+
+  it("shows INSUFFICIENT as its own visible state, with the reason", async () => {
+    await withVerdict({ status: "insufficient", reason: "2 counted pitches in this period" });
+    expect(screen.getByText(/Not enough to compare yet/i)).toBeTruthy();
+    expect(screen.getByText(/2 counted pitches in this period/)).toBeTruthy();
+    // And it does NOT claim nothing improved, which is a different statement.
+    expect(screen.queryByText(/Nothing moved up/i)).toBeNull();
+  });
+
+  it("tells the rep what would make it comparable", async () => {
+    await withVerdict({ status: "insufficient", reason: "1 counted pitch in this period" });
+    expect(screen.getByText(/Three counted pitches in each period/i)).toBeTruthy();
+  });
+
+  it("renders the board unchanged when the server sends no verdict at all", async () => {
+    // A browser on new code served by a server that predates the baseline read.
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0 } });
+    render(<PitchBreakdown />);
+    await screen.findByText(/Biggest opportunity/i);
+    expect(screen.queryByText(/Most improved/i)).toBeNull();
+    expect(screen.getByText(/Your strongest/i)).toBeTruthy();
+  });
+});

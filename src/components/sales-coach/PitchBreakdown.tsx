@@ -14,6 +14,7 @@ import {
 } from "@/lib/coach/pitchScore/rubric";
 import { ScoringRubricSheet } from "./ScoringRubricSheet";
 import type { PeriodAggregate, ElementStat } from "@/lib/coach/pitchScore/aggregate";
+import type { ImprovementVerdict } from "@/lib/coach/pitchScore/improvement";
 
 /**
  * The Breakdown board — a rep's rubric averages over a period.
@@ -41,7 +42,7 @@ const PERIODS = [
 type State =
   | { kind: "loading" }
   | { kind: "failed" }
-  | { kind: "ready"; agg: PeriodAggregate; skipped: number };
+  | { kind: "ready"; agg: PeriodAggregate; skipped: number; improvement?: ImprovementVerdict };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
@@ -117,8 +118,20 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         setState({ kind: "failed" });
         return;
       }
-      const body = (await res.json()) as { aggregate: PeriodAggregate; skippedPreVerdict: number };
-      setState({ kind: "ready", agg: body.aggregate, skipped: body.skippedPreVerdict ?? 0 });
+      const body = (await res.json()) as {
+        aggregate: PeriodAggregate;
+        skippedPreVerdict: number;
+        improvement?: ImprovementVerdict;
+      };
+      setState({
+        kind: "ready",
+        agg: body.aggregate,
+        skipped: body.skippedPreVerdict ?? 0,
+        // Optional on the wire: a browser on new code can be served by a server that predates
+        // the baseline read, and a missing verdict must render as "not enough evidence" rather
+        // than throwing inside the board.
+        improvement: body.improvement,
+      });
     } catch {
       setState({ kind: "failed" });
     }
@@ -181,7 +194,7 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         </div>
       )}
 
-      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} openSection={openSection} setOpenSection={setOpenSection} />}
+      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} improvement={state.improvement} openSection={openSection} setOpenSection={setOpenSection} />}
 
       {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
     </section>
@@ -191,11 +204,14 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
 function Board({
   agg,
   skipped,
+  improvement,
   openSection,
   setOpenSection,
 }: {
   agg: PeriodAggregate;
   skipped: number;
+  /** Optional on the wire: an older server predates the baseline read. Absent renders as nothing. */
+  improvement?: ImprovementVerdict;
   openSection: SectionId | null;
   setOpenSection: (s: SectionId | null) => void;
 }) {
@@ -229,6 +245,55 @@ function Board({
         {agg.notCounted > 0 && ` · ${agg.notCounted} not counted`}
         {skipped > 0 && ` · ${skipped} scored before section totals were recorded`}
       </p>
+
+      {/*
+        WHAT GOT BETTER, above everything.
+
+        `docs/SalesCoach-KPI-System.md` principle 1: *"the primary comparison is
+        agent-vs-their-own-past (self-Elo)"*, and of this surface: *"lead with what improved, then
+        growth areas."* A strength is a fact about a rep; an improvement is a fact about their
+        growth, and this document is about the second.
+
+        INSUFFICIENT IS RENDERED, NOT HIDDEN. Principle 3 of the same document — and §3.2 — make
+        "not enough evidence" a state a rep must be able to see. Falling back silently to the
+        strength below would look like an answer to a question that was never answered.
+      */}
+      {improvement?.status === "improved" && (
+        <div className="rounded-xl border border-brand/50 bg-surface p-4">
+          <p className="text-[10px] uppercase tracking-widest text-brand">Most improved</p>
+          <p className="mt-1 text-[13px] font-semibold text-primary tabular-nums">
+            {improvement.top.label}: {improvement.top.before} → {improvement.top.after} per pitch
+          </p>
+          <p className="mt-1 text-[11px] text-muted">
+            Up {improvement.top.gained} points a pitch on the period before this one.
+          </p>
+        </div>
+      )}
+
+      {improvement?.status === "no_change" && (
+        <div className="rounded-xl border border-default bg-surface p-4">
+          <p className="text-[10px] uppercase tracking-widest text-muted">Most improved</p>
+          {/*
+            A real answer, and deliberately not dressed as a data problem. Telling a rep the system
+            could not tell would be a lie in the flattering direction.
+          */}
+          <p className="mt-1 text-[12px] text-secondary">
+            Nothing moved up against the period before this one.
+          </p>
+        </div>
+      )}
+
+      {improvement?.status === "insufficient" && (
+        <div className="rounded-xl border border-default bg-base/40 p-4">
+          <p className="text-[10px] uppercase tracking-widest text-muted">Most improved</p>
+          <p className="mt-1 text-[12px] text-secondary">
+            Not enough to compare yet — {improvement.reason}.
+          </p>
+          <p className="mt-1 text-[11px] text-muted">
+            Three counted pitches in each period are needed before a change means anything.
+          </p>
+        </div>
+      )}
 
       {/*
         WHAT IS GOING WELL, ABOVE THE GAP. The KPI document's agent-view clause asks for a board
