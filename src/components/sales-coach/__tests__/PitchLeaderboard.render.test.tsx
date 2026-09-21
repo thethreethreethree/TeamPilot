@@ -38,6 +38,7 @@ const MANAGER = {
   ],
   meId: "r2",
   standing: { repId: "r2", total_points: 120, counted: 6, pitchesTotal: 6, avgPitchScore: 20, bestPitchScore: 40, prizeEligible: true, rank: 2 },
+  gaps: { behind: null, ahead: null },
   boardSize: 2,
   skippedPreVerdict: 0,
   capped: false,
@@ -47,6 +48,7 @@ const REP = {
   period: "week",
   managerView: false,
   standing: { repId: "me", total_points: 70, counted: 2, pitchesTotal: 3, avgPitchScore: 35, bestPitchScore: 40, prizeEligible: false, rank: 3 },
+  gaps: { behind: 62, ahead: 118 },
   boardSize: 9,
   skippedPreVerdict: 0,
   capped: false,
@@ -253,5 +255,62 @@ describe("a truncated period is said out loud", () => {
     respond({ ok: true, body: { ...REP, capped: true } });
     render(<PitchLeaderboard />);
     expect(await screen.findByText(/covers only part of it/i)).toBeTruthy();
+  });
+});
+
+describe("the gaps either side, without naming anyone", () => {
+  it("shows both distances", async () => {
+    respond({ ok: true, body: REP });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/pts behind the rep above/i)).toBeTruthy();
+    expect(screen.getByText("62")).toBeTruthy();
+    expect(screen.getByText(/pts ahead of the rep below/i)).toBeTruthy();
+    expect(screen.getByText("118")).toBeTruthy();
+  });
+
+  it("names nobody, which is the only reason a rep may see it", async () => {
+    respond({ ok: true, body: REP });
+    render(<PitchLeaderboard />);
+    await screen.findByText(/pts behind the rep above/i);
+    const wire = document.body.textContent ?? "";
+    expect(wire).not.toContain("Ada Vance");
+    expect(wire).not.toContain("Bo Iqbal");
+  });
+
+  it("says nothing about being behind when the rep is top", async () => {
+    respond({ ok: true, body: { ...REP, gaps: { behind: null, ahead: 40 } } });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/pts ahead of the rep below/i)).toBeTruthy();
+    expect(screen.queryByText(/pts behind the rep above/i)).toBeNull();
+  });
+
+  it("says nothing about being ahead when the rep is last", async () => {
+    respond({ ok: true, body: { ...REP, gaps: { behind: 40, ahead: null } } });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/pts behind the rep above/i)).toBeTruthy();
+    expect(screen.queryByText(/pts ahead of the rep below/i)).toBeNull();
+  });
+
+  it("shows a tie as 0, not as nobody", async () => {
+    // Null is nobody there. Zero is a dead heat, and a rep level with the one above should see it.
+    respond({ ok: true, body: { ...REP, gaps: { behind: 0, ahead: null } } });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/pts behind the rep above/i)).toBeTruthy();
+    expect(screen.getByText("0")).toBeTruthy();
+  });
+
+  it("renders nothing at all when there is nobody either side", async () => {
+    respond({ ok: true, body: { ...REP, gaps: { behind: null, ahead: null } } });
+    render(<PitchLeaderboard />);
+    await screen.findByText("3rd");
+    expect(screen.queryByText(/pts behind|pts ahead/i)).toBeNull();
+  });
+
+  it("survives a response with no gaps field at all", async () => {
+    // An older server during a rollout. The standing card must still render.
+    const { gaps: _gaps, ...noGaps } = REP;
+    respond({ ok: true, body: noGaps });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText("3rd")).toBeTruthy();
   });
 });

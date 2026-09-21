@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
  * so a board handed unsorted rows still returns ranks, ascending with array position.
  */
 
-import { buildPitchLeaderboard, standingOf } from "../leaderboard";
+import { buildPitchLeaderboard, standingOf, gapsAround } from "../leaderboard";
 import { PRIZE_ELIGIBLE_MIN_PITCHES } from "../rubric";
 import { competitionRanks } from "@/lib/coach/gamification/competitionRank";
 import type { AggregablePitch } from "../aggregate";
@@ -184,3 +184,49 @@ describe("one rep's own standing", () => {
 function pitchOnce(repId: string, total: number): AggregablePitch[] {
   return [pitch(repId, total)];
 }
+
+describe("the gaps to the reps either side", () => {
+  /**
+   * The sheet's Progress board shows "62 pts behind #1 · 118 pts ahead of #3" for a #2 rep.
+   * Distances, never names — which is the only reason a rep may see any of it.
+   */
+  const board = () =>
+    buildPitchLeaderboard([
+      ...many("top", 1, 300),
+      ...many("mid", 1, 238),
+      ...many("low", 1, 120),
+    ]);
+
+  it("measures to the reps immediately above and below", () => {
+    expect(gapsAround(board(), "mid")).toEqual({ behind: 62, ahead: 118 });
+  });
+
+  it("gives the leader no one to be behind", () => {
+    // Null, not zero. Zero would mean a tie with the rep above, and the leader has none.
+    expect(gapsAround(board(), "top")).toEqual({ behind: null, ahead: 62 });
+  });
+
+  it("gives the last rep no one to be ahead of", () => {
+    expect(gapsAround(board(), "low").ahead).toBeNull();
+    expect(gapsAround(board(), "low").behind).toBe(118);
+  });
+
+  it("returns nulls for a rep who is not on the board", () => {
+    expect(gapsAround(board(), "nobody")).toEqual({ behind: null, ahead: null });
+  });
+
+  it("reports a tie as zero, which is not the same as nobody", () => {
+    const tied = buildPitchLeaderboard([...many("a", 1, 100), ...many("b", 1, 100)]);
+    const g = gapsAround(tied, "b");
+    expect(g.behind).toBe(0);
+    expect(g.behind).not.toBeNull();
+  });
+
+  it("rounds at a near-tie, which is the case that actually breaks", () => {
+    // Checked rather than assumed: 80.3 - 18.4 is EXACTLY 61.9, so a large gap proves nothing. The
+    // float error lives at near-ties — `100.1 - 100` is 0.09999999999999432 — which is also where
+    // a rep reads the number most closely.
+    const rows = buildPitchLeaderboard([...many("x", 1, 100.1), ...many("y", 1, 100)]);
+    expect(gapsAround(rows, "y").behind).toBe(0.1);
+  });
+});

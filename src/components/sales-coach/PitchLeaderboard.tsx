@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Trophy, AlertTriangle } from "lucide-react";
 import { PRIZE_ELIGIBLE_MIN_PITCHES } from "@/lib/coach/pitchScore/rubric";
-import type { LeaderboardRow } from "@/lib/coach/pitchScore/leaderboard";
+import type { LeaderboardRow, Gaps } from "@/lib/coach/pitchScore/leaderboard";
 
 /**
  * The Pitch Score competition board (rubric p.6).
@@ -40,6 +40,7 @@ type Resp = {
   rows?: WireRow[];
   meId?: string;
   standing: LeaderboardRow | null;
+  gaps: Gaps;
   boardSize: number;
   skippedPreVerdict: number;
   capped: boolean;
@@ -142,7 +143,7 @@ export function PitchLeaderboard() {
 }
 
 function Board({ data }: { data: Resp }) {
-  const { managerView, rows, standing, boardSize, meId, skippedPreVerdict, capped } = data;
+  const { managerView, rows, standing, gaps, boardSize, meId, skippedPreVerdict, capped } = data;
 
   if (boardSize === 0) {
     return (
@@ -169,6 +170,29 @@ function Board({ data }: { data: Resp }) {
             {standing.total_points} points from {standing.counted} counted{" "}
             {standing.counted === 1 ? "pitch" : "pitches"}
           </p>
+          {/*
+            The sheet's Progress board: "62 pts behind #1 · 118 pts ahead of #3". Distances to the
+            reps immediately above and below, and NO NAMES — which is the only reason a rep may see
+            it at all. Rendered only when there is somebody there: null is not zero, and zero means
+            a tie, so "0 pts behind" is a real and different statement from being top.
+          */}
+          {(gaps?.behind != null || gaps?.ahead != null) && (
+            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] tabular-nums">
+              {gaps.behind != null && (
+                <span className="text-secondary">
+                  <span className="font-semibold text-primary">{gaps.behind}</span> pts behind the
+                  rep above
+                </span>
+              )}
+              {gaps.ahead != null && (
+                <span className="text-secondary">
+                  <span className="font-semibold text-primary">{gaps.ahead}</span> pts ahead of the
+                  rep below
+                </span>
+              )}
+            </p>
+          )}
+
           {!standing.prizeEligible && (
             /*
               Said plainly, and said to the person it affects. A rep who is ranked but not eligible

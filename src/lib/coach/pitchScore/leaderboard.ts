@@ -122,3 +122,54 @@ export function standingOf(rows: readonly LeaderboardRow[], repId: string): Lead
 }
 
 export { PRIZE_ELIGIBLE_MIN_PITCHES };
+
+/**
+ * How far a rep is from the reps immediately above and below them.
+ *
+ * SPECIFIED. The rep dashboard sheet's Progress board shows, for a rep sitting at #2:
+ *
+ *     62 pts behind #1        118 pts ahead of #3
+ *
+ * ADJACENT, not the leader. For a #2 rep the one above IS #1, which makes the sheet's example
+ * ambiguous between "the leader" and "the rep above me" — and the pair only makes sense read as
+ * neighbours, because the second half is unambiguously the rep below. A gap to the leader would
+ * also be demoralising by construction for everyone outside the top three, which is the opposite
+ * of what a progress board is for.
+ *
+ * GAPS, NEVER NAMES. This is what lets a rep see it at all: `docs/SalesCoach-KPI-System.md` forbids
+ * cross-agent ranking being how results are framed to an agent, and a distance is not a person. The
+ * route hands a rep two numbers and no identities — the same reasoning that gives them "3rd of 9"
+ * and nothing else.
+ *
+ * Null means there is nobody there: the leader has nobody above, the last rep has nobody below, and
+ * a rep not on the board has neither. Null is not zero — zero means a tie.
+ */
+export type Gaps = {
+  /** Points needed to catch the rep immediately above. Null when they are already top. */
+  behind: number | null;
+  /** Points clear of the rep immediately below. Null when they are last. */
+  ahead: number | null;
+};
+
+export function gapsAround(rows: readonly LeaderboardRow[], repId: string): Gaps {
+  const i = rows.findIndex((r) => r.repId === repId);
+  if (i < 0) return { behind: null, ahead: null };
+
+  const me = rows[i]!;
+  const above = rows[i - 1];
+  const below = rows[i + 1];
+
+  // Rounded to one place, and the case it exists for is the one a rep looks hardest at.
+  //
+  // Totals are one-decimal sums, and most subtractions of them are exact — 80.3 - 18.4 really is
+  // 61.9. The float error appears at NEAR-TIES: `100.1 - 100` is 0.09999999999999432. So the
+  // unrounded version would be correct everywhere except between two reps who are all but level,
+  // which is precisely where the number is read closely, and it would print fifteen decimal places
+  // on a board about precision.
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+
+  return {
+    behind: above ? r1(above.total_points - me.total_points) : null,
+    ahead: below ? r1(me.total_points - below.total_points) : null,
+  };
+}

@@ -7,7 +7,7 @@ import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchPeriod } from "@/lib/coach/pitchScore/readPitchPeriod";
-import { buildPitchLeaderboard, standingOf } from "@/lib/coach/pitchScore/leaderboard";
+import { buildPitchLeaderboard, standingOf, gapsAround } from "@/lib/coach/pitchScore/leaderboard";
 
 /**
  * GET /api/coach/sales-session/pitch-score/leaderboard?period=week|month|all
@@ -88,6 +88,9 @@ export async function GET(req: NextRequest) {
 
   const rows = buildPitchLeaderboard(read.pitches);
   const standing = standingOf(rows, ctx.userId);
+  // Distances, not identities. This is what lets a rep see it at all — a gap is not a person,
+  // so it carries the competition without cross-agent ranking becoming how results are framed.
+  const gaps = gapsAround(rows, ctx.userId);
 
   if (!manager) {
     // A rep. Their own standing, the size of the field, and nothing that names anyone else.
@@ -95,6 +98,7 @@ export async function GET(req: NextRequest) {
       period,
       managerView: false,
       standing,
+      gaps,
       boardSize: rows.length,
       skippedPreVerdict: read.skippedPreVerdict,
       capped: read.capped,
@@ -128,6 +132,7 @@ export async function GET(req: NextRequest) {
     rows: rows.map((r) => ({ ...r, fullName: names.get(r.repId) ?? null })),
     meId: ctx.userId,
     standing,
+    gaps,
     boardSize: rows.length,
     skippedPreVerdict: read.skippedPreVerdict,
     // A truncated read matters MORE here than on the milestones strip: a leaderboard total
