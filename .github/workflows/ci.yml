@@ -73,6 +73,14 @@ jobs:
       - name: Invariant audit
         run: npm run invariant:audit
 
+      # Reachability audit — code that exists and cannot be reached. Added 2026-09-21 after THREE
+      # modules in one feature turned out to have no caller: the scoring engine, its writer, and
+      # an aggregator with 17 passing tests behind both. Each looked like progress — the test
+      # count rose, every gate stayed green, and nothing anywhere said the code was unreachable.
+      # Counting importers is mechanical, so it can be a gate rather than a habit (A33).
+      - name: Reachability audit
+        run: npm run reachability:audit
+
       - name: Test
         run: npm run test
 
