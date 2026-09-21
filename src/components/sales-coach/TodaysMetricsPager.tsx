@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { RepArena } from "./RepArena";
 import { TodaysMetrics } from "./doorlog/TodaysMetrics";
+import { PitchBreakdown } from "./PitchBreakdown";
+import { PitchMilestones } from "./PitchMilestones";
 
 /**
  * TodaysMetricsPager — the Macro Mode "Today's Metrics" tab as ONE module with TWO pages (founder spec 2026-09-04):
@@ -14,14 +16,32 @@ import { TodaysMetrics } from "./doorlog/TodaysMetrics";
  * preventDefault — but the axis is locked on the first move, so a vertical gesture is left entirely to the pane's
  * own scroll (the drag never engages, nothing is prevented). Edge drags rubber-band (×0.35) instead of showing blank.
  *
- * Layout: fills the shell's flex-1 min-h-0 slot. Track width:200% with two 50% panes. Pane 0 wraps RepArena in an
- * overflow-y-auto scroller (ra-wrap doesn't scroll itself); pane 1 holds TodaysMetrics (its own scroll).
+ * Layout: fills the shell's flex-1 min-h-0 slot. The track and pane widths are DERIVED from PAGES.length, so a
+ * page can be added without a stale literal sliding the track to the wrong offset. Pane 0 wraps RepArena in an
+ * overflow-y-auto scroller (ra-wrap doesn't scroll itself); pane 1 holds PitchBreakdown; pane 2 holds
+ * TodaysMetrics (its own scroll).
  */
 
+/**
+ * THE SHEET'S SUB-NAV, 2026-09-22: Progress | Breakdown | Metrics.
+ *
+ * This pager already carried Progress and Metrics under those exact labels — the rep dashboard
+ * sheet was describing it rather than prescribing something new. What was missing was Breakdown,
+ * in the middle, which is the sheet's order and also its argument: where you stand, then why, then
+ * the field read.
+ *
+ * It is added HERE and not on /my-progress. That page has the same three tabs and its nav entry is
+ * `managerOnly`, so a rep cannot reach it — the tabs were built on a surface the rep they were for
+ * cannot open (A31, found by sweeping rep-facing routes the day after).
+ */
 const PAGES = [
   { key: "progress", label: "Progress" },
+  { key: "breakdown", label: "Breakdown" },
   { key: "metrics", label: "Metrics" },
 ] as const;
+
+/** One pane as a share of the track. Derived, so adding a page cannot leave a stale literal. */
+const PANE_WIDTH = `${100 / PAGES.length}%`;
 
 const AXIS_LOCK_PX = 8; // movement past this decides the gesture's axis (horizontal drag vs vertical scroll)
 const EDGE_RESISTANCE = 0.35; // drag past an end rubber-bands at this fraction
@@ -147,8 +167,11 @@ export function TodaysMetricsPager() {
         <div
           className="flex h-full duration-300 ease-out motion-reduce:transition-none"
           style={{
-            width: "200%",
-            transform: `translateX(calc(-${page * 50}% + ${dragPx}px))`,
+            // Derived from PAGES.length, not the 200%/50% pair this carried when there were two.
+            // A third pane added against hard-coded halves slides to the wrong offset and clips the
+            // last one — silently, because the track still looks like a track.
+            width: `${PAGES.length * 100}%`,
+            transform: `translateX(calc(-${page * (100 / PAGES.length)}% + ${dragPx}px))`,
             transition: dragging ? "none" : "transform 300ms ease-out", // follow the finger; animate the snap
           }}
         >
@@ -158,18 +181,40 @@ export function TodaysMetricsPager() {
             aria-label="Progress"
             aria-hidden={page !== 0}
             className="h-full overflow-y-auto"
-            style={{ width: "50%" }}
+            style={{ width: PANE_WIDTH }}
           >
             <RepArena />
+            {/*
+              The Pitch Score milestone strip, beneath the Arena, on the page the sheet puts it on.
+              TWO STRIPS ON ONE PANE, deliberately: the Arena's count SESSIONS on the points ledger
+              and these count COUNTED PITCHES, so they diverge permanently and merging them would
+              mean silently moving earned-at dates the Arena has already shown.
+            */}
+            <div className="px-4 md:px-8 pb-8 max-w-4xl mx-auto w-full">
+              <PitchMilestones />
+            </div>
           </div>
 
-          {/* Pane 1 — the original door Today's-Metrics (brings its own scroll). */}
+          {/* Pane 1 — the rubric Breakdown. Brings its own loading, failed and empty states. */}
+          <div
+            role="tabpanel"
+            aria-label="Breakdown"
+            aria-hidden={page !== 1}
+            className="h-full overflow-y-auto"
+            style={{ width: PANE_WIDTH }}
+          >
+            <div className="px-4 md:px-8 py-4 max-w-4xl mx-auto w-full">
+              <PitchBreakdown />
+            </div>
+          </div>
+
+          {/* Pane 2 — the original door Today's-Metrics (brings its own scroll). */}
           <div
             role="tabpanel"
             aria-label="Metrics"
-            aria-hidden={page !== 1}
+            aria-hidden={page !== 2}
             className="flex h-full flex-col"
-            style={{ width: "50%" }}
+            style={{ width: PANE_WIDTH }}
           >
             <TodaysMetrics />
           </div>
