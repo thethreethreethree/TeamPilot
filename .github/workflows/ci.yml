@@ -13,7 +13,26 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
+    # A real Postgres, for the migration apply audit. Added 2026-09-21 after a migration that
+    # could not apply to production passed every other gate — 4,696 tests, six audits and a
+    # production build, all green, on a schema that could not be created. The only check that
+    # sees that class is applying the whole history to a database, so CI has to have one.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,6 +99,24 @@ jobs:
       # Counting importers is mechanical, so it can be a gate rather than a habit (A33).
       - name: Reachability audit
         run: npm run reachability:audit
+
+      # Migration apply audit — the whole history against a real Postgres, twice.
+      #
+      # Pass 1 (fresh): a migration that cannot apply to a database shaped like production is a
+      # deployment blocker. On 2026-09-21 that was 0252, which re-used the `pitches` table name
+      # from 0215 — `create table if not exists` made it a silent no-op and the migration then
+      # died on a missing column. It had been "verified against real Postgres" twice, against a
+      # hand-written prelude that could not contain the table it collided with.
+      #
+      # Pass 2 (re-apply): A12, migrations are safe-to-re-run BY CONSTRUCTION. 18 historical
+      # migrations are not, and are baselined in the script; this fails only on a NEW one.
+      - name: Migration apply audit
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: npm run migration:audit
 
       - name: Test
         run: npm run test
