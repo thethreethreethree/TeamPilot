@@ -17,6 +17,7 @@ import {
 import TopBar from "@/components/layout/TopBar";
 import { SessionCoachTools } from "@/components/sales-coach/SessionCoachTools";
 import { SessionTranscript } from "@/components/sales-coach/SessionTranscript";
+import { PitchScorePanel } from "@/components/sales-coach/PitchScorePanel";
 import {
   PivotAndScores,
   type PivotMoment,
@@ -54,6 +55,10 @@ type Segment = {
 type Session = {
   id: string;
   context: "in_person" | "video";
+  // Coaching kind (0237): 'sales' | 'meeting' | 'huddle'. The API already returned it; the type
+  // did not name it. Needed so the Pitch Score panel does not offer to grade a team huddle
+  // against a door-to-door rubric and then 409 the person who pressed the button.
+  sessionKind?: string;
   clientLabel: string | null;
   status: "active" | "ended" | "reviewed";
   startedAt: string;
@@ -481,6 +486,17 @@ export default function SessionDetail() {
 
         {/* Full transcript (partner meeting 9/2) — collapsible; RLS-gated to the owner or a same-company admin. */}
         {!loading && <SessionTranscript sessionId={id} />}
+
+        {/* Pitch Score — BESIDE the existing review and scores, never replacing them. The build
+            guide is explicit that "the letter grade and skill scores stay as they are; the Pitch
+            Score runs beside them." Rendered only for a finished SALES call: an active session has
+            no complete recording to grade, and a huddle is not a pitch. */}
+        {!loading && session && session.status !== "active" && (
+          <PitchScorePanel
+            sessionId={id}
+            scorable={(session.sessionKind ?? "sales") === "sales"}
+          />
+        )}
 
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted py-12 justify-center">
