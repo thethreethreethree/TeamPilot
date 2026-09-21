@@ -39,8 +39,32 @@ import type { PitchScore } from "./scorePitch";
  */
 
 /** One scored pitch plus the graded detail the aggregate needs. */
+/**
+ * Exactly the score fields the aggregation reads — deliberately NOT the whole PitchScore.
+ *
+ * The full type also carries rubricVersion, elementBreakdown, deliveryScaled and
+ * rejectedLowConfidence. A reader loading pitches back out of the database has no natural value
+ * for elementBreakdown (it holds the element rows separately) and would have to fabricate one to
+ * satisfy the type. A fabricated field that nothing reads is still a lie in the data, and the next
+ * person to add a use for it gets an empty array with no indication it was never real.
+ *
+ * So the input is narrowed to what is genuinely used. A live PitchScore still satisfies it.
+ */
+export type AggregableScore = Pick<
+  PitchScore,
+  | "base"
+  | "bonus"
+  | "violations"
+  | "total"
+  | "qualifying"
+  | "notQualifyingReason"
+  | "sectionPoints"
+  | "bonusBreakdown"
+  | "violationBreakdown"
+>;
+
 export type AggregablePitch = {
-  score: PitchScore;
+  score: AggregableScore;
   /** The grades that produced the score — needed for the per-element hit/partial/missed rates. */
   elements: ReadonlyArray<{ elementId: string; grade: Grade }>;
   /** Sale outcome, for the close rate. */
