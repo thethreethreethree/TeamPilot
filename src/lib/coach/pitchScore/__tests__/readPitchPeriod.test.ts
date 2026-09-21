@@ -247,7 +247,13 @@ describe("a failed read is never an empty period", () => {
 
   it("returns an empty period, not null, when there genuinely were no pitches", async () => {
     mockDb({ pitches: [] });
-    expect(await readPitchPeriod({})).toEqual({ pitches: [], skippedPreVerdict: 0 });
+    expect(await readPitchPeriod({})).toEqual({
+      pitches: [],
+      skippedPreVerdict: 0,
+      // Not capped: an empty read did not hit a bound, and saying it did would tell a caller
+      // the period was truncated when it was simply empty.
+      capped: false,
+    });
     expect(console.error).not.toHaveBeenCalled();
   });
 });
@@ -265,5 +271,39 @@ describe("the output actually feeds the aggregator", () => {
     const summed =
       Math.round(Object.values(agg.sectionAverages).reduce((a, b) => a + b, 0) * 10) / 10;
     expect(summed).toBe(agg.avgBase);
+  });
+});
+
+describe("the read reports its own bound", () => {
+  /**
+   * The bound belongs to this module: it knows the limit it applied and PostgREST's max_rows
+   * behind it. Callers used to recount rows against a copied 900, which is the duplicated decision
+   * this verdict exists to end.
+   */
+  it("says capped when the query filled its limit", async () => {
+    mockDb({ pitches: Array.from({ length: 5 }, (_, i) => pitchRow({ id: `p${i}` })) });
+    const read = await readPitchPeriod({ limit: 5 });
+    expect(read!.capped).toBe(true);
+  });
+
+  it("does not say capped when it came back short", async () => {
+    mockDb({ pitches: Array.from({ length: 4 }, (_, i) => pitchRow({ id: `p${i}` })) });
+    const read = await readPitchPeriod({ limit: 5 });
+    expect(read!.capped).toBe(false);
+  });
+
+  it("counts ROWS, not the mapped pitches", async () => {
+    // A pitch scored before the section verdict existed is skipped AFTER the query. Comparing the
+    // mapped array would under-report a read that genuinely filled its limit, and the caller would
+    // be told a truncated period was complete.
+    mockDb({
+      pitches: Array.from({ length: 5 }, (_, i) =>
+        i < 2 ? pitchRow({ id: `p${i}`, section_points: null }) : pitchRow({ id: `p${i}` })
+      ),
+    });
+    const read = await readPitchPeriod({ limit: 5 });
+    expect(read!.skippedPreVerdict).toBe(2);
+    expect(read!.pitches).toHaveLength(3);
+    expect(read!.capped).toBe(true);
   });
 });

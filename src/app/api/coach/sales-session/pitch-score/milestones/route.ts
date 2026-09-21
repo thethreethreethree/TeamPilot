@@ -52,10 +52,13 @@ export async function GET(req: NextRequest) {
     repId,
     milestones: derivePitchMilestones(read.pitches),
     /**
-     * Whether the read hit its bound. The milestones are still correct when it did — they are all
-     * earliest-first and the cap drops the most recent — but a caller that later adds a "latest"
-     * badge needs to know, and a silent cap is the defect the leaderboard's own residual names.
+     * The reader's own verdict, not `pitches.length >= 900`. The first version of this line copied
+     * the limit and compared against it — a duplicated decision that would have kept answering 900
+     * after the reader moved on (§2.2).
+     *
+     * The milestones stay correct when it is true: every one is earliest-first and the cap drops
+     * the most RECENT pitches. It is reported because a later "latest" badge would not be.
      */
-    capped: read.pitches.length >= 900,
+    capped: read.capped,
   });
 }

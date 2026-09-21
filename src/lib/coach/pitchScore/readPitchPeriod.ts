@@ -35,6 +35,20 @@ export type PeriodRead = {
    * problem. The board says how many were skipped instead.
    */
   skippedPreVerdict: number;
+  /**
+   * The read hit its row bound, so these pitches are a TRUNCATION of the period rather than the
+   * period itself.
+   *
+   * Returned as a verdict because the bound is this module's decision: it knows the limit it
+   * applied and PostgREST's `max_rows` behind it. A caller computing `pitches.length >= 900` is
+   * re-deriving that decision from a constant it had to copy, and would keep answering with the
+   * old number the first time the limit moves (§2.2). One route was doing exactly that.
+   *
+   * What a truncation COSTS depends on the read's order, which is why this says "capped" rather
+   * than "wrong": a newest-first read loses the oldest pitches, an `oldestFirst` read loses the
+   * newest. Milestones survive it; a leaderboard total does not.
+   */
+  capped: boolean;
 };
 
 export async function readPitchPeriod(
@@ -101,7 +115,7 @@ export async function readPitchPeriod(
   }
 
   const rows = pitchRows ?? [];
-  if (rows.length === 0) return { pitches: [], skippedPreVerdict: 0 };
+  if (rows.length === 0) return { pitches: [], skippedPreVerdict: 0, capped: false };
 
   const ids = rows.map((r) => r.id as string);
 
@@ -196,5 +210,7 @@ export async function readPitchPeriod(
     });
   }
 
-  return { pitches, skippedPreVerdict };
+  // `rows` and not `pitches`: a pre-verdict pitch is skipped AFTER the query, so comparing the
+  // mapped array would under-report a read that genuinely filled its limit.
+  return { pitches, skippedPreVerdict, capped: rows.length >= limit };
 }

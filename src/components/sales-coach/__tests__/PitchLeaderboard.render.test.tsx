@@ -40,6 +40,7 @@ const MANAGER = {
   standing: { repId: "r2", total_points: 120, counted: 6, pitchesTotal: 6, avgPitchScore: 20, bestPitchScore: 40, prizeEligible: true, rank: 2 },
   boardSize: 2,
   skippedPreVerdict: 0,
+  capped: false,
 };
 
 const REP = {
@@ -48,6 +49,7 @@ const REP = {
   standing: { repId: "me", total_points: 70, counted: 2, pitchesTotal: 3, avgPitchScore: 35, bestPitchScore: 40, prizeEligible: false, rank: 3 },
   boardSize: 9,
   skippedPreVerdict: 0,
+  capped: false,
 };
 
 const fetchMock = vi.fn();
@@ -226,5 +228,30 @@ describe("ordinals read the way a person says them", () => {
     respond({ ok: true, body: { ...REP, standing: { ...REP.standing, rank }, boardSize: 30 } });
     render(<PitchLeaderboard />);
     expect(await screen.findByText(text)).toBeTruthy();
+  });
+});
+
+describe("a truncated period is said out loud", () => {
+  it("warns when the read did not cover the whole period", async () => {
+    // The one caveat on this screen that can change the ORDER rather than a number: the board sums
+    // a period, so losing its oldest pitches lowers real totals and can move a rep past another.
+    respond({ ok: true, body: { ...MANAGER, capped: true } });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/covers only part of it/i)).toBeTruthy();
+    expect(screen.getByText(/shorter period will be complete/i)).toBeTruthy();
+  });
+
+  it("says nothing when the period is complete", async () => {
+    respond({ ok: true, body: MANAGER });
+    render(<PitchLeaderboard />);
+    await screen.findByText("Ada Vance");
+    expect(screen.queryByText(/covers only part of it/i)).toBeNull();
+  });
+
+  it("warns a rep too, not only a manager", async () => {
+    // A rep's standing is computed from the same truncated set, so their rank can be wrong.
+    respond({ ok: true, body: { ...REP, capped: true } });
+    render(<PitchLeaderboard />);
+    expect(await screen.findByText(/covers only part of it/i)).toBeTruthy();
   });
 });

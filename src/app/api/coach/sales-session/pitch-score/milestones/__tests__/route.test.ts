@@ -60,6 +60,7 @@ beforeEach(() => {
   asMock(readPitchPeriod).mockResolvedValue({
     pitches: [pitch("2026-08-12T10:00:00.000Z"), pitch("2026-09-18T10:00:00.000Z", 104)],
     skippedPreVerdict: 0,
+    capped: false,
   });
 });
 
@@ -77,18 +78,27 @@ describe("the read is all-time and oldest-first", () => {
     expect(args().oldestFirst).toBe(true);
   });
 
-  it("reports when the read hit its bound", async () => {
+  it("reports the bound by CONSUMING the reader's verdict, not recounting rows", async () => {
+    // Two pitches and capped: true. A route that recomputed `pitches.length >= 900` would say
+    // false here — which is the duplicated decision this field was moved into the reader to end.
     asMock(readPitchPeriod).mockResolvedValue({
-      pitches: Array.from({ length: 900 }, (_, i) =>
-        pitch(new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString())
-      ),
+      pitches: [pitch("2026-08-12T10:00:00.000Z")],
       skippedPreVerdict: 0,
+      capped: true,
     });
     const body = await (await GET(req())).json();
     expect(body.capped).toBe(true);
   });
 
-  it("does not claim capped when it is not", async () => {
+  it("does not claim capped when the reader says otherwise", async () => {
+    // And the mirror: 900 pitches with capped false. A recounting route would say true.
+    asMock(readPitchPeriod).mockResolvedValue({
+      pitches: Array.from({ length: 900 }, (_, i) =>
+        pitch(new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString())
+      ),
+      skippedPreVerdict: 0,
+      capped: false,
+    });
     const body = await (await GET(req())).json();
     expect(body.capped).toBe(false);
   });

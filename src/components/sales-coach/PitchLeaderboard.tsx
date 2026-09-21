@@ -42,6 +42,7 @@ type Resp = {
   standing: LeaderboardRow | null;
   boardSize: number;
   skippedPreVerdict: number;
+  capped: boolean;
 };
 
 type State =
@@ -141,7 +142,7 @@ export function PitchLeaderboard() {
 }
 
 function Board({ data }: { data: Resp }) {
-  const { managerView, rows, standing, boardSize, meId, skippedPreVerdict } = data;
+  const { managerView, rows, standing, boardSize, meId, skippedPreVerdict, capped } = data;
 
   if (boardSize === 0) {
     return (
@@ -230,6 +231,19 @@ function Board({ data }: { data: Resp }) {
         Pitches scored before the section verdict existed cannot be placed. Saying how many were
         left out beats folding them in at zero, which would read as a coaching problem.
       */}
+      {/*
+        A truncated read is said out loud, and it is the one caveat on this screen that can change
+        the ORDER rather than a number. The board sums a period; losing its oldest pitches lowers
+        real totals and can move a rep past another. A board that silently ranked on part of the
+        period would be wrong in the way nobody checks — confidently, and in the right shape.
+      */}
+      {capped && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+          This period has more pitches than one read returns, so the board covers only part of it.
+          A shorter period will be complete.
+        </p>
+      )}
+
       {skippedPreVerdict > 0 && (
         <p className="text-[11px] text-muted">
           {skippedPreVerdict} older {skippedPreVerdict === 1 ? "pitch is" : "pitches are"} not

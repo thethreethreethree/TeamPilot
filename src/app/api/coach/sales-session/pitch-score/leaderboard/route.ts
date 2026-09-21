@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
       standing,
       boardSize: rows.length,
       skippedPreVerdict: read.skippedPreVerdict,
+      capped: read.capped,
     });
   }
 
@@ -129,5 +130,9 @@ export async function GET(req: NextRequest) {
     standing,
     boardSize: rows.length,
     skippedPreVerdict: read.skippedPreVerdict,
+    // A truncated read matters MORE here than on the milestones strip: a leaderboard total
+    // is a sum over the period, so losing the oldest pitches lowers real totals and can
+    // reorder the board. Silent truncation was named in this build's own residual.
+    capped: read.capped,
   });
 }
