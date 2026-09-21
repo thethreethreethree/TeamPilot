@@ -1580,8 +1580,30 @@ const INV28_ALLOWLIST = new Map();
 // The first version of this loop iterated FILES looking for migration paths and therefore matched
 // nothing; its own self-test caught that, which is the second time today a self-test has caught a
 // guard that had silently stopped looking.
+/**
+ * Strip SQL comments before looking for CREATE TABLE.
+ *
+ * FALSE POSITIVE FIXED 2026-09-22, and it is the shape A30 warns about. The check reported
+ * "two migrations create the same table (**if**)" — not a table at all. `CREATE_TABLE_RE` makes
+ * `if not exists` an OPTIONAL group, so when the phrase appears in PROSE and does not end in
+ * whitespace — 0022's `` `create table if not exists` above is a `` (a backtick follows
+ * "exists") and 0258's comment wrapping the phrase across two lines — the optional group fails
+ * and the regex happily captures `if` as the table name.
+ *
+ * One such comment is harmless. The second one in the repository makes `if` a duplicate and
+ * reds the build, pointing the author at two files that share nothing. This sat latent from the
+ * day 0022 was written and fired the moment a second migration described itself in prose.
+ *
+ * Stripping comments is the precise fix rather than tightening the regex: a CREATE TABLE inside
+ * a comment is never a CREATE TABLE, whatever it looks like, and the check keeps its full power
+ * over real DDL. Block comments go first so a `--` inside one cannot truncate the strip.
+ */
+function stripSqlComments(sql) {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
+}
+
 for (const name of migs) {
-  const sql = readFileSync(join(MIG_DIR, name), "utf8");
+  const sql = stripSqlComments(readFileSync(join(MIG_DIR, name), "utf8"));
   const seenHere = new Set();
   for (const m of sql.matchAll(CREATE_TABLE_RE)) {
     const table = m[1].toLowerCase();
@@ -1844,6 +1866,14 @@ st("INV28 matches a plain create table", [..."create table foo (".matchAll(CREAT
 st("INV28 matches create table if not exists", [..."create table if not exists bar (".matchAll(CREATE_TABLE_RE)].length === 1);
 st("INV28 matches a public-qualified name", [..."create table if not exists public.baz (".matchAll(CREATE_TABLE_RE)].length === 1);
 st("INV28 does NOT match create index", [..."create index if not exists x on y (z)".matchAll(CREATE_TABLE_RE)].length === 0);
+st("INV28 ignores a CREATE TABLE inside a line comment",
+  [...stripSqlComments("-- create table foo (\ncreate table bar (").matchAll(CREATE_TABLE_RE)].map((m) => m[1]).join() === "bar");
+st("INV28 ignores the prose that produced the `if` false positive",
+  [...stripSqlComments("-- `create table if not exists` above is a no-op").matchAll(CREATE_TABLE_RE)].length === 0);
+st("INV28 ignores the phrase wrapped across two comment lines",
+  [...stripSqlComments("-- see: create table if not\n-- exists patterns is a no-op").matchAll(CREATE_TABLE_RE)].length === 0);
+st("INV28 ignores a CREATE TABLE inside a block comment",
+  [...stripSqlComments("/* create table foo ( */ create table baz (").matchAll(CREATE_TABLE_RE)].map((m) => m[1]).join() === "baz");
 st("INV28 saw the migrations at all (the map is populated)", tableFirstSeen.size > 20);
 st("INV28 knows the door log's pitches table", tableFirstSeen.has("pitches"));
 

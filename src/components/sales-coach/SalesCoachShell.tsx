@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
-import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import {
   NavProgressProvider,
@@ -21,7 +20,6 @@ import {
   ClipboardCheck,
   GraduationCap,
   Home,
-  Library,
   MessageSquare,
   Mic,
   Gauge,
@@ -33,7 +31,6 @@ import {
   Target,
   TrendingUp,
   Trophy,
-  Users,
   Video,
   User,
 } from "lucide-react";
@@ -104,18 +101,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // MANAGER DASHBOARD — the manager's coaching workspace, and now exactly the three items the
-    // 2026-09-19 boards draw. Everything else moved out by the redesign's own logic rather than
-    // being kept here out of habit:
-    //   · Training — the guide folds the team brief into Coach Assessment ("the existing training
-    //     brief, reshaped into three priority cards"), so a manager reaches it there, not as a
-    //     separate destination.
-    //   · Sessions — recordings become the Recordings tab inside a rep's detail (Project 4).
-    //   · Roleplay — a manager enters it through the pattern action "Assign Role Play drill".
-    //   · Team — member management is an admin utility, not a coaching surface; it sits in Team
-    //     Tools below.
-    // Nothing was deleted; every destination is still reachable. See
-    // docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md B2.
+    // MANAGER DASHBOARD — exactly the three items the 2026-09-19 boards draw, and no more.
+    //
+    // FOUNDER RULING 2026-09-22, asked and answered as "follow the boards literally" after the
+    // boards were opened and read (docs/SYSTEM UPDATES AND REVISION 09-22-2026/EVIDENCE.md).
+    // Every manager board — Patterns, Rep progress — shows this group as Coach Assessment, Score
+    // Calibration, Pattern Interrupt, and shows TEAM TOOLS below as Team Chat, KPI Analytics,
+    // Scoreboard, My Progress, Browser extension, Settings. Training, Roleplay, Team and One
+    // Liners appear in NEITHER, and the ruling is to match the boards rather than to keep them
+    // out of habit.
+    //
+    // WHAT THAT COSTS, recorded here because it is not visible from the code: Training has no nav
+    // entry for anyone after this change. The guide's replacement route is Coach Assessment's
+    // "What the team needs to work on" card — "the existing training brief, reshaped into three
+    // priority cards" — which is Step 3 and is NOT BUILT YET. Until it is, /training is reachable
+    // only by URL. Carried as an open item rather than papered over with a link the boards do not
+    // have. See LOGIC-AND-CONTRADICTIONS.md B2.
     header: "Manager Dashboard",
     collapsible: true,
     items: [
@@ -126,10 +127,15 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // MY COACHING — new in the 2026-09-19 rep board, and the natural home for every surface that
-    // shows a rep their OWN work. The board draws the first three; Analytics, Sessions and Training
-    // are the rep's own self-views that used to be scattered across the manager group and the
-    // ungrouped run, and they belong here under the new logic.
+    // MY COACHING — three items, which is what the rep board draws.
+    //
+    // FOUNDER RULING 2026-09-22 ("three, as the boards show"). The previous version of this group
+    // had six: it added Analytics, Sessions and Training on the reasoning that they are all
+    // surfaces showing a rep their own work. That reasoning is fine and it was not the ask — the
+    // board is a design, and a six-item group is a different screen from the one that was drawn.
+    //
+    // `Pattern Interrupt  rep (web).pdf`, read 2026-09-22: MY COACHING = My Progress, Pattern
+    // Interrupt [NEW], Role Play. TEAM TOOLS = Team Chat, Scoreboard, Browser extension, Settings.
     header: "My Coaching",
     collapsible: true,
     items: [
@@ -137,16 +143,30 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Pattern Interrupt", href: "/dashboard/sales-coach/pattern-interrupt", icon: Repeat, repOnly: true, badge: "NEW" },
       // "Role Play" (two words) is the rep board's label for the existing /roleplay route.
       { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target, repOnly: true },
-      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
-      { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic, repOnly: true },
-      { label: "Training", href: "/dashboard/sales-coach/training", icon: GraduationCap, repOnly: true },
     ],
   },
   {
-    // TEAM TOOLS — in the boards this header now sits over what used to be the ungrouped bottom run.
-    // It is the shared-utility group, which is why Team (member management) and One Liners land here
-    // rather than in a coaching workspace. Manager sees eight items, a rep four: KPI Analytics, My
-    // Progress and Team are manager-only, and the rep's My Progress lives up in My Coaching.
+    // TEAM TOOLS — the boards' bottom group, drawn from both sides.
+    //
+    // A manager board shows six: Team Chat, KPI Analytics, Scoreboard, My Progress, Browser
+    // extension, Settings. The rep board shows four: Team Chat, Scoreboard, Browser extension,
+    // Settings. The difference is exactly KPI Analytics and My Progress, so those two are
+    // managerOnly here and the union renders correctly for each role without a third list.
+    //
+    // My Progress is managerOnly in THIS group and repOnly in My Coaching above — the same
+    // destination, placed where each board puts it, so each role sees it once.
+    //
+    // GONE FROM THIS SIDEBAR by the same ruling: Training, Team (member management), One Liners,
+    // Analytics and Sessions. Checked rather than assumed — two of those five are still reachable:
+    // Analytics and Sessions remain in MOBILE_TABS below, so a rep keeps them on the phone, and
+    // the redesign folds them in anyway (a rep's own scores live on Progress/Breakdown; recordings
+    // become Project 4's Recordings tab inside rep detail). Role Play is in MACRO_MOBILE_TABS and
+    // in My Coaching, so only a MANAGER loses it as a destination — which is the guide's intent,
+    // since a manager enters it through the pattern action "Assign Role Play drill".
+    //
+    // That leaves three genuinely unlinked: TRAINING, TEAM and ONE LINERS. Their pages exist and
+    // route; nothing anywhere links to them. Training is the live team-brief generator, and its
+    // replacement route is guide Step 3, unbuilt. Recorded as an open item, not as a fixed thing.
     header: "Team Tools",
     collapsible: true,
     items: [
@@ -154,8 +174,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp, managerOnly: true },
       { label: "Scoreboard", href: "/dashboard/sales-coach/scoreboard", icon: Trophy },
       { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge, managerOnly: true },
-      { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
-      { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
       { label: "Browser extension", href: "/extension/download-sales", icon: Puzzle, external: true },
       { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
     ],
@@ -165,10 +183,15 @@ const NAV_SECTIONS: NavSection[] = [
 // Macro Mode focus (founder 2026-08-18): the desktop mirror of the mobile home hiding two cards. When a rep is
 // in Macro Mode, these two non-door-to-door sidebar entries hide — "Live AI Coach & Sessions" (/sessions) and
 // "One Liners" (/strategy). Exactly those two, only in Macro Mode.
-const MACRO_HIDDEN_HREFS = new Set([
-  "/dashboard/sales-coach/sessions",
-  "/dashboard/sales-coach/strategy",
-]);
+//
+// EMPTY SINCE 2026-09-22, and kept rather than deleted. The founder's "follow the boards literally"
+// ruling removed BOTH of these from the sidebar outright, so the filter below now has nothing to
+// hide — Macro Mode and normal mode draw the same nav. The set stays because the MECHANISM is
+// still wanted and re-adding an entry is one line; what would be wrong is leaving two hrefs in
+// here that no longer exist in NAV_SECTIONS, because a reader would take that as evidence they are
+// in the sidebar somewhere. Dead config that looks live is how the next author infers a feature
+// that is not there.
+const MACRO_HIDDEN_HREFS = new Set<string>([]);
 
 /** Active-state for a nav item: exact match, or a child route under it (except Home, which would match
  *  everything). External items never show active (they open a new tab). Shared by the sidebar sections. */

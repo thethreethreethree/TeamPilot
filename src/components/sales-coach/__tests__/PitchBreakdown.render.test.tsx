@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
-import { PitchBreakdown, biggestOpportunity, strongestElement } from "../PitchBreakdown";
+import { PitchBreakdown, biggestOpportunity } from "../PitchBreakdown";
 // The board consumes the rubric's own lowestSection rather than carrying a copy; these tests
 // exercise the authority directly, which is what makes them a guard on the board's behaviour
 // rather than on a duplicate that happens to agree.
@@ -54,41 +54,6 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(cleanup);
-
-describe("picking the strength", () => {
-  /**
-   * Unit tests rather than another render assertion, because the render fixture has two elements
-   * and cannot distinguish the two wrong implementations — both survived a mutation against it.
-   * The pure function can be handed the cases that separate them.
-   */
-  const el = (label: string, maxPoints: number, avgPoints: number) =>
-    ({ elementId: label, section: "close", label, maxPoints, avgPoints, hitRate: 0, partialRate: 0, missedRate: 0, gradedIn: 10 }) as const;
-
-  it("picks CLOSEST TO ITS CEILING, not the highest raw points", () => {
-    // A 2-point element hit every time is a strength. A 9-point element hit half the time is not,
-    // even though it scores more — the question is what the rep does WELL.
-    const consistent = el("Consistent", 2, 2);
-    const bigger = el("Bigger", 9, 4.5);
-    expect(strongestElement([bigger, consistent])?.label).toBe("Consistent");
-  });
-
-  it("does not call an element they never scored a strength", () => {
-    // Never attempted is a gap of its full value, so a naive smallest-gap pick would choose it the
-    // moment every attempted element was imperfect — and tell a rep their strength is a thing they
-    // have never done.
-    const never = el("Never", 1, 0);
-    const good = el("Good", 8, 7.5);
-    expect(strongestElement([never, good])?.label).toBe("Good");
-  });
-
-  it("returns nothing for an empty period", () => {
-    expect(strongestElement([])).toBeNull();
-  });
-
-  it("returns nothing when nothing has been scored at all", () => {
-    expect(strongestElement([el("A", 3, 0), el("B", 5, 0)])).toBeNull();
-  });
-});
 
 describe("ranking the opportunity", () => {
   it("ranks by POINTS lost, not by hit rate", () => {
@@ -219,106 +184,33 @@ describe("the board", () => {
   });
 });
 
-describe("the board leads with a strength, then the gap", () => {
-  /**
-   * `docs/SalesCoach-KPI-System.md`, agent view: *"Growth-framed — lead with what improved, then
-   * growth areas, per the coaching philosophy."* This board used to open on BIGGEST OPPORTUNITY,
-   * which is a deficit. The founder's 2026-09-22 ruling makes that document win on anything a rep
-   * sees.
-   *
-   * The same two facts in the other order are a different message to the person reading them, so
-   * the ORDER is what these tests pin, not merely the presence of both.
-   */
-  const ready = async () => {
+/**
+ * ONE CALLOUT. Founder ruling 2026-09-22, from the board: page 2 of `EloState Rep Pitch
+ * Dashboard.pdf` shows a single amber BIGGEST OPPORTUNITY and then the section bars.
+ *
+ * Deleted with it: eleven tests over "Most improved" and "Your strongest", and the
+ * `strongestElement` unit block. They were good tests of behaviour the board does not have. The
+ * ordering assertions in particular — strength above opportunity, improved above strength — were
+ * pinning a stack that two closures had already flagged as too dense, which is worth noticing:
+ * tests lock in a design decision just as firmly when the decision is wrong.
+ */
+describe("the board opens with the opportunity and nothing above it", () => {
+  it("shows the one callout the board draws", async () => {
     respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0 } });
-    const r = render(<PitchBreakdown />);
+    const { container } = render(<PitchBreakdown />);
     await screen.findByText(/Biggest opportunity/i);
-    return r;
-  };
-
-  it("names the strongest element", async () => {
-    await ready();
-    // deliv.tone averages 6.9 of 7 — the smallest gap to its ceiling.
-    expect(screen.getByText(/Your strongest/i)).toBeTruthy();
-    expect(screen.getByText(/Tone and certainty: averaging 6.9 of 7/)).toBeTruthy();
-  });
-
-  it("puts the strength ABOVE the opportunity", async () => {
-    const { container } = await ready();
-    const text = container.textContent ?? "";
-    expect(text.indexOf("Your strongest")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("Biggest opportunity")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("Your strongest")).toBeLessThan(text.indexOf("Biggest opportunity"));
-  });
-
-  it("still shows the opportunity — growth areas follow, they are not removed", async () => {
-    await ready();
-    expect(screen.getByText(/Biggest opportunity/i)).toBeTruthy();
     expect(screen.getByText(/Into paperwork/)).toBeTruthy();
-  });
-});
-
-describe("the board leads with what improved", () => {
-  /**
-   * `docs/SalesCoach-KPI-System.md` principle 1 — "the primary comparison is
-   * agent-vs-their-own-past (self-Elo)" — and of this surface, "lead with what improved".
-   *
-   * The state that matters most is INSUFFICIENT. Principle 3 makes "not enough evidence" a state a
-   * rep must be able to SEE, so a board that quietly showed the strength instead would be
-   * answering a question it had not answered.
-   */
-  const withVerdict = async (improvement: unknown) => {
-    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0, improvement } });
-    const r = render(<PitchBreakdown />);
-    await screen.findByText(/Biggest opportunity/i);
-    return r;
-  };
-
-  it("names the element that rose, with before and after", async () => {
-    await withVerdict({
-      status: "improved",
-      top: { elementId: "deliv.tone", label: "Tone and certainty", before: 4.5, after: 6.9, gained: 2.4 },
-    });
-    expect(screen.getByText(/Most improved/i)).toBeTruthy();
-    expect(screen.getByText(/Tone and certainty: 4.5 → 6.9 per pitch/)).toBeTruthy();
-    expect(screen.getByText(/Up 2.4 points a pitch/)).toBeTruthy();
-  });
-
-  it("puts what improved ABOVE what is strongest", async () => {
-    const { container } = await withVerdict({
-      status: "improved",
-      top: { elementId: "a", label: "Tone and certainty", before: 1, after: 5, gained: 4 },
-    });
     const text = container.textContent ?? "";
-    expect(text.indexOf("Most improved")).toBeLessThan(text.indexOf("Your strongest"));
+    expect(text).not.toMatch(/Your strongest/i);
+    expect(text).not.toMatch(/Most improved/i);
   });
 
-  it("says nothing rose, rather than pretending it could not tell", async () => {
-    await withVerdict({ status: "no_change" });
-    expect(screen.getByText(/Nothing moved up against the period before/i)).toBeTruthy();
-    expect(screen.queryByText(/Not enough to compare/i)).toBeNull();
-  });
-
-  it("shows INSUFFICIENT as its own visible state, with the reason", async () => {
-    await withVerdict({ status: "insufficient", reason: "2 counted pitches in this period" });
-    expect(screen.getByText(/Not enough to compare yet/i)).toBeTruthy();
-    expect(screen.getByText(/2 counted pitches in this period/)).toBeTruthy();
-    // And it does NOT claim nothing improved, which is a different statement.
-    expect(screen.queryByText(/Nothing moved up/i)).toBeNull();
-  });
-
-  it("tells the rep what would make it comparable", async () => {
-    await withVerdict({ status: "insufficient", reason: "1 counted pitch in this period" });
-    expect(screen.getByText(/Three counted pitches in each period/i)).toBeTruthy();
-  });
-
-  it("renders the board unchanged when the server sends no verdict at all", async () => {
-    // A browser on new code served by a server that predates the baseline read.
+  it("puts it above the section bars, not after them", async () => {
     respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0 } });
-    render(<PitchBreakdown />);
+    const { container } = render(<PitchBreakdown />);
     await screen.findByText(/Biggest opportunity/i);
-    expect(screen.queryByText(/Most improved/i)).toBeNull();
-    expect(screen.getByText(/Your strongest/i)).toBeTruthy();
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Biggest opportunity")).toBeLessThan(text.indexOf("Base score"));
   });
 });
 

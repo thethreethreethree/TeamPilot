@@ -6,7 +6,7 @@ import { aggregatePitches, type AggregablePitch } from "./aggregate";
  * The Pitch Score competition board.
  *
  * SPECIFIED, not invented. The rubric sheet (p.6) makes Pitch Score the competition leaderboard,
- * and `docs/SYSTEM UPDATES AND REVISION/TWO-SCORING-SYSTEMS.md` already wrote down the rule this
+ * and `docs/SYSTEM UPDATES AND REVISION 09-22-2026/TWO-SCORING-SYSTEMS.md` already wrote down the rule this
  * implements: *"Pitch Score leaderboard = total points from counted pitches."* Counted means
  * qualifying — the 40-base test — so a rep cannot climb by handing in pitches that never reached
  * Discovery.

@@ -1,6 +1,6 @@
 -- 0252 — Pitch Score system, Project 1 storage (2026-09-19 coaching build)
 --
--- Source: docs/SYSTEM UPDATES AND REVISION/ — "EloState Coaching Build Plan — Engineering Guide"
+-- Source: docs/SYSTEM UPDATES AND REVISION 09-22-2026/ — "EloState Coaching Build Plan — Engineering Guide"
 -- for the table list and build order, and the Scoring Rubric PDF for the values (which live in
 -- code at src/lib/coach/pitchScore/rubric.ts).
 --
@@ -19,7 +19,7 @@
 --     recording_comments, score_overrides → Project 4 (Recordings tab)
 --     patterns, pattern_events            → Project 5 (Pattern Interrupt)
 -- Their shapes are recorded in the build guide and in
--- docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md so the work is not lost.
+-- docs/SYSTEM UPDATES AND REVISION 09-22-2026/LOGIC-AND-CONTRADICTIONS.md so the work is not lost.
 --
 -- THE ACCESS RULE. The guide's launch checklist ends with "Reps only ever see their own patterns
 -- and recordings." Every table here carries the same two-branch read policy — own row OR company

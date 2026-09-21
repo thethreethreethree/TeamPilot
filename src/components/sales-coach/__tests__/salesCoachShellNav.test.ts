@@ -18,6 +18,21 @@ const ROOT = process.cwd();
 // is LF regardless). See memory: source-text regex test fails on Windows CRLF.
 const readLF = (...p: string[]) => readFileSync(join(ROOT, ...p), "utf-8").replace(/\r\n/g, "\n");
 const SHELL = readLF("src", "components", "sales-coach", "SalesCoachShell.tsx");
+
+/**
+ * The SIDEBAR only — `NAV_SECTIONS`, not the mobile tab bars below it.
+ *
+ * The distinction is load-bearing for the ruling this file records: Analytics and Sessions were
+ * dropped from the sidebar and are still in MOBILE_TABS, so asserting their absence against the
+ * whole file would be false, and asserting it against nothing would let a real removal pass.
+ */
+const NAV_SECTIONS_SRC = (() => {
+  const start = SHELL.indexOf("const NAV_SECTIONS");
+  // To the END OF THE ARRAY LITERAL, not to the next function: between them sits
+  // MACRO_HIDDEN_HREFS, whose contents are route strings and not nav entries. Slicing past it
+  // made this constant report hrefs the sidebar does not have.
+  return SHELL.slice(start, SHELL.indexOf("\n];", start));
+})();
 const CARE_SHELL = readLF("src", "components", "care", "CareShell.tsx");
 
 describe("SalesCoachShell — Browser extension nav parity with C.A.R.E", () => {
@@ -115,25 +130,47 @@ describe("SalesCoachShell — role-split nav groups (2026-09-19 redesign)", () =
     expect(SHELL).toMatch(/\/kpi"[\s\S]{0,140}managerOnly:\s*true/);
   });
 
-  it("RETAINS the destinations the 2026-09-19 mockups did not draw", () => {
-    // An omission in a mockup OF A DIFFERENT PAGE is not an instruction to delete a feature, and
-    // deleting is the one move a later mockup cannot undo. Sessions, Training, Team (member
-    // management — add / reset password / remove), One Liners and the rep's Analytics were all kept.
-    // If the founder later decides to drop one, this test is where that decision gets recorded.
+  it("DROPS from the sidebar the destinations the 2026-09-19 boards do not draw", () => {
+    // THE DECISION THIS TEST INVITED. Its previous version retained Sessions, Training, Team, One
+    // Liners and Analytics on the reasoning that "an omission in a mockup OF A DIFFERENT PAGE is
+    // not an instruction to delete a feature", and said in as many words: "If the founder later
+    // decides to drop one, this test is where that decision gets recorded."
+    //
+    // Recorded. Founder ruling 2026-09-22, after the boards were opened and read: "follow the
+    // boards literally" for the manager nav and "three, as the boards show" for My Coaching.
+    // `Pattern Interrupt  manager Patterns (web).pdf` draws MANAGER DASHBOARD as three items and
+    // TEAM TOOLS as six; `Pattern Interrupt  rep (web).pdf` draws MY COACHING as three and TEAM
+    // TOOLS as four. None of the five appears in either.
     for (const href of [
       "/dashboard/sales-coach/sessions",
       "/dashboard/sales-coach/training",
-      "/dashboard/sales-coach/team",
+      "/dashboard/sales-coach/team\"",
       "/dashboard/sales-coach/strategy",
       "/dashboard/sales-coach/analytics",
     ]) {
-      expect(SHELL).toContain(href);
+      expect(NAV_SECTIONS_SRC).not.toContain(href);
     }
   });
 
-  it("Coach Assessment + Team remain manager-only", () => {
+  it("keeps Analytics, Sessions and Role Play reachable on mobile, so only three go dark", () => {
+    // Checked rather than assumed, because "dropped from the sidebar" and "unreachable" are
+    // different claims and only one of them is true here. MOBILE_TABS and MACRO_MOBILE_TABS are
+    // outside NAV_SECTIONS and were not touched by the ruling — and MACRO_MOBILE_TABS is already
+    // exactly the rep board's bottom bar (Home · Pitch Performance · Today's Metrics · Role Play).
+    expect(SHELL).toMatch(/MOBILE_TABS[\s\S]{0,600}\/analytics/);
+    expect(SHELL).toMatch(/MOBILE_TABS[\s\S]{0,600}\/sessions/);
+    expect(SHELL).toMatch(/MACRO_MOBILE_TABS[\s\S]{0,600}\/roleplay/);
+    // Training, Team and One Liners are in neither. That is the open item, asserted so it cannot
+    // be forgotten: if a later build re-links one, this test says so out loud.
+    expect(NAV_SECTIONS_SRC).not.toContain("/dashboard/sales-coach/training");
+    expect(NAV_SECTIONS_SRC).not.toContain("/dashboard/sales-coach/strategy");
+    // And the Macro-Mode hide list, which used to name the two entries the ruling deleted, no
+    // longer names hrefs that are not in the sidebar.
+    expect(SHELL).toContain("MACRO_HIDDEN_HREFS = new Set<string>([])");
+  });
+
+  it("Coach Assessment stays manager-only", () => {
     expect(SHELL).toMatch(/coach-assessment[\s\S]{0,140}managerOnly:\s*true/);
-    expect(SHELL).toMatch(/\/team"[\s\S]{0,140}managerOnly:\s*true/);
   });
 
   it("renders collapsible groups as a toggle button with aria-expanded + a chevron", () => {
@@ -151,13 +188,22 @@ describe("SalesCoachShell — Macro Mode sidebar focus (founder 2026-08-18: ONLY
   // The founder was explicit: on Macro Mode, hide EXACTLY "Live AI Coach & Sessions" (/sessions) and "One Liners"
   // (/strategy) from the sidebar — nothing else, and only in Macro Mode. Lock the set + the condition so a third
   // entry can't quietly creep in and the focus can't leak to non-Macro-Mode.
-  const macroSet = SHELL.match(/const MACRO_HIDDEN_HREFS = new Set\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
+  const macroSet = SHELL.match(/const MACRO_HIDDEN_HREFS = new Set<?string?>?\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
   const hiddenHrefs = macroSet.match(/"[^"]+"/g) ?? [];
 
-  it("hides exactly the two entries — /sessions and /strategy — and no others", () => {
-    expect(hiddenHrefs).toContain('"/dashboard/sales-coach/sessions"');
-    expect(hiddenHrefs).toContain('"/dashboard/sales-coach/strategy"');
-    expect(hiddenHrefs.length).toBe(2); // exactly two — a third would fail here
+  it("is EMPTY, because the ruling deleted both entries outright", () => {
+    // SUPERSEDED 2026-09-22, and the supersession is the interesting part. The founder's
+    // 2026-08-18 decision was "on Macro Mode, hide exactly /sessions and /strategy". The
+    // 2026-09-22 ruling ("follow the boards literally") removed both from the sidebar for every
+    // mode, so the older decision has nothing left to act on — it was not reversed, it was
+    // overtaken.
+    //
+    // The set stays declared and the mechanism below stays tested: re-adding an entry is one
+    // line. What must NOT survive is two hrefs sitting in a hide-list that are not in
+    // NAV_SECTIONS at all, because the next reader takes that as evidence the sidebar has them.
+    expect(hiddenHrefs.length).toBe(0);
+    expect(NAV_SECTIONS_SRC).not.toContain("/dashboard/sales-coach/sessions");
+    expect(NAV_SECTIONS_SRC).not.toContain("/dashboard/sales-coach/strategy");
   });
 
   it("applies the hide ONLY when Macro Mode is on", () => {

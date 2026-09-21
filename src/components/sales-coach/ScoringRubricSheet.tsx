@@ -29,7 +29,7 @@ import {
  * boards "will be the 'score rubric' button that is on page 1 and 2" — it opens over Progress and
  * Breakdown rather than being a fourth destination. The manager dashboard opens the same component
  * from its header button, so both roles read one rubric from one source.
- * See docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md B1.
+ * See docs/SYSTEM UPDATES AND REVISION 09-22-2026/LOGIC-AND-CONTRADICTIONS.md B1.
  */
 
 const GRADE_LEGEND = [
@@ -54,7 +54,7 @@ const GRADE_LEGEND = [
  *
  * The founder's rule is unchanged; it is now scoped to the competition it describes. Which
  * leaderboard the Scoreboard should show is the founder's decision, recorded in
- * docs/SYSTEM UPDATES AND REVISION/TWO-SCORING-SYSTEMS.md.
+ * docs/SYSTEM UPDATES AND REVISION 09-22-2026/TWO-SCORING-SYSTEMS.md.
  */
 const competitionRules = [
   `A pitch counts only if it reaches Discovery and scores ${QUALIFYING_MIN_BASE}+ base points.`,

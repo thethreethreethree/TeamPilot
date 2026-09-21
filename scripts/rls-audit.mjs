@@ -130,6 +130,16 @@ const ALLOWLIST = new Map([
   ["pitch_scores.insert", "0252 scores are written ONLY by store_pitch_score (service-role RPC) — a client insert is a rep awarding themselves a score."],
   ["pitch_scores.update", "0252 a stored score is the record of what happened; a re-score replaces it through the same RPC, and any other edit is an invisible correction."],
   ["pitch_scores.delete", "0252 deleting a score erases a rep's evidence trail and their dispute's subject; a wrong score is re-scored or overridden, never removed."],
+  // 0258 Pattern Interrupt. Same shape and the same reason as the 0252 tables above: detection runs
+  // server-side under the service role, and every human action is an APPENDED pattern_event rather
+  // than an edit. A pattern is a claim about a named person shown to their manager, which is why a
+  // client may read one and may never author one.
+  ["patterns.insert", "0258 detection runs server-side on every scored pitch; a client insert is a rep opening (or a manager fabricating) a pattern about someone that no pitch supports."],
+  ["patterns.update", "0258 the row holds what was true AT DETECTION — misses, applicable count, strip, frozen cost. Editing it rewrites the evidence that justified surfacing it; status is derived from pattern_events, never stored, so there is nothing here a human should change."],
+  ["patterns.delete", "0258 deleting a pattern erases the coaching history attached to it and the rep's fixed-pattern credit; a pattern that should not have opened is closed with a 'fixed' event, which leaves the record."],
+  ["pattern_events.insert", "0258 written by the API routes behind Mark as coached / Add note / Assign drill / Reviewed / This clip looks wrong, each stamping the caller as actor. A direct client insert would let a rep forge 'coached' and clear their own stalled flag."],
+  ["pattern_events.update", "0258 §3.1 append-only: the log is the audit trail for coaching actions, and an editable 'coached at' would make the Stalled rule (7+ days) unfalsifiable."],
+  ["pattern_events.delete", "0258 §3.1 append-only; deleting a rep_reviewed event would silently re-raise the AWAITING REP REVIEW count against someone who did review it."],
   ["pitch_score_elements.insert", "0252 written by the scoring engine — a client insert would let a rep award themselves a Hit."],
   ["pitch_score_elements.update", "0252 grades are evidence; corrections go through the logged score_overrides path, not a silent edit."],
   ["pitch_score_elements.delete", "0252 deleting a graded element would remove the evidence behind a score without changing the score."],

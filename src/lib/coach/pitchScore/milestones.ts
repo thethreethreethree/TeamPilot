@@ -5,7 +5,7 @@ import type { AggregablePitch } from "./aggregate";
  * Pitch Score milestones — the rep dashboard's MILESTONES strip.
  *
  * SPECIFIED. The six badges and their captions are read from the rep dashboard sheet, which is in
- * the tree at `docs/SYSTEM UPDATES AND REVISION/EloState Rep Pitch Dashboard.pdf`. Its text:
+ * the tree at `docs/SYSTEM UPDATES AND REVISION 09-22-2026/EloState Rep Pitch Dashboard.pdf`. Its text:
  *
  *     First pitch     Triple digits
  *     In the door

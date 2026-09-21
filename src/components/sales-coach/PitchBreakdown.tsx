@@ -14,7 +14,6 @@ import {
 } from "@/lib/coach/pitchScore/rubric";
 import { ScoringRubricSheet } from "./ScoringRubricSheet";
 import type { PeriodAggregate, ElementStat } from "@/lib/coach/pitchScore/aggregate";
-import type { ImprovementVerdict } from "@/lib/coach/pitchScore/improvement";
 
 /**
  * The Breakdown board — a rep's rubric averages over a period.
@@ -42,7 +41,7 @@ const PERIODS = [
 type State =
   | { kind: "loading" }
   | { kind: "failed" }
-  | { kind: "ready"; agg: PeriodAggregate; skipped: number; improvement?: ImprovementVerdict; capped?: boolean };
+  | { kind: "ready"; agg: PeriodAggregate; skipped: number; capped?: boolean };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
@@ -54,38 +53,6 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
  * losing two. Ranking by rate would send them after the second, which is the smaller prize and
  * feels like being nagged about something that barely counts.
  */
-/**
- * What the rep is doing BEST — the element they hit closest to its ceiling.
- *
- * Exists because of the founder's 2026-09-22 ruling and `docs/SalesCoach-KPI-System.md`, whose
- * agent-view clause is not only about ranking: *"Growth-framed — lead with what improved, then
- * growth areas, per the coaching philosophy."* This board opened with BIGGEST OPPORTUNITY, which
- * is a deficit, and led with it.
- *
- * HONEST ABOUT WHAT THIS IS NOT. The document says lead with what IMPROVED, which is a comparison
- * against the rep's own past and needs a period-over-period read this board does not have. Leading
- * with a strength is the growth-framing that today's data can support; it is not the clause's
- * literal requirement, and the gap is recorded rather than papered over.
- *
- * Measured as the smallest gap to the ceiling rather than the highest raw points, so a 2-point
- * element hit every time beats a 4-point element hit half the time — the question is what the rep
- * does WELL, not which element is worth most.
- */
-export function strongestElement(stats: readonly ElementStat[]): ElementStat | null {
-  let best: ElementStat | null = null;
-  let bestGap = Infinity;
-  for (const s of stats) {
-    // Never scored is not a strength. An element with no attempts has a gap of its full value and
-    // would otherwise win whenever every attempted element had been imperfect.
-    if (s.maxPoints <= 0 || s.avgPoints <= 0) continue;
-    const gap = s.maxPoints - s.avgPoints;
-    if (gap < bestGap) {
-      bestGap = gap;
-      best = s;
-    }
-  }
-  return best;
-}
 
 export function biggestOpportunity(stats: readonly ElementStat[]): ElementStat | null {
   let best: ElementStat | null = null;
@@ -121,7 +88,6 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
       const body = (await res.json()) as {
         aggregate: PeriodAggregate;
         skippedPreVerdict: number;
-        improvement?: ImprovementVerdict;
         capped?: boolean;
       };
       setState({
@@ -131,7 +97,6 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         // Optional on the wire: a browser on new code can be served by a server that predates
         // the baseline read, and a missing verdict must render as "not enough evidence" rather
         // than throwing inside the board.
-        improvement: body.improvement,
         capped: body.capped === true,
       });
     } catch {
@@ -196,7 +161,7 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         </div>
       )}
 
-      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} improvement={state.improvement} capped={state.capped} openSection={openSection} setOpenSection={setOpenSection} />}
+      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} capped={state.capped} openSection={openSection} setOpenSection={setOpenSection} />}
 
       {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
     </section>
@@ -206,7 +171,6 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
 function Board({
   agg,
   skipped,
-  improvement,
   capped,
   openSection,
   setOpenSection,
@@ -214,7 +178,6 @@ function Board({
   agg: PeriodAggregate;
   skipped: number;
   /** Optional on the wire: an older server predates the baseline read. Absent renders as nothing. */
-  improvement?: ImprovementVerdict;
   /** The read hit its row bound, so these averages cover part of the period rather than the period. */
   capped?: boolean;
   openSection: SectionId | null;
@@ -240,7 +203,6 @@ function Board({
   }
 
   const opportunity = biggestOpportunity(agg.elementStats);
-  const strength = strongestElement(agg.elementStats);
   const lowest = lowestSection(agg.sectionAverages);
 
   return (
@@ -264,74 +226,25 @@ function Board({
       )}
 
       {/*
-        WHAT GOT BETTER, above everything.
+        ONE CALLOUT, which is what the board draws.
 
-        `docs/SalesCoach-KPI-System.md` principle 1: *"the primary comparison is
-        agent-vs-their-own-past (self-Elo)"*, and of this surface: *"lead with what improved, then
-        growth areas."* A strength is a fact about a rep; an improvement is a fact about their
-        growth, and this document is about the second.
+        FOUNDER RULING 2026-09-22, after the 2026-09-19 boards were opened and read. Page 2 of
+        `EloState Rep Pitch Dashboard.pdf` carries exactly one: an amber BIGGEST OPPORTUNITY, and
+        then it goes straight into the section bars.
 
-        INSUFFICIENT IS RENDERED, NOT HIDDEN. Principle 3 of the same document — and §3.2 — make
-        "not enough evidence" a state a rep must be able to see. Falling back silently to the
-        strength below would look like an answer to a question that was never answered.
+        Three others used to sit here — Most improved, Your strongest, and a bordered truncation
+        box. Each was individually justified by a clause of a document, which is exactly how a
+        screen accumulates: nobody adds a bad one. Two consecutive closures flagged the density as
+        the top residual and the next build added to it anyway, because the flag was prose and the
+        board was never looked at. The board settles it.
+
+        Most improved is not lost. Agent-vs-their-own-past is the KPI document's first principle
+        and the design serves it in Pattern Interrupt, where the Rep progress table prints
+        "MISSES THEN → NOW  4/5 → 1/5 ▼" — a real self-Elo comparison on the surface built for it,
+        rather than a fourth box here. `improvement.ts` was deleted with this change rather than
+        left unwired, because an unadopted primitive is the debt this repo already names in
+        `fetchJson.ts` ("adopted by nothing… Nobody decided this should be unused").
       */}
-      {improvement?.status === "improved" && (
-        <div className="rounded-xl border border-brand/50 bg-surface p-4">
-          <p className="text-[10px] uppercase tracking-widest text-brand">Most improved</p>
-          <p className="mt-1 text-[13px] font-semibold text-primary tabular-nums">
-            {improvement.top.label}: {improvement.top.before} → {improvement.top.after} per pitch
-          </p>
-          <p className="mt-1 text-[11px] text-muted">
-            Up {improvement.top.gained} points a pitch on the period before this one.
-          </p>
-        </div>
-      )}
-
-      {improvement?.status === "no_change" && (
-        <div className="rounded-xl border border-default bg-surface p-4">
-          <p className="text-[10px] uppercase tracking-widest text-muted">Most improved</p>
-          {/*
-            A real answer, and deliberately not dressed as a data problem. Telling a rep the system
-            could not tell would be a lie in the flattering direction.
-          */}
-          <p className="mt-1 text-[12px] text-secondary">
-            Nothing moved up against the period before this one.
-          </p>
-        </div>
-      )}
-
-      {improvement?.status === "insufficient" && (
-        <div className="rounded-xl border border-default bg-base/40 p-4">
-          <p className="text-[10px] uppercase tracking-widest text-muted">Most improved</p>
-          <p className="mt-1 text-[12px] text-secondary">
-            Not enough to compare yet — {improvement.reason}.
-          </p>
-          <p className="mt-1 text-[11px] text-muted">
-            Three counted pitches in each period are needed before a change means anything.
-          </p>
-        </div>
-      )}
-
-      {/*
-        WHAT IS GOING WELL, ABOVE THE GAP. The KPI document's agent-view clause asks for a board
-        that leads with strength and follows with growth areas; this board used to open on the
-        biggest deficit. The order is the whole point — the same two facts, read in the other
-        sequence, are a different message to the person reading them.
-      */}
-      {strength && (
-        <div className="rounded-xl border border-emerald-600/40 bg-surface p-4">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-            Your strongest
-          </p>
-          <p className="mt-1 text-[13px] font-semibold text-primary">
-            {strength.label}: averaging {strength.avgPoints} of {strength.maxPoints}
-          </p>
-          <p className="mt-1 text-[11px] text-muted">
-            Across your {agg.counted} counted pitch{agg.counted === 1 ? "" : "es"}.
-          </p>
-        </div>
-      )}
-
       {opportunity && (
         <section className="rounded-xl border border-brand/40 bg-brand/5 p-4">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-brand">

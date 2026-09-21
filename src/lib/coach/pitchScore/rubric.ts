@@ -1,7 +1,7 @@
 /**
  * The AT&T Fiber Pitch Scoring Rubric, v1 — Project 1 of the 2026-09-19 coaching build.
  *
- * Source: docs/SYSTEM UPDATES AND REVISION/EloState AT&T Fiber Pitch Scoring Rubric.pdf (7 pp),
+ * Source: docs/SYSTEM UPDATES AND REVISION 09-22-2026/EloState AT&T Fiber Pitch Scoring Rubric.pdf (7 pp),
  * transcribed element by element. Every point value here was read off that document, and the
  * structural sums are asserted in __tests__/rubric.test.ts rather than trusted.
  *
@@ -221,7 +221,7 @@ export function elementsForSection(section: SectionId): RubricElement[] {
  * LOWEST badge — because 8.6/15 = 57.3% is below 4.7/8 = 58.8%. Sections are not comparable on raw
  * points when their maxima run from 8 to 35. Verified against three independent datasets in the
  * mockups (rep breakdown, team averages, Humza Khan's panel); see
- * docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md C1.
+ * docs/SYSTEM UPDATES AND REVISION 09-22-2026/LOGIC-AND-CONTRADICTIONS.md C1.
  */
 export function lowestSection(
   sectionPoints: Readonly<Record<SectionId, number>>
