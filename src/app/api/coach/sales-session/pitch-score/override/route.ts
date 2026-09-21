@@ -6,6 +6,8 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
+import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
+import { BONUSES_BY_ID, ELEMENTS_BY_ID, VIOLATIONS_BY_ID } from "@/lib/coach/pitchScore/rubric";
 
 /**
  * POST /api/coach/sales-session/pitch-score/override
@@ -114,6 +116,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: FAILURE_MESSAGE[result.reason] ?? "The correction could not be applied." },
       { status: FAILURE_STATUS[result.reason] ?? 500 }
+    );
+  }
+
+  // Tell the rep. Best-effort and deliberately NOT awaited into the result: the correction is
+  // already written and the score has already moved, so a failed notification must not fail this
+  // request — it would undo nothing and only lose the caller's result. It IS awaited in sequence
+  // rather than floated, because a serverless invocation can be frozen the moment it responds and
+  // a floating promise would be dropped silently on exactly the busy requests it matters for.
+  //
+  // try/catch as well as the notifier's own, and that is not belt-and-braces. `notifyPitchCorrected`
+  // catches internally and returns false — but that is a promise this route cannot enforce, and the
+  // cost of it being broken later is that a correction which ALREADY LANDED reports as a 500. The
+  // manager then applies it again, logging a second override on a score that was already right, in
+  // an append-only table.
+  try {
+    await notifyPitchCorrected({
+      companyId: mgr.companyId,
+      repId: pitch.repId,
+      sessionId: row.session_id as string,
+    // The rubric's own label, so the alert names the item the same way every other screen does.
+    // Falls back to the raw id rather than blanking: an alert about "" is worse than a technical one.
+      itemLabel:
+        ELEMENTS_BY_ID.get(body.itemId)?.label ??
+        BONUSES_BY_ID.get(body.itemId)?.label ??
+        VIOLATIONS_BY_ID.get(body.itemId)?.label ??
+        body.itemId,
+      total: result.total,
+      qualifying: result.qualifying,
+    });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[pitch-override] notify threw after a successful override ${result.overrideId}: ${
+        e instanceof Error ? e.message : String(e)
+      }`
     );
   }
 

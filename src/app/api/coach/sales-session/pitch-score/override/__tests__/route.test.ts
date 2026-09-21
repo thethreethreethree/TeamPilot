@@ -26,12 +26,14 @@ vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager:
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
 vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({ readPitchScore: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/applyOverride", () => ({ applyOverride: vi.fn() }));
+vi.mock("@/lib/coach/pitchScore/notifyCorrection", () => ({ notifyPitchCorrected: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
+import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
 import { POST } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
@@ -69,7 +71,10 @@ beforeEach(() => {
   asMock(rateLimit).mockReturnValue(null);
   asMock(requireSalesCoachManager).mockResolvedValue({ companyId: "co1", userId: "mgr1" });
   mockPitchRow({ id: PITCH_ID, company_id: "co1", session_id: SESSION_ID });
-  asMock(readPitchScore).mockResolvedValue({ id: PITCH_ID, elements: [], events: [] });
+  asMock(readPitchScore).mockResolvedValue({
+    id: PITCH_ID, repId: "rep-who-pitched", elements: [], events: [],
+  });
+  asMock(notifyPitchCorrected).mockResolvedValue(true);
   asMock(applyOverride).mockResolvedValue({
     ok: true,
     overrideId: "ovr-1",
@@ -214,5 +219,87 @@ describe("failures are reported as what they are", () => {
       total: 65,
       qualifying: true,
     });
+  });
+});
+
+describe("the rep is told their score moved", () => {
+  /**
+   * A correction the rep is never told about is the quieter version of the lesson this whole
+   * feature exists to stop teaching. It breaks worst for a correction NOBODY disputed, which is
+   * exactly the one they would otherwise never learn about.
+   */
+  it("notifies the rep whose score changed, not the manager who changed it", async () => {
+    await POST(req());
+    expect(notifyPitchCorrected).toHaveBeenCalledTimes(1);
+    const notice = asMock(notifyPitchCorrected).mock.calls[0]![0] as Record<string, unknown>;
+    expect(notice.repId).toBe("rep-who-pitched");
+    expect(notice.companyId).toBe("co1");
+    expect(notice.sessionId).toBe(SESSION_ID);
+  });
+
+  it("names the item in the rubric's words, not the raw id", async () => {
+    await POST(req());
+    const notice = asMock(notifyPitchCorrected).mock.calls[0]![0] as { itemLabel: string };
+    // close.paperwork has a label in the rubric; the alert must read the way every other screen
+    // names that item.
+    expect(notice.itemLabel).not.toBe("close.paperwork");
+    expect(notice.itemLabel.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the id rather than sending a blank alert", async () => {
+    // An item the CURRENT rubric no longer knows still produced a correction that moved a score.
+    // "A manager made a correction to " is worse than a technical label.
+    asMock(applyOverride).mockResolvedValue({
+      ok: true, overrideId: "o1", base: 40, total: 55, qualifying: true,
+    });
+    await POST(req({ ...BODY, itemId: "close.retired" }));
+    const notice = asMock(notifyPitchCorrected).mock.calls[0]![0] as { itemLabel: string };
+    expect(notice.itemLabel).toBe("close.retired");
+  });
+
+  it("carries the recomputed total and whether it still counts", async () => {
+    asMock(applyOverride).mockResolvedValue({
+      ok: true, overrideId: "o1", base: 38, total: 38, qualifying: false,
+    });
+    await POST(req());
+    const notice = asMock(notifyPitchCorrected).mock.calls[0]![0] as Record<string, unknown>;
+    expect(notice.total).toBe(38);
+    // An override can cross the 40-base line. A rep whose pitch stopped counting must not learn it
+    // from a leaderboard they have quietly fallen off.
+    expect(notice.qualifying).toBe(false);
+  });
+
+  it("does not notify when the correction did not happen", async () => {
+    asMock(applyOverride).mockResolvedValue({ ok: false, reason: "write_failed" });
+    await POST(req());
+    expect(notifyPitchCorrected).not.toHaveBeenCalled();
+  });
+
+  it("does not notify a rep whose pitch a manager could not touch", async () => {
+    mockPitchRow({ id: PITCH_ID, company_id: "OTHER-CO", session_id: SESSION_ID });
+    await POST(req());
+    expect(notifyPitchCorrected).not.toHaveBeenCalled();
+  });
+
+  it("still reports the correction as applied when the notification fails", async () => {
+    // The score has already moved. Failing the request would undo nothing and only lose the
+    // caller's result — the manager would correct it again, logging a second override on a score
+    // that was already right.
+    asMock(notifyPitchCorrected).mockResolvedValue(false);
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ overrideId: "ovr-1", total: 65 });
+  });
+
+  it("survives a notifier that THROWS, not just one that returns false", async () => {
+    // notifyPitchCorrected catches internally and returns false — but that is a promise the route
+    // cannot enforce, and if it is ever broken the cost is a correction that ALREADY LANDED
+    // reporting as a 500. The manager applies it again, logging a second override on a score that
+    // was already right, in an append-only table.
+    asMock(notifyPitchCorrected).mockRejectedValue(new Error("boom"));
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ overrideId: "ovr-1" });
+    expect(console.error).toHaveBeenCalled();
   });
 });
