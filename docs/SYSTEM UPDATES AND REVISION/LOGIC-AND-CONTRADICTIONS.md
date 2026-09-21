@@ -460,3 +460,62 @@ existed it failed none, because 80.3 and 77.0 happen to fall where both versions
 Every one of them was correct on the day it was written. That is what makes the class invisible:
 a duplicate is never wrong when you write it. Two were found by looking; this one was found by
 writing down what the previous sweep could not see, and then looking there.
+
+---
+
+## K. A constraint this codebase wrote, and the founder then overruled (2026-09-21)
+
+The dispute queue shipped this morning carrying an explicit prohibition in its own docblock:
+
+> *"WHAT IT DELIBERATELY CANNOT DO: change a score. … If replying could adjust points, the
+> leaderboard would become quietly editable by whoever handles the most complaints, and the number
+> would stop meaning anything."*
+
+Hours later the founder chose **"Element-level override, logged"** from the picker, and the rubric
+PDF's implementation notes (p.7) turn out to say the same thing independently: *"Manager override:
+managers can adjust any bonus or violation, with the change logged."*
+
+So the code and the spec disagreed, and the code was the thing I had written.
+
+**Not applied silently. Noted, then resolved on the record.** The prohibition was not deleted; the
+docblock now carries it as a SUPERSEDED CONSTRAINT with the reason it was superseded, so the next
+reader finds the argument rather than an unexplained reversal.
+
+**Why the original reasoning was sound and its conclusion still wrong.** The load-bearing word was
+**quietly**. The fear — a leaderboard editable by whoever handles the most complaints — is real,
+and it is what an audit trail exists to answer. Refusal is one defence against it; the other is
+making the edit impossible to hide:
+
+| The fear | What answers it now |
+|---|---|
+| edits accumulate unseen | append-only log, no update or delete policy |
+| a number moves for no reason | a reason is required at three levels, and the **rep reads it** |
+| a corrected pitch is scored by hand | the recompute runs through `scorePitch`, the same function that scored it |
+| the correction is discovered later | it renders directly under the score on the rep's own pitch detail |
+
+The original text chose refusal because the alternative had not been built. Once it is built,
+refusal is the *weaker* of the two — a system that cannot correct a score it knows is wrong has
+simply moved the dishonesty from the edit to the number.
+
+**What did NOT change.** Replying alone is still score-neutral, and the card still says so. That
+sentence was never about managers being untrustworthy; it is about a manager who replies "you're
+right", believes the score followed, and leaves the rep's number wrong. Correcting is now a
+separate, explicit action with its own control and its own confirmation.
+
+**One sentence was removed rather than kept:** *"Re-score the pitch if the grade was wrong."* It
+was correct advice when the card could not correct anything, and it now points a manager away from
+the control sitting directly above it. The test that asserted it was updated, with the reason
+written next to the assertion rather than in a commit message nobody reads.
+
+### The shape worth remembering
+
+This is the mirror of sections G-J. Those were all **duplicated decisions that agreed when written
+and drifted later**. This one is a **decision that never had an authority** — I wrote a
+prohibition into a docblock from first principles, it read as reasoned, and it sat in the tree
+looking exactly like a ratified constraint until the actual authority (the founder, and a PDF
+already in this folder) said otherwise.
+
+A confident constraint invented by the builder is harder to spot than a duplicated one, because
+nothing disagrees with it. The only thing that catches it is checking whether the rule has a
+source — and *"the rubric PDF, page 7"* is a source, while *"if replying could adjust points…"* is
+an argument. Both read the same in a docblock.

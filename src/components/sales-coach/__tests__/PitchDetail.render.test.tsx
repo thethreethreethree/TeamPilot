@@ -274,3 +274,153 @@ describe("violations", () => {
     expect(screen.queryByText("Cut in on the deposit question")).toBeNull();
   });
 });
+
+describe("corrections a manager made", () => {
+  /**
+   * The rubric requires the change to be logged. A log the rep cannot read is not a log, so every
+   * test here is about a way this section could exist and still leave the rep unable to tell what
+   * happened to their score.
+   */
+  const AWARDED = {
+    id: "o1",
+    itemType: "bonus" as const,
+    itemId: "bonus.directv",
+    itemLabel: "Gets inside the house or backyard",
+    oldValue: "removed",
+    newValue: "awarded",
+    reason: "Listened back at 6:10 — they did get inside.",
+    actorId: "mgr1",
+    appliedAt: "2026-09-20T12:00:00.000Z",
+  };
+  const FIRST_TIME = {
+    ...AWARDED,
+    id: "o2",
+    itemType: "element" as const,
+    itemId: "close.paperwork",
+    itemLabel: "Options close",
+    oldValue: null,
+    newValue: "hit",
+    reason: "The AI missed this entirely.",
+  };
+
+  /** The corrections section, scoped. The bonus label also renders under "Bonuses earned", so an
+   *  unscoped query matches twice and a component that rendered the correction nowhere would still
+   *  find text on the page. */
+  const correctionsSection = () =>
+    screen.getByRole("heading", { name: /A manager (corrected this|made corrections)/i })
+      .closest("section")!;
+
+  it("names the item, the reason, and both sides of the change", () => {
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED] }} />);
+    const sec = within(correctionsSection());
+    expect(sec.getByText("Gets inside the house or backyard")).toBeTruthy();
+    expect(sec.getByText(/they did get inside/)).toBeTruthy();
+    expect(sec.getByText("Removed")).toBeTruthy();
+    expect(sec.getByText("Awarded")).toBeTruthy();
+  });
+
+  it("says the direction in words, not only in colour", () => {
+    // A red/green distinction is invisible to roughly one man in twelve, and this row exists to be
+    // understood. Both states must be readable as text.
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED] }} />);
+    const sec = correctionsSection();
+    const row = within(sec).getByText("Gets inside the house or backyard").closest("li")!;
+    expect(within(row).getByText("Removed")).toBeTruthy();
+    expect(within(row).getByText("Awarded")).toBeTruthy();
+    // The arrow is decorative and hidden from assistive tech; the words carry the meaning. A
+    // screen reader gets "changed to" in its place rather than silence.
+    expect(within(row).getByText("changed to")).toBeTruthy();
+    expect(row.querySelector('[aria-hidden]')?.textContent).toBe("→");
+  });
+
+  it("reads the grade in the same words the badges use", () => {
+    // Derived from GRADE_STYLE rather than retyped. A component that hard-coded "Hit" would pass
+    // this today and drift the moment a grade is renamed — which is why the source derives.
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [FIRST_TIME] }} />);
+    const row = within(correctionsSection()).getByText("Options close").closest("li")!;
+    expect(within(row).getByText("Hit")).toBeTruthy();
+  });
+
+  it("reads every grade correctly, not just the one", () => {
+    // A single-grade assertion passes against a component that prints "Hit" for all three, which
+    // is exactly what a mutation proved. All three, or the derivation is not pinned.
+    render(
+      <PitchDetail
+        pitch={{
+          ...PITCH,
+          overrides: (["hit", "partial", "missed"] as const).map((g, i) => ({
+            ...FIRST_TIME,
+            id: `g${i}`,
+            itemId: "close.paperwork",
+            itemLabel: "Options close",
+            newValue: g,
+          })),
+        }}
+      />
+    );
+    const sec = within(correctionsSection());
+    expect(sec.getByText("Hit")).toBeTruthy();
+    expect(sec.getByText("Partial")).toBeTruthy();
+    expect(sec.getByText("Missed")).toBeTruthy();
+  });
+
+  it("says 'Not scored' when the scorer never graded the item at all", () => {
+    // The commonest real correction on a short pitch. Rendering a blank where the old value was
+    // would read as though something was taken away.
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [FIRST_TIME] }} />);
+    expect(within(correctionsSection()).getByText("Not scored")).toBeTruthy();
+  });
+
+  it("always shows a reason, because one is always required", () => {
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED, FIRST_TIME] }} />);
+    expect(screen.getAllByText(/^Why$/i).length).toBe(2);
+    expect(screen.getByText(/The AI missed this entirely/)).toBeTruthy();
+  });
+
+  it("tells the rep the score above already includes the correction", () => {
+    // Without this line a rep cannot tell whether the number at the top is before or after — and
+    // a score they cannot interpret is the thing this whole screen exists to prevent.
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED] }} />);
+    expect(screen.getByText(/already includes these/i)).toBeTruthy();
+  });
+
+  it("renders corrections even when the rep never disputed anything", () => {
+    // A manager can listen back and correct a pitch nobody disputed. That correction is exactly
+    // the one the rep would otherwise never learn about, so it must not be gated on disputes.
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED], disputes: [] }} />);
+    expect(screen.getByRole("heading", { name: /A manager corrected this/i })).toBeTruthy();
+  });
+
+  it("uses the plural heading for more than one", () => {
+    render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED, FIRST_TIME] }} />);
+    expect(screen.getByRole("heading", { name: /A manager made corrections/i })).toBeTruthy();
+  });
+
+  it("survives a payload from a server that predates overrides", () => {
+    // Not hypothetical and not defensive noise. PitchScorePanel obtains this object via
+    // `await res.json() as StoredPitch` — a CAST, which is a claim about a network payload, not a
+    // guarantee about one. For the length of any rollout, a browser running this code can be
+    // served by a server that has never heard of `overrides`, and `undefined.length` throws inside
+    // render: the whole score card disappears because a section with nothing to show could not
+    // show nothing. Six tests in PitchScorePanel failed exactly this way before the guard.
+    const legacy = { ...PITCH } as Partial<StoredPitch>;
+    delete legacy.overrides;
+    render(<PitchDetail pitch={legacy as StoredPitch} />);
+    expect(screen.getByText("80.4")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /A manager (corrected|made)/i })).toBeNull();
+  });
+
+  it("shows nothing at all when no manager has touched the pitch", () => {
+    render(<PitchDetail pitch={PITCH} />);
+    expect(screen.queryByRole("heading", { name: /A manager (corrected|made)/i })).toBeNull();
+  });
+
+  it("sits above the section breakdown, so a changed number is explained before it is detailed", () => {
+    const { container } = render(<PitchDetail pitch={{ ...PITCH, overrides: [AWARDED] }} />);
+    const headings = [...container.querySelectorAll("h3")].map((h) => h.textContent ?? "");
+    const correction = headings.findIndex((h) => /A manager corrected/i.test(h));
+    const sections = headings.findIndex((h) => /Base by section/i.test(h));
+    expect(correction).toBeGreaterThanOrEqual(0);
+    expect(correction).toBeLessThan(sections);
+  });
+});

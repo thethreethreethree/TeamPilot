@@ -114,11 +114,15 @@ describe("replying", () => {
     await screen.findByText(/disputed/);
   };
 
-  it("states that a reply does not change the score", async () => {
+  it("states that a reply on its own does not change the score", async () => {
     // A manager who assumes otherwise replies and believes the rep's number changed.
+    //
+    // UPDATED 2026-09-21. This assertion previously also required "Re-score the pitch if the grade
+    // was wrong", which was the right instruction when the card could not correct anything. It can
+    // now, so that sentence would send a manager away from the control sitting directly above it.
+    // The half that still matters — replying ALONE is score-neutral — is what is asserted.
     await openOne();
-    expect(screen.getByText(/does not change the score/i)).toBeTruthy();
-    expect(screen.getByText(/Re-score the pitch if the grade was wrong/i)).toBeTruthy();
+    expect(screen.getByText(/Replying on its own does not change the score/i)).toBeTruthy();
   });
 
   it("will not send an empty reply", async () => {
@@ -154,5 +158,147 @@ describe("replying", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const body = JSON.parse(fetchMock.mock.calls[1]![1].body as string);
     expect(body).toMatchObject({ itemId: "deliv.tone", pitchId: OPEN.pitchId });
+  });
+});
+
+describe("correcting the score from the queue", () => {
+  /**
+   * The founder's 2026-09-21 decision, and the rubric's p.7 note, made this card able to move a
+   * number. Every test here is about a way that power could misfire in the manager's hands:
+   * offered where it cannot work, fired without a reason, or reported wrongly afterwards.
+   */
+  // `| null` on every field, because a whole-score dispute genuinely carries null itemId/itemLabel
+  // and the fixture's inferred types would otherwise forbid the case most worth testing.
+  const openOne = async (over: Partial<{ [K in keyof typeof OPEN]: (typeof OPEN)[K] | null }> = {}) => {
+    respond({ ok: true, body: { disputes: [{ ...OPEN, ...over }] } });
+    render(<DisputeQueue />);
+    await screen.findByText(/disputed/);
+  };
+
+  const typeNote = (text: string) =>
+    fireEvent.change(screen.getByLabelText(/Reply to this dispute/i), { target: { value: text } });
+
+  const correctBtn = () => screen.getByRole("button", { name: /Correct and reply/i }) as HTMLButtonElement;
+
+  it("offers the grades for an element, in the rubric's own vocabulary", async () => {
+    await openOne();
+    const select = screen.getByLabelText(/correct it/i) as HTMLSelectElement;
+    const options = [...select.options].map((o) => o.textContent);
+    expect(options).toEqual(["Leave as scored", "Hit", "Partial", "Missed"]);
+  });
+
+  it("offers award/take-back for a bonus instead of grades", async () => {
+    // Asked of the rubric, not parsed from the id's prefix — a bonus cannot be graded "Partial".
+    await openOne({ itemId: "bonus.directv", itemLabel: "Gets inside the house or backyard" });
+    const select = screen.getByLabelText(/correct it/i) as HTMLSelectElement;
+    const options = [...select.options].map((o) => o.textContent);
+    expect(options).toEqual(["Leave as scored", "Award it", "Take it back"]);
+  });
+
+  it("offers nothing to correct on a whole-score dispute, but still allows a reply", async () => {
+    await openOne({ itemId: null, itemLabel: null });
+    expect(screen.queryByLabelText(/correct it/i)).toBeNull();
+    // Not a dead end: the manager can still answer.
+    expect(screen.getByLabelText(/Reply to this dispute/i)).toBeTruthy();
+  });
+
+  it("offers nothing when the current rubric no longer knows the item", async () => {
+    // A retired element cannot be re-graded under a rubric that does not contain it, and the
+    // server would refuse it anyway. Better to not offer than to offer and fail.
+    await openOne({ itemId: "retired.element", itemLabel: "Something from an old rubric" });
+    expect(screen.queryByLabelText(/correct it/i)).toBeNull();
+  });
+
+  it("will not correct without a reason", async () => {
+    await openOne();
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "hit" } });
+    expect(correctBtn().disabled).toBe(true);
+  });
+
+  it("will not correct without a new value", async () => {
+    await openOne();
+    typeNote("You are right, I listened again.");
+    expect(correctBtn().disabled).toBe(true);
+  });
+
+  it("sends the correction with the note as the reason, and the kind the rubric gave", async () => {
+    await openOne();
+    respond({ ok: true, body: { total: 70 } }, { ok: true, body: { ok: true } }, { ok: true, body: { disputes: [] } });
+    typeNote("Listened back at 3:20 — that was certain.");
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "hit" } });
+    fireEvent.click(correctBtn());
+
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2));
+    const [url, init] = fetchMock.mock.calls[1]!;
+    expect(String(url)).toContain("/pitch-score/override");
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      pitchId: OPEN.pitchId,
+      itemType: "element",
+      itemId: "deliv.tone",
+      newValue: "hit",
+      reason: "Listened back at 3:20 — that was certain.",
+    });
+  });
+
+  it("sends the kind the rubric gave, not a fixed one", async () => {
+    // A bonus sent as itemType "element" is refused by the route (unknown_item), so this fails
+    // loudly rather than silently — but it fails for every bonus dispute a manager tries to
+    // resolve, which is the commonest override the rubric actually specifies.
+    await openOne({ itemId: "bonus.directv", itemLabel: "Gets inside the house or backyard" });
+    respond({ ok: true, body: {} }, { ok: true, body: { ok: true } }, { ok: true, body: { disputes: [] } });
+    typeNote("They did get inside at 6:10.");
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "awarded" } });
+    fireEvent.click(correctBtn());
+
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body as string)).toMatchObject({
+      itemType: "bonus",
+      itemId: "bonus.directv",
+      newValue: "awarded",
+    });
+  });
+
+  it("corrects BEFORE it replies, so a failed correction never leaves a reply claiming otherwise", async () => {
+    await openOne();
+    respond({ ok: true, body: {} }, { ok: true, body: { ok: true } }, { ok: true, body: { disputes: [] } });
+    typeNote("ok");
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "hit" } });
+    fireEvent.click(correctBtn());
+
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(3));
+    expect(String(fetchMock.mock.calls[1]![0])).toContain("/override");
+    expect(String(fetchMock.mock.calls[2]![0])).toContain("/disputes");
+  });
+
+  it("does not reply at all when the correction failed", async () => {
+    await openOne();
+    respond({ ok: false, body: { error: "nope" } });
+    typeNote("ok");
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "hit" } });
+    fireEvent.click(correctBtn());
+
+    await waitFor(() => expect(screen.getByText(/Nothing was recorded/i)).toBeTruthy());
+    // Exactly two calls: the initial load and the failed override. No answer was filed.
+    expect(fetchMock.mock.calls.length).toBe(2);
+  });
+
+  it("does not report a landed correction as a failure when only the reply failed", async () => {
+    // The score really did move and the rep will read the reason on their own pitch. Saying "that
+    // didn't save" would invite a second correction on a score that is already right.
+    await openOne();
+    respond({ ok: true, body: {} }, { ok: false, body: { error: "reply died" } });
+    typeNote("ok");
+    fireEvent.change(screen.getByLabelText(/correct it/i), { target: { value: "hit" } });
+    fireEvent.click(correctBtn());
+
+    await waitFor(() => expect(screen.getByText(/score was corrected/i)).toBeTruthy());
+    expect(screen.getByText(/don't correct it again/i)).toBeTruthy();
+    expect(screen.queryByText(/Nothing was recorded/i)).toBeNull();
+  });
+
+  it("warns that the note is what the rep will read", async () => {
+    await openOne();
+    expect(screen.getByText(/becomes the reason/i)).toBeTruthy();
+    expect(screen.getByText(/Logged and\s+permanent/i)).toBeTruthy();
   });
 });

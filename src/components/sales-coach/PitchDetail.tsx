@@ -35,6 +35,28 @@ const GRADE_STYLE: Record<PitchElementRow["grade"], { label: string; cls: string
   missed: { label: "MISSED", cls: "bg-zinc-500/10 text-muted border-default" },
 };
 
+/**
+ * How an override's stored value reads on screen.
+ *
+ * The database stores the scorer's vocabulary; a rep has never seen the word "hit". The grade
+ * labels are DERIVED from GRADE_STYLE rather than retyped, so renaming a grade cannot leave the
+ * badge above and the correction row below calling the same thing two different names (§2.2) —
+ * only the casing differs, because the badges are set in caps and this row is a sentence.
+ *
+ * Unknown values fall through to the raw string at the call site rather than blanking: a
+ * correction that happened must never render as an empty row.
+ */
+const VALUE_LABEL: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(GRADE_STYLE).map(([grade, { label }]) => [
+      grade,
+      label.charAt(0) + label.slice(1).toLowerCase(),
+    ])
+  ),
+  awarded: "Awarded",
+  removed: "Removed",
+};
+
 /** m:ss for a play target. Matches how the prompt hands timestamps to the model. */
 function mmss(totalSeconds: number): string {
   return `${Math.floor(totalSeconds / 60)}:${String(Math.floor(totalSeconds % 60)).padStart(2, "0")}`;
@@ -130,6 +152,83 @@ export function PitchDetail({
           {pitch.qualifying ? "Counted toward the leaderboard" : `Not counted — ${pitch.notQualifyingReason}`}
         </p>
       </section>
+
+      {/*
+        ── Corrections from a manager ───────────────────────────────────────────────────
+        Directly under the score, and that placement is the whole argument. A rep who remembers a
+        44 and opens a 47 needs the explanation ABOVE the fold, not filed at the bottom under the
+        dispute thread — a number that changed without a visible reason is indistinguishable from
+        a number that was wrong all along, and the second reading is the one that costs trust.
+
+        The rubric (p.7) requires the change to be logged; a log the person whose score changed
+        cannot read is not a log. That makes this section the specified RESULT of the override
+        feature rather than presentation of it (§1.5.4), which is why it renders for the rep and
+        not only for the manager who made the change.
+
+        Not gated on `pitch.disputes` — a manager can listen back and correct a pitch nobody
+        disputed, and that correction is exactly the one a rep would otherwise never learn about.
+      */}
+      {/*
+        `?? []`, and it is not defensive noise. This component's `pitch` arrives from
+        `await res.json() as StoredPitch` — a CAST, which is a claim about a network payload rather
+        than a guarantee about one. During any rollout a browser running this code can be served by
+        a server that predates `overrides`, and `undefined.length` would throw inside render and
+        blank the entire pitch panel: the whole score, gone, because a section that had nothing to
+        show could not show nothing.
+      */}
+      {(pitch.overrides ?? []).length > 0 && (
+        <section>
+          <h3 className="text-[10px] uppercase tracking-widest text-muted mb-2">
+            {(pitch.overrides ?? []).length === 1 ? "A manager corrected this" : "A manager made corrections"}
+          </h3>
+          <ul className="space-y-2">
+            {(pitch.overrides ?? []).map((o) => (
+              <li key={o.id} className="rounded-xl border border-default bg-surface p-4">
+                <p className="text-[12px] font-medium text-primary">{o.itemLabel}</p>
+
+                {/*
+                  Direction in WORDS, never by colour alone. "Removed → Awarded" tells a
+                  colour-blind reader and a screen reader the same thing the styling tells
+                  everyone else, and this row exists to be understood, not admired.
+                */}
+                <p className="mt-1 text-[11px] text-secondary">
+                  {o.oldValue ? (
+                    <>
+                      <span className="text-muted line-through">{VALUE_LABEL[o.oldValue] ?? o.oldValue}</span>
+                      <span className="mx-1.5 text-muted" aria-hidden>→</span>
+                      <span className="sr-only">changed to</span>
+                      <span className="font-semibold text-brand">{VALUE_LABEL[o.newValue] ?? o.newValue}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-muted">Not scored</span>
+                      <span className="mx-1.5 text-muted" aria-hidden>→</span>
+                      <span className="sr-only">changed to</span>
+                      <span className="font-semibold text-brand">{VALUE_LABEL[o.newValue] ?? o.newValue}</span>
+                    </>
+                  )}
+                </p>
+
+                {/*
+                  The reason is the point of the row. It is required by the schema, the CHECK and
+                  the route precisely so this line can never be empty — an unexplained correction
+                  is indistinguishable from a manager editing a number they disliked.
+                */}
+                <div className="mt-3 rounded-lg border border-default bg-base/40 p-3">
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted">
+                    <MessageSquare className="w-3 h-3" aria-hidden />
+                    Why
+                  </p>
+                  <p className="mt-1 text-[12px] text-primary whitespace-pre-wrap">{o.reason}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted">
+            Your score above already includes these.
+          </p>
+        </section>
+      )}
 
       {/* ── Base by section ───────────────────────────────────────────────────────────── */}
       <section>
