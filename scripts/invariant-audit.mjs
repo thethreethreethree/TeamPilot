@@ -1489,6 +1489,62 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 27 — route segment config in a "use client" page file is INERT ═══════════════════
+//
+// LEARNED: 2026-09-21, from a build that had been RED on main and nobody noticed.
+//
+// `export const dynamic = "force-dynamic"` (and revalidate / runtime / fetchCache / dynamicParams)
+// is ROUTE SEGMENT CONFIG. Next.js honours it only in a SERVER component. Put it in a file that
+// starts with "use client" and it is silently ignored — no warning, no type error, no lint. The
+// page is still statically prerendered, and the author believes the opposite.
+//
+// The incident: /dashboard/meeting-coach/prep mounts MeetingPrepUp, which builds the BROWSER
+// Supabase client during render (`useMemo(() => createClient(), [])`) so it can push audio to a
+// signed upload target. createClient() throws by design when the env is absent — a deliberate
+// fail-loud — and a static export renders the page on a machine with no public Supabase env vars.
+// So the throw landed at BUILD time and took the entire build with it, on every push.
+//
+// What makes it worth a gate rather than a note: the FIRST fix was to add `export const dynamic`
+// to the page — which was still "use client", so the line did nothing and the build failed
+// identically. The wrong mental model survived contact with the failure. Its sibling
+// /dashboard/sales-coach/doors had had the right shape all along (a server shell mounting a client
+// component), which is what made the difference visible.
+//
+// PRECISE BY CONSTRUCTION (A33), which is why this one is gated and the classes below are not: the
+// rule needs no import graph and no reachability analysis. A "use client" file exporting segment
+// config is ALWAYS wrong, whatever it mounts — at best the line is dead, at worst the page is
+// prerendered against the author's intent. There is no legitimate instance to allowlist.
+// Simple string work rather than a regex: "use client" must be the first STATEMENT, so the only
+// things that may precede it are blank lines and comments. A regex for that is easy to get subtly
+// wrong, and a gate that is subtly wrong is worse than none (A33).
+function hasUseClientDirective(src) {
+  for (const raw of src.split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("//") || line.startsWith("/*") || line.startsWith("*")) continue;
+    return /^["']use client["']/.test(line);
+  }
+  return false;
+}
+const SEGMENT_CONFIG_RE =
+  /^export const (dynamic|revalidate|runtime|fetchCache|dynamicParams|preferredRegion|maxDuration)\b/m;
+for (const f of FILES) {
+  if (!/\/(page|layout|template|default)\.tsx?$/.test(f.path)) continue;
+  if (!hasUseClientDirective(f.sql)) continue;
+  const m = f.sql.match(SEGMENT_CONFIG_RE);
+  if (!m) continue;
+  findings.push({
+    rule: `route segment config (${m[1]}) in a "use client" file is silently ignored`,
+    file: f.path,
+    why:
+      "this file is a client component and exports that config, which Next.js only honours in a\n" +
+      "      SERVER component — the line is dead and the page behaves as if it were never written.\n" +
+      "      For `dynamic` that means the page is still PRERENDERED, so any module throwing without\n" +
+      "      runtime env (e.g. the browser Supabase client built during render) breaks build:ci.\n" +
+      "      Fix: keep the page a server shell that exports the config and mounts a small client\n" +
+      "      component holding the hooks — the shape /dashboard/sales-coach/doors already uses.",
+  });
+}
+
 // ═══ DECLINED — recorded, not gated (A26: name the coverage boundary; A33: do not lower the precision bar) ═══
 //
 // The append-only DOUBLE-WRITE re-entrancy class is the most-recurring corruption class this codebase has paid
@@ -1704,6 +1760,20 @@ st("INV24 trigger ignores a pure types/util file (no LLM caller)", !EXT_LLM_CALL
 st("INV24 flags an LLM engine missing the fence", EXT_LLM_CALLER_RE.test("await dissectCoachV5({ systemPrompt: p });") && !TRANSCRIPT_FENCE_RE.test("await dissectCoachV5({ systemPrompt: p });"));
 st("INV24 accepts an engine that appends CONVERSATION_IS_DATA", TRANSCRIPT_FENCE_RE.test("return SYS + CONVERSATION_IS_DATA;"));
 
+// INV27 (2026-09-21) — the "use client" + segment config guard. Self-tested in BOTH directions,
+// because the FIRST attempt at fixing the incident was to add `export const dynamic` to a file that
+// was still "use client" — the line did nothing and the build failed identically. A guard that only
+// proved it could stay quiet would not have caught that.
+st("INV27 detects the directive as the first statement", hasUseClientDirective('"use client";\nexport const dynamic = "force-dynamic";'));
+st("INV27 detects it behind a leading comment block", hasUseClientDirective('/**\n * doc\n */\n"use client";\n'));
+st("INV27 does NOT fire on a server page", !hasUseClientDirective('import { X } from "y";\nexport const dynamic = "force-dynamic";'));
+st('INV27 does NOT fire on the string appearing later in the file', !hasUseClientDirective('import { X } from "y";\nconst s = "use client";'));
+st("INV27 flags dynamic", SEGMENT_CONFIG_RE.test('export const dynamic = "force-dynamic";'));
+st("INV27 flags revalidate", SEGMENT_CONFIG_RE.test("export const revalidate = 60;"));
+st("INV27 ignores an ordinary export", !SEGMENT_CONFIG_RE.test("export const dynamicThing = 1;"));
+st("INV27 would have caught the 2026-09-21 build breaker", hasUseClientDirective('"use client";\nexport const dynamic = "force-dynamic";\n') && SEGMENT_CONFIG_RE.test('export const dynamic = "force-dynamic";'));
+st("INV27 passes the shipped fix (server shell, config honoured)", !hasUseClientDirective('import { R } from "@/c";\nexport const dynamic = "force-dynamic";\n'));
+
 if (selfTestFailures.length) {
   console.error("\n⚠️ INVARIANT-AUDIT SELF-TEST FAILED — a guard can no longer detect its own violation:\n  - " +
     selfTestFailures.join("\n  - ") + "\nThe audit's 0-violations is UNTRUSTWORTHY until the matcher is fixed.");
@@ -1762,7 +1832,7 @@ if (findings.length === 0) {
       " every auth-middleware redirect preserves rotated session cookies (no intermittent logout) ·" +
       " every data-layer catch that swallows into a value classifies the error — rethrow or guard-predicate (no error-as-no-data) ·" +
       " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection) ·" +
-      " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero)."
+      " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page)."
   );
   process.exit(0);
 }
