@@ -108,10 +108,24 @@ export function currentBuildDir() {
   // The name sort silently skips a newer dir whose name sorts earlier on the same day — e.g. "display-honesty" <
   // "forced-client-update" on 2026-08-13 meant the gate validated the wrong build and shipped an UNVALIDATED
   // record (found 2026-08-13; reference_tbc_build_dir_lexicographic_sort). `started_at` is an ISO instant, so it
-  // orders builds by real time. Fallback: a dir without a parseable started_at keys on its name and can only win
-  // if NO dir has a started_at (the "1:" prefix makes any real timestamp beat a name), so a malformed dir can't
-  // hijack the selection away from a real build.
-  const entries = dirs.map((d) => {
+  // orders builds by real time -- PARSED to an instant and compared numerically, see pickLatestBuildName for
+  // why the string sort this replaced was the same bug one layer down. A dir with no parseable started_at, or
+  // one dated in the FUTURE, keys on its name and can only win if no real build exists, so neither a malformed
+  // nor a future-dated dir can hijack the selection away from a real build.
+  // Records whose started_at is known bad (tbc:freshness allowlist) are not eligible to BE the current
+  // build. Without this the future-demotion below is only time-relative: the 2026-09-21 overshoot records
+  // declare 19:30, 21:00, 23:00, 09:30-tomorrow, so they stop being "future" one by one as the evening
+  // passes and reclaim the selection from an honest build committed at 18:20. The allowlist is already
+  // the single place that says which starts are not clock readings; reading it here makes the exclusion
+  // permanent and clock-free, instead of a demotion that expires.
+  let unreliable = new Set();
+  try {
+    unreliable = new Set(loadAllowlist("freshness").map((a) => a.pattern ?? a.id));
+  } catch {
+    /* a malformed allowlist is loadAllowlist's failure to report, not a reason to pick no build */
+  }
+  const eligible = dirs.filter((d) => !unreliable.has(d));
+  const entries = (eligible.length ? eligible : dirs).map((d) => {
     let started = "";
     try {
       const fm = frontMatter(read(join(TBC_DIR, d, "think.md")));
@@ -128,16 +142,42 @@ export function currentBuildDir() {
 /**
  * Pure selection: from `[{ name, started }]` return the name of the most-recently-STARTED build. Extracted +
  * exported so the regression (a newer dir whose NAME sorts earlier on the same day) is a tested unit, not a
- * blind spot. `started` (an ISO instant) orders builds by real time; a dir without one keys on its name and can
- * only win if NO dir has a started_at (the "1:" prefix makes any timestamp beat a bare name).
+ * blind spot.
+ *
+ * TWO DEFECTS FIXED 2026-09-21, both in the line that replaced the name sort. The original keyed on
+ * `1:${started}` and compared with localeCompare — a STRING sort over the raw front-matter text:
+ *
+ *  1. **Mixed offsets sorted by text, not by instant.** `2026-09-22T09:30:00+08:00` and
+ *     `2026-09-22T02:00:00Z` are the same moment, and the string sort puts the second one first. The
+ *     comment claimed "started_at is an ISO instant, so it orders builds by real time"; an ISO string
+ *     only orders by real time when every record shares one offset. This is the 2026-08-13
+ *     lexicographic bug one layer down — the fix inherited the defect it was written to remove.
+ *
+ *  2. **A build dated in the FUTURE captured the selection.** `docs/tbc/2026-09-22-self-elo` was committed
+ *     at 2026-09-21T18:11:18+08:00 declaring `started_at: 2026-09-22T09:30:00+08:00` — fifteen hours after
+ *     it shipped, and it was one of eight same-day dirs spaced 1-1.5h apart, a counter written where a
+ *     clock reading belonged. A future start is not a build in progress, and while one sits at the top of
+ *     the sort every HONESTLY dated build after it is skipped: the gate validates the old dir, the new
+ *     record ships unchecked, and `tbc:freshness` stays green because it only asks that SOME build dir is
+ *     in the diff. That is the 2026-08-13 failure exactly — the wrong build validated — reachable by
+ *     getting a timestamp wrong rather than by naming a directory badly.
+ *
+ * So: parse to an instant, and demote a start that has not happened yet to the name tier, where it can only
+ * win if nothing real exists. `now` is injected so the future rule is testable rather than clock-dependent.
  */
-export function pickLatestBuildName(entries) {
+export function pickLatestBuildName(entries, now = Date.now()) {
   if (!entries.length) return null;
-  const keyed = entries.map((e) => ({
-    name: e.name,
-    sortKey: e.started ? `1:${e.started}` : `0:${e.name}`,
-  }));
-  keyed.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  const keyed = entries.map((e) => {
+    const t = e.started ? Date.parse(e.started) : NaN;
+    // Unparseable, absent, or not yet started -> the name tier. `0` can never outrank a `1`, so a malformed
+    // or future-dated dir cannot hijack the selection away from a real build.
+    const real = Number.isFinite(t) && t <= now;
+    return { name: e.name, tier: real ? 1 : 0, instant: real ? t : 0 };
+  });
+  keyed.sort((a, b) =>
+    a.tier !== b.tier ? a.tier - b.tier
+      : a.instant !== b.instant ? a.instant - b.instant
+      : a.name.localeCompare(b.name));
   return keyed[keyed.length - 1].name;
 }
 

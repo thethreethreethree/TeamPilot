@@ -88,6 +88,10 @@ export async function GET(req: NextRequest) {
       // rep it would silently become "everything I can see", which is not the same as "mine".
       repId: repId ?? auth.user.id,
       ...(periodStart(period, new Date()) ? { from: periodStart(period, new Date()) } : {}),
+      // 900, not the 500 default. This route was the last of three over the same bounded read to
+      // truncate silently, and it truncated SOONEST — its averages would have been computed over
+      // part of a period, with nothing saying so, from 500 pitches rather than 900.
+      limit: 900,
     },
     supabase
   );
@@ -119,6 +123,12 @@ export async function GET(req: NextRequest) {
     period,
     aggregate,
     skippedPreVerdict: read.skippedPreVerdict,
+    /**
+     * The reader's verdict on whether it hit its bound. Averages over a truncated period are not
+     * averages over the period, and this route reports it for the same reason the leaderboard and
+     * milestones do — three routes over one read, and until now one of them was silent.
+     */
+    capped: read.capped,
     /**
      * A VERDICT, not a number. "Insufficient data" is a valid visible state here by requirement
      * — the KPI document's third principle and §3.2 — so the surface is told which case it is in

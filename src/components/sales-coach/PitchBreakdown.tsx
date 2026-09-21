@@ -42,7 +42,7 @@ const PERIODS = [
 type State =
   | { kind: "loading" }
   | { kind: "failed" }
-  | { kind: "ready"; agg: PeriodAggregate; skipped: number; improvement?: ImprovementVerdict };
+  | { kind: "ready"; agg: PeriodAggregate; skipped: number; improvement?: ImprovementVerdict; capped?: boolean };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
@@ -122,6 +122,7 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         aggregate: PeriodAggregate;
         skippedPreVerdict: number;
         improvement?: ImprovementVerdict;
+        capped?: boolean;
       };
       setState({
         kind: "ready",
@@ -131,6 +132,7 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         // the baseline read, and a missing verdict must render as "not enough evidence" rather
         // than throwing inside the board.
         improvement: body.improvement,
+        capped: body.capped === true,
       });
     } catch {
       setState({ kind: "failed" });
@@ -194,7 +196,7 @@ export function PitchBreakdown({ repId }: { repId?: string }) {
         </div>
       )}
 
-      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} improvement={state.improvement} openSection={openSection} setOpenSection={setOpenSection} />}
+      {state.kind === "ready" && <Board agg={state.agg} skipped={state.skipped} improvement={state.improvement} capped={state.capped} openSection={openSection} setOpenSection={setOpenSection} />}
 
       {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
     </section>
@@ -205,6 +207,7 @@ function Board({
   agg,
   skipped,
   improvement,
+  capped,
   openSection,
   setOpenSection,
 }: {
@@ -212,6 +215,8 @@ function Board({
   skipped: number;
   /** Optional on the wire: an older server predates the baseline read. Absent renders as nothing. */
   improvement?: ImprovementVerdict;
+  /** The read hit its row bound, so these averages cover part of the period rather than the period. */
+  capped?: boolean;
   openSection: SectionId | null;
   setOpenSection: (s: SectionId | null) => void;
 }) {
@@ -245,6 +250,18 @@ function Board({
         {agg.notCounted > 0 && ` · ${agg.notCounted} not counted`}
         {skipped > 0 && ` · ${skipped} scored before section totals were recorded`}
       </p>
+
+      {/*
+        A truncated read, said out loud. Every average on this board is over the pitches that came
+        back, and when the bound bites that is part of a period rather than the period — which is
+        a different claim from the one the numbers appear to make.
+      */}
+      {capped && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+          This period has more pitches than one read returns, so these averages cover only part of
+          it. A shorter period will be complete.
+        </p>
+      )}
 
       {/*
         WHAT GOT BETTER, above everything.

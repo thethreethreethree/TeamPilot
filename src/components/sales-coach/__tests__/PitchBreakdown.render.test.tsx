@@ -321,3 +321,28 @@ describe("the board leads with what improved", () => {
     expect(screen.getByText(/Your strongest/i)).toBeTruthy();
   });
 });
+
+describe("a truncated period is said out loud", () => {
+  it("warns when the read did not cover the whole period", async () => {
+    // Every average on this board is over the pitches that came back. When the bound bites, that
+    // is part of a period rather than the period — a different claim from the one they make.
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0, capped: true } });
+    render(<PitchBreakdown />);
+    expect(await screen.findByText(/cover only part of it/i)).toBeTruthy();
+    expect(screen.getByText(/shorter period will be complete/i)).toBeTruthy();
+  });
+
+  it("says nothing when the period is complete", async () => {
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0, capped: false } });
+    render(<PitchBreakdown />);
+    await screen.findByText(/Biggest opportunity/i);
+    expect(screen.queryByText(/cover only part of it/i)).toBeNull();
+  });
+
+  it("says nothing when an older server sends no verdict", async () => {
+    respond({ ok: true, body: { aggregate: AGG, skippedPreVerdict: 0 } });
+    render(<PitchBreakdown />);
+    await screen.findByText(/Biggest opportunity/i);
+    expect(screen.queryByText(/cover only part of it/i)).toBeNull();
+  });
+});

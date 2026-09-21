@@ -1,5 +1,619 @@
 {
-  "_doc": "THINK_BUILD_CHECK.md §6.7 — every allowlisted exception carries its reason INLINE. lib.mjs::loadAllowlist REJECTS any entry whose `reason` is under 20 chars. A bare path list records only that someone silenced the check, never that it was safe to. Keys are gate names ('manifest', 'artifacts'). Empty on install by design — no exceptions have been earned yet.",
+  "_doc": "THINK_BUILD_CHECK.md §6.7 — every allowlisted exception carries its reason INLINE. lib.mjs::loadAllowlist REJECTS any entry whose `reason` is under 20 chars. A bare path list records only that someone silenced the check, never that it was safe to. Keys are gate names ('manifest', 'artifacts', 'freshness'). Empty on install by design — no exceptions have been earned yet.",
   "manifest": [],
-  "artifacts": []
+  "artifacts": [],
+  "freshness": [
+    {
+      "pattern": "2026-07-28-install-tbc-gates",
+      "reason": "Declared 2026-07-28T11:00:00Z, committed 2026-07-28T12:00:35+08:00 (+7.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-28-regex-fix-f2-citation",
+      "reason": "Declared 2026-07-28T13:00:00Z, committed 2026-07-28T12:22:48+08:00 (+8.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-28-tighten-gates-f3-f4",
+      "reason": "Declared 2026-07-28T14:00:00Z, committed 2026-07-28T12:42:54+08:00 (+9.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-28-verify-manifest-f5",
+      "reason": "Declared 2026-07-28T15:00:00Z, committed 2026-07-28T13:02:29+08:00 (+10.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-28-x2-settings-profile-name",
+      "reason": "Declared 2026-07-28T16:20:00Z, committed 2026-07-28T23:44:20+08:00 (+0.6h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-29-sales-coach-revision-completion",
+      "reason": "Declared 2026-07-29T03:20:00Z, committed 2026-07-29T04:51:06+08:00 (+6.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-29-x-revision-completeness-mechanism",
+      "reason": "Declared 2026-07-29T05:10:00Z, committed 2026-07-29T06:26:21+08:00 (+6.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-29-x2-settings-theme",
+      "reason": "Declared 2026-07-29T06:00:00Z, committed 2026-07-29T06:43:03+08:00 (+7.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-29-x3-settings-timezone-foundation",
+      "reason": "Declared 2026-07-29T07:00:00Z, committed 2026-07-29T07:23:12+08:00 (+7.6h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-30-comprehensive-care-ai-tab",
+      "reason": "Declared 2026-07-30T12:00:00Z, committed 2026-07-30T09:42:14+08:00 (+10.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-30-comprehensive-care-general-tab",
+      "reason": "Declared 2026-07-30T13:00:00Z, committed 2026-07-30T09:51:46+08:00 (+11.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-30-comprehensive-care-notifications",
+      "reason": "Declared 2026-07-30T14:00:00Z, committed 2026-07-30T10:07:27+08:00 (+11.9h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-30-sales-coach-doc-upload",
+      "reason": "Declared 2026-07-30T00:10:00Z, committed 2026-07-30T06:50:40+08:00 (+1.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-30-x-doc-upload-remediation",
+      "reason": "Declared 2026-07-30T01:30:00Z, committed 2026-07-30T07:10:20+08:00 (+2.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-30-x2-care-jeff-guidance-upload",
+      "reason": "Declared 2026-07-30T02:00:00Z, committed 2026-07-30T07:50:44+08:00 (+2.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-31-diagnosis-close-auth-gate",
+      "reason": "Declared 2026-07-31T10:39:00Z, committed 2026-07-31T10:48:09+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-31-inv18-mutation-route-auth-guard",
+      "reason": "Declared 2026-07-31T11:05:00Z, committed 2026-07-31T11:01:36+08:00 (+8.1h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-07-31-resolution-modal-state-bleed-fix",
+      "reason": "Declared 2026-07-31T15:05:00Z, committed 2026-07-31T13:49:29+08:00 (+9.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-balance-trigger-wired",
+      "reason": "Declared 2026-07-31T12:15:00Z, committed 2026-07-31T11:47:23+08:00 (+8.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-control-window-thesis-guard",
+      "reason": "Declared 2026-07-31T14:05:00Z, committed 2026-07-31T12:59:39+08:00 (+9.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-definer-searchpath-guard",
+      "reason": "Declared 2026-07-31T14:40:00Z, committed 2026-07-31T13:34:09+08:00 (+9.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-durability-thesis-guard",
+      "reason": "Declared 2026-07-31T14:20:00Z, committed 2026-07-31T13:05:04+08:00 (+9.2h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-finance-immutability-trigger-wired",
+      "reason": "Declared 2026-07-31T12:00:00Z, committed 2026-07-31T11:40:33+08:00 (+8.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-gate-trigger-wired",
+      "reason": "Declared 2026-07-31T11:45:00Z, committed 2026-07-31T11:36:20+08:00 (+8.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-07-31-verify-live-view-invoker-guard",
+      "reason": "Declared 2026-07-31T13:15:00Z, committed 2026-07-31T12:28:32+08:00 (+8.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-01-care-area-access-gate",
+      "reason": "Declared 2026-08-01T14:00:00Z, committed 2026-08-01T13:33:23+08:00 (+8.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-01-care-service-philosophy",
+      "reason": "Declared 2026-08-01T22:30:00Z, committed 2026-08-01T22:44:57+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-01-module-hard-lock-enforcement",
+      "reason": "Declared 2026-08-01T12:30:00Z, committed 2026-08-01T12:42:38+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-01-salescoach-autoend-and-oneliners-rename",
+      "reason": "Declared 2026-08-01T06:00:00Z, committed 2026-08-01T06:07:28+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-01-salescoach-flat-nav-and-diagnosis",
+      "reason": "Declared 2026-08-01T09:00:00Z, committed 2026-08-01T09:43:36+08:00 (+7.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-01-salescoach-required-session-naming",
+      "reason": "Declared 2026-08-01T10:00:00Z, committed 2026-08-01T09:54:54+08:00 (+8.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-02-departments-rename-length-parity",
+      "reason": "Declared 2026-08-02T00:58:00Z, committed 2026-08-02T08:47:34+08:00 (+0.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-02-knowledge-panel-local-date",
+      "reason": "Declared 2026-08-02T01:12:00Z, committed 2026-08-02T08:59:20+08:00 (+0.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-retranscribe-recovery",
+      "reason": "Declared 2026-08-08T04:00:00Z, committed 2026-08-08T04:02:33+08:00 (+8.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x-sales-ext-dissect",
+      "reason": "Declared 2026-08-08T04:20:00Z, committed 2026-08-08T04:22:01+08:00 (+8.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x2-sales-ext-coach",
+      "reason": "Declared 2026-08-08T04:25:00Z, committed 2026-08-08T04:30:12+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x3-sales-ext-summarize",
+      "reason": "Declared 2026-08-08T04:32:00Z, committed 2026-08-08T04:36:50+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x4-sales-ext-copilot",
+      "reason": "Declared 2026-08-08T04:38:00Z, committed 2026-08-08T04:43:31+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x5-sales-ext-client-core",
+      "reason": "Declared 2026-08-08T04:45:00Z, committed 2026-08-08T04:53:21+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x6-sales-ext-product-label",
+      "reason": "Declared 2026-08-08T04:55:00Z, committed 2026-08-08T05:02:43+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x7-sales-ext-formulate",
+      "reason": "Declared 2026-08-08T05:06:00Z, committed 2026-08-08T05:12:15+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x8-sales-ext-refresh",
+      "reason": "Declared 2026-08-08T05:14:00Z, committed 2026-08-08T05:23:19+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-x9-sales-ext-fence-invariant",
+      "reason": "Declared 2026-08-08T05:24:00Z, committed 2026-08-08T05:30:09+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xa-sales-ext-repname-dry",
+      "reason": "Declared 2026-08-08T05:34:00Z, committed 2026-08-08T05:42:06+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xb-sales-ext-llmerror-dry",
+      "reason": "Declared 2026-08-08T05:44:00Z, committed 2026-08-08T05:48:51+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xc-sales-ext-worker",
+      "reason": "Declared 2026-08-08T06:18:00Z, committed 2026-08-08T06:29:51+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xd-sales-ext-download",
+      "reason": "Declared 2026-08-08T06:30:00Z, committed 2026-08-08T06:47:06+08:00 (+7.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xe-sales-ext-connect",
+      "reason": "Declared 2026-08-08T06:50:00Z, committed 2026-08-08T06:58:50+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-08-xf-sales-ext-error-leak-fix",
+      "reason": "Declared 2026-08-08T07:25:00Z, committed 2026-08-08T07:36:08+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-09-vendor-entitlement-exemption",
+      "reason": "Declared 2026-08-09T08:40:00Z, committed 2026-08-09T04:05:33+08:00 (+12.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-09-x-suggested-response-upload",
+      "reason": "Declared 2026-08-09T10:30:00Z, committed 2026-08-09T07:05:01+08:00 (+11.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-09-xb-suggested-response-streaming-charisma",
+      "reason": "Declared 2026-08-09T09:00:00Z, committed 2026-08-09T09:50:57+08:00 (+7.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-09-xc-care-copilot-streaming",
+      "reason": "Declared 2026-08-09T10:00:00Z, committed 2026-08-09T10:12:25+08:00 (+7.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-11-xd-mobile-recording-upload",
+      "reason": "Declared 2026-08-11T12:00:00Z, committed 2026-08-11T08:51:12+08:00 (+11.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xe-upload-audio-duration",
+      "reason": "Declared 2026-08-11T14:30:00Z, committed 2026-08-11T09:48:59+08:00 (+12.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xf-care-upload-body-cap-port",
+      "reason": "Declared 2026-08-11T16:10:00Z, committed 2026-08-11T12:24:27+08:00 (+11.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xg-care-customer-upload-honest-partial",
+      "reason": "Declared 2026-08-11T17:15:00Z, committed 2026-08-11T12:39:00+08:00 (+12.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xh-signed-upload-sign-endpoint-audit",
+      "reason": "Declared 2026-08-11T17:45:00Z, committed 2026-08-11T13:09:08+08:00 (+12.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xi-cwe209-raw-error-field-sweep",
+      "reason": "Declared 2026-08-11T18:05:00Z, committed 2026-08-11T13:18:35+08:00 (+12.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xj-cwe209-nested-message-gate",
+      "reason": "Declared 2026-08-11T18:35:00Z, committed 2026-08-11T13:26:52+08:00 (+13.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-11-xk-cwe209-datalayer-altitude-sweep",
+      "reason": "Declared 2026-08-11T19:00:00Z, committed 2026-08-11T13:34:51+08:00 (+13.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xl-care-readout-unbounded-select",
+      "reason": "Declared 2026-08-12T00:30:00Z, committed 2026-08-12T03:58:38+08:00 (+4.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xm-salescoach-nav-collapsible-groups",
+      "reason": "Declared 2026-08-12T01:10:00Z, committed 2026-08-12T05:43:35+08:00 (+3.4h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xn-uploaded-session-artifact-generation",
+      "reason": "Declared 2026-08-12T02:00:00Z, committed 2026-08-12T06:07:24+08:00 (+3.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xo-kpi-truncation-fix",
+      "reason": "Declared 2026-08-12T07:00:00Z, committed 2026-08-12T07:19:28+08:00 (+7.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xp-session-capture-reliability",
+      "reason": "Declared 2026-08-12T08:30:00Z, committed 2026-08-12T09:08:14+08:00 (+7.4h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xq-capture-cost-dashboard",
+      "reason": "Declared 2026-08-12T10:10:00Z, committed 2026-08-12T10:28:36+08:00 (+7.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xr-truncation-class-completion",
+      "reason": "Declared 2026-08-12T10:45:00Z, committed 2026-08-12T11:04:30+08:00 (+7.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-12-xs-recovery-message-honesty",
+      "reason": "Declared 2026-08-12T12:05:00Z, committed 2026-08-12T11:32:54+08:00 (+8.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xt-false-limit-allowlist-drift",
+      "reason": "Declared 2026-08-12T12:35:00Z, committed 2026-08-12T11:45:11+08:00 (+8.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xu-self-cleaning-false-limit-allowlist",
+      "reason": "Declared 2026-08-12T13:00:00Z, committed 2026-08-12T11:56:38+08:00 (+9.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xv-kpi-cron-agent-enumeration",
+      "reason": "Declared 2026-08-12T13:30:00Z, committed 2026-08-12T12:10:34+08:00 (+9.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xw-readout-false-limits",
+      "reason": "Declared 2026-08-12T14:00:00Z, committed 2026-08-12T12:23:06+08:00 (+9.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-12-xx-finance-register-honest-truncation",
+      "reason": "Declared 2026-08-12T14:30:00Z, committed 2026-08-12T12:35:12+08:00 (+9.9h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-display-honesty",
+      "reason": "Declared 2026-08-13T10:00:00Z, committed 2026-08-13T04:43:37+08:00 (+13.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-dissect-read-starvation",
+      "reason": "Declared 2026-08-13T13:00:00Z, committed 2026-08-13T05:34:35+08:00 (+15.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-forced-client-update",
+      "reason": "Declared 2026-08-13T09:30:00Z, committed 2026-08-13T04:31:18+08:00 (+13.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-forced-update-idle",
+      "reason": "Declared 2026-08-13T21:00:00Z, committed 2026-08-13T09:30:30+08:00 (+19.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-forced-update-revisit-throttle",
+      "reason": "Declared 2026-08-13T12:00:00Z, committed 2026-08-13T05:10:06+08:00 (+14.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-heal-convergence-fix",
+      "reason": "Declared 2026-08-13T23:25:00Z, committed 2026-08-13T14:01:19+08:00 (+17.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-read-heal-audit",
+      "reason": "Declared 2026-08-13T22:30:00Z, committed 2026-08-13T10:52:51+08:00 (+19.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-recent-build-audit",
+      "reason": "Declared 2026-08-13T22:00:00Z, committed 2026-08-13T10:19:56+08:00 (+19.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-recovery-overwrite-fix",
+      "reason": "Declared 2026-08-13T23:55:00Z, committed 2026-08-13T20:10:23+08:00 (+11.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-stt-capture-instrumentation",
+      "reason": "Declared 2026-08-13T23:50:00Z, committed 2026-08-13T15:47:25+08:00 (+16.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-13-tbc-build-selection-fix",
+      "reason": "Declared 2026-08-13T11:00:00Z, committed 2026-08-13T04:59:20+08:00 (+14.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-14-after-pitch-failure-diagnosis",
+      "reason": "Declared 2026-08-14T08:30:00Z, committed 2026-08-14T12:14:35+08:00 (+4.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-after-pitch-first-visit-recovery",
+      "reason": "Declared 2026-08-14T06:00:00Z, committed 2026-08-14T10:54:01+08:00 (+3.1h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-after-pitch-recovery-remainder",
+      "reason": "Declared 2026-08-14T07:30:00Z, committed 2026-08-14T11:27:20+08:00 (+4.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-amd-010-single-source-gate-decisions",
+      "reason": "Declared 2026-08-14T13:00:00Z, committed 2026-08-14T13:49:23+08:00 (+7.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-auto-recover-atomic-replace-fixes",
+      "reason": "Declared 2026-08-14T01:30:00Z, committed 2026-08-14T05:31:59+08:00 (+4.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-auto-recover-one-sided-transcript",
+      "reason": "Declared 2026-08-14T00:50:00Z, committed 2026-08-14T04:57:21+08:00 (+3.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-auto-recover-still-one-sided-honesty",
+      "reason": "Declared 2026-08-14T02:30:00Z, committed 2026-08-14T06:01:08+08:00 (+4.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-capture-health-customer-missing-widening",
+      "reason": "Declared 2026-08-14T02:00:00Z, committed 2026-08-14T05:48:48+08:00 (+4.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-care-team-growth-count-exact",
+      "reason": "Declared 2026-08-14T04:00:00Z, committed 2026-08-14T08:09:41+08:00 (+3.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-controlexempt-discarded-in-call",
+      "reason": "Declared 2026-08-14T12:00:00Z, committed 2026-08-14T13:31:59+08:00 (+6.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-crm-activate-enables-ai-guidance",
+      "reason": "Declared 2026-08-14T10:00:00Z, committed 2026-08-14T13:05:45+08:00 (+4.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-crm-lifecycle-activate-opens-gate",
+      "reason": "Declared 2026-08-14T14:00:00Z, committed 2026-08-14T13:56:05+08:00 (+8.1h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-dissect-backfill-cost-loop-backoff",
+      "reason": "Declared 2026-08-14T03:00:00Z, committed 2026-08-14T06:22:36+08:00 (+4.6h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-finalize-server-idempotency",
+      "reason": "Declared 2026-08-14T07:00:00Z, committed 2026-08-14T11:12:21+08:00 (+3.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-forgot-password-request-flow",
+      "reason": "Declared 2026-08-14T05:00:30Z, committed 2026-08-14T09:57:17+08:00 (+3.1h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-message-reads-paginate-past-1000-cap",
+      "reason": "Declared 2026-08-14T03:30:00Z, committed 2026-08-14T07:31:36+08:00 (+4.0h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-module-lock-redirect-loop-fix",
+      "reason": "Declared 2026-08-14T05:30:00Z, committed 2026-08-14T10:44:00+08:00 (+2.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-realtime-token-capacity-classification",
+      "reason": "Declared 2026-08-14T09:00:00Z, committed 2026-08-14T12:23:00+08:00 (+4.6h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-retranscribe-cache-idempotency",
+      "reason": "Declared 2026-08-14T08:00:00Z, committed 2026-08-14T11:50:03+08:00 (+4.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-reviewed-status-from-durable-event",
+      "reason": "Declared 2026-08-14T06:30:00Z, committed 2026-08-14T11:04:27+08:00 (+3.4h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-14-your-read-starvation-recovery",
+      "reason": "Declared 2026-08-14T09:30:00Z, committed 2026-08-14T12:42:22+08:00 (+4.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-15-peer-rep-idor-readback-gate",
+      "reason": "Declared 2026-08-15T09:00:00Z, committed 2026-08-15T09:18:16+08:00 (+7.7h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-16-audit-remediation",
+      "reason": "Declared 2026-08-16T12:00:00Z, committed 2026-08-16T12:43:19+08:00 (+7.3h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-16-founder-session-monitoring",
+      "reason": "Declared 2026-08-16T07:00:00Z, committed 2026-08-16T08:12:33+08:00 (+6.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-18-macro-mode",
+      "reason": "Declared 2026-08-18T12:00:00Z, committed 2026-08-18T08:57:00+08:00 (+11.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-19-schedule-company-settings",
+      "reason": "Declared 2026-08-19T23:20:00Z, committed 2026-08-19T23:23:49+08:00 (+7.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-19-schedule-manager-controls",
+      "reason": "Declared 2026-08-19T20:00:00Z, committed 2026-08-19T20:29:43+08:00 (+7.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-19-schedule-reimport-replace-week",
+      "reason": "Declared 2026-08-19T20:00:00Z, committed 2026-08-19T23:06:53+08:00 (+4.9h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-19-schedule-va-import",
+      "reason": "Declared 2026-08-19T15:00:00Z, committed 2026-08-19T15:29:48+08:00 (+7.5h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-20-schedule-ai-assistant",
+      "reason": "Declared 2026-08-20T08:45:00Z, committed 2026-08-20T09:30:48+08:00 (+7.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-20-schedule-export-formats",
+      "reason": "Declared 2026-08-20T15:30:00Z, committed 2026-08-20T16:16:49+08:00 (+7.2h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-20-schedule-export-redesign",
+      "reason": "Declared 2026-08-20T13:30:00Z, committed 2026-08-20T14:40:13+08:00 (+6.8h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-21-add-agent-team-passwords",
+      "reason": "Declared 2026-08-21T05:20:00Z, committed 2026-08-21T06:12:04+08:00 (+7.1h). TIMEZONE MISLABEL: the wall clock reading is right and the suffix is wrong - read as +08:00 it precedes the commit. Not an invented time; a real one written as UTC by an author on UTC+8. Harmless to the ordering (every record of that era shares the error) but it loosens the manifest's read_at check by eight hours."
+    },
+    {
+      "pattern": "2026-08-26-practice-engine",
+      "reason": "Declared 2026-08-26T14:40:00+08:00, committed 2026-08-26T11:27:49+08:00 (+3.2h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-26-training-audit-fixes",
+      "reason": "Declared 2026-08-26T15:10:00+08:00, committed 2026-08-26T11:47:14+08:00 (+3.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-26-training-tab",
+      "reason": "Declared 2026-08-26T13:50:00+08:00, committed 2026-08-26T11:02:13+08:00 (+2.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-28-kpi-blocked-tile-honesty",
+      "reason": "Declared 2026-08-28T07:50:00+08:00, committed 2026-08-28T07:08:07+08:00 (+0.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-28-kpi-objections-per-session",
+      "reason": "Declared 2026-08-28T06:45:00+08:00, committed 2026-08-28T06:26:30+08:00 (+0.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-28-kpi-presentations-recorded-pitch",
+      "reason": "Declared 2026-08-28T06:10:00+08:00, committed 2026-08-28T05:54:51+08:00 (+0.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-28-kpi-recommendation-uptake",
+      "reason": "Declared 2026-08-28T07:20:00+08:00, committed 2026-08-28T06:49:12+08:00 (+0.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-08-28-kpi-team-new-metrics",
+      "reason": "Declared 2026-08-28T08:15:00+08:00, committed 2026-08-28T07:19:01+08:00 (+0.9h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-11-recovery-timing-lost",
+      "reason": "Declared 2026-09-11T04:10:00+08:00, committed 2026-09-11T03:37:13+08:00 (+0.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-11-session-started-at",
+      "reason": "Declared 2026-09-11T16:50:00+08:00, committed 2026-09-11T08:59:43+08:00 (+7.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-band-collision",
+      "reason": "Declared 2026-09-21T16:30:00+08:00, committed 2026-09-21T13:45:04+08:00 (+2.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-breakdown-board",
+      "reason": "Declared 2026-09-21T15:10:00+08:00, committed 2026-09-21T13:28:38+08:00 (+1.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-correction-notice",
+      "reason": "Declared 2026-09-22T00:10:00+08:00, committed 2026-09-21T16:35:26+08:00 (+7.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-dispute-queue",
+      "reason": "Declared 2026-09-21T14:15:00+08:00, committed 2026-09-21T13:06:52+08:00 (+1.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-dispute-reply-to-rep",
+      "reason": "Declared 2026-09-21T14:45:00+08:00, committed 2026-09-21T13:14:03+08:00 (+1.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-migration-apply-audit",
+      "reason": "Declared 2026-09-21T18:00:00+08:00, committed 2026-09-21T14:18:36+08:00 (+3.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-migration-idempotency",
+      "reason": "Declared 2026-09-21T22:00:00+08:00, committed 2026-09-21T15:59:35+08:00 (+6.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-override-surfaces",
+      "reason": "Declared 2026-09-21T21:00:00+08:00, committed 2026-09-21T15:07:12+08:00 (+5.9h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-pitch-detail-surface",
+      "reason": "Declared 2026-09-21T13:20:00+08:00, committed 2026-09-21T12:38:04+08:00 (+0.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-pitch-score-leaderboard",
+      "reason": "Declared 2026-09-21T23:00:00+08:00, committed 2026-09-21T16:16:17+08:00 (+6.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-pitch-score-override",
+      "reason": "Declared 2026-09-21T19:30:00+08:00, committed 2026-09-21T14:50:52+08:00 (+4.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-pitch-score-trigger",
+      "reason": "Declared 2026-09-21T12:40:00+08:00, committed 2026-09-21T12:24:28+08:00 (+0.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-pitches-table-collision",
+      "reason": "Declared 2026-09-21T17:20:00+08:00, committed 2026-09-21T14:00:05+08:00 (+3.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-presentations-already-decided",
+      "reason": "Declared 2026-09-21T16:00:00+08:00, committed 2026-09-21T13:40:11+08:00 (+2.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-reachability-gate",
+      "reason": "Declared 2026-09-21T15:40:00+08:00, committed 2026-09-21T13:35:23+08:00 (+2.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-red-build-on-main",
+      "reason": "Declared 2026-09-21T13:50:00+08:00, committed 2026-09-21T12:54:14+08:00 (+0.9h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-21-two-systems-map",
+      "reason": "Declared 2026-09-21T16:55:00+08:00, committed 2026-09-21T13:49:26+08:00 (+3.1h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-capped-verdict",
+      "reason": "Declared 2026-09-22T03:00:00+08:00, committed 2026-09-21T17:00:39+08:00 (+10.0h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-kpi-ruling",
+      "reason": "Declared 2026-09-22T05:00:00+08:00, committed 2026-09-21T17:21:20+08:00 (+11.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-kpi-sweep",
+      "reason": "Declared 2026-09-22T07:30:00+08:00, committed 2026-09-21T17:46:46+08:00 (+13.7h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-pitch-milestones",
+      "reason": "Declared 2026-09-22T01:30:00+08:00, committed 2026-09-21T16:52:25+08:00 (+8.6h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-rep-reachable",
+      "reason": "Declared 2026-09-22T08:30:00+08:00, committed 2026-09-21T18:00:02+08:00 (+14.5h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-rep-tabs",
+      "reason": "Declared 2026-09-22T06:00:00+08:00, committed 2026-09-21T17:33:03+08:00 (+12.4h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-self-elo",
+      "reason": "Declared 2026-09-22T09:30:00+08:00, committed 2026-09-21T18:11:18+08:00 (+15.3h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    },
+    {
+      "pattern": "2026-09-22-standing-gaps",
+      "reason": "Declared 2026-09-22T04:00:00+08:00, committed 2026-09-21T17:09:26+08:00 (+10.8h). OVERSHOOT: later than its own commit even read at +08:00, so the start is a time the session had not reached. currentBuildDir() selected the LATEST start, so a new build had to out-declare the previous one and the series outran the clock. Kept, not corrected - the record is the asset even when what it records is a fabrication (CLAUDE.md 3.1). The pressure is gone (pickLatestBuildName demotes a not-yet-started dir); the class is gated (checkStartTimes)."
+    }
+  ]
 }
