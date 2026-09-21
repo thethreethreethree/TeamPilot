@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { readPitchScore } from "../readPitchScore";
-import { SECTIONS } from "../rubric";
+import { BONUSES_BY_ID, ELEMENTS_BY_ID, SECTIONS } from "../rubric";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 
@@ -59,7 +59,17 @@ const EVENT_ROWS = [
   { type: "rejected_bonus", item_id: "bonus.inside", points: 0, timestamp_s: 91, evidence: "a door, maybe", confidence: 0.62 },
 ];
 
-const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEvents?: unknown[] } = {}) => {
+let ordered: { col: string; ascending: boolean } | null = null;
+let limited: number | null = null;
+
+const mockDb = (
+  opts: {
+    pitch?: unknown;
+    error?: { message: string };
+    disputeEvents?: unknown[];
+    overrides?: unknown[];
+  } = {}
+) => {
   const from = vi.fn((table: string) => {
     if (table === "pitch_scores") {
       const chain: Record<string, unknown> = {};
@@ -74,6 +84,26 @@ const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEve
     // `events` is the dispute/answer thread — a different query shape (in + order + limit) from
     // the two pitch child tables, so the mock has to answer it differently or the reader gets
     // element rows where it expects events.
+    // Overrides are ordered + limited, which `.eq()`-resolves-to-rows would not survive. Kept a
+    // distinct branch so a reader that forgets the order/limit fails here rather than reading an
+    // unbounded table in production.
+    if (table === "pitch_score_overrides") {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "eq"]) chain[m] = () => chain;
+      // RECORDS what was asked for, rather than accepting anything. A mock that swallows `.order()`
+      // makes "newest first" untestable: the rows come back in fixture order either way, so a
+      // reader that asked the database for OLDEST first would pass. Same reasoning as the period
+      // reader's mock, which recorded filters and caught a real `.eq()`-after-`.limit()` bug.
+      chain.order = (col: string, o: { ascending: boolean }) => {
+        ordered = { col, ...o };
+        return chain;
+      };
+      chain.limit = async (n: number) => {
+        limited = n;
+        return { data: opts.overrides ?? [], error: null };
+      };
+      return chain;
+    }
     if (table === "events") {
       const chain: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "order"]) chain[m] = () => chain;
@@ -86,6 +116,8 @@ const mockDb = (opts: { pitch?: unknown; error?: { message: string }; disputeEve
     chain.eq = async () => ({ data: rows, error: null });
     return chain;
   });
+  ordered = null;
+  limited = null;
   const client = { from };
   asMock(createClient).mockResolvedValue(client);
   return client;
@@ -216,6 +248,90 @@ describe("the rep's own dispute threads come back with the pitch", () => {
   it("returns an empty list when the rep has never disputed anything", async () => {
     const pitch = await readPitchScore("sess1");
     expect(pitch!.disputes).toEqual([]);
+  });
+});
+
+describe("manager corrections come back with the pitch", () => {
+  // The rep reads these, and that is the requirement, not a nicety: 0255's select policy grants
+  // the rep whose score it is. An override the rep cannot see is a silent correction, which is the
+  // exact thing "with the change logged" (rubric p.7) exists to prevent.
+  const OVR = [
+    {
+      id: "o2",
+      item_type: "bonus",
+      item_id: "bonus.directv",
+      old_value: "removed",
+      new_value: "awarded",
+      reason: "Heard the DirecTV pitch at 6:10 — the scorer missed it.",
+      actor_id: "mgr1",
+      created_at: "2026-09-20T12:00:00.000Z",
+    },
+    {
+      id: "o1",
+      item_type: "element",
+      item_id: "close.paperwork",
+      old_value: "missed",
+      new_value: "hit",
+      reason: "They did move straight to customer info.",
+      actor_id: "mgr1",
+      created_at: "2026-09-19T09:00:00.000Z",
+    },
+  ];
+
+  it("labels each row from the rubric, so it reads without a lookup", async () => {
+    mockDb({ overrides: OVR });
+    const pitch = await readPitchScore("sess1");
+    // Derived from the rubric, never typed out: a hand-copied label passes while disagreeing with
+    // what the rest of the screen calls the same item.
+    expect(pitch!.overrides[0]!.itemLabel).toBe(BONUSES_BY_ID.get("bonus.directv")!.label);
+    expect(pitch!.overrides[1]!.itemLabel).toBe(ELEMENTS_BY_ID.get("close.paperwork")!.label);
+  });
+
+  it("asks the database for newest first, and keeps that order", async () => {
+    mockDb({ overrides: OVR });
+    const pitch = await readPitchScore("sess1");
+    // BOTH halves. The mapper preserving array order is worthless if the query asked for oldest
+    // first — the rows arrive in the wrong order and the mapper faithfully keeps them that way.
+    expect(ordered).toEqual({ col: "created_at", ascending: false });
+    expect(pitch!.overrides.map((o) => o.id)).toEqual(["o2", "o1"]);
+  });
+
+  it("bounds the read", async () => {
+    // PostgREST caps a select at max_rows anyway; an unbounded read of an append-only log on a
+    // heavily-corrected pitch is a slow page that silently truncates. Same lesson as the dispute
+    // reader's false `.limit(2000)`.
+    mockDb({ overrides: OVR });
+    await readPitchScore("sess1");
+    expect(limited).toBe(100);
+  });
+
+  it("carries the reason and who applied it", async () => {
+    mockDb({ overrides: OVR });
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.overrides[0]).toMatchObject({
+      itemType: "bonus",
+      oldValue: "removed",
+      newValue: "awarded",
+      actorId: "mgr1",
+    });
+    expect(pitch!.overrides[0]!.reason).toContain("6:10");
+  });
+
+  it("still shows an override whose item a later rubric retired", async () => {
+    // The correction HAPPENED and it moved the total. Dropping the row because the id is no longer
+    // in the rubric would leave points on screen that nothing explains — the same reasoning that
+    // keeps a retired element's row out of the section sum but still on the record.
+    mockDb({
+      overrides: [{ ...OVR[1], item_id: "retired.element", item_type: "element" }],
+    });
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.overrides).toHaveLength(1);
+    expect(pitch!.overrides[0]!.itemLabel).toBe("retired.element");
+  });
+
+  it("returns an empty list when no manager has touched the pitch", async () => {
+    const pitch = await readPitchScore("sess1");
+    expect(pitch!.overrides).toEqual([]);
   });
 });
 

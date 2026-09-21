@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { ELEMENTS_BY_ID, SECTIONS, type SectionId } from "./rubric";
+import { BONUSES_BY_ID, ELEMENTS_BY_ID, SECTIONS, VIOLATIONS_BY_ID, type SectionId } from "./rubric";
 import { replayDisputes, type DisputeEventRow, type DisputeRow } from "./readDisputes";
 
 /**
@@ -42,6 +42,20 @@ export type PitchEventRow = {
   confidence: number | null;
 };
 
+export type PitchOverrideRow = {
+  id: string;
+  itemType: "element" | "bonus" | "violation";
+  itemId: string;
+  /** The rubric's label for the item, so the row reads without a lookup. */
+  itemLabel: string;
+  oldValue: string | null;
+  newValue: string;
+  /** Required by the table's CHECK — an unexplained correction cannot be stored. */
+  reason: string;
+  actorId: string;
+  appliedAt: string;
+};
+
 export type StoredPitch = {
   id: string;
   repId: string;
@@ -63,6 +77,15 @@ export type StoredPitch = {
   sectionPoints: { id: SectionId; label: string; points: number; maxPoints: number }[];
   elements: PitchElementRow[];
   events: PitchEventRow[];
+  /**
+   * Manager corrections applied to this pitch, newest first.
+   *
+   * Read by the REP as well as the manager, and that is the whole point. The rubric requires the
+   * change to be logged; a log the person whose score changed cannot see is not a log, it is a
+   * silent correction — the exact thing an audit trail exists to rule out. `pitch_score_overrides`
+   * RLS grants select to the rep or a manager for that reason.
+   */
+  overrides: PitchOverrideRow[];
   /**
    * The rep's own disputes on this pitch, with any manager reply.
    *
@@ -100,12 +123,19 @@ export async function readPitchScore(
 
   const pitchId = pitch.id as string;
 
-  const [{ data: elementRows }, { data: eventRows }, { data: disputeEvents }] = await Promise.all([
+  const [{ data: elementRows }, { data: eventRows }, { data: overrideRows }, { data: disputeEvents }] =
+    await Promise.all([
     sb.from("pitch_score_elements").select("*").eq("pitch_id", pitchId),
     sb.from("pitch_score_events").select("*").eq("pitch_id", pitchId),
     // Through the CALLER's client, like everything else here. `events` RLS is company-wide, but
     // the caller has already proven they may see THIS pitch, and the subject filter keeps the read
     // to this pitch's threads. Ascending, because the replay needs answers before disputes.
+    sb
+      .from("pitch_score_overrides")
+      .select("id, item_type, item_id, old_value, new_value, reason, actor_id, created_at")
+      .eq("pitch_id", pitchId)
+      .order("created_at", { ascending: false })
+      .limit(100),
     sb
       .from("events")
       .select("id, actor, kind, subject, payload, created_at")
@@ -141,6 +171,24 @@ export async function readPitchScore(
     timestampS: r.timestamp_s == null ? null : num(r.timestamp_s),
     evidence: (r.evidence as string | null) ?? null,
     confidence: r.confidence == null ? null : num(r.confidence),
+  }));
+
+  const overrides: PitchOverrideRow[] = (overrideRows ?? []).map((r) => ({
+    id: String(r.id),
+    itemType: r.item_type as PitchOverrideRow["itemType"],
+    itemId: r.item_id as string,
+    // Labelled from the rubric, falling back to the raw id for an item a later rubric retired —
+    // the correction happened and hiding it would leave points nothing on screen explains.
+    itemLabel:
+      ELEMENTS_BY_ID.get(r.item_id as string)?.label ??
+      BONUSES_BY_ID.get(r.item_id as string)?.label ??
+      VIOLATIONS_BY_ID.get(r.item_id as string)?.label ??
+      (r.item_id as string),
+    oldValue: (r.old_value as string | null) ?? null,
+    newValue: r.new_value as string,
+    reason: (r.reason as string) ?? "",
+    actorId: String(r.actor_id ?? ""),
+    appliedAt: String(r.created_at),
   }));
 
   // Answers first, then disputes newest-first — the order replayDisputes expects, and the order
@@ -185,6 +233,7 @@ export async function readPitchScore(
     sectionPoints,
     elements,
     events,
+    overrides,
     disputes,
   };
 }

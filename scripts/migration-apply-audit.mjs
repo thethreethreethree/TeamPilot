@@ -93,12 +93,25 @@ function psql(args, input) {
   });
 }
 
-function reachable() {
+// Returns null when reachable, otherwise WHY it was not.
+//
+// The reason it returns the reason: "SKIPPED — no reachable Postgres" is true of a machine with
+// no Postgres and equally true of a running server whose role is named something else, and those
+// two need completely different actions from the reader. Swallowing the probe's stderr made the
+// skip banner a dead end — the same defect one level down as the skip itself, which is why this
+// script exists. Found 2026-09-21 against a healthy postgres:16 container that reported
+// `FATAL: role "postgres" does not exist` into a catch block.
+function unreachableReason() {
   try {
     psql(["-d", MAINT_DB, "-c", "select 1"], "");
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (err) {
+    const detail = String(err?.stderr ?? err?.message ?? err)
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .find((l) => /error|fatal|could not|denied|refused|not exist/i.test(l));
+    return detail ?? "psql exited non-zero and said nothing useful.";
   }
 }
 
@@ -109,10 +122,12 @@ if (!existsSync(MIG_DIR) || !existsSync(SHIM)) {
 
 console.log("═══ Migration apply audit — the whole history, against real Postgres ═══");
 
-if (!reachable()) {
+const unreachable = unreachableReason();
+if (unreachable) {
   // Not a pass and not a failure. A developer without Postgres must not be blocked, and CI —
   // which always has one — must not be allowed to think this ran when it did not. Say which.
   console.log(`  SKIPPED — no reachable Postgres (tried maintenance db "${MAINT_DB}").`);
+  console.log(`  psql said: ${unreachable}`);
   console.log("  Set PGHOST / PGUSER / PGPASSWORD, or MIGRATION_AUDIT_PSQL to reach one in Docker,");
   console.log("  and MIGRATION_AUDIT_MAINT_DB when the maintenance database is not 'postgres'.");
   console.log("  This is not a pass. CI provides a postgres service, so it runs there.");

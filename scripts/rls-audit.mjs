@@ -136,6 +136,11 @@ const ALLOWLIST = new Map([
   ["pitch_score_events.insert", "0252 bonuses come from the recording, never rep self-reporting — a client insert is a self-awarded bonus."],
   ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
   ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
+  // 0255 overrides: SELECT has a policy (the rep whose score it is, or a manager) and that is the
+  // point — an override the rep cannot read is a silent correction. The write side is closed:
+  ["pitch_score_overrides.insert", "0255 written ONLY by apply_pitch_score_override (DEFINER RPC), which recomputes the total in the same transaction; a client insert would log a correction that never moved a score."],
+  ["pitch_score_overrides.update", "0255 append-only (§3.1) — a second override of the same item supersedes the first by being later, and both stay on the record. 'The change is logged' is only true if the log cannot be rewritten."],
+  ["pitch_score_overrides.delete", "0255 append-only — a deletable override log lets a manager change a score and then remove the evidence that they did."],
 
   ["rep_daily_sales_goal.delete", "0247 goals are manager-set/updated, never deleted — no delete workflow; a stale goal is overwritten."],
   ["rep_day_target.update", "0247 the day target is FROZEN by design (a target that moves during the day rewards stopping) — insert-only, never updated."],

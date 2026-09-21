@@ -46,6 +46,7 @@ const PITCH: StoredPitch = {
     { elementId: "deliv.pace", label: "Pace", section: "delivery", grade: "hit", points: 4, maxPoints: 4, timestampS: null, evidence: null },
     { elementId: "retired.thing", label: "retired.thing", section: null, grade: "hit", points: 2, maxPoints: null, timestampS: null, evidence: null },
   ],
+  overrides: [],
   disputes: [],
   events: [
     { type: "bonus", itemId: "bonus.directv", points: 5, timestampS: 482, evidence: "Tied to sports usage", confidence: null },
