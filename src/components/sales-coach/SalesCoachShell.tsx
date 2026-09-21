@@ -27,6 +27,7 @@ import {
   Gauge,
   Presentation,
   Puzzle,
+  Repeat,
   Scale,
   Settings,
   Target,
@@ -68,6 +69,9 @@ type NavItem = {
    *  (target=_blank) so the Sales Coach app stays open behind it, and is excluded from active-state —
    *  mirrors the C.A.R.E "Browser extension" nav entry (CareShell.tsx). */
   external?: boolean;
+  /** Small pill after the label — the mockup's yellow "NEW" tag on Pattern Interrupt. Purely decorative;
+   *  it does not gate anything. */
+  badge?: string;
 };
 
 /** A grouped run of nav items under an optional section header. A `collapsible` section renders its header as a
@@ -100,41 +104,58 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // MANAGER DASHBOARD — the manager's coaching workspace, and now exactly the three items the
+    // 2026-09-19 boards draw. Everything else moved out by the redesign's own logic rather than
+    // being kept here out of habit:
+    //   · Training — the guide folds the team brief into Coach Assessment ("the existing training
+    //     brief, reshaped into three priority cards"), so a manager reaches it there, not as a
+    //     separate destination.
+    //   · Sessions — recordings become the Recordings tab inside a rep's detail (Project 4).
+    //   · Roleplay — a manager enters it through the pattern action "Assign Role Play drill".
+    //   · Team — member management is an admin utility, not a coaching surface; it sits in Team
+    //     Tools below.
+    // Nothing was deleted; every destination is still reachable. See
+    // docs/SYSTEM UPDATES AND REVISION/LOGIC-AND-CONTRADICTIONS.md B2.
     header: "Manager Dashboard",
     collapsible: true,
     items: [
       { label: "Coach Assessment", href: "/dashboard/sales-coach/coach-assessment", icon: ClipboardCheck, managerOnly: true },
       { label: "Score Calibration", href: "/dashboard/sales-coach/calibration", icon: Scale, managerOnly: true },
-      // Analytics is merged INTO the Coach Assessment card for managers (founder 2026-08-28) — so it's rep-only here;
-      // reps keep their own Analytics self-view, managers find each rep's skill scores on the assessment card.
-      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
-      { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic },
+      // Position is explicit in the guide: "under Manager Dashboard, AFTER Score Calibration."
+      { label: "Pattern Interrupt", href: "/dashboard/sales-coach/pattern-interrupt", icon: Repeat, managerOnly: true, badge: "NEW" },
     ],
   },
   {
+    // MY COACHING — new in the 2026-09-19 rep board, and the natural home for every surface that
+    // shows a rep their OWN work. The board draws the first three; Analytics, Sessions and Training
+    // are the rep's own self-views that used to be scattered across the manager group and the
+    // ungrouped run, and they belong here under the new logic.
+    header: "My Coaching",
+    collapsible: true,
+    items: [
+      { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge, repOnly: true },
+      { label: "Pattern Interrupt", href: "/dashboard/sales-coach/pattern-interrupt", icon: Repeat, repOnly: true, badge: "NEW" },
+      // "Role Play" (two words) is the rep board's label for the existing /roleplay route.
+      { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target, repOnly: true },
+      { label: "Analytics", href: "/dashboard/sales-coach/analytics", icon: BarChart3, repOnly: true },
+      { label: "Sessions", href: "/dashboard/sales-coach/sessions", icon: Mic, repOnly: true },
+      { label: "Training", href: "/dashboard/sales-coach/training", icon: GraduationCap, repOnly: true },
+    ],
+  },
+  {
+    // TEAM TOOLS — in the boards this header now sits over what used to be the ungrouped bottom run.
+    // It is the shared-utility group, which is why Team (member management) and One Liners land here
+    // rather than in a coaching workspace. Manager sees eight items, a rep four: KPI Analytics, My
+    // Progress and Team are manager-only, and the rep's My Progress lives up in My Coaching.
     header: "Team Tools",
     collapsible: true,
     items: [
-      { label: "Roleplay", href: "/dashboard/sales-coach/roleplay", icon: Target },
-      { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
-      // Training (founder 2026-08-26): a manager sees the team brief + every rep's focuses; a rep sees their OWN
-      // trainings on their portal. NOT managerOnly — the page role-branches (manager team-read → 403 falls back to
-      // the rep's own /my-training), so both roles get a working destination (AMD-006 L3).
-      { label: "Training", href: "/dashboard/sales-coach/training", icon: GraduationCap },
-      { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
-    ],
-  },
-  {
-    items: [
       { label: "Team Chat", href: "/dashboard/sales-coach/team-chat", icon: MessageSquare },
-      { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp },
+      { label: "KPI Analytics", href: "/dashboard/sales-coach/kpi", icon: TrendingUp, managerOnly: true },
       { label: "Scoreboard", href: "/dashboard/sales-coach/scoreboard", icon: Trophy },
-      // The rep's own gamification arena (points gauge / total / best pitches / milestones). Rep-facing — the page
-      // reads the caller's own points (owner-RLS), so it works for everyone, not managerOnly.
-      { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge },
-      // Browser extension — mirrors the C.A.R.E sidebar's "Browser extension" nav entry (founder request:
-      // surface the Sales Coach extension the same way C.A.R.E does, not only as inline page cards). Opens the
-      // download + install page in a new tab (external → leaves this fixed-overlay shell cleanly).
+      { label: "My Progress", href: "/dashboard/sales-coach/my-progress", icon: Gauge, managerOnly: true },
+      { label: ONE_LINERS_LABEL, href: "/dashboard/sales-coach/strategy", icon: Library },
+      { label: "Team", href: "/dashboard/sales-coach/team", icon: Users, managerOnly: true },
       { label: "Browser extension", href: "/extension/download-sales", icon: Puzzle, external: true },
       { label: "Settings", href: "/dashboard/sales-coach/settings", icon: Settings },
     ],
@@ -319,7 +340,12 @@ export function SalesCoachShell({
                   >
                     <LinkProgress />
                     <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                    {item.label}
+                    <span className="min-w-0 truncate">{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-ember-400 text-[#09090B]">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 );
               });
