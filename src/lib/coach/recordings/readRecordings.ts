@@ -91,14 +91,24 @@ const LIST_LIMIT = 100;
 export async function readPitchRecordings(
   args: { repId: string; limit?: number },
   db?: SupabaseClient
-): Promise<{ rows: PitchRecordingRow[]; capped: boolean } | null> {
+): Promise<{ rows: PitchRecordingRow[]; capped: boolean; total: number } | null> {
   const supabase = db ?? (await createServerClient());
   const limit = args.limit ?? LIST_LIMIT;
 
-  const { data, error } = await supabase
+  /**
+   * `count: "exact"` rides on the same request, so the page and the true total cannot disagree.
+   *
+   * WHY A TOTAL AT ALL. The design's list header reads "RECENT RECORDINGS · 7 all time", and
+   * `rows.length` cannot supply that number: this read is bounded, and the surface already says so
+   * ("Showing the most recent 100"). For any rep with more, `rows.length` is 100, and "100 all
+   * time" would be the exact false claim three of today's builds removed — a page presented as
+   * the whole set.
+   */
+  const { data, error, count } = await supabase
     .from("pitch_scores")
     .select(
-      "id, rep_id, session_id, recorded_at, duration_s, audio_url, outcome, base, bonus, violations, total, qualifying, not_qualifying_reason"
+      "id, rep_id, session_id, recorded_at, duration_s, audio_url, outcome, base, bonus, violations, total, qualifying, not_qualifying_reason",
+      { count: "exact" }
     )
     .eq("rep_id", args.repId)
     .order("recorded_at", { ascending: false })
@@ -106,7 +116,7 @@ export async function readPitchRecordings(
   if (error || !data) return null;
 
   const pitches = data as PitchRow[];
-  if (pitches.length === 0) return { rows: [], capped: false };
+  if (pitches.length === 0) return { rows: [], capped: false, total: count ?? 0 };
 
   // The rep's OPEN patterns, so a miss on one of those items is a pattern moment.
   const { data: patternData } = await supabase
@@ -144,6 +154,9 @@ export async function readPitchRecordings(
       hasAudio: Boolean(p.audio_url),
     })),
     capped: pitches.length >= limit,
+    // `count` is null when PostgREST declines to count. The page length is the fallback, and in
+    // that case it is equal by construction rather than by assumption.
+    total: count ?? pitches.length,
   };
 }
 

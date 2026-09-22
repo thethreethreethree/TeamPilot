@@ -55,8 +55,28 @@ const when = (iso: string) =>
 
 const OUTCOME: Record<string, string> = { sold: "Sold", follow_up: "Follow-up", no_sale: "No sale" };
 
-export default function RecordingsTab({ repId, isManager }: { repId: string; isManager: boolean }) {
-  const [list, setList] = useState<{ rows: PitchRecordingRow[]; capped: boolean } | null>(null);
+export default function RecordingsTab({
+  repId,
+  isManager,
+  onCount,
+}: {
+  repId: string;
+  isManager: boolean;
+  /** Reports the rep's total scored-pitch count once, so the tab label can show it. */
+  onCount?: (total: number) => void;
+}) {
+  const [list, setList] = useState<{
+    rows: PitchRecordingRow[];
+    capped: boolean;
+    /**
+     * How many scored pitches this rep has, not how many are in `rows`.
+     *
+     * Optional because a browser holding a bundle from before this field will not receive it, and
+     * absent must mean "no count" rather than zero — the fifth new wire field today, and the first
+     * four taught this the hard way.
+     */
+    total?: number;
+  } | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -66,9 +86,19 @@ export default function RecordingsTab({ repId, isManager }: { repId: string; isM
     setListFailed(false);
     fetch(`/api/coach/sales-session/pitch-recordings?repId=${encodeURIComponent(repId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { rows: PitchRecordingRow[]; capped: boolean }) => {
+      .then((d: { rows: PitchRecordingRow[]; capped: boolean; total?: number }) => {
         if (!live) return;
-        setList({ rows: d.rows, capped: d.capped });
+        setList({ rows: d.rows, capped: d.capped, total: d.total });
+        // The board's tab label needs this number while the OTHER tab is showing, so it is handed
+        // upward rather than kept here.
+        //
+        // NO GUARD FLAG, deliberately. The first version kept one in state and read it inside the
+        // effect, which lint caught as a stale closure — and it was right: the flag would have been
+        // read at its value from the previous render. The effect already runs once per `repId` and
+        // this fetch resolves once per run, with `live` covering a late resolve, so a second
+        // notification for the same rep is not reachable. A flag guarding an unreachable case is a
+        // flag that will be wrong about a reachable one later.
+        if (typeof d.total === "number") onCount?.(d.total);
         // Open the newest automatically. A manager who clicked Recordings came to listen to
         // something; a list beside an empty panel makes them click twice to start (1.5.1 layer 3).
         setOpenId(d.rows[0]?.pitchId ?? null);
@@ -77,7 +107,7 @@ export default function RecordingsTab({ repId, isManager }: { repId: string; isM
     return () => {
       live = false;
     };
-  }, [repId]);
+  }, [repId, onCount]);
 
   if (listFailed) {
     return (
@@ -111,6 +141,21 @@ export default function RecordingsTab({ repId, isManager }: { repId: string; isM
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <div>
+        {/*
+          The design's list header: "RECENT RECORDINGS" on the left, "7 all time" on the right.
+          The count is NOT rows.length — this read is bounded at LIST_LIMIT and the surface says so
+          below, so for any rep with more the two numbers differ and "100 all time" would be a page
+          presented as the whole set.
+        */}
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Recent recordings
+          </h4>
+          {typeof list.total === "number" && (
+            <span className="text-[11px] text-muted">{list.total} all time</span>
+          )}
+        </div>
       <ol className="space-y-2">
         {list.rows.map((r) => (
           <li key={r.pitchId}>
@@ -151,10 +196,19 @@ export default function RecordingsTab({ repId, isManager }: { repId: string; isM
         ))}
         {list.capped && (
           <li className="px-1 text-xs text-muted">
-            Showing the most recent 100. Older recordings are on the record and not on this list.
+            {/*
+              SAYS WHAT IT IS SHOWING OF, now that the total exists. The old line named the bound
+              (100) and not the set, which is the same sentence three of today's fixes replaced —
+              and it named the number itself, a second copy of LIST_LIMIT that would drift the
+              first time that moved (§2.2). Both come from the data now.
+            */}
+            Showing the {list.rows.length} most recent
+            {typeof list.total === "number" ? ` of ${list.total}` : ""}. Older recordings are on
+            the record and not on this list.
           </li>
         )}
       </ol>
+      </div>
 
       {openId ? <Player key={openId} pitchId={openId} isManager={isManager} /> : null}
     </div>
@@ -252,10 +306,25 @@ function Player({ pitchId, isManager }: { pitchId: string; isManager: boolean })
       <div className="rounded-xl border border-subtle bg-surface p-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-sm font-semibold text-strong">{when(wire.recordedAt)}</h3>
-          <p className="text-xs text-muted">
-            <span className="tabular-nums text-strong">{wire.total.toFixed(1)}</span>
-            {wire.band ? ` · ${wire.band}` : " · Not counted"} · base {wire.base.toFixed(1)} · bonus{" "}
-            {wire.bonus.toFixed(1)} · violations −{wire.violations.toFixed(1)}
+          {/*
+            THE DESIGN'S ARITHMETIC, not a list of the parts: "58.5 base +5.0 −2.0 = 61.5", with
+            the total large and in the accent colour. The numbers were already all here; what was
+            missing is that they add up in front of the reader. A manager arguing with a score
+            needs to see the sum working, not four values and a comma.
+          */}
+          <p className="flex items-baseline gap-1.5 text-xs text-muted">
+            <span className="tabular-nums">{wire.base.toFixed(1)} base</span>
+            <span className="tabular-nums text-emerald-600 dark:text-emerald-400">
+              +{wire.bonus.toFixed(1)}
+            </span>
+            <span className="tabular-nums text-red-600 dark:text-red-400">
+              −{wire.violations.toFixed(1)}
+            </span>
+            <span aria-hidden>=</span>
+            <span className="text-lg font-semibold tabular-nums text-ember-400">
+              {wire.total.toFixed(1)}
+            </span>
+            <span>{wire.band ? `· ${wire.band}` : "· Not counted"}</span>
           </p>
         </div>
 
@@ -438,7 +507,14 @@ function MarkerStrip({
 function KeyMoments({ wire, onSeek }: { wire: Wire; onSeek: (s: number) => void }) {
   return (
     <div className="rounded-xl border border-subtle bg-surface p-4">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Key moments</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+        {/*
+          "· click to jump" is the affordance half of the design's label, and it is the half that
+          tells a manager these rows DO something. The rows have been clickable since they were
+          built; nothing said so.
+        */}
+        Key moments <span className="font-normal">· click to jump</span>
+      </h4>
       {wire.moments.length === 0 ? (
         <p className="text-sm text-muted">Nothing was flagged in this pitch.</p>
       ) : (

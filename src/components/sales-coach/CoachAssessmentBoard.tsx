@@ -138,7 +138,16 @@ export function CoachAssessmentBoard() {
   // The rep panel's two tabs, as the board shows them: the assessment, and "Recordings (n)".
   // Resets to the assessment when the manager picks a different rep — carrying "Recordings" over
   // would drop them into someone else's audio without having asked for it.
-  const [repTab, setRepTab] = useState<"assessment" | "recordings">("assessment");
+  const [repTab, setRepTab] = useState<"assessment" | "recordings">("assessment");
+  /**
+   * The rep's total scored-pitch count, for the "Recordings (7)" tab label.
+   *
+   * `null` until the Recordings tab has loaded once — the label reads "Recordings" plain until
+   * then, rather than "(0)", which would be a claim rather than an absence. Reset per rep below,
+   * because carrying one rep's count onto another's tab is the kind of quietly-wrong number this
+   * whole session has been about.
+   */
+  const [recCount, setRecCount] = useState<number | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
@@ -219,6 +228,9 @@ export function CoachAssessmentBoard() {
   const repId = rep?.repId ?? null;
   useEffect(() => {
     setRepTab("assessment");
+    // The count belongs to the rep, not to the board. Leaving it would show Anthony's total on
+    // Knute's tab until Knute's recordings loaded — a number that is wrong and looks deliberate.
+    setRecCount(null);
   }, [repId]);
   const repDetail = rep ? wire?.detail[rep.repId] : undefined;
   const notes = rep ? coaching.get(rep.repId) : undefined;
@@ -574,9 +586,16 @@ export function CoachAssessmentBoard() {
                     four depend on: until a manager can press play at the second a score moved,
                     every number on this page asks to be trusted rather than checked (3.3). */}
                 <div className="mt-4 flex gap-1 border-b border-default">
+                  {/*
+                    THE DESIGN'S LABELS: "Overview" and "Recordings (7)". The count comes from the
+                    tab's own load, handed upward, so it appears once the panel has been opened and
+                    not before — the design shows it immediately, and closing that gap would mean a
+                    second fetch of the same endpoint purely to render a number in a label.
+                    Recorded as the residual rather than paid for.
+                  */}
                   {([
-                    ["assessment", "Assessment"],
-                    ["recordings", "Recordings"],
+                    ["assessment", "Overview"],
+                    ["recordings", recCount === null ? "Recordings" : `Recordings (${recCount})`],
                   ] as const).map(([id, label]) => (
                     <button
                       key={id}
@@ -595,7 +614,7 @@ export function CoachAssessmentBoard() {
 
                 {repTab === "recordings" && (
                   <div className="mt-4">
-                    <RecordingsTab repId={rep.repId} isManager />
+                    <RecordingsTab repId={rep.repId} isManager onCount={setRecCount} />
                   </div>
                 )}
 

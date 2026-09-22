@@ -267,3 +267,92 @@ describe("the rep's side of a sent comment", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+/**
+ * The design's specification, as strings on the screen.
+ *
+ * §1.5.4: the founder supplied `Coach Assessment  Recordings tab open (web).pdf` as the spec for
+ * this panel, so its wording IS the intended result rather than polish on top of one. Project 4
+ * was reported complete with five of its parts absent; these pin the ones that are now there.
+ *
+ * What they CANNOT do is say whether the result looks like the design. Only a person with the PDF
+ * beside the screen can say that, and nobody has.
+ */
+describe("the design's wording, which was specified and not built", () => {
+  it("heads the list with RECENT RECORDINGS and the all-time count", async () => {
+    // The count is NOT rows.length — this read is bounded, so for a rep with more than the page
+    // size the two differ and the smaller one would be a page presented as the whole set.
+    fetchMock.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("pitchId=")) return { ok: true, json: async () => detail() };
+      return { ok: true, json: async () => ({ rows: [row()], capped: false, total: 7 }) };
+    });
+    render(<RecordingsTab repId="rep1" isManager />);
+    expect(await screen.findByText(/Recent recordings/i)).toBeTruthy();
+    expect(screen.getByText("7 all time")).toBeTruthy();
+  });
+
+  it("shows no count at all when the response carries none", async () => {
+    // An older bundle, or a failed count. Absent is not zero — "0 all time" about a rep with
+    // recordings on screen would be a number contradicting the list beside it.
+    serve({});
+    render(<RecordingsTab repId="rep1" isManager />);
+    expect(await screen.findByText(/Recent recordings/i)).toBeTruthy();
+    expect(screen.queryByText(/all time/)).toBeNull();
+  });
+
+  it("says what the bounded list is showing OF, from the data not a hard-coded 100", async () => {
+    // The old line named the bound and not the set, and named the number itself — a second copy of
+    // LIST_LIMIT that would drift the first time it moved (§2.2).
+    fetchMock.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("pitchId=")) return { ok: true, json: async () => detail() };
+      return { ok: true, json: async () => ({ rows: [row()], capped: true, total: 412 }) };
+    });
+    render(<RecordingsTab repId="rep1" isManager />);
+    expect(await screen.findByText(/Showing the 1 most recent of 412/)).toBeTruthy();
+  });
+
+  it("prints the score as arithmetic that adds up, not a list of parts", async () => {
+    // "58.5 base +5.0 −2.0 = 61.5". A manager arguing with a score needs to see the sum working.
+    serve({ detail: detail({ base: 58.5, bonus: 5, violations: 2, total: 61.5 }) });
+    render(<RecordingsTab repId="rep1" isManager />);
+    expect(await screen.findByText("58.5 base")).toBeTruthy();
+    expect(screen.getByText("+5.0")).toBeTruthy();
+    expect(screen.getByText("−2.0")).toBeTruthy();
+    expect(screen.getByText("61.5")).toBeTruthy();
+  });
+
+  it("says the key moments can be clicked", async () => {
+    // The rows have been clickable since they were built. Nothing said so.
+    serve({
+      detail: detail({
+        moments: [{ id: "m1", kind: "missed", atSeconds: 12, label: "Trucks", detail: null, points: -3 }],
+        coverage: { total: 1, placeable: 1, unplaced: 0 },
+      }),
+    });
+    render(<RecordingsTab repId="rep1" isManager />);
+    expect(await screen.findByText(/click to jump/i)).toBeTruthy();
+  });
+
+  it("hands the total upward so the board's tab label can show it", async () => {
+    // The label reads "Recordings (7)" in the design. The count is reported once per rep load.
+    const onCount = vi.fn();
+    fetchMock.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("pitchId=")) return { ok: true, json: async () => detail() };
+      return { ok: true, json: async () => ({ rows: [row()], capped: false, total: 7 }) };
+    });
+    render(<RecordingsTab repId="rep1" isManager onCount={onCount} />);
+    await waitFor(() => expect(onCount).toHaveBeenCalledWith(7));
+    expect(onCount).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report a count the response did not carry", async () => {
+    const onCount = vi.fn();
+    serve({});
+    render(<RecordingsTab repId="rep1" isManager onCount={onCount} />);
+    expect(await screen.findByText(/Recent recordings/i)).toBeTruthy();
+    expect(onCount).not.toHaveBeenCalled();
+  });
+});
