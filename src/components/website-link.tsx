@@ -58,7 +58,7 @@ export function WebsiteLink({
         accessibilityRole="link"
         accessibilityLabel={spoken}
         onPress={() => open(url)}
-        // 44pt, the platform minimum, even though the text is small.
+        // 48dp - the larger of the two platform floors, even though the text is small.
         className="mt-1 min-h-7 justify-center active:opacity-70"
       >
         <Text className="font-emphasis text-sm text-primary">{label}</Text>

@@ -24,6 +24,7 @@
 import { Text, View } from 'react-native';
 
 import { badgeDay } from '@/lib/format';
+import { milestoneLine } from '@/lib/gamification/milestone-dates';
 import { pitchMilestoneRows } from '@/lib/pitch-score/milestones';
 import type { MilestonesResponse } from '@/lib/pitch-score/types';
 
@@ -51,14 +52,18 @@ export function PitchMilestonesStrip({ data }: { data: MilestonesResponse | null
           <View className="flex-row flex-wrap gap-2">
             {pitchMilestoneRows(data.milestones).map((m) => {
               const earned = m.status.state === 'earned';
-              // The mockup shows the criteria ONLY where the badge is unearned: once you have it,
-              // what it took is no longer the useful sentence — when you got it is.
-              const line =
-                m.status.state === 'earned'
-                  ? badgeDay(m.status.at)
-                  : m.status.state === 'not-yet'
-                    ? m.caption
-                    : "Can't check now";
+              /*
+                SHARED WITH THE ARENA, NOT RE-IMPLEMENTED. This was nine lines re-deriving exactly
+                what `milestoneLine` already does — date when earned, criteria when not, a failure
+                sentence otherwise. It was caught the moment that failure sentence was reworded:
+                one copy changed and this one did not, which is the duplicated-decision class in
+                miniature and inside a file whose own docblock warns about it.
+
+                The mockup shows the criteria ONLY where the badge is unearned — once you have it,
+                what it took is no longer the useful sentence; when you got it is. That is the rule
+                `milestoneLine` encodes.
+              */
+              const line = milestoneLine(m.status, m.caption, badgeDay);
 
               return (
                 <View
@@ -82,7 +87,7 @@ export function PitchMilestonesStrip({ data }: { data: MilestonesResponse | null
                   >
                     {m.title}
                   </Text>
-                  <Text className="mt-0.5 font-body text-xs text-muted-foreground">{line}</Text>
+                  <Text className="mt-1 font-body text-xs text-muted-foreground">{line}</Text>
                 </View>
               );
             })}

@@ -62,7 +62,7 @@ import { webPitchScoreUrl } from '@/lib/web-links';
 import { ENV } from '@/lib/env';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
-import { C } from '@/lib/theme';
+import { C, TABULAR } from '@/lib/theme';
 
 type Loaded = {
   data: BreakdownResponse;
@@ -155,14 +155,21 @@ export function PitchProgressPage({
               setRefreshing(false);
             }
           }}
+          // `tintColor` is iOS-only. Android reads `colors` and `progressBackgroundColor`, so
+          // without these the pull-to-refresh spinner ignored the palette on half the devices.
           tintColor={C['muted-foreground']}
+          colors={[C.primary]}
+          progressBackgroundColor={C.surface}
         />
       }
     >
       <PitchPeriodToggle period={period} onChange={setPeriod} disabled={state.phase === 'loading'} />
 
       {state.phase === 'loading' ? (
-        <View className="mt-16 items-center">
+        // `busy` as well as the label: the spinner is named, but without this a screen reader
+        // is told nothing about the board being mid-read. Deliberately NOT a live region - one
+        // wrapped round a whole board re-reads every figure on it at each change.
+        <View accessibilityState={{ busy: true }} className="mt-16 items-center">
           <ActivityIndicator color={C.primary} accessibilityLabel="Loading your Pitch Score" />
         </View>
       ) : null}
@@ -307,8 +314,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         <Text
           accessible
           accessibilityLabel={`${agg.totalPoints} total Pitch Score points ${periodPhrase(asked)}`}
-          className="font-heading text-4xl tabular-nums text-primary"
-        >
+          className="font-heading text-4xl text-primary" style={TABULAR}>
           {agg.totalPoints}
         </Text>
         <Text className="mt-1 font-body text-xs uppercase tracking-widest text-muted-foreground">
@@ -402,7 +408,13 @@ function BestPitches({ best }: { best: BestPitchesResponse | null }) {
             key={p.pitchId}
             disabled={url == null}
             onPress={url ? () => open(url) : undefined}
-            accessibilityRole={url ? 'link' : undefined}
+            /*
+              STILL A LINK, JUST AN UNAVAILABLE ONE. Dropping the role left the row announced as
+              plain text, which loses the only clue that its siblings open something. The role
+              stays and `accessibilityState.disabled` carries the difference — a screen reader
+              says "link, dimmed", which is exactly what it is.
+            */
+            accessibilityRole="link"
             accessible
             accessibilityLabel={
               url
@@ -410,17 +422,21 @@ function BestPitches({ best }: { best: BestPitchesResponse | null }) {
                 : `${spoken}. The recording was deleted, so there is nothing to open.`
             }
             accessibilityState={{ disabled: url == null }}
-            className="mt-2 min-h-11 flex-row items-center justify-between rounded-xl border border-border-control px-4 py-3 active:opacity-70"
+            // Reduced opacity AND the state flag, per the component rules: a row styled exactly
+            // like the tappable ones above it teaches a rep it is dead only by being tapped.
+            className={`mt-2 min-h-7 flex-row items-center justify-between rounded-xl border border-border-control px-4 py-3 ${
+              url == null ? 'opacity-60' : 'active:opacity-70'
+            }`}
           >
             <View className="flex-1 pr-3">
               <Text className="font-body text-sm text-muted-foreground">{line}</Text>
               {url == null ? (
-                <Text className="mt-0.5 font-body text-xs leading-tight text-muted-foreground">
+                <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
                   Recording deleted — the score stands, the detail is gone.
                 </Text>
               ) : null}
             </View>
-            <Text className="font-heading text-xl tabular-nums text-primary">{p.total}</Text>
+            <Text className="font-heading text-xl text-primary" style={TABULAR}>{p.total}</Text>
           </Pressable>
         );
       })}
@@ -480,8 +496,8 @@ function Chip({
       accessibilityLabel={`${label}: ${value}`}
       className="flex-1 rounded-lg border border-border-control px-3 py-3"
     >
-      <Text className={`font-heading text-lg tabular-nums ${colour}`}>{value}</Text>
-      <Text numberOfLines={2} className="mt-0.5 font-body text-xs leading-tight text-muted-foreground">
+      <Text className={`font-heading text-lg ${colour}`} style={TABULAR}>{value}</Text>
+      <Text numberOfLines={2} className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
         {label}
       </Text>
     </View>

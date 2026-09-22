@@ -115,5 +115,5 @@ export function milestoneLine(
 ): string {
   if (status.state === 'earned') return formatDay(status.at);
   if (status.state === 'not-yet') return requirement;
-  return "Can't check now";
+  return 'Couldn’t check this one — pull down to try again.';
 }

@@ -18,6 +18,8 @@
  * "attfiber-v1" at the foot is the difference between a sheet and a claim.
  */
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+
+import { TABULAR } from '@/lib/theme';
 import { useState } from 'react';
 
 import type { RubricResponse, RubricSection } from '@/lib/pitch-score/rubric';
@@ -46,7 +48,7 @@ export function PitchRubricSheet({
             <Text accessibilityRole="header" className="font-heading text-xl text-foreground">
               How points work
             </Text>
-            <Text className="mt-0.5 font-body text-sm text-muted-foreground">
+            <Text className="mt-1 font-body text-sm text-muted-foreground">
               EloState AT&amp;T Fiber pitch rubric
             </Text>
           </View>
@@ -69,8 +71,7 @@ export function PitchRubricSheet({
             <Text
               accessible
               accessibilityLabel={`${rubric.baseMax} base plus up to ${rubric.bonusCap} bonus, minus violations, for a maximum of ${rubric.maxScore}`}
-              className="mt-2 font-heading text-2xl tabular-nums text-foreground"
-            >
+              className="mt-2 font-heading text-2xl text-foreground" style={TABULAR}>
               {rubric.baseMax}
               <Text className="font-body text-base text-muted-foreground"> base </Text>+{' '}
               {rubric.bonusCap}
@@ -99,14 +100,14 @@ export function PitchRubricSheet({
               <View key={b.id}>
                 <View className="flex-row items-baseline justify-between gap-3">
                   <Text className="flex-1 font-strong text-base text-foreground">{b.label}</Text>
-                  <Text className="font-emphasis text-base tabular-nums text-primary">
+                  <Text className="font-emphasis text-base text-primary" style={TABULAR}>
                     +{b.points}
                     {/* "Max +6" is the cap, and it only applies to the one repeatable bonus. Printed
                         from the data, never assumed — buying questions is currently the only one. */}
                     {b.repeatable ? ' ea' : ''}
                   </Text>
                 </View>
-                <Text className="mt-0.5 font-body text-sm leading-relaxed text-muted-foreground">
+                <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
                   {b.maxTotal ? `Max +${b.maxTotal}. ` : ''}
                   {b.detectionNotes}
                 </Text>
@@ -120,12 +121,12 @@ export function PitchRubricSheet({
               <View key={v.id}>
                 <View className="flex-row items-baseline justify-between gap-3">
                   <Text className="flex-1 font-strong text-base text-foreground">{v.label}</Text>
-                  <Text className="font-emphasis text-base tabular-nums text-destructive">
+                  <Text className="font-emphasis text-base text-destructive" style={TABULAR}>
                     −{v.deduction}
                     {v.repeatable ? ' ea' : ''}
                   </Text>
                 </View>
-                <Text className="mt-0.5 font-body text-sm leading-relaxed text-muted-foreground">
+                <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
                   {v.maxTotal ? `Max −${v.maxTotal}. ` : ''}
                   {v.trigger}
                   {/* The rubric escalates a rude flag to a person. A rep should know that before
@@ -237,7 +238,7 @@ function SectionCard({ section, rubric }: { section: RubricSection; rubric: Rubr
         className="min-h-7 flex-row items-center justify-between gap-3 active:opacity-70"
       >
         <Text className="flex-1 font-strong text-base text-foreground">{section.label}</Text>
-        <Text className="font-emphasis text-base tabular-nums text-primary">
+        <Text className="font-emphasis text-base text-primary" style={TABULAR}>
           {section.maxPoints} pts
         </Text>
         <Text className="w-4 text-center font-emphasis text-base text-muted-foreground">
@@ -251,11 +252,11 @@ function SectionCard({ section, rubric }: { section: RubricSection; rubric: Rubr
             <View key={e.id}>
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text className="flex-1 font-body text-sm text-foreground">{e.label}</Text>
-                <Text className="font-emphasis text-sm tabular-nums text-foreground">
+                <Text className="font-emphasis text-sm text-foreground" style={TABULAR}>
                   {e.points}
                 </Text>
               </View>
-              <Text className="mt-0.5 font-body text-xs leading-relaxed text-muted-foreground">
+              <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
                 {e.whatCounts}
               </Text>
             </View>

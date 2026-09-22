@@ -29,7 +29,7 @@ import { Tabs } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 
 import { useMacroMode } from '@/lib/doors/macro-context';
-import { C, fontSize } from '@/lib/theme';
+import { C, fontFamily, fontSize } from '@/lib/theme';
 
 /** A tab is an interactive control, so it is bound by the same 48dp floor as
  *  everything else — and a bar sized to its label is one a thumb misses. */
@@ -77,7 +77,7 @@ export default function TabsLayout() {
           minHeight: TAB_MIN_HEIGHT,
         },
         tabBarLabelStyle: {
-          fontFamily: 'Inter_500Medium',
+          fontFamily: fontFamily.emphasis[0],
           // The smallest step on the scale, never a hand-picked pixel — and
           // never below the legibility floor, which is what stopped this app
           // copying the web's 9px tab labels.

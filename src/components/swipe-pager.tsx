@@ -337,6 +337,10 @@ export function SwipePager({
               where the rep is, as one phrase rather than two anonymous circles,
               and the labelled control below is what moves. */}
           <View
+            // React Native does NOT infer `accessible` from a role or a label on a View, so
+            // without this the phrase below is never announced and the bare dots get walked
+            // instead. Every other labelled container in this change set passes it explicitly.
+            accessible
             accessibilityRole="text"
             accessibilityLabel={`${pages[index]?.label ?? ''}, page ${index + 1} of ${pages.length}`}
             className="flex-row items-center justify-center gap-2"

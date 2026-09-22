@@ -13,12 +13,12 @@
  * There is no useColors() hook and no scheme switch: the app is locked to dark
  * (app.json userInterfaceStyle: "dark"), so the palette is a constant.
  */
-import { colors, space, fontSize, radius } from "./tokens";
+import { colors, space, fontSize, radius, fontFamily } from "./tokens";
 
 export type ColorToken = keyof typeof colors;
 
 export const C = colors as Record<ColorToken, string>;
-export { space, fontSize, radius };
+export { space, fontSize, radius, fontFamily };
 
 /**
  * Minimum touch target, in dp.
@@ -35,3 +35,21 @@ export { space, fontSize, radius };
  * since 44 is legal on one of the two platforms.
  */
 export const TOUCH_TARGET = 48;
+
+/**
+ * Tabular figures, for any number that lines up or counts.
+ *
+ * THE NATIVEWIND CLASS `tabular-nums` COMPILES TO NOTHING HERE, and it was used nineteen times
+ * before anyone checked. Tailwind emits `font-variant-numeric`, and
+ * `react-native-css-interop/dist/css-to-rn/parseDeclaration.js` handles only
+ * `font-variant-caps` - there is no `font-variant-numeric` case and no `fontVariant` mapping in
+ * the package at all [VERIFIED 2026-09-22 by grepping the installed copy]. The class is inert.
+ *
+ * React Native supports it natively through the style prop, which is what this is. It matters
+ * most on the Arena gauge, whose count-up steps a number every 26ms in a proportional face -
+ * the digits jitter and the whole number changes width as it counts - and on the Breakdown
+ * board's right-aligned point and percentage columns, whose `w-16` + `text-right` layout assumes
+ * figures of equal width.
+ */
+export const TABULAR = { fontVariant: ['tabular-nums' as const] };
+

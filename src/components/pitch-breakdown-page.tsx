@@ -48,7 +48,7 @@ import type { BreakdownResponse } from '@/lib/pitch-score/types';
 import { PitchReadCaveats } from '@/components/pitch-read-caveats';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
-import { C } from '@/lib/theme';
+import { C, TABULAR } from '@/lib/theme';
 
 type State =
   | { phase: 'loading' }
@@ -119,7 +119,11 @@ export function PitchBreakdownPage({
               setRefreshing(false);
             }
           }}
+          // `tintColor` is iOS-only. Android reads `colors` and `progressBackgroundColor`, so
+          // without these the pull-to-refresh spinner ignored the palette on half the devices.
           tintColor={C['muted-foreground']}
+          colors={[C.primary]}
+          progressBackgroundColor={C.surface}
         />
       }
     >
@@ -130,7 +134,10 @@ export function PitchBreakdownPage({
       />
 
       {state.phase === 'loading' ? (
-        <View className="mt-16 items-center">
+        // `busy` as well as the label: the spinner is named, but without this a screen reader
+        // is told nothing about the board being mid-read. Deliberately NOT a live region - one
+        // wrapped round a whole board re-reads every figure on it at each change.
+        <View accessibilityState={{ busy: true }} className="mt-16 items-center">
           <ActivityIndicator color={C.primary} accessibilityLabel="Loading your rubric averages" />
         </View>
       ) : null}
@@ -260,7 +267,7 @@ function Board({
         >
           Base score
         </Text>
-        <Text className="font-heading text-2xl tabular-nums text-foreground">
+        <Text className="font-heading text-2xl text-foreground" style={TABULAR}>
           {agg.avgBase}
           <Text className="font-body text-sm text-muted-foreground"> / {rubric.baseMax}</Text>
         </Text>
@@ -289,7 +296,7 @@ function Board({
                   </Text>
                 ) : null}
               </View>
-              <Text className="font-emphasis text-base tabular-nums text-foreground">
+              <Text className="font-emphasis text-base text-foreground" style={TABULAR}>
                 {row.points}
                 <Text className="font-body text-sm text-muted-foreground"> / {row.max}</Text>
               </Text>
@@ -318,7 +325,7 @@ function Board({
         >
           Bonus points
         </Text>
-        <Text className="font-heading text-2xl tabular-nums text-primary">
+        <Text className="font-heading text-2xl text-primary" style={TABULAR}>
           +{agg.avgBonus}
           <Text className="font-body text-sm text-muted-foreground">
             {' '}
@@ -340,10 +347,10 @@ function Board({
               className="flex-row items-baseline justify-between gap-3"
             >
               <Text className="flex-1 font-body text-sm text-foreground">{b.label}</Text>
-              <Text className="font-body text-sm tabular-nums text-muted-foreground">
+              <Text className="font-body text-sm text-muted-foreground" style={TABULAR}>
                 {Math.round(b.earnedInRate * 100)}%
               </Text>
-              <Text className="w-16 text-right font-emphasis text-sm tabular-nums text-primary">
+              <Text className="w-16 text-right font-emphasis text-sm text-primary" style={TABULAR}>
                 +{b.avgPoints}
               </Text>
             </View>
@@ -358,7 +365,7 @@ function Board({
         >
           Violations
         </Text>
-        <Text className="font-heading text-2xl tabular-nums text-destructive">
+        <Text className="font-heading text-2xl text-destructive" style={TABULAR}>
           −{agg.avgViolations}
         </Text>
       </View>
@@ -377,14 +384,13 @@ function Board({
             <Text className="flex-1 font-body text-sm text-foreground">{v.label}</Text>
             {/* A clean row is SHOWN, not dropped. "None · 0" is the rep being told they did not do
                 the worst thing on the list, and it is the most valuable row on this card. */}
-            <Text className="font-body text-sm tabular-nums text-muted-foreground">
+            <Text className="font-body text-sm text-muted-foreground" style={TABULAR}>
               {v.clean ? 'None' : `${Math.round(v.rate * 100)}%`}
             </Text>
             <Text
-              className={`w-16 text-right font-emphasis text-sm tabular-nums ${
+              className={`w-16 text-right font-emphasis text-sm ${
                 v.clean ? 'text-muted-foreground' : 'text-destructive'
-              }`}
-            >
+              }`} style={TABULAR}>
               {v.clean ? '0' : `−${v.avgDeduction}`}
             </Text>
           </View>
@@ -398,8 +404,7 @@ function Board({
           <Text
             accessible
             accessibilityLabel={`${rec.base} base plus ${rec.bonus} bonus minus ${rec.violations} equals ${rec.reported} average Pitch Score`}
-            className="font-emphasis text-base tabular-nums text-foreground"
-          >
+            className="font-emphasis text-base text-foreground" style={TABULAR}>
             {rec.base} base + {rec.bonus} bonus − {rec.violations} ={' '}
             <Text className="font-heading text-xl text-primary">{rec.reported}</Text> avg
           </Text>
@@ -436,12 +441,12 @@ function Elements({ rows }: { rows: ReturnType<typeof elementsForSection> }) {
         >
           <View className="flex-row items-baseline justify-between gap-2">
             <Text className="flex-1 font-body text-sm text-foreground">{e.label}</Text>
-            <Text className="font-emphasis text-sm tabular-nums text-foreground">
+            <Text className="font-emphasis text-sm text-foreground" style={TABULAR}>
               {e.avgPoints}
               <Text className="font-body text-xs text-muted-foreground"> / {e.maxPoints}</Text>
             </Text>
           </View>
-          <Text className="mt-0.5 font-body text-xs text-muted-foreground">
+          <Text className="mt-1 font-body text-xs text-muted-foreground">
             {Math.round(e.hitRate * 100)}% hit · {Math.round(e.partialRate * 100)}% partial ·{' '}
             {Math.round(e.missedRate * 100)}% missed
           </Text>

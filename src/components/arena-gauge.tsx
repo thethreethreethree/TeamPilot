@@ -22,7 +22,7 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Text, View } from 'react-native';
 
-import { C } from '@/lib/theme';
+import { C, TABULAR } from '@/lib/theme';
 
 const SIZE = 180;
 /** Ticks around the arc. 27 over 270° puts one every 10°. */
@@ -109,14 +109,32 @@ export function ArenaGauge({
     <View
       accessible
       accessibilityRole="progressbar"
+      /*
+        THE SCALE HERE IS `ceiling`, NOT 100, AND THAT WAS A REAL BUG FOR A DAY.
+
+        `max` was added to this component precisely so Pitch Score's 0-130 would not draw 106.5 as
+        a full gauge, and `litTicks` above was changed to use it. These two lines were not. So the
+        ARC was right and the spoken sentence was wrong: a VoiceOver user with a 106.5 average
+        heard "Average 107 out of 100", and iOS computed the progressbar at over 100 per cent.
+
+        The docblock at the top of this file congratulates itself for fixing that in the arc. It
+        was fixed in the half a sighted person can see.
+      */
       accessibilityValue={
         average === null
           ? { text: 'Not scored yet' }
-          : { min: 0, max: 100, now: Math.round(average) }
+          : { min: 0, max: ceiling, now: Math.round(average) }
       }
-      accessibilityLabel={`Average ${
-        average === null ? 'not scored yet' : Math.round(average)
-      } out of 100. ${bandText}. ${sub}`}
+      accessibilityLabel={[
+        `Average ${average === null ? 'not scored yet' : Math.round(average)} out of ${ceiling}`,
+        // Both are optional on the Pitch Score board - `sub` is '' when a rep has no best score
+        // yet. Joined rather than interpolated so an absent one does not leave ". . " to be read
+        // aloud as two empty sentences.
+        bandText,
+        sub,
+      ]
+        .filter((part) => part !== '')
+        .join('. ')}
       style={{ width: SIZE, height: SIZE }}
       className="items-center justify-center self-center"
     >
@@ -140,12 +158,12 @@ export function ArenaGauge({
         );
       })}
 
-      <Text className="font-heading text-4xl tabular-nums text-foreground">
+      <Text className="font-heading text-4xl text-foreground" style={TABULAR}>
         {/* An em dash, never a 0 — a zero here reads as a measured result. */}
         {average === null ? '—' : shown}
       </Text>
       <Text className="mt-1 font-emphasis text-sm text-primary">{bandText}</Text>
-      <Text className="mt-0.5 font-body text-xs text-muted-foreground">{sub}</Text>
+      <Text className="mt-1 font-body text-xs text-muted-foreground">{sub}</Text>
     </View>
   );
 }

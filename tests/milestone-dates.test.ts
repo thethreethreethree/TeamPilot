@@ -67,8 +67,15 @@ test('the line under a badge: the day when earned, the requirement when not', ()
   assert.equal(milestoneLine({ state: 'not-yet' }, 'Close one', fmt), 'Close one');
 });
 
-test('an unknown milestone says it cannot be checked, not that it is unearned', () => {
+test('an unknown milestone says it cannot be checked, AND what to do about it', () => {
+  /*
+    The sentence was "Can't check now", which says what went wrong only vaguely and what to do
+    not at all - the copy rule is that an error "explains what went wrong and how to fix it. No
+    apologies, no blame, no vagueness." A rep reading it had no idea whether to wait, retry, or
+    give up. The retry gesture is the same one the boards already use, so the line names it.
+  */
   const line = milestoneLine({ state: 'unknown' }, 'Close one', fmt);
-  assert.match(line, /can't check/i);
+  assert.match(line, /couldn’t check/i, 'it must still say the check did not happen');
+  assert.match(line, /pull down/i, 'and it must say what to do about it');
   assert.notEqual(line, 'Close one', 'a badge nobody could check must not read as one not yet earned');
 });
