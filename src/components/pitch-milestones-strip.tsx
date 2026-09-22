@@ -39,12 +39,12 @@ export function PitchMilestonesStrip({ data }: { data: MilestonesResponse | null
       </Text>
 
       {data == null ? (
-        <Text className="font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="font-body text-base leading-relaxed text-muted-foreground">
           Could not load your milestones. Pull down to try again.
         </Text>
       ) : (
         <>
-          <Text className="font-body text-xs leading-relaxed text-muted-foreground">
+          <Text className="font-body text-base leading-relaxed text-muted-foreground">
             Each one is a first, so the period above does not change them. Your session badges are
             in Points and count something else.
           </Text>
@@ -87,7 +87,7 @@ export function PitchMilestonesStrip({ data }: { data: MilestonesResponse | null
                   >
                     {m.title}
                   </Text>
-                  <Text className="mt-1 font-body text-xs text-muted-foreground">{line}</Text>
+                  <Text className="mt-1 font-body leading-relaxed text-base text-muted-foreground">{line}</Text>
                 </View>
               );
             })}

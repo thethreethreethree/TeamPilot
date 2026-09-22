@@ -207,7 +207,7 @@ function Board({
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
-          className="mt-4 font-body text-sm leading-relaxed text-foreground"
+          className="mt-4 font-body text-base leading-relaxed text-foreground"
         >
           {periodSubstituted(asked, data)}
         </Text>
@@ -218,7 +218,7 @@ function Board({
           <Text accessibilityRole="header" className="font-heading text-xl text-foreground">
             Your rubric averages
           </Text>
-          <Text className="mt-1 font-body text-sm text-muted-foreground">
+          <Text className="mt-1 font-body leading-relaxed text-base text-muted-foreground">
             {agg.counted} qualifying {agg.counted === 1 ? 'pitch' : 'pitches'}
             {agg.notCounted > 0 ? ` · ${agg.notCounted} not counted` : ''}
           </Text>
@@ -252,7 +252,7 @@ function Board({
           <Text className="mt-2 font-strong text-base text-foreground">
             {opp.label}: averaging {opp.avgPoints} of {opp.maxPoints}
           </Text>
-          <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
             Hitting it every pitch adds {opp.gainPerPitch} points per pitch, about +
             {opportunityAcrossPeriod(opp.gainPerPitch, agg.counted)} across your {agg.counted}{' '}
             {agg.counted === 1 ? 'pitch' : 'pitches'}.
@@ -269,7 +269,7 @@ function Board({
         </Text>
         <Text className="font-heading text-2xl text-foreground" style={TABULAR}>
           {agg.avgBase}
-          <Text className="font-body text-sm text-muted-foreground"> / {rubric.baseMax}</Text>
+          <Text className="font-body leading-relaxed text-base text-muted-foreground"> / {rubric.baseMax}</Text>
         </Text>
       </View>
 
@@ -277,7 +277,7 @@ function Board({
       {sumsToBase ? null : (
         <Text
           accessibilityRole="alert"
-          className="mt-2 font-body text-sm leading-relaxed text-foreground"
+          className="mt-2 font-body text-base leading-relaxed text-foreground"
         >
           These six do not add up to the base score above them, so one of the two is wrong. The
           figures are shown as they came back rather than adjusted to agree.
@@ -298,7 +298,7 @@ function Board({
               </View>
               <Text className="font-emphasis text-base text-foreground" style={TABULAR}>
                 {row.points}
-                <Text className="font-body text-sm text-muted-foreground"> / {row.max}</Text>
+                <Text className="font-body leading-relaxed text-base text-muted-foreground"> / {row.max}</Text>
               </Text>
             </View>
             <View
@@ -327,7 +327,7 @@ function Board({
         </Text>
         <Text className="font-heading text-2xl text-primary" style={TABULAR}>
           +{agg.avgBonus}
-          <Text className="font-body text-sm text-muted-foreground">
+          <Text className="font-body leading-relaxed text-base text-muted-foreground">
             {' '}
             / {rubric.bonusCap} cap
           </Text>
@@ -335,7 +335,7 @@ function Board({
       </View>
       <View className="mt-3 gap-2">
         {agg.bonusStats.length === 0 ? (
-          <Text className="font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="font-body text-base leading-relaxed text-muted-foreground">
             No bonuses earned in these pitches.
           </Text>
         ) : (
@@ -346,8 +346,8 @@ function Board({
               accessibilityLabel={`${b.label}, earned in ${Math.round(b.earnedInRate * 100)} percent of pitches, worth ${b.avgPoints} points on average`}
               className="flex-row items-baseline justify-between gap-3"
             >
-              <Text className="flex-1 font-body text-sm text-foreground">{b.label}</Text>
-              <Text className="font-body text-sm text-muted-foreground" style={TABULAR}>
+              <Text className="flex-1 font-body leading-relaxed text-base text-foreground">{b.label}</Text>
+              <Text className="font-body leading-relaxed text-base text-muted-foreground" style={TABULAR}>
                 {Math.round(b.earnedInRate * 100)}%
               </Text>
               <Text className="w-16 text-right font-emphasis text-sm text-primary" style={TABULAR}>
@@ -381,10 +381,10 @@ function Board({
             }
             className="flex-row items-baseline justify-between gap-3"
           >
-            <Text className="flex-1 font-body text-sm text-foreground">{v.label}</Text>
+            <Text className="flex-1 font-body leading-relaxed text-base text-foreground">{v.label}</Text>
             {/* A clean row is SHOWN, not dropped. "None · 0" is the rep being told they did not do
                 the worst thing on the list, and it is the most valuable row on this card. */}
-            <Text className="font-body text-sm text-muted-foreground" style={TABULAR}>
+            <Text className="font-body leading-relaxed text-base text-muted-foreground" style={TABULAR}>
               {v.clean ? 'None' : `${Math.round(v.rate * 100)}%`}
             </Text>
             <Text
@@ -411,7 +411,7 @@ function Board({
         ) : (
           <Text
             accessibilityRole="alert"
-            className="font-body text-sm leading-relaxed text-foreground"
+            className="font-body text-base leading-relaxed text-foreground"
           >
             These parts do not add up to the average above: {rec.base} + {rec.bonus} − {rec.violations}{' '}
             comes to {rec.computed}, and your average Pitch Score reads {rec.reported}. Both are shown
@@ -420,7 +420,7 @@ function Board({
         )}
         {/* R-D: two scoring systems stand, each saying what it counts. The Arena is one segment
             away and its points are a different scale entirely. */}
-        <Text className="mt-2 font-body text-xs leading-relaxed text-muted-foreground">
+        <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
           Pitch Score, from the AT&amp;T Fiber rubric — out of {rubric.maxScore}. Your points total in
           Points is a different measure and does not compare.
         </Text>
@@ -440,13 +440,13 @@ function Elements({ rows }: { rows: ReturnType<typeof elementsForSection> }) {
           accessibilityLabel={`${e.label}, ${e.avgPoints} of ${e.maxPoints}. ${Math.round(e.hitRate * 100)} percent hit, ${Math.round(e.partialRate * 100)} percent partial, ${Math.round(e.missedRate * 100)} percent missed.`}
         >
           <View className="flex-row items-baseline justify-between gap-2">
-            <Text className="flex-1 font-body text-sm text-foreground">{e.label}</Text>
+            <Text className="flex-1 font-body leading-relaxed text-base text-foreground">{e.label}</Text>
             <Text className="font-emphasis text-sm text-foreground" style={TABULAR}>
               {e.avgPoints}
-              <Text className="font-body text-xs text-muted-foreground"> / {e.maxPoints}</Text>
+              <Text className="font-body leading-relaxed text-base text-muted-foreground"> / {e.maxPoints}</Text>
             </Text>
           </View>
-          <Text className="mt-1 font-body text-xs text-muted-foreground">
+          <Text className="mt-1 font-body leading-relaxed text-base text-muted-foreground">
             {Math.round(e.hitRate * 100)}% hit · {Math.round(e.partialRate * 100)}% partial ·{' '}
             {Math.round(e.missedRate * 100)}% missed
           </Text>

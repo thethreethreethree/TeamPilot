@@ -31,14 +31,14 @@ export function PitchReadCaveats({ data }: { data: BreakdownResponse }) {
   return (
     <>
       {data.capped ? (
-        <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
           This is as far back as the read goes, so these figures cover part of the period rather
           than all of it.
         </Text>
       ) : null}
 
       {skipped > 0 ? (
-        <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
           {skipped} {skipped === 1 ? 'pitch was' : 'pitches were'} scored before the section
           breakdown existed, so {skipped === 1 ? 'it is' : 'they are'} left out of these averages
           rather than counted as zero.

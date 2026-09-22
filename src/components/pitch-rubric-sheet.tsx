@@ -18,6 +18,7 @@
  * "attfiber-v1" at the foot is the difference between a sheet and a claim.
  */
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TABULAR } from '@/lib/theme';
 import { useState } from 'react';
@@ -42,13 +43,22 @@ export function PitchRubricSheet({
       onRequestClose={onClose}
       presentationStyle="pageSheet"
     >
-      <View className="flex-1 bg-background">
+      {/*
+        SAFE AREA, BECAUSE `pageSheet` IS iOS-ONLY. On iOS the sheet insets itself below the status
+        bar; on Android this Modal is a full-screen window starting at y=0, so the header and the
+        close control rendered under the clock. "Ignoring safe-area insets" is banned outright by
+        the design law and there is no waiver for it.
+
+        Both edges: the bottom one keeps the last rubric row clear of the home indicator, which the
+        existing `pb-12` was covering by luck rather than by saying so.
+      */}
+      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-background">
         <View className="flex-row items-start justify-between gap-3 border-b border-border px-5 py-4">
           <View className="flex-1">
             <Text accessibilityRole="header" className="font-heading text-xl text-foreground">
               How points work
             </Text>
-            <Text className="mt-1 font-body text-sm text-muted-foreground">
+            <Text className="mt-1 font-body leading-relaxed text-base text-muted-foreground">
               EloState AT&amp;T Fiber pitch rubric
             </Text>
           </View>
@@ -79,7 +89,7 @@ export function PitchRubricSheet({
               <Text className="font-body text-base text-muted-foreground">violations = </Text>
               <Text className="text-primary">{rubric.maxScore}</Text>
             </Text>
-            <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+            <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
               You do not need to say the script word for word. The coach listens for the point
               landing, in your own words.
             </Text>
@@ -107,7 +117,7 @@ export function PitchRubricSheet({
                     {b.repeatable ? ' ea' : ''}
                   </Text>
                 </View>
-                <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+                <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
                   {b.maxTotal ? `Max +${b.maxTotal}. ` : ''}
                   {b.detectionNotes}
                 </Text>
@@ -126,7 +136,7 @@ export function PitchRubricSheet({
                     {v.repeatable ? ' ea' : ''}
                   </Text>
                 </View>
-                <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+                <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
                   {v.maxTotal ? `Max −${v.maxTotal}. ` : ''}
                   {v.trigger}
                   {/* The rubric escalates a rude flag to a person. A rep should know that before
@@ -146,31 +156,31 @@ export function PitchRubricSheet({
               `${rubric.prizeEligibleMinPitches} counted pitches makes you prize eligible.`,
               'A pitch never scores below 0. Think a score is wrong? Dispute it on the pitch.',
             ].map((rule) => (
-              <Text key={rule} className="font-body text-sm leading-relaxed text-foreground">
+              <Text key={rule} className="font-body text-base leading-relaxed text-foreground">
                 {rule}
               </Text>
             ))}
           </View>
 
           <Heading>Never graded for accuracy</Heading>
-          <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
             These change per household or over time, so the coach checks only that you made the
             point — never whether the number matched the script.
           </Text>
           <View className="mt-3 gap-2">
             {rubric.neverGradeForAccuracy.map((item) => (
-              <Text key={item} className="font-body text-sm leading-relaxed text-foreground">
+              <Text key={item} className="font-body text-base leading-relaxed text-foreground">
                 {item}
               </Text>
             ))}
           </View>
 
-          <Text className="mt-8 font-body text-xs text-muted-foreground">
+          <Text className="mt-8 font-body leading-relaxed text-base text-muted-foreground">
             Rubric {rubric.version}. A pitch is always explained against the rubric it was scored
             under, not today&apos;s.
           </Text>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -206,7 +216,7 @@ function Grades({ rubric }: { rubric: RubricResponse }) {
       ).map(([label, key, meaning]) => (
         <View key={key} className="flex-row items-baseline gap-3">
           <Text className="w-20 font-strong text-base text-foreground">{label}</Text>
-          <Text className="flex-1 font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="flex-1 font-body text-base leading-relaxed text-muted-foreground">
             {asWords(rubric.gradeCredit[key])} — {meaning}
           </Text>
         </View>
@@ -251,12 +261,12 @@ function SectionCard({ section, rubric }: { section: RubricSection; rubric: Rubr
           {elements.map((e) => (
             <View key={e.id}>
               <View className="flex-row items-baseline justify-between gap-3">
-                <Text className="flex-1 font-body text-sm text-foreground">{e.label}</Text>
+                <Text className="flex-1 font-body leading-relaxed text-base text-foreground">{e.label}</Text>
                 <Text className="font-emphasis text-sm text-foreground" style={TABULAR}>
                   {e.points}
                 </Text>
               </View>
-              <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+              <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
                 {e.whatCounts}
               </Text>
             </View>

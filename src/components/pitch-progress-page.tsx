@@ -218,7 +218,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
-          className="mt-4 font-body text-sm leading-relaxed text-foreground"
+          className="mt-4 font-body text-base leading-relaxed text-foreground"
         >
           {periodSubstituted(asked, data)}
         </Text>
@@ -252,7 +252,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
               Nobody is ahead of you in this window.
             </Text>
           )}
-          <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
             {board.standing.prizeEligible
               ? `Prize eligible — ${rubric.prizeEligibleMinPitches}-pitch minimum met.`
               : `${board.standing.counted} of ${rubric.prizeEligibleMinPitches} counted pitches towards prize eligibility.`}
@@ -266,13 +266,13 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
           is the failure this whole board is organised against — but the absence now has a reason
           attached to it, so a rep who noticed the card yesterday is not left inventing one.
         */
-        <Text className="mt-5 font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="mt-5 font-body text-base leading-relaxed text-muted-foreground">
           Could not load where you stand in the competition. Pull down to try again.
         </Text>
       ) : (
         // `board` arrived and carries no standing: the read worked and the rep is not yet on the
         // board for its window. A real state, and a different sentence from the one above.
-        <Text className="mt-5 font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="mt-5 font-body text-base leading-relaxed text-muted-foreground">
           No competition standing in the {PERIOD_LABELS[board.period].toLowerCase()} window yet.
         </Text>
       )}
@@ -322,7 +322,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         </Text>
         {/* Omitted rather than shown as +0 when the day read failed: "you earned nothing today" and
             "we could not find out" are different sentences, and only one of them is honest. */}
-        <Text className="mt-1 font-body text-sm text-muted-foreground">
+        <Text className="mt-1 font-body leading-relaxed text-base text-muted-foreground">
           {today != null ? `+${today} today · ` : ''}
           {periodPhrase(asked)}
         </Text>
@@ -333,7 +333,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
           {agg.counted} of {agg.pitchesTotal} {agg.pitchesTotal === 1 ? 'pitch' : 'pitches'} counted
         </Text>
         {agg.notCounted > 0 ? (
-          <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
             {reasonSentence(agg.notCountedReasons, agg.notCounted, rubric.qualifyingMinBase)}
           </Text>
         ) : null}
@@ -345,7 +345,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
 
       {/* R-D: two scoring systems stand, each saying what it counts. The Arena is a segment away and
           its points are a different measure on a different scale. */}
-      <Text className="mt-8 font-body text-xs leading-relaxed text-muted-foreground">
+      <Text className="mt-8 font-body text-base leading-relaxed text-muted-foreground">
         Pitch Score, from the AT&amp;T Fiber rubric — out of {rubric.maxScore}, rubric{' '}
         {rubric.version}. Your points total in Points counts scored sessions instead, and the two do
         not compare.
@@ -389,7 +389,7 @@ function BestPitches({ best }: { best: BestPitchesResponse | null }) {
       </Text>
 
       {best == null ? (
-        <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+        <Text className="mt-2 font-body text-base leading-relaxed text-muted-foreground">
           Could not load your best pitches. Pull down to try again.
         </Text>
       ) : null}
@@ -429,9 +429,9 @@ function BestPitches({ best }: { best: BestPitchesResponse | null }) {
             }`}
           >
             <View className="flex-1 pr-3">
-              <Text className="font-body text-sm text-muted-foreground">{line}</Text>
+              <Text className="font-body leading-relaxed text-base text-muted-foreground">{line}</Text>
               {url == null ? (
-                <Text className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+                <Text className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
                   Recording deleted — the score stands, the detail is gone.
                 </Text>
               ) : null}
@@ -444,7 +444,7 @@ function BestPitches({ best }: { best: BestPitchesResponse | null }) {
       {failed ? (
         <Text
           accessibilityRole="alert"
-          className="mt-2 font-body text-sm leading-relaxed text-foreground"
+          className="mt-2 font-body text-base leading-relaxed text-foreground"
         >
           Could not open a browser. The pitch is on the website under Sales Coach.
         </Text>
@@ -497,7 +497,7 @@ function Chip({
       className="flex-1 rounded-lg border border-border-control px-3 py-3"
     >
       <Text className={`font-heading text-lg ${colour}`} style={TABULAR}>{value}</Text>
-      <Text numberOfLines={2} className="mt-1 font-body text-xs leading-relaxed text-muted-foreground">
+      <Text numberOfLines={2} className="mt-1 font-body text-base leading-relaxed text-muted-foreground">
         {label}
       </Text>
     </View>

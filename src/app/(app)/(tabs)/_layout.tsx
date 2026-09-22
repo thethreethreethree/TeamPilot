@@ -117,6 +117,26 @@ export default function TabsLayout() {
         name="metrics"
         options={{
           title: "Today's Metrics",
+          /*
+            THE LABEL IS SHORTENED; THE NAME IS NOT. Same move as Pitch Performance -> "Pitches"
+            directly above, for the same reason and with the same test guarding it.
+
+            I WATCHED IT CLIP. The tab rendered "Today's Metri..." on the emulator, and the
+            arithmetic says why: React Navigation gives each of four tabs 102.86dp here,
+            `BottomTabItem`'s `tabVerticalUiKit` takes `padding: 5` a side, and the label measures
+            92.77dp at 12pt in Inter Medium - from the bundled TTF's advance widths. 102.86 - 10 =
+            92.86, so it fits by nine hundredths of a point, which is to say it does not.
+
+            TWO FIXES FAILED BEFORE THIS ONE, and both failed because the diagnosis was wrong.
+            `tabBarItemStyle: { paddingHorizontal: 0 }` lands on the OUTER View while the padding
+            sits on an inner one. A two-line render put the second line under the home indicator,
+            and raising `minHeight` did not move it because React Navigation computes the bar's
+            height from content and insets rather than from that style.
+
+            R-A is satisfied either way: it places these boards under Today's Metrics, and `title`
+            still says Today's Metrics. 'Metrics' is 43.14dp - half the slot, clipping impossible.
+          */
+          tabBarLabel: 'Metrics',
           tabBarIcon: icon('bar-chart-2'),
           href: macro ? undefined : null,
         }}

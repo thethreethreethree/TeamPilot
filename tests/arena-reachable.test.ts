@@ -53,10 +53,22 @@ test('the Today\'s Metrics tab is still macro-only, which is WHY the route above
   // If this ever stops being true — if the tab becomes visible in both modes — the reasoning above changes and
   // these tests should be revisited rather than blindly kept. Pinning the premise makes that visible instead of
   // leaving three tests defending a condition that no longer holds.
-  const layout = read('src/app/(app)/(tabs)/_layout.tsx');
-  const metricsBlock = layout.slice(layout.indexOf('name="metrics"'));
+  /*
+    COMMENTS STRIPPED BEFORE SLICING. This read a fixed 260 characters from `name="metrics"` and
+    broke the moment that tab grew a docblock - not because the premise stopped holding, but
+    because prose about the code moved the code. A source-level test that greps a raw window is
+    defeated by writing near it, which this repo has now been bitten by twice.
+  */
+  const layout = read('src/app/(app)/(tabs)/_layout.tsx')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  // The UNIT IS THE SCREEN, not a character count: slice to where this tab's own block ends.
+  // Growing the window each time the block grows is the same guess with a bigger number.
+  const from = layout.indexOf('name="metrics"');
+  const next = layout.indexOf('<Tabs.Screen', from);
+  const metricsBlock = layout.slice(from, next === -1 ? undefined : next);
   assert.match(
-    metricsBlock.slice(0, 260),
+    metricsBlock,
     /href: macro \? undefined : null/,
     "the metrics tab is no longer macro-only — re-check whether /progress is still the only standard-mode route",
   );
