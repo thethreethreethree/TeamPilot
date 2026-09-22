@@ -76,3 +76,12 @@ gate-or-promise: gate
 - The term is now load-bearing and mutation S2 fails without it, which is the gate. Beyond that,
   `statusRedundancy.test.ts` keeps the ORIGINAL exhaustion proof alongside the new case, so if the
   predicates are ever collapsed back into one the file states exactly why the rule went dead.
+
+### `scored` was briefly wrong, and the type system was happy
+
+gate-or-promise: gate
+- `readPatterns.test.ts` now pins all three cases directly — no patterns and nothing scored, no
+  patterns but scored, and a pattern present — against a Supabase double rather than a fixture that
+  sets the field for it. Mutation C8m fails without them.
+- The structural half is that `scored` is now a field on `PatternsRead`, computed where the grades
+  are read. A caller cannot assemble it wrongly because a caller no longer assembles it.

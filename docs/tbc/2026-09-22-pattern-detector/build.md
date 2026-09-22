@@ -112,3 +112,21 @@ Founder ruling 2026-09-22, from a question this build raised rather than one it 
   is the only line separating "the miss rate fell" from "they are actually landing it". S2 is now
   CAUGHT, and `statusRedundancy.test.ts` pins both the new case and the old implication, so
   reverting the predicates cannot silently re-kill the rule.
+
+### The manager board sees the team
+
+Closing R2. A manager was opening a page built for their team and seeing their own patterns — and
+a manager who does not pitch saw an empty board.
+
+- **write-path:** `repChips()` counts OPEN patterns per rep from the same verdicts the count cards
+  use, so the chips SUM to ACTIVE PATTERNS above them. `readPatterns` now reads the rows first and
+  fetches grades only for the reps who actually have a pattern — one query per such rep, bounded by
+  who has a repeated miss rather than by headcount. The route takes `?scope=team`, which omits the
+  rep filter and lets the `patterns` policy answer: a manager gets the company, a rep gets
+  themselves. A rep sending `scope=team` is not refused, just handed their own patterns, so there
+  is no second access rule here to drift from the RLS (§2.2).
+- **read-path:** the chip row renders above the two-column body, first chip active, and selecting
+  one filters the list — the board's shape. Names are looked up only for rep ids already on the
+  board, the same scoping the leaderboard route uses, and a failed lookup degrades to a truncated
+  id rather than to "Unknown", which reads as a person rather than a gap. 20 render tests, 15
+  aggregation tests, 10 read-layer tests; 8 mutants on the aggregations, none surviving.

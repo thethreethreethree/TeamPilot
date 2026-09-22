@@ -48,6 +48,7 @@ const pattern = (over: Record<string, unknown> = {}) => ({
 
 const wire = (over: Record<string, unknown> = {}) => ({
   repId: "rep-1",
+  chips: [] as Array<{ repId: string; open: number; fullName: string | null }>,
   patterns: [pattern()],
   counts: { open: 3, fixed: 1, improving: 1, isNew: 2, stalled: 0, openNotImproving: 2 },
   teamWide: [],
@@ -189,5 +190,82 @@ describe("the role split", () => {
     render(<PatternInterrupt />);
     expect(await screen.findByText(/Team-wide pattern/i)).toBeTruthy();
     expect(screen.getByText(/3 reps share this/i)).toBeTruthy();
+  });
+});
+
+describe("the manager's rep chips", () => {
+  const team = () =>
+    wire({
+      repId: null,
+      chips: [
+        { repId: "rep-1", open: 3, fullName: "Humza Khan" },
+        { repId: "rep-2", open: 2, fullName: "Anthony A." },
+      ],
+      patterns: [
+        pattern({ id: "a", repId: "rep-1" }),
+        pattern({ id: "b", repId: "rep-2", label: "Speed test" }),
+      ],
+      counts: { open: 5, fixed: 0, improving: 0, isNew: 2, stalled: 0, openNotImproving: 5 },
+    });
+
+  it("draws a chip per rep with their open count", async () => {
+    isManagerMock.mockReturnValue(true);
+    respond(team());
+    render(<PatternInterrupt />);
+    // The accessible name concatenates the label and count with no separator ("Humza Khan3"),
+    // so match the label and assert the count as its own node.
+    const chip = await screen.findByRole("button", { name: /Humza Khan/ });
+    expect(chip.textContent).toBe("Humza Khan3");
+    expect(screen.getByRole("button", { name: /Anthony A/ }).textContent).toBe("Anthony A.2");
+  });
+
+  it("filters the list to the selected rep", async () => {
+    isManagerMock.mockReturnValue(true);
+    respond(team());
+    const { container } = render(<PatternInterrupt />);
+    await screen.findByText(/Path to fixed/i);
+    // First chip is active by default, matching the board.
+    expect(container.textContent).toContain("Humza Khan's patterns");
+    expect(container.textContent).not.toContain("Speed test");
+    fireEvent.click(screen.getByRole("button", { name: /Anthony A/ }));
+    expect(container.textContent).toContain("Anthony A.'s patterns");
+    expect(container.textContent).toContain("Speed test");
+  });
+
+  it("shows a truncated id rather than inventing a name", async () => {
+    // A failed name lookup must not become "Unknown", which reads as a person rather than a gap.
+    isManagerMock.mockReturnValue(true);
+    respond(
+      wire({
+        repId: null,
+        chips: [{ repId: "abcdef01-2345-6789", open: 1, fullName: null }],
+        patterns: [pattern({ repId: "abcdef01-2345-6789" })],
+      })
+    );
+    render(<PatternInterrupt />);
+    expect(await screen.findByRole("button", { name: /abcdef01/ })).toBeTruthy();
+    expect(screen.queryByText(/Unknown/i)).toBeNull();
+  });
+
+  it("asks for the team only when the caller is a manager", async () => {
+    isManagerMock.mockReturnValue(true);
+    respond(team());
+    render(<PatternInterrupt />);
+    await screen.findByText(/Path to fixed/i);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("scope=team");
+    cleanup();
+    vi.clearAllMocks();
+    isManagerMock.mockReturnValue(false);
+    respond(wire());
+    render(<PatternInterrupt />);
+    await screen.findByText(/Path to fixed/i);
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("scope=team");
+  });
+
+  it("draws no chip row for a rep", async () => {
+    respond(wire());
+    const { container } = render(<PatternInterrupt />);
+    await screen.findByText(/Path to fixed/i);
+    expect(container.textContent).not.toMatch(/'s patterns/);
   });
 });

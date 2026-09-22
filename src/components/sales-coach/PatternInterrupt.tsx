@@ -37,6 +37,9 @@ import type { Grade } from "@/lib/coach/pitchScore/rubric";
 type Tab = "patterns" | "rep-progress";
 
 type Wire = {
+  repId: string | null;
+  /** Per-rep open counts, summing to `counts.open`. Empty on a rep-scoped read. */
+  chips: Array<{ repId: string; open: number; fullName: string | null }>;
   patterns: PatternRow[];
   counts: {
     open: number;
@@ -100,11 +103,17 @@ export function PatternInterrupt() {
   const [tab, setTab] = useState<Tab>("patterns");
   const [state, setState] = useState<State>({ kind: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [repFilter, setRepFilter] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     try {
-      const res = await fetch("/api/coach/sales-session/patterns");
+      // A manager asks for the team; a rep asks for nothing and gets themselves. The scope is a
+      // HINT, not a permission — the `patterns` policy decides, so a rep sending scope=team is
+      // handed their own patterns rather than refused. One access rule, and it is in the database.
+      const res = await fetch(
+        `/api/coach/sales-session/patterns${isManager ? "?scope=team" : ""}`
+      );
       if (!res.ok) {
         setState({ kind: "failed" });
         return;
@@ -115,14 +124,24 @@ export function PatternInterrupt() {
     } catch {
       setState({ kind: "failed" });
     }
-  }, []);
+  }, [isManager]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const wire = state.kind === "ready" ? state.wire : null;
-  const selected = wire?.patterns.find((p) => p.id === selectedId) ?? wire?.patterns[0] ?? null;
+
+  // Which rep's patterns the list shows. Null means the first chip, matching the board: Humza
+  // Khan's chip is filled and his patterns are listed beneath it.
+  const activeRep = repFilter ?? wire?.chips[0]?.repId ?? null;
+  const visible = wire
+    ? activeRep
+      ? wire.patterns.filter((p) => p.repId === activeRep)
+      : wire.patterns
+    : [];
+  const selected = visible.find((p) => p.id === selectedId) ?? visible[0] ?? null;
+  const activeName = wire?.chips.find((c) => c.repId === activeRep)?.fullName ?? null;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -246,7 +265,45 @@ export function PatternInterrupt() {
               </div>
             ))}
 
-            {wire.patterns.length === 0 ? (
+            {/* REP CHIPS — "Humza Khan 3 · Anthony A. 3 · …", summing to ACTIVE PATTERNS above.
+                They sum because both are counted from the same verdicts; a chip row that filtered
+                for itself would disagree with the card the first time Improving was handled
+                differently, which is exactly what C8 recorded in the mockups. */}
+            {wire.chips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {wire.chips.map((c) => {
+                  const on = c.repId === activeRep;
+                  return (
+                    <button
+                      key={c.repId}
+                      type="button"
+                      onClick={() => {
+                        setRepFilter(c.repId);
+                        setSelectedId(null);
+                      }}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                        on
+                          ? "border-transparent bg-brand text-[#09090B] font-semibold"
+                          : "border-default bg-surface text-secondary hover:border-ember-400/40"
+                      }`}
+                    >
+                      {/* A truncated id is a poor label and an honest one. A name that failed to
+                          load must not become "Unknown", which reads as a person rather than a gap. */}
+                      <span className="truncate max-w-[12rem]">{c.fullName ?? c.repId.slice(0, 8)}</span>
+                      <span className={on ? "tabular-nums" : "tabular-nums text-muted"}>{c.open}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeName && (
+              <p className="text-[10px] uppercase tracking-widest text-muted">
+                {activeName}&apos;s patterns
+              </p>
+            )}
+
+            {visible.length === 0 ? (
               <div className="rounded-lg border border-default bg-surface px-5 py-8 text-center">
                 {/* The two facts that look identical on screen and are opposite. */}
                 <p className="text-sm text-primary font-medium">
@@ -264,7 +321,7 @@ export function PatternInterrupt() {
                   <p className="text-[10px] uppercase tracking-widest text-muted">
                     {isManager ? "Patterns" : "Your patterns"}
                   </p>
-                  {wire.patterns.map((p) => {
+                  {visible.map((p) => {
                     const active = p.id === selected?.id;
                     return (
                       <button

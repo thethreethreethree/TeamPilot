@@ -160,3 +160,20 @@ sweep: the S2 mutant, before and after; `statusRedundancy.test.ts`.
 - Worth recording as a pattern: a surviving mutant was not a gap in the tests and not noise — it
   was the specification asking for a condition its own other condition implied, and the fix was a
   product decision.
+
+### `scored` was briefly wrong, and the type system was happy
+
+class: a field whose meaning lives in one module being recomputed at another, during a refactor
+  that moved where the data came from.
+severity: medium
+sweep: mutation C8m (`scored: true` -> `false`), which survived until `readPatterns.test.ts`
+  existed; `grep -n "scored" src/ -r`.
+- Moving the grades read inside `readPatterns` left the route without the information it had been
+  using, and I replaced it with `read.patterns.length > 0 || Boolean(repId)` — which is `true` for
+  every rep, always. That turns "nothing has been scored yet" into "no patterns right now" for a
+  brand-new rep: an absence rendered as a finding, on the one screen where the wrong one reads as
+  praise.
+- Typecheck passed, every existing test passed, and the component tests use a fixture that sets
+  `scored` explicitly — so nothing could have caught it. Fixed by making `scored` a field on the
+  read's verdict (§2.2) rather than something a caller assembles, at the cost of one extra query
+  in exactly the case where the answer matters and none otherwise.

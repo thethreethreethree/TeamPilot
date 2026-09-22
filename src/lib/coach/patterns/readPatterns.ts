@@ -51,6 +51,15 @@ export type PatternsRead = {
   counts: ReturnType<typeof countPatterns>;
   /** The read hit its bound, so this is part of a rep's patterns rather than all of them. */
   capped: boolean;
+  /**
+   * Has anything been scored for this scope at all?
+   *
+   * The distinction the empty state is built on, and the reason it lives here rather than at the
+   * route: "no patterns found" and "nothing has looked" render identically and are opposite facts,
+   * and on this screen the wrong one reads as praise. Answering it needs the grades read, which
+   * this module owns.
+   */
+  scored: boolean;
 };
 
 /** Bound, for the same reason every other read here has one: PostgREST caps at 1000. */
@@ -94,15 +103,54 @@ function describe(itemId: string, kind: PatternRow["itemKind"]): { label: string
   return { label: VIOLATIONS_BY_ID.get(itemId)?.label ?? itemId, section: "violation" };
 }
 
+/**
+ * Per-rep open-pattern counts — the manager board's chips.
+ *
+ * `Humza Khan 3 · Anthony A. 3 · James Soto 3 · Knute Knudtson 2 · John Knudtson 1`, and on the
+ * board those five sum to the ACTIVE PATTERNS card above them. They sum because both numbers come
+ * from the same verdicts: this counts `verdict.open`, the card reads `counts.open`, and neither
+ * decides for itself what open means (C8, §2.2). A chip row that did its own filtering would
+ * disagree with the card above it the first time Improving was handled differently — which is
+ * exactly the disagreement C8 recorded in the mockups.
+ *
+ * Sorted by count descending, then by id so the order is stable between loads. A board whose chips
+ * reshuffle on every poll is one a manager cannot point at.
+ */
+export function repChips(patterns: readonly PatternRow[]) {
+  const byRep = new Map<string, number>();
+  for (const p of patterns) {
+    if (!p.verdict.open) continue;
+    byRep.set(p.repId, (byRep.get(p.repId) ?? 0) + 1);
+  }
+  return [...byRep.entries()]
+    .map(([repId, open]) => ({ repId, open }))
+    .sort((a, b) => b.open - a.open || a.repId.localeCompare(b.repId));
+}
+
 export async function readPatterns(
   args: {
     /**
      * REQUIRED with a service-role client and optional with a caller-scoped one, exactly as
      * `readPitchPeriod` requires it: RLS filters the second and does not exist for the first.
+     *
+     * OMITTING IT IS THE TEAM READ, and it is safe only through a caller-scoped client: the
+     * `patterns` policy is "own row, or any in your company if you manage", so a manager gets the
+     * team and a rep gets themselves from the same query. The route does not decide who sees what
+     * — that answer is in the database, in one place, and cannot drift from the RLS that also
+     * governs direct queries (§2.2).
      */
     repId?: string;
-    /** Applicable grades per item, keyed by item id — the caller reads them once for all items. */
-    gradesByItem: ReadonlyMap<string, readonly GradedPitch[]>;
+    /**
+     * Applicable grades, keyed by rep and then by item.
+     *
+     * OPTIONAL, and normally omitted: this function reads the pattern rows first, learns which
+     * reps actually have patterns, and fetches grades only for those. A caller cannot know that
+     * list in advance without doing the same read twice, and on a team board the difference is
+     * between one query per rep-with-a-pattern and one per rep in the company.
+     *
+     * Supplied only by tests, which is why the injection point exists at all.
+     */
+    gradesByRep?: ReadonlyMap<string, ReadonlyMap<string, readonly GradedPitch[]>>;
     now?: Date;
     limit?: number;
   },
@@ -123,7 +171,12 @@ export async function readPatterns(
 
   const records = data as PatternRecord[];
   if (records.length === 0) {
-    return { patterns: [], counts: countPatterns([]), capped: false };
+    // ONE EXTRA QUERY, only in the case where the answer matters. With no patterns the board has
+    // to choose between "nothing has been missed three times" (a finding) and "nothing has been
+    // scored yet" (an absence), and nothing else on this path can tell them apart. A rep WITH
+    // patterns never pays for this.
+    const scored = args.repId ? (await readApplicableGrades({ repId: args.repId }, supabase)).size > 0 : false;
+    return { patterns: [], counts: countPatterns([]), capped: false, scored };
   }
 
   // One events read for every pattern, rather than one per pattern. The board shows up to a
@@ -146,11 +199,33 @@ export async function readPatterns(
     if (e.kind === "rep_reviewed") reviewed.add(e.pattern_id);
   }
 
+  /**
+   * Grades for exactly the reps who have a pattern, read AFTER the rows rather than before.
+   *
+   * One query per such rep. Bounded by how many people actually have a repeated miss, not by
+   * headcount — a company of forty where three reps have patterns does three reads, and a rep
+   * reading their own board does one. Named here rather than hidden because it is the first thing
+   * to measure if this page feels slow (and because "N+1" is easier to fix than to notice).
+   *
+   * Sequential rather than parallel on purpose: this runs behind a caller-scoped client against a
+   * pooled connection, and a manager opening the board should not fire twenty simultaneous reads
+   * to save a few hundred milliseconds on a page that already waited for the rows.
+   */
+  const repIds = [...new Set(records.map((r) => r.rep_id))];
+  const gradesByRep = new Map<string, ReadonlyMap<string, readonly GradedPitch[]>>();
+  if (args.gradesByRep) {
+    for (const [k, v] of args.gradesByRep) gradesByRep.set(k, v);
+  } else {
+    for (const id of repIds) {
+      gradesByRep.set(id, await readApplicableGrades({ repId: id }, supabase));
+    }
+  }
+
   const now = args.now ?? new Date();
   const patterns = records.map((r): PatternRow => {
     const { label, section } = describe(r.item_id, r.item_kind);
     const verdict = statusOf({
-      applicable: args.gradesByItem.get(r.item_id) ?? [],
+      applicable: gradesByRep.get(r.rep_id)?.get(r.item_id) ?? [],
       coachedAt: coachedAt.get(r.id) ?? null,
       fixedAt: r.fixed_at,
       now,
@@ -181,6 +256,8 @@ export async function readPatterns(
     patterns,
     counts: countPatterns(patterns.map((p) => p.verdict)),
     capped: records.length >= limit,
+    // A pattern exists, so something was necessarily scored to find it.
+    scored: true,
   };
 }
 
