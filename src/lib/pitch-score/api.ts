@@ -19,6 +19,7 @@
  * quietly become the whole company's average with one person's name on it.
  */
 import { coachGet } from '@/lib/coach-api';
+import type { RubricResponse } from '@/lib/pitch-score/rubric';
 import type {
   BreakdownResponse,
   LeaderboardResponse,
@@ -63,4 +64,22 @@ export function fetchLeaderboard(period: Period): Promise<LeaderboardResponse> {
  */
 export function fetchMilestones(): Promise<MilestonesResponse> {
   return coachGet<MilestonesResponse>(`${BASE}/milestones`);
+}
+
+/**
+ * The rubric: the sheet's contents, the section maxima the Breakdown bars print, and the 0-130
+ * scale the gauge runs on.
+ *
+ * ITS TYPES AND ITS ONE RULE LIVE IN `rubric.ts`, NOT HERE, and the split is deliberate rather than
+ * tidy. This module imports `coach-api`, which imports `expo/fetch` — a native module the test
+ * runner cannot load — so any rule sharing a file with it is untestable, and not subtly: the whole
+ * file fails to import. `lowestSection` is the rule this build most needs a test on.
+ *
+ * NOT CACHED, and the header on the response does not change that: React Native implements no HTTP
+ * response cache, so `Cache-Control` buys this app nothing. If the request count ever matters, hold
+ * the body keyed by `version` — stronger than any duration, because the rubric is immutable per
+ * version.
+ */
+export function fetchRubric(): Promise<RubricResponse> {
+  return coachGet<RubricResponse>(`${BASE}/rubric`);
 }
