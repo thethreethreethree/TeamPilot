@@ -20,9 +20,11 @@ This mirrors the founder's **"Door Tracker Screen" mockup** exactly, and the shi
   - "Earned today" = `sold_today × $-per-sale`; "to goal" = `max(0, sold_target − sold_today) × $-per-sale`.
   - **$-per-sale is a manager-set value per rep** (see migration 0248). **It is OPTIONAL**: when it isn't set,
     the box **degrades to the plain "N more sales to goal" line** — never a fabricated `$0`.
-- **Logging: tap a dial → OPEN the existing quick-log** (pick the knock outcome / record the pitch), NOT a bare
-  +1 — a `door_knock` requires an outcome and a "presentation" is a recorded pitch. The dials show the rep's
-  **REAL logged counts** and refresh after logging.
+- **Logging: tap a dial → OPEN the existing quick-log** (pick the knock outcome), NOT a bare
+  +1 — a `door_knock` requires an outcome. **A "presentation" is a door the rep actually spoke to** =
+  `door_knocks` where `outcome != 'no_answer'` (REVERSED 2026-09-11, founder decision `eddcc50e`: it was
+  formerly a recorded pitch, which broke funnel integrity — "0 of 9 presentations beside 9 sold"; sold must be a
+  subset of presentations). The dials show the rep's **REAL logged counts** and refresh after logging.
 - **No long-press decrement, no "Reset the day" button.** (Both were in the prototype but are dropped: real
   counts are immutable logged events — you can't fake-+1 or wipe them. Undo lives in the DoorLog flow.)
 - **Reset to page 0** on cold load OR first open (a fresh screen mount) — the page index is NOT persisted; the
@@ -48,7 +50,9 @@ This mirrors the founder's **"Door Tracker Screen" mockup** exactly, and the shi
   fraction. Starter ratios + floor/ceiling live here. **Port this arithmetic exactly** (the worked example must
   give 80, not 79).
 - Read/freeze: `src/lib/coach/doorlog/dayTargetData.ts` — `getOrFreezeDayTarget` reads the frozen row (never
-  recompute intra-day), else reads the goal + computes 30-day close/contact ratios from `door_knocks`/`pitches`,
+  recompute intra-day), else reads the goal + computes 30-day close/contact ratios **entirely from `door_knocks`**
+  (doors = all knocks; presentations = `outcome != 'no_answer'`; sold = `outcome = 'sold'` — all by `local_date`;
+  the old `pitches`/`recorded_at` source for presentations was reversed 2026-09-11, `eddcc50e`),
   calls the engine, and freezes. It also reads `sale_value_cents` LIVE (not frozen — the manager may change it)
   via `select("*")` so a pre-0248 DB doesn't error, returning it as `saleValueCents`.
 - Endpoint: `GET /api/coach/doorlog/day-target?tz=<IANA tz>` → `{ localDate, repName, target, today: {doors,
