@@ -79,3 +79,27 @@ No image, icon, logo, favicon or graphic asset was created, edited, moved, resty
 this build. The board PDF specifying this screen was opened and described on 2026-09-22 at line 31
 of `docs/SYSTEM UPDATES AND REVISION 09-22-2026/EVIDENCE.md`; no other asset was consulted or
 touched.
+
+---
+
+## Addendum — the seam closed, same day
+
+Appended rather than edited (§3.1): the section above says the rep's Grant / Decline control does
+not exist and that the permission is "currently a block, not a dialogue." That was true when it was
+written and is no longer true. `ShareRequestPrompt` now renders in the rep's Pitch detail:
+
+- It shows **nothing** unless a manager has actually asked, so it is not a standing panel on every
+  pitch — which is how a rep learns to skip the one that matters.
+- The answer posts through the **rep's own client**, so 0260's `actor_id = auth.uid() AND the pitch
+  is theirs` policy is what makes the yes theirs. The button is a convenience on top of the rule,
+  never the rule.
+- **Revocation is always available** once granted. A consent that cannot be withdrawn is a
+  transfer, and A10's reading is that the subject keeps standing over what the system holds about
+  them.
+- After answering it **re-reads** rather than patching its own copy of the verdict — a client that
+  decides what the log now means is the second place the decision gets made (§2.2).
+- The panel says a no changes nothing about the score and that the manager is not told why,
+  because a permission that costs something is not freely given.
+
+7 render tests. The residual list above is otherwise unchanged; items 1–4 of "What I am relying on"
+still stand, and item 5 is now closed.

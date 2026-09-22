@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Play, Flag, MessageSquare, Clock } from "luc
 import { BONUSES_BY_ID, VIOLATIONS_BY_ID, type SectionId } from "@/lib/coach/pitchScore/rubric";
 import type { StoredPitch, PitchElementRow } from "@/lib/coach/pitchScore/readPitchScore";
 import { ManagerComments } from "./ManagerComments";
+import { ShareRequestPrompt } from "./ShareRequestPrompt";
 
 /**
  * Pitch detail — one scored pitch, with the evidence behind every point.
@@ -453,6 +454,9 @@ export function PitchDetail({
       {/* Guide Step 4 item 6's second half: a comment the manager SENT shows up here. Renders
           nothing when there are none, so an empty panel does not appear on every pitch. */}
       <ManagerComments pitchId={pitch.id} />
+
+      {/* Item 7 from the rep's side. Renders nothing unless a manager has actually asked. */}
+      <ShareRequestPrompt pitchId={pitch.id} />
 
       {/* ── Dispute ───────────────────────────────────────────────────────────────────── */}
       {onDispute && (
