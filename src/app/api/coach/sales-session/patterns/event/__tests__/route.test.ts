@@ -18,13 +18,17 @@ vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/coach/patterns/notifyPattern", async (orig) => {
   const actual = await orig<typeof import("@/lib/coach/patterns/notifyPattern")>();
-  return { ...actual, notifyPatternEvent: vi.fn(async () => true) };
+  return {
+    ...actual,
+    notifyPatternEvent: vi.fn(async () => true),
+    notifyClipDisputed: vi.fn(async () => 2),
+  };
 });
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { notifyPatternEvent } from "@/lib/coach/patterns/notifyPattern";
+import { notifyPatternEvent, notifyClipDisputed } from "@/lib/coach/patterns/notifyPattern";
 import { POST } from "../route";
 
 const mock = <T,>(fn: T) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -238,5 +242,50 @@ describe("telling the rep", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).notified).toBe(false);
     expect(inserted).toMatchObject({ kind: "coached" });
+  });
+});
+
+describe("the alert that points back", () => {
+  const asRep = () => {
+    mock(resolveApiAuth).mockResolvedValue({ userId: "rep-1", companyId: "co1", role: "member" });
+    mock(requireSalesCoachManager).mockResolvedValue(null);
+  };
+
+  it("tells the rep's managers when they flag a clip", async () => {
+    // The ONLY channel this product has for the scorer being wrong about a specific moment. A rep
+    // who flags something and hears nothing learns not to flag — which removes the evidence of
+    // the disagreement, not the disagreement.
+    asRep();
+    const res = await POST(req({ patternId: "p1", kind: "clip_disputed", body: "That is not what I said." }));
+    expect(res.status).toBe(200);
+    expect(mock(notifyClipDisputed)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repId: "rep-1",
+        patternId: "p1",
+        patternLabel: "Trucks / neighborhood notice",
+        note: "That is not what I said.",
+      })
+    );
+    expect((await res.json()).notified).toBe(true);
+  });
+
+  it("does not fire the REP-facing bell for a rep's own dispute", async () => {
+    asRep();
+    await POST(req({ patternId: "p1", kind: "clip_disputed", body: "Wrong clip." }));
+    expect(mock(notifyPatternEvent)).not.toHaveBeenCalled();
+  });
+
+  it("reports notified:false when a company has no managers to tell", async () => {
+    asRep();
+    mock(notifyClipDisputed).mockResolvedValue(0);
+    const res = await POST(req({ patternId: "p1", kind: "clip_disputed", body: "Wrong clip." }));
+    expect((await res.json()).notified).toBe(false);
+  });
+
+  it("still records the dispute when the fan-out fails", async () => {
+    asRep();
+    mock(notifyClipDisputed).mockResolvedValue(0);
+    await POST(req({ patternId: "p1", kind: "clip_disputed", body: "Wrong clip." }));
+    expect(inserted).toMatchObject({ kind: "clip_disputed", actor_id: "rep-1" });
   });
 });

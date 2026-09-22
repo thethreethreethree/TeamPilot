@@ -4,7 +4,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { canAppend, BODY_REQUIRED } from "@/lib/coach/patterns/eventPermission";
-import { notifyPatternEvent, NOTIFIED_KINDS } from "@/lib/coach/patterns/notifyPattern";
+import { notifyPatternEvent, notifyClipDisputed, NOTIFIED_KINDS } from "@/lib/coach/patterns/notifyPattern";
 import { describeItem } from "@/lib/coach/patterns/readPatterns";
 
 /**
@@ -149,6 +149,28 @@ export async function POST(req: NextRequest) {
       ).label,
       excerpt: body,
     });
+  }
+
+  /**
+   * And the one alert that points the other way.
+   *
+   * A rep flagging a clip is the only channel this product has for the scorer being wrong about a
+   * specific moment, and before this it wrote a row a manager saw only by re-opening that pattern.
+   * `notified` carries the recipient COUNT here rather than a boolean, because the fan-out is
+   * real — 0242's rule is that a manager is any company admin, since no per-agent FK exists.
+   */
+  if (verdict.kind === "clip_disputed" && body) {
+    notified =
+      (await notifyClipDisputed({
+        companyId: ctx.companyId,
+        repId: ctx.userId,
+        patternId,
+        patternLabel: describeItem(
+          String(pattern.item_id),
+          pattern.item_kind as "element" | "bonus" | "violation"
+        ).label,
+        note: body,
+      })) > 0;
   }
 
   return NextResponse.json({ event: inserted, closed, notified });

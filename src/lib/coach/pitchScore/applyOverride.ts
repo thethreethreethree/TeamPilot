@@ -24,6 +24,7 @@ export type OverrideRequest = {
   companyId: string;
   pitchId: string;
   actorId: string;
+  // enum-source: pitch_score_overrides.item_type
   itemType: "element" | "bonus" | "violation";
   itemId: string;
   /** element: the new grade. bonus/violation: "awarded" | "removed". */

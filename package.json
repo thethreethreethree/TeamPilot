@@ -33,7 +33,7 @@
     "tbc:freshness": "node scripts/tbc/verify-freshness.mjs",
     "tbc:revision": "node scripts/tbc/verify-revision.mjs",
     "tbc": "npm run tbc:docs && npm run tbc:manifest && npm run tbc:artifacts && npm run tbc:residual && npm run tbc:freshness",
-    "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run invariant:audit && npm run reachability:audit && npm run writer:audit && npm run migration:audit && npm run tbc && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run theme:audit && npm run rls:audit && npm run invariant:audit && npm run reachability:audit && npm run writer:audit && npm run enum:audit && npm run migration:audit && npm run tbc && npm run test",
     "setup:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/check-setup.ps1",
     "db:check": "node scripts/db-apply.mjs --check",
     "db:baseline": "node scripts/db-apply.mjs --baseline",
@@ -43,6 +43,7 @@
     "db:reconcile": "node scripts/db-reconcile.mjs",
     "reachability:audit": "node scripts/reachability-audit.mjs",
     "writer:audit": "node scripts/writer-audit.mjs",
+    "enum:audit": "node scripts/enum-coverage-audit.mjs",
     "migration:audit": "node scripts/migration-apply-audit.mjs"
   },
   "dependencies": {

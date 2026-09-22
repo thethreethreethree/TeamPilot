@@ -139,3 +139,94 @@ It is now a command that exits non-zero.
 
 No image, icon, logo, favicon or graphic asset was created, edited, moved, restyled or removed in
 this build.
+
+---
+
+## Addendum — the enum ruling, and a rule I had to abandon before finding one
+
+> Founder ruling: *"build it, measured first"*, over my "not yet" and "allowlist the noise".
+> Plus: `clip_disputed` now, not bundled.
+
+### `clip_disputed` reaches a manager — 0263
+
+The one alert in this product that points **back**. Every notification added today points at the
+rep: a correction, a comment, a share request, a coaching note. This is the rep saying the scorer
+is wrong about a specific moment, and it is the only channel that exists for that.
+
+Recipient resolution is 0242's, not a second copy — no per-agent manager FK exists, so a manager
+is any company admin or sales-coach admin and the alert fans out. Its own type rather than reusing
+`pattern_coached`, because one pattern can carry a rep's dispute AND a manager's coaching at once
+and they go to different people; sharing a type would collide on `(recipient_id, type, pattern_id)`
+and silently overwrite. The dedupe key from 0262 is reused as-is.
+
+### The enum rule: four measured failures before a rule worth shipping
+
+The obvious rule is *"if the code knows SOME values of a CHECK set it must know ALL of them"*,
+inferred from string literals. Built and measured against all 99 sets in the schema. Every version
+produced false positives from a **different** cause:
+
+| | rule | findings | why they were wrong |
+|---|---|---|---|
+| v1 | any literal anywhere | 9 | `"lost"` belongs to the pivot-direction enum, not `coaching_sessions.outcome`; and a 3-character floor missed `"ai"` in `support_messages.author_type`, reporting it absent while it was handled two lines away |
+| v2 | site = a file with 2+ values | 6 | English is small — "sent"/"failed" collide across features |
+| v3 | + the site must name its table | 4 | |
+| v4 | + comments stripped | 3 | a docstring listing a set is the likeliest place for its values to appear together |
+| alt | a TS union overlapping a set | 59 | colour names and status words, everywhere |
+
+**All three of v4's survivors were verified by hand and all three were correct code**: routes that
+TRANSITION a subset of a state machine (`draft → submitted`, "mark it ignored") or validate one
+("fail and unable need a note; pass does not"). A route that writes part of a state machine
+legitimately names part of it.
+
+That is not a bug to allowlist. It is the rule being wrong, and wrong in a way that **gets worse**:
+every future transition route would fire it. A gate whose false-positive rate grows with ordinary
+development is allowlisted into silence by construction, and then it looks like coverage. I said in
+the picker that if the rule turned out wrong I would say so rather than pad a list, so: it was
+wrong, and this is me saying so.
+
+### What replaced it
+
+Inference cannot tell *"mirrors this column"* from *"shares two ordinary words with it"*.
+**Declaration can.**
+
+```ts
+// enum-source: manager_notifications.type
+type: "strong_session" | "deal_closed" | … ;
+```
+
+The audit requires a declared mirror to contain **exactly** its CHECK set — no missing value, no
+invented one. Zero false positives by construction, because nothing is audited that has not opted
+in. Zero cost where unused. And the contract sits at the one place a human decided the two things
+are the same list.
+
+**The invented-value half matters too**, and is less obvious: a union member the database cannot
+produce is dead code that reads as a handled case, and it is what survives when a later migration
+*narrows* a CHECK.
+
+### The bug the build found in its own parser
+
+First run reported the bell's four correctly-handled values as **NOT IN THE DATABASE**. The parser
+was line-by-line: 0242 writes its list on one line, and every extension since — 0257, 0261, 0262,
+0263 — formats one value per line. It saw the old form and none of the new ones, called
+`manager_notifications.type` a two-value set, and was confidently wrong about the exact table the
+audit was built for.
+
+Fixed by matching on the whole file with `[\s\S]` and attributing each constraint to the nearest
+preceding table statement by position. **The set count went from 99 to 104** — five sets had been
+entirely invisible.
+
+### Proved, not asserted
+
+Probe: revert the bell's union to this morning's three values.
+
+```
+✗ 1 mirror(s) out of step with the database:
+  • manager_notifications.type   src\components\sales-coach\NotificationBell.tsx:41
+      MISSING: recording_comment, recording_share_requested, pattern_coached, pattern_clip_disputed
+```
+
+Six mutants on the audit; one survived — the SQL comment-strip — because my fixture put the
+comment *before* the real definition and last-definition-wins masked it. The fixture now puts it
+after, which is also the realistic case.
+
+`npm run check` is now twelve steps.

@@ -81,3 +81,94 @@ export async function notifyPatternEvent(notice: PatternNotice): Promise<boolean
 
 /** The three manager actions a rep is told about. `fixed` is not one — it is good news they see. */
 export const NOTIFIED_KINDS: ReadonlySet<string> = new Set(["coached", "drill_assigned", "note"]);
+
+/**
+ * Tell a rep's MANAGERS that they flagged a clip as wrong — the one alert that points back.
+ *
+ * FOUNDER RULING 2026-09-22. Every other notification added today points AT the rep: a
+ * correction, a comment, a share request, a coaching note. This one is the rep talking, and it is
+ * the only channel the product has for the scorer being wrong about a specific moment. A rep who
+ * flags something and hears nothing learns not to flag — which does not remove the disagreement,
+ * it removes the evidence of it, and leaves every board looking more reliable than it is.
+ *
+ * RECIPIENT RESOLUTION IS 0242'S, NOT A SECOND COPY. There is no per-agent manager FK, so a
+ * "manager" is any company admin or sales-coach admin and the alert fans out to all of them —
+ * exactly what `gamification/notify.ts` established and the reason that rule lives in one place.
+ * Re-deriving "who manages this rep" here would be the §2.2 shape pointed at an audience.
+ *
+ * ITS OWN TYPE, not `pattern_coached`, because one pattern can carry a rep's dispute AND a
+ * manager's coaching at the same time and they go to different people. Sharing a type would make
+ * them collide on `(recipient_id, type, pattern_id)` and silently overwrite each other.
+ *
+ * Best-effort, like every writer here: the dispute is already on the record.
+ */
+export async function notifyClipDisputed(notice: {
+  companyId: string;
+  /** The rep who flagged it — the subject, and excluded from the recipients. */
+  repId: string;
+  patternId: string;
+  patternLabel: string;
+  note: string;
+}): Promise<number> {
+  try {
+    const admin = createAdminClient();
+
+    // 0242's rule, read from the same table with the same predicate.
+    const { data: profiles } = await admin
+      .from("profiles")
+      .select("id, role, sales_coach_role")
+      .eq("company_id", notice.companyId);
+
+    const recipients = (profiles ?? [])
+      .filter(
+        (p) =>
+          ["CEO", "COO", "admin"].includes(String(p.role)) || p.sales_coach_role === "admin"
+      )
+      .map((p) => String(p.id))
+      .filter((id) => id !== notice.repId);
+
+    if (recipients.length === 0) return 0;
+
+    // The rep's name, resolved once so the alert renders without a join.
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", notice.repId)
+      .maybeSingle();
+
+    const { error } = await admin.from("manager_notifications").upsert(
+      recipients.map((recipient_id) => ({
+        company_id: notice.companyId,
+        recipient_id,
+        agent_id: notice.repId,
+        session_id: null,
+        pattern_id: notice.patternId,
+        type: "pattern_clip_disputed",
+        payload: {
+          agent_name: (prof?.full_name as string | null) ?? null,
+          pattern_id: notice.patternId,
+          pattern_label: notice.patternLabel,
+          excerpt: notice.note.slice(0, 160),
+        },
+        created_at: new Date().toISOString(),
+        read_at: null,
+      })),
+      { onConflict: "recipient_id,type,pattern_id" }
+    );
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[notifyClipDisputed] failed rep=${notice.repId} pattern=${notice.patternId}: ${error.message}`
+      );
+      return 0;
+    }
+    return recipients.length;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[notifyClipDisputed] threw rep=${notice.repId}: ${e instanceof Error ? e.message : String(e)}`
+    );
+    return 0;
+  }
+}

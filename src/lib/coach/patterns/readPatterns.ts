@@ -25,6 +25,7 @@ export type PatternRow = {
   id: string;
   repId: string;
   itemId: string;
+  // enum-source: patterns.item_kind
   itemKind: "element" | "bonus" | "violation";
   /** Human label from the rubric, falling back to the raw id so an unknown item still renders. */
   label: string;

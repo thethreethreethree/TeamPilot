@@ -242,6 +242,19 @@ describe("what is exempt, and why", () => {
 });
 
 describe("the real repository", () => {
+    /**
+     * THIRTY SECONDS, AND THE MEASUREMENT RATHER THAN A GUESS.
+     *
+     * The audit itself runs in 0.31–0.42s standalone over the whole repository (261 migrations,
+     * every src file), measured three times. The 5s default was not spent on the audit — it was
+     * spent SPAWNING A NODE PROCESS inside a vitest worker while ~700 other test files are
+     * running, and that cost is contention-dependent rather than bounded by anything this file
+     * controls.
+     *
+     * So the number is raised because the budget was measuring the wrong thing, not because the
+     * work got slower. If this ever times out again the audit has genuinely regressed by two
+     * orders of magnitude and the number should NOT be raised a second time.
+     */
   it("passes, with every exception carrying a reason rather than a bare name", () => {
     const script = readFileSync("scripts/writer-audit.mjs", "utf8");
     const allowlist = script.slice(script.indexOf("const ALLOWLIST"), script.indexOf("/* ─── Walk"));
@@ -250,5 +263,5 @@ describe("the real repository", () => {
       expect(m[2]!.length, `allowlist entry ${m[1]} needs a reason`).toBeGreaterThan(30);
     }
     expect(run(process.cwd()).code).toBe(0);
-  });
+  }, 30_000);
 });

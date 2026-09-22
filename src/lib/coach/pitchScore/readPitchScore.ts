@@ -34,6 +34,7 @@ export type PitchElementRow = {
 };
 
 export type PitchEventRow = {
+  // enum-source: pitch_score_events.type
   type: "bonus" | "violation" | "rejected_bonus";
   itemId: string;
   points: number;

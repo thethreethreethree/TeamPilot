@@ -33,6 +33,7 @@ export type StorePitchScoreArgs = {
   durationS?: number | null;
   audioUrl?: string | null;
   transcript?: string | null;
+  // enum-source: pitch_scores.outcome
   outcome?: "sold" | "follow_up" | "no_sale" | null;
   /** The successful result from generatePitchScore. A failure must never reach here. */
   result: Extract<PitchScoreResult, { ok: true }>;

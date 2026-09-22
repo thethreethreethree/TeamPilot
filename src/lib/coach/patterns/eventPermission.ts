@@ -26,6 +26,7 @@
  * `note` is the one both may write, because the board draws them as peer entries in one list.
  */
 
+// enum-source: pattern_events.kind
 export type PatternEventKind =
   | "coached"
   | "drill_assigned"

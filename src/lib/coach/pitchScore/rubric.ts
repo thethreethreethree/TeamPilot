@@ -26,6 +26,7 @@ export type SectionId =
   | "transitions"
   | "delivery";
 
+// enum-source: pitch_score_elements.grade
 export type Grade = "hit" | "partial" | "missed";
 
 /** Credit multiplier per grade. Partial is explicitly "half points" in the rubric. */

@@ -11,6 +11,7 @@
  * that did would be the button, and the button is the thing that plays the audio.
  */
 
+// enum-source: recording_share_events.kind
 export type ShareKind = "requested" | "granted" | "declined" | "revoked";
 
 export type ShareEvent = {

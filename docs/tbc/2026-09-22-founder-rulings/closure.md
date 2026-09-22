@@ -100,3 +100,61 @@ opened and described earlier today.
 Still unopened: the 16 images in `public/`, the 11 in
 `docs/sales-coach/webstore-promo-kit/assets`, and every surface in this project in a real browser
 — nineteenth consecutive build shipped from jsdom.
+
+---
+
+## Addendum — the enum ruling
+
+### What I had to give up first
+
+The founder's ruling was "build it, measured first", and the measurement's job is to be allowed to
+say no. It did. Four versions of the inferred rule, four different false-positive causes, and the
+last three survivors were **correct code** — routes that transition a subset of a state machine.
+
+The temptation at that point is to add three allowlist entries with plausible reasons and ship a
+green gate. I could have written those reasons and they would have been true. What made it wrong
+was the second-order fact: **every future transition route would fire it**, so the allowlist grows
+with ordinary development until nobody reads it, and the gate becomes coverage-shaped noise.
+
+A30 says a gate must be precise or not exist. The inferred rule was not precise and could not be
+made precise, because inference cannot distinguish "mirrors this column" from "shares two ordinary
+words with it".
+
+### What replaced it, and what it costs
+
+An opt-in marker. `// enum-source: table.column` above a union, and the union must match the CHECK
+exactly. Zero false positives by construction. One mirror declared today, at the site of the actual
+defect.
+
+**The honest cost:** it only protects what someone remembered to mark. It is a contract, not a
+sweep. A new union mirroring a new CHECK with no marker is invisible to it — the same defect,
+unguarded.
+
+What makes that acceptable rather than an excuse: the marker is cheap, it lives at the exact place
+a human decided two lists are the same, and it fails loudly when the database moves. What would
+make it a lie is claiming it prevents the class. It prevents the class **where declared**.
+
+### The parser bug, which is the finding I would want if I were reading this
+
+The audit's first run reported the bell's four correctly-handled values as absent from the
+database. The parser was line-by-line; every multi-line CHECK since 0242 was invisible. It was
+confidently wrong about the one table it was built for, and the set count rose from 99 to 104 once
+fixed.
+
+That is worth more than the gate. **A new audit's first output is not evidence — it is a hypothesis
+about the audit.** Both audits built today were wrong on their first run (one parsed `if` as a
+table, one saw two values where there were seven), and in both cases the number looked reasonable
+enough to accept. The only thing that caught them was checking individual findings by hand against
+the source.
+
+## Still not built
+
+- **"Schedule check-in"** — disabled with its reason, on both tabs.
+- **Rude-or-dismissive flags** in Coach Assessment's "Needs your attention".
+- **`enum:audit` protects one union.** Every other union mirroring a CHECK is unmarked and
+  unguarded. Marking them is a sweep, not a build, and it should be measured like everything else:
+  each marker asserts the union IS the set, and asserting that wrongly is worse than not asserting.
+
+## Not opened
+
+No image, icon, logo, favicon or graphic asset was created, edited, moved, restyled or removed.

@@ -319,3 +319,40 @@ describe("the three types this bell did not know it was being sent", () => {
     expect(screen.queryByText(/closed a deal/i)).toBeNull();
   });
 });
+
+describe("the one alert that points back at the manager", () => {
+  const at = (type: string, payload: Record<string, unknown>) => ({
+    id: `y-${type}`,
+    agent_id: "rep1",
+    session_id: null,
+    type,
+    payload,
+    created_at: new Date().toISOString(),
+    read_at: null,
+  });
+
+  it("names the rep, because this one is a manager reading about somebody else", async () => {
+    // Every other rep-related alert in this bell is addressed TO the rep in the second person.
+    // This is the exception, and getting the voice wrong would tell a manager "you say a clip
+    // looks wrong" about a dispute they did not raise.
+    respond([at("pattern_clip_disputed", { agent_name: "Humza Khan", pattern_label: "Trucks notice" })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/Humza Khan says a clip looks wrong on “Trucks notice”/i)).toBeTruthy();
+  });
+
+  it("falls back to 'A rep' rather than printing a uuid", async () => {
+    respond([at("pattern_clip_disputed", { pattern_label: "Trucks notice" })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/A rep says a clip looks wrong/i)).toBeTruthy();
+  });
+
+  it("sends the manager to the board where the pattern is", async () => {
+    respond([at("pattern_clip_disputed", { agent_name: "Humza Khan" })]);
+    render(<NotificationBell />);
+    await openBell();
+    const link = await screen.findByRole("link");
+    expect(link.getAttribute("href")).toBe("/dashboard/sales-coach/pattern-interrupt");
+  });
+});

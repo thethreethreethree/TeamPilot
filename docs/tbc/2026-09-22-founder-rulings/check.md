@@ -120,3 +120,89 @@ exits 0 on this repo" would pass forever after someone broke it.
 ## Not opened
 
 No image, icon or graphic asset was created, edited, moved or restyled during verification.
+
+---
+
+## Addendum — the enum audit and 0263
+
+### 0263, against the live database
+
+```
+$ npm run db:dry
+[db-apply] 1 pending migration(s): 0263_clip_disputed_notification.sql
+
+$ npm run db:apply
+[db-apply] applying 0263_clip_disputed_notification.sql … ok
+[db-apply] applied 1 migration(s). DB now at 0263.
+✅ ALL 30 invariants hold.
+
+$ npm run db:dry
+[db-apply] nothing pending — DB is up to date.
+```
+
+### The measurement that said no
+
+Four versions of the inferred rule, each run against the full schema, each hand-checked:
+
+| version | findings | verified |
+|---|---|---|
+| v1 any literal | 9 | ≥2 provably false (`"lost"` collision; `"ai"` excluded by a 3-char floor while being handled) |
+| v2 2+ values in one file | 6 | still colliding on ordinary words |
+| v3 + site names its table | 4 | 3 hand-checked, all false |
+| v4 + comments stripped | 3 | **all three correct code** — state-transition routes |
+| alt TS unions | 59 | dominated by colour-name collisions |
+
+The three survivors of v4, each opened and read:
+
+- `fin_bank_transactions.status` — writes `"ignored"`, guards on `"unmatched"`. Never needs
+  `"matched"`.
+- `fin_expense_reports.status` — `draft → submitted`. The other statuses belong to other routes.
+- `smoke_test_results.status` — `body.status === "fail" || body.status === "unable"` requires a
+  note; `"pass"` correctly needs none.
+
+Reported as "the rule is wrong" rather than allowlisted, because the false-positive rate grows with
+every new transition route.
+
+### The declared-mirror audit
+
+```
+CHECK-constrained sets: 104
+Declared mirrors:       1
+✓ Every declared mirror matches its CHECK set exactly.
+```
+
+104, not 99 — five sets were invisible to the line-by-line parser that shipped in the first draft.
+
+### The probe
+
+Revert the bell's union to this morning's three values:
+
+```
+✗ 1 mirror(s) out of step with the database:
+  • manager_notifications.type   NotificationBell.tsx:41
+      MISSING: recording_comment, recording_share_requested, pattern_coached, pattern_clip_disputed
+```
+
+### Mutation testing the audit
+
+| # | Mutation | Outcome |
+|---|---|---|
+| 1 | invented-value check dropped | caught |
+| 2 | missing-value check dropped | caught |
+| 3 | an unknown marker ignored instead of reported | caught |
+| 4 | SQL comments not stripped | **survived → fixture corrected** |
+| 5 | always `exit(0)` | caught (3 tests) |
+| 6 | multi-line CHECK back to single-line | caught (2 tests) |
+
+**Mutant 4's survival was a defect in my test, not in the audit.** The fixture put the phantom
+comment BEFORE the real definition, so last-definition-wins overwrote it and the test passed either
+way — it proved nothing. Moved after, which is also the realistic case: a migration documenting the
+set it just replaced. Plus a block-comment variant.
+
+### Tests
+
+| Suite | Count |
+|---|---|
+| `enum-coverage-audit.test.ts` | 11 |
+| `patterns/event/route.test.ts` (clip-dispute block) | +4 |
+| `NotificationBell.render.test.tsx` (the alert that points back) | +3 |

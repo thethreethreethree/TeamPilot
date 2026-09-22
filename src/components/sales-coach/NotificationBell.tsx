@@ -38,13 +38,15 @@ type Notif = {
    * because the table has plenty of writers — it is a new VALUE in a closed set. The cheap
    * defence is the exhaustive switch below, which a new type cannot pass without a branch.
    */
+  // enum-source: manager_notifications.type
   type:
     | "strong_session"
     | "deal_closed"
     | "pitch_score_corrected"
     | "recording_comment"
     | "recording_share_requested"
-    | "pattern_coached";
+    | "pattern_coached"
+    | "pattern_clip_disputed";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -104,6 +106,12 @@ function text(n: Notif): string {
   }
 
   const who = n.payload.agent_name || "A rep";
+  // THE ONE THAT POINTS BACK. Every other rep-related alert here is addressed to the rep; this
+  // one is a manager being told a rep disagrees with the scorer about a specific moment.
+  if (n.type === "pattern_clip_disputed") {
+    const what = n.payload.pattern_label ? ` on “${n.payload.pattern_label}”` : "";
+    return `${who} says a clip looks wrong${what}`;
+  }
   if (n.type === "strong_session") return `${who} ran a strong session — ${n.payload.total ?? ""} points`;
   if (n.type === "deal_closed") {
     const v = n.payload.deal_value;
@@ -150,7 +158,10 @@ const REP_ADDRESSED: ReadonlySet<Notif["type"]> = new Set([
  * unclickable row, which is the quiet half of the same defect.
  */
 function destination(n: Notif): string | null {
-  if (n.type === "pattern_coached") return "/dashboard/sales-coach/pattern-interrupt";
+  // Both pattern types land on the same board; the manager reads the dispute where the pattern is.
+  if (n.type === "pattern_coached" || n.type === "pattern_clip_disputed") {
+    return "/dashboard/sales-coach/pattern-interrupt";
+  }
   if (n.type === "recording_comment" || n.type === "recording_share_requested") {
     // The rep's own pitch detail, where a sent comment renders and a share request can be
     // answered. Both were built on 2026-09-22 and both key on the pitch, not the session.
