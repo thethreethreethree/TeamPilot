@@ -52,6 +52,17 @@ export async function listDepartments(opts?: {
     q = q.is("archived_at", null);
   }
   const { data, error } = await q;
+  // DELIBERATELY AN EMPTY LIST, NOT null — and written down because the line next to it is
+  // identical and is a bug.
+  //
+  // This feeds the department FILTER DROPDOWN. An empty dropdown on a failed read is a degraded
+  // control, not a false claim: the user can still see every file, they just cannot narrow by
+  // department, and the files page says as much in its own comment ("their failure just empties
+  // a dropdown"). Compare `listFiles`, where an empty answer asserts that a task has no
+  // documents — a statement about the world rather than about a control.
+  //
+  // The distinction is the judgement. It should not be something a reader has to reconstruct
+  // from two lines that look the same.
   if (error || !data) return [];
   return (data as DbRow[]).map(map);
 }
@@ -129,14 +140,32 @@ export type ProfileDepartment = {
   assignedAt: string;
 };
 
+/**
+ * Which departments a person belongs to, or `null` when the read FAILED.
+ *
+ * Null rather than an empty list, unlike `listDepartments` above. An empty answer here is a claim
+ * about a PERSON — "this person is in no department" — and it is used for scoping, so a failed
+ * read returned as `[]` scopes someone to nothing and looks like a correct answer.
+ *
+ * NOTE, and it is the more important fact about this function: **nothing calls it.** Neither does
+ * anything call `assignUserToDepartment` or `removeUserFromDepartment` below. No surface in the
+ * product can put a person in a department, so `profile_departments` is permanently empty — and
+ * `autoRoute.ts` has a rule (R3, route an upload to the uploader's own department) that reads
+ * this table and therefore never fires. Its non-firing is invisible: the rule trace only records
+ * R3 when it matched.
+ *
+ * `writer:audit` passes this table because it has a writer. It does not ask whether the writer is
+ * REACHABLE, and a writer nothing calls is the same fact as no writer, dressed as compliance.
+ * Whether that capability gets finished or deleted is a founder decision, not a cleanup.
+ */
 export async function listProfileDepartments(
   profileId?: string
-): Promise<ProfileDepartment[]> {
+): Promise<ProfileDepartment[] | null> {
   const sb = await createClient();
   let q = sb.from("profile_departments").select("*");
   if (profileId) q = q.eq("profile_id", profileId);
   const { data, error } = await q;
-  if (error || !data) return [];
+  if (error || !data) return null;
   return (data as Array<{
     profile_id: string;
     department_id: string;

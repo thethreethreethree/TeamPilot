@@ -19,6 +19,26 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    /**
+     * 20s, not vitest's default 5s. A MEASUREMENT, not a comfort margin.
+     *
+     * Three tests failed on a time budget in one day (2026-09-22), all three passing standalone
+     * and all three killed inside the full gate:
+     *
+     *   · the writer:audit and enum:audit suites — each spawns a node process; 0.31-0.42s alone
+     *   · RecordingsTab's "offers to ASK" case — 1061ms against Testing Library's 1000ms wait
+     *   · envDocsComplete — 7404ms against this 5000ms, walking the source tree with regexes
+     *
+     * None of them is slow. They are measured on a quiet machine and then run on one with 706
+     * files in flight — the whole suite takes ~102s wall with `transform 160s` and `import 530s`
+     * across the pool, so an individual test's wall clock has little to do with its own work. A
+     * budget that only holds when nothing else is running is not a budget; it is a flake
+     * generator, and a flaky gate is one people learn to re-run instead of read.
+     *
+     * The cost is that a genuinely hung test now takes 20s to fail instead of 5s. That is the
+     * right trade: CI still goes red, fifteen seconds later, and nobody is taught to ignore it.
+     */
+    testTimeout: 20_000,
     // .tsx included so component-RENDER tests run (a `// @vitest-environment jsdom` file comment opts those
     // individual files into a DOM; the default stays node, so the node-only suite is untouched).
     include: [

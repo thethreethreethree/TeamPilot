@@ -56,6 +56,14 @@ export function TaskAssetsSection({
   const [departments, setDepartments] = useState<ClassificationDept[]>([]);
   const [tasks, setTasks] = useState<ClassificationTask[]>([]);
   const [loading, setLoading] = useState(true);
+  /**
+   * The files request failed — which must not render as "No files attached yet".
+   *
+   * The library page has carried this distinction for a while; this panel did not, and it is the
+   * surface where it mattered most, because a task's asset list is where someone decides whether
+   * to go looking for a document or give up on it.
+   */
+  const [loadError, setLoadError] = useState(false);
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [casualRemaining, setCasualRemaining] = useState(3);
@@ -73,6 +81,11 @@ export function TaskAssetsSection({
         const data = await filesRes.json();
         setFiles(data.files ?? []);
         setCasualRemaining(data.casual?.remaining ?? 3);
+        setLoadError(false);
+      } else {
+        // Leaving `files` at its previous value and saying nothing is how this panel used to
+        // report a failure: as an empty list, indistinguishable from a task with no assets.
+        setLoadError(true);
       }
       if (depsRes.ok) {
         const data = await depsRes.json();
@@ -172,6 +185,18 @@ export function TaskAssetsSection({
         <div className="flex items-center justify-center py-6 text-muted text-xs">
           <Loader2 className="w-3 h-3 animate-spin mr-1.5" aria-hidden />
           Loading…
+        </div>
+      ) : loadError ? (
+        <div className="py-3 mt-2 text-center">
+          <p className="text-[11px] text-red-600 dark:text-red-400">
+            Couldn&apos;t load this task&apos;s files.
+          </p>
+          <button
+            onClick={() => void refresh()}
+            className="mt-1 text-[11px] text-muted underline hover:text-primary"
+          >
+            Retry
+          </button>
         </div>
       ) : files.length === 0 ? (
         <p className="text-[11px] text-muted text-center py-3 mt-2">

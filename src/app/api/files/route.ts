@@ -63,6 +63,17 @@ export async function GET(req: NextRequest) {
     linkedConversationId,
     limit: 200,
   });
+  /**
+   * `null` means the READ FAILED — not that the library is empty.
+   *
+   * Answering 200 with `files: []` is what this route used to do, and it made the library page's
+   * own "Couldn't load your files" branch unreachable: `res.ok` was true, so the page fell through
+   * to "No assets yet". A 500 is what that branch was written to receive.
+   */
+  if (files === null) {
+    return NextResponse.json({ error: "Couldn't load your files." }, { status: 500 });
+  }
+
   const casualToday = await countPurposelessUploadsToday(auth.userId);
   return NextResponse.json({
     files,

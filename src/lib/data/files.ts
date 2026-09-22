@@ -269,14 +269,85 @@ export type ListFilesOpts = {
   limit?: number;
 };
 
-export async function listFiles(opts: ListFilesOpts = {}): Promise<FileRecord[]> {
+/**
+ * Which embedded join answers each m2m filter, and which column it filters on.
+ *
+ * `!inner` makes PostgREST turn the embed into an INNER JOIN, so a file with no matching join row
+ * is not returned at all. The filter therefore happens in the database, in the SAME request, and
+ * `.limit()` applies to the FILTERED set.
+ *
+ * WHY AN EMBED AND NOT A PRE-READ. The first version of this fix read the join table first and
+ * passed the ids back as `.in("id", […])`. It was correct and it needed a cap on the id list, and
+ * a cap is the same defect one layer along: a department with more files than the cap would have
+ * silently had an arbitrary subset filtered, with no way to say so. The embed has no id list, so
+ * there is no cap to be wrong about.
+ */
+const JOIN_FILTERS = {
+  departmentId: { embed: "file_departments!inner(department_id)", column: "file_departments.department_id" },
+  taskId: { embed: "file_tasks!inner(task_id)", column: "file_tasks.task_id" },
+  tag: { embed: "file_tags!inner(tag)", column: "file_tags.tag" },
+} as const;
+
+/**
+ * List files, or `null` when the read FAILED.
+ *
+ * TWO DEFECTS FIXED HERE, 2026-09-22, and both of them were silent.
+ *
+ * 1. THE M2M FILTERS RAN AFTER THE LIMIT. The query read the 200 most recent files in the tenant
+ *    and the department/task/tag filters were then applied in JavaScript. So `?task=<id>` did not
+ *    mean "this task's files" — it meant "of the newest 200 files anywhere, the ones on this
+ *    task". A task whose assets are older than that window renders as *No files attached yet*.
+ *    `TaskAssetsSection` calls exactly that, on every task detail view.
+ *
+ *    The filter now happens in the database, in the same request, as an INNER-JOINED EMBED — so
+ *    `.limit()` applies to the filtered set. Several filters compose as an AND, which is what the
+ *    JavaScript chain did after the fact.
+ *
+ * 2. A FAILED READ WAS RETURNED AS AN EMPTY LIBRARY. `if (error) return []` meant the route
+ *    answered 200 with `files: []`, and the library page's own error branch —
+ *
+ *        } else {
+ *          // The primary library fetch failed — flag it so the render shows an
+ *          // error, not the "No assets yet" empty state.
+ *          setLoadError(true);
+ *        }
+ *
+ *    — could never run. Someone identified this class, wrote the defence at the surface, and this
+ *    line underneath quietly guaranteed it never fired. `null` now means the read failed; an empty
+ *    array means the read succeeded and matched nothing, and the two are no longer the same
+ *    sentence.
+ */
+export async function listFiles(opts: ListFilesOpts = {}): Promise<FileRecord[] | null> {
   const sb = await createClient();
+
+  /**
+   * THE M2M FILTERS, AS INNER-JOINED EMBEDS — so the filter is applied before `.limit()`.
+   *
+   * Each selected embed narrows the row set; each `.eq()` on its column is the filter. Several
+   * filters compose as an AND, which is what the JavaScript chain used to do after the fact.
+   *
+   * The embeds cannot widen what the caller sees. All three join tables carry
+   * `USING (EXISTS (SELECT 1 FROM files WHERE files.id = <join>.file_id))`, and that nested select
+   * is itself under `files`' RLS — checked against the database before this was designed.
+   */
+  const embeds: string[] = [];
+  const eqs: Array<[string, string]> = [];
+  for (const [key, src] of Object.entries(JOIN_FILTERS) as Array<
+    [keyof typeof JOIN_FILTERS, (typeof JOIN_FILTERS)[keyof typeof JOIN_FILTERS]]
+  >) {
+    const value = opts[key];
+    if (!value) continue;
+    embeds.push(src.embed);
+    eqs.push([src.column, value]);
+  }
+
   let q = sb
     .from("files")
-    .select("*")
+    .select(["*", ...embeds].join(", "))
     .is("deprecated_at", null)
     .order("created_at", { ascending: false })
     .limit(opts.limit ?? 200);
+  for (const [column, value] of eqs) q = q.eq(column, value);
   if (opts.lane) q = q.eq("classification_lane", opts.lane);
   if (opts.uploaderId) q = q.eq("uploader_id", opts.uploaderId);
   if (opts.linkedTopicId) q = q.eq("linked_topic_id", opts.linkedTopicId);
@@ -291,25 +362,21 @@ export async function listFiles(opts: ListFilesOpts = {}): Promise<FileRecord[]>
     q = q.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
   }
   const { data, error } = await q;
-  if (error || !data) return [];
-  const rows = data as DbRow[];
+  if (error || !data) return null;
+  // `unknown` first: with an embed in the select list, supabase-js types the result as a union
+  // that includes its own error shape, and a direct cast is rejected.
+  const rows = data as unknown as DbRow[];
   const ids = rows.map((r) => r.id);
   const { byFileDept, byFileTask, byFileTag } = await fetchJoinRows(ids);
   const names = await fetchUploaderNames(rows);
-  let result = rows.map((r) => {
+  // No post-filtering. The m2m filters were applied above, in the query, which is the fix — the
+  // JS chain that used to live here ran after `.limit(200)` and therefore answered a different
+  // question than the one the caller asked.
+  return rows.map((r) => {
     const rec = attachJoins(mapBase(r), byFileDept, byFileTask, byFileTag);
     rec.uploaderName = r.uploader_id ? names.get(r.uploader_id) ?? null : null;
     return rec;
   });
-  // Department/task/tag filters are applied AFTER join hydration
-  // because they require the m2m rows. For v1 this is fine; if
-  // we hit scale we'll move to a denormalized search column.
-  if (opts.departmentId)
-    result = result.filter((f) => f.departmentIds.includes(opts.departmentId!));
-  if (opts.taskId)
-    result = result.filter((f) => f.taskIds.includes(opts.taskId!));
-  if (opts.tag) result = result.filter((f) => f.tags.includes(opts.tag!));
-  return result;
 }
 
 export async function getFile(id: string): Promise<FileRecord | null> {

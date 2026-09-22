@@ -1,8 +1,25 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, configure } from "@testing-library/react";
+
 import RecordingsTab from "../RecordingsTab";
 import { ManagerComments } from "../ManagerComments";
+
+/**
+ * Testing Library waits 1000ms by default. THIS FILE NEEDS MORE, and the reason is a measurement
+ * rather than a guess.
+ *
+ * Every assertion here waits on TWO sequential fetches — the recordings list, then the detail for
+ * the row the component auto-selects. Standalone the whole file runs in 1.97s. Inside the full
+ * gate (706 files, a saturated worker pool) the "offers to ASK" case took **1061ms** to reach its
+ * button and failed on the 1000ms budget: `Unable to find role="button" and name /Save as team
+ * example/i`, with the DOM showing the list rendered and the detail pane still empty.
+ *
+ * A wait budget that only holds when the suite is quiet is not a budget. Raised to 4s, which
+ * still sits under vitest's own 5s per-test timeout, so a genuinely hung render fails as a test
+ * timeout rather than silently taking four seconds longer.
+ */
+configure({ asyncUtilTimeout: 4000 });
 
 /**
  * The Recordings tab, guarded at the places where it could be quietly wrong.
