@@ -105,3 +105,30 @@ first — and it is now proved by exhaustion rather than asserted.
     "outcome": "OPENED, and the day's lesson applies to it directly. Twenty-two builds said an image could not be opened and it opened on the first attempt in weeks. The parallel is not exact — there is genuinely no browser here — but the reasoning that kept the image closed was the same reasoning that keeps this residual comfortable: it was true once and nobody retested it." }
 ]
 ```
+
+---
+
+## Residual follow-up, same session (commit `ca822fb7`)
+
+Appended rather than edited above — the entries were true when written and the record of what was
+open at closure is worth more than a tidy list (§3.1).
+
+**R1 — nothing writes a pattern yet: CLOSED.** `runDetection` runs from the pitch-score route after
+`storePitchScore`. This was the right one to take first: it was the only residual that made a
+SCREEN dishonest rather than incomplete, because "no patterns right now" is a finding and nothing
+had looked.
+
+**R4 — clean may mean done right: CLOSED BY RULING.** Missed opens, Hit clears. The consequence
+named in R4 — a rep clearing a pattern with five Partials without ever landing the point — is now
+impossible, and the guide's previously-dead "at least one clean pitch" term is the line that makes
+it so. Mutation S2 went from SURVIVED to CAUGHT with no test change, which is the cleanest evidence
+available that the ruling altered behaviour rather than wording.
+
+**R5 gained a sibling and it is worth naming.** R5 said no pattern has ever been read from a real
+table. Nothing has ever been WRITTEN to one either — `runDetection` is tested entirely against a
+Supabase double, so the upsert's `onConflict` string, the partial index it relies on, and the
+embedded-join shape in `readApplicableGrades` have all been reasoned about and none has been run.
+The double returns whatever the code asks it for, which is exactly the failure mode of a double.
+
+**R2, R3 and R6 remain open, unchanged.** The manager view still shows one rep; Training, Team and
+One Liners still have no nav entry; and fifteen builds have now shipped without a rendered surface.
