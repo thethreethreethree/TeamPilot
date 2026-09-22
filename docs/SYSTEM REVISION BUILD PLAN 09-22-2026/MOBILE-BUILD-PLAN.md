@@ -259,6 +259,26 @@ system. DECISION 1 is therefore sharper under R-A, not softer.
 
 ## 8. Build order
 
+> **STATUS 2026-09-22, end of session.** M0-M8 are written, gated and pushed
+> (`thethreethreethree/TeamPilot`, branch `elostate-sales-coach-app`, head `a11476c1`).
+> Static gates G1-G4 are green on 427 files and 1,543 tests pass.
+>
+> **The device pass (G5) has never been run, and nothing below is verified on a phone.**
+> Every done-when in the table is met at the source and test level only. Two of them say more
+> than a static check can support and are called out here rather than ticked quietly:
+>
+> - **M3** asks that *"the reconciling footer's identity holds on live data"*. It holds on the
+>   four mockup reconciliations and on the one real measured case (Humza's six sections summing
+>   to `61.99999999999999`). It has not been watched against a live rep's period.
+> - **M7**'s control was proven to FIT by arithmetic against the real Inter advance widths, not by
+>   looking at it. That is stronger than the estimate it replaced and still not a screenshot.
+>
+> Two things were found to be missing from the plan itself while building to it, both now
+> corrected in the product rather than only noted: §6's *"Data — nothing new to build"* was false
+> (`/rubric` and `/best` did not exist and were built, gated and deployed), and the phone's Arena
+> badges still carried the pre-2026-09-21 labels, so R-D's "name both" would have shipped two
+> different badges reading *First pitch*.
+
 Each step is shippable and verifiable on its own.
 
 | Step | Work | Done when |
