@@ -76,6 +76,17 @@ const SRC = "src";
 /** The opt-in marker. Everything after it, to the end of the statement, is the mirror. */
 const MARKER = /\/\/\s*enum-source:\s*([a-z0-9_]+)\.([a-z0-9_]+)/gi;
 
+/**
+ * The same idea for a function's value list: `// sql-source: admin_roles()`.
+ *
+ * A SEPARATE marker, not a cleverer single one. `enum-source:` claims "this union mirrors a
+ * column's CHECK set"; `sql-source:` claims "this constant mirrors what a function returns".
+ * Different claims about different things, and one regex covering both would be a regex whose
+ * failure mode is matching the wrong kind — which is the failure this whole audit exists to
+ * avoid, one level up.
+ */
+const FN_MARKER = /\/\/\s*sql-source:\s*([a-z0-9_]+)\(\s*\)/gi;
+
 /* ─── Walk ──────────────────────────────────────────────────────────────────────────────── */
 
 function walk(dir, out = []) {
@@ -97,7 +108,58 @@ const stripSqlComments = (sql) =>
 const enums = new Map(); // "table.column" -> { values: Set, file }
 
 for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
-  const sql = stripSqlComments(readFileSync(join(MIGRATIONS, file), "utf8")).toLowerCase();
+  const stripped = stripSqlComments(readFileSync(join(MIGRATIONS, file), "utf8"));
+  const sql = stripped.toLowerCase();
+
+  /**
+   * A SECOND KIND OF SOURCE: a function that returns a value list.
+   *
+   * 0265 moved the company-admin role list into `admin_roles()` because it had been written out
+   * in 47 RLS policies, one of the 48 copies was edited on 2026-08-29, and the rest were not — a
+   * CFO was an admin in the application and an admin nowhere in the database, for 24 days, with
+   * nothing reporting a problem the whole time, because no check compares a TypeScript constant
+   * to a SQL array.
+   *
+   * That migration took 48 copies to 2. This takes the remaining 2 to 1 that can drift unseen.
+   *
+   * PARSED FROM `stripped`, NOT `sql` — the case is preserved on purpose. CHECK-set values are
+   * lowercase by convention here; role names are not (`CEO`, `CFO`, `COO`). Lowercasing them
+   * would make every comparison fail, and the obvious repair would be to lowercase the mirror
+   * too, which would then stop catching a genuine case mismatch.
+   *
+   * Keyed WITH its parentheses — `admin_roles()` — so the two namespaces cannot collide: a
+   * `table.column` key can never contain a bracket.
+   */
+  /**
+   * BOUNDED TO THE FUNCTION BODY by its dollar-quoting, and the first version of this was not.
+   *
+   * `function NAME\(\)[\s\S]*?array\[...\]` looks non-greedy and safe. It is neither: nothing
+   * stops `[\s\S]*?` crossing out of the function and finding the next `array[...]` ANYWHERE
+   * later in the file. Run over the real migrations, that version reported
+   *
+   *     auth_company_id => ["tasks","team_members","decisions","conversations"]
+   *
+   * which is not in that function at all — it is a list from a different statement in 0001.
+   *
+   * That is the same failure this audit exists to catch, committed inside the audit: a parser
+   * that silently reads something other than what is there. Found by PRINTING what it matched
+   * rather than trusting a green verdict — and the verdict was green, because the opt-in design
+   * meant no mirror had declared `auth_company_id()` and nothing was ever compared against the
+   * wrong set. The design contained a bug it could not prevent.
+   *
+   * Now: match the dollar-quoted body (`$$ ... $$`, `$function$ ... $function$`) with a
+   * backreference to its own tag, and look for the array INSIDE it.
+   */
+  for (const m of stripped.matchAll(
+    /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z0-9_]+)\s*\(\s*\)[\s\S]*?\bas\s*\$([a-z0-9_]*)\$([\s\S]*?)\$\2\$/gi
+  )) {
+    const arr = /\barray\s*\[([\s\S]*?)\]/i.exec(m[3]);
+    if (!arr) continue;
+    const values = new Set([...arr[1].matchAll(/'([^']+)'/g)].map((v) => v[1]));
+    if (values.size < 2) continue; // a one-value list is a constant, not a set
+    // LAST DEFINITION WINS, for the same reason as a CHECK: `create or replace` REPLACES.
+    enums.set(`${m[1].toLowerCase()}()`, { values, file });
+  }
 
   /**
    * WHOLE-FILE, NOT LINE-BY-LINE, and this is the bug that made the first run wrong about the
@@ -131,7 +193,29 @@ for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sor
     }
     if (!owner) continue;
 
-    const values = new Set([...m[2].matchAll(/'([^']+)'/g)].map((v) => v[1]));
+    /**
+     * VALUES READ WITH THEIR CASE, from `stripped` rather than from the lowercased `sql`.
+     *
+     * The table and column names are matched against the lowercased text — SQL identifiers are
+     * case-insensitive and the key has to be stable. The VALUES are not identifiers. 0239's
+     * constraint is
+     *
+     *     check (role in ('CEO','CFO','COO','VP','Director','Manager','Supervisor','Lead','Member'))
+     *
+     * and `INVITABLE_ROLES` in roles.ts holds exactly those nine, in exactly that case. Read
+     * lowercased, this audit would have reported all nine as both MISSING and NOT IN THE
+     * DATABASE — a spurious failure that would have made the marker unusable on the one other
+     * two-authority list this repository has.
+     *
+     * It never surfaced because all eight mirrors declared before today hold snake_case values,
+     * where lowercasing is a no-op. A transformation that is invisible on every current subject
+     * and wrong on the next one is worth removing before it is met.
+     *
+     * `toLowerCase()` preserves length for ASCII, so the same span of `stripped` is the same
+     * match with its case intact — guarded, because that is not true for every Unicode input.
+     */
+    const span = stripped.length === sql.length ? stripped.slice(m.index, m.index + m[0].length) : m[0];
+    const values = new Set([...span.matchAll(/'([^']+)'/g)].map((v) => v[1]));
     if (values.size < 2) continue; // a one-value CHECK is a constant, not a set
 
     // LAST DEFINITION WINS. A migration that drops and re-adds a constraint is REPLACING it;
@@ -165,6 +249,23 @@ for (const file of walk(SRC).filter((f) => [".ts", ".tsx"].includes(extname(f)))
       line,
     });
   }
+
+  // The function-list form. Same body extraction, same member regex, different marker and key.
+  FN_MARKER.lastIndex = 0;
+  let f;
+  while ((f = FN_MARKER.exec(code)) !== null) {
+    const key = `${f[1].toLowerCase()}()`;
+    const line = code.slice(0, f.index).split("\n").length;
+    const after = code.slice(f.index + f[0].length);
+    const end = after.indexOf(";");
+    const body = end === -1 ? after.slice(0, 2000) : after.slice(0, end);
+    mirrors.push({
+      key,
+      members: new Set([...body.matchAll(/["']([a-z0-9_]+)["']/gi)].map((x) => x[1])),
+      file,
+      line,
+    });
+  }
 }
 
 /* ─── The finding ───────────────────────────────────────────────────────────────────────── */
@@ -175,7 +276,9 @@ for (const mirror of mirrors) {
   if (!target) {
     findings.push({
       ...mirror,
-      problem: `no CHECK constraint named ${mirror.key} exists`,
+problem: mirror.key.endsWith("()")
+              ? `no function named ${mirror.key} returning a value list exists in the migrations`
+              : `no CHECK constraint named ${mirror.key} exists`,
       missing: [],
       extra: [],
     });
@@ -216,8 +319,11 @@ for (const f of findings) {
   if (f.extra.length) console.log(`      NOT IN THE DATABASE: ${f.extra.join(", ")}`);
 }
 console.log(
-  "\n  A value the database can produce and this union does not name will reach whatever\n" +
-    "  switches on it and fall through. See docs/tbc/2026-09-22-founder-rulings/build.md —\n" +
-    '  the bell that was about to say "A rep closed a deal" about a coaching note.\n'
+  "\n  A CHECK value this union does not name reaches whatever switches on it and falls\n" +
+    "  through — see docs/tbc/2026-09-22-founder-rulings/build.md, the bell that was about\n" +
+    '  to say "A rep closed a deal" about a coaching note.\n\n' +
+    "  A `()` mirror out of step is the other shape: an authority the application grants and\n" +
+    "  the database refuses, or the reverse. See docs/tbc/2026-09-22-admin-roles-source — a\n" +
+    "  CFO was an admin in the app and an admin nowhere in the database, for 24 days.\n"
 );
 process.exit(1);

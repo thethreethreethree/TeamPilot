@@ -253,3 +253,189 @@ describe("the real repository", () => {
     expect(bell).toMatch(/enum-source:\s*manager_notifications\.type/);
   }, 30_000);
 });
+
+/**
+ * The second source kind: a function's value list, declared with `// sql-source: name()`.
+ *
+ * Added 2026-09-22 after migration 0265. The drift it exists for ran for 24 days with nothing
+ * reporting a problem: `ADMIN_ROLES` gained "CFO" on 2026-08-29 and 47 RLS policies did not, so a
+ * CFO was an admin everywhere in the application and an admin nowhere in the database.
+ *
+ * The first cases below are that incident, in both directions, on throwaway trees.
+ */
+describe("a function's value list as a source", () => {
+  it("THE INCIDENT — FAILS when the function has a role the constant does not name", () => {
+    const dir = fixture({
+      "supabase/migrations/0265.sql": `
+        create or replace function public.admin_roles() returns text[] language sql stable as $$
+          select array['CEO', 'CFO', 'COO', 'admin']::text[]
+        $$;
+      `,
+      "src/roles.ts": `
+        // sql-source: admin_roles()
+        export const ADMIN_ROLES = ["CEO", "COO", "admin"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    expect(code).toBe(1);
+    expect(out).toMatch(/MISSING: CFO/);
+    clean(dir);
+  });
+
+  it("FAILS the other way — a role the app grants that the database has never heard of", () => {
+    // The more dangerous half: authority the UI offers and RLS silently refuses.
+    const dir = fixture({
+      "supabase/migrations/0265.sql": `
+        create or replace function public.admin_roles() returns text[] language sql stable as $$
+          select array['CEO', 'CFO', 'COO', 'admin']::text[]
+        $$;
+      `,
+      "src/roles.ts": `
+        // sql-source: admin_roles()
+        export const ADMIN_ROLES = ["CEO", "CFO", "COO", "admin", "CTO"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    expect(code).toBe(1);
+    expect(out).toMatch(/NOT IN THE DATABASE: CTO/);
+    clean(dir);
+  });
+
+  it("passes when they agree", () => {
+    const dir = fixture({
+      "supabase/migrations/0265.sql": `
+        create or replace function public.admin_roles() returns text[] language sql stable as $$
+          select array['CEO', 'CFO', 'COO', 'admin']::text[]
+        $$;
+      `,
+      "src/roles.ts": `
+        // sql-source: admin_roles()
+        export const ADMIN_ROLES = ["CEO", "CFO", "COO", "admin"] as const;
+      `,
+    });
+    expect(run(dir).code).toBe(0);
+    clean(dir);
+  });
+
+  it("KEEPS THE CASE — 'CEO' is not 'ceo'", () => {
+    // The CHECK-set half of this audit lowercases the SQL, because those values are lowercase by
+    // convention. Role names are not. If the function's values were lowercased, every comparison
+    // here would fail, and the obvious repair — lowercase the mirror too — would then stop
+    // catching a genuine case mismatch. This pins that a case difference IS a finding.
+    const dir = fixture({
+      "supabase/migrations/0265.sql": `
+        create or replace function public.admin_roles() returns text[] language sql stable as $$
+          select array['CEO', 'admin']::text[]
+        $$;
+      `,
+      "src/roles.ts": `
+        // sql-source: admin_roles()
+        export const ADMIN_ROLES = ["ceo", "admin"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    expect(code).toBe(1);
+    expect(out).toMatch(/MISSING: CEO/);
+    expect(out).toMatch(/NOT IN THE DATABASE: ceo/);
+    clean(dir);
+  });
+
+  it("DOES NOT READ PAST THE FUNCTION BODY — the bug the first version of this had", () => {
+    // `function NAME\(\)[\s\S]*?array\[...\]` crosses out of the function and finds the next
+    // array ANYWHERE later in the file. Against the real migrations that version reported
+    // auth_company_id => ["tasks","team_members","decisions","conversations"], a list from a
+    // different statement entirely. Bounded to the dollar-quoted body now.
+    const dir = fixture({
+      "supabase/migrations/0001.sql": `
+        create or replace function public.unrelated() returns uuid language sql stable as $$
+          select id from profiles where id = auth.uid()
+        $$;
+        create table if not exists t (kind text check (kind in ('x_one', 'y_two')));
+        -- an array in a LATER statement, which must not be attributed to unrelated()
+        insert into seed (names) values (array['tasks', 'team_members']);
+      `,
+      "src/x.ts": `
+        // sql-source: unrelated()
+        export const U = ["tasks", "team_members"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    // unrelated() has no array in its own body, so there is no such source to mirror.
+    expect(code).toBe(1);
+    expect(out).toMatch(/no function named unrelated\(\) returning a value list exists/);
+    clean(dir);
+  });
+
+  it("a declared mirror of a function that does not exist is a finding, not silence", () => {
+    // The opt-in design's one real risk: a marker that matches nothing produces the same green
+    // line as a marker that matches perfectly.
+    const dir = fixture({
+      "supabase/migrations/0001.sql": `create table if not exists t (k text check (k in ('a1','b2')));`,
+      "src/x.ts": `
+        // sql-source: nonexistent_fn()
+        export const X = ["a1", "b2"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    expect(code).toBe(1);
+    expect(out).toMatch(/no function named nonexistent_fn\(\)/);
+    clean(dir);
+  });
+});
+
+describe("a CHECK set keeps the case its migration wrote", () => {
+  it("passes a mixed-case CHECK against a mixed-case mirror", () => {
+    // 0239 writes check (role in ('CEO','CFO',…,'Member')) and INVITABLE_ROLES holds exactly
+    // those nine in exactly that case. Read lowercased — as this audit did until 2026-09-22 —
+    // all nine report as BOTH missing and not-in-the-database, and the marker is unusable on the
+    // one other two-authority list in the repository.
+    const dir = fixture({
+      "supabase/migrations/0239.sql": `
+        alter table team_invitations
+          add constraint c check (role in ('CEO', 'CFO', 'Member'));
+      `,
+      "src/roles.ts": `
+        // enum-source: team_invitations.role
+        export const INVITABLE_ROLES = ["CEO", "CFO", "Member"] as const;
+      `,
+    });
+    expect(run(dir).code).toBe(0);
+    clean(dir);
+  });
+
+  it("still FAILS when the case genuinely differs", () => {
+    // Preserving case must not become ignoring it. 'ceo' is not 'CEO' to a CHECK constraint, and
+    // a mirror that says one when the database says the other is wrong in a way that shows up as
+    // a rejected insert.
+    const dir = fixture({
+      "supabase/migrations/0239.sql": `
+        alter table t add constraint c check (role in ('CEO', 'Member'));
+      `,
+      "src/roles.ts": `
+        // enum-source: t.role
+        export const R = ["ceo", "Member"] as const;
+      `,
+    });
+    const { code, out } = run(dir);
+    expect(code).toBe(1);
+    expect(out).toMatch(/MISSING: CEO/);
+    expect(out).toMatch(/NOT IN THE DATABASE: ceo/);
+    clean(dir);
+  });
+
+  it("the table and column names stay case-insensitive", () => {
+    // Only the VALUES keep their case. SQL identifiers do not, so a migration writing
+    // `ALTER TABLE Team_Invitations` must still key as team_invitations.
+    const dir = fixture({
+      "supabase/migrations/0001.sql": `
+        ALTER TABLE Team_Invitations ADD CONSTRAINT c CHECK (Role IN ('CEO', 'Member'));
+      `,
+      "src/roles.ts": `
+        // enum-source: team_invitations.role
+        export const R = ["CEO", "Member"] as const;
+      `,
+    });
+    expect(run(dir).code).toBe(0);
+    clean(dir);
+  });
+});

@@ -26,7 +26,15 @@
  * dropdown — that reads ORG_ROLE_OPTIONS (the curated 8; 'Supervisor' is Lead's modern replacement), the same
  * presentation-vs-validity split the assignment UI uses. Admin-role invites (CEO/CFO/COO — see ADMIN_ROLES) are
  * gated to existing admins at both the route and the 0141/0239 RLS policy.
+ *
+ * ALSO DECLARED TO `enum:audit`. `enumConstraintSync.test.ts` already pins this list, but it reads
+ * the CHECK from migration **0239 by filename prefix**, and says so: "REPIN this prefix if a later
+ * migration re-alters team_invitations.role." That is a lesson recorded in prose, waiting for
+ * someone to remember. The marker below walks every migration and takes the last definition, so a
+ * later re-alter is picked up without anyone repinning anything. Both guards, different failure
+ * modes; this one has no manual step.
  */
+// enum-source: team_invitations.role
 export const INVITABLE_ROLES = [
   "CEO", "CFO", "COO", "VP", "Director", "Manager", "Supervisor", "Lead", "Member",
 ] as const;
@@ -35,7 +43,14 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 /** The company-admin (leadership) role set = the C-Suite tier. 'admin' = the onboarding founder role (0046/0047);
  *  'CEO'/'CFO'/'COO' = the C-Suite roles. 'CFO' added 2026-08-29 with the org hierarchy (founder: C-Suite = admin) —
  *  a new value, so no existing user's authority changes. VP/Director/Manager/Supervisor/Lead/Member are NOT admin.
- *  Exact match — no accidental broadening ("administrator" is NOT admin). */
+ *  Exact match — no accidental broadening ("administrator" is NOT admin).
+ *
+ *  ONE MORE AUTHORITY HOLDS THIS LIST, and until 2026-09-22 nothing compared them. Forty-seven
+ *  RLS policies inlined ['CEO','COO','admin'] — no CFO — so isAdminRole("CFO") was true while the
+ *  database refused that person every admin write, for 24 days, with nothing reporting a problem.
+ *  Migration 0265 moved the SQL side into `admin_roles()`; the marker below is what makes
+ *  `enum:audit` compare the two and fail when they part company. */
+// sql-source: admin_roles()
 export const ADMIN_ROLES = ["CEO", "CFO", "COO", "admin"] as const;
 
 /** True iff the role is a company-admin (leadership) role. */
