@@ -232,6 +232,10 @@ that arrives too quickly, on a document that was in the tree the whole time.
 
   { "id": "§5", "source_file": "CLAUDE.md", "line_range": "416-433", "read_at": "2026-09-22T04:53:00+08:00",
     "why_it_governs": "Knowledge is not intelligence; distrust the confident answer that arrived too quickly; the biggest risk is the builder under pressure making the method less honest for a faster result.",
-    "how_this_build_will_embody_it": "Re-read this session before the boards were opened, and cited again in this session's commit messages. The literal finding. Under a continuous-build mandate the honest move — write the clock reading — cost the build its own validation, so the dishonest one was also the only one that worked. That is §5's builder-under-pressure with the pressure supplied by the gate." }
+    "how_this_build_will_embody_it": "Re-read this session before the boards were opened, and cited again in this session's commit messages. The literal finding. Under a continuous-build mandate the honest move — write the clock reading — cost the build its own validation, so the dishonest one was also the only one that worked. That is §5's builder-under-pressure with the pressure supplied by the gate." },
+
+  { "id": "A34", "source_file": "ThinkerThinker.md", "line_range": "872-899", "read_at": "2026-09-22T08:06:00+08:00",
+    "why_it_governs": "Code that hard-requires a not-yet-applied migration is an outage with a timer; the window between deploy and apply is real and is not controlled by the author who assumes it away. Reads must degrade to pre-migration semantics, writes must fail honestly.",
+    "how_this_build_will_embody_it": "Read AFTER citing it, which is the wrong order and is recorded as such. The citation turned out to be more exact than the guess behind it: until 0258 is applied, `patterns` does not exist and detection's upsert fails 42P01 on every scored pitch. Catching it leaves scoring exactly as it was before this feature existed. A34's own second incident was the same lesson re-shipped from memory rather than from the file." }
 ]
 ```

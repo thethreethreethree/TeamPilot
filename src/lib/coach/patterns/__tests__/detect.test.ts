@@ -16,6 +16,7 @@ import {
   cleanStreak,
   missedOnly,
   missedOrPartial,
+  doneRight,
   MISS_THRESHOLD,
   WINDOW,
   type GradedPitch,
@@ -141,10 +142,21 @@ describe("cleanStreak", () => {
     expect(cleanStreak([p(1, "hit"), p(2, "missed"), p(3, "hit"), p(4, "hit")])).toBe(2);
   });
 
-  it("uses the same predicate as detection, or a fix clears what detection re-opens", () => {
+  it("counts DONE RIGHT, not merely not-missed — Missed opens, Hit clears", () => {
+    // Founder ruling 2026-09-22. This case is the whole reason for the ruling: under the old
+    // shared predicate a Partial was "clean", so five of them cleared a pattern for a rep who had
+    // never once landed the point, on a card reading "Done right in 5 pitches in a row".
     const withPartial = [p(1, "missed"), p(2, "partial"), p(3, "hit")];
-    expect(cleanStreak(withPartial, missedOnly)).toBe(2);
-    expect(cleanStreak(withPartial, missedOrPartial)).toBe(1);
+    expect(cleanStreak(withPartial)).toBe(1); // only the hit
+    // Five Partials clear nothing.
+    expect(cleanStreak([p(1, "partial"), p(2, "partial"), p(3, "partial"), p(4, "partial"), p(5, "partial")])).toBe(0);
+  });
+
+  it("takes a CleanPredicate, so the fix rule can be argued with separately from detection", () => {
+    const withPartial = [p(1, "missed"), p(2, "partial"), p(3, "hit")];
+    expect(cleanStreak(withPartial, doneRight)).toBe(1);
+    // The old behaviour, still expressible — a caller that wants "not missed" must now say so.
+    expect(cleanStreak(withPartial, (g) => g !== "missed")).toBe(2);
   });
 
   it("is zero for no applicable pitches, which is not the same as clean", () => {

@@ -77,3 +77,38 @@ already shipped.
 - **read-path:** two tests assert the single callout renders above the section bars and that
   neither removed callout is present. Page 2 of `EloState Rep Pitch Dashboard.pdf`, opened
   2026-09-22, carries exactly one.
+
+### Detection runs on every scored pitch
+
+Guide Step 5: *"Run detection every time a pitch is scored."* Closing R1 of this build's own
+closure, which was the worst thing in it — the board could read patterns and nothing wrote one, so
+"nothing has been missed in 3 or more of your last 10 pitches" was a claim nothing had earned.
+
+- **write-path:** `src/lib/coach/patterns/runDetection.ts`, called from the pitch-score route AFTER
+  `storePitchScore` (the new pitch must be in `pitch_score_elements` before it can be part of its
+  own last-ten). Service-role client, because `patterns` has no insert policy — a caller-scoped one
+  would write nothing and report success. Idempotent by the partial unique index rather than by a
+  read-then-write, so two pitches scored seconds apart cannot race, and `opened` is read back from
+  what the database ACCEPTED rather than from what was offered.
+- **read-path:** the board. A failure logs with the rep and company id and returns a result; it
+  never fails the request, because the rep's score is already saved and telling them the pitch
+  could not be scored would be false. 13 tests, 8 mutants, none surviving.
+- Writes no `pattern_events` row: `detected` is not one of the guide's six kinds — all six are
+  things a human did — and 0258's CHECK would have rejected it at runtime, on a path that had
+  already returned 200.
+
+### Missed opens, Hit clears
+
+Founder ruling 2026-09-22, from a question this build raised rather than one it was asked.
+
+- **write-path:** `detect.ts` gains `CleanPredicate` and `doneRight`; `cleanStreak` takes it instead
+  of the miss predicate, and `statusOf` threads `isClean` through. Detection is untouched —
+  `missedOnly` still opens patterns, so no new ones appear.
+- **read-path:** the five-segment PATH TO FIXED bar now counts hits, matching its own caption
+  ("Done right in 5 pitches in a row"). Before this, five consecutive Partials cleared a pattern for
+  a rep who had never once landed the point.
+- It also makes the guide's Improving rule whole: the "at least one clean pitch" term was
+  mathematically implied under one shared predicate — mutation S2 proved it dead — and under two it
+  is the only line separating "the miss rate fell" from "they are actually landing it". S2 is now
+  CAUGHT, and `statusRedundancy.test.ts` pins both the new case and the old implication, so
+  reverting the predicates cannot silently re-kill the rule.

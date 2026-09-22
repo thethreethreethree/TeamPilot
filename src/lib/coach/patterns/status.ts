@@ -1,4 +1,11 @@
-import { cleanStreak, missedOnly, type GradedPitch, type MissPredicate } from "./detect";
+import {
+  cleanStreak,
+  missedOnly,
+  doneRight,
+  type GradedPitch,
+  type MissPredicate,
+  type CleanPredicate,
+} from "./detect";
 
 /**
  * THE status authority for Pattern Interrupt. One function, one verdict, every surface consumes it.
@@ -59,8 +66,16 @@ export type StatusInput = {
   fixedAt: string | null;
   /** Evaluation time, injected so the Stalled rule is testable rather than clock-dependent. */
   now: Date;
-  /** Must match the predicate detection ran with — see `cleanStreak`. */
+  /** Must match the predicate detection ran with. Opens a pattern; does not close one. */
   isMiss?: MissPredicate;
+  /**
+   * What COUNTS AS CLEAN — the fix rule's predicate, deliberately not the same one.
+   *
+   * Founder ruling 2026-09-22: Missed opens, Hit clears. Five Partials used to clear a pattern
+   * because they are "not missed"; they are not "done right" either, and the card says the
+   * second thing.
+   */
+  isClean?: CleanPredicate;
 };
 
 export type StatusVerdict = {
@@ -97,8 +112,9 @@ const DAY_MS = 86_400_000;
  */
 export function statusOf(input: StatusInput): StatusVerdict {
   const isMiss = input.isMiss ?? missedOnly;
+  const isClean = input.isClean ?? doneRight;
   const ordered = [...input.applicable].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
-  const streak = cleanStreak(ordered, isMiss);
+  const streak = cleanStreak(ordered, isClean);
 
   if (input.fixedAt) {
     return { status: "fixed", open: false, reason: "Closed by a manager", streak };
@@ -138,19 +154,17 @@ export function statusOf(input: StatusInput): StatusVerdict {
   const enoughToCompare = ordered.length >= COMPARISON_WINDOW * 2;
   const rateFell =
     first.length > 0 && last.length > 0 && lastMisses / last.length < firstMisses / first.length;
-  // CURRENTLY IMPLIED, and kept deliberately. Proved by mutation 2026-09-22: deleting this term
-  // changes no test, because both windows are exactly COMPARISON_WINDOW long, so a fallen rate
-  // forces lastMisses < firstMisses <= 5 and therefore at least one non-miss in `last`. It is an
-  // equivalent mutant, not a hole in the tests — `statusOf.redundancy.test.ts` pins the implication.
+  // NOW LOAD-BEARING, and it was not two hours ago.
   //
-  // It becomes load-bearing under one reading the boards invite: if "clean" means DONE RIGHT (a
-  // hit) rather than "not missed", then five Partials would be a fallen rate with nothing done
-  // right, and this term would catch it. The board's legend is "Missed / Done right / Not
-  // applicable" and PATH TO FIXED reads "Done right in 5 pitches in a row" — which suggests hits.
-  // That is the same question as the guide's open decision on Partials (B4) and is NOT settled
-  // here; the term stays so the rule reads as the guide writes it, and flipping `isMiss` is the
-  // one place the answer would go.
-  const oneClean = last.some((p) => !isMiss(p.grade));
+  // Mutation S2 showed this term was dead: with one shared predicate, a fallen miss rate forces
+  // at least one non-miss in `last`, so "and at least one clean pitch" could never change an
+  // outcome. The survivor was a finding about the SPEC, not about the tests — the guide asks for
+  // a condition its own other condition implies.
+  //
+  // The founder's 2026-09-22 ruling (Missed opens, Hit clears) separates the two predicates and
+  // the term comes alive: five Partials are a fallen miss rate with NOTHING done right, and this
+  // is the only line that catches it. A rep half-landing the point is not improving at it.
+  const oneClean = last.some((p) => isClean(p.grade));
 
   if (enoughToCompare && rateFell && oneClean) {
     return {

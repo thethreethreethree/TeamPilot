@@ -59,3 +59,20 @@ gate-or-promise: declined
   whether a Partial can clear a pattern — to be answered. It is the founder's, it is on the record
   in two places now, and until it is answered a rep could in principle clear a pattern with five
   Partials without ever landing the point.
+
+### A `detected` event would have been rejected by my own CHECK constraint
+
+gate-or-promise: gate
+- Already gated, by the CHECK constraint itself — which is the point: the database refused the bad
+  value by construction, and the only reason it was not caught at runtime is that it was caught at
+  authoring time first. A test now pins that `runDetection` writes to `patterns` and nothing else.
+- The deeper class — writing code from the memory of a file edited earlier in the same session —
+  has no precise gate and is not getting a bad one. What it has is the same answer as the rest of
+  today: open the file. The CHECK list is eleven words long.
+
+### The at-least-one-clean term came alive
+
+gate-or-promise: gate
+- The term is now load-bearing and mutation S2 fails without it, which is the gate. Beyond that,
+  `statusRedundancy.test.ts` keeps the ORIGINAL exhaustion proof alongside the new case, so if the
+  predicates are ever collapsed back into one the file states exactly why the rule went dead.

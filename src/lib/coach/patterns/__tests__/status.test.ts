@@ -21,7 +21,7 @@ import {
   COMPARISON_WINDOW,
   type StatusVerdict,
 } from "../status";
-import { missedOrPartial, type GradedPitch } from "../detect";
+import { missedOnly, missedOrPartial, type GradedPitch } from "../detect";
 import type { Grade } from "../../pitchScore/rubric";
 
 const NOW = new Date("2026-03-20T10:00:00Z");
@@ -240,15 +240,37 @@ describe("countPatterns keeps the board's two senses apart", () => {
   });
 });
 
-describe("the miss predicate reaches the resolver", () => {
-  it("a Partial breaks the streak when the product counts Partials", () => {
-    const applicable = run([M, H, H, H, H, "partial"]);
-    // Under missedOnly a partial is clean, so the newest five are clean and it is Fixed.
-    expect(statusOf({ ...base, applicable, coachedAt: daysAgo(1) }).status).toBe("fixed");
-    // Under missedOrPartial the newest pitch is a miss, so the streak is 0.
-    const v = statusOf({ ...base, applicable, coachedAt: daysAgo(1), isMiss: missedOrPartial });
+describe("Missed opens, Hit clears — founder ruling 2026-09-22", () => {
+  it("does NOT clear a pattern on five Partials", () => {
+    // The case the ruling exists for. Five consecutive Partials: never missed, never landed.
+    // Before the ruling this read Fixed, and a manager would have seen a rep marked as having
+    // fixed something they had not once done right.
+    const fivePartials = run(["partial", "partial", "partial", "partial", "partial"]);
+    const v = statusOf({ ...base, applicable: fivePartials, coachedAt: daysAgo(1) });
     expect(v.streak).toBe(0);
     expect(v.status).not.toBe("fixed");
+    expect(v.open).toBe(true);
+  });
+
+  it("clears on five Hits, unchanged", () => {
+    expect(statusOf({ ...base, applicable: run([M, H, H, H, H, H]), coachedAt: daysAgo(1) }).status).toBe("fixed");
+  });
+
+  it("leaves DETECTION's predicate alone, so no new patterns open", () => {
+    // The asymmetry is the point: opening stays exactly as hard as the mockups make it.
+    expect(missedOnly("partial")).toBe(false);
+    expect(missedOrPartial("partial")).toBe(true);
+  });
+
+  it("makes the guide's 'at least one clean pitch' term actually bite", () => {
+    // Five misses then five Partials: the miss rate FELL from 5/5 to 0/5, and nothing was done
+    // right. Under the old shared predicate this reported Improving. It is not improvement in the
+    // sense a manager would use the word, and the guide's second condition is what says so.
+    const fellButNothingLanded = run([M, M, M, M, M, "partial", "partial", "partial", "partial", "partial"]);
+    expect(statusOf({ ...base, applicable: fellButNothingLanded, coachedAt: daysAgo(1) }).status).not.toBe("improving");
+    // Replace one Partial with a Hit and it is improvement.
+    const oneLanded = run([M, M, M, M, M, "partial", "partial", "partial", "partial", H]);
+    expect(statusOf({ ...base, applicable: oneLanded, coachedAt: daysAgo(1) }).status).toBe("improving");
   });
 });
 

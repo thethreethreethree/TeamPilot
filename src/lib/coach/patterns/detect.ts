@@ -38,6 +38,29 @@ export type MissPredicate = (grade: Grade) => boolean;
 export const missedOnly: MissPredicate = (g) => g === "missed";
 export const missedOrPartial: MissPredicate = (g) => g === "missed" || g === "partial";
 
+/**
+ * What CLEARS a pattern — a separate question from what opens one, and it took a founder ruling
+ * to notice that (2026-09-22).
+ *
+ * B4 settled the OPEN predicate: "does a Partial count as a miss? The mockups count Missed." The
+ * fix rule then inherited the same constant by default, and nobody had asked whether it should.
+ * The consequence was quiet and wrong: `!missedOnly("partial")` is true, so five consecutive
+ * Partials cleared a pattern — a rep marked Fixed for something they had never once done right,
+ * on a card whose own words are "Done right in 5 pitches in a row".
+ *
+ * So: **Missed opens, Hit clears.** Opening stays exactly as hard as the mockups make it — no
+ * change to how many patterns appear — while clearing now requires the point to actually land.
+ * The asymmetry is deliberate: a pattern is a claim that a rep keeps missing something, and the
+ * evidence to withdraw that claim is them doing it, not them half-doing it.
+ *
+ * It also makes the guide's Improving rule whole. "Miss rate in the last 5 is lower than the
+ * first 5, AND at least one clean pitch" — under one shared predicate that second term was
+ * mathematically implied and could never fire. Under this one it can: five Partials are a fallen
+ * miss rate with nothing done right.
+ */
+export type CleanPredicate = (grade: Grade) => boolean;
+export const doneRight: CleanPredicate = (g) => g === "hit";
+
 /** One pitch in which the item was graded — i.e. in which it APPLIED. */
 export type GradedPitch = {
   pitchId: string;
@@ -116,22 +139,24 @@ export function detectPattern(
 }
 
 /**
- * Consecutive clean applicable pitches at the front of the strip.
+ * Consecutive DONE-RIGHT applicable pitches at the front of the strip.
  *
- * Exported because the status resolver needs it and the detector defines what "clean" means. Two
- * definitions of clean — one here, one there — is the drift §2.2 describes, and the term that
- * would go missing from the copy is the predicate: a codebase that flipped to
- * `missedOrPartial` for detection and left the streak on `missedOnly` would clear patterns it
- * would immediately re-open.
+ * Exported because the status resolver needs it and this module owns what "clean" means. One
+ * definition, in one place — two would be the §2.2 drift, and the term that goes missing from a
+ * copy is always the predicate.
+ *
+ * Note this takes a CleanPredicate, not the MissPredicate detection uses. They are different
+ * questions and the default answers differ: `missedOnly` opens a pattern, `doneRight` closes one.
+ * Passing the wrong one still typechecks, which is why they are named rather than boolean flags.
  */
 export function cleanStreak(
   applicablePitches: readonly GradedPitch[],
-  isMiss: MissPredicate = missedOnly
+  isClean: CleanPredicate = doneRight
 ): number {
   const newestFirst = [...applicablePitches].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
   let n = 0;
   for (const p of newestFirst) {
-    if (isMiss(p.grade)) break;
+    if (!isClean(p.grade)) break;
     n++;
   }
   return n;

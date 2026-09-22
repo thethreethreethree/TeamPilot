@@ -7,6 +7,9 @@ $ MIGRATION_AUDIT_PSQL="docker exec -i ics-postgres psql -U ics" MIGRATION_AUDIT
   ✓ reachability:audit  ✓ migration:audit (256 migrations, real Postgres 16)
   ✓ tbc:docs  ✓ tbc:manifest  ✓ tbc:artifacts  ✓ tbc:residual  ✓ tbc:freshness
 
+  Test Files  681 passed | 1 skipped (682)
+       Tests  5023 passed | 15 skipped (5038)
+
 exit code: 0
 ```
 
@@ -14,26 +17,43 @@ Three of those nine stopped this build and each one was right to.
 
 ## Mutation runs
 
-```
-$ python scratchpad/mutpat2.py
-CAUGHT  S1 improving is CLOSED (defeat C8)       CAUGHT  D1 threshold 3 -> 2
-CAUGHT  S3 drop the two-window guard             CAUGHT  D2 do not cap at the window
-CAUGHT  S4 drop the rate test                    CAUGHT  D3 sort oldest-first
-CAUGHT  S5 compare last-5 to last-5              CAUGHT  D4 default predicate counts Partial
-CAUGHT  S6 same rate counts as improvement       CAUGHT  D5 cost averaged over misses
-CAUGHT  S7 stalled ignores the clean streak      CAUGHT  D6 allow a negative loss
-CAUGHT  S8 stalled a day early                   CAUGHT  D7 streak does not stop at a miss
-CAUGHT  S9 uncoached falls through
-CAUGHT  S10 fix ignores the streak
-CAUGHT  S11 openNotImproving counts improving
-CAUGHT  S12 do not sort the input
-SURVIVED S2 drop the at-least-one-clean term
+Twenty-nine mutants across the four pure modules. The final run, after the Missed-opens/Hit-clears
+ruling:
 
+```
+$ python scratchpad/mutpat2.py          $ python scratchpad/mutrun.py
+CAUGHT  S1  improving is CLOSED (C8)    CAUGHT  R1 drop ignoreDuplicates
+CAUGHT  S2  drop at-least-one-clean     CAUGHT  R2 wrong conflict key
+CAUGHT  S13 clean means not-missed      CAUGHT  R3 report offered, not accepted
+CAUGHT  S3  drop the two-window guard   CAUGHT  R4 throw on a write failure
+CAUGHT  S4  drop the rate test          CAUGHT  R5 drop the rep id from the log
+CAUGHT  S5  compare last-5 to last-5    CAUGHT  R6 detect non-elements too
+CAUGHT  S6  same rate is improvement    CAUGHT  R7 ignore the miss predicate
+CAUGHT  S7  stalled ignores the streak  CAUGHT  R8 do not freeze the strip
+CAUGHT  S8  stalled a day early
+CAUGHT  S9  uncoached falls through     CAUGHT  D1 threshold 3 -> 2
+CAUGHT  S10 fix ignores the streak      CAUGHT  D2 do not cap at the window
+CAUGHT  S11 openNotImproving counts     CAUGHT  D3 sort oldest-first
+CAUGHT  S12 do not sort the input       CAUGHT  D4 default counts Partial
+                                        CAUGHT  D5 cost over misses
+                                        CAUGHT  D6 allow a negative loss
+                                        CAUGHT  D7 streak past a non-clean
+                                        CAUGHT  D8 clean accepts a partial
+
+SURVIVORS: none
 exit code: 0
 ```
 
-S2 is an **equivalent mutant**, established by exhaustion rather than by argument — see the
-finding below and `statusRedundancy.test.ts`.
+**S2 survived the first run and is caught in this one, and nothing about the tests changed to make
+that happen.** Under one shared predicate the term was mathematically dead — proved by exhaustion,
+not by argument. The founder's ruling separated the predicates and it became the only line between
+"the miss rate fell" and "they are actually landing it". Two mutants were added because of it: S13
+(revert `clean` to not-missed) and D8 (let `doneRight` accept a Partial), so the ruling cannot be
+undone by accident.
+
+R5 also survived its first run. It is not a leak — nothing reaches the client either way — but it
+strips the rep and company id from the only trace a failure on this path leaves, because detection
+runs after the request has effectively returned 200.
 
 ---
 
@@ -111,3 +131,32 @@ sweep: `src/lib/coach/patterns/__tests__/statusRedundancy.test.ts`, which walks 
   hit) rather than "not missed", five Partials would be a fallen rate with nothing done right.
   The legend reads "Missed / Done right / Not applicable" and PATH TO FIXED reads "Done right in
   5 pitches in a row". That is the same open question as B4 and is **not settled here**.
+
+### A `detected` event would have been rejected by my own CHECK constraint
+
+class: code written from the memory of an earlier draft of a file rather than from the file.
+severity: medium
+sweep: `grep -n "kind in (" supabase/migrations/0258_pattern_interrupt.sql` against every
+  `pattern_events` insert in `src/`.
+- The first draft of 0258 had an invented five-kind list including `detected`. The guide's six
+  replaced it hours later. `runDetection` was then written to insert a `detected` event — from the
+  draft, not from the file that had superseded it.
+- The failure would have been near-invisible: detection runs AFTER the score is saved and after a
+  200 is effectively decided, so a rejected insert is a log line nobody reads. The patterns would
+  have been written correctly and the timeline start marker would silently never exist.
+- Resolved by deleting the insert rather than widening the CHECK. The row's `first_seen` IS the
+  detection marker — it is what the board prints and what the OPEN column counts from — and all
+  six of the guide's kinds are things a human did.
+
+### The at-least-one-clean term came alive
+
+class: a spec finding from an equivalent mutant, resolved by a ruling rather than by code.
+severity: low
+sweep: the S2 mutant, before and after; `statusRedundancy.test.ts`.
+- This morning S2 (deleting the term) SURVIVED and was proved equivalent by exhaustion. After the
+  Missed-opens/Hit-clears ruling it is CAUGHT. The test file that proved the redundancy now proves
+  the opposite and keeps the old exhaustion argument, so a revert to one shared predicate fails
+  loudly instead of quietly re-killing the rule.
+- Worth recording as a pattern: a surviving mutant was not a gap in the tests and not noise — it
+  was the specification asking for a condition its own other condition implied, and the fix was a
+  product decision.

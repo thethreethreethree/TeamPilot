@@ -9,6 +9,8 @@ import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { generatePitchScore } from "@/lib/coach/pitchScore/generatePitchScore";
 import { storePitchScore } from "@/lib/coach/pitchScore/storePitchScore";
 import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { runDetection } from "@/lib/coach/patterns/runDetection";
 
 /**
  * POST /api/coach/sales-session/pitch-score  { sessionId }
@@ -124,6 +126,32 @@ export async function POST(req: NextRequest) {
     // storePitchScore has already logged the detail server-side (CWE-209). The caller gets the
     // fact, not the constraint text.
     return NextResponse.json({ error: "The score could not be saved." }, { status: 500 });
+  }
+
+  // ── Pattern detection ──────────────────────────────────────────────────────────────────────
+  // Guide Step 5: "Run detection every time a pitch is scored." This is that hook, and it is the
+  // line that makes Pattern Interrupt's empty state honest — without it the board says "nothing
+  // has been missed in 3 or more of your last 10 pitches" when nothing has looked.
+  //
+  // AFTER the score is stored, and deliberately so: detection reads `pitch_score_elements`, so the
+  // pitch that just landed has to be in the table before it can be part of its own last-10.
+  //
+  // NEVER FAILS THE REQUEST. A rep's score is saved and correct at this point; if pattern writing
+  // breaks, the right outcome is a logged error and a 200, not telling a rep their pitch could not
+  // be scored. The service-role client is required — `patterns` has no insert policy, so a
+  // caller-scoped client would write nothing and report success, which is the silent-zero shape
+  // this whole feature is built to avoid.
+  try {
+    const detection = await runDetection({ companyId, repId: session.agentId }, createAdminClient());
+    if (detection.opened > 0) {
+      console.info(
+        `[pitch-score] detection opened ${detection.opened} pattern(s) for rep=${session.agentId} (examined ${detection.examined} items)`
+      );
+    }
+  } catch (e) {
+    console.error(
+      `[pitch-score] detection threw for rep=${session.agentId} pitch=${pitchId}: ${e instanceof Error ? e.message : String(e)}`
+    );
   }
 
   return NextResponse.json({
