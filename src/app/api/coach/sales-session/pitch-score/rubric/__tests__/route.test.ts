@@ -27,6 +27,9 @@ import {
   BONUSES,
   ELEMENTS,
   MAX_SCORE,
+  NEVER_GRADE_FOR_ACCURACY,
+  PRIZE_ELIGIBLE_MIN_PITCHES,
+  QUALIFYING_MIN_BASE,
   RUBRIC_VERSION,
   SECTIONS,
   VIOLATIONS,
@@ -123,6 +126,34 @@ describe("GET /pitch-score/rubric", () => {
     expect(body.elements).toEqual(JSON.parse(JSON.stringify(ELEMENTS)));
     expect(body.bonuses).toEqual(JSON.parse(JSON.stringify(BONUSES)));
     expect(body.violations).toEqual(JSON.parse(JSON.stringify(VIOLATIONS)));
+  });
+
+  it("carries the competition thresholds the sheet prints as rules", async () => {
+    /*
+      ADDED AFTER THE FIRST VERSION SHIPPED WITHOUT THEM, and the omission is the point. The rubric
+      sheet prints five competition rules; three carry numbers. Without these the mobile client
+      would have had to hard-code 40 and 5 — exactly what the guide forbids, and exactly the
+      hard-coding this whole route exists to prevent.
+
+      Serving part of the rubric is the same mistake as serving none of it, one step smaller.
+    */
+    const body = await (await GET(req())).json();
+    expect(body.qualifyingMinBase).toBe(QUALIFYING_MIN_BASE);
+    expect(body.prizeEligibleMinPitches).toBe(PRIZE_ELIGIBLE_MIN_PITCHES);
+    expect(body.neverGradeForAccuracy).toEqual(JSON.parse(JSON.stringify(NEVER_GRADE_FOR_ACCURACY)));
+  });
+
+  it("serves every exported part of the rubric, so no client has to fill a gap", async () => {
+    // The guard against this happening a third time: a field added to rubric.ts and not here sends
+    // the next consumer back to typing numbers into a phone.
+    const body = await (await GET(req())).json();
+    for (const key of [
+      "version", "baseMax", "bonusCap", "maxScore", "gradeCredit",
+      "qualifyingMinBase", "prizeEligibleMinPitches", "neverGradeForAccuracy",
+      "sections", "elements", "bonuses", "violations",
+    ]) {
+      expect(body[key], `missing ${key}`).toBeDefined();
+    }
   });
 
   it("is cacheable, because a doorstep should not refetch thirty elements twice", async () => {

@@ -8,6 +8,9 @@ import {
   ELEMENTS,
   GRADE_CREDIT,
   MAX_SCORE,
+  NEVER_GRADE_FOR_ACCURACY,
+  PRIZE_ELIGIBLE_MIN_PITCHES,
+  QUALIFYING_MIN_BASE,
   RUBRIC_VERSION,
   SECTIONS,
   VIOLATIONS,
@@ -76,6 +79,21 @@ export async function GET(req: NextRequest) {
       maxScore: MAX_SCORE,
       /** Hit / Partial / Missed credit. Partial is explicitly "half points" in the rubric. */
       gradeCredit: GRADE_CREDIT,
+      /*
+        THE COMPETITION THRESHOLDS, ADDED AFTER THE FIRST VERSION SHIPPED WITHOUT THEM.
+
+        The rubric sheet prints five competition rules, three of which carry numbers: a pitch
+        counts only above 40 base, five counted pitches make a rep prize-eligible, and a pitch
+        never scores below 0. They live in `rubric.ts` beside everything else here, and omitting
+        them would have forced the one client this route exists for to hard-code exactly the
+        numbers the guide forbids hard-coding.
+
+        Serving PART of the rubric is the same mistake as serving none of it, one step smaller.
+      */
+      qualifyingMinBase: QUALIFYING_MIN_BASE,
+      prizeEligibleMinPitches: PRIZE_ELIGIBLE_MIN_PITCHES,
+      /** What the AI may never grade for accuracy — the answer a rep gets when disputing a score. */
+      neverGradeForAccuracy: NEVER_GRADE_FOR_ACCURACY,
       sections: SECTIONS,
       elements: ELEMENTS,
       bonuses: BONUSES,

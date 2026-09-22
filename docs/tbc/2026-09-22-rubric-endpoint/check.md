@@ -30,6 +30,21 @@ score route". No route serves it, and nothing in `src/` reads `rubric_config` at
 named in migration 0252 and in the guide, and `rubric.ts`'s comment quotes the requirement as an
 aspiration. Corrected in the mobile plan rather than left to be discovered mid-build.
 
+### F4 - the route served PART of the rubric, which is the same mistake one step smaller
+class: incomplete-authority (a single source served partially, so the consumer fills the gap by hand)
+sweep: list every export of `rubric.ts` and check each appears in the response
+severity: medium
+
+Found while building the sheet that consumes it. The first version returned version, maxima,
+grade credit, sections, elements, bonuses and violations - and omitted `QUALIFYING_MIN_BASE`,
+`PRIZE_ELIGIBLE_MIN_PITCHES` and `NEVER_GRADE_FOR_ACCURACY`.
+
+The sheet prints five competition rules and three of them carry those numbers. So the route built
+to stop a client hard-coding the rubric would have forced that client to hard-code 40 and 5.
+
+Not caught by any earlier test, because every one of them asserted that what IS returned is
+correct. None asked whether anything was missing - which is the shape of the whole finding.
+
 ## What I did NOT do
 
 `rubric_config` is still not read by anything. This route serves `rubric.ts`, which is the actual
