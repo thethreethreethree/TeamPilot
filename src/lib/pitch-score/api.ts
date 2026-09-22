@@ -4,10 +4,11 @@
  * READ-ONLY, DELIBERATELY. The phone writes nothing in this revision — disputes, overrides and
  * manager comments are web surfaces. There is no post here and there should not be one.
  *
- * NOTHING NEW ON THE SERVER. All three routes were built and deployed with the web boards, and
- * `coachGet` already resolves `ENV.API_BASE + path` with the caller's bearer token, so every one of
- * them is reachable from this app today. Until now the app called none of them: a grep for
- * `api/coach/sales-session/pitch-score` across `src/` returned nothing at all.
+ * THREE ROUTES WERE ALREADY DEPLOYED; TWO WERE NOT, and this docblock said otherwise for a day.
+ * Breakdown, leaderboard and milestones shipped with the web boards. `/rubric` and `/best` did
+ * not exist — the build plan's §6 claim "Data — nothing new to build" was false, and both were
+ * written, gated and deployed on 2026-09-22 before anything here could call them. `coachGet`
+ * resolves `ENV.API_BASE + path` with the caller's bearer token, so all five are reachable now.
  *
  * A NOTE FOR WHOEVER RE-RUNS THAT GREP. The looser `pitch-score|pitchScore` returns one hit that is
  * NOT one — `after-pitch-card.tsx` imports `@/lib/after-pitch-scores`, an unrelated module sharing a
@@ -20,6 +21,8 @@
  */
 import { coachGet } from '@/lib/coach-api';
 import type { RubricResponse } from '@/lib/pitch-score/rubric';
+import { coalesce } from '@/lib/pitch-score/in-flight';
+
 import type {
   BestPitchesResponse,
   BreakdownResponse,
@@ -31,13 +34,28 @@ import type {
 const BASE = '/api/coach/sales-session/pitch-score';
 
 /**
+ * Every read below goes through the in-flight coalescer.
+ *
+ * Progress and Breakdown are two panes of one screen, both mounted, both firing `useFocusEffect`
+ * the moment the tab is focused, and both asking for the SAME period — so both ask for
+ * `/breakdown?period=week` in the same tick. The rule and the reason live in `in-flight.ts`,
+ * which is where they can be tested: this module imports `expo/fetch` transitively and the unit
+ * runner cannot load it at all.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+function sharedGet<T>(path: string): Promise<T> {
+  return coalesce(inFlight, path, () => coachGet<T>(path));
+}
+
+/**
  * The period aggregate behind both boards.
  *
  * One request serves Progress and Breakdown. They are two views of the same period, and fetching
  * twice would let them disagree while a rep switched between them.
  */
 export function fetchBreakdown(period: Period): Promise<BreakdownResponse> {
-  return coachGet<BreakdownResponse>(`${BASE}/breakdown?period=${encodeURIComponent(period)}`);
+  return sharedGet<BreakdownResponse>(`${BASE}/breakdown?period=${encodeURIComponent(period)}`);
 }
 
 /**
@@ -48,7 +66,7 @@ export function fetchBreakdown(period: Period): Promise<BreakdownResponse> {
  * fallback that computes any of them from what is left.
  */
 export function fetchLeaderboard(period: Period): Promise<LeaderboardResponse> {
-  return coachGet<LeaderboardResponse>(`${BASE}/leaderboard?period=${encodeURIComponent(period)}`);
+  return sharedGet<LeaderboardResponse>(`${BASE}/leaderboard?period=${encodeURIComponent(period)}`);
 }
 
 /**
@@ -64,7 +82,7 @@ export function fetchLeaderboard(period: Period): Promise<LeaderboardResponse> {
  * counts. That is a founder decision recorded as open, not something to settle here.
  */
 export function fetchMilestones(): Promise<MilestonesResponse> {
-  return coachGet<MilestonesResponse>(`${BASE}/milestones`);
+  return sharedGet<MilestonesResponse>(`${BASE}/milestones`);
 }
 
 /**
@@ -82,7 +100,7 @@ export function fetchMilestones(): Promise<MilestonesResponse> {
  * version.
  */
 export function fetchRubric(): Promise<RubricResponse> {
-  return coachGet<RubricResponse>(`${BASE}/rubric`);
+  return sharedGet<RubricResponse>(`${BASE}/rubric`);
 }
 
 /**
@@ -96,5 +114,5 @@ export function fetchRubric(): Promise<RubricResponse> {
  * number and three cards need a list.
  */
 export function fetchBestPitches(period: Period): Promise<BestPitchesResponse> {
-  return coachGet<BestPitchesResponse>(`${BASE}/best?period=${encodeURIComponent(period)}`);
+  return sharedGet<BestPitchesResponse>(`${BASE}/best?period=${encodeURIComponent(period)}`);
 }

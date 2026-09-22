@@ -1,11 +1,11 @@
 /**
- * Two pages, one toggle, one swipe (spec §1.1).
+ * Pages, one toggle, one swipe (spec §1.1). Two on Home, four on Today's Metrics.
  *
  * THE TOGGLE IS THE PRIMARY CONTROL AND THE SWIPE IS THE ENHANCEMENT, which is
  * the spec's wording and also the design law's: an affordance that exists only
  * as a gesture is invisible, and a rep who never discovers it simply never sees
  * half the screen. So the segmented control is always there, always labelled,
- * and reaches both pages on its own. Every part of the gesture below could be
+ * and reaches every page on its own. Every part of the gesture below could be
  * deleted and the screen would still work.
  *
  * THE RULES LIVE IN `lib/pager.ts`, not here. Axis lock, rubber band and the
@@ -14,7 +14,7 @@
  * finger. They are unit-tested there, and six deliberate breakages were proven
  * to fail those tests.
  *
- * BOTH PAGES STAY MOUNTED. The spec asks for it, and the reason is felt rather
+ * EVERY PAGE STAYS MOUNTED. The spec asks for it, and the reason is felt rather
  * than argued: a page mounted on arrival has already loaded, so the swipe
  * reveals a screen rather than a spinner.
  *
@@ -244,9 +244,29 @@ export function SwipePager({
   return (
     <View className="flex-1">
       {/* The primary control. A tablist, so a keyboard or switch user moves
-          between the two with the same words a sighted rep reads. */}
+          between the pages with the same words a sighted rep reads.
+
+          IT WRAPS, AND THE PILLS ARE SIZED BY THEIR WORDS. This row was four equal `flex-1`
+          columns until Today's Metrics grew its fourth segment, and the arithmetic refused it:
+          on a 375pt screen four equal columns leave 79.75pt each, and "Breakdown" in Inter
+          Medium at 16pt measures 86.57pt - MEASURED off the bundled
+          `@expo-google-fonts/inter/500Medium` advance widths, not estimated. It could not fit at
+          any gap, because zero gap still leaves 93.75pt before the pill's own padding.
+
+          Shrinking the text was the obvious fix and is the one that fails quietly: 14pt fits at
+          the default scale with 4pt to spare and clips at the first notch of Dynamic Type, on a
+          single word that cannot wrap. `grow` with `flex-wrap` instead - the pills fill the row
+          when they fit and drop to a second row when they do not, so a larger text size costs
+          height rather than a destination's name.
+
+          THE PILLS CARRY NO PADDING OF THEIR OWN, and that is what buys the room. `grow` hands
+          every pill an equal share of whatever the row has left over, so the slack BECOMES the
+          padding instead of competing with it. Four labels measure 260.59pt; with the row's own
+          px-4 and three 8pt gaps that is 316.59pt against 375, leaving 58pt spread across four
+          pills - and one row still holds at a 1.2 text scale. `tab-control-fits.test.ts` holds
+          the sum. */}
       {control === 'tabs' ? (
-      <View accessibilityRole="tablist" className="flex-row gap-2 px-4 pb-3 pt-2">
+      <View accessibilityRole="tablist" className="flex-row flex-wrap gap-2 px-4 pb-3 pt-2">
         {pages.map((page, i) => {
           const active = i === index;
           return (
@@ -256,7 +276,7 @@ export function SwipePager({
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${page.label}, page ${i + 1} of ${pages.length}`}
               onPress={() => settle(i)}
-              className={`min-h-7 flex-1 items-center justify-center rounded-lg border active:opacity-70 ${
+              className={`min-h-7 grow items-center justify-center rounded-lg border active:opacity-70 ${
                 active ? 'border-primary bg-primary' : 'border-border-control bg-surface'
               }`}
             >
