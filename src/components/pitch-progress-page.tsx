@@ -224,6 +224,24 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         </Text>
       )}
 
+      {/*
+        THE BOARD SAYS WHAT IT IS. It did not, and the omission got worse rather than better.
+
+        In the ready state the first heading on this screen was "Your best pitches", two thirds of
+        the way down - so a VoiceOver user moving by heading landed in the middle of someone else's
+        section, and the board was NAMED only when it was empty or broken. Breakdown names itself
+        at the top; this is its peer.
+
+        It matters to sighted reps too, now more than when it was first noticed. The tab reads
+        "Metrics", the segment reads "Progress", and the Arena one swipe away also shows a points
+        total, a best list and a milestone strip. Before this line, nothing on the screen said the
+        words Pitch Score - the rep was expected to infer which of two scoring systems they were
+        looking at from the shape of the gauge.
+      */}
+      <Text accessibilityRole="header" className="mt-5 font-heading text-xl text-foreground">
+        Your Pitch Score
+      </Text>
+
       {/* Both usually false, both rendered. A gauge averaged over a truncated period reports a
           different number from the one its caption names, and nothing on screen looks wrong. */}
       <PitchReadCaveats data={data} />

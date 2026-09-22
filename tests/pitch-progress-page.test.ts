@@ -166,3 +166,27 @@ test('the qualifying threshold is the server’s, not a literal', () => {
   assert.match(board, /rubric\.qualifyingMinBase/);
   assert.doesNotMatch(board, /\b40\b/);
 });
+
+test('the board names itself before it shows a number', () => {
+  /*
+    THE READY STATE HAD NO HEADING AT ALL. The first `accessibilityRole="header"` on a loaded
+    board was "Your best pitches", two thirds of the way down, so a VoiceOver user moving by
+    heading landed inside someone else's section - and the board was named only when it was EMPTY
+    or BROKEN, which are the two states where its own headings already existed.
+
+    It reads on sighted screens too, and got worse after the tab label was shortened: the tab says
+    "Metrics", the segment says "Progress", and the Arena one swipe away also shows a points total,
+    a best list and a milestone strip on a different scale. Nothing said the words Pitch Score.
+
+    Guarded by ORDER, not just presence: a heading that arrives after the gauge fixes the sentence
+    and not the problem.
+  */
+  const heading = board.indexOf('Your Pitch Score');
+  const gauge = board.indexOf('<ArenaGauge');
+  assert.ok(heading > 0, 'the loaded board does not name itself anywhere');
+  assert.ok(heading < gauge, 'the name must come before the number it names');
+
+  // Breakdown's peer heading, so the two boards are named the same way.
+  const breakdown = code(read('src/components/pitch-breakdown-page.tsx'));
+  assert.match(breakdown, /Your rubric averages/);
+});
