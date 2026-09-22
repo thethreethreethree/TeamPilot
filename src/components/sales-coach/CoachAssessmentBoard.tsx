@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 // draws the Standard one, so the rebuild follows the board.
 import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
 import { RepSkillGrades } from "@/components/sales-coach/RepSkillGrades";
+import RecordingsTab from "@/components/sales-coach/RecordingsTab";
 import type { RepRow, SectionBar, PriorityCard } from "@/lib/coach/assessment/teamAssessment";
 import type { RepDetail } from "@/lib/coach/assessment/readTeamAssessment";
 // The PITCH SCORE band, which wraps the gamification authority and returns its label. Its own
@@ -123,6 +124,10 @@ export function CoachAssessmentBoard() {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [coaching, setCoaching] = useState<Map<string, Coaching>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
+  // The rep panel's two tabs, as the board shows them: the assessment, and "Recordings (n)".
+  // Resets to the assessment when the manager picks a different rep — carrying "Recordings" over
+  // would drop them into someone else's audio without having asked for it.
+  const [repTab, setRepTab] = useState<"assessment" | "recordings">("assessment");
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
@@ -199,6 +204,11 @@ export function CoachAssessmentBoard() {
 
   const wire = state.kind === "ready" ? state.wire : null;
   const rep = wire?.reps.find((r) => r.repId === selected) ?? wire?.reps[0] ?? null;
+
+  const repId = rep?.repId ?? null;
+  useEffect(() => {
+    setRepTab("assessment");
+  }, [repId]);
   const repDetail = rep ? wire?.detail[rep.repId] : undefined;
   const notes = rep ? coaching.get(rep.repId) : undefined;
 
@@ -547,6 +557,37 @@ export function CoachAssessmentBoard() {
                   <AgentGradeBadge agentId={rep.repId} />
                 </div>
 
+                {/* The board's tab strip. Recordings is Project 4 and it is the screen the other
+                    four depend on: until a manager can press play at the second a score moved,
+                    every number on this page asks to be trusted rather than checked (3.3). */}
+                <div className="mt-4 flex gap-1 border-b border-default">
+                  {([
+                    ["assessment", "Assessment"],
+                    ["recordings", "Recordings"],
+                  ] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setRepTab(id)}
+                      className={`-mb-px border-b-2 px-3 py-2 text-xs font-medium transition ${
+                        repTab === id
+                          ? "border-ember-400 text-primary"
+                          : "border-transparent text-muted hover:text-primary"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {repTab === "recordings" && (
+                  <div className="mt-4">
+                    <RecordingsTab repId={rep.repId} isManager />
+                  </div>
+                )}
+
+                {repTab === "assessment" && (
+                  <>
                 <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
                   <Card label="Doors knocked" value={String(repDetail.kpis.doorsKnocked)} />
                   <Card label="Presentations" value={String(repDetail.kpis.presentations)} />
@@ -665,6 +706,8 @@ export function CoachAssessmentBoard() {
                 <div className="mt-4 pt-4 border-t border-default">
                   <RepSkillGrades agentId={rep.repId} />
                 </div>
+                  </>
+                )}
               </section>
             )}
           </>

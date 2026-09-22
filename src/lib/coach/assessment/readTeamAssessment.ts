@@ -105,8 +105,6 @@ export async function readTeamAssessment(
     themes?: readonly BriefTheme[];
     /** One line per rep from the brief, keyed by rep NAME as the brief writes it. */
     focusByName?: ReadonlyMap<string, string>;
-    /** Existing coaching grade per rep, so the new board keeps what the old page showed. */
-    gradeByRep?: ReadonlyMap<string, { grade: string | null; note: string | null }>;
     nameByRep?: ReadonlyMap<string, string>;
     limit?: number;
   },
@@ -186,7 +184,6 @@ export async function readTeamAssessment(
 
     const worst = aggregate.counted > 0 ? lowestSection(aggregate.sectionAverages) : null;
     const name = args.nameByRep?.get(repId) ?? null;
-    const grade = args.gradeByRep?.get(repId);
     rows.push({
       repId,
       fullName: name,
@@ -199,8 +196,6 @@ export async function readTeamAssessment(
       closeRate: kpis.closeRate === null ? null : Math.round(kpis.closeRate * 1000) / 10,
       lowestSection: worst,
       lowestSectionLabel: worst ? SECTIONS.find((s) => s.id === worst)?.label ?? null : null,
-      coachingGrade: grade?.grade ?? null,
-      coachingGradeNote: grade?.note ?? null,
       // Matched on the name the brief used, which is how the brief itself keys repFocus.
       focus: (name && args.focusByName?.get(name)) ?? null,
     });

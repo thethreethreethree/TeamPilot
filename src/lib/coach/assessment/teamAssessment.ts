@@ -226,9 +226,18 @@ export type RepRow = {
   closeRate: number | null;
   lowestSection: SectionId | null;
   lowestSectionLabel: string | null;
-  /** The existing letter grade. A COLUMN, never the sort — the guide forbids ranking it. */
-  coachingGrade: string | null;
-  coachingGradeNote: string | null;
+  /**
+   * NO COACHING GRADE ON THE WIRE, deliberately.
+   *
+   * The guide requires the column — *"the existing coaching grade and notes stay unranked"* — and
+   * it is on the board. It is NOT here, because `AgentGradeBadge` fetches it from the endpoint
+   * that has always owned it, so putting it on this row would be a second copy of a number one
+   * request away (§2.2).
+   *
+   * This started as two always-null fields and was removed once the badge proved they were never
+   * needed. An unadopted field is the debt `fetchJson.ts` is labelled with in the reachability
+   * audit: "adopted by nothing… Nobody decided this should be unused."
+   */
   /** The rep's one line from the brief, or null when the brief does not cover them. */
   focus: string | null;
 };

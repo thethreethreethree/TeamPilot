@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Play, Flag, MessageSquare, Clock } from "lucide-react";
 import { BONUSES_BY_ID, VIOLATIONS_BY_ID, type SectionId } from "@/lib/coach/pitchScore/rubric";
 import type { StoredPitch, PitchElementRow } from "@/lib/coach/pitchScore/readPitchScore";
+import { ManagerComments } from "./ManagerComments";
 
 /**
  * Pitch detail — one scored pitch, with the evidence behind every point.
@@ -447,6 +448,11 @@ export function PitchDetail({
           </ul>
         </section>
       )}
+
+      {/* ── From your manager ─────────────────────────────────── */}
+      {/* Guide Step 4 item 6's second half: a comment the manager SENT shows up here. Renders
+          nothing when there are none, so an empty panel does not appear on every pitch. */}
+      <ManagerComments pitchId={pitch.id} />
 
       {/* ── Dispute ───────────────────────────────────────────────────────────────────── */}
       {onDispute && (

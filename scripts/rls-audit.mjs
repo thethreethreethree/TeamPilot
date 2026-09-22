@@ -140,6 +140,17 @@ const ALLOWLIST = new Map([
   ["pattern_events.insert", "0258 written by the API routes behind Mark as coached / Add note / Assign drill / Reviewed / This clip looks wrong, each stamping the caller as actor. A direct client insert would let a rep forge 'coached' and clear their own stalled flag."],
   ["pattern_events.update", "0258 §3.1 append-only: the log is the audit trail for coaching actions, and an editable 'coached at' would make the Stalled rule (7+ days) unfalsifiable."],
   ["pattern_events.delete", "0258 §3.1 append-only; deleting a rep_reviewed event would silently re-raise the AWAITING REP REVIEW count against someone who did review it."],
+  // 0259 recording_comments. A manager speaking to a rep about a specific second of their
+  // recording, delivered to them. Written server-side by the route that stamps the author.
+  ["recording_comments.insert", "0259 the route stamps author_id from the session; a client insert puts a manager's name on words they did not write."],
+  ["recording_comments.update", "0259 §3.1 append-only — once a comment is sent the rep has read it, and an editable row lets a manager revise what they said with only the rep's memory as the record. A correction is a new comment."],
+  ["recording_comments.delete", "0259 same: deleting a sent comment unsays something the rep was notified about, leaving them holding a reference to a row that no longer exists."],
+  // 0260 recording_share_events. The rep's permission for "Save as team example", held as an
+  // append-only log so the question "was she asked, and what did she say" stays answerable.
+  // INSERT is deliberately split: the rep's answer has a policy (actor_id = auth.uid() AND the
+  // pitch is theirs), and only the manager's `requested` half is route-written.
+  ["recording_share_events.update", "0260 §3.1 append-only — the whole point of a log over a boolean is that a grant and a later revocation both survive. An editable row lets a revocation be turned back into a grant with nothing on the record."],
+  ["recording_share_events.delete", "0260 deleting a `declined` would make a rep who said no indistinguishable from one who was never asked — which is precisely the state A10 forbids, since the clip would then be re-requested as if for the first time."],
   ["pitch_score_elements.insert", "0252 written by the scoring engine — a client insert would let a rep award themselves a Hit."],
   ["pitch_score_elements.update", "0252 grades are evidence; corrections go through the logged score_overrides path, not a silent edit."],
   ["pitch_score_elements.delete", "0252 deleting a graded element would remove the evidence behind a score without changing the score."],

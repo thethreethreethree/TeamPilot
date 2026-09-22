@@ -157,8 +157,6 @@ describe("the reps table ranks by points, and never by the coaching grade", () =
     closeRate: 20,
     lowestSection: "close",
     lowestSectionLabel: "The close",
-    coachingGrade: "B",
-    coachingGradeNote: "Solid",
     focus: null,
     ...over,
   });
@@ -172,14 +170,15 @@ describe("the reps table ranks by points, and never by the coaching grade", () =
     expect(rows.map((r) => r.fullName)).toEqual(["John Knudtson", "James Soto", "Anthony A."]);
   });
 
-  it("does NOT order by the coaching grade — the guide forbids ranking it", () => {
-    // A+ with few points sits below B with many. "The existing coaching grade and notes stay
-    // unranked; only the Pitch Score and KPIs are compared across reps."
-    const rows = rankReps([
-      rep({ repId: "low", coachingGrade: "A+", totalPoints: 10 }),
-      rep({ repId: "high", coachingGrade: "C-", totalPoints: 900 }),
-    ]);
-    expect(rows[0]!.repId).toBe("high");
+  it("cannot order by the coaching grade, because the grade is not on the row", () => {
+    // "The existing coaching grade and notes stay unranked; only the Pitch Score and KPIs are
+    // compared across reps." The strongest form of that guarantee is not a test asserting the
+    // sort ignores the grade — it is the grade being absent from what the sort can see. The
+    // badge fetches it per rep, one request away, so the column exists and the data never
+    // reaches the comparator.
+    const keys = Object.keys(rep({}));
+    expect(keys).not.toContain("coachingGrade");
+    expect(keys).not.toContain("coachingGradeNote");
   });
 
   it("does not order by the average score either — points reward volume, by design", () => {

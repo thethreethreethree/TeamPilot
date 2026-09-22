@@ -37,18 +37,40 @@ const SCORED = {
 
 const fetchMock = vi.fn();
 
-/** Queue one response per call, in order. */
+/**
+ * The queue of PANEL responses, answered in order.
+ *
+ * ROUTED BY URL RATHER THAN BY CALL ORDER, since 2026-09-22. `PitchDetail` now renders
+ * `ManagerComments`, which reads `pitch-recordings` to show a comment a manager SENT to this rep
+ * (guide Step 4 item 6). That is a real fetch from a real feature, and under the previous
+ * strictly-ordered mock it silently ate the response queued for the panel's next call — so five
+ * tests failed for a reason that had nothing to do with what they assert.
+ *
+ * A queue keyed on call ORDER couples every test here to the number of requests the whole subtree
+ * happens to make. Keying on the URL couples them to the panel, which is what they are about.
+ */
+const queued: { ok: boolean; body?: unknown }[] = [];
+
+const isRecordingsRead = (input: unknown) =>
+  typeof input === "string" && input.includes("/pitch-recordings");
+
 const respond = (...responses: { ok: boolean; body?: unknown }[]) => {
-  for (const r of responses) {
-    fetchMock.mockImplementationOnce(async () => ({
-      ok: r.ok,
-      json: async () => r.body ?? {},
-    }));
-  }
+  queued.push(...responses);
 };
+
+/** Calls the panel itself made — the number these tests mean by "called N times". */
+const panelCalls = () => fetchMock.mock.calls.filter((c) => !isRecordingsRead(c[0]));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  queued.length = 0;
+  fetchMock.mockImplementation(async (input: unknown) => {
+    // ManagerComments: no comments, which is the normal state of a pitch and renders nothing.
+    if (isRecordingsRead(input)) return { ok: true, json: async () => ({ moments: [] }) };
+    const next = queued.shift();
+    if (!next) return { ok: false, json: async () => ({}) };
+    return { ok: next.ok, json: async () => next.body ?? {} };
+  });
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(cleanup);
@@ -127,7 +149,7 @@ describe("a failed scoring run says WHICH failure", () => {
     render(<PitchScorePanel sessionId="s1" />);
     fireEvent.click(await screen.findByRole("button", { name: /Score this pitch/i }));
     expect(await screen.findByText("80.4")).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(panelCalls()).toHaveLength(3);
   });
 });
 
