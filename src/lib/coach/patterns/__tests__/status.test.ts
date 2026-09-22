@@ -214,10 +214,10 @@ describe("C8 — open is a field, and it is anything not fixed", () => {
 
 describe("countPatterns keeps the board's two senses apart", () => {
   const verdicts: StatusVerdict[] = [
-    { status: "fixed", open: false, reason: "", streak: 5 },
-    { status: "improving", open: true, reason: "", streak: 1 },
-    { status: "new", open: true, reason: "", streak: 0 },
-    { status: "stalled", open: true, reason: "", streak: 0 },
+    { status: "fixed", open: false, reason: "", streak: 5, comparison: null },
+    { status: "improving", open: true, reason: "", streak: 1, comparison: null },
+    { status: "new", open: true, reason: "", streak: 0, comparison: null },
+    { status: "stalled", open: true, reason: "", streak: 0, comparison: null },
   ];
 
   it("reproduces Anthony A. — one rep, two correct numbers", () => {

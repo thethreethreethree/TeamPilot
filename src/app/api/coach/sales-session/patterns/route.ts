@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readPatterns, teamWidePatterns, repChips } from "@/lib/coach/patterns/readPatterns";
+import { teamCards, rankRepsByAttention } from "@/lib/coach/patterns/repProgress";
 
 /**
  * GET /api/coach/sales-session/patterns?repId=<uuid>
@@ -52,7 +53,12 @@ export async function GET(req: NextRequest) {
 
   // `readPatterns` reads the rows first and then fetches grades for exactly the reps who have a
   // pattern — so neither branch here has to know the rep list in advance.
-  const read = await readPatterns(repId ? { repId } : {}, supabase);
+  // ONE clock for the whole response. `readPatterns` defaults to its own `new Date()` and the
+  // roll-ups below would take another; two instants milliseconds apart cannot change an answer
+  // today, but "coached 7 days ago" is a threshold and a threshold evaluated twice is a threshold
+  // that can be crossed between the two evaluations.
+  const now = new Date();
+  const read = await readPatterns(repId ? { repId, now } : { now }, supabase);
 
   if (read === null) {
     // Never an empty board. "No patterns" about a rep whose patterns simply failed to load is the
@@ -69,13 +75,23 @@ export async function GET(req: NextRequest) {
    * name lookup failed would withhold the patterns themselves, which is worse still.
    */
   const chips = repId ? [] : repChips(read.patterns);
+
+  /**
+   * EVERY rep on the board, not only the ones with an OPEN pattern.
+   *
+   * `chips` counts open patterns, so a rep whose patterns are all fixed has no chip — and the Rep
+   * progress list still has a row for them, reading "2 fixed · 0 improving · 0 open · On track".
+   * Looking names up from `chips` would leave exactly the people who fixed everything showing as
+   * a raw uuid, which is a nasty way to be rewarded for it.
+   */
+  const boardRepIds = repId ? [] : [...new Set(read.patterns.map((p) => p.repId))];
   const names = new Map<string, string>();
-  if (manager && chips.length > 0) {
+  if (manager && boardRepIds.length > 0) {
     const { data: profiles, error: nameError } = await createAdminClient()
       .from("profiles")
       .select("id, full_name")
       .eq("company_id", manager.companyId)
-      .in("id", chips.map((c) => c.repId));
+      .in("id", boardRepIds);
     if (nameError) {
       console.error(`[coach-patterns] name lookup failed: ${nameError.message}`);
     }
@@ -116,5 +132,29 @@ export async function GET(req: NextRequest) {
      * the board has chips to show instead.
      */
     scored: read.scored,
+    /**
+     * The Rep progress tab — the board's second tab, team-scoped only.
+     *
+     * GATED ON `manager`, NOT ON `repId`, and the difference is the whole point. This tab is a
+     * manager comparing people. A rep who hand-crafts `?scope=team` has no `repId` either — so
+     * keying on `repId` would hand them a one-row "team" ranking them first against nobody, which
+     * is the flattering-but-false board the leaderboard build caught itself about to ship.
+     *
+     * That is NOT an access control: RLS has already limited the rows, so nothing leaks either
+     * way. It is a decision about whether a comparison is meaningful, and it belongs where the
+     * comparison is built. The comment here used to claim the rep-scoped branch did this; it did
+     * not, which is the §2.2 shape in its quietest form — a doc-comment describing a condition
+     * one term away from the one actually written.
+     *
+     * Derived from `read.patterns`, which is the SAME array the Patterns tab renders. One read,
+     * one set of verdicts, two tabs — so the OPEN PATTERNS card up here and the chips down there
+     * cannot disagree about a rep.
+     */
+    repProgress: !manager
+      ? null
+      : {
+          cards: teamCards(read.patterns, now),
+          reps: rankRepsByAttention(read.patterns, names, now),
+        },
   });
 }

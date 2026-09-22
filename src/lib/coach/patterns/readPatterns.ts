@@ -41,6 +41,16 @@ export type PatternRow = {
   fixedAt: string | null;
   /** True once the rep has acknowledged it — drives AWAITING REP REVIEW. */
   repReviewed: boolean;
+  /**
+   * The coaching log for this pattern, oldest first — the Rep progress timeline's Ⓒ Ⓓ Ⓡ markers.
+   *
+   * THE RAW EVENTS, not a summary of them, because the timeline draws one marker per event at its
+   * own date. `coachedAt` above is a DERIVED field (the earliest coaching event) and keeping both
+   * is deliberate: the status resolver needs the single instant, the timeline needs all of them,
+   * and deriving the second from the first is impossible while deriving the first from the second
+   * in each surface is the duplication §2.2 warns about. So the authority hands down both.
+   */
+  events: Array<{ kind: string; at: string }>;
   verdict: StatusVerdict;
   /** Whole days since detection. The board's OPEN column reads "9 days". */
   daysOpen: number;
@@ -191,7 +201,11 @@ export async function readPatterns(
   const events = (eventData ?? []) as EventRecord[];
   const coachedAt = new Map<string, string>();
   const reviewed = new Set<string>();
+  const logByPattern = new Map<string, Array<{ kind: string; at: string }>>();
   for (const e of events) {
+    const log = logByPattern.get(e.pattern_id) ?? [];
+    log.push({ kind: e.kind, at: e.created_at });
+    logByPattern.set(e.pattern_id, log);
     // EARLIEST coaching event wins, and the read is ordered ascending so the first one seen is it.
     // "Coached 7+ days ago" means since coaching STARTED; taking the latest would let a manager
     // reset a stalled pattern's clock by adding a note to it.
@@ -245,6 +259,7 @@ export async function readPatterns(
       coachedAt: coachedAt.get(r.id) ?? null,
       fixedAt: r.fixed_at,
       repReviewed: reviewed.has(r.id),
+      events: logByPattern.get(r.id) ?? [],
       verdict,
       // Floor, not round: a pattern found four hours ago is open "0 days", not "1 day". The board
       // prints this next to a coaching date and a manager reads the two together.

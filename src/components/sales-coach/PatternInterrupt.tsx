@@ -6,6 +6,8 @@ import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import type { PatternRow } from "@/lib/coach/patterns/readPatterns";
 import type { PatternStatus } from "@/lib/coach/patterns/status";
 import type { Grade } from "@/lib/coach/pitchScore/rubric";
+import RepProgressBoard from "@/components/sales-coach/RepProgressBoard";
+import type { TeamCards, RepProgressRow } from "@/lib/coach/patterns/repProgress";
 
 /**
  * Pattern Interrupt — Project 5 of the 2026-09-19 coaching build.
@@ -27,11 +29,18 @@ import type { Grade } from "@/lib/coach/pitchScore/rubric";
  * already computed. Nothing here writes `status !== "fixed"` (§2.2) — that one-line derivation
  * is precisely the kind that gets retyped per surface, and the retyped copy is how C8 happened.
  *
- * STILL NOT BUILT, and the screen says so rather than faking it: the Rep progress tab, the
- * manager's rep chips, and the clips inside the detail panel. Clips need `pitch_score_events`
- * timestamps wired to the recording player, which is Project 4. The mockup's sample numbers
- * (12 active patterns, Humza Khan at 5 of 7) shown to a manager would be fabricated coaching
- * about real people, which is the one failure this product exists to prevent.
+ * BOTH TABS ARE NOW LIVE. Rep progress landed 2026-09-22 in `RepProgressBoard`, built from the
+ * board opened at full resolution that morning. That reading corrected an evidence note, though
+ * not the ruling: "1 fixed · 1 improving · 2 open" beside "Open patterns 3" is a partition and a
+ * total of the SAME set, so the counts never disagreed. C8 is about the WORD — one page using
+ * "open" in two senses — which is why the board labels the narrower one "still open" and why
+ * `countPatterns` returns both as named fields.
+ *
+ * STILL NOT BUILT, and the screen says so rather than faking it: "Schedule check-in" creates no
+ * calendar event, and the clips inside the Patterns detail panel are a link to the Recordings tab
+ * rather than an inline player. The mockup's sample numbers (12 active patterns, Humza Khan at
+ * 5 of 7) shown to a manager would be fabricated coaching about real people, which is the one
+ * failure this product exists to prevent — so nothing here renders a number it was not given.
  */
 
 type Tab = "patterns" | "rep-progress";
@@ -52,6 +61,8 @@ type Wire = {
   teamWide: Array<{ itemId: string; label: string; repIds: string[] }>;
   capped: boolean;
   scored: boolean;
+  /** Null on a rep-scoped read: this tab is a manager comparing people. */
+  repProgress: { cards: TeamCards; reps: RepProgressRow[] } | null;
 };
 
 type State = { kind: "loading" } | { kind: "failed" } | { kind: "ready"; wire: Wire };
@@ -193,13 +204,28 @@ export function PatternInterrupt() {
         </div>
 
         {tab === "rep-progress" ? (
-          <div className="rounded-lg border border-default bg-surface px-5 py-8 text-center">
-            <p className="text-sm text-primary font-medium">Rep progress is not built yet</p>
-            <p className="mx-auto mt-2 max-w-md text-xs text-muted leading-relaxed">
-              Its board shows a month timeline per pattern, an auto-built check-in agenda and
-              days-to-fix across the team. The Patterns tab beside it is live.
-            </p>
-          </div>
+          state.kind === "loading" ? (
+            <p className="py-8 text-center text-xs text-muted">Loading rep progress…</p>
+          ) : state.kind === "failed" || !wire ? (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/[0.06] px-5 py-6 text-center">
+              <p className="text-sm font-medium text-primary">Rep progress could not be loaded</p>
+              <p className="mx-auto mt-2 max-w-md text-xs text-muted">
+                This is a failure to read it, not a finding that the team has no patterns.
+              </p>
+            </div>
+          ) : wire.repProgress === null ? (
+            // A rep asking for this tab would get a one-row "team" ranking them first against
+            // nobody — plausible, flattering and false. The route returns null and this says so.
+            <div className="rounded-lg border border-default bg-surface px-5 py-8 text-center">
+              <p className="text-sm font-medium text-primary">Rep progress is a manager view</p>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted">
+                It compares the team. Your own patterns, with the same statuses and the same
+                clean-streak rule, are on the Patterns tab.
+              </p>
+            </div>
+          ) : (
+            <RepProgressBoard progress={wire.repProgress} patterns={wire.patterns} />
+          )
         ) : state.kind === "loading" ? (
           <p className="py-8 text-center text-xs text-muted">Loading patterns…</p>
         ) : state.kind === "failed" || !wire ? (

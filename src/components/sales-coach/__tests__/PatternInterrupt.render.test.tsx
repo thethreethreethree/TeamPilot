@@ -41,7 +41,14 @@ const pattern = (over: Record<string, unknown> = {}) => ({
   coachedAt: null,
   fixedAt: null,
   repReviewed: false,
-  verdict: { status: "new", open: true, reason: "Detected, not coached yet", streak: 0 },
+  events: [] as Array<{ kind: string; at: string }>,
+  verdict: {
+    status: "new",
+    open: true,
+    reason: "Detected, not coached yet",
+    streak: 0,
+    comparison: null,
+  },
   daysOpen: 9,
   ...over,
 });
@@ -54,6 +61,9 @@ const wire = (over: Record<string, unknown> = {}) => ({
   teamWide: [],
   capped: false,
   scored: true,
+  // Null is the REP-SCOPED answer, which is what most of these fixtures are. The manager tests
+  // below pass a real block; this default keeps a rep out of a team view (see the route).
+  repProgress: null as null | { cards: unknown; reps: unknown[] },
   ...over,
 });
 
@@ -169,13 +179,57 @@ describe("the role split", () => {
     expect(screen.queryByRole("button", { name: /^Rep progress$/ })).toBeNull();
   });
 
-  it("gives a manager both tabs, and says Rep progress is unbuilt rather than faking it", async () => {
+  it("gives a manager both tabs, and Rep progress renders the team", async () => {
     isManagerMock.mockReturnValue(true);
-    respond(wire());
+    respond(
+      wire({
+        repProgress: {
+          cards: {
+            openPatterns: 3,
+            acrossReps: 2,
+            fixedThisMonth: 1,
+            avgDaysToFix: 9,
+            stalled: 1,
+            awaitingRepReview: 1,
+            pointsRecovered: 2.3,
+          },
+          reps: [
+            {
+              repId: "rep-1",
+              fullName: "Anthony A.",
+              fixed: 1,
+              improving: 1,
+              stillOpen: 2,
+              openTotal: 3,
+              attention: "needs_1_1",
+              attentionReason: "1 pattern coached over a week ago with no change since",
+            },
+          ],
+        },
+      })
+    );
     render(<PatternInterrupt />);
     await screen.findByText(/Path to fixed/i);
     fireEvent.click(screen.getByRole("button", { name: /^Rep progress$/ }));
-    expect(screen.getByText(/Rep progress is not built yet/i)).toBeTruthy();
+    // Twice on purpose: the list row and the panel heading, as the board draws them.
+    expect(screen.getAllByText("Anthony A.")).toHaveLength(2);
+    // The board's own partition, both numbers from one resolver.
+    expect(screen.getByText("1 fixed · 1 improving · 2 open")).toBeTruthy();
+    // And the reason behind the pill is on the panel, not hidden in a tooltip (A10).
+    expect(
+      screen.getByText(/1 pattern coached over a week ago with no change since/)
+    ).toBeTruthy();
+  });
+
+  it("does not hand a REP a one-person team board", async () => {
+    // A rep asking for this tab would otherwise be ranked first against nobody — plausible,
+    // flattering and false, which is the exact failure the leaderboard build caught itself on.
+    isManagerMock.mockReturnValue(true);
+    respond(wire({ repProgress: null }));
+    render(<PatternInterrupt />);
+    await screen.findByText(/Path to fixed/i);
+    fireEvent.click(screen.getByRole("button", { name: /^Rep progress$/ }));
+    expect(screen.getByText(/Rep progress is a manager view/i)).toBeTruthy();
   });
 
   it("tells a rep their manager sees the same page", async () => {

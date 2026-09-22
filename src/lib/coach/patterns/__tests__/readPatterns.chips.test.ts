@@ -15,6 +15,7 @@ const v = (status: StatusVerdict["status"], open: boolean): StatusVerdict => ({
   open,
   reason: "",
   streak: 0,
+  comparison: null,
 });
 
 const row = (repId: string, itemId: string, verdict: StatusVerdict): PatternRow =>
@@ -33,6 +34,7 @@ const row = (repId: string, itemId: string, verdict: StatusVerdict): PatternRow 
     coachedAt: null,
     fixedAt: null,
     repReviewed: false,
+    events: [],
     verdict,
     daysOpen: 1,
   }) as PatternRow;

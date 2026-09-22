@@ -92,12 +92,21 @@ not apply.
 
 ## Still open (not blocking)
 
-- **Rep progress tab** — the second manager tab is not built; the screen says so rather than faking
-  it.
-- **Clips** — the detail panel names them as arriving with the recording player (Project 4).
+- ~~**Rep progress tab**~~ — **built 2026-09-22.** Five team cards, the needs-attention rep list,
+  the pattern timeline with its Ⓒ Ⓓ Ⓡ markers, the "Where each pattern stands" table and the
+  check-in agenda.
+- **No `pattern_events` row is written by a human yet.** `coached`, `drill_assigned` and `fixed`
+  are valid kinds with no writer, so the manager actions on the Patterns mockup — Mark as coached,
+  Assign Role Play drill, Add note — do not exist. Consequence, and it is visible rather than
+  hidden: the Rep progress timeline draws bars with **no markers**, LAST COACHING reads "Not
+  coached yet" everywhere, and "Rep reviewed" reads 0 of N. Every derivation handles it; the board
+  simply looks emptier than the mockup until those three actions ship. **This is the largest
+  remaining gap in Project 5.**
+- ~~**Clips**~~ — the recording player shipped 2026-09-22 (Project 4). "Open clips" on the agenda
+  reaches the Recordings tab, where every pattern moment is already a marker.
 - **Training, Team, One Liners** have no nav entry after the 2026-09-22 "follow the boards
-  literally" ruling. Training is the live team-brief generator and is reachable only at
-  `/dashboard/sales-coach/training` until Coach Assessment's "What the team needs to work on" card
-  (guide Step 3) is built.
+  literally" ruling. Training is the live team-brief generator; its guide-sanctioned replacement,
+  Coach Assessment's "What the team needs to work on" card, **is now built**, so the brief is
+  reachable through it. Team and One Liners are still URL-only.
 - **No surface has been rendered in a browser** by the agent that built it. Every UI claim in the
   build record is from jsdom tests and from reading the 2026-09-19 boards.

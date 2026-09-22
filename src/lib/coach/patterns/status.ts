@@ -78,6 +78,28 @@ export type StatusInput = {
   isClean?: CleanPredicate;
 };
 
+/**
+ * The first-5-versus-last-5 miss comparison, as DATA rather than as a sentence.
+ *
+ * WHY IT IS A FIELD AND NOT JUST INSIDE `reason`. The Rep progress board prints this comparison in
+ * its own column, `MISSES THEN → NOW`, for EVERY row — "3/5 → 3/5 →" on a Stalled pattern and a
+ * New one, "4/5 → 1/5 ▼" on an Improving one. Only the Improving branch ever put it in `reason`,
+ * so a surface wanting the column for the other four statuses would have to recompute it from the
+ * grades, which is the §2.2 shape: two places deciding what "then" and "now" mean, and the copy
+ * drifting the day COMPARISON_WINDOW changes.
+ *
+ * `null` when there is not enough history to compare — which the column renders as "—" rather
+ * than as 0/5, because no data and a perfect record look the same at zero.
+ */
+export type MissComparison = {
+  thenMisses: number;
+  thenOf: number;
+  nowMisses: number;
+  nowOf: number;
+  /** Down is better. Compared on RATE, not count, so unequal windows do not read as movement. */
+  direction: "down" | "up" | "flat";
+};
+
 export type StatusVerdict = {
   status: PatternStatus;
   /**
@@ -91,6 +113,8 @@ export type StatusVerdict = {
   reason: string;
   /** Clean applicable pitches in a row, newest-first. Drives the "3 of 5 clean" progress. */
   streak: number;
+  /** MISSES THEN → NOW, or null when there is too little history to say. */
+  comparison: MissComparison | null;
 };
 
 const DAY_MS = 86_400_000;
@@ -116,8 +140,32 @@ export function statusOf(input: StatusInput): StatusVerdict {
   const ordered = [...input.applicable].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
   const streak = cleanStreak(ordered, isClean);
 
+  // COMPUTED ONCE, BEFORE THE BRANCHES, because the board prints it on every row regardless of
+  // status. It used to live inside the Improving branch, which meant a Stalled row had no way to
+  // show "3/5 → 3/5" without a second derivation somewhere else (§2.2).
+  const first = ordered.slice(0, COMPARISON_WINDOW);
+  const last = ordered.slice(-COMPARISON_WINDOW);
+  const firstMisses = first.filter((p) => isMiss(p.grade)).length;
+  const lastMisses = last.filter((p) => isMiss(p.grade)).length;
+  const enoughToCompare = ordered.length >= COMPARISON_WINDOW * 2;
+  // RATE, not count. With a full window on both sides the denominators match and it makes no
+  // difference; with a short history they do not, and 2-of-3 is worse than 3-of-5, not better.
+  const rateFell =
+    first.length > 0 && last.length > 0 && lastMisses / last.length < firstMisses / first.length;
+  const rateRose =
+    first.length > 0 && last.length > 0 && lastMisses / last.length > firstMisses / first.length;
+  const comparison: MissComparison | null = enoughToCompare
+    ? {
+        thenMisses: firstMisses,
+        thenOf: first.length,
+        nowMisses: lastMisses,
+        nowOf: last.length,
+        direction: rateFell ? "down" : rateRose ? "up" : "flat",
+      }
+    : null;
+
   if (input.fixedAt) {
-    return { status: "fixed", open: false, reason: "Closed by a manager", streak };
+    return { status: "fixed", open: false, reason: "Closed by a manager", streak, comparison };
   }
   if (streak >= CLEAN_STREAK_TO_FIX) {
     return {
@@ -125,6 +173,7 @@ export function statusOf(input: StatusInput): StatusVerdict {
       open: false,
       reason: `${streak} clean pitches in a row`,
       streak,
+      comparison,
     };
   }
 
@@ -134,6 +183,7 @@ export function statusOf(input: StatusInput): StatusVerdict {
       open: true,
       reason: "Detected, not coached yet",
       streak,
+      comparison,
     };
   }
 
@@ -147,13 +197,6 @@ export function statusOf(input: StatusInput): StatusVerdict {
   //
   // Only pitches that APPLIED count on either side — comparing against calendar pitches would
   // show improvement whenever the item simply stopped coming up.
-  const first = ordered.slice(0, COMPARISON_WINDOW);
-  const last = ordered.slice(-COMPARISON_WINDOW);
-  const firstMisses = first.filter((p) => isMiss(p.grade)).length;
-  const lastMisses = last.filter((p) => isMiss(p.grade)).length;
-  const enoughToCompare = ordered.length >= COMPARISON_WINDOW * 2;
-  const rateFell =
-    first.length > 0 && last.length > 0 && lastMisses / last.length < firstMisses / first.length;
   // NOW LOAD-BEARING, and it was not two hours ago.
   //
   // Mutation S2 showed this term was dead: with one shared predicate, a fallen miss rate forces
@@ -173,6 +216,7 @@ export function statusOf(input: StatusInput): StatusVerdict {
       // The board's own words for it: "MISSES THEN → NOW  4/5 → 1/5 ▼".
       reason: `Misses ${firstMisses}/${first.length} → ${lastMisses}/${last.length}`,
       streak,
+      comparison,
     };
   }
 
@@ -193,10 +237,11 @@ export function statusOf(input: StatusInput): StatusVerdict {
           ? `Coached ${Math.floor(coachedDaysAgo)} days ago, and it has not come up since`
           : `Coached ${Math.floor(coachedDaysAgo)} days ago with no improvement`,
       streak,
+      comparison,
     };
   }
 
-  return { status: "coaching", open: true, reason: "Being coached", streak };
+  return { status: "coaching", open: true, reason: "Being coached", streak, comparison };
 }
 
 /**
