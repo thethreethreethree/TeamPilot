@@ -6,7 +6,7 @@
 $ npm run check
 ```
 
-Twelve steps. Exit code on its own line (A38). Result in closure.md.
+ELEVEN steps at the time of this run — "twelve" was wrong here and in four other build records, corrected 2026-09-22 when `sql:harness` made it twelve for real. Exit code on its own line (A38). Result in closure.md.
 
 ## The probe, which is the whole verification
 

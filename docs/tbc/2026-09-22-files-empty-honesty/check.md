@@ -8,7 +8,7 @@ $ echo "CHECK_EXIT=$?"
 CHECK_EXIT=0
 ```
 
-Twelve steps: `typecheck && lint && theme:audit && rls:audit && invariant:audit &&
+ELEVEN steps at the time of this run — I wrote "twelve" here and in four other build records, over a list of eleven, all session. Corrected 2026-09-22 when adding `sql:harness` made it twelve for real; a number that becomes true later was still wrong when written. `typecheck && lint && theme:audit && rls:audit && invariant:audit &&
 reachability:audit && writer:audit && enum:audit && migration:audit && tbc && test`. Output
 redirected to a file and the exit code read on the next line, never through a pipeline.
 

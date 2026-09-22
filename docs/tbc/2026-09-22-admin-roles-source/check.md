@@ -8,7 +8,7 @@ $ echo "CHECK_EXIT=$?"
 CHECK_EXIT=0
 ```
 
-Twelve steps. Output redirected to a file, exit code read on the next line, never through a
+ELEVEN steps at the time of this run — "twelve" was wrong here and in four other build records, corrected 2026-09-22 when `sql:harness` made it twelve for real. Output redirected to a file, exit code read on the next line, never through a
 pipeline.
 
 ## Before applying anything: does production match what the migration was generated from?
