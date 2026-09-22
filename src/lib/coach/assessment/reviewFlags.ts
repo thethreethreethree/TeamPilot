@@ -37,7 +37,10 @@ export type ReviewFlag = {
   itemId: string;
   /** The rubric's label, so the row reads without a lookup. */
   label: string;
-  /** What it cost, as a positive number. The board prints it as "−10 applied". */
+  /**
+   * What this pitch was ACTUALLY docked, as a positive number. The board prints it as
+   * "−10 applied", and *applied* is the load-bearing word.
+   */
   deduction: number;
   recordedAt: string;
   /** The evidence the scorer stored — what it heard, so a manager can judge it. */
@@ -46,8 +49,26 @@ export type ReviewFlag = {
   atSeconds: number | null;
 };
 
+/** One page of the queue, plus how many are outstanding behind it. */
+export type ReviewFlagPage = {
+  flags: ReviewFlag[];
+  /**
+   * How many unreviewed flags exist, not how many are in `flags`.
+   *
+   * A bounded list that cannot say it is bounded is a list that claims to be the whole set. The
+   * board prints "showing 50 of 137" from this, and the difference is the point.
+   */
+  total: number;
+};
+
 /**
- * Unreviewed flags for a company.
+ * The page size. Not exported — nothing outside this file decides it, and the surface reports
+ * the bound from `total` rather than by knowing the number.
+ */
+const REVIEW_FLAG_PAGE = 50;
+
+/**
+ * One page of unreviewed flags for a company, with the true unreviewed total.
  *
  * "UNREVIEWED" IS THE ABSENCE OF AN OVERRIDE, and that is the whole design. A manager has exactly
  * two answers — confirm it or remove it — and BOTH are recorded the same way: an override row
@@ -65,18 +86,40 @@ export type ReviewFlag = {
 export async function readReviewFlags(
   args: { companyId: string; nameByRep: ReadonlyMap<string, string>; limit?: number },
   db: SupabaseClient
-): Promise<ReviewFlag[] | null> {
+): Promise<ReviewFlagPage | null> {
   const ids = [...REVIEW_FLAG_IDS];
-  if (ids.length === 0) return [];
+  if (ids.length === 0) return { flags: [], total: 0 };
 
-  const { data: events, error } = await db
-    .from("pitch_score_events")
-    .select("id, pitch_id, item_id, points, timestamp_s, evidence, pitch_scores!inner(id, rep_id, company_id, recorded_at)")
-    .eq("type", "violation")
+  /**
+   * THE ANTI-JOIN HAPPENS IN THE DATABASE (view `unreviewed_violation_flags`, migration 0264),
+   * and that is a correctness fix rather than a speed one.
+   *
+   * The first version of this function read the most recent N events and dropped the reviewed
+   * ones afterwards. The reviewed rows therefore SPENT THE BUDGET: once a company had N flagged
+   * events, an older unanswered flag could never surface again, and reviewing all N rendered the
+   * card empty while the flag sat there. The feature's own think doc named "a successful read
+   * that looks like nothing to do" as the failure to avoid, and the limit smuggled it back in.
+   *
+   * `count: "exact"` rides along on the same request, so the total is the unreviewed total — not
+   * the page size, and not a second query that could disagree with the first.
+   *
+   * ORDERED BY `recorded_at`, NOT `id`. The first version ordered by `id` descending to mean
+   * "most recent"; `pitch_score_events.id` is `gen_random_uuid()`, so that ordering was arbitrary
+   * — the queue was not showing the newest flags, it was showing an unpredictable fifty.
+   */
+  const {
+    data: events,
+    error,
+    count,
+  } = await db
+    .from("unreviewed_violation_flags")
+    .select("pitch_id, item_id, points, timestamp_s, evidence, rep_id, recorded_at", {
+      count: "exact",
+    })
     .in("item_id", ids)
-    .eq("pitch_scores.company_id", args.companyId)
-    .order("id", { ascending: false })
-    .limit(args.limit ?? 50);
+    .eq("company_id", args.companyId)
+    .order("recorded_at", { ascending: false })
+    .limit(args.limit ?? REVIEW_FLAG_PAGE);
 
   if (error || !events) return null;
 
@@ -86,43 +129,47 @@ export async function readReviewFlags(
     points: number | string;
     timestamp_s: number | null;
     evidence: string | null;
-    pitch_scores: { rep_id: string; recorded_at: string } | null;
+    rep_id: string | null;
+    recorded_at: string | null;
   }>;
-  if (rows.length === 0) return [];
 
-  // One read of the overrides across every flagged pitch, rather than one per row.
-  const { data: overrides } = await db
-    .from("pitch_score_overrides")
-    .select("pitch_id, item_id")
-    .eq("item_type", "violation")
-    .in("pitch_id", rows.map((r) => r.pitch_id));
-
-  const reviewed = new Set(
-    ((overrides ?? []) as Array<{ pitch_id: string; item_id: string }>).map(
-      (o) => `${o.pitch_id}:${o.item_id}`
-    )
-  );
-
-  return rows
-    .filter((r) => !reviewed.has(`${r.pitch_id}:${r.item_id}`))
-    .map((r): ReviewFlag => {
+  const flags = rows.map((r): ReviewFlag => {
       const rubric = VIOLATIONS_BY_ID.get(r.item_id);
-      const repId = r.pitch_scores?.rep_id ?? "";
+      const repId = r.rep_id ?? "";
       return {
         pitchId: r.pitch_id,
         repId,
         repName: args.nameByRep.get(repId) ?? null,
         itemId: r.item_id,
         label: rubric?.label ?? r.item_id,
-        // The rubric's deduction, not the stored points: the stored value is what this pitch was
-        // docked, and on a capped violation those differ. The row says what the RULE costs.
-        deduction: rubric?.deduction ?? Math.abs(Number(r.points) || 0),
-        recordedAt: r.pitch_scores?.recorded_at ?? "",
+        /**
+         * THE STORED POINTS, not the rubric's face value — corrected while re-reading this file.
+         *
+         * I wrote it the other way first, reasoning that the row should say what the RULE costs.
+         * The board's own word settles it: "−10 **applied**". A manager is confirming a deduction
+         * that already happened to a real score, and the number in front of them has to be that
+         * one.
+         *
+         * They are identical for `viol.rude`, which has no `maxTotal` — which is exactly why the
+         * mistake was invisible and would have stayed invisible. It bites the day a second
+         * violation gains `flagsForReview` AND a ceiling: the rubric would say −6 while the pitch
+         * lost −2, and a manager would remove a deduction that was never that large.
+         *
+         * Stored as a positive magnitude (see `keyMoments`), so `Math.abs` is belt-and-braces
+         * rather than a conversion. The rubric is the fallback only when the row carries no
+         * points at all.
+         */
+        deduction: Math.abs(Number(r.points)) || rubric?.deduction || 0,
+        recordedAt: r.recorded_at ?? "",
         evidence: r.evidence,
         atSeconds:
           r.timestamp_s === null || r.timestamp_s === undefined ? null : Number(r.timestamp_s),
       };
     });
+
+  // `count` is null when PostgREST declines to count. Falling back to the page length would
+  // claim the page IS the total, which is the assertion this field exists to stop making.
+  return { flags, total: count ?? flags.length };
 }
 
 /**

@@ -37,6 +37,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 
 export function ReviewFlagQueue({
   flags,
+  total,
   onReviewed,
 }: {
   /**
@@ -52,6 +53,13 @@ export function ReviewFlagQueue({
    * wrote the defence for those two and then wrote this field without it.
    */
   flags: ReviewFlag[] | null | undefined;
+  /**
+   * How many are outstanding in total, when the list above is one page of them.
+   *
+   * Optional on purpose — the same old-bundle case as `flags`, one field later. A client that
+   * never heard of it shows the list with no count, which is what it did yesterday.
+   */
+  total?: number | null;
   onReviewed: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -130,8 +138,23 @@ export function ReviewFlagQueue({
     }
   };
 
+  // THE LIST IS BOUNDED AND MUST SAY SO. A page of fifty presented as the whole set is a claim
+  // the read cannot support, and on this card an under-count reads as "nearly done" — the same
+  // reassuring-lie failure as drawing a failed read as an empty queue, one degree quieter.
+  // `Math.max(0, …)` and not a `total > flags.length` guard, which a mutation probe showed to be
+  // equivalent to it — the `more > 0` below already decides whether the line appears, and two
+  // expressions deciding one thing is the §2.2 shape in miniature. A count and a page fetched a
+  // moment apart CAN disagree, and then this floors at zero rather than printing "showing 3 of 2".
+  const more = typeof total === "number" ? Math.max(0, total - flags.length) : 0;
+
   return (
     <div className="space-y-2">
+      {more > 0 && (
+        <p className="text-[11px] text-secondary">
+          Showing the {flags.length} most recent of <strong className="text-primary">{total}</strong>{" "}
+          flags awaiting review. Answering these reveals the next {Math.min(more, flags.length)}.
+        </p>
+      )}
       {flags.map((f) => {
         const key = `${f.pitchId}:${f.itemId}`;
         const asking = reasonFor === key;

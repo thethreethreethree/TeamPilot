@@ -182,6 +182,8 @@ function destination(n: Notif): string | null {
 export function NotificationBell() {
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
+  /** How many exist in total, so a bounded list can say so. Null = no count available. */
+  const [total, setTotal] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -189,9 +191,16 @@ export function NotificationBell() {
     try {
       const res = await fetch("/api/coach/gamification/notifications");
       if (!res.ok) return;
-      const d = (await res.json()) as { notifications: Notif[]; unread: number };
+      const d = (await res.json()) as {
+        notifications: Notif[];
+        // `null` when the count could not be read — show no badge rather than a number the
+        // server could not stand behind. Undefined is the same case from an older route.
+        unread: number | null;
+        total?: number | null;
+      };
       setItems(d.notifications);
-      setUnread(d.unread);
+      setUnread(d.unread ?? 0);
+      setTotal(d.total ?? null);
     } catch {
       /* offline / transient — leave the last state */
     }
@@ -261,26 +270,61 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  const markAllRead = useCallback(async () => {
-    setUnread(0);
-    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+  const post = useCallback(async (body: { all: true } | { ids: string[] }) => {
     try {
       await fetch("/api/coach/gamification/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ all: true }),
+        body: JSON.stringify(body),
       });
     } catch {
       /* best-effort; the next poll reconciles */
     }
   }, []);
 
+  /**
+   * "Mark all read" — the button in the panel header. Unbounded on purpose: a person pressing a
+   * button labelled *all* has said what they mean.
+   */
+  const markAllRead = useCallback(async () => {
+    setUnread(0);
+    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+    await post({ all: true });
+  }, [post]);
+
+  /**
+   * MARK WHAT WAS SHOWN — the automatic one, when the panel opens.
+   *
+   * This used to post `{ all: true }`, and that was a real defect rather than a rough edge. The
+   * list is capped at fifty; the write was not. So opening the bell marked read every unread
+   * notification the recipient had, INCLUDING the ones older than the page, which the panel had
+   * never displayed and had no way to display. They were consumed by a gesture that means "let me
+   * look", and afterwards were indistinguishable from ones that had been read and dismissed.
+   *
+   * What lands here is not decoration: a clip a rep disputed, a comment on a recording, a score
+   * correction. A11 — the mirror a rep cannot dispute is a judge — is the clause that makes a
+   * silently-consumed dispute the wrong kind of quiet.
+   *
+   * "Read" now means "was shown". The badge drops by exactly what the panel displayed, so a
+   * recipient with more than a page still sees a number afterwards, and the rest keep waiting.
+   */
+  const markShownRead = useCallback(async () => {
+    const ids = items.filter((n) => n.read_at === null).map((n) => n.id);
+    // `{ ids: [] }` is a 400 — the body schema requires at least one — and there is nothing to
+    // say anyway.
+    if (ids.length === 0) return;
+    const now = new Date().toISOString();
+    setUnread((u) => Math.max(0, u - ids.length));
+    setItems((prev) => prev.map((n) => (n.read_at === null ? { ...n, read_at: now } : n)));
+    await post({ ids });
+  }, [items, post]);
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => {
           setOpen((o) => !o);
-          if (!open && unread > 0) void markAllRead();
+          if (!open && unread > 0) void markShownRead();
         }}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
         className="relative rounded-lg p-2 text-secondary hover:bg-white/5 hover:text-primary"
@@ -303,6 +347,14 @@ export function NotificationBell() {
               </button>
             )}
           </div>
+          {typeof total === "number" && total > items.length && (
+            // A bounded list that cannot say it is bounded is a list claiming to be the whole
+            // set. Shown as a header line rather than a footer because the panel scrolls and a
+            // footer would sit below fifty rows nobody scrolls past.
+            <p className="border-b border-default px-3 py-1.5 text-[11px] text-muted">
+              Showing the {items.length} most recent of {total}.
+            </p>
+          )}
           {items.length === 0 ? (
             <div className="px-3 py-6 text-center text-sm text-muted">No notifications yet.</div>
           ) : (

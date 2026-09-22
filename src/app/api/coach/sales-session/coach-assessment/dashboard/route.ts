@@ -95,9 +95,9 @@ export async function GET(req: NextRequest) {
    * failed read as an empty queue would tell a manager nobody has been rude this week, which is
    * the one wrong answer on this card.
    */
-  let reviewFlags = null;
+  let reviewFlagPage = null;
   try {
-    reviewFlags = await readReviewFlags(
+    reviewFlagPage = await readReviewFlags(
       { companyId: manager.companyId, nameByRep },
       supabase
     );
@@ -127,7 +127,17 @@ export async function GET(req: NextRequest) {
      * Rude-or-dismissive flags awaiting a human. `null` = the read failed, `[]` = none outstanding.
      * The board must keep those apart; they render identically and mean opposite things.
      */
-    reviewFlags,
+    reviewFlags: reviewFlagPage?.flags ?? null,
+    /**
+     * How many are outstanding in total, which is not the length of the list above when there are
+     * more than a page of them.
+     *
+     * A SECOND FIELD RATHER THAN A CHANGED SHAPE, deliberately. Turning `reviewFlags` into
+     * `{flags,total}` would hand a browser still holding this morning's bundle an object where it
+     * expects an array, and `flags.length` on an object is the crash that took three surfaces down
+     * today. An old client ignores a field it has never heard of.
+     */
+    reviewFlagsTotal: reviewFlagPage?.total ?? null,
   });
 }
 

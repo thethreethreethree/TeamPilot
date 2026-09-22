@@ -75,6 +75,13 @@ type Wire = {
   briefGeneratedAt: string | null;
   /** Null = the read failed. [] = every flag has been dealt with. Never conflate them. */
   reviewFlags: ReviewFlag[] | null;
+  /**
+   * The unreviewed TOTAL, which is not `reviewFlags.length` once there is more than a page.
+   *
+   * Optional because a response from before 0264 does not carry it, and this board is served to
+   * browsers holding yesterday's bundle. Absent means "no count", not "zero".
+   */
+  reviewFlagsTotal?: number | null;
 };
 
 /** The shape the EXISTING coach-assessment route has always returned. Unchanged. */
@@ -409,7 +416,11 @@ export function CoachAssessmentBoard() {
                 {/* The rubric's one escalated violation, now wired. It was named-not-faked here
                     for three builds; the line that said so has been replaced by the thing it was
                     apologising for. */}
-                <ReviewFlagQueue flags={wire.reviewFlags} onReviewed={() => void load()} />
+                <ReviewFlagQueue
+                  flags={wire.reviewFlags}
+                  total={wire.reviewFlagsTotal}
+                  onReviewed={() => void load()}
+                />
 
                 {/* Open disputes are not listed HERE because they are rendered in full above this
                     board by <DisputeQueue />, which the page keeps. Duplicating them as a summary

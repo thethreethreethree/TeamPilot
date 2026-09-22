@@ -179,3 +179,36 @@ describe("the escalated set comes from the rubric", () => {
     expect(REVIEW_ANSWER).toEqual({ confirm: "awarded", remove: "removed" });
   });
 });
+
+describe("a bounded list says it is bounded", () => {
+  const page = (n: number) =>
+    Array.from({ length: n }, (_, i) => flag({ pitchId: `p${i}`, repName: `Rep ${i}` }));
+
+  it("says how many are outstanding when the list is one page of them", () => {
+    // Fifty shown out of 137 outstanding. Without this line the card is a claim that 50 is all
+    // there is — quieter than drawing a failed read as "none", and the same kind of false.
+    render(<ReviewFlagQueue flags={page(50)} total={137} onReviewed={onReviewed} />);
+    expect(screen.getByText(/Showing the 50 most recent of/)).toBeTruthy();
+    expect(screen.getByText("137")).toBeTruthy();
+  });
+
+  it("says nothing when the page IS the whole set", () => {
+    render(<ReviewFlagQueue flags={page(3)} total={3} onReviewed={onReviewed} />);
+    expect(screen.queryByText(/Showing the/)).toBeNull();
+  });
+
+  it("says nothing when the count is absent, rather than reading absent as zero", () => {
+    // A browser holding a bundle from before the count existed. `total` undefined must render the
+    // list exactly as it did yesterday — not "showing 3 of 0", and not a crash.
+    render(<ReviewFlagQueue flags={page(3)} onReviewed={onReviewed} />);
+    expect(screen.queryByText(/Showing the/)).toBeNull();
+    expect(screen.getAllByText(/Rude, dismissive/).length).toBe(3);
+  });
+
+  it("does not go negative if the count somehow trails the page", () => {
+    // A count and a page fetched a moment apart can disagree. "Showing 3 of 2" is wrong; silence
+    // is merely incomplete.
+    render(<ReviewFlagQueue flags={page(3)} total={2} onReviewed={onReviewed} />);
+    expect(screen.queryByText(/Showing the/)).toBeNull();
+  });
+});

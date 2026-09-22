@@ -356,3 +356,98 @@ describe("the one alert that points back at the manager", () => {
     expect(link.getAttribute("href")).toBe("/dashboard/sales-coach/pattern-interrupt");
   });
 });
+
+describe("opening the bell marks read only what it showed", () => {
+  /** The POST bodies the bell sent, in order. */
+  const posts = () =>
+    fetchMock.mock.calls
+      .filter((c) => (c[1] as { method?: string } | undefined)?.method === "POST")
+      .map((c) => JSON.parse((c[1] as { body: string }).body) as Record<string, unknown>);
+
+  const unreadPage = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ ...STRONG, id: `n${i}`, read_at: null }));
+
+  it("posts the ids it displayed, never { all: true }", async () => {
+    // THE DEFECT THIS PINS: `{ all: true }` is an unbounded write. The list is capped at fifty,
+    // so opening the bell marked read every notification older than the page as well — rows the
+    // panel had never shown and had no way to show. A dispute from a rep can land in there.
+    respond(unreadPage(3), 137);
+    render(<NotificationBell />);
+    await openBell();
+    await waitFor(() => expect(posts().length).toBe(1));
+    expect(posts()[0]).toEqual({ ids: ["n0", "n1", "n2"] });
+    expect(posts()[0]).not.toHaveProperty("all");
+  });
+
+  it("drops the badge by what it showed, not to zero", async () => {
+    // 137 unread, 3 shown → 134 still waiting. Zeroing it would tell the recipient they are done.
+    respond(unreadPage(3), 137);
+    render(<NotificationBell />);
+    await openBell();
+    await waitFor(() => expect(screen.getByLabelText(/134 unread/)).toBeTruthy());
+  });
+
+  it("posts nothing when every row it showed was already read", async () => {
+    // `{ ids: [] }` is a 400 from the body schema, and there is nothing to say anyway.
+    respond([{ ...STRONG, read_at: new Date().toISOString() }], 0);
+    render(<NotificationBell />);
+    await openBell();
+    await waitFor(() => expect(screen.getByText(/Ada Vance/)).toBeTruthy());
+    expect(posts()).toEqual([]);
+  });
+
+  it("still marks everything when the button that says all is pressed", async () => {
+    // The unbounded write is not the bug; doing it without being asked was. A person pressing a
+    // button labelled "Mark all read" has said what they mean.
+    respond(unreadPage(2), 137);
+    render(<NotificationBell />);
+    await openBell();
+    fireEvent.click(await screen.findByText("Mark all read"));
+    await waitFor(() => expect(posts().some((p) => p.all === true)).toBe(true));
+  });
+});
+
+describe("the panel says when it is showing a page", () => {
+  it("names the total when there are more than it fetched", async () => {
+    respond([STRONG], 1);
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ notifications: [STRONG], unread: 1, total: 137 }),
+    }));
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/Showing the 1 most recent of 137/)).toBeTruthy();
+  });
+
+  it("says nothing when the page is the whole set", async () => {
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ notifications: [STRONG], unread: 1, total: 1 }),
+    }));
+    render(<NotificationBell />);
+    await openBell();
+    expect(screen.queryByText(/Showing the/)).toBeNull();
+  });
+
+  it("says nothing when the response has no count at all", async () => {
+    // A browser holding a bundle from before the count existed, or a failed count. Absent is not
+    // zero, and the panel must render exactly as it did yesterday.
+    respond([STRONG], 1);
+    render(<NotificationBell />);
+    await openBell();
+    expect(screen.queryByText(/Showing the/)).toBeNull();
+    expect(await screen.findByText(/Ada Vance/)).toBeTruthy();
+  });
+});
+
+describe("a count the server could not read", () => {
+  it("shows no badge rather than a number nothing stands behind", async () => {
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ notifications: [{ ...STRONG, read_at: null }], unread: null, total: null }),
+    }));
+    render(<NotificationBell />);
+    const bell = await screen.findByRole("button");
+    await waitFor(() => expect(bell.getAttribute("aria-label")).toBe("Notifications"));
+  });
+});

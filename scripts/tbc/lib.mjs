@@ -254,11 +254,25 @@ export function normaliseId(id) {
 // ---------------------------------------------------------------- frontmatter
 
 export function frontMatter(md) {
-  const m = md.match(/^---\n([\s\S]*?)\n---/);
+  // `\r?\n`, NOT `\n`. THIS IS NOT DEFENSIVE TIDYING — it was a live blind spot.
+  //
+  // A think.md saved with Windows line endings opens with `---\r\n`, which `^---\n` does
+  // not match. frontMatter returned null, currentBuildDir fell back to the DIRECTORY NAME for
+  // that build, and a name never wins against a real started_at. So the gate quietly went on
+  // validating an OLDER build: on 2026-09-22 seven consecutive builds (10:07 through 12:58) were
+  // gated against a document that started at 09:05, and every one of them reported tbc green.
+  //
+  // Found 2026-09-22 while wondering why `tbc:manifest` kept naming a build from the morning.
+  // 30 of 333 think.md files in this repo were invisible this way, the oldest from 2026-08-19.
+  //
+  // It is the same shape as the two defects it was found between: a check that runs, and passes,
+  // against the wrong object — invisible for the same reason they were, because nothing
+  // downstream can tell "validated and fine" from "never looked".
+  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return null;
   const out = {};
   let currentKey = null;
-  for (const raw of m[1].split("\n")) {
+  for (const raw of m[1].split(/\r?\n/)) {
     if (!raw.trim()) continue;
     const nested = raw.match(/^\s+([\w.\-]+):\s*(.*)$/);
     if (nested && currentKey) {

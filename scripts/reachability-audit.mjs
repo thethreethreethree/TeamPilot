@@ -73,7 +73,18 @@ const CONVENTIONAL =
 const ROOT_CONVENTIONAL = /^src\/(middleware|instrumentation|proxy)\.tsx?$/;
 const APP_ROOT_CONVENTIONAL = /^src\/app\/(global-error|global-not-found)\.tsx?$/;
 
-const isTest = (f) => /__tests__|__mocks__|\.test\.|\.spec\./.test(f);
+// `src/test/` is the shared-test-helper directory — a harness imported BY tests and by nothing
+// else, which is its correct end state rather than a defect. It is counted as a test on BOTH
+// sides of this audit deliberately: not audited (a helper reached only by tests is finished
+// work), and NOT A REFERRER either. That second half is the one that matters. Before this line,
+// a helper under src/test/ counted as a non-test file, so an orphaned module imported only by a
+// test harness would have read as reached — the exact "the test count went up and the gate
+// stayed green" masking this audit was written for, one indirection out.
+//
+// Anchored to the one directory rather than any path segment called "test": A30 — a gate must be
+// precise, and `/test/` anywhere would quietly exempt a future src/lib/<x>/test/ of real code.
+const TEST_HELPER_DIR = /^src\/test\//;
+const isTest = (f) => TEST_HELPER_DIR.test(f) || /__tests__|__mocks__|\.test\.|\.spec\./.test(f);
 const isConventional = (f) =>
   CONVENTIONAL.test(f) || ROOT_CONVENTIONAL.test(f) || APP_ROOT_CONVENTIONAL.test(f);
 
@@ -202,6 +213,14 @@ st("a module with a known importer is reached", isReached("src/lib/coach/pitchSc
 st("the allowlist is not empty (it records deliberate exceptions)", ALLOWLIST.size > 0);
 st("this audit does not count ITSELF as a referrer", !referrerSource.has(SELF));
 st("test files are excluded", isTest("src/lib/x/__tests__/y.test.ts"));
+// Both halves of the src/test/ rule, because the second half is a silent one: if the directory
+// stopped being treated as a test, nothing would fail — the audit would simply start accepting a
+// harness as proof that a module is reached.
+st("a shared test helper is excluded", isTest("src/test/previousShape.tsx"));
+st(
+  "a production module is not excluded merely for having 'test' in its path",
+  !isTest("src/lib/coach/latestVersion.ts") && !isTest("src/components/TestimonialCard.tsx")
+);
 st("a page file is treated as conventional", isConventional("src/app/dashboard/page.tsx"));
 st("an ordinary component is NOT treated as conventional", !isConventional("src/components/X.tsx"));
 // The bug this matcher was tightened for, pinned: a prose mention is not a caller.
