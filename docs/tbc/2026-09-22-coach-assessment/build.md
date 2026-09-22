@@ -1,6 +1,6 @@
 # BUILD
 
-Project 3's data layer. The page itself is the next build and is named as unbuilt in the closure.
+Project 3, data layer and page.
 
 ### The dashboard's arithmetic
 
@@ -52,3 +52,37 @@ Recorded because the deletions are the build's main finding, not an embarrassmen
 - **`activityRates()`** in `teamAssessment.ts` — presentations ÷ doors and sold ÷ presentations,
   null on an empty denominator. `computeActivityKpis` already did exactly that, including the
   null-not-zero rule and nearly the same comment. Deleted with its four tests.
+
+### The page, rebuilt to the board
+
+- **write-path:** `CoachAssessmentBoard.tsx` renders the guide's Step 3 in its order — one period
+  toggle governing everything, four team cards, the activity row, six rubric bars with the lowest
+  flagged, Needs-your-attention, three priority cards, the reps table, and rep detail. The page
+  itself is now a thin wrapper: TopBar, the Scoring rubric button, `DisputeQueue`, the board.
+- **read-path:** two fetches, deliberately separate. The dashboard route supplies everything Pitch
+  Score; the existing `/coach-assessment` route supplies the coaching notes it has always owned.
+  Joining them server-side would put one route in charge of two scoring systems, which is what
+  `TWO-SCORING-SYSTEMS.md` exists to prevent; they meet on rep id at the surface, which is the only
+  place a manager reads them together. 19 render tests.
+
+## Nothing from the old page was dropped
+
+The old page was 680 lines and the ruling was to replace it. Each piece has a home, and the two
+that nearly went missing were caught by gates rather than by care:
+
+| was | is now |
+|---|---|
+| Sales ELO Rating as the page headline | `AgentGradeBadge` in the reps table and rep detail |
+| Doing well / Coaching focus | rep detail Overview, same route as before |
+| Skill scores + process breakdown | `RepSkillGrades`, **extracted** to its own component |
+| "Generate missing" | Needs-your-attention, which the guide says to keep it in |
+| Door metrics | the reps table's Doors / Pres. / Sold and the rep KPI tiles |
+| `DisputeQueue` | kept above the board, at page level |
+
+- **The badge was the wrong one.** I used `AgentEloBadge` (the raw ELO number and gauge) where the
+  board's column is headed COACHING GRADE and shows "B+ Solid" — the letter. `AgentGradeBadge` is
+  its Standard-mode counterpart on the same endpoint. Caught because deleting the old page
+  orphaned `AgentGradeBadge` and `reachability:audit` said so; the orphan was the symptom of using
+  its sibling by mistake.
+- **`RepSkillGrades` was extracted rather than rewritten.** Rewriting six /10 scores would have
+  produced a second reading of them, which is the duplicate this build already made once.

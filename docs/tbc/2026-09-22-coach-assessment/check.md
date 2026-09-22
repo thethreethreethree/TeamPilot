@@ -6,6 +6,8 @@ $ echo "CHECK_EXIT=$?"
 CHECK_EXIT=0
 ```
 
+5100 tests, 686 files. The final run; earlier runs in this build are in the findings.
+
 The `echo` is the point of that second line and not decoration — see the first finding.
 
 ```
@@ -126,3 +128,17 @@ sweep: the launch checklist's own line — "rep totals sum to team totals for po
 - Typecheck caught the symptom (`string | undefined`), not the cause; the fix was to aggregate the
   team over the same attributed set the rows are built from, and to report `unattributed` rather
   than absorb it.
+
+### I used the ELO badge where the board shows a letter grade
+
+class: two components on one endpoint, differing only in presentation, picked by name rather than
+  by what the design draws.
+severity: medium
+sweep: `grep -rn "AgentEloBadge\|AgentGradeBadge" src/` — the old page switched between them on
+  the user's Expert/Standard mode; every other call site is a rep's own view.
+- `AgentEloBadge` renders the raw ELO number and a gauge. `AgentGradeBadge` renders the letter.
+  The board's column is headed COACHING GRADE and shows "B+ Solid", and its rep detail header
+  reads "coaching grade B Provisional" — both the letter.
+- **Found by the reachability gate, not by reading the board again.** Deleting the old page left
+  `AgentGradeBadge` reached by nothing, and the orphan was the symptom: I had used its sibling in
+  the one place that should have used it. A gate about dead code caught a wrong-component bug.

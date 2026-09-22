@@ -53,14 +53,14 @@ because the view is named for what it reports rather than for what it counts.
     "why_skipped": "Ran out of turn. The read and the route are the half that had to exist first — a page against no data would have been the A31 seam from the other side.",
     "confidence_it_does_not_matter": "low",
     "opened_at": "2026-09-22T09:40:00+08:00",
-    "outcome": "OPENED, and it is the whole point of the build. A manager opening the product right now still sees the old page, exactly as they did before this build started — the difference is only that the numbers behind the new one now exist and are tested. This is the residual that must not be averaged into a percentage: the last time a project was missing, it was reported as a layer at 60% rather than as absent, and the founder found it by sending a screenshot." },
+    "outcome": "CLOSED in the same session it was opened. The page is rebuilt to the board: one period toggle, four team cards, the activity row, six rubric bars with the lowest flagged by the rubric's own authority, Needs-your-attention with the Generate-missing action the guide says to keep, three priority cards, the reps table ranked by points, and rep detail with the ELO grade, coaching notes and skill scores. 19 render tests. What is NOT built is named on the screen rather than implied: rude-or-dismissive flags are not wired into Needs-your-attention." },
 
   { "id": "R2-the-old-page-s-contents-have-nowhere-to-go-yet",
     "item": "The ruling was to rebuild the page and move the ELO rating, skill scores, strategy tags, doing-well and coaching-focus into the rep detail Overview tab. The read layer returns none of those yet.",
     "why_skipped": "They come from the existing /coach-assessment route, which the new read does not call.",
     "confidence_it_does_not_matter": "medium",
     "opened_at": "2026-09-22T09:41:00+08:00",
-    "outcome": "OPENED. The guide is explicit that the coaching grade and notes STAY, and `RepRow` already carries `coachingGrade` and `coachingGradeNote` — but nothing populates them, so today they are always null. A page built against this read would silently drop a live feature while appearing to keep a column for it, which is worse than not having the column." },
+    "outcome": "CLOSED, and not the way it was framed. `RepRow.coachingGrade` is still always null and that turned out not to matter: the board renders `AgentGradeBadge`, which fetches the grade itself from the endpoint that has always owned it, so the column is live without the read layer carrying it. The notes come from the existing route, joined at the surface. The wire fields stay unpopulated and are now the thing to delete rather than to fill — noted for whoever touches RepRow next." },
 
   { "id": "R3-the-read-layer-has-no-tests",
     "item": "teamAssessment.ts has 23 tests and 15 caught mutants. readTeamAssessment.ts has none — the grouping, the per-rep KPI assembly, the unattributed guard and the sum-to-rows identity are all unexercised.",

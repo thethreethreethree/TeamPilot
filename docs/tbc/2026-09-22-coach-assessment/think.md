@@ -174,6 +174,22 @@ way — team average and points-per-pitch left are facts about a section, never 
 
   { "id": "A19", "source_file": "ThinkerThinker.md", "line_range": "455-479", "read_at": "2026-09-22T09:14:00+08:00",
     "why_it_governs": "Methodology that governs the build must live in the working tree and be read in session; the failure mode is citing labels without consulting content, which provides false confidence that the discipline is being applied.",
-    "how_this_build_will_embody_it": "A19's own closing test is whether the next structural failure is caught before the build or after. This one was caught by the founder sending a screenshot — post-hoc again. What the build did do is quote Step 3's seven items from the guide rather than from memory, which is how the theme-to-section gap was found before it was implemented rather than after." }
+    "how_this_build_will_embody_it": "A19's own closing test is whether the next structural failure is caught before the build or after. This one was caught by the founder sending a screenshot — post-hoc again. What the build did do is quote Step 3's seven items from the guide rather than from memory, which is how the theme-to-section gap was found before it was implemented rather than after." },
+
+  { "id": "§3.4", "source_file": "CLAUDE.md", "line_range": "364-375", "read_at": "2026-09-22T09:56:00+08:00",
+    "why_it_governs": "No instant results; behaviour is derived from a team's accumulated data, and a system that behaved identically on install would be claiming understanding it cannot have.",
+    "how_this_build_will_embody_it": "Carried in the extracted RepSkillGrades, whose own comment invokes it: a failed read SAYS so, and not-enough-sessions is an honest empty rather than a zero score. The dashboard follows the same rule at team scale — a failed read renders as a failed read, never as a team that did nothing." },
+
+  { "id": "A10", "source_file": "ThinkerThinker.md", "line_range": "260-274", "read_at": "2026-09-22T09:56:30+08:00",
+    "why_it_governs": "The user sees what the System sees about them; there is no read the System makes about a person that the person cannot read.",
+    "how_this_build_will_embody_it": "Read because the code I moved cites it, and it bears on this page more than on the component: every figure a manager sees about a rep here — Pitch Score, sections, doors, the coaching grade — the rep can see about themselves on their own boards. The one thing that is manager-only is the COMPARISON, which is the guide's own line about what may be ranked." },
+
+  { "id": "A11", "source_file": "ThinkerThinker.md", "line_range": "275-292", "read_at": "2026-09-22T09:57:00+08:00",
+    "why_it_governs": "The System mirrors, it does not judge; a verdict rendered by an authority is wrong some fraction of the time and wrong-by-an-authority destroys trust exactly when trust is the point.",
+    "how_this_build_will_embody_it": "Why the coaching notes sit in rep detail as that rep's own strengths and growth areas rather than as a column to sort on, and why the guide's ban on ranking the coaching grade is followed rather than treated as a preference. A grade in a sortable column is a verdict; the same grade beside one rep's own numbers is a mirror." },
+
+  { "id": "A18", "source_file": "ThinkerThinker.md", "line_range": "431-454", "read_at": "2026-09-22T09:57:30+08:00",
+    "why_it_governs": "When a system surfaces human-behaviour data to a leader, the LABEL is the structural defense against misuse — the same data invites coaching or penalising depending on what it is called.",
+    "how_this_build_will_embody_it": "Directly load-bearing on a page whose entire purpose is showing one manager five people's numbers. The headings are the defense: 'Needs your attention' rather than 'problems', 'Coaching focus' rather than 'weaknesses', 'Not prize eligible yet' rather than 'failing', and a priority card that says its section was matched by gap rather than presenting an assignment as a finding." }
 ]
 ```
