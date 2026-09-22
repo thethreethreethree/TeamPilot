@@ -147,16 +147,19 @@ export type ProfileDepartment = {
  * about a PERSON — "this person is in no department" — and it is used for scoping, so a failed
  * read returned as `[]` scopes someone to nothing and looks like a correct answer.
  *
- * NOTE, and it is the more important fact about this function: **nothing calls it.** Neither does
- * anything call `assignUserToDepartment` or `removeUserFromDepartment` below. No surface in the
- * product can put a person in a department, so `profile_departments` is permanently empty — and
- * `autoRoute.ts` has a rule (R3, route an upload to the uploader's own department) that reads
- * this table and therefore never fires. Its non-firing is invisible: the rule trace only records
- * R3 when it matched.
+ * WHAT THIS AND ITS TWO WRITERS WERE, until 2026-09-22: exported, typed, correct, and called by
+ * NOTHING. No surface could put a person in a department, so `profile_departments` was permanently
+ * empty — and `autoRoute.ts`'s rule R3 (route an upload to the uploader's own department) read
+ * this table and could never fire. Its non-firing was invisible: the rule trace records R3 only
+ * when it matched, so a trace without an R3 line reads as "not needed" rather than "inert".
  *
- * `writer:audit` passes this table because it has a writer. It does not ask whether the writer is
- * REACHABLE, and a writer nothing calls is the same fact as no writer, dressed as compliance.
- * Whether that capability gets finished or deleted is a founder decision, not a cleanup.
+ * `writer:audit` passed the table throughout, because the table HAS writers. It does not ask
+ * whether a writer is REACHABLE, and a writer nothing calls is the same fact as no writer, dressed
+ * as compliance. That gap is one indirection finer than any gate here looks.
+ *
+ * The caller is now `POST /api/team/departments`, from the member row on the team page, and
+ * `autoRoute.rule3.test.ts` pins that R3 fires once a row exists. Left written down rather than
+ * deleted: the shape is worth recognising the next time a table looks complete.
  */
 export async function listProfileDepartments(
   profileId?: string

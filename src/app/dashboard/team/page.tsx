@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useCompanyName } from "@/lib/hooks/useCompany";
@@ -37,6 +38,15 @@ function TeamInner() {
   const companyName = useCompanyName();
   const amAdmin = isAdminRole(useCurrentUserRole()); // only an admin sees the org-role (tier) assignment control
   const [members, setMembers] = useState<TeamMember[]>([]);
+  /**
+   * The department list and who is in which, loaded ONCE for the page rather than per row.
+   *
+   * `null` on either means the read failed, which is not the same as "there are no departments"
+   * — the row shows nothing rather than an empty picker that looks like a company with no
+   * departments set up.
+   */
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [deptByMember, setDeptByMember] = useState<Record<string, string[]> | null>(null);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,6 +57,20 @@ function TeamInner() {
     setError("");
     const snap = await fetchTeam();
     setMembers(snap.members);
+    // Best-effort and independent: a failure here costs the department control, not the roster.
+    void (async () => {
+      try {
+        const [d, a] = await Promise.all([
+          fetch("/api/departments"),
+          fetch("/api/team/departments"),
+        ]);
+        setDepartments(d.ok ? ((await d.json()).departments ?? []) : null);
+        setDeptByMember(a.ok ? ((await a.json()).byMember ?? {}) : null);
+      } catch {
+        setDepartments(null);
+        setDeptByMember(null);
+      }
+    })();
     setInvitations(snap.invitations);
     // §3.4 / A14: a failed load must NOT render as the "onboarding hasn't
     // completed" empty state. fetchTeam now flags a query failure as
@@ -193,7 +217,15 @@ function TeamInner() {
                   ) : (
                     <div className="divide-y divide-default">
                       {members.map((m) => (
-                        <MemberRow key={m.id} member={m} amAdmin={amAdmin} onChanged={refresh} onRemoved={refresh} />
+                        <MemberRow
+                          key={m.id}
+                          member={m}
+                          amAdmin={amAdmin}
+                          departments={departments}
+                          memberDepartmentIds={deptByMember?.[m.id] ?? (deptByMember ? [] : null)}
+                          onChanged={refresh}
+                          onRemoved={refresh}
+                        />
                       ))}
                     </div>
                   )}
@@ -260,16 +292,27 @@ function Section({
 function MemberRow({
   member,
   amAdmin,
+  departments,
+  memberDepartmentIds,
   onChanged,
   onRemoved,
 }: {
   member: TeamMember;
   amAdmin: boolean;
+  /** The company's departments, or null when that read failed. */
+  departments: Array<{ id: string; name: string }> | null;
+  /**
+   * This member's departments. `null` means the assignment read failed — NOT that they are in
+   * none. The control is hidden in that case rather than offering to add someone to a department
+   * they may already be in.
+   */
+  memberDepartmentIds: string[] | null;
   onChanged: () => void;
   onRemoved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [savingRole, setSavingRole] = useState(false);
+  const [savingDepts, setSavingDepts] = useState(false);
   const [resetting, setResetting] = useState(false);
   // The generated password is shown ONCE, in a panel the admin can copy from — never a toast. A credential that
   // auto-dismisses after four seconds is a credential the admin has to ask for again.
@@ -318,6 +361,52 @@ Their current password stops working immediately.`)) return;
       toast.error("Couldn't change the role", data?.error ?? "Something went wrong — try again.");
     }
   };
+  /**
+   * Put this member in a department, or take them out of one.
+   *
+   * WHY THIS CONTROL EXISTS. `profile_departments` has had a table, RLS, a read and two writers
+   * since 0055 and no caller, so it has been permanently empty — and `autoRoute`'s rule R3 (send
+   * an upload to the uploader's own department) has never been able to fire. Its silence is
+   * invisible: the rule trace records R3 only when it matched.
+   *
+   * The server computes the diff and reports what actually holds afterwards, which is why the
+   * response's `departmentIds` is used rather than the optimistic set — a partial save must leave
+   * the row showing what is true, not what was asked for.
+   */
+  const setDepartment = async (departmentId: string, join: boolean) => {
+    if (memberDepartmentIds === null) return;
+    const next = join
+      ? [...memberDepartmentIds, departmentId]
+      : memberDepartmentIds.filter((d) => d !== departmentId);
+    setSavingDepts(true);
+    const res = await fetch("/api/team/departments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: member.id, departmentIds: next }),
+    });
+    setSavingDepts(false);
+    const data = (await res.json().catch(() => null)) as
+      | { error?: string; departmentIds?: string[] | null }
+      | null;
+    if (res.ok) {
+      const name = departments?.find((d) => d.id === departmentId)?.name ?? "that department";
+      toast.success(
+        join ? "Added to the department" : "Removed from the department",
+        join
+          ? `${member.fullName ?? "They"} will now have uploads routed to ${name} when nothing else matches.`
+          : `${member.fullName ?? "They"} are no longer in ${name}.`
+      );
+      onChanged();
+      return;
+    }
+    toast.error(
+      "Couldn't save the department",
+      data?.error ?? "Something went wrong — try again."
+    );
+    // A partial save returns what actually holds; refresh so the row stops showing the request.
+    if (data?.departmentIds) onChanged();
+  };
+
   const remove = async () => {
     if (!confirm(`Remove ${member.fullName ?? "this member"}?`)) return;
     setBusy(true);
@@ -380,6 +469,67 @@ Their current password stops working immediately.`)) return;
               </option>
             ))}
           </select>
+        )}
+        {/*
+          DEPARTMENTS. Admin-only, and hidden entirely when either read failed — an empty picker
+          would read as "this company has no departments", which is the reassuring-lie shape this
+          codebase has spent the day removing.
+
+          A multi-select rather than a dropdown, because a person can be in several, and the
+          server diffs rather than replacing so `assigned_by`/`assigned_at` stay true for rows that
+          did not change.
+        */}
+        {/*
+          A company with NO departments gets a link, not silence. Hiding the control entirely is
+          correct — there is nothing to assign to — but it leaves an admin wondering where it went,
+          and the answer is one page away (§6 item 5a: a dead end is not a flowing state).
+        */}
+        {amAdmin && departments !== null && departments.length === 0 && (
+          <Link
+            href="/dashboard/settings/departments"
+            className="text-[11px] text-muted underline hover:text-primary"
+            title="Departments route a person's uploads when nothing else in the upload says where they belong"
+          >
+            Add a department
+          </Link>
+        )}
+        {amAdmin && departments !== null && departments.length > 0 && memberDepartmentIds !== null && (
+          <details className="relative">
+            <summary
+              className="cursor-pointer list-none text-[11px] bg-base border border-default rounded-md px-1.5 py-1 text-secondary hover:border-strong max-w-[9rem] truncate"
+              title="Departments — routes this person's uploads when nothing else matches"
+            >
+              {memberDepartmentIds.length === 0
+                ? "No department"
+                : memberDepartmentIds.length === 1
+                  ? (departments.find((d) => d.id === memberDepartmentIds[0])?.name ?? "1 department")
+                  : `${memberDepartmentIds.length} departments`}
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-default bg-surface p-2 shadow-lg">
+              <p className="mb-1.5 px-1 text-[10px] leading-relaxed text-muted">
+                A file this person uploads is filed here when nothing else in the upload says where
+                it belongs.
+              </p>
+              {departments.map((d) => {
+                const inIt = memberDepartmentIds.includes(d.id);
+                return (
+                  <label
+                    key={d.id}
+                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs text-secondary hover:bg-white/5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inIt}
+                      disabled={savingDepts}
+                      onChange={() => void setDepartment(d.id, !inIt)}
+                      aria-label={`${inIt ? "Remove" : "Add"} ${member.fullName ?? "member"} ${inIt ? "from" : "to"} ${d.name}`}
+                    />
+                    <span className="truncate">{d.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </details>
         )}
         {/* Admin-only, and hidden for admin rows — which also hides the admin's OWN row, since an admin's row is
             an admin row. Matches the route, where a self-reset is 400 and an admin target is 403. */}
