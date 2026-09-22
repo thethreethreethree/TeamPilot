@@ -1,16 +1,19 @@
 /**
  * Progress — the rep's Pitch Score for the period (mockup p1).
  *
- * TWO THINGS THE DRAWING SHOWS THAT THIS BOARD DOES NOT, both because the data does not exist
- * rather than because they were skipped. Recorded here so the difference reads as a decision:
+ * ONE THING THE DRAWING SHOWS THAT THIS BOARD DOES NOT, because the data does not exist rather than
+ * because it was skipped. Recorded here so the difference reads as a decision:
  *
- *   1. "WEEK 38 SHOWDOWN · Ends Sun 11:59 PM". There is no competition entity in the product — no
- *      name, no end time, nothing to read them from [OBSERVED 2026-09-22, swept across the
- *      pitch-score lib and its seven routes]. Printing a week number and a deadline would be
- *      inventing a deadline a rep would plan around.
- *   2. "YOUR BEST PITCHES" as three tappable cards with dates. The aggregate carries
- *      `bestPitchScore` — one number, from `reduce(Math.max)` — and no list, no dates and no session
- *      ids. The single figure IS shown, on the gauge, because that one exists.
+ *   "WEEK 38 SHOWDOWN · Ends Sun 11:59 PM". There is no competition entity in the product — no name,
+ *   no end time, nothing to read them from [OBSERVED 2026-09-22, swept across the pitch-score lib
+ *   and its seven routes]. Printing a week number and a deadline would be inventing a deadline a rep
+ *   would plan around.
+ *
+ * "YOUR BEST PITCHES" WAS THE SECOND SUCH ABSENCE AND IS NO LONGER ONE. The aggregate carries
+ * `bestPitchScore` — one number, from `reduce(Math.max)` — and no list, no dates and no ids, so this
+ * board first shipped with the single figure on the gauge and nothing else. `/pitch-score/best` was
+ * then built to serve the list (deployed 2026-09-22) and the rows below read it. The rule the
+ * absence was protecting still holds: what is rendered is what the server sent.
  *
  * WHAT §4 FORBIDS IS ABSENT, AND THAT IS NOT A BUG AGAINST THE MOCKUP. The founder ruled on
  * 2026-09-22 that when the rubric sheet and `SalesCoach-KPI-System.md` disagree about what a REP
@@ -29,7 +32,13 @@ import { useFocusEffect } from 'expo-router';
 import { ArenaGauge } from '@/components/arena-gauge';
 import { PitchPeriodToggle } from '@/components/pitch-period-toggle';
 import { PitchRubricSheet } from '@/components/pitch-rubric-sheet';
-import { fetchBreakdown, fetchLeaderboard, fetchRubric } from '@/lib/pitch-score/api';
+import { useOpenWebsite } from '@/components/website-link';
+import {
+  fetchBestPitches,
+  fetchBreakdown,
+  fetchLeaderboard,
+  fetchRubric,
+} from '@/lib/pitch-score/api';
 import {
   DEFAULT_PERIOD,
   PERIOD_LABELS,
@@ -38,8 +47,15 @@ import {
   type Period,
 } from '@/lib/pitch-score/period';
 import type { RubricResponse } from '@/lib/pitch-score/rubric';
-import type { BreakdownResponse, LeaderboardResponse } from '@/lib/pitch-score/types';
+import type {
+  BestPitchesResponse,
+  BreakdownResponse,
+  LeaderboardResponse,
+} from '@/lib/pitch-score/types';
 import { bandFor, bandLabel } from '@/lib/gamification/points';
+import { OUTCOME_LABEL, shortDate } from '@/lib/format';
+import { webPitchScoreUrl } from '@/lib/web-links';
+import { ENV } from '@/lib/env';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
 import { C } from '@/lib/theme';
@@ -51,6 +67,8 @@ type Loaded = {
   board: LeaderboardResponse | null;
   /** Today's points, when the selected period is wider than a day. Null when unknown. */
   today: number | null;
+  /** Null when the best-pitches read failed — the list SAYS so, rather than reading as none. */
+  best: BestPitchesResponse | null;
 };
 
 type State =
@@ -88,6 +106,7 @@ export function PitchProgressPage({
           their own performance. Null here means the card is omitted, not that it shows nothing.
         */
         const board = await fetchLeaderboard(p).catch(() => null);
+        const best = await fetchBestPitches(p).catch(() => null);
         const today =
           p === 'day'
             ? null
@@ -95,7 +114,7 @@ export function PitchProgressPage({
                 .then((d) => d.aggregate.totalPoints)
                 .catch(() => null);
 
-        setState({ phase: 'ready', loaded: { data, rubric, board, today } });
+        setState({ phase: 'ready', loaded: { data, rubric, board, today, best } });
       } catch (e) {
         setState({ phase: 'error', message: reachError(e, online, 'your Pitch Score') });
       }
@@ -152,7 +171,7 @@ export function PitchProgressPage({
 }
 
 function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
-  const { data, rubric, board, today } = loaded;
+  const { data, rubric, board, today, best } = loaded;
   const agg = data.aggregate;
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -280,6 +299,8 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         ) : null}
       </View>
 
+      <BestPitches best={best} />
+
       {/* R-D: two scoring systems stand, each saying what it counts. The Arena is a segment away and
           its points are a different measure on a different scale. */}
       <Text className="mt-8 font-body text-xs leading-relaxed text-muted-foreground">
@@ -287,6 +308,95 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         {rubric.version}. Your points total in Points counts scored sessions instead, and the two do
         not compare.
       </Text>
+    </View>
+  );
+}
+
+/**
+ * The rep's highest counted pitches, from `/pitch-score/best`.
+ *
+ * A COLUMN, NOT THE DRAWING'S THREE-ACROSS ROW. Three cards side by side leave roughly 110pt each,
+ * which holds "106.5" and "Fri 12 Sep" at the default text size and clips both at the larger
+ * Dynamic Type settings this app is required to honour. A full-width row cannot clip, and the
+ * information is identical.
+ *
+ * IT NAMES ITS OWN WINDOW, for the reason the competition card above does: the header reads the
+ * period the SERVER echoed, not the one the toggle asked for. The route honours all four of this
+ * app's periods today, so the two always agree — which is exactly when a silent substitution gets
+ * written in, and exactly when it is cheapest to make impossible.
+ *
+ * A FAILED READ SAYS SO. "You have no best pitches" is a real and discouraging sentence about a rep
+ * who has some, and this app has drawn a failed read as a zero five times. Null is not empty here.
+ *
+ * A ROW WITHOUT A SESSION IS STILL A ROW. `pitch_scores.session_id` is `on delete set null`, so a
+ * pitch outlives its recording; the SCORE is real and stays on screen. What goes is the tap — and
+ * the row says why, because a card that is silently not tappable reads as a broken card.
+ */
+function BestPitches({ best }: { best: BestPitchesResponse | null }) {
+  const { open, failed } = useOpenWebsite();
+
+  if (best != null && best.pitches.length === 0) return null;
+
+  return (
+    <View className="mt-8">
+      <Text
+        accessibilityRole="header"
+        className="font-emphasis text-xs uppercase tracking-widest text-muted-foreground"
+      >
+        Your best pitches{best ? ` · ${PERIOD_LABELS[best.period].toLowerCase()}` : ''}
+      </Text>
+
+      {best == null ? (
+        <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+          Could not load your best pitches. Pull down to try again.
+        </Text>
+      ) : null}
+
+      {best?.pitches.map((p) => {
+        const url = webPitchScoreUrl(ENV.API_BASE, p.sessionId);
+        const outcome =
+          p.outcome && p.outcome in OUTCOME_LABEL
+            ? OUTCOME_LABEL[p.outcome as keyof typeof OUTCOME_LABEL]
+            : null;
+        const line = `${shortDate(p.recordedAt)}${outcome ? ` · ${outcome}` : ''}`;
+        const spoken = `${p.total} points, ${line.replace(/ · /g, ', ')}`;
+
+        return (
+          <Pressable
+            key={p.pitchId}
+            disabled={url == null}
+            onPress={url ? () => open(url) : undefined}
+            accessibilityRole={url ? 'link' : undefined}
+            accessible
+            accessibilityLabel={
+              url
+                ? `${spoken}. Opens this pitch on the website.`
+                : `${spoken}. The recording was deleted, so there is nothing to open.`
+            }
+            accessibilityState={{ disabled: url == null }}
+            className="mt-2 min-h-11 flex-row items-center justify-between rounded-xl border border-border-control px-4 py-3 active:opacity-70"
+          >
+            <View className="flex-1 pr-3">
+              <Text className="font-body text-sm text-muted-foreground">{line}</Text>
+              {url == null ? (
+                <Text className="mt-0.5 font-body text-xs leading-tight text-muted-foreground">
+                  Recording deleted — the score stands, the detail is gone.
+                </Text>
+              ) : null}
+            </View>
+            <Text className="font-heading text-xl tabular-nums text-primary">{p.total}</Text>
+          </Pressable>
+        );
+      })}
+
+      {failed ? (
+        <Text
+          accessibilityRole="alert"
+          className="mt-2 font-body text-sm leading-relaxed text-foreground"
+        >
+          Could not open a browser. The pitch is on the website under Sales Coach.
+        </Text>
+      ) : null}
     </View>
   );
 }

@@ -43,6 +43,18 @@ export const WEB_PATHS = {
    * policy that requires an account to read is not published.
    */
   privacy: () => '/privacy',
+  /**
+   * A pitch's Pitch Score detail, on the website.
+   *
+   * KEYED BY SESSION, NOT BY PITCH, and the distinction has already caused confusion in this
+   * product. `PitchScorePanel` renders on `/dashboard/sales-coach/[id]` — the session page.
+   * `/doors/report-card/[pitchId]` is a DIFFERENT screen with a similar name: the Door Log report
+   * card. Linking a best-pitch card there would open a real page about the same call showing
+   * entirely different numbers.
+   *
+   * Web rather than mobile by the founder's own instruction: "Page 3 will be on the web version."
+   */
+  pitchScore: (sessionId: string) => `/dashboard/sales-coach/${encodeURIComponent(sessionId)}`,
 } as const;
 
 /**
@@ -84,4 +96,14 @@ export function webCalibrationUrl(apiBase: string | null | undefined): string | 
  */
 export function webPrivacyUrl(apiBase: string | null | undefined): string | null {
   return webUrl(apiBase, WEB_PATHS.privacy());
+}
+
+/** The website page showing one pitch's Pitch Score breakdown. */
+export function webPitchScoreUrl(
+  apiBase: string | null | undefined,
+  sessionId: string | null,
+): string | null {
+  const id = (sessionId ?? '').trim();
+  if (!id) return null;
+  return webUrl(apiBase, WEB_PATHS.pitchScore(id));
 }

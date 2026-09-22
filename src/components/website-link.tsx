@@ -13,9 +13,27 @@
  * will not open a browser can still get there on a laptop. "Could not open"
  * alone would leave them with a dead end and no address.
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+
+/**
+ * Open a website URL, and remember if the browser refused.
+ *
+ * EXTRACTED RATHER THAN COPIED. The Progress board's best-pitch rows open the website too, and they
+ * cannot be `WebsiteLink`s: that component renders NOTHING without a URL, which is right for a
+ * shortcut and wrong for a card whose score is real even when its recording was deleted. Two
+ * components, one behaviour — so the behaviour lives here rather than being written twice and
+ * drifting later, which is this product's most-recorded failure class.
+ */
+export function useOpenWebsite() {
+  const [failed, setFailed] = useState(false);
+  const open = useCallback((url: string) => {
+    setFailed(false);
+    WebBrowser.openBrowserAsync(url).catch(() => setFailed(true));
+  }, []);
+  return { open, failed };
+}
 
 export function WebsiteLink({
   url,
@@ -31,7 +49,7 @@ export function WebsiteLink({
   spoken: string;
   whereInstead: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const { open, failed } = useOpenWebsite();
   if (!url) return null;
 
   return (
@@ -39,10 +57,7 @@ export function WebsiteLink({
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={spoken}
-        onPress={() => {
-          setFailed(false);
-          WebBrowser.openBrowserAsync(url).catch(() => setFailed(true));
-        }}
+        onPress={() => open(url)}
         // 44pt, the platform minimum, even though the text is small.
         className="mt-1 min-h-7 justify-center active:opacity-70"
       >

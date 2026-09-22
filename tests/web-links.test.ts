@@ -9,7 +9,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { WEB_PATHS, webCalibrationUrl, webTopicUrl, webUrl } from '@/lib/web-links';
+import {
+  WEB_PATHS,
+  webCalibrationUrl,
+  webPitchScoreUrl,
+  webTopicUrl,
+  webUrl,
+} from '@/lib/web-links';
 
 test('builds the topic URL the website actually serves', () => {
   assert.equal(
@@ -61,4 +67,30 @@ test('a path that is not absolute is refused rather than concatenated', () => {
 test('the paths are declared in one place, so no screen types one', () => {
   assert.equal(WEB_PATHS.topic('x'), '/dashboard/chats/x');
   assert.equal(WEB_PATHS.calibration(), '/dashboard/sales-coach/calibration');
+  assert.equal(WEB_PATHS.pitchScore('s1'), '/dashboard/sales-coach/s1');
+});
+
+test('a pitch links to the SESSION page, not the door-log report card', () => {
+  /*
+    TWO SCREENS IN THIS PRODUCT ARE CALLED A PITCH'S REPORT CARD, and only one of them is the Pitch
+    Score. `PitchScorePanel` renders on `/dashboard/sales-coach/[id]`, keyed by SESSION;
+    `/doors/report-card/[pitchId]` is the Door Log's, keyed by PITCH. Sending a best-pitch card to
+    the wrong one would open a real, working page about the same call showing entirely different
+    numbers — worse than a dead link, because nothing on screen would look broken.
+  */
+  assert.equal(
+    webPitchScoreUrl('https://elostate.com', 'sess-9'),
+    'https://elostate.com/dashboard/sales-coach/sess-9',
+  );
+  assert.doesNotMatch(WEB_PATHS.pitchScore('sess-9'), /report-card/);
+});
+
+test('a pitch whose session was deleted yields no URL at all', () => {
+  /*
+    `pitch_scores.session_id` is `on delete set null`, so a pitch outlives its recording. Null here
+    is what lets the board keep the SCORE on screen while dropping the tap — the alternative is a
+    control that opens `/dashboard/sales-coach/` and lands the rep somewhere they did not ask for.
+  */
+  assert.equal(webPitchScoreUrl('https://elostate.com', null), null);
+  assert.equal(webPitchScoreUrl('https://elostate.com', '  '), null);
 });

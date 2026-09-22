@@ -21,6 +21,7 @@
 import { coachGet } from '@/lib/coach-api';
 import type { RubricResponse } from '@/lib/pitch-score/rubric';
 import type {
+  BestPitchesResponse,
   BreakdownResponse,
   LeaderboardResponse,
   MilestonesResponse,
@@ -82,4 +83,18 @@ export function fetchMilestones(): Promise<MilestonesResponse> {
  */
 export function fetchRubric(): Promise<RubricResponse> {
   return coachGet<RubricResponse>(`${BASE}/rubric`);
+}
+
+/**
+ * The rep's highest counted pitches, for the board's best-pitch cards.
+ *
+ * QUALIFYING ONLY AND RANKED BY TOTAL, both decided by the server. A rep's best must mean the same
+ * thing their total means, or the board celebrates a pitch that contributed nothing to the figure
+ * printed beside it.
+ *
+ * Added 2026-09-22. The board shipped without these cards first, because `bestPitchScore` is one
+ * number and three cards need a list.
+ */
+export function fetchBestPitches(period: Period): Promise<BestPitchesResponse> {
+  return coachGet<BestPitchesResponse>(`${BASE}/best?period=${encodeURIComponent(period)}`);
 }

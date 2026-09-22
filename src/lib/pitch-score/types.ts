@@ -173,3 +173,25 @@ export type MilestonesResponse = {
   repId: string;
   milestones: MilestoneDates;
 };
+
+/** One of the rep's highest counted pitches. */
+export type BestPitch = {
+  pitchId: string;
+  /**
+   * Null when the session was deleted.
+   *
+   * `pitch_scores.session_id` is `on delete set null`, so a pitch outlives its recording. The SCORE
+   * is still real, so the card is still shown — without a tap, rather than offering one that goes
+   * nowhere.
+   */
+  sessionId: string | null;
+  recordedAt: string;
+  /** The Pitch Score, 0-130. Ranked on this, not on base. */
+  total: number;
+  outcome: string | null;
+};
+
+export type BestPitchesResponse = {
+  period: Period;
+  pitches: BestPitch[];
+};

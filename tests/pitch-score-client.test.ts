@@ -56,13 +56,34 @@ test('it reads, and never writes', () => {
   assert.match(api, /coachGet</);
 });
 
-test('the three routes are the deployed ones, spelled exactly', () => {
+test('the five routes are the deployed ones, spelled exactly', () => {
   // A typo here is a 404 that renders as "could not load", which reads to a rep as their own data
   // being missing rather than as a wrong path.
   assert.match(api, /'\/api\/coach\/sales-session\/pitch-score'/);
-  for (const leaf of ['/breakdown?period=', '/leaderboard?period=', '/milestones']) {
+  for (const leaf of [
+    '/breakdown?period=',
+    '/leaderboard?period=',
+    '/milestones',
+    '/rubric',
+    '/best?period=',
+  ]) {
     assert.ok(api.includes(leaf), `missing route leaf ${leaf}`);
   }
+});
+
+test('the best-pitch list is ranked by the server, and the client does not re-rank it', () => {
+  /*
+    `/best` orders by total desc, then by recorded_at desc, and limits the rows. All three are
+    decisions, and a client that re-sorted would be the fifth duplicated decision in this product's
+    register — the worst kind, because the two copies would sit on a phone and a server where nobody
+    could ever watch them disagree.
+
+    The tie-break is not a nicety. These rows are LINKS: ranked on total alone, two equal scores
+    order however Postgres feels and a rep taps "97 points" expecting the pitch they were looking at
+    and opens a different one.
+  */
+  assert.doesNotMatch(api, /\.sort\(|localeCompare|\bslice\(/);
+  assert.match(api, /fetchBestPitches/);
 });
 
 test('the period is carried in the URL, not remembered per board', () => {

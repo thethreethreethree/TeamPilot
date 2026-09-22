@@ -93,16 +93,71 @@ test('a failed optional read omits its card rather than drawing a zero', () => {
   assert.match(board, /today != null \?/, 'today is omitted when unknown, never shown as +0');
 });
 
-test('the two elements with no data are absent, not faked', () => {
+test('the element with no data is absent, not faked', () => {
   /*
     No competition entity exists — no name, no end time — so "WEEK 38 SHOWDOWN · Ends Sun 11:59 PM"
-    would be an invented deadline a rep plans around. And `bestPitchScore` is one number from
-    reduce(Math.max), so the three tappable best-pitch cards have no list, no dates and no ids. The
-    single figure IS shown, on the gauge, because that one exists.
+    would be an invented deadline a rep plans around. The single best figure IS shown, on the gauge,
+    because that one exists.
   */
   assert.doesNotMatch(board, /SHOWDOWN|Ends Sun/i);
   assert.doesNotMatch(board, /See scoring/);
   assert.match(board, /Best \$\{agg\.bestPitchScore\}/);
+});
+
+test('the best-pitch rows read the server’s list rather than a second-best guess', () => {
+  /*
+    THIS TEST REPLACED ITS OWN OPPOSITE. It used to assert the rows were ABSENT, because
+    `bestPitchScore` is one number from reduce(Math.max) and nothing served a list. That was true
+    when written and stopped being true when `/pitch-score/best` was deployed on 2026-09-22 — the
+    exact shape of stale claim this project keeps finding, and the reason the docblock above the
+    board was rewritten in the same commit rather than left describing an absence that had ended.
+
+    What is guarded now is that the rows come from the READ. A board that sorted or filtered the
+    list itself would be a fifth duplicated decision, and the two copies would sit on a phone and a
+    server where nobody could ever see them disagree.
+  */
+  assert.match(board, /fetchBestPitches\(p\)/);
+  assert.doesNotMatch(board, /\.sort\(|\.slice\(/, 'the order and the count are the server’s');
+});
+
+test('a failed best-pitches read is not the sentence “you have none”', () => {
+  /*
+    The confident zero, caught a sixth time before it shipped. An empty list is a real and
+    discouraging statement about a rep, and a read that fell over says nothing of the kind. The
+    endpoint already refuses to conflate them — it 500s rather than returning [] — and the board has
+    to keep that distinction rather than collapsing it back into one branch.
+  */
+  assert.match(board, /fetchBestPitches\(p\)\.catch\(\(\) => null\)/);
+  assert.match(board, /Could not load your best pitches/);
+  assert.match(board, /best != null && best\.pitches\.length === 0/, 'empty is its own branch');
+});
+
+test('a pitch whose recording was deleted keeps its score and loses its tap', () => {
+  /*
+    `pitch_scores.session_id` is `on delete set null`, so a pitch outlives its recording. Dropping
+    the row would erase a real score; offering the tap would open nothing. The row stays, the tap
+    goes, and the row SAYS so — a card that is silently not tappable reads as a broken card.
+  */
+  assert.match(board, /disabled=\{url == null\}/);
+  assert.match(board, /Recording deleted/);
+});
+
+test('the best-pitch rows name the window the server answered with', () => {
+  // Same reason as the competition card: the header reads the echoed period, so a substitution
+  // cannot be silent even though the route honours all four periods today.
+  assert.match(board, /PERIOD_LABELS\[best\.period\]/);
+});
+
+test('the row links to the session page, not the door-log report card', () => {
+  /*
+    Two different screens in this product are called a pitch’s report card.
+    `/doors/report-card/[pitchId]` is the Door Log one; `PitchScorePanel` — the Pitch Score
+    breakdown these rows are about — renders on `/dashboard/sales-coach/[id]`, keyed by SESSION.
+    Linking the wrong one would open a real page about the same call showing different numbers,
+    which is worse than a dead link because nothing would look broken.
+  */
+  assert.match(board, /webPitchScoreUrl\(ENV\.API_BASE, p\.sessionId\)/);
+  assert.doesNotMatch(board, /report-card/);
 });
 
 test('the qualifying threshold is the server’s, not a literal', () => {
