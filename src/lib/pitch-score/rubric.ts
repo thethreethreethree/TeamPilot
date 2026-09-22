@@ -60,6 +60,17 @@ export type RubricResponse = {
   bonusCap: number;
   maxScore: number;
   gradeCredit: Record<'hit' | 'partial' | 'missed', number>;
+  /**
+   * The competition rules' own numbers.
+   *
+   * They arrive from the server for the same reason every other figure here does. The first version
+   * of the endpoint omitted them, which would have left this app hard-coding 40 and 5 into a sheet
+   * whose entire purpose is to never go stale.
+   */
+  qualifyingMinBase: number;
+  prizeEligibleMinPitches: number;
+  /** What the AI may never grade for accuracy — the answer to a disputed score. */
+  neverGradeForAccuracy: string[];
   sections: RubricSection[];
   elements: RubricElement[];
   bonuses: RubricBonus[];

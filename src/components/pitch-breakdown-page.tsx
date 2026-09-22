@@ -16,17 +16,16 @@
  * about their own performance. Each read here has three outcomes — figures, nothing yet, or could
  * not be read — and the third is never drawn as the second.
  *
- * THE 'RUBRIC' BUTTON THE MOCKUP DRAWS IS DELIBERATELY ABSENT, not forgotten. It opens the scoring
- * rubric sheet, which is the next step and does not exist yet. A button that opens nothing is worse
- * than no button: it teaches a rep the control is broken, and this app has spent the week removing
- * exactly that shape — a hint naming an action the screen could not perform. It arrives with the
- * sheet.
+ * THE 'RUBRIC' BUTTON ARRIVED WITH THE SHEET IT OPENS, not before it. While the sheet did not exist
+ * this board shipped without the button, because a control that opens nothing teaches a rep the app
+ * is broken — the exact shape this codebase spent the week removing.
  */
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { PitchPeriodToggle } from '@/components/pitch-period-toggle';
+import { PitchRubricSheet } from '@/components/pitch-rubric-sheet';
 import { fetchBreakdown, fetchRubric } from '@/lib/pitch-score/api';
 import {
   DEFAULT_PERIOD,
@@ -172,6 +171,9 @@ function Board({
   const rec = reconciliation(agg);
   const sumsToBase = sectionsSumToBase(rows, agg.avgBase);
   const violations = violationRows(agg.violationStats, rubric.violations);
+  // The sheet opens OVER this board rather than replacing it, so the figures a rep is reading
+  // are still there when they close it. That is why page 4 is not a fourth destination.
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   if (agg.counted === 0) {
     return (
@@ -213,7 +215,21 @@ function Board({
             {agg.notCounted > 0 ? ` · ${agg.notCounted} not counted` : ''}
           </Text>
         </View>
+        <Pressable
+          onPress={() => setSheetOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="How points work — open the scoring rubric"
+          className="min-h-7 justify-center rounded-md border border-border-control px-3 active:opacity-70"
+        >
+          <Text className="font-emphasis text-sm text-primary">Rubric</Text>
+        </Pressable>
       </View>
+
+      <PitchRubricSheet
+        rubric={rubric}
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      />
 
       {/* A truncated period is not the period. Usually false, and rendered anyway — a board that
           averaged over a bound it silently hit would report a different number from the one it
