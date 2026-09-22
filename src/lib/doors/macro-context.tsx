@@ -48,6 +48,14 @@ const MacroContext = createContext<MacroValue>({
   toggle: async () => {},
 });
 
+/**
+ * How long the app may hold on "not yet known" before it commits to the standard product.
+ *
+ * Long enough for a cache read and a fast network answer; short enough that a rep on no signal is
+ * not staring at a spinner. The fallback is the same one a failed request already produces.
+ */
+const UNKNOWN_MAX_MS = 1500;
+
 export function MacroProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -101,10 +109,32 @@ export function MacroProvider({ children }: { children: React.ReactNode }) {
       // layout because a request failed.
       if (cached === null) setEnabled(false);
     })();
+
+    /*
+      AN UPPER BOUND ON "NOT YET KNOWN", so nothing downstream can wait forever.
+
+      `enabled === null` means unresolved, and `(app)/_layout.tsx` now holds the app on a loading
+      view while it is - because rendering the WRONG product is worse than rendering none. That
+      hold needs a floor under it: the read above is a cache hit followed by a network call, and on
+      no signal the network call can sit for a long time before it rejects.
+
+      Falling to `false` matches what the code already does when the request fails with a cold
+      cache, so this changes WHEN that answer arrives and never WHICH answer it is.
+    */
+    const bound = setTimeout(() => {
+      // Through the HELD PAIR, not `setEnabled`, so the user-scoping above is preserved: this can
+      // only resolve the unknown for the rep it was started for, and a sign-out mid-wait leaves
+      // the next rep's value still correctly unknown rather than stamped false.
+      if (!cancelled) {
+        setHeld((h) => (h.userId === userId && h.enabled === null ? { userId, enabled: false } : h));
+      }
+    }, UNKNOWN_MAX_MS);
+
     return () => {
       cancelled = true;
+      clearTimeout(bound);
     };
-  }, [userId, setEnabled]);
+  }, [userId, setEnabled, setHeld]);
 
   const toggle = useCallback(async () => {
     if (!userId || enabled === null || saving) return;

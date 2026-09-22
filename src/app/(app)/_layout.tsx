@@ -26,7 +26,7 @@
  * VALUES from the theme bridge rather than classNames.
  */
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { C, fontSize } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/use-reduce-motion';
@@ -35,7 +35,7 @@ import { useAutoSend } from '@/lib/audio/use-auto-send';
 import { useOutbox } from '@/lib/sync/use-outbox';
 import { claimUnclaimedRecordings } from '@/lib/audio/recording-store';
 import { recoverInterruptedRecording } from '@/lib/audio/in-flight';
-import { MacroProvider } from '@/lib/doors/macro-context';
+import { MacroProvider, useMacroMode } from '@/lib/doors/macro-context';
 
 export default function AppLayout() {
   const reduceMotion = useReduceMotion();
@@ -116,6 +116,7 @@ export default function AppLayout() {
 
   return (
     <MacroProvider>
+    <MacroGate>
     <Stack
       screenOptions={{
         animation: reduceMotion ? 'none' : 'default',
@@ -152,8 +153,41 @@ export default function AppLayout() {
       <Stack.Screen name="recordings" options={{ title: 'Waiting to send' }} />
       <Stack.Screen name="report-problem" options={{ title: 'Report a problem' }} />
     </Stack>
+    </MacroGate>
     </MacroProvider>
   );
+}
+
+/**
+ * Hold the app until it knows WHICH PRODUCT this rep opens.
+ *
+ * WHAT THIS FIXES, OBSERVED ON A DEVICE. On launch the app painted the standard product - the
+ * "Welcome back" home and a Home / Analytics / Sessions / Team Chat tab bar - and then replaced it
+ * with the macro one, the door target and Pitches / Metrics / Role Play. Caught in two screenshots
+ * taken seconds apart on 2026-09-22.
+ *
+ * WHY IT HAPPENED. `macro-context` reads the cached flag with `await`, so `enabled` is null until
+ * that resolves, and both `(tabs)/_layout.tsx` and `(tabs)/index.tsx` read `enabled === true` -
+ * which is false while it is null. The old comment called this "ONE frame". It is not: the
+ * screenshot shows a fully painted, readable, tappable standard Home.
+ *
+ * WHY A SPINNER IS NOT THE THING THAT COMMENT REJECTED. It feared "an empty tab bar reads as a
+ * broken app", and it was right about an INDEFINITE one. This hold is bounded at 1.5s by
+ * `UNKNOWN_MAX_MS` and falls through to exactly the answer a failed request already gives. A
+ * bounded loading state is a normal thing an app does; showing a rep the wrong product, with the
+ * wrong home screen and the wrong tabs, both of which they can tap, is not.
+ */
+function MacroGate({ children }: { children: React.ReactNode }) {
+  const { enabled } = useMacroMode();
+
+  if (enabled === null) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color={C.primary} accessibilityLabel="Opening your app" />
+      </View>
+    );
+  }
+  return <>{children}</>;
 }
 
 /**
