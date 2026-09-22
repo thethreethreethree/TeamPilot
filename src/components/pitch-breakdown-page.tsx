@@ -45,6 +45,7 @@ import {
   violationRows,
 } from '@/lib/pitch-score/breakdown-view';
 import type { BreakdownResponse } from '@/lib/pitch-score/types';
+import { PitchReadCaveats } from '@/components/pitch-read-caveats';
 import { reachError } from '@/lib/reach-failure';
 import { useOnline } from '@/lib/use-online';
 import { C } from '@/lib/theme';
@@ -183,7 +184,7 @@ function Board({
         </Text>
         <Text className="font-body text-base leading-relaxed text-muted-foreground">
           {agg.pitchesTotal > 0
-            ? `You recorded ${agg.pitchesTotal} ${agg.pitchesTotal === 1 ? 'pitch' : 'pitches'}, and none of them counted. A pitch counts once it reaches Discovery and scores 40 or more on the base.`
+            ? `You recorded ${agg.pitchesTotal} ${agg.pitchesTotal === 1 ? 'pitch' : 'pitches'}, and none of them counted. A pitch counts once it reaches Discovery and scores ${rubric.qualifyingMinBase} or more on the base.`
             : 'These averages come from your own recorded pitches. Record one at a door and it appears here once the coach has been through it.'}
         </Text>
       </View>
@@ -231,15 +232,10 @@ function Board({
         onClose={() => setSheetOpen(false)}
       />
 
-      {/* A truncated period is not the period. Usually false, and rendered anyway — a board that
-          averaged over a bound it silently hit would report a different number from the one it
-          names. */}
-      {data.capped ? (
-        <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-          This is as far back as the read goes, so the averages cover part of the period rather than
-          all of it.
-        </Text>
-      ) : null}
+      {/* What the read says about itself. `capped` was rendered here inline and
+          `skippedPreVerdict` was not rendered at all — pitches the server deliberately excluded
+          and counted so that a board could say so, on a board that never said so. */}
+      <PitchReadCaveats data={data} />
 
       {opp ? (
         <View className="mt-5 rounded-xl border border-primary px-4 py-4">

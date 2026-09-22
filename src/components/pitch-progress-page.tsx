@@ -31,6 +31,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { ArenaGauge } from '@/components/arena-gauge';
 import { PitchMilestonesStrip } from '@/components/pitch-milestones-strip';
+import { PitchReadCaveats } from '@/components/pitch-read-caveats';
 import { PitchPeriodToggle } from '@/components/pitch-period-toggle';
 import { PitchRubricSheet } from '@/components/pitch-rubric-sheet';
 import { useOpenWebsite } from '@/components/website-link';
@@ -216,6 +217,10 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
         </Text>
       )}
 
+      {/* Both usually false, both rendered. A gauge averaged over a truncated period reports a
+          different number from the one its caption names, and nothing on screen looks wrong. */}
+      <PitchReadCaveats data={data} />
+
       {/*
         THE COMPETITION CARD READS ITS OWN WINDOW AND SAYS SO (founder ruling R-C).
 
@@ -246,7 +251,24 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
               : `${board.standing.counted} of ${rubric.prizeEligibleMinPitches} counted pitches towards prize eligibility.`}
           </Text>
         </View>
-      ) : null}
+      ) : board == null ? (
+        /*
+          THE OMISSION USED TO BE SILENT, which is this product's own named disease: a path that
+          produces nothing while nothing says so. The card is still omitted — a failed leaderboard
+          read once told a rep on the Arena that they had closed no deals, and drawing a zero here
+          is the failure this whole board is organised against — but the absence now has a reason
+          attached to it, so a rep who noticed the card yesterday is not left inventing one.
+        */
+        <Text className="mt-5 font-body text-sm leading-relaxed text-muted-foreground">
+          Could not load where you stand in the competition. Pull down to try again.
+        </Text>
+      ) : (
+        // `board` arrived and carries no standing: the read worked and the rep is not yet on the
+        // board for its window. A real state, and a different sentence from the one above.
+        <Text className="mt-5 font-body text-sm leading-relaxed text-muted-foreground">
+          No competition standing in the {PERIOD_LABELS[board.period].toLowerCase()} window yet.
+        </Text>
+      )}
 
       <View className="mt-6 items-center">
         <ArenaGauge
