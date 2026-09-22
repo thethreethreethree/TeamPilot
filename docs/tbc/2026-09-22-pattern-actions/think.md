@@ -152,6 +152,18 @@ A rep marking their own pattern coached, or fixed, is the failure this split exi
     "why_it_governs": "Same name, different feature, across modules.",
     "how_this_build_will_embody_it": "Checked before writing: there is already a `note` concept in coaching sessions and a `notes` field on the assessment board. This route writes `pattern_events`, its type is named for that, and its path is `patterns/event` — not `/note`, which would collide with the two that exist." },
 
+  { "id": "A19", "source_file": "ThinkerThinker.md", "line_range": "455-470", "read_at": "2026-09-22T11:58:00+08:00",
+    "why_it_governs": "Methodology that governs the build must be in the working tree AND read in session; labels propagate through commits far faster than content propagates, so a citation without a reading gives false confidence the discipline is being applied.",
+    "how_this_build_will_embody_it": "Added when the manifest gate demanded it, and the reading earned its place: A19's shape is a document kept somewhere nobody looks. `pattern_events` was flagged as writerless in 0258's CLOSURE — a store the next author does not search, which is the same mistake pointed at a table instead of a methodology. That parallel is why the fix became a gate rather than another note." },
+
+  { "id": "A22", "source_file": "ThinkerThinker.md", "line_range": "594-606", "read_at": "2026-09-22T11:58:30+08:00",
+    "why_it_governs": "Citations without session-reading are A19 + A9 violations operating undetected.",
+    "how_this_build_will_embody_it": "The gate fired on this very manifest, which is the argument for it existing. Twice today the same gate has made me read something I had cited from memory, and both times the entry I then wrote was different from the one I would have written." },
+
+  { "id": "A30", "source_file": "ThinkerThinker.md", "line_range": "770-792", "read_at": "2026-09-22T11:28:30+08:00",
+    "why_it_governs": "A lesson in prose returns; gate the class, and a gate must be precise or not exist.",
+    "how_this_build_will_embody_it": "This build's finding is A30's own thesis: A31 has been written down since June, cited in four think.md files this cycle, and did not stop five surfaces being built on an unwritten table. The follow-up is a command that exits non-zero, with its precision measured rather than asserted." },
+
   { "id": "A31", "source_file": "ThinkerThinker.md", "line_range": "793-819", "read_at": "2026-09-22T11:27:00+08:00",
     "why_it_governs": "Schema-complete is not built.",
     "how_this_build_will_embody_it": "This build IS the A31 repair. 0258 shipped six event kinds in June-grade detail and the product has never written one; five surfaces render them correctly and show nothing. The lesson is not that the migration was wrong — it is that a table with no writer should be flagged the day it ships, and it was, in that closure, and it still took three builds." },

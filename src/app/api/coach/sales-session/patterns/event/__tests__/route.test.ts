@@ -16,10 +16,15 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
+vi.mock("@/lib/coach/patterns/notifyPattern", async (orig) => {
+  const actual = await orig<typeof import("@/lib/coach/patterns/notifyPattern")>();
+  return { ...actual, notifyPatternEvent: vi.fn(async () => true) };
+});
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
+import { notifyPatternEvent } from "@/lib/coach/patterns/notifyPattern";
 import { POST } from "../route";
 
 const mock = <T,>(fn: T) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -64,7 +69,7 @@ beforeEach(() => {
   inserted = null;
   updated = null;
   insertFails = false;
-  patternRow = { id: "p1", company_id: "co1", rep_id: "rep-1", fixed_at: null };
+  patternRow = { id: "p1", company_id: "co1", rep_id: "rep-1", item_id: "intro.trucks", item_kind: "element", fixed_at: null };
   mockAdmin();
   mock(resolveApiAuth).mockResolvedValue({ userId: "mgr-1", companyId: "co1", role: "admin" });
   mock(requireSalesCoachManager).mockResolvedValue({ userId: "mgr-1", companyId: "co1" });
@@ -83,7 +88,7 @@ describe("the boring guards", () => {
   it("404s a pattern in another company, with the admin client doing the read", async () => {
     // The admin client bypasses RLS, so this check is the tenant boundary rather than a
     // convenience. Without it a manager could write into any pattern id in the database.
-    patternRow = { id: "p1", company_id: "other-co", rep_id: "rep-1", fixed_at: null };
+    patternRow = { id: "p1", company_id: "other-co", rep_id: "rep-1", item_id: "intro.trucks", item_kind: "element", fixed_at: null };
     expect((await POST(req({ patternId: "p1", kind: "coached" }))).status).toBe(404);
     expect(inserted).toBeNull();
   });
@@ -156,7 +161,7 @@ describe("a manual close", () => {
 
   it("does NOT move the date of an already-closed pattern", async () => {
     // Restating when the rep fixed it would skew every days-to-fix average on Rep progress.
-    patternRow = { id: "p1", company_id: "co1", rep_id: "rep-1", fixed_at: "2026-09-11T10:00:00Z" };
+    patternRow = { id: "p1", company_id: "co1", rep_id: "rep-1", item_id: "intro.trucks", item_kind: "element", fixed_at: "2026-09-11T10:00:00Z" };
     const res = await POST(req({ patternId: "p1", kind: "fixed" }));
     expect(res.status).toBe(200);
     expect(updated).toBeNull();
@@ -178,5 +183,60 @@ describe("a failed insert", () => {
     const body = await res.json();
     expect(body.error).toBe("Could not record that.");
     expect(JSON.stringify(body)).not.toMatch(/check constraint/i);
+  });
+});
+
+describe("telling the rep", () => {
+  it("rings ONE pattern-scoped bell when a manager coaches", async () => {
+    // Founder ruling 2026-09-22. Before 0262 the dedupe key was a session id and a pattern has
+    // none, so three notes in a sitting would have rung three bells.
+    await POST(req({ patternId: "p1", kind: "coached", body: "Notice first, question second." }));
+    expect(mock(notifyPatternEvent)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repId: "rep-1",
+        patternId: "p1",
+        action: "coached",
+        excerpt: "Notice first, question second.",
+      })
+    );
+  });
+
+  it("carries the pattern's human label, resolved by the read layer's own describer", async () => {
+    // A bell naming the pattern differently from the board it links to is two authors for one
+    // label (§2.2), so the route imports `describeItem` rather than formatting its own.
+    await POST(req({ patternId: "p1", kind: "drill_assigned" }));
+    const arg = mock(notifyPatternEvent).mock.calls[0]![0] as { patternLabel: string };
+    expect(arg.patternLabel).toBe("Trucks / neighborhood notice");
+  });
+
+  it("does NOT ring on `fixed`", async () => {
+    // A closed pattern is good news the rep meets on their own board. "Your manager closed
+    // something about you" reads as a verdict.
+    await POST(req({ patternId: "p1", kind: "fixed" }));
+    expect(mock(notifyPatternEvent)).not.toHaveBeenCalled();
+  });
+
+  it("does NOT ring for the rep's own events", async () => {
+    // Notifying someone about themselves is A10 inverted.
+    mock(resolveApiAuth).mockResolvedValue({ userId: "rep-1", companyId: "co1", role: "member" });
+    mock(requireSalesCoachManager).mockResolvedValue(null);
+    await POST(req({ patternId: "p1", kind: "note", body: "Got it." }));
+    expect(mock(notifyPatternEvent)).not.toHaveBeenCalled();
+  });
+
+  it("does not ring a manager about their OWN pattern", async () => {
+    patternRow = { id: "p1", company_id: "co1", rep_id: "mgr-1", item_id: "intro.trucks", item_kind: "element", fixed_at: null };
+    await POST(req({ patternId: "p1", kind: "coached" }));
+    expect(mock(notifyPatternEvent)).not.toHaveBeenCalled();
+  });
+
+  it("still records the event when the bell fails", async () => {
+    // Best-effort: the coaching is written and the rep meets it on their page, which is where
+    // the board's banner already tells them to look.
+    mock(notifyPatternEvent).mockResolvedValue(false);
+    const res = await POST(req({ patternId: "p1", kind: "coached" }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).notified).toBe(false);
+    expect(inserted).toMatchObject({ kind: "coached" });
   });
 });

@@ -24,7 +24,28 @@ type Notif = {
   id: string;
   agent_id: string;
   session_id: string | null;
-  type: "strong_session" | "deal_closed" | "pitch_score_corrected";
+  /**
+   * Every type `manager_notifications` accepts, which is the point of listing them here.
+   *
+   * THREE OF THESE WERE WRITTEN BEFORE THIS BELL KNEW THEM, all on 2026-09-22 — the two
+   * recording types (0261) and the pattern type (0262). Each had a migration, a CHECK entry, a
+   * writer and a reason, and each would have arrived here and fallen through `text()` to the
+   * deal-closed branch, rendering "A rep closed a deal" for a coaching note. The row was
+   * written, the bell rang, and the sentence was wrong.
+   *
+   * Same family as the `pattern_events` defect this build just gated: a value written that no
+   * surface renders. `writer:audit` catches it at the TABLE level and cannot see this one,
+   * because the table has plenty of writers — it is a new VALUE in a closed set. The cheap
+   * defence is the exhaustive switch below, which a new type cannot pass without a branch.
+   */
+  type:
+    | "strong_session"
+    | "deal_closed"
+    | "pitch_score_corrected"
+    | "recording_comment"
+    | "recording_share_requested"
+    | "pattern_coached";
+  pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
     total?: number;
@@ -33,6 +54,14 @@ type Notif = {
     /** pitch_score_corrected: what a manager changed, and what the score became. */
     item_label?: string;
     qualifying?: boolean;
+    /** recording_comment / recording_share_requested: which pitch, and where in it. */
+    pitch_id?: string;
+    timestamp_s?: number;
+    excerpt?: string;
+    note?: string;
+    /** pattern_coached: which pattern, and which of the three manager actions it was. */
+    pattern_label?: string;
+    action?: "coached" | "drill_assigned" | "note";
   };
   created_at: string;
   read_at: string | null;
@@ -57,10 +86,86 @@ function text(n: Notif): string {
     const counts = n.payload.qualifying === false ? ", and it no longer counts" : "";
     return `A manager made a correction${what}${total}${counts}`;
   }
+  // Addressed to the rep, all three. A manager left a comment on a recording of them, asked to
+  // play one to the team, or coached a pattern of theirs.
+  if (n.type === "recording_comment") {
+    const at = n.payload.timestamp_s != null ? ` at ${mmss(n.payload.timestamp_s)}` : "";
+    return `Your manager left a comment on one of your pitches${at}`;
+  }
+  if (n.type === "recording_share_requested") {
+    return "Your manager asked to play one of your pitches to the team";
+  }
+  if (n.type === "pattern_coached") {
+    const what = n.payload.pattern_label ? ` on “${n.payload.pattern_label}”` : "";
+    // The action decides the verb, which is why one notification type carries three of them.
+    if (n.payload.action === "drill_assigned") return `Your manager assigned you a drill${what}`;
+    if (n.payload.action === "coached") return `Your manager coached you${what}`;
+    return `Your manager left you a note${what}`;
+  }
+
   const who = n.payload.agent_name || "A rep";
   if (n.type === "strong_session") return `${who} ran a strong session — ${n.payload.total ?? ""} points`;
-  const v = n.payload.deal_value;
-  return `${who} closed a deal${v ? ` ($${Number(v).toLocaleString()})` : ""}`;
+  if (n.type === "deal_closed") {
+    const v = n.payload.deal_value;
+    return `${who} closed a deal${v ? ` ($${Number(v).toLocaleString()})` : ""}`;
+  }
+  // EXHAUSTIVE. A new type added to the CHECK constraint and not to this file is a compile
+  // error here rather than a wrong sentence in a rep's bell — which is what the three types
+  // above would have been if this had stayed an unguarded fall-through.
+  return assertNever(n.type);
+}
+
+/** Seconds into a recording, as the player prints them. */
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+function assertNever(t: never): string {
+  // Unreachable while the union matches the CHECK. If it ever runs, a row exists that this file
+  // has no words for, and saying so is better than inventing them.
+  console.error(`[NotificationBell] unhandled notification type: ${String(t)}`);
+  return "You have a new notification";
+}
+
+/**
+ * Types addressed to the REP about themselves, which get the dot rather than a glyph.
+ *
+ * THE DOT IS A LAW-1 DECISION, not a style one, and it is inherited rather than re-argued: the
+ * `pitch_score_corrected` branch chose it because placing an icon without having opened and
+ * looked at it is what that rule forbids, and no render of a candidate glyph was available. The
+ * same is true of the three types added on 2026-09-22, so they join the same branch instead of
+ * each acquiring a mark nobody has seen.
+ */
+const REP_ADDRESSED: ReadonlySet<Notif["type"]> = new Set([
+  "pitch_score_corrected",
+  "recording_comment",
+  "recording_share_requested",
+  "pattern_coached",
+]);
+
+/**
+ * Where an alert takes you, or null when it takes you nowhere.
+ *
+ * A BELL THAT LINKS TO THE WRONG PLACE IS WORSE THAN ONE THAT LINKS NOWHERE, so each type names
+ * its own destination rather than sharing a session-shaped default. `pattern_coached` has no
+ * session at all — a pattern spans many — and before this it would have rendered as an
+ * unclickable row, which is the quiet half of the same defect.
+ */
+function destination(n: Notif): string | null {
+  if (n.type === "pattern_coached") return "/dashboard/sales-coach/pattern-interrupt";
+  if (n.type === "recording_comment" || n.type === "recording_share_requested") {
+    // The rep's own pitch detail, where a sent comment renders and a share request can be
+    // answered. Both were built on 2026-09-22 and both key on the pitch, not the session.
+    return n.payload.pitch_id
+      ? `/dashboard/sales-coach/doors/report-card/${n.payload.pitch_id}`
+      : null;
+  }
+  if (!n.session_id) return null;
+  // The session page, NOT /after-pitch and NOT the door-log report card. PitchScorePanel — and
+  // the corrections section the rep is being sent to read — renders on
+  // /dashboard/sales-coach/[id], where [id] is the session id. The door-log report card takes a
+  // pitchId and belongs to a different feature that happens to share the word "pitch".
+  return n.type === "pitch_score_corrected"
+    ? `/dashboard/sales-coach/${n.session_id}`
+    : `/dashboard/sales-coach/${n.session_id}/after-pitch`;
 }
 
 export function NotificationBell() {
@@ -201,7 +306,7 @@ export function NotificationBell() {
                     available here. A token-coloured dot is styling, carries the same severity
                     signal, and is inspectable in the two theme blocks it uses.
                   */}
-                  {n.type === "pitch_score_corrected" ? (
+                  {REP_ADDRESSED.has(n.type) ? (
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" aria-hidden />
                   ) : (
                     <span className={`mt-0.5 ${n.type === "deal_closed" ? "text-emerald-500" : "text-amber-500"}`}>
@@ -214,17 +319,9 @@ export function NotificationBell() {
                   </div>
                 </div>
               );
-              return n.session_id ? (
-                <Link key={n.id} href={
-                    // The session page, NOT /after-pitch and NOT the door-log report card.
-                    // PitchScorePanel — and the corrections section the rep is being sent to read
-                    // — renders on /dashboard/sales-coach/[id], where [id] is the session id.
-                    // The door-log report card takes a pitchId and belongs to a different feature
-                    // that happens to share the word "pitch".
-                    n.type === "pitch_score_corrected"
-                      ? `/dashboard/sales-coach/${n.session_id}`
-                      : `/dashboard/sales-coach/${n.session_id}/after-pitch`
-                  } onClick={() => setOpen(false)} className="block border-b border-default last:border-b-0 hover:bg-white/5">
+              const href = destination(n);
+              return href ? (
+                <Link key={n.id} href={href} onClick={() => setOpen(false)} className="block border-b border-default last:border-b-0 hover:bg-white/5">
                   {inner}
                 </Link>
               ) : (

@@ -52,6 +52,23 @@ export function PatternActions({ pattern, isManager, viewerId, nameByActor, onWr
   const ownsIt = viewerId !== null && pattern.repId === viewerId;
   const notes = (pattern.events ?? []).filter(isNote);
 
+  /**
+   * The most recent drill a manager assigned on this pattern, or null.
+   *
+   * FOUNDER RULING 2026-09-22: "Assign Role Play drill" must put a drill where the rep can do it,
+   * not merely record that one was assigned. The label is a verb and a manager reasonably expects
+   * the drill to appear.
+   *
+   * It appears HERE rather than in a queue, because Role Play already takes `?focus=` and drives
+   * the whole drill from it — the prospect creates moments for that skill and the end review
+   * scores it. So the assignment does not need a queue table; it needs the event to become a
+   * link, seeded with this pattern's own label. A new table would be a second record of a thing
+   * `pattern_events` already holds (§3.1).
+   */
+  const assignedDrill = (pattern.events ?? [])
+    .filter((e) => e.kind === "drill_assigned")
+    .sort((a, b) => b.at.localeCompare(a.at))[0];
+
   const append = async (kind: string, withBody: boolean) => {
     if (busy) return;
     if (withBody && !draft.trim()) return;
@@ -108,6 +125,36 @@ export function PatternActions({ pattern, isManager, viewerId, nameByActor, onWr
           the moment.
         </p>
       </div>
+
+      {/* ── The assigned drill, on the rep's side ────────────────────────────────────────── */}
+      {ownsIt && assignedDrill && (
+        <div className="rounded-lg border border-ember-400/40 bg-ember-400/[0.08] p-3.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">
+            Your manager assigned a drill
+          </p>
+          <p className="mt-1 text-xs text-secondary">
+            Practice this exact pattern against an AI prospect. The review at the end scores you
+            on it.
+          </p>
+          <Link
+            href={`/dashboard/sales-coach/roleplay?focus=${encodeURIComponent(pattern.label)}`}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-medium text-ink-950"
+          >
+            <Dumbbell className="h-3.5 w-3.5" aria-hidden />
+            Start the drill
+          </Link>
+          <p className="mt-1.5 text-[11px] text-muted">Assigned {day(assignedDrill.at)}.</p>
+        </div>
+      )}
+
+      {/* A manager sees whether the drill they assigned is actually reachable, which is the half
+          of "assign" that used to be missing. */}
+      {isManager && assignedDrill && (
+        <p className="text-[11px] text-muted">
+          Drill assigned {day(assignedDrill.at)} — it shows on this rep&apos;s own Pattern
+          Interrupt page as a Start the drill button, seeded with this pattern.
+        </p>
+      )}
 
       {/* ── Coaching notes ────────────────────────────────────────────────────────────────── */}
       <div>

@@ -229,3 +229,93 @@ describe("the realtime subscription covers a refreshed alert", () => {
     expect(String(subscribedTo!.filter)).toBe("recipient_id=eq.me");
   });
 });
+
+describe("the three types this bell did not know it was being sent", () => {
+  /**
+   * 0261 and 0262 added `recording_comment`, `recording_share_requested` and `pattern_coached`,
+   * each with a migration, a CHECK entry, a writer and a reason — and this file knew none of
+   * them. Every one would have fallen through `text()` to the deal-closed branch and told a rep
+   * "A rep closed a deal" about a coaching note on their own pitch. Written, delivered, wrong.
+   *
+   * Same family as the `pattern_events` defect gated the same day, one level down: not a table
+   * with no writer, but a VALUE in a closed set that no surface renders. `writer:audit` cannot
+   * see this one — the table has plenty of writers. The defence is the exhaustive switch, which
+   * makes a new type a compile error rather than a wrong sentence.
+   */
+  const at = (type: string, payload: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    id: `x-${type}`,
+    agent_id: "rep1",
+    session_id: null,
+    type,
+    payload,
+    created_at: new Date().toISOString(),
+    read_at: null,
+    ...extra,
+  });
+
+  it("says a manager commented, and where in the pitch", async () => {
+    respond([at("recording_comment", { pitch_id: "p1", timestamp_s: 442 })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/left a comment on one of your pitches at 7:22/i)).toBeTruthy();
+  });
+
+  it("links a comment to the pitch, not to a session it does not have", async () => {
+    respond([at("recording_comment", { pitch_id: "p1", timestamp_s: 10 })]);
+    render(<NotificationBell />);
+    await openBell();
+    const link = await screen.findByRole("link");
+    expect(link.getAttribute("href")).toBe("/dashboard/sales-coach/doors/report-card/p1");
+  });
+
+  it("renders a comment with no pitch id as unclickable rather than linking somewhere wrong", async () => {
+    // A bell that links to the wrong place is worse than one that links nowhere.
+    respond([at("recording_comment", {})]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("says a manager asked to play a pitch to the team", async () => {
+    respond([at("recording_share_requested", { pitch_id: "p1" })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/asked to play one of your pitches to the team/i)).toBeTruthy();
+  });
+
+  it("uses the ACTION to choose the verb for a pattern alert", async () => {
+    // One notification type carries three manager actions, so the payload decides the sentence.
+    respond([at("pattern_coached", { action: "drill_assigned", pattern_label: "Trucks notice" })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/assigned you a drill on “Trucks notice”/i)).toBeTruthy();
+  });
+
+  it("says coached when that is what happened", async () => {
+    respond([at("pattern_coached", { action: "coached", pattern_label: "Trucks notice" })]);
+    render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/coached you on “Trucks notice”/i)).toBeTruthy();
+  });
+
+  it("sends a pattern alert to Pattern Interrupt, which has no session id at all", async () => {
+    respond([at("pattern_coached", { action: "note", pattern_label: "Trucks notice" })]);
+    render(<NotificationBell />);
+    await openBell();
+    const link = await screen.findByRole("link");
+    expect(link.getAttribute("href")).toBe("/dashboard/sales-coach/pattern-interrupt");
+  });
+
+  it("never tells a rep that a rep closed a deal about their own coaching", async () => {
+    // The exact wrong sentence the fall-through produced.
+    respond([
+      at("pattern_coached", { action: "coached", pattern_label: "Trucks notice" }),
+      at("recording_comment", { pitch_id: "p1" }),
+      at("recording_share_requested", { pitch_id: "p1" }),
+    ]);
+    render(<NotificationBell />);
+    await openBell();
+    await screen.findByText(/coached you on/i);
+    expect(screen.queryByText(/closed a deal/i)).toBeNull();
+  });
+});

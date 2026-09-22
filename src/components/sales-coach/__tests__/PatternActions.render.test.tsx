@@ -224,3 +224,47 @@ describe("from the tape", () => {
     expect(screen.getByRole("link", { name: /Open your recordings/i })).toBeTruthy();
   });
 });
+
+describe("an assigned drill is a drill the rep can do", () => {
+  const ASSIGNED = { events: [ev("drill_assigned", "2026-09-18T10:00:00Z", null)] };
+
+  it("gives the rep a button that opens Role Play focused on THIS pattern", () => {
+    // Founder ruling 2026-09-22: the label is a verb, so the drill has to appear. Role Play
+    // already takes ?focus= and scores the review on it, so the event becomes a seeded link
+    // rather than a queue table.
+    view(ASSIGNED, { isManager: false, viewerId: "rep-1" });
+    const link = screen.getByRole("link", { name: /Start the drill/i });
+    expect(link.getAttribute("href")).toBe(
+      "/dashboard/sales-coach/roleplay?focus=Opens%20with%20a%20question%20instead%20of%20the%20neighborhood%20notice"
+    );
+    expect(screen.getByText(/Your manager assigned a drill/i)).toBeTruthy();
+  });
+
+  it("shows nothing to a rep when no drill was assigned", () => {
+    view({}, { isManager: false, viewerId: "rep-1" });
+    expect(screen.queryByRole("link", { name: /Start the drill/i })).toBeNull();
+  });
+
+  it("tells the MANAGER the drill is reachable, which is the half that used to be missing", () => {
+    view(ASSIGNED);
+    expect(screen.getByText(/shows on this rep's own Pattern Interrupt page/i)).toBeTruthy();
+  });
+
+  it("does not offer a manager somebody else's drill button", () => {
+    view(ASSIGNED);
+    expect(screen.queryByRole("link", { name: /Start the drill/i })).toBeNull();
+  });
+
+  it("uses the most recent assignment when there are two", () => {
+    view(
+      {
+        events: [
+          ev("drill_assigned", "2026-09-10T10:00:00Z", null),
+          ev("drill_assigned", "2026-09-18T10:00:00Z", null),
+        ],
+      },
+      { isManager: false, viewerId: "rep-1" }
+    );
+    expect(screen.getByText(/Assigned Sep 18/)).toBeTruthy();
+  });
+});

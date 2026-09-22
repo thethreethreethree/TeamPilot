@@ -4,6 +4,8 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { canAppend, BODY_REQUIRED } from "@/lib/coach/patterns/eventPermission";
+import { notifyPatternEvent, NOTIFIED_KINDS } from "@/lib/coach/patterns/notifyPattern";
+import { describeItem } from "@/lib/coach/patterns/readPatterns";
 
 /**
  * POST /api/coach/sales-session/patterns/event — the four manager actions and the rep's reply.
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const { data: pattern } = await admin
     .from("patterns")
-    .select("id, company_id, rep_id, fixed_at")
+    .select("id, company_id, rep_id, item_id, item_kind, fixed_at")
     .eq("id", patternId)
     .maybeSingle();
 
@@ -123,5 +125,31 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ event: inserted, closed });
+  /**
+   * Tell the rep, when a MANAGER said something.
+   *
+   * Not on `fixed` — a closed pattern is good news the rep meets on their own board, and a bell
+   * saying "your manager closed something about you" reads as a verdict rather than a relief.
+   * Not on the rep's own events either: `rep_reviewed` and `clip_disputed` are the rep talking,
+   * and notifying them about themselves is the shape A10 exists to prevent, inverted.
+   *
+   * Best-effort. The event is written; a bell that did not ring is a degradation the rep meets
+   * on their page, which is where the board's banner already tells them to look.
+   */
+  let notified = false;
+  if (manager && NOTIFIED_KINDS.has(verdict.kind) && String(pattern.rep_id) !== ctx.userId) {
+    notified = await notifyPatternEvent({
+      companyId: ctx.companyId,
+      repId: String(pattern.rep_id),
+      patternId: patternId,
+      action: verdict.kind as "coached" | "drill_assigned" | "note",
+      patternLabel: describeItem(
+        String(pattern.item_id),
+        pattern.item_kind as "element" | "bonus" | "violation"
+      ).label,
+      excerpt: body,
+    });
+  }
+
+  return NextResponse.json({ event: inserted, closed, notified });
 }

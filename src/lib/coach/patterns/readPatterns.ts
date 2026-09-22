@@ -117,7 +117,13 @@ const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) 
  * the rubric still happened, and a card reading "close.askForSale" is ugly and true, where a card
  * reading "Unknown" is tidy and tells a manager nothing they can act on.
  */
-function describe(itemId: string, kind: PatternRow["itemKind"]): { label: string; section: string | null } {
+/**
+ * EXPORTED as `describeItem` since 2026-09-22, when the event-writing route needed a pattern's
+ * human label for a notification payload. Exported rather than copied: the fallback-to-raw-id
+ * rule and the section breadcrumb's formatting are decisions, and a second copy would let a bell
+ * name a pattern differently from the board it links to (§2.2).
+ */
+export function describeItem(itemId: string, kind: PatternRow["itemKind"]): { label: string; section: string | null } {
   if (kind === "element") {
     const el = ELEMENTS_BY_ID.get(itemId);
     return { label: el?.label ?? itemId, section: el?.section ?? null };
@@ -250,7 +256,7 @@ export async function readPatterns(
 
   const now = args.now ?? new Date();
   const patterns = records.map((r): PatternRow => {
-    const { label, section } = describe(r.item_id, r.item_kind);
+    const { label, section } = describeItem(r.item_id, r.item_kind);
     const verdict = statusOf({
       applicable: gradesByRep.get(r.rep_id)?.get(r.item_id) ?? [],
       coachedAt: coachedAt.get(r.id) ?? null,
