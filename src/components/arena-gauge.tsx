@@ -46,13 +46,27 @@ export function ArenaGauge({
   average,
   bandText,
   sub,
+  max = 100,
 }: {
-  /** 0–100, or null when nothing has been scored. */
+  /** 0 to `max`, or null when nothing has been scored. */
   average: number | null;
   bandText: string;
   sub: string;
+  /**
+   * The top of the scale. Defaults to 100 so the Arena is unchanged.
+   *
+   * PARAMETERISED RATHER THAN COPIED, because a second gauge is a second place for the geometry to
+   * drift and this one carries a bug already paid for — rotating a ring MOVES a fixed arc rather
+   * than lengthening one, which looks plausible in code and is nonsense on screen.
+   *
+   * The Pitch Score runs 0-130, not 0-100. Passing it through the old hard-coded clamp would have
+   * drawn a FULL gauge for 106.5 — a score that is genuinely high shown as a maximum, which is the
+   * quiet kind of wrong this build keeps finding.
+   */
+  max?: number;
 }) {
-  const target = average === null ? 0 : Math.max(0, Math.min(100, average));
+  const ceiling = max > 0 ? max : 100;
+  const target = average === null ? 0 : Math.max(0, Math.min(ceiling, average));
   const [shown, setShown] = useState(0);
 
   useEffect(() => {
@@ -89,7 +103,7 @@ export function ArenaGauge({
     };
   }, [target]);
 
-  const litTicks = average === null ? 0 : Math.round((shown / 100) * TICKS);
+  const litTicks = average === null ? 0 : Math.round((shown / ceiling) * TICKS);
 
   return (
     <View
