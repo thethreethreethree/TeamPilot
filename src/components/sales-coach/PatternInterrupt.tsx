@@ -7,6 +7,7 @@ import type { PatternRow } from "@/lib/coach/patterns/readPatterns";
 import type { PatternStatus } from "@/lib/coach/patterns/status";
 import type { Grade } from "@/lib/coach/pitchScore/rubric";
 import RepProgressBoard from "@/components/sales-coach/RepProgressBoard";
+import { PatternActions } from "@/components/sales-coach/PatternActions";
 import type { TeamCards, RepProgressRow } from "@/lib/coach/patterns/repProgress";
 
 /**
@@ -63,6 +64,10 @@ type Wire = {
   scored: boolean;
   /** Null on a rep-scoped read: this tab is a manager comparing people. */
   repProgress: { cards: TeamCards; reps: RepProgressRow[] } | null;
+  /** Who is reading, so the notes list can name their own entries "You". */
+  viewerId: string | null;
+  /** Names for note authors and board subjects. Empty on a rep-scoped read. */
+  nameByActor: Record<string, string>;
 };
 
 type State = { kind: "loading" } | { kind: "failed" } | { kind: "ready"; wire: Wire };
@@ -446,12 +451,16 @@ export function PatternInterrupt() {
                       </p>
                     </div>
 
-                    {/* NAMED, NOT FAKED. The board puts three clips here with play buttons; they
-                        need pitch_score_events timestamps wired to the recording player, which is
-                        Project 4. Sample clips would be fabricated evidence about a real rep. */}
-                    <p className="mt-4 text-[11px] text-muted">
-                      The clips that prove this pattern arrive with the recording player (Project 4).
-                    </p>
+                    {/* The clips, the notes and the four actions. Project 4 shipped the player
+                        earlier today, so "From the tape" is a link to real markers rather than
+                        the promise this line used to carry. */}
+                    <PatternActions
+                      pattern={selected}
+                      isManager={isManager}
+                      viewerId={wire.viewerId}
+                      nameByActor={wire.nameByActor}
+                      onWritten={() => void load()}
+                    />
                   </div>
                 )}
               </div>

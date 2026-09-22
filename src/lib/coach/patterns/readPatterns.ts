@@ -42,15 +42,22 @@ export type PatternRow = {
   /** True once the rep has acknowledged it — drives AWAITING REP REVIEW. */
   repReviewed: boolean;
   /**
-   * The coaching log for this pattern, oldest first — the Rep progress timeline's Ⓒ Ⓓ Ⓡ markers.
+   * The coaching log for this pattern, oldest first — the Rep progress timeline's Ⓒ Ⓓ Ⓡ markers
+   * AND the Patterns detail panel's COACHING NOTES.
    *
    * THE RAW EVENTS, not a summary of them, because the timeline draws one marker per event at its
    * own date. `coachedAt` above is a DERIVED field (the earliest coaching event) and keeping both
    * is deliberate: the status resolver needs the single instant, the timeline needs all of them,
    * and deriving the second from the first is impossible while deriving the first from the second
    * in each surface is the duplication §2.2 warns about. So the authority hands down both.
+   *
+   * A NOTE IS AN EVENT WITH A BODY. The board's COACHING NOTES panel shows a manager's coaching
+   * instruction and the rep's reply as peer entries, and both are `pattern_events` rows — so the
+   * KIND decides the timeline marker and the presence of `body` decides whether it is also a
+   * note. Classifying twice would let a "Mark as coached" carrying an instruction appear as a
+   * marker with no words, or as words with no marker.
    */
-  events: Array<{ kind: string; at: string }>;
+  events: Array<{ kind: string; at: string; actorId: string | null; body: string | null }>;
   verdict: StatusVerdict;
   /** Whole days since detection. The board's OPEN column reads "9 days". */
   daysOpen: number;
@@ -93,7 +100,13 @@ type PatternRecord = {
   fixed_at: string | null;
 };
 
-type EventRecord = { pattern_id: string; kind: string; created_at: string };
+type EventRecord = {
+  pattern_id: string;
+  kind: string;
+  created_at: string;
+  actor_id: string | null;
+  body: string | null;
+};
 
 const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 
@@ -194,17 +207,17 @@ export async function readPatterns(
   // page that already waits on the grades read.
   const { data: eventData } = await supabase
     .from("pattern_events")
-    .select("pattern_id, kind, created_at")
+    .select("pattern_id, kind, created_at, actor_id, body")
     .in("pattern_id", records.map((r) => r.id))
     .order("created_at", { ascending: true });
 
   const events = (eventData ?? []) as EventRecord[];
   const coachedAt = new Map<string, string>();
   const reviewed = new Set<string>();
-  const logByPattern = new Map<string, Array<{ kind: string; at: string }>>();
+  const logByPattern = new Map<string, PatternRow["events"]>();
   for (const e of events) {
     const log = logByPattern.get(e.pattern_id) ?? [];
-    log.push({ kind: e.kind, at: e.created_at });
+    log.push({ kind: e.kind, at: e.created_at, actorId: e.actor_id, body: e.body });
     logByPattern.set(e.pattern_id, log);
     // EARLIEST coaching event wins, and the read is ordered ascending so the first one seen is it.
     // "Coached 7+ days ago" means since coaching STARTED; taking the latest would let a manager

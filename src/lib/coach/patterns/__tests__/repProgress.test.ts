@@ -56,6 +56,14 @@ const row = (over: Partial<PatternRow> = {}): PatternRow =>
     ...over,
   }) as PatternRow;
 
+/** One `pattern_events` row. `body` is what makes an event also a COACHING NOTE. */
+const ev = (kind: string, at: string, body: string | null = null) => ({
+  kind,
+  at,
+  actorId: "mgr",
+  body,
+});
+
 const NOW = new Date("2026-09-19T12:00:00Z");
 
 const FIXED = verdict({ status: "fixed", open: false, reason: "5 clean pitches in a row", streak: 5 });
@@ -106,7 +114,7 @@ describe("the five team cards", () => {
           verdict: FIXED,
           fixedAt: null,
           firstSeen: "2026-09-02T10:00:00Z",
-          events: [{ kind: "fixed", at: "2026-09-11T10:00:00Z" }],
+          events: [ev("fixed", "2026-09-11T10:00:00Z")],
         }),
       ],
       NOW
@@ -474,12 +482,12 @@ describe("the timeline", () => {
           firstSeen: "2026-09-01T00:00:00Z",
           verdict: IMPROVING,
           events: [
-            { kind: "coached", at: "2026-09-10T00:00:00Z" },
-            { kind: "drill_assigned", at: "2026-09-10T00:00:00Z" },
-            { kind: "rep_reviewed", at: "2026-09-10T00:00:00Z" },
+            ev("coached", "2026-09-10T00:00:00Z"),
+            ev("drill_assigned", "2026-09-10T00:00:00Z"),
+            ev("rep_reviewed", "2026-09-10T00:00:00Z"),
             // Real kinds, not on the legend. Drawing them would add marks the key cannot explain.
-            { kind: "note", at: "2026-09-11T00:00:00Z" },
-            { kind: "clip_disputed", at: "2026-09-11T00:00:00Z" },
+            ev("note", "2026-09-11T00:00:00Z"),
+            ev("clip_disputed", "2026-09-11T00:00:00Z"),
           ],
         }),
       ],
@@ -492,7 +500,7 @@ describe("the timeline", () => {
   it("DROPS a marker outside the window rather than pinning it to an edge", () => {
     // A Ⓒ at the left edge is a specific claim that coaching happened on the first of the month.
     const [b] = timeline(
-      [row({ verdict: STALLED, events: [{ kind: "coached", at: "2026-08-15T00:00:00Z" }] })],
+      [row({ verdict: STALLED, events: [ev("coached", "2026-08-15T00:00:00Z")] })],
       WINDOW
     );
     expect(b!.markers).toEqual([]);
@@ -500,7 +508,7 @@ describe("the timeline", () => {
 
   it("drops an undated marker too", () => {
     const [b] = timeline(
-      [row({ verdict: STALLED, events: [{ kind: "coached", at: "not-a-date" }] })],
+      [row({ verdict: STALLED, events: [ev("coached", "not-a-date")] })],
       WINDOW
     );
     expect(b!.markers).toEqual([]);

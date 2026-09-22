@@ -85,13 +85,28 @@ export async function GET(req: NextRequest) {
    * a raw uuid, which is a nasty way to be rewarded for it.
    */
   const boardRepIds = repId ? [] : [...new Set(read.patterns.map((p) => p.repId))];
+
+  /**
+   * Plus whoever WROTE a coaching note, which is not the same set.
+   *
+   * COACHING NOTES prints "Manager · Sep 18" beside each entry, and the actor is a uuid. A
+   * manager who coached a rep and then left the team is still the author of that note; a second
+   * manager reading the board would otherwise see a raw id. Scoped to this company and to ids
+   * already on the board — the same discipline as the rep names, and for the same reason: this
+   * must not become a roster read.
+   */
+  const actorIds = [
+    ...new Set(read.patterns.flatMap((p) => (p.events ?? []).map((e) => e.actorId).filter((a): a is string => a !== null))),
+  ];
+  const lookupIds = [...new Set([...boardRepIds, ...actorIds])];
+
   const names = new Map<string, string>();
-  if (manager && boardRepIds.length > 0) {
+  if (manager && lookupIds.length > 0) {
     const { data: profiles, error: nameError } = await createAdminClient()
       .from("profiles")
       .select("id, full_name")
       .eq("company_id", manager.companyId)
-      .in("id", boardRepIds);
+      .in("id", lookupIds);
     if (nameError) {
       console.error(`[coach-patterns] name lookup failed: ${nameError.message}`);
     }
@@ -102,6 +117,14 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     repId: repId ?? null,
+    /** Who is reading. The notes list names the viewer's own entries "You". */
+    viewerId: auth.user.id,
+    /**
+     * Names for everyone who appears on this board, whether as a subject or as the author of a
+     * note. Empty on a rep-scoped read, where the surface falls back to "Manager" / "You" —
+     * which is exactly what the board prints.
+     */
+    nameByActor: Object.fromEntries(names),
     /**
      * Per-rep open counts. These SUM to `counts.open` above, because both are counted from the
      * same verdicts — the board draws them stacked and a manager reads them together, so the day

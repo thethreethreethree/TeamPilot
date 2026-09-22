@@ -30,6 +30,14 @@ const CARDS: TeamCards = {
   pointsRecovered: 10,
 };
 
+/** One `pattern_events` row. `body` is what makes an event also a COACHING NOTE. */
+const ev = (kind: string, at: string, body: string | null = null) => ({
+  kind,
+  at,
+  actorId: "mgr",
+  body,
+});
+
 const rep = (over: Partial<RepProgressRow> = {}): RepProgressRow => ({
   repId: "r1",
   fullName: "Anthony A.",
@@ -59,8 +67,8 @@ const pattern = (over: Partial<PatternRow> = {}): PatternRow =>
     fixedAt: null,
     repReviewed: true,
     events: [
-      { kind: "coached", at: "2026-09-11T10:00:00Z" },
-      { kind: "rep_reviewed", at: "2026-09-12T10:00:00Z" },
+      ev("coached", "2026-09-11T10:00:00Z"),
+      ev("rep_reviewed", "2026-09-12T10:00:00Z"),
     ],
     verdict: {
       status: "stalled",
