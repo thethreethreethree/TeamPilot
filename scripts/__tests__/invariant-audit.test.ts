@@ -343,10 +343,20 @@ describe("invariant-audit.mjs — reachability", () => {
     expect(SCRIPT).toMatch(/problem_thresholds[\s\S]{0,400}lower the evidence bar/);
   });
 
+  /**
+   * This one SPAWNS THE WHOLE AUDIT over the tree, so its runtime is the audit's, not a unit
+   * test's. It crossed vitest's 5s default on 2026-09-22 at ~6.9s — not a regression, just 1058
+   * files and 30 invariants.
+   *
+   * Measured before raising it, because "the test got slow" and "your change made it slow" look
+   * identical from a timeout: the comment-stripping added to INVARIANT 28 that day costs 18ms
+   * across all 256 migration files, 0.26% of the run. The number to watch is the audit's own
+   * runtime; if this needs raising again, that is the thing to look at rather than this line.
+   */
   it("the whole tree currently passes reachability", () => {
     const out = execFileSync("node", ["scripts/invariant-audit.mjs"], { encoding: "utf8" });
     expect(out).toContain("Violations:           0");
-  });
+  }, 30_000);
 });
 
 /**
