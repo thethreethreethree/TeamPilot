@@ -7,6 +7,7 @@ import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { getLatestTeamBrief } from "@/lib/coach/v5/teamTrainingBrief";
 import { readTeamAssessment } from "@/lib/coach/assessment/readTeamAssessment";
 import type { BriefTheme } from "@/lib/coach/assessment/teamAssessment";
+import { readReviewFlags } from "@/lib/coach/assessment/reviewFlags";
 
 /**
  * GET /api/coach/sales-session/coach-assessment/dashboard?period=day|week|month|all
@@ -86,6 +87,26 @@ export async function GET(req: NextRequest) {
     supabase
   );
 
+  /**
+   * The rubric's one escalated violation — "Needs your attention", item one.
+   *
+   * BEST-EFFORT, and distinguishable from empty. `null` means the read failed and the board says
+   * so; `[]` means a human has dealt with every flag, which is a finding worth showing. Drawing a
+   * failed read as an empty queue would tell a manager nobody has been rude this week, which is
+   * the one wrong answer on this card.
+   */
+  let reviewFlags = null;
+  try {
+    reviewFlags = await readReviewFlags(
+      { companyId: manager.companyId, nameByRep },
+      supabase
+    );
+  } catch (e) {
+    console.error(
+      `[coach-assessment-dashboard] review flags failed company=${manager.companyId}: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+
   if (assessment === null) {
     // Never an empty team. A dashboard of zeros about a week the team worked is the confident-zero
     // this codebase has an invariant against, and on this page it would read as a performance
@@ -102,6 +123,11 @@ export async function GET(req: NextRequest) {
     window,
     /** Null when no brief exists yet — the surface says so rather than drawing three empty cards. */
     briefGeneratedAt,
+    /**
+     * Rude-or-dismissive flags awaiting a human. `null` = the read failed, `[]` = none outstanding.
+     * The board must keep those apart; they render identically and mean opposite things.
+     */
+    reviewFlags,
   });
 }
 

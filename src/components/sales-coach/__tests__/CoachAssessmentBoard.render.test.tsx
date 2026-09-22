@@ -87,6 +87,9 @@ const wire = (over: Record<string, unknown> = {}) => ({
   capped: false,
   unattributed: 0,
   briefGeneratedAt: null,
+  // The route sends null when the flag read fails and [] when nothing is outstanding. The
+  // default here is the quiet case, so a test that cares about flags passes them explicitly.
+  reviewFlags: [] as unknown[],
   ...over,
 });
 
@@ -251,11 +254,50 @@ describe("what the rebuild had to keep", () => {
     expect(await screen.findByRole("button", { name: /Generate missing/i })).toBeTruthy();
   });
 
-  it("names what is NOT in Needs-your-attention rather than showing an empty list", async () => {
-    respond(wire());
+  it("says nothing is outstanding when the flag read came back EMPTY", async () => {
+    // This test used to assert the sentence "Rude-or-dismissive flags are not wired into this
+    // list yet" — a test whose whole content was that a feature did not exist. It is now wired,
+    // so the assertion is replaced by the two facts it was standing in for: an empty queue is
+    // said, and a FAILED one is said differently.
+    respond(wire({ reviewFlags: [] }));
     andNotes();
     render(<CoachAssessmentBoard />);
-    expect(await screen.findByText(/Rude-or-dismissive flags are not wired/i)).toBeTruthy();
+    expect(await screen.findByText(/No rude-or-dismissive flags awaiting review/i)).toBeTruthy();
+  });
+
+  it("does NOT render a failed flag read as an empty queue", async () => {
+    // On this card the wrong one reads as reassurance: "nobody has been rude this week" when the
+    // truth is "nobody looked".
+    respond(wire({ reviewFlags: null }));
+    andNotes();
+    render(<CoachAssessmentBoard />);
+    expect(await screen.findByText(/could not be read/i)).toBeTruthy();
+    expect(screen.queryByText(/No rude-or-dismissive flags awaiting review/i)).toBeNull();
+  });
+
+  it("renders a real flag with the rep, the cost and what the scorer heard", async () => {
+    respond(
+      wire({
+        reviewFlags: [
+          {
+            pitchId: "p9",
+            repId: "rep-9",
+            repName: "Anthony A.",
+            itemId: "viol.rude",
+            label: "Rude, dismissive, or condescending to the customer",
+            deduction: 10,
+            recordedAt: "2026-09-17T16:00:00.000Z",
+            evidence: "Cut the customer off mid-sentence.",
+            atSeconds: 312,
+          },
+        ],
+      })
+    );
+    andNotes();
+    render(<CoachAssessmentBoard />);
+    expect(await screen.findByText(/Anthony A\. · Rude, dismissive/)).toBeTruthy();
+    expect(screen.getByText(/−10 applied\. Confirm or remove\./)).toBeTruthy();
+    expect(screen.getByText(/Cut the customer off mid-sentence/)).toBeTruthy();
   });
 
   it("keeps the skill scores in rep detail", async () => {

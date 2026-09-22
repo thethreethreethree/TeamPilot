@@ -8,6 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentGradeBadge } from "@/components/sales-coach/AgentGradeBadge";
 import { RepSkillGrades } from "@/components/sales-coach/RepSkillGrades";
 import RecordingsTab from "@/components/sales-coach/RecordingsTab";
+import { ReviewFlagQueue } from "@/components/sales-coach/ReviewFlagQueue";
+import type { ReviewFlag } from "@/lib/coach/assessment/reviewFlags";
 import type { RepRow, SectionBar, PriorityCard } from "@/lib/coach/assessment/teamAssessment";
 import type { RepDetail } from "@/lib/coach/assessment/readTeamAssessment";
 // The PITCH SCORE band, which wraps the gamification authority and returns its label. Its own
@@ -71,6 +73,8 @@ type Wire = {
   capped: boolean;
   unattributed: number;
   briefGeneratedAt: string | null;
+  /** Null = the read failed. [] = every flag has been dealt with. Never conflate them. */
+  reviewFlags: ReviewFlag[] | null;
 };
 
 /** The shape the EXISTING coach-assessment route has always returned. Unchanged. */
@@ -402,17 +406,15 @@ export function CoachAssessmentBoard() {
                 </div>
                 {backfillMsg && <p className="text-[11px] text-muted">{backfillMsg}</p>}
 
-                {/* NAMED, NOT FAKED. The board's other two items need reads this route does not do:
-                    rude/dismissive flags live in pitch_score_events and open disputes in the
-                    dispute queue. Drawing them empty would say "none" where the truth is
-                    "not looked". */}
+                {/* The rubric's one escalated violation, now wired. It was named-not-faked here
+                    for three builds; the line that said so has been replaced by the thing it was
+                    apologising for. */}
+                <ReviewFlagQueue flags={wire.reviewFlags} onReviewed={() => void load()} />
+
                 {/* Open disputes are not listed HERE because they are rendered in full above this
                     board by <DisputeQueue />, which the page keeps. Duplicating them as a summary
                     line would be a second count of the same thing on one screen. */}
-                <p className="text-[11px] text-muted">
-                  Rude-or-dismissive flags are not wired into this list yet. Open score disputes are
-                  shown in full above.
-                </p>
+                <p className="text-[11px] text-muted">Open score disputes are shown in full above.</p>
               </div>
             </section>
 

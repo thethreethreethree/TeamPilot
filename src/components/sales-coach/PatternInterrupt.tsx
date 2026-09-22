@@ -88,6 +88,22 @@ const PILL: Record<PatternStatus, { label: string; className: string }> = {
  * that rep has seven applicable pitches. Padding to ten would draw dots for pitches where the
  * item never came up, which is inventing evidence — and it would do it worst to the newest reps,
  * who are least able to tell a real finding from an artefact.
+ *
+ * THE LEGEND SAYS "PARTIAL" WHERE THE BOARD SAYS "NOT APPLICABLE", and that is deliberate.
+ * Recorded 2026-09-22 after re-reading both boards at full resolution.
+ *
+ * The source contradicts itself here. Its legend lists three states — Missed / Done right / Not
+ * applicable — over a strip its own rule defines as "the last 10 pitches **where it applied**".
+ * A set cannot contain its own exclusion: if the strip is applicable-only, no dot can be "not
+ * applicable", and C4 is explicit that padding it is forbidden.
+ *
+ * So the third colour has to mean something, and the only third thing a graded applicable pitch
+ * can be is PARTIAL. The strip renders `Grade[]` — hit, partial, missed — and the legend names
+ * exactly those three, which is the one version where the key and the dots agree.
+ *
+ * Noted rather than resolved (the founder's standing rule). If the intent was a ten-wide strip
+ * with grey for the pitches where the item did not apply, this is the line to change — and C4
+ * would have to change with it, because the two cannot both stand.
  */
 function DotStrip({ strip }: { strip: readonly Grade[] }) {
   return (
