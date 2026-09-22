@@ -52,7 +52,24 @@ function readableDate(value: unknown): value is string {
  * Defensive on purpose: this is a network payload, and an unparseable date is
  * `unknown` rather than a badge that renders "Invalid Date" under it.
  */
-export function milestoneStatus(dates: MilestoneDates | null | undefined, key: MilestoneKey): MilestoneStatus {
+/**
+ * READS ANY BADGE SET, because the Pitch Score strip needs the same three states from the same
+ * shape over a different set of six names. Widening this was the alternative to a second copy of
+ * the null-versus-absent distinction — the distinction that stops a rep with ten closed deals being
+ * told they have none — and a copy of it would have been correct the day it was written, which is
+ * what makes that failure class invisible in this product's own register.
+ *
+ * THE KEY IS A PLAIN STRING AND THE MAP IS UNTYPED ON PURPOSE. It was briefly generic, binding the
+ * key to the map's own union, and that immediately rejected the case this module exists for: a
+ * payload that does not carry the key being asked for. An older API, a truncated response or a
+ * badge added after this build all produce exactly that shape at runtime, and a signature that
+ * cannot express it is a signature that has assumed the failure away. Both call sites map over
+ * their own `MILESTONE_KEYS` constant, so no key here is ever typed by hand.
+ */
+export function milestoneStatus(
+  dates: Readonly<Record<string, string | null | undefined>> | null | undefined,
+  key: string,
+): MilestoneStatus {
   if (!dates) return { state: 'unknown' };
   // An absent key reads as `undefined`, which is neither null nor a readable date, so it falls through to
   // 'unknown' below. There WAS a `key in dates` guard here as well; a mutation showed it could be deleted with no

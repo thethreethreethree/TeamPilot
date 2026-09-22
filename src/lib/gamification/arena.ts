@@ -181,37 +181,47 @@ function isRecent(at: string, now: number): boolean {
  *
  * Every badge is listed whether earned or not, with what it takes — an unearned
  * badge a rep cannot see the condition for is just a locked box.
+ *
+ * RELABELLED 2026-09-22, mirroring the web's own relabelling of 2026-09-21. Every one of these
+ * counts SESSIONS on the points ledger. Pitch Score has its own six-badge strip counting COUNTED
+ * PITCHES, and under the founder's R-D ruling the two now sit one swipe apart in the same
+ * segmented control. `spark` said "First pitch" and Pitch Score's `firstPitch` says the same
+ * words about a different denominator, earned on a different day: a rep records sessions that
+ * never qualify, so the two counts diverge permanently and neither is wrong.
+ *
+ * ONLY THE WORDS CHANGED. Not one predicate below was touched, so no earned-at date moved — which
+ * matters, because these dates are derived from the immutable ledger precisely so they cannot.
  */
 export function milestones(arena: Arena, deals: number | null): Milestone[] {
   return [
     {
       key: 'spark',
-      label: 'First pitch',
-      requirement: 'Record and score one call',
+      label: 'First session scored',
+      requirement: 'Record and score one session',
       earned: arena.sessions >= 1,
     },
     {
       key: 'flame',
-      label: 'Strong',
-      requirement: `Score ${STRONG_SESSION_POINTS} or more on a call`,
+      label: 'Strong session',
+      requirement: `Score ${STRONG_SESSION_POINTS} or more on a session`,
       earned: arena.strongSessions >= 1,
     },
     {
       key: 'deal',
-      label: 'First deal',
+      label: 'First deal closed',
       requirement: 'Close one',
       // null, not false: an unreadable deal count cannot disprove a deal.
       earned: deals === null ? null : deals >= 1,
     },
     {
       key: 'century',
-      label: 'Century',
-      requirement: '100 scored calls',
+      label: '100 sessions',
+      requirement: '100 scored sessions',
       earned: arena.sessions >= 100,
     },
     {
       key: 'closer',
-      label: 'Closer',
+      label: '10 deals — Closer',
       requirement: '10 deals closed',
       earned: deals === null ? null : deals >= 10,
     },

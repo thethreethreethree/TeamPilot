@@ -30,6 +30,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { useFocusEffect } from 'expo-router';
 
 import { ArenaGauge } from '@/components/arena-gauge';
+import { PitchMilestonesStrip } from '@/components/pitch-milestones-strip';
 import { PitchPeriodToggle } from '@/components/pitch-period-toggle';
 import { PitchRubricSheet } from '@/components/pitch-rubric-sheet';
 import { useOpenWebsite } from '@/components/website-link';
@@ -37,6 +38,7 @@ import {
   fetchBestPitches,
   fetchBreakdown,
   fetchLeaderboard,
+  fetchMilestones,
   fetchRubric,
 } from '@/lib/pitch-score/api';
 import {
@@ -51,6 +53,7 @@ import type {
   BestPitchesResponse,
   BreakdownResponse,
   LeaderboardResponse,
+  MilestonesResponse,
 } from '@/lib/pitch-score/types';
 import { bandFor, bandLabel } from '@/lib/gamification/points';
 import { OUTCOME_LABEL, shortDate } from '@/lib/format';
@@ -69,6 +72,12 @@ type Loaded = {
   today: number | null;
   /** Null when the best-pitches read failed — the list SAYS so, rather than reading as none. */
   best: BestPitchesResponse | null;
+  /**
+   * Null when the milestones read failed. Six grey badges is the sentence "you have done none
+   * of this", which is a real statement about a rep and one a failed read has no standing to
+   * make. The route refuses to make it too — it 500s rather than returning an empty strip.
+   */
+  milestones: MilestonesResponse | null;
 };
 
 type State =
@@ -107,6 +116,9 @@ export function PitchProgressPage({
         */
         const board = await fetchLeaderboard(p).catch(() => null);
         const best = await fetchBestPitches(p).catch(() => null);
+        // No period: every milestone is a first or an Nth, so the toggle does not reach it and
+        // the strip says so rather than sitting silently under a Day gauge.
+        const milestones = await fetchMilestones().catch(() => null);
         const today =
           p === 'day'
             ? null
@@ -114,7 +126,7 @@ export function PitchProgressPage({
                 .then((d) => d.aggregate.totalPoints)
                 .catch(() => null);
 
-        setState({ phase: 'ready', loaded: { data, rubric, board, today, best } });
+        setState({ phase: 'ready', loaded: { data, rubric, board, today, best, milestones } });
       } catch (e) {
         setState({ phase: 'error', message: reachError(e, online, 'your Pitch Score') });
       }
@@ -171,7 +183,7 @@ export function PitchProgressPage({
 }
 
 function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
-  const { data, rubric, board, today, best } = loaded;
+  const { data, rubric, board, today, best, milestones } = loaded;
   const agg = data.aggregate;
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -300,6 +312,8 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
       </View>
 
       <BestPitches best={best} />
+
+      <PitchMilestonesStrip data={milestones} />
 
       {/* R-D: two scoring systems stand, each saying what it counts. The Arena is a segment away and
           its points are a different measure on a different scale. */}

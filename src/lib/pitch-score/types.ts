@@ -172,6 +172,16 @@ export type MilestoneDates = Record<MilestoneKey, string | null>;
 export type MilestonesResponse = {
   repId: string;
   milestones: MilestoneDates;
+  /**
+   * The reader hit its 900-row bound.
+   *
+   * Harmless for every badge here and reported anyway. The route reads OLDEST FIRST precisely so
+   * the cap costs a rep their most RECENT pitches, which no "first" or "hundredth" depends on —
+   * a newest-first read would have dated "First pitch" to a rep's 900th-most-recent one. It is
+   * mirrored because a badge added later might depend on the latest pitch, and a field the client
+   * never typed is a field nobody notices has started mattering.
+   */
+  capped: boolean;
 };
 
 /** One of the rep's highest counted pitches. */
