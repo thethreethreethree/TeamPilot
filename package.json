@@ -45,7 +45,8 @@
     "writer:audit": "node scripts/writer-audit.mjs",
     "enum:audit": "node scripts/enum-coverage-audit.mjs",
     "migration:audit": "node scripts/migration-apply-audit.mjs",
-    "sql:harness": "node scripts/sql-harness.mjs"
+    "sql:harness": "node scripts/sql-harness.mjs",
+    "visual": "node scripts/visual/shoot.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

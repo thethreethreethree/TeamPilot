@@ -163,6 +163,24 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(pager?.contains(exit)).toBe(false);
   });
 
+  /**
+   * The SECOND instance of the same class, found by sweeping the first (founder: "there has to be
+   * more of this bugs in the system").
+   *
+   * MACRO_MOBILE_TABS is a deliberate 4-tab bar and does NOT include the normal mobile nav's
+   * "Account" entry. So /dashboard/sales-coach/settings — voice enrollment, rep goal, name, role,
+   * learning mode, experience mode — was unreachable on a phone in Macro Mode, for the door-to-door
+   * rep Macro Mode exists to serve. Desktop was never affected.
+   */
+  it("Macro ON: settings are reachable, which the 4-tab bar does not provide (founder 2026-09-24)", async () => {
+    stubFetch(true);
+    const { container } = render(<SalesCoachHome />);
+    const m = () => mobile(container);
+    await waitFor(() => expect(m().getByText(/Swipe left for your home screen/i)).toBeTruthy());
+    const link = m().getByRole("link", { name: /account and settings/i });
+    expect(link.getAttribute("href")).toBe("/dashboard/sales-coach/settings");
+  });
+
   it("Macro ON: the home is the swipeable pager — door tracker (page 0) + the original Macro home (page 1) with Door Log + Start Knocking (founder 2026-09-10)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);

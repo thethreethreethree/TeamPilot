@@ -74,13 +74,27 @@ export function MobileHomePager({ pages }: { pages: ReactNode[] }) {
         ))}
       </div>
 
-      {/* Pager dots + a hint at where the other page is (mockup). */}
+      {/*
+        Pager dots + a hint at where the other page is (mockup).
+
+        The INACTIVE dot is `bg-ink-500`, not `bg-white/20`. White at 20% is a dark-mode idiom: a
+        visible grey on the matte-black field and INVISIBLE on cream. In light mode this strip
+        showed ONE dot, so a rep could not see a second page exists — on the screen whose only
+        other page held the way out of Macro Mode.
+
+        Caught by rendering the surface in both themes and comparing (2026-09-24). Reachable only
+        since the same morning, when a ThemeToggle was finally mounted in the Sales Coach header —
+        before that no one in this module could be in light mode to see it.
+
+        `ink-500` (#71717A) is the mode-agnostic scale: legible on near-black AND on cream, which
+        is the whole property `white/20` lacks.
+      */}
       <div className="shrink-0 pt-1.5 pb-1">
         <div className="flex items-center justify-center gap-1.5" aria-hidden>
           {pages.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 w-1.5 rounded-full transition-colors ${i === active ? "bg-ember-400" : "bg-white/20"}`}
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${i === active ? "bg-ember-400" : "bg-ink-500"}`}
             />
           ))}
         </div>

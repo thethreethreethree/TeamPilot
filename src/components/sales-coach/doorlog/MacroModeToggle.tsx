@@ -26,7 +26,7 @@ export function MacroModeToggle({
   showLinks?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5 mt-3">
+    <div className="rounded-xl border border-default bg-surface p-3.5 mt-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -43,8 +43,22 @@ export function MacroModeToggle({
           role="switch"
           aria-checked={enabled ?? false}
           aria-label="Toggle Macro Mode"
+          /*
+           * THE OFF TRACK IS MODE-AWARE. It was `bg-white/15` — white at 15%, which is a faint
+           * grey on the matte-black field and NOTHING on cream. In light mode this switch rendered
+           * as a bare white knob floating with no track: a control you cannot identify as a
+           * control, in a state you cannot read.
+           *
+           * Caught by rendering the home in both themes and comparing (2026-09-24). It is also a
+           * candidate explanation for the founder's own words — "i can't see the button" — which
+           * is why it is fixed here rather than filed.
+           *
+           * ink-300 on light / ink-700 on dark: a visible track on each ground, and on dark it
+           * lands close to what white/15 used to look like, so the appearance a rep knows does
+           * not change.
+           */
           className={`shrink-0 w-11 h-6 rounded-full transition-colors relative disabled:opacity-50 ${
-            enabled ? "bg-ember-400" : "bg-white/15"
+            enabled ? "bg-ember-400" : "bg-ink-300 dark:bg-ink-700"
           }`}
         >
           <span

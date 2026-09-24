@@ -17,6 +17,7 @@ import {
   Target,
   Library,
   ArrowLeft,
+  Settings,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
@@ -204,7 +205,7 @@ export default function SalesCoachHome() {
         // pager so it's reachable from either page. The 3 all-time door bubbles were REMOVED from page 1 — page 0
         // owns the funnel numbers now (founder decision, INSPECTION.md).
         <div className="md:hidden flex-1 min-h-0 flex flex-col bg-base pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="shrink-0 px-4 pb-1 flex items-center justify-between gap-2">
+          <div className="shrink-0 px-4 pb-1 flex items-center justify-between gap-1.5">
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
@@ -230,6 +231,36 @@ export default function SalesCoachHome() {
               precisely so it is reachable from either page. The full card stays on page 1; this is
               the escape hatch, not a second copy of the setting.
             */}
+            {/* The two right-hand controls are ONE group. With three bare children, justify-between
+                spreads them evenly and leaves the gear floating in the middle of the row — visible
+                only by rendering it, which is how it was caught. */}
+            <span className="flex shrink-0 items-center gap-1.5">
+            {/*
+              ACCOUNT, because Macro Mode's own bottom nav does not carry it.
+              
+              MACRO_MOBILE_TABS (SalesCoachShell.tsx) is a deliberate 4-tab bar — Home, Pitch
+              Performance, Today's Metrics, Role Play — and the normal MOBILE_TABS' fifth entry,
+              "Account" → /dashboard/sales-coach/settings, is not among them. So a Macro rep on a
+              phone could reach NONE of what lives there: voice enrollment (which feeds their own
+              speaker attribution and therefore their scoring), their rep goal, their name and
+              role, learning mode and experience mode.
+              
+              The same class as the toggle beside it — a mode that hides the way to something —
+              and the same fix, for the same reason: this row sits above the pager, so it is
+              reachable from either page on every launch. Founder chose this over a fifth tab
+              (2026-09-24) so the focused bar they specified in the annotated mockup stays four.
+              
+              Icon-only: three labelled controls do not fit a 390px row, and this one is a
+              destination rather than a decision.
+            */}
+            <Link
+              href="/dashboard/sales-coach/settings"
+              aria-label="Account and settings"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg border border-default p-1.5 text-secondary hover:text-primary hover:border-strong transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" aria-hidden />
+            </Link>
+
             <button
               type="button"
               onClick={toggleMacro}
@@ -239,6 +270,7 @@ export default function SalesCoachHome() {
               <ArrowLeft className="w-3 h-3" aria-hidden />
               {macroSaving ? "Leaving…" : "Exit Macro Mode"}
             </button>
+            </span>
           </div>
           <MobileHomePager
             pages={[
@@ -321,7 +353,7 @@ export default function SalesCoachHome() {
         {macroOn === null ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] h-[88px] animate-pulse" />
+              <div key={i} className="rounded-xl border border-default bg-surface h-[88px] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -365,11 +397,11 @@ export default function SalesCoachHome() {
             before the mode resolves. (The 3 all-time door bubbles moved to page 0 of the Macro pager.) */}
         {macroOn === false && (
           <div className="grid grid-cols-2 gap-3 mt-3">
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+            <div className="rounded-xl border border-default bg-surface px-3 py-2 flex items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Pitches</span>
               <span className="text-lg font-bold text-primary">{statsError ? "—" : stats?.sessionsTotal ?? 0}</span>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 flex items-center justify-center gap-2">
+            <div className="rounded-xl border border-default bg-surface px-3 py-2 flex items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-muted font-bold">Roleplays</span>
               <span className="text-lg font-bold text-primary">0</span>
             </div>
@@ -405,7 +437,7 @@ export default function SalesCoachHome() {
               Start Next Pitch Session
             </DeckButton>
           ) : (
-            <div className="rounded-xl border border-ember-400/40 bg-white/[0.02] p-3 space-y-2.5">
+            <div className="rounded-xl border border-ember-400/40 bg-surface p-3 space-y-2.5">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -545,7 +577,7 @@ export default function SalesCoachHome() {
                 value={clientLabel}
                 onChange={(e) => setClientLabel(e.target.value)}
                 placeholder="Client / campaign (required)"
-                className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
+                className="w-full text-xs bg-surface border border-default rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
               />
             </LearningHint>
           )}
@@ -711,7 +743,7 @@ function MobileCard({
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-ember-400/40 bg-white/[0.02] shadow-[0_0_30px_-16px_rgba(250,204,21,0.5)] p-3.5 flex flex-col items-center justify-center text-center gap-2 aspect-[3/3.4] active:scale-[0.98] transition-transform"
+      className="rounded-2xl border border-ember-400/40 bg-surface shadow-[0_0_30px_-16px_rgba(250,204,21,0.5)] p-3.5 flex flex-col items-center justify-center text-center gap-2 aspect-[3/3.4] active:scale-[0.98] transition-transform"
     >
       <Icon className="w-9 h-9 text-brand" strokeWidth={1.5} aria-hidden />
       <span className="text-sm font-bold text-primary leading-tight">
@@ -737,7 +769,7 @@ function CaptureInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+      className="w-full text-xs bg-surface border border-default rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
     />
   );
 }

@@ -87,3 +87,4 @@ PILOT-ACCESS-CODES.pdf
 
 # Microsoft Office lock/owner files (appear in OneDrive when a doc is open)
 ~$*
+artifacts/
