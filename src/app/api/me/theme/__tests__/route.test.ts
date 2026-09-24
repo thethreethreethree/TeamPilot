@@ -38,7 +38,20 @@ function fakeSb(opts: { row?: unknown; profileErr?: unknown; companyErr?: unknow
       }),
       update: (patch: unknown) => {
         calls.push({ table, patch });
-        return { eq: async () => ({ error: table === "profiles" ? profileErr : companyErr }) };
+        /**
+         * The route now VERIFIES the write landed — `.update(...).eq(...).select(...).maybeSingle()`
+         * — because `.update()` alone reports success on a write that matched zero rows, and a
+         * silently-declined theme save is indistinguishable from one that worked (swept from the
+         * Macro Mode report, 2026-09-24). The mock has to model the same chain, and `eq` stays
+         * awaitable so the company-default branch, which does not select, still works.
+         */
+        const err = table === "profiles" ? profileErr : companyErr;
+        const row = table === "profiles" ? { theme_preference: (patch as Record<string, unknown>).theme_preference } : {};
+        const eq = () => ({
+          select: () => ({ maybeSingle: async () => ({ data: err ? null : row, error: err }) }),
+          then: (res: (v: { error: unknown }) => unknown) => Promise.resolve({ error: err }).then(res),
+        });
+        return { eq };
       },
     }),
     _calls: calls,

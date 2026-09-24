@@ -16,15 +16,35 @@ import { GET, PATCH } from "../route";
 const setAuth = (v: unknown) =>
   (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
 
-/** GET reads via maybeSingle; PATCH awaits update().eq(). One chain serves both. */
-const fakeClient = (opts: { selectResult?: unknown; updateError?: unknown }) =>
+/**
+ * GET reads via maybeSingle; PATCH now does update().eq().select().maybeSingle() — it VERIFIES the
+ * write landed, because `.update()` alone reports success on a write that matched zero rows and a
+ * silently-declined preference save is indistinguishable from one that worked (swept from the
+ * Macro Mode report, 2026-09-24).
+ *
+ * So one chain no longer serves both: `maybeSingle` has to answer the READ on a GET and the
+ * WRITE-BACK on a PATCH. `wrote` tracks which call is in flight, and the patch itself is echoed —
+ * a mock returning a fixed value would pass while the route handed the caller their own input
+ * back, which is the shape this change exists to remove.
+ */
+const fakeClient = (opts: { selectResult?: unknown; updateError?: unknown; updateResult?: unknown }) =>
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     from: () => {
       const chain: Record<string, unknown> = {};
+      let wrote = false;
+      let patched: Record<string, unknown> = {};
       chain.select = () => chain;
-      chain.update = () => chain;
+      chain.update = (p: Record<string, unknown>) => {
+        wrote = true;
+        patched = p;
+        return chain;
+      };
       chain.eq = () => chain;
-      chain.maybeSingle = async () => opts.selectResult ?? { data: null, error: null };
+      chain.maybeSingle = async () => {
+        if (!wrote) return opts.selectResult ?? { data: null, error: null };
+        if (opts.updateError) return { data: null, error: opts.updateError };
+        return opts.updateResult ?? { data: patched, error: null };
+      };
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ error: opts.updateError ?? null });
       return chain;
     },

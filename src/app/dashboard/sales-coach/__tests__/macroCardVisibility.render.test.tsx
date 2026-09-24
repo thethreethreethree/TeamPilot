@@ -129,6 +129,40 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().getByText("—")).toBeTruthy(); // honest load-failure marker (only the Pitches pill renders "—" here)
   });
 
+  /**
+   * FOUNDER REPORT 2026-09-24: "it disappeared and now i can't see the button and the normal mode
+   * never was triggered and the system remains in MACRO mode."
+   *
+   * It was a ONE-WAY DOOR, and by construction rather than by accident. Three facts, each correct
+   * on its own:
+   *
+   *   · turning Macro Mode ON swaps the mobile home for MobileHomePager
+   *   · the full MacroModeToggle card lives on PAGE 1 of that pager
+   *   · MobileHomePager opens on PAGE 0 every launch ON PURPOSE — its own comment says the index
+   *     "is NOT persisted"
+   *
+   * Composed, the only OFF switch sits on a page the rep has to know to swipe to, on every launch,
+   * forever. The feature works and the workflow dead-ends: §1.5.1 layer 3.
+   *
+   * This pins the escape at the level it must exist — reachable WITHOUT swiping — rather than
+   * pinning the particular button. A future redesign may move it; it may not put it back behind
+   * the swipe.
+   */
+  it("Macro ON: there is a way OUT without swiping (founder 2026-09-24 — the one-way door)", async () => {
+    stubFetch(true);
+    const { container } = render(<SalesCoachHome />);
+    const m = () => mobile(container);
+    await waitFor(() => expect(m().getByText(/Swipe left for your home screen/i)).toBeTruthy());
+
+    const exit = m().getByRole("button", { name: /exit macro mode/i });
+    expect(exit).toBeTruthy();
+
+    // It must sit OUTSIDE the pager. Inside, it would be on one page or the other and the trap
+    // would simply have moved rather than closed.
+    const pager = container.querySelector("[data-testid='macro-pager']") ?? m().getByText(/Swipe left for your home screen/i).closest("div");
+    expect(pager?.contains(exit)).toBe(false);
+  });
+
   it("Macro ON: the home is the swipeable pager — door tracker (page 0) + the original Macro home (page 1) with Door Log + Start Knocking (founder 2026-09-10)", async () => {
     stubFetch(true);
     const { container } = render(<SalesCoachHome />);

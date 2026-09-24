@@ -55,10 +55,23 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
   }
 
-  const { error } = await sb
+  /**
+   * `.select(...).maybeSingle()` so a ZERO-ROW write is visible. `.update()` alone returns no
+   * error and no row count, so an RLS filter declining the write is indistinguishable from one
+   * that landed — the route answers ok, the switch stays flipped, and the preference is back to
+   * its old value on the next load. Swept from the Macro Mode report (2026-09-24); five routes on
+   * `profiles` shared this shape.
+   *
+   * This one is the worst of the five to get wrong: the setting decides whether a person is
+   * notified that a CUSTOMER replied. Silently failing to turn it off means unwanted messages;
+   * silently failing to turn it on means missed ones.
+   */
+  const { data: updated, error } = await sb
     .from("profiles")
     .update({ care_notify_customer_reply: body.customerReply })
-    .eq("id", ctx.userId);
+    .eq("id", ctx.userId)
+    .select("care_notify_customer_reply")
+    .maybeSingle();
 
   if (error) {
     if (isMissingColumnError(error, "care_notify_customer_reply")) {
@@ -74,5 +87,17 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't save your notification preference." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, customerReply: body.customerReply });
+  if (!updated) {
+    // After the missing-column branch on purpose: a pending migration is a different condition
+    // with its own honest 409, and folding them together would report a save failure when the
+    // truth is the column does not exist yet.
+    console.error(`[me/care-notifications PATCH] update matched ZERO rows for user=${ctx.userId}.`);
+    return NextResponse.json(
+      { error: "Couldn't save your notification preference." },
+      { status: 500 }
+    );
+  }
+
+  // The stored value, not the requested one.
+  return NextResponse.json({ ok: true, customerReply: Boolean(updated.care_notify_customer_reply) });
 }

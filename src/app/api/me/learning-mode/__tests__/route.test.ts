@@ -29,14 +29,31 @@ type FakeOpts = {
 };
 
 function fakeSb(opts: FakeOpts) {
-  const updateEq = vi.fn(async () => ({ error: opts.updateError ?? null }));
+  /**
+   * The route VERIFIES the write landed now — `.update(...).eq(...).select(...).maybeSingle()`.
+   * `.update()` alone reports success on a write that matched zero rows, so a silently-declined
+   * save was indistinguishable from one that worked (swept from the Macro Mode report,
+   * 2026-09-24). The mock models the same chain and returns the stored row.
+   */
+  let patched: Record<string, unknown> = {};
+  const updateEq = vi.fn(() => ({
+    select: () => ({
+      // Echo what was WRITTEN, because the route now returns the stored value rather than the
+      // requested one — a mock that answered a fixed `true` would pass while the route echoed
+      // the caller's own input back, which is the bug this change removes.
+      maybeSingle: async () => ({
+        data: opts.updateError ? null : { learning_mode_enabled: patched.learning_mode_enabled },
+        error: opts.updateError ?? null,
+      }),
+    }),
+  }));
   return {
     auth: { getUser: async () => ({ data: { user: opts.user ?? null } }) },
     from: () => ({
       select: () => ({
         eq: () => ({ maybeSingle: async () => ({ data: opts.selectData ?? null, error: null }) }),
       }),
-      update: () => ({ eq: updateEq }),
+      update: (p: Record<string, unknown>) => { patched = p; return { eq: updateEq }; },
     }),
     _updateEq: updateEq,
   };

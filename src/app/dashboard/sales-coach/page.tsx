@@ -204,7 +204,7 @@ export default function SalesCoachHome() {
         // pager so it's reachable from either page. The 3 all-time door bubbles were REMOVED from page 1 — page 0
         // owns the funnel numbers now (founder decision, INSPECTION.md).
         <div className="md:hidden flex-1 min-h-0 flex flex-col bg-base pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="shrink-0 px-4 pb-1">
+          <div className="shrink-0 px-4 pb-1 flex items-center justify-between gap-2">
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
@@ -212,6 +212,33 @@ export default function SalesCoachHome() {
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
               Back to ELOSTATE
             </Link>
+
+            {/*
+              THE WAY OUT, ABOVE THE PAGER — founder report 2026-09-24: "it disappeared and now i
+              can't see the button and the normal mode never was triggered and the system remains
+              in MACRO mode."
+
+              It was a one-way door, and by construction rather than by accident. Turning Macro
+              Mode ON swaps this home for the two-page pager; the full MacroModeToggle card lives
+              on PAGE 1; and MobileHomePager opens on PAGE 0 every launch on purpose (its own
+              comment: "the index is NOT persisted"). So the only OFF switch moved to a page a rep
+              has to know to swipe to — every launch, forever. Two individually-correct decisions
+              composing into a trap neither intended, which is the §1.5.1 layer-3 failure: the
+              feature works and the workflow dead-ends.
+
+              Placed here for the reason the sibling link is here — this row sits ABOVE the pager
+              precisely so it is reachable from either page. The full card stays on page 1; this is
+              the escape hatch, not a second copy of the setting.
+            */}
+            <button
+              type="button"
+              onClick={toggleMacro}
+              disabled={macroSaving}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-default px-2.5 py-1 text-[11px] text-secondary hover:text-primary hover:border-strong disabled:opacity-50 transition-colors"
+            >
+              <ArrowLeft className="w-3 h-3" aria-hidden />
+              {macroSaving ? "Leaving…" : "Exit Macro Mode"}
+            </button>
           </div>
           <MobileHomePager
             pages={[

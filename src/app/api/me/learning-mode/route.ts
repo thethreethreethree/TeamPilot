@@ -52,13 +52,27 @@ export async function PATCH(req: NextRequest) {
   const body = await readBody(req, PatchSchema);
   if (body instanceof NextResponse) return body;
 
-  const { error } = await sb
+  const { data: updated, error } = await sb
     .from("profiles")
+  /**
+   * `.select(...).maybeSingle()` so a ZERO-ROW write is visible. Without it `.update()` returns no
+   * error and no row count, so an RLS filter declining the write is indistinguishable from one
+   * that landed — the route answers ok, the switch stays flipped on screen, and the setting is
+   * back to its old value on the next load. Swept from the Macro Mode report (2026-09-24); five
+   * routes on `profiles` shared this shape.
+   */
     .update({ learning_mode_enabled: body.enabled })
-    .eq("id", auth.user.id);
+    .eq("id", auth.user.id)
+    .select("learning_mode_enabled")
+    .maybeSingle();
   if (error) {
     console.error("[me/learning-mode] failed to save preference:", error);
     return NextResponse.json({ error: "Couldn't save your learning-mode setting." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, enabled: body.enabled });
+  if (!updated) {
+    console.error(`[me/learning-mode] update matched ZERO rows for user=${auth.user.id}.`);
+    return NextResponse.json({ error: "Couldn't save your learning-mode setting." }, { status: 500 });
+  }
+  // The stored value, not the requested one.
+  return NextResponse.json({ ok: true, enabled: Boolean(updated.learning_mode_enabled) });
 }

@@ -83,10 +83,23 @@ export async function PATCH(req: NextRequest) {
 
   // 1. Per-user override — self only (RLS enforces id = auth.uid()).
   if (body.preference !== undefined) {
-    const { error } = await sb
+    /**
+     * `.select(...).maybeSingle()` so a ZERO-ROW write is visible. Without it `.update()` returns
+     * no error and no row count, so an RLS filter declining the write is indistinguishable from
+     * one that landed — this route would answer 200, and the user's theme would silently fail to
+     * follow them to another device while every screen said it had saved.
+     *
+     * That matters more since 2026-09-24, when a ThemeToggle was mounted in the Sales Coach header:
+     * the whole reason it is the APP's toggle rather than a local one is that the choice persists
+     * cross-device through here. Swept from the Macro Mode report; five routes on `profiles`
+     * shared this shape.
+     */
+    const { data: updated, error } = await sb
       .from("profiles")
       .update({ theme_preference: body.preference })
-      .eq("id", ctx.userId);
+      .eq("id", ctx.userId)
+      .select("theme_preference")
+      .maybeSingle();
     if (error) {
       if (isMissingColumnError(error, "theme_preference")) {
         return NextResponse.json(
@@ -98,6 +111,14 @@ export async function PATCH(req: NextRequest) {
         );
       }
       console.error("[me/theme] failed to save theme preference:", error);
+      return NextResponse.json({ error: "Couldn't save your theme." }, { status: 500 });
+    }
+    if (!updated) {
+      // Checked AFTER the missing-column branch on purpose: a pending migration is a DIFFERENT
+      // condition with its own 409 and its own honest sentence, and folding the two together
+      // would tell a user their theme failed to save when the truth is the column does not exist
+      // yet and their choice still applies on this device.
+      console.error(`[me/theme] update matched ZERO rows for user=${ctx.userId}.`);
       return NextResponse.json({ error: "Couldn't save your theme." }, { status: 500 });
     }
   }
