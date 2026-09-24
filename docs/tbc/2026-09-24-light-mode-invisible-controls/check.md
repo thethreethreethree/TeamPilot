@@ -123,3 +123,28 @@ not upgraded to observed.**
 
 `theme-audit`'s `paleText` category covers `text-<palette>-100/200` and stops short of `300`, so
 neither is flagged.
+
+### Coach Assessment renders clean — and says one sentence twice
+
+class: two components that each independently print the same sentence, correct alone, duplicated together
+sweep: `grep -n "shown in full above" src/components/sales-coach/*.tsx`
+severity: low
+
+**[OBSERVED]** the manager dashboard — the densest surface in the module — is correct in light
+mode. Four stat cards, the five-KPI activity row, the period toggle, the reps table header and
+every empty state are legible and bordered. A second honest negative, and the more meaningful one
+because of how much is on this screen.
+
+**[OBSERVED]** under "Needs your attention", *"Open score disputes are shown in full above."*
+appeared twice in a row: once ending `ReviewFlagQueue`'s empty-state message
+(`ReviewFlagQueue.tsx:85`), then again from the board itself
+(`CoachAssessmentBoard.tsx:440`), which prints it unconditionally after rendering the queue.
+
+Both sentences are individually correct, which is why no test sees it and reading either file
+alone does not either. The board's own comment three lines above the duplicate explains it is
+AVOIDING duplication — "Duplicating them as a summary line would be a second count of the same
+thing on one screen."
+
+Fixed by removing the clause from the queue, whose message is about flags; disputes are not its
+subject. Verified from the rendered HTML rather than the source: the string now appears once in
+`coach-assessment.light.html`, where the captured screen showed it twice.

@@ -81,9 +81,14 @@ export function ReviewFlagQueue({
 
   if (flags.length === 0) {
     return (
-      <p className="text-[11px] text-muted">
-        No rude-or-dismissive flags awaiting review. Open score disputes are shown in full above.
-      </p>
+      // The disputes sentence belongs to the BOARD, which prints it unconditionally right after
+      // rendering this queue (CoachAssessmentBoard.tsx:440). Saying it here too meant a manager
+      // with no flags — the common case — read the same sentence twice in a row. Found by
+      // rendering the board and looking at it (2026-09-24); no test could see it, because both
+      // sentences are individually correct.
+      //
+      // This message is about FLAGS. Disputes are not its subject.
+      <p className="text-[11px] text-muted">No rude-or-dismissive flags awaiting review.</p>
     );
   }
 

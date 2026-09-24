@@ -50,6 +50,36 @@ describe("RepArena — states", () => {
     await waitFor(() => expect(screen.getByText(/No pitches scored yet/i)).toBeTruthy());
   });
 
+  /**
+   * A REP — not a manager — WITH scored pitches.
+   *
+   * `/api/coach/gamification/leaderboard` answers a non-manager with
+   * `{ period, managerView: false, meId }` at status 200 and NO `rows` (leaderboard/route.ts:58).
+   * The ranking is withheld server-side on purpose.
+   *
+   * Every existing test in this file stubs a full leaderboard, so the shape a REP actually
+   * receives was never rendered. `if (l) setLb(l as Lb)` cast it to a type claiming `rows` always
+   * exists, and `lb?.rows.find(...)` — `?.` on `lb`, nothing on `rows` — threw during render.
+   *
+   * The empty-state guard is `mp.sessions === 0`, so this was unreachable only while nothing
+   * scored pitches. The scoring pipeline shipped the same day is what would have made it live:
+   * the first backfill turns "the dashboards are empty" into "the rep's screen is broken".
+   */
+  it("renders for a REP, whose leaderboard response carries no rows at all", async () => {
+    stubFetch(
+      { rows: [{ session_id: "s1", points: 70, band: "solid", created_at: "2026-09-01T00:00:00Z" }], total: 70, avg: 70, sessions: 1 },
+      // The route's real non-manager body. Not a trimmed-down convenience fixture.
+      { period: "all", managerView: false, meId: "me" }
+    );
+    render(<RepArena />);
+    // A POSITIVE assertion, deliberately. `queryByText(...).toBeNull()` passes on an EMPTY
+    // container too, so it would go green against the very crash this test exists for — React
+    // swallows the render error and leaves nothing behind. Asserting content that only exists when
+    // the render COMPLETED is what makes reverting the fix fail here.
+    await waitFor(() => expect(screen.getByText("Total points earned")).toBeTruthy());
+    expect(screen.getByText("Strong sessions")).toBeTruthy();
+  });
+
   it("renders the populated arena: band from avg, totals, stats, and a best-pitch link", async () => {
     const myPoints = {
       // s1 = Elite (92), s2 = Developing (45) so neither record band equals the gauge's band (avg 76 → Solid),

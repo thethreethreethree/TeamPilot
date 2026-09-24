@@ -26,7 +26,19 @@ type MyPoints = {
   milestones?: Partial<Record<string, string | null>>; // GAM-R13: milestone key → earned-at ISO (from my-points)
 };
 type LbRow = { agent_id: string; best_points: number; deals: number };
-type Lb = { rows: LbRow[]; meId: string; meRank: number | null };
+/**
+ * `rows` and `meRank` are OPTIONAL, because the route does not always send them.
+ *
+ * `/api/coach/gamification/leaderboard` answers a non-manager — an ordinary rep — with
+ * `{ period, managerView: false, meId }` at status 200 and NO `rows` key
+ * (leaderboard/route.ts:58). The ranking is gated server-side on purpose: "A value that never
+ * leaves the server cannot be exposed by a rendering bug."
+ *
+ * This type used to claim `rows` was always there, and the fetch cast the body to it. So for every
+ * rep the shape was a lie, and `lb?.rows.find(...)` — where `?.` guards `lb` and not `rows` —
+ * threw during render.
+ */
+type Lb = { rows?: LbRow[]; meId: string; meRank?: number | null };
 
 const prefersReducedMotion = () =>
   typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -169,7 +181,17 @@ export function RepArena() {
       .then(([m, l]) => {
         if (!alive) return;
         if (m) setMp(m as MyPoints);
-        if (l) setLb(l as Lb);
+        // Narrowed, not cast. `l` is any truthy 200 body; the previous `l as Lb` asserted a shape
+        // the route does not always send and the compiler believed it — the same cast-at-a-wire-
+        // boundary that blanked the Recordings tab this morning (0254's `rejected_bonus`).
+        if (l && typeof l === "object" && typeof (l as { meId?: unknown }).meId === "string") {
+          const raw = l as { rows?: unknown; meId: string; meRank?: unknown };
+          setLb({
+            rows: Array.isArray(raw.rows) ? (raw.rows as LbRow[]) : undefined,
+            meId: raw.meId,
+            meRank: typeof raw.meRank === "number" ? raw.meRank : null,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => alive && setLoaded(true));
@@ -196,7 +218,21 @@ export function RepArena() {
     );
   }
 
-  const meRow = lb?.rows.find((r) => r.agent_id === lb.meId);
+  /**
+   * `lb?.rows?.find` — BOTH links optional.
+   *
+   * A rep (non-manager) gets no `rows` at all, and this line is reached by any rep with at least
+   * one scored pitch, because the empty-state guard above only catches `mp.sessions === 0`. So the
+   * crash was: score a pitch, open Today's Metrics → Progress, get a blank screen.
+   *
+   * Nobody had hit it because nothing scored pitches automatically. The scoring pipeline shipped
+   * on 2026-09-24 is exactly what makes it reachable — the first backfill would have turned "the
+   * dashboards are empty" into "the rep's screen is broken".
+   *
+   * A rep with no rows has no `meRow`, which the destructure below already handles: `best` falls
+   * back to null and the arena renders without a personal-best comparison.
+   */
+  const meRow = lb?.rows?.find((r) => r.agent_id === lb.meId);
   const { bandLabel, best, deals, rank, strong, records, bars, milestones } = deriveArena({
     rows: mp.rows,
     total: mp.total,
