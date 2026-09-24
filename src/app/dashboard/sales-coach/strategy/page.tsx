@@ -76,7 +76,7 @@ export default function SalesCoachStrategyPage() {
             Loading…
           </div>
         ) : error ? (
-          <p className="text-xs text-amber-300 py-8 text-center">{error}</p>
+          <p className="text-xs text-amber-600 dark:text-amber-300 py-8 text-center">{error}</p>
         ) : data ? (
           <>
             {/* ── Your One Liners (rep-private, A18) ──────────────── */}
