@@ -60,7 +60,7 @@ const PERIODS: { key: Period; label: string }[] = [
 const BAND_CLASS: Record<PointsBand, string> = {
   elite: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   strong: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-  solid: "bg-white/10 text-secondary",
+  solid: "bg-ink-200 dark:bg-white/10 text-secondary",
   developing: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   needs_coaching: "bg-red-500/15 text-red-700 dark:text-red-300",
 };

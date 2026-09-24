@@ -116,6 +116,25 @@ const config: Config = {
         default: "rgb(var(--border-default) / <alpha-value>)",
         strong: "rgb(var(--border-strong) / <alpha-value>)",
       },
+      // `stroke-*` and `fill-*` mirror the text tokens. Without these, `stroke-primary` is not a
+      // utility AT ALL: Tailwind emits nothing, the class name survives into the DOM, and the
+      // element renders with SVG's defaults — no stroke, and fill:black. It type-checks, it lints,
+      // it reads correctly, and it does nothing. MyProgress's trend line was invisible in BOTH
+      // themes from the day it was written because of exactly this (2026-09-24).
+      stroke: {
+        primary: "rgb(var(--text-primary) / <alpha-value>)",
+        secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+        muted: "rgb(var(--text-muted) / <alpha-value>)",
+        brand: "rgb(var(--brand-text) / <alpha-value>)",
+        default: "rgb(var(--border-default) / <alpha-value>)",
+        strong: "rgb(var(--border-strong) / <alpha-value>)",
+      },
+      fill: {
+        primary: "rgb(var(--text-primary) / <alpha-value>)",
+        secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+        muted: "rgb(var(--text-muted) / <alpha-value>)",
+        brand: "rgb(var(--brand-text) / <alpha-value>)",
+      },
       textColor: {
         primary: "rgb(var(--text-primary) / <alpha-value>)",
         secondary: "rgb(var(--text-secondary) / <alpha-value>)",

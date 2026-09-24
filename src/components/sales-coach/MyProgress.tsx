@@ -27,10 +27,15 @@ function Trend({ rows }: { rows: Row[] }) {
   const last = rows[rows.length - 1]!;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-12 w-full" role="img" aria-label="Your points per session over time">
-      <line x1={pad} y1={ys(0)} x2={W - pad} y2={ys(0)} className="stroke-white/10" strokeWidth={0.5} />
-      <line x1={pad} y1={ys(100)} x2={W - pad} y2={ys(100)} className="stroke-white/10" strokeWidth={0.5} />
+      <line x1={pad} y1={ys(0)} x2={W - pad} y2={ys(0)} className="stroke-ink-200 dark:stroke-white/10" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+      <line x1={pad} y1={ys(100)} x2={W - pad} y2={ys(100)} className="stroke-ink-200 dark:stroke-white/10" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
       <path d={d} fill="none" className="stroke-primary" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={xs(rows.length - 1)} cy={ys(last.points)} r={1.8} className="fill-primary" />
+      {/* The last point, drawn as a ZERO-LENGTH round-capped line rather than a <circle>.
+          `preserveAspectRatio="none"` scales x and y by different factors — here roughly 9:1 — and a
+          <circle> obeys that, so r=1.8 rendered as a flat black lozenge. A round cap with
+          `non-scaling-stroke` is a dot of constant size in device pixels, which is what "an
+          emphasized last point" meant. */}
+      <line x1={xs(rows.length - 1)} y1={ys(last.points)} x2={xs(rows.length - 1)} y2={ys(last.points)} strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" className="stroke-primary" />
     </svg>
   );
 }
@@ -73,7 +78,7 @@ export function MyProgress() {
       <div className="mt-3 flex flex-col gap-1">
         {recent.map((r, i) => {
           const inner = (
-            <div className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-white/5">
+            <div className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-surface-raised">
               <span className="text-secondary">{new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
               <span className="flex items-center gap-2">
                 {r.band && <span className="text-xs text-muted">{BAND_LABEL[r.band] ?? r.band}</span>}
