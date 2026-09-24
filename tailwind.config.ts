@@ -147,6 +147,18 @@ const config: Config = {
         "active-text": "rgb(var(--brand-text) / <alpha-value>)",
       },
       backgroundColor: {
+        // Each name keeps the meaning it already has in the namespace where it IS defined, so
+        // `bg-muted` is the muted INK and `bg-default` is the default BORDER colour. Without these
+        // entries the utilities do not exist: Tailwind emits nothing, the class name survives into
+        // the DOM looking applied, and the element renders with no fill. Every one of the 25 uses
+        // in this codebase is a status dot, a 1px rule, a toggle knob or a tint — things that were
+        // meant to be SEEN and were not (2026-09-24).
+        primary: "rgb(var(--text-primary) / <alpha-value>)",
+        secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+        muted: "rgb(var(--text-muted) / <alpha-value>)",
+        default: "rgb(var(--border-default) / <alpha-value>)",
+        strong: "rgb(var(--border-strong) / <alpha-value>)",
+        "accent-text": "rgb(var(--brand-text) / <alpha-value>)",
         base: "rgb(var(--bg-base) / <alpha-value>)",
         surface: "rgb(var(--bg-surface) / <alpha-value>)",
         "surface-raised": "rgb(var(--bg-surface-raised) / <alpha-value>)",

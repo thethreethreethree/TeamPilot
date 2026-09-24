@@ -125,7 +125,7 @@ export function CalibrationTool() {
                   <span className="w-6 text-right text-sm font-semibold tabular-nums text-primary">{scores[d.key]}</span>
                 </div>
               ))}
-              <button onClick={submit} disabled={busy} className="mt-3 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              <button onClick={submit} disabled={busy} className="mt-3 w-full rounded-lg bg-ember-400 hover:bg-ember-500 px-4 py-2 text-sm font-medium text-[#09090B] disabled:opacity-50 transition-colors">
                 {busy ? "Saving…" : "Submit & compare"}
               </button>
             </>
