@@ -152,9 +152,13 @@ for (const file of readdirSync(WORK).filter((f) => f.endsWith(".json"))) {
       `#vp{width:${width}px;min-height:${height}px;display:flex;flex-direction:column;overflow:hidden}` +
       // `flex`/`min-height` only — NOT `display`. Forcing the child to flex would silently break
       // any surface that is a grid (the Recordings panel is one), turning a faithful frame into a
-      // different way of inventing layout bugs. As a flex ITEM it still fills the column; what it
+      // different way of inventing layout bugs. As a flex ITEM it lays out in the column; what it
       // is INSIDE stays its own business.
-      `#vp>*{flex:1 1 auto;min-height:0}`;
+      //
+      // `0 1 auto`, NOT `1 1 auto`: do not GROW. A short component stretched to fill the declared
+      // height renders its own padding and spacing as something it is not — a compact notice card
+      // photographed as a tall empty box. Shrinking is still allowed so a tall page lays out.
+      `#vp>*{flex:0 1 auto;min-height:0}`;
     writeFileSync(
       page,
       `<!doctype html><html data-theme="${theme}"><head><meta charset="utf-8"><style>${css}</style>` +

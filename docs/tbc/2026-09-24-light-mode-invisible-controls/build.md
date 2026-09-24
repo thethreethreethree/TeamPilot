@@ -77,3 +77,47 @@ Two details that are load-bearing rather than decorative:
 
 Missing Chrome exits 1 with the paths it looked in. A run that says nothing and exits 0 would read
 as "the surfaces are fine", which is the silence this whole tool exists to break.
+
+### The pitch total, bypassing the contrast fix this codebase already made
+
+- **write-path:** `text-brand` replacing `text-ember-400` on the score total in
+  `src/components/sales-coach/RecordingsTab.tsx`.
+- **read-path:** `npm run visual -- recordingsTab`, light capture — the total reads as dark
+  amber/bronze instead of washed-out yellow.
+
+`--brand-text` is contrast-aware: ember.400 on dark, ember.700 on light. `globals.css:120` records
+exactly why, and it is not a theoretical concern:
+
+> ember.600 measured only 2.7–2.9:1 on light bg (FAILS WCAG AA, founder flagged "too light, hard to
+> see"). ember.700 = 4.5–4.9:1 (PASS-AA), still gold. **Fixes ALL light-mode text-brand at the root.**
+
+**I wrote the offending line two days ago**, in the design-conformance build, against the raw
+`ember-400` scale — which routes around that root fix at the one place it matters most. The pitch
+total is the largest number on a manager's screen and the one they argue about.
+
+The mirror image of the `white/N` class in the same commit: that one is a dark tone invisible on
+light; this one is a bright brand tone washed out on light. Both are "correct in the mode it was
+written in".
+
+The other 33 `text-ember-400` uses are NOT changed. Most are icons, hover states layered over
+`text-brand`, or sit on fixed-dark demo surfaces — and I have rendered none of them.
+
+### Two more captures, and a harness bug they exposed
+
+- **write-path:** `src/test/captures/doorLog.capture.tsx`,
+  `src/test/captures/unscoredBacklog.capture.tsx`, and `flex:0 1 auto` in `scripts/visual/shoot.mjs`.
+- **read-path:** `npm run visual` — four screens now, eight images.
+
+**Door Log** required three mocks and each one was read from the real module rather than imagined:
+the browser Supabase client (the real one throws without env), and `useDoorRecorder`, whose shape
+was copied from `useDoorRecorder.ts:403` — a mock built from memory failed immediately on
+`recorder.arm().then(...)`, which the component awaits at `DoorLog.tsx:278`.
+
+**The harness bug:** the frame set `flex:1 1 auto` on the captured child, so a component shorter
+than the declared height was STRETCHED to fill it. The backlog panel — a compact notice — was
+photographed as a tall box with dead space under its text, which misrepresents its own padding and
+spacing. `flex:0 1 auto` lets it size to its content while still allowing a tall page to shrink.
+
+Second time this tool has nearly invented a layout finding about itself. The first was the
+unconstrained-width clip; both are now fixed and both are documented at the point of the fix,
+because a tool whose failure mode is FABRICATING defects is worse than no tool.

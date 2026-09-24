@@ -75,3 +75,51 @@ Settings and every Pattern Interrupt screen were not.
 **Nothing ran in a real browser session.** These are jsdom renders with mocked fetches,
 screenshotted by headless Chrome. They catch what a surface looks like; they do not catch what it
 does when a real click hits a real server.
+
+### A raw brand scale used where the contrast-aware token exists
+
+class: a brand colour written as a raw scale value, bypassing the mode-aware CSS variable built for it
+sweep: `grep -rn "text-ember-400" src --include=*.tsx | grep -v __tests__`
+severity: medium
+
+**[OBSERVED]** 34 uses of `text-ember-400`.
+
+**[OBSERVED]** one of them — the pitch total in `RecordingsTab` — is body text at `text-lg`, was
+written by me on 2026-09-22, and renders washed out on white. Fixed.
+
+**[ASSUMED]** the other 33 are mostly icons, `hover:` states layered on `text-brand`, or fixed-dark
+demo surfaces. NOT rendered, NOT verified, and deliberately not mass-edited — the same discipline
+applied to the `white/N` count in this build.
+
+The sharp part is not the number. It is that `globals.css:120` documents the founder reporting this
+exact symptom on 2026-07-24 and the fix being applied "at the root" — and two months later a new
+line bypassed the root.
+
+### Door Log renders CLEAN in light — and two of its states were not reached
+
+class: a colour chosen against a dark ground, in a state a capture does not enter
+sweep: `grep -nE "text-red-(300|400)" src/components/sales-coach/doorlog/DoorLog.tsx`
+severity: medium
+
+**[OBSERVED]** the Door Log's IDLE state is correct on cream. The KPI row, the "Ready for the next
+door" empty state, and both action buttons are legible. An honest negative, and worth recording:
+the `white/N` class is not universal, and six `white/N` uses in this file produced no visible
+defect in the state a rep spends most of their time in.
+
+**[INFERRED, NOT RENDERED]** two failure states carry colours picked for matte black:
+
+- `DoorLog.tsx:494` — the send-failure banner, `text-red-300` (#FCA5A5) on `bg-red-500/10`. On
+  cream that wash is nearly white and the text measures far under AA. This is the message telling a
+  rep their door log did not save.
+- `DoorLog.tsx:625` — `text-red-400` (#F87171) on the theme-following ground, roughly 2.5:1 on
+  cream. The sentence is "The mic stopped — audio isn't recording", which is the most urgent thing
+  this screen can say.
+
+Neither is confirmed by render. I attempted the mic-stopped state three times — mocking the
+recorder's `captureInterrupted`, then clicking Record Pitch — and the component's own state machine
+never advanced, because the mocked `arm`/`start` do not drive it. Stopped there rather than keep
+varying the same wrong identification (§2). **These stay [INFERRED] with their hex values shown,
+not upgraded to observed.**
+
+`theme-audit`'s `paleText` category covers `text-<palette>-100/200` and stops short of `300`, so
+neither is flagged.

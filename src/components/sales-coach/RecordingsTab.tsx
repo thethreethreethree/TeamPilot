@@ -345,7 +345,18 @@ function Player({ pitchId, isManager }: { pitchId: string; isManager: boolean })
               −{wire.violations.toFixed(1)}
             </span>
             <span aria-hidden>=</span>
-            <span className="text-lg font-semibold tabular-nums text-ember-400">
+            {/*
+              `text-brand`, NOT `text-ember-400`. --brand-text is the contrast-aware token: ember.400
+              on dark, ember.700 on light. globals.css:120 records why — "ember.600 measured only
+              2.7-2.9:1 on light bg (FAILS WCAG AA, founder flagged 'too light, hard to see')".
+              
+              I wrote this line two days ago against the raw scale, which bypasses that fix at the
+              one place it matters most: the pitch total is the largest number on a manager's screen
+              and the one they argue about. Caught by rendering the panel in light mode for the
+              first time (2026-09-24), which had never been possible inside Sales Coach until a
+              ThemeToggle reached its header that morning.
+            */}
+            <span className="text-lg font-semibold tabular-nums text-brand">
               {wire.total.toFixed(1)}
             </span>
             <span>{wire.band ? `· ${wire.band}` : "· Not counted"}</span>
