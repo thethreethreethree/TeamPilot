@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Info } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { UnscoredBacklog } from "@/components/sales-coach/UnscoredBacklog";
 import { ScoringRubricSheet } from "@/components/sales-coach/ScoringRubricSheet";
 import { DisputeQueue } from "@/components/sales-coach/DisputeQueue";
 import { CoachAssessmentBoard } from "@/components/sales-coach/CoachAssessmentBoard";
@@ -58,6 +59,15 @@ export default function CoachAssessmentPage() {
       {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
 
       <div className="flex-1 overflow-y-auto bg-base">
+        {/*
+          ABOVE the dispute queue and above the board, because it explains why the board might be
+          empty. A manager who opens this page to blank cards needs the reason before the cards,
+          not underneath them — that ordering is the whole difference between "this product is
+          broken" and "this product is waiting on one click".
+        */}
+        <div className="px-4 md:px-8 pt-4">
+          <UnscoredBacklog />
+        </div>
         <div className="px-4 md:px-8 pt-4">
           <DisputeQueue />
         </div>

@@ -5,12 +5,9 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
-import { generatePitchScore } from "@/lib/coach/pitchScore/generatePitchScore";
-import { storePitchScore } from "@/lib/coach/pitchScore/storePitchScore";
+import { getSession } from "@/lib/data/salesCoach";
+import { scoreSession, type ScoreRefusal } from "@/lib/coach/pitchScore/scoreSession";
 import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { runDetection } from "@/lib/coach/patterns/runDetection";
 
 /**
  * POST /api/coach/sales-session/pitch-score  { sessionId }
@@ -46,16 +43,33 @@ import { runDetection } from "@/lib/coach/patterns/runDetection";
  */
 const BodySchema = z.object({ sessionId: z.string().uuid() });
 
+/**
+ * HTTP status per refusal. Not one code for all of them: 404 and 409 are about the REQUEST, 422 is
+ * about the recording, 409-on-suppressed is about the ACCOUNT, and 502 is us. A client that gets
+ * 502 offers a retry; one that gets 422 must not.
+ */
+const STATUS_FOR: Record<ScoreRefusal, number> = {
+  not_found: 404,
+  not_a_sales_call: 409,
+  no_agent_turns: 422,
+  /**
+   * 502, PRESERVED FROM THE OLD INLINE TERNARY, not because it is the best code for it.
+   *
+   * Guidance being off is an account state, not an upstream fault, so a 409 would describe it
+   * better and would stop these showing up in error monitoring as failed dependencies. That is a
+   * behaviour change nobody asked for, in a build about reachability, and the existing test
+   * asserts 502 on purpose — so it is recorded as an observation rather than taken quietly.
+   */
+  suppressed: 502,
+  llm_empty: 502,
+  parse_failed: 502,
+  store_failed: 500,
+};
+
 // LLM route: a full grading is ~30 elements plus events, so it needs more than Vercel's default.
 export const maxDuration = 60;
 
-/** Why a scoring run produced no score. Each maps to a different thing to tell the user. */
-const FAILURE_MESSAGE: Record<string, string> = {
-  no_agent_turns: "This recording has no rep speech to grade.",
-  suppressed: "AI guidance is off for this account, so pitches are not scored yet.",
-  llm_empty: "The scorer returned nothing. This is a fault on our side, not your pitch.",
-  parse_failed: "The scorer's answer could not be read. This is a fault on our side.",
-};
+
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "coach-pitch-score", windowMs: 60_000, max: 12 });
@@ -74,90 +88,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
 
-  // RLS scopes this to owner-or-manager (0083/0084). A null result is the IDOR gate: a same-company
-  // PEER rep must not be able to score — or read — another rep's recording.
-  const session = await getSession(body.sessionId, supabase);
-  if (!session) {
-    return NextResponse.json({ error: "Session not found or not accessible." }, { status: 404 });
-  }
-
-  // (3) A huddle is not a pitch. Refused with a reason rather than scored low, because a score is
-  // a claim about how someone sold and this conversation was never a sale.
-  if (session.sessionKind !== "sales") {
-    return NextResponse.json(
-      { error: `Only sales calls are scored against the pitch rubric (this is a ${session.sessionKind}).` },
-      { status: 409 }
-    );
-  }
-
-  const segments = await getSessionTranscript(body.sessionId, supabase);
-
-  const result = await generatePitchScore({
+  /**
+   * ONE authority, consumed as a verdict (§2.2).
+   *
+   * This route used to hold the whole sequence inline — session read, kind check, transcript,
+   * grading, store, detection. It is now one of THREE callers (this button, the session-close
+   * path, the backlog drain), and three inline copies of "can this be scored?" is the duplicated
+   * condition that drifts: one gains a term, the others do not, and a caller either scores
+   * something it should have refused or throws away a result it has already paid for.
+   */
+  const outcome = await scoreSession({
+    sessionId: body.sessionId,
     companyId,
-    sessionTitle: session.clientLabel ?? undefined,
-    segments,
+    db: supabase,
+    // A manager pressing Score again means score it again. Only the unattended callers skip.
+    skipIfScored: false,
   });
 
-  // No zero-score failure path. Every one of these is reported as a failure, never stored — the
-  // whole reason generatePitchScore returns a discriminated union is that a blank LLM answer must
-  // not become a real-looking 0 on a rep's leaderboard with nothing in the logs.
-  if (!result.ok) {
+  if (!outcome.ok) {
     return NextResponse.json(
-      { error: FAILURE_MESSAGE[result.failure] ?? "The pitch could not be scored.", failure: result.failure },
-      { status: result.failure === "no_agent_turns" ? 422 : 502 }
-    );
-  }
-
-  const pitchId = await storePitchScore({
-    companyId,
-    // (1) The rep who gave the pitch, never the caller who asked for it scored.
-    repId: session.agentId,
-    // (2) The recording's own time.
-    recordedAt: session.startedAt,
-    sessionId: session.id,
-    durationS: sessionDurationS(session),
-    audioUrl: session.audioAssetUrl,
-    // (4) Mapped, not forwarded — 'no_contact' and 'undecided' have no column value.
-    outcome: pitchOutcome(session.outcome),
-    result,
-  });
-
-  if (!pitchId) {
-    // storePitchScore has already logged the detail server-side (CWE-209). The caller gets the
-    // fact, not the constraint text.
-    return NextResponse.json({ error: "The score could not be saved." }, { status: 500 });
-  }
-
-  // ── Pattern detection ──────────────────────────────────────────────────────────────────────
-  // Guide Step 5: "Run detection every time a pitch is scored." This is that hook, and it is the
-  // line that makes Pattern Interrupt's empty state honest — without it the board says "nothing
-  // has been missed in 3 or more of your last 10 pitches" when nothing has looked.
-  //
-  // AFTER the score is stored, and deliberately so: detection reads `pitch_score_elements`, so the
-  // pitch that just landed has to be in the table before it can be part of its own last-10.
-  //
-  // NEVER FAILS THE REQUEST. A rep's score is saved and correct at this point; if pattern writing
-  // breaks, the right outcome is a logged error and a 200, not telling a rep their pitch could not
-  // be scored. The service-role client is required — `patterns` has no insert policy, so a
-  // caller-scoped client would write nothing and report success, which is the silent-zero shape
-  // this whole feature is built to avoid.
-  try {
-    const detection = await runDetection({ companyId, repId: session.agentId }, createAdminClient());
-    if (detection.opened > 0) {
-      console.info(
-        `[pitch-score] detection opened ${detection.opened} pattern(s) for rep=${session.agentId} (examined ${detection.examined} items)`
-      );
-    }
-  } catch (e) {
-    console.error(
-      `[pitch-score] detection threw for rep=${session.agentId} pitch=${pitchId}: ${e instanceof Error ? e.message : String(e)}`
+      // The authority's own sentence — see scoreSession's note on why this is not rebuilt here.
+      { error: outcome.humanMessage, failure: outcome.reason },
+      { status: STATUS_FOR[outcome.reason] }
     );
   }
 
   return NextResponse.json({
-    pitchId,
-    score: result.score,
-    timestampsUnavailable: result.timestampsUnavailable,
+    pitchId: outcome.pitchId,
+    score: outcome.score,
+    timestampsUnavailable: outcome.timestampsUnavailable,
   });
 }
 
@@ -192,24 +151,4 @@ export async function GET(req: NextRequest) {
  * for an UPLOADED recording the started..ended wall-clock is when the file was processed, not how
  * long the conversation was. Falls back to wall-clock, which is correct for live coaching.
  */
-function sessionDurationS(session: {
-  audioDurationSeconds: number | null;
-  startedAt: string;
-  endedAt: string | null;
-}): number | null {
-  if (session.audioDurationSeconds != null) return session.audioDurationSeconds;
-  if (!session.endedAt) return null;
-  const ms = Date.parse(session.endedAt) - Date.parse(session.startedAt);
-  return Number.isFinite(ms) && ms > 0 ? Math.round(ms / 1000) : null;
-}
 
-/**
- * Map a SalesOutcome onto the three values `pitches.outcome` accepts.
- *
- * `no_contact` and `undecided` become null rather than being forced into one of the three. A door
- * that was never answered is not a "no_sale" — recording it as one would make the sold-rate a lie,
- * and the sold-rate is one of the two hard metrics the whole product is measured on (§3.5).
- */
-function pitchOutcome(outcome: string | null): "sold" | "follow_up" | "no_sale" | null {
-  return outcome === "sold" || outcome === "follow_up" || outcome === "no_sale" ? outcome : null;
-}

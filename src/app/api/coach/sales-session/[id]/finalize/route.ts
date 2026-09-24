@@ -10,6 +10,7 @@ import {
   appendTranscriptSegment,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { scoreSession } from "@/lib/coach/pitchScore/scoreSession";
 import { ATTRIBUTION_SOURCES } from "@/lib/coach/v5/speakerAttribution";
 
 // The five post-call engines run concurrently, each bounded by a 40s (shared) in-code
@@ -164,9 +165,45 @@ export async function POST(
     segments,
   });
 
+  /**
+   * SCORE THE PITCH HERE, because "when the recording is finished" is when it should happen.
+   *
+   * Until this line, `pitch_scores` had exactly one caller: a button on the session page. So the
+   * Recordings tab, the leaderboard, best-pitches, the breakdown, milestones, disputes and every
+   * Pattern Interrupt screen showed only the pitches somebody remembered to grade by hand. A
+   * partner asked why the manager dashboard was empty, and this was the answer
+   * (docs/AUDIT-UNTRIGGERED-ARTIFACTS-2026-09-24.md).
+   *
+   * WHY THIS ROUTE. It already holds everything scoring needs — the authenticated caller, the
+   * company, the session, the transcript — and it is already the place where "this recording is
+   * done, derive things from it" happens. Adding a fourth close path to hook would have been a
+   * fourth thing to keep in step.
+   *
+   * IT CANNOT FAIL THE FINALIZE. A rep finishing a call must never see an error because a grader
+   * was slow; the transcript and the five artifacts are saved and correct by this point. A failure
+   * logs and the recording stays scoreable by the button and by the drain.
+   *
+   * `skipIfScored` because /finalize is reachable more than once for one session — the client
+   * retries it, and a second grading would bill the same pitch twice and write a second row that
+   * every per-session read would then have to disambiguate.
+   */
+  let pitchScored = false;
+  try {
+    const scored = await scoreSession({ sessionId: id, companyId, db: supabase, skipIfScored: true });
+    pitchScored = scored.ok;
+    if (!scored.ok && scored.reason !== "not_a_sales_call") {
+      // A huddle reaching here is ordinary and not worth a log line. Anything else is a pitch that
+      // SHOULD have scored and did not, which is the silence this whole build exists to end.
+      console.error(`[finalize] session=${id} was not scored: ${scored.reason} — ${scored.humanMessage}`);
+    }
+  } catch (err) {
+    console.error(`[finalize] scoring threw for session=${id}:`, err);
+  }
+
   return NextResponse.json({
     appended,
     transcriptSegments: segments.length,
+    pitchScored,
     dissectGenerated: !!dissect?.hasSignal,
     summaryGenerated: !!summary,
     momentsGenerated: Array.isArray(moments) && moments.length > 0,
