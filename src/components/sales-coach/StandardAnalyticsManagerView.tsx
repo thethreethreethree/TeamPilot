@@ -58,7 +58,7 @@ export function StandardAnalyticsManagerView({ fallback }: { fallback: React.Rea
       <p className="text-[11px] text-muted mb-4">
         Open a rep to see their strengths and growth areas — data to coach with, never a ranking.
       </p>
-      <div className="flex flex-col divide-y divide-white/5">
+      <div className="flex flex-col divide-y divide-default">
         {(members ?? []).map((m) => (
           <button
             key={m.id}
@@ -142,7 +142,7 @@ function RepProfile({ member, onBack }: { member: Member; onBack: () => void }) 
           </div>
 
           <p className="text-[11px] uppercase tracking-wide text-muted mb-2">Skill grades</p>
-          <div className="flex flex-col divide-y divide-white/5">
+          <div className="flex flex-col divide-y divide-default">
             {graded.map((g) => (
               <div key={g.label} className="py-2">
                 <div className="flex items-center justify-between">

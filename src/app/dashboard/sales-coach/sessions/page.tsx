@@ -409,7 +409,7 @@ export default function SalesCoachSessionsPage() {
             </div>
 
             {patternsError && (
-              <p className="text-[11px] text-amber-300 mb-2">{patternsError}</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 mb-2">{patternsError}</p>
             )}
 
             {patternsState.stored && patternsState.stored.patterns.length > 0 ? (
@@ -428,14 +428,14 @@ export default function SalesCoachSessionsPage() {
                   {patternsState.stored.patterns.map((p, i) => (
                     <li
                       key={i}
-                      className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                      className="rounded-xl border border-default bg-surface p-3"
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span
                           className={`text-[9px] uppercase tracking-widest font-bold ${
                             p.kind === "strength"
-                              ? "text-emerald-300"
-                              : "text-amber-300"
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-amber-700 dark:text-amber-300"
                           }`}
                         >
                           {p.kind === "strength" ? "Working for you" : "Costing you"}
@@ -489,10 +489,10 @@ export default function SalesCoachSessionsPage() {
               how="Pick ONE and take it into your next door. Don't try to fix them all at once — behavior changes one focus at a time."
               principle="One fix, practiced, beats twelve noted and forgotten."
             >
-              <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+              <DeckCard className="divide-y divide-default overflow-hidden">
                 {stats.recentGrowth.map((g, i) => (
                   <div key={i} className="flex items-start gap-2.5 px-4 py-3">
-                    <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+                    <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" aria-hidden />
                     <p className="text-xs text-secondary leading-relaxed">{g}</p>
                   </div>
                 ))}
@@ -567,7 +567,7 @@ export default function SalesCoachSessionsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={isManager ? "Search client or agent…" : "Search client…"}
-                className="w-full bg-black/30 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+                className="w-full bg-surface border border-default rounded-xl pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
               />
             </div>
           </LearningHint>
@@ -650,7 +650,7 @@ export default function SalesCoachSessionsPage() {
             how="If you expected to see coaching sessions here, ask an admin to check that your account is linked to the correct Sales Coach workspace. Retrying won't fix a permissions gap."
             principle="An error dressed as an empty result is a lie the interface tells you."
           >
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+            <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4">
               <p className="text-xs text-secondary">
                 You don&apos;t have access to a Sales Coach workspace here. Ask an
                 admin if this looks wrong.
@@ -668,7 +668,7 @@ export default function SalesCoachSessionsPage() {
             principle="When the data can't load, say so — don't render silence as absence."
           >
             <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
-              <p className="text-xs text-amber-300">
+              <p className="text-xs text-amber-700 dark:text-amber-300">
                 Couldn&apos;t load your sessions right now — this is an error, not
                 an empty history. Try again shortly.
               </p>
@@ -700,7 +700,7 @@ export default function SalesCoachSessionsPage() {
             how="Scan the detail line to spot patterns — a string of short in-person calls, a run of the same outcome. Click any row to reopen that conversation and study what happened turn by turn. Managers: the rep's name is here for coaching that call, not for stacking people against each other."
             principle="A visible, chronological record teaches; a ranked one just makes people perform."
           >
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
+            <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm divide-y divide-default overflow-hidden">
               {filtered.map((s) => (
                 // The row is a flex container; only the LEFT content is the
                 // navigating <Link>. The flag is an interactive <button> and MUST
@@ -709,7 +709,7 @@ export default function SalesCoachSessionsPage() {
                 // as a sibling of the Link, not a child.
                 <div
                   key={s.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised transition-colors"
                 >
                   <Link
                     href={`/dashboard/sales-coach/${s.id}`}
@@ -804,7 +804,7 @@ export default function SalesCoachSessionsPage() {
 
         {/* F1: don't claim "no dissect" when the badge query failed. */}
         {!loading && !noAccess && !degraded && !badgesAvailable && (
-          <p className="text-[10px] text-amber-300/80 text-center">
+          <p className="text-[10px] text-amber-700 dark:text-amber-300/80 text-center">
             Review / dissect status is unavailable right now.
           </p>
         )}
@@ -840,9 +840,9 @@ export default function SalesCoachSessionsPage() {
           <div className="space-y-3">
             <div className="flex items-start gap-2">
               {openFlag.flag.kind === "examination" ? (
-                <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" aria-hidden />
+                <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" aria-hidden />
               ) : (
-                <Award className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" aria-hidden />
+                <Award className="w-4 h-4 text-emerald-700 dark:text-emerald-300 shrink-0 mt-0.5" aria-hidden />
               )}
               <p className="text-sm text-primary leading-relaxed">
                 {openFlag.flag.headline}
@@ -856,7 +856,7 @@ export default function SalesCoachSessionsPage() {
               {openFlag.flag.reasons.map((r, i) => (
                 <li
                   key={i}
-                  className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                  className="rounded-xl border border-default bg-surface p-3"
                 >
                   <p className="text-[10px] uppercase tracking-widest font-bold text-secondary mb-0.5">
                     {r.label}
@@ -920,8 +920,8 @@ function FlagBadge({
       onClick={onOpen}
       className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 border transition-colors ${
         isExam
-          ? "text-amber-300 border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20"
-          : "text-emerald-300 border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/20"
+          ? "text-amber-700 dark:text-amber-300 border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20"
+          : "text-emerald-700 dark:text-emerald-300 border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/20"
       }`}
       title="Click for the detailed explanation"
       aria-label={
@@ -990,7 +990,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-secondary focus:outline-none focus:border-ember-400/50"
+      className="bg-surface border border-default rounded-xl px-2.5 py-2 text-xs text-secondary focus:outline-none focus:border-ember-400/50"
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>

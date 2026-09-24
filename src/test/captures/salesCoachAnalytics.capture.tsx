@@ -22,8 +22,16 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/dashboard/sales-coach/analytics",
 }));
+/**
+ * Mutable. `AgentEloBadge` — and through it the EloMeter gauge — renders only when `!isStandard`
+ * (analytics/page.tsx:189). A Standard-only capture never photographs it, which is how the
+ * gauge's TRACK and its 1500 "standard" tick, both `text-white/N` driving currentColor on an SVG
+ * stroke, went unseen: invisible on cream, and invisible to every sweep, since neither is spelled
+ * `stroke-white` nor sits on a border or a background.
+ */
+const mode = { isStandard: true };
 vi.mock("@/components/experience/ExperienceModeProvider", () => ({
-  useExperienceMode: () => ({ isStandard: true, isExpert: false, loaded: true }),
+  useExperienceMode: () => ({ isStandard: mode.isStandard, isExpert: !mode.isStandard, loaded: true }),
 }));
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 vi.mock("@/components/learning/LearningHint", () => ({ LearningHint: () => null }));
@@ -82,6 +90,13 @@ const serve = (stats: unknown) =>
       if (url.includes("team-analytics")) return { ok: true, json: async () => ({ team: null }) };
       if (url.includes("skills"))
         return { ok: true, json: async () => ({ skills: stats === EMPTY_STATS ? [] : SKILLS }) };
+      if (url.includes("/elo"))
+        return {
+          ok: true,
+          json: async () => ({
+            elo: { rating: 1740, gamesPlayed: 18, provisional: false, lastDelta: 12, history: [] },
+          }),
+        };
       if (url.includes("dashboard"))
         return { ok: true, json: async () => ({ stats, series: [] }) };
       return { ok: true, json: async () => ({}) };
@@ -107,5 +122,18 @@ describe("capture", () => {
     const { container } = render(<SalesCoachAnalyticsPage />);
     await screen.findAllByText(/session/i, undefined, { timeout: 8000 });
     capture("analytics-empty", container, { width: 1180, height: 700 });
+  });
+
+  it("analytics expert, the ELO gauge", async () => {
+    stubBrowserApis();
+    mode.isStandard = false;
+    serve(STATS);
+    try {
+      const { container } = render(<SalesCoachAnalyticsPage />);
+      await screen.findAllByText(/1740/, undefined, { timeout: 8000 });
+      capture("analytics-expert", container, { width: 1180, height: 900 });
+    } finally {
+      mode.isStandard = true;
+    }
   });
 });

@@ -101,7 +101,7 @@ export function EloMeter({
         fill="none"
         strokeLinecap="round"
         stroke="currentColor"
-        className="text-white/10"
+        className="text-ink-200 dark:text-white/10"
         strokeWidth={sw}
       />
 
@@ -123,7 +123,7 @@ export function EloMeter({
         x2={std.x.toFixed(2)}
         y2={std.y.toFixed(2)}
         stroke="currentColor"
-        className="text-white/50"
+        className="text-ink-400 dark:text-white/50"
         strokeWidth={Math.max(1, sw * 0.32)}
         strokeLinecap="round"
       />

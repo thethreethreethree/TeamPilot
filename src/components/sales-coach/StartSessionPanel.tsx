@@ -135,10 +135,10 @@ export function StartSessionPanel() {
             live words. (Capturing the far-end call audio is a separate,
             not-yet-built capability — founder A/B pending.) */}
         {context === "video" && (
-          <p className="flex items-start gap-1.5 text-[11px] leading-snug text-white/55 mb-2.5">
+          <p className="flex items-start gap-1.5 text-[11px] leading-snug text-secondary mb-2.5">
             <Mic className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
             <span>
-              On video, your mic hears <strong className="text-white/75">your</strong> side — not
+              On video, your mic hears <strong className="text-primary">your</strong> side — not
               the prospect&apos;s audio from the far end of the call. The coach guides your
               delivery: pacing, filler, framing, and the words you choose.
             </span>
@@ -159,7 +159,7 @@ export function StartSessionPanel() {
           value={clientLabel}
           onChange={(e) => setClientLabel(e.target.value)}
           placeholder="Client / campaign (required)"
-          className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
+          className="w-full text-xs bg-surface border border-default rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mb-2.5"
         />
       </LearningHint>
       <LearningHint
@@ -229,7 +229,7 @@ function PanelInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+      className="w-full text-xs bg-surface border border-default rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
     />
   );
 }

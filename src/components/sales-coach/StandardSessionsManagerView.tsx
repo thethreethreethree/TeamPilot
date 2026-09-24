@@ -68,7 +68,7 @@ export function StandardSessionsManagerView({ fallback }: { fallback: React.Reac
       <p className="text-[11px] text-muted mb-4">
         Each rep&apos;s activity over the last 30 days. Open a rep to see their sessions and recordings.
       </p>
-      <div className="flex flex-col divide-y divide-white/5">
+      <div className="flex flex-col divide-y divide-default">
         {(members ?? []).map((m) => {
           const a = activity[m.id];
           return (
@@ -209,7 +209,7 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
       ) : (sessions ?? []).length === 0 ? (
         <p className="text-sm text-muted">No sessions in the last {windowDays} days.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-white/5">
+        <div className="flex flex-col divide-y divide-default">
           {(sessions ?? []).map((s) => (
             <div key={s.id} className="flex items-center justify-between py-3 gap-3">
               <Link href={`/dashboard/sales-coach/${s.id}`} className="min-w-0 hover:opacity-80">
@@ -226,7 +226,7 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
                       onClick={() => void toggleSave(s)}
                       disabled={savingId === s.id}
                       className={`text-[11px] px-2 py-1 rounded border ${
-                        s.saved ? "border-brand text-brand" : "border-white/15 text-muted"
+                        s.saved ? "border-brand text-brand" : "border-default text-muted"
                       } hover:opacity-80 disabled:opacity-50`}
                     >
                       {s.saved ? "Saved" : "Save"}
@@ -238,7 +238,7 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
                       setDeleteError(null);
                     }}
                     aria-label={`Delete the recording of ${s.clientLabel ?? "this session"}`}
-                    className="text-[11px] px-2 py-1 rounded border border-white/15 text-muted hover:opacity-80"
+                    className="text-[11px] px-2 py-1 rounded border border-default text-muted hover:opacity-80"
                   >
                     Delete
                   </button>
@@ -257,7 +257,7 @@ function RepActivity({ member, onBack }: { member: Member; onBack: () => void })
                     <button
                       onClick={() => setConfirmingId(null)}
                       disabled={deletingId === s.id}
-                      className="text-[11px] px-2 py-1 rounded border border-white/15 text-muted hover:opacity-80 disabled:opacity-50"
+                      className="text-[11px] px-2 py-1 rounded border border-default text-muted hover:opacity-80 disabled:opacity-50"
                     >
                       Keep it
                     </button>
