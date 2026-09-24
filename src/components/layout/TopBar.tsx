@@ -3,6 +3,7 @@
 import { ArrowLeft, Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatDate, formatTime } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useState, useEffect } from "react";
 
 interface TopBarProps {
@@ -109,6 +110,23 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/*
+          Light / dark, top right (founder 2026-09-24).
+        
+          ONLY on Sales Coach routes, and that is not an arbitrary narrowing. The ELOSTATE dashboard
+          already carries a ThemeToggle in its left Sidebar, so rendering one here too would put two
+          controls for one setting on the same screen. Sales Coach runs in SalesCoachShell, which has
+          its OWN nav and never mounts that Sidebar — so on these routes there was no way to change
+          the theme at all. This fills exactly that hole.
+        
+          `compact` — one button cycling system → light → dark — matches what CareShell already uses
+          in its header, and a header is not where the three-wide segmented pill belongs.
+        
+          Reuses the app-wide ThemeProvider (mounted in layout.tsx, above this) rather than holding
+          any theme state of its own: the preference persists to localStorage AND cross-device via
+          /api/me/theme, so a rep who picks light on their phone gets light on the laptop.
+        */}
+        {inSalesCoach && <ThemeToggle variant="compact" />}
         <div className="hidden md:flex items-center gap-2 text-xs text-muted bg-surface border border-default rounded-lg px-3 py-1.5">
           <span>{now ? formatDate(now) : "—"}</span>
           <span className="text-muted">·</span>
