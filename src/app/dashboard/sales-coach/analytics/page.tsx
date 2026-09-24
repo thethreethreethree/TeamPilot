@@ -396,7 +396,7 @@ export default function SalesCoachAnalyticsPage() {
               how="Look for the downward slope over time, not one session. If it's climbing, your reviews aren't sticking — drill one growth area."
               principle="Fewer cues over time is the measure of a coach that worked."
             >
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+            <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4">
               <div className="flex items-center gap-1.5 mb-3">
                 <TrendingDown className="w-3.5 h-3.5 text-brand" aria-hidden />
                 <h2 className="text-sm font-semibold text-primary">
@@ -464,7 +464,7 @@ export default function SalesCoachAnalyticsPage() {
                 <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-3">
                   Recurring growth opportunities
                 </h2>
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
+                <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm divide-y divide-default overflow-hidden">
                   {stats.recentGrowth.map((g, i) => (
                     <div key={i} className="flex items-start gap-2.5 px-4 py-3">
                       <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
@@ -545,7 +545,7 @@ function SkillScores({
   }
   if (skills.length === 0) {
     return (
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
+      <section className="rounded-2xl border border-default bg-surface p-5 text-center">
         <p className="text-xs text-muted">
           No scored calls yet. Run a session and your skills will show up here —
           one score per skill, so you know exactly what to work on next.
@@ -577,14 +577,20 @@ function SkillScores({
           const tone = !scored
             ? "text-muted"
             : s.score! >= 8
-              ? "text-emerald-300"
+              // -300 tints are dark-mode tones: emerald-300 and amber-300 sit near 1.5:1 on cream.
+              // The MIDDLE band already used `text-brand`, which is contrast-aware — so the right
+              // pattern was in this very expression and two of its three branches missed it.
+              // The low band is the worst place for it: a rep's WEAKEST skill, the one the whole
+              // screen exists to point at, was the least readable thing on it.
+              // Dark values preserved exactly.
+              ? "text-emerald-600 dark:text-emerald-300"
               : s.score! >= 5
                 ? "text-brand"
-                : "text-amber-300";
+                : "text-amber-600 dark:text-amber-300";
           return (
             <div
               key={s.key}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 flex flex-col"
+              className="rounded-xl border border-default bg-surface p-3 flex flex-col"
             >
               <div className="flex items-baseline justify-between">
                 <p className="text-[10px] uppercase tracking-widest font-bold text-muted">
