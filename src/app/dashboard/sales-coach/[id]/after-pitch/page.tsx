@@ -649,7 +649,7 @@ export default function AfterPitchPage() {
             </button>
           </div>
         ) : !summary || !summary.hasSignal ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5 text-center space-y-3">
+          <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-5 text-center space-y-3">
             {/* Honest root cause, not a vague "not enough" (§3.4). The common
                 cause is a call delivered WITHOUT live coaching running — "Start
                 session" only opens the session; recording begins when you tap
@@ -820,7 +820,7 @@ export default function AfterPitchPage() {
                 correction, never an erase. A LOSS is the most valuable data, so the
                 copy never nudges toward the flattering answer (§3.5). */}
             {isStandard && isOwner && session && (
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
+              <div className="rounded-xl border border-default bg-surface p-3 space-y-2">
                 <p className="text-[11px] font-semibold text-primary">
                   How did it go?
                   {session.outcome == null && (
@@ -874,7 +874,7 @@ export default function AfterPitchPage() {
                       {savingDeal ? "Saving…" : "Save value"}
                     </button>
                     {session.dealValue != null && (
-                      <span className="text-[11px] text-emerald-300 mb-1.5">
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300 mb-1.5">
                         Recorded: {session.dealValue.toLocaleString()}
                       </span>
                     )}
@@ -1010,15 +1010,15 @@ function CollapseToggle({
         className="w-full flex items-center justify-between gap-3 rounded-xl border border-ember-400/60 bg-ember-400/15 px-4 py-3.5 text-left shadow-[0_0_22px_-6px_rgba(250,204,21,0.55)] transition-colors hover:bg-ember-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-300"
       >
         <span className="flex items-center gap-2.5">
-          {icon ?? <Lightbulb className="w-5 h-5 text-ember-300" aria-hidden />}
+          {icon ?? <Lightbulb className="w-5 h-5 text-ember-700 dark:text-ember-300" aria-hidden />}
           <span className="text-base font-bold text-primary">{title}</span>
         </span>
         <span className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-ember-200">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-ember-700 dark:text-ember-200">
             {open ? "Hide" : "Tap to open"}
           </span>
           <ChevronDown
-            className={`w-5 h-5 text-ember-200 transition-transform ${open ? "rotate-180" : ""}`}
+            className={`w-5 h-5 text-ember-700 dark:text-ember-200 transition-transform ${open ? "rotate-180" : ""}`}
             aria-hidden
           />
         </span>
@@ -1062,7 +1062,7 @@ function Timeline({ moments }: { moments: Moment[] }) {
       how="Scan left to right for the glowing amber dot — that's the breakdown detailed just below. The timestamps orient you to when each moment happened."
       principle="Every call has a hinge moment; find it and you find where to improve."
     >
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+      <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4">
         {/* pt-3 so the breakdown dot's ring+glow clears the clip — overflow-x
             forces overflow-y:auto, which was cutting the circle at the top. */}
         <div className="flex items-start gap-2 overflow-x-auto pt-3 pb-1">
@@ -1072,10 +1072,10 @@ function Timeline({ moments }: { moments: Moment[] }) {
               {/* continuous track — a segment left and right of each node so
                   the dots read as one connected timeline (mockup). */}
               {i > 0 && (
-                <span className="absolute right-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-white/12" />
+                <span className="absolute right-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-ink-200 dark:bg-white/12" />
               )}
               {i < moments.length - 1 && (
-                <span className="absolute left-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-white/12" />
+                <span className="absolute left-1/2 top-1/2 h-px w-full -translate-y-1/2 bg-ink-200 dark:bg-white/12" />
               )}
               {/* breakdown = the brightest node (mockup's highlight) but kept
                   in our ember accent, not the PDF's yellow (docs/BRAND.md). */}
@@ -1083,7 +1083,7 @@ function Timeline({ moments }: { moments: Moment[] }) {
                 className={`relative z-10 rounded-full ${
                   m.isBreakdown
                     ? "w-4 h-4 bg-ember-400 ring-4 ring-ember-400/25 shadow-[0_0_14px_-1px_rgba(250,204,21,0.8)]"
-                    : "w-2.5 h-2.5 bg-white/25"
+                    : "w-2.5 h-2.5 bg-ink-400 dark:bg-white/25"
                 }`}
               />
             </div>
@@ -1098,7 +1098,7 @@ function Timeline({ moments }: { moments: Moment[] }) {
             )}
             <p
               className={`text-[10px] leading-tight mt-0.5 ${
-                m.isBreakdown ? "text-amber-300 font-semibold" : "text-muted"
+                m.isBreakdown ? "text-amber-700 dark:text-amber-300 font-semibold" : "text-muted"
               }`}
             >
               {m.label}
@@ -1106,12 +1106,12 @@ function Timeline({ moments }: { moments: Moment[] }) {
             {/* Customer-sentiment direction at this moment — §A21 parity with the
                 summary-surface timeline (founder 2026-07-07). */}
             {m.sentiment === "warming" && (
-              <p className="text-[10px] text-emerald-400 leading-none mt-0.5" title="customer warming">
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 leading-none mt-0.5" title="customer warming">
                 ↗
               </p>
             )}
             {m.sentiment === "cooling" && (
-              <p className="text-[10px] text-amber-400 leading-none mt-0.5" title="customer cooling">
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-none mt-0.5" title="customer cooling">
                 ↘
               </p>
             )}
@@ -1190,7 +1190,7 @@ function KeyMoves({
         how="Read it next to the AI-suggested move to feel the difference between what you did and what lands better."
         principle="Change starts with seeing exactly what you said, not a kinder version of it."
       >
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 h-full">
+        <div className="rounded-xl border border-default bg-surface p-3 h-full">
           <div className="flex items-center gap-1 mb-1.5">
             <Quote className="w-3 h-3 text-muted" aria-hidden />
             <p className="text-[9px] uppercase tracking-wide text-muted font-bold">
@@ -1232,10 +1232,10 @@ function KeyMoves({
         how="Hold just this one thing in mind at the next door. It's the same focus as the Next Door card below, condensed to a glance."
         principle="The point of reviewing a call is the next call — carry one upgrade, not ten regrets."
       >
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 h-full">
+        <div className="rounded-xl border border-default bg-surface p-3 h-full">
           <div className="flex items-center gap-1 mb-1.5">
-            <TrendingUp className="w-3 h-3 text-emerald-400" aria-hidden />
-            <p className="text-[9px] uppercase tracking-wide text-emerald-300 font-bold">
+            <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            <p className="text-[9px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300 font-bold">
               Strategy upgrade
             </p>
           </div>
@@ -1402,7 +1402,7 @@ function BlankReadRecovery({
             That&apos;s the customer
           </button>
         </div>
-        {answerError ? <p className="text-[11px] text-rose-300">{answerError}</p> : null}
+        {answerError ? <p className="text-[11px] text-rose-700 dark:text-rose-300">{answerError}</p> : null}
       </section>
     );
   }
@@ -1525,8 +1525,8 @@ function Narrative({
           >
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" aria-hidden />
-              <h3 className="text-[10px] uppercase tracking-widest font-bold text-emerald-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <h3 className="text-[10px] uppercase tracking-widest font-bold text-emerald-700 dark:text-emerald-300">
                 What you did well
               </h3>
             </div>
@@ -1557,8 +1557,8 @@ function Narrative({
           >
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" aria-hidden />
-              <h3 className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
+              <h3 className="text-[10px] uppercase tracking-widest font-bold text-amber-700 dark:text-amber-300">
                 Opportunities to grow
               </h3>
             </div>
@@ -1591,7 +1591,7 @@ function Scoreboard({ scores }: { scores: ScoreCategory[] }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   if (scores.length === 0) return null;
   return (
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+      <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
         <div className="flex items-center justify-between">
           <LearningHint
             as="inline-block"
@@ -1696,9 +1696,9 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
     if (!e.determination)
       return { text: "—", cls: "text-muted border-default" };
     if (e.determination === "followed")
-      return { text: "Used", cls: "text-emerald-300 border-emerald-500/30" };
+      return { text: "Used", cls: "text-emerald-700 dark:text-emerald-300 border-emerald-500/30" };
     if (e.determination === "partial")
-      return { text: "Partly", cls: "text-amber-300 border-amber-500/30" };
+      return { text: "Partly", cls: "text-amber-700 dark:text-amber-300 border-amber-500/30" };
     return { text: "Not used", cls: "text-muted border-default" };
   };
   return (
@@ -1711,7 +1711,7 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
       how="Tap to expand, then look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practise."
       principle="Guidance only counts when it changes what you do while the door is still open."
     >
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+      <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
         <CollapseToggle
           title="What the coach cued"
           icon={<Radio className="w-3.5 h-3.5 text-brand" aria-hidden />}

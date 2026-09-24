@@ -296,6 +296,8 @@ routes**. Ten of them have never been rendered in either theme:
 **48 white-alpha sites in unrendered page files**, of the class that emptied every card in the
 module today. Three of these routes also use the deck kit, so that part of them is fixed at source.
 
+**After Pitch has since been rendered and fixed — see below. Nine routes and 38 sites remain.**
+
 ### The one that matters for your demo
 
 **`/[id]/after-pitch` is the After Pitch Summary** — the screen this product's own copy calls the
@@ -304,9 +306,32 @@ After Pitch Summary."* It is 1815 lines, it carries ten sites of today's class, 
 looked at it in either theme.
 
 If your demo path ends at an After Pitch Summary — and the natural manager path, Coach Assessment →
-a rep → a recording, does exactly that — **then the last screen an investor sees is the one screen I
-can tell you least about.** Section 5 recommends dark mode, which is the path with months of real
-use, and that recommendation now carries more weight than when I wrote it.
+a rep → a recording, does exactly that — then the last screen an investor sees was the one screen I
+could tell you least about.
+
+**CLOSED — I have now rendered it, in both themes and in both experience modes.** What it was
+hiding on a light ground:
+
+- **The conversation timeline was a single dot.** Four moments; only the breakdown one survived,
+  because it is a solid colour and the other three and the line joining them were white at 12–25%
+  opacity. On the screen One Liners points reps at for "the full timeline".
+- Three container sections — Your scores, What the coach cued, How did it go? — had no edges.
+- The "HIDE / TAP TO OPEN" control on Your read was the palest yellow in the palette on a pale
+  yellow card.
+- The breakdown moment's label — the most important word on the timeline — was its least readable
+  element.
+
+All fixed and looked at. **The thin state, which is what most accounts see, was already good**:
+honest copy, an upload path, a rebuild button and a next action — no dead end, no change needed.
+
+**One thing for you to decide, not a bug.** This page has two branches. In EXPERT mode it shows the
+conversation timeline, the breakdown moment and the correct line. In STANDARD — the default — it
+shows scores, your read, the cue loop and the focus, and **no timeline at all**. One Liners tells
+every rep, in both modes: *"Your real calls get the full timeline and score in the After Pitch
+Summary."* Either that sentence is wrong or Standard is missing something it was meant to have.
+If you demo in Standard, do not promise a timeline.
+
+Section 5 still recommends dark mode, on months of real use rather than on this gap.
 
 ### How the wrong claim happened, and why it is the failure this project exists to catch
 
