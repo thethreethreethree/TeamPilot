@@ -1,7 +1,9 @@
 # Demo readiness — 2026-09-24
 
 **For:** the founder, before an investor presentation.
-**Deployed:** `0081d5c6` on `origin/main`.
+**Deployed:** `1fac5e91` on `origin/main`. *(Was `0081d5c6` when this was written; six commits have
+landed since, and the sections below are amended in place rather than appended to — advice that has
+become wrong is changed where you would read it, not corrected in a footnote.)*
 **Gate:** `npm run check` → `CHECK_EXIT=0`, 5511 passed, 15 skipped.
 **Production build:** `npm run build` → compiled in 30.3s, full route table, **exit 0**.
 (The twelve-step gate does NOT build — that is deliberate; CI runs `next build` with no secrets,
@@ -58,13 +60,17 @@ shape and I would rather fix it than have you pay twice.
 
 ### c) Walk the demo path once yourself, in the theme you will present in
 
-Light mode in Sales Coach is **hours old** — it did not exist in that module until this morning.
-I found and fixed four things that were invisible or unreadable on a light ground, and I have
-rendered seven surfaces: the Sales Coach home, the Macro home, Recordings, Coach Assessment
-(team AND rep-detail), the Door Log, and the backlog panel. Six more I have not.
+**AMENDED — all thirteen Sales Coach screens have now been rendered in both themes and looked
+at.** When this was written, seven had been. See section 8 for what the remaining six turned up;
+the short version is that Roleplay was the worst screen in the module on a light ground and is
+fixed.
 
-**If you present in dark mode, you are on the path that has existed for months.** That is the lower
-risk choice and I would take it.
+**Dark mode is still the lower-risk choice, but for a smaller reason than before.** It is no longer
+"light mode is unverified in this module" — it is "dark mode has been in real use for months and
+light mode has been in real use for a day." Within Sales Coach, the two are now close. Outside it —
+the schedule module in particular — light mode remains unexamined.
+
+**Walk it once yourself either way.** Nothing in this document replaces that.
 
 ---
 
@@ -92,17 +98,21 @@ and not cosmetic in the sense that a control you cannot see is a control you do 
 - **The backfill end to end.** Its contract is tested — the count is free, `suppressed` halts
   loudly, the loop terminates, nothing is re-billed — and the query behind it has never returned a
   real row.
-- **Seven of thirteen Sales Coach screens**, in either theme: Pitch Performance / report card,
-  Roleplay, One Liners, Sessions, Analytics, Settings, and the three Pattern Interrupt screens.
+- ~~**Seven of thirteen Sales Coach screens.**~~ **AMENDED: none. All thirteen have been rendered
+  in both themes, one image at a time.** Sessions and Settings were reached through the surfaces
+  that embed them. See section 8.
 - **Pattern Interrupt's real output.** Its detection only ever ran inside the scoring route, so no
   pattern has ever opened on live data. **See section 7 — I rendered it and withdrew my advice to avoid
   it.** What remains unverified is what REAL detection produces, not whether the screen works.
 - **Two Door Log failure states** — the send-failure banner and the mic-stopped alert — which use
   colours chosen for a dark ground and measure under AA on cream. Inferred from the hex, not
   rendered; I tried three times and stopped rather than keep guessing.
-- **~253 `white/N` uses across 47 files** and **33 `text-ember-400` uses**. Suspect lists. Two of
-  the six screens I rendered were completely clean, so these are not defect counts. The schedule
-  module is the largest unexamined cluster — 54 uses across six pages.
+- **~253 `white/N` uses across 47 files** and **33 `text-ember-400` uses**. Suspect lists, and now
+  known to be an **UNDERCOUNT of unknown size**: every sweep I ran today matched `border|bg|text`
+  and the full property list is `border | bg | text | stroke | fill | divide | ring | from | to |
+  via`. The unlit ticks on your dial gauges were `stroke-white/15` and were invisible to all of it
+  — found by looking at a picture, not by grepping. The schedule module is still the largest
+  unexamined cluster: 54 uses across six pages.
 
 ---
 
@@ -123,6 +133,10 @@ and not cosmetic in the sense that a control you cannot see is a control you do 
 
 Demo in **dark mode**, on the **manager path** — Coach Assessment → a rep → Recordings — which is
 the most-rendered, most-tested path in the module and the one the partner's design was drawn for.
+
+That recommendation has not changed, but the margin has narrowed: all thirteen screens now render
+correctly in light mode too (section 8). The reason to prefer dark is now usage history, not
+verification.
 
 Decide the scored-pitches question before you start, using the query in section 1b, and run the backfill
 **well before** the room, not during it.
@@ -201,3 +215,55 @@ recording it came from, and the coaching note threaded with its author and date.
 Real detection output — rubric labels, strip contents, edge cases — has never been seen, because
 nothing has ever produced one. So the SURFACE is sound and its DATA is untested, which is a much
 narrower caution than "do not demo this".
+
+---
+
+## 8. The render pass is finished — thirteen of thirteen
+
+Six more screens since section 3 was written: Pitch Performance, Analytics, Roleplay (three
+phases), One Liners (three states), and the two Pattern Interrupt states. Both themes, one image at
+a time, twenty-six images opened in this stretch alone.
+
+### What it found that matters to you
+
+**Roleplay was the worst screen in the module on a light ground, and it is the one an investor is
+most likely to ask to see.** Three defects on one page:
+
+- Half the conversation had **no bubble**. The rep's lines rendered as solid ember; the AI
+  prospect's rendered as bare text on cream. A messenger where only one side has a shape.
+- A rep **could not read the sentence they were typing**. The composer sits on a deliberately dark
+  bar, and its text colour followed the theme — so on light mode it was near-black letters on a
+  near-black field. It is the only input on the page.
+- Every card in the practice review **lost its border**, turning a four-card report into a wall of
+  text.
+
+**Your dial gauges had no rings.** On the Macro home — the screen a door-knocking rep lives on —
+"3 of 80" rendered as the number with a single ember tick floating below it. The unlit ticks were
+white at 15% opacity, which is a ring on black and nothing at all on cream.
+
+**I had been fixing the same defect one screen at a time for eleven screens.** The twelfth showed
+it on a page with no such value in it — which located the cause: `ui/deck.tsx`, the shared card kit
+the whole module imports. Fixing it there corrected One Liners without that file being touched.
+That is why the last screen took one line instead of thirteen.
+
+### The honest arithmetic of the whole pass
+
+**Fifteen real defects. Eight false alarms. Four screens that were already clean.**
+
+One finding in three was not real, and every one of them was convincing. Two of them looked like
+numbers wrong by 100× — the `0.129%` close rate in section 6, and a `-6750` on a rep's headline
+score gauge that appeared in both themes and was really in the page. Both were my own test
+fixtures. I came close to telling you twice today that your demo had a numeric error.
+
+I am telling you the false-alarm rate because a tool that is wrong a third of the time is dangerous
+if its output is trusted rather than checked, and you should know which one you are being handed.
+Every finding above was checked against the code that produces it before it reached this document.
+
+### What this does not cover
+
+A capture proves how a shape **renders**. It never proves the shape **arrives**. Every populated
+screenshot in this pass was drawn from a fixture I wrote, so what remains untested is exactly what
+section 3 said at the top: nothing here has run against your database.
+
+**Not opened:** six of the seven PDFs in `docs/SYSTEM UPDATES AND REVISION 09-22-2026/`, the 16
+images in `public/`, the 11 in the webstore promo kit, and the two WhatsApp JPEGs.
