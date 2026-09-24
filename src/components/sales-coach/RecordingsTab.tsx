@@ -6,6 +6,7 @@ import type { PitchRecordingRow, PitchRecordingDetail } from "@/lib/coach/record
 import type { MomentKind } from "@/lib/coach/recordings/keyMoments";
 import type { ShareState } from "@/lib/coach/recordings/shareState";
 import { linesAround } from "@/lib/coach/recordings/keyMoments";
+import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { loadPeaks } from "@/lib/coach/recordings/peaks";
 
 /**
@@ -77,7 +78,25 @@ const when = (iso: string) =>
     minute: "2-digit",
   });
 
-const OUTCOME: Record<string, string> = { sold: "Sold", follow_up: "Follow-up", no_sale: "No sale" };
+/*
+ * Outcome labels come from `outcomeLabel`, not from a local map.
+ *
+ * There used to be one here — `{ sold: "Sold", follow_up: "Follow-up", no_sale: "No sale" }` —
+ * with strings identical to the first three entries of OUTCOME_LABELS, and a `?? outcome`
+ * fallback identical to the one `outcomeLabel` already applies.
+ *
+ * `outcomeLabels.ts` exists precisely to stop that. Its own header: "Shared Sales Coach outcome
+ * labels + display order (audit F7 — §A21, one source instead of four copies)." This was the
+ * fifth, written after the consolidation that removed the first four.
+ *
+ * `pitch_scores.outcome` only allows three of the five values (0252:99), so the other two are
+ * unreachable from this surface — which is why a local three-entry map felt reasonable. It is the
+ * same reasoning that produced the four copies F7 deleted.
+ *
+ * NOT the same as PitchPerformance's OUTCOME_BADGE: that renders `knock_outcome` (0215), a
+ * different vocabulary with different values AND per-outcome styling. Five vocabularies share the
+ * name `outcome` in this schema; only two of them are this one.
+ */
 
 export default function RecordingsTab({
   repId,
@@ -200,7 +219,7 @@ export default function RecordingsTab({
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                 {r.durationS !== null && <span className="tabular-nums">{clock(r.durationS)}</span>}
-                {r.outcome && <span>{OUTCOME[r.outcome] ?? r.outcome}</span>}
+                {r.outcome && <span>{outcomeLabel(r.outcome)}</span>}
                 {/* The board labels an excluded pitch rather than hiding it: a rep who sees a
                     score and a manager who does not would be looking at different histories. */}
                 {!r.qualifying && (

@@ -64,7 +64,7 @@ export function PitchPerformance() {
 
       {error ? (
         <div className="glass-card p-5 border border-red-500/30">
-          <p className="text-sm text-red-300">
+          <p className="text-sm text-red-600 dark:text-red-300">
             Couldn&apos;t load your pitches — this is an error, not an empty history. Check your connection and try again.
           </p>
           <button

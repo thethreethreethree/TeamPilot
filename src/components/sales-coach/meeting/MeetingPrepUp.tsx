@@ -181,7 +181,7 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
   if (initError) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 bg-base">
-        <p className="text-sm text-red-300 text-center">
+        <p className="text-sm text-red-600 dark:text-red-300 text-center">
           Couldn&apos;t start a prep. Check your connection and reload.
         </p>
       </div>
@@ -256,7 +256,7 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
               <li key={t.id} className="flex items-center gap-2 rounded-lg bg-surface-raised border border-default px-3 py-2">
                 <span className="text-xs text-muted tabular-nums w-5">{i + 1}.</span>
                 <span className="flex-1 text-sm text-primary">{t.text}</span>
-                <button type="button" onClick={() => removeTopic(t.id)} aria-label={`Remove ${t.text}`} className="text-muted hover:text-red-400 p-2 -m-1 rounded">
+                <button type="button" onClick={() => removeTopic(t.id)} aria-label={`Remove ${t.text}`} className="text-muted hover:text-red-600 dark:text-red-400 p-2 -m-1 rounded">
                   <X className="w-4 h-4" aria-hidden />
                 </button>
               </li>
@@ -331,12 +331,12 @@ export function MeetingPrepUp({ onStart }: { onStart?: (prepId: string) => void 
             />
           </label>
         )}
-        {uploadError && <p className="text-xs text-red-300">{uploadError}</p>}
+        {uploadError && <p className="text-xs text-red-600 dark:text-red-300">{uploadError}</p>}
       </section>
 
       {/* START — flush the pending save FIRST so the meeting never binds to an unsaved (empty) prep (audit H2). */}
       {saveError && (
-        <p className="text-xs text-red-400" role="alert">
+        <p className="text-xs text-red-600 dark:text-red-400" role="alert">
           Couldn&apos;t save your prep just now — check your connection. Your goal/topics may not be attached to the
           meeting until this saves.
         </p>

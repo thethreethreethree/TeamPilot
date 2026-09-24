@@ -72,7 +72,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
 
       {loadError ? (
         <div className="glass-card p-4 border border-red-500/30">
-          <p className="text-sm text-red-300">
+          <p className="text-sm text-red-600 dark:text-red-300">
             Couldn&apos;t load this pitch — this is an error, not a missing pitch. Check your connection and try again.
           </p>
           <button
@@ -96,7 +96,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
 
           {detail.status === "failed" ? (
             <div className="glass-card p-4 mb-5 border border-red-500/30">
-              <p className="flex items-center gap-2 text-sm text-red-400 font-semibold">
+              <p className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 font-semibold">
                 <AlertTriangle className="w-4 h-4" aria-hidden /> Processing failed
               </p>
               <p className="text-xs text-secondary mt-1">

@@ -491,7 +491,7 @@ export function DoorLog() {
         <button
           type="button"
           onClick={() => setSendError(null)}
-          className="mb-3 w-full rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-left text-sm text-red-300 active:scale-[0.99] transition-transform"
+          className="mb-3 w-full rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-300 active:scale-[0.99] transition-transform"
         >
           ⚠ {sendError} <span className="text-red-400/70">(tap to dismiss)</span>
         </button>
@@ -622,7 +622,7 @@ export function DoorLog() {
                 they can recover the pitch (unlock the phone / bring the app forward), instead of discovering it
                 afterward. Prominent + honest — this is the moment the recording is being lost. */}
             {recorder.captureInterrupted && (
-              <p className="max-w-xs text-center text-sm font-semibold text-red-400" role="alert">
+              <p className="max-w-xs text-center text-sm font-semibold text-red-600 dark:text-red-400" role="alert">
                 ⚠ The mic stopped — audio isn&apos;t recording. Keep the screen on and the app open, then Stop and
                 re-record this pitch.
               </p>
