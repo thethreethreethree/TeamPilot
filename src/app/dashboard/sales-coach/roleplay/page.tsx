@@ -328,7 +328,7 @@ export default function SalesCoachRoleplayPage() {
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-2xl mx-auto w-full space-y-4">
             {practiceFocus && (
               <DeckCard className="p-4 flex items-start gap-3 border-ember-400/40 bg-ember-400/[0.06]">
-                <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-surface flex items-center justify-center shrink-0">
                   <GraduationCap className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
                 </div>
                 <div>
@@ -376,7 +376,7 @@ export default function SalesCoachRoleplayPage() {
             )}
 
             <DeckCard className="p-4 flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl border border-ember-400/40 bg-surface flex items-center justify-center shrink-0">
                 <Target className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
               </div>
               <p className="text-xs text-secondary leading-relaxed">
@@ -436,7 +436,7 @@ export default function SalesCoachRoleplayPage() {
                       className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
                         persona === p.label
                           ? "border-ember-400/60 bg-ember-400/10"
-                          : "border-white/10 bg-black/20 hover:border-white/20"
+                          : "border-default bg-surface hover:border-strong"
                       }`}
                     >
                       <span className="block text-sm text-primary font-medium">
@@ -454,7 +454,7 @@ export default function SalesCoachRoleplayPage() {
                   onChange={(e) => setCustom(e.target.value)}
                   aria-label="Describe the situation (optional)"
                   placeholder="Optional: describe the situation (e.g. 'renewing homeowner, burned by last vendor')"
-                  className="w-full text-xs bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mt-2.5"
+                  className="w-full text-xs bg-surface border border-default rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50 mt-2.5"
                 />
               </div>
             </LearningHint>
@@ -495,7 +495,7 @@ export default function SalesCoachRoleplayPage() {
                     className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                       m.role === "rep"
                         ? "bg-ember-400 text-[#09090B] rounded-br-sm"
-                        : "bg-white/[0.06] text-primary rounded-bl-sm"
+                        : "bg-surface-raised text-primary rounded-bl-sm"
                     }`}
                   >
                     {m.text}
@@ -504,13 +504,13 @@ export default function SalesCoachRoleplayPage() {
               ))}
               {sending && (
                 <div className="flex justify-start">
-                  <div className="bg-white/[0.06] text-muted rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">
+                  <div className="bg-surface-raised text-muted rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
                   </div>
                 </div>
               )}
               {error && (
-                <p className="text-[11px] text-amber-300 text-center">{error}</p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-300 text-center">{error}</p>
               )}
             </div>
 
@@ -520,7 +520,7 @@ export default function SalesCoachRoleplayPage() {
                   type="button"
                   onClick={() => void endReview()}
                   disabled={!canReview || reviewing || sending}
-                  className="text-[11px] text-muted hover:text-brand disabled:opacity-40 shrink-0 whitespace-nowrap px-1"
+                  className="text-[11px] text-ink-400 hover:text-ember-400 disabled:opacity-40 shrink-0 whitespace-nowrap px-1"
                   title="End the roleplay and get a review"
                 >
                   {reviewing ? "Reviewing…" : "End & review"}
@@ -538,7 +538,7 @@ export default function SalesCoachRoleplayPage() {
                   aria-label="Your line to the prospect"
                   placeholder="Your line…"
                   disabled={sending || reviewing}
-                  className="flex-1 min-w-0 text-sm bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:border-ember-400/50"
+                  className="flex-1 min-w-0 text-sm bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder:text-ink-400 focus:outline-none focus:border-ember-400/50"
                 />
                 <button
                   type="button"
@@ -571,7 +571,7 @@ export default function SalesCoachRoleplayPage() {
             {scorecard && (
               <DeckCard className="p-4 border-ember-400/40 bg-ember-400/[0.05]">
                 <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-xl border border-ember-400/40 bg-white/[0.02] flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl border border-ember-400/40 bg-surface flex items-center justify-center shrink-0">
                     <Award className="w-5 h-5 text-brand" strokeWidth={1.5} aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -583,7 +583,7 @@ export default function SalesCoachRoleplayPage() {
                         <span className="text-[11px] text-muted">/ 100 on this skill</span>
                       </div>
                     ) : (
-                      <p className="text-xs text-amber-300 mt-2 leading-relaxed">
+                      <p className="text-xs text-amber-600 dark:text-amber-300 mt-2 leading-relaxed">
                         You didn&apos;t get to this skill this time — run it again and look for the moment to use it.
                       </p>
                     )}
@@ -616,11 +616,11 @@ export default function SalesCoachRoleplayPage() {
             {review.whatWorked.length > 0 && (
               <div className="space-y-2">
                 <SectionLabel icon={CheckCircle2}>What worked</SectionLabel>
-                <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+                <DeckCard className="divide-y divide-default overflow-hidden">
                   {review.whatWorked.map((w, i) => (
                     <div key={i} className="flex items-start gap-2.5 px-4 py-3">
                       <CheckCircle2
-                        className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"
+                        className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
                         aria-hidden
                       />
                       <p className="text-xs text-secondary leading-relaxed">{w}</p>
@@ -633,11 +633,11 @@ export default function SalesCoachRoleplayPage() {
             {review.toImprove.length > 0 && (
               <div className="space-y-2">
                 <SectionLabel icon={Target}>To work on</SectionLabel>
-                <DeckCard className="divide-y divide-white/[0.06] overflow-hidden">
+                <DeckCard className="divide-y divide-default overflow-hidden">
                   {review.toImprove.map((t, i) => (
                     <div key={i} className="flex items-start gap-2.5 px-4 py-3">
                       <Target
-                        className="w-4 h-4 text-amber-400 shrink-0 mt-0.5"
+                        className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
                         aria-hidden
                       />
                       <p className="text-xs text-secondary leading-relaxed">{t}</p>

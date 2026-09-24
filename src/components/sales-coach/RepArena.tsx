@@ -61,7 +61,12 @@ function useCountUp(value: number, ms = 900): number {
     const start = performance.now();
     const from = 0;
     const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / ms);
+      // Clamped at BOTH ends. The rAF timestamp is the moment the frame's callback list began
+      // processing, which can precede a `performance.now()` taken inside that same frame — so
+      // `t - start` can be negative, and easeOutCubic AMPLIFIES a negative p (1-(1-p)^3 falls
+      // away cubically) instead of damping it. A rep's headline score is the wrong place to
+      // render a negative number for even one frame.
+      const p = Math.max(0, Math.min(1, (t - start) / ms));
       const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
       setN(Math.round(from + (value - from) * eased));
       if (p < 1) raf.current = requestAnimationFrame(tick);

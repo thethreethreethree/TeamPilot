@@ -65,6 +65,67 @@ describe("capture", () => {
             }),
           };
         /*
+         * The breakdown board. `PitchBreakdown.tsx:95` takes `body.aggregate` on trust and reads
+         * `agg.counted` unguarded, so a body without it throws THROUGH the render. Its two
+         * neighbours on the same line are defended (`skippedPreVerdict ?? 0`, `capped === true`)
+         * with a comment about old servers — the one field that can throw is the one field taken
+         * on trust. The route always sends it, so this is a fixture obligation, not a live bug;
+         * it is recorded in the residual as an unguarded wire cast rather than fixed here.
+         */
+        /*
+         * The KPI trio. This capture is NAMED for this component and never served its route — the
+         * catch-all did, so `data` became `{}` and the photograph was of the pre-fetch zero state
+         * rather than of the surface. `TodaysMetrics.tsx:179` then reads `data?.kpi.doorsKnocked`:
+         * the `?.` stops at `data` and `.kpi` is bare, so `{}` throws after the capture is taken —
+         * which is why this went unnoticed. `scores` two lines up IS double-guarded (`?.scores?.`).
+         * Recorded in the residual; the route always sends `kpi`, so it is latent, not live.
+         */
+        if (url.includes("todays-metrics"))
+          return {
+            ok: true,
+            json: async () => ({
+              period: "day",
+              range: null,
+              kpi: { doorsKnocked: 64, conversations: 19, sold: 3 },
+              scores: { opener: 7.4, discovery: 6.1, objection: 5.2, talk_listen: 6.8, questions: 7.9, tone: 8.1, close: 4.6 },
+              focus: "Ask for the sale before you leave the porch.",
+              opportunities: [
+                "Three doors reached Discovery and stopped there.",
+                "Two objections were answered without naming the concern underneath.",
+              ],
+            }),
+          };
+
+        if (url.includes("pitch-score/breakdown"))
+          return {
+            ok: true,
+            json: async () => ({
+              aggregate: {
+                pitchesTotal: 0,
+                counted: 0,
+                notCounted: 0,
+                notCountedReasons: {},
+                totalPoints: 0,
+                avgPitchScore: 0,
+                avgBase: 0,
+                avgBonus: 0,
+                avgViolations: 0,
+                bestPitchScore: null,
+                sectionAverages: {},
+                elementStats: [],
+                bonusStats: [],
+                violationStats: [],
+              },
+              skippedPreVerdict: 0,
+              capped: false,
+            }),
+          };
+
+        /*
+         * AND THEN I DID IT AGAIN. The paragraph below was written this morning, and the
+         * catch-all it describes is the line it sits above — which is what served the breakdown
+         * route the `{}` that crashed it. A note explaining a trap, directly above the trap.
+         *
          * A catch-all returning `{}` CRASHED PitchMilestones on `data.milestones[key]`, and it is
          * NOT a product bug — that route has exactly one 200 shape and the component guards
          * `res.ok`, so `{}` is a body it can never receive. My stub invented it.

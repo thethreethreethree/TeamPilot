@@ -64,9 +64,14 @@ describe("capture", () => {
 
     const { container } = render(<SalesCoachHome />);
     const mobile = container.querySelector('[class~="md:hidden"]') as HTMLElement;
+    // TWO waits, and the second one is the point. Waiting on the Exit button alone was satisfied
+    // by the HEADER, which renders before anything loads — so every previous photograph of this
+    // screen showed the correct header above a spinner reading "Loading your day…". The body of
+    // the surface this capture is NAMED for was never in shot. Wait for the loaded day as well.
     await waitFor(() =>
       within(mobile).getByRole("button", { name: /exit macro mode/i })
     );
+    await waitFor(() => within(mobile).getByText(/Today's door target/i), { timeout: 8000 });
 
     // 390px — an iPhone 14 in CSS pixels. The width is mandatory: without it the subtree lays out
     // unconstrained and a row that fits renders as clipped, which is how this tool nearly reported

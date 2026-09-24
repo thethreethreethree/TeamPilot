@@ -30,7 +30,9 @@ export function CountUp({
           io.unobserve(el);
           const start = performance.now();
           const tick = (now: number) => {
-            const t = Math.min(1, (now - start) / duration);
+            // Lower clamp: a rAF timestamp can precede the `performance.now()` above, and
+            // easeOutCubic turns a small negative progress into a large negative number.
+            const t = Math.max(0, Math.min(1, (now - start) / duration));
             const eased = 1 - Math.pow(1 - t, 3);
             setDisplay(Math.round(eased * value));
             if (t < 1) requestAnimationFrame(tick);

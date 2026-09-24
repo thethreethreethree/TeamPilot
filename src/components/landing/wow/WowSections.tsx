@@ -234,7 +234,8 @@ function Count({ to, suffix = "", decimals = 0 }: { to: number; suffix?: string;
           done.current = true;
           const t0 = performance.now();
           const tick = (t: number) => {
-            const p = Math.min(1, (t - t0) / 1100);
+            // Lower clamp — see CountUp.tsx. Third copy of this easing loop in the codebase.
+            const p = Math.max(0, Math.min(1, (t - t0) / 1100));
             setV(to * (1 - Math.pow(1 - p, 3)));
             if (p < 1) requestAnimationFrame(tick);
           };

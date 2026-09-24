@@ -65,11 +65,32 @@ export function capture(
  * reading a light-mode capture as proof of a light-mode control.
  */
 export function stubBrowserApis(opts: { light?: boolean } = {}): void {
-  const matches = opts.light ?? false;
-  globalThis.matchMedia = ((): MediaQueryList =>
+  // jsdom implements neither `Element.prototype.scrollTo` nor `scrollIntoView`. Any surface that
+  // keeps a list pinned to the bottom — a chat, a log, a transcript — calls one of them in a mount
+  // effect, and the missing method throws THROUGH React's commit phase and takes the whole render
+  // down. That reads exactly like a product crash and is not one: the methods exist in every real
+  // browser. Stubbing them here keeps that class of phantom out of the capture pass.
+  const proto = globalThis.Element?.prototype as
+    | (Element & { scrollTo?: unknown; scrollIntoView?: unknown })
+    | undefined;
+  if (proto) {
+    if (typeof proto.scrollTo !== "function") proto.scrollTo = () => {};
+    if (typeof proto.scrollIntoView !== "function") proto.scrollIntoView = () => {};
+  }
+
+  // ANSWERED PER QUERY, not one boolean for all of them.
+  //
+  // A count-up, a sliding odometer, a growing arc — each renders its FINAL value immediately when
+  // the user asks for reduced motion, and its frame-zero value otherwise. jsdom never advances
+  // rAF, so a blanket `false` here photographs frame zero forever: the Progress gauge was shot
+  // with the arc at 74% and the number reading 0, and before the clamp landed in RepArena it read
+  // -6750. Asking for reduced motion is not a trick — it is a real, supported code path, and it is
+  // the one that settles.
+  const light = opts.light ?? false;
+  globalThis.matchMedia = ((q?: string): MediaQueryList =>
     ({
-      matches,
-      media: "",
+      matches: /prefers-reduced-motion/.test(q ?? "") ? true : light,
+      media: q ?? "",
       onchange: null,
       addEventListener: () => {},
       removeEventListener: () => {},

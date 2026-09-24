@@ -118,7 +118,7 @@ export function DoorDial({
                 x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
                 strokeWidth={2.9}
                 strokeLinecap="round"
-                className={lit ? "stroke-ember-400 transition-[stroke] duration-200" : "stroke-white/15"}
+                className={lit ? "stroke-ember-400 transition-[stroke] duration-200" : "stroke-ink-300 dark:stroke-white/15"}
               />
             );
           })}

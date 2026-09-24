@@ -54,7 +54,7 @@ export function DeckCard({
       className={`rounded-2xl border backdrop-blur-sm ${
         glow
           ? "border-ember-400/25 bg-ember-400/[0.04] shadow-[0_0_34px_-12px_rgba(250,204,21,0.4)]"
-          : "border-white/[0.07] bg-white/[0.02]"
+          : "border-default bg-surface"
       } ${className}`}
     >
       {children}
@@ -105,13 +105,13 @@ export function DeckStat({
     tone === "brand"
       ? "text-brand"
       : tone === "emerald"
-        ? "text-emerald-300"
+        ? "text-emerald-600 dark:text-emerald-300"
         : tone === "amber"
-          ? "text-amber-300"
+          ? "text-amber-600 dark:text-amber-300"
           : "text-secondary";
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 ${
+      className={`relative overflow-hidden rounded-2xl border border-default bg-surface p-3 ${
         tone === "brand"
           ? "shadow-[0_0_26px_-14px_rgba(250,204,21,0.55)]"
           : ""
@@ -211,7 +211,7 @@ export function DeckGhostButton({
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
         active
           ? "border-ember-400/50 bg-ember-400/10 text-brand"
-          : "border-white/10 text-secondary hover:text-primary hover:border-white/20"
+          : "border-default text-secondary hover:text-primary hover:border-strong"
       } ${className}`}
     >
       <PendingContent
@@ -236,12 +236,12 @@ export function DeckPill({
 }) {
   const cls =
     tone === "emerald"
-      ? "text-emerald-300 border-emerald-500/30 bg-emerald-500/10"
+      ? "text-emerald-700 dark:text-emerald-300 border-emerald-500/30 bg-emerald-500/10"
       : tone === "amber"
-        ? "text-amber-300 border-amber-500/30 bg-amber-500/10"
+        ? "text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10"
         : tone === "brand"
           ? "text-brand border-ember-400/40 bg-ember-400/10"
-          : "text-muted border-white/10 bg-white/[0.03]";
+          : "text-muted border-default bg-surface";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cls}`}
@@ -296,7 +296,7 @@ export function Sparkline({
 export function DeckMeter({ value }: { value: number }) {
   const pct = Math.round(Math.min(1, Math.max(0, value)) * 100);
   return (
-    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+    <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
       <div
         className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-ember-400 to-ember-500 transition-[width] duration-150"
         style={{ width: `${pct}%` }}
