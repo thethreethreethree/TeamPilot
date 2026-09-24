@@ -567,7 +567,7 @@ export default function FinanceControlsPage() {
               />
             </label>
             <label className="flex items-center gap-1.5 pb-1.5 text-xs text-neutral-700">
-              <input type="checkbox" checked={pDisallowed} onChange={(e) => setPDisallowed(e.target.checked)} />
+              <input type="checkbox" checked={pDisallowed} onChange={(e) => setPDisallowed(e.target.checked)} className="accent-ember-400" />
               Not reimbursable
             </label>
             <button

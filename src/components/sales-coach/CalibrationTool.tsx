@@ -120,7 +120,7 @@ export function CalibrationTool() {
                   <input
                     type="range" min={0} max={10} value={scores[d.key]}
                     onChange={(e) => setScores((s) => ({ ...s, [d.key]: Number(e.target.value) }))}
-                    className="w-40"
+                    className="w-40 accent-ember-400"
                   />
                   <span className="w-6 text-right text-sm font-semibold tabular-nums text-primary">{scores[d.key]}</span>
                 </div>

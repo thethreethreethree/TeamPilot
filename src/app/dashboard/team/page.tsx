@@ -523,6 +523,7 @@ Their current password stops working immediately.`)) return;
                       disabled={savingDepts}
                       onChange={() => void setDepartment(d.id, !inIt)}
                       aria-label={`${inIt ? "Remove" : "Add"} ${member.fullName ?? "member"} ${inIt ? "from" : "to"} ${d.name}`}
+                      className="accent-ember-400"
                     />
                     <span className="truncate">{d.name}</span>
                   </label>

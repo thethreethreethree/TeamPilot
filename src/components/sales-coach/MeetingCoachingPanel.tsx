@@ -236,7 +236,7 @@ export function MeetingCoachingPanel({ initialPrepId }: { initialPrepId?: string
             type="checkbox"
             checked={earpieceOk}
             onChange={(e) => setEarpieceOk(e.target.checked)}
-            className="mt-0.5"
+            className="mt-0.5 accent-ember-400"
           />
           I have an in-ear earpiece in, so cues are private to me and don&apos;t interrupt the room.
         </label>

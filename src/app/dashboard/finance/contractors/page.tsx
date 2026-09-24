@@ -262,6 +262,7 @@ export default function ContractorsPage() {
                     type="checkbox"
                     checked={v.is_1099}
                     onChange={(e) => mark(v.id, e.target.checked)}
+                    className="accent-ember-400"
                   />
                   1099 contractor
                 </label>
