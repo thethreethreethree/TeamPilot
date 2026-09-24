@@ -295,7 +295,16 @@ export type ActivityKpis = {
   sold: number;
   /** presentations / doors. Null when no doors were knocked — not zero, which would read as 0%. */
   doorToPresentationRate: number | null;
-  /** sold / presentations. Null when there were no presentations. */
+  /**
+   * sold / presentations, as a RATIO — 0.129 means 12.9%. Null when there were no presentations.
+   *
+   * The board renders this through `pct()`, which multiplies by 100.
+   *
+   * THE TRAP: `RepRow.closeRate` (teamAssessment.ts:226) carries the SAME NAME on the SAME
+   * response object and is already a PERCENTAGE (12.9), because readTeamAssessment.ts:196
+   * converts it. So `wire.team.kpis.closeRate` and `wire.reps[i].closeRate` are different units.
+   * Picking the wrong renderer is a number wrong by 100x with nothing throwing.
+   */
   closeRate: number | null;
 };
 

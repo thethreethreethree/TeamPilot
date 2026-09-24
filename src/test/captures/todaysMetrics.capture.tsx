@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { expect } from "vitest";
+import { render, waitFor } from "@testing-library/react";
 
 import { capture, stubBrowserApis } from "@/test/visual";
 
@@ -29,12 +30,68 @@ import { TodaysMetricsPager } from "@/components/sales-coach/TodaysMetricsPager"
 describe("capture", () => {
   it("todays metrics, progress page", async () => {
     stubBrowserApis();
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({}) })));
+    // The REP shape from /leaderboard — `{ period, managerView, meId }` with NO rows, at 200.
+    // This is the body that crashed RepArena until 2026-09-24, so the capture drives the real
+    // thing rather than a convenient full-manager fixture.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("leaderboard"))
+          return { ok: true, json: async () => ({ period: "all", managerView: false, meId: "me" }) };
+        if (url.includes("my-points"))
+          return {
+            ok: true,
+            json: async () => ({
+              rows: [{ session_id: "s1", points: 74, band: "solid", created_at: "2026-09-20T00:00:00Z" }],
+              total: 74,
+              avg: 74,
+              sessions: 1,
+            }),
+          };
+        if (url.includes("milestones"))
+          return {
+            ok: true,
+            json: async () => ({
+              milestones: {
+                firstPitch: "2026-09-20T00:00:00.000Z",
+                fiveCounted: null,
+                tenCounted: null,
+                firstStrong: null,
+                firstElite: null,
+                cleanWeek: null,
+              },
+              capped: false,
+            }),
+          };
+        /*
+         * A catch-all returning `{}` CRASHED PitchMilestones on `data.milestones[key]`, and it is
+         * NOT a product bug — that route has exactly one 200 shape and the component guards
+         * `res.ok`, so `{}` is a body it can never receive. My stub invented it.
+         *
+         * Recorded here because the distinction is the whole sweep: RepArena's leaderboard route
+         * genuinely returns TWO success shapes, one of them reduced, which is why its cast was
+         * live. A capture that feeds every endpoint `{}` manufactures crashes that cannot happen,
+         * and reporting one of those as a defect is worse than finding nothing.
+         */
+        return { ok: true, json: async () => ({}) };
+      })
+    );
 
     const { container } = render(<TodaysMetricsPager />);
-    await screen.findByRole("button", { name: /progress/i }, { timeout: 8000 });
+    // Wait for the pager's own chrome — the swipe hint is the last thing it paints — rather than
+    // for a string inside a child. Guessing at a child's text is how a capture waits for something
+    // that never arrives and reports a timeout instead of a screen.
+    await waitFor(() => expect(container.querySelectorAll("button").length).toBeGreaterThan(0), {
+      timeout: 8000,
+    });
+    // Let the children's fetches settle so this is the loaded screen, not the skeleton.
+    await new Promise((r) => setTimeout(r, 400));
 
-    capture("todays-metrics", container.firstElementChild as HTMLElement, {
+    // `container`, not `firstElementChild`: this pager paints into a wrapper whose first child is
+    // not the surface. The harness REFUSED to photograph the null — which is the guard working, and
+    // is why it is a throw rather than a silent empty PNG.
+    capture("todays-metrics", container, {
       width: 390,
       height: 844,
     });

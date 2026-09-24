@@ -223,6 +223,22 @@ export type RepRow = {
   doors: number;
   presentations: number;
   sold: number;
+  /**
+   * A PERCENTAGE — 12.9 means 12.9%. NOT a ratio.
+   *
+   * `readTeamAssessment.ts:196` converts it (`Math.round(r * 1000) / 10`) before it reaches the
+   * wire, so the surface renders it as `${r.closeRate}%` with no arithmetic.
+   *
+   * THE TRAP: `ActivityKpis.closeRate` — same name, same response object, reached as
+   * `wire.team.kpis.closeRate` and `wire.detail[repId].kpis.closeRate` — is a RATIO (0.129), and
+   * the board renders THOSE through `pct()`, which multiplies by 100.
+   *
+   * So one payload carries `closeRate` in two units. Every consumer happens to match today.
+   * Picking the wrong renderer is a number wrong by 100x on a manager's screen, with nothing
+   * throwing. See docs/DEMO-READINESS-2026-09-24.md for why the rename that removes this
+   * (`closeRatePct`) was deferred: it changes a wire key, and a browser on the previous bundle
+   * would render "undefined%".
+   */
   closeRate: number | null;
   lowestSection: SectionId | null;
   lowestSectionLabel: string | null;

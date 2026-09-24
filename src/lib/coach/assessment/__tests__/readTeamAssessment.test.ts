@@ -131,6 +131,64 @@ describe("rep totals sum to team totals — the launch checklist's own line", ()
   });
 });
 
+/**
+ * `closeRate` MEANS TWO DIFFERENT THINGS ON ONE RESPONSE, and that is deliberate — but only one
+ * of the two is obvious at any call site.
+ *
+ *   wire.reps[i].closeRate        a PERCENTAGE (12.9 = 12.9%), converted at readTeamAssessment.ts:196
+ *   wire.team.kpis.closeRate      a RATIO (0.129), rendered through the board's pct() helper
+ *   wire.detail[id].kpis.closeRate  ditto
+ *
+ * Every consumer matches today. Nothing structural stops the next one picking the wrong renderer,
+ * and the failure is a number wrong by 100x on a manager's screen with nothing throwing.
+ *
+ * I proved that hazard on myself on 2026-09-24: a capture fixture fed the RATIO into the rep row,
+ * the table rendered "0.129%", and I came within one message of reporting a 100x bug to a founder
+ * hours before an investor demo. It was the fixture.
+ *
+ * The rename that removes the trap (`closeRatePct`) changes a WIRE KEY, so it was deferred rather
+ * than shipped the afternoon of a demo — a browser on the previous bundle would render
+ * "undefined%". Until then this is the guard: it fails if either side is "normalised" to match the
+ * other without the consumers being updated.
+ */
+describe("closeRate carries two units on one payload, on purpose", () => {
+  it("gives reps a PERCENTAGE and the team a RATIO for the same 1-of-3 close", async () => {
+    const r = await readTeamAssessment(
+      { companyId: "co", themes: [] },
+      db({
+        pitches: [pitch({ id: "a", repId: "rep-1", total: 80 })],
+        // `sold` and `presentations` come from the DAILY rollup, not from pitch outcomes —
+        // readTeamAssessment.ts:177 derives doorsSpokenTo as `doors - noAnswer`. So:
+        // 40 doors, 37 no-answer → 3 presentations; 1 sold → a close rate of exactly 1/3.
+        //
+        // My first version passed `outcome` to `pitch()`, which does not take it. Vitest went
+        // green because vitest does not typecheck; `npm run typecheck` caught it. A test built on
+        // a fixture that is not doing what its comment claims is the vacuous-green this file is
+        // full of warnings about — including two I wrote today.
+        daily: [daily("rep-1", 40, 1, 37)],
+      })
+    );
+
+    const repRate = r!.reps[0]?.closeRate;
+    const teamRate = r!.team.kpis.closeRate;
+
+    // ASSERTED, not early-returned. `if (x === null) return` would make this test pass on a
+    // fixture that produced nothing — the vacuous green this whole file exists to avoid, and the
+    // exact shape of a RepArena test earlier today that passed against a crash.
+    expect(repRate).not.toBeNull();
+    expect(repRate).not.toBeUndefined();
+    expect(teamRate).not.toBeNull();
+    if (repRate === null || repRate === undefined || teamRate === null) throw new Error("unreachable");
+
+    // The rep row is ALREADY multiplied out. If someone "fixes" line 196 away, this fails.
+    expect(repRate).toBeGreaterThan(1);
+    // The team KPI is NOT. If someone pre-multiplies it, pct() would double-convert and this fails.
+    expect(teamRate).toBeLessThanOrEqual(1);
+    // And they describe the same quantity: 12.9 vs 0.129.
+    expect(repRate).toBeCloseTo(Math.round(teamRate * 1000) / 10, 5);
+  });
+});
+
 describe("the rows come back ranked", () => {
   it("returns them in the table's order, not the map's", async () => {
     // Found by mutation: dropping `rankReps` from the read changed no test, because ranking is

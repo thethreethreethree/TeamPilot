@@ -1,7 +1,11 @@
 # Demo readiness — 2026-09-24
 
 **For:** the founder, before an investor presentation.
-**Deployed:** `0081d5c6` on `origin/main`. Gate green: `npm run check`, `CHECK_EXIT=0`, 5510 passed.
+**Deployed:** `0081d5c6` on `origin/main`.
+**Gate:** `npm run check` → `CHECK_EXIT=0`, 5511 passed, 15 skipped.
+**Production build:** `npm run build` → compiled in 30.3s, full route table, **exit 0**.
+(The twelve-step gate does NOT build — that is deliberate; CI runs `next build` with no secrets,
+`.github/workflows/ci.yml:124`, and `npm run build:ci` reproduces it locally.)
 
 ---
 
@@ -56,7 +60,8 @@ shape and I would rather fix it than have you pay twice.
 
 Light mode in Sales Coach is **hours old** — it did not exist in that module until this morning.
 I found and fixed four things that were invisible or unreadable on a light ground, and I have
-rendered six surfaces. There are about seven more I have not.
+rendered seven surfaces: the Sales Coach home, the Macro home, Recordings, Coach Assessment
+(team AND rep-detail), the Door Log, and the backlog panel. Six more I have not.
 
 **If you present in dark mode, you are on the path that has existed for months.** That is the lower
 risk choice and I would take it.
@@ -123,3 +128,42 @@ Decide the scored-pitches question before you start, using the query in §1b, an
 **well before** the room, not during it.
 
 Avoid Pattern Interrupt unless you have opened it yourself first.
+
+---
+
+## 6. Added after the brief was written: a phantom I nearly reported
+
+Rendering the rep-detail path showed a close rate of **`0.129%`** in the Reps table while the team
+card above it read **13%**. That looks exactly like a number wrong by 100x, on a screen investors
+would see, and two sibling call sites DO use the `pct()` helper the table bypasses — which made it
+look like a real inconsistency.
+
+**It was my test fixture.** `readTeamAssessment.ts:196` already converts
+(`Math.round(kpis.closeRate * 1000) / 10`), so `RepRow.closeRate` arrives as `12.9` and rendering
+it raw with a `%` is correct. I fed it the ratio.
+
+Third fixture-induced phantom of the day, and the one that mattered: I came within a message of
+telling a founder his demo had a 100x numeric error, hours before the room.
+
+**What IS real** is why it was so believable. One response object carries `closeRate` in two units:
+
+| Field | Unit | Rendered by |
+|---|---|---|
+| `wire.reps[i].closeRate` | percentage (12.9) | raw, with a `%` appended |
+| `wire.team.kpis.closeRate` | ratio (0.129) | `pct()`, which multiplies by 100 |
+| `wire.detail[id].kpis.closeRate` | ratio (0.129) | `pct()` |
+
+Every consumer matches today. Nothing structural stops the next one picking the wrong renderer, and
+that failure is silent and 100x wrong.
+
+**Not fixed today, deliberately.** The rename that removes the trap (`closeRatePct`) changes a WIRE
+KEY: the server would send the new name and a browser holding the previous bundle would render
+`undefined%`. The afternoon before an investor demo is exactly when not to take a deploy-window
+risk for a latent problem.
+
+What shipped instead: both type definitions now state their units and point at each other, and a
+drift-guard test asserts the rep row is above 1 while the team KPI is at or below it — so
+"normalising" either side fails by name. Verified by reverting the conversion; the test caught it.
+
+**Nothing on screen is wrong because of this.** It is a trap for the next change, not a defect in
+the current one.

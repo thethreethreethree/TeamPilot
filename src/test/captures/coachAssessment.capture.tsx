@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { capture, stubBrowserApis } from "@/test/visual";
 import { CoachAssessmentBoard } from "@/components/sales-coach/CoachAssessmentBoard";
@@ -50,8 +50,50 @@ const WIRE = {
   },
   bars: [],
   priorities: [],
-  reps: [],
-  detail: {},
+  // One rep, shaped from `RepRow` at teamAssessment.ts:217 rather than invented — without this
+  // the table renders its empty state and the rep-detail path, which is the demo path, is never
+  // reached.
+  reps: [
+    {
+      repId: "rep1",
+      fullName: "Jordan Ellis",
+      avgPitchScore: 74.2,
+      band: "Solid",
+      totalPoints: 891,
+      doors: 118,
+      presentations: 31,
+      sold: 4,
+      // A PERCENTAGE (12.9 = 12.9%), because readTeamAssessment.ts:196 converts before the wire.
+      // Feeding the ratio here rendered "0.129%" and I nearly reported it as a 100x bug.
+      closeRate: 12.9,
+      lowestSection: "close",
+      lowestSectionLabel: "Close",
+      focus: "Ask for the sale before the second objection.",
+    },
+  ],
+  // `RepDetail` is { aggregate: PeriodAggregate; kpis: ActivityKpis } (readTeamAssessment.ts:48),
+  // keyed by rep id. Leaving it empty renders the table but never the detail panel — so the tab
+  // strip, which is the point of this capture, never appears.
+  detail: {
+    rep1: {
+      aggregate: {
+        avgPitchScore: 74.2,
+        avgBase: 66.1,
+        avgBonus: 10.4,
+        avgViolations: 2.3,
+        counted: 9,
+        pitchesTotal: 11,
+        notCountedReasons: { base_under_40: 2 },
+      },
+      kpis: {
+        doorsKnocked: 118,
+        presentations: 31,
+        sold: 4,
+        doorToPresentationRate: 0.262,
+        closeRate: 0.129,
+      },
+    },
+  },
   capped: false,
   unattributed: 0,
   briefGeneratedAt: "2026-09-24T06:00:00.000Z",
@@ -80,6 +122,39 @@ describe("capture", () => {
     capture("coach-assessment", container.firstElementChild as HTMLElement, {
       width: 1180,
       height: 900,
+    });
+  });
+
+  /**
+   * THE REP-DETAIL PATH — Coach Assessment → click a rep → the Overview / Recordings tabs.
+   *
+   * This is the path recommended for the investor demo (docs/DEMO-READINESS-2026-09-24.md), and
+   * it is the one surface on that path never rendered: the tab strip was built on 2026-09-22 and
+   * verified only by string assertions.
+   */
+  it("coach assessment, a rep selected", async () => {
+    stubBrowserApis();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("coach-assessment/dashboard")) return { ok: true, json: async () => WIRE };
+        if (url.includes("pitch-recordings"))
+          return { ok: true, json: async () => ({ rows: [], capped: false, total: 0 }) };
+        if (url.includes("coach-assessment")) return { ok: true, json: async () => ({ reps: [] }) };
+        return { ok: true, json: async () => ({}) };
+      })
+    );
+
+    const { container } = render(<CoachAssessmentBoard />);
+    // findAll: the name appears in the table AND in the detail header once a rep is selected.
+    const [row] = await screen.findAllByText("Jordan Ellis", undefined, { timeout: 8000 });
+    if (row) fireEvent.click(row);
+    await screen.findAllByText(/Recordings/i, undefined, { timeout: 8000 });
+
+    capture("coach-assessment-rep", container.firstElementChild as HTMLElement, {
+      width: 1180,
+      height: 1100,
     });
   });
 });
