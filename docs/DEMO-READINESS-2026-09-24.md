@@ -94,9 +94,9 @@ and not cosmetic in the sense that a control you cannot see is a control you do 
   real row.
 - **Seven of thirteen Sales Coach screens**, in either theme: Pitch Performance / report card,
   Roleplay, One Liners, Sessions, Analytics, Settings, and the three Pattern Interrupt screens.
-- **Pattern Interrupt at all.** Its detection only ever ran inside the scoring route, so no pattern
-  has ever opened. Once pitches are scored it will begin producing them, on data nobody has seen.
-  **This is the surface I would be least willing to demo live.**
+- **Pattern Interrupt's real output.** Its detection only ever ran inside the scoring route, so no
+  pattern has ever opened on live data. **See section 7 — I rendered it and withdrew my advice to avoid
+  it.** What remains unverified is what REAL detection produces, not whether the screen works.
 - **Two Door Log failure states** — the send-failure banner and the mic-stopped alert — which use
   colours chosen for a dark ground and measure under AA on cream. Inferred from the hex, not
   rendered; I tried three times and stopped rather than keep guessing.
@@ -124,10 +124,10 @@ and not cosmetic in the sense that a control you cannot see is a control you do 
 Demo in **dark mode**, on the **manager path** — Coach Assessment → a rep → Recordings — which is
 the most-rendered, most-tested path in the module and the one the partner's design was drawn for.
 
-Decide the scored-pitches question before you start, using the query in §1b, and run the backfill
+Decide the scored-pitches question before you start, using the query in section 1b, and run the backfill
 **well before** the room, not during it.
 
-Avoid Pattern Interrupt unless you have opened it yourself first.
+Pattern Interrupt is fine to show — see section 7. That reverses what this document said an hour ago.
 
 ---
 
@@ -167,3 +167,37 @@ drift-guard test asserts the rep row is above 1 while the team KPI is at or belo
 
 **Nothing on screen is wrong because of this.** It is a trap for the next change, not a defect in
 the current one.
+
+---
+
+## 7. Correction: Pattern Interrupt is worth showing
+
+Sections 3 and 5 originally told you to avoid this screen. That advice was honest and **unverified** — I
+had never seen it. I have now rendered both states and I am withdrawing it.
+
+**The empty state — which is every account today — is a selling point, not a liability.** It reads:
+
+> **Nothing has been scored yet**
+> Patterns come from scored pitches. Once your recordings are scored against the rubric, repeated
+> misses show up here.
+
+Above it sits an explainer: *"Patterns, not one-off mistakes. A pattern appears when the same miss
+shows up in 3 or more of a rep's last 10 pitches. Your manager sees this same page. Use the clips
+to hear it for yourself, then practice the fix in Role Play."* Four counters read 0 with honest
+captions — "Yours right now", "Not coached yet", "Trending the right way", "5 clean pitches in a
+row".
+
+That is the no-instant-results thesis made visible: the product declining to invent a number it has
+not earned, and saying exactly what would make it real. An investor asking "what happens on day
+one?" is answered by this screen better than by a slide.
+
+**The populated state renders correctly too.** A pattern card with a ten-dot miss strip and its
+legend; a detail panel giving the cost in points per pitch, the days open, the resolved verdict
+("Coached 6 days ago; no clean streak yet"), an explicit PATH TO FIXED ("Done right in 5 pitches in
+a row. Clears automatically" · "0 of 5 clean pitches in a row"), a link from the pattern back to the
+recording it came from, and the coaching note threaded with its author and date.
+
+**What is still unverified:** I rendered it with a pattern I constructed from the type definitions.
+Real detection output — rubric labels, strip contents, edge cases — has never been seen, because
+nothing has ever produced one. So the SURFACE is sound and its DATA is untested, which is a much
+narrower caution than "do not demo this".
