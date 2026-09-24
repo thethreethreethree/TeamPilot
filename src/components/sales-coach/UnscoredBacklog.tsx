@@ -27,6 +27,8 @@ type DrainResponse = {
   refused: Refusals;
   more: boolean;
   note: string | null;
+  /** Sent straight back as `?offset=` on the next pass — see the route's cursor note. */
+  nextOffset?: number;
 };
 
 /** What a raw refusal code should read as on screen. */
@@ -38,6 +40,7 @@ const REFUSAL_LABEL: Record<string, string> = {
   llm_empty: "the scorer returned nothing for",
   parse_failed: "the scorer's answer could not be read for",
   store_failed: "could not be saved",
+  errored: "failed unexpectedly for",
 };
 
 export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
@@ -81,14 +84,35 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
     setNote(null);
     setRefused({});
     const seen: Refusals = {};
+    let offset = 0;
     try {
       for (;;) {
-        const res = await fetch("/api/coach/sales-session/pitch-score/backfill", { method: "POST" });
+        const res = await fetch(
+          `/api/coach/sales-session/pitch-score/backfill?offset=${offset}`,
+          { method: "POST" }
+        );
         if (!res.ok) {
-          setNote("Scoring stopped because the request failed. Nothing already scored is lost.");
+          /**
+           * SAY WHAT FAILED.
+           *
+           * This used to read "Scoring stopped because the request failed" and nothing else — the
+           * status and the server's own sentence were both discarded. That is the message a
+           * manager saw on the first real run against 194 recordings, and it is why the cause had
+           * to be found by reading code instead of by reading the screen. An error that does not
+           * name itself costs a diagnosis every time it happens.
+           */
+          const detail = await res
+            .json()
+            .then((b: { error?: string }) => b?.error)
+            .catch(() => null);
+          setNote(
+            `Scoring stopped: ${detail ?? `the request failed (HTTP ${res.status})`}. ` +
+              `Nothing already scored is lost — press the button again to carry on.`
+          );
           break;
         }
         const body = (await res.json()) as DrainResponse;
+        offset = body.nextOffset ?? offset;
         setScoredSoFar((n) => n + body.scored);
         setUnscored(body.remaining);
         for (const [reason, n] of Object.entries(body.refused ?? {})) {

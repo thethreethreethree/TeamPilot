@@ -64,6 +64,8 @@ const STATUS_FOR: Record<ScoreRefusal, number> = {
   llm_empty: 502,
   parse_failed: 502,
   store_failed: 500,
+  /** Something threw inside the scorer. Ours, and worth a retry — same shape as llm_empty. */
+  errored: 502,
 };
 
 // LLM route: a full grading is ~30 elements plus events, so it needs more than Vercel's default.

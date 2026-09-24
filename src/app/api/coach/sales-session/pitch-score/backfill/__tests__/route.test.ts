@@ -50,7 +50,8 @@ const DB = {
   })),
 };
 
-const req = () => new Request("http://t/api", { method: "POST" }) as never;
+const req = (offset = 0) =>
+  new Request(`http://t/api?offset=${offset}`, { method: "POST" }) as never;
 
 /** `fetchAllPaged` is called twice per resolve: scored ids first, then candidate sessions. */
 const serve = (scoredIds: string[], sessionIds: string[]) => {
@@ -193,5 +194,71 @@ describe("what it refuses to do", () => {
     DB.auth.getUser.mockResolvedValue({ data: { user: null } } as never);
     const res = await POST(req());
     expect(res.status).toBe(401);
+  });
+});
+
+/**
+ * THE FIRST REAL RUN. 2026-09-24: a manager pressed "Score them all" against 194 recordings and
+ * got "Scoring stopped because the request failed", with nothing scored and no reason on screen.
+ *
+ * `scoreSession` returned a verdict for every decision it MADE and let everything else throw —
+ * so one malformed recording propagated out of the loop and 500'd the whole request. These are
+ * the three behaviours that were missing, each written so it fails without its fix.
+ */
+describe("one bad recording must not end the run", () => {
+  it("counts a THROWING recording as a refusal and keeps going", async () => {
+    serve([], ["bad", "s2", "s3"]);
+    asMock(scoreSession)
+      // The real scoreSession can no longer throw — it catches and returns `errored`. This
+      // asserts the ROUTE's half: that an `errored` verdict is counted and the loop continues,
+      // so a second defence is not silently the only one.
+      .mockResolvedValueOnce({ ok: false, reason: "errored", humanMessage: "boom" })
+      .mockResolvedValue({ ok: true, pitchId: "p", alreadyScored: false });
+
+    const res = await POST(req());
+    const body = (await res.json()) as {
+      scored: number;
+      refused: Record<string, number>;
+      more: boolean;
+      nextOffset: number;
+    };
+
+    expect(res.status).toBe(200);
+    expect(body.refused.errored).toBe(1);
+    // The two AFTER the bad one still scored. Before the fix this request was a 500 and they did not.
+    expect(body.scored).toBe(2);
+  });
+
+  it("steps the cursor past recordings that can never be scored", async () => {
+    // Eight unscorable recordings ahead of the scorable ones is what a real backlog looks like,
+    // and `slice(0, BATCH)` would re-read these same eight on every pass forever.
+    serve([], Array.from({ length: 20 }, (_, i) => `s${i}`));
+    asMock(scoreSession).mockResolvedValue({
+      ok: false,
+      reason: "no_agent_turns",
+      humanMessage: "no rep speech",
+    });
+
+    const body = (await (await POST(req(0))).json()) as { nextOffset: number; more: boolean };
+
+    // 8 refused → the window moves to 8, and there is more of the list to reach.
+    expect(body.nextOffset).toBe(8);
+    expect(body.more).toBe(true);
+  });
+
+  it("stops once the cursor has walked the whole list, rather than looping forever", async () => {
+    serve([], ["s1", "s2", "s3"]);
+    asMock(scoreSession).mockResolvedValue({
+      ok: false,
+      reason: "no_agent_turns",
+      humanMessage: "no rep speech",
+    });
+
+    const body = (await (await POST(req(0))).json()) as { nextOffset: number; more: boolean };
+
+    expect(body.nextOffset).toBe(3);
+    // nextOffset is no longer < remaining, so the caller stops. This is the termination argument
+    // the cursor replaced `scored > 0` with.
+    expect(body.more).toBe(false);
   });
 });

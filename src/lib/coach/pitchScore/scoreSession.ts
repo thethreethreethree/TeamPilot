@@ -78,7 +78,19 @@ export type ScoreRefusal =
   | "llm_empty"
   | "parse_failed"
   /** The score was produced and the write did not land. The LLM spend is already gone. */
-  | "store_failed";
+  | "store_failed"
+  /**
+   * Something threw. Added 2026-09-24 after the backlog drain died on its first real run.
+   *
+   * Every other refusal here is a decision this function MADE. This one is the absence of a
+   * decision: an exception out of `getSession`, `getSessionTranscript`, `generatePitchScore` or
+   * `storePitchScore`, none of which were wrapped. It propagated out of scoreSession, out of the
+   * drain's loop, and out of the POST as a 500 — so ONE malformed recording in a backlog of 194
+   * stopped the whole run and the only thing the manager saw was "the request failed".
+   *
+   * Not permanent: a provider blip, a rate limit or a timeout is worth another pass.
+   */
+  | "errored";
 
 /**
  * A refusal that re-running will never change, so a drain must not keep paying for it.
@@ -104,6 +116,7 @@ export const REFUSAL_MESSAGE: Record<ScoreRefusal, string> = {
   llm_empty: "The scorer returned nothing. This is a fault on our side, not your pitch.",
   parse_failed: "The scorer's answer could not be read. This is a fault on our side.",
   store_failed: "The score could not be saved.",
+  errored: "Scoring this recording failed unexpectedly. This is a fault on our side, not your pitch.",
 };
 
 export async function scoreSession(args: {
@@ -116,6 +129,30 @@ export async function scoreSession(args: {
    * asking again); the close path and the drain pass true, because re-scoring on every sweep would
    * bill the same pitch forever.
    */
+  skipIfScored?: boolean;
+}): Promise<ScoreOutcome> {
+  /**
+   * The public entry point is a THIN GUARD around the real work, and that is the point.
+   *
+   * A caller that has to wrap this in its own try/catch is a caller re-deriving a decision this
+   * function is responsible for (§2.2). The drain had no such wrapper, so the first recording that
+   * threw took the entire run with it. Returning `errored` as a verdict means every caller —
+   * the drain, the close path, the manual button — gets the same contract: an outcome, never an
+   * exception.
+   */
+  try {
+    return await scoreSessionOrThrow(args);
+  } catch (err) {
+    // Server-side only. The client gets REFUSAL_MESSAGE, never the exception text (CWE-209).
+    console.error("[scoreSession] threw", { sessionId: args.sessionId }, err);
+    return refuse("errored");
+  }
+}
+
+async function scoreSessionOrThrow(args: {
+  sessionId: string;
+  companyId: string;
+  db: SupabaseClient;
   skipIfScored?: boolean;
 }): Promise<ScoreOutcome> {
   const { sessionId, companyId, db, skipIfScored = false } = args;

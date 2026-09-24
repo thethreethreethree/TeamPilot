@@ -167,12 +167,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The backlog could not be read." }, { status: 500 });
   }
 
-  const batch = candidates.slice(0, BATCH);
+  /**
+   * A CURSOR, because "unscored" is not a queue that empties.
+   *
+   * A permanently-refused recording — a huddle, one with no rep speech — never gets a score, so it
+   * stays in `candidates` on every subsequent read. Always taking `slice(0, BATCH)` therefore
+   * re-attempts the same head forever.
+   *
+   * The original guard against that was `more: scored > 0`: stop the moment a pass scores nothing.
+   * It terminates, but it also means a backlog whose oldest eight recordings are all huddles
+   * reports "done" with everything still unscored — and 194 recordings is easily eight huddles
+   * deep. Swapping it for `attempted > 0` (my first attempt at this fix) trades that silent
+   * early-exit for an infinite loop that re-bills the same eight gradings, which is worse.
+   *
+   * So the caller carries an offset and the server advances it by the number REFUSED. Scored
+   * sessions leave the candidate list on the next read, so they must not also advance the window;
+   * refused ones remain, so they must. Every pass consumes at least one candidate and the offset
+   * only grows, which is the termination argument.
+   */
+  // `new URL(req.url)` rather than `req.nextUrl`: the latter exists only on a NextRequest, and a
+  // route that can only be called through Next's wrapper is a route its own tests cannot exercise
+  // with a plain Request.
+  const offset = Math.max(0, Number(new URL(req.url).searchParams.get("offset") ?? 0) || 0);
+  const batch = candidates.slice(offset, offset + BATCH);
   let scored = 0;
   const refused: Partial<Record<ScoreRefusal, number>> = {};
   let haltedBy: ScoreRefusal | null = null;
+  let ranOutOfTime = false;
+
+  /**
+   * A TIME BUDGET, well inside `maxDuration`.
+   *
+   * BATCH is a count, and a count is the wrong unit for a bound whose real limit is seconds. Eight
+   * gradings at four seconds each is fine; eight at forty is a platform timeout, and a timeout
+   * kills the function mid-loop — the caller sees a bare non-2xx, learns nothing, and the
+   * recordings already written in that pass are invisible to it.
+   *
+   * So the loop stops ITSELF with time to spare and reports `more: true`. The caller's existing
+   * loop then makes another pass. A batch that ends early is a smaller batch; a batch that is
+   * killed is an unanswered question.
+   */
+  const startedAt = Date.now();
+  const BUDGET_MS = 210_000; // maxDuration is 300s; leave room to finish the current grading.
 
   for (const sessionId of batch) {
+    if (Date.now() - startedAt > BUDGET_MS) {
+      ranOutOfTime = true;
+      break;
+    }
     const outcome = await scoreSession({
       sessionId,
       companyId: r.companyId,
@@ -203,6 +245,9 @@ export async function POST(req: NextRequest) {
   }
 
   const remaining = Math.max(0, candidates.length - scored);
+  /** Refused sessions stay in the candidate list, so the window must step over them. */
+  const refusedCount = Object.values(refused).reduce((t, n) => t + (n ?? 0), 0);
+  const nextOffset = offset + refusedCount;
 
   /**
    * The line a human reads. §1.5.3: an unmet precondition must fail LOUD.
@@ -213,7 +258,9 @@ export async function POST(req: NextRequest) {
    */
   const note = haltedBy
     ? `${REFUSAL_MESSAGE[haltedBy]} Nothing was scored, and nothing will be until that changes.`
-    : scored === 0 && remaining > 0
+    : ranOutOfTime
+      ? null // not a stopping point — the caller keeps going; see `more` below.
+      : scored === 0 && remaining > 0
       ? `Nothing in this batch could be scored. ${remaining} recording(s) remain, and the reasons are listed — re-running will not change a permanent one.`
       : null;
 
@@ -221,8 +268,23 @@ export async function POST(req: NextRequest) {
     scored,
     remaining,
     refused,
-    /** True while another POST is worth making. The caller loops on THIS, not on `remaining`. */
-    more: !haltedBy && scored > 0 && remaining > 0,
+    /**
+     * True while another POST is worth making. The caller loops on THIS, not on `remaining`.
+     *
+     * `attempted`, not `scored`. Before per-session errors were caught, a throwing recording ended
+     * the request; now it is counted as a refusal, and a batch of eight unscorable recordings
+     * returns `scored: 0`. The old `scored > 0` would have called that the end of the backlog and
+     * stopped with 194 still unscored — trading a crash for a silent early exit, which is worse.
+     * Termination still holds: every pass consumes at least one candidate, or sets `ranOutOfTime`.
+     */
+    more: !haltedBy && nextOffset < remaining,
+    /**
+     * The caller MUST send this back as `?offset=` on the next POST. It is what steps the window
+     * past recordings that can never be scored.
+     */
+    nextOffset,
+    /** The pass ended on the clock, not on the work. Purely informational for the caller. */
+    ranOutOfTime,
     note,
     /** Which refusals are pointless to retry, so a caller need not hard-code the list. */
     permanent: [...PERMANENT_REFUSALS],
