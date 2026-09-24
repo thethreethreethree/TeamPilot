@@ -296,7 +296,8 @@ routes**. Ten of them have never been rendered in either theme:
 **48 white-alpha sites in unrendered page files**, of the class that emptied every card in the
 module today. Three of these routes also use the deck kit, so that part of them is fixed at source.
 
-**After Pitch has since been rendered and fixed — see below. Nine routes and 38 sites remain.**
+**After Pitch and `/sessions` have since been rendered and fixed — see below. Eight routes and 30
+sites remain.**
 
 ### The one that matters for your demo
 
@@ -353,3 +354,59 @@ Section 3 says "~253 uses across 47 files". The real figure, with the full prope
 **508 uses across 97 files** — roughly double. The earlier number came from a narrower pattern than
 the one it was reported as. The direction of the undercount is the direction that matters: it made
 an unexamined risk look smaller than it is.
+
+---
+
+## 10. `/sessions`, and a correction to something I told you this morning
+
+### The correction first
+
+When you picked this morning's scope, one option I offered you was a sweep of eleven dark-looking
+input controls, and I described them to you as **"ugly, not broken"**. You declined on that basis.
+
+**I had not looked at them.** I read the colour values and inferred. Having now rendered two of
+them:
+
+- The search box and the three filters on the Sessions page are **solid mid-grey slabs** on cream.
+- So is **"Client / campaign (required)"** — the field you must fill to start a coaching session —
+  sitting directly above a Start button that is genuinely greyed out until you fill it.
+
+Grey controls above a greyed-out button do not read as ugly. They read as **"this form is not
+available"**. That is a worse thing than I told you, and you made a call on my description.
+
+Four of the eleven are now fixed and rendered. Seven remain, four of them outside Sales Coach.
+
+### The one I would want to know about before a demo
+
+On the Sessions page, when a rep picks a **video** session, the panel is supposed to say:
+
+> *On video, your mic hears **your** side — not the prospect's audio from the far end of the call.
+> The coach guides your delivery: pacing, filler, framing, and the words you choose.*
+
+**In light mode that sentence was invisible.** White text on a near-white background. It was in the
+page the whole time — I confirmed it in the DOM — and simply could not be seen.
+
+That is the sentence whose whole job is to stop a rep expecting the coach to hear the customer. Its
+author wrote the reason in a comment above it and cited your honesty rule. Fixed, and rendered in
+both themes to confirm.
+
+### Also fixed on this route
+
+- The team roster a manager sees lost the lines between reps on cream.
+- **The ELO gauge had no dial behind the needle and no "standard" mark** — the grey track and the
+  1500 tick were invisible on cream, so the number floated without the scale that gives it meaning.
+  That is on the Expert analytics screen.
+
+### A thing worth knowing about how these screens work
+
+Several Sales Coach pages are **two or three different screens** depending on the mode:
+
+| Page | Standard (default) | Expert |
+|---|---|---|
+| After Pitch | scores, your read, focus | + the conversation timeline |
+| Sessions | a manager sees a team roster; a rep sees their list | + the session-start form |
+| Analytics | skill grades | + the ELO gauge |
+
+**If you demo in Standard and describe a feature that lives in Expert, it will not be on screen.**
+The timeline is the one most likely to catch you out — it is the thing One Liners promises, and
+Standard does not have it.
