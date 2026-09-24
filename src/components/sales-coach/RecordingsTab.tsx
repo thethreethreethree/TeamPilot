@@ -40,8 +40,32 @@ const MARKER: Record<MomentKind, { dot: string; label: string }> = {
   violation: { dot: "bg-red-500", label: "Missed" },
   pattern: { dot: "bg-amber-700", label: "Pattern" },
   bonus: { dot: "bg-emerald-500", label: "Bonus" },
+  /**
+   * A bonus the scorer HEARD and declined — confidence under the floor — or one a manager removed
+   * (0256 demotes rather than deletes). Grey, because the one thing it must not read as is a
+   * bonus: it moved the score by nothing. "Considered" is the honest word — the judgement
+   * happened and this is its record, which is the entire reason these rows are stored.
+   *
+   * Its absence from this map is what blanked the whole tab: `MARKER[m.kind].dot` on a kind with
+   * no entry is `undefined.dot`.
+   */
+  rejected_bonus: { dot: "bg-ink-500", label: "Considered" },
   comment: { dot: "bg-sky-500", label: "Comment" },
 };
+
+/**
+ * Every marker lookup driven by WIRE DATA goes through here, never `MARKER[kind]` directly.
+ *
+ * The map is `Record<MomentKind, …>`, so TypeScript treats an index by `MomentKind` as always
+ * present — which is true of the TYPE and was not true of the DATA. A value the database allowed
+ * and this union did not reached `.dot` on `undefined` and took the entire tab down with it.
+ *
+ * Narrowing at the read boundary (`asEventType`) is the real fix; this is the second wall. A
+ * manager losing one dot is recoverable. A manager losing the screen is what happened.
+ */
+function markerFor(kind: MomentKind): { dot: string; label: string } {
+  return MARKER[kind] ?? { dot: "bg-ink-500", label: "Moment" };
+}
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -423,7 +447,10 @@ function Player({ pitchId, isManager }: { pitchId: string; isManager: boolean })
 }
 
 function Legend() {
-  const shown: MomentKind[] = ["missed", "pattern", "bonus", "comment"];
+  // "violation" is deliberately absent: it shares the red dot AND the "Missed" label with
+  // `missed`, so listing it would print the same chip twice. `rejected_bonus` is NOT a duplicate
+  // — it is its own colour and its own word, and a manager seeing a grey dot needs the key.
+  const shown: MomentKind[] = ["missed", "pattern", "bonus", "rejected_bonus", "comment"];
   return (
     <ul className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted">
       {shown.map((k) => (
@@ -486,7 +513,7 @@ function MarkerStrip({
             className="absolute top-0 h-3 w-3 -translate-x-1/2 rounded-full ring-2 ring-base"
             style={{ left: `${((m.atSeconds ?? 0) / duration) * 100}%` }}
           >
-            <span className={`block h-full w-full rounded-full ${MARKER[m.kind].dot}`} />
+            <span className={`block h-full w-full rounded-full ${markerFor(m.kind).dot}`} />
           </button>
         ))}
       </div>
@@ -529,7 +556,7 @@ function KeyMoments({ wire, onSeek }: { wire: Wire; onSeek: (s: number) => void 
                   onClick={() => onSeek(m.atSeconds ?? 0)}
                   className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left enabled:hover:bg-elevated disabled:cursor-default"
                 >
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${MARKER[m.kind].dot}`} aria-hidden />
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${markerFor(m.kind).dot}`} aria-hidden />
                   <span className="w-12 shrink-0 text-xs tabular-nums text-muted">
                     {placed ? clock(m.atSeconds ?? 0) : "—"}
                   </span>
@@ -539,8 +566,17 @@ function KeyMoments({ wire, onSeek }: { wire: Wire; onSeek: (s: number) => void 
                   </span>
                   {m.points !== null && (
                     <span
+                      /*
+                       * THREE cases, not two. A rejected bonus is stored with `points: 0`, and
+                       * the old binary painted everything not-negative green — so "considered and
+                       * declined" rendered as a green 0, the one reading it must never have.
+                       */
                       className={`shrink-0 text-sm font-semibold tabular-nums ${
-                        m.points < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+                        m.points < 0
+                          ? "text-red-600 dark:text-red-400"
+                          : m.points > 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-muted"
                       }`}
                     >
                       {m.points > 0 ? "+" : ""}

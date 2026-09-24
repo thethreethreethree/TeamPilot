@@ -28,12 +28,22 @@ import { rollupRep } from "./rollupWorker";
  * with a human-readable error (surfaced in the Report Card, NEVER the Door Log) and reported to Sentry.
  */
 
+type PitchStatus = Parameters<typeof setPitchStatus>[0]["status"];
+
 type PitchRow = {
   id: string;
   company_id: string;
   rep_id: string;
   audio_path: string | null;
-  status: string;
+  /**
+   * The `pitch_status` enum (0215), not `string`.
+   *
+   * `string` here is what forced the cast further down: the row said "could be anything", so the
+   * one place that needed a narrow type asserted one — and asserted three of the six values, on a
+   * path `claimPitchesToProcess` reaches holding a fourth. Typing the ROW means every consumer
+   * inherits the truth instead of each one guessing.
+   */
+  status: PitchStatus;
   attempts: number;
 };
 
@@ -281,7 +291,10 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       // already set `attempts`, so leave it untouched (omitted) and only move `run_after`.
       await recordFailureStatus({
         pitchId: pitch.id,
-        status: pitch.status as "uploading" | "transcribing" | "analyzing",
+        // No cast. `pitch.status` already has the row's type, and the three-value assertion that
+        // stood here excluded `recorded` — which `claimPitchesToProcess` selects for and this
+        // branch deliberately writes back.
+        status: pitch.status,
         runAfter: new Date(Date.now() + backoffMs(attempts)),
       });
     }

@@ -5,6 +5,8 @@ import {
   transcriptWindow,
   timedLines,
   linesAround,
+  asEventType,
+  EVENT_TYPES,
   type MomentSource,
 } from "../keyMoments";
 
@@ -91,6 +93,55 @@ describe("what gets a marker", () => {
     expect(m!.label).toBe("gone.retired");
     // No rubric entry means no known value — null, never a guessed zero.
     expect(m!.points).toBeNull();
+  });
+});
+
+/**
+ * `pitch_score_events.type` has allowed THREE values since migration 0254. This module's union
+ * named two, and `readRecordings` cast the column to match, so the third reached the Recordings
+ * panel as a `kind` with no marker and threw on `MARKER[kind].dot` — the manager's whole tab,
+ * blank, for any pitch where the scorer declined a bonus. `storePitchScore` writes those every
+ * time an audio-inferred bonus lands under the confidence floor, and `apply_pitch_score_override`
+ * writes one every time a manager REMOVES a bonus, so this was not an exotic row.
+ */
+describe("a bonus the scorer declined", () => {
+  it("keeps its own kind instead of arriving as something with no marker", () => {
+    const [m] = keyMoments(
+      src({ events: [ev({ id: "rb1", type: "rejected_bonus", itemId: "bonus.inside", points: 0 })] })
+    );
+    expect(m?.kind).toBe("rejected_bonus");
+  });
+
+  it("reads its label from the BONUS table, not the violations table", () => {
+    // The old lookup tested `type === "bonus"` and sent everything else to VIOLATIONS_BY_ID, so a
+    // rejected bonus missed and fell back to printing the raw column value — `bonus.inside` on a
+    // screen where a human should read English.
+    const [m] = keyMoments(
+      src({ events: [ev({ id: "rb2", type: "rejected_bonus", itemId: "bonus.inside", points: 0 })] })
+    );
+    expect(m?.label).toBe("Gets inside the house or backyard");
+    expect(m?.label).not.toBe("bonus.inside");
+  });
+
+  it("is worth nothing, and says so as 0 rather than as a gain", () => {
+    const [m] = keyMoments(
+      src({ events: [ev({ id: "rb3", type: "rejected_bonus", itemId: "bonus.inside", points: 0 })] })
+    );
+    expect(m?.points).toBe(0);
+  });
+});
+
+describe("narrowing the event type at the boundary", () => {
+  it("accepts every value the column's CHECK allows", () => {
+    for (const t of EVENT_TYPES) expect(asEventType(t)).toBe(t);
+  });
+
+  it("returns null for a value this build cannot render, rather than passing it through", () => {
+    // The point of the narrower: a FOURTH value added to the CHECK one day must drop a row and
+    // log, not reach a marker map that has no entry for it.
+    expect(asEventType("assisted_bonus")).toBeNull();
+    expect(asEventType(null)).toBeNull();
+    expect(asEventType(undefined)).toBeNull();
   });
 });
 

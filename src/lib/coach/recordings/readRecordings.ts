@@ -5,6 +5,7 @@ import {
   keyMoments,
   momentCoverage,
   timedLines,
+  asEventType,
   type KeyMoment,
   type TimedLine,
 } from "./keyMoments";
@@ -210,14 +211,34 @@ export async function readPitchRecordingDetail(
       timestampS: e.timestamp_s === null || e.timestamp_s === undefined ? null : num(e.timestamp_s),
       evidence: (e.evidence as string | null) ?? null,
     })),
-    events: ((eventsRes.data ?? []) as Array<Record<string, unknown>>).map((e) => ({
-      id: String(e.id),
-      type: e.type as "bonus" | "violation",
-      itemId: String(e.item_id),
-      points: num(e.points),
-      timestampS: e.timestamp_s === null || e.timestamp_s === undefined ? null : num(e.timestamp_s),
-      evidence: (e.evidence as string | null) ?? null,
-    })),
+    /**
+     * Was `type: e.type as "bonus" | "violation"`. A cast at a database boundary is an assertion
+     * the row cannot disprove: the CHECK allows three values (0254), the cast named two, and the
+     * compiler believed the cast rather than the schema. `rejected_bonus` reached the surface as
+     * a `kind` with no marker and threw on `MARKER[kind].dot` — a blank Recordings tab for any
+     * pitch where the scorer declined a bonus, which `storePitchScore` produces routinely.
+     *
+     * Narrowed now, and a row whose type this build does not know is DROPPED WITH A LOG rather
+     * than passed on. One missing marker is a smaller lie than an empty screen, and the log is
+     * how the next added value gets noticed instead of discovered by a manager.
+     */
+    events: ((eventsRes.data ?? []) as Array<Record<string, unknown>>).flatMap((e) => {
+      const type = asEventType(e.type);
+      if (!type) {
+        console.error(
+          `[readRecordings] pitch_score_events.${String(e.id)} has type "${String(e.type)}", which this build cannot render. Row skipped.`
+        );
+        return [];
+      }
+      return [{
+        id: String(e.id),
+        type,
+        itemId: String(e.item_id),
+        points: num(e.points),
+        timestampS: e.timestamp_s === null || e.timestamp_s === undefined ? null : num(e.timestamp_s),
+        evidence: (e.evidence as string | null) ?? null,
+      }];
+    }),
     patternItemIds: ((patternsRes.data ?? []) as Array<{ item_id: string }>).map((p) => p.item_id),
     comments: ((commentsRes.data ?? []) as Array<Record<string, unknown>>).map((c) => ({
       id: String(c.id),

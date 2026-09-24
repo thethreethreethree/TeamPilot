@@ -66,7 +66,7 @@ const PITCH = {
   company_id: "co1",
   rep_id: "rep1",
   audio_path: "co1/2026/08/p1.webm",
-  status: "uploading",
+  status: "uploading" as const,
   attempts: 0,
 };
 
@@ -199,6 +199,30 @@ describe("processPitch — H2: a crash/timeout loop terminalises instead of proc
     await processPitch({ ...PITCH, attempts: 4 });
     // Terminal message names 5 (the lease count), NOT 6 — the catch must not re-increment.
     expect(failedWith(/after 5 attempts: brain down/i)).toBe(true);
+  });
+});
+
+describe("a transient failure resumes at the status the pitch was ACTUALLY at", () => {
+  /**
+   * `claimPitchesToProcess` selects `.in("status", ["uploading", "recorded", "transcribing",
+   * "analyzing"])` — FOUR values. The transient-failure branch wrote the current status back
+   * through a cast asserting THREE of them, with `recorded` excluded, and `setPitchStatus` typed
+   * its parameter as five of the column's six values, also without `recorded`.
+   *
+   * Nothing broke: the value was only passed through, and `recorded` is legal in the column. That
+   * is exactly why it is worth pinning — the types said a value was impossible while the runtime
+   * depended on it arriving. Found sweeping the class behind the `rejected_bonus` blank tab
+   * (docs/tbc/2026-09-24-rejected-bonus-blank-tab), where the same shape had a switch on the far
+   * side of it and took a manager's whole screen down.
+   */
+  it("writes 'recorded' back, rather than a status it was never at", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" };
+    vi.mocked(writePitchAnalysis).mockRejectedValueOnce(new Error("analysis upsert failed: deadlock"));
+    await processPitch({ ...PITCH, status: "recorded" });
+    const backoff = vi
+      .mocked(setPitchStatus)
+      .mock.calls.find(([a]) => a?.runAfter !== undefined && a?.status !== "failed");
+    expect(backoff?.[0]?.status).toBe("recorded");
   });
 });
 

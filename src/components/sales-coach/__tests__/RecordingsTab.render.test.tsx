@@ -137,6 +137,53 @@ describe("the list", () => {
   });
 });
 
+describe("a bonus the scorer declined does not take the screen down with it", () => {
+  /**
+   * THE FAILURE THIS PINS IS NOT A WRONG LABEL — IT IS A BLANK TAB.
+   *
+   * `MARKER` is typed `Record<MomentKind, …>`, so an index by `MomentKind` is "always present" to
+   * the compiler. That was true of the type and false of the data: `pitch_score_events.type` has
+   * allowed `rejected_bonus` since 0254, `readRecordings` cast the column to a two-value union,
+   * and `MARKER[m.kind].dot` evaluated `undefined.dot` and threw during render.
+   *
+   * A thrown render is not a missing dot. It is the manager opening Recordings and getting
+   * nothing — no list, no player, no error they can act on.
+   */
+  const withRejected = () =>
+    detail({
+      moments: [
+        { id: "rb1", kind: "rejected_bonus", atSeconds: 130, label: "Gets inside the house or backyard", detail: "Heard at 0.62, under the 0.80 floor.", points: 0 },
+      ],
+      coverage: { total: 1, placeable: 1, unplaced: 0 },
+    });
+
+  it("renders the pitch at all", async () => {
+    serve({ detail: withRejected() });
+    render(<RecordingsTab repId="rep1" isManager />);
+    // Reverting either half of the fix fails HERE, on the moment's own label, because the throw
+    // happens before anything in the detail pane reaches the DOM.
+    expect(await screen.findByText("Gets inside the house or backyard")).toBeTruthy();
+  });
+
+  it("gives it its own word rather than calling it a bonus", async () => {
+    serve({ detail: withRejected() });
+    render(<RecordingsTab repId="rep1" isManager />);
+    // "Considered" is the legend key for the grey dot. A rejected bonus moved the score by
+    // nothing; the one reading it must never have is "Bonus".
+    expect(await screen.findByText("Considered")).toBeTruthy();
+  });
+
+  it("shows what it was worth as a plain 0, not as a gain", async () => {
+    serve({ detail: withRejected() });
+    render(<RecordingsTab repId="rep1" isManager />);
+    const points = await screen.findByText("0");
+    // The old class list painted everything not-negative green, so "considered and declined"
+    // rendered as a green 0 — the colour of a bonus, on the one moment that is not one.
+    expect(points.className).toContain("text-muted");
+    expect(points.className).not.toContain("emerald");
+  });
+});
+
 describe("key moments", () => {
   it("reports the moments it cannot place as well as the ones it can", async () => {
     // Eight flagged moments of which three are placeable is not three flagged moments. A strip

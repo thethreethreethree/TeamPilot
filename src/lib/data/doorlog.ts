@@ -426,7 +426,18 @@ export async function writePitchAnalysis(args: {
 /** Advance / fail a pitch (the worker's status machine; retry bookkeeping in retryBackoff.ts). */
 export async function setPitchStatus(args: {
   pitchId: string;
-  status: "uploading" | "transcribing" | "analyzing" | "complete" | "failed";
+  /**
+   * FIVE of the six `pitch_status` values (0215). `recorded` was missing, and the worker reaches
+   * here holding it: `claimPitchesToProcess` selects
+   * `.in("status", ["uploading", "recorded", "transcribing", "analyzing"])`, and a transient
+   * failure writes the CURRENT status back so the pitch resumes where it stopped.
+   *
+   * Nothing broke, because the value is only passed through and `recorded` is legal in the
+   * column. That is what makes it worth naming rather than leaving: the type said a value was
+   * impossible while the runtime depended on it arriving. The moment anyone switches on this
+   * parameter, the missing case becomes the bug that had just been fixed in `MomentKind`.
+   */
+  status: "recorded" | "uploading" | "transcribing" | "analyzing" | "complete" | "failed";
   runAfter?: Date;
   attempts?: number;
   error?: string | null;

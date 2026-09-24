@@ -19,7 +19,17 @@ import { ELEMENTS_BY_ID, BONUSES_BY_ID, VIOLATIONS_BY_ID, type Grade } from "../
  * finding; it just cannot be pointed at, and `placeable` is how a surface tells the difference.
  */
 
-export type MomentKind = "missed" | "violation" | "bonus" | "pattern" | "comment";
+/**
+ * `rejected_bonus` is here because `pitch_score_events.type` has allowed it since migration 0254
+ * — a bonus the scorer HEARD and declined to award because its confidence sat under the floor,
+ * or one a manager removed (0256 demotes rather than deletes, so the judgement survives).
+ *
+ * It was missing from this union, and `readRecordings` cast the column to a two-value type to
+ * match. The cast type-checked, so nothing downstream knew a third value was arriving, and the
+ * Recordings panel's `MARKER[m.kind].dot` read `undefined.dot` and threw — the WHOLE TAB, blank,
+ * for any pitch where the scorer declined a bonus. `storePitchScore` writes those routinely.
+ */
+export type MomentKind = "missed" | "violation" | "bonus" | "rejected_bonus" | "pattern" | "comment";
 
 export type KeyMoment = {
   /** Stable within one pitch — the row id, so a click can seek and a marker can be keyed. */
@@ -38,6 +48,30 @@ export type KeyMoment = {
   points: number | null;
 };
 
+/**
+ * The values `pitch_score_events.type` is allowed to hold (migration 0254's CHECK).
+ *
+ * The marker goes on the ARRAY, not on the type below it. `enum:audit` reads from the marker to
+ * the first `;` and collects quoted strings — over `(typeof EVENT_TYPES)[number]` it finds none
+ * and reports every value missing. It told me so on the first run of this build, which is the
+ * gate doing its job on the author who just opted in.
+ */
+// enum-source: pitch_score_events.type
+export const EVENT_TYPES = ["bonus", "violation", "rejected_bonus"] as const;
+export type EventType = (typeof EVENT_TYPES)[number];
+
+/**
+ * Narrow a raw `type` column to the vocabulary this module can render.
+ *
+ * A CAST cannot fail, which is exactly why the previous one was wrong: it asserted two values of
+ * a three-value column and the compiler took its word. This returns null for anything it does not
+ * recognise, so a FOURTH value added to the CHECK one day drops one row and logs, instead of
+ * reaching `MARKER[kind].dot` and blanking the manager's whole Recordings tab.
+ */
+export function asEventType(raw: unknown): EventType | null {
+  return (EVENT_TYPES as ReadonlyArray<string>).includes(String(raw)) ? (raw as EventType) : null;
+}
+
 export type MomentSource = {
   elements: ReadonlyArray<{
     id: string;
@@ -49,7 +83,10 @@ export type MomentSource = {
   }>;
   events: ReadonlyArray<{
     id: string;
-    type: "bonus" | "violation";
+    // The full CHECK set of `pitch_score_events.type` (0254), not the two values this file used to
+    // admit. `readPitchScore` and `storePitchScore` have always carried all three; this one seam
+    // disagreed with them.
+    type: "bonus" | "violation" | "rejected_bonus";
     itemId: string;
     points: number;
     timestampS: number | null;
@@ -99,8 +136,12 @@ export function keyMoments(src: MomentSource): KeyMoment[] {
   }
 
   for (const ev of src.events) {
+    // A rejected bonus IS a bonus, so its label lives in the bonus table. The old condition
+    // tested for `bonus` and sent everything else to the violations table, which for a
+    // rejected_bonus missed and fell back to printing the raw `item_id` — `bonus.inside` where a
+    // human should read "Got inside the house".
     const rubric =
-      ev.type === "bonus" ? BONUSES_BY_ID.get(ev.itemId) : VIOLATIONS_BY_ID.get(ev.itemId);
+      ev.type === "violation" ? VIOLATIONS_BY_ID.get(ev.itemId) : BONUSES_BY_ID.get(ev.itemId);
     out.push({
       id: ev.id,
       kind: ev.type,
