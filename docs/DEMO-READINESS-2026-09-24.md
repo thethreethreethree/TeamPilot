@@ -60,8 +60,9 @@ shape and I would rather fix it than have you pay twice.
 
 ### c) Walk the demo path once yourself, in the theme you will present in
 
-**AMENDED — all thirteen Sales Coach screens have now been rendered in both themes and looked
-at.** When this was written, seven had been. See section 8 for what the remaining six turned up;
+**AMENDED — thirteen Sales Coach screens have now been rendered in both themes and looked at.**
+When this was written, seven had been. **That is thirteen of twenty-three, not thirteen of
+thirteen — see section 9, which corrects a claim this document made twice.** See section 8 for what the remaining six turned up;
 the short version is that Roleplay was the worst screen in the module on a light ground and is
 fixed.
 
@@ -98,9 +99,11 @@ and not cosmetic in the sense that a control you cannot see is a control you do 
 - **The backfill end to end.** Its contract is tested — the count is free, `suppressed` halts
   loudly, the loop terminates, nothing is re-billed — and the query behind it has never returned a
   real row.
-- ~~**Seven of thirteen Sales Coach screens.**~~ **AMENDED: none. All thirteen have been rendered
-  in both themes, one image at a time.** Sessions and Settings were reached through the surfaces
-  that embed them. See section 8.
+- ~~**Seven of thirteen Sales Coach screens.**~~ ~~**AMENDED: none. All thirteen have been
+  rendered.**~~ **CORRECTED AGAIN — SEE SECTION 9. "Thirteen" was a list I made, not the module.
+  Sales Coach has 23 routes and 10 of them have never been rendered, including the After Pitch
+  Summary.** My claim that Sessions and Settings "were reached through the surfaces that embed
+  them" was also wrong: neither is embedded anywhere I captured.
 - **Pattern Interrupt's real output.** Its detection only ever ran inside the scoring route, so no
   pattern has ever opened on live data. **See section 7 — I rendered it and withdrew my advice to avoid
   it.** What remains unverified is what REAL detection produces, not whether the screen works.
@@ -267,3 +270,61 @@ section 3 said at the top: nothing here has run against your database.
 
 **Not opened:** six of the seven PDFs in `docs/SYSTEM UPDATES AND REVISION 09-22-2026/`, the 16
 images in `public/`, the 11 in the webstore promo kit, and the two WhatsApp JPEGs.
+
+---
+
+## 9. Correction: "thirteen of thirteen" was thirteen of twenty-three
+
+Section 8 told you the render pass was finished. **It is not, and I should not have said so.**
+
+"Thirteen surfaces" was a list I assembled earlier today and then carried forward all day as
+though it were the module. `find src/app/dashboard/sales-coach -name page.tsx` returns **23
+routes**. Ten of them have never been rendered in either theme:
+
+| Route | Size | Own `white/N` sites |
+|---|---|---|
+| **`/[id]/after-pitch`** — the After Pitch Summary | 1815 lines | **10** |
+| `/settings` | 1060 lines | 9 |
+| `/sessions` | 1011 lines | 8 |
+| `/kpi` | 909 lines | 5 |
+| `/[id]` — the session detail | 1159 lines | 5 |
+| `/training` | 379 lines | 6 |
+| `/team` | 376 lines | 3 |
+| `/scoreboard` | 40 lines | 0 (its chart's axis lines are `stroke-white/10`) |
+| `/calibration`, `/team-chat`, `/door` | thin wrappers | 0 |
+
+**48 white-alpha sites in unrendered page files**, of the class that emptied every card in the
+module today. Three of these routes also use the deck kit, so that part of them is fixed at source.
+
+### The one that matters for your demo
+
+**`/[id]/after-pitch` is the After Pitch Summary** — the screen this product's own copy calls the
+real output. One Liners says it in words: *"Your real calls get the full timeline and score in the
+After Pitch Summary."* It is 1815 lines, it carries ten sites of today's class, and I have never
+looked at it in either theme.
+
+If your demo path ends at an After Pitch Summary — and the natural manager path, Coach Assessment →
+a rep → a recording, does exactly that — **then the last screen an investor sees is the one screen I
+can tell you least about.** Section 5 recommends dark mode, which is the path with months of real
+use, and that recommendation now carries more weight than when I wrote it.
+
+### How the wrong claim happened, and why it is the failure this project exists to catch
+
+I enumerated thirteen surfaces this morning, rendered them, counted to thirteen, and reported
+completion — against my own list, never against the filesystem. The count was true. The claim it
+supported was not, and nothing in the gate, the tests or the captures could have caught the
+difference, because all of them were measuring the list.
+
+It is the same shape as every phantom today, inverted: those were **cases where the evidence looked
+real and the finding was not.** This was a case where the evidence WAS real — thirteen screens
+genuinely rendered — and the conclusion drawn from it was still wrong, because the denominator was
+assumed rather than measured.
+
+**One command would have caught it**, and it is the same command that produced the table above.
+
+### Also corrected: the `white/N` figure in section 3
+
+Section 3 says "~253 uses across 47 files". The real figure, with the full property list, is
+**508 uses across 97 files** — roughly double. The earlier number came from a narrower pattern than
+the one it was reported as. The direction of the undercount is the direction that matters: it made
+an unexamined risk look smaller than it is.
