@@ -1912,10 +1912,188 @@ st("INV26 reachability is TRANSITIVE, not one hop", (() => {
   return found;
 })());
 
+// ═══ INVARIANT 29 — every SERVICE-ROLE statement in a route names the tenant, or says why it need not ══
+//
+// LEARNED: 2026-09-25. The founder asked, in so many words, "make sure each company's data is restricted
+// to each company." RLS answers that for the user-scoped client — 153/154 tables on, 457 policies, one
+// auth_company_id() — and answers NOTHING for `createAdminClient()`, which bypasses RLS by construction.
+// On that client the tenant boundary is whatever filter the author remembered to write.
+//
+// Reading all 68 service-role routes statement by statement found two that forgot:
+//   · coach/gamification/calibration POST read after_pitch_summaries by a BODY-supplied session id alone
+//     and returned the model's scores — any manager could read any company's pitch grades by id.
+//   · team/add-member upserted any account, found by email, into the caller's company — and anyone who
+//     signs up is an admin of their own company — so a stranger could pull a customer's CEO into theirs.
+// Both had passing tests. The calibration test's builder ignored `.eq` arguments, so a scoped read and an
+// open one were the same read; 39 of 53 service-role route tests stub `.eq` the same way. Tests of that
+// shape cannot see a missing tenant filter, which is why this has to be a STATIC gate.
+//
+// THE RULE: a `.from("<table>")` statement on a createAdminClient() receiver must mention `company_id` /
+// `companyId` within the statement (from `.from` to its `;`, or to the next `.from`), OR be allowlisted
+// here under `file::table::filter` WITH the guard that makes it safe and where that guard sits.
+//
+// WHY THE KEY IS NOT THE FILE. INVARIANT 15 allowlists whole files. That is the unit this session kept
+// getting wrong: an excused FILE excuses every query added to it later. Keyed by table and filter column, a
+// new statement of a different shape in an excused file still fails. (Two statements of the SAME shape in
+// one file share an entry — the residual precision limit, stated rather than hidden.)
+//
+// STALE ENTRIES FAIL. An exception whose statement is gone is removed, not left: a leftover key is a
+// pre-signed excuse for whatever query next takes that shape.
+//
+// NOT CAUGHT: a receiver aliased through a helper parameter (a function taking `admin` as an argument), or
+// a tenant filter carried by a variable whose name does not contain "company". Those need a human; this
+// catches the common direct shape, which is the one both of today's defects had.
+const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
+  // ── the caller's OWN row, not a tenant read ────────────────────────────────────────────────────────
+  ...[
+    "care/extension/coach", "care/extension/copilot", "care/extension/dissect", "care/extension/formulate",
+    "care/extension/spawn", "care/extension/summarize", "coach/sales-session/corpus",
+    "coach/sales-session/product", "team/set-password",
+  ].map((r) => [
+    `src/app/api/${r}/route.ts::profiles::id`,
+    "Reads/writes the CALLER's own profile — `.eq(\"id\", <authenticated user id>)`. Narrower than company.",
+  ]),
+  ["src/app/api/coach/gamification/notifications/route.ts::manager_notifications::recipient_id",
+    "Marks the caller's own notifications read: `.eq(\"recipient_id\", ctx.userId)`. Narrower than company."],
+  ["src/app/api/coach/sales-session/my-training/route.ts::events::kind",
+    "The caller's own events: the same statement pins `.eq(\"actor\", uid)` from auth.getUser()."],
+  ["src/app/api/team/add-member/route.ts::profiles::write",
+    "The upsert pins `company_id: ctx.companyId` in a patch variable built above it (the scanner sees only the " +
+      "statement). The cross-company MOVE is refused before it — 409 when the account's current company_id is " +
+      "another company; fails closed if that read errors (founder ruling 2026-09-25)."],
+
+  // ── keyed on an id this request just created, or read from a company-scoped query ─────────────────
+  ["src/app/api/care/agent/conversations/[id]/messages/route.ts::support_messages::id",
+    "Grades `msg.id` — the message this request inserted, after the conversation 404 gates at :79/:85."],
+  ["src/app/api/files/route.ts::file_classification_suggestions::write",
+    "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
+  ["src/app/api/care/conversations/[id]/agent-upload/route.ts::file_classification_suggestions::write",
+    "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
+  ["src/app/api/coach/gamification/calibration/route.ts::coaching_transcript_segments::session_id",
+    "GET: session ids are keys of modelBySession, built from after_pitch_summaries filtered to mgr.companyId."],
+  ["src/app/api/coach/sales-session/list/route.ts::events::kind",
+    "`.in(\"subject\", subjects)` — subjects built from sessions read with .eq(\"company_id\", ctx.companyId)."],
+  ["src/app/api/coach/sales-session/team-analytics/route.ts::events::kind",
+    "`.in(\"actor\", agentIds)` — agentIds from profiles read with .eq(\"company_id\", ctx.companyId)."],
+  ["src/app/api/coach/sales-session/team-analytics/route.ts::coaching_cues::session_id",
+    "Session ids (windowIds / completed) from coaching_sessions read with .eq(\"company_id\", ctx.companyId)."],
+  ["src/app/api/coach/sales-session/coach-assessment/route.ts::events::kind",
+    "`.eq(\"actor\", a.id)` per agent — agents from profiles read with .eq(\"company_id\", ctx.companyId)."],
+
+  // ── keyed on a URL id, guarded ABOVE the statement ──────────────────────────────────────────────
+  ["src/app/api/coach/sales-session/[id]/why/route.ts::events::subject",
+    "readLatestWhy() has one caller, after an RLS-scoped getSession() and the owner-or-manager gate."],
+  ["src/app/api/coach/sales-session/[id]/attribute-unlabelled/route.ts::coaching_transcript_segments::session_id",
+    "After 401 + callerCompanyId + 403 and the session access check that precede it."],
+  ["src/app/api/coach/meeting-session/[id]/dissect/route.ts::coaching_sessions::id",
+    "Re-reads audio_asset_url after a stitch, behind the 'only the session's facilitator' 403."],
+  ["src/app/api/coach/sales-session/patterns/event/route.ts::patterns::id",
+    "Update runs after the read that 404s unless pattern.company_id === ctx.companyId."],
+  ["src/app/api/chat/topics/[id]/lock/route.ts::chat_topics::id",
+    "Topic read then `created_by !== auth.user.id` → 403; the update runs only for the creator."],
+  ["src/app/api/chat/topics/[id]/lock/route.ts::chat_participants::topic_id",
+    "Participant count for a topic already proven to be the caller's own (creator check above)."],
+  ["src/app/api/notifications/notify-message/route.ts::chat_participants::topic_id",
+    "Caller must be the AUTHOR of body.messageId and that message must belong to body.topicId (:67 → 403)."],
+  ["src/app/api/files/[id]/access/route.ts::file_access_grants::file_id",
+    "After the file read that 403s unless uploader, or admin AND same company."],
+  ["src/app/api/files/[id]/route.ts::files::id",
+    "DELETE: after the read that 403s unless uploader, or admin of the same company."],
+  ["src/app/api/files/[id]/route.ts::file_classification_suggestions::file_id",
+    "PATCH: only after classifyFile() returns a file — user client, rows-affected checked, ends in RLS getFile()."],
+  ["src/app/api/files/[id]/route.ts::file_classification_suggestions::id",
+    "PATCH: updates `pending.id`, read one statement earlier for the file already proven by classifyFile()."],
+  ["src/app/api/care/conversations/[id]/file/[fileId]/route.ts::files::id",
+    "401 without a widget session token; returns null unless linked_conversation_id === the session's conversation."],
+
+  // ── the inbound-email webhook: tenant resolved from the delivered-to address ────────────────────
+  ...[
+    "support_messages::external_message_id", "support_conversations::id", "support_messages::write",
+    "support_conversation_events::write", "support_messages::conversation_id",
+    "support_conversations::customer_id",
+  ].map((k) => [
+    `src/app/api/care/inbound/email/route.ts::${k}`,
+    "Provider-authenticated (constantTimeEqual, 401). Tenant resolved from the delivered-to address via " +
+      "care_tenant_config; conversation/customer ids come from lookups filtered by tenant.company_id or rows " +
+      "this request inserted with it.",
+  ]),
+
+  // ── system crons: cross-tenant BY DESIGN, CRON_SECRET-gated (INVARIANT 11), no user input ───────
+  ...[
+    "care/rcd/retention-cron::care_rcd_conversations::none", "care/rcd/retention-cron::care_rcd_media::conversation_id",
+    "care/rcd/retention-cron::care_rcd_conversations::id", "coach/kpi/compute-cron::coaching_sessions::none",
+    "coach/kpi/compute-cron::kpi_snapshot::agent_id", "coach/sales-session/auto-close-stale-cron::coaching_sessions::id",
+    "coach/sales-session/recording-purge-cron::coaching_sessions::id",
+  ].map((k) => {
+    const [route, ...rest] = k.split("::");
+    return [
+      `src/app/api/${route}/route.ts::${rest.join("::")}`,
+      "Platform cron over ALL tenants by design; CRON_SECRET-gated; ids come from its own query, no user input.",
+    ];
+  }),
+]);
+
+function serviceRoleUnscoped(src) {
+  const vars = new Set(
+    [...src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:await\s+)?createAdminClient\(\)/g)].map((m) => m[1])
+  );
+  const out = [];
+  const lines = src.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/\.from\(\s*["'`]([a-z_]+)["'`]\s*\)/);
+    if (!m) continue;
+    const back = (lines[i - 2] ?? "") + "\n" + (lines[i - 1] ?? "") + "\n" + lines[i].slice(0, m.index);
+    const inline = /createAdminClient\(\)\s*$/.test(back);
+    const recv = back.match(/(\w+)\s*$/)?.[1];
+    if (!inline && !(recv && vars.has(recv))) continue;
+    let stmt = lines[i];
+    for (let j = i + 1; j < lines.length && j < i + 25; j++) {
+      if (/\.from\(\s*["'`]/.test(lines[j])) break; // the next statement — its filter must not mask this one
+      stmt += "\n" + lines[j];
+      if (lines[j].includes(";")) break;
+    }
+    if (/company_id|companyId/.test(stmt)) continue;
+    const filt =
+      stmt.match(/\.(?:eq|in|match)\(\s*["']([a-z_]+)["']/)?.[1] ??
+      (/\.(insert|upsert)\(/.test(stmt) ? "write" : "none");
+    out.push({ line: i + 1, key: `${m[1]}::${filt}` });
+  }
+  return out;
+}
+
+const inv29Seen = new Set();
+for (const f of FILES) {
+  if (!/\/app\/api\/.*\/route\.ts$/.test(f.path) || f.path.includes("__tests__")) continue;
+  for (const s of serviceRoleUnscoped(f.sql)) {
+    const key = `${f.path}::${s.key}`;
+    inv29Seen.add(key);
+    if (SERVICE_ROLE_TENANT_ALLOWLIST.has(key)) continue;
+    findings.push({
+      rule: "service-role statement names no tenant (possible cross-tenant read/write)",
+      file: f.path,
+      why:
+        `:${s.line} — \`.from(...)\` on a createAdminClient() receiver with no company_id in the statement.\n` +
+        "      The service role BYPASSES RLS: this filter is the only tenant boundary. Add\n" +
+        "      `.eq(\"company_id\", <caller's company>)`, or — if a guard above makes it safe — allowlist\n" +
+        `      \"${key}\" in SERVICE_ROLE_TENANT_ALLOWLIST with that guard and its line.`,
+    });
+  }
+}
+for (const key of SERVICE_ROLE_TENANT_ALLOWLIST.keys()) {
+  if (inv29Seen.has(key)) continue;
+  findings.push({
+    rule: "stale service-role tenant exception (its statement is gone)",
+    file: key.split("::")[0],
+    why:
+      `"${key}" excuses a statement that no longer exists. Remove it — a leftover key is a pre-signed\n` +
+      "      excuse for whatever query next takes that shape.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -1935,7 +2113,8 @@ if (findings.length === 0) {
       " every auth-middleware redirect preserves rotated session cookies (no intermittent logout) ·" +
       " every data-layer catch that swallows into a value classifies the error — rethrow or guard-predicate (no error-as-no-data) ·" +
       " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection) ·" +
-      " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page)."
+      " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page) ·" +
+      " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read)."
   );
   process.exit(0);
 }

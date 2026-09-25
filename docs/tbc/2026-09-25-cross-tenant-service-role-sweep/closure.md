@@ -61,3 +61,26 @@ Mutation: remove the refusal and the fail-closed branch → 2 of 9 fail. The dia
 sentence (`AddAgentDialog.tsx:57`).
 
 R1 outcome: CLOSED.
+
+## Appended 2026-09-25 — R2 closed, R3 answered with a gate
+
+R2: team-analytics, list, coach-assessment, care/inbound/email, the suggestion inserts and the crons
+were read. Every id list derives from a company-scoped read, a row this request created, or a
+tenant resolved from the delivered-to address. R2 outcome: CLOSED.
+
+R3: the filter-blind mock is widespread (regex count, a suspect not a finding: 39 of 53 service-role
+route tests stub `.eq` ignoring arguments; ~7 assert a company filter). Rewriting 39 tests protects only
+the routes that exist today. Answered instead with INVARIANT 29 in `scripts/invariant-audit.mjs`: every
+service-role statement in a route must name `company_id`, or be allowlisted as `file::table::filter` with
+the guard that makes it safe. 45 entries, each one a guard read today. Stale entries fail.
+
+Mutation-tested: (M1) calibration leak restored → caught at :138; (M2) a new unscoped shape added to an
+already-excused file → caught (a file-keyed allowlist would have waved it through); (M3) an excused
+statement removed → the stale exception is reported. Restored → 0.
+
+Stated limit: the add-member refusal cannot be seen by the scanner (company id carried in a variable);
+it is excused WITH that reason and pinned by its unit test instead.
+
+npm run check: CHECK_EXIT=0, 715 files, 5,530 passed.
+
+R3 outcome: CLOSED as a gate; the 39 filter-blind tests remain and prove nothing about tenancy on their own.
