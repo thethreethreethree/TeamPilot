@@ -17,7 +17,7 @@ export function SalesCoachComing({
     <>
       <TopBar title={title} subtitle="Sales Coach" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-3xl mx-auto w-full">
-        <div className="rounded-xl border border-default bg-white/[0.01] p-5">
+        <div className="rounded-xl border border-default bg-surface p-5">
           <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
             <Hourglass className="w-3 h-3" aria-hidden />
             Coming soon

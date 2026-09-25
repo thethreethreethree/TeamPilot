@@ -70,7 +70,7 @@ export function QuotaTargetPanel() {
   const dirty = (value.trim() === "" ? null : Number(value.trim())) !== saved;
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Target className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">Monthly quota (deals per rep)</h2>

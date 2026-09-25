@@ -327,7 +327,7 @@ export function NotificationBell() {
           if (!open && unread > 0) void markShownRead();
         }}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
-        className="relative rounded-lg p-2 text-secondary hover:bg-white/5 hover:text-primary"
+        className="relative rounded-lg p-2 text-secondary hover:bg-surface-raised hover:text-primary"
       >
         <Bell size={18} />
         {unread > 0 && (
@@ -384,7 +384,7 @@ export function NotificationBell() {
               );
               const href = destination(n);
               return href ? (
-                <Link key={n.id} href={href} onClick={() => setOpen(false)} className="block border-b border-default last:border-b-0 hover:bg-white/5">
+                <Link key={n.id} href={href} onClick={() => setOpen(false)} className="block border-b border-default last:border-b-0 hover:bg-surface-raised">
                   {inner}
                 </Link>
               ) : (

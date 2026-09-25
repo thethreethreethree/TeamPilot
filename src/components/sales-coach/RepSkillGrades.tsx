@@ -59,7 +59,7 @@ export function RepSkillGrades({ agentId }: { agentId: string }) {
 
   return (
     <>
-    <div className="mt-4 pt-3 border-t border-white/5">
+    <div className="mt-4 pt-3 border-t border-default">
       <p className="text-[10px] uppercase tracking-widest text-sky-300/80 font-bold mb-2">Skill scores</p>
       {loading ? (
         <p className="text-[11px] text-muted">Loading skill scores…</p>
@@ -83,7 +83,7 @@ export function RepSkillGrades({ agentId }: { agentId: string }) {
 
       {/* Process breakdown (partner meeting 9/2) — per-phase read + the tip from the rep's weakest session. */}
       {!loading && !error && phases.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-white/5">
+        <div className="mt-4 pt-3 border-t border-default">
           <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-bold mb-2">Process breakdown</p>
           <div className="flex flex-col gap-2.5">
             {phases.map((ph) => (

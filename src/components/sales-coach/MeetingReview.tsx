@@ -187,7 +187,7 @@ export function MeetingReview({
     yes: { text: "Goal achieved", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
     partial: { text: "Goal partially met", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
     no: { text: "Goal not met", cls: "bg-red-500/10 text-red-700 dark:text-red-300" },
-    unknown: { text: "Goal outcome unclear", cls: "bg-white/5 text-muted" },
+    unknown: { text: "Goal outcome unclear", cls: "bg-surface-raised text-muted" },
   };
 
   return (
@@ -206,7 +206,7 @@ export function MeetingReview({
               const ok = exportMeetingReviewPdf(dissect, { title: meetingTitle ?? null, dateISO: meetingStartedAt ?? null });
               setPdfError(!ok);
             }}
-            className="shrink-0 rounded-lg border border-default bg-surface px-3 py-1.5 text-sm font-medium text-primary hover:bg-white/5"
+            className="shrink-0 rounded-lg border border-default bg-surface px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-raised"
           >
             Export PDF
           </button>

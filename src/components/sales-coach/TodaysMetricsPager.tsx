@@ -154,7 +154,7 @@ export function TodaysMetricsPager() {
             onClick={() => setPage(i)}
             onKeyDown={onTabKeyDown}
             className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-              page === i ? "bg-brand text-white" : "bg-white/5 text-muted hover:text-primary"
+              page === i ? "bg-brand text-[#09090B]" : "bg-surface text-muted hover:text-primary"
             }`}
           >
             {p.label}

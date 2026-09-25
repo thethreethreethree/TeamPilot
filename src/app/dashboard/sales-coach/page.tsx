@@ -208,7 +208,7 @@ export default function SalesCoachHome() {
           <div className="shrink-0 px-4 pb-1 flex items-center justify-between gap-1.5">
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-surface-raised transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
               Back to ELOSTATE
@@ -328,7 +328,7 @@ export default function SalesCoachHome() {
         <div className="flex justify-start">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-white/5 transition-colors"
+            className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-secondary rounded-lg px-2 py-1 -ml-1 hover:bg-surface-raised transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
             Back to ELOSTATE

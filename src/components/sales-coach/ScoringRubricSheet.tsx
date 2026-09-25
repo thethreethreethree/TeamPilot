@@ -189,7 +189,7 @@ export function ScoringRubricSheet({ onClose }: { onClose: () => void }) {
             <p className="text-[10px] uppercase tracking-widest text-muted mb-2">
               Bonus · up to +{BONUS_CAP} per pitch
             </p>
-            <div className="rounded-lg border border-default bg-surface divide-y divide-white/[0.06]">
+            <div className="rounded-lg border border-default bg-surface divide-y divide-default">
               {BONUSES.map((b) => (
                 <div key={b.id} className="flex items-start justify-between gap-3 px-3.5 py-2">
                   <div className="min-w-0">

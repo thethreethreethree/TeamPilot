@@ -146,7 +146,7 @@ export function CalibrationTool() {
                   </div>
                 );
               })}
-              <button onClick={load} className="mt-3 w-full rounded-lg border border-default px-4 py-2 text-sm font-medium text-primary hover:bg-white/5">
+              <button onClick={load} className="mt-3 w-full rounded-lg border border-default px-4 py-2 text-sm font-medium text-primary hover:bg-surface-raised">
                 Next transcript →
               </button>
             </div>
