@@ -127,7 +127,7 @@ const SENTIMENT_META: Record<
 
 function IntelSection({ intel }: { intel: SalesIntel }) {
   return (
-    <div className="rounded-lg border border-default bg-white/[0.01] p-3 space-y-2">
+    <div className="rounded-lg border border-default bg-surface p-3 space-y-2">
       {intel.competitors.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5">
@@ -160,7 +160,7 @@ function IntelSection({ intel }: { intel: SalesIntel }) {
             {intel.topics.map((t) => (
               <span
                 key={t}
-                className="rounded-full bg-white/[0.04] text-secondary text-[11px] px-2 py-0.5"
+                className="rounded-full bg-surface-raised text-secondary text-[11px] px-2 py-0.5"
               >
                 {t}
               </span>
@@ -183,11 +183,11 @@ const KIND_LABEL: Record<MomentKind, string> = {
 
 function MomentsTimeline({ moments }: { moments: SalesMoment[] }) {
   return (
-    <div className="rounded-lg border border-default bg-white/[0.01] p-3">
+    <div className="rounded-lg border border-default bg-surface p-3">
       <h4 className="text-xs font-semibold text-primary mb-3">
         Conversation timeline
       </h4>
-      <ol className="relative border-l border-white/10 ml-1.5 space-y-3">
+      <ol className="relative border-l border-default ml-1.5 space-y-3">
         {moments.map((m, i) => (
           <li key={`${m.atSeq}-${i}`} className="ml-3">
             {/* node — amber + ring for the breakdown, muted dot otherwise */}
@@ -195,7 +195,7 @@ function MomentsTimeline({ moments }: { moments: SalesMoment[] }) {
               className={`absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full ${
                 m.isBreakdown
                   ? "bg-amber-400 ring-2 ring-amber-400/30"
-                  : "bg-white/25"
+                  : "bg-ink-400 dark:bg-white/25"
               }`}
               aria-hidden
             />
@@ -359,7 +359,7 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-default bg-white/[0.01] p-3">
+    <div className="rounded-lg border border-default bg-surface p-3">
       <div className="flex items-baseline gap-2">
         <h4 className="text-xs font-semibold text-primary">Your scores</h4>
         <span className="text-[11px] text-tertiary">Private to you</span>
@@ -368,7 +368,7 @@ function ScoresSection({ sessionId }: { sessionId: string }) {
         {result.scores.map((c) => (
           <div
             key={c.key}
-            className="rounded-md bg-white/[0.02] px-1 py-2 text-center flex flex-col"
+            className="rounded-md bg-surface-raised px-1 py-2 text-center flex flex-col"
           >
             {/* Fixed 2-line label box so a wrapping label (e.g. "Talk / Listen")
                 doesn't push its number off the shared baseline — §A21 parity with

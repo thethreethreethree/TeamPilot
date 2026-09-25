@@ -456,7 +456,7 @@ export default function SessionDetail() {
             why="Before you can judge a call you have to remember it accurately. The summary keeps the facts and the evaluation separate on purpose: this section is the neutral record so the growth review's judgement can't quietly rewrite what happened."
             how="Read it to reload the call in your head before you record an outcome or read the growth review. If it doesn't match your memory, trust the transcript below and re-check."
             principle="Keep the facts of a call separate from the verdict on it — an honest record is what a fair review stands on.">
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+            <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <FileText className="w-3.5 h-3.5 text-brand" aria-hidden />
                 <h2 className="text-sm font-semibold text-primary">
@@ -505,7 +505,7 @@ export default function SessionDetail() {
           </div>
         ) : (
           <>
-            {error && <p className="text-xs text-amber-300">{error}</p>}
+            {error && <p className="text-xs text-amber-700 dark:text-amber-300">{error}</p>}
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -658,7 +658,7 @@ export default function SessionDetail() {
                   </section>
                 </LearningHint>
               ) : prep.failed ? (
-                <p className="text-xs text-amber-300">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   Couldn&apos;t build the prep right now — try again in a moment.
                 </p>
               ) : (
@@ -672,7 +672,7 @@ export default function SessionDetail() {
                 on-demand help; the rep asked. Grounded in the product details
                 (Settings) + methodology; §3.4 — no invented product facts. */}
             {session && (
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+              <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <Lightbulb className="w-3.5 h-3.5 text-brand" aria-hidden />
                   <h2 className="text-sm font-semibold text-primary">
@@ -729,7 +729,7 @@ export default function SessionDetail() {
                 </div>
                 {prepAnswer &&
                   (prepAnswer.failed ? (
-                    <p className="text-[11px] text-amber-300 pt-1 border-t border-default">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 pt-1 border-t border-default">
                       Couldn&apos;t answer right now — try again in a moment.
                     </p>
                   ) : prepAnswer.hasAnswer ? (
@@ -759,7 +759,7 @@ export default function SessionDetail() {
                 why="This is the single most important thing you can log. The coach measures itself against real results, not against whether its advice sounded good — and it can only do that if you tell it what happened. An unlogged outcome is a call the system can't learn from."
                 how="Tap the result the moment the call is over, while it's honest and fresh. Don't skip the ones that stung — the losses are exactly the data that makes the coaching sharper. It only appears after the session ends, so it never blocks you mid-call."
                 principle="Log the consequence, not the compliment — what actually works only shows up when you record what actually happened.">
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+              <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
                 <h2 className="text-sm font-semibold text-primary">Call outcome</h2>
                 <div className="flex flex-wrap gap-1.5">
                   {OUTCOME_ORDER.map((o) => (
@@ -804,7 +804,7 @@ export default function SessionDetail() {
                       {savingDeal ? "Saving…" : "Save value"}
                     </button>
                     {session.dealValue != null && (
-                      <span className="text-[11px] text-emerald-300 mb-1.5">
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300 mb-1.5">
                         Recorded: {session.dealValue.toLocaleString()}
                       </span>
                     )}
@@ -845,7 +845,7 @@ export default function SessionDetail() {
                 is gated behind the rep's and builds on it. Gated on a recorded
                 outcome (§3.2/§3.5 — no consequence, no why). */}
             {!isStandard && session && session.outcome && (
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+              <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-brand" aria-hidden />
                   <h2 className="text-sm font-semibold text-primary">
@@ -923,7 +923,7 @@ export default function SessionDetail() {
                     </div>
                   ) : systemWhy.failed ? (
                     <div className="pt-2 border-t border-default space-y-2">
-                      <p className="text-[11px] text-amber-300">
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
                         Couldn&apos;t generate the coach&apos;s read right now.
                       </p>
                       <LoadingButton
@@ -969,8 +969,8 @@ export default function SessionDetail() {
                 </h2>
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" aria-hidden />
-                    <h3 className="text-xs uppercase tracking-widest font-bold text-emerald-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    <h3 className="text-xs uppercase tracking-widest font-bold text-emerald-700 dark:text-emerald-300">
                       What you did well
                     </h3>
                   </div>
@@ -990,8 +990,8 @@ export default function SessionDetail() {
                 {review.growthAreas.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
-                      <Lightbulb className="w-3.5 h-3.5 text-amber-400" aria-hidden />
-                      <h3 className="text-xs uppercase tracking-widest font-bold text-amber-300">
+                      <Lightbulb className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
+                      <h3 className="text-xs uppercase tracking-widest font-bold text-amber-700 dark:text-amber-300">
                         Opportunities to grow
                       </h3>
                     </div>
@@ -1092,7 +1092,7 @@ export default function SessionDetail() {
                         seg.speaker === "agent"
                           ? "border-ember-400/20 bg-ember-400/[0.03]"
                           : seg.speaker === "customer"
-                            ? "border-default bg-white/[0.02]"
+                            ? "border-default bg-surface"
                             : "border-default bg-transparent"
                       }`}
                     >
@@ -1136,7 +1136,7 @@ export default function SessionDetail() {
               className="w-full mt-3 bg-surface border border-default rounded-md px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-strong"
             />
             {namingError && (
-              <p role="alert" className="text-xs text-amber-300 mt-2">
+              <p role="alert" className="text-xs text-amber-700 dark:text-amber-300 mt-2">
                 {namingError}
               </p>
             )}
