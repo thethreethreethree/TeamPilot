@@ -122,7 +122,7 @@ export default function SalesCoachTeamPage() {
           </div>
         ) : loadError ? (
           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5">
-            <p className="text-xs text-amber-300 leading-relaxed">
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
               Couldn&apos;t load your team right now — this is an error, not an
               empty team, and it doesn&apos;t change your access. Try again shortly.
             </p>
@@ -137,7 +137,7 @@ export default function SalesCoachTeamPage() {
             how="If you need to use the Sales Coach or change someone's access, ask a Sales Coach admin to grant it — they can assign your role here."
             principle="Access controls exist to keep responsibility clear, not to hide the work happening behind them."
           >
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-5">
+          <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-5">
             <div className="inline-flex items-center gap-1.5 text-[11px] text-muted rounded-md border border-default px-2 py-1 mb-3">
               <Lock className="w-3 h-3" aria-hidden />
               Admin only
@@ -218,7 +218,7 @@ export default function SalesCoachTeamPage() {
               </p>
             </div>
             </LearningHint>
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm divide-y divide-default overflow-hidden">
+            <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm divide-y divide-default overflow-hidden">
               {(members ?? []).map((m, mi) => (
                 <div key={m.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   {mi === 0 ? (
@@ -329,7 +329,7 @@ export default function SalesCoachTeamPage() {
             </div>
 
             {pendingInvites.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
+              <div className="rounded-2xl border border-default bg-surface backdrop-blur-sm overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b border-default">
                   <Clock className="w-3.5 h-3.5 text-muted" aria-hidden />
                   <h3 className="text-xs font-semibold text-secondary">Invited — waiting to accept</h3>

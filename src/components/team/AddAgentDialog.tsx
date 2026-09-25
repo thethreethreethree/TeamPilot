@@ -65,7 +65,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl border border-default bg-surface p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-brand" aria-hidden />
@@ -75,7 +75,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
         </div>
 
         {/* Mode toggle */}
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white/[0.03] border border-white/10 mb-4">
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-raised border border-default mb-4">
           {([["existing", "Existing user"], ["new", "New user"]] as const).map(([v, label]) => (
             <button key={v} type="button" onClick={() => { setMode(v); setError(null); }}
               className={`text-xs font-medium py-1.5 rounded-md transition-colors ${mode === v ? "bg-ember-400 text-[#09090B]" : "text-secondary hover:text-brand"}`}>
@@ -90,7 +90,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
             <div className="relative">
               <Mail className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoFocus placeholder="person@company.com"
-                className="w-full rounded-lg bg-base border border-white/10 pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted" />
+                className="w-full rounded-lg bg-base border border-default pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted" />
             </div>
             <p className="text-[10px] text-muted mt-1">
               {mode === "existing"
@@ -105,7 +105,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
               <div className="relative">
                 <User className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
                 <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" maxLength={120} placeholder="Jane Ramirez"
-                  className="w-full rounded-lg bg-base border border-white/10 pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted" />
+                  className="w-full rounded-lg bg-base border border-default pl-8 pr-3 py-2 text-xs text-primary placeholder:text-muted" />
               </div>
               <p className="text-[10px] text-muted mt-1">
                 How they appear on the team list and the leaderboard. Leave blank and we&apos;ll fall back to the part
@@ -127,7 +127,7 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
                 <div className="relative">
                   <KeyRound className="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
                   <select value={teamPasswordId} onChange={(e) => setTeamPasswordId(e.target.value)}
-                    className="w-full appearance-none rounded-lg bg-base border border-white/10 pl-8 pr-3 py-2 text-xs text-primary">
+                    className="w-full appearance-none rounded-lg bg-base border border-default pl-8 pr-3 py-2 text-xs text-primary">
                     {passwords.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                   </select>
                 </div>

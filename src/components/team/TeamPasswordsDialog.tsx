@@ -67,7 +67,7 @@ export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose:
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-2xl border border-default bg-surface p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <KeyRound className="w-4 h-4 text-brand" aria-hidden />
@@ -81,14 +81,14 @@ export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose:
         </p>
 
         {/* Create */}
-        <form onSubmit={create} className="rounded-xl border border-white/10 bg-white/[0.02] p-3 mb-4 space-y-2">
+        <form onSubmit={create} className="rounded-xl border border-default bg-surface-raised p-3 mb-4 space-y-2">
           <div className="flex gap-2">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Sales Team)" maxLength={80}
-              className="flex-1 rounded-lg bg-base border border-white/10 px-3 py-2 text-xs text-primary placeholder:text-muted" />
+              className="flex-1 rounded-lg bg-base border border-default px-3 py-2 text-xs text-primary placeholder:text-muted" />
           </div>
           <div className="flex gap-2">
             <input value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Password" maxLength={200}
-              className="flex-1 rounded-lg bg-base border border-white/10 px-3 py-2 text-xs font-mono text-primary placeholder:text-muted" />
+              className="flex-1 rounded-lg bg-base border border-default px-3 py-2 text-xs font-mono text-primary placeholder:text-muted" />
             <button type="submit" disabled={busy}
               className="inline-flex items-center gap-1.5 text-xs font-semibold bg-ember-400 text-[#09090B] px-3 py-2 rounded-lg disabled:opacity-50 hover:bg-ember-300 transition-colors">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <Plus className="w-3.5 h-3.5" aria-hidden />}
@@ -105,7 +105,7 @@ export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose:
         ) : list.length === 0 ? (
           <p className="text-[11px] text-muted py-6 text-center">No team passwords yet — create one above.</p>
         ) : (
-          <div className="rounded-xl border border-white/10 divide-y divide-default overflow-hidden">
+          <div className="rounded-xl border border-default divide-y divide-default overflow-hidden">
             {list.map((p) => (
               <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
                 <div className="min-w-0">
