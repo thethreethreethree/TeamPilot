@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { SCORE_LABEL } from "@/lib/coach/doorlog/scoreLabels";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Drama } from "lucide-react";
 
 /**
@@ -65,7 +66,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
       {/* Back link: below the status-bar safe area (was under the clock and untappable), with a real tap target. */}
       <Link
         href="/dashboard/sales-coach/doors/report-card"
-        className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm font-medium text-secondary hover:text-primary active:bg-white/5 transition-colors mb-3"
+        className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm font-medium text-secondary hover:text-primary active:bg-surface-raised transition-colors mb-3"
       >
         <ArrowLeft className="w-4 h-4" aria-hidden /> Pitch Performance
       </Link>
@@ -108,7 +109,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
               // Honest state for a completed pitch with no analysis row (audit H3): the data write failed at some
               // point. NEVER show "still processing" for a terminal pitch — that spinner would never resolve.
               <div className="glass-card p-4 mb-5 border border-amber-500/30">
-                <p className="flex items-center gap-2 text-sm text-amber-400 font-semibold">
+                <p className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 font-semibold">
                   <AlertTriangle className="w-4 h-4" aria-hidden /> Analysis unavailable
                 </p>
                 <p className="text-xs text-secondary mt-1">
@@ -129,10 +130,10 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
                   {Object.entries(detail.analysis.scores).map(([dim, val]) => (
                     <div key={dim}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-secondary capitalize">{dim}</span>
+                        <span className="text-secondary">{SCORE_LABEL[dim] ?? dim}</span>
                         <span className="text-primary tabular-nums">{val}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
                         <div
                           className="h-full bg-ember-400 rounded-full"
                           style={{ width: `${Math.max(0, Math.min(100, val))}%` }}
@@ -152,7 +153,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
               {/* Strengths / Improvements */}
               {detail.analysis.strengths.length > 0 && (
                 <div className="mb-5">
-                  <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-400 mb-2">
+                  <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400 mb-2">
                     <CheckCircle2 className="w-3.5 h-3.5" aria-hidden /> Strengths
                   </h2>
                   <ul className="space-y-1.5">
@@ -164,7 +165,7 @@ export function PitchDetail({ pitchId }: { pitchId: string }) {
               )}
               {detail.analysis.improvements.length > 0 && (
                 <div className="mb-5">
-                  <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ember-400 mb-2">
+                  <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand mb-2">
                     <AlertTriangle className="w-3.5 h-3.5" aria-hidden /> Growth opportunities
                   </h2>
                   <ul className="space-y-1.5">

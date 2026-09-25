@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { SCORE_ORDER, SCORE_LABEL } from "@/lib/coach/doorlog/scoreLabels";
 import { Target, DoorOpen, MessageSquare, TrendingUp, Lightbulb, Loader2 } from "lucide-react";
 
 /**
@@ -19,14 +20,7 @@ const PERIODS = [
 
 // The founder's five Score-Chart dimensions, in order. Only dims PRESENT in the data render (older pitches
 // scored under the v1 rubric lack talk_listen/questions — showing a phantom 0 would be a lie).
-const SCORE_ORDER = ["objection", "talk_listen", "questions", "tone", "close"] as const;
-const SCORE_LABEL: Record<string, string> = {
-  objection: "Objection",
-  talk_listen: "Talk / Listen",
-  questions: "Questions",
-  tone: "Tone",
-  close: "Close",
-};
+// SCORE_ORDER / SCORE_LABEL live in @/lib/coach/doorlog/scoreLabels — shared with PitchDetail.
 
 type Metrics = {
   kpi: { doorsKnocked: number; conversations: number; sold: number };
@@ -111,7 +105,7 @@ export function TodaysMetrics() {
               value={from}
               max={to || undefined}
               onChange={(e) => setFrom(e.target.value)}
-              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-white/10"
+              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-default"
             />
             <span className="text-muted text-xs shrink-0">to</span>
             <input
@@ -120,7 +114,7 @@ export function TodaysMetrics() {
               value={to}
               min={from || undefined}
               onChange={(e) => setTo(e.target.value)}
-              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-white/10"
+              className="flex-1 min-w-0 bg-surface text-secondary rounded-lg px-3 py-2 text-sm border border-default"
             />
           </div>
         )}
@@ -199,7 +193,7 @@ export function TodaysMetrics() {
                         <span className="text-secondary">{SCORE_LABEL[dim] ?? dim}</span>
                         <span className="text-primary tabular-nums">{val}</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
                         <div
                           className="h-full bg-ember-400 rounded-full"
                           style={{ width: `${Math.max(0, Math.min(100, val))}%` }}
@@ -247,7 +241,7 @@ function Kpi({
   return (
     <div
       className={`rounded-xl border px-2 py-3 flex flex-col items-center justify-center text-center gap-1 ${
-        accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-white/10 bg-white/[0.02]"
+        accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-default bg-surface"
       }`}
     >
       <Icon className={`w-4 h-4 ${accent ? "text-brand" : "text-muted"}`} aria-hidden />

@@ -166,7 +166,7 @@ export function VoiceEnrollment() {
   const progress = Math.min(100, Math.round((voiced / ENOUGH_VOICED) * 100));
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+    <section className="rounded-xl border border-default bg-surface p-4">
       <div className="flex items-start gap-2">
         <Mic className="w-4 h-4 text-brand mt-0.5 shrink-0" aria-hidden />
         <div className="min-w-0">
@@ -195,7 +195,7 @@ export function VoiceEnrollment() {
         </div>
       ) : (
         <>
-          <div className="mt-3 rounded-lg border border-default bg-white/[0.02] p-3">
+          <div className="mt-3 rounded-lg border border-default bg-surface-raised p-3">
             <p className="text-[11px] uppercase tracking-wide text-muted font-bold mb-1">Read this aloud</p>
             <p className="text-sm text-secondary italic">&ldquo;{PROMPT}&rdquo;</p>
           </div>
@@ -211,11 +211,11 @@ export function VoiceEnrollment() {
                 <span className="ml-auto text-[11px] text-muted tabular-nums">{voiced}/{ENOUGH_VOICED} voiced</span>
               </div>
               {/* Mic level meter */}
-              <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-2 h-1.5 w-full rounded-full bg-surface-raised overflow-hidden">
                 <div className="h-full rounded-full bg-ember-400 transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} />
               </div>
               {/* Capture progress */}
-              <div className="mt-1.5 h-1 w-full rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-1.5 h-1 w-full rounded-full bg-surface-raised overflow-hidden">
                 <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-150" style={{ width: `${progress}%` }} />
               </div>
             </div>
@@ -230,7 +230,7 @@ export function VoiceEnrollment() {
               <button
                 type="button"
                 onClick={stopAndSubmit}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-strong hover:bg-white/[0.04] px-3 py-2 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-strong hover:bg-surface-raised px-3 py-2 rounded-lg transition-colors"
               >
                 Done
               </button>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, vi } from "vitest";
 import { expect } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { capture, stubBrowserApis } from "@/test/visual";
 
@@ -26,6 +26,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { TodaysMetricsPager } from "@/components/sales-coach/TodaysMetricsPager";
+import { TodaysMetrics } from "@/components/sales-coach/doorlog/TodaysMetrics";
 
 describe("capture", () => {
   it("todays metrics, progress page", async () => {
@@ -87,7 +88,7 @@ describe("capture", () => {
               period: "day",
               range: null,
               kpi: { doorsKnocked: 64, conversations: 19, sold: 3 },
-              scores: { opener: 7.4, discovery: 6.1, objection: 5.2, talk_listen: 6.8, questions: 7.9, tone: 8.1, close: 4.6 },
+              scores: { opener: 74, discovery: 61, objection: 52, talk_listen: 68, questions: 79, tone: 81, close: 46 }, // 0-100 (analyze.ts:34)
               focus: "Ask for the sale before you leave the porch.",
               opportunities: [
                 "Three doors reached Discovery and stopped there.",
@@ -156,5 +157,38 @@ describe("capture", () => {
       width: 390,
       height: 844,
     });
+  });
+
+  /**
+   * THE METRICS PAGE ITSELF (2026-09-25). The test above photographs the pager's default page only —
+   * its wait names no Metrics-page string — so TodaysMetrics' tiles, score tracks and date inputs had
+   * never been rendered. Rendered directly here, with the same fixture, then switched to Custom so the
+   * two date inputs (:114, :123) are in frame too.
+   */
+  it("todays metrics, the metrics page with a custom range", async () => {
+    stubBrowserApis();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          period: "day",
+          range: null,
+          kpi: { doorsKnocked: 64, conversations: 19, sold: 3 },
+          scores: { opener: 74, discovery: 61, objection: 52, talk_listen: 68, questions: 79, tone: 81, close: 46 }, // 0-100 (analyze.ts:34)
+          focus: "Ask for the sale before you leave the porch.",
+          opportunities: ["Three doors reached Discovery and stopped there."],
+        }),
+      }))
+    );
+    const { container } = render(<TodaysMetrics />);
+    // The fixture's focus line: present only once data has loaded, never in the skeleton or chrome.
+    await screen.findByText(/Ask for the sale before you leave the porch/i, undefined, { timeout: 8000 });
+    // The LOADED Day state first: tiles (:250) and score tracks (:202) render only while data is shown,
+    // and switching to Custom clears it — one photo per state, or the tiles go unseen.
+    capture("todays-metrics-page-day", container, { width: 390, height: 1100 });
+    fireEvent.click(screen.getByRole("button", { name: /^Custom$/ }));
+    await waitFor(() => expect(container.querySelectorAll('input[type="date"]').length).toBe(2), { timeout: 4000 });
+    capture("todays-metrics-page", container, { width: 390, height: 1100 });
   });
 });
