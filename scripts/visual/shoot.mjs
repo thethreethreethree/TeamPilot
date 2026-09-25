@@ -149,7 +149,13 @@ for (const file of readdirSync(WORK).filter((f) => f.endsWith(".json"))) {
      */
     const frame =
       `body{margin:0;background:transparent}` +
-      `#vp{width:${width}px;min-height:${height}px;display:flex;flex-direction:column;overflow:hidden}` +
+      // `transform`: makes #vp the containing block for `position:fixed` descendants. Without it a
+      // `fixed inset-0` surface (the Sales Coach shell, every modal) sizes to the BROWSER WINDOW,
+      // escapes #vp's overflow, and — because headless Chrome clamps its window to a minimum width —
+      // lays out wider than the PNG. The shell's mobile nav was photographed at ~488px and cropped at
+      // 430, which cut its fifth tab in half: a layout bug this harness invented (2026-09-25). On a
+      // phone the viewport IS the page's box, so this is what the device does.
+      `#vp{width:${width}px;min-height:${height}px;display:flex;flex-direction:column;overflow:hidden;transform:translateZ(0)}` +
       // `flex`/`min-height` only — NOT `display`. Forcing the child to flex would silently break
       // any surface that is a grid (the Recordings panel is one), turning a faithful frame into a
       // different way of inventing layout bugs. As a flex ITEM it lays out in the column; what it
