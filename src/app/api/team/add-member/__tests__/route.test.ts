@@ -71,6 +71,28 @@ describe("POST /api/team/add-member", () => {
     await POST(req({ mode: "existing", email: "self@b.com", salesCoachRole: null }));
     expect((upsert.mock.calls[0]![0] as Record<string, unknown>).role).toBeUndefined();
   });
+  // Founder ruling 2026-09-25. Anyone who signs up is admin of their own new company, so without this a stranger
+  // could move a customer's user — their CEO included, demoted to Member — into the stranger's company by email.
+  it("existing mode: a person in ANOTHER company is refused, and nothing is written", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin); // company c1
+    findByEmail.mockResolvedValue({ id: "ceo-of-c2", email: "ceo@customer.com" });
+    profileLookup.mockResolvedValue({ data: { role: "CEO", company_id: "c2" }, error: null });
+    upsert.mockResolvedValue({ error: null });
+    const res = await POST(req({ mode: "existing", email: "ceo@customer.com", salesCoachRole: null }));
+    expect(res.status).toBe(409);
+    expect(upsert).not.toHaveBeenCalled();
+    // The other company is not named — a stranger must not learn where someone works.
+    expect(JSON.stringify(await res.json())).not.toContain("c2");
+  });
+  it("existing mode: an unreadable profile fails CLOSED — not read as 'no company'", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin);
+    findByEmail.mockResolvedValue({ id: "u9", email: "a@b.com" });
+    profileLookup.mockResolvedValue({ data: null, error: { message: "connection reset" } });
+    const res = await POST(req({ mode: "existing", email: "a@b.com", salesCoachRole: null }));
+    expect(res.status).toBe(500);
+    expect(upsert).not.toHaveBeenCalled();
+    expect(JSON.stringify(await res.json())).not.toContain("connection reset"); // CWE-209
+  });
   it("new mode: email already has an account → 409", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue(admin);
     findByEmail.mockResolvedValue({ id: "u9", email: "a@b.com" });

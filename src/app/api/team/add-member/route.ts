@@ -11,7 +11,8 @@ import { isAdminRole } from "@/lib/roles";
  *
  *   - mode "existing": the email already has an Elostate / Sales Coach account → attach them to THIS company
  *     immediately (no invite, no password). The multi-company complication (a person already on another team) is
- *     a deliberate DEFERRED item per the founder — for now the add is direct.
+ *     a deliberate DEFERRED item per the founder. Until it exists, an account that already belongs to ANOTHER
+ *     company is REFUSED (409), never moved — founder ruling 2026-09-25; see the check below.
  *
  *   - mode "new": brand-new person (no account) → the admin creates their login with a picked TEAM PASSWORD as
  *     the initial password, and the app forces them to set their own password on first login
@@ -63,7 +64,28 @@ export async function POST(req: NextRequest) {
     // their OWN email, or someone already an admin of THIS company) must KEEP their role — omitting `role` from
     // the upsert leaves it unchanged. company_id pinned to the caller's session (INV15); service-role bypasses
     // the privileged-column guard. (Deferred: reassigning a person already on another team — founder's future item.)
-    const { data: cur } = await sb.from("profiles").select("role, company_id").eq("id", existing.id).maybeSingle();
+    const { data: cur, error: curErr } = await sb.from("profiles").select("role, company_id").eq("id", existing.id).maybeSingle();
+    // Fail CLOSED. An unread profile is not "no company" — treating it as one would move a person we could not see.
+    if (curErr) {
+      console.error("[team/add-member existing] profile read failed:", curErr.message);
+      return NextResponse.json({ error: "Couldn't check that person's current team. Nothing was changed." }, { status: 500 });
+    }
+    /**
+     * NEVER MOVE A PERSON OUT OF ANOTHER COMPANY (founder ruling 2026-09-25, superseding "for now the add is direct").
+     *
+     * This route runs on the service role, and the upsert below rewrites company_id — so without this check any
+     * company admin could pull any account, by email, out of any other company. Anyone who signs up becomes admin of
+     * a new company (complete_company_onboarding, 0047), so "any admin" meant "anyone": a customer's CEO could be
+     * moved into a stranger's company and demoted to Member. The multi-team feature stays deferred; what changed is
+     * that the deferral now REFUSES instead of silently reassigning. The other company is not named — a stranger
+     * must not learn where someone works.
+     */
+    if (cur?.company_id && cur.company_id !== ctx.companyId) {
+      return NextResponse.json(
+        { error: "That person already belongs to another team, so they can't be added here. Nothing was changed." },
+        { status: 409 },
+      );
+    }
     const keepRole = existing.id === ctx.userId || (cur?.company_id === ctx.companyId && isAdminRole(cur?.role ?? null));
     const patch: Record<string, string | null> = { id: existing.id, company_id: ctx.companyId, sales_coach_role: salesCoachRole, status: "active" };
     if (!keepRole) patch.role = "Member";

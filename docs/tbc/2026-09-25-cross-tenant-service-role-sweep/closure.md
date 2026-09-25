@@ -46,3 +46,18 @@ vacuous is a security property.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Appended 2026-09-25 — R1 ruled and closed
+
+Founder picked **"Refuse it (Recommended)"**. `team/add-member` existing-mode now returns 409 when the
+account already belongs to a different company, and writes nothing. No-company and same-company adds
+are unchanged. The other company is not named in the response.
+
+Also fixed on the way: the profile read that decides this had its error discarded, so a failed read
+came back as `cur = null` — indistinguishable from "no company" — and the move would have proceeded.
+It now fails CLOSED with a 500 and a generic sentence (CWE-209).
+
+Mutation: remove the refusal and the fail-closed branch → 2 of 9 fail. The dialog surfaces the
+sentence (`AddAgentDialog.tsx:57`).
+
+R1 outcome: CLOSED.
