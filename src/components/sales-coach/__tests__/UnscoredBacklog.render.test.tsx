@@ -129,3 +129,71 @@ describe("the drain", () => {
     expect(screen.getByText(/12 recordings have never been scored/i)).toBeTruthy();
   });
 });
+
+/**
+ * "I PRESSED SCORE THEM ALL AND NOTHING HAPPENED." — 2026-09-25, the founder, several times.
+ *
+ * Every one of these is a run that SUCCEEDS. No throw, no non-2xx, no refusal to report. The
+ * defect was that a successful finish set the message to `body.note`, which the route leaves null
+ * on every ordinary completion — so the last act of a working run was to blank the only element
+ * that could have said it worked. Disabled button returns to normal, no text appears, and a
+ * finished pass is pixel-identical to a button that is not wired to anything.
+ */
+describe("a run that finishes must never finish in silence", () => {
+  it("says what it did when the server sends no note", async () => {
+    serve(16, { scored: 8, remaining: 8, refused: {}, more: true, note: null, nextOffset: 0 });
+    render(<UnscoredBacklog />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    // Second POST falls through to the default: scored 0, remaining 0, more false, note NULL.
+    expect(await screen.findByText(/Done — 8 recordings scored/i)).toBeTruthy();
+  });
+
+  it("says so when it scored nothing and the server gave no reason", async () => {
+    serve(4, { scored: 0, remaining: 4, refused: {}, more: false, note: null, nextOffset: 4 });
+    render(<UnscoredBacklog />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    const el = await screen.findByText(/nothing was scored/i);
+    // And it names ITSELF as the defect rather than blaming the recordings, because a refusal
+    // with no reason attached is the server failing to answer, not an unscorable pitch.
+    expect(el.textContent).toMatch(/gave no reason.*defect/i);
+  });
+
+  it("does not vanish at zero once a run has happened, taking its own answer with it", async () => {
+    // The panel hides itself at 0 so it is not furniture. But hiding DURING the press is how a
+    // completed drain disappears before it can report — the press then looks like it did nothing.
+    serve(0);
+    const { rerender } = render(<UnscoredBacklog />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.queryByText(/never been scored/i)).toBeNull(); // still furniture-free at rest
+    rerender(<UnscoredBacklog />);
+  });
+});
+
+describe("the rate limit the drain outruns", () => {
+  it("waits out a 429 and carries on instead of calling it an error", async () => {
+    let call = 0;
+    fetchMock.mockImplementation(async (_u: unknown, init?: { method?: string }) => {
+      if (init?.method !== "POST") return count(16);
+      call += 1;
+      if (call === 2) {
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: () => "1" },
+          json: async () => ({ error: "Rate limit exceeded for pitch-score-backfill." }),
+        };
+      }
+      if (call === 1) {
+        return { ok: true, status: 200, headers: { get: () => null },
+          json: async () => ({ scored: 8, remaining: 8, refused: {}, more: true, note: null, nextOffset: 0 }) };
+      }
+      return { ok: true, status: 200, headers: { get: () => null },
+        json: async () => ({ scored: 8, remaining: 0, refused: {}, more: false, note: null, nextOffset: 0 }) };
+    });
+    render(<UnscoredBacklog />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    // 16 scored across the throttle, NOT "scoring stopped" at 8.
+    expect(await screen.findByText(/Done — 16 recordings scored/i, undefined, { timeout: 6000 })).toBeTruthy();
+    expect(screen.queryByText(/Scoring stopped/i)).toBeNull();
+  });
+});

@@ -21,6 +21,11 @@ import { Loader2, Play } from "lucide-react";
 
 type Refusals = Partial<Record<string, number>>;
 
+/** Mirrors `BATCH` in the route. Display only — the server owns the real number. */
+const BATCH_HINT = "8 recordings";
+/** At most this many throttle waits in one run, so a throttled caller terminates. */
+const MAX_WAITS = 30;
+
 type DrainResponse = {
   scored: number;
   remaining: number;
@@ -50,6 +55,10 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
   const [note, setNote] = useState<string | null>(null);
   const [refused, setRefused] = useState<Refusals>({});
   const [failed, setFailed] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  /** Once a run has happened the panel STAYS, even at zero — otherwise the answer disappears
+   *  with it and the press looks like it did nothing. */
+  const [ran, setRan] = useState(false);
 
   const count = useCallback(async () => {
     try {
@@ -80,17 +89,44 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
    */
   const run = async () => {
     setRunning(true);
+    setRan(true);
+    setProgress(null);
     setScoredSoFar(0);
     setNote(null);
     setRefused({});
     const seen: Refusals = {};
     let offset = 0;
+    let passes = 0;
+    let total = 0;
+    let waits = 0;
     try {
       for (;;) {
+        passes += 1;
+        setProgress(`Pass ${passes} — asking the server for the next ${BATCH_HINT}…`);
         const res = await fetch(
           `/api/coach/sales-session/pitch-score/backfill?offset=${offset}`,
           { method: "POST" }
         );
+        /**
+         * 429 IS NOT AN ERROR HERE — IT IS THE DRAIN OUTRUNNING ITS OWN THROTTLE.
+         *
+         * The route allows 12 POSTs a minute and a 194-recording backlog needs 25, so the loop
+         * could never finish: it died at pass 13 every single time. It only shows up when passes
+         * return FAST, which is exactly what happens when recordings are being refused rather than
+         * graded (`no_agent_turns` is decided before any LLM call, so a refusal costs ~nothing and
+         * the loop spins through its whole minute's budget in seconds).
+         *
+         * So the limiter is respected rather than raised past the point of being a limiter: wait
+         * the Retry-After it already sends, then carry on. Bounded, so a permanently throttled
+         * caller still terminates instead of hanging forever.
+         */
+        if (res.status === 429 && waits < MAX_WAITS) {
+          waits += 1;
+          const secs = Math.min(65, Math.max(1, Number(res.headers.get("Retry-After") ?? 5) || 5));
+          setProgress(`Rate limit reached after ${total} scored — waiting ${secs}s, then carrying on.`);
+          await new Promise((r) => setTimeout(r, secs * 1000));
+          continue;
+        }
         if (!res.ok) {
           /**
            * SAY WHAT FAILED.
@@ -113,6 +149,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
         }
         const body = (await res.json()) as DrainResponse;
         offset = body.nextOffset ?? offset;
+        total += body.scored;
         setScoredSoFar((n) => n + body.scored);
         setUnscored(body.remaining);
         for (const [reason, n] of Object.entries(body.refused ?? {})) {
@@ -120,14 +157,38 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
         }
         setRefused({ ...seen });
         if (!body.more) {
-          setNote(body.note);
+          /**
+           * A RUN THAT CHANGES NOTHING MUST STILL SAY SO.
+           *
+           * `body.note` is null on every ordinary finish, so this used to end the loop by setting
+           * the message to null — clearing the one element that could have reported the outcome.
+           * The button un-disabled, no text appeared, and a completed pass was pixel-identical to
+           * a dead button. That is what "I pressed it and nothing happened" describes, and it is
+           * the same §1.5.3 failure the error path was fixed for this morning: silence read as
+           * success. The remedy is the same one — say it out loud, including when the news is
+           * that there was no news.
+           */
+          setNote(
+            body.note ??
+              (total > 0
+                ? `Done — ${total} recording${total === 1 ? "" : "s"} scored in ${passes} pass${passes === 1 ? "" : "es"}. ` +
+                  (body.remaining > 0
+                    ? `${body.remaining} still unscored for the reasons below.`
+                    : `The dashboards below will fill as you look.`)
+                : `Done, and nothing was scored. ${body.remaining} recording${body.remaining === 1 ? "" : "s"} remain` +
+                  (Object.keys(seen).length > 0
+                    ? ` — the reasons are listed below.`
+                    : `, and the server gave no reason. That is a defect; please send me this sentence.`))
+          );
           break;
         }
+        setProgress(`Pass ${passes} done — ${total} scored so far, ${body.remaining} to go.`);
       }
     } catch {
       setNote("Scoring stopped because the connection dropped. Nothing already scored is lost.");
     } finally {
       setRunning(false);
+      setProgress(null);
       onDone?.();
     }
   };
@@ -143,7 +204,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
 
   // Nothing waiting and nothing just done — no panel. Furniture that always says zero teaches
   // people to stop reading it.
-  if (unscored === null || (unscored === 0 && scoredSoFar === 0)) return null;
+  if (unscored === null || (unscored === 0 && scoredSoFar === 0 && !ran)) return null;
 
   const refusalLines = Object.entries(refused).filter(([, n]) => (n ?? 0) > 0);
 
@@ -187,6 +248,9 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
 
       {/* Why it stopped, when it stopped early. §1.5.3 — a run that scores nothing must say so in
           words, never as a silent 0. */}
+      {/* Live, per-pass. A drain of 194 is ~25 server round-trips; without this the only feedback
+          for minutes at a time is a spinner, and a spinner is what a hung request looks like. */}
+      {progress && <p className="mt-2 text-xs text-secondary">{progress}</p>}
       {note && <p className="mt-2 text-xs text-secondary">{note}</p>}
 
       {refusalLines.length > 0 && (
