@@ -67,7 +67,7 @@ export function TeamTrainingBriefPanel() {
   })();
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4">
+    <section className="rounded-2xl border border-default bg-surface p-4">
       <div className="flex items-center justify-between gap-2 mb-1">
         <h2 className="text-sm font-semibold text-primary">Team training brief</h2>
         <div className="flex items-center gap-2 shrink-0">
@@ -79,7 +79,7 @@ export function TeamTrainingBriefPanel() {
                 type="button"
                 onClick={() => setPeriod(p)}
                 aria-pressed={period === p}
-                className={`px-2.5 py-1.5 transition-colors ${period === p ? "bg-white/10 text-primary" : "text-muted hover:text-primary"}`}
+                className={`px-2.5 py-1.5 transition-colors ${period === p ? "bg-surface-raised text-primary" : "text-muted hover:text-primary"}`}
               >
                 {p === "day" ? "Day" : "Week"}
               </button>

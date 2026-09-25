@@ -218,7 +218,7 @@ function TabButton({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-default bg-surface px-4 py-3">
       <span className="text-xs text-muted">{label}</span>
       <span className="text-sm text-primary capitalize">{value}</span>
     </div>
@@ -308,7 +308,7 @@ function CorpusEditor() {
   };
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
       <LearningHint
         as="block"
         category="Sales Coach · Corpus"
@@ -341,7 +341,7 @@ function CorpusEditor() {
             how="Check it after saving. Once it reads 'your team's own corpus,' your methodology is what reviews reason from."
             principle="Honesty about what's actually running beats a reassuring label that isn't true.">
             <p className="inline-flex items-center gap-1.5 text-xs text-secondary">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" aria-hidden />
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" aria-hidden />
               Reviews currently use{" "}
               {SOURCE_LABEL[data?.effectiveSource ?? "starter"]}.
             </p>
@@ -499,7 +499,7 @@ function ProductEditor() {
   };
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Package className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">
@@ -703,7 +703,7 @@ function VoicePicker() {
   ];
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
       <div className="flex items-center gap-1.5">
         <Volume2 className="w-3.5 h-3.5 text-brand" aria-hidden />
         <h2 className="text-sm font-semibold text-primary">Cue voice</h2>
@@ -845,7 +845,7 @@ function VoiceHealthCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
       <div>
         <h3 className="text-sm font-semibold text-primary">Voice provider health</h3>
         <p className="text-[11px] text-muted leading-relaxed mt-1">
@@ -858,12 +858,12 @@ function VoiceHealthCard() {
       <LoadingButton
         pending={loading}
         onClick={() => void check()}
-        className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-white/15 hover:border-white/30 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-default hover:border-strong px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
       >
         Check voice provider
       </LoadingButton>
       {failed && (
-        <p className="text-[11px] text-amber-300">
+        <p className="text-[11px] text-amber-700 dark:text-amber-300">
           Couldn&apos;t run the check right now — try again in a moment.
         </p>
       )}
@@ -877,7 +877,7 @@ function VoiceHealthCard() {
         >
           <p
             className={`text-xs font-semibold ${
-              result.ok ? "text-emerald-300" : "text-amber-300"
+              result.ok ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
             }`}
           >
             {result.ok ? "✓ Voice provider healthy" : "✗ Voice provider issue found"}
@@ -888,7 +888,7 @@ function VoiceHealthCard() {
           <ul className="mt-2 space-y-1">
             {result.checks.map((c) => (
               <li key={c.name} className="flex items-start gap-1.5 text-[11px] leading-relaxed">
-                <span className={`shrink-0 ${c.ok ? "text-emerald-300" : "text-amber-300"}`}>
+                <span className={`shrink-0 ${c.ok ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
                   {c.ok ? "✓" : "✗"}
                 </span>
                 <span className="text-muted">
@@ -957,11 +957,11 @@ function CaptureHealthCard() {
   };
 
   const Stat = ({ label, value, tone }: { label: string; value: string | number; tone?: "amber" | "emerald" }) => (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+    <div className="rounded-xl border border-default bg-surface px-3 py-2">
       <p className="text-[10px] text-muted">{label}</p>
       <p
         className={`text-sm font-semibold ${
-          tone === "amber" ? "text-amber-300" : tone === "emerald" ? "text-emerald-300" : "text-primary"
+          tone === "amber" ? "text-amber-700 dark:text-amber-300" : tone === "emerald" ? "text-emerald-700 dark:text-emerald-300" : "text-primary"
         }`}
       >
         {value}
@@ -970,31 +970,31 @@ function CaptureHealthCard() {
   );
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4 space-y-3">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
       <div>
         <h3 className="text-sm font-semibold text-primary">Capture health</h3>
         <p className="text-[11px] text-muted leading-relaxed mt-1">
           How many ended sessions produced <span className="text-secondary">no after-pitch feedback</span> (zero
           agent turns → no &ldquo;Your read&rdquo;), split by CAUSE so the fix is the right one:
           <span className="text-secondary"> Undecided</span> = the transcript exists but the agent&apos;s turns
-          were labeled &ldquo;unknown&rdquo; — a <span className="text-emerald-300">fixable labeling</span> issue,
+          were labeled &ldquo;unknown&rdquo; — a <span className="text-emerald-700 dark:text-emerald-300">fixable labeling</span> issue,
           NOT a capture failure (an STT swap wouldn&apos;t help);
           <span className="text-secondary"> Customer-labeled</span> = all turns tagged customer (mis-attribution
           or the mic truly missed the agent); <span className="text-secondary">Empty</span> = the STT captured
           nothing. <span className="text-secondary">Recoverable</span> = audio saved (re-transcribable). If most
-          are <span className="text-emerald-300">Undecided/Customer-labeled</span>, the fix is attribution;
+          are <span className="text-emerald-700 dark:text-emerald-300">Undecided/Customer-labeled</span>, the fix is attribution;
           if <span className="text-secondary">Empty</span>, it&apos;s capture/STT.
         </p>
       </div>
       <LoadingButton
         pending={loading}
         onClick={() => void check()}
-        className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-white/15 hover:border-white/30 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-default hover:border-strong px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
       >
         Check capture health
       </LoadingButton>
       {failed && (
-        <p className="text-[11px] text-amber-300">
+        <p className="text-[11px] text-amber-700 dark:text-amber-300">
           Couldn&apos;t compute capture health — the volume may be too large for an in-app count.
         </p>
       )}
@@ -1024,7 +1024,7 @@ function CaptureHealthCard() {
           </div>
           {data.byAgent.some((a) => a.noFeedback > 0) && (
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-semibold mb-1.5">
+              <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/80 font-semibold mb-1.5">
                 Most-affected agents (no-feedback rate)
               </p>
               <ul className="space-y-1">
@@ -1042,11 +1042,11 @@ function CaptureHealthCard() {
                       <span className="text-muted">
                         {a.noFeedback}/{a.ended}
                         {a.undecided > 0 ? (
-                          <span className="text-emerald-300"> · {a.undecided} fixable</span>
+                          <span className="text-emerald-700 dark:text-emerald-300"> · {a.undecided} fixable</span>
                         ) : (
                           ""
                         )}{" "}
-                        <span className="text-amber-300 font-semibold">{a.rate}%</span>
+                        <span className="text-amber-700 dark:text-amber-300 font-semibold">{a.rate}%</span>
                       </span>
                     </li>
                   ))}

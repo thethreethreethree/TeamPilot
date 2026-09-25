@@ -34,9 +34,9 @@ type Mine = {
 // Trend chip — a growth DIRECTION, not a rank (§A18). Up = improving, down = slipping, flat = holding.
 function TrendChip({ trend }: { trend: "up" | "flat" | "down" | null }) {
   if (trend === "up")
-    return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400"><TrendingUp className="w-3 h-3" aria-hidden />improving</span>;
+    return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"><TrendingUp className="w-3 h-3" aria-hidden />improving</span>;
   if (trend === "down")
-    return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400"><TrendingDown className="w-3 h-3" aria-hidden />slipping</span>;
+    return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400"><TrendingDown className="w-3 h-3" aria-hidden />slipping</span>;
   if (trend === "flat")
     return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted"><Minus className="w-3 h-3" aria-hidden />holding</span>;
   return null;
@@ -47,7 +47,7 @@ function TrendChip({ trend }: { trend: "up" | "flat" | "down" | null }) {
 function TeamPracticeCard({ team }: { team: TeamPracticeSummary }) {
   if (team.activeReps === 0) {
     return (
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+      <section className="rounded-2xl border border-default bg-surface p-4">
         <h2 className="text-sm font-semibold text-primary mb-1">Team practice</h2>
         <p className="text-[11px] text-muted">No one has practiced yet — it fills in as reps drill their focuses.</p>
       </section>
@@ -60,7 +60,7 @@ function TeamPracticeCard({ team }: { team: TeamPracticeSummary }) {
     </div>
   );
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+    <section className="rounded-2xl border border-default bg-surface p-4">
       <h2 className="text-sm font-semibold text-primary mb-3">Team practice</h2>
       <div className="flex items-start gap-3">
         <Stat n={String(team.totalAttempts)} label="Practices" />
@@ -142,7 +142,7 @@ function MaterialPanel({ material, loading }: { material: CoachingMaterial | nul
   }
   if (!material) return null;
   return (
-    <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2.5 text-[12px]">
+    <div className="mt-2 rounded-xl border border-default bg-surface p-3 space-y-2.5 text-[12px]">
       {material.overview && <p className="text-secondary leading-relaxed">{material.overview}</p>}
       {material.keyMoves.length > 0 && (
         <div>
@@ -345,7 +345,7 @@ export default function TrainingPage() {
               <p className="text-[11px] text-muted">No rep trainings yet — they appear as the team's sessions are coached.</p>
             ) : (
               team.map((r) => (
-                <div key={r.agentId} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div key={r.agentId} className="rounded-2xl border border-default bg-surface p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-primary">{r.agentName}</h3>
                     <span className="text-[10px] text-muted">{r.dissectCount} session{r.dissectCount === 1 ? "" : "s"}</span>
@@ -361,14 +361,14 @@ export default function TrainingPage() {
 
       {mode === "rep" && mine && (
         <>
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+          <section className="rounded-2xl border border-default bg-surface p-4">
             <h2 className="text-sm font-semibold text-primary mb-2">Your trainings</h2>
             <p className="text-[11px] text-muted mb-3">
               Each is a skill from your coached calls — hit Practice to drill it against the AI prospect and get scored.
             </p>
             <TrainingList growthAreas={mine.growthAreas ?? []} strategies={mine.strategies ?? []} practiceable />
           </section>
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+          <section className="rounded-2xl border border-default bg-surface p-4">
             <h2 className="text-sm font-semibold text-primary mb-2">Your practice</h2>
             <MyPractice practice={mine.practice} />
           </section>
