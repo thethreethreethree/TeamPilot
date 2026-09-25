@@ -242,6 +242,15 @@ export async function POST(req: NextRequest) {
       haltedBy = "suppressed";
       break;
     }
+    /**
+     * And on an out-of-credit provider, for the same reason: the account, not the recording. Before
+     * this, a drain against an empty DeepSeek balance walked all 194 recordings in 25 passes, got 194
+     * identical 402s, and reported "failed unexpectedly for 194" (production logs, 2026-09-25).
+     */
+    if (outcome.reason === "provider_out_of_credit") {
+      haltedBy = "provider_out_of_credit";
+      break;
+    }
   }
 
   const remaining = Math.max(0, candidates.length - scored);
@@ -257,7 +266,8 @@ export async function POST(req: NextRequest) {
    * be scored until it is on". Same shape as the 2026-08-14 empty-AI outage, one layer out.
    */
   const note = haltedBy
-    ? `${REFUSAL_MESSAGE[haltedBy]} Nothing was scored, and nothing will be until that changes.`
+    ? // "Nothing MORE", not "nothing": a balance can run out mid-run, after earlier passes already scored.
+      `${REFUSAL_MESSAGE[haltedBy]} Nothing more can be scored until that changes.`
     : ranOutOfTime
       ? null // not a stopping point — the caller keeps going; see `more` below.
       : scored === 0 && remaining > 0

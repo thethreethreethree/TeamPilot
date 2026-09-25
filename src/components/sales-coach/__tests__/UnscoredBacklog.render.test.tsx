@@ -105,7 +105,7 @@ describe("the drain", () => {
       remaining: 50,
       refused: { suppressed: 1 },
       more: false,
-      note: "AI guidance is off for this account, so pitches are not scored yet. Nothing was scored, and nothing will be until that changes.",
+      note: "AI guidance is off for this account, so pitches are not scored yet. Nothing more can be scored until that changes.",
     });
     render(<UnscoredBacklog />);
     fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));

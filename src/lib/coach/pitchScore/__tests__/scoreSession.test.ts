@@ -32,12 +32,21 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) })
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { generatePitchScore } from "../generatePitchScore";
 import { storePitchScore } from "../storePitchScore";
-import { scoreSession, PERMANENT_REFUSALS } from "../scoreSession";
+import { scoreSession, PERMANENT_REFUSALS, REFUSAL_MESSAGE } from "../scoreSession";
+import { LlmError, classifyStatus } from "@/lib/llm/errors";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 
 const DB = {} as never;
 const args = { sessionId: "s1", companyId: "co1", db: DB, skipIfScored: true };
+/**
+ * For tests that must REACH the LLM. `args` sets skipIfScored with an empty `db`, so scoreSession's
+ * already-scored lookup (`db.from("pitch_scores")`) throws a TypeError first — which made the original
+ * "throwing LLM call" test pass without ever calling the LLM (found 2026-09-25, when a 402 test built on
+ * the same args received that TypeError instead of the 402). Every LLM-path test also asserts the call
+ * was made, so it cannot pass by failing earlier.
+ */
+const llmArgs = { ...args, skipIfScored: false };
 
 /** A session that passes every gate, so the only thing under test is the failure being injected. */
 const sellingSession = {
@@ -64,22 +73,34 @@ describe("scoreSession returns an outcome instead of throwing", () => {
 
   it("survives a throwing transcript read", async () => {
     asMock(getSessionTranscript).mockRejectedValue(new Error("transcript blew up"));
-    const out = await scoreSession(args);
+    const out = await scoreSession(llmArgs);
+    expect(getSessionTranscript).toHaveBeenCalledTimes(1); // it REACHED the transcript read
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.reason).toBe("errored");
   });
 
   it("survives a throwing LLM call — the one that actually happened", async () => {
     asMock(generatePitchScore).mockRejectedValue(new Error("429 rate limited"));
-    const out = await scoreSession(args);
+    const out = await scoreSession(llmArgs);
+    expect(generatePitchScore).toHaveBeenCalledTimes(1); // it REACHED the LLM — see llmArgs
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.reason).toBe("errored");
   });
 
   it("survives a throwing write", async () => {
-    asMock(generatePitchScore).mockResolvedValue({ score: { total: 71 }, events: [] });
+    // The REAL success shape (PitchScoreResult, generatePitchScore.ts:30-40). The original mock had no `ok`,
+    // so scoreSession refused at `if (!result.ok)` and never reached the write this test is named for.
+    asMock(generatePitchScore).mockResolvedValue({
+      ok: true,
+      score: { total: 71 },
+      elements: [],
+      bonuses: [],
+      violations: [],
+      timestampsUnavailable: false,
+    });
     asMock(storePitchScore).mockRejectedValue(new Error("insert failed"));
-    const out = await scoreSession(args);
+    const out = await scoreSession(llmArgs);
+    expect(storePitchScore).toHaveBeenCalledTimes(1); // it REACHED the write
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.reason).toBe("errored");
   });
@@ -104,3 +125,46 @@ describe("scoreSession returns an outcome instead of throwing", () => {
     expect(PERMANENT_REFUSALS.has("no_agent_turns")).toBe(true);
   });
 });
+
+/**
+ * THE ACTUAL OUTAGE (production logs, 2026-09-25): DeepSeek returned 402 "Insufficient Balance" from
+ * 2026-09-22 17:00 onward, and every recording came back `errored` — "failed unexpectedly". The error
+ * is built with the REAL classifier, so if a 402 ever stops meaning `quota` this fails rather than
+ * quietly restating an assumption.
+ */
+describe("an out-of-credit AI provider", () => {
+  const out402 = () =>
+    new LlmError({
+      kind: classifyStatus(402),
+      status: 402,
+      provider: "deepseek",
+      message: 'DeepSeek API error 402: {"error":{"message":"Insufficient Balance"}}',
+    });
+
+  it("is named as an account problem, not an unexpected failure", async () => {
+    asMock(generatePitchScore).mockRejectedValue(out402());
+    const out = await scoreSession(llmArgs);
+    expect(generatePitchScore).toHaveBeenCalledTimes(1);
+    expect(out.ok).toBe(false);
+    if (!out.ok) {
+      expect(out.reason).toBe("provider_out_of_credit");
+      expect(out.humanMessage).toMatch(/out of credit/i);
+      expect(out.humanMessage).not.toMatch(/Insufficient Balance|402/); // CWE-209: our sentence, not theirs
+    }
+  });
+
+  it("is worth retrying once the account is topped up", () => {
+    expect(PERMANENT_REFUSALS.has("provider_out_of_credit")).toBe(false);
+    expect(REFUSAL_MESSAGE.provider_out_of_credit).toMatch(/topped up/i);
+  });
+
+  it("does not swallow OTHER provider failures into it", async () => {
+    asMock(generatePitchScore).mockRejectedValue(
+      new LlmError({ kind: classifyStatus(429), status: 429, provider: "deepseek", message: "rate limited" })
+    );
+    const out = await scoreSession(llmArgs);
+    expect(generatePitchScore).toHaveBeenCalledTimes(1);
+    if (!out.ok) expect(out.reason).toBe("errored");
+  });
+});
+

@@ -52,7 +52,9 @@ import { downloadAssetBytes } from "@/lib/storage/assets";
 import { writePitchAnalysis, writePitchTranscript, setPitchStatus, claimPitchForProcessing } from "@/lib/data/doorlog";
 import { analyzePitch } from "@/lib/coach/doorlog/analyze";
 import { rollupRep } from "../rollupWorker";
-import { processPitch } from "../worker";
+import { processPitch, QUOTA_RETRY_MS } from "../worker";
+import { LlmError, classifyStatus } from "@/lib/llm/errors";
+import { MAX_PITCH_ATTEMPTS } from "../retryBackoff";
 
 /** Did any setPitchStatus call mark this pitch terminally failed with a message matching `re`? */
 function failedWith(re: RegExp): boolean {
@@ -312,3 +314,48 @@ describe("processPitch — the Next Door focus rollup fires on completion (found
     expect(rollupRep).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * 2026-09-25, from production's logs: the DeepSeek balance ran out at 2026-09-22 17:00 and every analysis
+ * returned 402. Each pitch spent its five attempts on an error no retry could fix and was marked terminal
+ * `failed`, so a top-up would not have recovered one of them. The error is built with the REAL classifier.
+ */
+describe("processPitch — an out-of-credit AI provider never kills a pitch", () => {
+  const out402 = () =>
+    new LlmError({ kind: classifyStatus(402), status: 402, provider: "deepseek", message: "DeepSeek API error 402: Insufficient Balance" });
+  // The LAST attempt: an ordinary error here is terminal.
+  const lastAttempt = { ...PITCH, attempts: MAX_PITCH_ATTEMPTS - 1 };
+
+  it("defers it on the final attempt instead of marking it failed, and gives the attempt back", async () => {
+    vi.mocked(analyzePitch).mockRejectedValueOnce(out402());
+    const before = Date.now();
+    await processPitch(lastAttempt);
+    expect(analyzePitch).toHaveBeenCalledTimes(1); // it REACHED the AI call
+    expect(failedWith(/./)).toBe(false);
+    const last = vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0];
+    expect(last?.status).toBe(lastAttempt.status); // resumes where it stopped
+    expect(last?.attempts).toBe(MAX_PITCH_ATTEMPTS - 1); // the lease's +1 was given back
+    const due = last?.runAfter?.getTime() ?? 0;
+    expect(due - before).toBeGreaterThanOrEqual(QUOTA_RETRY_MS - 1000);
+  });
+
+  it("CONTROL: an ordinary provider failure on the same attempt is still terminal", async () => {
+    vi.mocked(analyzePitch).mockRejectedValueOnce(
+      new LlmError({ kind: classifyStatus(500), status: 500, provider: "deepseek", message: "upstream 500" })
+    );
+    await processPitch(lastAttempt);
+    expect(failedWith(/Processing failed after/)).toBe(true);
+  });
+
+  it("survives an outage of any length — ten sweeps, never terminal", async () => {
+    let attempts = lastAttempt.attempts;
+    for (let i = 0; i < 10; i++) {
+      vi.mocked(analyzePitch).mockRejectedValueOnce(out402());
+      await processPitch({ ...lastAttempt, attempts });
+      attempts = vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0]?.attempts ?? attempts;
+    }
+    expect(failedWith(/./)).toBe(false);
+    expect(attempts).toBe(MAX_PITCH_ATTEMPTS - 1);
+  });
+});
+

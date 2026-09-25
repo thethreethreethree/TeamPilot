@@ -66,6 +66,8 @@ const STATUS_FOR: Record<ScoreRefusal, number> = {
   store_failed: 500,
   /** Something threw inside the scorer. Ours, and worth a retry — same shape as llm_empty. */
   errored: 502,
+  // Billing, not a bad request: the provider is unavailable to us until the account is topped up.
+  provider_out_of_credit: 503,
 };
 
 // LLM route: a full grading is ~30 elements plus events, so it needs more than Vercel's default.

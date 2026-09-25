@@ -262,3 +262,33 @@ describe("one bad recording must not end the run", () => {
     expect(body.more).toBe(false);
   });
 });
+
+/**
+ * 2026-09-25, from production: an empty DeepSeek balance. Before this, a drain walked all 194
+ * recordings in 25 passes and reported "failed unexpectedly for 194".
+ */
+describe("an out-of-credit AI provider stops the run and says so", () => {
+  const outOfCredit = {
+    ok: false,
+    reason: "provider_out_of_credit",
+    humanMessage: "The AI provider account is out of credit, so nothing can be scored until it is topped up.",
+  };
+
+  it("stops at the first one — every remaining recording would refuse identically", async () => {
+    serve([], ["s1", "s2", "s3", "s4", "s5"]);
+    asMock(scoreSession).mockResolvedValue(outOfCredit);
+    const body = (await (await POST(req())).json()) as { more: boolean; note: string | null };
+    expect(asMock(scoreSession).mock.calls).toHaveLength(1);
+    expect(body.more).toBe(false);
+  });
+
+  it("names the account, and does not claim nothing was ever scored", async () => {
+    serve([], ["s1", "s2"]);
+    asMock(scoreSession).mockResolvedValue(outOfCredit);
+    const body = (await (await POST(req())).json()) as { note: string | null };
+    expect(body.note).toMatch(/out of credit/i);
+    // A balance can empty mid-run, after earlier passes scored — "nothing MORE", never "nothing".
+    expect(body.note).toMatch(/Nothing more can be scored/);
+  });
+});
+

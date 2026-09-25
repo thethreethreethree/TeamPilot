@@ -269,6 +269,36 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     // `attempts` was already advanced at lease time (audit H2) — do NOT increment again here, or a thrown error
     // would double-count and terminalise too early.
     const message = err instanceof Error ? err.message : String(err);
+    /**
+     * OUT OF CREDIT IS AN ACCOUNT STATE, NOT THIS PITCH'S FAILURE (2026-09-25).
+     *
+     * From production's logs: the DeepSeek balance ran out at 2026-09-22 17:00 and every call after it
+     * returned 402. This branch did not exist, so each pitch spent its five attempts on an error no retry
+     * could fix and was marked terminal `failed` — which means a top-up would NOT have brought a single
+     * one back. An outage longer than the backoff schedule silently destroyed every door pitch recorded
+     * during it.
+     *
+     * So: give the attempt back (the lease advanced it), keep the current status so it resumes where it
+     * stopped, and wait a fixed interval. Once the balance is restored, the next sweep processes it. The
+     * verdict is the error's own `kind` (classified from the HTTP status in llm/errors.ts), not a regex on
+     * the message — §2.2 — and the chain from llmCall to here re-throws the original LlmError unwrapped.
+     *
+     * No Sentry capture: one event per pitch per interval for the length of an outage is a flood that
+     * buries the alert. One line per deferral in the logs instead.
+     */
+    if ((err as { kind?: unknown } | null)?.kind === "quota") {
+      await recordFailureStatus({
+        pitchId: pitch.id,
+        status: pitch.status,
+        attempts: Math.max(0, attempts - 1),
+        runAfter: new Date(Date.now() + QUOTA_RETRY_MS),
+      });
+      // eslint-disable-next-line no-console
+      console.error(
+        `[doorlog/worker] AI provider out of credit — pitch ${pitch.id} deferred ${QUOTA_RETRY_MS / 60_000} min; attempt NOT spent.`
+      );
+      return;
+    }
     // A PERMANENT failure (bad audio content / missing account config) can't be fixed by retrying — terminalise NOW
     // instead of churning the full backoff (~minutes) on an error that returns the identical result every attempt
     // (2026-08-25 latency audit: these were the ~15-min-churn outliers inflating the after-pitch feedback average).
@@ -300,6 +330,9 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
     }
   }
 }
+
+/** How long a pitch waits after the AI provider refuses on billing, before the sweep tries it again. */
+export const QUOTA_RETRY_MS = 15 * 60_000;
 
 /** Sweep + process the next batch of due pitches (the cron entry point). Returns how many it handled. */
 export async function processDuePitches(limit = 10): Promise<number> {

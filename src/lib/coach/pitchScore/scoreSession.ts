@@ -90,7 +90,19 @@ export type ScoreRefusal =
    *
    * Not permanent: a provider blip, a rate limit or a timeout is worth another pass.
    */
-  | "errored";
+  | "errored"
+  /**
+   * The AI provider refused on BILLING — an `LlmError` of kind `quota` (a 402, "Insufficient Balance").
+   *
+   * Split out of `errored` on 2026-09-25, from production's own logs: the DeepSeek balance ran out at
+   * 2026-09-22 17:00, and every "Score them all" press after it walked all 194 recordings, got 194
+   * identical 402s, and told the manager "failed unexpectedly for 194" — a sentence that points at the
+   * code and at the recordings, when the truth was one account setting nobody could see.
+   *
+   * Like `suppressed` it is a property of the ACCOUNT, not of this recording, so a drain halts on it.
+   * Unlike `suppressed` it is NOT permanent: a top-up fixes it, and the next press should work.
+   */
+  | "provider_out_of_credit";
 
 /**
  * A refusal that re-running will never change, so a drain must not keep paying for it.
@@ -117,6 +129,9 @@ export const REFUSAL_MESSAGE: Record<ScoreRefusal, string> = {
   parse_failed: "The scorer's answer could not be read. This is a fault on our side.",
   store_failed: "The score could not be saved.",
   errored: "Scoring this recording failed unexpectedly. This is a fault on our side, not your pitch.",
+  provider_out_of_credit:
+    "The AI provider account is out of credit, so nothing can be scored until it is topped up. " +
+    "This is an account setting, not your pitch.",
 };
 
 export async function scoreSession(args: {
@@ -145,6 +160,10 @@ export async function scoreSession(args: {
   } catch (err) {
     // Server-side only. The client gets REFUSAL_MESSAGE, never the exception text (CWE-209).
     console.error("[scoreSession] threw", { sessionId: args.sessionId }, err);
+    // Read the error's own verdict (LlmError.kind, classified from the HTTP status in llm/errors.ts)
+    // rather than re-matching "402" in the message — §2.2. Duck-typed on `kind` so a second copy of the
+    // class across a bundle boundary cannot defeat an instanceof.
+    if ((err as { kind?: unknown } | null)?.kind === "quota") return refuse("provider_out_of_credit");
     return refuse("errored");
   }
 }

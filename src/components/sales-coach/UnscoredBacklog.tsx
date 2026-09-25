@@ -46,6 +46,7 @@ const REFUSAL_LABEL: Record<string, string> = {
   parse_failed: "the scorer's answer could not be read for",
   store_failed: "could not be saved",
   errored: "failed unexpectedly for",
+  provider_out_of_credit: "could not be scored — the AI provider account is out of credit, for",
 };
 
 export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
