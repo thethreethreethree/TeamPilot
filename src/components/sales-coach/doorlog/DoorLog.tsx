@@ -482,7 +482,7 @@ export function DoorLog() {
       {state === "idle" && (
         <Link
           href="/dashboard/sales-coach"
-          className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-2 py-1.5 rounded-lg text-[13px] font-medium text-secondary hover:text-primary active:bg-white/5 transition-colors self-start"
+          className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-2 py-1.5 rounded-lg text-[13px] font-medium text-secondary hover:text-primary active:bg-surface-raised transition-colors self-start"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden /> Sales Coach
         </Link>
@@ -516,7 +516,7 @@ export function DoorLog() {
             <div
               key={t.label}
               className={`rounded-2xl border p-2.5 text-center ${
-                t.accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-white/10 bg-white/[0.03]"
+                t.accent ? "border-ember-400/40 bg-ember-400/[0.08]" : "border-default bg-surface"
               }`}
             >
               <div className={`text-2xl font-bold tabular-nums ${t.accent ? "text-brand" : "text-primary"}`}>
@@ -553,7 +553,7 @@ export function DoorLog() {
             {/* Subtle anchor fills the empty middle so the screen feels intentional, not blank — kept minimal
                 so the two thumb-zone actions below stay the focus (founder: nicer, without losing simplicity). */}
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center select-none">
-              <div className="w-16 h-16 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full border border-default bg-surface flex items-center justify-center">
                 <DoorOpen className="w-7 h-7 text-brand/70" aria-hidden />
               </div>
               <p className="text-sm text-muted">Ready for the next door</p>
@@ -566,7 +566,7 @@ export function DoorLog() {
             )}
             <button
               onClick={noAnswer}
-              className="w-full min-h-[68px] rounded-2xl bg-white/[0.04] border border-white/12 text-primary text-lg font-semibold active:scale-[0.98] transition-transform"
+              className="w-full min-h-[68px] rounded-2xl bg-surface border border-default text-primary text-lg font-semibold active:scale-[0.98] transition-transform"
             >
               <DoorClosed className="inline w-5 h-5 mr-2 -mt-1" aria-hidden />
               No Answer
@@ -630,7 +630,7 @@ export function DoorLog() {
             <button
               onClick={stopRecord}
               aria-label="Stop recording"
-              className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/[0.06] border border-white/15 px-6 py-2.5 text-sm font-medium text-secondary active:scale-[0.97] transition-transform"
+              className="mt-1 inline-flex items-center gap-2 rounded-full bg-surface border border-default px-6 py-2.5 text-sm font-medium text-secondary active:scale-[0.97] transition-transform"
             >
               <Square className="w-3.5 h-3.5" aria-hidden /> Stop
             </button>
@@ -654,7 +654,7 @@ export function DoorLog() {
                 the "none of the above" action so it never competes with a real outcome tap. */}
             <button
               onClick={notHome}
-              className="mt-1 w-full min-h-[56px] rounded-2xl bg-white/[0.04] border border-white/12 text-secondary text-base font-semibold active:scale-[0.98] transition-transform"
+              className="mt-1 w-full min-h-[56px] rounded-2xl bg-surface border border-default text-secondary text-base font-semibold active:scale-[0.98] transition-transform"
             >
               <DoorClosed className="inline w-5 h-5 mr-2 -mt-1" aria-hidden />
               Not Home / No Answer
