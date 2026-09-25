@@ -337,7 +337,7 @@ export default function KpiAnalyticsPage() {
     const delta = m.apiKey ? data?.deltas?.[m.apiKey] : null;
     return (
       <span className="text-right shrink-0">
-        <span className={`block text-sm font-semibold tabular-nums ${m.headline ? "text-emerald-300" : "text-primary"}`}>
+        <span className={`block text-sm font-semibold tabular-nums ${m.headline ? "text-emerald-700 dark:text-emerald-300" : "text-primary"}`}>
           {fmtValue(r.value, m.fmt)}
         </span>
         {typeof delta === "number" && delta !== 0 && (
@@ -485,10 +485,10 @@ export default function KpiAnalyticsPage() {
         }
         if (improved.length + declined.length === 0) return null;
         return (
-          <section className="rounded-2xl border border-default bg-white/[0.02] p-4 mb-5">
+          <section className="rounded-2xl border border-default bg-surface p-4 mb-5">
             <p className="text-sm leading-relaxed">
               {improved.length > 0 && (
-                <span className="text-emerald-300">
+                <span className="text-emerald-700 dark:text-emerald-300">
                   <span className="font-semibold">
                     {isCompany ? "Vs the company's earlier calls, up in" : "Since your earlier calls, you’re up in"}
                   </span>{" "}
@@ -515,7 +515,7 @@ export default function KpiAnalyticsPage() {
         <div className="flex items-center gap-2 mb-1">
           <TrendingDown className="w-4 h-4 text-emerald-400" aria-hidden />
           <h2 className="text-sm font-semibold text-primary">Reliance reduction</h2>
-          <span className="text-[10px] uppercase tracking-widest text-emerald-300/80 font-mono">headline</span>
+          <span className="text-[10px] uppercase tracking-widest text-emerald-700/80 dark:text-emerald-300/80 font-mono">headline</span>
         </div>
         <p className="text-xs text-secondary leading-relaxed">
           The single most important measure: fewer live cues over time while performance holds or rises means
@@ -537,7 +537,7 @@ export default function KpiAnalyticsPage() {
             <p className="text-xs mt-2">
               <span
                 className={
-                  declining ? "text-emerald-300 font-semibold" : v === 0 ? "text-secondary" : "text-amber-300"
+                  declining ? "text-emerald-700 dark:text-emerald-300 font-semibold" : v === 0 ? "text-secondary" : "text-amber-700 dark:text-amber-300"
                 }
               >
                 {declining
@@ -565,7 +565,7 @@ export default function KpiAnalyticsPage() {
         {LAYERS.map((layer) => {
           const Icon = layer.icon;
           return (
-            <section key={layer.key} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <section key={layer.key} className="rounded-2xl border border-default bg-surface p-4">
               <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4 text-brand" aria-hidden />
                 <h2 className="text-sm font-semibold text-primary">{layer.title}</h2>
@@ -581,7 +581,7 @@ export default function KpiAnalyticsPage() {
                     <li key={m.name}>
                       <div className="flex items-start justify-between gap-3">
                         <span className="min-w-0">
-                          <span className={`block text-xs ${m.headline ? "font-semibold text-emerald-300" : "font-medium text-primary"}`}>
+                          <span className={`block text-xs ${m.headline ? "font-semibold text-emerald-700 dark:text-emerald-300" : "font-medium text-primary"}`}>
                             {m.name}
                           </span>
                           <span className="block text-[11px] text-muted leading-snug">{m.note}</span>
@@ -645,7 +645,7 @@ export default function KpiAnalyticsPage() {
       </div>
 
       {team && (
-        <section className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+        <section className="mt-6 rounded-2xl border border-default bg-surface p-4">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-brand" aria-hidden />
             <h2 className="text-sm font-semibold text-primary">Team</h2>
@@ -689,7 +689,7 @@ export default function KpiAnalyticsPage() {
             if (withR.length === 0) return null;
             const improving = withR.filter((a) => (a.relianceReduction.value ?? 0) < 0).length;
             return (
-              <p className="text-[11px] text-emerald-300/90 mb-1.5">
+              <p className="text-[11px] text-emerald-700/90 dark:text-emerald-300/90 mb-1.5">
                 Reliance: <strong>{improving}</strong> of {withR.length} rep{withR.length === 1 ? "" : "s"}{" "}
                 needing fewer cues over time — the clearest sign the coaching is landing.
               </p>
@@ -701,7 +701,7 @@ export default function KpiAnalyticsPage() {
           </p>
           {/* Monthly quota target — MANAGER-editable. When unset, the Quota metric can't compute, so make the
               fix reachable right here instead of leaving a silent "building" the founder was told to resolve. */}
-          <div className="mb-2 rounded-lg border border-default bg-white/[0.02] px-3 py-2">
+          <div className="mb-2 rounded-lg border border-default bg-surface-raised px-3 py-2">
             {editingQuota ? (
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-[11px] text-secondary" htmlFor="quota-target">
@@ -794,7 +794,7 @@ export default function KpiAnalyticsPage() {
               </button>
             ))}
           </div>
-          <ul className="divide-y divide-white/[0.06]">
+          <ul className="divide-y divide-default">
             {[...team]
               .sort((a, b) =>
                 teamSort === "conversion"
@@ -812,7 +812,7 @@ export default function KpiAnalyticsPage() {
                       {a.name || "Agent"}
                       {a.slipping && (
                         <span
-                          className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-300"
+                          className="inline-flex items-center gap-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
                           title={`Recent ${
                             a.slippingReasons?.join(" and ") || "performance"
                           } is ≥${alertDropPct}% below this rep's own baseline — worth a check-in.`}
@@ -846,7 +846,7 @@ export default function KpiAnalyticsPage() {
                       <span
                         className={`block text-xs font-semibold tabular-nums ${
                           a.relianceReduction.value !== null && a.relianceReduction.value < 0
-                            ? "text-emerald-300"
+                            ? "text-emerald-700 dark:text-emerald-300"
                             : "text-primary"
                         }`}
                       >
