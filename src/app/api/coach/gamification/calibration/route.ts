@@ -121,6 +121,29 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   const admin = createAdminClient();
+
+  /**
+   * TENANCY FIRST, BEFORE ANY WRITE.
+   *
+   * `sessionId` arrives in the body and this route runs on the service role, which bypasses RLS.
+   * The reveal below used to read `after_pitch_summaries` by session id ALONE — so a manager at one
+   * company who posted another company's session id got that company's model scores back, and left
+   * a calibration row tagged to their own company pointing at a pitch they cannot see.
+   *
+   * The pool GET offers is built from this company's summaries only (see the `.eq("company_id")`
+   * above), so a session with no summary IN THIS COMPANY was never a legitimate target. 404, not
+   * 403: a foreign session id must not be confirmable as existing.
+   */
+  const { data: ap } = await admin
+    .from("after_pitch_summaries")
+    .select("payload")
+    .eq("company_id", mgr.companyId)
+    .eq("session_id", body.sessionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ap) return NextResponse.json({ error: "Session not found." }, { status: 404 });
+
   // Store the blind score (idempotent per manager+session via the unique index).
   const { error } = await admin
     .from("gamification_calibration")
@@ -134,13 +157,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't save your score." }, { status: 500 });
   }
 
-  // REVEAL: the model's judged scores for this session, so the manager sees the comparison.
-  const { data: ap } = await admin
-    .from("after_pitch_summaries")
-    .select("payload")
-    .eq("session_id", body.sessionId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // REVEAL: the model's judged scores for this session (read above, company-scoped), so the
+  // manager sees the comparison.
   return NextResponse.json({ ok: true, model: modelScores(ap?.payload), human: body.scores });
 }

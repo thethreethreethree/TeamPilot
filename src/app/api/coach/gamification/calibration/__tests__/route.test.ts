@@ -117,3 +117,66 @@ describe("POST — store blind score then reveal the model", () => {
     expect((cap.upsert as { scorer_id: string }).scorer_id).toBe("mgr");
   });
 });
+
+/**
+ * CROSS-TENANT. This route runs on the service role, so RLS does not stand behind it — the only
+ * company boundary is the one the query writes. The mock above ignores `.eq` arguments, which is
+ * why the unscoped reveal passed every test: a builder that returns the row whatever you filter on
+ * cannot tell a company-scoped read from an open one. This one honours the filters, like Postgres.
+ */
+describe("POST — another company's session", () => {
+  const FOREIGN = "22222222-2222-4222-8222-222222222222";
+
+  function setRowsOwnedBy(owner: string) {
+    const captured: { upsert?: unknown } = {};
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from(table: string) {
+        const filters: Record<string, unknown> = {};
+        const builder: Record<string, unknown> = {};
+        for (const m of ["select", "order", "limit", "maybeSingle"]) builder[m] = () => builder;
+        builder.eq = (col: string, val: unknown) => {
+          filters[col] = val;
+          return builder;
+        };
+        builder.upsert = (row: unknown) => {
+          captured.upsert = row;
+          return builder;
+        };
+        builder.then = (res: (v: unknown) => unknown) => {
+          if (table !== "after_pitch_summaries") return res({ data: null, error: null });
+          // The row exists — but in `owner`'s company. An unfiltered read sees it; a filtered one
+          // sees it only when the filter names the owner.
+          const visible = filters.company_id === undefined || filters.company_id === owner;
+          return res({
+            data: visible ? { payload: { scores: [{ key: "opener", score: 9 }] } } : null,
+            error: null,
+          });
+        };
+        return builder;
+      },
+    });
+    return captured;
+  }
+
+  it("does not reveal another company's model scores, and writes nothing", async () => {
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    const cap = setRowsOwnedBy("c2");
+    const scores = { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 };
+    const res = await POST(postReq({ sessionId: FOREIGN, scores }));
+    // 404, not 403: a foreign session id must not be confirmable as existing.
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.model).toBeUndefined();
+    expect(cap.upsert).toBeUndefined();
+  });
+
+  it("still works for the manager's own company", async () => {
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    const cap = setRowsOwnedBy("c1");
+    const scores = { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 };
+    const res = await POST(postReq({ sessionId: FOREIGN, scores }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).model).toEqual({ opener: 9 });
+    expect(cap.upsert).toBeDefined();
+  });
+});
