@@ -78,7 +78,7 @@ export function SessionCoachTools({
   const [tool, setTool] = useState<Tool>(null);
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+    <section className="rounded-xl border border-default bg-surface-raised p-4">
       <h2 className="text-sm font-semibold text-primary mb-3">Coach tools</h2>
       <div className="flex flex-wrap gap-2">
         <LearningHint

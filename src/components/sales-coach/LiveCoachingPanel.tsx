@@ -211,9 +211,13 @@ export function LiveCoachingPanel({
   }, [lastTapAt]);
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm p-4">
+    <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        {/* `flex-wrap` + `min-w-0` on the INNER row too. The chips carry `whitespace-nowrap` so
+            they stay atomic — "OBJECTION (LAST READ)" must not break after "LAST" — and without a
+            wrap here that atomicity turns a bad line break into an overflow, which clipped
+            "signal" off the card's right edge. Atomic units need somewhere to wrap TO. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
           <Radio
             className={`w-4 h-4 ${live ? "text-ember-400 animate-pulse" : "text-muted"}`}
             aria-hidden
@@ -221,7 +225,7 @@ export function LiveCoachingPanel({
           <h2 className="text-sm font-semibold text-primary">
             Live coaching
           </h2>
-          <span className="text-[10px] uppercase tracking-widest text-muted font-mono">
+          <span className="text-[10px] uppercase tracking-widest text-muted font-mono whitespace-nowrap">
             {status}
           </span>
           {/* §3.6: show the coach's LAST read of the phase, so its restraint
@@ -231,7 +235,7 @@ export function LiveCoachingPanel({
               not a live assertion — the label + title say so honestly. */}
           {live && phase && (
             <span
-              className="text-[10px] uppercase tracking-widest text-brand/80 font-mono"
+              className="text-[10px] uppercase tracking-widest text-brand/80 font-mono whitespace-nowrap"
               title="The coach's last read of the moment — updates as the conversation moves, not continuously."
             >
               · {phase.replace("_", " ")} <span className="text-muted">(last read)</span>
@@ -244,12 +248,12 @@ export function LiveCoachingPanel({
               status shows without a hover / on touch. */}
           {live && confidence?.hasEnough && (
             <span
-              className={`text-[10px] uppercase tracking-widest font-mono ${
+              className={`text-[10px] uppercase tracking-widest font-mono whitespace-nowrap ${
                 confidence.level === "steady"
-                  ? "text-emerald-300/80"
+                  ? "text-emerald-700 dark:text-emerald-300/80"
                   : confidence.level === "wavering"
-                    ? "text-amber-300/80"
-                    : "text-amber-400/80"
+                    ? "text-amber-700 dark:text-amber-300/80"
+                    : "text-amber-600 dark:text-amber-400/80"
               }`}
               title={`Signal-based read (NOT yet validated against outcomes). Fillers: ${
                 confidence.fillerHigh ? "high" : "ok"
@@ -316,7 +320,7 @@ export function LiveCoachingPanel({
       {active && !live && status !== "connecting" && (
         <div className="mt-3 rounded-xl border border-amber-500/45 bg-amber-500/[0.08] p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" aria-hidden />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-primary">
                 {notRecordingBanner(status, audioCapturing, error).title}
@@ -399,9 +403,9 @@ export function LiveCoachingPanel({
             NOW, and that the recording still survives, so a dead STT feed isn't discovered only at After-Pitch. */}
         {live && captureStalled && (
           <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/[0.08] p-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" aria-hidden />
             <p className="text-xs text-secondary leading-relaxed">
-              <strong className="text-amber-300">Not picking up the conversation.</strong> The live
+              <strong className="text-amber-700 dark:text-amber-300">Not picking up the conversation.</strong> The live
               transcription isn&apos;t receiving any audio — check your mic permission and that your earpiece
               is connected. Your call is still being recorded, so you can recover the review afterward even if
               this doesn&apos;t clear.
@@ -460,7 +464,7 @@ export function LiveCoachingPanel({
               aria-pressed={autoCoach}
               className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
                 autoCoach
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                   : "border-default text-muted hover:text-secondary"
               }`}
             >
@@ -558,14 +562,14 @@ export function LiveCoachingPanel({
           how="Learn the three gestures below. If a tap doesn't map on your earbud, use the on-screen buttons — the '✓' confirms when a tap actually reaches the app."
           principle="The best coaching is the kind the other person never sees."
         >
-        <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+        <div className="mt-2 rounded-xl border border-default bg-surface px-3 py-2">
           <div className="flex items-center gap-1.5">
             <Hand className="w-3 h-3 text-brand" aria-hidden />
             <span className="text-[11px] font-semibold text-secondary">
               Earpiece taps
             </span>
             {tapFlash && (
-              <span className="text-[10px] text-emerald-400 ml-auto">
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 ml-auto">
                 ✓ tap received
               </span>
             )}
@@ -617,7 +621,7 @@ export function LiveCoachingPanel({
       )}
 
       {error && (
-        <p role="alert" className="text-xs text-amber-300 mt-2">
+        <p role="alert" className="text-xs text-amber-700 dark:text-amber-300 mt-2">
           {error}
         </p>
       )}
@@ -694,7 +698,7 @@ export function LiveCoachingPanel({
           </div>
           <div className="mt-2 flex justify-end">
             {cueMarked ? (
-              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-300">
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
                 Marked used
               </span>
@@ -794,7 +798,7 @@ export function LiveCoachingPanel({
           in-person. */}
       {transcriptSaved && !live && savingState !== "saving" && (
         <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 flex items-start gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" aria-hidden />
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-300 shrink-0 mt-0.5" aria-hidden />
           <p className="text-xs text-secondary leading-relaxed">
             Transcript saved — speaker-separated from the live conversation.
             Generate your growth review above.

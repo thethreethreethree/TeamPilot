@@ -263,7 +263,7 @@ export function SessionRecordingUpload({
               type="button"
               disabled={phase === "labeling"}
               onClick={() => void label(sp.speakerId)}
-              className="w-full text-left rounded-lg border border-default hover:border-strong bg-white/[0.02] p-3 transition-colors disabled:opacity-60"
+              className="w-full text-left rounded-lg border border-default hover:border-strong bg-surface-raised p-3 transition-colors disabled:opacity-60"
             >
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand">
                 <UserCheck className="w-3.5 h-3.5" aria-hidden />
@@ -288,7 +288,7 @@ export function SessionRecordingUpload({
   }
 
   return (
-    <section className="rounded-xl border border-default bg-white/[0.01] p-4">
+    <section className="rounded-xl border border-default bg-surface-raised p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-primary">
@@ -337,7 +337,7 @@ export function SessionRecordingUpload({
             onClick={() => void retranscribe()}
             icon={<Loader2 className="w-3.5 h-3.5" aria-hidden />}
             pendingLabel="Re-transcribing…"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-strong hover:bg-white/[0.04] disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-strong hover:bg-surface-raised disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
           >
             Re-transcribe from saved recording
           </LoadingButton>
