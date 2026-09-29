@@ -59,8 +59,18 @@ last week. Split to `text-amber-700 dark:text-amber-300`.
 
 ## NOT verified
 
-- **Migration 0267 has not run against any Postgres.** No local Postgres here; `migration:audit` skipped and
-  says so ("This is not a pass"). CI runs it on the branch.
+- ~~Migration 0267 has not run against any Postgres.~~ **Run 2026-09-29 against `postgres:16-alpine` in
+  Docker — the image CI uses** (CI does not run on branch pushes, only PRs and `main`). `migration:audit`:
+  **265 of 265 apply, 0 failed, 0 newly non-re-runnable.** Behavioural probe on a scratch database (shim, then
+  every migration): `door_knocks_live` exists with `security_invoker=true`; `rep_kpi_daily` reads it; 2 knocks
+  (1 Sold, 1 No Answer) → live 2, sold 1; after undoing the Sold → **live 1, sold 0, raw door_knocks still 2**.
+- ~~The RLS policies were not exercised in Postgres.~~ **Exercised 2026-09-29, as a rep, under RLS**
+  (`scripts/sql/probes/0267-door-knock-undos.rls.sql`) — §2.2's drift guard for the rule duplicated in
+  undoKnock: own fresh knock **allowed**; own knock 2 h old **refused**; another rep's **refused**; foreign
+  company **refused**; edit/delete of an undo **no effect**; rep A then counts **live 2 of raw 3**. The first
+  two runs refused EVERYTHING — a broken fixture (the new-user trigger creates profiles with no company, and
+  company_id references companies), caught only because case 1 expects "allowed". A probe whose every case
+  refuses proves nothing.
 - **Not applied to production.** Needs the founder's go-ahead (`npm run db:dry` then `db:apply`).
 - The app half is not built yet.
 - Nothing seen on a phone.
