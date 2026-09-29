@@ -192,7 +192,10 @@ describe("Sales Coach home — Macro-conditional card visibility (founder 2026-0
     expect(m().getByText(/Swipe left for your home screen/i)).toBeTruthy();
     // Page 1 — the original Macro home is still reachable by swipe: Door Log card + Start Knocking CTA.
     expect(m().getByText("Door Log")).toBeTruthy();
-    expect(m().getByText("Start Knocking")).toBeTruthy();
+    // TWO Start Knocking — one per page — since the founder's 2026-09-29 decision (REV 1, "match it on the
+    // website"): page 0 (the door screen a rep lands on) gained one; page 1 keeps its own. Exactly two, not
+    // "at least one", so a third copy or a missing one both fail.
+    expect(m().getAllByText("Start Knocking")).toHaveLength(2);
     expect(m().queryByText("Start Next Pitch Session")).toBeNull();
     // The normal launchpad cards + the removed page-1 door bubbles are gone in Macro Mode.
     expect(m().queryByText("Live AI Coach & Sessions")).toBeNull();

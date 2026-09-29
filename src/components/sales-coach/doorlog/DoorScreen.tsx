@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { deviceTimeZone } from "@/lib/coach/doorlog/salesDay";
 import { DoorDial } from "./DoorDial";
+import { StartKnockingButton } from "./StartKnockingButton";
 
 /**
  * DoorScreen — page 0 of the Home pager (docs/2ND MAIN PANEL DASKBOARD). Built to match the founder's
@@ -70,18 +71,41 @@ export function DoorScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // REV 1 (founder, confirmed for the app and then the website on 2026-09-29): "Start Knocking" at the bottom
+  // of the page a rep LANDS on, in EVERY state. A day target that is loading, not yet rolled out or failed to
+  // load is no reason to make a rep swipe before they can start a shift — so the three early states below
+  // carry it too, not only the loaded one. The Expo app does the same in door-home-page.tsx.
+  const knock = (
+    <div className="px-4 pb-5 max-w-md mx-auto w-full">
+      <StartKnockingButton onClick={openLog} />
+    </div>
+  );
+
   if (phase === "loading") {
-    return <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted"><Loader2 className="w-4 h-4 animate-spin" /> Loading your day…</div>;
+    return (
+      <>
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted"><Loader2 className="w-4 h-4 animate-spin" /> Loading your day…</div>
+        {knock}
+      </>
+    );
   }
   if (phase === "unavailable") {
-    return <p className="py-16 text-center text-sm text-muted">The door screen isn&apos;t available yet — the update is still rolling out.</p>;
+    return (
+      <>
+        <p className="py-16 text-center text-sm text-muted">The door screen isn&apos;t available yet — the update is still rolling out.</p>
+        {knock}
+      </>
+    );
   }
   if (phase === "error" || !data) {
     return (
-      <p className="py-16 text-center text-sm text-amber-600 dark:text-amber-300">
-        Couldn&apos;t load your numbers.{" "}
-        <button type="button" onClick={() => void load()} className="font-semibold underline">Retry</button>
-      </p>
+      <>
+        <p className="py-16 text-center text-sm text-amber-600 dark:text-amber-300">
+          Couldn&apos;t load your numbers.{" "}
+          <button type="button" onClick={() => void load()} className="font-semibold underline">Retry</button>
+        </p>
+        {knock}
+      </>
     );
   }
 
@@ -163,6 +187,9 @@ export function DoorScreen() {
           )}
         </div>
       ))}
+
+      {/* The last thing on the page — see `knock` above. */}
+      <StartKnockingButton onClick={openLog} />
     </div>
   );
 }

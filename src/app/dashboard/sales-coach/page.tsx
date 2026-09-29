@@ -24,6 +24,7 @@ import { useExperienceMode } from "@/components/experience/ExperienceModeProvide
 import { MacroModeToggle } from "@/components/sales-coach/doorlog/MacroModeToggle";
 import { DoorScreen } from "@/components/sales-coach/doorlog/DoorScreen";
 import { MobileHomePager } from "@/components/sales-coach/doorlog/MobileHomePager";
+import { StartKnockingButton } from "@/components/sales-coach/doorlog/StartKnockingButton";
 import {
   DeckShell,
   DeckCard,
@@ -305,13 +306,7 @@ export default function SalesCoachHome() {
                   <span className="text-[11px] text-muted">Install &amp; coach anywhere →</span>
                 </Link>
                 <div className="mt-4">
-                  <DeckButton
-                    icon={<DoorOpen className="w-4 h-4" aria-hidden />}
-                    onClick={() => router.push("/dashboard/sales-coach/doors")}
-                    className="w-full"
-                  >
-                    Start Knocking
-                  </DeckButton>
+                  <StartKnockingButton onClick={() => router.push("/dashboard/sales-coach/doors")} />
                 </div>
               </div>,
             ]}
