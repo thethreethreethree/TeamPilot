@@ -83,6 +83,26 @@ export function localDate(now: Date = new Date()): string {
   return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
 }
 
+/**
+ * ONE CHANGE AT A TIME (found 2026-09-29).
+ *
+ * Every mutation below is a read then a write with an await between, and nothing used to serialise them.
+ * The Door Log calls flush() after every tap, so the send sweep's removeKnock routinely ran WHILE the rep
+ * tapped the next door. Interleaved, the second write was computed from a stale read: in
+ * tests/knock-store-concurrency.test.ts, ten taps racing ten removals kept the ten SENT knocks and only one
+ * of the ten new ones — nine doors erased from the phone before they were ever sent, with nothing on screen.
+ *
+ * Each read-modify-write now runs to completion before the next begins, per rep. A failed mutation does not
+ * jam the chain: the next one still runs.
+ */
+const chains = new Map<string, Promise<unknown>>();
+function mutate<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = chains.get(userId) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  chains.set(userId, next);
+  return next;
+}
+
 async function readAll(userId: string): Promise<Knock[]> {
   try {
     const raw = await AsyncStorage.getItem(keyFor(userId));
@@ -125,10 +145,12 @@ export async function addKnock(
     at: now.toISOString(),
     attempts: 0,
   };
-  const rows = await readAll(userId);
-  rows.push(knock);
-  await writeAll(userId, rows);
-  return knock;
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    rows.push(knock);
+    await writeAll(userId, rows);
+    return knock;
+  });
 }
 
 /** Everything not yet sent, oldest first — the order it will be sent in. */
@@ -150,11 +172,13 @@ export function countKnocksOrUnknown(userId: string): Promise<StrandedCount> {
 
 /** Remove one, once the server has confirmed it. */
 export async function removeKnock(userId: string, clientKnockId: string): Promise<void> {
-  const rows = await readAll(userId);
-  await writeAll(
-    userId,
-    rows.filter((k) => k.clientKnockId !== clientKnockId),
-  );
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    await writeAll(
+      userId,
+      rows.filter((k) => k.clientKnockId !== clientKnockId),
+    );
+  });
 }
 
 /** Record a failed attempt without losing the knock. */
@@ -163,11 +187,13 @@ export async function markKnockFailed(
   clientKnockId: string,
   message?: string,
 ): Promise<void> {
-  const rows = await readAll(userId);
-  const at = rows.findIndex((k) => k.clientKnockId === clientKnockId);
-  if (at < 0) return;
-  rows[at] = { ...rows[at], attempts: rows[at].attempts + 1, lastError: message };
-  await writeAll(userId, rows);
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    const at = rows.findIndex((k) => k.clientKnockId === clientKnockId);
+    if (at < 0) return;
+    rows[at] = { ...rows[at], attempts: rows[at].attempts + 1, lastError: message };
+    await writeAll(userId, rows);
+  });
 }
 
 /**
@@ -180,11 +206,13 @@ export async function markKnockFailed(
  * the server disagreeing.
  */
 export async function undoLastKnock(userId: string): Promise<Knock | null> {
-  const rows = await readAll(userId);
-  if (rows.length === 0) return null;
-  const last = rows[rows.length - 1];
-  await writeAll(userId, rows.slice(0, -1));
-  return last;
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    if (rows.length === 0) return null;
+    const last = rows[rows.length - 1];
+    await writeAll(userId, rows.slice(0, -1));
+    return last;
+  });
 }
 
 /**
@@ -214,11 +242,13 @@ export function countByOutcome(
 
 /** Called on sign-out — a knock belongs to the rep who made it. */
 export async function clearKnocks(userId: string): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(keyFor(userId));
-  } catch {
-    /* nothing to recover */
-  }
+  return mutate(userId, async () => {
+    try {
+      await AsyncStorage.removeItem(keyFor(userId));
+    } catch {
+      /* nothing to recover */
+    }
+  });
 }
 
 /** Test seam. */
