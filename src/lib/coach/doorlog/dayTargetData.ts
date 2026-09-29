@@ -109,18 +109,18 @@ export async function getOrFreezeDayTarget(args: {
   //    manager has set one the goal is DERIVED from exactly these numbers.
   const since = windowStart(localDate);
   const [doorsRes, soldRes, presRes, daysRes] = await Promise.all([
-    db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
-    db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).eq("outcome", "sold").gte("local_date", since).lte("local_date", localDate),
+    db.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
+    db.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", repId).eq("outcome", "sold").gte("local_date", since).lte("local_date", localDate),
     // A presentation is a door where somebody was actually spoken to — every outcome but `no_answer`
     // (founder, 11 September 2026). It was `pitches` (recorded audio), which measured the middle of
     // the funnel from a different table than its two ends and let a sold door count as zero
     // presentations. See the route's note for the screenshot that surfaced it and why the door
     // target is almost unmoved by the change.
-    db.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", repId).neq("outcome", "no_answer").gte("local_date", since).lte("local_date", localDate),
+    db.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", repId).neq("outcome", "no_answer").gte("local_date", since).lte("local_date", localDate),
     // The DAYS THE REP ACTUALLY WORKED, not the window length. Dividing by 30
     // when somebody worked five days hands them a goal a sixth of what they can
     // do, and they would meet it before lunch on day one.
-    db.from("door_knocks").select("local_date").eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
+    db.from("door_knocks_live").select("local_date").eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
   ]);
   const doors = doorsRes.count ?? 0;
   const sold = soldRes.count ?? 0;

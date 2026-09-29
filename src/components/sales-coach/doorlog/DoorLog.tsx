@@ -39,6 +39,10 @@ const OUTCOME_ORDER: PitchOutcome[] = ["sold", "go_back", "non_decision_maker", 
 
 type Kpi = { doorsKnocked: number; sold: number; goBacks: number; notInterested: number };
 
+/** How long the quiet undo stays on screen. The server accepts an undo for 60 minutes (0267); this is only
+ *  how long it is OFFERED, which is what keeps it quiet. */
+export const UNDO_MS = 5000;
+
 function defaultPitchName(): string {
   const d = new Date();
   const day = d.toLocaleDateString(undefined, { weekday: "short" });
@@ -111,6 +115,19 @@ export function DoorLog() {
   // nothing to review. Distinct from sendError so a successful-but-partial save never renders as a red failure
   // (dressing a save as a failure is as dishonest as dressing a failure as a save — INV22, both directions).
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * THE QUIET UNDO (0267; founder 2026-09-29: "a quiet 'undo' for a few seconds").
+   *
+   * REV 1 removed "Undo last" on 2026-09-11, which left a mis-tapped door — a "Sold" pressed in a hurry
+   * between houses — permanent. After a knock-only log is CONFIRMED by the server, a small "Undo" shows for
+   * UNDO_MS and then goes. Tapping it APPENDS an undo (the knock itself is never edited, §3.1); every count
+   * reads door_knocks_live, so the door stops counting everywhere at once.
+   *
+   * Only knock-only logs offer it. A recorded pitch has uploaded audio by the time it is logged — that is no
+   * longer a mis-tap, and undoing its knock would leave its pitch in the report card with nothing behind it.
+   */
+  const [undoable, setUndoable] = useState<{ id: string; label: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recorder = useDoorRecorder();
 
   const tz = deviceTimeZone();
@@ -298,17 +315,42 @@ export function DoorLog() {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.round(performance.now())}`;
 
+  const offerUndo = useCallback((id: string, label: string) => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndoable({ id, label });
+    undoTimer.current = setTimeout(() => setUndoable((u) => (u?.id === id ? null : u)), UNDO_MS);
+  }, []);
+  useEffect(() => () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  }, []);
+
+  const undoLast = useCallback(async () => {
+    const u = undoable;
+    if (!u) return;
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndoable(null);
+    setSendError(null);
+    setNotice(null);
+    const r = await postDoorLog({ kind: "undo", clientKnockId: u.id });
+    // Say what happened either way: a failed undo must not look like a successful one, or the rep believes a
+    // door is gone that is still counted.
+    if (r.ok) setNotice(`Undone — that ${u.label} no longer counts.`);
+    else setSendError(`Couldn't undo that ${u.label}. It is still counted.`);
+    void loadKpi();
+  }, [undoable, postDoorLog, loadKpi]);
+
   const noAnswer = useCallback(() => {
     const id = newId();
     setSendError(null);
     setNotice(null);
     void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("That knock", r.failReason));
+      else offerUndo(id, "No Answer");
       void loadKpi(); // re-fetches the true count, correcting the optimistic bump on a failed send
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setState((s) => transition(s, { type: "NO_ANSWER" }));
-  }, [localDate, postDoorLog, loadKpi]);
+  }, [localDate, postDoorLog, loadKpi, offerUndo]);
 
   // "Not Home / No Answer" from the OUTCOME screen (founder feedback 2026-08-22): a rep who started recording
   // expecting contact — and nobody came out — was forced to tag a false Sold / Go-Back / Not-Interested at
@@ -320,13 +362,14 @@ export function DoorLog() {
     setNotice(null);
     void postDoorLog({ kind: "knock", outcome: "no_answer", localDate, clientKnockId: id }).then((r) => {
       if (!r.ok) setSendError(saveFailMessage("That knock", r.failReason));
+      else offerUndo(id, "No Answer");
       void loadKpi();
     });
     setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
     setRecorded(null);
     setNoRecord(false);
     setState((s) => transition(s, { type: "NO_ANSWER" }));
-  }, [localDate, postDoorLog, loadKpi]);
+  }, [localDate, postDoorLog, loadKpi, offerUndo]);
 
   // No-mic path (founder 2026-08-21): jump straight to the OUTCOME screen without recording, so a rep
   // whose mic is unavailable can still log Sold / Go-Back / Not-Interested — previously they could log
@@ -349,8 +392,11 @@ export function DoorLog() {
       setNotice(null);
       void postDoorLog({ kind: "knock", outcome, localDate, clientKnockId: id }).then((r) => {
         if (!r.ok) setSendError(saveFailMessage("That pitch", r.failReason));
-        // This path is reached only when NO audio was captured at all (no blob + no chunks) — a true no_capture.
-        else if (opts?.audioDropped) setNotice(audioDroppedMessage("no_capture"));
+        else {
+          offerUndo(id, OUTCOME_LABELS[outcome]);
+          // This path is reached only when NO audio was captured at all (no blob + no chunks) — a true no_capture.
+          if (opts?.audioDropped) setNotice(audioDroppedMessage("no_capture"));
+        }
         void loadKpi();
       });
       setKpi((k) => (k ? { ...k, doorsKnocked: k.doorsKnocked + 1 } : k));
@@ -358,7 +404,7 @@ export function DoorLog() {
       setNoRecord(false);
       setState("idle");
     },
-    [localDate, postDoorLog, loadKpi]
+    [localDate, postDoorLog, loadKpi, offerUndo]
   );
 
   const recordPitch = useCallback(async () => {
@@ -500,10 +546,28 @@ export function DoorLog() {
         <button
           type="button"
           onClick={() => setNotice(null)}
-          className="mb-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-left text-sm text-amber-300 active:scale-[0.99] transition-transform"
+          className="mb-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-left text-sm text-amber-700 dark:text-amber-300 active:scale-[0.99] transition-transform"
         >
-          ⓘ {notice} <span className="text-amber-400/70">(tap to dismiss)</span>
+          ⓘ {notice} <span className="text-amber-600/70 dark:text-amber-400/70">(tap to dismiss)</span>
         </button>
+      )}
+      {undoable && state === "idle" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl border border-default bg-surface-raised px-3 py-1.5 text-sm"
+        >
+          <span className="text-secondary">
+            Logged: <b className="text-primary font-semibold">{undoable.label}</b>
+          </span>
+          <button
+            type="button"
+            onClick={() => void undoLast()}
+            className="min-h-[36px] rounded-lg px-3 font-semibold text-brand hover:bg-surface active:scale-[0.98] transition-transform"
+          >
+            Undo
+          </button>
+        </div>
       )}
       {state === "idle" && (
         <div className="grid grid-cols-4 gap-2 mb-2">

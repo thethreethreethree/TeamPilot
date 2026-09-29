@@ -2090,10 +2090,59 @@ for (const key of SERVICE_ROLE_TENANT_ALLOWLIST.keys()) {
   });
 }
 
+// ═══ INVARIANT 30 — knocks are COUNTED from door_knocks_live, never from door_knocks ══════════════════
+//
+// LEARNED: 2026-09-29. The quiet undo (0267) appends to door_knock_undos instead of editing a knock (§3.1),
+// so "a knock that counts" is door_knocks MINUS the undone ones — the view door_knocks_live. A count read
+// straight off door_knocks keeps counting a door the rep took back, and the dials, the report card and the
+// manager KPIs start disagreeing with no error anywhere.
+//
+// Tests cannot catch that: the day-target tests passed unchanged when their table was renamed under them —
+// their mocks answer whatever table is named. So this is static. A direct `.from("door_knocks")` is allowed
+// ONLY where reading the raw table is the point, and each such file is listed with HOW MANY such reads it
+// may have. A new read anywhere else fails, and so does one more read in a listed file — an excused file
+// does not excuse its next query. (Pitch readers that EMBED the knock, `door_knocks!inner(…)`, are not
+// counts and are not matched.)
+const RAW_KNOCK_READS = new Map([
+  ["src/lib/data/doorlog.ts", [4,
+    "createKnock's write and its dedupe lookup; undoKnock's lookup (it must see the knock it is undoing); " +
+      "getTodaysMetrics' 'what is today' anchor — an undone knock still dates the rep's day, and switching it " +
+      "would show yesterday as today when the only knock today was taken back."]],
+  ["src/lib/coach/doorlog/rollupWorker.ts", [1,
+    "the same 'what is today' anchor as getTodaysMetrics, for the rollup windows."]],
+]);
+for (const f of FILES) {
+  if (!/^src\//.test(f.path) || f.path.includes("__tests__") || f.path.includes("/test/")) continue;
+  const n = (f.sql.match(/\.from\(\s*["']door_knocks["']\s*\)/g) || []).length;
+  if (n === 0) continue;
+  const allowed = RAW_KNOCK_READS.get(f.path)?.[0] ?? 0;
+  if (n > allowed) {
+    findings.push({
+      rule: "knocks read from door_knocks instead of door_knocks_live (an undone door would still count)",
+      file: f.path,
+      why:
+        `${n} direct read(s) of door_knocks; ${allowed} allowed here. A COUNT must read door_knocks_live\n` +
+        "      (knocks minus door_knock_undos, 0267). If the raw table is genuinely the point, raise this file's\n" +
+        "      entry in RAW_KNOCK_READS with the reason.",
+    });
+  }
+}
+for (const [path, [allowed]] of RAW_KNOCK_READS) {
+  const f = FILES.find((x) => x.path === path);
+  const n = f ? (f.sql.match(/\.from\(\s*["']door_knocks["']\s*\)/g) || []).length : 0;
+  if (n < allowed) {
+    findings.push({
+      rule: "stale raw-knock allowance (fewer direct reads than excused)",
+      file: path,
+      why: `${allowed} excused, ${n} present. Lower the entry — a spare allowance is a pre-signed excuse.`,
+    });
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -2114,7 +2163,8 @@ if (findings.length === 0) {
       " every data-layer catch that swallows into a value classifies the error — rethrow or guard-predicate (no error-as-no-data) ·" +
       " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection) ·" +
       " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page) ·" +
-      " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read)."
+      " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read) ·" +
+      " knocks are counted from door_knocks_live (an undone door never counts)."
   );
   process.exit(0);
 }

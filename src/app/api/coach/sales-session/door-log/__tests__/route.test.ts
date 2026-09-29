@@ -24,10 +24,11 @@ vi.mock("@/lib/data/doorlog", () => ({
   createKnock: vi.fn(),
   createPitch: vi.fn(),
   getKpiForDay: vi.fn(async () => []),
+  undoKnock: vi.fn(),
 }));
 
 import { createClient } from "@/lib/supabase/server";
-import { createKnock, createPitch, getKpiForDay } from "@/lib/data/doorlog";
+import { createKnock, createPitch, getKpiForDay, undoKnock } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
 import { POST, GET } from "../route";
 
@@ -123,3 +124,42 @@ describe("GET /door-log — KPI read honesty (audit L1)", () => {
     expect(body.sold).toBe(3);
   });
 });
+
+/**
+ * { kind: "undo" } — the quiet undo (0267, founder 2026-09-29). The route MAPS undoKnock's verdict; it must
+ * never create a knock on the way, which would turn "take that door back" into "log another door".
+ */
+describe("POST /door-log — undo", () => {
+  const undo = undoKnock as unknown as ReturnType<typeof vi.fn>;
+
+  it("undoes by client id, and does not create a knock", async () => {
+    undo.mockResolvedValue({ ok: true, alreadyUndone: false });
+    const res = await POST(req({ kind: "undo", clientKnockId: "ck-1" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, undone: true, alreadyUndone: false });
+    expect(undo).toHaveBeenCalledWith(expect.objectContaining({ companyId: "co1", clientKnockId: "ck-1", knockId: null }));
+    expect(createKnock).not.toHaveBeenCalled();
+  });
+
+  it("400 when it does not say which door", async () => {
+    const res = await POST(req({ kind: "undo" }));
+    expect(res.status).toBe(400);
+    expect(undo).not.toHaveBeenCalled();
+    expect(createKnock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not_found", 404],
+    ["too_late", 409],
+    ["unavailable", 503],
+    ["failed", 500],
+  ] as const)("maps %s to %i with a sentence, not a raw error", async (reason, status) => {
+    undo.mockResolvedValue({ ok: false, reason });
+    const res = await POST(req({ kind: "undo", knockId: "11111111-1111-4111-8111-111111111111" }));
+    expect(res.status).toBe(status);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/[a-z]/i);
+    expect(createKnock).not.toHaveBeenCalled();
+  });
+});
+

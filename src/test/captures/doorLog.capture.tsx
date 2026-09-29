@@ -135,4 +135,29 @@ describe("capture", () => {
       recorderState.recording = false;
     }
   });
+
+  /**
+   * THE QUIET UNDO (0267, 2026-09-29) — the bar that shows for five seconds after a knock-only log is
+   * confirmed. Waits on "Logged:", which exists only while the bar is up.
+   */
+  it("door log, a No Answer just logged, with the quiet undo", async () => {
+    stubBrowserApis();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: { method?: string }) => {
+        const url = String(input);
+        if (init?.method === "POST") return { ok: true, status: 200, json: async () => ({ ok: true }) };
+        if (url.includes("door-log"))
+          return { ok: true, json: async () => ({ doorsKnocked: 37, presentations: 9, sold: 2 }) };
+        return { ok: true, json: async () => ({}) };
+      })
+    );
+    vi.stubGlobal("MediaRecorder", class {} as unknown as typeof MediaRecorder);
+    Object.defineProperty(globalThis.navigator, "mediaDevices", { value: { getUserMedia: vi.fn() }, configurable: true });
+
+    const { container } = render(<DoorLog />);
+    fireEvent.click(await screen.findByText("No Answer", undefined, { timeout: 5000 }));
+    await screen.findByText(/Logged:/, undefined, { timeout: 5000 });
+    capture("door-log-undo", container.firstElementChild as HTMLElement, { width: 390, height: 844 });
+  });
 });

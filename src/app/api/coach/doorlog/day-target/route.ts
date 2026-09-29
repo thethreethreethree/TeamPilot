@@ -55,9 +55,9 @@ export async function GET(req: NextRequest) {
       denominator that only ever saw the doors somebody remembered to record.
     */
     const [doorsRes, soldRes, presRes] = await Promise.all([
-      sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("local_date", localDate),
-      sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("outcome", "sold").eq("local_date", localDate),
-      sb.from("door_knocks").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).neq("outcome", "no_answer").eq("local_date", localDate),
+      sb.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("local_date", localDate),
+      sb.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).eq("outcome", "sold").eq("local_date", localDate),
+      sb.from("door_knocks_live").select("id", { count: "exact", head: true }).eq("rep_id", auth.user.id).neq("outcome", "no_answer").eq("local_date", localDate),
     ]);
     if (doorsRes.error || soldRes.error || presRes.error) {
       // INV22 honesty: a failed count must not render as a fabricated 0 — surface the failure.

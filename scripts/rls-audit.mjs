@@ -180,6 +180,11 @@ const ALLOWLIST = new Map([
   //     count, which IS the KPI's source of truth). Insert + select are policy-covered; update/delete denied.
   ["door_knocks.update", "0215 append-only KPI log — a knock is an immutable field event; correct by logging a new one."],
   ["door_knocks.delete", "0215 append-only KPI log — deleting a knock falsifies the doors-knocked count (the rep's own work record)."],
+  //   door_knock_undos (0267): "logging another knock" above never corrected a mis-tapped Sold — there is no
+  //     negative knock. The correction is an APPENDED undo row; counts read door_knocks_live (knocks minus
+  //     undos). The undo is itself a fact: insert + select are policy-covered, update/delete denied.
+  ["door_knock_undos.update", "0267 an undo is an appended fact about a knock; rewriting it would silently re-count or un-count a door."],
+  ["door_knock_undos.delete", "0267 deleting an undo would restore a knock the rep took back, without a record that it happened."],
   //   pitches: retained — audio bytes are purged by the recording-purge-cron, not by deleting the row. A rep
   //     must not delete a pitch to hide a bad call from their manager (Q4 = rep + manager). Insert/select/
   //     update-own-name are policy-covered; delete denied.

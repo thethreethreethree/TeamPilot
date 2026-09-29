@@ -85,6 +85,64 @@ export async function createKnock(args: {
   return null;
 }
 
+/** How long after a knock is stored the rep may still take it back. Mirrors 0267's insert policy. */
+export const UNDO_WINDOW_MS = 60 * 60_000;
+
+export type UndoKnockResult =
+  | { ok: true; alreadyUndone: boolean }
+  | { ok: false; reason: "not_found" | "too_late" | "unavailable" | "failed" };
+
+/**
+ * Take back a mis-tapped knock (0267, founder 2026-09-29: "a quiet undo for a few seconds").
+ *
+ * APPENDS a `door_knock_undos` row; never touches the knock (§3.1). Identified by the server id the knock
+ * POST returned, or by the client's own id — the app's outbox only knows the latter.
+ *
+ * The verdict is returned as a reason so the route MAPS it rather than re-deriving it (§2.2). `too_late` is
+ * decided here from the knock's own `created_at` so the rep hears "too late" rather than "not found"; the RLS
+ * insert policy enforces the same 60-minute rule independently, so a client cannot talk its way past it.
+ * `unavailable` = the table is not there yet (0267 not applied): fail LOUD, never pretend it worked.
+ */
+export async function undoKnock(args: {
+  companyId: string;
+  knockId?: string | null;
+  clientKnockId?: string | null;
+  /** MUST be the caller-scoped client, as for createKnock — otherwise this runs anonymous. */
+  db?: SupabaseClient;
+}): Promise<UndoKnockResult> {
+  const sb = args.db ?? (await createClient());
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth?.user) return { ok: false, reason: "not_found" };
+
+  // Find the caller's OWN knock. RLS would also let a manager see a rep's knock; the rep_id filter is what
+  // makes this "undo MY tap", never "undo someone else's".
+  let q = sb.from("door_knocks").select("id, created_at").eq("rep_id", auth.user.id);
+  if (args.knockId) q = q.eq("id", args.knockId);
+  else if (args.clientKnockId) q = q.eq("client_knock_id", args.clientKnockId);
+  else return { ok: false, reason: "not_found" };
+  const { data: knock, error: readErr } = await q.maybeSingle();
+  if (readErr || !knock) return { ok: false, reason: "not_found" };
+
+  const age = Date.now() - Date.parse(knock.created_at as string);
+  if (!(age <= UNDO_WINDOW_MS)) return { ok: false, reason: "too_late" };
+
+  const { data, error } = await sb
+    .from("door_knock_undos")
+    .upsert(
+      { knock_id: knock.id, company_id: args.companyId, rep_id: auth.user.id },
+      { onConflict: "knock_id", ignoreDuplicates: true }
+    )
+    .select("knock_id");
+  if (error) {
+    // 42P01 = relation does not exist (Postgres); PGRST205 = PostgREST cannot find the table in its cache.
+    if (error.code === "42P01" || error.code === "PGRST205") return { ok: false, reason: "unavailable" };
+    console.error("[doorlog] undoKnock insert failed:", error.code, error.message);
+    return { ok: false, reason: "failed" };
+  }
+  // ignoreDuplicates returns no row when the knock was already undone — idempotent, not an error.
+  return { ok: true, alreadyUndone: !data || data.length === 0 };
+}
+
 /** Create the pitch row for a knock (status starts 'recorded'; the worker advances it). */
 export async function createPitch(args: {
   knockId: string;
@@ -279,7 +337,7 @@ export async function getTodaysMetrics(
     // source both match instead of only the window.
     (() => {
       const base = sb
-        .from("door_knocks")
+        .from("door_knocks_live")
         .select("id", { count: "exact", head: true })
         .eq("rep_id", repId)
         .neq("outcome", "no_answer");

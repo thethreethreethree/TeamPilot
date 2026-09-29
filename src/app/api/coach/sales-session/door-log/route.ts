@@ -7,7 +7,7 @@ import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createSignedUploadTarget } from "@/lib/storage/assets";
-import { createKnock, createPitch, getKpiForDay, getAllTimeKpi } from "@/lib/data/doorlog";
+import { createKnock, createPitch, getKpiForDay, getAllTimeKpi, undoKnock } from "@/lib/data/doorlog";
 import { processPitch } from "@/lib/coach/doorlog/worker";
 import { pitchRecordingPath } from "@/lib/coach/doorlog/pitchAudioChunks";
 
@@ -18,6 +18,7 @@ import { pitchRecordingPath } from "@/lib/coach/doorlog/pitchAudioChunks";
  *  - { kind: "knock" }  — log a No-Answer (or any outcome) knock; returns immediately.
  *  - { kind: "sign" }   — mint a signed upload target so the browser uploads pitch audio DIRECT to storage
  *                         (bypasses the ~4.5 MB Vercel body cap).
+ *  - { kind: "undo" }   — take back a mis-tapped knock within 60 minutes (appends; never edits). See UndoBody.
  *  - { kind: "pitch" }  — after the audio is uploaded, create the knock + pitch and KICK the worker
  *                         fire-and-forget (after()). The rep is back on IDLE before any processing runs.
  *
@@ -57,7 +58,27 @@ const PitchBody = z.object({
   storagePath: z.string().min(1).max(400).optional(),
   recordingId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
-const Body = z.discriminatedUnion("kind", [KnockBody, SignBody, PitchBody]);
+/**
+ * { kind: "undo" } — take back a mis-tapped knock (0267; founder 2026-09-29: "a quiet undo for a few seconds").
+ * Appends an undo; the knock itself is never edited (§3.1). Identify it by the id this route returned
+ * (`knockId`) or by the client's own id (`clientKnockId` — all the app's outbox knows). One of the two is
+ * required; that is checked in the handler, since a refined object cannot sit in a discriminated union.
+ */
+const UndoBody = z.object({
+  kind: z.literal("undo"),
+  knockId: z.string().uuid().optional(),
+  clientKnockId: z.string().min(1).max(100).optional(),
+});
+const Body = z.discriminatedUnion("kind", [KnockBody, SignBody, PitchBody, UndoBody]);
+
+/** Undo verdict -> status. Mapped from undoKnock's reason, never re-derived here (§2.2). */
+const UNDO_STATUS = { not_found: 404, too_late: 409, unavailable: 503, failed: 500 } as const;
+const UNDO_MESSAGE = {
+  not_found: "That door could not be found to undo.",
+  too_late: "That door was logged too long ago to undo.",
+  unavailable: "Undo isn't available yet — the update is still rolling out.",
+  failed: "Couldn't undo that door. Try again.",
+} as const;
 
 // Kicks the worker via after(), which awaits the FULL STT + LLM chain. 60s was too little — a long recording's
 // chain exceeds it, the after() is killed mid-processing, and the pitch then waits out its ~5-min claim lease before
@@ -82,6 +103,22 @@ export async function POST(req: NextRequest) {
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const companyId = await callerCompanyId(sb, auth.user.id);
   if (!companyId) return NextResponse.json({ error: "No company context." }, { status: 403 });
+
+  if (body.kind === "undo") {
+    if (!body.knockId && !body.clientKnockId) {
+      return NextResponse.json({ error: "Say which door to undo." }, { status: 400 });
+    }
+    const undone = await undoKnock({
+      db: sb,
+      companyId,
+      knockId: body.knockId ?? null,
+      clientKnockId: body.clientKnockId ?? null,
+    });
+    if (!undone.ok) {
+      return NextResponse.json({ error: UNDO_MESSAGE[undone.reason] }, { status: UNDO_STATUS[undone.reason] });
+    }
+    return NextResponse.json({ ok: true, undone: true, alreadyUndone: undone.alreadyUndone });
+  }
 
   if (body.kind === "sign") {
     const target = await createSignedUploadTarget({
