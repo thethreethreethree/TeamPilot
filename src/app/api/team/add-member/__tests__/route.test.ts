@@ -7,6 +7,8 @@ const upsert = vi.fn();
 const tpSingle = vi.fn();
 const profileLookup = vi.fn().mockResolvedValue({ data: null }); // existing user's current profile (role, company_id)
 const createUser = vi.fn();
+// Members of the person's CURRENT company (the solo-company rule, 2026-09-29). Awaited off the same chain.
+const memberCount = vi.fn().mockResolvedValue({ count: 1, error: null });
 vi.mock("@/lib/supabase/admin", () => {
   // One chainable stub serving both selects: profile lookup (.eq().maybeSingle()) and team-password
   // lookup (.eq().eq().is().single()).
@@ -15,6 +17,7 @@ vi.mock("@/lib/supabase/admin", () => {
   chain.is = () => chain;
   chain.maybeSingle = () => profileLookup();
   chain.single = () => tpSingle();
+  chain.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => memberCount().then(res, rej);
   return {
     findAuthUserByEmail: (e: string) => findByEmail(e),
     createAdminClient: () => ({
@@ -77,6 +80,7 @@ describe("POST /api/team/add-member", () => {
     asMock(getCurrentAuthContext).mockResolvedValue(admin); // company c1
     findByEmail.mockResolvedValue({ id: "ceo-of-c2", email: "ceo@customer.com" });
     profileLookup.mockResolvedValue({ data: { role: "CEO", company_id: "c2" }, error: null });
+    memberCount.mockResolvedValue({ count: 3, error: null }); // a REAL team: the CEO plus two others
     upsert.mockResolvedValue({ error: null });
     const res = await POST(req({ mode: "existing", email: "ceo@customer.com", salesCoachRole: null }));
     expect(res.status).toBe(409);
@@ -92,6 +96,28 @@ describe("POST /api/team/add-member", () => {
     expect(res.status).toBe(500);
     expect(upsert).not.toHaveBeenCalled();
     expect(JSON.stringify(await res.json())).not.toContain("connection reset"); // CWE-209
+  });
+  // Founder ruling 2026-09-29: the onboarding guide has every rep make a company of ONE in the questionnaire,
+  // then asks the manager to add them. That solo company is the only kind a manager may move someone out of.
+  it("existing mode: a rep alone in the company the questionnaire made IS added, as a Member", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin); // company c1
+    findByEmail.mockResolvedValue({ id: "new-rep", email: "rep@x.com" });
+    profileLookup.mockResolvedValue({ data: { role: "admin", company_id: "solo-co" }, error: null });
+    memberCount.mockResolvedValue({ count: 1, error: null });
+    upsert.mockResolvedValue({ error: null });
+    const res = await POST(req({ mode: "existing", email: "rep@x.com", salesCoachRole: "staff" }));
+    expect(res.status).toBe(200);
+    // Moved into the MANAGER's company, and not left an admin — they were admin only of their own empty one.
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ id: "new-rep", company_id: "c1", role: "Member" }));
+  });
+  it("existing mode: a member count that cannot be read fails CLOSED — not read as 'solo'", async () => {
+    asMock(getCurrentAuthContext).mockResolvedValue(admin);
+    findByEmail.mockResolvedValue({ id: "u9", email: "a@b.com" });
+    profileLookup.mockResolvedValue({ data: { role: "admin", company_id: "other-co" }, error: null });
+    memberCount.mockResolvedValue({ count: null, error: { message: "timeout" } });
+    const res = await POST(req({ mode: "existing", email: "a@b.com", salesCoachRole: null }));
+    expect(res.status).toBe(500);
+    expect(upsert).not.toHaveBeenCalled();
   });
   it("new mode: email already has an account → 409", async () => {
     asMock(getCurrentAuthContext).mockResolvedValue(admin);

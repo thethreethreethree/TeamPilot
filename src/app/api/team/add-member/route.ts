@@ -81,10 +81,30 @@ export async function POST(req: NextRequest) {
      * must not learn where someone works.
      */
     if (cur?.company_id && cur.company_id !== ctx.companyId) {
-      return NextResponse.json(
-        { error: "That person already belongs to another team, so they can't be added here. Nothing was changed." },
-        { status: 409 },
-      );
+      /**
+       * …EXCEPT A SOLO COMPANY (founder ruling 2026-09-29).
+       *
+       * The rep onboarding guide has every new rep complete the questionnaire — complete_company_onboarding —
+       * which makes them the admin of a brand-new company of one, and only THEN asks their manager to add them.
+       * The rule above refused every one of those adds. So a company whose only member is this person is the
+       * empty one the questionnaire made, and moving them out of it leaves no one behind; a company with ANY
+       * other member is a real team, and stays refused. Counted with the service role so a count we cannot
+       * read is a refusal (fail closed), never a "looks empty".
+       */
+      const { count: members, error: countErr } = await sb
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", cur.company_id);
+      if (countErr || members == null) {
+        console.error("[team/add-member existing] member count failed:", countErr?.message ?? "no count");
+        return NextResponse.json({ error: "Couldn't check that person's current team. Nothing was changed." }, { status: 500 });
+      }
+      if (members > 1) {
+        return NextResponse.json(
+          { error: "That person already belongs to another team, so they can't be added here. Nothing was changed." },
+          { status: 409 },
+        );
+      }
     }
     const keepRole = existing.id === ctx.userId || (cur?.company_id === ctx.companyId && isAdminRole(cur?.role ?? null));
     const patch: Record<string, string | null> = { id: existing.id, company_id: ctx.companyId, sales_coach_role: salesCoachRole, status: "active" };
