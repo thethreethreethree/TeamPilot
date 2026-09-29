@@ -240,3 +240,47 @@ export function lowestSection(
   }
   return worst;
 }
+
+/** The `rubric_config` row for this rubric version — see rubricConfigRow(). */
+export type RubricConfigRow = {
+  version: string;
+  company_id: null;
+  label: string;
+  elements: readonly RubricElement[];
+  bonuses: readonly RubricBonus[];
+  violations: readonly RubricViolation[];
+  base_max: number;
+  bonus_cap: number;
+  qualifying_min_base: number;
+  audio_confidence_threshold: number;
+  is_active: boolean;
+};
+
+/**
+ * The `rubric_config` row this rubric version needs in the database — built from the constants above.
+ *
+ * WHY IT EXISTS (2026-09-29). `pitch_scores.rubric_version` is a foreign key to `rubric_config(version)`,
+ * and no migration ever created the `attfiber-v1` row. Nothing READS that table (the rubric is served from
+ * this file), so nothing noticed — but every save needs it. In production the table was empty, and every
+ * pitch score ever attempted was refused at `store_pitch_score` with
+ * "violates foreign key constraint pitch_scores_rubric_version_fkey": 164 in three days after the DeepSeek
+ * top-up, each one an AI grading paid for and thrown away.
+ *
+ * The seeding migration (0268) is GENERATED from this function, and a test asserts the migration's JSON
+ * equals it — the rubric must not exist as two hand-kept copies (§2.2).
+ */
+export function rubricConfigRow(): RubricConfigRow {
+  return {
+    version: RUBRIC_VERSION,
+    company_id: null, // the shared default rubric — 0252's select policy lets every company read a null row
+    label: "AT&T Fiber Pitch Scoring Rubric v1",
+    elements: ELEMENTS,
+    bonuses: BONUSES,
+    violations: VIOLATIONS,
+    base_max: BASE_MAX,
+    bonus_cap: BONUS_CAP,
+    qualifying_min_base: QUALIFYING_MIN_BASE,
+    audio_confidence_threshold: AUDIO_BONUS_CONFIDENCE_THRESHOLD,
+    is_active: true,
+  };
+}
