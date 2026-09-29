@@ -114,8 +114,12 @@ No phase begins until the previous one's exit test is green.
    not already tracked via the kit, verbatim; app `tsc` clean and 1,551/1,551 tests after.
 1b. Find out what became of the founder's `REV 1.pdf` requests (Home "start knocking" button placement,
    Door Log "doors knocked" + "Next 5 door focus", Macro Mode wording, automatic pitch titling/labelling,
-   "practicing", a separate manager dashboard). The app has a `SALES COACH NEW FEATURES REV1/` folder;
-   whether each item shipped is **not yet checked** — it goes on the device-check list either way.
+   "practicing", a separate manager dashboard). **Checked 2026-09-29** against the app's history
+   [OBSERVED]: six shipped in `8dec5e94` (09-11) — "Doors knocked", "See today's metrics" and "Undo last"
+   removed, "Next 5 door focus", the Macro Mode wording, "practicing". Automatic naming after a pitch was
+   built later (`66e39029`). **Still waiting on the founder since 09-11:** "start knocking at the bottom",
+   "take out today's performance", and whether Macro Mode ON means short-form (the builder's reading).
+   All of it goes on the device-check list — none of it has been seen on a phone.
 2. **Prove the app on a real phone** — `DEVICE-CHECK.md` Part 1 (a development build via EAS; no Mac
    needed, EAS builds in the cloud), then Part 2's 26 checks. **The founder's phone is required here;
    nothing on this laptop can substitute.** Findings are fixed in the app as it is today.
