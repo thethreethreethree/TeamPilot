@@ -26,6 +26,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { DoorDial } from '@/components/door-dial';
+import { StartKnockingButton } from '@/components/start-knocking-button';
 import { useAuth } from '@/lib/auth-context';
 import { readMyProfile } from '@/lib/profile';
 import { countByOutcome, listKnocks, localDate } from '@/lib/doors/knock-store';
@@ -186,6 +187,11 @@ export function DoorHomePage() {
       {state === 'ready' && view ? (
         <ReadyState view={view} onLog={() => router.push('/(app)/doors')} pending={pending} />
       ) : null}
+
+      {/* REV 1 (founder, confirmed 2026-09-29): "Start Knocking" at the bottom of the page a rep LANDS
+          on. In EVERY state, not only 'ready' — a target that is loading, missing or failed to load is no
+          reason to make a rep swipe before they can start a shift. */}
+      <StartKnockingButton onPress={() => router.push('/(app)/doors')} />
     </ScrollView>
   );
 }

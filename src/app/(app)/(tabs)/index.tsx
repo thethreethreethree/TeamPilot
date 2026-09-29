@@ -38,6 +38,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
+import { StartKnockingButton } from '@/components/start-knocking-button';
 
 import { useAuth } from '@/lib/auth-context';
 import { listMySessions } from '@/lib/sync/sessions';
@@ -308,14 +309,7 @@ function MacroHome({
         </Text>
       ) : null}
 
-      <Pressable
-        onPress={() => router.push('/(app)/doors')}
-        accessibilityRole="button"
-        accessibilityLabel="Start knocking"
-        className="mt-5 min-h-7 items-center justify-center rounded-lg bg-primary px-5 py-4 active:bg-primary-pressed"
-      >
-        <Text className="font-strong text-base text-primary-foreground">Start Knocking</Text>
-      </Pressable>
+      <StartKnockingButton onPress={() => router.push('/(app)/doors')} />
     </>
   );
 }

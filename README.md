@@ -42,10 +42,10 @@ designed to ship inside a client.
 ## Checks
 
 ```bash
-npm test            # 930 tests, node --test
+npm test            # 1,555 tests (2026-09-29), node --test
 npx tsc --noEmit    # types
 npm run lint        # 293 files
-node ../tools/gate.mjs   # the design gates, G1-G4
+(cd .. && node tools/gate.mjs)   # the design gates, G1-G4 — run from IOS-APP/, where DESIGN-CONTRACT.md lives
 ```
 
 **Every guard in this codebase was proven by breaking it.** A test that has never been watched to fail is a claim,
