@@ -28,7 +28,7 @@ A phase is done only when it passes both. Passing one is not done.
 | Ships to | Vercel project `team-pilot` → elostate.com | EAS (`elostate-tech`), App Store Connect app `6808480147`, bundle `com.elostate.salescoach` (iOS + Android) [OBSERVED] |
 | Backend | Supabase + its own API routes | The **same** Supabase (anon key + the rep's own login) and the **same** website API routes, via a Bearer token the website accepts on 44 routes since 2026-09-03 [OBSERVED] |
 | Gate today | 12-step `npm run check` — 5,538 tests pass | `tsc` clean, **1,551 tests pass** (the README's "930" is stale) [OBSERVED] |
-| Proven on a phone? | n/a | **No.** `DEVICE-CHECK.md` (26 checks) has essentially none marked done; the README says "nothing in this repository can tell you the product works" [OBSERVED] |
+| Proven on a phone? | n/a | **It has run on one; it has not been formally checked.** The founder's `REV 1.pdf` shows it on a real iPhone on 10 Sep (recording queue, "15 recordings waiting to be sent") [OBSERVED]. `DEVICE-CHECK.md` (26 checks) has essentially none marked done [OBSERVED]. *Corrected 2026-09-29 — this row first said "No".* |
 
 ### The gap this plan closes
 
@@ -43,11 +43,15 @@ Two live examples from today alone:
 - The app calls `practice-scenario/from-pitch`, which has returned 402 since 2026-09-22 (the DeepSeek
   balance) — the app's copy of the error handling was written before that failure mode existed.
 
-### A risk that exists right now, regardless of this plan
+### A risk that existed, now closed
 
-The app's **constitution and its design gates** (`IOS-APP/01-CONSTITUTION.md`, `DESIGN-CONTRACT.md`,
-`tools/gate.mjs` — G1–G4) live in `C:\Users\johns\IOS-APP\`, which is **not under git** [OBSERVED]. If this
-laptop is lost, the rules and gates the app was built against go with it. Phase 0 fixes this first.
+The app's rules and design gates live in `C:\Users\johns\IOS-APP\`, which is not under git [OBSERVED].
+*Corrected 2026-09-29:* this first said the constitution and gates were at risk. On inspection, **52 of
+the folder's 61 files are byte-identical to files already tracked** in the app's `BUILD-STARTER V3 APP
+SYSTEM/` kit folder — the constitution and G1–G4 included — and `IOS-APP/.gitignore` keeps the kit's law
+files out of git on purpose. **Nine files existed nowhere else** (the app's `DESIGN-CONTRACT.md`, the
+founder's `REV 1.pdf`, the customised settings and read gate, the LAW 1 ledger, three scripts). They are
+now backed up in the app's `governance/` folder — commit `c5b3891f` on `elostate-sales-coach-app`.
 
 ---
 
@@ -106,8 +110,12 @@ No phase begins until the previous one's exit test is green.
 
 ### Phase 0 — Safeguard and baseline *(nothing moves)*
 
-1. Put `IOS-APP/`'s constitution, design contract and `tools/` (G1–G4) under version control — copied
-   into the app's repo, byte-identical, so the gate runs from inside the repo.
+1. ~~Put `IOS-APP/`'s governance under version control.~~ **Done 2026-09-29** (`c5b3891f`): the 9 files
+   not already tracked via the kit, verbatim; app `tsc` clean and 1,551/1,551 tests after.
+1b. Find out what became of the founder's `REV 1.pdf` requests (Home "start knocking" button placement,
+   Door Log "doors knocked" + "Next 5 door focus", Macro Mode wording, automatic pitch titling/labelling,
+   "practicing", a separate manager dashboard). The app has a `SALES COACH NEW FEATURES REV1/` folder;
+   whether each item shipped is **not yet checked** — it goes on the device-check list either way.
 2. **Prove the app on a real phone** — `DEVICE-CHECK.md` Part 1 (a development build via EAS; no Mac
    needed, EAS builds in the cloud), then Part 2's 26 checks. **The founder's phone is required here;
    nothing on this laptop can substitute.** Findings are fixed in the app as it is today.
