@@ -1,0 +1,60 @@
+# CLOSURE — a quiet undo for a mis-tapped door
+
+## What is true now
+
+A rep who mis-taps a door can take it back for five seconds, on the website today and in the app once it is
+released. The knock is never edited: an undo is appended, and every count reads knocks minus undos. Migration
+0267 is live on production, and it changed nobody's numbers — raw 1227 = live 1227 = rep_kpi_daily 1227.
+
+On the way, a worse defect: the app's knock queue could erase taps made while it was sending. That fix shipped
+on its own, ahead of everything else.
+
+## The finding
+
+**The undo was not the risky part; the counting was.** One undo is one row. Making every place that counts
+doors agree about it — nine website files, one SQL view with five readers, and every screen on the phone — is
+where it could silently go wrong. The day-target tests passed unchanged when their table was renamed under them,
+which is why the rule is now a static gate rather than one more test.
+
+## Residual
+
+```json
+[
+  {
+    "id": "R1-app-release",
+    "item": "The app's undo (feat/quiet-undo-door-app) and its queue fix (a7ed7a30) are not on any phone.",
+    "why_skipped": "Reaching phones needs an EAS build or update, and the device check.",
+    "confidence_it_does_not_matter": "low",
+    "opened_at": "2026-09-29T14:10:00Z",
+    "outcome": "OPEN. The queue fix is on the app's main line; the undo branch merges after the website."
+  },
+  {
+    "id": "R2-other-app-stores-unswept",
+    "item": "The app's other AsyncStorage stores may share knock-store's unserialised read-then-write shape.",
+    "why_skipped": "Found in knock-store while building the undo; the sweep beyond it is its own build.",
+    "confidence_it_does_not_matter": "low",
+    "opened_at": "2026-09-29T14:10:00Z",
+    "outcome": "OPEN. Recording store and outbox are the next to check."
+  },
+  {
+    "id": "R3-rls-probe-not-in-ci",
+    "item": "scripts/sql/probes/0267-door-knock-undos.rls.sql is committed and re-runnable but not wired into CI.",
+    "why_skipped": "CI's migration job would need to run probes after the audit.",
+    "confidence_it_does_not_matter": "medium",
+    "opened_at": "2026-09-29T14:10:00Z",
+    "outcome": "OPEN."
+  },
+  {
+    "id": "R4-too-late-after-queued",
+    "item": "An undone knock that stays queued past 60 minutes (offline) is refused by the server and removed; the rep was told 'Undone' when they pressed it.",
+    "why_skipped": "Rare (offline for an hour right after a tap), and the honest fix needs a persistent notice.",
+    "confidence_it_does_not_matter": "medium",
+    "opened_at": "2026-09-29T14:10:00Z",
+    "outcome": "OPEN."
+  }
+]
+```
+
+## Not opened
+
+No image, icon, logo, favicon or graphic asset was touched. Two captures generated and opened.

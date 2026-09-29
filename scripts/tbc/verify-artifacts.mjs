@@ -9,7 +9,7 @@
 //   command, or severity; any fix lacks a gate-or-promise answer.
 
 import { join } from "node:path";
-import { exists, read, run, currentBuildDir, frontMatter, repoRel, loadAllowlist } from "./lib.mjs";
+import { exists, read, run, currentBuildDir, frontMatter, repoRel, loadAllowlist, splitFindings } from "./lib.mjs";
 
 // A38: the assurance vocabulary. Each use must sit next to a pasted command
 // output carrying an exit code.
@@ -154,22 +154,6 @@ function sectionFor(md, heading) {
   return lines.slice(start, end).join("\n");
 }
 
-function splitFindings(md) {
-  const out = [];
-  const lines = md.split("\n");
-  let cur = null;
-  for (const l of lines) {
-    const h = l.match(/^###\s+(.+)$/);
-    if (h) {
-      if (cur) out.push(cur);
-      cur = { title: h[1].trim(), body: "" };
-    } else if (cur) {
-      cur.body += l + "\n";
-    }
-  }
-  if (cur) out.push(cur);
-  return out;
-}
 
 function context(text, index) {
   const line = text.slice(0, index).split("\n").length;

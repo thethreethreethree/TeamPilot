@@ -328,3 +328,27 @@ export function loadAllowlist(gate) {
   }
   return entries;
 }
+
+/**
+ * Split a TBC markdown file into its `### ` sections (check.md findings, remediate.md fixes).
+ *
+ * CRLF-SAFE (2026-09-29). This lived in verify-artifacts.mjs and split on "\n" alone, so on a Windows
+ * checkout (autocrlf, or any editor writing CRLF) every heading kept a trailing carriage return, the heading
+ * regex failed on all of them — `.` does not match a carriage return — and a check.md with four findings was
+ * reported as having none. The same trap frontMatter() already guards against for think.md, missed here.
+ */
+export function splitFindings(md) {
+  const out = [];
+  let cur = null;
+  for (const l of String(md).split(/\r?\n/)) {
+    const h = l.match(/^###\s+(.+)$/);
+    if (h) {
+      if (cur) out.push(cur);
+      cur = { title: h[1].trim(), body: "" };
+    } else if (cur) {
+      cur.body += l + "\n";
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}

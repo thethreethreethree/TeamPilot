@@ -8,6 +8,82 @@ in production until migration 0267 is applied. Merging first would break every d
 REV 1 removed "Undo last" (app, 2026-09-11). The app's own comment then said a mis-tapped door could not be
 taken back anywhere. Picker, 2026-09-29: **"a quiet 'undo' for a few seconds."**
 
+## Commands
+
+```
+$ npm run check                        (website, feat/quiet-undo-door @ 95c93633)
+      Tests  5560 passed | 15 skipped (5575)
+  Violations:           0
+exit 0
+
+$ MIGRATION_AUDIT_PSQL="docker exec -i mig-audit psql -U postgres" node scripts/migration-apply-audit.mjs
+  Migrations applied:      265
+  Failed on a fresh DB:    0
+  Not re-runnable (NEW):   0
+exit 0
+
+$ docker exec -i rls-probe psql -U postgres -q < scripts/sql/probes/0267-door-knock-undos.rls.sql
+ fixture: reps with a company = 2
+ result 1: undone rows = 1                       (own fresh knock: allowed)
+ERROR:  new row violates row-level security policy for table "door_knock_undos"   (2 h old)
+ERROR:  new row violates row-level security policy for table "door_knock_undos"   (another rep)
+ERROR:  new row violates row-level security policy for table "door_knock_undos"   (foreign company)
+ result 6: live=2 raw=3
+exit 0
+
+$ npm run db:dry   (production, before)       -> 1 pending migration(s): 0267_door_knock_undos.sql
+$ npm run db:apply (production)               -> ALL 30 invariants hold; verify:live passed
+$ npm run db:dry   (production, after)        -> nothing pending
+$ node .liveprobe (production, read-only txn) -> security_invoker=true; rep_kpi_daily over live;
+                                                 undo rows 0; raw 1227 = live 1227 = rep_kpi_daily 1227
+exit 0
+
+$ npm test (app, feat/quiet-undo-door-app @ 671d9384)
+ℹ tests 1571
+ℹ pass 1571
+ℹ fail 0
+exit 0
+```
+
+## Findings
+
+### A tap made while the phone was sending could be erased before it was sent (app)
+
+class: unserialised read-modify-write on a shared local store
+sweep: grep -nE "await readAll\(|await writeAll\(" src/lib/doors/*.ts src/lib/**/*-store.ts (app repo) — every read-modify-write in knock-store now runs inside mutate(); other stores not yet swept
+severity: high
+
+**[OBSERVED]** `tests/knock-store-concurrency.test.ts`, before the fix: ten taps racing ten removals left the ten
+SENT knocks and one of the ten new taps. Nine doors gone from the phone, never sent, nothing on screen.
+Shipped on its own to the app's main line (`a7ed7a30`) because it needs nothing from the server.
+
+### The phone's sweep would have let an unsupported undo block every door behind it
+
+class: a per-item refusal treated as a whole-queue stop
+sweep: grep -n "return 'stop'" src/lib/doors/knock-sweep.ts (app repo)
+severity: high
+
+Caught by a test before it shipped: a "not yet" undo returned 'stop', halting the sweep, so one undone knock
+at the head of the queue would have held back every later door. "Not yet" now moves on; only a dead
+connection stops the sweep.
+
+### The Door Log's heads-up notice was pale on cream
+
+class: pale-for-dark text colour on a theme-following surface
+sweep: grep -rnE "(^|[^:])text-(amber|emerald)-300" src/components/sales-coach/doorlog
+severity: low
+
+`text-amber-300` bare → `text-amber-700 dark:text-amber-300`.
+
+### A comment said a mis-tap is corrected "by logging another knock"
+
+class: stale documentation of a correction path that never existed
+sweep: grep -n "correct by logging" scripts/rls-audit.mjs
+severity: low
+
+There is no negative knock; a mis-tapped Sold could not be corrected that way. The comment now points at the
+real path (door_knock_undos).
+
 ## Design, and why
 
 - **Append, never edit (§3.1).** `door_knocks` has no update or delete policy [OBSERVED]. An undo inserts a
