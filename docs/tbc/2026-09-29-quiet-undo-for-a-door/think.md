@@ -47,6 +47,14 @@ and the dials, report card and manager KPIs disagree with every check green — 
     "how_this_build_will_embody_it": "CLAUDE.md and ThinkerThinker.md are in the tree and were opened this session; the manifest's line ranges come from the files, not from the previous build's manifest."
   },
   {
+    "id": "§1.5",
+    "source_file": "CLAUDE.md",
+    "line_range": "69-74",
+    "read_at": "2026-09-29T13:50:16Z",
+    "why_it_governs": "Holistic: trace ripple effects before acting; never fix one thing in a way that silently breaks another. Organic: propose, observe, adjust.",
+    "how_this_build_will_embody_it": "The ripple trace IS the design: every reader of door_knocks classified (counts switched, anchors deliberately not), rep_kpi_daily redefined to carry its five readers, the app's countByOutcome made the single place undone knocks stop counting. Organic: the sweep's 'not-yet' handling was changed after a test showed it would block the queue. SECOND A22 SLIP, reported: commit 15d7bfa1's trailer stamped §1.5 as read at 10:57Z, but that read covered lines 10-45/78-173/434-457 and not 69-74; this clause was opened at 13:50:16Z."
+  },
+  {
     "id": "§1.5.1",
     "source_file": "CLAUDE.md",
     "line_range": "78-138",
