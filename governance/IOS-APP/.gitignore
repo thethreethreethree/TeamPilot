@@ -1,0 +1,6 @@
+.design/
+*.backup-*
+/00-START-HERE.md
+/01-CONSTITUTION.md
+/03-ANTI-FAULT.md
+.governance/
