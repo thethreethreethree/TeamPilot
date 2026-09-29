@@ -191,6 +191,8 @@ export async function POST(req: NextRequest) {
   const offset = Math.max(0, Number(new URL(req.url).searchParams.get("offset") ?? 0) || 0);
   const batch = candidates.slice(offset, offset + BATCH);
   let scored = 0;
+  /** Candidates that scoreSession says are ALREADY scored — see the no-progress stop below. */
+  let alreadyScored = 0;
   const refused: Partial<Record<ScoreRefusal, number>> = {};
   let haltedBy: ScoreRefusal | null = null;
   let ranOutOfTime = false;
@@ -224,7 +226,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (outcome.ok) {
-      if (!outcome.alreadyScored) scored += 1;
+      if (outcome.alreadyScored) alreadyScored += 1;
+      else scored += 1;
       continue;
     }
 
@@ -257,6 +260,17 @@ export async function POST(req: NextRequest) {
   /** Refused sessions stay in the candidate list, so the window must step over them. */
   const refusedCount = Object.values(refused).reduce((t, n) => t + (n ?? 0), 0);
   const nextOffset = offset + refusedCount;
+  /**
+   * A PASS THAT MOVES NOTHING MUST END THE RUN (2026-09-29).
+   *
+   * The cursor advances past refusals, and scored recordings leave the candidate list. An `alreadyScored`
+   * outcome does neither: if the candidate read calls a recording unscored while scoreSession's own check
+   * calls it scored, the window never moves and the client re-requests the same batch forever. The comment
+   * above claimed every pass consumes a candidate; that was false for this case. Not observed in
+   * production — but skipping past such recordings would silently drop real ones, so the safe answer is
+   * to stop and say what was seen.
+   */
+  const progressed = scored > 0 || refusedCount > 0 || ranOutOfTime;
 
   /**
    * The line a human reads. §1.5.3: an unmet precondition must fail LOUD.
@@ -270,6 +284,8 @@ export async function POST(req: NextRequest) {
       `${REFUSAL_MESSAGE[haltedBy]} Nothing more can be scored until that changes.`
     : ranOutOfTime
       ? null // not a stopping point — the caller keeps going; see `more` below.
+      : !progressed && alreadyScored > 0
+      ? `${alreadyScored} recording(s) are listed as unscored but already have a score, so the run stopped rather than repeat them. This is a data mismatch on our side, not your recordings.`
       : scored === 0 && remaining > 0
       ? `Nothing in this batch could be scored. ${remaining} recording(s) remain, and the reasons are listed — re-running will not change a permanent one.`
       : null;
@@ -287,7 +303,7 @@ export async function POST(req: NextRequest) {
      * stopped with 194 still unscored — trading a crash for a silent early exit, which is worse.
      * Termination still holds: every pass consumes at least one candidate, or sets `ranOutOfTime`.
      */
-    more: !haltedBy && nextOffset < remaining,
+    more: !haltedBy && progressed && nextOffset < remaining,
     /**
      * The caller MUST send this back as `?offset=` on the next POST. It is what steps the window
      * past recordings that can never be scored.

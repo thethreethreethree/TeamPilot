@@ -292,3 +292,19 @@ describe("an out-of-credit AI provider stops the run and says so", () => {
   });
 });
 
+/**
+ * 2026-09-29. A recording the candidate read calls unscored but scoreSession calls already-scored is
+ * neither scored nor refused, so the cursor never moved and `more` stayed true: the client would re-request
+ * the same batch forever. Not seen in production; the loop's termination claim was simply false for it.
+ */
+describe("a pass that makes no progress ends the run", () => {
+  it("stops, and names the mismatch, when every candidate is already scored", async () => {
+    serve([], ["s1", "s2", "s3"]);
+    asMock(scoreSession).mockResolvedValue({ ok: true, pitchId: "p", alreadyScored: true });
+    const body = (await (await POST(req())).json()) as { more: boolean; note: string | null; scored: number };
+    expect(body.scored).toBe(0);
+    expect(body.more).toBe(false);
+    expect(body.note).toMatch(/already have a score/i);
+  });
+});
+

@@ -71,3 +71,24 @@ of the SQL answers it — the agent has no production database access and did no
 
 No image, icon, logo, favicon or graphic asset was touched. Production log lines were read in the
 terminal only; no customer content was copied into the repository.
+
+## Appended 2026-09-29 — the counts above are inflated ~20×; the conclusions are not
+
+**[OBSERVED]** `vercel logs --json` repeats each request about 20 times: a 1,000-row pull of
+`pitch-score/backfill` over 09-26..09-29 held **50 unique request ids**. Every COUNT in this file was
+taken without de-duplicating — "168 POSTs", "~20/min" for the cron, "960" / "900" rows, "3,720" 402s —
+and overstates reality by roughly that factor. Use unique `id`s.
+
+Unaffected: the root cause (DeepSeek 402 Insufficient Balance), the START (2026-09-22 17:00:40 +08 is the
+FIRST occurrence, which duplication cannot move), the routes affected, and every code change.
+
+**[OBSERVED] Since the fix, de-duplicated:** 3 "Score them all" presses (09-26 05:53, 09-26 08:58,
+09-28 03:49) made 12, 9 and 18 passes, 10–45 s apart — the pace of real gradings — with **zero**
+`[scoreSession] threw`, `LlmError`, "DeepSeek API error" or "out of credit" lines in the 4 days.
+**[INFERRED]** the balance was topped up and the backlog is scoring.
+
+Nearly acted on the inflated data: 240–360 POSTs per press read as a runaway loop, and a real flaw in
+the cursor was about to be "fixed" as its cause (an `alreadyScored` outcome neither scores nor refuses, so
+it does not advance the window). Zero-second gaps between requests exposed the duplication first. That
+cursor flaw is real but unobserved in production — recorded as a residual, not shipped as a fix to a
+symptom that did not happen.
