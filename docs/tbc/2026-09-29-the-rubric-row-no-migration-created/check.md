@@ -70,3 +70,20 @@ The panel said "10 could not be saved" — true, and useless for diagnosis; the 
 ## Not opened
 
 No image or graphic asset was touched. The founder's folder images were opened and described in the session.
+
+## Appended 2026-09-30 — applied to production (founder: "Apply it now, step by step")
+
+```
+$ npm run db:check   -> ledger PRESENT, 265 applied
+$ npm run db:dry     -> 266 files; 1 pending: 0268_seed_rubric_config_attfiber_v1.sql
+$ npm run db:apply   -> applying 0268 … ok; DB now at 0268; ALL 30 invariants hold; verify:live passed
+$ read-only txn      -> ledger has 0268: true
+                        rubric_config: attfiber-v1, shared, 30 elements / 13 bonuses / 5 violations,
+                        base 100, bonus cap 30, qualifying 40, threshold 0.80, active
+                        pitch_scores rows: 0 (none until the next grading)
+exit 0
+```
+
+NOT YET OBSERVED: a score actually stored in production. That needs a grading to run (a manager pressing
+Score them all, or a rep closing a pitch), after which pitch_scores should be non-zero and the
+`pitch_scores_rubric_version_fkey` errors should stop in the logs.
