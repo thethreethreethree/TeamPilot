@@ -547,7 +547,7 @@ function SkillScores({
     return (
       <section className="rounded-2xl border border-default bg-surface p-5 text-center">
         <p className="text-xs text-muted">
-          No scored calls yet. Run a session and your skills will show up here —
+          No coached calls yet. Run a session and your skills will show up here —
           one score per skill, so you know exactly what to work on next.
         </p>
       </section>

@@ -191,7 +191,7 @@ export function AgentGradeBadge({
           <span className="text-primary">coaching grade</span>
           <span className="text-muted">
             {" · "}
-            {e.gamesPlayed} scored call{e.gamesPlayed === 1 ? "" : "s"}
+            {e.gamesPlayed} coached call{e.gamesPlayed === 1 ? "" : "s"}
             {e.provisional ? " · still settling" : ""}
           </span>
         </p>
@@ -215,7 +215,7 @@ function GradeExplanation({ self }: { self: boolean }) {
         <li>{`Each dissected call is scored 0–100% — half on call quality (Dissect strengths vs growth + After-Pitch scores), half on the logged outcome (sold / follow-up / no-sale).`}</li>
         <li>{`Beat the standard and the grade climbs; fall short and it eases down. It's a trajectory, not a verdict.`}</li>
         <li>{`The lowest band is a "growth area" — a coaching target, never a fail. There is no F here on purpose.`}</li>
-        <li>{`Under 5 scored calls it's provisional — still settling, don't over-read it yet.`}</li>
+        <li>{`Under 5 coached calls it's provisional — still settling, don't over-read it yet.`}</li>
       </ul>
     </div>
   );

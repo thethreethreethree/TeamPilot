@@ -159,7 +159,7 @@ export function AgentEloBadge({
           <span className="text-primary">Sales ELO Rating</span>
           <span className="text-muted">
             {" · "}
-            {e.gamesPlayed} scored call{e.gamesPlayed === 1 ? "" : "s"}
+            {e.gamesPlayed} coached call{e.gamesPlayed === 1 ? "" : "s"}
             {e.provisional ? " · still settling" : ""}
           </span>
         </p>
@@ -190,7 +190,7 @@ function EloExplanation({ self }: { self: boolean }) {
         </li>
         <li>{`Beat the standard and the rating climbs; fall short and it dips — up to about 24 points a call.`}</li>
         <li>{`The scale starts at 1500, floors at 100, and tops out at 3000 (chess's max).`}</li>
-        <li>{`Under 5 scored calls it's marked provisional — still settling, don't over-read it yet.`}</li>
+        <li>{`Under 5 coached calls it's marked provisional — still settling, don't over-read it yet.`}</li>
       </ul>
     </div>
   );
