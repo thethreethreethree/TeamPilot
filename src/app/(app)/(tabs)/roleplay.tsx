@@ -269,7 +269,7 @@ export default function RoleplayScreen() {
       <SafeAreaView className="flex-1 bg-background" edges={["top", "bottom"]}>
         <ScrollView contentContainerClassName="px-5 pb-10">
           <Text className="mt-4 font-body text-base leading-relaxed text-muted-foreground">
-            Practise a pitch against a prospect who pushes back. Nothing here is
+            Practice a pitch against a prospect who pushes back. Nothing here is
             saved and none of it touches your numbers — it is the one place you
             can get it wrong for free.
           </Text>
@@ -322,7 +322,7 @@ export default function RoleplayScreen() {
             className="mb-2 mt-6 font-emphasis text-xs uppercase tracking-widest text-muted-foreground"
           >
             {replay
-              ? "Or practise someone else instead"
+              ? "Or practice someone else instead"
               : "Who are you talking to?"}
           </Text>
 

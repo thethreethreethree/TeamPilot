@@ -347,7 +347,7 @@ function StandardHome({
       <View className={`mt-3 ${stacked ? 'gap-3' : 'flex-row gap-3'}`}>
         <Card
           title="Roleplay"
-          hint="Practise a pitch, get a review"
+          hint="Practice a pitch, get a review"
           onPress={() => router.push('/(app)/(tabs)/roleplay')}
         />
         <Card

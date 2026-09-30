@@ -176,7 +176,7 @@ function Body({ detail }: { detail: PitchDetail }) {
       {canRolePlay(detail) ? (
         <View className="gap-2 rounded-lg border border-primary px-4 py-4">
           <Text accessibilityRole="header" className="font-strong text-base text-foreground">
-            Practise this pitch
+            Practice this pitch
           </Text>
           <Text className="font-body text-sm leading-relaxed text-muted-foreground">
             Run it back as a role play. The coach plays this same customer and the objections they

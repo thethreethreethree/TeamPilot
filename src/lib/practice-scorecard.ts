@@ -119,7 +119,7 @@ export function practiceScoreView(payload: unknown): PracticeScoreView {
 }
 
 /** The heading over the score, naming what was measured. */
-export const SCORE_HEADING = "The skill you practised";
+export const SCORE_HEADING = "The skill you practiced";
 
 /** What a rep reads when the run never reached the skill. */
 export const NOT_ATTEMPTED_BODY =

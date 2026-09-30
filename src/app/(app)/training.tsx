@@ -339,10 +339,10 @@ function FocusLine({
                 router.push({ pathname: '/(app)/(tabs)/roleplay', params: { focus: text } })
               }
               accessibilityRole="button"
-              accessibilityLabel={`Practise this against the coach: ${text}`}
+              accessibilityLabel={`Practice this against the coach: ${text}`}
               className="min-h-7 justify-center rounded-md border border-primary px-4 active:opacity-70"
             >
-              <Text className="font-emphasis text-sm text-primary">Practise this</Text>
+              <Text className="font-emphasis text-sm text-primary">Practice this</Text>
             </Pressable>
           ) : null}
           <Pressable

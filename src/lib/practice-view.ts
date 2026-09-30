@@ -83,7 +83,7 @@ export function practiceLines(p: PracticeSummary): PracticeLine[] {
         ? `${label}, ${f.latest} out of 100${canDirect ? `, ${DIRECTION[f.trend] ?? ''}` : ''}, ${f.attempts} ${
             f.attempts === 1 ? 'attempt' : 'attempts'
           }`
-        : `${label}, practised ${f.attempts} ${
+        : `${label}, practiced ${f.attempts} ${
             f.attempts === 1 ? 'time' : 'times'
           } but not yet reached in a run`,
     };
