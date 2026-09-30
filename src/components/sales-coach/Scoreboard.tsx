@@ -172,7 +172,7 @@ export function Scoreboard() {
 
       {state === "ready" && data && data.rows != null && data.rows.length === 0 && (
         <div className="rounded-lg border border-default bg-surface p-6 text-sm text-muted">
-          No scored sessions in this period yet. Points appear here after a session gets its after-pitch review.
+          No coached sessions in this period yet. Points appear here after a session gets its after-pitch review.
         </div>
       )}
 
@@ -217,7 +217,7 @@ export function Scoreboard() {
       )}
 
       {state === "ready" && data && data.rows != null && data.meRank === null && data.rows.length > 0 && (
-        <p className="text-xs text-muted">You don&apos;t have any scored sessions in this period yet — run a session to get on the board.</p>
+        <p className="text-xs text-muted">You don&apos;t have any coached sessions in this period yet — run a session to get on the board.</p>
       )}
     </div>
   );

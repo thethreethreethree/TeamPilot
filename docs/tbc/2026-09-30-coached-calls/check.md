@@ -48,3 +48,27 @@ $ npm run check
       Tests  5579 passed | 15 skipped (5594)
 CHECK_EXIT=0
 ```
+
+## Appended 2026-09-30 — the points surfaces follow (founder, second picker)
+
+The founder chose "Yes, say 'coached' there too" for the residual below. `weeklyDigest.ts` (the empty row, the
+plain-text line, and the rep footer "N coached pitches this week") and `Scoreboard.tsx` (both empty states) now
+say "coached". `scoredMeansRubric.test.ts` covers all five surfaces and rejects "scored call|pitch|session".
+
+```
+$ npx vitest run src/components/sales-coach/__tests__/scoredMeansRubric.test.ts src/lib/coach/gamification
+      Tests  87 passed (87)
+exit 0
+
+$ (mutation: the digest's "(no coached pitches this week)" put back to "scored", test re-run, restored)
+      Tests  1 failed | 5 passed (6)
+exit 1
+```
+
+"Scored pitches" now means rubric scores only: the Century badge ("100 scored pitches") keeps it.
+
+```
+$ npm run check      (after the points surfaces changed)
+      Tests  5581 passed | 15 skipped (5596)
+CHECK_EXIT=0
+```

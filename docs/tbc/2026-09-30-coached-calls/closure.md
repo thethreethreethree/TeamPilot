@@ -23,3 +23,8 @@ A manager sees "coaching grade · 18 coached calls" and "Recordings (n)", two na
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Appended 2026-09-30 — R1 closed
+
+R1-gamification-scored-wording: CLOSED. The founder chose "coached" for the points surfaces; the weekly digest
+and Scoreboard were changed and are covered by the same gate.

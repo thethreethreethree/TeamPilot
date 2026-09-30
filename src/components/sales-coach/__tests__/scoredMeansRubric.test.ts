@@ -17,16 +17,19 @@ const surfaces = [
   "src/components/sales-coach/AgentGradeBadge.tsx",
   "src/components/sales-coach/AgentEloBadge.tsx",
   "src/app/dashboard/sales-coach/analytics/page.tsx",
+  // Added 2026-09-30 (founder, second picker): the points surfaces count coach-graded sessions too.
+  "src/lib/coach/gamification/weeklyDigest.ts",
+  "src/components/sales-coach/Scoreboard.tsx",
 ];
 
 /** Rendered text only: comments may still discuss the old wording. */
 const rendered = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
-describe("the coaching grade's count says 'coached calls', never 'scored calls'", () => {
+describe("coach-graded counts say 'coached', never 'scored'", () => {
   for (const file of surfaces) {
     it(file, () => {
       const src = rendered(readFileSync(join(process.cwd(), file), "utf8"));
-      expect(src).not.toMatch(/scored call/i);
+      expect(src).not.toMatch(/scored (call|pitch|session)/i);
     });
   }
 

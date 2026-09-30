@@ -116,7 +116,7 @@ export function renderManagerDigestEmail(
     </td></tr>
     <tr><td style="padding:8px 28px 4px">
       <div style="font:700 12px/1 -apple-system,Segoe UI,sans-serif;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Top performers</div>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml || `<tr><td style="padding:10px 0;font:400 14px -apple-system,Segoe UI,sans-serif;color:#888">No scored pitches this week.</td></tr>`}</table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml || `<tr><td style="padding:10px 0;font:400 14px -apple-system,Segoe UI,sans-serif;color:#888">No coached pitches this week.</td></tr>`}</table>
     </td></tr>
     <tr><td style="padding:20px 28px 28px">
       <a href="${esc(boardUrl)}" style="display:inline-block;background:#e8563a;color:#fff;text-decoration:none;font:600 14px -apple-system,Segoe UI,sans-serif;padding:11px 20px;border-radius:9px">Open the Scoreboard →</a>
@@ -132,7 +132,7 @@ export function renderManagerDigestEmail(
     ``,
     `Top performers:`,
     ...summary.top.map((a, i) => `  ${ranks[i] ?? i + 1}. ${a.name} — ${a.points} pts, ${a.strong} strong${a.deals ? `, ${a.deals} deal(s)` : ""}`),
-    summary.top.length ? `` : `  (no scored pitches this week)`,
+    summary.top.length ? `` : `  (no coached pitches this week)`,
     ``,
     `Open the Scoreboard: ${boardUrl}`,
     `${summary.activeReps} rep(s) active this week.`,
@@ -315,7 +315,7 @@ export function renderRepDigestEmail(
     ${bestHtml}
     <tr><td style="padding:20px 28px 28px">
       <a href="${esc(arenaUrl)}" style="display:inline-block;background:#e8563a;color:#fff;text-decoration:none;font:600 14px -apple-system,Segoe UI,sans-serif;padding:11px 20px;border-radius:9px">Open your Arena →</a>
-      <div style="font:400 12px/1.5 -apple-system,Segoe UI,sans-serif;color:#aaa;margin-top:18px">${summary.sessions} scored pitch${summary.sessions === 1 ? "" : "es"} this week. Your per-pitch breakdown stays private to you.</div>
+      <div style="font:400 12px/1.5 -apple-system,Segoe UI,sans-serif;color:#aaa;margin-top:18px">${summary.sessions} coached pitch${summary.sessions === 1 ? "" : "es"} this week. Your per-pitch breakdown stays private to you.</div>
     </td></tr>
   </table>
   </td></tr></table></body></html>`;
