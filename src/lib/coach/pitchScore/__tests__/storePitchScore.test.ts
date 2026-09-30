@@ -329,7 +329,7 @@ describe("evidence is carried onto the verdict", () => {
   });
 });
 
-describe("failures are never reported as a stored score", () => {
+describe("failures are never reported as a stored score, and say which kind", () => {
   it("returns null and logs when the RPC errors", async () => {
     mockRpc({ error: { message: "violates check constraint" } });
     const { promise } = store({
@@ -337,7 +337,7 @@ describe("failures are never reported as a stored score", () => {
       objectionOccurred: true,
       reachedDiscovery: true,
     });
-    expect(await promise).toBeNull();
+    expect(await promise).toEqual({ ok: false, cause: "database" });
     expect(console.error).toHaveBeenCalled();
   });
 
@@ -350,7 +350,7 @@ describe("failures are never reported as a stored score", () => {
       reachedDiscovery: true,
     });
     const returned = await promise;
-    expect(returned).toBeNull();
+    expect(returned).toEqual({ ok: false, cause: "database" });
     expect(String(asMock(console.error).mock.calls[0]![0])).toContain("rep_id");
   });
 
@@ -361,7 +361,7 @@ describe("failures are never reported as a stored score", () => {
       objectionOccurred: true,
       reachedDiscovery: true,
     });
-    expect(await promise).toBeNull();
+    expect(await promise).toEqual({ ok: false, cause: "database" });
     expect(console.error).toHaveBeenCalled();
   });
 
@@ -371,7 +371,7 @@ describe("failures are never reported as a stored score", () => {
       objectionOccurred: true,
       reachedDiscovery: true,
     });
-    expect(await promise).toBeNull();
+    expect(await promise).toEqual({ ok: false, cause: "no_evidence" });
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -381,7 +381,7 @@ describe("failures are never reported as a stored score", () => {
       objectionOccurred: true,
       reachedDiscovery: true,
     });
-    expect(await promise).toBe("pitch-1");
+    expect(await promise).toEqual({ ok: true, pitchId: "pitch-1" });
   });
 });
 

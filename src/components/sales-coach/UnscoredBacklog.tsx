@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play } from "lucide-react";
+import type { ScoreRefusal } from "@/lib/coach/pitchScore/scoreSession";
 
 /**
  * "142 recordings have never been scored" — and the button that changes it.
@@ -36,17 +37,26 @@ type DrainResponse = {
   nextOffset?: number;
 };
 
-/** What a raw refusal code should read as on screen. */
-const REFUSAL_LABEL: Record<string, string> = {
+/**
+ * What a raw refusal code should read as on screen. Rendered as `{n} {label}` — "3 have no rep speech
+ * to grade" — so every label is the rest of a sentence whose subject is the count.
+ *
+ * Fixed 2026-09-30: four labels were written as if the count came AFTER them ("failed unexpectedly for"),
+ * so the panel printed "194 failed unexpectedly for" through the whole out-of-credit outage. Typed
+ * against `ScoreRefusal` so a new refusal cannot ship without a label; before, `no_evidence` would have
+ * rendered as the fallback with its raw code.
+ */
+export const REFUSAL_LABEL: Record<ScoreRefusal, string> = {
   not_found: "could not be read",
   not_a_sales_call: "were not sales calls",
   no_agent_turns: "have no rep speech to grade",
   suppressed: "were skipped — AI guidance is off",
-  llm_empty: "the scorer returned nothing for",
-  parse_failed: "the scorer's answer could not be read for",
-  store_failed: "could not be saved",
-  errored: "failed unexpectedly for",
-  provider_out_of_credit: "could not be scored — the AI provider account is out of credit, for",
+  llm_empty: "got no answer from the scorer (a fault on our side)",
+  parse_failed: "got a scorer answer that could not be read (a fault on our side)",
+  store_failed: "were graded but could not be saved (a fault on our side)",
+  no_evidence: "were graded with no evidence behind any grade, so nothing was saved (a fault on our side)",
+  errored: "failed unexpectedly (a fault on our side)",
+  provider_out_of_credit: "could not be scored — the AI provider account is out of credit",
 };
 
 export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
@@ -258,7 +268,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
         <ul className="mt-2 space-y-0.5 text-[11px] text-muted">
           {refusalLines.map(([reason, n]) => (
             <li key={reason}>
-              {n} {REFUSAL_LABEL[reason] ?? `could not be scored (${reason})`}
+              {n} {REFUSAL_LABEL[reason as ScoreRefusal] ?? `could not be scored (${reason})`}
             </li>
           ))}
         </ul>

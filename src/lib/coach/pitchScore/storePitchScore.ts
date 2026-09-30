@@ -84,13 +84,27 @@ type EventRow = {
 };
 
 /**
- * Store the score. Returns the pitch id, or null when nothing was written.
+ * Why a store did not happen. Two causes that USED to share one bare `null`:
  *
- * Null means FAILED, never "stored an empty pitch". The caller must not treat it as success — the
- * whole point of the ok/failure split in generatePitchScore is that no code path turns a problem
+ *   - `no_evidence` — the scorer honoured no element grade. A property of THIS grading; a retry
+ *     asks the model again and may well succeed.
+ *   - `database`    — the write was refused (or answered without an id). On 2026-09-26..28 that was
+ *     164 of 164 saves, every one the same missing-config foreign key: a property of the SYSTEM,
+ *     under which every further grading is paid for and then thrown away.
+ *
+ * Split 2026-09-30 so a drain can tell the two apart and stop on the second — see the backfill
+ * route. The database's own message still stays server-side (CWE-209); only the category crosses.
+ */
+export type StorePitchScoreResult = { ok: true; pitchId: string } | { ok: false; cause: "no_evidence" | "database" };
+
+/**
+ * Store the score. Returns the pitch id, or why nothing was written.
+ *
+ * `ok: false` means FAILED, never "stored an empty pitch". The caller must not treat it as success —
+ * the whole point of the ok/failure split in generatePitchScore is that no code path turns a problem
  * into a real-looking zero on a rep's leaderboard.
  */
-export async function storePitchScore(args: StorePitchScoreArgs): Promise<string | null> {
+export async function storePitchScore(args: StorePitchScoreArgs): Promise<StorePitchScoreResult> {
   const { score, elements, bonuses, violations } = args.result;
 
   // Evidence, keyed for lookup. The verdicts below drive what gets stored; these only supply the
@@ -164,7 +178,7 @@ export async function storePitchScore(args: StorePitchScoreArgs): Promise<string
     console.error(
       `[storePitchScore] refused: the scorer honoured no element grades for rep=${args.repId} session=${args.sessionId ?? "none"}. A score with no evidence is not storable.`
     );
-    return null;
+    return { ok: false, cause: "no_evidence" };
   }
 
   const sb = createServiceRoleClient();
@@ -192,14 +206,14 @@ export async function storePitchScore(args: StorePitchScoreArgs): Promise<string
   });
 
   if (error) {
-    // Logged with the detail, returned as a bare null: the caller learns "this did not store", and
+    // Logged with the detail, returned as a category: the caller learns "the database refused", and
     // the database's own message — which can name columns and constraints — stays server-side
-    // (CWE-209). Not swallowed into a success-shaped value; null here is unambiguous.
+    // (CWE-209). Not swallowed into a success-shaped value.
     // eslint-disable-next-line no-console
     console.error(
       `[storePitchScore] rpc failed rep=${args.repId} session=${args.sessionId ?? "none"}: ${error.message}`
     );
-    return null;
+    return { ok: false, cause: "database" };
   }
 
   if (typeof data !== "string" || !data) {
@@ -209,8 +223,8 @@ export async function storePitchScore(args: StorePitchScoreArgs): Promise<string
     console.error(
       `[storePitchScore] rpc returned no pitch id rep=${args.repId} session=${args.sessionId ?? "none"} (got ${typeof data}).`
     );
-    return null;
+    return { ok: false, cause: "database" };
   }
 
-  return data;
+  return { ok: true, pitchId: data };
 }

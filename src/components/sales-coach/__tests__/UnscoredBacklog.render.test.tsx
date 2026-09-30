@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 
-import { UnscoredBacklog } from "../UnscoredBacklog";
+import { UnscoredBacklog, REFUSAL_LABEL } from "../UnscoredBacklog";
 
 /**
  * The panel that tells a manager why their dashboards are empty, and drains the backlog.
@@ -195,5 +195,27 @@ describe("the rate limit the drain outruns", () => {
     // 16 scored across the throttle, NOT "scoring stopped" at 8.
     expect(await screen.findByText(/Done — 16 recordings scored/i, undefined, { timeout: 6000 })).toBeTruthy();
     expect(screen.queryByText(/Scoring stopped/i)).toBeNull();
+  });
+});
+
+/**
+ * 2026-09-30. Labels render as `{n} {label}`. Four were written as if the count came after them, so the
+ * panel printed "194 failed unexpectedly for" through the whole out-of-credit outage.
+ */
+describe("every refusal reads as a sentence with the count first", () => {
+  it("no label is left dangling on a preposition", () => {
+    for (const [reason, label] of Object.entries(REFUSAL_LABEL)) {
+      expect(label, reason).not.toMatch(/\b(for|of|to|with)[,]?$/i);
+      expect(label, reason).not.toMatch(/^the\b/i); // "10 the scorer returned nothing" is the old shape
+    }
+  });
+
+  it("says a failed save was graded and is our fault", async () => {
+    serve(10, { scored: 0, remaining: 10, refused: { store_failed: 2 }, more: false, note: "stopped" });
+    render(<UnscoredBacklog />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/2 were graded but could not be saved \(a fault on our side\)/i)).toBeTruthy()
+    );
   });
 });

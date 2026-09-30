@@ -308,3 +308,35 @@ describe("a pass that makes no progress ends the run", () => {
   });
 });
 
+/**
+ * 2026-09-30, from production: 164 saves refused on 2026-09-26..28, every one the same missing
+ * rubric_config row. A save fails AFTER the paid grading, so the drain graded and threw away every one,
+ * and the panel said only "could not be saved".
+ */
+describe("database refusals in a row stop the run and say so", () => {
+  const storeFailed = { ok: false, reason: "store_failed", humanMessage: "could not be saved" };
+  const noSpeech = { ok: false, reason: "no_agent_turns", humanMessage: "no rep speech" };
+
+  it("stops at the SECOND consecutive one — not after grading the whole batch", async () => {
+    serve([], ["s1", "s2", "s3", "s4", "s5"]);
+    asMock(scoreSession).mockResolvedValue(storeFailed);
+    const body = (await (await POST(req())).json()) as { more: boolean; note: string | null };
+    expect(asMock(scoreSession).mock.calls).toHaveLength(2);
+    expect(body.more).toBe(false);
+    expect(body.note).toMatch(/graded but could not be saved/i);
+    expect(body.note).toMatch(/fault on our side/i);
+    expect(body.note).not.toMatch(/your pitch/i); // a manager watching a run, not a rep
+  });
+
+  it("does NOT stop on one alone — a single bad recording must not block the backlog behind it", async () => {
+    serve([], ["s1", "s2", "s3", "s4"]);
+    asMock(scoreSession)
+      .mockResolvedValueOnce(storeFailed)
+      .mockResolvedValueOnce(scored())
+      .mockResolvedValueOnce(storeFailed)
+      .mockResolvedValueOnce(noSpeech);
+    const body = (await (await POST(req())).json()) as { note: string | null };
+    expect(asMock(scoreSession).mock.calls).toHaveLength(4);
+    expect(body.note ?? "").not.toMatch(/in a row/i);
+  });
+});

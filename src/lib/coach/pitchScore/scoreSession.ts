@@ -77,8 +77,18 @@ export type ScoreRefusal =
   | "suppressed"
   | "llm_empty"
   | "parse_failed"
-  /** The score was produced and the write did not land. The LLM spend is already gone. */
+  /**
+   * The score was produced and the DATABASE refused the write. The LLM spend is already gone.
+   *
+   * Almost always systemic, not about this recording: all 164 production failures on 2026-09-26..28
+   * were one missing config row (0268). So a drain stops on two in a row — see the backfill route.
+   */
   | "store_failed"
+  /**
+   * The scorer honoured no element grade, so there was nothing with evidence to store. Split out of
+   * `store_failed` on 2026-09-30: this one IS about the grading, and a retry asks the model again.
+   */
+  | "no_evidence"
   /**
    * Something threw. Added 2026-09-24 after the backlog drain died on its first real run.
    *
@@ -127,7 +137,9 @@ export const REFUSAL_MESSAGE: Record<ScoreRefusal, string> = {
   suppressed: "AI guidance is off for this account, so pitches are not scored yet.",
   llm_empty: "The scorer returned nothing. This is a fault on our side, not your pitch.",
   parse_failed: "The scorer's answer could not be read. This is a fault on our side.",
-  store_failed: "The score could not be saved.",
+  store_failed:
+    "The pitch was graded, but the score could not be saved. This is a fault on our side, not your pitch.",
+  no_evidence: "The scorer could not back any grade with evidence. This is a fault on our side, not your pitch.",
   errored: "Scoring this recording failed unexpectedly. This is a fault on our side, not your pitch.",
   provider_out_of_credit:
     "The AI provider account is out of credit, so nothing can be scored until it is topped up. " +
@@ -215,7 +227,7 @@ async function scoreSessionOrThrow(args: {
   // docs/tbc/2026-09-24-rejected-bonus-blank-tab on the same afternoon this was written.
   if (!result.ok) return refuse(result.failure);
 
-  const pitchId = await storePitchScore({
+  const stored = await storePitchScore({
     companyId,
     // The rep who gave the pitch, never the caller who asked for it scored. Using the caller would
     // file every manager-triggered score against the manager.
@@ -231,7 +243,8 @@ async function scoreSessionOrThrow(args: {
     result,
   });
 
-  if (!pitchId) return refuse("store_failed");
+  if (!stored.ok) return refuse(stored.cause === "no_evidence" ? "no_evidence" : "store_failed");
+  const { pitchId } = stored;
 
   // Guide Step 5: "Run detection every time a pitch is scored." AFTER the store, deliberately —
   // detection reads `pitch_score_elements`, so the pitch that just landed has to be in the table

@@ -81,7 +81,7 @@ beforeEach(() => {
   setAuth("a-manager");
   asMock(getSession).mockResolvedValue({ ...SESSION });
   asMock(generatePitchScore).mockResolvedValue(SCORE);
-  asMock(storePitchScore).mockResolvedValue("pitch-1");
+  asMock(storePitchScore).mockResolvedValue({ ok: true, pitchId: "pitch-1" });
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -176,14 +176,14 @@ describe("no failure is ever stored as a score", () => {
   });
 
   it("500s when the write fails, and does not report a pitch id", async () => {
-    asMock(storePitchScore).mockResolvedValue(null);
+    asMock(storePitchScore).mockResolvedValue({ ok: false, cause: "database" });
     const res = await POST(postReq());
     expect(res.status).toBe(500);
     expect((await res.json()).pitchId).toBeUndefined();
   });
 
   it("does not leak the database's message on a write failure", async () => {
-    asMock(storePitchScore).mockResolvedValue(null);
+    asMock(storePitchScore).mockResolvedValue({ ok: false, cause: "database" });
     const body = await (await POST(postReq())).json();
     expect(JSON.stringify(body)).not.toMatch(/constraint|column|relation/i);
   });

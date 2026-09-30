@@ -168,3 +168,44 @@ describe("an out-of-credit AI provider", () => {
   });
 });
 
+/**
+ * 2026-09-30. Two causes used to share one `null` and one "could not be saved": the database refusing
+ * the write (164 of 164 in production, one missing config row — the system) and the scorer backing no
+ * grade with evidence (this grading). A drain stops on the first kind, so they must not be confused.
+ */
+describe("a failed save says which kind it was", () => {
+  const graded = () =>
+    asMock(generatePitchScore).mockResolvedValue({
+      ok: true,
+      score: { total: 71 },
+      elements: [],
+      bonuses: [],
+      violations: [],
+      timestampsUnavailable: false,
+    });
+
+  it("a database refusal is store_failed, and says the pitch WAS graded and the fault is ours", async () => {
+    graded();
+    asMock(storePitchScore).mockResolvedValue({ ok: false, cause: "database" });
+    const out = await scoreSession(llmArgs);
+    expect(out.ok).toBe(false);
+    if (!out.ok) {
+      expect(out.reason).toBe("store_failed");
+      expect(out.humanMessage).toMatch(/graded/i);
+      expect(out.humanMessage).toMatch(/fault on our side/i);
+    }
+  });
+
+  it("a grading with no evidence is no_evidence, not store_failed", async () => {
+    graded();
+    asMock(storePitchScore).mockResolvedValue({ ok: false, cause: "no_evidence" });
+    const out = await scoreSession(llmArgs);
+    if (!out.ok) expect(out.reason).toBe("no_evidence");
+    expect(out.ok).toBe(false);
+  });
+
+  it("neither is permanent: a fixed database or a second grading can succeed", () => {
+    expect(PERMANENT_REFUSALS.has("store_failed")).toBe(false);
+    expect(PERMANENT_REFUSALS.has("no_evidence")).toBe(false);
+  });
+});

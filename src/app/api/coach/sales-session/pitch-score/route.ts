@@ -64,6 +64,8 @@ const STATUS_FOR: Record<ScoreRefusal, number> = {
   llm_empty: 502,
   parse_failed: 502,
   store_failed: 500,
+  /** The scorer backed no grade with evidence — ours, and a retry asks the model again. Same as parse_failed. */
+  no_evidence: 502,
   /** Something threw inside the scorer. Ours, and worth a retry — same shape as llm_empty. */
   errored: 502,
   // Billing, not a bad request: the provider is unavailable to us until the account is topped up.

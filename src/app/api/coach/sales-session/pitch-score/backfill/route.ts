@@ -52,6 +52,8 @@ import {
  * thirty-six.
  */
 const BATCH = 8;
+/** Database refusals in a row that stop a run. Two: one can be the recording; two is the system. */
+const STORE_FAILED_HALT = 2;
 
 export const maxDuration = 300;
 
@@ -196,6 +198,8 @@ export async function POST(req: NextRequest) {
   const refused: Partial<Record<ScoreRefusal, number>> = {};
   let haltedBy: ScoreRefusal | null = null;
   let ranOutOfTime = false;
+  /** Database refusals in a row, reset by anything else — see the store_failed stop below. */
+  let storeFailedRun = 0;
 
   /**
    * A TIME BUDGET, well inside `maxDuration`.
@@ -226,6 +230,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (outcome.ok) {
+      storeFailedRun = 0;
       if (outcome.alreadyScored) alreadyScored += 1;
       else scored += 1;
       continue;
@@ -254,6 +259,19 @@ export async function POST(req: NextRequest) {
       haltedBy = "provider_out_of_credit";
       break;
     }
+    /**
+     * And on TWO database refusals in a row (2026-09-30). A store failure comes AFTER the grading, so
+     * each one is a paid LLM call thrown away. On 2026-09-26..28 production logged 164 of them, every
+     * one the same missing rubric_config row (fixed by 0268), and the panel said only "could not be
+     * saved". Two, not one: a single recording the database refuses for its own reason must not block
+     * the backlog behind it forever — the cursor steps past it and the run goes on. Two consecutive
+     * is the system, not the recording.
+     */
+    storeFailedRun = outcome.reason === "store_failed" ? storeFailedRun + 1 : 0;
+    if (storeFailedRun >= STORE_FAILED_HALT) {
+      haltedBy = "store_failed";
+      break;
+    }
   }
 
   const remaining = Math.max(0, candidates.length - scored);
@@ -279,7 +297,11 @@ export async function POST(req: NextRequest) {
    * was nothing to do" when the truth is "guidance is off for this account and nothing will ever
    * be scored until it is on". Same shape as the 2026-08-14 empty-AI outage, one layer out.
    */
-  const note = haltedBy
+  const note = haltedBy === "store_failed"
+    ? // Its own sentence: the generic one says "not your pitch" to a manager watching a whole run.
+      `${STORE_FAILED_HALT} recordings in a row were graded but could not be saved, so the run stopped rather than keep paying to grade scores it cannot keep. ` +
+      `This is a fault on our side, not your recordings — please report it.`
+    : haltedBy
     ? // "Nothing MORE", not "nothing": a balance can run out mid-run, after earlier passes already scored.
       `${REFUSAL_MESSAGE[haltedBy]} Nothing more can be scored until that changes.`
     : ranOutOfTime
