@@ -541,6 +541,12 @@ export async function upsertRepPatternSummary(args: {
       pitch_count: args.pitchCount,
       model: args.model,
       prompt_version: args.promptVersion,
+      // SET ON EVERY WRITE (2026-10-01). generated_at has `default now()`, which only applies on INSERT. This
+      // is an upsert, so every refresh after the first kept the FIRST time, and rollupDueReps' cost gate
+      // (summary older than the latest pitch → refresh) never closed: a rep whose pitch landed after their
+      // period's first summary was refreshed every minute, four AI calls a time, until the period rolled over.
+      // Production: 80 summary rows, 14,142 updates; the cron began timing out at 2026-10-01 19:27Z.
+      generated_at: new Date().toISOString(),
     },
     { onConflict: "rep_id,period,period_start" }
   );
