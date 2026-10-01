@@ -170,7 +170,7 @@ export default function SegmentsPage() {
         )}
 
         {table(customers, "By customer", (r) => r.customer_id!, (r) => r.customer_name ?? "—")}
-        {table(costCenters, "By cost centre", (r) => r.cost_center_id!, (r) => `${r.code ?? ""} ${r.name ?? ""}`)}
+        {table(costCenters, "By cost center", (r) => r.cost_center_id!, (r) => `${r.code ?? ""} ${r.name ?? ""}`)}
 
         {/* States the fact. Passes no judgment. */}
         <section className="rounded-lg border border-neutral-200 p-4">
@@ -187,7 +187,7 @@ export default function SegmentsPage() {
           <ul className="mt-3 divide-y divide-neutral-100">
             {idle.length === 0 && (
               <li className="py-3 text-sm text-neutral-500">
-                Every project and cost centre with spending also produced revenue.
+                Every project and cost center with spending also produced revenue.
               </li>
             )}
             {idle.map((r) => (
@@ -195,7 +195,7 @@ export default function SegmentsPage() {
                 <span>
                   {r.name ?? "Untitled"}{" "}
                   <span className="text-xs text-neutral-500">
-                    ({r.kind === "project" ? "project" : "cost centre"}
+                    ({r.kind === "project" ? "project" : "cost center"}
                     {r.last_activity ? ` · last activity ${r.last_activity}` : ""})
                   </span>
                 </span>

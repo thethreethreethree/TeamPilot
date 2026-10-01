@@ -44,7 +44,7 @@ const MEASURE_LABEL: Record<string, string> = {
 const GROUP_LABEL: Record<string, string> = {
   account: "account",
   account_type: "account type",
-  cost_center: "cost centre",
+  cost_center: "cost center",
   project: "project",
   month: "month",
   vendor: "vendor",

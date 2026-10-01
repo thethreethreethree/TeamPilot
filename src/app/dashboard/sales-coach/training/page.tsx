@@ -64,7 +64,7 @@ function TeamPracticeCard({ team }: { team: TeamPracticeSummary }) {
       <h2 className="text-sm font-semibold text-primary mb-3">Team practice</h2>
       <div className="flex items-start gap-3">
         <Stat n={String(team.totalAttempts)} label="Practices" />
-        <Stat n={String(team.activeReps)} label="Reps practising" />
+        <Stat n={String(team.activeReps)} label="Reps practicing" />
         {team.avgLatest !== null && <Stat n={`${team.avgLatest}`} label="Avg score" />}
         <Stat n={`${team.improving}`} label="Improving" />
         {team.slipping > 0 && <Stat n={`${team.slipping}`} label="Slipping" />}

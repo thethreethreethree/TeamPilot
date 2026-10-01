@@ -1708,7 +1708,7 @@ function CueLoop({ entries }: { entries: CueLoopEntry[] }) {
       title="What the coach cued"
       whatItIs="The live prompts the coach gave you mid-call, and whether you used each one — Used, Partly, or Not used. Collapsed by default; tap the header to expand."
       why="A cue you ignored and a cue you used teach different lessons. Closing the loop between advice and action is how you find out which coaching actually reaches you in the moment."
-      how="Tap to expand, then look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practise."
+      how="Tap to expand, then look at the 'Not used' rows without guilt — they show where in-the-moment help isn't landing yet, which is the most useful thing to practice."
       principle="Guidance only counts when it changes what you do while the door is still open."
     >
       <section className="rounded-2xl border border-default bg-surface backdrop-blur-sm p-4 space-y-3">
