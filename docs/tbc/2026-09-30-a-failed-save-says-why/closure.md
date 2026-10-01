@@ -52,3 +52,12 @@ Observed while checking them, recorded here rather than acted on:
   pitch shows 3 s against a 413 s session with 137 rep words. Whether its saved audio is truncated could not
   be determined: transcript segments carry no usable `spoken_at`, and 350 of 369 finished sales sessions have
   no saved audio file. OPEN question, not a finding.
+
+## Appended 2026-10-01 — "350 sessions with no saved audio", explained
+
+Read-only, production, sales sessions ended or reviewed (369). The 20-per-rep retention (recording-purge-cron,
+founder 2026-08-26) explains the older ones. Inside each rep's newest 20 (150 sessions), 137 have no audio:
+130 are from the weeks of 08-10 and 08-17, purged under the earlier 2-day rule that 08-26 replaced; the other
+5 (since 08-24) are empty sessions with 0 transcript segments and no audio length, started and ended with
+nothing said. Missing audio is retention and empty sessions, not a storage fault. Still open: the one pitch
+whose saved audio is 3 s against a 413 s session with 137 rep words.
