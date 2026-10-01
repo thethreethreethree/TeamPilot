@@ -14,23 +14,25 @@ import { TaskCreateSchema } from "@/lib/api/validate";
  * DELETE — soft delete (sets deleted_at). Trigger emits `task.deleted` event.
  */
 
+// Each failure carries its own status (2026-10-01): not signed in is a 401, a missing database a 503, an
+// unfinished onboarding a 400. All three used to answer 400, so "not signed in" read as a bad request.
 async function getCompanyId() {
-  if (!supabaseEnabled) return { error: "Live mode required (Supabase not configured)." };
+  if (!supabaseEnabled) return { error: "Live mode required (Supabase not configured).", status: 503 as const };
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated" };
+  if (!auth.user) return { error: "Not authenticated", status: 401 as const };
   const { data: profile } = await supabase
     .from("profiles")
     .select("company_id")
     .eq("id", auth.user.id)
     .maybeSingle();
-  if (!profile?.company_id) return { error: "Complete onboarding first." };
+  if (!profile?.company_id) return { error: "Complete onboarding first.", status: 400 as const };
   return { supabase, companyId: profile.company_id };
 }
 
 export async function GET() {
   const ctx = await getCompanyId();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   const { data, error } = await ctx.supabase
     .from("tasks")
@@ -49,7 +51,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const ctx = await getCompanyId();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   // Validate the core task fields against the single source of truth
   // (TaskCreateSchema — enums derived from statusLabels, bounded strings,
@@ -156,7 +158,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const ctx = await getCompanyId();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   const body = await req.json();
   if (typeof body.id !== "string") {
@@ -276,7 +278,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const ctx = await getCompanyId();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

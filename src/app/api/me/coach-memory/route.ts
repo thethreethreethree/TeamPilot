@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadCoachMemory } from "@/lib/coach/v5/memory";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/me/coach-memory
@@ -23,6 +24,11 @@ import { loadCoachMemory } from "@/lib/coach/v5/memory";
  */
 
 export async function GET() {
+  // NOT SIGNED IN IS NOT AN EMPTY RECORD (2026-10-01). The loader scopes to the caller, so with no caller it
+  // returned a zero-filled snapshot with a 200; the growth page then showed a blank history instead of an
+  // error. Found by an unauthenticated smoke of every GET route.
+  const { data: auth } = await (await createClient()).auth.getUser();
+  if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const snapshot = await loadCoachMemory();
   return NextResponse.json({ snapshot });
 }

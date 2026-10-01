@@ -7,17 +7,19 @@ import {
   ProblemPatchSchema,
 } from "@/lib/api/validate";
 
+// Each failure carries its own status (2026-10-01): not signed in is a 401, a missing database a 503, an
+// unfinished onboarding a 400. All three used to answer 400, so "not signed in" read as a bad request.
 async function getCtx() {
-  if (!supabaseEnabled) return { error: "Live mode required." };
+  if (!supabaseEnabled) return { error: "Live mode required.", status: 503 as const };
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated" };
+  if (!auth.user) return { error: "Not authenticated", status: 401 as const };
   const { data: profile } = await supabase
     .from("profiles")
     .select("company_id")
     .eq("id", auth.user.id)
     .maybeSingle();
-  if (!profile?.company_id) return { error: "Complete onboarding first." };
+  if (!profile?.company_id) return { error: "Complete onboarding first.", status: 400 as const };
   return { supabase, companyId: profile.company_id };
 }
 
@@ -33,7 +35,7 @@ async function getCtx() {
  */
 export async function POST(req: NextRequest) {
   const ctx = await getCtx();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   // Validate against the shared schema: bounds signalIds (was unbounded — a
   // 100k-element array became one oversized insert) and requires each to be a
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   const ctx = await getCtx();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   const parsed = ProblemPatchSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -155,7 +157,7 @@ export async function PATCH(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   const ctx = await getCtx();
-  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 400 });
+  if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   const parsed = ProblemLinkSchema.safeParse(await req.json());
   if (!parsed.success) {

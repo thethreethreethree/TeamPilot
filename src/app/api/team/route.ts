@@ -17,19 +17,21 @@ function genCode(): string {
  * DELETE /api/team?memberId=...     — soft-remove an active member
  */
 
+// Each failure carries its own status (2026-10-01): not signed in is a 401, a missing database a 503, an
+// unfinished onboarding a 400. All three used to answer 400, so "not signed in" read as a bad request.
 async function ctx() {
-  if (!supabaseEnabled) return { error: "Live mode required." };
+  if (!supabaseEnabled) return { error: "Live mode required.", status: 503 as const };
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { error: "Not authenticated" };
+  if (!auth.user) return { error: "Not authenticated", status: 401 as const };
   const companyId = await getCurrentCompanyId();
-  if (!companyId) return { error: "Complete onboarding first." };
+  if (!companyId) return { error: "Complete onboarding first.", status: 400 as const };
   return { supabase, companyId, userId: auth.user.id };
 }
 
 export async function GET() {
   const c = await ctx();
-  if ("error" in c) return NextResponse.json({ error: c.error }, { status: 400 });
+  if ("error" in c) return NextResponse.json({ error: c.error }, { status: c.status });
 
   const [membersRes, invitesRes] = await Promise.all([
     c.supabase
@@ -68,7 +70,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const c = await ctx();
-  if ("error" in c) return NextResponse.json({ error: c.error }, { status: 400 });
+  if ("error" in c) return NextResponse.json({ error: c.error }, { status: c.status });
 
   const { email, role } = await req.json().catch(() => ({}));
   if (typeof email !== "string" || !email.includes("@")) {
@@ -196,7 +198,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const c = await ctx();
-  if ("error" in c) return NextResponse.json({ error: c.error }, { status: 400 });
+  if ("error" in c) return NextResponse.json({ error: c.error }, { status: c.status });
 
   const url = new URL(req.url);
   const invitationId = url.searchParams.get("invitationId");

@@ -42,3 +42,34 @@ $ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhos
   RLS probes:              1 run, 0 failed
 CHECK_EXIT=0
 ```
+
+## Appended 2026-10-01 — R1: the smoke, widened to every GET route
+
+```
+$ python docs/mobile-smoke/all-get-routes.smoke.py      (production, GET only, no login)
+GET routes: 196  by status: {'200': 4, '400': 10, '401': 179, '403': 3}
+```
+
+- 200: /api/health (public by design), /api/me/identity (answers `userId: null`, its job), /api/me/landing (a
+  landing path, nothing private), and **/api/me/coach-memory**, a zero-filled snapshot to a stranger. Fixed: 401.
+- 400 "Not authenticated": **/api/tasks** and **/api/team** (and /api/problems, same helper, no GET). One
+  helper returned three failures (no database, not signed in, onboarding unfinished) and every call site sent
+  400. Each failure now carries its status: 401, 503, 400; all 10 call sites use it.
+- The other 400s are parameter checks before the login; unchanged.
+
+```
+$ npx vitest run src/app/api/__tests__/notSignedIn.test.ts
+      Tests  11 passed (11)
+exit 0
+$ (mutation: tasks' not-signed-in back to 400)        Tests  4 failed | 7 passed (11)   exit 1 (restored)
+$ npx vitest run src/app/api/tasks src/app/api/team src/app/api/problems
+      Tests  83 passed (83)
+exit 0
+```
+
+```
+$ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhost PGPORT=55433 npm run check
+      Tests  5618 passed | 15 skipped (5633)
+  RLS probes:              1 run, 0 failed
+CHECK_EXIT=0
+```

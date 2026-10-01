@@ -15,7 +15,7 @@ Every route the app calls refuses a caller who is not signed in; the one that an
     "why_skipped": "This was Phase 0's baseline for the app's dependencies; a whole-API smoke is its own build.",
     "confidence_it_does_not_matter": "medium",
     "opened_at": "2026-10-01T15:10:00Z",
-    "outcome": "OPEN."
+    "outcome": "CLOSED 2026-10-01: all-get-routes.smoke.py covers all 196 GET routes; it found coach-memory (empty 200) and tasks/team (400 for not signed in), both fixed."
   }
 ]
 ```
