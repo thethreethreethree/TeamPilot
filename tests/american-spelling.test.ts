@@ -6,6 +6,8 @@
  * and the next pass found the neighbour. So this reads every source file, blanks the comments, and fails on
  * the British forms in what is left.
  *
+ * "Analyses" is not on the list: it is the American plural of "analysis".
+ *
  * Code is exempt, not words: `'analysing'` and `'analysed'` as quoted values are internal state names
  * (session-analysis.ts), and `summarise(` is a function in gamification/points.ts.
  */
@@ -15,7 +17,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BRITISH =
-  /\b(analys(e|ed|es|ing)|recognis(e|ed|es|ing)|practis(e|ed|es|ing)|organis(e|ed|ing)|summaris(e|ed|ing)|apologis(e|ed|ing)|favourite|centre)\b/i;
+  /\b(analys(e|ed|ing)|recognis(e|ed|es|ing)|practis(e|ed|es|ing)|organis(e|ed|ing)|summaris(e|ed|ing)|apologis(e|ed|ing)|favourite|centre)\b/i;
 const CODE_NOT_WORDS = /'analysing'|'analysed'|\bsummarise(?=\s*\()/g;
 
 function files(dir: string): string[] {
