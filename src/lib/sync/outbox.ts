@@ -114,6 +114,25 @@ export type OutboxEntry = {
   blocked?: OutboxBlock;
 };
 
+/**
+ * ONE CHANGE AT A TIME (found 2026-10-01, sweeping the app's stores for the knock queue's race).
+ *
+ * enqueue, removeEntry and the sweep's bookkeeping are each a read then a write with an await between, and
+ * nothing serialised them. The sweep already re-reads after every send so a correction made mid-request
+ * wins, but a correction queued between that re-read and its write was erased by it.
+ * tests/outbox-concurrency.test.ts reproduced it: a rep's rename queued during a sweep vanished.
+ *
+ * Only the storage steps take the lock, never the network send: a rep's tap must not wait behind an upload.
+ * Per rep, like the knock queue. A failed step does not jam the chain.
+ */
+const chains = new Map<string, Promise<unknown>>();
+function serial<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = chains.get(userId) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  chains.set(userId, next);
+  return next;
+}
+
 async function readAll(userId: string): Promise<OutboxEntry[]> {
   try {
     const raw = await AsyncStorage.getItem(keyFor(userId));
@@ -190,20 +209,22 @@ export async function enqueue(
   userId: string,
   entry: Omit<OutboxEntry, 'id' | 'queuedAt' | 'attempts'> & { id?: string },
 ): Promise<OutboxEntry> {
-  const entries = await readAll(userId);
-  const at = entries.findIndex((e) => e.sessionId === entry.sessionId && e.kind === entry.kind);
-  const next: OutboxEntry = {
-    ...entry,
-    id: entry.id ?? nextId(entry.kind, entry.sessionId),
-    queuedAt: new Date().toISOString(),
-    attempts: 0,
-    lastError: undefined,
-    blocked: undefined,
-  };
-  if (at >= 0) entries[at] = next;
-  else entries.push(next);
-  await writeAll(userId, entries);
-  return next;
+  return serial(userId, async () => {
+    const entries = await readAll(userId);
+    const at = entries.findIndex((e) => e.sessionId === entry.sessionId && e.kind === entry.kind);
+    const next: OutboxEntry = {
+      ...entry,
+      id: entry.id ?? nextId(entry.kind, entry.sessionId),
+      queuedAt: new Date().toISOString(),
+      attempts: 0,
+      lastError: undefined,
+      blocked: undefined,
+    };
+    if (at >= 0) entries[at] = next;
+    else entries.push(next);
+    await writeAll(userId, entries);
+    return next;
+  });
 }
 
 /** Everything waiting, oldest first — the order it will be sent in. */
@@ -237,11 +258,13 @@ export async function pendingFor(userId: string, sessionId: string): Promise<Out
 
 /** Remove one entry — used when it lands, and when the rep chooses to discard it. */
 export async function removeEntry(userId: string, id: string): Promise<void> {
-  const entries = await readAll(userId);
-  await writeAll(
-    userId,
-    entries.filter((e) => e.id !== id),
-  );
+  return serial(userId, async () => {
+    const entries = await readAll(userId);
+    await writeAll(
+      userId,
+      entries.filter((e) => e.id !== id),
+    );
+  });
 }
 
 /**
@@ -335,15 +358,17 @@ export async function runOutbox(
   let blocked = 0;
 
   try {
-    let entries = await readAll(userId);
-
     // Age out first, and report what went. Done before the sweep so a month-old
     // entry does not spend an attempt on its way to being discarded.
-    const dropped = expired(entries, now);
-    if (dropped.length > 0) {
-      entries = entries.filter((e) => !dropped.includes(e));
-      await writeAll(userId, entries);
-    }
+    const { entries, dropped } = await serial(userId, async () => {
+      let all = await readAll(userId);
+      const old = expired(all, now);
+      if (old.length > 0) {
+        all = all.filter((e) => !old.includes(e));
+        await writeAll(userId, all);
+      }
+      return { entries: all, dropped: old };
+    });
 
     const queue = entries.filter((e) => !stalled(e));
     if (queue.length === 0) {
@@ -366,9 +391,35 @@ export async function runOutbox(
       // win over a stale copy taken before it existed. A replacement carries a
       // NEW id, so an entry that is no longer here by id is one that has been
       // superseded — and nothing about the request just sent applies to it.
-      const live = await readAll(userId);
-      const at = live.findIndex((e) => e.id === entry.id);
-      const current = at >= 0 ? live[at] : null;
+      //
+      // The re-read and the write below run as ONE step under the lock, so a correction queued in between
+      // cannot be erased by this write (2026-10-01).
+      await serial(userId, async () => {
+        const live = await readAll(userId);
+        const at = live.findIndex((e) => e.id === entry.id);
+        const cur = at >= 0 ? live[at] : null;
+        if (!cur) return null;
+        if (result.ok) {
+          // Only remove what was actually sent. A replacement queued mid-flight is
+          // a DIFFERENT instruction and has not been sent — removing it here would
+          // silently discard the correction the rep just made.
+          live.splice(at, 1);
+        } else {
+          live[at] = {
+            ...cur,
+            attempts: cur.attempts + 1,
+            lastError: result.message,
+            blocked:
+              result.reason === 'transient'
+                ? cur.attempts + 1 >= MAX_OUTBOX_ATTEMPTS
+                  ? 'attempts'
+                  : undefined
+                : result.reason,
+          };
+        }
+        await writeAll(userId, live);
+        return cur;
+      });
 
       /**
        * A TERMINAL FAILURE LEAVES A TRACE THE REP CAN SEND.
@@ -390,29 +441,7 @@ export async function runOutbox(
 
       if (result.ok) {
         sent++;
-        // Only remove what was actually sent. A replacement queued mid-flight is
-        // a DIFFERENT instruction and has not been sent — removing it here would
-        // silently discard the correction the rep just made.
-        if (current) {
-          live.splice(at, 1);
-          await writeAll(userId, live);
-        }
         continue;
-      }
-
-      if (current) {
-        live[at] = {
-          ...current,
-          attempts: current.attempts + 1,
-          lastError: result.message,
-          blocked:
-            result.reason === 'transient'
-              ? current.attempts + 1 >= MAX_OUTBOX_ATTEMPTS
-                ? 'attempts'
-                : undefined
-              : result.reason,
-        };
-        await writeAll(userId, live);
       }
 
       if (result.reason === 'needs-shim') {

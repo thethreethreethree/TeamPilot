@@ -138,6 +138,27 @@ export type PendingRecording = {
   attempts: number;
 };
 
+/**
+ * ONE CHANGE AT A TIME (found 2026-10-01, sweeping the app's stores for the knock queue's race).
+ *
+ * Every write below is a read then a write with an await between, and nothing serialised them. The
+ * background sender calls updateRecording when an upload finishes while the recorder calls addRecording for
+ * the next pitch. Interleaved, one write is computed from a stale read and erases the other: either the new
+ * recording's entry vanishes (its audio stays on the phone, unknown to the app: never sent, never listed,
+ * not counted at sign-out) or the "uploaded" mark is lost and the call is sent twice.
+ * tests/recording-store-concurrency.test.ts reproduced both.
+ *
+ * ONE queue for the whole store, not one per rep: claimUnclaimedRecordings writes two lists (the signed-out
+ * one and the rep's), and a single queue cannot deadlock on nested locks. Recording writes are rare, so it
+ * costs nothing. A failed write does not jam the queue: the next one still runs.
+ */
+let chain: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const next = chain.catch(() => undefined).then(fn);
+  chain = next;
+  return next;
+}
+
 async function readAll(userId: string): Promise<PendingRecording[]> {
   try {
     const raw = await AsyncStorage.getItem(keyFor(userId));
@@ -227,12 +248,14 @@ export async function addRecording(
     lastError: null,
     attempts: 0,
   };
-  const rows = await readAll(userId);
-  // Re-adding the same clientId replaces rather than duplicates, so a retried
-  // save cannot produce two entries for one call.
-  const next = [...rows.filter((r) => r.clientId !== row.clientId), row];
-  await writeAll(userId, next);
-  return row;
+  return serial(async () => {
+    const rows = await readAll(userId);
+    // Re-adding the same clientId replaces rather than duplicates, so a retried
+    // save cannot produce two entries for one call.
+    const next = [...rows.filter((r) => r.clientId !== row.clientId), row];
+    await writeAll(userId, next);
+    return row;
+  });
 }
 
 export async function updateRecording(
@@ -240,13 +263,15 @@ export async function updateRecording(
   clientId: string,
   patch: Partial<PendingRecording>,
 ): Promise<void> {
-  try {
-    const rows = await readAll(userId);
-    const next = rows.map((r) => (r.clientId === clientId ? { ...r, ...patch } : r));
-    await writeAll(userId, next);
-  } catch {
-    // Bookkeeping only. The file and the recording itself are untouched.
-  }
+  return serial(async () => {
+    try {
+      const rows = await readAll(userId);
+      const next = rows.map((r) => (r.clientId === clientId ? { ...r, ...patch } : r));
+      await writeAll(userId, next);
+    } catch {
+      // Bookkeeping only. The file and the recording itself are untouched.
+    }
+  });
 }
 
 /**
@@ -256,12 +281,14 @@ export async function updateRecording(
  * pointing at a file that no longer exists (a broken retry, forever).
  */
 export async function removeRecording(userId: string, clientId: string): Promise<void> {
-  try {
-    const rows = await readAll(userId);
-    await writeAll(userId, rows.filter((r) => r.clientId !== clientId));
-  } catch {
-    /* nothing to recover */
-  }
+  return serial(async () => {
+    try {
+      const rows = await readAll(userId);
+      await writeAll(userId, rows.filter((r) => r.clientId !== clientId));
+    } catch {
+      /* nothing to recover */
+    }
+  });
 }
 
 /**
@@ -316,6 +343,10 @@ export async function countPendingOrUnknown(userId: string): Promise<StrandedCou
  * recordings appear from nowhere.
  */
 export async function claimUnclaimedRecordings(userId: string): Promise<number> {
+  return serial(() => claimUnclaimedNow(userId));
+}
+
+async function claimUnclaimedNow(userId: string): Promise<number> {
   try {
     const raw = await AsyncStorage.getItem(keyFor(UNCLAIMED));
     if (!raw) return 0;
