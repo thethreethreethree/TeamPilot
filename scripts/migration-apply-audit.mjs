@@ -48,6 +48,11 @@ import { execFileSync } from "node:child_process";
 
 const MIG_DIR = "supabase/migrations";
 const SHIM = "scripts/sql/supabase-shim.sql";
+// PASS 3 (added 2026-10-01): RLS probes. Each `*.sql` here runs against its OWN copy of the fully migrated
+// database and must exit 0. A probe exercises a policy AS A ROLE, both branches of every term, and ends in
+// assertions under ON_ERROR_STOP, so a policy that stops holding fails CI. Before this, 0267's probe was
+// committed and re-runnable but only ever run by hand (quiet-undo closure, R3).
+const PROBE_DIR = "scripts/sql/probes";
 const DB = process.env.MIGRATION_AUDIT_DB ?? "migration_audit_scratch";
 // The database used to CREATE and DROP the scratch one. "postgres" exists on a stock server and
 // in CI; it does not exist everywhere (a container whose POSTGRES_DB is something else has no
@@ -156,6 +161,29 @@ for (const name of migrations) {
   }
 }
 
+// PASS 3 — the RLS probes, each on a fresh copy (`template`) so one probe's fixtures never reach another's.
+const probes = existsSync(PROBE_DIR) ? readdirSync(PROBE_DIR).filter((f) => f.endsWith(".sql")).sort() : [];
+const probeFailures = [];
+for (const name of probes) {
+  const copy = `${DB}_probe`;
+  try {
+    psql(["-d", MAINT_DB, "-c", `drop database if exists ${copy}`], "");
+    psql(["-d", MAINT_DB, "-c", `create database ${copy} template ${DB}`], "");
+    psql(["-d", copy], readFileSync(join(PROBE_DIR, name), "utf8"));
+  } catch (e) {
+    const out = `${e.stderr ?? ""}${e.stdout ?? ""}`;
+    // The probe's own expected refusals also print ERROR lines; the one that STOPPED it is the last.
+    const errs = out.match(/ERROR:.*/g) ?? ["(no ERROR line)"];
+    probeFailures.push({ name, error: errs[errs.length - 1].trim() });
+  } finally {
+    try {
+      psql(["-d", MAINT_DB, "-c", `drop database if exists ${copy}`], "");
+    } catch {
+      /* best effort */
+    }
+  }
+}
+
 const newlyNotRerunnable = rerun.filter((r) => !NOT_RERUNNABLE_BASELINE.has(r.name));
 // A baseline entry that now re-runs cleanly is good news, and worth saying so the list shrinks
 // rather than calcifying.
@@ -167,6 +195,7 @@ console.log(`  Migrations applied:      ${migrations.length}`);
 console.log(`  Failed on a fresh DB:    ${firstPass.length}`);
 console.log(`  Not re-runnable (known): ${rerun.length - newlyNotRerunnable.length}`);
 console.log(`  Not re-runnable (NEW):   ${newlyNotRerunnable.length}`);
+console.log(`  RLS probes:              ${probes.length} run, ${probeFailures.length} failed`);
 
 if (firstPass.length) {
   console.log("");
@@ -189,6 +218,16 @@ if (newlyNotRerunnable.length) {
   );
 }
 
+if (probeFailures.length) {
+  console.log("");
+  for (const f of probeFailures) console.log(`✗ RLS PROBE FAILED  ${f.name}\n    ${f.error}`);
+  console.log(
+    "\n  A probe runs a policy as the role it governs and asserts what may and may not happen. A failure\n" +
+      "  means the policy no longer does what the code beside it assumes (§2.2 drift), or the probe's\n" +
+      "  fixture is broken; the message says which."
+  );
+}
+
 if (fixedSinceBaseline.length) {
   console.log(
     `\n  ${fixedSinceBaseline.length} baseline entr${fixedSinceBaseline.length === 1 ? "y" : "ies"} now re-run cleanly — remove from NOT_RERUNNABLE_BASELINE: ` +
@@ -196,10 +235,10 @@ if (fixedSinceBaseline.length) {
   );
 }
 
-if (firstPass.length === 0 && newlyNotRerunnable.length === 0) {
+if (firstPass.length === 0 && newlyNotRerunnable.length === 0 && probeFailures.length === 0) {
   console.log(
-    `\n✓ All ${migrations.length} migrations apply to a database shaped like production, and no NEW` +
-      " migration is non-re-runnable."
+    `\n✓ All ${migrations.length} migrations apply to a database shaped like production, no NEW` +
+      ` migration is non-re-runnable, and all ${probes.length} RLS probe(s) hold.`
   );
   process.exit(0);
 }

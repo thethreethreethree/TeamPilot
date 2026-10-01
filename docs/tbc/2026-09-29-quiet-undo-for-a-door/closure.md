@@ -71,3 +71,8 @@ serialising it. Two held data that cannot be recovered, and both reproduced a lo
 Both now serialise their storage steps. The other read-then-write stores hold a chat draft, read marks, a
 crash note, preferences and an in-flight marker, where a lost update costs a re-type or a repeat notice, not
 a call; they are left as they are. R2: CLOSED for the stores that hold irreplaceable data.
+
+## Appended 2026-10-01 — R3 closed
+
+R3-rls-probe-not-in-ci: CLOSED by docs/tbc/2026-10-01-rls-probes-run-in-ci. The probe ends in assertions, and
+scripts/migration-apply-audit.mjs PASS 3 runs every probe in CI; a 600-minute window fails it.

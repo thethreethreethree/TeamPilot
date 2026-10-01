@@ -4,7 +4,10 @@
 -- rule that also lives in undoKnock (UNDO_WINDOW_MS). Each term is run both ways: in-window / 2 h old,
 -- own knock / another rep's, own company / foreign.
 --
--- Run (Docker; the same image CI uses):
+-- CI runs this automatically: scripts/migration-apply-audit.mjs PASS 3 applies every migration to a fresh
+-- postgres:16-alpine, runs each probe on its own copy, and fails on the assertion block at the end.
+--
+-- By hand (Docker; the same image CI uses):
 --   docker run -d --name rls-probe -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 --   docker exec -i rls-probe psql -U postgres -q -v ON_ERROR_STOP=1 < scripts/sql/supabase-shim.sql
 --   for m in supabase/migrations/*.sql; do docker exec -i rls-probe psql -U postgres -q < "$m"; done
@@ -69,3 +72,28 @@ select 'result 6: live=' || (select count(*) from door_knocks_live) || ' raw=' |
 
 reset role;
 select 'final undo rows (superuser view) = ' || count(*) from door_knock_undos;
+
+-- ASSERTIONS (added 2026-10-01, so this probe is a GATE, not a printout someone has to read).
+-- The refusals above are expected, so errors were non-fatal until here. From here any mismatch stops psql
+-- with a non-zero exit, and scripts/migration-apply-audit.mjs (PASS 3) fails CI on it.
+\set ON_ERROR_STOP 1
+do $assert$
+declare
+  reps int; undos int; undo1 int; undo2 int; undo3 int; raw int; live int;
+begin
+  select count(*) into reps from profiles where company_id = 'c1c1c1c1-0000-0000-0000-000000000001';
+  if reps <> 2 then raise exception 'FIXTURE BROKEN: % reps in the probe company, expected 2 (every case below would prove nothing)', reps; end if;
+  select count(*) into undos from door_knock_undos;
+  select count(*) into undo1 from door_knock_undos where knock_id = 'a0000000-0000-0000-0000-000000000001';
+  select count(*) into undo2 from door_knock_undos where knock_id = 'a0000000-0000-0000-0000-000000000002';
+  select count(*) into undo3 from door_knock_undos where knock_id = 'a0000000-0000-0000-0000-000000000003';
+  if undo1 <> 1 then raise exception 'case 1/5: a rep could not undo their own fresh knock, or the undo was edited away (undo rows for knock 1 = %)', undo1; end if;
+  if undo2 <> 0 then raise exception 'case 2: a 2-hour-old knock was undone; the 60-minute window is not enforced'; end if;
+  if undo3 <> 0 then raise exception 'case 3/4: another rep''s knock, or a knock under a foreign company id, was undone'; end if;
+  if undos <> 1 then raise exception 'expected exactly 1 undo row, found %', undos; end if;
+  select count(*) into raw from door_knocks;
+  select count(*) into live from door_knocks_live;
+  if raw <> 3 or live <> 2 then raise exception 'case 6: expected raw=3 live=2, got raw=% live=%', raw, live; end if;
+  raise notice 'probe 0267: all assertions hold';
+end
+$assert$;
