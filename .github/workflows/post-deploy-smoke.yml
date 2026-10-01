@@ -17,12 +17,14 @@ permissions:
 
 jobs:
   smoke:
-    # Vercel reports deployments as "Production – team-pilot" (the project serving elostate.com). Other
-    # environments, and the second project that also deploys this repo, are skipped.
+    # Vercel names the environment "Production" when one project deploys this repo, and "Production – <project>"
+    # when several do. Both names for team-pilot (the project serving elostate.com) are matched exactly. The first
+    # version matched only the suffixed name; once the duplicate project was deleted (2026-10-01) the name became
+    # plain "Production" and every deploy was skipped without a sound. Other projects and environments are skipped.
     if: >-
       github.event.deployment_status.state == 'success' &&
-      startsWith(github.event.deployment.environment, 'Production') &&
-      endsWith(github.event.deployment.environment, 'team-pilot')
+      (github.event.deployment.environment == 'Production' ||
+       github.event.deployment.environment == 'Production – team-pilot')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
