@@ -31,6 +31,11 @@ for (const file of POINTS_SURFACES) {
   });
 }
 
+test('the door-pitch analysis chart says analyzed, not scored (a third measure)', () => {
+  const src = rendered(readFileSync(join(process.cwd(), 'src/components/door-metrics-page.tsx'), 'utf8'));
+  assert.doesNotMatch(src, /scored pitch/i);
+});
+
 test('the rubric keeps its own word', () => {
   const rubric = readFileSync(join(process.cwd(), 'src/lib/pitch-score/milestones.ts'), 'utf8');
   assert.match(rubric, /100 scored pitches/);
