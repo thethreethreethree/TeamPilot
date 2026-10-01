@@ -83,3 +83,9 @@ The app's undo branch was still unmerged on 2026-10-01, so the next phone build 
 Merged into the app's main line as 62b738f5 (gate on the merged line: tsc exit 0, 1585 tests pass, lint exit 0,
 tools/gate.mjs exit 0), together with the queue fix a7ed7a30 it was built on. DEVICE-CHECK.md check 42 now
 covers it on a phone. Still OPEN: an EAS build and the device check; nothing from this build is on a phone yet.
+
+## Appended 2026-10-01 — build 28
+
+R1-app-release: the undo is in iOS build 28 (commit 04246628), submitted to App Store Connect at 14:16Z
+(EAS submission 33c6f5da, status finished). Still OPEN until it is seen working on a phone (DEVICE-CHECK.md
+check 42); Apple's processing into TestFlight was not observed from here.

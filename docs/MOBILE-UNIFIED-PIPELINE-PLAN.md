@@ -124,6 +124,10 @@ No phase begins until the previous one's exit test is green.
    needed, EAS builds in the cloud), then Part 2's 26 checks. **The founder's phone is required here;
    nothing on this laptop can substitute.** Findings are fixed in the app as it is today.
 3. A **TestFlight build** to the founder and John — the first time the app meets real use.
+   **Build 28 submitted 2026-10-01** (founder's go-ahead in a picker): iOS production build of the app's
+   main line at `04246628`, EAS build `0827c8db`, submission `33c6f5da` finished 14:16Z to App Store Connect
+   app 6808480147. Apple's processing into TestFlight was not observed from here. It carries everything since
+   build 27 (22 Sep), including the quiet undo (merged `62b738f5`); `DEVICE-CHECK.md` checks 42-44 cover the new parts.
 4. Record the baseline: website gate + a production smoke of the routes the app calls; app `tsc`,
    1,551 tests, G1–G4, and the device-check results.
 
