@@ -21,7 +21,6 @@ import {
   GraduationCap,
   Home,
   MessageSquare,
-  Mic,
   Gauge,
   Presentation,
   Puzzle,
@@ -225,9 +224,12 @@ const MOBILE_TABS: NavItem[] = [
 // slot. The two promoted surfaces are correspondingly REMOVED from the Macro home grid (true move, not a
 // duplicate) — see the macroOn branch in dashboard/sales-coach/page.tsx. Team Chat stays reachable on desktop +
 // the non-macro mobile nav; the Live AI Coach lives on the Sessions page (Home → cards) rather than a tab.
+//
+// PITCH PERFORMANCE LEFT THE BAR on 2026-10-01 (REV 1: "Take out today's performance (that's what the home page
+// is)"; the founder named this tab in a picker, then chose to match the app on the website). The page stays:
+// the Door Log links to it ("See how your pitches went"), as the app's Door Log does.
 const MACRO_MOBILE_TABS: NavItem[] = [
   { label: "Home", href: "/dashboard/sales-coach", icon: Home },
-  { label: "Pitch Performance", href: "/dashboard/sales-coach/doors/report-card", icon: Mic },
   { label: "Today's Metrics", href: "/dashboard/sales-coach/doors/todays-metrics", icon: BarChart3 },
   { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target },
 ];

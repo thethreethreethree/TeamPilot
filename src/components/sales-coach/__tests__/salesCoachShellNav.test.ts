@@ -18,6 +18,8 @@ const ROOT = process.cwd();
 // is LF regardless). See memory: source-text regex test fails on Windows CRLF.
 const readLF = (...p: string[]) => readFileSync(join(ROOT, ...p), "utf-8").replace(/\r\n/g, "\n");
 const SHELL = readLF("src", "components", "sales-coach", "SalesCoachShell.tsx");
+const DOORLOG = readLF("src", "components", "sales-coach", "doorlog", "DoorLog.tsx");
+const TOGGLE = readLF("src", "components", "sales-coach", "doorlog", "MacroModeToggle.tsx");
 
 /**
  * The SIDEBAR only — `NAV_SECTIONS`, not the mobile tab bars below it.
@@ -155,8 +157,8 @@ describe("SalesCoachShell — role-split nav groups (2026-09-19 redesign)", () =
   it("keeps Analytics, Sessions and Role Play reachable on mobile, so only three go dark", () => {
     // Checked rather than assumed, because "dropped from the sidebar" and "unreachable" are
     // different claims and only one of them is true here. MOBILE_TABS and MACRO_MOBILE_TABS are
-    // outside NAV_SECTIONS and were not touched by the ruling — and MACRO_MOBILE_TABS is already
-    // exactly the rep board's bottom bar (Home · Pitch Performance · Today's Metrics · Role Play).
+    // outside NAV_SECTIONS and were not touched by the ruling. (MACRO_MOBILE_TABS matched the rep
+    // board's bottom bar until 2026-10-01, when the founder took Pitch Performance out of it.)
     expect(SHELL).toMatch(/MOBILE_TABS[\s\S]{0,600}\/analytics/);
     expect(SHELL).toMatch(/MOBILE_TABS[\s\S]{0,600}\/sessions/);
     expect(SHELL).toMatch(/MACRO_MOBILE_TABS[\s\S]{0,600}\/roleplay/);
@@ -231,18 +233,23 @@ describe("SalesCoachShell — Macro Mode bottom nav (founder revision 2026-08-23
   // the founder-chosen set + ORDER so it can't silently regress (A30).
   const macroTabs = SHELL.match(/const MACRO_MOBILE_TABS[\s\S]*?\];/)?.[0] ?? "";
 
-  it("is exactly Home / Pitch Performance / Today's Metrics / Role Play (in order)", () => {
-    for (const label of ['"Home"', '"Pitch Performance"', '"Today\'s Metrics"', '"Role Play"']) {
+  it("is exactly Home / Today's Metrics / Role Play (in order)", () => {
+    for (const label of ['"Home"', '"Today\'s Metrics"', '"Role Play"']) {
       expect(macroTabs).toContain(`label: ${label}`);
     }
-    // Order is load-bearing (the founder placed the two data views between Home and Role Play).
-    expect(macroTabs).toMatch(
-      /"Home"[\s\S]*?"Pitch Performance"[\s\S]*?"Today's Metrics"[\s\S]*?"Role Play"/
-    );
+    expect(macroTabs).toMatch(/"Home"[\s\S]*?"Today's Metrics"[\s\S]*?"Role Play"/);
     // Founder-confirmed targets.
-    expect(macroTabs).toContain("/dashboard/sales-coach/doors/report-card"); // Pitch Performance
     expect(macroTabs).toContain("/dashboard/sales-coach/doors/todays-metrics"); // Today's Metrics
     expect(macroTabs).toContain("/dashboard/sales-coach/roleplay"); // Role Play
+  });
+
+  it("has no Pitch Performance tab (founder 2026-10-01, matching the app), and the Door Log still links to it", () => {
+    // REV 1: "Take out today's performance (that's what the home page is)". The page stays reachable.
+    expect(macroTabs).not.toContain('"Pitch Performance"');
+    expect(macroTabs).not.toContain("/doors/report-card");
+    expect(DOORLOG).toContain('href="/dashboard/sales-coach/doors/report-card"');
+    expect(DOORLOG).toContain("See how your pitches went");
+    expect(TOGGLE).not.toContain("Pitch Perf.");
   });
 
   it("drops the AI Agent (Sessions) + Team Chat tabs from the Macro set (founder 2026-08-23)", () => {

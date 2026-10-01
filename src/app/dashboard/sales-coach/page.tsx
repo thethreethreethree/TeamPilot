@@ -285,8 +285,8 @@ export default function SalesCoachHome() {
                   </h1>
                   <p className="text-2xl font-bold text-brand leading-tight">{name ?? "back"}</p>
                 </div>
-                {/* Door Log — the remaining primary door-to-door surface (Today's Metrics + Pitch Performance
-                    live in the bottom nav). */}
+                {/* Door Log — the remaining primary door-to-door surface (Today's Metrics lives in the bottom
+                    nav; Pitch Performance is reached from the Door Log since 2026-10-01). */}
                 <div className="flex justify-center">
                   <div className="w-[calc(50%-0.375rem)]">
                     <MobileCard href="/dashboard/sales-coach/doors" icon={DoorOpen} title="Door Log" sub="Log every door, fast" />

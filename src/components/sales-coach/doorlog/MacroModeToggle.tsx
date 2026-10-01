@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { DoorOpen, BarChart3, Target } from "lucide-react";
+import { DoorOpen, Target } from "lucide-react";
+import { macroModeBody } from "@/lib/coach/doorlog/macroModeCopy";
 
 /**
  * Macro Mode toggle (per-rep, alongside the normal Sales Coach — founder decision 2026-08-18). Controlled:
@@ -11,8 +12,8 @@ import { DoorOpen, BarChart3, Target } from "lucide-react";
  *
  * `showLinks` (desktop only): the MOBILE home shows the 3 door surfaces as its own cards, so it passes false and
  * this card is just the switch. The DESKTOP dashboard has no such cards, so it passes true and this card carries
- * the nav to Door Log / Today's Metrics / Pitch Performance (regression fix 2026-08-19 — removing this left
- * desktop Macro reps with no way to reach the surfaces).
+ * the nav to Door Log / Today's Metrics (regression fix 2026-08-19 — removing this left desktop Macro reps with
+ * no way to reach the surfaces; Pitch Performance left this row on 2026-10-01 and is reached from the Door Log).
  */
 export function MacroModeToggle({
   enabled,
@@ -33,9 +34,9 @@ export function MacroModeToggle({
             <DoorOpen className="w-4 h-4 text-brand" aria-hidden />
             <span className="text-sm font-semibold text-primary">Macro Mode</span>
           </div>
-          <p className="text-[11px] text-muted mt-0.5">
-            Door-to-door: fast Door Log + a macro Report Card. Feedback processes in the background.
-          </p>
+          {/* The founder's REV 1 sentence, the same one the app shows (macroModeCopy.ts). While the position is
+              still loading (null) nothing is shown rather than a guess at which sentence applies. */}
+          {enabled !== null && <p className="text-[11px] text-muted mt-0.5">{macroModeBody(enabled)}</p>}
         </div>
         <button
           onClick={onToggle}
@@ -69,9 +70,11 @@ export function MacroModeToggle({
         </button>
       </div>
 
-      {/* Desktop nav to the 3 door-to-door surfaces (mobile shows them as home cards instead). */}
+      {/* Desktop nav to the door-to-door surfaces (mobile shows them as home cards instead). Pitch Performance
+          was the third link until 2026-10-01 (founder: matches the app, which dropped it as a tab); the Door
+          Log now carries the way to it. */}
       {enabled && showLinks && (
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-2 gap-2 mt-3">
           <Link
             href="/dashboard/sales-coach/doors"
             className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg bg-ember-400 text-[#09090B] text-xs font-semibold text-center"
@@ -83,12 +86,6 @@ export function MacroModeToggle({
             className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg bg-surface border border-default text-primary text-xs font-semibold text-center"
           >
             <Target className="w-4 h-4" aria-hidden /> Today&apos;s Metrics
-          </Link>
-          <Link
-            href="/dashboard/sales-coach/doors/report-card"
-            className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg bg-surface border border-default text-primary text-xs font-semibold text-center"
-          >
-            <BarChart3 className="w-4 h-4" aria-hidden /> Pitch Perf.
           </Link>
         </div>
       )}

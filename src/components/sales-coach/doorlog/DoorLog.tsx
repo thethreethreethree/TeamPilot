@@ -621,6 +621,15 @@ export function DoorLog() {
                 <DoorOpen className="w-7 h-7 text-brand/70" aria-hidden />
               </div>
               <p className="text-sm text-muted">Ready for the next door</p>
+              {/* The way to pitch history now that Pitch Performance is not a tab (founder, 2026-10-01: match
+                  the app, whose Door Log carries the same link). Quiet and in the middle, away from the thumb-zone
+                  actions below, so it can't be mis-tapped mid-flow. */}
+              <Link
+                href="/dashboard/sales-coach/doors/report-card"
+                className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
+              >
+                See how your pitches went
+              </Link>
             </div>
             {micDenied && (
               <p className="text-xs text-amber-400 text-center">
