@@ -28,3 +28,9 @@ No image, icon, logo, favicon or graphic asset was touched.
 
 After ad92fc88 deployed (CI success, Vercel Ready), production: `GET` and `POST`
 /api/coach/sales-session/<id>/after-pitch with no login both answer **401** (were 200 and 404).
+
+## Appended 2026-10-01 — the widened smoke, live after 5fd80868
+
+`python docs/mobile-smoke/all-get-routes.smoke.py`: 196 GET routes; 401: 182 (was 179), 403: 3, 400: 8 (parameter
+checks before the login, unchanged), 200: 3 — /api/health, /api/me/identity, /api/me/landing, each public by
+design. coach-memory, tasks and team now answer 401 to a caller with no login.
