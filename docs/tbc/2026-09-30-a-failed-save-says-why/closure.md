@@ -38,3 +38,17 @@ the code already had, which was to keep going, and that is what spent the money.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Appended 2026-10-01
+
+R1-first-stored-score: CLOSED. 52 scores stored on 2026-09-30 between 20:02 and 20:52Z (read-only query
+2026-10-01T04:09Z), so the save path works end-to-end after 0268.
+
+Observed while checking them, recorded here rather than acted on:
+
+- 6 of the 52 came from recordings where the rep said 1 to 6 words; each was graded on all 29 elements and
+  scored 0 to 16 (none qualify). Founder, picker 2026-10-01: "Keep scoring everything". No change.
+- `duration_s` is the saved audio's length (`audioDurationSeconds`), not the conversation's: one qualifying
+  pitch shows 3 s against a 413 s session with 137 rep words. Whether its saved audio is truncated could not
+  be determined: transcript segments carry no usable `spoken_at`, and 350 of 369 finished sales sessions have
+  no saved audio file. OPEN question, not a finding.

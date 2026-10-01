@@ -87,3 +87,10 @@ exit 0
 NOT YET OBSERVED: a score actually stored in production. That needs a grading to run (a manager pressing
 Score them all, or a rep closing a pitch), after which pitch_scores should be non-zero and the
 `pitch_scores_rubric_version_fkey` errors should stop in the logs.
+
+## Appended 2026-10-01 — first scores observed in production
+
+Read-only query at 2026-10-01T04:09Z: `pitch_scores` = 52, all `attfiber-v1`, one company (28203036…), 5 reps,
+created 2026-09-30 20:02..20:52Z; 18 qualifying; totals 0.0..100.5, average 40.1. Before 0268 the count had
+never been above 0. The foreign key is satisfied by every row, which is the end-to-end proof 0268 lacked.
+317 finished sales sessions remain unscored.
