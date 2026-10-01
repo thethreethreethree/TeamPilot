@@ -166,6 +166,10 @@ For each one:
 2. Move the agreed version into `core/rules`; both sides import it; delete both copies.
 3. Both gates, and for audio/voice modules a device re-check.
 
+**First parity run, 2026-10-01** (ahead of Phase 1, because it changes nothing): 9 comparisons across
+speech presence, pitch detection, calibration, roles and score labels; one difference, a label's
+capitalisation, fixed in the app. Method, script and results: `docs/mobile-parity/README.md`.
+
 **Exit (per module):** parity proven; both suites pass; no user-visible change. *Rollback:* that
 module's commit.
 
