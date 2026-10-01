@@ -61,3 +61,10 @@ founder 2026-08-26) explains the older ones. Inside each rep's newest 20 (150 se
 5 (since 08-24) are empty sessions with 0 transcript segments and no audio length, started and ended with
 nothing said. Missing audio is retention and empty sessions, not a storage fault. Still open: the one pitch
 whose saved audio is 3 s against a 413 s session with 137 rep words.
+
+The 3 s pitch is session 8e0905d6 (2026-08-12); its audio was purged under the old 2-day rule, so it cannot be
+examined. For the 19 sessions that still have audio, `ended_at - started_at` runs 6-7 hours on recent ones
+(left open, closed later by auto-close-stale-cron), so session length is not conversation length and cannot
+reveal truncated audio. The short files that exist (7 s, 9 s) have one transcript line each: short recordings,
+not truncated ones. CLOSED as not reproducible, with no recent instance. Side observation, not acted on: any
+metric that reads a sales session's ended_at as when the conversation ended will read hours of idle time.
