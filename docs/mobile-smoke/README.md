@@ -11,3 +11,9 @@ expects a refusal (401/403/405). Run 2026-10-01 against elostate.com: 53 calls.
   Fixed to answer 401 (docs/tbc/2026-10-01-not-signed-in-is-not-empty).
 
 No call returned 404 or 500: every route the app depends on exists and runs.
+
+## Every GET route, after every deploy
+
+`scripts/smoke/production-get-smoke.py` (moved there from this folder on 2026-10-01) calls all 196 GET routes
+with no login and fails on a 200 outside its public list, any 5xx, or a 404. `.github/workflows/post-deploy-smoke.yml`
+runs it after every production deploy of `team-pilot`, so the commit that broke a route shows red.

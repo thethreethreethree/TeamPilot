@@ -1,0 +1,38 @@
+# After every production deploy of the website, call every GET API route on elostate.com with no login and fail
+# if one answers a stranger with data (200 outside the public list), errors (5xx), or is missing (404).
+#
+# Why after the deploy and not in CI: the faults it catches live in the running site (an RLS-empty read answered
+# as 200, a wrong status from a shared helper), which a unit test of one handler cannot see. On 2026-10-01 a
+# manual run found three such routes; this makes the check happen without anyone remembering to run it.
+# It is GET-only: nothing on production is written. A failure marks the deployed commit red; it cannot undo the
+# deploy, so it is an alarm, not a gate in front of production.
+
+name: Post-deploy smoke
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    # Vercel reports deployments as "Production – team-pilot" (the project serving elostate.com). Other
+    # environments, and the second project that also deploys this repo, are skipped.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Production') &&
+      endsWith(github.event.deployment.environment, 'team-pilot')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      # The deploy reports success before the domain has always switched over; give it a moment.
+      - name: Wait for the domain to serve the new deploy
+        run: sleep 30
+      - name: Unauthenticated GET smoke of every API route
+        env:
+          SMOKE_BASE: https://elostate.com
+        run: python3 scripts/smoke/production-get-smoke.py

@@ -73,3 +73,27 @@ $ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhos
   RLS probes:              1 run, 0 failed
 CHECK_EXIT=0
 ```
+
+## Appended 2026-10-01 — the smoke runs itself after every deploy
+
+The GET smoke moved to `scripts/smoke/production-get-smoke.py` and now exits 1 when a route outside its PUBLIC
+list (health, identity, landing, each with its reason) answers 200, or any route answers 5xx or 404.
+`.github/workflows/post-deploy-smoke.yml` runs it on every successful `Production – team-pilot` deployment
+(Vercel reports deployments to GitHub: seen for 5fd80868). GET only; an alarm on the deployed commit, not a gate
+in front of production.
+
+```
+$ python scripts/smoke/production-get-smoke.py
+OK: no route outside PUBLIC answers a stranger with data; no 404, no 5xx.
+exit 0
+$ (mutation: /api/me/landing removed from PUBLIC)
+FAIL:
+  200  /api/me/landing
+exit 1   (restored)
+```
+
+```
+$ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhost PGPORT=55433 npm run check
+      Tests  5618 passed | 15 skipped (5633)
+CHECK_EXIT=0
+```
