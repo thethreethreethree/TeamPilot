@@ -26,7 +26,7 @@
  * shown, and the server's figure is shown only when it actually arrived — said
  * apart rather than silently added, so a rep can see which is which.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -37,6 +37,7 @@ import {
   countByOutcome,
   listKnocks,
   localDate,
+  markKnockUndone,
   type Knock,
   type KnockOutcome,
 } from '@/lib/doors/knock-store';
@@ -48,7 +49,7 @@ import {
   FOCUS_PENDING,
   focusSection,
 } from '@/lib/doors/door-screen-view';
-import { fetchDayTotals, type DoorTotals } from '@/lib/doors/door-log-api';
+import { fetchDayTotals, sendUndo, type DoorTotals } from '@/lib/doors/door-log-api';
 import { useKnockSender, knockSendingStopped } from '@/lib/doors/use-knock-sender';
 import { fetchLatestPitchId } from '@/lib/doors/door-log-api';
 import { latestPitchTarget } from '@/lib/doors/latest-pitch';
@@ -79,6 +80,14 @@ export default function DoorsScreen() {
   const [queue, setQueue] = useState<Knock[]>([]);
   const [totals, setTotals] = useState<DoorTotals | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * THE QUIET UNDO (founder 2026-09-29: "a quiet 'undo' for a few seconds"). REV 1 removed "Undo last" and
+   * left a mis-tapped door permanent. After each tap, "Undo" shows for UNDO_MS, then goes. A door still on
+   * the phone is marked and the sweep handles it; one already confirmed is taken back on the server. The
+   * website's Door Log does the same (DoorLog.tsx), against the same server undo.
+   */
+  const [undoable, setUndoable] = useState<{ id: string; label: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [openingLast, setOpeningLast] = useState(false);
   /**
    * The one habit worth drilling next, brought onto this screen by REV 1.
@@ -95,6 +104,15 @@ export default function DoorsScreen() {
     if (!userId) return;
     setQueue(await listKnocks(userId).catch(() => []));
   }, [userId]);
+
+  const offerUndo = useCallback((id: string, label: string) => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndoable({ id, label });
+    undoTimer.current = setTimeout(() => setUndoable((u) => (u?.id === id ? null : u)), UNDO_MS);
+  }, []);
+  useEffect(() => () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,13 +175,37 @@ export default function DoorsScreen() {
       if (!userId) return;
       // Local first, on purpose: the number on screen moves before anything
       // touches the network.
-      await addKnock(userId, outcome);
+      const k = await addKnock(userId, outcome);
       await refresh();
       setNotice(`${LABEL[outcome]} logged`);
+      offerUndo(k.clientKnockId, LABEL[outcome]);
       flush();
     },
-    [userId, refresh, flush],
+    [userId, refresh, flush, offerUndo],
   );
+
+  const undoLast = useCallback(async () => {
+    const u = undoable;
+    if (!u || !userId) return;
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndoable(null);
+    const where = await markKnockUndone(userId, u.id);
+    if (where === 'queued') {
+      // Still on the phone (or on its way): the sweep drops it unsent, or follows it with a server undo.
+      await refresh();
+      setNotice(`Undone — that ${u.label} no longer counts.`);
+      flush();
+      return;
+    }
+    // Already confirmed by the server, so the server must take it back.
+    const r = await sendUndo(u.id);
+    if (r.ok) setNotice(`Undone — that ${u.label} no longer counts.`);
+    else if (r.reason === 'too-late') setNotice(`Too late to undo that ${u.label}. It stays counted.`);
+    else if (r.reason === 'not-yet') setNotice(`Undo isn't available yet, so that ${u.label} is still counted.`);
+    else setNotice(`Couldn't undo that ${u.label}. It is still counted.`);
+    // The queue did not change, so the effect that re-reads the server's total will not fire on its own.
+    fetchDayTotals(today).then((t) => setTotals(t));
+  }, [undoable, userId, refresh, flush, today]);
 
   /*
     THE `undo` CALLBACK WENT WITH ITS BUTTON (REV 1, 2026-09-11).
@@ -397,10 +439,29 @@ export default function DoorsScreen() {
         >
           {notice ?? ''}
         </Text>
+        {undoable ? (
+          <View className="mt-3 flex-row items-center justify-between rounded-lg border border-border-control px-4 py-2">
+            <Text className="font-body text-sm text-muted-foreground">
+              Logged: <Text className="font-strong text-foreground">{undoable.label}</Text>
+            </Text>
+            <Pressable
+              onPress={() => void undoLast()}
+              accessibilityRole="button"
+              accessibilityLabel={`Undo ${undoable.label}`}
+              hitSlop={8}
+              className="min-h-9 justify-center px-3"
+            >
+              <Text className="font-strong text-base text-primary">Undo</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+/** How long the quiet undo is OFFERED. The server accepts one for 60 minutes (0267); this is what keeps it quiet. */
+const UNDO_MS = 5000;
 
 function Tile({
   value,

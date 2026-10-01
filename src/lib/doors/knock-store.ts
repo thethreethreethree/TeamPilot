@@ -55,6 +55,13 @@ export type Knock = {
   at: string;
   attempts: number;
   lastError?: string;
+  /**
+   * The rep took this door back (the quiet undo; founder 2026-09-29). NOT deleted here, and that is the
+   * point: the send sweep may already have it in flight. The sweep decides — a knock never attempted is
+   * dropped unsent; one that may have reached the server is followed by a server undo. Optional, so knocks
+   * stored before this existed read as not-undone.
+   */
+  undone?: boolean;
 };
 
 const keyFor = (userId: string) => `knocks.v1.${userId}`;
@@ -181,6 +188,45 @@ export async function removeKnock(userId: string, clientKnockId: string): Promis
   });
 }
 
+/**
+ * Mark a queued knock as taken back.
+ *
+ * Returns 'queued' when it was still on the phone (the sweep now handles it), and 'absent' when it was not
+ * — it has already been sent and confirmed, so the caller must ask the SERVER to undo it.
+ */
+export async function markKnockUndone(
+  userId: string,
+  clientKnockId: string,
+): Promise<'queued' | 'absent'> {
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    const at = rows.findIndex((k) => k.clientKnockId === clientKnockId);
+    if (at < 0) return 'absent' as const;
+    rows[at] = { ...rows[at], undone: true };
+    await writeAll(userId, rows);
+    return 'queued' as const;
+  });
+}
+
+/**
+ * The sweep's "confirmed — remove it", made safe against a simultaneous undo. Runs under the same lock as
+ * markKnockUndone, so exactly one of two things is true afterwards: the mark landed first (returns 'undone';
+ * the knock is kept so its undo can follow it to the server), or the removal did (returns 'removed'; a later
+ * mark finds nothing and the screen asks the server directly). There is no window in which an undo is lost.
+ */
+export async function removeKnockUnlessUndone(
+  userId: string,
+  clientKnockId: string,
+): Promise<'removed' | 'undone'> {
+  return mutate(userId, async () => {
+    const rows = await readAll(userId);
+    const hit = rows.find((k) => k.clientKnockId === clientKnockId);
+    if (hit?.undone) return 'undone' as const;
+    await writeAll(userId, rows.filter((k) => k.clientKnockId !== clientKnockId));
+    return 'removed' as const;
+  });
+}
+
 /** Record a failed attempt without losing the knock. */
 export async function markKnockFailed(
   userId: string,
@@ -235,6 +281,10 @@ export function countByOutcome(
     not_interested: 0,
   } as Record<KnockOutcome, number>;
   for (const k of rows) {
+    // A door the rep took back is not a door. It stays in the queue only until the sweep has dealt with it
+    // (dropped unsent, or followed by a server undo) — see Knock.undone. Every screen counts through here,
+    // so this is the one place the rule lives.
+    if (k.undone) continue;
     if (k.localDate === date && k.outcome in out) out[k.outcome] += 1;
   }
   return out;

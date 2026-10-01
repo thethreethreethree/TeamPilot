@@ -99,6 +99,37 @@ export async function sendKnock(knock: Knock): Promise<KnockSend> {
   }
 }
 
+export type UndoSend =
+  | { ok: true }
+  /** Past the server's window (60 minutes, 0267). The door stays on the record. */
+  | { ok: false; reason: 'too-late' }
+  /** The app cannot make this write at all. */
+  | { ok: false; reason: 'needs-shim'; why: AuthFailure | null }
+  /** The server does not do undo YET (an older backend answers 400; one without 0267 answers 503). */
+  | { ok: false; reason: 'not-yet'; message?: string }
+  /** No verdict — a dead connection. Always worth another try. */
+  | { ok: false; reason: 'transient'; message?: string };
+
+/**
+ * Ask the server to take back a knock (the quiet undo; founder 2026-09-29). Appends an undo — the server never
+ * edits the knock. Idempotent: a second undo of the same door is a success.
+ */
+export async function sendUndo(clientKnockId: string): Promise<UndoSend> {
+  try {
+    await coachPost('/api/coach/sales-session/door-log', { kind: 'undo', clientKnockId });
+    return { ok: true };
+  } catch (e) {
+    const status = (e as { status?: number })?.status;
+    const message = e instanceof Error && e.message ? e.message : undefined;
+    // 404 = the server never had this knock. Nothing counts, which is exactly what an undo wants.
+    if (status === 404) return { ok: true };
+    if (status === 409) return { ok: false, reason: 'too-late' };
+    if (status === 401 || status === 403) return { ok: false, reason: 'needs-shim', why: authFailureOf(e) };
+    if (status === 400 || status === 503) return { ok: false, reason: 'not-yet', message };
+    return { ok: false, reason: 'transient', message };
+  }
+}
+
 /**
  * The server's totals for one local day, or null when they cannot be read.
  *
