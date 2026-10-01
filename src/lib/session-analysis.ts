@@ -82,7 +82,7 @@ export function analysisState(
  * the answer is "not yet".
  */
 export function analysisChip(state: AnalysisState): string | null {
-  if (state === 'analysing') return 'Being analysed';
+  if (state === 'analysing') return 'Being analyzed';
   /**
    * NOT "failed", and not "something went wrong".
    *
@@ -105,7 +105,7 @@ export function analysisChip(state: AnalysisState): string | null {
  * duration reads as a fragment.
  */
 export function analysisSpoken(state: AnalysisState): string | null {
-  if (state === 'analysing') return 'still being analysed';
+  if (state === 'analysing') return 'still being analyzed';
   if (state === 'stalled') return 'no transcript yet';
   return null;
 }

@@ -85,7 +85,7 @@ export function analysisState(detail: PitchDetail): AnalysisState {
     return {
       kind: 'failed',
       // Never an empty bubble. A failure with no reason is worse than no card.
-      message: detail.error?.trim() || 'This pitch could not be analysed.',
+      message: detail.error?.trim() || 'This pitch could not be analyzed.',
     };
   }
   if (detail.analysis) return { kind: 'ready', analysis: detail.analysis };

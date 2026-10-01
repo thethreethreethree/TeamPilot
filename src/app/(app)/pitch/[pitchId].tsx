@@ -167,7 +167,7 @@ function Body({ detail }: { detail: PitchDetail }) {
         />
       ) : state.kind === 'processing' ? (
         <Text className="font-body text-base leading-relaxed text-muted-foreground">
-          Still being analysed. The scores and summary appear here when it is done.
+          Still being analyzed. The scores and summary appear here when it is done.
         </Text>
       ) : (
         <Analysis analysis={state.analysis} />

@@ -317,7 +317,7 @@ function Row({ pitch }: { pitch: Pitch }) {
       accessible
       accessibilityRole="button"
       accessibilityLabel={`${pitch.name || 'Unnamed pitch'}, ${when}, ${outcome}.${
-        pitch.summary ? ` ${pitch.summary}` : processing ? ' Still being analysed.' : ''
+        pitch.summary ? ` ${pitch.summary}` : processing ? ' Still being analyzed.' : ''
       }`}
       accessibilityHint="Opens the full pitch, with its scores and transcript."
       onPress={() => router.push({ pathname: '/(app)/pitch/[pitchId]', params: { pitchId: pitch.id } })}
@@ -345,7 +345,7 @@ function Row({ pitch }: { pitch: Pitch }) {
         </Text>
       ) : processing ? (
         <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-          Still being analysed. The summary appears here when it is done.
+          Still being analyzed. The summary appears here when it is done.
         </Text>
       ) : (
         <Text className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">

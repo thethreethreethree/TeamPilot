@@ -209,7 +209,7 @@ export default function TrainingScreen() {
               Nothing to work on yet
             </Text>
             <Text className="font-body text-base leading-relaxed text-muted-foreground">
-              This fills in once a few of your calls have been analysed. It comes from your own
+              This fills in once a few of your calls have been analyzed. It comes from your own
               conversations — not from a generic list — so it is worth waiting for.
             </Text>
           </View>

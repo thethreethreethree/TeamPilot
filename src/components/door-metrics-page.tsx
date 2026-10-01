@@ -344,7 +344,7 @@ export function DoorMetricsPage() {
               <View className="gap-3">
               <Text className="font-body text-base leading-relaxed text-muted-foreground">
                 No scored pitches yet {windowPhrase}. The chart fills in as your recorded
-                pitches get analysed.
+                pitches get analyzed.
               </Text>
               {/* The action, not only the explanation — copy.md. */}
               <Pressable

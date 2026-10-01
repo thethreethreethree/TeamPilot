@@ -119,7 +119,7 @@ export const NO_SIGNAL_TEXT =
 
 /** What the screen says when the answer came back in a shape it does not know. */
 export const UNREADABLE_TEXT =
-  'The coach answered in a form this app does not recognise. Nothing is wrong with your conversation — this one needs somebody to look at the server.';
+  'The coach answered in a form this app does not recognize. Nothing is wrong with your conversation — this one needs somebody to look at the server.';
 
 /**
  * What a 402 from the coach routes means, said in the app's own terms.

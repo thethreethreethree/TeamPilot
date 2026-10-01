@@ -163,7 +163,7 @@ export default function AnalyticsScreen() {
               Nothing measured yet
             </Text>
             <Text className="font-body text-base leading-relaxed text-muted-foreground">
-              These grades come from your own recorded calls once they have been analysed. Until
+              These grades come from your own recorded calls once they have been analyzed. Until
               then there is nothing to show — and a grade drawn from no calls would tell you
               nothing true about how you sell.
             </Text>

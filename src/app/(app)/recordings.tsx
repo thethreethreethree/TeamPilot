@@ -241,7 +241,7 @@ export default function RecordingsScreen() {
               : // A pitch has no session to open. It joins Pitch Performance
                 // once the coach has been through it, which is where a door rep
                 // will look for it.
-                'The pitch is on the server. It appears under Pitch Performance once it has been analysed.',
+                'The pitch is on the server. It appears in your pitch history once it has been analyzed.',
             sessionId
               ? [
                   { text: 'Stay here' },

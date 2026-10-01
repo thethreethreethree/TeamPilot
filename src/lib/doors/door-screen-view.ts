@@ -175,7 +175,7 @@ export function focusSection(focus: string | null | undefined): 'hidden' | 'pend
 }
 
 export const FOCUS_PENDING =
-  'Your focus appears once a few pitches have been analysed — it is the one habit worth drilling next.';
+  'Your focus appears once a few pitches have been analyzed — it is the one habit worth drilling next.';
 
 /**
  * The line under the page dots, matching the founder's mockup.

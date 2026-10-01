@@ -19,7 +19,7 @@ import {
 
 test('audio with no segments yet is still being analysed', () => {
   assert.equal(analysisState(true, 0), 'analysing');
-  assert.equal(analysisChip('analysing'), 'Being analysed');
+  assert.equal(analysisChip('analysing'), 'Being analyzed');
 });
 
 test('audio with segments has come back', () => {
@@ -54,7 +54,7 @@ test('a finished call wears no badge — the transcript is the badge', () => {
 });
 
 test('the screen reader hears a sentence, not a fragment', () => {
-  assert.equal(analysisSpoken('analysing'), 'still being analysed');
+  assert.equal(analysisSpoken('analysing'), 'still being analyzed');
 });
 
 // ---------------------------------------------------------------------------
