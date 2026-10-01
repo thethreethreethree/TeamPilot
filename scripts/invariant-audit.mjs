@@ -2141,6 +2141,35 @@ for (const [path, [allowed]] of RAW_KNOCK_READS) {
   }
 }
 
+// ═══ INVARIANT 31 — a session's length comes from conversationDurationSeconds, never a fresh subtraction ═══
+//
+// LEARNED: 2026-10-01. conversationDurationSeconds (src/lib/coach/conversationDuration.ts) is the ONE rule for
+// "how long was this call": the measured audio length first, else the wall clock, and a wall-clock span over
+// 4 hours is UNKNOWN, because auto-close-stale-cron ends an abandoned session 6+ hours after it started (the
+// 0070 trigger stamps ended_at = now()). It was extracted after the "62m for a 4m clip" bug spanned three
+// surfaces. The pitch scorer then grew a fourth copy WITHOUT the cap, and 10 abandoned sessions in production
+// were one "Score them all" away from being stored as 6-hour pitches. Static, because a copy agrees with the
+// rule on every case its author thought to test.
+const DURATION_RULE_FILE = "src/lib/coach/conversationDuration.ts";
+const WALLCLOCK_SUBTRACTION_RE =
+  /Date\.parse\([^)]*ended[^)]*\)\s*-\s*Date\.parse\([^)]*started|\bended_?[aA]t\b[^;\n]{0,40}\.getTime\(\)\s*-\s*[^;\n]{0,40}\bstarted_?[aA]t\b/i;
+for (const f of FILES) {
+  if (!/^src\//.test(f.path) || f.path.includes("__tests__") || f.path.includes("/test/")) continue;
+  if (f.path === DURATION_RULE_FILE) continue;
+  const lines = f.sql.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!WALLCLOCK_SUBTRACTION_RE.test(lines[i])) continue;
+    findings.push({
+      rule: "a session length computed by subtracting started from ended, outside conversationDurationSeconds",
+      file: `${f.path}:${i + 1}`,
+      why:
+        "an auto-closed session ends 6+ hours after it started, so a raw ended-minus-started is hours of idle\n" +
+        "      time. Use conversationDurationSeconds(audioDurationSeconds, startedAt, endedAt), which prefers the\n" +
+        "      audio length and treats a span over 4 h as unknown.",
+    });
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -2166,7 +2195,8 @@ if (findings.length === 0) {
       " every coach transcript engine fences the transcript with CONVERSATION_IS_DATA (no LLM prompt injection) ·" +
       " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page) ·" +
       " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read) ·" +
-      " knocks are counted from door_knocks_live (an undone door never counts)."
+      " knocks are counted from door_knocks_live (an undone door never counts) ·" +
+      " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session)."
   );
   process.exit(0);
 }

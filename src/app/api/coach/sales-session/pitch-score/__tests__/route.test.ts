@@ -115,6 +115,19 @@ describe("what gets written", () => {
     expect(storedArgs().durationS).toBe(450);
   });
 
+  it("stores no duration for an auto-closed session, never its hours of idle wall-clock", async () => {
+    // 2026-10-01, from production: auto-close-stale-cron ends an abandoned session 6+ hours after it started
+    // (the 0070 trigger stamps ended_at = now()). 10 unscored sessions would have been stored as 6-hour pitches.
+    // The shared rule (conversationDurationSeconds) caps a wall-clock span at 4 h and calls it unknown.
+    asMock(getSession).mockResolvedValue({
+      ...SESSION,
+      audioDurationSeconds: null,
+      endedAt: "2026-09-04T23:20:00.000Z",
+    });
+    await POST(postReq());
+    expect(storedArgs().durationS).toBeNull();
+  });
+
   it("stores no duration at all for a session that never ended", async () => {
     asMock(getSession).mockResolvedValue({
       ...SESSION,

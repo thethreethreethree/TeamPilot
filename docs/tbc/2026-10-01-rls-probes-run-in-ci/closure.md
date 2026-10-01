@@ -20,7 +20,7 @@ made it a gate, and the migration audit already had the database it needed.
     "why_skipped": "CI runs on the next push to main; this commit is that push.",
     "confidence_it_does_not_matter": "high",
     "opened_at": "2026-10-01T05:00:00Z",
-    "outcome": "OPEN until the CI run for this commit is read."
+    "outcome": "CLOSED. CI run 36817572053 for 5ce6df9a: completed success, step Migration apply audit success (05:00:26-05:00:54Z), read from the public GitHub API."
   }
 ]
 ```

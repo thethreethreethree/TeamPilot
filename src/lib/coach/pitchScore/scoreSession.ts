@@ -6,6 +6,7 @@ import type { PitchScore } from "./scorePitch";
 import { storePitchScore } from "./storePitchScore";
 import { runDetection } from "@/lib/coach/patterns/runDetection";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -279,16 +280,20 @@ function refuse(reason: ScoreRefusal, override?: string): ScoreOutcome {
   return { ok: false, reason, humanMessage: override ?? REFUSAL_MESSAGE[reason] };
 }
 
-/** Prefer the measured audio length; fall back to the wall clock only when the session ended. */
+/**
+ * How long the pitch was, through the ONE rule every other surface uses (conversationDurationSeconds: the
+ * Sessions list, After-Pitch and the KPI average). Until 2026-10-01 this was a second copy of that rule
+ * without its 4-hour cap (§2.2 drift). auto-close-stale-cron ends an abandoned session 6+ hours after it
+ * started, so the copy would have stored those as 6-hour pitches (10 waiting in production) and the
+ * Recordings tab would have shown them that way. Rounded because the column holds whole seconds.
+ */
 function sessionDurationS(session: {
   audioDurationSeconds: number | null;
   startedAt: string;
   endedAt: string | null;
 }): number | null {
-  if (session.audioDurationSeconds != null) return session.audioDurationSeconds;
-  if (!session.endedAt) return null;
-  const ms = Date.parse(session.endedAt) - Date.parse(session.startedAt);
-  return Number.isFinite(ms) && ms > 0 ? Math.round(ms / 1000) : null;
+  const s = conversationDurationSeconds(session.audioDurationSeconds, session.startedAt, session.endedAt);
+  return s == null ? null : Math.round(s);
 }
 
 /**
