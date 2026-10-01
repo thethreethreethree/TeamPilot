@@ -151,7 +151,7 @@ Rubric version: ${RUBRIC_VERSION}.${
     salesCorpus
       ? `
 
-THE COMPANY'S PITCH, for recognising the phases. It is CONTEXT, not a script to grade fidelity
+THE COMPANY'S PITCH, for recognizing the phases. It is CONTEXT, not a script to grade fidelity
 against — a rep who reaches the same point in their own words has hit it:
 ${salesCorpus}`
       : ""

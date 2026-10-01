@@ -9,7 +9,12 @@ import { join } from "node:path";
  * after-pitch screen, "Reps practising" on Training, and "cost centre" four times in Finance (whose own field
  * is `cost_center`). Every .tsx a person sees is read with its comments blanked; tests and captures are
  * skipped. "Analyses" is not on the list: it is the American plural of "analysis".
+ *
+ * .ts files too, since 2026-10-01: AI prompts lean the model's wording, and five said "practise",
+ * "summarised", "recognising" or "behaviour". heuristics.ts is exempt: its patterns match what PEOPLE type,
+ * so they deliberately accept both spellings.
  */
+const EXEMPT = new Set(["src/lib/coach/heuristics.ts"]);
 const BRITISH =
   /\b(analys(e|ed|ing)|recognis(e|ed|es|ing)|practis(e|ed|es|ing)|organis(e|ed|ing)|summaris(e|ed|ing)|apologis(e|ed|ing)|favourite|centre|colour|behaviour)\b/i;
 
@@ -19,7 +24,7 @@ function files(dir: string): string[] {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) {
       if (name !== "__tests__" && name !== "captures") out.push(...files(p));
-    } else if (name.endsWith(".tsx")) out.push(p);
+    } else if (/\.tsx?$/.test(name)) out.push(p);
   }
   return out;
 }
@@ -36,6 +41,7 @@ describe("American spelling in what a person reads", () => {
   it("has no British forms in any screen", () => {
     const found: string[] = [];
     for (const f of files(join(process.cwd(), "src"))) {
+      if (EXEMPT.has(f.slice(process.cwd().length + 1).replace(/\\/g, "/"))) continue;
       withoutComments(readFileSync(f, "utf8"))
         .split("\n")
         .forEach((line, i) => {

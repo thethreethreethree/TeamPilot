@@ -35,7 +35,7 @@ Return STRICT JSON:
 }
 
 Tone law: kind, growth-oriented, specific. Do NOT fabricate moments not in the transcript. This is one pitch
-of many — keep it focused; the macro patterns are summarised separately.` + CONVERSATION_IS_DATA;
+of many — keep it focused; the macro patterns are summarized separately.` + CONVERSATION_IS_DATA;
 }
 
 /**

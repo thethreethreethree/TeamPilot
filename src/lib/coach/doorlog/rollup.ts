@@ -34,9 +34,9 @@ export type PitchSignal = {
 function buildRollupSystemPrompt(): string {
   return `You are a sales coach reviewing a door-to-door rep's pitches over a period of time.
 
-Your job is to find the RECURRING PATTERNS across ALL of these pitches — NOT to summarise any single
+Your job is to find the RECURRING PATTERNS across ALL of these pitches — NOT to summarize any single
 pitch. Look for what shows up again and again: habits, phrasings, moves that repeatedly precede a SALE,
-and habits that repeatedly precede a NO. Correlate behaviour with the OUTCOME distribution you're given —
+and habits that repeatedly precede a NO. Correlate behavior with the OUTCOME distribution you're given —
 a pattern only matters if it tracks with closing more or less often.
 
 Return STRICT JSON with this exact shape:

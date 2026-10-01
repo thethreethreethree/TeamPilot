@@ -32,7 +32,7 @@ Return ONLY JSON in this exact shape:
 }
 
 export function buildScenarioUserMessage(focus: string): string {
-  return `The rep needs to practise this skill: "${focus}". Write one realistic prospect scenario that will naturally test it. Return the JSON only.`;
+  return `The rep needs to practice this skill: "${focus}". Write one realistic prospect scenario that will naturally test it. Return the JSON only.`;
 }
 
 /**

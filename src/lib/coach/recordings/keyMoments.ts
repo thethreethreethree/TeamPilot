@@ -241,14 +241,14 @@ export function linesAround(
   radius = 2
 ): { lines: TimedLine[]; focusIndex: number } | null {
   if (lines.length === 0) return null;
-  let centre = -1;
+  let center = -1;
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i]!.atSeconds;
-    if (t !== null && t <= atSeconds) centre = i;
+    if (t !== null && t <= atSeconds) center = i;
   }
-  if (centre < 0) centre = 0;
-  const from = Math.max(0, centre - radius);
-  return { lines: lines.slice(from, centre + radius + 1), focusIndex: centre - from };
+  if (center < 0) center = 0;
+  const from = Math.max(0, center - radius);
+  return { lines: lines.slice(from, center + radius + 1), focusIndex: center - from };
 }
 
 /**
@@ -277,10 +277,10 @@ export function transcriptWindow(
     return { lines: lines.slice(0, radius * 2 + 1), focusIndex: 0, approximate: true };
   }
   const ratio = Math.max(0, Math.min(1, atSeconds / durationS));
-  const centre = Math.min(lines.length - 1, Math.round(ratio * (lines.length - 1)));
-  const from = Math.max(0, centre - radius);
+  const center = Math.min(lines.length - 1, Math.round(ratio * (lines.length - 1)));
+  const from = Math.max(0, center - radius);
   // No upper clamp: `slice` already stops at the end. A Math.min here reads as a load-bearing
   // bound and is not one — proved by mutation, which could not tell the two apart.
-  const to = centre + radius + 1;
-  return { lines: lines.slice(from, to), focusIndex: centre - from, approximate: true };
+  const to = center + radius + 1;
+  return { lines: lines.slice(from, to), focusIndex: center - from, approximate: true };
 }

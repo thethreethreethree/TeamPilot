@@ -21,7 +21,7 @@ export function buildMaterialSystemPrompt(corpus?: string): string {
   const grounding = corpus
     ? `\n\nTeach from THIS company's own sales methodology (do not contradict it, do not just recite it):\n${corpus.slice(0, 3500)}`
     : "";
-  return `You are a sales coach writing a short, practical guide to ONE skill for a door-to-door rep to read before they practise it. Be concrete and specific to real doorstep conversations. No fluff, no filler, no praise padding. Write plainly and do not use em dashes or en dashes.${grounding}
+  return `You are a sales coach writing a short, practical guide to ONE skill for a door-to-door rep to read before they practice it. Be concrete and specific to real doorstep conversations. No fluff, no filler, no praise padding. Write plainly and do not use em dashes or en dashes.${grounding}
 
 Return ONLY JSON in this exact shape:
 {
