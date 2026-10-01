@@ -58,3 +58,16 @@ which is why the rule is now a static gate rather than one more test.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched. Two captures generated and opened.
+
+## Appended 2026-10-01 — R2 (other app stores) swept
+
+All 16 AsyncStorage/SecureStore modules in the app were checked for a read-then-write with nothing
+serialising it. Two held data that cannot be recovered, and both reproduced a loss under concurrent writes
+(app commit 4858e813, tests/recording-store-concurrency.test.ts and tests/outbox-concurrency.test.ts):
+
+- recording-store: an upload finishing while the next pitch was saved erased one of the two entries.
+- outbox: a correction queued between the sweep's re-read and its write was erased.
+
+Both now serialise their storage steps. The other read-then-write stores hold a chat draft, read marks, a
+crash note, preferences and an in-flight marker, where a lost update costs a re-type or a repeat notice, not
+a call; they are left as they are. R2: CLOSED for the stores that hold irreplaceable data.
