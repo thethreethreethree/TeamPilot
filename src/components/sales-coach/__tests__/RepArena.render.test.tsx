@@ -47,7 +47,7 @@ describe("RepArena — states", () => {
   it("shows the empty state for a rep with no scored sessions", async () => {
     stubFetch({ rows: [], total: 0, avg: 0, sessions: 0 }, { rows: [], meId: "me", meRank: null });
     render(<RepArena />);
-    await waitFor(() => expect(screen.getByText(/No pitches scored yet/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/No coached pitches yet/i)).toBeTruthy());
   });
 
   /**

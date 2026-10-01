@@ -24,7 +24,7 @@ export type MilestoneKey = (typeof MILESTONE_KEYS)[number];
  * because these dates are derived from the immutable ledger precisely so they cannot.
  */
 export const MILESTONE_TITLES: Record<MilestoneKey, string> = {
-  spark: "First session scored",
+  spark: "First session coached",
   flame: "A strong session (80+)",
   deal: "First deal closed",
   century: "100 sessions",

@@ -216,7 +216,7 @@ export function RepArena() {
   if (!mp || mp.sessions === 0) {
     return (
       <div className="ra-wrap ra-empty">
-        <p className="ra-empty__h">No pitches scored yet</p>
+        <p className="ra-empty__h">No coached pitches yet</p>
         <p className="ra-empty__p">Run a coaching session and your points, records, and milestones show up here.</p>
         <ArenaStyles />
       </div>

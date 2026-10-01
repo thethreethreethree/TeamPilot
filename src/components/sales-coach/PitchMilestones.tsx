@@ -19,8 +19,8 @@ import {
  *
  * NOT THE ARENA'S MILESTONES. Those count sessions on the points ledger; these count counted
  * pitches. A rep sees both, under labels that say which is which — `gamification/milestones.ts`
- * was relabelled the same day so its first badge reads "First session scored" rather than
- * "First pitch scored".
+ * was relabelled the same day so its first badge stopped reading "First pitch scored" (it reads
+ * "First session coached" since 2026-10-01, when "scored" became the rubric's word alone).
  *
  * EMPTY AND FAILED ARE DIFFERENT, as everywhere else in this feature. Six grey badges is a
  * statement about the rep — you have earned nothing — and a failed read must not make it.

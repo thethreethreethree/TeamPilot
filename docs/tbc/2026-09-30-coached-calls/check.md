@@ -72,3 +72,28 @@ $ npm run check      (after the points surfaces changed)
       Tests  5581 passed | 15 skipped (5596)
 CHECK_EXIT=0
 ```
+
+## Appended 2026-10-01 — the badges and the Arena, found by the website-vs-app parity run
+
+The parity run (docs/mobile-parity/README.md) compared the points badges on both sides and found both still
+saying "First session scored". Under the founder's decision ("scored" is the rubric's word; points surfaces
+say "coached") the website now reads "First session coached" (gamification/milestones.ts) and the Arena's
+empty state "No coached pitches yet" (RepArena.tsx). The rubric breakdown's "No pitches scored in this period
+yet" (PitchBreakdown.tsx) is the rubric and keeps "scored". The guard covers both new files and now also the
+reversed form ("pitches scored"); mutation: RepArena put back to "No pitches scored yet", 1 failed. The app
+side shipped in app commit 5a67221d.
+
+```
+$ npm run check   (against postgres:16-alpine)   first attempt
+ Test Files  725 failed (725)  — every file "Vitest failed to find the runner"; no test ran
+CHECK_EXIT=1
+$ npx vitest run                                  diagnosis: the same suite alone
+ Test Files  724 passed | 1 skipped (725)
+$ npm run check   (against postgres:16-alpine)   second attempt
+      Tests  5599 passed | 15 skipped (5614)
+  RLS probes:              1 run, 0 failed
+CHECK_EXIT=0
+```
+
+The first attempt's failure was the test runner failing to start in every worker, not an assertion; it did
+not reproduce. Recorded rather than dropped.

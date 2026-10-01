@@ -20,6 +20,9 @@ const surfaces = [
   // Added 2026-09-30 (founder, second picker): the points surfaces count coach-graded sessions too.
   "src/lib/coach/gamification/weeklyDigest.ts",
   "src/components/sales-coach/Scoreboard.tsx",
+  // Added 2026-10-01 (the parity run found them): the points ledger's badges and the Arena's empty state.
+  "src/lib/coach/gamification/milestones.ts",
+  "src/components/sales-coach/RepArena.tsx",
 ];
 
 /** Rendered text only: comments may still discuss the old wording. */
@@ -29,7 +32,7 @@ describe("coach-graded counts say 'coached', never 'scored'", () => {
   for (const file of surfaces) {
     it(file, () => {
       const src = rendered(readFileSync(join(process.cwd(), file), "utf8"));
-      expect(src).not.toMatch(/scored (call|pitch|session)/i);
+      expect(src).not.toMatch(/scored (call|pitch|session)|(call|pitch|session)e?s scored/i);
     });
   }
 
