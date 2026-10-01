@@ -34,3 +34,9 @@ After ad92fc88 deployed (CI success, Vercel Ready), production: `GET` and `POST`
 `python docs/mobile-smoke/all-get-routes.smoke.py`: 196 GET routes; 401: 182 (was 179), 403: 3, 400: 8 (parameter
 checks before the login, unchanged), 200: 3 — /api/health, /api/me/identity, /api/me/landing, each public by
 design. coach-memory, tasks and team now answer 401 to a caller with no login.
+
+## Appended 2026-10-01 — the post-deploy smoke, first run
+
+For 0df322f2: the workflow fired on each deployment event; five were skipped by its condition (pending states,
+the second Vercel project, GitHub Pages) and the "Production – team-pilot" success ran the smoke: step
+"Unauthenticated GET smoke of every API route" 15:39:23–15:39:30Z, success.
