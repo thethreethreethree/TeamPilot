@@ -180,8 +180,8 @@ export function TodaysMetrics() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary mb-3">Score Chart</h2>
             {scoreDims.length === 0 ? (
               <p className="text-sm text-muted">
-                No scored pitches yet this {PERIODS.find((p) => p.key === period)?.label.toLowerCase()} — the chart
-                fills in as your recorded pitches get analyzed.
+                No pitches analyzed yet this {PERIODS.find((p) => p.key === period)?.label.toLowerCase()} — the chart
+                fills in as each recorded pitch is analyzed.
               </p>
             ) : (
               <div className="glass-card p-4 space-y-3">

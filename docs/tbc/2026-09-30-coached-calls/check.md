@@ -97,3 +97,21 @@ CHECK_EXIT=0
 
 The first attempt's failure was the test runner failing to start in every worker, not an assertion; it did
 not reproduce. Recorded rather than dropped.
+
+## Appended 2026-10-01 — the door-pitch analysis chart
+
+"Scored" means the rubric only (founder, 2026-09-30). Today's Metrics' Score Chart shows the door-pitch
+ANALYSIS scores (pitch_analyses), a third measure, and said "No scored pitches yet". Now "No pitches analyzed
+yet", on the website (TodaysMetrics.tsx, added to scoredMeansRubric.test.ts) and the app (door-metrics-page.tsx,
+app 374e8782, guarded in coached-means-points.test.ts).
+
+```
+$ npm run check   (against postgres:16-alpine)   first attempt
+ Test Files  726 failed (726) — every file "Vitest failed to find the runner / the current suite"; no test ran
+CHECK_EXIT=1
+$ npm run test                                    diagnosis: the test step alone
+ Test Files  725 passed | 1 skipped (726)    Tests  5606 passed
+$ npm run check   (against postgres:16-alpine)   second attempt
+      Tests  5606 passed | 15 skipped (5621)
+CHECK_EXIT=0
+```

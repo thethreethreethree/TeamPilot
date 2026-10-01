@@ -23,6 +23,8 @@ const surfaces = [
   // Added 2026-10-01 (the parity run found them): the points ledger's badges and the Arena's empty state.
   "src/lib/coach/gamification/milestones.ts",
   "src/components/sales-coach/RepArena.tsx",
+  // The door-pitch ANALYSIS chart (pitch_analyses), a third measure: neither points nor the rubric. 2026-10-01.
+  "src/components/sales-coach/doorlog/TodaysMetrics.tsx",
 ];
 
 /** Rendered text only: comments may still discuss the old wording. */
