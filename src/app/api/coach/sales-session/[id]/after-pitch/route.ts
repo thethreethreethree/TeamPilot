@@ -106,6 +106,16 @@ export async function POST(
   const supabase = callerScopedDb(req) ?? (await createClient());
 
   /*
+   * NOT SIGNED IN IS ITS OWN ANSWER (2026-10-01). Without this, a caller with no session reached getSession,
+   * RLS returned nothing, and the route answered 200 with an empty summary: "nothing here" when the truth was
+   * "you are not signed in". The app reads this route, and its expired-login case looked like a call with no
+   * review. Found by an unauthenticated smoke of every route the app calls; the app already treats a 401 here
+   * as an auth problem and says so.
+   */
+  const { data: authed } = await supabase.auth.getUser();
+  if (!authed?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+  /*
    * THE CALLER'S OWN CLIENT HAS TO REACH THE READ. Resolving a Bearer-scoped client for
    * AUTH and then calling `getSession(id)` with no client reads through the default cookie
    * client — and a phone sends no cookie, so the read runs ANONYMOUSLY and RLS returns
@@ -168,6 +178,16 @@ export async function GET(
   // cookie session does — including the manager path, which still reads through
   // the service role and still strips the private scores.
   const supabase = callerScopedDb(req) ?? (await createClient());
+
+  /*
+   * NOT SIGNED IN IS ITS OWN ANSWER (2026-10-01). Without this, a caller with no session reached getSession,
+   * RLS returned nothing, and the route answered 200 with an empty summary: "nothing here" when the truth was
+   * "you are not signed in". The app reads this route, and its expired-login case looked like a call with no
+   * review. Found by an unauthenticated smoke of every route the app calls; the app already treats a 401 here
+   * as an auth problem and says so.
+   */
+  const { data: authed } = await supabase.auth.getUser();
+  if (!authed?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   const session = await getSession(id, supabase);
   if (!session) {

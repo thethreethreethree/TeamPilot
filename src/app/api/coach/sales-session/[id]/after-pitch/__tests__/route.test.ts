@@ -70,10 +70,20 @@ describe("GET after-pitch — A18 privacy", () => {
     expect(body).toEqual({ summary: null, isOwner: false });
   });
 
-  it("unauthenticated → null", async () => {
+  // Was "unauthenticated → null": a 200 with an empty summary, which the app read as "this call has no
+  // review" when the truth was "you are not signed in" (unauthenticated smoke of the app's routes, 2026-10-01).
+  it("unauthenticated → 401, never an empty 200", async () => {
     setCaller(null, null);
-    const body = await (await GET(req, ctx)).json();
-    expect(body).toEqual({ summary: null, isOwner: false });
+    const res = await GET(req, ctx);
+    expect(res.status).toBe(401);
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("POST unauthenticated → 401, and nothing is generated", async () => {
+    setCaller(null, null);
+    const res = await POST({ method: "POST" } as unknown as Parameters<typeof POST>[0], ctx);
+    expect(res.status).toBe(401);
+    expect(generateAndStoreAfterPitch).not.toHaveBeenCalled();
   });
 });
 
