@@ -5,6 +5,7 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
+import { MIN_AGENT_SEGMENTS } from "@/lib/coach/pitchScore/generatePitchScore";
 import {
   scoreSession,
   PERMANENT_REFUSALS,
@@ -134,6 +135,43 @@ async function unscoredSessionIds(
   return sessions.map((s) => s.id).filter((id) => !done.has(id));
 }
 
+/**
+ * Which of these sessions the scorer could grade: those with at least MIN_AGENT_SEGMENTS rep lines.
+ *
+ * THE SCORER'S OWN RULE, AS A QUERY (2026-10-01). generatePitchScore refuses `no_agent_turns` when a transcript
+ * has fewer than MIN_AGENT_SEGMENTS lines with speaker 'agent'. The count used to include those recordings, so
+ * a company whose backlog was only rep-silent recordings saw "92 recordings have never been scored" and a
+ * button that could never score one (production, 2026-10-01: 92 of 92). This counts each session's 'agent'
+ * rows and compares with the same constant, read through the same client the scorer reads with, so the two
+ * answers cannot differ. Chunked: `.in()` lists go into a URL.
+ */
+async function sessionsWithRepSpeech(
+  db: Awaited<ReturnType<typeof createClient>>,
+  ids: readonly string[]
+): Promise<Set<string>> {
+  const lines = new Map<string, number>();
+  // Only sessions asked about: the query already filters by id, and this keeps `unscorable` from ever going
+  // negative if a row for another session arrived anyway.
+  const wanted = new Set(ids);
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const rows = await fetchAllPaged<{ session_id: string }>(
+      (from, to) =>
+        db
+          .from("coaching_transcript_segments")
+          .select("session_id")
+          .eq("speaker", "agent")
+          .in("session_id", chunk)
+          .range(from, to),
+      { label: "pitch-score backfill: rep lines" }
+    );
+    for (const r of rows) {
+      if (wanted.has(r.session_id)) lines.set(r.session_id, (lines.get(r.session_id) ?? 0) + 1);
+    }
+  }
+  return new Set([...lines].filter(([, n]) => n >= MIN_AGENT_SEGMENTS).map(([id]) => id));
+}
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "pitch-score-backfill-count", windowMs: 60_000, max: 30 });
   if (limited) return limited;
@@ -143,7 +181,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const ids = await unscoredSessionIds(r.db, r.companyId);
-    return NextResponse.json({ unscored: ids.length });
+    // `unscored` is what a press can score; `unscorable` is what it never can (no rep speech), said separately
+    // so the panel neither offers a button that does nothing nor hides that those recordings exist.
+    const scorable = await sessionsWithRepSpeech(r.db, ids);
+    return NextResponse.json({ unscored: scorable.size, unscorable: ids.length - scorable.size });
   } catch (err) {
     // The read failed. Reporting 0 here would say "nothing to do" about a backlog nobody counted —
     // the confident-zero this whole feature exists to stop.

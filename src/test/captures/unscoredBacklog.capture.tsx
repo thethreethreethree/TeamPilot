@@ -37,4 +37,21 @@ describe("capture", () => {
       height: 160,
     });
   });
+
+  // 2026-10-01: the count now names recordings with no rep speech separately, without a button for them.
+  it("unscored backlog, 95 waiting and 101 without rep speech", async () => {
+    stubBrowserApis();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ unscored: 95, unscorable: 101 }) }))
+    );
+
+    const { container } = render(<UnscoredBacklog />);
+    await screen.findByText(/no rep speech/i);
+
+    capture("unscored-backlog-unscorable", container.firstElementChild as HTMLElement, {
+      width: 1000,
+      height: 180,
+    });
+  });
 });

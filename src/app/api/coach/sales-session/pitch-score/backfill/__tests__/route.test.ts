@@ -53,12 +53,17 @@ const DB = {
 const req = (offset = 0) =>
   new Request(`http://t/api?offset=${offset}`, { method: "POST" }) as never;
 
-/** `fetchAllPaged` is called twice per resolve: scored ids first, then candidate sessions. */
-const serve = (scoredIds: string[], sessionIds: string[]) => {
+/**
+ * `fetchAllPaged` is called twice per resolve (scored ids, then candidate sessions) and, for the GET count, a
+ * third time: the rep's transcript lines per candidate (`repLines`, default one line for every session, so a
+ * test that is not about rep speech is not changed by it).
+ */
+const serve = (scoredIds: string[], sessionIds: string[], repLines?: string[]) => {
   asMock(fetchAllPaged).mockReset();
   asMock(fetchAllPaged)
     .mockImplementationOnce(async () => scoredIds.map((id) => ({ session_id: id })))
-    .mockImplementationOnce(async () => sessionIds.map((id) => ({ id })));
+    .mockImplementationOnce(async () => sessionIds.map((id) => ({ id })))
+    .mockImplementationOnce(async () => (repLines ?? sessionIds).map((id) => ({ session_id: id })));
 };
 
 const scored = () => ({ ok: true as const, pitchId: "p", alreadyScored: false });
@@ -73,7 +78,28 @@ describe("the count a manager sees before anything is spent", () => {
   it("counts only the recordings that have no score", async () => {
     serve(["s1"], ["s1", "s2", "s3"]);
     const res = await GET(req());
-    expect(await res.json()).toEqual({ unscored: 2 });
+    expect(await res.json()).toEqual({ unscored: 2, unscorable: 0 });
+  });
+
+  /**
+   * 2026-10-01, from production: all 92 recordings left in one company's backlog had no rep speech, which the
+   * scorer refuses every time (MIN_AGENT_SEGMENTS). Counting them offered a button that could score none.
+   */
+  it("counts recordings with no rep speech as unscorable, not as backlog", async () => {
+    serve([], ["s1", "s2", "s3", "s4"], ["s2", "s2", "s4"]);
+    const res = await GET(req());
+    expect(await res.json()).toEqual({ unscored: 2, unscorable: 2 });
+  });
+
+  it("applies the scorer's own threshold, not a copy of it", async () => {
+    // The route compares each session's rep-line count with the exported MIN_AGENT_SEGMENTS. A session with
+    // exactly that many lines is scorable; one below it is not.
+    const { MIN_AGENT_SEGMENTS } = await import("@/lib/coach/pitchScore/generatePitchScore");
+    const enough = Array.from({ length: MIN_AGENT_SEGMENTS }, () => "s1");
+    const fewer = Array.from({ length: MIN_AGENT_SEGMENTS - 1 }, () => "s2");
+    serve([], ["s1", "s2"], [...enough, ...fewer]);
+    const body = await (await GET(req())).json();
+    expect(body).toEqual({ unscored: 1, unscorable: 1 });
   });
 
   it("does not score anything while counting", async () => {

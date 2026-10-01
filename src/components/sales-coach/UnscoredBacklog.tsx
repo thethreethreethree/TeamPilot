@@ -61,6 +61,8 @@ export const REFUSAL_LABEL: Record<ScoreRefusal, string> = {
 
 export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
   const [unscored, setUnscored] = useState<number | null>(null);
+  /** Recordings the scorer will always refuse (no rep speech) — told, never offered a button. */
+  const [unscorable, setUnscorable] = useState(0);
   const [running, setRunning] = useState(false);
   const [scoredSoFar, setScoredSoFar] = useState(0);
   const [note, setNote] = useState<string | null>(null);
@@ -80,8 +82,9 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
         setFailed(true);
         return;
       }
-      const body = (await res.json()) as { unscored: number };
+      const body = (await res.json()) as { unscored: number; unscorable?: number };
       setUnscored(body.unscored);
+      setUnscorable(body.unscorable ?? 0);
     } catch {
       setFailed(true);
     }
@@ -201,6 +204,10 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
       setRunning(false);
       setProgress(null);
       onDone?.();
+      // Recount when the run ends. During it the headline follows the drain's `remaining`, which includes
+      // recordings with no rep speech; the count route splits those out, so the headline never ends on
+      // "92 have never been scored" with a button that cannot score one of them.
+      void count();
     }
   };
 
@@ -226,13 +233,22 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
           <p className="text-sm font-semibold text-primary">
             {unscored > 0
               ? `${unscored} recording${unscored === 1 ? "" : "s"} ${unscored === 1 ? "has" : "have"} never been scored`
-              : "Every recording has been scored"}
+              : unscorable > 0
+                ? "Everything that can be scored has been"
+                : "Every recording has been scored"}
           </p>
           <p className="mt-0.5 text-xs text-muted">
             {unscored > 0
               ? "Until a pitch is scored it appears on no dashboard — not the rep's, not the team's, not Recordings. Scoring is one AI grading call per recording."
               : `${scoredSoFar} scored just now. The dashboards below will fill as you look.`}
           </p>
+          {unscorable > 0 && (
+            <p className="mt-0.5 text-xs text-muted">
+              {`${unscorable} more ${unscorable === 1 ? "has" : "have"} no rep speech, so ${
+                unscorable === 1 ? "it" : "they"
+              } can't be scored.`}
+            </p>
+          )}
         </div>
 
         {unscored > 0 && (

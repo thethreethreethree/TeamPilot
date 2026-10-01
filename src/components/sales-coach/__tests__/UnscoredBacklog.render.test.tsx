@@ -26,13 +26,18 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const count = (unscored: number) => ({ ok: true, json: async () => ({ unscored }) });
+const count = (unscored: number, unscorable = 0) => ({ ok: true, json: async () => ({ unscored, unscorable }) });
 
-/** GET first, then one response per POST. */
+/**
+ * GET first, then one response per POST. The count FOLLOWS the run, as the real route does: after a pass
+ * the next GET answers with that pass's `remaining` (the panel recounts when a run ends, 2026-10-01).
+ */
 const serve = (unscored: number, ...posts: Array<Record<string, unknown>>) => {
+  let now = unscored;
   fetchMock.mockImplementation(async (_url: unknown, init?: { method?: string }) => {
-    if (init?.method !== "POST") return count(unscored);
+    if (init?.method !== "POST") return count(now);
     const next = posts.shift() ?? { scored: 0, remaining: 0, refused: {}, more: false, note: null };
+    if (typeof next.remaining === "number") now = next.remaining;
     return { ok: true, json: async () => next };
   });
 };
@@ -115,7 +120,8 @@ describe("the drain", () => {
   it("does not lose what it already scored when a pass fails", async () => {
     let call = 0;
     fetchMock.mockImplementation(async (_u: unknown, init?: { method?: string }) => {
-      if (init?.method !== "POST") return count(20);
+      // The count follows what was scored, as the real route does: 20 before, 12 after the first pass.
+      if (init?.method !== "POST") return count(call >= 1 ? 12 : 20);
       call += 1;
       if (call === 1) {
         return { ok: true, json: async () => ({ scored: 8, remaining: 12, refused: {}, more: true, note: null }) };
@@ -217,5 +223,40 @@ describe("every refusal reads as a sentence with the count first", () => {
     await waitFor(() =>
       expect(screen.getByText(/2 were graded but could not be saved \(a fault on our side\)/i)).toBeTruthy()
     );
+  });
+});
+
+/**
+ * 2026-10-01, from production: one company's whole remaining backlog (92 recordings) had no rep speech, so
+ * the panel offered "Score them all" for recordings the scorer refuses every time. The count route now
+ * splits them out (`unscorable`), and the panel tells them without offering the button.
+ */
+describe("recordings with no rep speech", () => {
+  it("are told, but never offered a button that cannot score them", async () => {
+    fetchMock.mockImplementation(async () => count(0, 92));
+    const { container } = render(<UnscoredBacklog />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    // Nothing a press could score: no panel at all, as with an empty backlog.
+    expect(container.textContent).toBe("");
+  });
+
+  it("are named beside a real backlog", async () => {
+    fetchMock.mockImplementation(async () => count(95, 101));
+    render(<UnscoredBacklog />);
+    expect(await screen.findByText(/95 recordings have never been scored/i)).toBeTruthy();
+    expect(screen.getByText(/101 more have no rep speech, so they can't be scored/i)).toBeTruthy();
+  });
+
+  it("after a run that leaves only those, says everything scorable is done", async () => {
+    let ran = false;
+    fetchMock.mockImplementation(async (_u: unknown, init?: { method?: string }) => {
+      if (init?.method !== "POST") return ran ? count(0, 3) : count(2, 3);
+      ran = true;
+      return { ok: true, json: async () => ({ scored: 2, remaining: 3, refused: { no_agent_turns: 3 }, more: false, note: null }) };
+    });
+    render(<UnscoredBacklog />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    expect(await screen.findByText(/Everything that can be scored has been/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /score them all/i })).toBeNull();
   });
 });

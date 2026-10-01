@@ -39,7 +39,12 @@ export type PitchScoreResult =
     }
   | { ok: false; failure: PitchScoreFailure };
 
-const MIN_AGENT_SEGMENTS = 1;
+/**
+ * The fewest rep transcript lines a recording needs to be graded. Exported (2026-10-01) because the backlog
+ * count in pitch-score/backfill applies the same rule as a query, to stop offering "Score them all" for
+ * recordings this function will always refuse; it compares against THIS constant, so the two cannot drift.
+ */
+export const MIN_AGENT_SEGMENTS = 1;
 
 /** mm:ss for the prompt — a model handles "4:12" far more reliably than 252. */
 function mmss(totalSeconds: number): string {
