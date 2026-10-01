@@ -17,7 +17,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildMetricsView, SCORE_MAX, type Metrics } from '@/lib/doors/metrics-view';
+import { buildMetricsView, SCORE_LABEL, SCORE_MAX, SCORE_ORDER, type Metrics } from '@/lib/doors/metrics-view';
 
 function metrics(over: Partial<Metrics> = {}): Metrics {
   return {
@@ -134,4 +134,18 @@ test("an all-time figure is grouped, not run together as digits", () => {
 test('a small figure is not decorated', () => {
   const v = buildMetricsView(metrics({ kpi: { doorsKnocked: 12, conversations: 4, sold: 1 } }));
   assert.equal(v.kpi.find((k) => k.label.toLowerCase().includes('doors'))?.value, '12');
+});
+
+test('the five score labels and their order match the website (scoreLabels.ts)', () => {
+  // A parity run on 2026-10-01 compared this copy with the website's: everything matched except
+  // 'Talk / listen', which is now 'Talk / Listen' as the website has it. Pinned word for word so the
+  // next difference fails here rather than reaching a rep as a different label on each product.
+  assert.deepEqual([...SCORE_ORDER], ['objection', 'talk_listen', 'questions', 'tone', 'close']);
+  assert.deepEqual(SCORE_LABEL, {
+    objection: 'Objection',
+    talk_listen: 'Talk / Listen',
+    questions: 'Questions',
+    tone: 'Tone',
+    close: 'Close',
+  });
 });

@@ -24,7 +24,9 @@ export const SCORE_ORDER = ['objection', 'talk_listen', 'questions', 'tone', 'cl
 
 export const SCORE_LABEL: Record<string, string> = {
   objection: 'Objection',
-  talk_listen: 'Talk / listen',
+  // 'Talk / Listen', as the website's scoreLabels.ts has it: a parity run on 2026-10-01 found the app's
+  // copy lower-cased, with no recorded reason, the only difference among the five.
+  talk_listen: 'Talk / Listen',
   questions: 'Questions',
   tone: 'Tone',
   close: 'Close',
