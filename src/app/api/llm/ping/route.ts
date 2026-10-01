@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { chooseProvider } from "@/lib/llm";
 import { LlmError } from "@/lib/llm/errors";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 // The provider call has a 45s internal timeout (anthropic.ts / deepseek.ts). This
 // route awaits it, so it needs a serverless budget ABOVE 45s — otherwise Vercel's
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: err.message,
+          error: llmPublicMessage(err),
           kind: err.kind,
           status: err.status,
           provider: err.provider,
@@ -94,10 +95,12 @@ export async function POST(req: NextRequest) {
         { status: 502 }
       );
     }
+    // Not an LlmError: an unexpected throw. Logged, never sent (CWE-209; founder 2026-09-30).
+    console.error("[llm/ping] non-LLM failure:", err);
     return NextResponse.json(
       {
         ok: false,
-        error: err instanceof Error ? err.message : "Unknown error.",
+        error: "The connection test failed for an unexpected reason. The details are in the server logs.",
       },
       { status: 502 }
     );

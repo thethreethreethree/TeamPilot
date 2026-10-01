@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
 import { detectAll } from "@/lib/coach/heuristics";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/chat/guide
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
         controller.close();
       } catch (err) {
         if (err instanceof LlmError) {
-          send("error", { error: err.message, kind: err.kind, provider: err.provider });
+          send("error", { error: llmPublicMessage(err), kind: err.kind });
         } else {
           console.error("[chat/guide] non-LLM stream failure:", err);
           send("error", { error: "Couldn't generate guidance." });

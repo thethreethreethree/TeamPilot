@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readBody, DialogueDecisionSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/coach/sales-session/decision-dialogue
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind, provider: err.provider },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readBody, OutsideViewSchema } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 // LLM route: allow a longer LLM/stream budget than Vercel's short default (class-swept
 // 2026-07-09 — 50e4ba1 declared maxDuration on finalize/summarize only; this closes the class).
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind, provider: err.provider },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

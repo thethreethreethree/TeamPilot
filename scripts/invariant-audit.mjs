@@ -684,9 +684,15 @@ for (const f of FILES) {
 // mechanical (log server-side, return a generic message) — but the CLASS lived only in an audit doc + a memory,
 // exactly the "lesson in prose, not a gate" failure this whole file exists to catch. So it gets a gate.
 //
+// NO LlmError EXEMPTION (removed 2026-09-30, founder: "Our own sentence, detail in logs"). The gate used to skip
+// any window containing `kind:`, calling `{ error: err.message, kind }` "the intentional LlmError curated
+// surface". It was not curated: LlmError.message is `DeepSeek API error ${status}: ${rawBody}`, and 26 sites
+// sent it to users (every AI feature showed `DeepSeek API error 402: {"error":...` in the September outage).
+// An LlmError now goes out through llmPublicMessage(err). The scan also covers any file that builds a
+// NextResponse, not only route.ts, because the shared helper (llmErrorResponse.ts) lives in src/lib.
+//
 // PRECISION (condition 3, no crying wolf): flag ONLY when `.message` is the DIRECT value of an `error:` field,
-// AND the surrounding window has neither `kind:` (the intentional LlmError curated surface: {message, kind,
-// provider}) nor a 400/403/415/422/429 status (a deliberate DOMAIN or VALIDATION message — finance "period
+// AND the surrounding window has no 400/403/415/422/429 status (a deliberate DOMAIN or VALIDATION message — finance "period
 // closed", extract "unsupported type", the pilot/redeem + team/accept RPC domain messages). Those two
 // structural exclusions cover every intentional site verified in the sweep, so the current tree is clean; a
 // NEW `{ error: err.message }` at a 5xx with no LlmError structure is the leak shape and nothing else.
@@ -710,29 +716,25 @@ for (const f of FILES) {
 const RAW_ERR_MSG_RE =
   /\berror:\s*(?:`[^`]*\$\{[^}]*\??\.\s*message|[A-Za-z_$][\w$]*(?:\s*\??\.\s*[A-Za-z_$][\w$]*)?\s*\??\.\s*message\b|[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\??\.\s*message)/;
 const INTENTIONAL_ERR_STATUS_RE = /status:\s*(?:400|403|415|422|429)\b/;
-const RAW_ERR_ALLOWLIST = new Map([
-  // A diagnostic ping whose PURPOSE is to report the LLM provider's connectivity error to the caller — the
-  // message IS the payload, and there is no schema/tenant data behind it (it never touches the DB).
-  ["src/app/api/llm/ping/route.ts", "Diagnostic LLM-connectivity ping: surfacing the provider error is the point; no DB/tenant data behind it."],
-]);
+// Empty since 2026-09-30: the LLM ping now reports `kind` (the panel hints from it) and our own sentence.
+const RAW_ERR_ALLOWLIST = new Map([]);
 for (const f of FILES) {
-  if (!/\/route\.ts$/.test(f.path)) continue;
+  if (!/\/route\.ts$/.test(f.path) && !/\bNextResponse\b/.test(f.sql)) continue;
   if (RAW_ERR_ALLOWLIST.has(f.path)) continue;
   const lines = f.sql.split("\n");
   for (let i = 0; i < lines.length; i++) {
     if (!RAW_ERR_MSG_RE.test(lines[i])) continue;
     const win = lines.slice(Math.max(0, i - 2), i + 5).join("\n");
-    if (/\bkind:/.test(win)) continue; // LlmError curated surface (message + kind [+ provider]) — intentional
     if (INTENTIONAL_ERR_STATUS_RE.test(win)) continue; // domain (400/403) or validation (415/422/429) message
     findings.push({
       rule: "Route returns a raw error .message to the client (CWE-209)",
       file: `${f.path}:${i + 1}`,
       why:
-        "an `error:` field is set to a raw exception/DB `.message` at a 5xx with no LlmError `kind:` — this\n" +
-        "      leaks internals (Postgres schema/RLS/FK detail, provider errors) to the client. Log it with\n" +
-        "      console.error and return a GENERIC message; keep any `if (err instanceof LlmError)` branch (its\n" +
-        "      {message,kind} surface is intentional). A deliberate domain/validation message belongs at\n" +
-        "      400/403/415/422 (already excluded); otherwise allowlist here WITH the reason.",
+        "an `error:` field is set to a raw exception/DB `.message` at a 5xx — this leaks internals\n" +
+        "      (Postgres schema/RLS/FK detail, the AI provider's raw reply) to the client. Log it with\n" +
+        "      console.error and return a GENERIC message; for an LlmError use llmPublicMessage(err) and keep\n" +
+        "      `kind`. A deliberate domain/validation message belongs at 400/403/415/422 (already excluded);\n" +
+        "      otherwise allowlist here WITH the reason.",
     });
   }
 }

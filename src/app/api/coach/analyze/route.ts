@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/coach/analyze
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind, hits: [] },
+        { error: llmPublicMessage(err), kind: err.kind, hits: [] },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

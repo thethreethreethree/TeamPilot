@@ -9,6 +9,7 @@ import { buildSystemPrompt, buildUserMessage } from "@/lib/coach/v5/prompt";
 import { loadCoachMemory, renderMemoryForPrompt } from "@/lib/coach/v5/memory";
 import { validateCoachAnalysis } from "@/lib/coach/v5/validateAnalysis";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/care/extension/coach — Ask Coach ("grade a draft vs the books"), for the browser extension.
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
       );
     }

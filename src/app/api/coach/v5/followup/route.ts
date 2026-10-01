@@ -11,6 +11,7 @@ import {
   buildFollowUpUserMessage,
 } from "@/lib/coach/v5/prompt";
 import type { CoachFollowUpResponse } from "@/lib/coach/v5/types";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/coach/v5/followup
@@ -216,7 +217,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * Map an error thrown by a generative Sales Coach extension engine to the right HTTP response.
@@ -10,13 +11,12 @@ import { LlmError } from "@/lib/llm/errors";
  * in ONE place (§A21) — if a new LlmError kind or a different status mapping is ever needed, it changes once,
  * not in three hand-rolled copies that would drift.
  *
- * INTENTIONAL — do NOT "fix" the LlmError branch to a generic message. Surfacing the LlmError cause
- * ({error, kind}) to the AUTHENTICATED, entitled, same-tenant extension user is a deliberate design decision
- * (2026-07-25), and the full-app CWE-209 sweep (docs/audits/2026-07-31-cwe209-error-leak-sweep.md) explicitly
- * classified every `instanceof LlmError` surface as intentional and left it untouched. This mirrors the C.A.R.E
- * extension + the ~25 other authed AI routes. CWE-209 governs the PUBLIC/unauthed 500-leak class, not this
- * trusted-agent surface. (A stricter provider-cause-trimming policy — e.g. drop the raw upstream body from
- * err.message while keeping kind — is a codebase-wide founder decision, not a per-route change.)
+ * THE LlmError BRANCH SENDS OUR OWN SENTENCE, NOT err.message (founder, picker 2026-09-30: "Our own sentence,
+ * detail in logs"). The 2026-07-25 design sent err.message to the authenticated user, and this comment said a
+ * stricter policy was a codebase-wide founder decision. It was taken: err.message is the provider's raw reply
+ * (`DeepSeek API error 402: {"error":...`), and during the September outage every AI feature showed it. Now
+ * llmPublicMessage(err) logs the raw reply and returns a sentence per `kind`; `kind` still goes to the client
+ * so it can back off. INVARIANT 14 enforces it here and in all 25 other AI routes.
  *
  * (The read-only tools dissect + coach do NOT use this — their engines never throw, they honest-empty. This
  * is only for the generative tools whose engine lets an LlmError propagate.)
@@ -27,7 +27,7 @@ export function llmErrorResponse(
 ): NextResponse {
   if (err instanceof LlmError) {
     return NextResponse.json(
-      { error: err.message, kind: err.kind },
+      { error: llmPublicMessage(err), kind: err.kind },
       { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
     );
   }

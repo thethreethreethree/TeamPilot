@@ -11,6 +11,7 @@ import {
   buildGraderUserMessage,
 } from "@/lib/coach/v5/graderPrompt";
 import type { EncouragementGrade, GradeResponse } from "@/lib/coach/v5/types";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/coach/v5/grade-sent
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof LlmError) {
       return NextResponse.json({
         response: { grade: "withheld" as EncouragementGrade },
-        error: err.message,
+        error: llmPublicMessage(err),
         kind: err.kind,
       });
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { pitchFailureMessage } from "@/lib/coach/doorlog/pitchFailureMessage";
 
 /**
  * GET /api/coach/sales-session/report-card/[pitchId] — one pitch's detail for the Report Card drill-down:
@@ -41,7 +42,8 @@ export async function GET(
     id: pitch.id as string,
     name: pitch.name as string,
     status: pitch.status as string,
-    error: (pitch.error as string | null) ?? null,
+    // Never the raw column: it holds exception text (provider names, raw JSON). See pitchFailureMessage.
+    error: pitchFailureMessage(pitch.error as string | null),
     recordedAt: pitch.recorded_at as string,
     durationMs: (pitch.duration_ms as number | null) ?? null,
     outcome: (Array.isArray(knock) ? knock[0]?.outcome : knock?.outcome) ?? "unknown",

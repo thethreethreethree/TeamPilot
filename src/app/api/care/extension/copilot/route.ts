@@ -8,6 +8,7 @@ import { copilotModeInstruction } from "@/lib/care/copilotMode";
 import { LlmError } from "@/lib/llm/errors";
 import { llmStream } from "@/lib/llm";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/care/extension/copilot — AI Co-Pilot, for the C.A.R.E browser extension.
@@ -163,7 +164,7 @@ ${productContext}`;
     // (matching the spawn/coach routes); any other failure is a 502.
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
       );
     }

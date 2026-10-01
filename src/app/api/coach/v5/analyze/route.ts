@@ -12,6 +12,7 @@ import type {
   CoachAnalysisResponse,
   CoachClassification,
 } from "@/lib/coach/v5/types";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/coach/v5/analyze
@@ -336,7 +337,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

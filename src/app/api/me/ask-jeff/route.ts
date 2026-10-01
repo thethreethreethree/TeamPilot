@@ -6,6 +6,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/me/ask-jeff
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.status ?? 502 }
       );
     }

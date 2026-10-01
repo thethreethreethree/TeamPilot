@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { proposeDecisionDialogue } from "@/lib/claude";
 import { LlmError } from "@/lib/llm/errors";
 import { readyForSystemResponse } from "@/lib/diagnosis/decisionDialogueGate";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/chat/topic-decisions/[id]/respond
@@ -166,7 +167,7 @@ export async function POST(
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind, provider: err.provider },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

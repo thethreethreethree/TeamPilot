@@ -11,6 +11,7 @@ import {
   buildSpawnUserMessage,
 } from "@/lib/taskSpawn/prompt";
 import { validateTaskDraft } from "@/lib/taskSpawn/validate";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/tasks/spawn
@@ -180,7 +181,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : err.status ?? 502 }
       );
     }

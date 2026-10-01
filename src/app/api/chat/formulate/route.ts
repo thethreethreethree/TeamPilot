@@ -5,6 +5,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/chat/formulate
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
         controller.close();
       } catch (err) {
         if (err instanceof LlmError) {
-          send("error", { error: err.message, kind: err.kind, provider: err.provider });
+          send("error", { error: llmPublicMessage(err), kind: err.kind });
         } else {
           console.error("[chat/formulate] non-LLM stream failure:", err);
           send("error", { error: "Couldn't formulate a draft." });

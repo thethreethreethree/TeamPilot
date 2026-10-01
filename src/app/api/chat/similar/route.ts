@@ -5,6 +5,7 @@ import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/chat/similar
@@ -215,9 +216,8 @@ export async function POST(req: NextRequest) {
       return new Response(
         JSON.stringify({
           matches: [],
-          error: err.message,
+          error: llmPublicMessage(err),
           kind: err.kind,
-          provider: err.provider,
         }),
         { status: 502, headers: { "Content-Type": "application/json" } }
       );

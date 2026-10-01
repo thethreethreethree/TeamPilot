@@ -6,6 +6,7 @@ import { getProductContextForTenant } from "@/lib/care/config";
 import { generateCareReply } from "@/lib/claude";
 import { SUMMARIZE_SYSTEM } from "@/lib/care/toolPrompts";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/care/extension/summarize — Summarize, for the C.A.R.E browser extension
@@ -80,7 +81,7 @@ WHO IS WHO: the C.A.R.E user (the support agent) is ${agentName}. In the convers
     // (matching the spawn/coach/copilot/formulate routes); any other failure is a 502.
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
       );
     }

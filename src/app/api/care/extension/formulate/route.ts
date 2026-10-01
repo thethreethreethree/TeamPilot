@@ -7,6 +7,7 @@ import { generateCareReply } from "@/lib/claude";
 import { coerceJsonText } from "@/lib/llm/coerceJson";
 import { FORMULATE_SYSTEM } from "@/lib/care/toolPrompts";
 import { LlmError } from "@/lib/llm/errors";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 /**
  * POST /api/care/extension/formulate — Formulate C.A.R.E, for the browser extension.
@@ -91,7 +92,7 @@ ${productContext}`,
     // (matching the spawn/coach routes); any other failure is a 502.
     if (err instanceof LlmError) {
       return NextResponse.json(
-        { error: err.message, kind: err.kind },
+        { error: llmPublicMessage(err), kind: err.kind },
         { status: err.kind === "rate_limit" ? 429 : (err.status ?? 502) }
       );
     }

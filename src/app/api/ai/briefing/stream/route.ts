@@ -24,6 +24,7 @@ import { coerceJsonText } from "@/lib/llm/coerceJson";
 // can't drift apart. Both surfaces serve the §3.3 "surface, don't
 // overtake" briefing; a single source of truth is the right shape.
 import { DAILY_QUESTIONS_SYSTEM_PROMPT as SYSTEM_PROMPT } from "@/lib/claude";
+import { llmPublicMessage } from "@/lib/llm/publicMessage";
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -109,9 +110,8 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         if (err instanceof LlmError) {
           send("error", {
-            error: err.message,
+            error: llmPublicMessage(err),
             kind: err.kind,
-            provider: err.provider,
           });
         } else {
           console.error("[ai/briefing/stream] non-LLM stream failure:", err);
