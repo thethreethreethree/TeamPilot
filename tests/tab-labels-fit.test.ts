@@ -82,9 +82,10 @@ function tabLabels(): string[] {
 
 test('every label the bar shows has been measured, not counted', () => {
   const labels = tabLabels();
-  // Seven: four macro (Home, Pitches, Metrics, Role Play) and three standard (Analytics,
-  // Sessions, Team Chat), Home being shared. `kpi` and `account` are routes with `href: null`.
-  assert.equal(labels.length, 7, `expected every shown tab to be found, got ${labels.length}`);
+  // Six: three macro (Home, Metrics, Role Play) and three standard (Analytics, Sessions, Team
+  // Chat), Home being shared. `kpi`, `account` and `pitches` are routes with `href: null`
+  // (Pitch Performance stopped being a tab on 2026-10-01: tests/pitches-not-a-tab.test.ts).
+  assert.equal(labels.length, 6, `expected every shown tab to be found, got ${labels.length}`);
   for (const l of labels) {
     assert.ok(
       MEASURED_DP[l] !== undefined,
@@ -122,12 +123,12 @@ test('the counter-example still would not fit, which is why the bound moved', ()
 
 test('a shortened label never deletes the name', () => {
   /*
-    Two tabs now show a short form. Both keep the full name in `title` for anywhere that renders
-    one, so the shortening is a display decision rather than a rename — and R-A, which places the
-    Pitch Score boards "under Today's Metrics", is satisfied by the title rather than the label.
+    A tab that shows a short form keeps the full name in `title` for anywhere that renders one,
+    so the shortening is a display decision rather than a rename — and R-A, which places the Pitch
+    Score boards "under Today's Metrics", is satisfied by the title rather than the label.
+    (Pitch Performance kept its title when it stopped being a tab on 2026-10-01.)
   */
   assert.match(code, /title: 'Pitch Performance'/);
-  assert.match(code, /tabBarLabel: 'Pitches'/);
   assert.match(code, /title: "Today's Metrics"/);
   assert.match(code, /tabBarLabel: 'Metrics'/);
 });

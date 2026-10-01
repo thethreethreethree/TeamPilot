@@ -4,9 +4,11 @@
  *
  * Both sets are the web's own, read out of `SalesCoachShell.tsx`:
  *
- *   MACRO ON  → Home · Pitch Performance · Today's Metrics · Role Play
- *               (the founder's 2026-08-23 revision, which promoted the two
- *                door-to-door DATA surfaces into the nav for one-tap access)
+ *   MACRO ON  → Home · Today's Metrics · Role Play
+ *               (the founder's 2026-08-23 revision promoted two door-to-door
+ *                DATA surfaces into the nav; REV 1, confirmed in a picker on
+ *                2026-10-01, took Pitch Performance back out: "that's what the
+ *                home page is")
  *   MACRO OFF → Home · Analytics · Sessions · Team Chat · Account
  *               (the 2026-07-04 PWA design, matching the web's MOBILE_TABS
  *                slot for slot AND in order — Analytics sits second there, and a
@@ -88,29 +90,18 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home') }} />
 
       {/* ── Macro Mode: the door-to-door product ───────────────────────── */}
+      {/*
+        PITCH PERFORMANCE IS NOT A TAB (REV 1: "Take out today's performance (that's what the home
+        page is)"; the founder named this screen in a picker on 2026-10-01, after ruling out the
+        Today's Metrics tab). Same move as Account below: the route stays registered with
+        `href: null`, so the Door Log's two links to it (doors.tsx) keep working; it simply does
+        not draw a tab. tests/pitches-not-a-tab.test.ts pins both halves.
+      */}
       <Tabs.Screen
         name="pitches"
         options={{
           title: 'Pitch Performance',
-          /*
-            THE TAB SAYS "PITCHES" BECAUSE "PITCH PERFORMANCE" DOES NOT FIT, AND DID NOT.
-
-            The founder's own screenshot shows it rendered as "Pitch Performa..." - clipped
-            mid-word, in the one place this screen is ever named. `headerShown` is false for the tab
-            group and this screen has no standing heading of its own, so the tab label IS the name.
-            A truncated one is the navigation rule's "clearly labelled" failing quietly.
-
-            Measured rather than guessed: it is 17 characters against a tab roughly a quarter of a
-            375pt screen. "Today's Metrics" is 15 and renders in full in the same screenshot, so 15
-            fits and 17 does not. It is the only label of the eight over 15.
-
-            "Pitches" is this screen's own word, not a new one - its route is `pitches`, its empty
-            state reads "No pitches yet", and its body talks about a pitch appearing once you record
-            one at a door. `title` keeps the full name for anywhere that shows one.
-          */
-          tabBarLabel: 'Pitches',
-          tabBarIcon: icon('mic'),
-          href: macro ? undefined : null,
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -118,8 +109,8 @@ export default function TabsLayout() {
         options={{
           title: "Today's Metrics",
           /*
-            THE LABEL IS SHORTENED; THE NAME IS NOT. Same move as Pitch Performance -> "Pitches"
-            directly above, for the same reason and with the same test guarding it.
+            THE LABEL IS SHORTENED; THE NAME IS NOT. Pitch Performance was shortened to "Pitches"
+            for the same reason before it stopped being a tab; tests/tab-labels-fit.test.ts guards it.
 
             I WATCHED IT CLIP. The tab rendered "Today's Metri..." on the emulator, and the
             arithmetic says why: React Navigation gives each of four tabs 102.86dp here,
