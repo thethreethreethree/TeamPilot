@@ -81,7 +81,7 @@ test('the two systems each name what they count, beside the number', () => {
     identical to the Pitch Score strip's; they now say "session". The Pitch Score surfaces say
     which scale they are on and that the two do not compare.
   */
-  assert.match(arena, /First session scored/);
+  assert.match(arena, /First session coached/);
   assert.match(arena, /100 sessions/);
   assert.doesNotMatch(arena, /'First pitch'/);
 

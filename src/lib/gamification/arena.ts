@@ -196,8 +196,8 @@ export function milestones(arena: Arena, deals: number | null): Milestone[] {
   return [
     {
       key: 'spark',
-      label: 'First session scored',
-      requirement: 'Record and score one session',
+      label: 'First session coached',
+      requirement: 'Record one session with the coach',
       earned: arena.sessions >= 1,
     },
     {
@@ -216,7 +216,7 @@ export function milestones(arena: Arena, deals: number | null): Milestone[] {
     {
       key: 'century',
       label: '100 sessions',
-      requirement: '100 scored sessions',
+      requirement: '100 coached sessions',
       earned: arena.sessions >= 100,
     },
     {

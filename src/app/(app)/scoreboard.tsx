@@ -250,7 +250,7 @@ const Row = memo(function Row({ r }: { r: RankedRow }) {
               accessible
               accessibilityLabel={`${ordinal(r.rank)}${r.isYou ? ', you' : ''}: ${
                 r.displayName
-              }, ${count(r.totalPoints)} points, ${r.sessions} scored ${
+              }, ${count(r.totalPoints)} points, ${r.sessions} coached ${
                 r.sessions === 1 ? 'call' : 'calls'
               }, ${r.deals} sold${
                 r.sessions > 0 ? `, average ${r.avgPoints}, best ${r.bestPoints}` : ''
@@ -303,7 +303,7 @@ const Row = memo(function Row({ r }: { r: RankedRow }) {
                   ) : null}
                 </View>
                 <Text className="mt-0.5 font-body text-sm text-muted-foreground">
-                  {r.sessions} scored {r.sessions === 1 ? 'call' : 'calls'} · {r.deals} sold
+                  {r.sessions} coached {r.sessions === 1 ? 'call' : 'calls'} · {r.deals} sold
                 </Text>
                 <Text className="mt-0.5 font-body text-sm tabular-nums text-muted-foreground">
                   {/* Avg and best, per the spec. Em dashes rather than zeros:

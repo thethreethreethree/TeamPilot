@@ -448,7 +448,7 @@ export default function AccountScreen() {
           <Text className="font-emphasis text-base text-primary">Your points</Text>
         </Pressable>
         <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
-          What your scored calls have banked, and how it is trending. Yours only — nobody on
+          What your coached calls have banked, and how it is trending. Yours only — nobody on
           your team can read another rep&apos;s.
         </Text>
 

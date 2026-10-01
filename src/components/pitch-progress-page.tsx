@@ -365,7 +365,7 @@ function Board({ loaded, asked }: { loaded: Loaded; asked: Period }) {
           its points are a different measure on a different scale. */}
       <Text className="mt-8 font-body text-base leading-relaxed text-muted-foreground">
         Pitch Score, from the AT&amp;T Fiber rubric — out of {rubric.maxScore}, rubric{' '}
-        {rubric.version}. Your points total in Points counts scored sessions instead, and the two do
+        {rubric.version}. Your points total in Points counts coached sessions instead, and the two do
         not compare.
       </Text>
     </View>

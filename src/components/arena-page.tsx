@@ -233,7 +233,7 @@ export function ArenaPage() {
               bandText={arena.band ? (bandLabel(arena.band) ?? 'Not scored yet') : 'Not scored yet'}
               sub={
                 arena.best === null
-                  ? 'No scored call yet'
+                  ? 'No coached call yet'
                   : `Best ${arena.best}${myPlace ? ` · rank #${myPlace}` : ''}`
               }
             />
