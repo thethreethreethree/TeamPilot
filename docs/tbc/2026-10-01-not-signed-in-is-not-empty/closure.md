@@ -23,3 +23,8 @@ Every route the app calls refuses a caller who is not signed in; the one that an
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Appended 2026-10-01 — seen live
+
+After ad92fc88 deployed (CI success, Vercel Ready), production: `GET` and `POST`
+/api/coach/sales-session/<id>/after-pitch with no login both answer **401** (were 200 and 404).
