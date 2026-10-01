@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EloState Rep Onboarding</title>
+<!--
+  SOURCE OF THE REP ONBOARDING GUIDE (rebuilt 2026-09-30 from EloState-Rep-Onboarding.pdf, founder's picker:
+  "I rebuild it in the repo"). Edit THIS file; print it to PDF from a browser (the print styles below break
+  pages at the parts). Two fixes from the PDF:
+    1. An expired App Store Connect invite restarts Part 2 at STEP 4 everywhere (the PDF said "step 1" on
+       page 2 and "step 4" on page 5; founder chose step 4 — the manager already has the iCloud email and
+       TestFlight is already installed).
+    2. "You're set up" no longer shows the website on a desktop; it holds a marked gap until a real iPhone
+       screenshot of the app's Home screen replaces it (img/app-home-iphone.png).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0f1624; --navy2:#1a2333; --ink:#141b26; --ink2:#5b6676; --line:#e6e1d2;
+  --gold:#f2c94c; --gold2:#e8b923; --goldtext:#8a6408; --paper:#ffffff; --card:#fbfaf6;
+  --warnbg:#fdeee9; --warnline:#f3c2b3; --warn:#b4401e; --gap:#9a7b25;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font:15px/1.6 Inter,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased}
+.page{max-width:820px; margin:0 auto; padding-inline:24px}
+.hero{background:radial-gradient(420px 300px at 92% 8%, rgba(242,201,76,.22), transparent 70%), var(--navy); color:#fff}
+.hero .page{padding-block:44px 40px}
+.brand{display:flex; align-items:center; gap:14px}
+.brand .tile{width:52px; height:52px; border-radius:12px; background:var(--gold); display:grid; place-items:center; flex:none}
+.brand b{display:block; font-size:18px; font-weight:700}
+.brand span{font-size:13px; color:#aab4c3}
+.hero h1{font-size:clamp(34px,6vw,52px); line-height:1.05; letter-spacing:-.03em; font-weight:800; margin:34px 0 12px; text-wrap:balance}
+.hero p{color:#c6cfdb; font-size:17px; max-width:56ch; margin:0 0 26px}
+.parts{display:flex; flex-wrap:wrap; gap:12px}
+.chip{display:flex; align-items:center; gap:10px; background:var(--navy2); border:1px solid #2c3648; border-radius:10px; padding:10px 16px 10px 10px; font-weight:600}
+.chip .n{width:26px; height:26px; border-radius:7px; background:var(--gold); color:var(--navy); display:grid; place-items:center; font-weight:800; font-size:14px}
+.chip small{color:#8f9aab; font-weight:500; margin-left:4px}
+
+section{padding-block:40px 8px}
+.parthead{display:flex; align-items:baseline; gap:12px; margin:0 0 4px}
+.parthead em{font-style:normal; color:var(--goldtext); font-weight:700; font-size:15px}
+.parthead h2{font-size:clamp(24px,4vw,30px); letter-spacing:-.02em; margin:0; font-weight:800; text-wrap:balance}
+.lede{color:var(--ink2); margin:0 0 22px}
+
+.warn{display:flex; gap:12px; background:var(--warnbg); border:1px solid var(--warnline); border-radius:12px; padding:14px 16px; margin:0 0 24px}
+.warn svg{flex:none; margin-top:3px}
+.warn b{color:var(--warn)}
+
+ol.steps{list-style:none; margin:0; padding:0}
+ol.steps li{position:relative; padding:0 0 26px 58px}
+ol.steps li::before{content:""; position:absolute; left:17px; top:36px; bottom:0; width:2px; background:var(--line)}
+ol.steps li:last-child::before{display:none}
+.num{position:absolute; left:0; top:0; width:36px; height:36px; border-radius:50%; border:2px solid var(--gold); background:var(--paper); display:grid; place-items:center; font-weight:700; font-size:15px}
+.num.done{background:var(--gold); border-color:var(--gold2)}
+ol.steps h3{font-size:17px; margin:5px 0 4px; font-weight:700}
+ol.steps p{margin:0 0 6px; color:var(--ink2)}
+ol.steps p strong{color:var(--ink)}
+.who{display:inline-block; font-size:12px; font-weight:600; padding:2px 9px; border-radius:999px; margin-left:8px; vertical-align:2px; background:#fdf3d2; color:var(--goldtext); border:1px solid #f1dc97}
+.alert{color:var(--warn); font-weight:600}
+a{color:var(--goldtext)}
+
+figure{margin:12px 0 4px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--paper); max-width:560px}
+figure img{display:block; width:100%; height:auto; border-bottom:1px solid var(--line)}
+figcaption{padding:10px 14px; font-size:14px; color:var(--ink2); background:var(--card)}
+
+.setup{border:1px solid var(--line); border-radius:16px; padding:26px; background:var(--card); margin-top:10px}
+.setup h2{margin:0 0 6px; font-size:26px; letter-spacing:-.02em}
+.setup p{color:var(--ink2); margin:0 0 18px}
+.gap{border:2px dashed var(--gap); border-radius:14px; background:#fffaf0; color:var(--gap); display:grid; place-items:center; text-align:center; padding:36px 20px; max-width:300px; aspect-ratio:9/16}
+.gap b{display:block; font-size:15px; margin-bottom:6px}
+.gap span{font-size:13px}
+
+table{width:100%; border-collapse:collapse; margin-top:6px}
+td{padding:14px 0; border-bottom:1px solid var(--line); vertical-align:top}
+td:first-child{font-weight:700; width:34%; padding-right:18px}
+td:last-child{color:var(--ink2)}
+.foot{color:var(--ink2); padding-block:18px 48px}
+
+@media (max-width:520px){ .page{padding-inline:16px} ol.steps li{padding-left:50px} td:first-child{width:40%} }
+@media print{
+  .hero{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  #part2,.setup,#help{break-before:page}
+  figure,.warn,ol.steps li{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="page">
+    <div class="brand">
+      <div class="tile" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f1624" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+      </div>
+      <div><b>EloState Sales Coach</b><span>Rep onboarding guide</span></div>
+    </div>
+    <h1>Get set up in two parts</h1>
+    <p>Create your EloState account on the web, then install the beta app on your iPhone or iPad. Follow the steps in order.</p>
+    <div class="parts">
+      <div class="chip"><span class="n">1</span>Create your account <small>Web</small></div>
+      <div class="chip"><span class="n">2</span>Install the app <small>iPhone / iPad</small></div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+<section id="part1">
+  <div class="parthead"><em>Part 1</em><h2>Create your EloState account</h2></div>
+  <p class="lede">On any browser. Takes about 10 minutes.</p>
+  <ol class="steps">
+    <li><span class="num">1</span><h3>Go to elostate.com</h3><p>Open <a href="https://elostate.com">elostate.com</a> in your browser.</p></li>
+    <li><span class="num">2</span><h3>Click Request access</h3></li>
+    <li><span class="num">3</span><h3>Enter your email and create a password</h3><p>Save these. <strong>This is your EloState login</strong>, and you'll use it to sign in to the app in Part 2.</p></li>
+    <li><span class="num">4</span><h3>Complete the questionnaire with the Sales Trainer</h3><p>Answer the questions about your company and your personal goals. The coach uses these to tailor your sessions.</p></li>
+    <li><span class="num done" aria-label="Last step">✓</span><h3>Ask your Manager or Admin to add you to their team</h3><p>Send them a message. Part 1 is done once they confirm you're on the team list.</p></li>
+  </ol>
+</section>
+
+<section id="part2">
+  <div class="parthead"><em>Part 2</em><h2>Install the EloState app</h2></div>
+  <p class="lede">iPhone or iPad. The app is in beta, so it installs through Apple's TestFlight instead of the App Store.</p>
+
+  <div class="warn" role="note">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b4401e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div><b>Use the same Apple ID everywhere.</b> The iCloud email you send your manager must be the Apple ID signed in on the phone you're installing on. A mismatch is the most common reason the install fails.</div>
+  </div>
+
+  <ol class="steps">
+    <li><span class="num">1</span><h3>Send your iCloud email to your manager <span class="who">Rep</span></h3></li>
+    <li><span class="num">2</span><h3>Manager forwards it to John Ramos <span class="who">Manager</span></h3><p>John grants access to the beta app. Reps don't need to do anything here but wait.</p></li>
+    <li><span class="num">3</span><h3>Download TestFlight from the App Store</h3><p>It's a free Apple app. Install it now so it's ready for step 7.</p></li>
+    <li><span class="num">4</span><h3>Accept the App Store Connect invite</h3>
+      <p>Look for an email from <strong>Apple Developer</strong> titled <strong>"You've been invited to App Store Connect."</strong> Tap <strong>Accept invitation</strong>.</p>
+      <p class="alert">This invite expires after 3 days. If it expires, ask your manager to request a new one from John, then come back to this step.</p>
+      <figure><img src="img/app-store-connect-invite.png" alt="The App Store Connect invitation email from Apple Developer, with an Accept invitation link" width="1200" height="458"><figcaption>The first email. Tap Accept invitation.</figcaption></figure>
+    </li>
+    <li><span class="num">5</span><h3>Sign in with your iCloud / Apple ID</h3></li>
+    <li><span class="num">6</span><h3>Confirm you land on the Apple Developer Account page</h3>
+      <p>This means the invite went through. <strong>Don't click "Enroll today"</strong>. You don't need a paid developer account.</p>
+      <figure><img src="img/apple-developer-account.png" alt="The Apple Developer Account page, with an Enroll today button that should not be pressed" width="1200" height="662"><figcaption>You're in the right place. Nothing to do on this page.</figcaption></figure>
+    </li>
+    <li><span class="num">7</span><h3>Open the TestFlight email on your phone</h3>
+      <p>A second email arrives from <strong>Moses Maniquiz via TestFlight</strong>: <strong>"Moses Maniquiz has invited you to test Elostate Sales Coach."</strong> Tap <strong>View in TestFlight</strong>, or type the redeem code from the email into the TestFlight app.</p>
+      <figure><img src="img/testflight-invite.png" alt="The TestFlight invitation email showing the Elostate Sales Coach app icon and a View in TestFlight button" width="1200" height="682"><figcaption>The second email. Open it on the device you're installing on.</figcaption></figure>
+    </li>
+    <li><span class="num">8</span><h3>Tap Install in TestFlight</h3><p>The EloState app downloads to your phone or iPad.</p></li>
+    <li><span class="num done" aria-label="Last step">✓</span><h3>Log in with your EloState account</h3><p>Use the email and password from Part 1, <strong>not your iCloud password</strong>.</p></li>
+  </ol>
+</section>
+
+<div class="setup">
+  <h2>You're set up</h2>
+  <p>Once you're logged in, this is your home screen. Start a coaching session, log doors in Macro Mode, and track your progress.</p>
+  <!-- GAP, on purpose: the PDF showed the website on a desktop here. Replace this div with
+       <figure><img src="img/app-home-iphone.png" alt="…" ></figure> once a real iPhone screenshot of the app's Home exists. -->
+  <div class="gap" role="img" aria-label="Screenshot still needed: the app's Home screen on an iPhone">
+    <div><b>Screenshot needed</b><span>The app's Home screen on an iPhone</span></div>
+  </div>
+</div>
+
+<section id="help">
+  <h2 style="font-size:26px; letter-spacing:-.02em; margin:0 0 6px">If something goes wrong</h2>
+  <table>
+    <tr><td>No invite email</td><td>Check spam and promotions. Then confirm with your manager that the right iCloud email went to John.</td></tr>
+    <tr><td>Invite expired</td><td>Ask your manager to request a new one from John, then restart Part 2 at step 4.</td></tr>
+    <tr><td>View in TestFlight does nothing</td><td>Make sure TestFlight is installed and you're signed in with the same Apple ID on that device.</td></tr>
+    <tr><td>Can't log in to the app</td><td>You're probably using your iCloud password. Use your EloState password from Part 1.</td></tr>
+  </table>
+  <p class="foot">Questions? Contact your Manager or Admin.</p>
+</section>
+
+</main>
+</body>
+</html>
