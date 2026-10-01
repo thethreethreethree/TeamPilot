@@ -296,16 +296,17 @@ recorder from anywhere.
 
 1. Home → the **Macro Mode** switch → turn it **on**. (Account also has it, now
    reached from Home's ⋮ menu rather than a tab.)
-2. The tab bar should become exactly four tabs: **Home · Pitch Performance ·
-   Today's Metrics · Role Play** — and all four labels should read in FULL, with
-   no "Pitch Perfo…".
+2. The tab bar should become exactly **three** tabs: **Home · Metrics · Role
+   Play**, every label in full. *(Changed 1 October: Pitch Performance is no
+   longer a tab — your REV 1 "take out today's performance", confirmed in a
+   picker. The screen is still there: Door Log → "See how your pitches went".)*
 3. Home → **Door Log**.
 4. Below the five outcome buttons there should be a filled **Record this pitch**
    button.
 5. Tap it. The recorder opens.
 
-**Wrong looks like:** no Record button on the Door Log, or a **fifth tab**, or a
-label cut off mid-word.
+**Wrong looks like:** no Record button on the Door Log, a **Pitches** tab still
+in the bar, or a label cut off mid-word.
 
 > **This check has changed twice, and the second time is your photograph.** It
 > said "exactly four tabs" until 4 September; then Account was added to both tab
@@ -640,13 +641,14 @@ a **decided** card, where there is nothing left to take part in.
 3. In both, a search matching nothing says so and offers a way back — it must
    **not** say you have no lines or no topics.
 
-### 19. Practise a weakness from Training
+### 19. Practice a weakness from Training
 
 New today, and it is the one that closes a loop: Training names what to work on,
 and now you can act on it.
 
 1. **Training** (from Analytics, or Account). Under **Worth working on** each
-   line should have a **Practise this** button. The **What is already working**
+   line should have a **Practice this** button (American spelling since 30
+   September, your REV 1). The **What is already working**
    list should have none — practising a strength is noise.
 2. Tap one. Role Play opens showing **Practising one skill** and repeating the
    exact wording of the growth area.
@@ -1472,6 +1474,10 @@ Macro Mode on, **Home → Door Log**.
 ten doors; "See today's metrics" or "Undo last" still present; or the
 focus box present but permanently empty.
 
+> **Answered since (29 September):** you chose "a quiet undo for a few
+> seconds" over bringing "Undo last" back. It is check 42. The permanent
+> button stays gone.
+
 ---
 
 ### 41. The calls nobody reopens are visible now (build 20)
@@ -1501,6 +1507,60 @@ failing to read and being treated as a zero.
 > one-sided calls do NOT get a chip for the opposite reason: their signal
 > would need a query matching nearly every segment in the table, and a list
 > that fires one of those per row is a list nobody keeps.
+
+---
+
+### 42. A quiet undo after a mis-tapped door (new, 1 October)
+
+Your pick on 29 September: a few seconds to take a tap back, instead of the
+permanent "Undo last". The website has had it since that day.
+
+1. Macro Mode on → **Door Log**. Tap **No Answer**.
+2. A bar appears reading **"Logged: No Answer"** with an **Undo** button beside
+   it. It leaves by itself after **five seconds**.
+3. Tap a door again and press **Undo** inside the five seconds. The count goes
+   back down, here and on Home's dials.
+4. **Aeroplane mode on**, tap a door, press Undo, aeroplane mode off. The door
+   must **not** reach your numbers once the phone reconnects.
+
+**Wrong looks like:** no bar; a bar that stays; Undo that leaves the count
+unchanged; or, in step 4, the undone door appearing after reconnecting.
+
+> An undo is a second record, not an edit: the tap and its undo are both kept,
+> and every count reads "taps minus undos". So a door undone on the phone is
+> undone on the website too, and on a manager's board.
+
+### 43. Two pitches back to back, while the first is still sending (new, 1 October)
+
+Fixed on 1 October: if the phone finished sending one recording at the moment
+you saved the next, one of the two could vanish from the list. Its audio
+stayed on the phone, but the app forgot it, so it was never sent.
+
+1. Signal on. Door Log → **Record this pitch**, talk for a few seconds, stop.
+2. **Immediately** record a second pitch and stop, while the first is still
+   sending.
+3. Wait a minute. Both must arrive (both in your pitch history) and the
+   waiting list must end empty.
+
+**Wrong looks like:** one pitch missing from the history while "waiting to
+send" says nothing is waiting; or one pitch sent twice.
+
+### 44. The words that changed (1 October)
+
+Quick to check, all on screens you already know:
+
+1. **Role Play**: "**Practice** a pitch…" (not "Practise").
+2. **Today's Metrics** score chart: the second bar reads "**Talk / Listen**",
+   the same as the website.
+3. **Scoreboard** rows: "**N coached calls** · N sold". Arena: the first badge
+   is "**First session coached**". Your 30 September choice: "scored" now
+   means the AT&T rubric only, and the rubric's own badges still say
+   "100 scored pitches".
+4. Home, **Macro Mode** on: under the switch, "This mode is for short form
+   sales, under 15 minutes. Fiber internet, Pest Control." Off: "Long form
+   sales, over 20 minutes, ex: Solar Sales." The website's card now says the same.
+
+**Wrong looks like:** any of the old words; or "scored" on a points screen.
 
 ---
 
