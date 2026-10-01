@@ -76,3 +76,10 @@ a call; they are left as they are. R2: CLOSED for the stores that hold irreplace
 
 R3-rls-probe-not-in-ci: CLOSED by docs/tbc/2026-10-01-rls-probes-run-in-ci. The probe ends in assertions, and
 scripts/migration-apply-audit.mjs PASS 3 runs every probe in CI; a 600-minute window fails it.
+
+## Appended 2026-10-01 — R1 (app release), half done
+
+The app's undo branch was still unmerged on 2026-10-01, so the next phone build would have shipped without it.
+Merged into the app's main line as 62b738f5 (gate on the merged line: tsc exit 0, 1585 tests pass, lint exit 0,
+tools/gate.mjs exit 0), together with the queue fix a7ed7a30 it was built on. DEVICE-CHECK.md check 42 now
+covers it on a phone. Still OPEN: an EAS build and the device check; nothing from this build is on a phone yet.
