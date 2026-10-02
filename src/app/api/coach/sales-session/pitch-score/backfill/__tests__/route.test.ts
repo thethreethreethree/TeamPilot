@@ -366,3 +366,21 @@ describe("database refusals in a row stop the run and say so", () => {
     expect(body.note ?? "").not.toMatch(/in a row/i);
   });
 });
+
+/** 2026-10-02: an AI provider that is not answering stops the run the same way an empty balance does. */
+describe("an AI provider that is not answering stops the run and says so", () => {
+  const down = {
+    ok: false,
+    reason: "provider_down",
+    humanMessage: "The AI service is not answering right now, so nothing can be scored at the moment.",
+  };
+
+  it("stops at the first one and names the provider", async () => {
+    serve([], ["s1", "s2", "s3", "s4"]);
+    asMock(scoreSession).mockResolvedValue(down);
+    const body = (await (await POST(req())).json()) as { more: boolean; note: string | null };
+    expect(asMock(scoreSession).mock.calls).toHaveLength(1);
+    expect(body.more).toBe(false);
+    expect(body.note).toMatch(/not answering/i);
+  });
+});

@@ -209,3 +209,29 @@ describe("a failed save says which kind it was", () => {
     expect(PERMANENT_REFUSALS.has("no_evidence")).toBe(false);
   });
 });
+
+/**
+ * 2026-10-01: DeepSeek stopped answering for hours (timeouts; their status page: degraded performance). Each
+ * recording would have come back `errored`, "failed unexpectedly". Built with the real LlmError.
+ */
+describe("an AI provider that is not answering", () => {
+  it.each([
+    ["a timeout", "timeout", undefined],
+    ["a 503", "server", 503],
+    ["unreachable", "network", undefined],
+  ] as const)("%s is named as the provider being down, not an unexpected failure", async (_n, kind, status) => {
+    asMock(generatePitchScore).mockRejectedValue(new LlmError({ kind, status, provider: "deepseek", message: "raw provider text" }));
+    const out = await scoreSession(llmArgs);
+    expect(out.ok).toBe(false);
+    if (!out.ok) {
+      expect(out.reason).toBe("provider_down");
+      expect(out.humanMessage).toMatch(/not answering/i);
+      expect(out.humanMessage).not.toMatch(/raw provider text/); // CWE-209: our sentence, not theirs
+    }
+  });
+
+  it("is worth retrying later", () => {
+    expect(PERMANENT_REFUSALS.has("provider_down")).toBe(false);
+    expect(REFUSAL_MESSAGE.provider_down).toMatch(/try again in a few minutes/i);
+  });
+});

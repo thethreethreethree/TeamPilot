@@ -48,3 +48,31 @@ $ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhos
       Tests  5656 passed | 15 skipped (5671)
 exit 0
 ```
+
+## Appended 2026-10-02T04:40Z - third instance: pitch scoring
+
+```
+$ npx tsc --noEmit -p .
+exit 0
+$ npx vitest run src/lib/coach/pitchScore src/app/api/coach/sales-session/pitch-score src/components/sales-coach
+ Test Files  72 passed (72)
+      Tests  918 passed (918)
+exit 0
+$ (mutation: scoreSession provider_down line and backfill halt removed)   Tests  4 failed | 36 passed   exit 1 (restored)
+```
+
+### Scoring reported an AI outage as "failed unexpectedly" for every recording
+
+class: an account- or provider-level failure charged to the individual item (third instance)
+sweep: grep -rn "\"errored\"\|refuse(" src/lib/coach; every refusal vocabulary that has an out-of-credit case
+severity: medium
+
+Nothing was lost (`errored` is not permanent), but "Score them all" would have walked the whole backlog during an
+outage and blamed the code. Now it stops at the first one and says the AI service is not answering.
+
+```
+$ MIGRATION_AUDIT_PSQL=... PGPORT=55433 ... npm run check   (with scoring)
+ Test Files  728 passed | 1 skipped (729)
+      Tests  5661 passed | 15 skipped (5676)
+exit 0
+```

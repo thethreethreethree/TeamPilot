@@ -70,6 +70,8 @@ const STATUS_FOR: Record<ScoreRefusal, number> = {
   errored: 502,
   // Billing, not a bad request: the provider is unavailable to us until the account is topped up.
   provider_out_of_credit: 503,
+  // The provider is not answering: unavailable to us for now, and a retry later is the right move.
+  provider_down: 503,
 };
 
 // LLM route: a full grading is ~30 elements plus events, so it needs more than Vercel's default.

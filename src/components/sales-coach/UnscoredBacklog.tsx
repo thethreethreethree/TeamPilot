@@ -57,6 +57,7 @@ export const REFUSAL_LABEL: Record<ScoreRefusal, string> = {
   no_evidence: "were graded with no evidence behind any grade, so nothing was saved (a fault on our side)",
   errored: "failed unexpectedly (a fault on our side)",
   provider_out_of_credit: "could not be scored — the AI provider account is out of credit",
+  provider_down: "could not be scored — the AI service was not answering",
 };
 
 export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {

@@ -300,6 +300,11 @@ export async function POST(req: NextRequest) {
       haltedBy = "provider_out_of_credit";
       break;
     }
+    /** And when the provider is not answering (2026-10-02): the provider, not the recording, again. */
+    if (outcome.reason === "provider_down") {
+      haltedBy = "provider_down";
+      break;
+    }
     /**
      * And on TWO database refusals in a row (2026-09-30). A store failure comes AFTER the grading, so
      * each one is a paid LLM call thrown away. On 2026-09-26..28 production logged 164 of them, every

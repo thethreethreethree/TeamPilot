@@ -7,6 +7,7 @@ import { storePitchScore } from "./storePitchScore";
 import { runDetection } from "@/lib/coach/patterns/runDetection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
+import { isProviderOutage } from "@/lib/llm/errors";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -113,7 +114,15 @@ export type ScoreRefusal =
    * Like `suppressed` it is a property of the ACCOUNT, not of this recording, so a drain halts on it.
    * Unlike `suppressed` it is NOT permanent: a top-up fixes it, and the next press should work.
    */
-  | "provider_out_of_credit";
+  | "provider_out_of_credit"
+  /**
+   * The AI provider is not answering: it timed out, answered 5xx, or could not be reached (isProviderOutage,
+   * llm/errors.ts). Split out of `errored` on 2026-10-02, after DeepSeek stopped answering for hours on
+   * 2026-10-01: "Score them all" would have walked every recording and reported "failed unexpectedly" for
+   * each, the sentence the out-of-credit split removed. The provider, not the recording, so a drain halts on
+   * it; not permanent, so the next press after DeepSeek returns works.
+   */
+  | "provider_down";
 
 /**
  * A refusal that re-running will never change, so a drain must not keep paying for it.
@@ -145,6 +154,9 @@ export const REFUSAL_MESSAGE: Record<ScoreRefusal, string> = {
   provider_out_of_credit:
     "The AI provider account is out of credit, so nothing can be scored until it is topped up. " +
     "This is an account setting, not your pitch.",
+  provider_down:
+    "The AI service is not answering right now, so nothing can be scored at the moment. " +
+    "Try again in a few minutes. This is the AI provider, not your pitch.",
 };
 
 export async function scoreSession(args: {
@@ -177,6 +189,8 @@ export async function scoreSession(args: {
     // rather than re-matching "402" in the message — §2.2. Duck-typed on `kind` so a second copy of the
     // class across a bundle boundary cannot defeat an instanceof.
     if ((err as { kind?: unknown } | null)?.kind === "quota") return refuse("provider_out_of_credit");
+    // The provider down is the same verdict the breaker and the pitch worker use (§2.2), not a re-match.
+    if (isProviderOutage(err)) return refuse("provider_down");
     return refuse("errored");
   }
 }
