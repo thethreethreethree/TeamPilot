@@ -37,6 +37,7 @@ import {
   computeConfidence,
   type ConfidenceRead,
 } from "@/lib/coach/v5/liveConfidence";
+import { cueFailureMessage } from "./cueFailureMessage";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -639,7 +640,10 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             delivered: false,
             suppressReason: `http-${res.status}`,
           });
-          if (onDemand) setCueStatus(`Cue request failed (${res.status}).`);
+          if (onDemand) {
+            const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+            setCueStatus(cueFailureMessage(res.status, body?.error));
+          }
           return;
         }
         const llmEndedAt = performance.now();
@@ -701,7 +705,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           delivered: false,
           suppressReason: "exception",
         });
-        if (onDemand) setCueStatus("Cue request failed — see console.");
+        if (onDemand) setCueStatus(cueFailureMessage(null));
         // eslint-disable-next-line no-console
         console.warn("[live-coaching] cue request failed", err);
       } finally {

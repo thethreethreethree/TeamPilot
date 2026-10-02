@@ -19,3 +19,9 @@
   `claimPitchesToProcess` selects `created_at`; the door-log route passes it.
 - **read-path:** `worker.test.ts` "an AI provider outage never kills a recent pitch": thirty sweeps never terminal;
   older than 24 h or no creation time spends the attempt.
+
+### A rep's failed cue says what happened (appended 2026-10-02T06:40Z)
+
+- **write-path:** `src/lib/coach/v5/cueFailureMessage.ts`; `useLiveCoaching.ts` uses it for an HTTP failure (the
+  route's own sentence) and a network failure.
+- **read-path:** `src/lib/coach/v5/__tests__/cueFailureMessage.test.ts`.

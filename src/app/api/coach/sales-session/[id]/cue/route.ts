@@ -178,7 +178,7 @@ export async function POST(
     });
   } catch (err) {
     // Only a FORCED cue throws (auto swallows to silent) — surface it honestly as an error so the
-    // client shows "Cue request failed", not a false "nothing to add" (audit 2026-08-16, #5).
+    // client shows a failure (cueFailureMessage.ts), not a false "nothing to add" (audit 2026-08-16, #5).
     console.error(
       "[coach/cue] forced cue failed:",
       err instanceof Error ? err.message : err

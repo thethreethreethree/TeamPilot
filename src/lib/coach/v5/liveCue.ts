@@ -219,7 +219,7 @@ export async function generateLiveCue(args: {
   } catch (e) {
     // Auto cues must NEVER disrupt a live call → swallow any failure to `silent`. But a FORCED
     // "Coach me now" is a rep-initiated action: a genuine failure must SURFACE as an error (the
-    // client shows "Cue request failed"), not masquerade as "Coach had nothing to add" — that is
+    // client shows a failure, cueFailureMessage.ts), not masquerade as "Coach had nothing to add" — that is
     // error-dressed-as-no-data on a user action (audit 2026-08-16, finding #5).
     if (args.force) throw e;
     return silent;

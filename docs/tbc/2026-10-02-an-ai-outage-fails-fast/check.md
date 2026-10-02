@@ -46,3 +46,27 @@ $ MIGRATION_AUDIT_PSQL="docker exec -i pgprobe psql -U postgres" PGHOST=localhos
       Tests  5649 passed | 15 skipped (5664)
 exit 0
 ```
+
+## Appended 2026-10-02T06:40Z - what the rep sees when a cue fails
+
+### "Cue request failed (502)." and "see console" shown to a rep
+
+class: a developer-facing message on a rep-facing surface, made more visible by failing fast
+sweep: grep -rn "setCueStatus(" src/lib/coach/v5 (useMeetingCoaching already says "check your connection")
+severity: low
+
+```
+$ npx tsc --noEmit -p .
+exit 0
+$ npx vitest run src/lib/coach/v5
+ Test Files  93 passed (93)
+      Tests  727 passed (727)
+exit 0
+```
+
+```
+$ npm run check   (with the cue message)
+ Test Files  729 passed | 1 skipped (730)
+      Tests  5673 passed | 15 skipped (5688)
+exit 0
+```
