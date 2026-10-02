@@ -24,7 +24,7 @@ function fakeChain(table: string) {
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: (table: string) => fakeChain(table) }),
 }));
-vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 vi.mock("@/lib/care/voice/elevenlabs", () => ({ transcribeSpeech: vi.fn(async () => "fresh transcript") }));
 vi.mock("@/lib/storage/assets", () => ({
   // Default: a VALID-header webm recording (EBML magic) so it passes the worker's playable-container guard and

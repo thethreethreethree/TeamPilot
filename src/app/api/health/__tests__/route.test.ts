@@ -35,3 +35,33 @@ describe("GET /api/health — the build.commit contract VersionWatcher depends o
     expect(body.build.commit).toBeNull();
   });
 });
+
+/**
+ * IS ANYONE TOLD WHEN SOMETHING BREAKS (2026-10-02). Production had no Sentry DSN, so every report was dropped
+ * and nothing said so. The flag mirrors the two init guards term for term (sentry.server.config.ts,
+ * instrumentation-client.ts); each term is exercised on both sides (CLAUDE.md §2.2 drift guard).
+ */
+describe("GET /api/health — errorReporting mirrors the Sentry init guards", () => {
+  const keys = ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"] as const;
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  afterEach(() => {
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const flags = async () => ((await (await GET()).json()) as { capabilities: { errorReporting: { server: boolean; browser: boolean } } }).capabilities.errorReporting;
+
+  it.each([
+    [undefined, undefined, { server: false, browser: false }],
+    ["https://k@o.ingest.sentry.io/1", undefined, { server: true, browser: false }],
+    [undefined, "https://k@o.ingest.sentry.io/1", { server: true, browser: true }],
+    ["https://k@o.ingest.sentry.io/1", "https://k@o.ingest.sentry.io/1", { server: true, browser: true }],
+  ])("SENTRY_DSN=%s NEXT_PUBLIC_SENTRY_DSN=%s → %o", async (server, pub, expected) => {
+    if (server === undefined) delete process.env.SENTRY_DSN;
+    else process.env.SENTRY_DSN = server;
+    if (pub === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    else process.env.NEXT_PUBLIC_SENTRY_DSN = pub;
+    expect(await flags()).toEqual(expected);
+  });
+});

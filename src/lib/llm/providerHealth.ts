@@ -1,4 +1,5 @@
 import "server-only";
+import * as Sentry from "@sentry/nextjs";
 import { LlmError, isProviderOutage } from "./errors";
 
 /**
@@ -47,6 +48,20 @@ export function recordProviderResult(provider: string, err: unknown, now: number
   h.failures += 1;
   if (h.failures >= OPEN_AFTER) {
     h.openUntil = now + OPEN_MS;
+    // TELL SOMEONE, ONCE PER OUTAGE (2026-10-02). The first time a streak reaches the threshold; a probe that
+    // fails later in the same outage re-opens silently, and only a success starts a new streak. One message
+    // with a fixed fingerprint, so a long outage across several instances is one Sentry issue, not hundreds.
+    if (h.failures === OPEN_AFTER) {
+      try {
+        Sentry.captureMessage(`AI provider ${provider} is not answering; failing fast`, {
+          level: "error",
+          fingerprint: ["ai-provider-outage", provider],
+          tags: { feature: "llm", provider },
+        });
+      } catch {
+        /* reporting must never break the AI path it reports on */
+      }
+    }
     // eslint-disable-next-line no-console
     console.error(
       `[llm] ${provider} not answering (${h.failures} outage failures in a row); failing fast until ${new Date(h.openUntil).toISOString()}.`

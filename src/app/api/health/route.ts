@@ -10,6 +10,7 @@ import { CONSTITUTION } from "@/lib/constitution";
  *  - which LLM providers have a key configured (does NOT call them — that
  *    would burn tokens per health check)
  *  - whether Supabase is configured
+ *  - whether error reporting (Sentry) is switched on, server and browser
  *  - constitution version
  *  - node version
  *  - the exact DEPLOYED git commit (Vercel injects VERCEL_GIT_COMMIT_SHA/REF/ENV).
@@ -61,6 +62,16 @@ export async function GET() {
           : llmProviders.anthropic
           ? "anthropic"
           : null),
+      // IS ANYONE TOLD WHEN SOMETHING BREAKS (2026-10-02). Production had no DSN, so Sentry never started and
+      // every report to it was dropped, while comments said "Sentry keeps the exception"; the DeepSeek outage of
+      // 2026-10-01 reached nobody. Founder picker 2026-10-02: turn Sentry on. This makes "is it on" checkable
+      // with one curl instead of a guess (CLAUDE.md §1.5.3: fail loud on external config).
+      // Mirrors the init guards term for term (§2.2): sentry.server.config.ts starts on
+      // SENTRY_DSN ?? NEXT_PUBLIC_SENTRY_DSN; instrumentation-client.ts on NEXT_PUBLIC_SENTRY_DSN alone.
+      errorReporting: {
+        server: Boolean(process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN),
+        browser: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+      },
     },
     runtime: {
       node: process.version,

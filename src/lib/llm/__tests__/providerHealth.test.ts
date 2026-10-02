@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("@sentry/nextjs", () => ({ captureMessage: vi.fn() }));
+import * as Sentry from "@sentry/nextjs";
 import { deepseekProvider } from "../deepseek";
 import { LlmError, isProviderOutage } from "../errors";
 import {
@@ -25,7 +27,10 @@ function thrown(fn: () => void): unknown {
   return null;
 }
 
-beforeEach(() => _resetProviderHealth());
+beforeEach(() => {
+  _resetProviderHealth();
+  vi.mocked(Sentry.captureMessage).mockClear();
+});
 
 describe("the breaker", () => {
   it(`stays closed after one outage failure, opens after ${OPEN_AFTER}`, () => {
@@ -136,4 +141,43 @@ describe("wired into the DeepSeek provider", () => {
     await expect(deepseekProvider.call(CALL)).rejects.toMatchObject({ kind: "timeout" });
     expect(f).toHaveBeenCalledTimes(2); // both reached DeepSeek
   });
+});
+
+describe("someone is told, once per outage", () => {
+  it("one Sentry message when the breaker first opens, none for a failed probe in the same outage", () => {
+    for (let i = 0; i < OPEN_AFTER; i++) recordProviderResult("deepseek", timeout(), 0);
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Sentry.captureMessage).mock.calls[0]?.[1]).toMatchObject({
+      level: "error",
+      fingerprint: ["ai-provider-outage", "deepseek"],
+    });
+    recordProviderResult("deepseek", timeout(), OPEN_MS + 1); // the probe fails: still the same outage
+    recordProviderResult("deepseek", timeout(), 2 * OPEN_MS + 2);
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("a new outage after a success is told again", () => {
+    for (let i = 0; i < OPEN_AFTER; i++) recordProviderResult("deepseek", timeout(), 0);
+    recordProviderResult("deepseek", null, OPEN_MS + 1);
+    for (let i = 0; i < OPEN_AFTER; i++) recordProviderResult("deepseek", timeout(), 2 * OPEN_MS);
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("one failure, or a non-outage error, tells no one", () => {
+    recordProviderResult("deepseek", timeout(), 0);
+    for (let i = 0; i < 5; i++) {
+      recordProviderResult("deepseek", new LlmError({ kind: "auth", status: 401, provider: "deepseek", message: "x" }), i);
+    }
+    expect(Sentry.captureMessage).not.toHaveBeenCalled();
+  });
+});
+
+it("a reporting failure never breaks the breaker or the call path", () => {
+  vi.mocked(Sentry.captureMessage).mockImplementationOnce(() => {
+    throw new Error("sentry down");
+  });
+  expect(() => {
+    for (let i = 0; i < OPEN_AFTER; i++) recordProviderResult("deepseek", timeout(), 0);
+  }).not.toThrow();
+  expect(thrown(() => assertProviderAvailable("deepseek", 1))).not.toBeNull(); // still opened
 });

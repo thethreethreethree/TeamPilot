@@ -49,3 +49,29 @@ The auth class is closed. Two silent-config surfaces remain (push, care-email) a
 health-visibility follow-ups — not built here, because each is a small deliberate add, but named so they can't
 be mistaken for "working." The structural defense against a *future* instance is the amendment (A41): no
 config-dependent feature ships "done" on a green build alone.
+
+## Appended 2026-10-02 — error reporting, and what production actually has set
+
+Production's environment (`vercel env ls production --project team-pilot`, names only) holds 10 variables:
+`NEXT_PUBLIC_MEETING_COACH_ENABLED CRON_SECRET ELEVENLABS_API_KEY NEXT_PUBLIC_VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY
+VAPID_SUBJECT NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY NEXT_PUBLIC_SUPABASE_URL DEEPSEEK_API_KEY`.
+Against this audit:
+
+- **Error reporting (Sentry) was SILENT and OFF.** No `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`, so
+  `sentry.server.config.ts` and `instrumentation-client.ts` never called `Sentry.init`, every capture was dropped,
+  and code comments saying "Sentry keeps the exception" were untrue in production. The DeepSeek outage of
+  2026-10-01 reached nobody. Founder picker 2026-10-02: turn Sentry on. Now **loud**: `/api/health` reports
+  `capabilities.errorReporting.{server,browser}`, and an AI outage sends one Sentry message per outage.
+  **Blocking setup step (founder):**
+  1. Create a Sentry project (platform: Next.js) and copy its DSN.
+  2. In Vercel, project `team-pilot`, Production: add `NEXT_PUBLIC_SENTRY_DSN` = the DSN. One variable covers both
+     sides: the server config falls back to it. A DSN is public by design. It is baked in at build time, so
+     redeploy after adding it.
+  3. Verify: `curl -s https://elostate.com/api/health` shows `"errorReporting":{"server":true,"browser":true}`.
+  4. Verify delivery: the first real server error, or the next AI outage, appears in the Sentry project.
+- **Care email (`POSTMARK_SERVER_TOKEN`, …): still unset in production**, so item 2 above is still silent.
+- **Cron secrets:** every scheduled route in `vercel.json` now checks `CRON_SECRET` (set). The separate
+  `TASK_OVERRUN_SWEEP_SECRET` and `CARE_DURABILITY_SWEEP_SECRET` named above are no longer read by the cron
+  routes (checked 2026-10-02), so their absence disables nothing.
+- **The second Vercel project** named under "Structural compounder" was a different one (`…-iota`, marketing);
+  a duplicate app project, `team-pilot-6wlo`, was deleted on 2026-10-01 (founder's pick).
