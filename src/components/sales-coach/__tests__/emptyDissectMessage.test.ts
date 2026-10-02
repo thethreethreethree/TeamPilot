@@ -17,7 +17,7 @@ import { emptyDissectMessage } from "../SessionCoachTools";
  */
 describe("emptyDissectMessage", () => {
   it("never tells a rep their conversation was too short", () => {
-    for (const shape of [undefined, "llm_empty", "unparsable", "threw", "no_strengths", "no_agent_turns", "suppressed"]) {
+    for (const shape of [undefined, "llm_empty", "unparsable", "threw", "no_strengths", "no_agent_turns", "suppressed", "provider_unavailable"]) {
       const m = emptyDissectMessage(shape);
       expect(m).not.toMatch(/not enough of your side/i);
       expect(m).not.toMatch(/not enough of a conversation/i);
@@ -30,6 +30,13 @@ describe("emptyDissectMessage", () => {
       expect(m).toMatch(/recording is fine/i);
       expect(m).toMatch(/running it again/i);
     }
+  });
+
+  it("says the AI service is down, the recording is kept, and to try later, when the provider was unavailable", () => {
+    const m = emptyDissectMessage("provider_unavailable");
+    expect(m).toMatch(/unavailable right now/i);
+    expect(m).toMatch(/recording is saved/i);
+    expect(m).toMatch(/try again in a few minutes/i);
   });
 
   it("says it is about the conversation, not the person, when there was genuinely nothing to teach", () => {

@@ -57,6 +57,9 @@ const COACH_FAILED = new Set(["llm_empty", "unparsable", "threw"]);
  * The coach now records which empty it hit, and the POST returns it, so this can say the true thing.
  */
 export function emptyDissectMessage(shape: string | undefined): string {
+  if (shape === "provider_unavailable") {
+    return "The AI coach is unavailable right now, so nothing was written. Your recording is saved. Try again in a few minutes.";
+  }
   if (shape && COACH_FAILED.has(shape)) {
     return "The coach started reading this call and stopped before it produced anything. The recording is fine — this is the write-up failing, and running it again usually works.";
   }

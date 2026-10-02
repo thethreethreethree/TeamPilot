@@ -133,3 +133,14 @@ export function classifyStatusWithBody(
 export function isProviderOutage(err: unknown): boolean {
   return err instanceof LlmError && (err.kind === "timeout" || err.kind === "server" || err.kind === "network");
 }
+
+/**
+ * The provider could not serve ANYONE: an outage (isProviderOutage) or the account out of credit (quota). Both
+ * are states of the provider or the account, never a property of the item being processed, so a consumer must
+ * not record them as that item's result. Used by the sales dissect so an outage does not write the 14-day
+ * "attempted" backoff marker (2026-10-02: 4 such markers were written during the September out-of-credit
+ * outage). The pitch worker keeps the two apart because it waits a different time for each.
+ */
+export function isProviderUnavailable(err: unknown): boolean {
+  return isProviderOutage(err) || (err instanceof LlmError && err.kind === "quota");
+}

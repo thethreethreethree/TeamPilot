@@ -1,4 +1,5 @@
 import "server-only";
+import { isProviderUnavailable } from "@/lib/llm/errors";
 // Prompt-injection fence — the transcript carries untrusted CUSTOMER speech.
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
@@ -60,6 +61,8 @@ export type SalesDissect = {
  *   no_strengths   — valid JSON, but no strengths, so the tone law refuses it (never criticism-only). This
  *                    is the only shape that means what "no signal" sounds like it means.
  *   threw          — an exception on the path.
+ *   provider_unavailable — the AI provider was down or the account out of credit (isProviderUnavailable).
+ *                    Nothing about this call; NO backoff marker is written for it, so the next pass retries.
  */
 export type DissectEmptyShape =
   | "no_agent_turns"
@@ -67,7 +70,8 @@ export type DissectEmptyShape =
   | "llm_empty"
   | "unparsable"
   | "no_strengths"
-  | "threw";
+  | "threw"
+  | "provider_unavailable";
 
 const EMPTY: SalesDissect = {
   hasSignal: false,
@@ -143,7 +147,8 @@ export async function generateSalesDissect(args: {
     console.error(
       `[generateSalesDissect] threw: ${e instanceof Error ? e.message : String(e)}`
     );
-    return emptyBecause("threw");
+    // The provider being down or out of credit is not this call's result (llm/errors.ts verdict, §2.2).
+    return emptyBecause(isProviderUnavailable(e) ? "provider_unavailable" : "threw");
   }
 }
 
@@ -186,6 +191,15 @@ export async function runAndStoreDissect(args: {
     } catch {
       /* best-effort — the dissect still returns */
     }
+  } else if (dissect.emptyShape === "provider_unavailable") {
+    /*
+     * AN OUTAGE IS NOT AN ATTEMPT (2026-10-02). The marker below makes the backfill skip this session for 14
+     * days. Written for a provider outage, it turned "DeepSeek was down for an hour" into "this call gets no
+     * review for two weeks": 4 of the 6 `threw` markers in production were written 2026-09-23..25, while the
+     * DeepSeek balance was empty. Nothing is stored; the next backfill pass or a click retries it.
+     */
+    // eslint-disable-next-line no-console
+    console.error(`[runAndStoreDissect] AI provider unavailable — session ${args.sessionId} left for the next pass; no backoff marker.`);
   } else {
     // No signal → emit an ATTEMPTED marker so the backfill (dissectBackfill.ts, which reads this by KIND) BACKS
     // OFF (14d) instead of re-selecting this stuck session every cron pass / button click forever — the

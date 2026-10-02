@@ -143,3 +143,40 @@ describe("runAndStoreDissect — the marker records WHICH no-signal", () => {
     expect(payload.agentTurns).toBe(1);
   });
 });
+
+/**
+ * AN OUTAGE IS NOT AN ATTEMPT (2026-10-02). The attempted marker makes the backfill skip a session for 14 days. 4
+ * of the 6 `threw` markers in production were written 2026-09-23..25 while the DeepSeek balance was empty, so an
+ * outage became a two-week gap in that call's review. The errors are built with the real LlmError.
+ */
+describe("runAndStoreDissect — the AI provider being down writes no backoff marker", () => {
+  const agentCall = () => [seg("agent", 0), seg("customer", 1), seg("agent", 2)];
+
+  it.each([
+    ["a timeout", "timeout", undefined],
+    ["a 5xx", "server", 503],
+    ["unreachable", "network", undefined],
+    ["out of credit", "quota", 402],
+  ] as const)("%s → shape 'provider_unavailable', nothing stored", async (_n, kind, status) => {
+    const { LlmError } = await import("@/lib/llm/errors");
+    asMock(dissectCoachV5).mockRejectedValue(new LlmError({ kind, status, provider: "deepseek", message: "down" }));
+    const d = await run(agentCall());
+    expect(d.emptyShape).toBe("provider_unavailable");
+    expect(captured.inserts).toHaveLength(0);
+  });
+
+  it("CONTROL: a request-level AI error is still 'threw' and still backs off", async () => {
+    const { LlmError } = await import("@/lib/llm/errors");
+    asMock(dissectCoachV5).mockRejectedValue(new LlmError({ kind: "invalid_request", status: 400, provider: "deepseek", message: "bad" }));
+    const d = await run(agentCall());
+    expect(d.emptyShape).toBe("threw");
+    expect(captured.inserts[0]).toMatchObject({ kind: "coach.dissect_attempted", payload: { shape: "threw" } });
+  });
+
+  it("CONTROL: a plain exception is still 'threw' and still backs off", async () => {
+    asMock(dissectCoachV5).mockRejectedValue(new Error("boom"));
+    const d = await run(agentCall());
+    expect(d.emptyShape).toBe("threw");
+    expect(captured.inserts).toHaveLength(1);
+  });
+});
