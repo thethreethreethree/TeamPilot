@@ -11,8 +11,9 @@ import type { LlmError, LlmErrorKind } from "./errors";
  * `DeepSeek API error 402: {"error":{"message":"Insufficient Balance",...}}`. The founder reversed it.
  *
  * `kind` still goes to the client, so it can back off, retry, or explain (the Settings connection panel
- * hints from `kind`). The raw reply is logged here, and Sentry keeps the exception, so nothing is lost to the
- * people who debug it. It just stops reaching the screen.
+ * hints from `kind`). The raw reply is logged here (Vercel's function logs), so nothing is lost to the people who
+ * debug it. It just stops reaching the screen. NOT in Sentry (corrected 2026-10-02): the route answers instead
+ * of throwing, so request-error capture never sees it; an outage is reported once by providerHealth.ts instead.
  */
 const SENTENCE: Record<LlmErrorKind, string> = {
   timeout: "The AI took too long to respond. Please try again.",

@@ -11,3 +11,9 @@ gate-or-promise: gate
 gate-or-promise: promise
 
 Fixed in the one test; a new Sentry call elsewhere needs its mock updated, which the failing test will say.
+
+### publicMessage.ts said "Sentry keeps the exception"
+
+gate-or-promise: promise
+
+Comment corrected; no gate can check a comment's claim about Sentry.

@@ -52,3 +52,24 @@ run 3: exit 0
  Test Files  728 passed | 1 skipped (729)
       Tests  5669 passed | 15 skipped (5684)
 ```
+
+## Appended 2026-10-02T06:35Z - a comment that claimed Sentry kept every AI error
+
+### publicMessage.ts said "Sentry keeps the exception"
+
+class: a code comment asserting an outside system's behaviour that was never checked
+sweep: grep -rnE "Sentry (keeps|has|captures|records|gets)|reported to Sentry|in Sentry" src (4 hits)
+severity: low
+
+Untrue twice over: no DSN in production, and even with one, a route that answers with llmPublicMessage does not
+throw, so request-error capture never sees it. Corrected. The other two hits (worker.ts, pitchFailureMessage.ts)
+are true once the DSN exists: the worker calls Sentry.captureException itself.
+
+```
+$ npm run check   (with the comment correction)
+ Test Files  728 passed | 1 skipped (729)
+      Tests  5669 passed | 15 skipped (5684)
+exit 0
+$ curl -s https://elostate.com/api/health   (6679b5f live, 06:26Z)
+  "errorReporting": {"server": false, "browser": false}   <- loud, as intended, until the DSN is set
+```
