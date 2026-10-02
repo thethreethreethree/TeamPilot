@@ -17,6 +17,7 @@ import { backoffMs, isTerminalFailure, isPermanentFailure, MAX_PITCH_ATTEMPTS } 
 import { stitchPitchAudio, recordingIdFromAudioPath } from "./pitchAudioChunks";
 import { describeAudioBytes, truncateAtSecondInitSegment, startsWithNewRecordingHeader } from "@/lib/coach/v5/stitchSessionAudio";
 import { rollupRep } from "./rollupWorker";
+import { isProviderOutage } from "@/lib/llm/errors";
 
 /**
  * Pitch-processing worker (Macro Mode pipeline, build-spec 3.3). Nothing here is in the rep's request path:
@@ -45,6 +46,9 @@ type PitchRow = {
    */
   status: PitchStatus;
   attempts: number;
+  /** When the pitch row was created. Bounds how long an AI outage may defer it without spending an attempt
+   *  (OUTAGE_GRACE_MS). Absent → no grace: the attempt is spent as before. */
+  created_at?: string;
 };
 
 /** Read the pitch's outcome + duration (from its knock) for the analysis step. */
@@ -286,16 +290,31 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
      * No Sentry capture: one event per pitch per interval for the length of an outage is a flood that
      * buries the alert. One line per deferral in the logs instead.
      */
-    if ((err as { kind?: unknown } | null)?.kind === "quota") {
+    /**
+     * A PROVIDER OUTAGE IS NOT THIS PITCH'S FAILURE EITHER (2026-10-02). Same shape as out of credit: on
+     * 2026-10-01 DeepSeek stopped answering for hours, and a pitch's five attempts last about 3.5 minutes, so
+     * every pitch recorded during an outage would have been terminal `failed` (none were, by luck: no one
+     * recorded). Founder, picker 2026-10-02: "DeepSeek only, fail fast ... pitches wait in the queue until
+     * DeepSeek returns". The verdict is isProviderOutage (llm/errors.ts, §2.2), the same one that opens the
+     * provider's breaker, so a breaker-skipped call defers here too.
+     *
+     * Bounded, unlike quota: a pitch whose OWN call is what times out (an outsized prompt) would otherwise be
+     * retried forever. The production record has no such pitch (31 failed, none by timeout, 2026-10-02), so
+     * the bound is a backstop: after OUTAGE_GRACE_MS from creation the attempt is spent as before.
+     */
+    const quota = (err as { kind?: unknown } | null)?.kind === "quota";
+    const outage = !quota && isProviderOutage(err) && withinOutageGrace(pitch.created_at);
+    if (quota || outage) {
+      const waitMs = quota ? QUOTA_RETRY_MS : OUTAGE_RETRY_MS;
       await recordFailureStatus({
         pitchId: pitch.id,
         status: pitch.status,
         attempts: Math.max(0, attempts - 1),
-        runAfter: new Date(Date.now() + QUOTA_RETRY_MS),
+        runAfter: new Date(Date.now() + waitMs),
       });
       // eslint-disable-next-line no-console
       console.error(
-        `[doorlog/worker] AI provider out of credit — pitch ${pitch.id} deferred ${QUOTA_RETRY_MS / 60_000} min; attempt NOT spent.`
+        `[doorlog/worker] AI provider ${quota ? "out of credit" : "not answering"} — pitch ${pitch.id} deferred ${waitMs / 60_000} min; attempt NOT spent.`
       );
       return;
     }
@@ -333,6 +352,19 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
 
 /** How long a pitch waits after the AI provider refuses on billing, before the sweep tries it again. */
 export const QUOTA_RETRY_MS = 15 * 60_000;
+
+/** How long a pitch waits after the AI provider times out or errors, before the sweep tries it again. Shorter
+ *  than quota: outages often clear in minutes, and a breaker-skipped retry costs nothing. */
+export const OUTAGE_RETRY_MS = 5 * 60_000;
+
+/** How long after creation an outage may keep deferring a pitch without spending an attempt. */
+export const OUTAGE_GRACE_MS = 24 * 60 * 60_000;
+
+/** True while a pitch created at `createdAt` may still be deferred for an outage. Unknown or unparseable → false. */
+export function withinOutageGrace(createdAt: string | undefined, now: number = Date.now()): boolean {
+  const t = createdAt ? Date.parse(createdAt) : NaN;
+  return Number.isFinite(t) && now - t < OUTAGE_GRACE_MS;
+}
 
 /** Sweep + process the next batch of due pitches (the cron entry point). Returns how many it handled. */
 export async function processDuePitches(limit = 10): Promise<number> {

@@ -6,6 +6,7 @@ import {
   MAX_TOTAL_TOKENS,
 } from "../deepseek";
 import { LlmError } from "../errors";
+import { _resetProviderHealth } from "../providerHealth";
 import { shouldCascade } from "../index";
 
 /**
@@ -53,6 +54,8 @@ const CALL = {
 describe("deepseekProvider error classification (outage regression lock)", () => {
   beforeEach(() => {
     process.env.DEEPSEEK_API_KEY = "test-key";
+    // The outage breaker remembers failures across calls; each case starts with a provider in good health.
+    _resetProviderHealth();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -202,6 +205,8 @@ describe("reasoning-token headroom (blank-output outage guard)", () => {
 describe("deepseek starvation visibility — finish_reason:'length' logs loudly (never silent again)", () => {
   beforeEach(() => {
     process.env.DEEPSEEK_API_KEY = "test-key";
+    // The outage breaker remembers failures across calls; each case starts with a provider in good health.
+    _resetProviderHealth();
   });
   afterEach(() => {
     vi.unstubAllGlobals();

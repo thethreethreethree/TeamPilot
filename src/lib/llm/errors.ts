@@ -114,3 +114,22 @@ export function classifyStatusWithBody(
   if (status === 404 && base === "unknown") return "invalid_request";
   return base;
 }
+
+/**
+ * THE PROVIDER IS DOWN, NOT THIS REQUEST (2026-10-02). The single verdict for "the AI provider is failing for
+ * everyone": it timed out, answered 5xx, or could not be reached. Two consumers act on it, and both call THIS
+ * (CLAUDE.md §2.2), never re-derive it:
+ *  - providerHealth (deepseek.ts) counts these to stop calling a provider that is not answering;
+ *  - the pitch worker gives the attempt back instead of spending one, so an outage longer than the backoff
+ *    schedule does not turn every pitch recorded during it into a terminal `failed`.
+ *
+ * Why: on 2026-10-01 from about 19:27 UTC DeepSeek stopped answering (their status page: degraded performance).
+ * Every call waited out its 45 s timeout; the every-minute cron ran into its 300 s limit on every run. Founder,
+ * picker 2026-10-02: "DeepSeek only, fail fast".
+ *
+ * Not an outage: auth, quota (its own branch), invalid_request, model_unavailable, rate_limit, unknown. Those
+ * say something about the account or the request, and the provider answered.
+ */
+export function isProviderOutage(err: unknown): boolean {
+  return err instanceof LlmError && (err.kind === "timeout" || err.kind === "server" || err.kind === "network");
+}

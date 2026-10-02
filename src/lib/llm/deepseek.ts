@@ -2,6 +2,7 @@ import "server-only";
 import type { LlmCallArgs, LlmResult, Provider } from "./types";
 import { LlmError, classifyStatusWithBody } from "./errors";
 import { fetchWithTimeout, withRetry } from "./retry";
+import { assertProviderAvailable, recordProviderResult } from "./providerHealth";
 
 /**
  * Parse an SSE (Server-Sent Events) stream into a sequence of text deltas.
@@ -169,71 +170,81 @@ export const deepseekProvider: Provider = {
       ...(args.expectJson ? { response_format: { type: "json_object" } } : {}),
     };
 
-    return withRetry(async () => {
-      const startedAt = Date.now();
-      const res = await fetchWithTimeout(
-        ENDPOINT,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
+    // Fail fast while DeepSeek is in a known outage (providerHealth.ts), and record how this call ended.
+    assertProviderAvailable("deepseek");
+    let outcome: unknown = null;
+    try {
+      return await withRetry(async () => {
+        const startedAt = Date.now();
+        const res = await fetchWithTimeout(
+          ENDPOINT,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
           },
-          body: JSON.stringify(body),
-        },
-        { timeoutMs: DEFAULT_TIMEOUT_MS, provider: "deepseek" }
-      );
-
-      if (!res.ok) {
-        const rawBody = await res.text();
-        throw new LlmError({
-          kind: classifyStatusWithBody(res.status, rawBody),
-          status: res.status,
-          message: `DeepSeek API error ${res.status}: ${rawBody.slice(0, 200)}`,
-          provider: "deepseek",
-          rawBody,
-        });
-      }
-
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string }; finish_reason?: string | null }>;
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          total_tokens?: number;
-        };
-      };
-      const text = json.choices?.[0]?.message?.content ?? "";
-      const finishReason = json.choices?.[0]?.finish_reason;
-      // Visibility for the reasoning-starvation class — never let it go silent again. If the model hit the token
-      // ceiling (reasoning consumed the budget), say so LOUDLY. Callers treat empty/unparseable text as "no
-      // signal", so without this the failure is invisible — exactly how the 2026-07-30 dissect outage hid for two
-      // weeks. Fires on BOTH shapes: EMPTY content (reasoning ate everything) AND a TRUNCATED answer (reasoning
-      // ate most, a partial answer emitted then cut — which then fails JSON parse as a vague "no signal"). The
-      // completion_tokens tells us how much headroom the real prompt actually needs (to size a fix precisely).
-      if (finishReason === "length") {
-        // eslint-disable-next-line no-console
-        console.error(
-          `[deepseek] finish_reason:"length" — ${
-            text.trim() ? `TRUNCATED answer (${text.length} chars, likely fails JSON parse)` : "EMPTY content"
-          } (model=${model}, prompt_tokens=${json.usage?.prompt_tokens}, completion_tokens=${json.usage?.completion_tokens}, budget=${withReasoningHeadroom(args.maxTokens)}) — reasoning consumed the token budget. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS above completion_tokens.`
+          { timeoutMs: DEFAULT_TIMEOUT_MS, provider: "deepseek" }
         );
-      }
-      const u = json.usage;
-      return {
-        text,
-        model,
-        provider: "deepseek",
-        latencyMs: Date.now() - startedAt,
-        usage: u
-          ? {
-              promptTokens: u.prompt_tokens,
-              completionTokens: u.completion_tokens,
-              totalTokens: u.total_tokens,
-            }
-          : undefined,
-      };
-    });
+
+        if (!res.ok) {
+          const rawBody = await res.text();
+          throw new LlmError({
+            kind: classifyStatusWithBody(res.status, rawBody),
+            status: res.status,
+            message: `DeepSeek API error ${res.status}: ${rawBody.slice(0, 200)}`,
+            provider: "deepseek",
+            rawBody,
+          });
+        }
+
+        const json = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string }; finish_reason?: string | null }>;
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+          };
+        };
+        const text = json.choices?.[0]?.message?.content ?? "";
+        const finishReason = json.choices?.[0]?.finish_reason;
+        // Visibility for the reasoning-starvation class — never let it go silent again. If the model hit the token
+        // ceiling (reasoning consumed the budget), say so LOUDLY. Callers treat empty/unparseable text as "no
+        // signal", so without this the failure is invisible — exactly how the 2026-07-30 dissect outage hid for two
+        // weeks. Fires on BOTH shapes: EMPTY content (reasoning ate everything) AND a TRUNCATED answer (reasoning
+        // ate most, a partial answer emitted then cut — which then fails JSON parse as a vague "no signal"). The
+        // completion_tokens tells us how much headroom the real prompt actually needs (to size a fix precisely).
+        if (finishReason === "length") {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[deepseek] finish_reason:"length" — ${
+              text.trim() ? `TRUNCATED answer (${text.length} chars, likely fails JSON parse)` : "EMPTY content"
+            } (model=${model}, prompt_tokens=${json.usage?.prompt_tokens}, completion_tokens=${json.usage?.completion_tokens}, budget=${withReasoningHeadroom(args.maxTokens)}) — reasoning consumed the token budget. Raise the caller's maxTokens or REASONING_HEADROOM_TOKENS above completion_tokens.`
+          );
+        }
+        const u = json.usage;
+        return {
+          text,
+          model,
+          provider: "deepseek",
+          latencyMs: Date.now() - startedAt,
+          usage: u
+            ? {
+                promptTokens: u.prompt_tokens,
+                completionTokens: u.completion_tokens,
+                totalTokens: u.total_tokens,
+              }
+            : undefined,
+        };
+      });
+    } catch (err) {
+      outcome = err;
+      throw err;
+    } finally {
+      recordProviderResult("deepseek", outcome);
+    }
   },
   async *stream(args: LlmCallArgs): AsyncIterable<string> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -259,30 +270,40 @@ export const deepseekProvider: Provider = {
       ...(args.expectJson ? { response_format: { type: "json_object" } } : {}),
     };
 
-    const res = await fetchWithTimeout(
-      ENDPOINT,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
+    // Fail fast while DeepSeek is in a known outage (providerHealth.ts). The outcome recorded is the CONNECT:
+    // a timeout, a refusal or a 5xx before the first byte is what an outage looks like.
+    assertProviderAvailable("deepseek");
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(
+        ENDPOINT,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      },
-      { timeoutMs: DEFAULT_TIMEOUT_MS, provider: "deepseek" }
-    );
+        { timeoutMs: DEFAULT_TIMEOUT_MS, provider: "deepseek" }
+      );
 
-    if (!res.ok) {
-      const rawBody = await res.text();
-      throw new LlmError({
-        kind: classifyStatusWithBody(res.status, rawBody),
-        status: res.status,
-        message: `DeepSeek stream error ${res.status}: ${rawBody.slice(0, 200)}`,
-        provider: "deepseek",
-        rawBody,
-      });
+      if (!res.ok) {
+        const rawBody = await res.text();
+        throw new LlmError({
+          kind: classifyStatusWithBody(res.status, rawBody),
+          status: res.status,
+          message: `DeepSeek stream error ${res.status}: ${rawBody.slice(0, 200)}`,
+          provider: "deepseek",
+          rawBody,
+        });
+      }
+    } catch (err) {
+      recordProviderResult("deepseek", err);
+      throw err;
     }
+    recordProviderResult("deepseek", null);
 
     yield* parseSseDeltas(res, {
       model,

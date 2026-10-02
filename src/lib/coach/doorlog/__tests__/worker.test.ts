@@ -52,8 +52,9 @@ import { downloadAssetBytes } from "@/lib/storage/assets";
 import { writePitchAnalysis, writePitchTranscript, setPitchStatus, claimPitchForProcessing } from "@/lib/data/doorlog";
 import { analyzePitch } from "@/lib/coach/doorlog/analyze";
 import { rollupRep } from "../rollupWorker";
-import { processPitch, QUOTA_RETRY_MS } from "../worker";
+import { processPitch, QUOTA_RETRY_MS, OUTAGE_RETRY_MS, OUTAGE_GRACE_MS, withinOutageGrace } from "../worker";
 import { LlmError, classifyStatus } from "@/lib/llm/errors";
+import { OPEN_AFTER, _resetProviderHealth, assertProviderAvailable, recordProviderResult } from "@/lib/llm/providerHealth";
 import { MAX_PITCH_ATTEMPTS } from "../retryBackoff";
 
 /** Did any setPitchStatus call mark this pitch terminally failed with a message matching `re`? */
@@ -339,9 +340,9 @@ describe("processPitch — an out-of-credit AI provider never kills a pitch", ()
     expect(due - before).toBeGreaterThanOrEqual(QUOTA_RETRY_MS - 1000);
   });
 
-  it("CONTROL: an ordinary provider failure on the same attempt is still terminal", async () => {
+  it("CONTROL: a request-level provider error on the same attempt is still terminal", async () => {
     vi.mocked(analyzePitch).mockRejectedValueOnce(
-      new LlmError({ kind: classifyStatus(500), status: 500, provider: "deepseek", message: "upstream 500" })
+      new LlmError({ kind: classifyStatus(400), status: 400, provider: "deepseek", message: "bad request" })
     );
     await processPitch(lastAttempt);
     expect(failedWith(/Processing failed after/)).toBe(true);
@@ -359,3 +360,103 @@ describe("processPitch — an out-of-credit AI provider never kills a pitch", ()
   });
 });
 
+
+/**
+ * 2026-10-01: DeepSeek stopped answering for hours (timeouts, their status page: degraded performance). A pitch's
+ * five attempts last about 3.5 minutes, so every pitch recorded during it would have been terminal `failed`.
+ * Founder, picker 2026-10-02: "DeepSeek only, fail fast ... pitches wait in the queue until DeepSeek returns".
+ */
+describe("processPitch — an AI provider outage never kills a recent pitch", () => {
+  const recent = () => new Date(Date.now() - 60_000).toISOString();
+  const lastAttempt = { ...PITCH, attempts: MAX_PITCH_ATTEMPTS - 1, created_at: recent() };
+  const timeout = () =>
+    new LlmError({ kind: "timeout", provider: "deepseek", message: "Request to deepseek timed out after 45000ms", retryable: false });
+  const http = (status: number) =>
+    new LlmError({ kind: classifyStatus(status), status, provider: "deepseek", message: `DeepSeek API error ${status}` });
+
+  beforeEach(() => _resetProviderHealth());
+
+  it.each([
+    ["a timeout", timeout],
+    ["a 500", () => http(500)],
+    ["a 503", () => http(503)],
+    ["a provider 504", () => http(504)],
+  ])("%s on the final attempt defers it and gives the attempt back", async (_n, make) => {
+    vi.mocked(analyzePitch).mockRejectedValueOnce(make());
+    const before = Date.now();
+    await processPitch(lastAttempt);
+    expect(failedWith(/./)).toBe(false);
+    const last = vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0];
+    expect(last?.status).toBe(lastAttempt.status);
+    expect(last?.attempts).toBe(MAX_PITCH_ATTEMPTS - 1);
+    const due = (last?.runAfter?.getTime() ?? 0) - before;
+    expect(due).toBeGreaterThanOrEqual(OUTAGE_RETRY_MS - 1000);
+    expect(due).toBeLessThan(QUOTA_RETRY_MS); // shorter than the billing wait
+  });
+
+  it("the breaker's own fail-fast error defers it too (one verdict for both)", async () => {
+    for (let i = 0; i < OPEN_AFTER; i++) recordProviderResult("deepseek", timeout());
+    let skipped: unknown;
+    try {
+      assertProviderAvailable("deepseek");
+    } catch (e) {
+      skipped = e;
+    }
+    expect(skipped).toBeInstanceOf(LlmError);
+    vi.mocked(analyzePitch).mockRejectedValueOnce(skipped);
+    await processPitch(lastAttempt);
+    expect(failedWith(/./)).toBe(false);
+    expect(vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0]?.attempts).toBe(MAX_PITCH_ATTEMPTS - 1);
+  });
+
+  it("survives a long outage: thirty sweeps, never terminal", async () => {
+    let attempts = lastAttempt.attempts;
+    for (let i = 0; i < 30; i++) {
+      vi.mocked(analyzePitch).mockRejectedValueOnce(timeout());
+      await processPitch({ ...lastAttempt, attempts });
+      attempts = vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0]?.attempts ?? attempts;
+    }
+    expect(failedWith(/./)).toBe(false);
+    expect(attempts).toBe(MAX_PITCH_ATTEMPTS - 1);
+  });
+
+  it("BOUND: a pitch older than the grace spends its attempt as before (no retrying forever)", async () => {
+    const old = new Date(Date.now() - OUTAGE_GRACE_MS - 60_000).toISOString();
+    vi.mocked(analyzePitch).mockRejectedValueOnce(timeout());
+    await processPitch({ ...lastAttempt, created_at: old });
+    expect(failedWith(/Processing failed after/)).toBe(true);
+  });
+
+  it("BOUND: a pitch with no creation time spends its attempt as before", async () => {
+    vi.mocked(analyzePitch).mockRejectedValueOnce(timeout());
+    await processPitch({ ...lastAttempt, created_at: undefined });
+    expect(failedWith(/Processing failed after/)).toBe(true);
+  });
+
+  it("an outage on an EARLY attempt also gives the attempt back (not just the last)", async () => {
+    vi.mocked(analyzePitch).mockRejectedValueOnce(http(503));
+    await processPitch({ ...PITCH, attempts: 0, created_at: recent() }); // lease → 1
+    expect(vi.mocked(setPitchStatus).mock.calls.at(-1)?.[0]?.attempts).toBe(0);
+  });
+
+  it("a speech-to-text failure is not an AI outage: it still backs off and spends the attempt", async () => {
+    scripts["pitch_transcripts:pitch_id"] = null;
+    vi.mocked(transcribeSpeech).mockRejectedValueOnce(new Error("ElevenLabs STT failed: 503"));
+    await processPitch(lastAttempt);
+    expect(failedWith(/Processing failed after/)).toBe(true);
+  });
+});
+
+describe("withinOutageGrace", () => {
+  const now = Date.parse("2026-10-02T04:00:00Z");
+  it.each([
+    ["2026-10-02T03:00:00Z", true],
+    ["2026-10-01T04:00:01Z", true],
+    ["2026-10-01T04:00:00Z", false],
+    ["2026-09-30T00:00:00Z", false],
+    [undefined, false],
+    ["not a date", false],
+  ] as const)("%s → %s", (createdAt, expected) => {
+    expect(withinOutageGrace(createdAt, now)).toBe(expected);
+  });
+});

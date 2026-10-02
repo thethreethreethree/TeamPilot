@@ -383,7 +383,7 @@ export async function claimPitchesToProcess(limit = 10) {
   const sb = createAdminClient();
   const { data } = await sb
     .from("pitches")
-    .select("id, company_id, rep_id, audio_path, status, attempts")
+    .select("id, company_id, rep_id, audio_path, status, attempts, created_at")
     .in("status", ["uploading", "recorded", "transcribing", "analyzing"])
     .lte("run_after", new Date().toISOString())
     .order("run_after", { ascending: true })

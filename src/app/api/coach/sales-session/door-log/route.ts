@@ -198,6 +198,8 @@ export async function POST(req: NextRequest) {
       audio_path: pitchAudioPath,
       status: "uploading",
       attempts: 0,
+      // Just created. Lets an AI outage defer this first attempt instead of spending it (worker.ts).
+      created_at: new Date().toISOString(),
     })
   );
 
