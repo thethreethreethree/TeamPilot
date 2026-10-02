@@ -24,3 +24,11 @@ has been, or does not appear.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-02T04:35Z)
+
+- **R1-other-permanent-refusals: CLOSED, nothing to change.** Checked each: `not_a_sales_call` is
+  `session.sessionKind !== "sales"` (scoreSession.ts:213), and the count's candidate read keeps only
+  `.eq("session_kind", "sales")` (backfill/route.ts:128), so no such recording can be counted. `not_found` cannot
+  arise for an id the same company-scoped read just returned. `suppressed` is the account, and the drain names it
+  on the first press. The new `provider_down` (2026-10-02) is not permanent and is not excluded, correctly.
