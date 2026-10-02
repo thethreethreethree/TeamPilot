@@ -231,6 +231,9 @@ they cannot re-take, unsent words, a deal value that vanishes as they swipe back
 **Build 21 or later is what to test** — take whatever TestFlight offers you as
 newest, and check the build number before you start.
 
+**For checks 42 to 44, take build 29 or later** (sent 2 October). Build 28 has the
+undo and the back-to-back fix, but not the words in check 44.
+
 **You can now check it inside the app**, which you could not before: the foot of
 the **Account** screen reads `Sales Coach 1.0.0 (21)`. It said just "1.0.0" until
 build 21, which is the same on every build ever uploaded — so I had been asking
@@ -1559,6 +1562,9 @@ Quick to check, all on screens you already know:
 4. Home, **Macro Mode** on: under the switch, "This mode is for short form
    sales, under 15 minutes. Fiber internet, Pest Control." Off: "Long form
    sales, over 20 minutes, ex: Solar Sales." The website's card now says the same.
+
+5. **Today's Metrics** on a day with no pitches yet: "No pitches **analyzed** yet"
+   (American spelling everywhere, and "analyzed", not "scored").
 
 **Wrong looks like:** any of the old words; or "scored" on a points screen.
 
