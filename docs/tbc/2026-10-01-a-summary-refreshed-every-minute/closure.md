@@ -31,3 +31,13 @@ summary is newer than their latest pitch. The duplicate project that ran every j
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-02T04:25Z)
+
+- **R1-other-default-only-freshness: CLOSED, none found.** Swept every `.upsert(` under src (30 sites) and every
+  skip-if-fresh gate (`isStale|isFresh|isDue|Due(|olderThan|STALE_|FRESH`). The other gates decide by `status`,
+  `checked_at` or `started_at`, each written explicitly on the write that changes it. rollupDueReps was the only
+  gate reading a timestamp that only a column DEFAULT set.
+- **R2-cron-seen-healthy: CLOSED.** 2026-10-02 03:48Z to 03:57Z, pitch-processing-cron answered 200 every minute
+  (Vercel logs), after DeepSeek recovered. rep_pattern_summaries updates were 14,142 at 19:5xZ and at 03:57Z:
+  no rewrites in between.
