@@ -43,3 +43,9 @@ and Scoreboard were changed and are covered by the same gate.
   }
 ]
 ```
+
+## Residual update (appended 2026-10-02T04:40Z)
+
+- **R2-local-vitest-runner-flake: still OPEN, no recurrence.** Five full `npm run check` runs against
+  postgres:16-alpine on this machine since (2026-10-01 19:4xZ and 2026-10-02 04:0xZ, 04:2xZ, 04:3xZ, 04:4xZ), all exit 0
+  with every test file run (727-728 files). Now about 2 of 14 full runs in total. Cause still not established.
