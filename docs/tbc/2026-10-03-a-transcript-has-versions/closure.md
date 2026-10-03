@@ -38,3 +38,24 @@ A repair or relabel appends a version and keeps the old one; every reader, web a
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Rollout (appended 2026-10-03T08:35Z; founder picker: "All of it, in order")
+
+1. `node scripts/db-apply.mjs --verify` 08:02:52Z: "VERIFY PASSED … Rolled back; nothing committed."
+2. `npm run db:apply` 08:03:03Z: 0269 applied, exit 0; verify:live "ALL 30 invariants hold" (append-only rules intact).
+3. 99c2d148 pushed 08:03:18Z; `/api/health` served 99c2d14 from 08:05:15Z; 0 5xx in the next 10 minutes; the
+   post-deploy smoke passed.
+4. Production, read-only: table 2816 rows = view 2816 rows, max version 1; both functions are the locked versions;
+   the view's reloptions are security_invoker=true. PostgREST
+   `coaching_sessions?select=id,coaching_transcript_segments_current(count)` answered 200 with counts.
+   **R2-app-embed-unproven: CLOSED.**
+5. App build 30 (EAS 664f8a2f, from 328f85b8) finished 08:13Z; submission 79d62edd finished 08:14Z.
+6. The stuck calls are **7 sales calls, not 12**: the other 5 were meetings, and meeting transcripts are normally
+   all 'unknown' (5 of the 6 meetings in production). Marker reset on exactly the 7 (one transaction, committed on
+   7 rows, 08:07:46Z). The 08:20 sweep (capped per run) took 6 of them, and **6 now have version 2**: the first
+   successful replace since 2026-08-14. The re-read did not decide the rep's voice: 5 calls are a single
+   'unknown' line again, 1 has 26 'unknown' lines. They need the rep's "who spoke?" answer, which now writes a
+   version too. 8bde1ce2 waits for the next run.
+
+**R1-migration-not-applied: CLOSED** (step 2). **R3-stuck-calls-not-repaired: still OPEN**: the repairs land, but
+the 7 calls stay uncoachable until a rep answers who spoke, and 8bde1ce2 has not been re-read yet.
