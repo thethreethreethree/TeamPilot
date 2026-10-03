@@ -77,7 +77,7 @@ describe("GET — report + anonymized next transcript", () => {
       },
       // Manager already scored s1 → it becomes a report pair; s2 is the next to score.
       gamification_calibration: { data: [{ session_id: "s1", scores: { opener: 8, tone: 6 } }] },
-      coaching_transcript_segments: {
+      coaching_transcript_segments_current: {
         data: [
           { speaker: "agent", text: "Hi, is this Rob Ramos?", seq: 0 },
           { speaker: "customer", text: "Speaking.", seq: 1 },

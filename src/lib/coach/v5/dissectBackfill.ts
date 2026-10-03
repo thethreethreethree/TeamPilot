@@ -144,7 +144,7 @@ export async function runDissectBackfill(args: {
     ? await fetchAllPaged<{ session_id: string }>(
         (from, to) =>
           admin
-            .from("coaching_transcript_segments")
+            .from("coaching_transcript_segments_current")
             .select("session_id")
             .in("session_id", missingIds)
             .range(from, to),

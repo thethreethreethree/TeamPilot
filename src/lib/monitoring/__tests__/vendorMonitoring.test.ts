@@ -65,21 +65,21 @@ describe("vendorMonitoring allowlist boundary", () => {
     // The rail: the allowlist check gates BEFORE the transcript read.
     expect(queried).toContain("coaching_sessions");
     expect(queried).toContain("vendor_monitoring_scope");
-    expect(queried).not.toContain("coaching_transcript_segments");
+    expect(queried).not.toContain("coaching_transcript_segments_current");
   });
 
   it("getMonitoredSession returns the session + segments when the company IS on the allowlist", async () => {
     ROWS = {
       coaching_sessions: { id: "s1", company_id: "co1", agent_id: "rep1" },
       vendor_monitoring_scope: { company_id: "co1" },
-      coaching_transcript_segments: [{ speaker: "agent", text: "hi", seq: 0 }],
+      coaching_transcript_segments_current: [{ speaker: "agent", text: "hi", seq: 0 }],
       profiles: [{ id: "rep1", full_name: "Rep One" }],
     };
     const result = await getMonitoredSession("s1");
     expect(result).not.toBeNull();
     expect(result?.company_id).toBe("co1");
     expect(result?.segments).toHaveLength(1);
-    expect(queried).toContain("coaching_transcript_segments");
+    expect(queried).toContain("coaching_transcript_segments_current");
   });
 
   it("getMonitoredSession returns null for a missing session (no allowlist query needed)", async () => {

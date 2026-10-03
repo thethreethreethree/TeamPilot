@@ -253,7 +253,7 @@ export async function readPitchRecordingDetail(
   let approximate = true;
   if (pitch.session_id) {
     const { data: segs } = await supabase
-      .from("coaching_transcript_segments")
+      .from("coaching_transcript_segments_current")
       .select("speaker, text, seq, spoken_at")
       .eq("session_id", pitch.session_id)
       .order("seq", { ascending: true });

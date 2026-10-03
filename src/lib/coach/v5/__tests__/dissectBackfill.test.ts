@@ -33,7 +33,7 @@ vi.mock("@/lib/supabase/admin", () => {
       let data: unknown;
       if (table === "coaching_sessions") data = state.sessions;
       // content-aware split: every session has a transcript segment EXCEPT those marked empty (0-segment capture).
-      else if (table === "coaching_transcript_segments")
+      else if (table === "coaching_transcript_segments_current")
         data = state.sessions.filter((s) => !state.emptySessionIds.has(s.id)).map((s) => ({ session_id: s.id }));
       else if (table === "after_pitch_summaries") data = state.afterPitchExisting; // drives the de-dup guard
       else if ((b as { _kind: string | null })._kind === "coach.dissect_attempted") data = state.attemptEvents;

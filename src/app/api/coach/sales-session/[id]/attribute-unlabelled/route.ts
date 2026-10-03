@@ -149,16 +149,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ status: "unchanged", speaker, labeled: 0 });
   }
   const admin = createAdminClient();
-  // Scoped to the speaker we READ as well as the session, so a concurrent answer cannot be
-  // overwritten by a slower one: the second update matches no rows and changes nothing. (It was
-  // pinned to the literal "unknown" before; that would silently match nothing now that a machine
-  // `customer` label is answerable, and report a save that changed no rows.)
-  const { data: updated, error } = await admin
-    .from("coaching_transcript_segments")
-    .update({ speaker, source: "manual" })
-    .eq("session_id", id)
-    .eq("speaker", answer.currentSpeaker)
-    .select("id");
+  /*
+   * A NEW VERSION, NOT AN UPDATE (2026-10-03). This was `.update({ speaker, source: "manual" })`, and the
+   * table's append-only rule (0070 `_no_update`) turns every UPDATE into nothing: it changed no row and the
+   * route still answered "attributed". No segment in production has ever had source "manual". Now
+   * relabel_session_transcript (0269) copies the current version into a new one with this speaker changed;
+   * the old version stays as history (founder picker 2026-10-03: keep history).
+   *
+   * Still scoped to the speaker we READ: the function changes only rows that are `answer.currentSpeaker` in the
+   * current version, so a second, slower answer finds none and writes nothing.
+   */
+  const { data: relabeled, error } = await admin.rpc("relabel_session_transcript", {
+    p_session_id: id,
+    p_from: answer.currentSpeaker,
+    p_to: speaker,
+  });
   if (error) {
     // eslint-disable-next-line no-console
     console.error(`[attribute-unlabelled] update failed session=${id}: ${error.message}`);
@@ -167,7 +172,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       { status: 500 }
     );
   }
-  const labeled = updated?.length ?? 0;
+  const labeled = typeof relabeled === "number" ? relabeled : 0;
 
   /*
    * Regenerate the coaching artifacts, because this answer is what makes them possible.

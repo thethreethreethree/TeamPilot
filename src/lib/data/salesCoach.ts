@@ -518,7 +518,7 @@ export async function getSessionTranscript(
 ): Promise<TranscriptSegment[]> {
   const sb = client ?? (await createServerClient());
   const { data, error } = await sb
-    .from("coaching_transcript_segments")
+    .from("coaching_transcript_segments_current")
     .select("*")
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });
@@ -537,7 +537,7 @@ export async function getSessionTranscriptAdmin(
 ): Promise<TranscriptSegment[]> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb
-    .from("coaching_transcript_segments")
+    .from("coaching_transcript_segments_current")
     .select("*")
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });

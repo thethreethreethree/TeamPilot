@@ -107,7 +107,7 @@ export async function GET() {
       const rows = await fetchAllPaged<{ session_id: string; speaker: string }>(
         (from, to) =>
           sb
-            .from("coaching_transcript_segments")
+            .from("coaching_transcript_segments_current")
             .select("session_id, speaker, id")
             .in("session_id", batch)
             .order("id")

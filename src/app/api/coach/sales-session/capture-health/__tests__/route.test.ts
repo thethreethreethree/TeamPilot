@@ -42,7 +42,7 @@ function setClient(t: Tables) {
         data:
           from > 0
             ? []
-            : table === "coaching_transcript_segments"
+            : table === "coaching_transcript_segments_current"
               ? (t.segments ?? [])
               : (t.ended ?? []),
         error: null,

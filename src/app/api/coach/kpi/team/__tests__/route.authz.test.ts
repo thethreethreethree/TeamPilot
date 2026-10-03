@@ -268,7 +268,7 @@ describe("GET /api/coach/kpi/team — manager gate", () => {
       profiles: { data: [{ id: "a1", full_name: "Bob" }] },
       coaching_sessions: { data: sessions },
       coaching_cues: { data: cues },
-      coaching_transcript_segments: { data: segments },
+      coaching_transcript_segments_current: { data: segments },
     };
     (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       from: (t: string) => {

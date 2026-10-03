@@ -133,7 +133,7 @@ export async function getMonitoredSession(
 
   const [{ data: segs }, { data: profs }] = await Promise.all([
     sb
-      .from("coaching_transcript_segments")
+      .from("coaching_transcript_segments_current")
       .select("speaker, text, seq")
       .eq("session_id", sessionId)
       .order("seq", { ascending: true }),

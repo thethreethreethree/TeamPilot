@@ -506,7 +506,7 @@ export async function recoverSessionTranscript(args: {
   const sentTiming = labeled.some((l) => l.spokenAt !== null);
   if (sentTiming) {
     const { data: back } = await admin
-      .from("coaching_transcript_segments")
+      .from("coaching_transcript_segments_current")
       .select("spoken_at")
       .eq("session_id", sessionId)
       .not("spoken_at", "is", null)

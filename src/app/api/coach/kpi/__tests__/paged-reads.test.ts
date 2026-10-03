@@ -22,26 +22,26 @@ const pagedRead = (src: string, table: string) =>
   new RegExp(`fetchAllPaged\\([\\s\\S]{0,400}\\.from\\("${table}"\\)[\\s\\S]{0,300}\\.range\\(`).test(src);
 
 describe("KPI routes page their usage-growth reads (no 1000-row truncation)", () => {
-  it("/me pages after_pitch_summaries, coaching_cues, coaching_cue_outcomes, and coaching_transcript_segments", () => {
+  it("/me pages after_pitch_summaries, coaching_cues, coaching_cue_outcomes, and coaching_transcript_segments_current", () => {
     for (const t of [
       "after_pitch_summaries",
       "coaching_cues",
       "coaching_cue_outcomes",
-      "coaching_transcript_segments",
+      "coaching_transcript_segments_current",
     ]) {
       expect(pagedRead(ME, t), `me: ${t} must be read via fetchAllPaged`).toBe(true);
     }
   });
 
-  it("/team pages coaching_cues, coaching_transcript_segments, and after_pitch_summaries", () => {
-    for (const t of ["coaching_cues", "coaching_transcript_segments", "after_pitch_summaries"]) {
+  it("/team pages coaching_cues, coaching_transcript_segments_current, and after_pitch_summaries", () => {
+    for (const t of ["coaching_cues", "coaching_transcript_segments_current", "after_pitch_summaries"]) {
       expect(pagedRead(TEAM, t), `team: ${t} must be read via fetchAllPaged`).toBe(true);
     }
   });
 
   it("orders each paged read by the unique id PK (correct range pagination)", () => {
     // fetchAllPaged's range paging needs a unique, stable sort key; all four tables have a uuid `id` PK.
-    expect(/coaching_transcript_segments"\)[\s\S]{0,120}\.order\("id"\)/.test(ME)).toBe(true);
-    expect(/coaching_transcript_segments"\)[\s\S]{0,120}\.order\("id"\)/.test(TEAM)).toBe(true);
+    expect(/coaching_transcript_segments_current"\)[\s\S]{0,120}\.order\("id"\)/.test(ME)).toBe(true);
+    expect(/coaching_transcript_segments_current"\)[\s\S]{0,120}\.order\("id"\)/.test(TEAM)).toBe(true);
   });
 });

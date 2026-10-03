@@ -158,7 +158,7 @@ async function sessionsWithRepSpeech(
     const rows = await fetchAllPaged<{ session_id: string }>(
       (from, to) =>
         db
-          .from("coaching_transcript_segments")
+          .from("coaching_transcript_segments_current")
           .select("session_id")
           .eq("speaker", "agent")
           .in("session_id", chunk)

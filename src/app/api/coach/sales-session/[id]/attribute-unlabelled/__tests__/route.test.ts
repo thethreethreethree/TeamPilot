@@ -7,10 +7,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Load-bearing properties pinned here:
  *  - OWNER-ONLY (writes the canonical transcript via the service role — A18).
  *  - NEVER rewrites attributed speech: one agent or customer turn and it refuses (409).
- *  - The update is scoped to `speaker = unknown`, so a slower concurrent answer changes
+ *  - The relabel is scoped to the speaker that was READ, so a slower concurrent answer changes
  *    nothing rather than overwriting the first.
  *  - `spoken_at` is never in the payload, so answering CANNOT lose the timing — the whole
  *    reason this route exists instead of an echo through /label-transcript.
+ *  - It is a NEW VERSION via relabel_session_transcript (0269), never an UPDATE: the table's
+ *    append-only rule turned the old `.update()` into nothing while the route said "attributed"
+ *    (2026-10-03; no production segment ever had source "manual").
  *  - No default for `mine`: guessing which way a rep meant to answer is the fabricated
  *    attribution the entire path exists to avoid.
  */
@@ -44,26 +47,29 @@ const setAuth = (userId: string | null) =>
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
   });
 
-/** Captures the update payload and the filters it was scoped by. */
-let updatePayload: Record<string, unknown> | null;
-let eqFilters: Array<[string, unknown]>;
-let updateResult: { data: unknown[] | null; error: unknown };
+/** Captures the relabel call (function name + arguments). `from()` must never be used to write. */
+let rpcCall: { name: string; args: Record<string, unknown> } | null;
+let rpcResult: { data: number | null; error: unknown };
+let fromCalls: string[];
 function setupAdmin() {
-  updatePayload = null;
-  eqFilters = [];
-  updateResult = { data: [{ id: "s1" }, { id: "s2" }], error: null };
-  const seg: Record<string, unknown> = {};
-  seg.update = (p: Record<string, unknown>) => {
-    updatePayload = p;
-    return seg;
-  };
-  seg.eq = (col: string, val: unknown) => {
-    eqFilters.push([col, val]);
-    return seg;
-  };
-  seg.select = () => Promise.resolve(updateResult);
-  mk(createAdminClient).mockReturnValue({ from: () => seg });
+  rpcCall = null;
+  fromCalls = [];
+  rpcResult = { data: 2, error: null };
+  mk(createAdminClient).mockReturnValue({
+    rpc: (name: string, args: Record<string, unknown>) => {
+      rpcCall = { name, args };
+      return Promise.resolve(rpcResult);
+    },
+    from: (t: string) => {
+      fromCalls.push(t);
+      throw new Error(`unexpected direct table access: ${t}`);
+    },
+  });
 }
+const relabel = (from: string, to: string) => ({
+  name: "relabel_session_transcript",
+  args: { p_session_id: "sess1", p_from: from, p_to: to },
+});
 
 const ctx = { params: Promise.resolve({ id: "sess1" }) };
 const req = (body: unknown) =>
@@ -87,7 +93,8 @@ describe("POST attribute-unlabelled", () => {
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "attributed", speaker: "agent", labeled: 2 });
-    expect(updatePayload).toEqual({ speaker: "agent", source: "manual" });
+    expect(rpcCall).toEqual(relabel("unknown", "agent"));
+    expect(fromCalls).toEqual([]); // never an UPDATE: the append-only rule would turn it into nothing
   });
 
   it("labels it CUSTOMER when only the prospect was recorded — a real answer, not a failure", async () => {
@@ -98,10 +105,9 @@ describe("POST attribute-unlabelled", () => {
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
 
-  it("scopes the update to speaker=unknown, so a slower concurrent answer changes nothing", async () => {
+  it("scopes the relabel to speaker=unknown, so a slower concurrent answer changes nothing", async () => {
     await POST(req({ mine: true }), ctx);
-    expect(eqFilters).toContainEqual(["session_id", "sess1"]);
-    expect(eqFilters).toContainEqual(["speaker", "unknown"]);
+    expect(rpcCall?.args).toMatchObject({ p_session_id: "sess1", p_from: "unknown" });
   });
 
   it("NEVER sends spoken_at — answering cannot lose the timing", async () => {
@@ -109,8 +115,8 @@ describe("POST attribute-unlabelled", () => {
     // /label-transcript, which rebuilds spoken_at from the payload and nulls it when the
     // payload omits it.
     await POST(req({ mine: true }), ctx);
-    expect(updatePayload).not.toHaveProperty("spokenAt");
-    expect(updatePayload).not.toHaveProperty("spoken_at");
+    expect(rpcCall?.args).not.toHaveProperty("spokenAt");
+    expect(rpcCall?.args).not.toHaveProperty("spoken_at");
   });
 
   it("409s a transcript that already says who spoke — attributed speech is canonical", async () => {
@@ -121,7 +127,7 @@ describe("POST attribute-unlabelled", () => {
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(409);
     expect((await res.json()).status).toBe("already-attributed");
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
   });
 
   it("409s a call with no transcript at all — there is nothing to attribute yet", async () => {
@@ -136,21 +142,21 @@ describe("POST attribute-unlabelled", () => {
       const res = await POST(req(body), ctx);
       expect(res.status).toBe(400);
     }
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
   });
 
   it("403s a colleague — only the session's own rep may answer for it", async () => {
     mk(getSession).mockResolvedValue({ id: "sess1", agentId: "someone-else" });
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(403);
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
   });
 
   it("401s when nobody is signed in", async () => {
     setAuth(null);
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(401);
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
   });
 
   it("regenerates the coaching artifacts once there are agent turns to read", async () => {
@@ -159,7 +165,7 @@ describe("POST attribute-unlabelled", () => {
   });
 
   it("does not claim success when the write failed", async () => {
-    updateResult = { data: null, error: { message: "boom" } };
+    rpcResult = { data: null, error: { message: "boom" } };
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(500);
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
@@ -190,7 +196,7 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "attributed", speaker: "agent", labeled: 2 });
-    expect(updatePayload).toEqual({ speaker: "agent", source: "manual" });
+    expect(rpcCall).toEqual(relabel("customer", "agent"));
   });
 
   it("scopes that update to speaker=CUSTOMER — the filter follows what was read, not a literal", async () => {
@@ -198,9 +204,8 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     // rows and report a save that changed nothing — a success message over an empty write.
     mk(getSessionTranscript).mockResolvedValue(machineCustomer);
     await POST(req({ mine: true }), ctx);
-    expect(eqFilters).toContainEqual(["session_id", "sess1"]);
-    expect(eqFilters).toContainEqual(["speaker", "customer"]);
-    expect(eqFilters).not.toContainEqual(["speaker", "unknown"]);
+    expect(rpcCall?.args).toMatchObject({ p_session_id: "sess1", p_from: "customer" });
+    expect(rpcCall?.args.p_from).not.toBe("unknown");
   });
 
   it("REFUSES when a person already answered, even though there is only one voice", async () => {
@@ -211,7 +216,7 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(409);
     expect((await res.json()).status).toBe("already-attributed");
-    expect(updatePayload).toBeNull(); // a person's answer is not rewritten by a later opinion
+    expect(rpcCall).toBeNull(); // a person's answer is not rewritten by a later opinion
   });
 
   it("REFUSES a two-voice transcript — re-attributing captured speech is a deletion, not a fix", async () => {
@@ -221,7 +226,7 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     ]);
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(409);
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
   });
 
   it("changes NOTHING and spends nothing when the answer already matches what is stored", async () => {
@@ -231,7 +236,7 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "unchanged", speaker: "agent", labeled: 0 });
-    expect(updatePayload).toBeNull();
+    expect(rpcCall).toBeNull();
     expect(generateSessionArtifacts).not.toHaveBeenCalled(); // no LLM spend to reproduce an existing read
   });
 

@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
   for (const sessionId of modelBySession.keys()) {
     if (humanBySession.has(sessionId)) continue;
     const { data: segs } = await admin
-      .from("coaching_transcript_segments")
+      .from("coaching_transcript_segments_current")
       .select("speaker, text, seq")
       .eq("session_id", sessionId)
       .order("seq", { ascending: true });

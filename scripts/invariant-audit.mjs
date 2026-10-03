@@ -1972,7 +1972,7 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
     "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
   ["src/app/api/care/conversations/[id]/agent-upload/route.ts::file_classification_suggestions::write",
     "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
-  ["src/app/api/coach/gamification/calibration/route.ts::coaching_transcript_segments::session_id",
+  ["src/app/api/coach/gamification/calibration/route.ts::coaching_transcript_segments_current::session_id",
     "GET: session ids are keys of modelBySession, built from after_pitch_summaries filtered to mgr.companyId."],
   ["src/app/api/coach/sales-session/list/route.ts::events::kind",
     "`.in(\"subject\", subjects)` — subjects built from sessions read with .eq(\"company_id\", ctx.companyId)."],
@@ -1986,8 +1986,6 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
   // ── keyed on a URL id, guarded ABOVE the statement ──────────────────────────────────────────────
   ["src/app/api/coach/sales-session/[id]/why/route.ts::events::subject",
     "readLatestWhy() has one caller, after an RLS-scoped getSession() and the owner-or-manager gate."],
-  ["src/app/api/coach/sales-session/[id]/attribute-unlabelled/route.ts::coaching_transcript_segments::session_id",
-    "After 401 + callerCompanyId + 403 and the session access check that precede it."],
   ["src/app/api/coach/meeting-session/[id]/dissect/route.ts::coaching_sessions::id",
     "Re-reads audio_asset_url after a stitch, behind the 'only the session's facilitator' 403."],
   ["src/app/api/coach/sales-session/patterns/event/route.ts::patterns::id",
@@ -2171,10 +2169,54 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 32 — transcripts are READ from coaching_transcript_segments_current, never the table ═══════
+//
+// LEARNED: 2026-10-03. The table is append-only (0070 rules turn DELETE and UPDATE into nothing), so a repaired
+// or relabelled transcript is a NEW VERSION (0269) and the old one stays. A read straight off the table returns
+// every version at once: a repaired call would show its broken transcript and its fixed one interleaved, and
+// every engine would score both. The view returns each session's newest version only.
+//
+// Static, like INVARIANT 30, because the tests' mocks answer whatever table is named. A direct
+// `.from("coaching_transcript_segments")` is allowed only where WRITING is the point, each file listed with how
+// many it may have; a new one anywhere else fails, and so does one more in a listed file.
+const RAW_TRANSCRIPT_USES = new Map([
+  ["src/lib/data/salesCoach.ts", [2,
+    "appendTranscriptSegment's insert and its pre-0236 fallback insert. Inserts carry no version; the 0269 " +
+      "trigger puts them in the session's current one."]],
+]);
+const RAW_TRANSCRIPT_RE = /\.from\(\s*["']coaching_transcript_segments["']\s*\)/g;
+for (const f of FILES) {
+  if (!/^src\//.test(f.path) || f.path.includes("__tests__") || f.path.includes("/test/")) continue;
+  const n = (f.sql.match(RAW_TRANSCRIPT_RE) || []).length;
+  if (n === 0) continue;
+  const allowed = RAW_TRANSCRIPT_USES.get(f.path)?.[0] ?? 0;
+  if (n > allowed) {
+    findings.push({
+      rule: "transcript read from coaching_transcript_segments instead of coaching_transcript_segments_current",
+      file: f.path,
+      why:
+        `${n} direct use(s) of the table; ${allowed} allowed here. A READ must use coaching_transcript_segments_current\n` +
+        "      (each session's newest version, 0269); the table holds every version. A relabel or repair goes through\n" +
+        "      relabel_session_transcript / replace_session_transcript, never .update() (the rule makes it a no-op).",
+    });
+  }
+}
+for (const [path, [allowed]] of RAW_TRANSCRIPT_USES) {
+  const f = FILES.find((x) => x.path === path);
+  const n = f ? (f.sql.match(RAW_TRANSCRIPT_RE) || []).length : 0;
+  if (n < allowed) {
+    findings.push({
+      rule: "stale raw-transcript allowance (fewer direct uses than excused)",
+      file: path,
+      why: `${allowed} excused, ${n} present. Lower the entry — a spare allowance is a pre-signed excuse.`,
+    });
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size}`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -2197,7 +2239,8 @@ if (findings.length === 0) {
       " no Bearer-reachable library resolves its own cookie client (no anonymous read reported as a confident zero) · no route segment config stranded in a client-component page file (no silently-prerendered page) ·" +
       " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read) ·" +
       " knocks are counted from door_knocks_live (an undone door never counts) ·" +
-      " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session)."
+      " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session) ·" +
+      " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions)."
   );
   process.exit(0);
 }

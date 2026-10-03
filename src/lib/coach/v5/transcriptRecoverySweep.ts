@@ -164,7 +164,7 @@ export async function runTranscriptRecoverySweep(args: {
     // entering the recovery would claim the marker and burn the one attempt this session
     // will ever get on a call that needed nothing.
     const { data: segs, error: segErr } = await admin
-      .from("coaching_transcript_segments")
+      .from("coaching_transcript_segments_current")
       .select("speaker")
       .eq("session_id", row.id);
     if (segErr) {

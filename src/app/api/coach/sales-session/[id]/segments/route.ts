@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const { data: auth } = await sb.auth.getUser();
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb
-    .from("coaching_transcript_segments")
+    .from("coaching_transcript_segments_current")
     .select("speaker, text, seq, spoken_at")
     .eq("session_id", id)
     .order("seq", { ascending: true });

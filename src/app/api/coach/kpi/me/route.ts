@@ -241,7 +241,7 @@ export async function GET(req: Request) {
       ).catch(() => null),
       fetchAllPaged(
         (from, to) =>
-          sb.from("coaching_transcript_segments").select("session_id").in("session_id", sessionIds).order("id").range(from, to),
+          sb.from("coaching_transcript_segments_current").select("session_id").in("session_id", sessionIds).order("id").range(from, to),
         { label: "my KPI segments" },
       ).catch(() => null),
     ]);

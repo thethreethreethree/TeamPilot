@@ -162,7 +162,7 @@ export async function GET(req: Request) {
     // rep-vs-manager reliance consistency this block's own comment calls the whole honesty thesis. Order by `id`.
     const segRows = await fetchAllPaged(
       (from, to) =>
-        sb.from("coaching_transcript_segments").select("id, session_id").in("session_id", sessionIds).order("id").range(from, to),
+        sb.from("coaching_transcript_segments_current").select("id, session_id").in("session_id", sessionIds).order("id").range(from, to),
       { label: "team KPI segments" },
     ).catch(() => null);
     for (const s of segRows ?? []) coachedSessions.add(s.session_id as string);
