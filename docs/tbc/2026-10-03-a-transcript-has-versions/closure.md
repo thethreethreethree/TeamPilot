@@ -59,3 +59,18 @@ No image, icon, logo, favicon or graphic asset was touched.
 
 **R1-migration-not-applied: CLOSED** (step 2). **R3-stuck-calls-not-repaired: still OPEN**: the repairs land, but
 the 7 calls stay uncoachable until a rep answers who spoke, and 8bde1ce2 has not been re-read yet.
+
+## Residual added 2026-10-03T08:55Z
+
+```json
+[
+  {
+    "id": "R4-undecided-recovery-loses-voices",
+    "item": "When recovery cannot decide which voice is the rep it labels every line 'unknown' and stores no cluster id, so the web/app question 'whose voice is this?' relabels ALL lines one way. On a two-voice call (cef6995b has 26 lines) 'That's me' would mark the customer's lines as the rep's.",
+    "why_skipped": "Pre-existing (transcriptRecovery labelFor + answerableSpeaker), not caused by 0269; the fix is to persist the diarizer's speaker id per line and ask per voice, as the upload flow does. A build of its own.",
+    "confidence_it_does_not_matter": "low",
+    "opened_at": "2026-10-03T08:55:00Z",
+    "outcome": "OPEN. To raise with the founder as a proposal."
+  }
+]
+```
