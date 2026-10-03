@@ -231,8 +231,9 @@ they cannot re-take, unsent words, a deal value that vanishes as they swipe back
 **Build 21 or later is what to test** — take whatever TestFlight offers you as
 newest, and check the build number before you start.
 
-**For checks 42 to 44, take build 29 or later** (sent 2 October). Build 28 has the
-undo and the back-to-back fix, but not the words in check 44.
+**For checks 42 to 44, take build 30 or later** (sent 3 October). Build 28 has the
+undo and the back-to-back fix, but not the words in check 44; build 29 has those words; build 30
+adds reading a call's newest transcript (a repaired or relabelled call shows one transcript, not two).
 
 **You can now check it inside the app**, which you could not before: the foot of
 the **Account** screen reads `Sales Coach 1.0.0 (21)`. It said just "1.0.0" until
