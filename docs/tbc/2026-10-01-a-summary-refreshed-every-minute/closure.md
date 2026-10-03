@@ -41,3 +41,23 @@ No image, icon, logo, favicon or graphic asset was touched.
 - **R2-cron-seen-healthy: CLOSED.** 2026-10-02 03:48Z to 03:57Z, pitch-processing-cron answered 200 every minute
   (Vercel logs), after DeepSeek recovered. rep_pattern_summaries updates were 14,142 at 19:5xZ and at 03:57Z:
   no rewrites in between.
+
+## Verified end to end (appended 2026-10-03T05:10Z)
+
+The founder approved re-queueing 9 pitches failed in the September outage (docs/ops/2026-09-25-...sql). That is
+the first real traffic through the rollup since the fix, and it is exactly the case that looped: completed
+pitches newer than the rep's summary. Production, read-only, once a minute:
+
+```
+05:02:33  recorded 9            summary updates 14142  newest summary 2026-09-30 20:09:10
+05:03:34  complete 6, recorded 3                14142                2026-09-30 20:09:10
+05:04:36  complete 9                            14144                2026-10-03 05:04:33
+05:05:37  complete 9                            14167                2026-10-03 05:05:35
+05:06:39  complete 9                            14173                2026-10-03 05:05:56
+05:07:40  complete 9                            14173                2026-10-03 05:05:56
+05:08:42  complete 9                            14173                2026-10-03 05:05:56
+```
+
+31 rewrites for the 9 completions, then none: the every-minute cron ran three more times and left the rep alone,
+because their summary (05:05:56) is now newer than their latest pitch. Before cf7c722f this state meant about four
+paid calls a minute. DeepSeek balance 6.60 -> 6.52 across the whole re-queue.
