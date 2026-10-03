@@ -25,8 +25,8 @@
 | `ELEVENLABS_DEFAULT_VOICE_ID` | Jeff's voice id (optional — has a hardcoded default) | optional |
 | `ANTHROPIC_API_KEY` | Second LLM. Used only when DeepSeek **rejects** a call (bad key, out of credit, a renamed model), NOT when DeepSeek is down or slow: a timeout or 5xx never switches providers (`shouldCascade`, llm/index.ts). `/api/health` shows `anthropic:false` = unset. | unset in production; founder picker 2026-10-02: "DeepSeek only, fail fast" (see docs/runbooks/deepseek-ai-outage.md) |
 | `NEXT_PUBLIC_SENTRY_DSN` | Error reporting, browser and server (the server falls back to it). Missing → every Sentry report is dropped. | `/api/health` → `capabilities.errorReporting` both `true`. **Unset in production as of 2026-10-02** (setup: docs/CONFIG-PRECONDITIONS-AUDIT.md) |
-| `POSTMARK_SERVER_TOKEN` | Outbound email (report delivery cron, notifications). Missing → `outbound.ts` skips sending. | ⚠️ verify set |
-| `CARE_EMAIL_HOST_DOMAIN` | Email sending domain | verify if email used |
+| `POSTMARK_SERVER_TOKEN` | Outbound email: the weekly digest (managers + reps), C.A.R.E email replies. Missing → nothing is emailed. (Scheduled finance reports go by push, not email.) | **Unset in production as of 2026-10-03**; `/api/health` → `capabilities.email`. Setup: docs/CONFIG-PRECONDITIONS-AUDIT.md (2026-10-03) |
+| `CARE_EMAIL_HOST_DOMAIN` | The Postmark-verified sending domain; mail goes out as `notifications@<domain>`. Needed with the token. | unset as of 2026-10-03 |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web-push delivery (known open: subscribes but doesn't deliver) | ⚠️ the 3 VAPID vars |
 
 ## Secrets — protect crons/webhooks (missing → the job fails auth or runs unguarded)

@@ -75,3 +75,23 @@ Against this audit:
   routes (checked 2026-10-02), so their absence disables nothing.
 - **The second Vercel project** named under "Structural compounder" was a different one (`…-iota`, marketing);
   a duplicate app project, `team-pilot-6wlo`, was deleted on 2026-10-01 (founder's pick).
+
+## Appended 2026-10-03 — email (Postmark): the weekly digest has never sent
+
+The weekly digest the founder asked for on 2026-09-04 (managers: a team rollup; reps: their own progress) is
+email-only, and production has no `POSTMARK_SERVER_TOKEN` or `CARE_EMAIL_HOST_DOMAIN`. Every Monday run answers 200
+and sends nothing; the 2026-09-28 run logged "Postmark not configured … no email sent". Nothing else live depends on
+email (all 63 C.A.R.E conversations are `web_widget`). Founder picker 2026-10-03: set up Postmark. Now **loud**:
+`/api/health` → `capabilities.email`, from the one verdict `emailConfigured()` (src/lib/care/email/configured.ts).
+
+**Blocking setup step (founder):**
+1. postmarkapp.com: create an account and a **Server** (e.g. "ELOSTATE"). Copy its **Server API token**.
+2. In Postmark → Sender Signatures → **Domains**, add the sending domain, for example `mail.elostate.com`. Postmark
+   shows a **DKIM** TXT record and a **Return-Path** CNAME; add both at the DNS host for elostate.com and press
+   Verify. Mail goes out as `notifications@<that domain>`.
+3. New Postmark accounts start in test mode and can only send inside the verified domain until Postmark approves the
+   account; request approval in the dashboard so reps' addresses receive it.
+4. Vercel, project `team-pilot`, Production: `POSTMARK_SERVER_TOKEN` = the token (secret) and
+   `CARE_EMAIL_HOST_DOMAIN` = the verified domain. Redeploy.
+5. Verify: `curl -s https://elostate.com/api/health` shows `"email":true`. Then the next Monday run (13:00 UTC)
+   logs sends instead of "Postmark not configured", and a manager's inbox has the digest.

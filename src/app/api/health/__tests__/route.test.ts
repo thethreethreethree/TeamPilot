@@ -65,3 +65,25 @@ describe("GET /api/health — errorReporting mirrors the Sentry init guards", ()
     expect(await flags()).toEqual(expected);
   });
 });
+
+/** 2026-10-03: whether email can send is readable from outside, from the one shared verdict. */
+describe("GET /api/health — email", () => {
+  const keys = ["POSTMARK_SERVER_TOKEN", "CARE_EMAIL_HOST_DOMAIN"] as const;
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  afterEach(() => {
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const email = async () => ((await (await GET()).json()) as { capabilities: { email: boolean } }).capabilities.email;
+
+  it("false without Postmark, true with both values", async () => {
+    delete process.env.POSTMARK_SERVER_TOKEN;
+    delete process.env.CARE_EMAIL_HOST_DOMAIN;
+    expect(await email()).toBe(false);
+    process.env.POSTMARK_SERVER_TOKEN = "pm-token";
+    process.env.CARE_EMAIL_HOST_DOMAIN = "mail.elostate.com";
+    expect(await email()).toBe(true);
+  });
+});

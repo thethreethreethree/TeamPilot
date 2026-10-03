@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { CONSTITUTION } from "@/lib/constitution";
+import { emailConfigured } from "@/lib/care/email/configured";
 
 /**
  * GET /api/health
@@ -11,6 +12,7 @@ import { CONSTITUTION } from "@/lib/constitution";
  *    would burn tokens per health check)
  *  - whether Supabase is configured
  *  - whether error reporting (Sentry) is switched on, server and browser
+ *  - whether outbound email (Postmark) can send
  *  - constitution version
  *  - node version
  *  - the exact DEPLOYED git commit (Vercel injects VERCEL_GIT_COMMIT_SHA/REF/ENV).
@@ -72,6 +74,8 @@ export async function GET() {
         server: Boolean(process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN),
         browser: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
       },
+      // Whether email can send (the weekly digest, C.A.R.E email replies). The shared verdict, not a copy (2026-10-03).
+      email: emailConfigured(),
     },
     runtime: {
       node: process.version,

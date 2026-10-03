@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTransactionalEmail } from "@/lib/care/email/outbound";
+import { emailConfigured } from "@/lib/care/email/configured";
 import { STRONG_SESSION_THRESHOLD, bandFor, BAND_LABEL, type PointsBand } from "./bands";
 import { isAdminRole } from "@/lib/roles";
 import { competitionRanks } from "./competitionRank";
@@ -178,7 +179,7 @@ export async function runWeeklyManagerDigest(deps?: {
     skippedNoActivity: 0,
     skippedNoEmail: 0,
     sendFailures: 0,
-    emailConfigured: Boolean(process.env.POSTMARK_SERVER_TOKEN && process.env.CARE_EMAIL_HOST_DOMAIN),
+    emailConfigured: emailConfigured(),
   };
 
   // Companies with points activity this week.
@@ -359,7 +360,7 @@ export async function runWeeklyRepDigest(deps?: {
     skippedNoActivity: 0,
     skippedNoEmail: 0,
     sendFailures: 0,
-    emailConfigured: Boolean(process.env.POSTMARK_SERVER_TOKEN && process.env.CARE_EMAIL_HOST_DOMAIN),
+    emailConfigured: emailConfigured(),
   };
 
   const { data: weekRows } = await admin
