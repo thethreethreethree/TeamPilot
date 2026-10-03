@@ -11,3 +11,9 @@ gate-or-promise: gate
 gate-or-promise: gate
 
 The route test fails on any direct table write; the probe proves the relabel writes a version with source manual.
+
+### The class: writes an append-only rule turns into nothing
+
+gate-or-promise: gate
+
+INVARIANT 33 (scripts/invariant-audit.mjs), derived from the migrations; the mutation above fails it.

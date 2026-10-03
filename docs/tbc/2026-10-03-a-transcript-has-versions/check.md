@@ -41,3 +41,23 @@ severity: medium
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Appended 2026-10-03T08:45Z - the sweep named above, run, and made a gate
+
+```
+$ (production, read-only) pg_rules 'do instead nothing' in public: 28 tables; functions that DELETE/UPDATE any of them: none
+$ (src) .delete( / .update( / .upsert( on any of the 28: none (the two found today are already fixed)
+$ npm run invariant:audit      Append-only rule tables: 28 (replayed from the migrations)   Violations: 0
+$ (mutation: a .update() on events)   Violations: 1  "a write the table's append-only rule turns into nothing"   (restored)
+```
+
+INVARIANT 33 replays every `create rule … do instead nothing` and `drop rule` in migration order, so a new rule
+is covered the day it is written, and fails any `.delete()`, `.update()` or conflicting `.upsert()` against
+a protected table in src.
+
+```
+$ npm run check   (with INVARIANT 33)
+ Test Files  731 passed | 1 skipped (732)
+      Tests  5685 passed | 15 skipped (5700)
+exit 0
+```

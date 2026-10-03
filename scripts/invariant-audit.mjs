@@ -2213,10 +2213,67 @@ for (const [path, [allowed]] of RAW_TRANSCRIPT_USES) {
   }
 }
 
+// ═══ INVARIANT 33 — no write that an append-only rule turns into nothing ══════════════════════════════
+//
+// LEARNED: 2026-10-03. 28 tables carry `create rule … do instead nothing` on DELETE and/or UPDATE (§3.1). Against
+// them a .delete() / .update() / conflicting .upsert() does not fail: it changes no row and returns success.
+// Two features shipped on that and never worked: replace_session_transcript (deleted, then collided) and
+// /attribute-unlabelled (updated, and answered "attributed"). A correction on such a table appends instead
+// (0269's versions; door_knock_undos).
+//
+// The protected set is replayed from the migrations themselves (a later `drop rule` lifts one), so a new rule
+// is covered the day it is written. An insert-only upsert (`ignoreDuplicates: true`) is not an update.
+function ruleProtectedTables() {
+  const byName = new Map(); // rule name -> "table:op"
+  const RULE_RE = /create\s+(?:or\s+replace\s+)?rule\s+(\w+)\s+as\s+on\s+(delete|update)\s+to\s+(?:public\.)?(\w+)\s+do\s+instead\s+nothing/gi;
+  const DROP_RE = /drop\s+rule\s+(?:if\s+exists\s+)?(\w+)\s+on\s+(?:public\.)?(\w+)/gi;
+  for (const name of migs) {
+    const sql = readFileSync(join(MIG_DIR, name), "utf8").replace(/--.*$/gm, "");
+    const events = [];
+    for (const m of sql.matchAll(RULE_RE)) events.push([m.index, "create", m[1], `${m[3]}:${m[2].toLowerCase()}`]);
+    for (const m of sql.matchAll(DROP_RE)) events.push([m.index, "drop", m[1], null]);
+    events.sort((a, b) => a[0] - b[0]);
+    for (const [, kind, rule, key] of events) {
+      if (kind === "create") byName.set(rule, key);
+      else byName.delete(rule);
+    }
+  }
+  const out = new Map(); // table -> Set(ops)
+  for (const key of byName.values()) {
+    const [t, op] = key.split(":");
+    if (!out.has(t)) out.set(t, new Set());
+    out.get(t).add(op);
+  }
+  return out;
+}
+const RULE_TABLES = ruleProtectedTables();
+for (const f of FILES) {
+  for (const [table, ops] of RULE_TABLES) {
+    const re = new RegExp(`\\.from\\(\\s*["']${table}["']\\s*\\)([\\s\\S]{0,240})`, "g");
+    for (const m of f.sql.matchAll(re)) {
+      const tail = m[1];
+      let op = null;
+      if (ops.has("delete") && /^\s*\.delete\(/.test(tail)) op = "delete";
+      if (ops.has("update") && /^\s*\.update\(/.test(tail)) op = "update";
+      if (ops.has("update") && /^\s*\.upsert\(/.test(tail) && !/ignoreDuplicates:\s*true/.test(tail.split(/\)\s*;/)[0])) op = "upsert";
+      if (!op) continue;
+      const line = f.sql.slice(0, m.index).split("\n").length;
+      findings.push({
+        rule: "a write the table's append-only rule turns into nothing",
+        file: `${f.path}:${line}`,
+        why:
+          `.${op}() on ${table}, which carries \`on ${op === "upsert" ? "update" : op} … do instead nothing\` (§3.1). It changes no row\n` +
+          "      and reports success. Append instead: a new version, an undo row, a correction event.",
+      });
+    }
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
 console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size}`);
+console.log(`  Append-only rule tables: ${RULE_TABLES.size} (replayed from the migrations)`);
 console.log(`  Violations:           ${findings.length}`);
 
 if (findings.length === 0) {
@@ -2240,7 +2297,8 @@ if (findings.length === 0) {
       " every service-role statement names its tenant or documents the guard that does (no RLS-bypassing cross-tenant read) ·" +
       " knocks are counted from door_knocks_live (an undone door never counts) ·" +
       " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session) ·" +
-      " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions)."
+      " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions) ·" +
+      " no delete/update/upsert on a table whose append-only rule would silently drop it."
   );
   process.exit(0);
 }
