@@ -93,7 +93,9 @@ export type SessionListRow = CoachingSession & {
  * four calls recorded this morning looked identical whether the coaching had
  * arrived or not, and the only way to find out was to open each one.
  */
-const WITH_SEGMENT_COUNT = "*, coaching_transcript_segments(count)";
+// The CURRENT version only (website migration 0269, 2026-10-03): a repaired or relabelled transcript is a new
+// version and the old one stays, so counting the table would count a repaired call twice.
+const WITH_SEGMENT_COUNT = "*, coaching_transcript_segments_current(count)";
 
 /**
  * The one-sided verdict for a page of sessions.
@@ -178,7 +180,8 @@ async function withVoiceQuestion(rows: SessionListRow[]): Promise<SessionListRow
   if (ids.length === 0) return rows;
   try {
     const { data, error } = await supabase
-      .from("coaching_transcript_segments")
+      // Current version only: after a relabel, version 1 still holds the 'unknown' lines (0269).
+      .from("coaching_transcript_segments_current")
       .select("session_id")
       .eq("speaker", "unknown")
       .in("session_id", ids);
@@ -313,8 +316,8 @@ export async function listMySessions(
  * function does not recognise is a shape it cannot count.
  */
 function toListRow(row: unknown): SessionListRow {
-  const r = row as CoachingSession & { coaching_transcript_segments?: unknown };
-  const embed = r.coaching_transcript_segments;
+  const r = row as CoachingSession & { coaching_transcript_segments_current?: unknown };
+  const embed = r.coaching_transcript_segments_current;
   let segmentCount: number | null = null;
   if (Array.isArray(embed)) {
     if (embed.length === 0) {
@@ -377,10 +380,13 @@ async function readAllPages<T>(
   return { rows, truncated: true };
 }
 
-/** A session's transcript, in order. Append-only on the server, so this only ever grows. */
+/**
+ * A session's transcript, in order: its CURRENT version. The server is append-only, so a repair or a relabel
+ * writes a new version and keeps the old one (website migration 0269, 2026-10-03); the view returns the newest.
+ */
 export async function getTranscript(sessionId: string): Promise<TranscriptSegment[]> {
   const { rows } = await readAllPages<TranscriptSegment>(
-    "coaching_transcript_segments",
+    "coaching_transcript_segments_current",
     sessionId,
     "seq",
   );
