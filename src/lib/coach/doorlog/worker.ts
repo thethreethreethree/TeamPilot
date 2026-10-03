@@ -247,7 +247,8 @@ export async function processPitch(pitch: PitchRow): Promise<void> {
       strengths: analysis.strengths,
       improvements: analysis.improvements,
       scores: analysis.scores,
-      model: "brain",
+      // The model that wrote it, not the literal "brain" stored on every analysis before 2026-10-03.
+      model: analysis.model,
       promptVersion: ANALYSIS_PROMPT_VERSION,
     });
     await setPitchStatus({ pitchId: pitch.id, status: "complete" });

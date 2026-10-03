@@ -61,3 +61,5 @@ pitches newer than the rep's summary. Production, read-only, once a minute:
 31 rewrites for the 9 completions, then none: the every-minute cron ran three more times and left the rep alone,
 because their summary (05:05:56) is now newer than their latest pitch. Before cf7c722f this state meant about four
 paid calls a minute. DeepSeek balance 6.60 -> 6.52 across the whole re-queue.
+
+Also: the rollup record's end-to-end readings continued to 05:13:49Z, summary updates 14173 throughout (8 minutes).

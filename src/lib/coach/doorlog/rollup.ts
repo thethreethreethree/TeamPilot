@@ -91,7 +91,7 @@ export async function generateRepPatternRollup(args: {
   pitches: PitchSignal[];
   outcomeCounts: Record<string, number>;
   previousHeadline: string | null;
-}): Promise<PatternRollupResult | null> {
+}): Promise<(PatternRollupResult & { model: string }) | null> {
   const r = await runBrainCall({
     companyId: args.companyId,
     basePrompt: buildRollupSystemPrompt(),
@@ -126,5 +126,7 @@ export async function generateRepPatternRollup(args: {
     console.error(`[doorlog/rollup] JSON.parse failed (textLen=${r.text.length}) — retryable.`);
     return null;
   }
-  return parsePatternRollup(raw); // null on schema mismatch → caller retries, never persists garbage
+  const parsed = parsePatternRollup(raw); // null on schema mismatch → caller retries, never persists garbage
+  // The model that wrote it (2026-10-03): the caller stored the literal "brain" on every summary before.
+  return parsed ? { ...parsed, model: r.model } : null;
 }

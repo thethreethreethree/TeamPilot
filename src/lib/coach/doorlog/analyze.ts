@@ -41,13 +41,17 @@ of many — keep it focused; the macro patterns are summarized separately.` + CO
 /**
  * Analyze one pitch transcript. Returns null on suppression, empty text (token starvation — logged,
  * retryable), or malformed JSON (retryable) — never a silent partial write.
+ *
+ * `model` is the model that actually wrote it (LlmResult.model, e.g. "deepseek-v4-flash"). Added 2026-10-03:
+ * the worker stored the literal "brain" instead, so all 100 production analyses say "brain" and none can be
+ * traced to a model, across a provider that renamed its models on 2026-07-25 (CLAUDE.md §3.1, data as asset).
  */
 export async function analyzePitch(args: {
   companyId: string;
   transcript: string;
   outcome: string;
   durationMs: number | null;
-}): Promise<PitchAnalysisResult | null> {
+}): Promise<(PitchAnalysisResult & { model: string }) | null> {
   const durationNote =
     args.durationMs != null ? ` (about ${Math.round(args.durationMs / 1000)}s)` : "";
   const r = await runBrainCall({
@@ -80,5 +84,6 @@ export async function analyzePitch(args: {
     console.error(`[doorlog/analyze] JSON.parse failed (textLen=${r.text.length}) — retryable.`);
     return null;
   }
-  return parsePitchAnalysis(raw); // null on schema mismatch → caller retries, never persists garbage
+  const parsed = parsePitchAnalysis(raw); // null on schema mismatch → caller retries, never persists garbage
+  return parsed ? { ...parsed, model: r.model } : null;
 }

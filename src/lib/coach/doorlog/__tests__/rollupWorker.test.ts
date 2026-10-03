@@ -43,11 +43,12 @@ function chainFor(table: string) {
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: (t: string) => chainFor(t) }) }));
 vi.mock("@/lib/coach/doorlog/rollup", () => ({
   ROLLUP_PROMPT_VERSION: "v1",
-  generateRepPatternRollup: vi.fn(async () => ({ headline: "h", patternsGood: [], patternsBad: [], trend: null })),
+  generateRepPatternRollup: vi.fn(async () => ({ headline: "h", patternsGood: [], patternsBad: [], trend: null, model: "deepseek-v4-flash" })),
 }));
 vi.mock("@/lib/data/doorlog", () => ({ upsertRepPatternSummary: vi.fn(async () => {}) }));
 
 import { rollupRep, isRepDueForRollup } from "../rollupWorker";
+import { upsertRepPatternSummary } from "@/lib/data/doorlog";
 
 beforeEach(() => {
   gteCalls.length = 0;
@@ -91,5 +92,16 @@ describe("isRepDueForRollup — cost gate (no every-minute LLM re-run)", () => {
   });
   it("is always due when the rep has no summary yet (first rollup)", () => {
     expect(isRepDueForRollup("2026-08-18T09:00:00Z", undefined)).toBe(true);
+  });
+});
+
+/** 2026-10-03: every rep summary said model "brain", the worker's literal, not the model that wrote it. */
+describe("rollupRep — a summary records the model that wrote it", () => {
+  it("stores each period's summary under the model the rollup reports", async () => {
+    vi.mocked(upsertRepPatternSummary).mockClear();
+    await rollupRep({ companyId: "co1", repId: "rep1", todayIso: "2026-08-19" });
+    const calls = vi.mocked(upsertRepPatternSummary).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [args] of calls) expect(args.model).toBe("deepseek-v4-flash");
   });
 });

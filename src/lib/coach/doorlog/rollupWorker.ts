@@ -113,7 +113,7 @@ async function rollupPeriod(args: {
     periodStart: startIso,
     rollup,
     pitchCount: realPitchCount ?? pitches.length, // REAL total (F2), not the capped sample length
-    model: "brain",
+    model: rollup.model, // the model that wrote it, not the literal "brain" stored before 2026-10-03
     promptVersion: ROLLUP_PROMPT_VERSION,
   });
 }

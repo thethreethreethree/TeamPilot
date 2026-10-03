@@ -33,7 +33,7 @@ vi.mock("@/lib/storage/assets", () => ({
 }));
 vi.mock("@/lib/coach/doorlog/analyze", () => ({
   ANALYSIS_PROMPT_VERSION: "v1",
-  analyzePitch: vi.fn(async () => ({ summary: "ok", strengths: [], improvements: [], scores: {} })),
+  analyzePitch: vi.fn(async () => ({ summary: "ok", strengths: [], improvements: [], scores: {}, model: "deepseek-v4-flash" })),
 }));
 vi.mock("@/lib/data/doorlog", () => ({
   writePitchTranscript: vi.fn(async () => {}),
@@ -458,5 +458,15 @@ describe("withinOutageGrace", () => {
     ["not a date", false],
   ] as const)("%s → %s", (createdAt, expected) => {
     expect(withinOutageGrace(createdAt, now)).toBe(expected);
+  });
+});
+
+/** 2026-10-03: every production analysis said model "brain", the worker's literal, not the model that wrote it. */
+describe("processPitch — an analysis records the model that wrote it", () => {
+  it("stores the analysis under the model analyzePitch reports", async () => {
+    scripts["pitch_transcripts:pitch_id"] = { pitch_id: "p1" };
+    await processPitch({ ...PITCH });
+    expect(vi.mocked(writePitchAnalysis).mock.calls[0]?.[0]).toMatchObject({ model: "deepseek-v4-flash" });
+    expect(vi.mocked(writePitchAnalysis).mock.calls[0]?.[0]?.model).not.toBe("brain");
   });
 });
