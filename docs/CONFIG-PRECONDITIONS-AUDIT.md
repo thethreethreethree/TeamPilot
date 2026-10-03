@@ -95,3 +95,12 @@ email (all 63 C.A.R.E conversations are `web_widget`). Founder picker 2026-10-03
    `CARE_EMAIL_HOST_DOMAIN` = the verified domain. Redeploy.
 5. Verify: `curl -s https://elostate.com/api/health` shows `"email":true`. Then the next Monday run (13:00 UTC)
    logs sends instead of "Postmark not configured", and a manager's inbox has the digest.
+
+## Appended 2026-10-03 — web push: delivered in July, idle since
+
+Item 1 above ("subscribes successfully but notifications never deliver") is out of date. Production, read-only:
+`notification_subscriptions` has 10 rows for 2 users (5 Apple, 3 FCM, 2 other), all enabled, all created
+2026-07-25, and all 10 carry `last_used_at` 2026-07-25, which `src/lib/notifications/sender.ts` writes only after
+`webpush.sendNotification` succeeds. The VAPID trio is set in production. Vercel logs show no `[push-sender]` line
+in the last 7 days, so nothing has tried to send since. Push worked when last used; whether it still does is
+unproven until the next real send (a finance report delivery or a notification-bell alert).
