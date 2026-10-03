@@ -146,41 +146,51 @@ export async function GET(req: NextRequest) {
     for (const [metric, fn] of Object.entries(LAYER1)) toWrite.push({ metric, layer: 1, res: fn(rows) });
     for (const [metric, fn] of Object.entries(LAYER2)) toWrite.push({ metric, layer: 2, res: fn(rows) });
 
-    for (const w of toWrite) {
-      for (const period of periods) {
-        // Idempotent per (agent, metric, period): clear then insert the fresh one (even a gated value:null,
-        // so "building" is a real recorded state, not a stale old value). For 'current' this overwrites each
-        // run; for the month key it converges within the month, then freezes when the month rolls over.
-        await admin
-          .from("kpi_snapshot")
-          .delete()
-          .eq("agent_id", agentId)
-          .eq("metric", w.metric)
-          .eq("period", period);
-        const { error: insErr } = await admin.from("kpi_snapshot").insert({
-          company_id: companyId,
-          agent_id: agentId,
-          metric: w.metric,
-          layer: w.layer,
-          value: w.res.value,
-          period,
-          sample_size: w.res.sampleSize,
-          source_session_ids: w.res.sourceSessionIds,
-        });
-        // The delete above already ran, so a failed insert leaves this (agent, metric, period) with NO
-        // snapshot until the next run re-computes it. That gap is self-healing, but it must NOT be invisible:
-        // a metrics cron that silently drops a KPI is the honesty-thesis failure (§3.4) — and a PERSISTENT
-        // insert failure (bad value, constraint) would otherwise produce zero snapshots with no signal at all.
-        // Surfaced + counted, mirroring the sibling crons (retention's storageErrors, purge's assetErrors).
-        if (!insErr) {
-          snapshots += 1;
-        } else {
-          snapshotErrors += 1;
-          console.error(
-            `[coach/kpi/compute-cron] snapshot insert failed for agent=${agentId} metric=${w.metric} period=${period}:`,
-            insErr
-          );
-        }
+    /*
+     * ONE delete and ONE insert per agent (2026-10-03). This was a delete + an insert per (metric, period):
+     * 6 metrics x 2 periods x 2 = 24 sequential round trips an agent. At ~200 ms each from the function, 12
+     * agents took the whole 60 s budget: production logged "Task timed out after 60 seconds" on every run from
+     * 2026-09-27 to 2026-10-03, and the kill landed after a delete and before its insert, so the last agents'
+     * snapshots went missing each day (70 'current' rows for 12 agents x 6 metrics = 72).
+     *
+     * Same semantics, now per agent: clear exactly this agent's {metrics} x {current, this month} (never a frozen
+     * past month — Data-as-Asset), then insert all 12 fresh rows (even a gated value:null, so "building" is a
+     * recorded state). A failed delete skips the insert, so a retry can never duplicate rows; either failure is
+     * counted and logged, never silent.
+     */
+    const metrics = toWrite.map((w) => w.metric);
+    // Each row carries the agent's own company_id (agentToCompany, from this job's own session read); the job is
+    // cross-tenant by design and CRON_SECRET-gated (invariant-audit SERVICE_ROLE_TENANT_ALLOWLIST, system crons).
+    const fresh = toWrite.flatMap((w) =>
+      periods.map((period) => ({
+        company_id: companyId,
+        agent_id: agentId,
+        metric: w.metric,
+        layer: w.layer,
+        value: w.res.value,
+        period,
+        sample_size: w.res.sampleSize,
+        source_session_ids: w.res.sourceSessionIds,
+      }))
+    );
+    const { error: delErr } = await admin
+      .from("kpi_snapshot")
+      .delete()
+      .eq("agent_id", agentId)
+      .in("metric", metrics)
+      .in("period", periods);
+    if (delErr) {
+      snapshotErrors += fresh.length;
+      console.error(`[coach/kpi/compute-cron] snapshot clear failed for agent=${agentId}; kept the previous rows:`, delErr);
+    } else {
+      const { error: insErr } = await admin.from("kpi_snapshot").insert(fresh);
+      // The clear already ran, so a failed insert leaves this agent with NO current/month snapshot until the
+      // next run. Self-healing, but never invisible (§3.4): counted and logged.
+      if (!insErr) {
+        snapshots += fresh.length;
+      } else {
+        snapshotErrors += fresh.length;
+        console.error(`[coach/kpi/compute-cron] snapshot insert failed for agent=${agentId}:`, insErr);
       }
     }
     computed += 1;

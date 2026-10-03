@@ -2025,7 +2025,7 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
   ...[
     "care/rcd/retention-cron::care_rcd_conversations::none", "care/rcd/retention-cron::care_rcd_media::conversation_id",
     "care/rcd/retention-cron::care_rcd_conversations::id", "coach/kpi/compute-cron::coaching_sessions::none",
-    "coach/kpi/compute-cron::kpi_snapshot::agent_id", "coach/sales-session/auto-close-stale-cron::coaching_sessions::id",
+    "coach/kpi/compute-cron::kpi_snapshot::agent_id", "coach/kpi/compute-cron::kpi_snapshot::write", "coach/sales-session/auto-close-stale-cron::coaching_sessions::id",
     "coach/sales-session/recording-purge-cron::coaching_sessions::id",
   ].map((k) => {
     const [route, ...rest] = k.split("::");

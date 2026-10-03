@@ -60,6 +60,7 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
   it("persists BOTH the live 'current' snapshot AND an immutable monthly ('YYYY-MM') one per metric", async () => {
     process.env.CRON_SECRET = "s3cret-value";
     const inserts: { metric: string; period: string }[] = [];
+    let insertCalls = 0;
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: (t: string) => {
         const chain: Record<string, unknown> = {};
@@ -69,8 +70,9 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
         chain.eq = () => chain;
         chain.in = () => chain;
         chain.delete = () => chain;
-        chain.insert = (obj: { metric: string; period: string }) => {
-          inserts.push({ metric: obj.metric, period: obj.period });
+        chain.insert = (obj: { metric: string; period: string } | { metric: string; period: string }[]) => {
+          insertCalls += 1;
+          for (const o of Array.isArray(obj) ? obj : [obj]) inserts.push({ metric: o.metric, period: o.period });
           return Promise.resolve({ error: null });
         };
         chain.then = (resolve: (v: unknown) => unknown) => {
@@ -112,6 +114,8 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
     const currentMetrics = inserts.filter((i) => i.period === "current").map((i) => i.metric).sort();
     const monthMetrics = inserts.filter((i) => i.period === monthKeys[0]).map((i) => i.metric).sort();
     expect(monthMetrics).toEqual(currentMetrics);
+    // ...in ONE insert for the agent, not twelve (2026-10-03: per-row writes ran past the 60 s budget daily).
+    expect(insertCalls).toBe(1);
   });
 
   it("surfaces snapshot insert failures instead of silently dropping them (a dropped KPI must never be silent)", async () => {
@@ -173,28 +177,29 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
   // month} — never a past month. A regression that broadens the clear fails here.
   it("only ever DELETES the 'current' + current-month snapshots — never a frozen past month (Data-as-Asset)", async () => {
     process.env.CRON_SECRET = "s3cret-value";
-    const deletes: { periodScoped: boolean; period: string | null }[] = [];
+    const deletes: { periodScoped: boolean; periods: string[] }[] = [];
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       from: (t: string) => {
         const chain: Record<string, unknown> = {};
         let isDelete = false;
-        let deletePeriod: string | null = null;
+        let deletePeriods: string[] = [];
         let deleteHasPeriodFilter = false;
         chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
         chain.order = () => chain;
         chain.range = () => chain;
-        chain.in = () => chain;
         chain.delete = () => {
           isDelete = true;
           return chain;
         };
-        chain.eq = (col: string, val: unknown) => {
+        // The clear is batched per agent (2026-10-03): periods arrive as one .in("period", [...]) filter.
+        chain.in = (col: string, val: unknown) => {
           if (isDelete && col === "period") {
             deleteHasPeriodFilter = true;
-            deletePeriod = val as string;
+            deletePeriods = val as string[];
           }
           return chain;
         };
+        chain.eq = () => chain;
         chain.insert = () => Promise.resolve({ error: null });
         chain.then = (resolve: (v: unknown) => unknown) => {
           if (t === "coaching_sessions") {
@@ -218,10 +223,10 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
           }
           // kpi_snapshot delete resolves here — record its scope, then reset for the chain's next use.
           if (isDelete) {
-            deletes.push({ periodScoped: deleteHasPeriodFilter, period: deletePeriod });
+            deletes.push({ periodScoped: deleteHasPeriodFilter, periods: deletePeriods });
             isDelete = false;
             deleteHasPeriodFilter = false;
-            deletePeriod = null;
+            deletePeriods = [];
           }
           return resolve({ data: [], error: null });
         };
@@ -231,13 +236,90 @@ describe("GET /api/coach/kpi/compute-cron — auth", () => {
 
     const res = await GET(req("Bearer s3cret-value"));
     expect(res.status).toBe(200);
-    // Every clear happened (6 metrics × 2 periods = 12) and EVERY one was scoped by an explicit period filter.
-    expect(deletes).toHaveLength(12);
+    // One clear for the agent (batched 2026-10-03), scoped by an explicit period filter.
+    expect(deletes).toHaveLength(1);
     expect(deletes.every((d) => d.periodScoped)).toBe(true);
     // The only periods ever cleared are 'current' and THIS UTC month — never a frozen past month.
     const now = new Date();
     const thisMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-    const clearedPeriods = new Set(deletes.map((d) => d.period));
+    const clearedPeriods = new Set(deletes.flatMap((d) => d.periods));
     expect([...clearedPeriods].sort()).toEqual(["current", thisMonth].sort());
+  });
+
+  // 2026-10-03: per-(metric, period) writes made 24 round trips an agent; 12 agents ran past the 60 s budget on
+  // every run from 2026-09-27, and the last agents lost their snapshots each day. One clear + one insert each.
+  it("costs ONE delete and ONE insert per agent, however many metrics and periods", async () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    let deleteCalls = 0;
+    let insertCalls = 0;
+    let inserted = 0;
+    const agents = ["a1", "a2", "a3"];
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        let isDelete = false;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
+        chain.order = () => chain;
+        chain.range = () => chain;
+        chain.eq = () => chain;
+        chain.in = () => chain;
+        chain.delete = () => { isDelete = true; return chain; };
+        chain.insert = (rows: unknown[]) => { insertCalls += 1; inserted += rows.length; return Promise.resolve({ error: null }); };
+        chain.then = (resolve: (v: unknown) => unknown) => {
+          if (t === "coaching_sessions") {
+            return resolve(
+              chain._enum
+                ? { data: agents.map((a) => ({ company_id: "co1", agent_id: a })), error: null }
+                : { data: agents.map((a, i) => ({ id: `s${i}`, agent_id: a, outcome: "sold", deal_value: 100, started_at: "2026-07-01T10:00:00.000Z", ended_at: "2026-07-01T10:30:00.000Z" })), error: null }
+            );
+          }
+          if (isDelete) { deleteCalls += 1; isDelete = false; }
+          return resolve({ data: [], error: null });
+        };
+        return chain;
+      },
+    });
+    const body = (await (await GET(req("Bearer s3cret-value"))).json()) as { snapshots: number; computed: number };
+    expect(body.computed).toBe(3);
+    expect(deleteCalls).toBe(3);
+    expect(insertCalls).toBe(3);
+    expect(inserted).toBe(36); // 3 agents x 6 metrics x 2 periods
+    expect(body.snapshots).toBe(36);
+  });
+
+  it("a failed clear skips the insert (no duplicate rows) and is counted, not silent", async () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let insertCalls = 0;
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: (t: string) => {
+        const chain: Record<string, unknown> = {};
+        let isDelete = false;
+        chain.select = (c: unknown) => { chain._enum = typeof c === "string" && c.includes("company_id"); return chain; };
+        chain.order = () => chain;
+        chain.range = () => chain;
+        chain.eq = () => chain;
+        chain.in = () => chain;
+        chain.delete = () => { isDelete = true; return chain; };
+        chain.insert = () => { insertCalls += 1; return Promise.resolve({ error: null }); };
+        chain.then = (resolve: (v: unknown) => unknown) => {
+          if (t === "coaching_sessions") {
+            return resolve(
+              chain._enum
+                ? { data: [{ company_id: "co1", agent_id: "a1" }], error: null }
+                : { data: [{ id: "s1", agent_id: "a1", outcome: "sold", deal_value: 100, started_at: "2026-07-01T10:00:00.000Z", ended_at: "2026-07-01T10:30:00.000Z" }], error: null }
+            );
+          }
+          if (isDelete) { isDelete = false; return resolve({ data: null, error: { message: "delete failed" } }); }
+          return resolve({ data: [], error: null });
+        };
+        return chain;
+      },
+    });
+    const body = (await (await GET(req("Bearer s3cret-value"))).json()) as { snapshots: number; snapshotErrors: number };
+    expect(insertCalls).toBe(0);
+    expect(body.snapshots).toBe(0);
+    expect(body.snapshotErrors).toBe(12);
+    expect(errSpy).toHaveBeenCalled();
   });
 });
