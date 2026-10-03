@@ -128,6 +128,9 @@ No phase begins until the previous one's exit test is green.
    main line at `04246628`, EAS build `0827c8db`, submission `33c6f5da` finished 14:16Z to App Store Connect
    app 6808480147. Apple's processing into TestFlight was not observed from here. It carries everything since
    build 27 (22 Sep), including the quiet undo (merged `62b738f5`); `DEVICE-CHECK.md` checks 42-44 cover the new parts.
+   **Build 29 submitted 2026-10-02** (founder picker: "Build 29 now, test that"): app main line at `374e8782`,
+   EAS build `d335cfc3` finished 05:40Z, submission `fd468164` finished 05:42Z. It adds the 1 October wording
+   (coached, analyzed, Talk / Listen, American spellings); `DEVICE-CHECK.md` now says to run checks 42-44 on 29.
 4. Record the baseline: website gate + a production smoke of the routes the app calls; app `tsc`,
    1,551 tests, G1–G4, and the device-check results.
 
