@@ -59,6 +59,8 @@ export interface TranscriptSegment {
   source: string | null; // attribution reason (0236)
   spoken_at: string | null;
   created_at: string;
+  /** Which voice the diarizer heard on this line (website migration 0270); null for live capture and older rows. */
+  speaker_cluster?: string | null;
 }
 
 /** A row of `coaching_cues` — APPEND-ONLY (the in-call suggestions the coach delivered). */

@@ -13,10 +13,12 @@ import type { TranscriptSegment } from '@/types/backend';
  * local record of it anywhere. Without this the rep sees a transcript with no speakers, no
  * question, and no way to answer one.
  *
- * So the question is rebuilt from the transcript itself. A server-saved `unknown` transcript
- * is exactly the case where the system could not separate two voices, which means there is
- * only ONE voice to ask about — and the question collapses to a binary the rep can always
- * answer: is this you, or the customer?
+ * So the question is rebuilt from the transcript itself. For a server-saved `unknown` transcript
+ * that is either ONE voice — a binary the rep can always answer: is this you, or the customer? —
+ * or, corrected 2026-10-08, TWO voices the server separated but could not assign: then each line
+ * carries its voice id (website 0270) and the rep is asked which voice is theirs
+ * (voicesFromTranscript). The old reading, "unknown means one voice", made "that's me" label the
+ * customer's lines as the rep's.
  *
  * WHAT THIS DELIBERATELY NO LONGER DOES, because it is worth knowing why the code is small.
  * The first version rebuilt the whole segment payload and reconstructed each line's offset
@@ -70,6 +72,9 @@ export function isAnswerable(segments: Pick<TranscriptSegment, 'speaker' | 'sour
  */
 export function speakersFromTranscript(segments: TranscriptSegment[]): PendingSpeaker[] | null {
   if (!isAnswerable(segments)) return null;
+  // TWO VOICES ARE NOT ONE (2026-10-08): ask which voice is the rep, one sample each.
+  const voices = voicesFromTranscript(segments);
+  if (voices) return voices;
   // The sample is what the rep actually reads to decide, so it must be a line with WORDS in it.
   // "Words" is not "non-empty" (2026-09-10): a call that captured no speech comes back from STT as
   // `[clicking]` or `[outro jingle]`, never as "". Those pass .trim(), so the old check would put a
@@ -92,3 +97,46 @@ export function speakersFromTranscript(segments: TranscriptSegment[]): PendingSp
  * both sources of the question.
  */
 export const SOLO_SPEAKER_ID = 'solo';
+
+/**
+ * The voices on a call the server saved as all `unknown` but whose lines still say WHICH voice spoke (website
+ * migration 0270, 2026-10-08). Recovery saves every line `unknown` when it separated two voices and could not
+ * tell which is the rep; asking "is this voice you?" then labelled every line one way, and "that's me" made
+ * the customer's words the rep's. Each voice now gets its own sample and the rep picks theirs.
+ *
+ * MIRRORS the website's `transcriptVoices` (src/lib/coach/v5/transcriptVoices.ts), which the server applies to the
+ * same rows; the two repositories cannot import from each other, so both pin the same cases in their tests:
+ * every line `unknown`, nobody has answered, every line knows its voice, two or more voices. Anything else is null
+ * and the one-voice question stands.
+ */
+export function voicesFromTranscript(segments: TranscriptSegment[]): PendingSpeaker[] | null {
+  if (segments.length === 0) return null;
+  const order: string[] = [];
+  const sample = new Map<string, string>();
+  for (const s of segments) {
+    if (s.speaker !== 'unknown' || s.source === MANUAL_SOURCE || !s.speaker_cluster) return null;
+    if (!sample.has(s.speaker_cluster)) {
+      order.push(s.speaker_cluster);
+      sample.set(s.speaker_cluster, '');
+    }
+    if (!sample.get(s.speaker_cluster) && hasSpeech(s.text)) sample.set(s.speaker_cluster, s.text.trim().slice(0, 200));
+  }
+  if (order.length < 2) return null;
+  return order.map((id) => ({ speakerId: id, sample: sample.get(id) ?? '' }));
+}
+
+/**
+ * What to send to `/attribute-unlabelled` for the rep's pick on a server-saved transcript.
+ *   - "not me" on a one-voice call, or "none of these" -> `{ mine: false }`;
+ *   - a voice on a call with two or more -> `{ agentCluster }` (the server writes that voice as the rep);
+ *   - the one voice -> `{ mine: true }`.
+ */
+export function attributionBody(
+  speakers: PendingSpeaker[],
+  picked: string,
+  notTheRep: string,
+): { mine: boolean } | { agentCluster: string } {
+  if (picked === notTheRep) return { mine: false };
+  if (speakers.length > 1) return { agentCluster: picked };
+  return { mine: true };
+}

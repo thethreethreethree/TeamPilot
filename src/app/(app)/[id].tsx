@@ -71,7 +71,7 @@ import {
   readPendingAttribution,
   type PendingAttribution,
 } from '@/lib/audio/attribution-store';
-import { speakersFromTranscript } from '@/lib/audio/relabel-unknown';
+import { attributionBody, speakersFromTranscript } from '@/lib/audio/relabel-unknown';
 import type {
   CoachingCue,
   CoachingSession,
@@ -671,8 +671,8 @@ export default function SessionScreen() {
     }
     if (dismissedQuestion === id) return null;
     const speakers = speakersFromTranscript(exportSource?.segments ?? []);
-    // From the SERVER's transcript: one voice, no clusters, and nothing to send back —
-    // the server relabels rows it already has.
+    // From the SERVER's transcript: one voice, or (website 0270) two voices it could not assign,
+    // asked per voice. Nothing is sent back but the answer — the server relabels rows it already has.
     return speakers ? { from: 'transcript' as const, speakers, segments: [] } : null;
   }, [attribution, dismissedQuestion, id, exportSource]);
 
@@ -696,9 +696,11 @@ export default function SessionScreen() {
             the timing while making the call coachable. This route relabels the stored rows
             and never touches `spoken_at`, so neither failure is reachable.
           */
-          await coachPost(`/api/coach/sales-session/${id}/attribute-unlabelled`, {
-            mine: agentSpeakerId !== NOT_THE_REP,
-          });
+          // One voice: { mine }. Two or more (website 0270): { agentCluster } — never "mine" for every line.
+          await coachPost(
+            `/api/coach/sales-session/${id}/attribute-unlabelled`,
+            attributionBody(question.speakers, agentSpeakerId, NOT_THE_REP),
+          );
         } else {
           await coachPost(`/api/coach/sales-session/${id}/label-transcript`, {
             agentSpeakerId,

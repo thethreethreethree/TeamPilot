@@ -166,3 +166,38 @@ test('an absent source is not a human answer — a missing field never means som
   const speakers = speakersFromTranscript([seg({ seq: 0, speaker: 'customer', source: null, text: 'Morning.' })]);
   assert.deepEqual(speakers, [{ speakerId: SOLO_SPEAKER_ID, sample: 'Morning.' }]);
 });
+
+/*
+  TWO VOICES (2026-10-08). A call the server saved as all `unknown` after separating two voices it could not
+  assign. Mirrors the website's transcriptVoices tests: same cases, both repositories.
+*/
+import { attributionBody, voicesFromTranscript } from '../src/lib/audio/relabel-unknown';
+
+test('two voices on an unassigned call are asked about one by one, each with its own line', () => {
+  const speakers = speakersFromTranscript([
+    seg({ seq: 0, text: '[clicking]', speaker_cluster: 'speaker_1' }),
+    seg({ seq: 1, text: "Hi, I'm with Elostate.", speaker_cluster: 'speaker_0' }),
+    seg({ seq: 2, text: 'What does it cost?', speaker_cluster: 'speaker_1' }),
+  ]);
+  assert.deepEqual(speakers, [
+    { speakerId: 'speaker_1', sample: 'What does it cost?' },
+    { speakerId: 'speaker_0', sample: "Hi, I'm with Elostate." },
+  ]);
+});
+
+test('one voice, a line without a voice id, an attributed line or an answer: not the per-voice question', () => {
+  assert.equal(voicesFromTranscript([seg({ speaker_cluster: 's0' }), seg({ seq: 1, speaker_cluster: 's0' })]), null);
+  assert.equal(voicesFromTranscript([seg({ speaker_cluster: 's0' }), seg({ seq: 1, speaker_cluster: null })]), null);
+  assert.equal(voicesFromTranscript([seg({ speaker_cluster: 's0' }), seg({ seq: 1, speaker: 'agent', speaker_cluster: 's1' })]), null);
+  assert.equal(voicesFromTranscript([seg({ speaker_cluster: 's0' }), seg({ seq: 1, source: 'manual', speaker_cluster: 's1' })]), null);
+  // ...and the one-voice question still stands for a voiceless transcript.
+  assert.deepEqual(speakersFromTranscript([seg({ seq: 0 })])?.map((s) => s.speakerId), [SOLO_SPEAKER_ID]);
+});
+
+test('the answer sent: a voice on a multi-voice call names it; never "mine" for every line', () => {
+  const two = [{ speakerId: 's0', sample: 'a' }, { speakerId: 's1', sample: 'b' }];
+  const one = [{ speakerId: SOLO_SPEAKER_ID, sample: 'a' }];
+  assert.deepEqual(attributionBody(two, 's1', '__not__'), { agentCluster: 's1' });
+  assert.deepEqual(attributionBody(one, SOLO_SPEAKER_ID, '__not__'), { mine: true });
+  assert.deepEqual(attributionBody(one, '__not__', '__not__'), { mine: false });
+});
