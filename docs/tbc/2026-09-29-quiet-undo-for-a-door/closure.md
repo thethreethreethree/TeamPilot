@@ -97,3 +97,11 @@ check 42); Apple's processing into TestFlight was not observed from here.
 - **R3-rls-probe-not-in-ci: CLOSED.** `.github/workflows/ci.yml` runs `npm run migration:audit` against a
   postgres:16-alpine service (lines 23-27, 115-119), and that audit's PASS 3 runs every file in scripts/sql/probes
   (3 today, this one included) and fails on its assertion block.
+- **R2-other-app-stores-unswept: CLOSED (2026-10-08T18:30Z).** Swept every AsyncStorage store in the app (20 files):
+  per-item keys (attribution-store, draft-store, coach-answers) and single values (in-flight, the caches) cannot
+  lose a sibling; knock-store, recording-store and outbox are serialised. Three shared read-modify-writes remained:
+  crash-log-store (accepted in its own comment: a lock in the crash path is worse than dropping the second of two
+  identical errors), chat read-marks (a lost mark only shows a topic unread), and **preferences-store**, where a
+  send confirming one setting could overwrite a setting changed offline at the same moment. That one is now
+  serialised per rep (app commit 1831de0d); tests/preferences-store-concurrency.test.ts failed before the lock and
+  passes after. App gate: tsc 0, 1595 tests, lint 0, tools/gate.mjs 0.
