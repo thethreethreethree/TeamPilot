@@ -74,3 +74,9 @@ the 7 calls stay uncoachable until a rep answers who spoke, and 8bde1ce2 has not
   }
 ]
 ```
+
+## Residual update (appended 2026-10-08T18:00Z)
+
+- **R3-stuck-calls-not-repaired: CLOSED as a repair; continued as a question.** All 7 calls were re-read (5 on
+  2026-10-03, the 2 multi-line ones again on 2026-10-08 with each line's voice; docs/tbc/2026-10-08-keep-voices-apart).
+  Nothing is left to repair; each call waits only on its rep answering "whose voice".

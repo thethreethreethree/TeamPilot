@@ -68,3 +68,8 @@ examined. For the 19 sessions that still have audio, `ended_at - started_at` run
 reveal truncated audio. The short files that exist (7 s, 9 s) have one transcript line each: short recordings,
 not truncated ones. CLOSED as not reproducible, with no recent instance. Side observation, not acted on: any
 metric that reads a sales session's ended_at as when the conversation ended will read hours of idle time.
+
+## Residual update (appended 2026-10-08T18:00Z)
+
+- **R1-first-stored-score: CLOSED.** Production, read-only: pitch_scores holds 52 rows, written 2026-09-30
+  20:02:51Z to 20:52:32Z, after 0268. Storing works live.

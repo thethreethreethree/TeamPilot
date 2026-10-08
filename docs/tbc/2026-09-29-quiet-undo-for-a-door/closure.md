@@ -89,3 +89,11 @@ covers it on a phone. Still OPEN: an EAS build and the device check; nothing fro
 R1-app-release: the undo is in iOS build 28 (commit 04246628), submitted to App Store Connect at 14:16Z
 (EAS submission 33c6f5da, status finished). Still OPEN until it is seen working on a phone (DEVICE-CHECK.md
 check 42); Apple's processing into TestFlight was not observed from here.
+
+## Residual update (appended 2026-10-08T18:00Z)
+
+- **R1-app-release: still OPEN, narrowed.** The undo and its queue fix are in every TestFlight build since 28 (now
+  32, uploaded 2026-10-08 17:56Z). What remains is the phone check (DEVICE-CHECK check 42).
+- **R3-rls-probe-not-in-ci: CLOSED.** `.github/workflows/ci.yml` runs `npm run migration:audit` against a
+  postgres:16-alpine service (lines 23-27, 115-119), and that audit's PASS 3 runs every file in scripts/sql/probes
+  (3 today, this one included) and fails on its assertion block.
