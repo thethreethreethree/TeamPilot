@@ -41,3 +41,13 @@ $ MIGRATION_AUDIT_PSQL=... PGPORT=55433 ... npm run check
       Tests  5707 passed | 15 skipped (5722)
 exit 0
 ```
+
+## Appended 2026-10-08T18:25Z - should this be a gate? (A30) No, and why
+
+Scanned src/lib for the defect's exact shape: an exported async function that logs an error and returns null,
+and also returns null elsewhere. 8 hits, none a live defect: 6 are writers or same-handling retries (analyzePitch,
+generateRepPatternRollup, createDepartment, saveDissectTopic, classifyFile, appendTranscriptSegment), and 2 are
+documented choices (getMeetingPrepBySession degrades the live cue path to agenda-less coaching on a logged error;
+getDissectTopic answers 404, like the recording detail, with nothing paid behind it). A gate would fire 8 times
+with nothing to fix: the noisy check A30 warns against. The rule stays a promise: a reader whose null leads to a
+PAID or destructive action must not share that null between "absent" and "could not read".
