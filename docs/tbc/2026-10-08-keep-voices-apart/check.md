@@ -58,3 +58,31 @@ $ npm run check   (with the card moved and render-tested; run 1 failed typecheck
       Tests  5702 passed | 15 skipped (5717)
 exit 0
 ```
+
+## Appended 2026-10-08T16:30Z - a sales-call question, only on sales calls
+
+### "Whose voice is the rep?" was offered and accepted on meetings and huddles
+
+class: a sales-only action with no session-kind check (scoring already refuses: scoreSession not_a_sales_call)
+sweep: grep -n "sessionKind\|session_kind" on the attribute route, generateSessionArtifacts, the app's question path: none checked it
+severity: medium
+
+Production: 6 meetings, all recovered; 5 have all-'unknown' transcripts, which the app lists and would ask about.
+"That's me" would have labelled every participant the rep and run the sales engines on a meeting.
+
+```
+$ npx vitest run attribute-unlabelled                      Tests 25 passed
+$ (mutation: the kind check never fires)  -t "not a sales call"   Tests 2 failed   (restored)
+$ (app) tsc 0 · npm test pass 1593 fail 0 · lint 0 · tools/gate.mjs 0
+$ (app, mutation: sessionKind ignored)   npm test   fail 1   (restored)
+```
+One run during the mutation check reported "68 failed, no tests" with no assertion: the local runner flake
+(docs/tbc/2026-09-30-coached-calls R2), not a result; rerun gave the real one above.
+
+```
+$ npm run check   (with the sales-only rule)
+ RLS probes: 3 run, 0 failed
+ Test Files  734 passed | 1 skipped (735)
+      Tests  5704 passed | 15 skipped (5719)
+exit 0
+```

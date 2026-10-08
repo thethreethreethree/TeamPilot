@@ -125,6 +125,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       { status: 403 }
     );
   }
+  // A SALES CALL ONLY (2026-10-08). "Rep or customer" has no meaning on a meeting or a huddle, and the answer
+  // regenerates SALES coaching. Production holds 5 meetings whose recovered transcripts are all 'unknown', which the
+  // app would have offered this question on; "That's me" would have labelled every participant the rep and run the
+  // sales engines on a meeting. Pitch scoring refuses non-sales sessions the same way (scoreSession not_a_sales_call).
+  if (session.sessionKind !== "sales") {
+    return NextResponse.json(
+      { status: "not-a-sales-call", error: "Only a sales call asks whose voice is the rep's." },
+      { status: 409 }
+    );
+  }
 
   const existing = await getSessionTranscript(id, db);
   const answer = answerableSpeaker(existing);

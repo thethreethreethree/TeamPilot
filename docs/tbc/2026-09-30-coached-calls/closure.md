@@ -49,3 +49,5 @@ and Scoreboard were changed and are covered by the same gate.
 - **R2-local-vitest-runner-flake: still OPEN, no recurrence.** Four full `npm run check` runs against
   postgres:16-alpine on this machine since (finished 2026-10-01 19:49Z and 2026-10-02 04:08Z, 04:19Z, 04:25Z), all exit 0
   with every test file run (727-728 files). Now about 2 of 13 full runs in total. Cause still not established.
+- 2026-10-08: one more occurrence, on a targeted `npx vitest run` (68 files "failed", no tests ran); the immediate
+  rerun ran normally.

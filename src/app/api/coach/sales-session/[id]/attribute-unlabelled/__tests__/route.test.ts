@@ -84,7 +84,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setupAdmin();
   setAuth("rep1");
-  mk(getSession).mockResolvedValue({ id: "sess1", agentId: "rep1", startedAt: "2026-09-10T07:52:00Z" });
+  mk(getSession).mockResolvedValue({ id: "sess1", agentId: "rep1", sessionKind: "sales", startedAt: "2026-09-10T07:52:00Z" });
   mk(getSessionTranscript).mockResolvedValue(unknownTranscript);
 });
 
@@ -307,5 +307,17 @@ describe("POST attribute-unlabelled — a call with two voices", () => {
     const res = await POST(req({ agentCluster: "speaker_0" }), ctx);
     expect(res.status).toBe(400);
     expect(rpcCall).toBeNull();
+  });
+});
+
+/** 2026-10-08: "rep or customer" is a sales-call question; a meeting or huddle is refused and nothing is written. */
+describe("POST attribute-unlabelled — not a sales call", () => {
+  it.each(["meeting", "huddle"])("refuses a %s and writes nothing", async (kind) => {
+    mk(getSession).mockResolvedValue({ id: "sess1", agentId: "rep1", sessionKind: kind, startedAt: "2026-09-10T07:52:00Z" });
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(409);
+    expect((await res.json()).status).toBe("not-a-sales-call");
+    expect(rpcCall).toBeNull();
+    expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
 });
