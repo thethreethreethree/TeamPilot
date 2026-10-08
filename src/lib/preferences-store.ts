@@ -72,8 +72,26 @@ export async function readPendingPreferences(userId: string): Promise<PendingPre
   }
 }
 
+/**
+ * ONE CHANGE AT A TIME (2026-10-08). markPending and clearPending each read then write with an await between; a
+ * send confirming one setting while the rep changed another offline could write back a stale set and drop the new
+ * change (tests/preferences-store-concurrency.test.ts). Same per-rep chain as knock-store's `mutate`. A failed
+ * step does not jam the chain.
+ */
+const chains = new Map<string, Promise<unknown>>();
+function mutate<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = chains.get(userId) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  chains.set(userId, next);
+  return next;
+}
+
 /** Record a change the rep made, merged over anything already waiting. */
 export async function markPending(userId: string, change: PendingPreferences): Promise<void> {
+  return mutate(userId, () => markPendingNow(userId, change));
+}
+
+async function markPendingNow(userId: string, change: PendingPreferences): Promise<void> {
   try {
     const held = (await readPendingPreferences(userId)) ?? {};
     await AsyncStorage.setItem(pendingKey(userId), JSON.stringify({ ...held, ...change }));
@@ -90,6 +108,10 @@ export async function markPending(userId: string, change: PendingPreferences): P
  * must not be thrown away by the older write's success.
  */
 export async function clearPending(userId: string, sent: PendingPreferences): Promise<void> {
+  return mutate(userId, () => clearPendingNow(userId, sent));
+}
+
+async function clearPendingNow(userId: string, sent: PendingPreferences): Promise<void> {
   try {
     const held = await readPendingPreferences(userId);
     if (!held) return;
