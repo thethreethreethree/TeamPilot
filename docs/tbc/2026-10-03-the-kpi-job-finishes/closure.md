@@ -23,3 +23,10 @@ The KPI job makes one clear and one insert per agent instead of 24 round trips, 
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-08T13:15Z)
+
+- **R1-scheduled-run-unseen: CLOSED.** Production, read-only, 2026-10-08: kpi_snapshot 'current' 72 rows and
+  '2026-10' 72 rows, 12 agents each (12 x 6 = 72), latest computed_at 2026-10-08 05:00:54Z. Before the fix every
+  daily run stopped at 70. (The Vercel log export returned no compute-cron rows for the period, so the status code
+  is not observed; the complete row set is.)
