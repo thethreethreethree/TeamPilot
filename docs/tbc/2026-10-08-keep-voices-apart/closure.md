@@ -54,3 +54,10 @@ No image, icon, logo, favicon or graphic asset was touched.
   1 / 3, speaker_2 13 / 67, speaker_3 12 / 22. The question lists every voice; the one picked becomes the rep and
   the rest the customer. Both calls now wait only on the rep's answer.
 - App build 31 (EAS 003ff068, from d605af66) finished 13:57Z; submission 4fcd7873 finished.
+
+## Why the 5 meetings were left out (appended 2026-10-08T16:00Z)
+
+On 2026-10-03 the stuck set was cut from 12 to 7 by calling 5 all-'unknown' meeting transcripts "normal", on a count
+alone. The reason, now read: the meeting review does not use stored labels. `meeting-session/[id]/dissect/route.ts`
+re-transcribes the audio with diarization and takes `speaker: s.speakerId` straight from it (lines 112-113), so a
+meeting's stored 'unknown' lines change nothing in its review. Not a defect.
