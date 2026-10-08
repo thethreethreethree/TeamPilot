@@ -246,3 +246,66 @@ describe("POST attribute-unlabelled — correcting a machine's label", () => {
     expect(generateSessionArtifacts).toHaveBeenCalled();
   });
 });
+
+/**
+ * TWO VOICES (2026-10-08). Recovery saves every line 'unknown' when it separated two voices but could not tell which
+ * is the rep; `mine: true` used to make the customer's lines the rep's. Now each line keeps its voice id (0270) and
+ * the answer names the rep's voice.
+ */
+describe("POST attribute-unlabelled — a call with two voices", () => {
+  const twoVoices = [
+    { speaker: "unknown", text: "Hi, I'm with Elostate.", seq: 0, source: null, speakerCluster: "speaker_0" },
+    { speaker: "unknown", text: "What does it cost?", seq: 1, source: null, speakerCluster: "speaker_1" },
+    { speaker: "unknown", text: "Fifty a month.", seq: 2, source: null, speakerCluster: "speaker_0" },
+  ];
+  beforeEach(() => mk(getSessionTranscript).mockResolvedValue(twoVoices));
+
+  it("refuses a one-voice 'that's me' and hands back the voices to choose from", async () => {
+    const res = await POST(req({ mine: true }), ctx);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.status).toBe("needs-voice");
+    expect(body.voices).toEqual([
+      { cluster: "speaker_0", sample: "Hi, I'm with Elostate." },
+      { cluster: "speaker_1", sample: "What does it cost?" },
+    ]);
+    expect(rpcCall).toBeNull();
+  });
+
+  it("assigns the named voice as the rep, as a new version, and regenerates the coaching", async () => {
+    const res = await POST(req({ agentCluster: "speaker_0" }), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "attributed", speaker: "agent", agentCluster: "speaker_0", labeled: 2 });
+    expect(rpcCall).toEqual({
+      name: "assign_session_voices",
+      args: { p_session_id: "sess1", p_agent_cluster: "speaker_0" },
+    });
+    expect(generateSessionArtifacts).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a voice that is not on the call", async () => {
+    const res = await POST(req({ agentCluster: "speaker_9" }), ctx);
+    expect(res.status).toBe(400);
+    expect(rpcCall).toBeNull();
+  });
+
+  it("'none of these is me' still marks the call customer-only", async () => {
+    const res = await POST(req({ mine: false }), ctx);
+    expect(res.status).toBe(200);
+    expect(rpcCall).toEqual(relabel("unknown", "customer"));
+  });
+
+  it("says so, and changes nothing, when another answer landed first", async () => {
+    rpcResult = { data: 0, error: null };
+    const res = await POST(req({ agentCluster: "speaker_0" }), ctx);
+    expect(res.status).toBe(409);
+    expect(generateSessionArtifacts).not.toHaveBeenCalled();
+  });
+
+  it("a voice answer on a ONE-voice call is refused (that call takes mine: true/false)", async () => {
+    mk(getSessionTranscript).mockResolvedValue(unknownTranscript);
+    const res = await POST(req({ agentCluster: "speaker_0" }), ctx);
+    expect(res.status).toBe(400);
+    expect(rpcCall).toBeNull();
+  });
+});

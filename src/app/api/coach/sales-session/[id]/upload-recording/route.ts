@@ -69,6 +69,8 @@ async function saveUnattributedTranscript(
         text: seg.text,
         seq: i,
         spokenAt: spokenAtFor(startedAt, seg.start),
+        // Which voice (0270): the rep has not said yet, so keep who said what for when they do.
+        speakerCluster: seg.speakerId,
       });
     }
   } catch (e) {

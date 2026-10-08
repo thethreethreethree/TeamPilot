@@ -26,7 +26,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (!auth?.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb
     .from("coaching_transcript_segments_current")
-    .select("speaker, text, seq, spoken_at")
+    // source + speaker_cluster (2026-10-08): the "whose voice?" card needs who answered and which voice is which.
+    .select("speaker, text, seq, spoken_at, source, speaker_cluster")
     .eq("session_id", id)
     .order("seq", { ascending: true });
   if (error) {

@@ -467,6 +467,10 @@ export async function recoverSessionTranscript(args: {
     // The re-read carries word timestamps, so the recovered transcript can be placed on the
     // call's own clock. The route this generalizes dropped them.
     spokenAt: spokenAtFor(session.startedAt, seg.start),
+    // WHICH VOICE (0270, 2026-10-08). When the rep's voice is not decided every line is saved 'unknown', and this
+    // id is then the only record of who said what: without it the later "whose voice is this?" could only
+    // relabel every line one way, making the customer's words the rep's on a two-voice call (A39).
+    speakerId: seg.speakerId,
   }));
 
   const replaced = await replaceSessionTranscript(sessionId, labeled);

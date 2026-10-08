@@ -38,6 +38,7 @@ import {
 import { LinkProgress } from "@/components/sales-coach/ui/NavigationProgress";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
+import { transcriptVoices, voiceLineFromRow, type TranscriptVoice } from "@/lib/coach/v5/transcriptVoices";
 // §A13 — the moment/score shapes live once in summaryTypes (imported, not
 // re-declared) so a new field like `sentiment` can't silently drift this page.
 import type {
@@ -1321,6 +1322,8 @@ function BlankReadRecovery({
     unconditionally and the branching happens in the render below.
   */
   const [unlabelled, setUnlabelled] = useState<boolean | null>(null);
+  // Two or more voices on an unattributed call (2026-10-08): ask which one is the rep, never "is this you?" for all.
+  const [voices, setVoices] = useState<TranscriptVoice[] | null>(null);
   const [answering, setAnswering] = useState(false);
   const [answerError, setAnswerError] = useState<string | null>(null);
 
@@ -1330,12 +1333,15 @@ function BlankReadRecovery({
       try {
         const r = await fetch(`/api/coach/sales-session/${sessionId}/segments`);
         if (!r.ok) return;
-        const d = (await r.json()) as { segments?: { speaker?: string }[] };
+        const d = (await r.json()) as {
+          segments?: { speaker?: string; text?: string; source?: string | null; speaker_cluster?: string | null }[];
+        };
         const segs = d.segments ?? [];
         // Words present AND every one of them unattributed. A transcript with even one real
         // turn already has an answer, and an empty one has nothing to ask about.
         if (!cancelled) {
           setUnlabelled(segs.length > 0 && segs.every((x) => x.speaker === "unknown"));
+          setVoices(transcriptVoices(segs.map(voiceLineFromRow)));
         }
       } catch {
         /* stays null — the existing card behaviour is the honest fallback */
@@ -1347,14 +1353,14 @@ function BlankReadRecovery({
   }, [sessionId]);
 
   const answer = useCallback(
-    async (mine: boolean) => {
+    async (reply: { mine: boolean } | { agentCluster: string }) => {
       setAnswering(true);
       setAnswerError(null);
       try {
         const r = await fetch(`/api/coach/sales-session/${sessionId}/attribute-unlabelled`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mine }),
+          body: JSON.stringify(reply),
         });
         if (!r.ok) {
           const d = (await r.json().catch(() => ({}))) as { error?: string };
@@ -1370,6 +1376,53 @@ function BlankReadRecovery({
     },
     [sessionId, onRecovered]
   );
+
+  // TWO VOICES, NOT ONE (2026-10-08). The recovery heard two voices and could not tell which is the rep. Asking
+  // "is this you?" would label every line one way and score the customer's words as the rep's, so each voice is
+  // shown with a line of its own and the rep picks theirs.
+  if (unlabelled === true && voices) {
+    return (
+      <section className="rounded-2xl border border-ember-400/30 bg-ember-400/[0.05] p-4 space-y-3">
+        <div>
+          <p className="text-xs text-primary font-medium">Which of these voices is you?</p>
+          <p className="text-[11px] text-muted leading-relaxed mt-1">
+            We recovered what was said on this call and heard {voices.length} voices, but we can&apos;t tell which
+            one is yours. Read a line from each and pick yours — the coaching read is then built from your side
+            only. This is a one-time answer.
+          </p>
+        </div>
+        <ul className="space-y-2">
+          {voices.map((v, i) => (
+            <li key={v.cluster} className="rounded-lg border border-default bg-surface/60 p-3 space-y-2">
+              <p className="text-[11px] text-muted">
+                Voice {i + 1} · {v.lines} {v.lines === 1 ? "line" : "lines"}
+              </p>
+              <p className="text-xs text-primary leading-relaxed">
+                {v.sample ? <>&ldquo;{v.sample}&rdquo;</> : <span className="text-muted">No words, only sounds.</span>}
+              </p>
+              <button
+                type="button"
+                onClick={() => void answer({ agentCluster: v.cluster })}
+                disabled={answering}
+                className="min-h-11 rounded-lg bg-ember-400/15 px-4 text-xs font-medium text-primary hover:bg-ember-400/25 disabled:opacity-50"
+              >
+                {answering ? "Saving…" : "This one is me"}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={() => void answer({ mine: false })}
+          disabled={answering}
+          className="min-h-11 rounded-lg border border-default px-4 text-xs font-medium text-secondary hover:bg-surface disabled:opacity-50"
+        >
+          None of these is me
+        </button>
+        {answerError ? <p className="text-[11px] text-rose-700 dark:text-rose-300">{answerError}</p> : null}
+      </section>
+    );
+  }
 
   // THE WORDS ARE ALREADY HERE. Ask the one question that unlocks them, rather than paying
   // to transcribe the same audio twice.
@@ -1387,7 +1440,7 @@ function BlankReadRecovery({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void answer(true)}
+            onClick={() => void answer({ mine: true })}
             disabled={answering}
             className="min-h-11 rounded-lg bg-ember-400/15 px-4 text-xs font-medium text-primary hover:bg-ember-400/25 disabled:opacity-50"
           >
@@ -1395,7 +1448,7 @@ function BlankReadRecovery({
           </button>
           <button
             type="button"
-            onClick={() => void answer(false)}
+            onClick={() => void answer({ mine: false })}
             disabled={answering}
             className="min-h-11 rounded-lg border border-default px-4 text-xs font-medium text-secondary hover:bg-surface disabled:opacity-50"
           >

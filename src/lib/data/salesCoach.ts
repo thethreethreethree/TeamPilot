@@ -84,6 +84,12 @@ export type TranscriptSegment = {
    * so this costs no extra column.
    */
   source?: string | null;
+  /**
+   * WHICH VOICE the diarizer heard on this line (0270), e.g. "speaker_0". Set by a recorded-audio read; null for
+   * live capture and every line before 2026-10-08. It is what lets "whose voice is this?" be asked per voice on
+   * a call recovery saved as all 'unknown' (A39: attribution travels with the text).
+   */
+  speakerCluster?: string | null;
 };
 
 export type Cue = {
@@ -145,6 +151,7 @@ function mapSegment(row: Record<string, unknown>): TranscriptSegment {
     seq: row.seq as number,
     spokenAt: (row.spoken_at as string | null) ?? null,
     source: (row.source as string | null) ?? null,
+    speakerCluster: (row.speaker_cluster as string | null) ?? null,
   };
 }
 
@@ -341,6 +348,8 @@ export async function appendTranscriptSegment(args: {
   seq: number;
   spokenAt?: string | null;
   source?: string | null;
+  /** The diarizer's voice id for this line (0270). Only a recorded-audio read has one. */
+  speakerCluster?: string | null;
 }): Promise<TranscriptSegment | null> {
   const sb = createServiceRoleClient();
   const base = {
@@ -353,15 +362,24 @@ export async function appendTranscriptSegment(args: {
   // `source` is a real column (0236) but the generated Supabase types predate it, so cast to the pre-0236 row
   // shape — the extra property is sent at runtime, and the migration-coupling guard below covers an env where
   // the column isn't applied.
+  const extra = {
+    ...(args.source ? { source: args.source } : {}),
+    ...(args.speakerCluster ? { speaker_cluster: args.speakerCluster } : {}),
+  };
   let { data, error } = await sb
     .from("coaching_transcript_segments")
-    .insert((args.source ? { ...base, source: args.source } : base) as typeof base)
+    .insert({ ...base, ...extra } as typeof base)
     .select("*")
     .single();
   // Migration-coupling guard (A34): if `source` (0236) isn't applied in this env, retry WITHOUT it rather than
   // LOSING the segment — the transcript matters far more than the diagnostic source. (Column IS live in prod;
   // this is belt-and-braces so a deploy-before-migrate can never regress capture. [[feedback_migration_coupling_no_assert]])
-  if (error && args.source && isMissingColumnError(error, "source")) {
+  // The same guard covers `speaker_cluster` (0270): a line without its voice id beats a line lost.
+  if (
+    error &&
+    ((args.source && isMissingColumnError(error, "source")) ||
+      (args.speakerCluster && isMissingColumnError(error, "speaker_cluster")))
+  ) {
     ({ data, error } = await sb.from("coaching_transcript_segments").insert(base).select("*").single());
   }
   if (error) {
@@ -392,7 +410,14 @@ export async function appendTranscriptSegment(args: {
  */
 export async function replaceSessionTranscript(
   sessionId: string,
-  segments: { speaker: TranscriptSpeaker; text: string; seq: number; spokenAt?: string | null }[]
+  segments: {
+    speaker: TranscriptSpeaker;
+    text: string;
+    seq: number;
+    spokenAt?: string | null;
+    /** The diarizer's voice id (0270); kept so an undecided read can still be answered per voice. */
+    speakerId?: string | null;
+  }[]
 ): Promise<{ ok: boolean; count: number }> {
   const sb = createServiceRoleClient();
   const { data, error } = await sb.rpc("replace_session_transcript", {
@@ -406,6 +431,7 @@ export async function replaceSessionTranscript(
       text: s.text,
       seq: s.seq,
       spokenAt: s.spokenAt ?? null,
+      speakerId: s.speakerId ?? null,
     })),
   });
   if (error) {

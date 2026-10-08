@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { answerableSpeaker } from "@/lib/coach/v5/transcriptRecovery";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { transcriptVoices } from "@/lib/coach/v5/transcriptVoices";
 
 /**
  * POST /api/coach/sales-session/[id]/attribute-unlabelled — answer "whose voice is this?"
@@ -31,8 +32,15 @@ import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifact
  *
  * ONE QUESTION, TWO ANSWERS. `mine: true` means the recording caught the rep; `false` means
  * it caught only the customer, which is the genuine one-sided capture and a real answer, not
- * a failure. A transcript saved as `unknown` is by construction the case where the system
- * could not separate two voices, so there is exactly one voice to attribute.
+ * a failure.
+ *
+ * …UNLESS THE CALL HAS TWO VOICES (corrected 2026-10-08). This used to say an `unknown`
+ * transcript is "by construction" one voice. It is not: recovery also saves every line
+ * `unknown` when it separated two voices but could not tell which is the rep, and `mine: true`
+ * then made the customer's lines the rep's. Each line now keeps its voice id (0270), and when
+ * transcriptVoices finds two or more the answer is `{ agentCluster }` — which voice is the rep —
+ * written by assign_session_voices as a new version. `mine: true` is refused there with the
+ * voices to choose from; `mine: false` ("none of these is me") still marks the call customer-only.
  *
  * ONLY A ONE-VOICE TRANSCRIPT NO PERSON HAS ANSWERED. Two speakers on the record is
  * canonical and is refused — re-attributing captured two-sided speech wholesale is not a
@@ -86,13 +94,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
 
-  let body: { mine?: unknown };
+  let body: { mine?: unknown; agentCluster?: unknown };
   try {
-    body = (await req.json()) as { mine?: unknown };
+    body = (await req.json()) as { mine?: unknown; agentCluster?: unknown };
   } catch {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
-  if (typeof body.mine !== "boolean") {
+  const agentCluster =
+    typeof body.agentCluster === "string" && body.agentCluster.length > 0 && body.agentCluster.length <= 64
+      ? body.agentCluster
+      : null;
+  if (typeof body.mine !== "boolean" && !agentCluster) {
     // No default. Guessing which way a rep meant to answer is exactly the fabricated
     // attribution this whole path exists to avoid.
     return NextResponse.json(
@@ -138,6 +150,80 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         error: "This call caught both voices, so it already says who spoke and was not changed.",
       },
       { status: 409 }
+    );
+  }
+
+  const actorId = auth.user.id;
+  /**
+   * Regenerate the coaching artifacts, because this answer is what makes them possible. Every engine filters on
+   * `speaker === "agent"`, so before an answer the call scored nothing. Via after() so the response returns at
+   * once and the work survives the serverless freeze; best-effort, since the answer is already saved and the
+   * backfill cron can still supply a missed generation.
+   */
+  const scheduleArtifacts = async (admin: ReturnType<typeof createAdminClient>) => {
+    try {
+      const segments = await getSessionTranscript(id, admin);
+      after(async () => {
+        try {
+          await generateSessionArtifacts({ companyId, actorId, sessionId: id, session, segments });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`[attribute-unlabelled] artifact generation failed session=${id}:`, err);
+        }
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[attribute-unlabelled] could not schedule generation session=${id}:`, err);
+    }
+  };
+
+  // TWO OR MORE VOICES: ask which one is the rep (see the header). One verdict, shared with the web card.
+  const voices = transcriptVoices(existing);
+  if (voices) {
+    if (agentCluster) {
+      if (!voices.some((v) => v.cluster === agentCluster)) {
+        return NextResponse.json({ error: "That voice isn't on this call." }, { status: 400 });
+      }
+      const admin = createAdminClient();
+      // A new version: that voice 'agent', every other voice 'customer', the old version kept (§3.1).
+      const { data: assigned, error } = await admin.rpc("assign_session_voices", {
+        p_session_id: id,
+        p_agent_cluster: agentCluster,
+      });
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error(`[attribute-unlabelled] assign failed session=${id}: ${error.message}`);
+        return NextResponse.json(
+          { error: "Couldn't save that right now — your transcript is unchanged." },
+          { status: 500 }
+        );
+      }
+      const labeled = typeof assigned === "number" ? assigned : 0;
+      if (labeled === 0) {
+        // The function re-checks under a lock; 0 means the call changed (another answer landed) since it was read.
+        return NextResponse.json(
+          { status: "already-attributed", error: "This call was answered a moment ago, so it was not changed." },
+          { status: 409 }
+        );
+      }
+      await scheduleArtifacts(admin);
+      return NextResponse.json({ status: "attributed", speaker: "agent", agentCluster, labeled });
+    }
+    if (body.mine === true) {
+      return NextResponse.json(
+        {
+          status: "needs-voice",
+          error: "This call has more than one voice — say which one is you.",
+          voices: voices.map(({ cluster, sample }) => ({ cluster, sample })),
+        },
+        { status: 409 }
+      );
+    }
+    // mine: false — none of these voices is the rep: the call is marked customer-only below, as before.
+  } else if (agentCluster) {
+    return NextResponse.json(
+      { error: "This call has one voice — answer with { mine: true } or { mine: false }." },
+      { status: 400 }
     );
   }
 
@@ -187,23 +273,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
    * freeze; best-effort, since the attribution is already saved and the backfill cron can
    * still supply a missed generation.
    */
-  if (labeled > 0 && body.mine) {
-    try {
-      const actorId = auth.user.id;
-      const segments = await getSessionTranscript(id, admin);
-      after(async () => {
-        try {
-          await generateSessionArtifacts({ companyId, actorId, sessionId: id, session, segments });
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(`[attribute-unlabelled] artifact generation failed session=${id}:`, err);
-        }
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`[attribute-unlabelled] could not schedule generation session=${id}:`, err);
-    }
-  }
+  if (labeled > 0 && body.mine) await scheduleArtifacts(admin);
 
   return NextResponse.json({ status: "attributed", speaker, labeled });
 }
