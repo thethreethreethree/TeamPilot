@@ -670,7 +670,7 @@ export default function SessionScreen() {
       return { from: 'device' as const, speakers: attribution.speakers, segments: attribution.segments };
     }
     if (dismissedQuestion === id) return null;
-    const speakers = speakersFromTranscript(exportSource?.segments ?? []);
+    const speakers = speakersFromTranscript(exportSource?.segments ?? [], exportSource?.session.session_kind);
     // From the SERVER's transcript: one voice, or (website 0270) two voices it could not assign,
     // asked per voice. Nothing is sent back but the answer — the server relabels rows it already has.
     return speakers ? { from: 'transcript' as const, speakers, segments: [] } : null;

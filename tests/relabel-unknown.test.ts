@@ -201,3 +201,10 @@ test('the answer sent: a voice on a multi-voice call names it; never "mine" for 
   assert.deepEqual(attributionBody(one, SOLO_SPEAKER_ID, '__not__'), { mine: true });
   assert.deepEqual(attributionBody(one, '__not__', '__not__'), { mine: false });
 });
+
+test('a meeting or huddle is never asked whose voice is the rep (2026-10-08)', () => {
+  // "Rep or customer" is a sales-call question; the server refuses it for any other kind.
+  assert.equal(speakersFromTranscript([seg({ seq: 0 })], 'meeting'), null);
+  assert.equal(speakersFromTranscript([seg({ seq: 0 })], 'huddle'), null);
+  assert.notEqual(speakersFromTranscript([seg({ seq: 0 })], 'sales'), null);
+});

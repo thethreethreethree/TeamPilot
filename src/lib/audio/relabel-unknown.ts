@@ -70,7 +70,16 @@ export function isAnswerable(segments: Pick<TranscriptSegment, 'speaker' | 'sour
  * Returns null when there is nothing to ask — so the caller can use it as the condition
  * itself rather than testing twice and drifting.
  */
-export function speakersFromTranscript(segments: TranscriptSegment[]): PendingSpeaker[] | null {
+export function speakersFromTranscript(
+  segments: TranscriptSegment[],
+  /**
+   * The session's kind. "Rep or customer" is a SALES-call question (2026-10-08): on a meeting or huddle it has no
+   * meaning, and the server now refuses it (409 not-a-sales-call). Five meetings in production have all-'unknown'
+   * transcripts and would otherwise be asked. Defaults to 'sales' for callers that only ever hold sales calls.
+   */
+  sessionKind: string = 'sales',
+): PendingSpeaker[] | null {
+  if (sessionKind !== 'sales') return null;
   if (!isAnswerable(segments)) return null;
   // TWO VOICES ARE NOT ONE (2026-10-08): ask which voice is the rep, one sample each.
   const voices = voicesFromTranscript(segments);
