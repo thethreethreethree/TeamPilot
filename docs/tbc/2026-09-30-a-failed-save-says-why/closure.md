@@ -73,3 +73,6 @@ metric that reads a sales session's ended_at as when the conversation ended will
 
 - **R1-first-stored-score: CLOSED.** Production, read-only: pitch_scores holds 52 rows, written 2026-09-30
   20:02:51Z to 20:52:32Z, after 0268. Storing works live.
+
+- **R2-null-return-sweep: CLOSED (2026-10-08).** Swept by hand; the one defect (readPitchScore) is fixed in
+  docs/tbc/2026-10-08-a-failed-read-is-not-unscored.

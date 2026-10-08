@@ -7,7 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { scoreSession, type ScoreRefusal } from "@/lib/coach/pitchScore/scoreSession";
-import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 
 /**
  * POST /api/coach/sales-session/pitch-score  { sessionId }
@@ -148,8 +148,15 @@ export async function GET(req: NextRequest) {
   }
 
   // Read through the CALLER's client, so the RLS that IS this gate applies to the caller.
-  const pitch = await readPitchScore(sessionId, supabase);
-  return NextResponse.json({ pitch });
+  // A failed read is a 500, never `{ pitch: null }`: the panel reads null as "Not scored yet" and offers a paid
+  // re-score of a pitch that may already be scored (2026-10-08, PitchScoreReadError).
+  try {
+    const pitch = await readPitchScore(sessionId, supabase);
+    return NextResponse.json({ pitch });
+  } catch (err) {
+    if (!(err instanceof PitchScoreReadError)) throw err;
+    return NextResponse.json({ error: "Couldn't read this pitch's score right now." }, { status: 500 });
+  }
 }
 
 /**

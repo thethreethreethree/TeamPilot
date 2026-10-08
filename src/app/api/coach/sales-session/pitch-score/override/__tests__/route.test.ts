@@ -24,14 +24,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
-vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({ readPitchScore: vi.fn() }));
+vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({
+  readPitchScore: vi.fn(),
+  PitchScoreReadError: class PitchScoreReadError extends Error {},
+}));
 vi.mock("@/lib/coach/pitchScore/applyOverride", () => ({ applyOverride: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/notifyCorrection", () => ({ notifyPitchCorrected: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
 import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
 import { POST } from "../route";
@@ -146,6 +149,13 @@ describe("a correction is never applied blind", () => {
   it("refuses when the evidence cannot be read", async () => {
     asMock(readPitchScore).mockResolvedValue(null);
     const res = await POST(req());
+    expect(res.status).toBe(500);
+    expect(applyOverride).not.toHaveBeenCalled();
+  });
+
+  it("refuses, and writes nothing, when the evidence read FAILS (it throws since 2026-10-08)", async () => {
+    asMock(readPitchScore).mockRejectedValue(new PitchScoreReadError("read failed"));
+    const res = await POST(req(BODY));
     expect(res.status).toBe(500);
     expect(applyOverride).not.toHaveBeenCalled();
   });

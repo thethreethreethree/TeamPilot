@@ -100,6 +100,23 @@ export type StoredPitch = {
 
 const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 
+/**
+ * A read of a stored pitch FAILED — distinct from "this call has no score" (2026-10-08).
+ *
+ * readPitchScore used to log the error and return null, the same value as an unscored call, and the GET route
+ * passed it on as `{ pitch: null }` with a 200. The score panel then showed "Not scored yet" with a button to
+ * score it: a paid AI call on a pitch that may already be scored and was merely unreadable — the exact case the
+ * panel's own comment forbids. The four follow-up reads (elements, events, overrides, disputes) ignored their
+ * errors entirely, so a failed elements read showed a scored pitch with no evidence behind it.
+ * Now null means only "no score", and any failed read throws this; the routes answer 500.
+ */
+export class PitchScoreReadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PitchScoreReadError";
+  }
+}
+
 export async function readPitchScore(
   sessionId: string,
   client?: SupabaseClient
@@ -118,14 +135,13 @@ export async function readPitchScore(
     // codebase has an invariant against. Null is returned only after the error is on the record.
     // eslint-disable-next-line no-console
     console.error(`[readPitchScore] read failed session=${sessionId}: ${error.message}`);
-    return null;
+    throw new PitchScoreReadError(`pitch read failed session=${sessionId}`);
   }
   if (!pitch) return null;
 
   const pitchId = pitch.id as string;
 
-  const [{ data: elementRows }, { data: eventRows }, { data: overrideRows }, { data: disputeEvents }] =
-    await Promise.all([
+  const reads = await Promise.all([
     sb.from("pitch_score_elements").select("*").eq("pitch_id", pitchId),
     sb.from("pitch_score_events").select("*").eq("pitch_id", pitchId),
     // Through the CALLER's client, like everything else here. `events` RLS is company-wide, but
@@ -145,6 +161,14 @@ export async function readPitchScore(
       .order("created_at", { ascending: true })
       .limit(200),
   ]);
+  // A failed child read is a failed read, never "no elements / no overrides" (see PitchScoreReadError).
+  const failed = reads.find((r) => r.error);
+  if (failed?.error) {
+    // eslint-disable-next-line no-console
+    console.error(`[readPitchScore] evidence read failed session=${sessionId}: ${failed.error.message}`);
+    throw new PitchScoreReadError(`pitch evidence read failed session=${sessionId}`);
+  }
+  const [{ data: elementRows }, { data: eventRows }, { data: overrideRows }, { data: disputeEvents }] = reads;
 
   // Rubric order, not insertion order. The model returns elements in whatever order it graded
   // them; a rep reading their pitch back expects Introduction before Close.

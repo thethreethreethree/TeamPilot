@@ -27,13 +27,16 @@ vi.mock("@/lib/data/salesCoach", () => ({
 }));
 vi.mock("@/lib/coach/pitchScore/generatePitchScore", () => ({ generatePitchScore: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/storePitchScore", () => ({ storePitchScore: vi.fn() }));
-vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({ readPitchScore: vi.fn() }));
+vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({
+  readPitchScore: vi.fn(),
+  PitchScoreReadError: class PitchScoreReadError extends Error {},
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/data/salesCoach";
 import { generatePitchScore } from "@/lib/coach/pitchScore/generatePitchScore";
 import { storePitchScore } from "@/lib/coach/pitchScore/storePitchScore";
-import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { POST, GET } from "../route";
 
@@ -251,6 +254,13 @@ describe("GET readback", () => {
     const res = await GET(getReq(SID));
     expect(res.status).toBe(200);
     expect((await res.json()).pitch).toBeNull();
+  });
+
+  it("a FAILED read is a 500, never { pitch: null } — null shows 'Not scored yet' and a paid re-score (2026-10-08)", async () => {
+    asMock(readPitchScore).mockRejectedValue(new PitchScoreReadError("read failed"));
+    const res = await GET(getReq(SID));
+    expect(res.status).toBe(500);
+    expect((await res.json()).pitch).toBeUndefined();
   });
 
   it("returns the stored pitch for the owner or a manager", async () => {

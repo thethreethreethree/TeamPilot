@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
 import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
 import { BONUSES_BY_ID, ELEMENTS_BY_ID, VIOLATIONS_BY_ID } from "@/lib/coach/pitchScore/rubric";
@@ -91,7 +91,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That pitch has no session to read." }, { status: 409 });
   }
 
-  const pitch = await readPitchScore(row.session_id as string, admin);
+  let pitch: Awaited<ReturnType<typeof readPitchScore>>;
+  try {
+    pitch = await readPitchScore(row.session_id as string, admin);
+  } catch (err) {
+    if (!(err instanceof PitchScoreReadError)) throw err;
+    pitch = null; // a failed read: the branch below refuses to correct a score it could not see
+  }
   if (!pitch) {
     // readPitchScore already logged the detail. A null here after the row was found means the
     // evidence could not be read, and correcting a score without seeing what it was built from is

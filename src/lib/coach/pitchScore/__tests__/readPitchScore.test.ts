@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
-import { readPitchScore } from "../readPitchScore";
+import { readPitchScore, PitchScoreReadError } from "../readPitchScore";
 import { BONUSES_BY_ID, ELEMENTS_BY_ID, SECTIONS } from "../rubric";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
@@ -66,6 +66,7 @@ const mockDb = (
   opts: {
     pitch?: unknown;
     error?: { message: string };
+    elementsError?: { message: string };
     disputeEvents?: unknown[];
     overrides?: unknown[];
   } = {}
@@ -113,7 +114,10 @@ const mockDb = (
     const rows = table === "pitch_score_elements" ? ELEMENT_ROWS : EVENT_ROWS;
     const chain: Record<string, unknown> = {};
     chain.select = () => chain;
-    chain.eq = async () => ({ data: rows, error: null });
+    chain.eq = async () =>
+      table === "pitch_score_elements" && opts.elementsError
+        ? { data: null, error: opts.elementsError }
+        : { data: rows, error: null };
     return chain;
   });
   ordered = null;
@@ -336,13 +340,19 @@ describe("manager corrections come back with the pitch", () => {
 });
 
 describe("a failed read is not an unscored pitch", () => {
-  it("logs and returns null when the query errors", async () => {
+  it("logs and THROWS when the query errors — null would read as 'not scored' (2026-10-08)", async () => {
     mockDb({ error: { message: "permission denied for table pitches" } });
-    expect(await readPitchScore("sess1")).toBeNull();
+    await expect(readPitchScore("sess1")).rejects.toBeInstanceOf(PitchScoreReadError);
     // Returning null silently would tell a rep their pitch was never scored when the read failed —
     // the error-as-no-data class. The error must be on the record.
     expect(console.error).toHaveBeenCalled();
     expect(String(asMock(console.error).mock.calls[0]![0])).toContain("permission denied");
+  });
+
+  it("a failed EVIDENCE read throws too, never a scored pitch with no evidence", async () => {
+    mockDb({ elementsError: { message: "statement timeout" } });
+    await expect(readPitchScore("sess1")).rejects.toBeInstanceOf(PitchScoreReadError);
+    expect(String(asMock(console.error).mock.calls[0]![0])).toContain("statement timeout");
   });
 
   it("returns null without logging when there genuinely is no pitch", async () => {
