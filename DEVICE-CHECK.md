@@ -231,7 +231,7 @@ they cannot re-take, unsent words, a deal value that vanishes as they swipe back
 **Build 21 or later is what to test** — take whatever TestFlight offers you as
 newest, and check the build number before you start.
 
-**For checks 42 to 44, take build 30 or later** (sent 3 October). Build 28 has the
+**For checks 42 to 45, take build 31 or later** (sent 8 October; build 30 on 3 October). Build 28 has the
 undo and the back-to-back fix, but not the words in check 44; build 29 has those words; build 30
 adds reading a call's newest transcript (a repaired or relabelled call shows one transcript, not two).
 
@@ -1568,6 +1568,21 @@ Quick to check, all on screens you already know:
    (American spelling everywhere, and "analyzed", not "scored").
 
 **Wrong looks like:** any of the old words; or "scored" on a points screen.
+
+---
+
+### 45. Which voice is you, on a call with two voices (new, 8 October)
+
+Only if you have one: a call the coach recovered from its recording where it heard two voices but
+could not tell which was you. Before 8 October the app asked "is this you?" once for the whole call, and
+"that's me" would have counted the customer's lines as yours.
+
+1. Open the call. The question lists **each voice with a line it said**.
+2. Pick the voice that is yours.
+3. The transcript shows your lines as yours and the customer's as theirs, and the coaching read appears.
+
+**Wrong looks like:** one "is this you?" for a call where you can see two people talking; or, after
+answering, the customer's lines shown as yours.
 
 ---
 
