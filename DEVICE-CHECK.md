@@ -1569,8 +1569,6 @@ Quick to check, all on screens you already know:
 
 **Wrong looks like:** any of the old words; or "scored" on a points screen.
 
----
-
 ### 45. Which voice is you, on a call with two voices (new, 8 October)
 
 Only if you have one: a call the coach recovered from its recording where it heard two voices but
