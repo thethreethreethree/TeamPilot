@@ -39,3 +39,18 @@ the rep's voice, on the web and in the app, as a new version.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-08T14:05Z)
+
+- **R1-0270-not-applied: CLOSED.** `db-apply --verify` passed (rolled back) 13:42:47Z; `db:apply` 13:42:52Z, all 30
+  live invariants hold; website 76e4ec4 live 13:45:38Z, 0 5xx after, post-deploy smoke passed; the view carries
+  speaker_cluster and assign_session_voices exists (production, read-only).
+- **R3-card-render-untested: CLOSED.** The card moved to its own component; three render tests (two voices: a line
+  from each and `{ agentCluster }`; "None of these is me"; one voice: `{ mine: true }`). Disabling the two-voice
+  branch fails 2 of them.
+- **R2-two-calls-have-no-voices: CLOSED.** Markers reset on exactly the 2 (one transaction, 13:46:47Z); the 14:20
+  recovery run re-read both: version 3, every line with a voice id, 0 without. The diarizer found 3 voices on each
+  (asked for 2): 8bde1ce2 speaker_0 23 lines / 69 words, speaker_1 4 / 8, speaker_2 19 / 25; cef6995b speaker_1
+  1 / 3, speaker_2 13 / 67, speaker_3 12 / 22. The question lists every voice; the one picked becomes the rep and
+  the rest the customer. Both calls now wait only on the rep's answer.
+- App build 31 (EAS 003ff068, from d605af66) finished 13:57Z; submission 4fcd7873 finished.

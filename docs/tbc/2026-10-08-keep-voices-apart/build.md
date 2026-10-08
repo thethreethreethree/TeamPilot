@@ -23,3 +23,9 @@
 - **write-path:** app `src/lib/audio/relabel-unknown.ts` (voicesFromTranscript, attributionBody), `[id].tsx`,
   `types/backend.ts`.
 - **read-path:** app `tests/relabel-unknown.test.ts`.
+
+### The card can be render-tested (appended 2026-10-08T14:05Z)
+
+- **write-path:** `src/components/sales-coach/BlankReadRecovery.tsx` (moved out of the After-Pitch page unchanged;
+  a Next page file may export only its page).
+- **read-path:** `src/components/sales-coach/__tests__/BlankReadRecovery.render.test.tsx`.

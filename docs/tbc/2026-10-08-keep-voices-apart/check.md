@@ -43,3 +43,18 @@ run 2: exit 0   (container restarted)   RLS probes: 3 run, 0 failed
  Test Files  733 passed | 1 skipped (734)
       Tests  5699 passed | 15 skipped (5714)
 ```
+
+## Appended 2026-10-08T14:05Z - the card render-tested
+
+```
+$ npx vitest run src/components/sales-coach/__tests__/BlankReadRecovery.render.test.tsx   Tests 3 passed
+$ (mutation: the two-voice branch disabled)   Tests 2 failed | 1 passed   (restored)
+```
+
+```
+$ npm run check   (with the card moved and render-tested; run 1 failed typecheck on an index that may be undefined in the new test, fixed)
+ RLS probes: 3 run, 0 failed
+ Test Files  734 passed | 1 skipped (735)
+      Tests  5702 passed | 15 skipped (5717)
+exit 0
+```
