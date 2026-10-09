@@ -71,7 +71,9 @@ Against this audit:
      build-time source-map upload in next.config.ts, which caused the 45-minute Vercel build timeouts of
      2026-07-24. Error capture needs only the DSN; source maps can be added later as their own change.
   3. Verify: `curl -s https://elostate.com/api/health` shows `"errorReporting":{"server":true,"browser":true}`.
-  4. Verify delivery: the first real server error, or the next AI outage, appears in the Sentry project.
+  4. Verify delivery: `node scripts/sentry-check.mjs <DSN>` sends one event, then find "ELOSTATE Sentry setup check"
+     in the project's Issues. The script's 200 alone is not proof: Sentry answers 200 even for a made-up key
+     (measured 2026-10-08) and drops the event later.
 - **Care email (`POSTMARK_SERVER_TOKEN`, …): still unset in production**, so item 2 above is still silent.
 - **Cron secrets:** every scheduled route in `vercel.json` now checks `CRON_SECRET` (set). The separate
   `TASK_OVERRUN_SWEEP_SECRET` and `CARE_DURABILITY_SWEEP_SECRET` named above are no longer read by the cron

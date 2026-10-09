@@ -14,3 +14,8 @@
 
 - **write-path:** `docs/CONFIG-PRECONDITIONS-AUDIT.md`, appended section of 2026-10-02.
 - **read-path:** the founder, via the closing report; step 3 there is the check.
+
+### Delivery can be checked with one command (appended 2026-10-08T18:45Z)
+
+- **write-path:** `scripts/sentry-check.mjs` (sends one event to a DSN over Sentry's store endpoint).
+- **read-path:** `scripts/__tests__/sentry-check.test.ts`; setup step 4 in docs/CONFIG-PRECONDITIONS-AUDIT.md.

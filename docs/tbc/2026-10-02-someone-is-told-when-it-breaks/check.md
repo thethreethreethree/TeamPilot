@@ -73,3 +73,23 @@ exit 0
 $ curl -s https://elostate.com/api/health   (6679b5f live, 06:26Z)
   "errorReporting": {"server": false, "browser": false}   <- loud, as intended, until the DSN is set
 ```
+
+## Appended 2026-10-08T18:45Z - a delivery check, and what a 200 does not prove
+
+```
+$ node scripts/sentry-check.mjs not-a-dsn                  exit 2
+$ node scripts/sentry-check.mjs https://<made-up key>@o4500000000000000.ingest.sentry.io/4500000000000001
+  200 with an event id                                      <- Sentry accepts an unknown key and drops it later
+$ npx vitest run scripts/__tests__/sentry-check.test.ts     Tests 5 passed
+```
+
+The first version printed "ACCEPTED" on that 200, which would have reported success for a wrong DSN. It now prints
+"SENT ... not proof yet: look for the event in the project's Issues", and the setup doc says the same.
+
+```
+$ npm run check   (with scripts/sentry-check.mjs)
+ RLS probes: 3 run, 0 failed
+ Test Files  735 passed | 1 skipped (736)
+      Tests  5712 passed | 15 skipped (5727)
+exit 0
+```
