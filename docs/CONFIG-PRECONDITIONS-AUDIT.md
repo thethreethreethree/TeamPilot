@@ -67,6 +67,9 @@ Against this audit:
   2. In Vercel, project `team-pilot`, Production: add `NEXT_PUBLIC_SENTRY_DSN` = the DSN. One variable covers both
      sides: the server config falls back to it. A DSN is public by design. It is baked in at build time, so
      redeploy after adding it.
+     Do NOT add `SENTRY_AUTH_TOKEN` (or SENTRY_ORG / SENTRY_PROJECT) at the same time: the token switches on the
+     build-time source-map upload in next.config.ts, which caused the 45-minute Vercel build timeouts of
+     2026-07-24. Error capture needs only the DSN; source maps can be added later as their own change.
   3. Verify: `curl -s https://elostate.com/api/health` shows `"errorReporting":{"server":true,"browser":true}`.
   4. Verify delivery: the first real server error, or the next AI outage, appears in the Sentry project.
 - **Care email (`POSTMARK_SERVER_TOKEN`, …): still unset in production**, so item 2 above is still silent.
