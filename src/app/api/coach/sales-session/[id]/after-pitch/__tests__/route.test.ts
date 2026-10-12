@@ -21,7 +21,7 @@ import { getSession, getLatestAfterPitchSummaryAdmin } from "@/lib/data/salesCoa
 import { generateAndStoreAfterPitch } from "@/lib/coach/v5/generateAndStoreAfterPitch";
 import { GET, POST } from "../route";
 
-const SESSION = { companyId: "co1", agentId: "rep1", context: "in_person", outcome: null };
+const SESSION = { companyId: "co1", agentId: "rep1", context: "in_person", outcome: null, sessionKind: "sales" };
 const STORED = { hasSignal: true, scores: [{ key: "opener", display: "8/10" }], moments: [], narrative: {} };
 
 /** Fake supabase: a caller identity + their profile row (role / company). */

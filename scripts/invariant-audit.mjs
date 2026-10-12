@@ -2269,6 +2269,26 @@ for (const f of FILES) {
   }
 }
 
+// ═══ INVARIANT 34 — a sales-session route that runs a sales engine asks isSalesCall first ═══════════════════
+//
+// LEARNED: 2026-10-09. The sales engines ran on meetings and huddles: 6 sales after-pitch summaries, repeated engine
+// runs, and 54 leaderboard points for a huddle graded on opener / close / objection. The two shared entry points
+// (generateSessionArtifacts, generateAndStoreAfterPitch) now refuse non-sales sessions, but a route can call an
+// engine directly. Each such route must branch on the one verdict, isSalesCall (src/lib/coach/v5/salesOnly.ts).
+const SALES_ENGINE_RE = /\b(runAndStore(Dissect|Summary|Moments|Pivot|Intel)|generateSalesScores|generateSessionWhy|generateCareReply)\(/;
+for (const f of FILES) {
+  if (!/^src\/app\/api\/coach\/sales-session\/.*route\.ts$/.test(f.path)) continue;
+  if (!SALES_ENGINE_RE.test(f.sql)) continue;
+  if (/\bisSalesCall\(/.test(f.sql)) continue;
+  findings.push({
+    rule: "a sales-session route runs a sales engine without asking isSalesCall",
+    file: f.path,
+    why:
+      "it calls a sales engine directly, so a meeting or huddle would get sales coaching (and, for the after-pitch\n" +
+      "      read, points). Branch on isSalesCall(session.sessionKind) from src/lib/coach/v5/salesOnly.ts before it runs.",
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -2298,7 +2318,8 @@ if (findings.length === 0) {
       " knocks are counted from door_knocks_live (an undone door never counts) ·" +
       " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session) ·" +
       " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions) ·" +
-      " no delete/update/upsert on a table whose append-only rule would silently drop it."
+      " no delete/update/upsert on a table whose append-only rule would silently drop it ·" +
+      " every sales-session route that runs a sales engine asks isSalesCall first (no sales coaching on a meeting)."
   );
   process.exit(0);
 }

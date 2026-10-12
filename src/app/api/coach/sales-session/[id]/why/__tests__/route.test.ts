@@ -51,7 +51,7 @@ beforeEach(() => {
   (getCurrentCompanyId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("co1");
   // Default: an accessible session owned by rep1, with an outcome recorded.
   (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    agentId: "rep1", outcome: "no_sale", clientLabel: "Acme", context: "in_person",
+    agentId: "rep1", outcome: "no_sale", clientLabel: "Acme", context: "in_person", sessionKind: "sales",
   });
 });
 
@@ -78,7 +78,7 @@ describe("POST /why — rep-only + outcome-first", () => {
   it("400 when no outcome is recorded yet (outcome-first sequencing)", async () => {
     setAuth("rep1");
     (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      agentId: "rep1", outcome: null, clientLabel: "Acme", context: "in_person",
+      agentId: "rep1", outcome: null, clientLabel: "Acme", context: "in_person", sessionKind: "sales",
     });
     expect((await POST(req({ hypothesis: HYP }), ctx)).status).toBe(400);
     expect(inserts).toHaveLength(0);

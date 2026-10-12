@@ -1,3 +1,4 @@
+import { isSalesCall, NOT_A_SALES_CALL } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
@@ -58,6 +59,8 @@ export async function POST(
       { status: 404 }
     );
   }
+  // Sales calls only (2026-10-09, salesOnly.ts): meetings and huddles have their own review; no sales engine runs.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
 
   // §A18 owner gate — scores are private to the rep who ran the call. A manager
   // who can VIEW the session (0084 RLS) still cannot read its scores.

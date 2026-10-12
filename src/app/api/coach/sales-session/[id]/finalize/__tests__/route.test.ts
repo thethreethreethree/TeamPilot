@@ -44,7 +44,9 @@ const setAuth = (userId: string | null) =>
       throw new Error(`unexpected table ${t}`);
     },
   });
-const setSession = (s: unknown) => (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(s);
+// The real getSession always fills sessionKind ("sales" by default); fixtures match it (2026-10-09, salesOnly.ts).
+const setSession = (s: unknown) =>
+  (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(s && typeof s === "object" ? { sessionKind: "sales", ...(s as object) } : s);
 
 const ctx = { params: Promise.resolve({ id: "sess1" }) };
 const req = (body: unknown) => ({ json: async () => body }) as unknown as Parameters<typeof POST>[0];

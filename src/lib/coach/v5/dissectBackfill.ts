@@ -73,8 +73,10 @@ export async function runDissectBackfill(args: {
   // Sessions with content, most recent first.
   let sq = admin
     .from("coaching_sessions")
-    .select("id, agent_id, company_id, client_label, context, status, outcome")
+    .select("id, agent_id, company_id, client_label, context, status, outcome, session_kind")
     .in("status", ["ended", "reviewed"])
+    // Sales calls only (2026-10-09, salesOnly.ts): meetings were selected and re-tried every 14 days.
+    .eq("session_kind", "sales")
     .order("started_at", { ascending: false })
     .limit(scanLimit);
   if (args.companyId) sq = sq.eq("company_id", args.companyId);
@@ -190,6 +192,7 @@ export async function runDissectBackfill(args: {
           clientLabel: (s.client_label as string | null) ?? null,
           context: s.context as "in_person" | "video",
           outcome: (s.outcome as SalesSession["outcome"]) ?? null,
+          sessionKind: (s.session_kind as string | null) ?? "sales",
         },
         segments,
       }).catch(() => ({ dissect: null }));
@@ -205,6 +208,7 @@ export async function runDissectBackfill(args: {
           actorId: s.agent_id as string,
           context: s.context as "in_person" | "video",
           outcome: (s.outcome as string | null) ?? null,
+          sessionKind: (s.session_kind as string | null) ?? "sales",
         }).catch(() => {
           /* best-effort — the 5 artifacts already landed */
         });

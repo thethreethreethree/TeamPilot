@@ -28,7 +28,7 @@ import { runAndStoreIntel } from "@/lib/coach/v5/salesIntel";
 import { generateSessionArtifacts } from "../generateSessionArtifacts";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
-const session = { clientLabel: "Acme", context: "in_person" as const, outcome: null };
+const session = { clientLabel: "Acme", context: "in_person" as const, outcome: null, sessionKind: "sales" };
 const segments = [{ speaker: "agent", text: "Hi", seq: 0 }] as never;
 const args = { companyId: "co1", actorId: "rep1", sessionId: "sess1", session, segments };
 
@@ -108,5 +108,16 @@ describe("generateSessionArtifacts", () => {
 
     const out = await generateSessionArtifacts(args);
     expect(out).toEqual({ dissect: null, summary: null, moments: [], pivot: null, intel: null });
+  });
+});
+
+/** 2026-10-09: sales coaching on sales calls only. A meeting or huddle runs no engine and gets the empty values. */
+describe("generateSessionArtifacts — not a sales call", () => {
+  it.each(["meeting", "huddle"])("a %s runs no engine at all", async (kind) => {
+    const out = await generateSessionArtifacts({ ...args, session: { ...session, sessionKind: kind } });
+    expect(out).toEqual({ dissect: null, summary: null, moments: [], pivot: null, intel: null });
+    for (const fn of [runAndStoreDissect, runAndStoreSummary, runAndStoreMoments, runAndStorePivot, runAndStoreIntel]) {
+      expect(fn).not.toHaveBeenCalled();
+    }
   });
 });

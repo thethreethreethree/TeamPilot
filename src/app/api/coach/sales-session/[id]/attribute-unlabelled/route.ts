@@ -1,3 +1,4 @@
+import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   // regenerates SALES coaching. Production holds 5 meetings whose recovered transcripts are all 'unknown', which the
   // app would have offered this question on; "That's me" would have labelled every participant the rep and run the
   // sales engines on a meeting. Pitch scoring refuses non-sales sessions the same way (scoreSession not_a_sales_call).
-  if (session.sessionKind !== "sales") {
+  if (!isSalesCall(session.sessionKind)) {
     return NextResponse.json(
       { status: "not-a-sales-call", error: "Only a sales call asks whose voice is the rep's." },
       { status: 409 }

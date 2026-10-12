@@ -1,3 +1,4 @@
+import { isSalesCall, NOT_A_SALES_CALL } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -130,6 +131,8 @@ export async function POST(
       { status: 404 }
     );
   }
+  // Sales calls only (2026-10-09, salesOnly.ts): meetings and huddles have their own review; no sales engine runs.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
   // F2 (§3.3) — rep-first is the REP's own read. Only the session's agent may
   // record its why; a manager who can SEE the session cannot submit a why as
   // if it were the rep's (that would subvert the mechanism + pollute Phase 4).

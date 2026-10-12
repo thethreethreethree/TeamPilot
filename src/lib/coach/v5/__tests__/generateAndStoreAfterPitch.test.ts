@@ -49,7 +49,7 @@ import { bankSessionPoints } from "@/lib/coach/gamification/bankPoints";
 import { notifyStrongSession } from "@/lib/coach/gamification/notify";
 const { generateAndStoreAfterPitch } = await import("../generateAndStoreAfterPitch");
 
-const args = { companyId: "c1", sessionId: "s1", agentId: "a1", actorId: "viewer1" };
+const args = { companyId: "c1", sessionId: "s1", agentId: "a1", actorId: "viewer1", sessionKind: "sales" };
 
 beforeEach(() => {
   state.summary = { hasSignal: true, moments: [{ isBreakdown: true }], cueLoop: [1], focus: "x" };
@@ -108,5 +108,14 @@ describe("generateAndStoreAfterPitch", () => {
     const r = await generateAndStoreAfterPitch(args);
     expect(r.generated).toBe(true);
     expect(state.saved).toHaveLength(1); // the summary persisted despite the event failing
+  });
+});
+
+/** 2026-10-09: a huddle was banked 54 points on sales dimensions. Sales calls only: no read, no save, no points. */
+describe("generateAndStoreAfterPitch — not a sales call", () => {
+  it.each(["meeting", "huddle"])("a %s gets no read and banks no points", async (kind) => {
+    const out = await generateAndStoreAfterPitch({ ...args, sessionKind: kind });
+    expect(out).toEqual({ generated: false, summary: null, notASalesCall: true });
+    expect(bankSessionPoints).not.toHaveBeenCalled();
   });
 });

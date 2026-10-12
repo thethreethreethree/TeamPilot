@@ -1,3 +1,4 @@
+import { isSalesCall, NOT_A_SALES_CALL } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
@@ -63,6 +64,8 @@ export async function POST(
       { status: 404 }
     );
   }
+  // Sales calls only (2026-10-09, salesOnly.ts): meetings and huddles have their own review; no sales engine runs.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
   const segments = await getSessionTranscript(id);
   if (segments.length === 0) {
     return NextResponse.json(

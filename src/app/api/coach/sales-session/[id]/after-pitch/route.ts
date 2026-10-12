@@ -1,3 +1,4 @@
+import { isSalesCall, NOT_A_SALES_CALL } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
@@ -145,12 +146,15 @@ export async function POST(
   // must be "LESS WORDY"). Read from the OWNER's preference, not the caller's — a
   // manager generating the summary must still see the rep's version, not their own
   // mode's. §3.4: Standard shortens presentation only, never omits a real finding.
+  // Sales calls only (2026-10-09, salesOnly.ts): a meeting or huddle has its own review and earns no points.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
+
   const mode = await getExperienceMode(supabase, session.agentId);
 
   // Generate + persist + emit the coarse event via the shared helper (A16 drift-guard — the backfill runs
   // the identical sequence). The summary is ALWAYS owned by the rep (agent_id), even when a manager triggers
   // it; actorId only labels the event.
-  const { summary } = await generateAndStoreAfterPitch({
+  const result = await generateAndStoreAfterPitch({
     companyId: session.companyId,
     sessionId: id,
     agentId: session.agentId,
@@ -158,7 +162,10 @@ export async function POST(
     context: session.context,
     outcome: session.outcome,
     mode,
+    sessionKind: session.sessionKind,
   });
+  if (!result.summary) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
+  const { summary } = result;
 
   return NextResponse.json({
     summary: forViewer(summary, viewer.isOwner),

@@ -6,6 +6,7 @@ import { runAndStoreMoments } from "./salesMoments";
 import { runAndStoreIntel } from "./salesIntel";
 import { withEngineTimeout, COACH_ENGINE_TIMEOUT_MS } from "./engineTimeout";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSalesCall } from "./salesOnly";
 
 /**
  * generateSessionArtifacts — the shared "post-call generation" for a Sales Coach session.
@@ -35,10 +36,16 @@ export async function generateSessionArtifacts(args: {
   companyId: string;
   actorId: string;
   sessionId: string;
-  session: Pick<SalesSession, "clientLabel" | "context" | "outcome">;
+  session: Pick<SalesSession, "clientLabel" | "context" | "outcome" | "sessionKind">;
   segments: TranscriptSegment[];
 }) {
   const { companyId, actorId, sessionId, session, segments } = args;
+
+  // SALES CALLS ONLY (2026-10-09, salesOnly.ts): a meeting or huddle gets every engine's "produced nothing" value
+  // and no AI call. Meetings have their own review.
+  if (!isSalesCall(session.sessionKind)) {
+    return { dissect: null, summary: null, moments: [], pivot: null, intel: null };
+  }
 
   /*
     WHICH ENGINES RAN OUT OF TIME, so an uncoached call can be told apart from a quiet one.

@@ -1,3 +1,4 @@
+import { isSalesCall } from "./salesOnly";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateAfterPitchSummary, type AfterPitchSummary } from "@/lib/coach/v5/afterPitch";
@@ -27,7 +28,10 @@ export async function generateAndStoreAfterPitch(args: {
   context?: SalesContext;
   outcome?: string | null;
   mode?: ExperienceMode;
-}): Promise<{ generated: boolean; summary: AfterPitchSummary }> {
+  /** The session's kind. The after-pitch read and its points are for sales calls only (salesOnly.ts). */
+  sessionKind: string;
+}): Promise<{ generated: boolean; summary: AfterPitchSummary } | { generated: false; summary: null; notASalesCall: true }> {
+  if (!isSalesCall(args.sessionKind)) return { generated: false, summary: null, notASalesCall: true };
   const summary = await generateAfterPitchSummary({
     companyId: args.companyId,
     sessionId: args.sessionId,

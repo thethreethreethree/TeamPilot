@@ -1,3 +1,4 @@
+import { isSalesCall, NOT_A_SALES_CALL } from "@/lib/coach/v5/salesOnly";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
       { status: 404 }
     );
   }
+  // Sales calls only (2026-10-09, salesOnly.ts): meetings and huddles have their own review; no sales engine runs.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json(NOT_A_SALES_CALL, { status: 409 });
   const segments = await getSessionTranscript(body.sessionId, supabase);
 
   // One mechanism — same generate+store the server-side finalize uses (§A21).

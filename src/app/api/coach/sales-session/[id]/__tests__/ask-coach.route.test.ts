@@ -31,7 +31,7 @@ const call = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   mock(createClient).mockResolvedValue({ auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) } });
-  mock(getSession).mockResolvedValue({ id: "s1" });
+  mock(getSession).mockResolvedValue({ id: "s1", sessionKind: "sales" });
   mock(getSessionTranscript).mockResolvedValue([
     { speaker: "rep", text: "hi" },
     { speaker: "customer", text: "hello" },
