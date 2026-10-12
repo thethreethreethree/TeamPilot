@@ -81,6 +81,7 @@ import type {
 import { C } from '@/lib/theme';
 import { clockTime, duration, money, outcomeLabel, parseMoney, shortDate } from '@/lib/format';
 import { authFailureMessage } from '@/lib/auth-failure';
+import { isSalesCall, sessionKindName } from '@/lib/sales-only';
 import { buildSessionDoc } from '@/lib/pdf/session-doc';
 import { shareSessionPdf } from '@/lib/pdf/share-session-pdf';
 
@@ -113,6 +114,14 @@ type Row =
    * control that plays it.
    */
   | { kind: 'audio'; assetUrl: string }
+  /**
+   * A meeting or huddle, in place of the debrief and the read.
+   *
+   * Both are sales-call reviews, and since 12 October the server refuses them for anything else (409 "This is a
+   * sales-call feature"). Offering them here would hand the rep a button that can only fail, so the screen says
+   * where this session's review lives instead.
+   */
+  | { kind: 'not-sales'; sessionKind: string }
   /**
    * The between-doors debrief. Offered, never generated on open.
    *
@@ -1294,6 +1303,20 @@ function RowView({
     );
   }
 
+  if (row.kind === 'not-sales') {
+    const name = sessionKindName(row.sessionKind);
+    return (
+      <View className="mt-4 rounded-md border border-border-control px-3 py-3">
+        <Text className="font-strong text-base text-foreground">
+          {name === 'huddle' ? 'Huddle' : 'Meeting'} review
+        </Text>
+        <Text className="mt-1 font-body text-sm leading-relaxed text-muted-foreground">
+          The debrief and the read are for sales calls. This {name}&apos;s review is on the web, under Meeting Coach.
+        </Text>
+      </View>
+    );
+  }
+
   if (row.kind === 'stale') {
     return (
       <View
@@ -1408,41 +1431,45 @@ function buildRows(
   }
   // Under the facts and the audio, above the outcome: a rep who has just
   // listened back is exactly who wants to read how it went.
-  built.push({
-    kind: 'debrief',
-    sessionId: session.id,
-    hasAudio: Boolean(session.audio_asset_url),
-    segmentCount: segments.length,
-    // Counted here rather than asked for: the screen already holds every segment, so
-    // the card can be told why a debrief is not ready instead of promising one that
-    // would come back blank.
-    unattributedCount: segments.filter((s) => s.speaker === 'unknown').length,
-    // Already on the row the screen is holding. Without them the card can only say "still being
-    // turned into a transcript", which it was saying to calls up to forty-seven days old.
-    endedAt: session.ended_at,
-    startedAt: session.started_at,
-    agentTurnCount: segments.filter((s) => s.speaker === 'agent').length,
-  });
-  /*
-    "YOUR READ", under the debrief, and the app has never had it.
+  if (!isSalesCall(session.session_kind)) {
+    built.push({ kind: 'not-sales', sessionKind: session.session_kind });
+  } else {
+    built.push({
+      kind: 'debrief',
+      sessionId: session.id,
+      hasAudio: Boolean(session.audio_asset_url),
+      segmentCount: segments.length,
+      // Counted here rather than asked for: the screen already holds every segment, so
+      // the card can be told why a debrief is not ready instead of promising one that
+      // would come back blank.
+      unattributedCount: segments.filter((s) => s.speaker === 'unknown').length,
+      // Already on the row the screen is holding. Without them the card can only say "still being
+      // turned into a transcript", which it was saying to calls up to forty-seven days old.
+      endedAt: session.ended_at,
+      startedAt: session.started_at,
+      agentTurnCount: segments.filter((s) => s.speaker === 'agent').length,
+    });
+    /*
+      "YOUR READ", under the debrief, and the app has never had it.
 
-    The debrief is the between-doors note; this is the deep read of the whole conversation - what
-    worked, what to work on, and the play the rep ran without naming it. The web has had it since the
-    coach was built and the phone never did, so a rep on the doors could see their transcript and their
-    scores but not the thing that reads the call.
+      The debrief is the between-doors note; this is the deep read of the whole conversation - what
+      worked, what to work on, and the play the rep ran without naming it. The web has had it since the
+      coach was built and the phone never did, so a rep on the doors could see their transcript and their
+      scores but not the thing that reads the call.
 
-    It became load-bearing on 10 September, when the sessions list started showing "Read didn't finish"
-    on a call where the coach came back blank. That chip had nothing behind it until now.
+      It became load-bearing on 10 September, when the sessions list started showing "Read didn't finish"
+      on a call where the coach came back blank. That chip had nothing behind it until now.
 
-    The segments go in rather than a count: the card has to tell "no read yet" apart from "this
-    recording caught no speech", and only the words can say which. It never generates on open - a read
-    is a real LLM call over a whole conversation, so it is offered, not spent.
-  */
-  built.push({
-    kind: 'read',
-    sessionId: session.id,
-    segments: segments.map((s) => ({ speaker: s.speaker, text: s.text })),
-  });
+      The segments go in rather than a count: the card has to tell "no read yet" apart from "this
+      recording caught no speech", and only the words can say which. It never generates on open - a read
+      is a real LLM call over a whole conversation, so it is offered, not spent.
+    */
+    built.push({
+      kind: 'read',
+      sessionId: session.id,
+      segments: segments.map((s) => ({ speaker: s.speaker, text: s.text })),
+    });
+  }
   // Directly under the facts, because setting it is the one thing a rep can
   // change about a finished call — and an unset outcome is the difference
   // between this call counting toward their numbers and not.
