@@ -30,6 +30,7 @@ import { SessionRecordingUpload } from "@/components/sales-coach/SessionRecordin
 import { LiveCoachingPanel } from "@/components/sales-coach/LiveCoachingPanel";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { speakerName } from "@/lib/coach/v5/speakerName";
+import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import {
   OUTCOME_LABELS,
@@ -494,7 +495,7 @@ export default function SessionDetail() {
         {!loading && session && session.status !== "active" && (
           <PitchScorePanel
             sessionId={id}
-            scorable={(session.sessionKind ?? "sales") === "sales"}
+            scorable={isSalesCall(session.sessionKind)}
           />
         )}
 
@@ -1071,7 +1072,24 @@ export default function SessionDetail() {
                 component's per-session state (summary/moments/error) across the params-only [id] change, and
                 the sessionId-effect refetches WITHOUT resetting it → the previous session's summary shows
                 during the refetch (and persists if it fails). Context-switch state-bleed guard. */}
-            <SessionCoachTools key={id} sessionId={id} />
+            {/* Sales tools for a sales call only (2026-10-12). The sales list also shows meetings and huddles, and
+                their engines now answer 409 (salesOnly.ts), so they get a way to their own review instead of a
+                Summarize tab that can only fail. */}
+            {!session || isSalesCall(session.sessionKind) ? (
+              <SessionCoachTools key={id} sessionId={id} />
+            ) : (
+              <section className="rounded-lg border border-default bg-base p-4 text-sm">
+                <p className="text-muted">
+                  This was a {session.sessionKind}, not a sales call, so the sales tools don&apos;t apply.
+                </p>
+                <Link
+                  href={`/dashboard/meeting-coach/${id}/review`}
+                  className="mt-2 inline-block text-xs font-semibold text-brand underline underline-offset-2"
+                >
+                  Open the {session.sessionKind} review
+                </Link>
+              </section>
+            )}
 
             {/* Transcript */}
             <section>

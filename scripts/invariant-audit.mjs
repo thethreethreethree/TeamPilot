@@ -2289,6 +2289,35 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 35 — "is this a sales call" is asked of one verdict, never re-derived ═══════════════════════════
+//
+// LEARNED: 2026-10-12. Three places compared session_kind to "sales" by hand (the first isSalesCall, pitch scoring,
+// the session page) next to the documented authority resolveCoachingMode. The copies disagreed with it on a
+// missing or unknown kind (the authority coaches it as sales; `!== "sales"` refused it). They never split in
+// production only because the column defaults to 'sales'. CLAUDE.md §2.2: consume the verdict, isSalesCall
+// (src/lib/coach/v5/salesOnly.ts) or resolveCoachingMode, never the raw comparison.
+// Exempt: src/lib/data/salesCoach.ts decides whether to WRITE session_kind on insert (a storage choice, not the verdict).
+const KIND_COMPARE_RE =
+  /\b(sessionKind|session_kind)\b[^;\n]{0,25}?(===|!==)\s*["'](sales|meeting|huddle)["']|["'](sales|meeting|huddle)["']\s*(===|!==)\s*[\w.?]*\b(sessionKind|session_kind)\b/;
+const KIND_COMPARE_EXEMPT = new Set(["src/lib/data/salesCoach.ts"]);
+for (const f of FILES) {
+  if (!/^src\/.*\.(ts|tsx)$/.test(f.path) || /__tests__|\.test\.tsx?$/.test(f.path)) continue;
+  if (KIND_COMPARE_EXEMPT.has(f.path)) continue;
+  const lines = f.sql.split(/\r?\n/);
+  lines.forEach((line, i) => {
+    if (/^\s*(\/\/|\*)/.test(line)) return;
+    if (!KIND_COMPARE_RE.test(line)) return;
+    if (/\bresolveCoachingMode\(/.test(line)) return; // comparing the authority's own answer is consuming it
+    findings.push({
+      rule: "a session kind compared by hand instead of asking the one verdict",
+      file: `${f.path}:${i + 1}`,
+      why:
+        "it re-derives 'is this a sales call' from the raw session_kind. Ask isSalesCall (src/lib/coach/v5/salesOnly.ts)\n" +
+        "      or resolveCoachingMode, so a missing or unknown kind is treated the same everywhere (CLAUDE.md §2.2).",
+    });
+  });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
@@ -2319,7 +2348,8 @@ if (findings.length === 0) {
       " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session) ·" +
       " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions) ·" +
       " no delete/update/upsert on a table whose append-only rule would silently drop it ·" +
-      " every sales-session route that runs a sales engine asks isSalesCall first (no sales coaching on a meeting)."
+      " every sales-session route that runs a sales engine asks isSalesCall first (no sales coaching on a meeting) ·" +
+      " no session kind is compared by hand; isSalesCall / resolveCoachingMode is the one verdict."
   );
   process.exit(0);
 }

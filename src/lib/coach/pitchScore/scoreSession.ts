@@ -8,6 +8,7 @@ import { runDetection } from "@/lib/coach/patterns/runDetection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { isProviderOutage } from "@/lib/llm/errors";
+import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -210,7 +211,7 @@ async function scoreSessionOrThrow(args: {
 
   // A huddle is not a pitch. Refused with a reason rather than scored low, because a score is a
   // claim about how someone sold and this conversation was never a sale.
-  if (session.sessionKind !== "sales") {
+  if (!isSalesCall(session.sessionKind)) {
     return refuse(
       "not_a_sales_call",
       `Only sales calls are scored against the pitch rubric (this is a ${session.sessionKind}).`
