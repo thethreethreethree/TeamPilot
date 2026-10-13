@@ -27,3 +27,12 @@ No image, icon, logo, favicon or graphic asset was touched.
 
 - **R1-huddle-points (2026-10-12):** the founder declined the reversal question when it was asked again. It stays
   OPEN and untouched; no production write was made.
+
+## Residual update (appended 2026-10-13)
+
+- **R2-backfill-proof (new, OPEN).** Production read-only, 2026-10-13: since the fix went live (2026-10-12 06:13Z)
+  meetings and huddles have 0 sales-engine events and 0 banked points. Before it, the review backfill was still
+  running the sales engines on meetings (latest 2026-10-09 09:00Z: summary, pivot, intel, moments, dissect
+  attempt). Zero is not yet proof: no call has been recorded since the fix, and the backfill retries a call only
+  every 14 days, so the meetings' next due window is about 2026-10-23. Close this when a query after that date
+  still shows 0 events on non-sales sessions since 2026-10-12 06:13Z.
