@@ -2278,19 +2278,36 @@ for (const f of FILES) {
 // SHARPENED 2026-10-13: the first version passed a FILE if isSalesCall appeared anywhere in it, so four GET handlers
 // (after-pitch, summarize, why, dissect) kept SERVING the sales reviews stored on meetings before the guard while
 // their POST siblings refused. The check is now per exported handler, and covers reads of stored sales output too.
-// Exempt, with the reason: list / coach-assessment / my-training aggregate across many calls (the 2 pre-guard
-// reviews on non-sales sessions are a bounded, recorded residual); finalize only reads the dissect marker for
-// idempotency, and the engines it then calls are guarded inside generateSessionArtifacts.
+// Exempt from the per-handler check, with the reason: finalize only reads the dissect marker for idempotency (the
+// engines it then calls are guarded inside generateSessionArtifacts); list shows per-call badges (whether meetings
+// belong in the sales list at all is R1-sales-list-shows-meetings). coach-assessment and my-training aggregate a
+// rep's reviews across calls, so instead of isSalesCall they MUST leave non-sales sessions out through
+// nonSalesSubjects (src/lib/coach/v5/nonSalesSubjects.ts) - checked below (2026-10-13, R1-aggregate-reads).
 const SALES_ENGINE_RE = /\b(runAndStore(Dissect|Summary|Moments|Pivot|Intel)|generateSalesScores|generateSessionWhy|generateCareReply|generateAndStoreAfterPitch)\(/;
 const SALES_READ_RE = /coach\.(dissect_generated|session_summary_generated|session_moments_generated|session_pivot_generated|session_intel_generated|session_why_generated|session_why_recorded|after_pitch_summary_generated)|getLatestAfterPitchSummary\w*\(|readLatestWhy\(/;
-const SALES_HANDLER_EXEMPT = new Set([
-  "src/app/api/coach/sales-session/list/route.ts",
+const SALES_AGGREGATE_ROUTES = new Set([
   "src/app/api/coach/sales-session/coach-assessment/route.ts",
   "src/app/api/coach/sales-session/my-training/route.ts",
+]);
+const SALES_HANDLER_EXEMPT = new Set([
+  "src/app/api/coach/sales-session/list/route.ts",
   "src/app/api/coach/sales-session/[id]/finalize/route.ts",
+  ...SALES_AGGREGATE_ROUTES,
 ]);
 for (const f of FILES) {
   if (!/^src\/app\/api\/coach\/sales-session\/.*route\.ts$/.test(f.path)) continue;
+  if (SALES_AGGREGATE_ROUTES.has(f.path)) {
+    if (SALES_READ_RE.test(f.sql) && !/\bnonSalesSubjects\(/.test(f.sql)) {
+      findings.push({
+        rule: "an aggregate sales-review read does not leave meetings and huddles out",
+        file: f.path,
+        why:
+          "it counts a rep's sales reviews across calls, including ones written on meetings and huddles before the\n" +
+          "      guard. Exclude their subjects with nonSalesSubjects + subjectsNotIn from src/lib/coach/v5/nonSalesSubjects.ts.",
+      });
+    }
+    continue;
+  }
   if (SALES_HANDLER_EXEMPT.has(f.path)) continue;
   const handlers = f.sql.split(/(?=export async function (?:GET|POST|PUT|PATCH|DELETE)\b)/).slice(1);
   for (const h of handlers) {

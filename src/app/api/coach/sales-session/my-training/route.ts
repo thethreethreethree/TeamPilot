@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { aggregateDissectContent } from "@/lib/coach/v5/coachAssessmentAggregate";
 import { getAllTimeKpi } from "@/lib/data/doorlog";
 import { PRACTICE_EVENT_KIND, aggregateRepPractice } from "@/lib/coach/v5/practiceAnalytics";
+import { nonSalesSubjects, subjectsNotIn } from "@/lib/coach/v5/nonSalesSubjects";
 
 /**
  * GET /api/coach/sales-session/my-training — the CALLER's OWN sales-coach training focuses (founder 2026-08-26,
@@ -25,11 +26,16 @@ export async function GET(req: NextRequest) {
   const uid = auth.user.id;
 
   const admin = createAdminClient();
+  // Sales reviews only: leave out the ones written on this rep's meetings and huddles before the guard
+  // (R1-aggregate-reads, nonSalesSubjects.ts). A failed lookup degrades rather than counting them.
+  const excluded = await nonSalesSubjects(admin, { agentId: uid });
+  if (excluded === null) return NextResponse.json({ degraded: true });
   const { data: events, error } = await admin
     .from("events")
     .select("payload, created_at")
     .eq("kind", "coach.dissect_generated")
     .eq("actor", uid)
+    .not("subject", "in", subjectsNotIn(excluded))
     .order("created_at", { ascending: false })
     .limit(CONTENT_N);
   if (error) return NextResponse.json({ degraded: true });

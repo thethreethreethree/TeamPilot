@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { nonSalesSubjects, subjectsNotIn } from "@/lib/coach/v5/nonSalesSubjects";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
@@ -115,6 +116,11 @@ export async function GET(req: NextRequest) {
   // Queried per rep in parallel. §3.4: any failed query degrades the WHOLE page honestly (never renders a
   // rep as a fake-empty "no sessions yet").
   const DISSECT_CONTENT_N = 50;
+  // Sales reviews only: leave out the ones written on the company's meetings and huddles before the guard
+  // (R1-aggregate-reads, nonSalesSubjects.ts). A failed lookup degrades the page, like any other failed read here.
+  const excludedSubjects = await nonSalesSubjects(admin, { companyId: ctx.companyId });
+  if (excludedSubjects === null) return NextResponse.json({ degraded: true });
+  const notSalesList = subjectsNotIn(excludedSubjects);
   type DoorKpi = { doorsKnocked: number; presentations: number; sold: number };
   type Agg = {
     strengths: string[];
@@ -144,12 +150,14 @@ export async function GET(req: NextRequest) {
             .from("events")
             .select("*", { count: "exact", head: true })
             .eq("kind", "coach.dissect_generated")
-            .eq("actor", a.id),
+            .eq("actor", a.id)
+            .not("subject", "in", notSalesList),
           admin
             .from("events")
             .select("payload, created_at")
             .eq("kind", "coach.dissect_generated")
             .eq("actor", a.id)
+            .not("subject", "in", notSalesList)
             .order("created_at", { ascending: false })
             .limit(DISSECT_CONTENT_N),
           // Door-pitch coaching signal (founder 2026-08-27 — "feed door pitches into the assessment"). pitch_analyses

@@ -23,3 +23,8 @@ read routes answer as if nothing is stored, and INVARIANT 34 checks every handle
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-13)
+
+- **R1-aggregate-reads: CLOSED.** my-training and coach-assessment now leave meetings and huddles out through
+  nonSalesSubjects, and INVARIANT 34 requires it. See docs/tbc/2026-10-13-aggregate-reads-sales-only.
