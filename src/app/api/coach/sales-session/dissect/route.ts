@@ -112,6 +112,9 @@ export async function GET(req: NextRequest) {
       { status: 404 }
     );
   }
+  // Read side of sales-only (2026-10-13): 6 sales reviews were stored on meetings and huddles before the write
+  // guard. They stay in the log (append-only) but are not served: a meeting answers as if nothing is stored.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json({ dissect: null });
   const { data } = await supabase
     .from("events")
     .select("payload")

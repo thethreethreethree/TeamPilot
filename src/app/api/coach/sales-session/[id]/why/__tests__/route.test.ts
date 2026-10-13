@@ -158,3 +158,18 @@ describe("GET /why — owner-or-manager read gate", () => {
     expect(JSON.stringify(body)).not.toContain(HYP);
   });
 });
+
+describe("GET /why on a meeting or huddle (read side of sales-only, 2026-10-13)", () => {
+  beforeEach(() => mockAdminReadWhy());
+
+  it.each(["meeting", "huddle"])("a %s answers with no why, and the stored why is not read", async (kind) => {
+    setAuthWithProfile("rep1", { role: "Member", sales_coach_role: null, company_id: "co1" });
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "s1", agentId: "rep1", companyId: "co1", outcome: "sold", sessionKind: kind,
+    });
+    const res = await GET({} as never, ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ outcome: "sold", repHypothesis: null, systemWhy: null });
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+});

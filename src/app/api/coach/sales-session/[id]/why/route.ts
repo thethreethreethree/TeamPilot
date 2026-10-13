@@ -93,6 +93,11 @@ export async function GET(
       );
     }
   }
+  // Read side of sales-only (2026-10-13): 6 sales reviews were stored on meetings and huddles before the write
+  // guard. They stay in the log (append-only) but are not served: a meeting answers as if nothing is stored.
+  if (!isSalesCall(session.sessionKind)) {
+    return NextResponse.json({ outcome: session.outcome, repHypothesis: null, systemWhy: null });
+  }
   return NextResponse.json({
     outcome: session.outcome,
     ...(await readLatestWhy(id)),

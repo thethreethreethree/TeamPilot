@@ -215,6 +215,11 @@ export async function GET(
   // manager-visible observations, stored append-only in `events`). No LLM cost.
   // Owner-private SCORES are NOT here — they come from the owner-gated
   // /summary-scores endpoint (§A18).
+  // Read side of sales-only (2026-10-13): 6 sales reviews were stored on meetings and huddles before the write
+  // guard. They stay in the log (append-only) but are not served: a meeting answers as if nothing is stored.
+  if (!isSalesCall(session.sessionKind)) {
+    return NextResponse.json({ summary: null, moments: [], pivot: null, intel: null });
+  }
   const latest = (kind: string) =>
     supabase
       .from("events")

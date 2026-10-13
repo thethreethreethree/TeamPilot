@@ -2269,24 +2269,43 @@ for (const f of FILES) {
   }
 }
 
-// ═══ INVARIANT 34 — a sales-session route that runs a sales engine asks isSalesCall first ═══════════════════
+// ═══ INVARIANT 34 — every sales-session HANDLER that runs or serves sales coaching asks isSalesCall ═════════════
 //
 // LEARNED: 2026-10-09. The sales engines ran on meetings and huddles: 6 sales after-pitch summaries, repeated engine
 // runs, and 54 leaderboard points for a huddle graded on opener / close / objection. The two shared entry points
-// (generateSessionArtifacts, generateAndStoreAfterPitch) now refuse non-sales sessions, but a route can call an
-// engine directly. Each such route must branch on the one verdict, isSalesCall (src/lib/coach/v5/salesOnly.ts).
-const SALES_ENGINE_RE = /\b(runAndStore(Dissect|Summary|Moments|Pivot|Intel)|generateSalesScores|generateSessionWhy|generateCareReply)\(/;
+// (generateSessionArtifacts, generateAndStoreAfterPitch) refuse non-sales sessions, but a route can call an engine
+// directly, so each must branch on the one verdict, isSalesCall (src/lib/coach/v5/salesOnly.ts).
+// SHARPENED 2026-10-13: the first version passed a FILE if isSalesCall appeared anywhere in it, so four GET handlers
+// (after-pitch, summarize, why, dissect) kept SERVING the sales reviews stored on meetings before the guard while
+// their POST siblings refused. The check is now per exported handler, and covers reads of stored sales output too.
+// Exempt, with the reason: list / coach-assessment / my-training aggregate across many calls (the 2 pre-guard
+// reviews on non-sales sessions are a bounded, recorded residual); finalize only reads the dissect marker for
+// idempotency, and the engines it then calls are guarded inside generateSessionArtifacts.
+const SALES_ENGINE_RE = /\b(runAndStore(Dissect|Summary|Moments|Pivot|Intel)|generateSalesScores|generateSessionWhy|generateCareReply|generateAndStoreAfterPitch)\(/;
+const SALES_READ_RE = /coach\.(dissect_generated|session_summary_generated|session_moments_generated|session_pivot_generated|session_intel_generated|session_why_generated|session_why_recorded|after_pitch_summary_generated)|getLatestAfterPitchSummary\w*\(|readLatestWhy\(/;
+const SALES_HANDLER_EXEMPT = new Set([
+  "src/app/api/coach/sales-session/list/route.ts",
+  "src/app/api/coach/sales-session/coach-assessment/route.ts",
+  "src/app/api/coach/sales-session/my-training/route.ts",
+  "src/app/api/coach/sales-session/[id]/finalize/route.ts",
+]);
 for (const f of FILES) {
   if (!/^src\/app\/api\/coach\/sales-session\/.*route\.ts$/.test(f.path)) continue;
-  if (!SALES_ENGINE_RE.test(f.sql)) continue;
-  if (/\bisSalesCall\(/.test(f.sql)) continue;
-  findings.push({
-    rule: "a sales-session route runs a sales engine without asking isSalesCall",
-    file: f.path,
-    why:
-      "it calls a sales engine directly, so a meeting or huddle would get sales coaching (and, for the after-pitch\n" +
-      "      read, points). Branch on isSalesCall(session.sessionKind) from src/lib/coach/v5/salesOnly.ts before it runs.",
-  });
+  if (SALES_HANDLER_EXEMPT.has(f.path)) continue;
+  const handlers = f.sql.split(/(?=export async function (?:GET|POST|PUT|PATCH|DELETE)\b)/).slice(1);
+  for (const h of handlers) {
+    const runs = SALES_ENGINE_RE.test(h), serves = SALES_READ_RE.test(h);
+    if (!runs && !serves) continue;
+    if (/\bisSalesCall\(/.test(h)) continue;
+    const name = h.match(/export async function (\w+)/)[1];
+    findings.push({
+      rule: "a sales-session handler " + (runs ? "runs" : "serves") + " sales coaching without asking isSalesCall",
+      file: `${f.path} (${name})`,
+      why:
+        "a meeting or huddle reaching this handler would " + (runs ? "get sales coaching (and, for the after-pitch read, points)" : "be shown a sales review stored before the guard") + ".\n" +
+        "      Branch on isSalesCall(session.sessionKind) from src/lib/coach/v5/salesOnly.ts inside this handler.",
+    });
+  }
 }
 
 // ═══ INVARIANT 35 — "is this a sales call" is asked of one verdict, never re-derived ═══════════════════════════
@@ -2348,7 +2367,7 @@ if (findings.length === 0) {
       " every session length comes from conversationDurationSeconds (no 6-hour pitch from an auto-closed session) ·" +
       " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions) ·" +
       " no delete/update/upsert on a table whose append-only rule would silently drop it ·" +
-      " every sales-session route that runs a sales engine asks isSalesCall first (no sales coaching on a meeting) ·" +
+      " every sales-session handler that runs or serves sales coaching asks isSalesCall (no sales coaching on a meeting) ·" +
       " no session kind is compared by hand; isSalesCall / resolveCoachingMode is the one verdict."
   );
   process.exit(0);

@@ -206,6 +206,10 @@ export async function GET(
     return NextResponse.json({ summary: null, isOwner: false });
   }
 
+  // Read side of sales-only (2026-10-13): 6 sales reviews were stored on meetings and huddles before the write
+  // guard. They stay in the log (append-only) but are not served: a meeting answers as if nothing is stored.
+  if (!isSalesCall(session.sessionKind)) return NextResponse.json({ summary: null, isOwner: viewer.isOwner });
+
   const stored = await getLatestAfterPitchSummaryAdmin(id);
   return NextResponse.json({
     summary: stored ? forViewer(stored, viewer.isOwner) : null,

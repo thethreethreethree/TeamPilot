@@ -73,3 +73,15 @@ describe("GET /[id]/summarize readback gate", () => {
     expect(body.summary).toBe("They agreed to a follow-up.");
   });
 });
+
+describe("GET /[id]/summarize on a meeting or huddle (read side of sales-only, 2026-10-13)", () => {
+  it.each(["meeting", "huddle"])("a %s answers as if nothing is stored, even when a sales summary was stored before the guard", async (kind) => {
+    setAuth("rep1", { summary: "They agreed to a follow-up." });
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      clientLabel: "Acme", context: "in_person", companyId: "co1", agentId: "rep1", sessionKind: kind,
+    });
+    const res = await call();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ summary: null, moments: [], pivot: null, intel: null });
+  });
+});

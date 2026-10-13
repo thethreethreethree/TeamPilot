@@ -116,3 +116,13 @@ describe("POST after-pitch — generates via the shared helper + keeps A18 priva
     expect(generateAndStoreAfterPitch).not.toHaveBeenCalled();
   });
 });
+
+describe("GET after-pitch on a meeting or huddle (read side of sales-only, 2026-10-13)", () => {
+  it.each(["meeting", "huddle"])("a %s gets no stored sales summary, and the store is not read", async (kind) => {
+    setCaller("rep1", { role: "member", company_id: "co1", sales_coach_role: null });
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ...SESSION, sessionKind: kind });
+    const body = await (await GET(req, ctx)).json();
+    expect(body).toEqual({ summary: null, isOwner: true });
+    expect(getLatestAfterPitchSummaryAdmin).not.toHaveBeenCalled();
+  });
+});
