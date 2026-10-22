@@ -23,3 +23,8 @@ of docs/tbc/2026-10-13-sales-only-read-side.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched.
+
+## Residual update (appended 2026-10-23)
+
+- **R1-list-badges: CLOSED.** Founder picker 2026-10-23: the sales list shows sales calls only. See
+  docs/tbc/2026-10-23-sales-list-sales-calls-only.

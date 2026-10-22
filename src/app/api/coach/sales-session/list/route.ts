@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readIssueFor } from "@/lib/coach/v5/readIssue";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import {
   classifySession,
   extractSessionSignals,
@@ -78,6 +79,10 @@ export async function GET(req: Request) {
       "id, agent_id, client_label, context, status, started_at, ended_at, audio_duration_seconds, territory, offer, outcome"
     )
     .eq("company_id", ctx.companyId)
+    // Sales calls only (founder picker 2026-10-23): meetings and huddles are listed and reviewed under Meeting Coach.
+    // Filtered IN the query, before the 300 limit, so meetings never crowd sales calls out of the page. The excluded
+    // kinds are exactly the ones isSalesCall treats as not a sales call (nonSalesSubjects.ts).
+    .not("session_kind", "in", `(${NON_SALES_KINDS.join(",")})`)
     .order("started_at", { ascending: false })
     .limit(300);
   // Staff: only their own sessions.

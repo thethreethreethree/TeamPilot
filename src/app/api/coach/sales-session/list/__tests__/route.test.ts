@@ -23,6 +23,7 @@ const setCaller = (userId: string | null, profile: unknown) =>
 /** Capture every .eq(col,val) on the coaching_sessions query; return an empty list so the downstream
  *  badge/signal queries (guarded by subjects.length) are skipped. */
 let eqCalls: Array<{ col: string; val: unknown }>;
+let notCalls: unknown[][];
 const mockAdmin = () =>
   (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     from: () => {
@@ -32,6 +33,10 @@ const mockAdmin = () =>
       chain.limit = () => chain;
       chain.gte = () => chain;
       chain.in = () => chain;
+      chain.not = (...args: unknown[]) => {
+        notCalls.push(args);
+        return chain;
+      };
       chain.eq = (col: string, val: unknown) => {
         eqCalls.push({ col, val });
         return chain;
@@ -48,6 +53,7 @@ const MANAGER = { role: "admin", company_id: "co1", sales_coach_role: null };
 beforeEach(() => {
   vi.clearAllMocks();
   eqCalls = [];
+  notCalls = [];
   mockAdmin();
 });
 
@@ -69,6 +75,13 @@ describe("GET /list — session scope", () => {
     await GET(req());
     expect(eqCalls).toContainEqual({ col: "company_id", val: "co1" });
     expect(eqCalls.some((c) => c.col === "agent_id")).toBe(false);
+  });
+
+  // Founder picker 2026-10-23: the sales list shows sales calls only; meetings and huddles live under Meeting Coach.
+  it.each([["rep", REP], ["manager", MANAGER]])("a %s's list leaves out meetings and huddles, in the query", async (_who, profile) => {
+    setCaller("u1", profile);
+    await GET(req());
+    expect(notCalls).toContainEqual(["session_kind", "in", "(meeting,huddle)"]);
   });
 });
 
@@ -105,6 +118,7 @@ function richAdmin(opts: {
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.eq = () => chain;
+      chain.not = () => chain;
       chain.order = () => chain;
       chain.limit = () => chain;
       chain.gte = () => chain;
