@@ -36,3 +36,10 @@ No image, icon, logo, favicon or graphic asset was touched.
   attempt). Zero is not yet proof: no call has been recorded since the fix, and the backfill retries a call only
   every 14 days, so the meetings' next due window is about 2026-10-23. Close this when a query after that date
   still shows 0 events on non-sales sessions since 2026-10-12 06:13Z.
+
+## Residual update (appended 2026-10-23)
+
+- **R2-backfill-proof: CLOSED.** Production read-only, 2026-10-23: since the fix went live (2026-10-12 06:13Z) the
+  review backfill has run (8 dissect events on sales calls, latest 2026-10-21 18:00Z), 5 non-sales sessions
+  (4 meetings, 1 huddle) are past the 14-day retry window the old code would have retried them in, and non-sales
+  sessions have 0 sales-engine events and 0 banked points. The guard is holding under real backfill runs.
