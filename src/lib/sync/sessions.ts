@@ -15,6 +15,7 @@
 // read the server's verdict rather than waiting on anything.
 
 import { supabase } from "../supabase";
+import { NON_SALES_KINDS_FILTER } from "@/lib/sales-only";
 import type { CoachingSession, TranscriptSegment, CoachingCue } from "@/types/backend";
 import {
   DISSECT_ATTEMPTED,
@@ -276,9 +277,12 @@ export async function listMySessions(
    * broke — an app-wide false statement caused by a failed query. Null says "we
    * did not find out", and the chip renders nothing.
    */
+  // Sales calls only (founder picker 2026-10-23): meetings and huddles are reviewed on the web under Meeting Coach.
+  // Filtered in the query, so a page of the list is a page of sales calls.
   const embedded = await supabase
     .from("coaching_sessions")
     .select(WITH_SEGMENT_COUNT)
+    .not("session_kind", "in", NON_SALES_KINDS_FILTER)
     .order("started_at", { ascending: false })
     .range(offset, offset + limit); // one extra, deliberately
 
@@ -292,6 +296,7 @@ export async function listMySessions(
   const { data, error } = await supabase
     .from("coaching_sessions")
     .select("*")
+    .not("session_kind", "in", NON_SALES_KINDS_FILTER)
     .order("started_at", { ascending: false })
     .range(offset, offset + limit);
   if (error) throw error;

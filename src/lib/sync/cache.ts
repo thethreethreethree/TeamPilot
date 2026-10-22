@@ -21,6 +21,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CoachingSession } from '@/types/backend';
+import { isSalesCall } from '@/lib/sales-only';
 
 /**
  * Keyed per user id. Two reps sharing a phone — or one rep signing out and
@@ -52,7 +53,9 @@ export async function readCachedSessions(
       return null;
     }
 
-    return { rows: parsed.rows, at };
+    // A list cached before the sales-only change (2026-10-23) can still hold meetings and huddles; the list
+    // shows sales calls only, so they are dropped here rather than painted until the network answers.
+    return { rows: parsed.rows.filter((r) => isSalesCall(r?.session_kind)), at };
   } catch {
     // A corrupt cache is not an error worth surfacing — it is a cache. Treat it
     // as absent and let the network read populate a good one.

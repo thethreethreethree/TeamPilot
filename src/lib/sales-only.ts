@@ -15,6 +15,16 @@ export function isSalesCall(sessionKind: string | null | undefined): boolean {
   return sessionKind !== 'meeting' && sessionKind !== 'huddle';
 }
 
+/**
+ * The kinds that are NOT sales calls, for filtering a list in the query (founder picker 2026-10-23: the session list
+ * shows sales calls only; meetings and huddles are reviewed on the web under Meeting Coach). Exactly the kinds
+ * isSalesCall refuses; tests/sales-only.test.ts pins the two together.
+ */
+export const NON_SALES_KINDS = ['meeting', 'huddle'] as const;
+
+/** The PostgREST list for `.not('session_kind', 'in', ...)`. */
+export const NON_SALES_KINDS_FILTER = `(${NON_SALES_KINDS.join(',')})`;
+
 /** How the screen names a non-sales session. */
 export function sessionKindName(sessionKind: string | null | undefined): string {
   return sessionKind === 'huddle' ? 'huddle' : 'meeting';
