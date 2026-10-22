@@ -98,3 +98,9 @@ was not touched.
 
 Still unopened: the 16 images in `public/`, the 11 in
 `docs/sales-coach/webstore-promo-kit/assets`, and every surface in this project in a real browser.
+
+## Residual update (appended 2026-10-13)
+
+- **R2-the-route-has-no-test-of-its-own: CLOSED.** The route now has its own test, which fails when the unread
+  count's read_at filter is removed. The 0264 view half was covered by scripts/sql-harness.mjs on 2026-09-22.
+  See docs/tbc/2026-10-13-bell-route-test.
