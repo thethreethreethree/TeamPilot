@@ -155,6 +155,7 @@ export async function POST(
       audio: dl.bytes,
       mimeType: dl.contentType || "audio/webm",
       numSpeakers: 2,
+      meter: { engine: "stt_retranscribe", companyId, sessionId: id },
     });
     segments = t.segments;
     durationSeconds = t.durationSeconds;

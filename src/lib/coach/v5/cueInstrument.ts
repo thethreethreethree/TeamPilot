@@ -11,7 +11,7 @@
  */
 
 export type CueImportance = "low" | "medium" | "high";
-export type CueMode = "in_person" | "video" | "unknown";
+export type CueMode = "in_person" | "video" | "phone" | "unknown";
 
 /** Perf marks along the real pipeline (all performance.now() ms). */
 export type CueTrace = {

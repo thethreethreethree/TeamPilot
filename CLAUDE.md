@@ -344,6 +344,22 @@ The System diagnoses team/project bottlenecks. It must embody the same method it
 - Core chain: `events → signals → problems → resolutions → (new events)`. This chain *is*
   the method encoded as schema.
 
+### 3.1.1 Legal erasure — the one exception
+
+> Added by [AMD-014](docs/amendments/AMD-014-legal-erasure-exception.md), ratified 2026-11-20.
+
+A person's right to have their personal data erased overrides append-only, for that data only. It is the
+only exception to §3.1 and to §1 step 1's "nothing is discarded". Erasure:
+
+1. runs only from a request filed by a company admin, after the matches are shown to them and confirmed;
+2. deletes that customer's personal data and nothing else — recordings, transcript lines in every version,
+   and stored text derived from them (AI summaries, quotes, matched phrases, the client label);
+3. keeps the non-personal facts — that a call happened, its rep, its scores and points — so retrospective
+   analysis survives without the words;
+4. is itself append-only: who asked, when, how many calls, with the identifier stored only as a one-way
+   hash, so the record of an erasure never re-stores what was erased;
+5. is the only path that may delete these rows. No other feature may use it.
+
 ### 3.2 The Understanding Gate Is Structural, Not Optional
 - A `problem` may NOT be surfaced to users until it links to a minimum threshold of
   supporting `signals`. The schema itself must prevent half-understood problems from

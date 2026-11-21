@@ -1,0 +1,285 @@
+# CHECK - RSS Phase 9
+
+## Commands
+
+```
+npm run check exit 0
+  invariant:audit Violations: 0
+  Test Files 789 passed | 1 skipped (790); Tests 6038 passed | 15 skipped (6053)
+  migration:audit, sql:harness SKIPPED — no reachable Postgres (NOT a pass)
+```
+
+PGlite 16.4, 284 migrations applied and 0271-0286 re-applied (16/16), then:
+
+```
+OK   endpoint
+ERR  http endpoint refused → 23514 webhook_endpoints_url_check
+OK   session closes / deal sold / score stored / re-save outcome sold again
+deliveries: [session.closed, deal.closed, session.scored] — has_transcript false, has_label false (3, not 4)
+due: 3 at attempts 0
+attempt 1 failed → right after a failure, still due? 0      (backoff)
+attempt 2 ok → after success, due: 0
+ERR  edit url refused → P0001 RSS: a webhook endpoint never changes
+OK   turn off; ERR turn back on refused; off endpoint: due count 0
+exit 0
+```
+
+The plan's "Looked at", as a test (webhooks.test.ts): a fake receiver captures the POST sendSigned makes;
+verify(endpoint secret, X-Elostate-Timestamp, raw body, X-Elostate-Signature) is true, and false under another
+endpoint's secret. Not done against a real receiver on a deployed server (needs the secret set and 0286 applied).
+
+## Findings
+
+### F1 - one shared signing secret lets any customer forge another's webhooks
+class: a verification secret shared across tenants — a receiver must hold it to verify, so every holder can sign.
+sweep: `grep -rn "RSS_WEBHOOK_SIGNING_SECRET" docs/rss src` → the plan (05-ROUTES, 08-DEPLOYMENT, scaffold webhooks.ts)
+uses it directly as the HMAC key; src derives a per-endpoint key (endpointSecret) and nowhere signs with the master.
+severity: high
+
+### F2 - the scaffold's delivery log updated attempts in place
+class: a retry counter and last status kept by UPDATE on a log table (§3.1).
+sweep: `grep -n "attempts\|last_status" docs/rss/scaffold/supabase/migrations/0279_rss_p9_webhooks.sql` → the two
+mutable columns; 0286 replaces them with webhook_attempts rows under no-update rules.
+severity: medium
+
+### F3 - a login error shown from the URL would let anyone put words on the sign-in page
+class: displaying a query-string message verbatim on an auth page.
+sweep: `grep -rn "searchParams?.get(\"error\")" src/app` → the login page only; it now shows oauthErrorMessage(code)
+from a fixed list.
+severity: medium
+
+### F4 - the single-email account lookup stops silently on a listing error
+class: an error read as "no account" (pre-existing in findAuthUserByEmail: `if (error || !data) break`).
+sweep: `grep -n "if (error || !data) break" src/lib/supabase/admin.ts` → 1 hit (the existing helper); the import uses
+the new findAuthUsersByEmails, which throws.
+severity: low
+
+## Addendum 2026-11-20 — residuals closed after the phase
+
+- R4 (DNS): sendSigned now resolves the host before every send and refuses ANY private answer (resolvesPrivate);
+  webhooks.test.ts covers a name resolving to 169.254.169.254 (the address is never called) and an unresolvable name.
+- RLS as signed-in users: scripts/sql-harness.mjs CLAIM 4 reads audit_log, erasure_requests, webhook_endpoints,
+  company_recording_settings, recording_trims, training_assignments and the trimmed transcript as a CEO, a manager, their
+  report, a rep outside the tree and another company's admin. Its own code, extracted and run on PGlite 16.4:
+
+```
+CLAIM 4 PASSED (harness code, executed on PG 16.4)
+mutant (rss_audit_select using (true)):
+CLAIM 4 FAILED: audit_log as MGR: saw 1, expected 0; audit_log as REP: saw 1, expected 0; ...
+exit 0
+```
+
+  Found while writing it: rss_tree_active (0273) keeps the reporting tree OFF while any 'staff' profile has no manager
+  — a CEO marked as a Sales Coach rep with no manager keeps every manager on company-wide view. That is 0273's stated
+  stand-in, recorded here because the Team page should make it visible (OPEN.md).
+
+## Addendum 2026-11-20 — the tree-off notice (migration 0287)
+
+rss_tree_blockers is the one rule; rss_tree_active is redefined on it, so the Team page's list and the policies'
+verdict cannot drift. Executed on PGlite 16.4:
+
+```
+CEO marked staff, no manager: {"active":false,"blockers":["2a1"]}
+CEO not a rep:                {"active":true,"blockers":[]}
+rep loses manager:            {"active":false,"blockers":["2a3"]}
+exit 0
+```
+
+## Addendum 2026-11-20 — managers carried on invitations (migration 0288)
+
+Through the real accept_invitation (0114), signed in as each invitee, PGlite 16.4:
+
+```
+admin's invite, manager on team  : {"joined":true,"manager":"a3"}
+member's invite (not applied)    : {"joined":true,"manager":null}
+manager since removed (skipped)  : {"joined":true,"manager":null}
+exit 0
+```
+
+Only an admin's invitation applies the manager (a member could otherwise pre-assign a newcomer to a manager of their
+choosing); joining never fails because of it.
+
+## Addendum 2026-11-20 — the admin-role list (0290, 0291, INVARIANT 39)
+
+OPEN.md's rss-p0 item assumed is_sales_coach_manager() treated CFO as a manager. It did not: 0252's literal
+('CEO','COO','admin') predates CFO, and 0265 (founder ruling: one list) rewrote policies, not functions. INVARIANT 39
+(latest definition of every SQL function and policy, replayed) found 10 copies; 0290/0291 replace only the literal.
+Signed-in on PGlite 16.4 after the change:
+
+```
+CFO          {"scm":true,"fin":"cfo","vendor":false}
+Member       {"scm":false,"fin":null,"vendor":false}
+removed CEO  {"scm":false,"fin":"cfo","vendor":false}     ← pre-existing status gap, OPEN.md
+CFO invites a COO     : {"role":"COO"}
+Member invites a CFO  : ERR new row violates row-level security policy for table "team_invitations"
+Member invites a Lead : {"role":"Lead"}
+applied 289/289; re-applied 21/21
+exit 0
+```
+
+## Addendum 2026-11-20 — removed people (0292)
+
+```
+CFO          {"scm":true,"fin":"cfo","vendor":false}
+Member       {"scm":false,"fin":null,"vendor":false}
+removed CEO  {"scm":false,"fin":null,"vendor":false}     ← was "cfo" before 0292
+applied 290/290; re-applied 22/22; invariant Violations 0
+exit 0
+```
+
+## Addendum 2026-11-20 — one clean canonical run over everything since Phase 7
+
+Two earlier full runs timed out on a machine at load average 58-94 (another project's dev server, iCloud sync):
+every static step passed and no test failed an assertion; the 13 and 16 files that timed out each passed when rerun
+on their own. That was composite evidence, so the canonical command was run again unchanged at lower load:
+
+```
+npm run check exit 0
+ Test Files  794 passed | 1 skipped (795)
+      Tests  6062 passed | 15 skipped (6077)
+   Duration  44.22s
+```
+
+Covers 0271-0294, streams/STT metering, live end times, comment mentions, the admin-role list (INVARIANT 39),
+removed-people helpers, and docs/rss/APPLY-RUNBOOK.md (every SQL check in it executed on the PG 16 replay).
+
+## Addendum 2026-11-20 — outside-view security review (erasure, webhooks, trims)
+
+A fresh reviewer read 0284-0286 and their routes with no conclusions handed to it. Findings and disposition:
+
+| # | Finding | Severity | Disposition |
+|---|---|---|---|
+| 1 | Webhook URL check bypassed by IPv4-mapped IPv6 (`[::ffff:7f00:1]`), `[::]`, `localhost.`, NAT64, fe90-febf, 4 reserved IPv4 ranges | high | FIXED (normHost; every `::`-prefixed v6 refused; ranges added). Also found independently by probing before the report arrived. webhooks.test.ts pins all forms |
+| 2 | DNS rebinding: checked once, fetch re-resolves | medium-high | FIXED: pinnedPost connects via node:https with a lookup that refuses private answers at connect time — no second resolution. Test: pre-check fooled "public", connect-time lookup of localhost refused |
+| 3 | Trimmed lines readable from the base transcript table (all versions) | medium | FIXED in 0295: the base read policy carries the trim predicate. The audio file is kept whole BY DESIGN (F9.17: restorable); erasure (0285) is what removes audio |
+| 4 | rss_line_trimmed probeable across companies | low-medium | FIXED in 0295: answers false outside the caller's company; unchanged for the service role |
+| 5 | A failed erasure leaves an erasure_requests row with no completion; a retry adds another | low | OPEN (OPEN.md): no data lost; the record reads as abandoned requests |
+| 6 | Overlapping cron runs can send one delivery twice | low | OPEN (OPEN.md): attempts are de-duplicated; receivers de-duplicate on the delivery `id`, which is the documented contract |
+| 7 | Malformed restoreTrimId → 500 | low | FIXED: 400 before any query; test added |
+| — | "signals.source exists?" | — | Yes (schema listing; the erasure replay updated it) |
+
+Signed-in on PGlite 16.4 after 0295:
+
+```
+rep, BASE table, all versions: ["1:keep","2:keep"]
+rep, _current view: ["keep"]
+other company probes the trim: [{"t":false}]
+service role (no user) sees the trim: [{"t":true}]
+exit 0
+```
+
+## Addendum 2026-11-20 — gate after the review fixes (0295, pinned webhook sends, URL normalisation)
+
+```
+npm run check exit 1        (load average 15-18; another session's `npm run dev` in this repo + iCloud sync)
+  every static step passed; invariant Violations: 0
+  Test Files 785 passed | 1 skipped; 0 failed; 9 errors — all "Timeout waiting for worker to respond"
+each of the 11 files named in those errors, run alone:  1 passed (1)  ×11
+```
+
+Composite evidence, not one clean run: nothing failed an assertion; the exit code is the worker-start timeouts.
+The last clean canonical run (exit 0, 794 files / 6062 tests) predates these fixes; re-run `npm run check` on a
+quiet machine before committing.
+
+## Addendum 2026-11-20 — clean canonical run over the review fixes
+
+```
+npm run check exit 0
+ Test Files  794 passed | 1 skipped (795)
+      Tests  6065 passed | 15 skipped (6080)
+   Duration  80.45s
+```
+
+Supersedes the composite evidence above: everything through 0295, the pinned webhook sender, URL normalisation and
+the trim-id validation passes the canonical gate in one run.
+
+## Addendum 2026-11-21 — second outside-view security review, and its disposition (migration 0296)
+
+The reviewer read the diff cold; it edited nothing. Findings, most severe first:
+
+| # | Finding | Severity | Disposition |
+|---|---|---|---|
+| 1 | A non-admin could set someone's manager through 0288: `invited_by` was not checked on insert, `manager_id` was mutable, any member may write `accepted_at/by` (0008:100), and the definer trigger trusted both | HIGH | FIXED in 0296, three independent closes: the trigger acts only when `accepted_by = auth.uid()`, that user's auth email matches the invitation, the inviter is an active admin and the manager is active; `manager_id` added to the immutability trigger; insert policy requires `invited_by = auth.uid()` |
+| 2 | A `named` comment could be saved while its mentions failed (two inserts, no transaction) → readable by the author only, yet "Sent to the rep" | MEDIUM | FIXED: `rss_insert_comment` (service role only) writes comment + mentions in one transaction; the route uses it whenever visibility ≠ everyone or there are mentions; route test asserts the RPC arguments and no loose inserts |
+| 3 | The CSV import looked each invite's email up again (a full `auth.users` listing per row) and could pass `maxDuration` halfway | MEDIUM (operational) | FIXED: the import passes the accounts it already found (`knownAccountIds`); `createInvitation.test.ts` pins that no lookup runs and an existing member is still refused |
+| 4 | `rss_comment_base_visible` answered for any viewer | LOW | FIXED in 0296: `auth.uid() is null or viewer = auth.uid()`, the same guard as `rss_can_view_rep` |
+| 5 | Retention's "table missing" regex also matched a missing COLUMN → the purge would fall back to 20 | LOW | FIXED: only a missing table (PGRST205/42P01 or the table-not-found messages) falls back; `retention.test.ts` pins PGRST204 / 42703 / other errors as errors. The 42703 case matched the old regex, so the test discriminates |
+| 5b | (unconfirmed) Purge candidates paged by `created_at` alone could repeat a row at a page boundary | LOW | FIXED: `id` tie-break added to the order; purge-cron fakes now chain `.order().order()` |
+
+Signed-in on PGlite 16.4 after 0296 (attack script, each a separate signed-in member):
+
+```
+A forge inviter=admin      : REFUSED: new row violates row-level security policy for table "team_invitations"
+B edit manager_id on admin's invite: REFUSED: team_invitations.manager_id is immutable
+C mark admin's invite accepted by victim: OK            ← the row update is allowed (0008, pre-existing) …
+   victim's manager after C: null                       ← … but nobody's manager changes
+D legit: new@t.com accepts admin's invite: OK [{"ok":true}]
+   newbie's manager after D: a3
+E member's own invite (invited_by = self) still allowed: OK
+F comment visibility probe for someone else: OK [{"v":false}]
+```
+
+C is recorded in docs/residuals/OPEN.md: any member can still mark an invitation accepted (0008's update policy).
+It no longer moves anyone, but the invitation then reads as accepted.
+
+Affected tests after the fixes: comment route, purge cron, import, retention, createInvitation — all pass.
+
+## Addendum 2026-11-21 — canonical gate over 0296, and 0297 (the C residual)
+
+```
+npm run check exit 0
+  Violations: 0
+ Test Files  795 passed | 1 skipped (796)
+      Tests  6070 passed | 15 skipped (6085)
+```
+
+0297 closes path C above. Narrowing 0008's update policy to admins was rejected: revocation runs on the caller's client
+(PATCH /api/team, and createInvitation's auto-revoke of an expired invite, which a non-admin inviting a Member reaches).
+The defect is the accepted_* columns, so the guard sits on them: `check_invitation_immutability` (security invoker)
+refuses an accepted_* change when current_user is authenticated/anon; accept_invitation (0114, definer) is unaffected.
+
+Signed-in on PGlite 16.4 through 0297 (0296+ applied twice — idempotent):
+
+```
+C mark admin's invite accepted by victim: REFUSED: team_invitations: an invitation is accepted only through accept_invitation
+D legit: new@t.com accepts admin's invite: OK [{"ok":true}]   newbie's manager after D: a3
+G member revokes the admin's pending invite (revocation unchanged): OK [{"ok":true}]
+H member sets accepted_by alone on a pending invite: REFUSED: team_invitations: an invitation is accepted only through accept_invitation
+(A, B, E, F unchanged from the 0296 run)
+```
+
+## Addendum 2026-11-21 — release: 0271–0297 applied to production; the live gate failed once; 0298
+
+Founder chose "Apply DB, then push". `npm run db:verify` (27 pending, all clean, rolled back) → `npm run db:apply`:
+migrations applied, then verify:live **1 of 30 FAILED** — "tenant isolation BEHAVIORAL: ROLE anon reads 0 …
+permission denied for function rss_tree_allows". Code push held.
+
+Diagnosis (read-only sweep of all 188 RLS tables as anon on production, each in a rolled-back transaction): 24 tables
+errored — 23 on rss_tree_allows (0273), recording_comments on rss_comment_base_visible; team_passwords on a table
+grant (pre-existing, refuses). rubric_config returned 1 row: the shared default rubric (company_id null, 0252:232),
+by design. Cause: policy helpers revoked from anon; Postgres need not evaluate the tenant test first, so an anonymous
+read raised 42501 instead of returning no rows. No data leaked; signed-in users have the grant.
+
+A catalog check on PGlite (every policy function anon cannot execute) found two more the sweep hid behind the first
+error: rss_comment_mentions_me and rss_line_trimmed. 0298 grants anon all four, each answering "no" for anon:
+rss_tree_allows requires auth.uid(); rss_comment_base_visible trusts a userless caller only with the service_role
+claim (grants access → fails closed); rss_line_trimmed trusts every userless caller except anon (hides content →
+fails toward hiding). Production's auth.role() read live: NULL with no claims, "service_role" under PostgREST claims.
+The shim defaulted to 'anon'; it now matches production verbatim (0298 is the first migration to read auth.role()).
+
+PGlite 16.4 through 0298 (0298 applied twice):
+
+```
+anon reads coaching_sessions / pitch_scores / recording_comments: 0 / 0 / 0   (no error)
+anon RPC rss_tree_allows: false · anon comment probe: false · service role (route) checks admin: true
+admin signed in reads comments: 1 · pitch_scores: 1 · rep rss_tree_allows(self): true · rep probes admin: false
+policies applying to anon that call a function anon cannot execute: 0
+trim replay: rep _current ["keep"] · other company probe false · service role (no user) sees the trim true
+invite attack replay A–H: unchanged (C/H refused, D/G pass)
+npm run sql:harness: SKIPPED (no local Postgres) — not a pass; the PGlite replays are the evidence
+```
+
+Production: `db:verify` 0298 clean → `db:apply` (first attempt: connection timeout, nothing applied; retry) →
+"applied 1 migration(s). DB now at 0298" · "✓ PASS tenant isolation BEHAVIORAL … anon reads 0 from 5 populated
+tenant tables" · "✓ verify:live passed".
+

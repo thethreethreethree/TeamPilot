@@ -53,7 +53,13 @@ export async function POST(req: NextRequest) {
   const sb = createAdminClient();
 
   if (body.mode === "existing") {
-    const existing = await findAuthUserByEmail(email);
+    let existing: Awaited<ReturnType<typeof findAuthUserByEmail>>;
+    try {
+      existing = await findAuthUserByEmail(email);
+    } catch (err) {
+      console.error("[team/add-member existing] account lookup failed:", err);
+      return NextResponse.json({ error: "Couldn't look up that account right now. Try again." }, { status: 503 });
+    }
     if (!existing) {
       return NextResponse.json(
         { error: "No Elostate account was found for that email. Add them as a new user (with a team password) instead." },
@@ -118,7 +124,13 @@ export async function POST(req: NextRequest) {
   }
 
   // mode "new": must NOT already have an account.
-  const clash = await findAuthUserByEmail(email);
+  let clash: Awaited<ReturnType<typeof findAuthUserByEmail>>;
+  try {
+    clash = await findAuthUserByEmail(email);
+  } catch (err) {
+    console.error("[team/add-member new] account lookup failed:", err);
+    return NextResponse.json({ error: "Couldn't check whether that email already has an account. Try again." }, { status: 503 });
+  }
   if (clash) {
     return NextResponse.json(
       { error: "That email already has an account. Add them as an existing user instead (no password needed)." },

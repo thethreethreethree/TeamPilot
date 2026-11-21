@@ -12,6 +12,7 @@ import {
   type DimScores,
   type JudgedDimension,
 } from "@/lib/coach/gamification/calibration";
+import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 
 /**
  * Gamification Phase 6 — the calibration tool (manager-only).
@@ -54,8 +55,18 @@ export async function GET(req: NextRequest) {
     .select("session_id, payload")
     .eq("company_id", mgr.companyId)
     .limit(500);
+  // Reporting tree (RSS Phase 0 step 8): the pool is read with the service role, so it keeps only sessions of
+  // reps this manager may see. Not on the tree yet → the whole company, as today.
+  const poolIds = [...new Set((aps ?? []).map((a) => String(a.session_id)))];
+  const { data: poolSessions } = poolIds.length
+    ? await admin.from("coaching_sessions").select("id, agent_id").eq("company_id", mgr.companyId).in("id", poolIds)
+    : { data: [] as Array<{ id: string; agent_id: string }> };
+  const agentBySession = new Map((poolSessions ?? []).map((s) => [String(s.id), String(s.agent_id)]));
+  const visibleAgents = new Set(await treeFilterReps(req, [...new Set(agentBySession.values())]));
   const modelBySession = new Map<string, DimScores>();
   for (const a of aps ?? []) {
+    const agent = agentBySession.get(String(a.session_id));
+    if (!agent || !visibleAgents.has(agent)) continue;
     const m = modelScores(a.payload);
     if (Object.keys(m).length > 0 && !modelBySession.has(String(a.session_id))) {
       modelBySession.set(String(a.session_id), m);
@@ -143,6 +154,17 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle();
   if (!ap) return NextResponse.json({ error: "Session not found." }, { status: 404 });
+
+  // Reporting tree (RSS Phase 0 step 8): only a session of a rep this manager may see.
+  const { data: sess } = await admin
+    .from("coaching_sessions")
+    .select("agent_id")
+    .eq("company_id", mgr.companyId)
+    .eq("id", body.sessionId)
+    .maybeSingle();
+  if (!sess || !(await treeAllowsRep(req, String(sess.agent_id)))) {
+    return NextResponse.json({ error: "Session not found." }, { status: 404 });
+  }
 
   // Store the blind score (idempotent per manager+session via the unique index).
   const { error } = await admin

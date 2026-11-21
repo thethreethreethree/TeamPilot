@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       try {
         let collected = "";
 
-        const gen = runBrainStream({
+        const gen = runBrainStream({ engine: "ai_briefing",
           companyId,
           basePrompt: SYSTEM_PROMPT,
           messages: [

@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
 
       try {
         if (companyId) {
-          const gen = runBrainStream({
+          const gen = runBrainStream({ engine: "chat_guide",
             companyId,
             basePrompt: systemPrompt,
             messages: [{ role: "user", content: context }],
@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // Demo mode (no Supabase): bypass brain and call provider directly.
-          for await (const delta of llmStream({
+          for await (const delta of llmStream({ attribution: { engine: "chat_guide", companyId: companyId ?? null, },
             systemPrompt: systemPrompt,
             messages: [{ role: "user", content: context }],
             maxTokens: 400,

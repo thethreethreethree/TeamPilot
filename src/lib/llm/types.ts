@@ -37,6 +37,19 @@ export type LlmCallArgs = {
    * AI output; callers thread the user's mode in rather than editing prompts.
    */
   experienceMode?: import("../experience/mode").ExperienceMode;
+  /**
+   * Who this call is for, for the AI cost ledger (`ai_usage`, migration 0272; RSS Phase 0 step 6, Gong
+   * F28.7). Recorded by llmCall after the provider answers. Optional: an unattributed call is still recorded,
+   * as engine "unattributed" with no company — so the ledger never undercounts, it only under-labels.
+   */
+  attribution?: LlmAttribution;
+};
+
+export type LlmAttribution = {
+  /** The feature that made the call, e.g. "pitch_score". */
+  engine: string;
+  companyId?: string | null;
+  sessionId?: string | null;
 };
 
 /**
@@ -76,5 +89,8 @@ export interface Provider {
    * Providers that don't implement it fall back to call() and yield once
    * at the end (the consumer code becomes provider-agnostic).
    */
-  stream?(args: LlmCallArgs): AsyncIterable<string>;
+  stream?(args: LlmCallArgs, onUsage?: (u: StreamUsage) => void): AsyncIterable<string>;
 }
+
+/** What a stream reports once it ends, for the AI cost ledger (llmStream records it). */
+export type StreamUsage = { provider: string; model: string; usage: LlmUsage };

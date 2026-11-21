@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { LlmCallArgs, LlmResult, Provider } from "./types";
+import type { LlmCallArgs, LlmResult, Provider, StreamUsage } from "./types";
 import { LlmError, classifyStatusWithBody } from "./errors";
 import { withRetry } from "./retry";
 
@@ -69,7 +69,7 @@ export const anthropicProvider: Provider = {
       }
     });
   },
-  async *stream(args: LlmCallArgs): AsyncIterable<string> {
+  async *stream(args: LlmCallArgs, onUsage?: (u: StreamUsage) => void): AsyncIterable<string> {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new LlmError({
         kind: "auth",
@@ -86,13 +86,24 @@ export const anthropicProvider: Provider = {
         system: args.systemPrompt,
         messages: args.messages.map((m) => ({ role: m.role, content: m.content })),
       });
+      // Token usage for the cost ledger: input tokens arrive on message_start, output tokens on message_delta.
+      let input: number | undefined;
+      let output: number | undefined;
       for await (const event of stream) {
         if (
           event.type === "content_block_delta" &&
           event.delta.type === "text_delta"
         ) {
           yield event.delta.text;
+        } else if (event.type === "message_start") {
+          input = event.message.usage?.input_tokens ?? input;
+          output = event.message.usage?.output_tokens ?? output;
+        } else if (event.type === "message_delta") {
+          output = event.usage?.output_tokens ?? output;
         }
+      }
+      if (onUsage && (input !== undefined || output !== undefined)) {
+        onUsage({ provider: "anthropic", model, usage: { promptTokens: input, completionTokens: output } });
       }
     } catch (err) {
       const e = err as { status?: number; message?: string };

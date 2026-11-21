@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { generateSalesReview } from "@/lib/coach/v5/salesReview";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import type { TranscriptSegment } from "@/lib/data/salesCoach";
+import { SALES_CONTEXTS, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * POST /api/coach/sales-session/review
@@ -41,7 +42,7 @@ const BodySchema = z.union([
   z.object({
     segments: z.array(InlineSegment).min(1).max(2000),
     sessionTitle: z.string().max(200).optional(),
-    context: z.enum(["in_person", "video"]).optional(),
+    context: z.enum(SALES_CONTEXTS).optional(),
   }),
 ]);
 
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   let segments: TranscriptSegment[];
   let sessionTitle: string | undefined;
-  let context: "in_person" | "video" | undefined;
+  let context: SalesContext | undefined;
   let subject: string;
 
   if ("sessionId" in body) {

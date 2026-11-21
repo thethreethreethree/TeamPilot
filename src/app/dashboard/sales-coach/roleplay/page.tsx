@@ -23,7 +23,10 @@ import {
   ArrowRight,
   Award,
   GraduationCap,
+  Phone,
 } from "lucide-react";
+import { AssignedPractice } from "@/components/sales-coach/AssignedPractice";
+import { PracticeFollowUp } from "@/components/sales-coach/PracticeFollowUp";
 
 /**
  * Sales Coach → Roleplay Practice (founder 2026-07-05; text-first per the
@@ -57,7 +60,11 @@ const STORAGE_KEY = "sc-roleplay-inprogress";
 
 export default function SalesCoachRoleplayPage() {
   const [phase, setPhase] = useState<Phase>("setup");
-  const [context, setContext] = useState<"in_person" | "video">("in_person");
+  const [context, setContext] = useState<"in_person" | "video" | "phone">("in_person");
+  // RSS Phase 7: practising an assigned scenario (?assignment=<id>). The server scores it against the scenario's skill
+  // and records the attempt; `attempt` carries the pass result back.
+  const [assignment, setAssignment] = useState<{ id: string; title: string; passScore: number | null } | null>(null);
+  const [attempt, setAttempt] = useState<{ passed: boolean | null; passScore: number | null } | null>(null);
   const [persona, setPersona] = useState<string>(
     PERSONAS[0]?.label ?? "Skeptical & guarded"
   );
@@ -99,14 +106,15 @@ export default function SalesCoachRoleplayPage() {
       // A fresh "Practice this skill" launch (?focus=) must START CLEAN at setup — never resume a stale in-progress
       // roleplay and graft the new skill onto it (which would score an unrelated conversation against a skill it never
       // practiced). Skip recovery and drop the stale copy so the focus effect below seeds a fresh setup + banner.
-      if (new URLSearchParams(window.location.search).get("focus")?.trim()) {
+      const qs = new URLSearchParams(window.location.search);
+      if (qs.get("focus")?.trim() || qs.get("assignment")) {
         sessionStorage.removeItem(STORAGE_KEY);
         return;
       }
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw) as {
-        context?: "in_person" | "video";
+        context?: "in_person" | "video" | "phone";
         persona?: string;
         custom?: string;
         focus?: string;
@@ -123,6 +131,35 @@ export default function SalesCoachRoleplayPage() {
     } catch {
       /* ignore — recovery is best-effort */
     }
+  }, []);
+
+  // RSS Phase 7: seed from an assigned scenario (?assignment=<id>) — persona, situation, channel and the skill. The
+  // scenario card shows it; the auto-scenario effect is latched off so it can't overwrite the manager's scenario.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("assignment");
+    if (!id) return;
+    fetch(`/api/coach/remote/assignments?id=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (j: {
+          assignments?: Array<{
+            id: string;
+            scenario: { title: string; persona: string; situation: string; focus: string; channel: "in_person" | "video" | "phone"; pass_score: number | null } | null;
+          }>;
+        } | null) => {
+          const a = j?.assignments?.[0];
+          if (!a?.scenario) return setError("That practice isn't assigned to you.");
+          const sc = a.scenario;
+          scenarioAttemptedRef.current = sc.focus;
+          setAssignment({ id: a.id, title: sc.title, passScore: sc.pass_score });
+          setContext(sc.channel);
+          setPersona(sc.persona);
+          setCustom(sc.situation);
+          setPracticeFocus(sc.focus);
+          setScenario({ title: sc.title, persona: sc.persona, situation: sc.situation });
+        },
+      )
+      .catch(() => setError("Couldn't load the assigned practice."));
   }, []);
 
   // Focus seed from the Training tab (?focus=...). Read once on mount from the URL (avoids useSearchParams' Suspense
@@ -261,6 +298,7 @@ export default function SalesCoachRoleplayPage() {
         persona,
         customPrompt: custom.trim() || undefined,
         focus: practiceFocus ?? undefined,
+        assignmentId: assignment?.id,
         messages: msgs,
       }),
     });
@@ -300,9 +338,10 @@ export default function SalesCoachRoleplayPage() {
     setReviewing(true);
     setError(null);
     try {
-      const { review: rev, scorecard: sc } = await post("review", messages);
+      const { review: rev, scorecard: sc, attempt: at } = await post("review", messages);
       setReview(rev as Review);
       setScorecard((sc as Scorecard | undefined) ?? null);
+      setAttempt((at as { passed: boolean | null; passScore: number | null } | undefined) ?? null);
       setPhase("review");
       // Roleplay is done — drop the in-progress recovery copy.
       try {
@@ -347,7 +386,7 @@ export default function SalesCoachRoleplayPage() {
               <DeckCard className="p-4">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <p className="text-[10px] uppercase tracking-wide text-muted">Your scenario</p>
-                  <button
+                  {!assignment && <button
                     type="button"
                     onClick={() => void loadScenario(practiceFocus)}
                     disabled={scenarioLoading}
@@ -356,7 +395,7 @@ export default function SalesCoachRoleplayPage() {
                   >
                     <RotateCcw className="w-3 h-3" aria-hidden />
                     New scenario
-                  </button>
+                  </button>}
                 </div>
                 {scenarioLoading && !scenario ? (
                   <p className="text-xs text-muted flex items-center gap-2">
@@ -372,6 +411,19 @@ export default function SalesCoachRoleplayPage() {
                     )}
                   </>
                 ) : null}
+              </DeckCard>
+            )}
+
+            {/* RSS Phase 7: practice a manager assigned, with due dates (renders nothing when none). */}
+            {!assignment && <AssignedPractice />}
+            {assignment && (
+              <DeckCard className="p-4">
+                <p className="text-[10px] uppercase tracking-wide text-muted">Assigned practice</p>
+                <p className="text-sm text-primary font-semibold">{assignment.title}</p>
+                <p className="text-xs text-secondary mt-0.5">
+                  Your attempt is scored on the skill below and shared with the manager who assigned it
+                  {assignment.passScore !== null ? ` — pass mark ${assignment.passScore}/100` : ""}.
+                </p>
               </DeckCard>
             )}
 
@@ -397,7 +449,7 @@ export default function SalesCoachRoleplayPage() {
             >
               <div>
                 <SectionLabel icon={Target}>Channel</SectionLabel>
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-3 gap-2 mt-2">
                   <DeckGhostButton
                     active={context === "in_person"}
                     onClick={() => setContext("in_person")}
@@ -411,6 +463,13 @@ export default function SalesCoachRoleplayPage() {
                   >
                     <Video className="w-3.5 h-3.5" aria-hidden />
                     Video
+                  </DeckGhostButton>
+                  <DeckGhostButton
+                    active={context === "phone"}
+                    onClick={() => setContext("phone")}
+                  >
+                    <Phone className="w-3.5 h-3.5" aria-hidden />
+                    Phone
                   </DeckGhostButton>
                 </div>
               </div>
@@ -587,6 +646,11 @@ export default function SalesCoachRoleplayPage() {
                         You didn&apos;t get to this skill this time — run it again and look for the moment to use it.
                       </p>
                     )}
+                    {attempt && attempt.passed !== null && (
+                      <p className="text-xs mt-2 font-semibold text-primary">
+                        {attempt.passed ? `Passed (mark ${attempt.passScore}/100).` : `Not passed yet — the mark is ${attempt.passScore}/100. Try again.`}
+                      </p>
+                    )}
                     {scorecard.nextRep && (
                       <p className="text-xs text-secondary leading-relaxed mt-2">
                         <span className="text-muted">Next attempt: </span>
@@ -660,6 +724,8 @@ export default function SalesCoachRoleplayPage() {
                 </DeckCard>
               </div>
             )}
+
+            <PracticeFollowUp messages={messages} focus={practiceFocus} reviewSummary={review.summary} />
 
             <div className="flex gap-2 pt-1">
               <DeckButton

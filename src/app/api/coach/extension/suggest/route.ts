@@ -63,7 +63,7 @@ async function* streamSuggestDeltas(args: {
 }): AsyncIterable<string> {
   const messages = [{ role: "user" as const, content: args.userMessage }];
   if (args.companyId) {
-    yield* runBrainStream({
+    yield* runBrainStream({ engine: "coach_extension_suggest",
       companyId: args.companyId,
       basePrompt: args.systemPrompt,
       messages,
@@ -74,7 +74,7 @@ async function* streamSuggestDeltas(args: {
     });
     return;
   }
-  yield* llmStream({ systemPrompt: args.systemPrompt, messages, maxTokens: 600 });
+  yield* llmStream({ attribution: { engine: "coach_extension_suggest", companyId: args.companyId ?? null, }, systemPrompt: args.systemPrompt, messages, maxTokens: 600 });
 }
 
 export async function POST(req: NextRequest) {

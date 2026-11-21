@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
+import { recordAudit } from "@/lib/audit/recordAudit";
 
 /**
  * POST /api/coach/sales-session/[id]/delete-recording — remove one recording's audio, on request.
@@ -130,5 +131,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
+  await recordAudit(admin, {
+    companyId,
+    actorId: auth.user.id,
+    action: "recording.delete",
+    objectType: "coaching_session",
+    objectId: id,
+    meta: { chunksRemoved: removal.chunksRemoved },
+  });
   return NextResponse.json({ deleted: true, chunksRemoved: removal.chunksRemoved });
 }

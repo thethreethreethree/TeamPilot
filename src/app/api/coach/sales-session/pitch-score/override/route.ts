@@ -8,6 +8,8 @@ import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/read
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
 import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
 import { BONUSES_BY_ID, ELEMENTS_BY_ID, VIOLATIONS_BY_ID } from "@/lib/coach/pitchScore/rubric";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { recordAudit } from "@/lib/audit/recordAudit";
 
 /**
  * POST /api/coach/sales-session/pitch-score/override
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const { data: row, error: readError } = await admin
     .from("pitch_scores")
-    .select("id, company_id, session_id")
+    .select("id, company_id, session_id, rep_id")
     .eq("id", body.pitchId)
     .maybeSingle();
 
@@ -85,6 +87,11 @@ export async function POST(req: NextRequest) {
   // by guessing a uuid — the RPC checks this too, and saying it twice here is cheap because the
   // alternative is trusting a service-role read to have been scoped by something.
   if (!row || row.company_id !== mgr.companyId) {
+    return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
+  }
+  // Reporting tree (RSS Phase 0 step 8): this route acts with the service role, so it asks the same question RLS
+  // asks — through the caller's client — before touching a rep's data. Not on the tree yet → allowed, as today.
+  if (!(await treeAllowsRep(req, String(row.rep_id)))) {
     return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
   }
   if (!row.session_id) {
@@ -159,6 +166,15 @@ export async function POST(req: NextRequest) {
       }`
     );
   }
+
+  await recordAudit(createAdminClient(), {
+    companyId: mgr.companyId,
+    actorId: mgr.userId,
+    action: "score.override",
+    objectType: "pitch_score",
+    objectId: body.pitchId,
+    meta: { overrideId: result.overrideId, itemType: body.itemType, itemId: body.itemId, newValue: body.newValue, reason: body.reason, total: result.total },
+  });
 
   return NextResponse.json({
     overrideId: result.overrideId,

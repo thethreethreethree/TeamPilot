@@ -319,6 +319,10 @@ export async function runBrainCall(args: {
   /** The acting user's Experience Mode (0110). Forwarded to llmCall so the
    *  brain-routed AI simplifies for Standard users (§A16). */
   experienceMode?: ExperienceMode;
+  /** AI cost ledger label (RSS Phase 0 step 6). REQUIRED, so no engine lands as "unattributed"; the company is
+   *  always recorded from `companyId`. */
+  engine: string;
+  sessionId?: string | null;
 }): Promise<LlmResult & { gate: ControlGate; brainVersion: number; suppressed: boolean }> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
@@ -350,6 +354,7 @@ export async function runBrainCall(args: {
     expectJson: args.expectJson,
     experienceMode: args.experienceMode,
     model: args.model,
+    attribution: { engine: args.engine ?? "unattributed", companyId: args.companyId, sessionId: args.sessionId ?? null },
   });
 
   return { ...result, gate, brainVersion: brain.version, suppressed: false };
@@ -376,6 +381,9 @@ export async function* runBrainStream(args: {
   controlExempt?: boolean;
   /** The acting user's Experience Mode (0110), forwarded to llmStream (§A16). */
   experienceMode?: ExperienceMode;
+  /** AI cost ledger label (required), as runBrainCall. */
+  engine: string;
+  sessionId?: string | null;
 }): AsyncGenerator<string, { gate: ControlGate; brainVersion: number; suppressed: boolean }, void> {
   const [brain, gate] = await Promise.all([
     loadBrain(args.companyId),
@@ -390,6 +398,7 @@ export async function* runBrainStream(args: {
 
   const composedPrompt = composeSystemPrompt(args.basePrompt, brain);
   for await (const delta of llmStream({
+    attribution: { engine: args.engine, companyId: args.companyId, sessionId: args.sessionId ?? null },
     systemPrompt: composedPrompt,
     messages: args.messages,
     maxTokens: args.maxTokens,

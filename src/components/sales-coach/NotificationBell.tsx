@@ -46,7 +46,11 @@ type Notif = {
     | "recording_comment"
     | "recording_share_requested"
     | "pattern_coached"
-    | "pattern_clip_disputed";
+    | "pattern_clip_disputed"
+    | "feedback_requested"
+    | "training_attempted"
+    | "call_ready"
+    | "comment_mention";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -64,6 +68,13 @@ type Notif = {
     /** pattern_coached: which pattern, and which of the three manager actions it was. */
     pattern_label?: string;
     action?: "coached" | "drill_assigned" | "note";
+    /** training_attempted: which scenario, and whether the attempt met its pass mark (null = no mark). */
+    scenario_title?: string;
+    /** comment_mention: who wrote the comment. */
+    author_name?: string | null;
+    /** call_ready: the client name the rep gave the uploaded call, if any. */
+    client_label?: string | null;
+    passed?: boolean | null;
   };
   created_at: string;
   read_at: string | null;
@@ -111,6 +122,27 @@ function text(n: Notif): string {
   if (n.type === "pattern_clip_disputed") {
     const what = n.payload.pattern_label ? ` on “${n.payload.pattern_label}”` : "";
     return `${who} says a clip looks wrong${what}`;
+  }
+  // RSS F9.8 (0294): someone @mentioned this person on a recording comment.
+  if (n.type === "comment_mention") {
+    const by = typeof n.payload.author_name === "string" && n.payload.author_name ? n.payload.author_name : "A manager";
+    return `${by} mentioned you on a call recording`;
+  }
+  // RSS 0289: the rep's own uploaded call has been read and is ready to open.
+  if (n.type === "call_ready") {
+    const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
+    return `Your uploaded call${label} is ready: transcript, review and score`;
+  }
+  // RSS Phase 7 (0283): a rep practised a scenario this manager assigned.
+  if (n.type === "training_attempted") {
+    const what = n.payload.scenario_title ? ` “${n.payload.scenario_title}”` : " an assigned scenario";
+    const result =
+      n.payload.passed === true ? " and passed" : n.payload.passed === false ? " — not passed yet" : "";
+    return `${who} practiced${what}: ${n.payload.total ?? "—"}/100${result}`;
+  }
+  // RSS Phase 4 (0279): a rep asked this manager for feedback on a phone/video call. Lands on the session page.
+  if (n.type === "feedback_requested") {
+    return `${who} asked for your feedback on a call${n.payload.excerpt ? `: “${n.payload.excerpt}”` : ""}`;
   }
   if (n.type === "strong_session") return `${who} ran a strong session — ${n.payload.total ?? ""} points`;
   if (n.type === "deal_closed") {
@@ -174,7 +206,7 @@ function destination(n: Notif): string | null {
   // the corrections section the rep is being sent to read — renders on
   // /dashboard/sales-coach/[id], where [id] is the session id. The door-log report card takes a
   // pitchId and belongs to a different feature that happens to share the word "pitch".
-  return n.type === "pitch_score_corrected"
+  return n.type === "pitch_score_corrected" || n.type === "call_ready" || n.type === "comment_mention"
     ? `/dashboard/sales-coach/${n.session_id}`
     : `/dashboard/sales-coach/${n.session_id}/after-pitch`;
 }

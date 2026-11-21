@@ -8,6 +8,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
+import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { ExpertOnly } from "@/components/experience/ExpertOnly";
 import {
@@ -75,8 +76,11 @@ export function emptyDissectMessage(shape: string | undefined): string {
 
 export function SessionCoachTools({
   sessionId,
+  onSeek,
 }: {
   sessionId: string;
+  /** RSS Phase 6: plays the call from a cited moment (the page's player). Absent → citations link instead. */
+  onSeek?: (seconds: number) => void;
 }) {
   const [tool, setTool] = useState<Tool>(null);
 
@@ -135,7 +139,7 @@ export function SessionCoachTools({
       </div>
 
       {tool === "summarize" && <SummarizePanel sessionId={sessionId} />}
-      {tool === "ask" && <AskCoachPanel sessionId={sessionId} />}
+      {tool === "ask" && <AskCoachPanel sessionId={sessionId} onSeek={onSeek} />}
       {tool === "dissect" && <DissectPanel sessionId={sessionId} />}
     </section>
   );
@@ -491,34 +495,72 @@ function SummarizePanel({ sessionId }: { sessionId: string }) {
   );
 }
 
-function AskCoachPanel({ sessionId }: { sessionId: string }) {
+/**
+ * Ask Coach — multi-turn and saved (RSS Phase 6, Gong F13.8/F13.9). Each answer's [n] citations are time chips that
+ * play the call from that line. Earlier chats on this call are listed and can be continued. Chats are the asker's own.
+ */
+type AskTurn = { role: "user" | "coach"; content: string; citations: Citation[] };
+type SavedChat = { id: string; title: string; turns: AskTurn[] };
+
+function AskCoachPanel({ sessionId, onSeek }: { sessionId: string; onSeek?: (seconds: number) => void }) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [turns, setTurns] = useState<AskTurn[]>([]);
+  const [saved, setSaved] = useState<SavedChat[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/coach/remote/ask?sessionId=${encodeURIComponent(sessionId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { available?: boolean; chats?: SavedChat[] } | null) => {
+        if (live && j?.available) setSaved(j.chats ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sessionId]);
 
   const ask = async () => {
-    if (question.trim().length < 3) return;
+    const q = question.trim();
+    if (q.length < 3) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/coach/sales-session/${sessionId}/ask-coach`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: question.trim() }),
-        }
-      );
-      const d = await res.json();
+      const res = await fetch(`/api/coach/sales-session/${sessionId}/ask-coach`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, ...(chatId ? { chatId } : {}) }),
+      });
+      const d = (await res.json()) as { answer?: string | null; chatId?: string | null; citations?: Citation[]; suppressed?: boolean; error?: string };
       if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
-      setAnswer(d.answer ?? "No answer returned.");
+      setTurns((t) => [
+        ...t,
+        { role: "user", content: q, citations: [] },
+        { role: "coach", content: d.answer ?? "The coach isn't answering on this account right now.", citations: d.citations ?? [] },
+      ]);
+      if (d.chatId) setChatId(d.chatId);
+      setQuestion("");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   };
+
+  const thread = (
+    <div className="mt-2 space-y-2">
+      {turns.map((t, i) =>
+        t.role === "user" ? (
+          <p key={i} className="text-xs font-semibold text-primary">You: {t.content}</p>
+        ) : (
+          <CitedAnswer key={i} text={t.content} citations={t.citations} onSeek={onSeek} />
+        )
+      )}
+    </div>
+  );
 
   return (
     <PanelBox>
@@ -534,7 +576,7 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
       <textarea
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        placeholder="Ask the coach about this call — e.g. 'How could I have handled the price objection?'"
+        placeholder={chatId ? "Ask a follow-up…" : "Ask the coach about this call — e.g. 'How could I have handled the price objection?'"}
         rows={2}
         className="w-full text-xs bg-base border border-default rounded-lg px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:border-strong resize-none"
       />
@@ -548,10 +590,22 @@ function AskCoachPanel({ sessionId }: { sessionId: string }) {
         Ask
       </LoadingButton>
       {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
-      {answer && (
-        <p className="text-xs text-secondary leading-relaxed mt-2 whitespace-pre-wrap">
-          {answer}
-        </p>
+      {thread}
+      {chatId && (
+        <button type="button" onClick={() => { setChatId(null); setTurns([]); }} className="mt-2 text-[11px] text-muted hover:text-primary">
+          Start a new question
+        </button>
+      )}
+      {saved.length > 0 && turns.length === 0 && (
+        <div className="mt-3 border-t border-default pt-2">
+          <p className="text-[11px] text-muted mb-1">Your earlier questions on this call</p>
+          {saved.map((c) => (
+            <button key={c.id} type="button" onClick={() => { setChatId(c.id); setTurns(c.turns); }}
+              className="block w-full truncate text-left text-xs text-brand hover:underline">
+              {c.title}
+            </button>
+          ))}
+        </div>
       )}
     </PanelBox>
   );

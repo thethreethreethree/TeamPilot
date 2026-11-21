@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, CueMode, SalesContext } from "@/lib/data/salesCoach";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * Live Sales Coach — real-time cue prompts.
@@ -192,7 +193,7 @@ export function buildLiveCueUserMessage(args: {
   confidenceLevel?: "steady" | "wavering" | "unsteady";
 }): string {
   const ctx = args.context
-    ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n\n`
+    ? `Context: ${contextPromptLine(args.context)}\n\n`
     : "";
   const rolling = args.recentSegments
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)

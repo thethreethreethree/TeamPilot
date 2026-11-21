@@ -8,6 +8,7 @@ import { Activity, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { fetchLanding } from "@/lib/nav/landing";
+import { signInViaServer } from "@/lib/auth/signInViaServer";
 
 /**
  * /invite/[code] — accept-invitation surface.
@@ -68,8 +69,10 @@ export default function InviteAcceptPage() {
           );
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        // Through the server route like the login pages (records the attempt; RSS Phase 0 step 7), falling
+        // back to the direct sign-in only if the route itself fails.
+        const signInError = await signInViaServer(supabase, email, password);
+        if (signInError) throw new Error(signInError);
       }
       await acceptInvitation();
     } catch (err) {

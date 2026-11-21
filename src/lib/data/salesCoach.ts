@@ -1,3 +1,4 @@
+import type { SalesContext } from "@/lib/coach/sessionContext";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
@@ -20,7 +21,8 @@ import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
  * read through these functions.
  */
 
-export type SalesContext = "in_person" | "video";
+// The channel list lives in one place (RSS Phase 1): in_person | video | phone.
+export type { SalesContext };
 export type SalesSessionStatus = "active" | "ended" | "reviewed";
 export type TranscriptSpeaker = "agent" | "customer" | "unknown";
 export type CueMode = "suggestion" | "guide_response";
@@ -350,6 +352,8 @@ export async function appendTranscriptSegment(args: {
   source?: string | null;
   /** The diarizer's voice id for this line (0270). Only a recorded-audio read has one. */
   speakerCluster?: string | null;
+  /** When the line's last word ended (0277, RSS Phase 2). Only a recorded-audio read has one. */
+  endedAt?: string | null;
 }): Promise<TranscriptSegment | null> {
   const sb = createServiceRoleClient();
   const base = {
@@ -365,6 +369,7 @@ export async function appendTranscriptSegment(args: {
   const extra = {
     ...(args.source ? { source: args.source } : {}),
     ...(args.speakerCluster ? { speaker_cluster: args.speakerCluster } : {}),
+    ...(args.endedAt ? { ended_at: args.endedAt } : {}),
   };
   let { data, error } = await sb
     .from("coaching_transcript_segments")
@@ -378,7 +383,9 @@ export async function appendTranscriptSegment(args: {
   if (
     error &&
     ((args.source && isMissingColumnError(error, "source")) ||
-      (args.speakerCluster && isMissingColumnError(error, "speaker_cluster")))
+      (args.speakerCluster && isMissingColumnError(error, "speaker_cluster")) ||
+      // And `ended_at` (0277): a line without its end time beats a line lost.
+      (args.endedAt && isMissingColumnError(error, "ended_at")))
   ) {
     ({ data, error } = await sb.from("coaching_transcript_segments").insert(base).select("*").single());
   }
@@ -417,6 +424,8 @@ export async function replaceSessionTranscript(
     spokenAt?: string | null;
     /** The diarizer's voice id (0270); kept so an undecided read can still be answered per voice. */
     speakerId?: string | null;
+    /** When the line ended (0277). Ignored by a pre-0277 function, like spokenAt was pre-0249. */
+    endedAt?: string | null;
   }[]
 ): Promise<{ ok: boolean; count: number }> {
   const sb = createServiceRoleClient();
@@ -432,6 +441,7 @@ export async function replaceSessionTranscript(
       seq: s.seq,
       spokenAt: s.spokenAt ?? null,
       speakerId: s.speakerId ?? null,
+      endedAt: s.endedAt ?? null,
     })),
   });
   if (error) {

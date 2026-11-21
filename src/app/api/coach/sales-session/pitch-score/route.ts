@@ -8,6 +8,11 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { scoreSession, type ScoreRefusal } from "@/lib/coach/pitchScore/scoreSession";
 import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
+import { archivePitchScore } from "@/lib/coach/pitchScore/scoreHistory";
+import { resolveScoreRequest, RescoreRefused } from "@/lib/coach/remote/rescore";
+import { recordAudit } from "@/lib/audit/recordAudit";
 
 /**
  * POST /api/coach/sales-session/pitch-score  { sessionId }
@@ -41,7 +46,11 @@ import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/read
  * cookies. The scoped client is passed THROUGH to both reads, not merely used for auth — scoped
  * for identity and anonymous for the read is the shape that has cost this codebase five defects.
  */
-const BodySchema = z.object({ sessionId: z.string().uuid() });
+/**
+ * `reason` is required for a RE-score (RSS Phase 0 step 5, D3) and ignored for a first score. Capped so the
+ * archive row stays a sentence, not a document.
+ */
+const BodySchema = z.object({ sessionId: z.string().uuid(), reason: z.string().max(500).optional() });
 
 /**
  * HTTP status per refusal. Not one code for all of them: 404 and 409 are about the REQUEST, 422 is
@@ -96,6 +105,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No company context." }, { status: 403 });
   }
 
+  // The rep the score belongs to, and whether the session is visible to the caller at all. getSession is
+  // RLS-scoped (owner or manager), so a peer rep gets the same 404 scoreSession would give.
+  const session = await getSession(body.sessionId, supabase);
+  if (!session) {
+    return NextResponse.json({ error: "Session not found or not accessible." }, { status: 404 });
+  }
+
+  // Already scored? Read through the caller's client. A failed read must not be taken as "not scored":
+  // that would run a paid grading over a stored score with no archive and no reason.
+  const { data: existing, error: existingErr } = await supabase
+    .from("pitch_scores")
+    .select("id")
+    .eq("session_id", body.sessionId)
+    .maybeSingle();
+  if (existingErr) {
+    console.error(`[pitch-score] existing-score read failed session=${body.sessionId}: ${existingErr.message}`);
+    return NextResponse.json({ error: "Couldn't check whether this pitch is already scored." }, { status: 500 });
+  }
+
+  /**
+   * RE-SCORE RULE (RSS Phase 0 step 5; Gong F15.15; D3 decided 2026-11-15).
+   *
+   * Until this change the route passed skipIfScored:false for EVERY caller, so a rep could re-score their own
+   * pitch through the API (the UI only hid the button) and the store replaced the score and deleted its
+   * evidence (0254:117). Now: resolveScoreRequest decides — a first score always runs; a re-score needs a
+   * manager of the rep and a reason; the old version is archived first.
+   *
+   * "Manager of the rep" is today's rule — a Sales Coach manager of the same company, the
+   * requireSalesCoachManager verdict (§2.2) — and never the rep themselves, so a manager cannot re-score
+   * their own pitch either. The reporting tree (Phase 0 step 8, migration 0273) needs no term here: getSession
+   * above reads through the caller's RLS, which, once the company is on the tree, hides a session from a
+   * manager outside the rep's chain — so such a manager is answered 404 before reaching this line.
+   */
+  const manager = await requireSalesCoachManager(req);
+  const isManagerOfRep = !!manager && manager.companyId === companyId && manager.userId !== session.agentId;
+
+  let decision: { skipIfScored: boolean; archiveFirst: boolean };
+  try {
+    decision = resolveScoreRequest({
+      caller: { id: auth.user.id, isManagerOfRep },
+      repId: session.agentId,
+      alreadyScored: !!existing?.id,
+      ...(body.reason !== undefined ? { reason: body.reason } : {}),
+    });
+  } catch (err) {
+    if (!(err instanceof RescoreRefused)) throw err;
+    const isOwner = auth.user.id === session.agentId;
+    return NextResponse.json(
+      // A rep is pointed at the dispute, which is the existing way to contest a grade.
+      { error: err.message, failure: "rescore_refused", ...(isOwner ? { hint: "dispute" } : {}) },
+      { status: 403 }
+    );
+  }
+
+  // D3: keep the old version. Nothing is re-scored unless the copy landed.
+  let earlierOverrides: number | null = null;
+  if (decision.archiveFirst && existing?.id) {
+    const archived = await archivePitchScore(createAdminClient(), {
+      pitchId: String(existing.id),
+      companyId,
+      archivedBy: auth.user.id,
+      reason: body.reason ?? "",
+    });
+    if (!archived.ok) {
+      const [status, error] =
+        archived.cause === "not_applied"
+          ? [503, "Re-scoring is waiting on database migration 0272, so the current score can't be kept first. Nothing was changed."]
+          : archived.cause === "not_found"
+            ? [404, "This pitch's score was not found."]
+            : [500, "Couldn't keep a copy of the current score, so it was not re-scored. Nothing was changed."];
+      return NextResponse.json({ error, failure: "archive_failed" }, { status });
+    }
+    earlierOverrides = archived.earlierOverrides;
+  }
+
   /**
    * ONE authority, consumed as a verdict (§2.2).
    *
@@ -109,8 +193,8 @@ export async function POST(req: NextRequest) {
     sessionId: body.sessionId,
     companyId,
     db: supabase,
-    // A manager pressing Score again means score it again. Only the unattended callers skip.
-    skipIfScored: false,
+    skipIfScored: decision.skipIfScored,
+    ...(decision.archiveFirst ? { rescoredBy: auth.user.id } : {}),
   });
 
   if (!outcome.ok) {
@@ -121,10 +205,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (decision.archiveFirst) {
+    await recordAudit(createAdminClient(), {
+      companyId,
+      actorId: auth.user.id,
+      action: "score.rescore",
+      objectType: "coaching_session",
+      objectId: body.sessionId,
+      meta: { pitchId: outcome.pitchId, score: outcome.score, reason: body.reason ?? "", earlierOverrides },
+    });
+  }
+
   return NextResponse.json({
     pitchId: outcome.pitchId,
     score: outcome.score,
     timestampsUnavailable: outcome.timestampsUnavailable,
+    rescored: decision.archiveFirst,
+    // D3: earlier manager overrides are NOT re-applied to the new grading. The count is handed back so the
+    // manager sees there are some to review, rather than finding out from a total that no longer matches.
+    ...(earlierOverrides !== null ? { earlierOverrides } : {}),
   });
 }
 

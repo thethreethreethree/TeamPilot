@@ -94,7 +94,11 @@ async function unreachableReason() {
     await c.end();
     return null;
   } catch (e) {
-    return String(e?.message ?? e).split("\n")[0];
+    // Never an empty reason: an empty string is falsy and reads as REACHABLE. On macOS `localhost` is ::1 AND
+    // 127.0.0.1, so a refused connection is an AggregateError whose own .message is "" (2026-11-21: the harness
+    // then built the database against nothing and crashed with "sql-harness: " instead of skipping honestly).
+    const inner = Array.isArray(e?.errors) ? e.errors.map((x) => x?.message || x?.code).filter(Boolean).join("; ") : "";
+    return String(e?.message || inner || e?.code || "connection failed with no message").split("\n")[0];
   }
 }
 
@@ -198,6 +202,7 @@ async function run() {
     console.log("    · unreviewed_violation_flags — an overridden flag must leave the view (0264)");
     console.log("    · unreviewed_violation_flags — security_invoker must still be set on it");
     console.log("    · profile_departments — the RLS policy must admit an admin and refuse a member");
+    console.log("    · RSS read rules (0282/0284/0286) — audit log, erasure, webhooks, retention, trims, training, trimmed transcript");
     process.exit(0);
   }
 
@@ -282,6 +287,67 @@ async function run() {
       }
       await c.query("rollback to savepoint s");
       must(refused, "a Member was allowed to assign a department — the RLS policy is not holding");
+    })
+  );
+
+  // ── CLAIM 4 — the RSS read rules hold for real signed-in users (0282, 0284, 0286) ──────────
+  //
+  // Each RSS table's select policy, executed as five people: a CEO (company admin), a sales manager with one report, that
+  // report, a rep outside the manager's tree, and another company's admin. Also: a trimmed line is gone from
+  // coaching_transcript_segments_current for every reader (rss_line_trimmed, 0284). Recorded first in
+  // docs/tbc/2026-11-20-rss-p9 (PGlite 16.4, all passing); this keeps it as a gate on real Postgres.
+  results.push(
+    await claim(c, "RSS read rules: who sees audit, erasure, webhooks, retention, trims, training, trimmed lines", async () => {
+      const id = (n) => `f1000000-0000-4000-8000-0000000000${n}`;
+      const [C, C2, CEO, MGR, REP, REP2, X, S1] = ["c1", "c2", "a1", "a2", "a3", "a4", "a5", "b1"].map(id);
+      // The CEO is not a Sales Coach rep (sales_coach_role null): rss_tree_active (0273) switches the tree on only when
+      // EVERY 'staff' profile has a manager, and an unmanaged 'staff' CEO would keep managers on company-wide view.
+      await c.query(`set local session_replication_role = replica`);
+      await c.query(`insert into companies (id, name) values ('${C}','RSS Co'),('${C2}','RSS Other')`);
+      await c.query(`insert into auth.users (id) values ('${CEO}'),('${MGR}'),('${REP}'),('${REP2}'),('${X}')`);
+      await c.query(
+        `insert into profiles (id, company_id, role, sales_coach_role, status, manager_id) values
+         ('${CEO}','${C}','CEO',null,'active',null), ('${MGR}','${C}','Member','admin','active','${CEO}'),
+         ('${REP}','${C}','Member','staff','active','${MGR}'), ('${REP2}','${C}','Member','staff','active','${CEO}'),
+         ('${X}','${C2}','CEO',null,'active',null)`
+      );
+      await c.query(`insert into coaching_sessions (id, company_id, agent_id, context, started_at) values ('${S1}','${C}','${REP}','phone','2026-11-20T10:00:00Z')`);
+      await c.query(
+        `insert into coaching_transcript_segments (session_id, speaker, text, seq, spoken_at, version) values
+         ('${S1}','customer','visible',1,'2026-11-20T10:00:05Z',1), ('${S1}','customer','cut me',2,'2026-11-20T10:01:00Z',1)`
+      );
+      await c.query(`insert into recording_trims (company_id, session_id, start_ms, end_ms, trimmed_by) values ('${C}','${S1}',55000,70000,'${MGR}')`);
+      await c.query(`insert into audit_log (company_id, actor_id, action, object_type, object_id) values ('${C}','${MGR}','recording.trim','coaching_session','${S1}')`);
+      await c.query(`insert into company_recording_settings (company_id, keep_last_per_rep, set_by) values ('${C}',30,'${CEO}')`);
+      await c.query(`insert into erasure_requests (company_id, requested_by, match_kind, match_hash, match_hint) values ('${C}','${CEO}','phone','${"b".repeat(64)}','phone x0123')`);
+      await c.query(`insert into webhook_endpoints (company_id, url, events, created_by) values ('${C}','https://h.example.com',array['session.scored'],'${CEO}')`);
+      await c.query(`insert into training_scenarios (id, company_id, title, persona, situation, focus, channel, difficulty, length_min, created_by) values ('${id("d1")}','${C}','T','P','S','F','phone','easy',5,'${MGR}')`);
+      await c.query(`insert into training_assignments (company_id, scenario_id, rep_id, assigned_by, due_at) values ('${C}','${id("d1")}','${REP}','${MGR}', now()), ('${C}','${id("d1")}','${REP2}','${CEO}', now())`);
+      await c.query(`set local session_replication_role = origin`);
+      await c.query(`grant usage on schema auth to authenticated`);
+      await c.query(`grant select on all tables in schema public to authenticated`);
+
+      const people = { CEO, MGR, REP, REP2, X };
+      const expect = [
+        ["audit_log", `select 1 from audit_log where company_id in ('${C}','${C2}')`, { CEO: 1, MGR: 0, REP: 0, REP2: 0, X: 0 }],
+        ["erasure_requests", `select 1 from erasure_requests where company_id in ('${C}','${C2}')`, { CEO: 1, MGR: 0, REP: 0, REP2: 0, X: 0 }],
+        ["webhook_endpoints", `select 1 from webhook_endpoints where company_id in ('${C}','${C2}')`, { CEO: 1, MGR: 0, REP: 0, REP2: 0, X: 0 }],
+        ["company_recording_settings", `select 1 from company_recording_settings where company_id in ('${C}','${C2}')`, { CEO: 1, MGR: 1, REP: 1, REP2: 1, X: 0 }],
+        ["recording_trims", `select 1 from recording_trims where session_id = '${S1}'`, { CEO: 1, MGR: 1, REP: 1, REP2: 0, X: 0 }],
+        ["training_assignments", `select 1 from training_assignments where company_id = '${C}'`, { CEO: 2, MGR: 1, REP: 1, REP2: 1, X: 0 }],
+        ["trimmed transcript", `select 1 from coaching_transcript_segments_current where session_id = '${S1}'`, { CEO: 1, MGR: 1, REP: 1, REP2: 0, X: 0 }],
+      ];
+      await c.query(`set local role authenticated`);
+      const wrong = [];
+      for (const [table, sql, want] of expect) {
+        for (const [who, uid] of Object.entries(people)) {
+          await c.query(`set local "request.jwt.claim.sub" = '${uid}'`);
+          const n = (await c.query(sql)).rowCount;
+          if (n !== want[who]) wrong.push(`${table} as ${who}: saw ${n}, expected ${want[who]}`);
+        }
+      }
+      await c.query(`reset role`);
+      must(wrong.length === 0, wrong.join("; "));
     })
   );
 

@@ -83,5 +83,11 @@ create or replace function auth.uid() returns uuid language sql stable as $$
 create or replace function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 
+-- Production's definition, verbatim (read from the live project 2026-11-21): NULL when no claims are set — a direct
+-- database session — and the request's role under PostgREST. The shim used to default to 'anon', which made a
+-- claimless caller look anonymous; 0298 is the first migration to read auth.role(), so the difference now matters.
 create or replace function auth.role() returns text language sql stable as $$
-  select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+  )::text $$;

@@ -44,6 +44,34 @@ Do NOT mark recovery "done" on a green build alone. Verify end-to-end against th
 If step 2 lands anywhere but `/auth/recover`, the **Redirect URLs allowlist / Site URL is wrong** — fix the
 config, not the code.
 
+## OAuth providers — Google and Microsoft sign-in (RSS Phase 9, added 2026-11-20)
+
+**Status: BLOCKING setup step, not verified.** The code is built (`src/components/auth/OAuthButtons.tsx`,
+`src/app/auth/callback/route.ts`, `src/lib/auth/oauthProviders.ts`); nothing works until the config below exists,
+and the buttons stay hidden until `NEXT_PUBLIC_AUTH_PROVIDERS` names the provider.
+
+| Where | Setting | Value |
+|---|---|---|
+| Google Cloud Console → APIs & Services → Credentials | OAuth client (Web) → Authorized redirect URI | `https://<supabase-project-ref>.supabase.co/auth/v1/callback` |
+| Microsoft Entra → App registrations | Redirect URI (Web) | the same Supabase callback URL; account types per your customers ("any organization" for multi-tenant) |
+| Supabase → Authentication → Providers | Google / Azure | enabled, with that client id + secret (Azure: tenant URL left default for multi-tenant) |
+| Supabase → Authentication → URL Configuration | Redirect URLs | must include `https://elostate.com/auth/callback` (already covered if `https://elostate.com/**` is listed) |
+| Vercel (app project) | `NEXT_PUBLIC_AUTH_PROVIDERS` | `google`, `azure`, or `google,azure` — only providers configured above |
+
+Code-side guarantees: the return address is always `siteUrl()/auth/callback` (one canonical origin, like the
+reset link); `?next=` goes through `safeRelativePath` (no open redirect); a failure returns to `/login?error=<code>`
+and only known codes are shown, as fixed sentences. An existing account signing in with Google/Microsoft for the
+same verified email is linked by Supabase (automatic identity linking); a new person lands in onboarding.
+Password lockout (`/api/auth/sign-in`) does not apply to OAuth — the provider handles those attempts.
+
+**Verification (per provider, before telling customers):**
+1. Set `NEXT_PUBLIC_AUTH_PROVIDERS` for the provider and redeploy; `https://elostate.com/login` shows its button.
+2. Click it with a test account that already has an Elostate login → after consent you land on `/dashboard` as
+   THAT user (same company), not a new empty account.
+3. Repeat from `https://elostate.com/sales-coach/login` → you land on `/dashboard/sales-coach`.
+4. Cancel at the consent screen → `/login` says "The sign-in was cancelled or refused…".
+5. Record the date and the provider here.
+
 ## The rule this encodes
 A feature whose correctness depends on config **outside the repo** (dashboard settings, allowlists, DNS, env,
 webhook secrets) is not operationally complete until that config is either (a) verified working end-to-end, or

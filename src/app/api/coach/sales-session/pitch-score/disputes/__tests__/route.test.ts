@@ -11,6 +11,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *      doing nothing, which is the worst possible response to a queue that is full.
  */
 
+vi.mock("@/lib/api/treeAccess", () => ({
+  // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
+  treeAllowsRep: vi.fn(async () => true),
+  treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/readDisputes", () => ({ readDisputes: vi.fn() }));

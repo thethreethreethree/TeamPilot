@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  Phone,
   Loader2,
   Search,
   Video,
@@ -39,6 +40,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { StandardSessionsManagerView } from "@/components/sales-coach/StandardSessionsManagerView";
+import type { SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * Sales Coach → Sessions (Phase 1). The full, filterable session history.
@@ -51,7 +53,7 @@ import { StandardSessionsManagerView } from "@/components/sales-coach/StandardSe
 type Row = {
   id: string;
   clientLabel: string | null;
-  context: "in_person" | "video";
+  context: SalesContext;
   status: "active" | "ended" | "reviewed";
   startedAt: string;
   endedAt: string | null;
@@ -141,7 +143,7 @@ export default function SalesCoachSessionsPage() {
   } | null>(null);
 
   const [search, setSearch] = useState("");
-  const [context, setContext] = useState<"all" | "in_person" | "video">("all");
+  const [context, setContext] = useState<"all" | SalesContext>("all");
   const [status, setStatus] = useState<
     "all" | "active" | "ended" | "reviewed"
   >("all");
@@ -321,6 +323,11 @@ export default function SalesCoachSessionsPage() {
     <>
       <TopBar title="Sessions" subtitle="Your coaching history" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4 bg-base">
+        {/* RSS Phase 5: search across calls by what was said, and the saved-calls library. */}
+        <div className="flex justify-end gap-3 text-xs">
+          <Link href="/dashboard/sales-coach/search" className="text-brand hover:underline">Search calls</Link>
+          <Link href="/dashboard/sales-coach/library" className="text-brand hover:underline">Library</Link>
+        </div>
         {/* Start a session — Expert only. Spec p2: Standard's Sessions tab is
             browse-only (start lives on Home); Expert keeps the front door here. */}
         {!isStandard && <StartSessionPanel />}
@@ -587,6 +594,7 @@ export default function SalesCoachSessionsPage() {
                 ["all", "All contexts"],
                 ["in_person", "In-person"],
                 ["video", "Video"],
+                ["phone", "Phone"],
               ]}
             />
           </LearningHint>
@@ -718,7 +726,9 @@ export default function SalesCoachSessionsPage() {
                     <LinkProgress />
                     <span className="shrink-0 text-muted">
                       {s.context === "video" ? (
-                        <Video className="w-4 h-4" aria-hidden />
+                        <Video className="w-4 h-4" aria-label="Video" />
+                      ) : s.context === "phone" ? (
+                        <Phone className="w-4 h-4" aria-label="Phone" />
                       ) : (
                         <MapPin className="w-4 h-4" aria-hidden />
                       )}

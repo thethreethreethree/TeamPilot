@@ -5,8 +5,11 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { signInViaServer } from "@/lib/auth/signInViaServer";
 import { signupConfirmRedirectUrl } from "@/lib/auth/passwordRecovery";
 import { safeRelativePath } from "@/lib/nav/safeRedirect";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { oauthErrorMessage } from "@/lib/auth/oauthProviders";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { fetchLanding } from "@/lib/nav/landing";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -41,7 +44,8 @@ function LoginPage() {
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // A Google/Microsoft sign-in that failed comes back as ?error=<code>; only known codes are shown (fixed sentences).
+  const [error, setError] = useState(() => oauthErrorMessage(searchParams?.get("error")));
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -113,8 +117,10 @@ function LoginPage() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      // Through the server route (records the attempt; RSS Phase 0 step 7), falling back to the direct
+      // sign-in only if the route itself fails. The session cookies end up the same either way.
+      const signInError = await signInViaServer(supabase, email, password);
+      if (signInError) throw new Error(signInError);
 
       // Route to onboarding if the user has no company yet; otherwise land them in
       // their module — single-module → that module's home, multi/none → the /dashboard
@@ -172,6 +178,11 @@ function LoginPage() {
             </div>
           )}
 
+          {mode === "signin" && (
+            <div className="mb-4">
+              <OAuthButtons next={safeNext ?? undefined} />
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <LearningHint
               as="block"

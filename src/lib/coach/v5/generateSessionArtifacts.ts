@@ -7,6 +7,10 @@ import { runAndStoreIntel } from "./salesIntel";
 import { withEngineTimeout, COACH_ENGINE_TIMEOUT_MS } from "./engineTimeout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCall } from "./salesOnly";
+import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
+import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
+import { runFollowThrough } from "@/lib/coach/remote/followThrough";
+import { notifyCallReady } from "@/lib/coach/gamification/notify";
 
 /**
  * generateSessionArtifacts — the shared "post-call generation" for a Sales Coach session.
@@ -47,6 +51,12 @@ export async function generateSessionArtifacts(args: {
     return { dissect: null, summary: null, moments: [], pivot: null, intel: null };
   }
 
+  // Keyword trackers (RSS Phase 3, migration 0276): match the transcript that just landed. Deterministic, no AI
+  // call, never throws; phone/video sales sessions only (door sessions return 0 inside).
+  await scanSessionTrackers(sessionId);
+  // Interaction stats (RSS Phase 2, migration 0277): deterministic, no AI call, never throws; phone/video only.
+  await storeInteractionStats(sessionId);
+
   /*
     WHICH ENGINES RAN OUT OF TIME, so an uncoached call can be told apart from a quiet one.
 
@@ -65,6 +75,10 @@ export async function generateSessionArtifacts(args: {
   const note = (engine: string) => () => {
     timedOut.push(engine);
   };
+
+  // Follow-through (RSS Phase 6, migration 0281): AI-suggested outcome + callback to-dos, phone/video sales calls only
+  // (returns null inside for door). Runs beside the five engines under the same time bound; never throws.
+  const followThrough = withEngineTimeout(runFollowThrough(sessionId), null, note("follow_through"));
 
   const [dissect, summary, moments, pivot, intel] = await Promise.all([
     withEngineTimeout(
@@ -125,6 +139,8 @@ export async function generateSessionArtifacts(args: {
       note("intel")
     ),
   ]);
+
+  await followThrough;
 
   const words = segments.reduce(
     (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,
@@ -209,5 +225,7 @@ export async function generateSessionArtifacts(args: {
     }
   }
 
+  // RSS 0289: an uploaded phone/video call is ready — tell the rep once (notifyCallReady decides "uploaded" and dedupes).
+  await notifyCallReady({ companyId, sessionId });
   return { dissect, summary, moments, pivot, intel };
 }

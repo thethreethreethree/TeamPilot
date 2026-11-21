@@ -43,6 +43,8 @@ const SegmentSchema = z.object({
   text: z.string().min(1).max(8000),
   seq: z.number().int().nonnegative(),
   spokenAt: z.string().datetime().optional(),
+  // RSS Phase 2 follow-up: a live line's measured end (useLiveCoaching + liveTiming.ts); absent = estimated later.
+  endedAt: z.string().datetime().optional(),
   source: z.enum(ATTRIBUTION_SOURCES).optional(), // 0236: why the speaker was assigned (single source of the values)
 });
 
@@ -114,6 +116,7 @@ export async function POST(
       text: seg.text,
       seq: seg.seq,
       spokenAt: seg.spokenAt ?? null,
+      endedAt: seg.endedAt ?? null,
       source: seg.source ?? null,
     });
     if (r) inserted += 1;

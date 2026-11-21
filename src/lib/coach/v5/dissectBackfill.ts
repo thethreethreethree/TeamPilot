@@ -5,6 +5,7 @@ import { getSessionTranscriptAdmin } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 import { generateAndStoreAfterPitch } from "@/lib/coach/v5/generateAndStoreAfterPitch";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import type { SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * Shared session-review backfill core (§A21 — one implementation, two callers):
@@ -190,7 +191,7 @@ export async function runDissectBackfill(args: {
         sessionId: s.id as string,
         session: {
           clientLabel: (s.client_label as string | null) ?? null,
-          context: s.context as "in_person" | "video",
+          context: s.context as SalesContext,
           outcome: (s.outcome as SalesSession["outcome"]) ?? null,
           sessionKind: (s.session_kind as string | null) ?? "sales",
         },
@@ -206,7 +207,7 @@ export async function runDissectBackfill(args: {
           sessionId: s.id as string,
           agentId: s.agent_id as string,
           actorId: s.agent_id as string,
-          context: s.context as "in_person" | "video",
+          context: s.context as SalesContext,
           outcome: (s.outcome as string | null) ?? null,
           sessionKind: (s.session_kind as string | null) ?? "sales",
         }).catch(() => {

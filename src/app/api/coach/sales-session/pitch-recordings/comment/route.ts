@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { notifyRecordingEvent } from "@/lib/coach/recordings/notifyRecording";
+import { notifyCommentMention, notifyRecordingEvent } from "@/lib/coach/recordings/notifyRecording";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 
 /**
  * POST /api/coach/sales-session/pitch-recordings/comment — guide Step 4, item 6.
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   const manager = await requireSalesCoachManager(req);
   if (!manager) return NextResponse.json({ error: "Managers only." }, { status: 403 });
 
-  let body: { pitchId?: unknown; timestampS?: unknown; body?: unknown; sendToRep?: unknown };
+  let body: { pitchId?: unknown; timestampS?: unknown; body?: unknown; sendToRep?: unknown; visibility?: unknown; mentions?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -40,6 +41,23 @@ export async function POST(req: NextRequest) {
   const text = typeof body.body === "string" ? body.body.trim() : "";
   const at = Number(body.timestampS);
   const sendToRep = body.sendToRep === true;
+  // RSS F9.8 (0293): who may read it, and who is @mentioned. Default 'everyone' = the behaviour before 0293.
+  const visibility = body.visibility === "named" || body.visibility === "only_me" ? body.visibility : "everyone";
+  const mentions = Array.isArray(body.mentions)
+    ? [...new Set(body.mentions.filter((x): x is string => typeof x === "string"))].filter((id) => id !== manager.userId)
+    : [];
+  if (mentions.length > 20) return NextResponse.json({ error: "Mention at most 20 people." }, { status: 400 });
+  if (visibility === "named" && mentions.length === 0) {
+    return NextResponse.json({ error: "Name at least one person, or choose Everyone or Only me." }, { status: 400 });
+  }
+  if (visibility === "only_me" && mentions.length > 0) {
+    return NextResponse.json({ error: "A note for only you can't mention anyone." }, { status: 400 });
+  }
+  // "Sent to the rep" must mean the rep can read it: sent_to_rep feeds "feedback given" (feedback.ts), and a sent
+  // comment the rep cannot see would be counted as feedback nobody received.
+  if (sendToRep && visibility === "only_me") {
+    return NextResponse.json({ error: "A note for only you can't also be sent to the rep." }, { status: 400 });
+  }
 
   if (!pitchId) return NextResponse.json({ error: "Which recording?" }, { status: 400 });
   if (!text) return NextResponse.json({ error: "A comment needs something in it." }, { status: 400 });
@@ -62,19 +80,80 @@ export async function POST(req: NextRequest) {
   if (!pitch || pitch.company_id !== manager.companyId) {
     return NextResponse.json({ error: "Recording not found." }, { status: 404 });
   }
+  // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
+  if (!(await treeAllowsRep(req, String(pitch.rep_id)))) {
+    return NextResponse.json({ error: "Recording not found." }, { status: 404 });
+  }
 
-  const { data: inserted, error } = await admin
-    .from("recording_comments")
-    .insert({
-      company_id: manager.companyId,
-      pitch_id: pitchId,
-      author_id: manager.userId,
-      timestamp_s: Math.round(at),
-      body: text,
-      sent_to_rep: sendToRep,
-    })
-    .select("id, timestamp_s, body, sent_to_rep, created_at")
-    .maybeSingle();
+  if (sendToRep && visibility === "named" && !mentions.includes(String(pitch.rep_id))) {
+    return NextResponse.json({ error: "To send it to the rep, name the rep too, or choose Everyone." }, { status: 400 });
+  }
+  // Everyone mentioned must be able to read this comment under the SAME rule the database uses
+  // (rss_comment_base_visible, 0293). Refused with names rather than mentioned-but-unseen.
+  const mentioned: Array<{ id: string; name: string | null }> = [];
+  if (mentions.length) {
+    const { data: people } = await admin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("company_id", manager.companyId)
+      .in("id", mentions);
+    const byId = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name]));
+    const cannot: string[] = [];
+    for (const id of mentions) {
+      if (!byId.has(id)) {
+        cannot.push("someone not on your team");
+        continue;
+      }
+      const { data: ok, error: vErr } = await admin.rpc("rss_comment_base_visible", { viewer: id, p_pitch: pitchId, p_sent: sendToRep });
+      if (vErr) {
+        console.error(`[recording-comment] mention check failed pitch=${pitchId}: ${vErr.message}`);
+        return NextResponse.json({ error: "Mentions are waiting on database migration 0293." }, { status: 503 });
+      }
+      if (ok === true) mentioned.push({ id, name: byId.get(id) ?? null });
+      else cannot.push(byId.get(id) ?? "a teammate");
+    }
+    if (cannot.length) {
+      return NextResponse.json(
+        { error: `${cannot.join(", ")} can't see this call${sendToRep ? "" : " (or it isn't sent to the rep)"}, so they can't be mentioned.` },
+        { status: 400 },
+      );
+    }
+  }
+
+  // With a visibility choice or mentions, the comment and its mentions are written in ONE transaction
+  // (rss_insert_comment, 0296): a 'named' comment without its mention rows would read as sent while nobody but the
+  // author could open it. A plain comment keeps the original single insert (works before 0293/0296 are applied).
+  let inserted: { id: string; timestamp_s: number; body: string; sent_to_rep: boolean; created_at: string } | null = null;
+  let error: { message: string } | null = null;
+  if (visibility !== "everyone" || mentioned.length) {
+    const r = await admin.rpc("rss_insert_comment", {
+      p_company: manager.companyId,
+      p_pitch: pitchId,
+      p_author: manager.userId,
+      p_timestamp_s: Math.round(at),
+      p_body: text,
+      p_sent: sendToRep,
+      p_visibility: visibility,
+      p_mentions: mentioned.map((m) => m.id),
+    });
+    if (r.error) error = r.error;
+    else inserted = { id: String(r.data), timestamp_s: Math.round(at), body: text, sent_to_rep: sendToRep, created_at: new Date().toISOString() };
+  } else {
+    const r = await admin
+      .from("recording_comments")
+      .insert({
+        company_id: manager.companyId,
+        pitch_id: pitchId,
+        author_id: manager.userId,
+        timestamp_s: Math.round(at),
+        body: text,
+        sent_to_rep: sendToRep,
+      })
+      .select("id, timestamp_s, body, sent_to_rep, created_at")
+      .maybeSingle();
+    error = r.error;
+    inserted = r.data;
+  }
 
   if (error || !inserted) {
     // Never the database's words. The message can carry a column name, a constraint name or a row
@@ -98,5 +177,23 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ comment: inserted, notified });
+  // Mentions are already saved with the comment (one transaction). Telling them is best-effort per person.
+  let mentionedCount = 0;
+  if (mentioned.length) {
+    {
+      const { data: me } = await admin.from("profiles").select("full_name").eq("id", manager.userId).maybeSingle();
+      for (const m of mentioned) {
+        const ok = await notifyCommentMention({
+          companyId: manager.companyId,
+          recipientId: m.id,
+          repId: String(pitch.rep_id),
+          sessionId: (pitch.session_id as string | null) ?? null,
+          payload: { pitch_id: pitchId, timestamp_s: Math.round(at), excerpt: text.slice(0, 160), author_name: (me?.full_name as string | null) ?? null },
+        });
+        if (ok) mentionedCount += 1;
+      }
+    }
+  }
+
+  return NextResponse.json({ comment: { ...inserted, visibility }, notified, mentioned: mentionedCount });
 }

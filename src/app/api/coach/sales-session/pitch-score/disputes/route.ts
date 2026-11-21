@@ -5,6 +5,7 @@ import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readDisputes } from "@/lib/coach/pitchScore/readDisputes";
+import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 
 /**
  * GET  /api/coach/sales-session/pitch-score/disputes   → the manager's queue
@@ -56,7 +57,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Could not load the dispute queue." }, { status: 500 });
   }
 
-  return NextResponse.json({ disputes });
+  // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
+  // readDisputes reads the company with the service role; only the reps this manager may see are kept.
+  const visible = new Set(await treeFilterReps(req, [...new Set(disputes.map((d) => d.repId))]));
+  return NextResponse.json({ disputes: disputes.filter((d) => visible.has(d.repId)) });
 }
 
 export async function POST(req: NextRequest) {
@@ -86,6 +90,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not open that pitch." }, { status: 500 });
   }
   if (!pitch || pitch.company_id !== mgr.companyId) {
+    return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
+  }
+  // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
+  if (!(await treeAllowsRep(req, String(pitch.rep_id)))) {
     return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
   }
 

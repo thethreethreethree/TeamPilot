@@ -29,6 +29,10 @@ type CallArgs = {
   /** The acting user's Experience Mode (0110), forwarded to the LLM so Standard
    *  users get simplified output (§A16). Unset → Expert (unchanged). */
   experienceMode?: ExperienceMode;
+  /** AI cost ledger label (RSS Phase 0 step 6). REQUIRED: every engine names itself, so ai_usage never fills with
+   *  "unattributed" rows and a new engine without a name does not compile. */
+  engine: string;
+  sessionId?: string | null;
 };
 
 type CallResult = {
@@ -50,6 +54,8 @@ async function call(args: CallArgs): Promise<CallResult> {
       controlExempt: args.controlExempt,
       experienceMode: args.experienceMode,
       model: args.model,
+      engine: args.engine,
+      ...(args.sessionId !== undefined ? { sessionId: args.sessionId } : {}),
     });
     // Consume runBrainCall's explicit `suppressed` VERDICT — never re-derive the gate decision here
     // (CLAUDE.md §2.2 / AMD-010 / A40). This wrapper once re-checked `!guidanceEnabled` alone, dropping the
@@ -80,6 +86,7 @@ async function call(args: CallArgs): Promise<CallResult> {
     expectJson: args.expectJson,
     experienceMode: args.experienceMode,
     model: args.model,
+    attribution: { engine: args.engine ?? "unattributed", companyId: null, sessionId: args.sessionId ?? null },
   });
   return {
     text: r.text,
@@ -127,6 +134,7 @@ export async function generateDailyQuestions(
   opts?: { companyId?: string }
 ): Promise<CallResult> {
   return call({
+    engine: "generate_daily_questions",
     companyId: opts?.companyId,
     expectJson: true,
     maxTokens: 700,
@@ -149,6 +157,7 @@ export async function proposeDecisionDialogue(args: {
   controlExempt?: boolean;
 }): Promise<CallResult> {
   return call({
+    engine: "propose_decision_dialogue",
     companyId: args.companyId,
     controlExempt: args.controlExempt,
     expectJson: true,
@@ -292,6 +301,7 @@ export async function proposeCoachPatterns(args: {
   regexHits?: Array<{ pattern_id: string; trigger_excerpt: string }>;
 }): Promise<CallResult> {
   return call({
+    engine: "propose_coach_patterns",
     companyId: args.companyId,
     expectJson: true,
     maxTokens: 900,
@@ -418,6 +428,7 @@ export async function analyzeCoachV5(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "analyze_coach_v5",
     companyId: args.companyId,
     expectJson: true,
     // Generous token budget because the Knowledge Base is in the system
@@ -444,6 +455,7 @@ export async function followUpCoachV5(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "follow_up_coach_v5",
     companyId: args.companyId,
     expectJson: true,
     maxTokens: 1000,
@@ -463,6 +475,7 @@ export async function gradeCoachV5(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "grade_coach_v5",
     companyId: args.companyId,
     expectJson: true,
     // Small response: { grade, reasonInternal? } — usually under 200 tokens.
@@ -489,6 +502,7 @@ export async function debriefCoachV5(args: {
   controlExempt?: boolean;
 }): Promise<CallResult> {
   return call({
+    engine: "debrief_coach_v5",
     companyId: args.companyId,
     expectJson: true,
     // 1-3 learned + 0-2 workOn + closing — comfortably under 600 tokens.
@@ -511,6 +525,7 @@ export async function liveSalesCue(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "live_sales_cue",
     companyId: args.companyId,
     expectJson: true,
     // One short cue. Small budget = lower latency.
@@ -535,6 +550,7 @@ export async function liveMeetingCue(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "live_meeting_cue",
     companyId: args.companyId,
     expectJson: true,
     maxTokens: 160,
@@ -558,10 +574,15 @@ export async function dissectCoachV5(args: {
    *  (DEEPSEEK_NONREASONING_MODEL): a long meeting transcript starves the reasoning model to an empty answer. The
    *  sales dissect leaves it unset (its calls are shorter → the reasoning model finishes). */
   model?: string;
+  /** AI cost ledger labels (RSS Phase 0 step 6); unset → "unattributed". */
+  engine?: string;
+  sessionId?: string | null;
 }): Promise<CallResult> {
   return call({
     companyId: args.companyId,
     model: args.model,
+    engine: args.engine ?? "dissect_coach_v5",
+    sessionId: args.sessionId ?? null,
     expectJson: true,
     // maxTokens is the ANSWER budget only. The reasoning overhead of the deepseek reasoning model is added on TOP
     // by the provider's REASONING_HEADROOM_TOKENS (deepseek.ts), clamped to MAX_TOTAL_TOKENS. After the 2026-08-13
@@ -592,6 +613,7 @@ export async function classifyTurnSpeaker(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "classify_turn_speaker",
     expectJson: true,
     maxTokens: 16, // just {"speaker":"prospect"}
     systemPrompt: args.systemPrompt,
@@ -614,6 +636,7 @@ export async function spawnTask(args: {
   userMessage: string;
 }): Promise<CallResult> {
   return call({
+    engine: "spawn_task",
     companyId: args.companyId,
     expectJson: true,
     // Generous budget — the response includes 3-7 step strings plus
@@ -669,6 +692,7 @@ export async function generateCareReply(args: {
   // Text replies stay at 600 (1-4 sentences with headroom).
   const maxTokens = args.medium === "voice" ? 80 : 600;
   return call({
+    engine: "generate_care_reply",
     companyId: args.companyId,
     expectJson: false,
     maxTokens,
@@ -676,5 +700,47 @@ export async function generateCareReply(args: {
     userContent: args.userMessage,
     controlExempt: args.controlExempt,
     experienceMode: args.experienceMode,
+  });
+}
+
+/**
+ * RSS Phase 6 (0281): the follow-through read of one remote sales call — a suggested outcome and the callbacks the
+ * customer asked for, as JSON. Sales Coach runs day-1, so controlExempt; the caller consumes `suppressed` (§2.2).
+ * Labelled for the AI cost ledger (engine + session).
+ */
+export async function followThroughCoach(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+  sessionId: string;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 800,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_follow_through",
+    sessionId: args.sessionId,
+  });
+}
+
+/** RSS Phase 6: one Ask Coach turn over one or more calls, answering with [n] line citations. Day-1 (controlExempt). */
+export async function askCoachTurn(args: {
+  companyId?: string;
+  systemPrompt: string;
+  userMessage: string;
+  sessionId: string | null;
+}): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: false,
+    maxTokens: 700,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_ask_coach",
+    sessionId: args.sessionId,
   });
 }

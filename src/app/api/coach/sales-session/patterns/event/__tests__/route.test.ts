@@ -12,6 +12,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Also locked: a manual close writes `patterns.fixed_at`, which is the column `statusOf` reads.
  * An event alone would leave four surfaces still calling the pattern open.
  */
+vi.mock("@/lib/api/treeAccess", () => ({
+  // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
+  treeAllowsRep: vi.fn(async () => true),
+  treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));

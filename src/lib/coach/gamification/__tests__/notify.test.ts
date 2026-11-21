@@ -5,13 +5,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * one notification per manager with ignore-on-conflict (idempotent via the unique index). Best-effort — never throws.
  */
 const state = vi.hoisted(() => ({
-  profiles: [] as Array<{ id: string; role: string; sales_coach_role: string | null }>,
+  profiles: [] as Array<{ id: string; role: string; sales_coach_role: string | null; manager_id?: string | null }>,
+  // rss_tree_active (0273). Default: the function does not exist yet (pre-migration) → today's fan-out.
+  tree: { data: null as boolean | null, error: { code: "PGRST202", message: "function not found" } as { code: string; message: string } | null },
   upserts: [] as Array<{ rows: unknown[]; opts: unknown }>,
   upsertError: null as { message: string } | null,
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
+    rpc: async () => state.tree,
     from: (table: string) => {
       if (table === "profiles") {
         const chain: Record<string, unknown> = {};
@@ -47,6 +50,36 @@ beforeEach(() => {
   ];
   state.upserts = [];
   state.upsertError = null;
+  state.tree = { data: null, error: { code: "PGRST202", message: "function not found" } };
+});
+
+describe("reporting tree (RSS Phase 0 step 8, migration 0273)", () => {
+  const recipientsOf = () =>
+    (state.upserts[0]!.rows as Array<{ recipient_id: string }>).map((r) => r.recipient_id).sort();
+
+  it("once the company is on the tree, the alert goes up the rep's chain only", async () => {
+    state.profiles = [
+      { id: "ceo", role: "CEO", sales_coach_role: null, manager_id: null },
+      { id: "mgr", role: "staff", sales_coach_role: "admin", manager_id: "ceo" },
+      { id: "other-mgr", role: "staff", sales_coach_role: "admin", manager_id: "ceo" },
+      { id: "agent", role: "staff", sales_coach_role: "staff", manager_id: "mgr" },
+    ];
+    state.tree = { data: true, error: null };
+    await notifyStrongSession({ companyId: "c1", agentId: "agent", sessionId: "s1", points: 88, band: "strong" });
+    expect(recipientsOf()).toEqual(["ceo", "mgr"]); // other-mgr is not above the agent
+  });
+
+  it("a company not yet on the tree keeps today's fan-out to every manager", async () => {
+    state.tree = { data: false, error: null };
+    await notifyStrongSession({ companyId: "c1", agentId: "agent", sessionId: "s1", points: 88, band: "strong" });
+    expect(recipientsOf()).toEqual(["ceo", "mgr"]);
+  });
+
+  it("an rpc that throws falls back to today's fan-out — the alert is never lost", async () => {
+    state.tree = undefined as never; // rpc resolves undefined → destructuring throws inside the guard
+    await notifyStrongSession({ companyId: "c1", agentId: "agent", sessionId: "s1", points: 88, band: "strong" });
+    expect(recipientsOf()).toEqual(["ceo", "mgr"]);
+  });
 });
 
 describe("gamification notify", () => {

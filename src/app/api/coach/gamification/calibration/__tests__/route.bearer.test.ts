@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * is a DISTINCT auth path from my-points (manager gate + admin reads, not an owner caller-scoped read), so it earns
  * its own test. resolveApiAuth is stubbed to a Bearer-authenticated manager; the admin client is faked per-table.
  */
+vi.mock("@/lib/api/treeAccess", () => ({
+  // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
+  treeAllowsRep: vi.fn(async () => true),
+  treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+}));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
@@ -23,7 +28,7 @@ function setTables(tables: Record<string, unknown>) {
     from(table: string) {
       const result = tables[table] ?? { data: null, error: null };
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "order", "limit", "maybeSingle"]) b[m] = () => b;
+      for (const m of ["select", "eq", "in", "order", "limit", "maybeSingle"]) b[m] = () => b;
       b.then = (res: (v: unknown) => unknown) => res(result);
       return b;
     },
@@ -39,6 +44,7 @@ describe("calibration — mobile Bearer path (manager gate)", () => {
       after_pitch_summaries: { data: [{ session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } }] },
       gamification_calibration: { data: [] },
       coaching_transcript_segments: { data: [] },
+      coaching_sessions: { data: [{ id: "s1", agent_id: "r1" }] },
     });
     const res = await GET(bearerReq());
     expect(res.status).toBe(200);

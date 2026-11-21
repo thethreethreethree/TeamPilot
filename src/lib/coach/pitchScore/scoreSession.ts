@@ -5,6 +5,15 @@ import { generatePitchScore } from "./generatePitchScore";
 import type { PitchScore } from "./scorePitch";
 import { storePitchScore } from "./storePitchScore";
 import { runDetection } from "@/lib/coach/patterns/runDetection";
+import { recordProvenance } from "./scoreHistory";
+import { recordSessionFailure, type SessionFailureCode } from "@/lib/coach/remote/session/failures";
+
+/** Which scoring refusals are a session failure a manager should see (RSS Phase 1, closed list in 0275). */
+const FAILURE_FOR_REFUSAL: Partial<Record<ScoreRefusal, SessionFailureCode>> = {
+  no_agent_turns: "BELOW_SCORING_FLOOR",
+  provider_out_of_credit: "AI_QUOTA",
+  provider_down: "AI_UNAVAILABLE",
+};
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { isProviderOutage } from "@/lib/llm/errors";
@@ -171,6 +180,12 @@ export async function scoreSession(args: {
    * bill the same pitch forever.
    */
   skipIfScored?: boolean;
+  /**
+   * The manager re-scoring, when this is a re-score (RSS Phase 0, D3). Only the pitch-score route sets it,
+   * after resolveScoreRequest allowed it and archivePitchScore copied the old version. Recorded in
+   * provenance as `manager_rescore`; absent means an automatic score.
+   */
+  rescoredBy?: string;
 }): Promise<ScoreOutcome> {
   /**
    * The public entry point is a THIN GUARD around the real work, and that is the point.
@@ -182,7 +197,15 @@ export async function scoreSession(args: {
    * exception.
    */
   try {
-    return await scoreSessionOrThrow(args);
+    const outcome = await scoreSessionOrThrow(args);
+    // RSS Phase 1 (0275): a REMOTE session that could not be scored gets its closed reason recorded, so it does
+    // not sit silently un-ready. Door sessions are skipped inside recordSessionFailure; "not a sales call" is
+    // not recorded because only meetings/huddles reach it, and they are not sales sessions.
+    if (!outcome.ok) {
+      const code = FAILURE_FOR_REFUSAL[outcome.reason];
+      if (code) await recordSessionFailure({ sessionId: args.sessionId, companyId: args.companyId, reason: code });
+    }
+    return outcome;
   } catch (err) {
     // Server-side only. The client gets REFUSAL_MESSAGE, never the exception text (CWE-209).
     console.error("[scoreSession] threw", { sessionId: args.sessionId }, err);
@@ -201,8 +224,14 @@ async function scoreSessionOrThrow(args: {
   companyId: string;
   db: SupabaseClient;
   skipIfScored?: boolean;
+  /**
+   * The manager re-scoring, when this is a re-score (RSS Phase 0, D3). Only the pitch-score route sets it,
+   * after resolveScoreRequest allowed it and archivePitchScore copied the old version. Recorded in
+   * provenance as `manager_rescore`; absent means an automatic score.
+   */
+  rescoredBy?: string;
 }): Promise<ScoreOutcome> {
-  const { sessionId, companyId, db, skipIfScored = false } = args;
+  const { sessionId, companyId, db, skipIfScored = false, rescoredBy } = args;
 
   // RLS scopes this to owner-or-manager (0083/0084). A null result IS the IDOR gate: a same-company
   // peer must not be able to score — or learn the existence of — another rep's recording.
@@ -233,6 +262,7 @@ async function scoreSessionOrThrow(args: {
     companyId,
     sessionTitle: session.clientLabel ?? undefined,
     segments,
+    sessionId: session.id,
   });
 
   // No zero-score failure path. Every one of these is reported, never stored — a blank LLM answer
@@ -261,6 +291,25 @@ async function scoreSessionOrThrow(args: {
 
   if (!stored.ok) return refuse(stored.cause === "no_evidence" ? "no_evidence" : "store_failed");
   const { pitchId } = stored;
+
+  // Provenance (RSS Phase 0, Gong F15.8): which model and prompt version produced this score, and whether it
+  // was automatic or a manager re-score. Best-effort — the score is saved and correct; recordProvenance logs.
+  if (result.provenance) {
+    try {
+      await recordProvenance(createAdminClient(), {
+        pitchId,
+        companyId,
+        repId: session.agentId,
+        model: result.provenance.model,
+        promptVersion: result.provenance.promptVersion,
+        rubricVersion: result.score.rubricVersion,
+        rescoredBy: rescoredBy ?? null,
+      });
+    } catch (err) {
+      // The client itself failed to build: the score is stored and correct, so this is a log line, not a refusal.
+      console.error(`[scoreSession] provenance skipped for pitch=${pitchId}:`, err);
+    }
+  }
 
   // Guide Step 5: "Run detection every time a pitch is scored." AFTER the store, deliberately —
   // detection reads `pitch_score_elements`, so the pitch that just landed has to be in the table

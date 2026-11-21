@@ -10,6 +10,7 @@ import {
   Volume2,
   Check,
   Package,
+  ShieldCheck,
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useToast } from "@/components/ui/toast";
@@ -21,6 +22,8 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { DocUploadButton } from "@/components/sales-coach/DocUploadButton";
 import { VoiceEnrollment } from "@/components/sales-coach/VoiceEnrollment";
 import { RepGoalPanel } from "@/components/sales-coach/doorlog/RepGoalPanel";
+import { KeywordTrackers } from "@/components/sales-coach/KeywordTrackers";
+import { ProtectionSettings } from "@/components/sales-coach/ProtectionSettings";
 
 /**
  * Sales Coach → Settings (Phase 4). Role-aware: every staff/admin gets
@@ -36,13 +39,15 @@ type SettingsCtx = {
     salesCoachRole: string | null;
   };
   isManager: boolean;
+  /** RSS Phase 8: company admins get the Protection tab (retention, audit log). The route's verdict, not re-derived. */
+  isCompanyAdmin?: boolean;
   corpus: { loaded: boolean; words: number };
 };
 
 export default function SalesCoachSettingsPage() {
   const [ctx, setCtx] = useState<SettingsCtx | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"account" | "coaching">("account");
+  const [tab, setTab] = useState<"account" | "coaching" | "protection">("account");
 
   const load = useCallback(async () => {
     try {
@@ -60,6 +65,7 @@ export default function SalesCoachSettingsPage() {
   }, [load]);
 
   const isManager = ctx?.isManager ?? false;
+  const isCompanyAdmin = ctx?.isCompanyAdmin ?? false;
 
   return (
     <>
@@ -103,6 +109,23 @@ export default function SalesCoachSettingsPage() {
                     onClick={() => setTab("coaching")}
                     icon={BookOpen}
                     label="Coaching"
+                  />
+                </LearningHint>
+              )}
+              {isCompanyAdmin && (
+                <LearningHint
+                  as="inline-block"
+                  category="Sales Coach · Settings"
+                  title="Protection tab"
+                  whatItIs="The company-admin controls for call data: how many recordings each rep keeps, erasing a customer's data when they ask, and the audit log of who re-scored, corrected, deleted, trimmed, exported or erased what."
+                  why="Recordings are customers' words. How long they are kept, and a record of every sensitive action on them, are what make it safe to keep them at all."
+                  how="Only company admins see this tab. Set the retention number; when a customer asks to be erased, find their calls by phone, email or name, check them, and erase; read the audit log when you need to know who did something."
+                  principle="A record nobody can edit is the only kind worth trusting.">
+                  <TabButton
+                    active={tab === "protection"}
+                    onClick={() => setTab("protection")}
+                    icon={ShieldCheck}
+                    label="Protection"
                   />
                 </LearningHint>
               )}
@@ -166,11 +189,15 @@ export default function SalesCoachSettingsPage() {
               </div>
             )}
 
+            {tab === "protection" && isCompanyAdmin && <ProtectionSettings />}
+
             {tab === "coaching" && isManager && ctx && (
               <div className="space-y-4">
                 <QuotaTargetPanel />
                 {/* Per-rep daily sales goal — the door tracker's target works back from it (9/2 door screen). */}
                 <RepGoalPanel />
+                {/* Keyword trackers (RSS Phase 3, Gong F11.1) — phone/video calls. */}
+                <KeywordTrackers />
                 <CorpusEditor />
 
                 <ProductEditor />

@@ -6,6 +6,7 @@ import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { canAppend, BODY_REQUIRED } from "@/lib/coach/patterns/eventPermission";
 import { notifyPatternEvent, notifyClipDisputed, NOTIFIED_KINDS } from "@/lib/coach/patterns/notifyPattern";
 import { describeItem } from "@/lib/coach/patterns/readPatterns";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 
 /**
  * POST /api/coach/sales-session/patterns/event — the four manager actions and the rep's reply.
@@ -70,6 +71,10 @@ export async function POST(req: NextRequest) {
   }
 
   const manager = await requireSalesCoachManager(req);
+  // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
+  if (manager && String(pattern.rep_id) !== ctx.userId && !(await treeAllowsRep(req, String(pattern.rep_id)))) {
+    return NextResponse.json({ error: "Pattern not found." }, { status: 404 });
+  }
   const verdict = canAppend(kind, {
     isManager: manager !== null,
     ownsPattern: String(pattern.rep_id) === ctx.userId,

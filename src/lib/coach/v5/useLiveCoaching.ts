@@ -38,6 +38,8 @@ import {
   type ConfidenceRead,
 } from "@/lib/coach/v5/liveConfidence";
 import { cueFailureMessage } from "./cueFailureMessage";
+import { micHearsRepOnly } from "@/lib/coach/sessionContext";
+import { measuredEndedAt } from "@/lib/coach/v5/liveTiming";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -171,7 +173,7 @@ const QUIET_RATIO = 0.65;
 // A single attributed turn. Salesperson = "agent", prospect = "customer"
 // (the existing TranscriptSpeaker terms). `pending` = the instant
 // provisional label is showing; the content classifier hasn't returned yet.
-type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean; source?: string; spokenAt?: string };
+type Turn = { text: string; speaker: TranscriptSpeaker; pending?: boolean; source?: string; spokenAt?: string; endedAt?: string };
 
 /**
  * Proximity verdict from an utterance's mean loudness — the INSTANT,
@@ -575,7 +577,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       const recordTrace = (t: Partial<CueTrace> & { delivered: boolean }) => {
         const trace: CueTrace = {
           triggeredAt,
-          mode: contextRef.current === "video" ? "video" : "in_person",
+          mode: contextRef.current ?? "in_person",
           ...t,
         };
         cueTracesRef.current.push(trace);
@@ -845,7 +847,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       const segs = selectUnflushedSegments(turnsRef.current, flushedSegsRef.current, includePending).slice(0, 500);
       if (segs.length === 0) return;
       const seqs = segs.map((s) => s.seq);
-      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq, ...(s.source ? { source: s.source } : {}), ...(s.spokenAt ? { spokenAt: s.spokenAt } : {}) })) };
+      const payload = { segments: segs.map((s) => ({ speaker: s.speaker, text: s.text, seq: s.seq, ...(s.source ? { source: s.source } : {}), ...(s.spokenAt ? { spokenAt: s.spokenAt } : {}), ...(s.endedAt ? { endedAt: s.endedAt } : {}) })) };
       const url = `/api/coach/sales-session/${sessionId}/segments`;
       const body = JSON.stringify(payload);
       if (useBeacon && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -896,6 +898,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             seq: i,
             ...(t.source ? { source: t.source } : {}),
             ...(t.spokenAt ? { spokenAt: t.spokenAt } : {}),
+            ...(t.endedAt ? { endedAt: t.endedAt } : {}),
           })),
         }),
         keepalive: true,
@@ -1315,7 +1318,11 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // language_code=eng forces English so Scribe doesn't mislabel accented/noisy English as another language
           // (founder 2026-08-26 — same fix as the batch STT; verified accepted by the batch API, extra query params
           // are ignored by the realtime socket if unsupported, so it can't break the connection).
-          `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&audio_format=pcm_${sr}`
+          // include_timestamps=true (RSS Phase 2 follow-up): after each commit the service also sends
+          // committed_transcript_with_timestamps, whose word span gives the line's real end time (liveTiming.ts).
+          // It is handled in its OWN branch below and never creates a turn. (Incompatible only with
+          // filter_background_audio, which this socket does not set.)
+          `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${sr}`
       );
       wsRef.current = ws;
 
@@ -1477,10 +1484,25 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           if (utteranceStartRef.current === null && (msg.text ?? "").trim()) {
             utteranceStartRef.current = Date.now();
           }
-        } else if (
-          msg.message_type === "committed_transcript" ||
-          msg.message_type === "committed_transcript_with_timestamps"
-        ) {
+        } else if (msg.message_type === "committed_transcript_with_timestamps") {
+          // The timestamps for the line JUST committed (sent after it; no id links them, only order — ElevenLabs
+          // realtime event reference). Attach the measured end to the newest turn with the same text, if it has
+          // not been flushed yet; otherwise that line keeps its estimate. NEVER a new turn: before include_timestamps
+          // this branch did not exist, and treating both events as commits would add every line twice.
+          const text = (msg.text ?? "").trim();
+          const turns = turnsRef.current;
+          for (let i = turns.length - 1; i >= Math.max(0, turns.length - 3); i--) {
+            const t = turns[i];
+            if (t && !t.endedAt && t.text === text) {
+              const endedAt = measuredEndedAt(t.spokenAt, (msg as { words?: unknown }).words);
+              if (endedAt) {
+                turnsRef.current = [...turns.slice(0, i), { ...t, endedAt }, ...turns.slice(i + 1)];
+                setTurns(turnsRef.current);
+              }
+              break;
+            }
+          }
+        } else if (msg.message_type === "committed_transcript") {
           const text = (msg.text ?? "").trim();
           setPartial("");
           // Close out the utterance's loudness, whether or not there's text.
@@ -1574,7 +1596,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // the audit's Layer-A flag). Prospect-side cues can't fire mic-only;
           // the rep-delivery cues (stress, on-demand, stall) do — matching the
           // "the coach hears your side" disclosure on the surface.
-          const isVideo = contextRef.current === "video";
+          // A phone call is like video here: the mic hears the rep only (sessionContext.micHearsRepOnly).
+          const isVideo = micHearsRepOnly(contextRef.current);
           const composed = composeProvisional({
             locked,
             content: contentGuess,

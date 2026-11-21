@@ -21,6 +21,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *      happen: recomputing from a pitch you could not load is guessing.
  */
 
+vi.mock("@/lib/api/treeAccess", () => ({
+  // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
+  treeAllowsRep: vi.fn(async () => true),
+  treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));

@@ -116,7 +116,7 @@ ${productContext}`;
         const send = (event: string, data: unknown) => controller.enqueue(encoder.encode(sse(event, data)));
         try {
           let collected = "";
-          for await (const delta of llmStream({
+          for await (const delta of llmStream({ attribution: { engine: "care_copilot", companyId: user.companyId ?? null, },
             systemPrompt,
             messages: [{ role: "user", content: userMessage }],
             maxTokens: 600,

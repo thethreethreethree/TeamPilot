@@ -227,7 +227,7 @@ export async function runLearningCycle(_companyId: string): Promise<{
 
   let raw: string;
   try {
-    const r = await llmCall({
+    const r = await llmCall({ attribution: { engine: "brain_learn", companyId: _companyId ?? null, },
       systemPrompt: DISTILL_SYSTEM_PROMPT,
       messages: [
         {

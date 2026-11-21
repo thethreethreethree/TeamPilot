@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * MIME; 400 executable extension; 200 returns {bucket, storagePath, token}. getSession is mocked
  * (its RLS scoping is the real access gate); the signed-target minter is stubbed.
  */
+vi.mock("@/lib/coach/remote/session/failures", () => ({ recordSessionFailure: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));

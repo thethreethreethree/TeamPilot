@@ -27,6 +27,7 @@ vi.mock("@/lib/data/salesCoach", () => ({
 vi.mock("../generatePitchScore", () => ({ generatePitchScore: vi.fn() }));
 vi.mock("../storePitchScore", () => ({ storePitchScore: vi.fn() }));
 vi.mock("@/lib/coach/patterns/runDetection", () => ({ runDetection: vi.fn(async () => null) }));
+vi.mock("@/lib/coach/remote/session/failures", () => ({ recordSessionFailure: vi.fn(async () => undefined) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) }));
 
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";

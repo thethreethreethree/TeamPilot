@@ -138,14 +138,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = companyId
-      ? await runBrainCall({
+      ? await runBrainCall({ engine: "chat_similar",
           companyId,
           basePrompt: SYSTEM_PROMPT,
           messages: [{ role: "user", content: userTurn }],
           maxTokens: 600,
           expectJson: true,
         })
-      : await llmCall({
+      : await llmCall({ attribution: { engine: "chat_similar", companyId: companyId ?? null, },
           systemPrompt: SYSTEM_PROMPT,
           messages: [{ role: "user", content: userTurn }],
           maxTokens: 600,

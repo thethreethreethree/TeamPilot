@@ -91,4 +91,15 @@ describe("findAuthUserByEmail — exact email match", () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     expect(await findAuthUserByEmail("anyone@x.com")).toBeNull();
   });
+
+  it("THROWS when a page of the listing fails, instead of answering 'no account' (F4, 2026-11-20)", async () => {
+    const fullPage = Array.from({ length: 200 }, (_, i) => ({ id: `u${i}`, email: `user${i}@x.com` }));
+    let call = 0;
+    const listUsers = vi.fn(async () => {
+      call += 1;
+      return call === 1 ? { data: { users: fullPage }, error: null } : { data: null, error: { message: "upstream timeout" } };
+    });
+    vi.mocked(createClient).mockReturnValue({ auth: { admin: { listUsers } } } as never);
+    await expect(findAuthUserByEmail("later@x.com")).rejects.toThrow(/listing failed on page 2/);
+  });
 });

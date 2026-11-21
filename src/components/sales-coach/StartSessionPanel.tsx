@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Video, DoorOpen, Mic } from "lucide-react";
+import { Video, DoorOpen, Mic, Phone } from "lucide-react";
 import {
   DeckCard,
   DeckGhostButton,
   DeckButton,
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
+import { micHearsRepOnly, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * StartSessionPanel — the "Start a coaching session" card, self-contained so it
@@ -19,7 +20,7 @@ import { LearningHint } from "@/components/learning/LearningHint";
  */
 export function StartSessionPanel() {
   const router = useRouter();
-  const [context, setContext] = useState<"in_person" | "video">("video");
+  const [context, setContext] = useState<SalesContext>("video");
   const [clientLabel, setClientLabel] = useState("");
   const [territory, setTerritory] = useState("");
   const [approach, setApproach] = useState("");
@@ -112,7 +113,7 @@ export function StartSessionPanel() {
         how="Pick the one that matches this call before you start. It's also what lets you later compare your in-person close rate against your video close rate."
         principle="Coach the channel you're actually in."
       >
-        <div className="grid grid-cols-2 gap-2 mb-2.5">
+        <div className="grid grid-cols-3 gap-2 mb-2.5">
           <DeckGhostButton
             active={context === "video"}
             onClick={() => setContext("video")}
@@ -127,6 +128,13 @@ export function StartSessionPanel() {
             <DoorOpen className="w-3.5 h-3.5" aria-hidden />
             In-person
           </DeckGhostButton>
+          <DeckGhostButton
+            active={context === "phone"}
+            onClick={() => setContext("phone")}
+          >
+            <Phone className="w-3.5 h-3.5" aria-hidden />
+            Phone
+          </DeckGhostButton>
         </div>
         {/* §3.4 honesty: on video the device mic hears the REP's side only —
             the prospect is on the far end of the call, not in the mic. Say so
@@ -134,11 +142,11 @@ export function StartSessionPanel() {
             actually do, rather than expecting it to react to the prospect's
             live words. (Capturing the far-end call audio is a separate,
             not-yet-built capability — founder A/B pending.) */}
-        {context === "video" && (
+        {micHearsRepOnly(context) && (
           <p className="flex items-start gap-1.5 text-[11px] leading-snug text-secondary mb-2.5">
             <Mic className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
             <span>
-              On video, your mic hears <strong className="text-primary">your</strong> side — not
+              On {context === "phone" ? "a phone call" : "video"}, your mic hears <strong className="text-primary">your</strong> side — not
               the prospect&apos;s audio from the far end of the call. The coach guides your
               delivery: pacing, filler, framing, and the words you choose.
             </span>

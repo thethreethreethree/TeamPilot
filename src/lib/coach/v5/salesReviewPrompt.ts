@@ -3,6 +3,7 @@ import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { getSalesKnowledgeBase } from "./salesKnowledgeBase";
 import { reviewProductBlock } from "./prepShared";
 import { capCorpus } from "@/lib/llm/corpusBudget";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * Methodology block: the compiled Sales Knowledge Base (SPIN / Challenger
@@ -198,7 +199,7 @@ export function buildSalesReviewUserMessage(args: {
   const header = [
     args.sessionTitle ? `Conversation: ${args.sessionTitle}` : null,
     args.context
-      ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}`
+      ? `Context: ${contextPromptLine(args.context)}`
       : null,
   ]
     .filter(Boolean)

@@ -4,8 +4,9 @@ import { deepseekProvider } from "./deepseek";
 import { anthropicProvider } from "./anthropic";
 import { LlmError } from "./errors";
 import { coerceJsonText } from "./coerceJson";
-import type { LlmCallArgs, LlmResult, Provider } from "./types";
+import type { LlmCallArgs, LlmResult, Provider, StreamUsage } from "./types";
 import { shapeSystemPrompt } from "@/lib/experience/mode";
+import { recordAiUsage } from "./usageLedger";
 
 export * from "./types";
 
@@ -128,7 +129,7 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
   const provider = chooseProvider();
   const shaped = withModeDirective(args);
   try {
-    return coerceResultJson(shaped, await provider.call(shaped));
+    return await metered(args, coerceResultJson(shaped, await provider.call(shaped)));
   } catch (err) {
     if (shouldCascade(err)) {
       const fallback = otherProvider(provider);
@@ -141,11 +142,21 @@ export async function llmCall(args: LlmCallArgs): Promise<LlmResult> {
               : "")
         );
         // The fallback provider (Anthropic) has no response_format=json_object, so honor expectJson here.
-        return coerceResultJson(shaped, await fallback.call(shaped));
+        return await metered(args, coerceResultJson(shaped, await fallback.call(shaped)));
       }
     }
     throw err;
   }
+}
+
+/**
+ * Record the call in the AI cost ledger, then hand the result back unchanged (RSS Phase 0 step 6). The result's
+ * own provider/model is recorded, so a cascaded call is billed to the provider that actually answered.
+ * recordAiUsage never throws.
+ */
+async function metered(args: LlmCallArgs, result: LlmResult): Promise<LlmResult> {
+  await recordAiUsage(result, args.attribution);
+  return result;
 }
 
 /**
@@ -168,12 +179,25 @@ function coerceResultJson(args: LlmCallArgs, result: LlmResult): LlmResult {
 export async function* llmStream(args: LlmCallArgs): AsyncIterable<string> {
   const provider = chooseProvider();
   const shaped = withModeDirective(args);
+  // The AI cost ledger for streams (RSS Phase 0 step 6 follow-up): the provider reports usage when its stream ends;
+  // it is recorded through the same writer as llmCall, after the last token, so it never delays the stream.
+  let reported: StreamUsage | null = null;
+  const onUsage = (u: StreamUsage) => {
+    reported = u;
+  };
+  const meterStream = async () => {
+    const u = reported as StreamUsage | null;
+    if (u) await recordAiUsage({ text: "", provider: u.provider, model: u.model, usage: u.usage }, args.attribution);
+    else console.warn(`[ai-usage] stream ended with no token usage (engine=${args.attribution?.engine ?? "unattributed"}) — call not metered.`);
+  };
   try {
     if (provider.stream) {
-      yield* provider.stream(shaped);
+      yield* provider.stream(shaped, onUsage);
+      await meterStream();
       return;
     }
     const r = await provider.call(shaped);
+    await recordAiUsage(r, args.attribution);
     yield r.text;
   } catch (err) {
     if (shouldCascade(err)) {
@@ -184,10 +208,12 @@ export async function* llmStream(args: LlmCallArgs): AsyncIterable<string> {
           `[llm] primary stream ${provider.name} failed (${(err as LlmError).kind}); cascading to ${fallback.name}.`
         );
         if (fallback.stream) {
-          yield* fallback.stream(shaped);
+          yield* fallback.stream(shaped, onUsage);
+          await meterStream();
           return;
         }
         const r = await fallback.call(shaped);
+        await recordAiUsage(r, args.attribution);
         yield r.text;
         return;
       }

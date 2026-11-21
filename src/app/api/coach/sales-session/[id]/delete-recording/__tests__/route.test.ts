@@ -20,10 +20,12 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/coach/v5/removeRecordingAudio", () => ({ removeRecordingAudio: vi.fn() }));
+vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
+import { recordAudit } from "@/lib/audit/recordAudit";
 import { POST } from "../route";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -70,6 +72,7 @@ beforeEach(() => {
   vi.mocked(createClient).mockReset();
   vi.mocked(createAdminClient).mockReset();
   vi.mocked(removeRecordingAudio).mockReset();
+  vi.mocked(recordAudit).mockClear();
   vi.mocked(removeRecordingAudio).mockResolvedValue({ ok: true, chunksRemoved: 0 });
 });
 
@@ -128,6 +131,7 @@ describe("the bytes go before the pointer", () => {
     expect(res.status).toBe(500);
     // The whole point: a cleared pointer plus live bytes is a recording nobody can find and nothing will remove.
     expect(updates).toHaveLength(0);
+    expect(recordAudit).not.toHaveBeenCalled(); // nothing was deleted, so nothing is recorded
   });
 
   it("does NOT clear the row for a pointer it cannot interpret", async () => {
@@ -150,6 +154,10 @@ describe("the bytes go before the pointer", () => {
         recording_saved_at: null,
       },
     ]);
+    // Phase 8 (0284): the deletion is in the audit log, by the person who did it.
+    expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      action: "recording.delete", objectType: "coaching_session", objectId: "s1",
+    }));
   });
 
   it("404s rather than reporting success when the row moved between read and write", async () => {

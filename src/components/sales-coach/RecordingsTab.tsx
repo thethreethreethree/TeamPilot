@@ -689,6 +689,25 @@ function Actions({ wire, at }: { wire: Wire; at: number }) {
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const [share, setShare] = useState<ShareState>(wire.share);
+  // RSS F9.8 (0293): who may read the comment, and who is @mentioned (they're notified). The server checks that each
+  // person named can see this call, with the database's own rule, and says who can't.
+  const [visibility, setVisibility] = useState<"everyone" | "named" | "only_me">("everyone");
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [people, setPeople] = useState<Array<{ id: string; name: string }> | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/team")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { members?: Array<{ id: string; full_name?: string | null }> } | null) => {
+        if (!live || !d?.members) return;
+        setPeople(d.members.filter((m) => m.id !== wire.viewerId).map((m) => ({ id: m.id, name: m.full_name ?? "Unnamed teammate" })));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [wire.viewerId]);
+  const toggleMention = (id: string) => setMentions((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const comment = async (sendToRep: boolean) => {
     if (!text.trim() || busy) return;
@@ -703,18 +722,24 @@ function Actions({ wire, at }: { wire: Wire; at: number }) {
           timestampS: Math.round(at),
           body: text.trim(),
           sendToRep,
+          visibility,
+          mentions: visibility === "only_me" ? [] : mentions,
         }),
       });
-      const d = (await res.json()) as { error?: string; notified?: boolean };
+      const d = (await res.json()) as { error?: string; notified?: boolean; mentioned?: number };
       if (!res.ok) setSaid(d.error ?? "Could not save the comment.");
       else {
         setText("");
+        setMentions([]);
+        const told = d.mentioned ? ` ${d.mentioned} mentioned ${d.mentioned === 1 ? "person was" : "people were"} told.` : "";
         setSaid(
-          sendToRep
-            ? d.notified
-              ? `Sent to the rep at ${clock(at)}.`
-              : `Saved at ${clock(at)} and visible to the rep, but the notification did not go out.`
-            : `Saved at ${clock(at)}. Not sent — the rep cannot see it yet.`
+          (visibility === "only_me"
+            ? `Saved at ${clock(at)} as a note only you can see.`
+            : sendToRep
+              ? d.notified
+                ? `Sent to the rep at ${clock(at)}.`
+                : `Saved at ${clock(at)} and visible to the rep, but the notification did not go out.`
+              : `Saved at ${clock(at)}. Not sent — the rep cannot see it yet.`) + told
         );
       }
     } catch {
@@ -765,10 +790,43 @@ function Actions({ wire, at }: { wire: Wire; at: number }) {
         className="w-full rounded-lg border border-subtle bg-base p-2 text-sm text-strong"
       />
 
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <label htmlFor="rec-visibility" className="text-muted">Who can read it</label>
+        <select
+          id="rec-visibility"
+          value={visibility}
+          onChange={(e) => setVisibility(e.currentTarget.value as typeof visibility)}
+          className="rounded-lg border border-subtle bg-base px-2 py-1 text-xs text-strong"
+        >
+          <option value="everyone">Everyone who can see this call</option>
+          <option value="named">Only the people I mention</option>
+          <option value="only_me">Only me</option>
+        </select>
+      </div>
+      {visibility !== "only_me" && people && people.length > 0 && (
+        <fieldset className="mt-2">
+          <legend className="mb-1 text-xs text-muted">Mention (they&apos;re notified)</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {people.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={mentions.includes(p.id)}
+                onClick={() => toggleMention(p.id)}
+                className={`rounded-full border px-2 py-0.5 text-xs ${mentions.includes(p.id) ? "border-ember-400 bg-ember-400/10 text-strong" : "border-subtle text-muted hover:text-strong"}`}
+              >
+                @{p.name}{p.id === wire.repId ? " (rep)" : ""}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          disabled={busy || !text.trim()}
+          disabled={busy || !text.trim() || visibility === "only_me"}
+          title={visibility === "only_me" ? "A note only you can see isn't sent to the rep." : undefined}
           onClick={() => void comment(true)}
           className="flex items-center gap-1.5 rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-medium text-ink-950 disabled:opacity-50"
         >

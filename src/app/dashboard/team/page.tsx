@@ -8,6 +8,7 @@ import { supabaseEnabled } from "@/lib/supabase/client";
 import { siteUrl } from "@/lib/siteUrl";
 import { fetchTeam, type TeamMember, type TeamInvitation } from "@/lib/data/team";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
+import { TeamCsvImport } from "@/components/team/TeamCsvImport";
 import { useCurrentUserRole } from "@/lib/hooks/useCurrentUserRole";
 import { isAdminRole, orgTierLabel, ORG_ROLE_OPTIONS } from "@/lib/roles";
 import {
@@ -47,6 +48,15 @@ function TeamInner() {
    */
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }> | null>(null);
   const [deptByMember, setDeptByMember] = useState<Record<string, string[]> | null>(null);
+  /**
+   * Reporting lines (RSS Phase 0, docs/rss). `null` = not loaded or the read failed — the manager control
+   * hides rather than offering "No manager" for someone who may have one. `managerNote` carries the
+   * server's reason when the column does not exist yet (migration 0272), shown once to admins.
+   */
+  const [managerByMember, setManagerByMember] = useState<Record<string, string | null> | null>(null);
+  const [managerNote, setManagerNote] = useState<string | null>(null);
+  // The database's verdict on whether reporting lines are in force, and who is keeping them off (0287). Shown to admins.
+  const [tree, setTree] = useState<{ active: boolean; blockers: string[] } | null>(null);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,6 +79,26 @@ function TeamInner() {
       } catch {
         setDepartments(null);
         setDeptByMember(null);
+      }
+    })();
+    // Reporting lines: best-effort and independent, same as departments.
+    void (async () => {
+      try {
+        const r = await fetch("/api/team/managers");
+        const j = (await r.json().catch(() => null)) as
+          | { available: true; byMember: Record<string, string | null>; tree?: { active: boolean; blockers: string[] } | null }
+          | { available: false; reason: string }
+          | null;
+        if (r.ok && j?.available) {
+          setManagerByMember(j.byMember);
+          setManagerNote(null);
+          setTree(j.tree ?? null);
+        } else {
+          setManagerByMember(null);
+          setManagerNote(j && !j.available ? j.reason : null);
+        }
+      } catch {
+        setManagerByMember(null);
       }
     })();
     setInvitations(snap.invitations);
@@ -196,6 +226,9 @@ function TeamInner() {
               </LearningHint>
             </div>
 
+            {/* RSS Phase 9 (Gong F2.8): bulk add with managers. Admins only; the route checks again. */}
+            {amAdmin && <TeamCsvImport onDone={refresh} />}
+
             {loading && (
               <div className="flex items-center justify-center gap-2 text-xs text-muted py-10">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
@@ -216,11 +249,24 @@ function TeamInner() {
                     </p>
                   ) : (
                     <div className="divide-y divide-default">
+                      {amAdmin && managerNote && <p className="py-2 text-[11px] text-muted">{managerNote}</p>}
+                      {amAdmin && tree && !tree.active && tree.blockers.length > 0 && (
+                        <div className="py-2 text-[11px]" role="status">
+                          <p className="text-primary">
+                            Reporting lines aren&apos;t in force yet: Sales Coach managers still see the whole company until every
+                            rep has a manager. Still without one:{" "}
+                            {tree.blockers.map((id) => members.find((m) => m.id === id)?.fullName ?? "a member").join(", ")}.
+                          </p>
+                          <p className="text-muted">Set a manager for each, or change their Sales Coach role if they aren&apos;t a rep.</p>
+                        </div>
+                      )}
                       {members.map((m) => (
                         <MemberRow
                           key={m.id}
                           member={m}
                           amAdmin={amAdmin}
+                          team={members}
+                          managerId={managerByMember ? (managerByMember[m.id] ?? null) : undefined}
                           departments={departments}
                           memberDepartmentIds={deptByMember?.[m.id] ?? (deptByMember ? [] : null)}
                           onChanged={refresh}
@@ -292,6 +338,8 @@ function Section({
 function MemberRow({
   member,
   amAdmin,
+  team,
+  managerId,
   departments,
   memberDepartmentIds,
   onChanged,
@@ -299,6 +347,10 @@ function MemberRow({
 }: {
   member: TeamMember;
   amAdmin: boolean;
+  /** Everyone on the roster — the choices for this member's manager. */
+  team: TeamMember[];
+  /** Who this member reports to: an id, null for nobody, or undefined when reporting lines didn't load. */
+  managerId: string | null | undefined;
   /** The company's departments, or null when that read failed. */
   departments: Array<{ id: string; name: string }> | null;
   /**
@@ -312,6 +364,7 @@ function MemberRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [savingRole, setSavingRole] = useState(false);
+  const [savingManager, setSavingManager] = useState(false);
   const [savingDepts, setSavingDepts] = useState(false);
   const [resetting, setResetting] = useState(false);
   // The generated password is shown ONCE, in a panel the admin can copy from — never a toast. A credential that
@@ -342,6 +395,27 @@ Their current password stops working immediately.`)) return;
       return;
     }
     toast.error("Couldn't reset the password", data?.error ?? "Something went wrong — try again.");
+  };
+  // Set who this member reports to (RSS Phase 0, Gong F2.4). Admin-only, enforced server-side; the server
+  // refuses self, another company and loops with a sentence, and the database refuses them again.
+  const setManager = async (next: string) => {
+    const managerIdNext = next === "" ? null : next;
+    if (managerIdNext === (managerId ?? null)) return;
+    setSavingManager(true);
+    const res = await fetch("/api/team/set-manager", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: member.id, managerId: managerIdNext }),
+    });
+    setSavingManager(false);
+    if (res.ok) {
+      const who = team.find((t) => t.id === managerIdNext)?.fullName;
+      toast.success("Reporting line updated", managerIdNext ? `${member.fullName ?? "Member"} now reports to ${who ?? "them"}.` : `${member.fullName ?? "Member"} has no manager set.`);
+      onChanged();
+    } else {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      toast.error("Couldn't set the manager", data?.error ?? "Something went wrong — try again.");
+    }
   };
   // Change this member's org tier (the `role` field). Admin-only, enforced server-side; C-Suite = admin authority.
   const setOrgRole = async (role: string) => {
@@ -444,6 +518,9 @@ Their current password stops working immediately.`)) return;
           <p className="text-sm text-primary truncate">{member.fullName ?? "—"}</p>
           <p className="text-[10px] text-muted font-mono truncate">
             {orgTierLabel(member.role)} · joined {member.createdAt.slice(0, 10)}
+            {managerId !== undefined && (
+              <> · {managerId ? `reports to ${team.find((t) => t.id === managerId)?.fullName ?? "a former member"}` : "no manager set"}</>
+            )}
           </p>
         </div>
       </div>
@@ -468,6 +545,28 @@ Their current password stops working immediately.`)) return;
                 {o.role === o.tier ? o.role : `${o.role} — ${o.tier}`}
               </option>
             ))}
+          </select>
+        )}
+        {/* REPORTS TO (RSS Phase 0). Hidden when reporting lines didn't load (undefined), so "No manager"
+            is never offered for someone who may have one. Setting it changes nobody's visibility yet:
+            that switch is per company, later (docs/rss/docs/07-BUILD-ORDER.md, Phase 0 step 8). */}
+        {amAdmin && managerId !== undefined && (
+          <select
+            value={managerId ?? ""}
+            onChange={(e) => void setManager(e.target.value)}
+            disabled={savingManager}
+            aria-label={`Set who ${member.fullName ?? "this member"} reports to`}
+            title="Reports to"
+            className="text-[11px] bg-base border border-default rounded-md px-1.5 py-1 text-secondary focus:outline-none focus:border-strong disabled:opacity-50 max-w-[9rem]"
+          >
+            <option value="">No manager</option>
+            {team
+              .filter((t) => t.id !== member.id)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  Reports to {t.fullName ?? "—"}
+                </option>
+              ))}
           </select>
         )}
         {/*

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Phone,
   Mic,
   Video,
   DoorOpen,
@@ -35,6 +36,7 @@ import {
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { ONE_LINERS_LABEL, ROLEPLAY_PRACTICE_LABEL } from "@/lib/coach/labels";
+import type { SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * /dashboard/sales-coach — Sales Coach product home.
@@ -65,7 +67,7 @@ export default function SalesCoachHome() {
   const [statsError, setStatsError] = useState(false);
   // The rep's name for the mobile "Welcome, [name]" header (PWA home).
   const [name, setName] = useState<string | null>(null);
-  const [context, setContext] = useState<"in_person" | "video">("video");
+  const [context, setContext] = useState<SalesContext>("video");
   // Spec 1a (2026-07-15): In-person is the default for Standard — door-to-door reps
   // live at doorsteps, not on video, and defaulting to the channel they never use is
   // a tiny tax paid on every single session. Expert keeps the prior video default,
@@ -456,6 +458,17 @@ export default function SalesCoachHome() {
                 >
                   In-person
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setContext("phone")}
+                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
+                    context === "phone"
+                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
+                      : "border-default text-secondary"
+                  }`}
+                >
+                  Phone
+                </button>
               </div>
               {/* Standard: no name field here (founder 2026-07-26, image 4 "take
                   this out"). The pitch is named AFTER the call on the After-Pitch
@@ -537,7 +550,7 @@ export default function SalesCoachHome() {
             how="Pick the one that matches this call before you start. It's also what lets you later compare your in-person close rate against your video close rate."
             principle="Coach the channel you're actually in."
           >
-            <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <div className="grid grid-cols-3 gap-2 mb-2.5">
               <DeckGhostButton
                 active={context === "video"}
                 onClick={() => setContext("video")}
@@ -551,6 +564,13 @@ export default function SalesCoachHome() {
               >
                 <DoorOpen className="w-3.5 h-3.5" aria-hidden />
                 In-person
+              </DeckGhostButton>
+              <DeckGhostButton
+                active={context === "phone"}
+                onClick={() => setContext("phone")}
+              >
+                <Phone className="w-3.5 h-3.5" aria-hidden />
+                Phone
               </DeckGhostButton>
             </div>
           </LearningHint>

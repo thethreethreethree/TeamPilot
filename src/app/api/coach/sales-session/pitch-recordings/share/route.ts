@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { notifyRecordingEvent } from "@/lib/coach/recordings/notifyRecording";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 
 /**
  * POST /api/coach/sales-session/pitch-recordings/share — guide Step 4, item 7.
@@ -83,6 +84,10 @@ export async function POST(req: NextRequest) {
 
   // Service-role insert, so the company check is carried here rather than by a policy.
   if (!pitch || pitch.company_id !== manager.companyId) {
+    return NextResponse.json({ error: "Recording not found." }, { status: 404 });
+  }
+  // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
+  if (!(await treeAllowsRep(req, String(pitch.rep_id)))) {
     return NextResponse.json({ error: "Recording not found." }, { status: 404 });
   }
   if (String(pitch.rep_id) === manager.userId) {

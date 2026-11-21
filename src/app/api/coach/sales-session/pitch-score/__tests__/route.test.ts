@@ -27,6 +27,14 @@ vi.mock("@/lib/data/salesCoach", () => ({
 }));
 vi.mock("@/lib/coach/pitchScore/generatePitchScore", () => ({ generatePitchScore: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/storePitchScore", () => ({ storePitchScore: vi.fn() }));
+vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
+// The route builds the service-role client for the (mocked) archive; no key exists in tests.
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) }));
+vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
+vi.mock("@/lib/coach/pitchScore/scoreHistory", () => ({
+  archivePitchScore: vi.fn(),
+  recordProvenance: vi.fn(async () => true),
+}));
 vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({
   readPitchScore: vi.fn(),
   PitchScoreReadError: class PitchScoreReadError extends Error {},
@@ -38,6 +46,9 @@ import { generatePitchScore } from "@/lib/coach/pitchScore/generatePitchScore";
 import { storePitchScore } from "@/lib/coach/pitchScore/storePitchScore";
 import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
+import { archivePitchScore } from "@/lib/coach/pitchScore/scoreHistory";
+import { recordAudit } from "@/lib/audit/recordAudit";
 import { POST, GET } from "../route";
 
 const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
@@ -67,9 +78,13 @@ const SCORE = {
   timestampsUnavailable: false,
 };
 
+/** The caller's existing-score lookup: `{ data: { id } }` when the session is already scored. */
+const existingPitch = vi.fn(async () => ({ data: null as { id: string } | null, error: null as { message: string } | null }));
+
 const setAuth = (userId: string | null) =>
   asMock(createClient).mockResolvedValue({
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => existingPitch() }) }) }),
   });
 
 const postReq = (body: unknown = { sessionId: SID }) =>
@@ -82,6 +97,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   asMock(rateLimit).mockReturnValue(null);
   setAuth("a-manager");
+  existingPitch.mockResolvedValue({ data: null, error: null });
+  asMock(requireSalesCoachManager).mockResolvedValue({ userId: "a-manager", companyId: "co1" });
+  asMock(archivePitchScore).mockResolvedValue({ ok: true, earlierOverrides: 0 });
   asMock(getSession).mockResolvedValue({ ...SESSION });
   asMock(generatePitchScore).mockResolvedValue(SCORE);
   asMock(storePitchScore).mockResolvedValue({ ok: true, pitchId: "pitch-1" });
@@ -227,6 +245,89 @@ describe("access", () => {
   it("rejects a body without a uuid sessionId", async () => {
     const res = await POST(postReq({ sessionId: "not-a-uuid" }));
     expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(generatePitchScore).not.toHaveBeenCalled();
+  });
+});
+
+describe("re-score (RSS Phase 0 step 5, Gong F15.15, D3)", () => {
+  const REP = "rep-who-gave-the-pitch";
+  const scored = () => existingPitch.mockResolvedValue({ data: { id: "pitch-1" }, error: null });
+
+  it("a rep re-scoring their own scored pitch is refused with a dispute hint, before any archive or spend", async () => {
+    setAuth(REP);
+    asMock(requireSalesCoachManager).mockResolvedValue(null);
+    scored();
+    const res = await POST(postReq({ sessionId: SID, reason: "try again" }));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ failure: "rescore_refused", hint: "dispute" });
+    expect(archivePitchScore).not.toHaveBeenCalled();
+    expect(generatePitchScore).not.toHaveBeenCalled();
+  });
+
+  it("a rep's FIRST score still runs", async () => {
+    setAuth(REP);
+    asMock(requireSalesCoachManager).mockResolvedValue(null);
+    const res = await POST(postReq());
+    expect(res.status).toBe(200);
+    expect(archivePitchScore).not.toHaveBeenCalled();
+    expect((await res.json()).rescored).toBe(false);
+  });
+
+  it("a manager re-score without a reason is refused, before any archive or spend", async () => {
+    scored();
+    const res = await POST(postReq());
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/reason/);
+    expect(archivePitchScore).not.toHaveBeenCalled();
+    expect(generatePitchScore).not.toHaveBeenCalled();
+  });
+
+  it("a manager who is the pitch's own rep cannot re-score it", async () => {
+    setAuth(REP);
+    asMock(requireSalesCoachManager).mockResolvedValue({ userId: REP, companyId: "co1" });
+    scored();
+    expect((await POST(postReq({ sessionId: SID, reason: "my own" }))).status).toBe(403);
+    expect(generatePitchScore).not.toHaveBeenCalled();
+  });
+
+  it("a manager re-score archives FIRST, then scores, and hands back the earlier-override count", async () => {
+    scored();
+    asMock(archivePitchScore).mockResolvedValue({ ok: true, earlierOverrides: 2 });
+    const res = await POST(postReq({ sessionId: SID, reason: "audio was re-uploaded" }));
+    expect(res.status).toBe(200);
+    expect(archivePitchScore).toHaveBeenCalledWith(expect.anything(), {
+      pitchId: "pitch-1",
+      companyId: "co1",
+      archivedBy: "a-manager",
+      reason: "audio was re-uploaded",
+    });
+    expect(asMock(archivePitchScore).mock.invocationCallOrder[0]!).toBeLessThan(
+      asMock(generatePitchScore).mock.invocationCallOrder[0]!
+    );
+    expect(await res.json()).toMatchObject({ rescored: true, earlierOverrides: 2 });
+    // Phase 8 (0284): the re-score is in the audit log, with who, what and why.
+    expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      companyId: "co1", actorId: "a-manager", action: "score.rescore", objectId: SID,
+      meta: expect.objectContaining({ reason: "audio was re-uploaded", earlierOverrides: 2 }),
+    }));
+  });
+
+  it.each([
+    ["not_applied", 503],
+    ["database", 500],
+  ])("an archive that fails (%s → %i) means nothing is re-scored", async (cause, status) => {
+    scored();
+    asMock(archivePitchScore).mockResolvedValue({ ok: false, cause });
+    const res = await POST(postReq({ sessionId: SID, reason: "audio fixed" }));
+    expect(res.status).toBe(status);
+    expect(generatePitchScore).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled(); // nothing happened, so nothing is recorded
+    expect(storePitchScore).not.toHaveBeenCalled();
+  });
+
+  it("a failed existing-score read is a 500, never treated as unscored", async () => {
+    existingPitch.mockResolvedValue({ data: null, error: { message: "boom" } });
+    expect((await POST(postReq())).status).toBe(500);
     expect(generatePitchScore).not.toHaveBeenCalled();
   });
 });

@@ -80,7 +80,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null })
     );
     const { chunks, ret } = await drain(
-      runBrainStream({ companyId: "co1", basePrompt: "p", messages: [{ role: "user", content: "hi" }] })
+      runBrainStream({ engine: "test", companyId: "co1", basePrompt: "p", messages: [{ role: "user", content: "hi" }] })
     );
     expect(chunks).toEqual([]);
     expect(llmStream).not.toHaveBeenCalled(); // the moat: no leaked stream into the control baseline
@@ -93,7 +93,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: FUTURE, ai_guidance_enabled_at: null })
     );
     const { chunks, ret } = await drain(
-      runBrainStream({
+      runBrainStream({ engine: "test",
         companyId: "co1",
         basePrompt: "p",
         messages: [{ role: "user", content: "hi" }],
@@ -111,7 +111,7 @@ describe("runBrainStream — §3.4 control-window enforcement (streaming authori
       clientFor({ ai_guidance_enabled: false, ai_guidance_unlock_at: PAST, ai_guidance_enabled_at: null })
     );
     const { chunks } = await drain(
-      runBrainStream({ companyId: "co1", basePrompt: "p", messages: [{ role: "user", content: "hi" }] })
+      runBrainStream({ engine: "test", companyId: "co1", basePrompt: "p", messages: [{ role: "user", content: "hi" }] })
     );
     expect(llmStream).toHaveBeenCalledTimes(1);
     expect(chunks.join("")).toBe("Suggestion");

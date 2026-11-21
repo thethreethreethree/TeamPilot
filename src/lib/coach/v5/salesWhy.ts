@@ -4,6 +4,7 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { dissectCoachV5 } from "@/lib/claude";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * Live Sales Coach — the WHY engine (Sessions Phase 3). Retrospective
@@ -101,7 +102,7 @@ function buildWhyUserMessage(args: {
   segments: TranscriptSegment[];
 }): string {
   const ctx = args.context
-    ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n`
+    ? `Context: ${contextPromptLine(args.context)}\n`
     : "";
   const title = args.sessionTitle ? `Session: ${args.sessionTitle}\n` : "";
   const outcomeText = outcomeLabel(args.outcome);

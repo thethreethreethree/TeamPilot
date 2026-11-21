@@ -50,6 +50,10 @@ const ALLOWLIST = new Map([
     "DELIBERATE, founder decision 2026-08-18. The offline system is on hold until its build plan is set; the file documents the exact re-enable (rewire DoorLog's noAnswer/save to enqueue()+drainQueue(), restore startAutoDrain on mount). Unreferenced is the point — it is never bundled and cannot interfere.",
   ],
   [
+    "src/components/sales-coach/TrainingManager.tsx",
+    "DELIBERATE, per the RSS build plan (docs/rss/docs/00-OPEN-DECISIONS.md D18: \"Tables built; screen placement open\"; the build does not invent an answer). The manager's scenario builder + assign + status screen for Phase 7. Mount it on the screen D18 names (Bootcamp or /dashboard/sales-coach/training) the day D18 is decided, then remove this entry. The rep side (AssignedPractice) is already live on the role-play page.",
+  ],
+  [
     "src/components/sales-coach/SalesCoachComing.tsx",
     "DELIBERATE. An honest placeholder for a planned-but-unbuilt Sales Coach section (AMD-006 L3, no nav dead-ends). Unused because every nav item currently has a real destination — which is the good state, not a defect.",
   ],

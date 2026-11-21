@@ -55,3 +55,13 @@ Once an amendment file is written, **its text is not edited**. Status is updated
 | [AMD-002](AMD-002-understanding-gate-defaults.md) | Ratify Understanding Gate default thresholds (3 / 2 / 80) | ratified | 2026-05-16 |
 | [AMD-003](AMD-003-per-company-brain.md) | Per-company brain as the §3.4 implementation (DeepSeek primary) | ratified | 2026-05-16 |
 | [AMD-004](AMD-004-ground-up-audit.md) | Ground-up audit as a constitutional practice (§1.7) | ratified | 2026-06-02 |
+| [AMD-005](AMD-005-methodology-in-working-tree.md) | Methodology that governs the build must live in the agent's working tree | ratified | 2026-06-17 |
+| [AMD-006](AMD-006-system-and-user-flow-tracing.md) | Feature builds require system-flow + user-flow tracing as a precondition | ratified | 2026-06-17 |
+| [AMD-007](AMD-007-PROPOSED-cite-only-what-you-read.md) | §0.1's prohibition is scoped to CAT-001's instance, not its class | proposed | 2026-07-17 |
+| [AMD-008](AMD-008-automatic-build-protocol.md) | The automatic build protocol (THINK · BUILD · CHECK) becomes mandatory | ratified | 2026-07-28 |
+| [AMD-009](AMD-009-PROPOSED-revision-completeness-gate.md) | Revision-completeness gate + durable build-state ledger | proposed | 2026-07-29 |
+| [AMD-010](AMD-010-single-source-gate-decisions.md) | A gate/authorization decision is returned as a verdict and consumed, never re-derived by a downstream consumer | ratified | 2026-08-14 |
+| [AMD-011](AMD-011-external-config-preconditions.md) | A config-dependent feature is not operationally complete until its external-config precondition is verified or flagged | ratified | 2026-08-14 |
+| [AMD-012](AMD-012-user-specified-experience-is-layer-2.md) | A user-specified experience/design property is layer-2 (the intended result), not layer-4 (waivable polish) | ratified | 2026-08-20 |
+| [AMD-013](AMD-013-decision-picker-enforcement.md) | Every founder-decision is a picker, enforced by a Stop-hook gate | ratified | 2026-08-22 |
+| [AMD-014](AMD-014-legal-erasure-exception.md) | Legal erasure: the one exception to append-only | ratified | 2026-11-20 |

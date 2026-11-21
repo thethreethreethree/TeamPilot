@@ -273,6 +273,24 @@ describe("deepseek starvation visibility — finish_reason:'length' logs loudly 
    * used to drop finish_reason entirely, so a starved streaming response truncated SILENTLY — the same
    * class the `call`-path log above closed. These lock the stream path to the same "never silent" bar.
    */
+  it("stream asks for usage and reports it from the final, choices-less chunk (cost ledger)", async () => {
+    const fetchMock = vi.fn(async () =>
+      sseResponse([
+        { choices: [{ delta: { content: "Hel" } }] },
+        { choices: [{ delta: { content: "lo" }, finish_reason: "stop" }] },
+        { choices: [], usage: { prompt_tokens: 120, completion_tokens: 7, total_tokens: 127 } },
+      ])
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const seen: unknown[] = [];
+    let out = "";
+    for await (const chunk of deepseekProvider.stream!(CALL, (u) => seen.push(u))) out += chunk;
+    expect(out).toBe("Hello");
+    const sent = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(sent.stream_options).toEqual({ include_usage: true });
+    expect(seen).toEqual([{ provider: "deepseek", model: sent.model, usage: { promptTokens: 120, completionTokens: 7, totalTokens: 127 } }]);
+  });
+
   it("stream EMPTY + finish_reason:length → logs the stream starvation warning", async () => {
     vi.stubGlobal(
       "fetch",

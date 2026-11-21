@@ -1,5 +1,5 @@
 import "server-only";
-import type { LlmCallArgs, LlmResult, Provider } from "./types";
+import type { LlmCallArgs, LlmResult, Provider, StreamUsage } from "./types";
 import { LlmError, classifyStatusWithBody } from "./errors";
 import { fetchWithTimeout, withRetry } from "./retry";
 import { assertProviderAvailable, recordProviderResult } from "./providerHealth";
@@ -11,7 +11,7 @@ import { assertProviderAvailable, recordProviderResult } from "./providerHealth"
  */
 async function* parseSseDeltas(
   response: Response,
-  ctx: { model: string; budget: number }
+  ctx: { model: string; budget: number; onUsage?: (u: StreamUsage) => void }
 ): AsyncGenerator<string, void, void> {
   if (!response.body) return;
   const reader = response.body.getReader();
@@ -23,6 +23,9 @@ async function* parseSseDeltas(
   // 2026-07-30 outage hid in, just on the streaming callers. Track it and log at end-of-stream.
   let finishReason: string | null = null;
   let sawContent = false;
+  // Token counts arrive on the LAST chunk when the request asks for them (stream_options.include_usage); that chunk
+  // may carry no choices, so usage is read from every chunk, not only content ones.
+  let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -45,7 +48,9 @@ async function* parseSseDeltas(
                 delta?: { content?: string };
                 finish_reason?: string | null;
               }>;
+              usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null;
             };
+            if (parsed.usage) usage = parsed.usage;
             const choice = parsed.choices?.[0];
             if (choice?.finish_reason) finishReason = choice.finish_reason;
             const delta = choice?.delta?.content;
@@ -64,6 +69,13 @@ async function* parseSseDeltas(
       reader.releaseLock();
     } catch {
       /* already released */
+    }
+    if (usage && ctx.onUsage) {
+      ctx.onUsage({
+        provider: "deepseek",
+        model: ctx.model,
+        usage: { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, totalTokens: usage.total_tokens },
+      });
     }
     if (finishReason === "length") {
       // eslint-disable-next-line no-console
@@ -246,7 +258,7 @@ export const deepseekProvider: Provider = {
       recordProviderResult("deepseek", outcome);
     }
   },
-  async *stream(args: LlmCallArgs): AsyncIterable<string> {
+  async *stream(args: LlmCallArgs, onUsage?: (u: StreamUsage) => void): AsyncIterable<string> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       throw new LlmError({
@@ -267,6 +279,8 @@ export const deepseekProvider: Provider = {
       ],
       max_tokens: withReasoningHeadroom(args.maxTokens),
       stream: true,
+      // Ask for token usage on the final chunk (DeepSeek supports it only with stream: true), for the cost ledger.
+      stream_options: { include_usage: true },
       ...(args.expectJson ? { response_format: { type: "json_object" } } : {}),
     };
 
@@ -308,6 +322,7 @@ export const deepseekProvider: Provider = {
     yield* parseSseDeltas(res, {
       model,
       budget: withReasoningHeadroom(args.maxTokens),
+      onUsage,
     });
   },
 };

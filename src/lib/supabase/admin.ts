@@ -68,7 +68,10 @@ export async function findAuthUserByEmail(email: string): Promise<{
       page,
       perPage: PER_PAGE,
     });
-    if (error || !data) break;
+    // FAIL LOUD (2026-11-20, RSS Phase 9 finding F4). This used to `break`, so a listing error after page 1 read as
+    // "no account" and the caller invited or created a duplicate of someone who exists. Missing env (above) is still a
+    // deliberate soft-fail; a FAILED listing is not "absent".
+    if (error || !data) throw new Error(`auth user listing failed on page ${page}: ${error?.message ?? "no data"}`);
     for (const u of data.users) {
       if (u.email && u.email.toLowerCase().trim() === target) {
         matches.push({ id: u.id, email: u.email });
@@ -88,4 +91,29 @@ export async function findAuthUserByEmail(email: string): Promise<{
     );
   }
   return matches[0] ?? null;
+}
+
+/**
+ * Many emails at once (the CSV team import, RSS Phase 9): pages auth.users ONCE and matches every email exactly, the
+ * same discipline as findAuthUserByEmail (match the email field, never trust the ?email= filter) — calling that helper
+ * per row would page the whole user list once per row. Returns ALL matches per email so the caller can refuse an
+ * ambiguous one. Unlike findAuthUserByEmail it THROWS on a listing error: an import must not read "couldn't check"
+ * as "no account" and invite someone who already has one.
+ */
+export async function findAuthUsersByEmails(emails: Iterable<string>): Promise<Map<string, string[]>> {
+  const wanted = new Set([...emails].map((e) => e.toLowerCase().trim()).filter(Boolean));
+  const out = new Map<string, string[]>();
+  if (wanted.size === 0) return out;
+  const admin = createAdminClient();
+  const PER_PAGE = 200;
+  for (let page = 1; page <= 200; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PER_PAGE });
+    if (error || !data) throw new Error(`auth user listing failed on page ${page}: ${error?.message ?? "no data"}`);
+    for (const u of data.users) {
+      const e = u.email?.toLowerCase().trim();
+      if (e && wanted.has(e)) out.set(e, [...(out.get(e) ?? []), u.id]);
+    }
+    if (data.users.length < PER_PAGE) return out;
+  }
+  throw new Error("auth user listing did not end after 200 pages");
 }

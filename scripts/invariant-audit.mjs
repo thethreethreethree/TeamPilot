@@ -522,6 +522,7 @@ for (const f of FILES) {
 // confirmed safe-to-expose here. The allowlist below is the 6 legit ones (URLs, a public id, the two PUBLIC
 // keys). Anything new fails until reviewed + added — forcing a conscious "is this safe in the client?" decision.
 const NEXT_PUBLIC_ALLOWLIST = new Map([
+  ["NEXT_PUBLIC_AUTH_PROVIDERS", "A comma list of sign-in provider NAMES the operator has set up in Supabase ('google,azure'), so the login buttons appear only for configured providers (RSS Phase 9, docs/AUTH-REDIRECTS.md) — names, never client ids or secrets, which live in the Supabase dashboard."],
   ["NEXT_PUBLIC_BOOKING_URL", "A booking URL — public by nature."],
   ["NEXT_PUBLIC_BUILD_COMMIT", "The deployed git commit SHA (VersionWatcher stale-bundle check) — public, not a secret; the repo history is not sensitive."],
   ["NEXT_PUBLIC_CARE_EXTENSION_ID", "The Chrome extension id — a public identifier."],
@@ -911,6 +912,7 @@ const PUBLIC_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/sales/demo/roleplay/route.ts", "Public sales demo: intentionally reachable without login. Double rate-limited (8/min + 40/10min) + maxDuration-bounded; the LLM sees only the prospect roleplay text, never tenant data."],
   ["src/app/api/care/conversations/route.ts", "Public chat widget: a website visitor opens a conversation with no account. Scoped by resolveCareTenant (the embed token identifies + validates the tenant) + rate-limited; a visitor is anonymous BY DESIGN."],
   ["src/app/api/care/demo/ask/route.ts", "Public C.A.R.E demo: reachable without login. Scoped by resolveCareTenant + rate-limited + maxDuration-bounded; no tenant data beyond the demo tenant."],
+  ["src/app/api/auth/sign-in/route.ts", "Pre-auth BY DESIGN (RSS Phase 0 step 7): it IS the password sign-in, so there is no session to require. Rate-limited 20/min per IP; the only writes are the caller's own login_attempts row and the Supabase session cookies for a correct password."],
   ["src/app/api/care/widget/presence/route.ts", "Public chat-widget presence beacon: a visitor's typing/online signal. Scoped by resolveCareTenantByEmbedToken (VALIDATES the embed token: care_tenant_config lookup + active + origin allowlist), not the pass-through resolveCareTenant; no session by design."],
 ]);
 // Recognised gates: a session (auth.getUser / getCurrentCompanyId / getCurrentAuthContext /
@@ -1346,6 +1348,10 @@ const INV26_ALLOWLIST = new Map([
   [
     "src/lib/data/doorlog.ts",
     "the five rep-facing functions take the caller's RLS client and fall back to the cookie session only when none is passed (2026-09-04); doorlog.callerClient.test.ts gates it.",
+  ],
+  [
+    "src/lib/api/treeAccess.ts",
+    "RSS Phase 0 step 8: resolves the CALLER's client as callerScopedDb(req) ?? (await createClient()) — the Bearer token first, the cookie session only when there is none — so a phone/extension manager is asked as themselves, never anonymously. An unanswerable check fails closed (refused / empty).",
   ],
   [
     "src/lib/coach/v5/memory.ts",
@@ -2019,6 +2025,20 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
       "this request inserted with it.",
   ]),
 
+  // ── RSS Phase 0 step 7: sign-in attempts — pre-auth, no tenant exists yet ─────────────────────────────
+  ["src/app/api/auth/sign-in/route.ts::login_attempts::email",
+    "Reads the attempts for the email being signed in, to apply the lockout rule. login_attempts has no tenant column (an attempt belongs to an email, not a company) and is never returned to the caller."],
+  ["src/app/api/auth/sign-in/route.ts::login_attempts::write",
+    "Records this request's own attempt (email, IP, success). No tenant column; nothing user-supplied but the email being tried."],
+  // ── RSS Phase 0 step 6: the vendor AI cost view — ELOSTATE's own operating data, cross-tenant BY DESIGN ──
+  ["src/app/api/admin/ai-cost/route.ts::ai_prices::none",
+    "Provider prices are global vendor data with no tenant column (0272). requireVendorAdmin (founders only) gates the route above the read."],
+  ["src/app/api/admin/ai-cost/route.ts::companies::id",
+    "Names for the company ids found in ai_usage, for the vendor report. requireVendorAdmin gates the route; ids come from the ledger, not user input."],
+  ["src/app/api/admin/ai-cost/prices/route.ts::ai_prices::none",
+    "GET: global vendor price list, no tenant column (0272). requireVendorAdmin gates it."],
+  ["src/app/api/admin/ai-cost/prices/route.ts::ai_prices::write",
+    "POST: a vendor admin enters a provider price; global vendor data, no tenant column. requireVendorAdmin gates it."],
   // ── system crons: cross-tenant BY DESIGN, CRON_SECRET-gated (INVARIANT 11), no user input ───────
   ...[
     "care/rcd/retention-cron::care_rcd_conversations::none", "care/rcd/retention-cron::care_rcd_media::conversation_id",
@@ -2222,7 +2242,13 @@ for (const [path, [allowed]] of RAW_TRANSCRIPT_USES) {
 // (0269's versions; door_knock_undos).
 //
 // The protected set is replayed from the migrations themselves (a later `drop rule` lifts one), so a new rule
-// is covered the day it is written. An insert-only upsert (`ignoreDuplicates: true`) is not an update.
+// is covered the day it is written.
+// CORRECTED 2026-11-21: this used to exempt an insert-only upsert (`ignoreDuplicates: true`) as "not an update".
+// Wrong. Postgres refuses ANY `INSERT … ON CONFLICT` (DO NOTHING included) on a table with an UPDATE rule:
+// "INSERT with ON CONFLICT clause cannot be used with table that has INSERT or UPDATE rules" (verified on PG 16.4).
+// The exemption hid four RSS writes (tracker_hits, session_interaction_stats, session_follow_through,
+// training_assignments) that would have failed on every call, behind unit tests that mocked .upsert as success.
+// On such a table insert only the rows not already stored, and treat 23505 as "already there".
 function ruleProtectedTables() {
   const byName = new Map(); // rule name -> "table:op"
   const RULE_RE = /create\s+(?:or\s+replace\s+)?rule\s+(\w+)\s+as\s+on\s+(delete|update)\s+to\s+(?:public\.)?(\w+)\s+do\s+instead\s+nothing/gi;
@@ -2255,15 +2281,19 @@ for (const f of FILES) {
       let op = null;
       if (ops.has("delete") && /^\s*\.delete\(/.test(tail)) op = "delete";
       if (ops.has("update") && /^\s*\.update\(/.test(tail)) op = "update";
-      if (ops.has("update") && /^\s*\.upsert\(/.test(tail) && !/ignoreDuplicates:\s*true/.test(tail.split(/\)\s*;/)[0])) op = "upsert";
+      if (ops.has("update") && /^\s*\.upsert\(/.test(tail)) op = "upsert";
       if (!op) continue;
       const line = f.sql.slice(0, m.index).split("\n").length;
       findings.push({
         rule: "a write the table's append-only rule turns into nothing",
         file: `${f.path}:${line}`,
         why:
-          `.${op}() on ${table}, which carries \`on ${op === "upsert" ? "update" : op} … do instead nothing\` (§3.1). It changes no row\n` +
-          "      and reports success. Append instead: a new version, an undo row, a correction event.",
+          op === "upsert"
+            ? `.upsert() on ${table}, which carries \`on update … do instead nothing\` (§3.1). Postgres REFUSES any ON CONFLICT\n` +
+              "      insert on such a table, ignoreDuplicates included: the write errors on every call. Insert only the rows not\n" +
+              "      already stored, and treat 23505 as already there."
+            : `.${op}() on ${table}, which carries \`on ${op} … do instead nothing\` (§3.1). It changes no row\n` +
+              "      and reports success. Append instead: a new version, an undo row, a correction event.",
       });
     }
   }
@@ -2354,10 +2384,158 @@ for (const f of FILES) {
   });
 }
 
+// ═══ INVARIANT 36 — a manager route that uses the service role asks the reporting tree ═══════════════════
+//
+// LEARNED: 2026-11-15, RSS Phase 0 step 8 (docs/tbc/2026-11-15-rss-p0). Migration 0273 narrows a manager's
+// access to their own reports IN RLS once a company is on the reporting tree. Ten manager routes read or wrote
+// rep data with createAdminClient, which bypasses RLS — each checked only the company, so a manager outside a
+// rep's chain could still override, comment on, or request that rep's recording by id. A rule that lives in
+// RLS and is bypassed by the service role is the A30 shape: it needs a gate, not a memory.
+//
+// THE RULE: a route that calls requireSalesCoachManager AND createAdminClient must call treeAllowsRep or
+// treeFilterReps (src/lib/api/treeAccess.ts), or be allowlisted here WITH the reason its service-role use
+// cannot reach another rep's data.
+const TREE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/sales-session/patterns/route.ts",
+    "The pattern list is read through the caller's client (RLS, switched in 0273); the service role only resolves NAMES for the rep ids that read returned."],
+  ["src/app/api/coach/sales-session/pitch-score/route.ts",
+    "getSession reads the session through the caller's RLS (switched in 0273) before anything else; a manager outside the chain gets 404 there. The service role is used only to archive a score already proven visible."],
+  ["src/app/api/coach/remote/search/export/route.ts",
+    "The exported calls are read by runCallSearch through the caller's own client (RLS, tree-scoped since 0273); the service role writes only the audit_log row recording the export."],
+  ["src/app/api/coach/sales-session/pitch-score/leaderboard/route.ts",
+    "The Scoreboard is a company-wide ranking shown to reps as well as managers, by product design; it returns standings and names, not sessions, scores' evidence or transcripts."],
+]);
+for (const f of FILES) {
+  if (!/^src\/app\/api\/.*\/route\.ts$/.test(f.path)) continue;
+  if (!/requireSalesCoachManager\(/.test(f.sql) || !/createAdminClient\(/.test(f.sql)) continue;
+  if (/treeAllowsRep\(|treeFilterReps\(/.test(f.sql)) continue;
+  if (TREE_ROUTE_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Manager route uses the service role without asking the reporting tree",
+    file: f.path,
+    why:
+      "this route gates on requireSalesCoachManager and then reads or writes with createAdminClient, which\n" +
+      "      bypasses the reporting-tree RLS of 0273. Call treeAllowsRep(req, repId) before acting on one rep,\n" +
+      "      or treeFilterReps(req, ids) before returning a team, or allowlist it in TREE_ROUTE_ALLOWLIST WITH why.",
+  });
+}
+for (const key of TREE_ROUTE_ALLOWLIST.keys()) {
+  const f = FILES.find((x) => x.path === key);
+  if (f && /requireSalesCoachManager\(/.test(f.sql) && /createAdminClient\(/.test(f.sql)) continue;
+  findings.push({
+    rule: "stale reporting-tree route exception",
+    file: key,
+    why: "this entry excuses a route that no longer exists or no longer mixes the manager gate with the service role. Remove it.",
+  });
+}
+
+// ═══ INVARIANT 37 — a route that does something the audit log exists for, records it ═════════════════════
+//
+// LEARNED: 2026-11-20, RSS Phase 8 (docs/tbc/2026-11-20-rss-p8). The audit log (0284, Gong F31.5) is only worth
+// having if it is complete: one override, deletion or export that skips it makes "nothing in the log" mean nothing.
+// A list of audited routes would rot the day a new one is written, so the rule keys on what a route DOES.
+//
+// THE RULE: a route under src/app/api that removes recording audio, applies or archives a score, writes a trim,
+// retention or erasure row, or exports a sales-coach CSV must call recordAudit (src/lib/audit/recordAudit.ts),
+// or be allowlisted here WITH the reason no person's action needs recording.
+const AUDIT_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/sales-session/recording-purge-cron/route.ts",
+    "Retention runs on a schedule (CRON_SECRET), not on a person's action; who chose the window is the retention.set row, and each run's counts are in its own response."],
+]);
+const AUDITED_ACT = /removeRecordingAudio\(|applyOverride\(|archivePitchScore\(|\.from\(\s*["'](?:recording_trims|recording_trim_restores|company_recording_settings|erasure_requests)["']\s*\)\s*\.insert\(/;
+for (const f of FILES) {
+  if (!/^src\/app\/api\/.*\/route\.ts$/.test(f.path)) continue;
+  const acts = AUDITED_ACT.test(f.sql) || (/^src\/app\/api\/coach\//.test(f.path) && /["']text\/csv/.test(f.sql));
+  if (!acts || /recordAudit\(/.test(f.sql) || AUDIT_ROUTE_ALLOWLIST.has(f.path)) continue;
+  findings.push({
+    rule: "Route does something the audit log exists for, and does not record it",
+    file: f.path,
+    why:
+      "this route removes recording audio, changes a score, writes a trim / retention / erasure row, or exports\n" +
+      "      calls. Call recordAudit(admin, { companyId, actorId, action, objectType, objectId }) after it succeeds,\n" +
+      "      or allowlist it in AUDIT_ROUTE_ALLOWLIST WITH the reason no person's action needs recording.",
+  });
+}
+for (const key of AUDIT_ROUTE_ALLOWLIST.keys()) {
+  if (FILES.some((x) => x.path === key)) continue;
+  findings.push({ rule: "stale audit-route exception", file: key, why: "this entry excuses a route that no longer exists. Remove it." });
+}
+
+// ═══ INVARIANT 38 — erasure has exactly one door ════════════════════════════════════════════════════════
+//
+// LEARNED: 2026-11-20, AMD-014 (CLAUDE.md §3.1.1) condition 5: "the only path that may delete these rows. No other
+// feature may use it." 0285 makes the append-only rules yield to rss.erasure = 'on'; a second caller of
+// rss_erase_sessions, or a second place that sets that flag, would be a quiet way around §3.1 for everything else.
+//
+// THE RULE: only src/app/api/coach/remote/erasure/route.ts calls rss_erase_sessions; only migration 0285 mentions
+// rss.erasure. Anything else fails.
+const ERASURE_ROUTE = "src/app/api/coach/remote/erasure/route.ts";
+for (const f of FILES) {
+  if (f.path === ERASURE_ROUTE || /__tests__\//.test(f.path)) continue;
+  if (/rss_erase_sessions/.test(f.sql) || /rss\.erasure/.test(f.sql)) {
+    findings.push({
+      rule: "A second path into erasure",
+      file: f.path,
+      why: "only the erasure route may call rss_erase_sessions or touch rss.erasure (AMD-014 condition 5). Route the request there.",
+    });
+  }
+}
+for (const name of migs) {
+  if (/^0285_/.test(name)) continue;
+  const sql = readFileSync(join(MIG_DIR, name), "utf8");
+  if (/rss\.erasure|rss_erase_sessions/.test(sql)) {
+    findings.push({
+      rule: "A second path into erasure",
+      file: `supabase/migrations/${name}`,
+      why: "only migration 0285 may define the erasure flag or function (AMD-014 condition 5).",
+    });
+  }
+}
+if (!FILES.some((x) => x.path === ERASURE_ROUTE)) {
+  findings.push({ rule: "erasure route missing", file: ERASURE_ROUTE, why: "INVARIANT 38 names this file as the only door; it no longer exists. Update the invariant with the new door." });
+}
+
+// ═══ INVARIANT 39 — the admin-role list is written in ONE place (admin_roles(), 0265) ═══════════════════════
+//
+// LEARNED: 2026-11-20. 0265 (founder ruling) replaced 47 POLICY copies of ['CEO','COO','admin'] with admin_roles()
+// after the list gained CFO. The FUNCTION is_sales_coach_manager() (0252) kept its copy — it was not a policy — and
+// every RSS policy calling it refused a CFO the app called a manager (fixed in 0290). A sweep by shape misses the
+// next shape; this checks the LATEST definition of every SQL function and policy, replayed from the migrations.
+//
+// THE RULE: no function (other than admin_roles itself) and no policy, as last defined, lists 'CEO' next to another
+// admin role in a literal. Call admin_roles().
+{
+  const ROLE_LITERAL = /'CEO'(?:::text)?\s*,\s*'(?:CFO|COO|admin)'/i;
+  const latest = new Map(); // key -> { mig, body }
+  for (const name of migs) {
+    const sql = readFileSync(join(MIG_DIR, name), "utf8").replace(/--.*$/gm, "");
+    for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(\w+)\s*\([\s\S]*?\$(\w*)\$([\s\S]*?)\$\2\$/gi)) {
+      latest.set(`function ${m[1].toLowerCase()}`, { mig: name, body: m[3] });
+    }
+    for (const m of sql.matchAll(/create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)([\s\S]*?);/gi)) {
+      latest.set(`policy ${m[1]} on ${m[2].toLowerCase()}`, { mig: name, body: m[3] });
+    }
+    for (const m of sql.matchAll(/drop\s+policy\s+(?:if\s+exists\s+)?("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)/gi)) {
+      const k = `policy ${m[1]} on ${m[2].toLowerCase()}`;
+      if (latest.get(k)?.mig !== name) latest.delete(k); // dropped (and not recreated later in this same file's matches)
+    }
+  }
+  for (const [key, def] of latest) {
+    if (key === "function admin_roles") continue;
+    if (!ROLE_LITERAL.test(def.body)) continue;
+    findings.push({
+      rule: "The admin-role list written out by hand (use admin_roles())",
+      file: `supabase/migrations/${def.mig}`,
+      why: `${key}, as last defined here, lists admin roles literally. 0265 made admin_roles() the one list (it includes CFO);\n` +
+        "      a copy drifts the day the list changes. Recreate it calling admin_roles().",
+    });
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size + AUDIT_ROUTE_ALLOWLIST.size}`);
 console.log(`  Append-only rule tables: ${RULE_TABLES.size} (replayed from the migrations)`);
 console.log(`  Violations:           ${findings.length}`);
 

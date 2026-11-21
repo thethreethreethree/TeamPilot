@@ -18,6 +18,7 @@ import {
   EXECUTABLE_EXTENSIONS,
 } from "@/lib/storage/assets";
 import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
+import { recordSessionFailure } from "@/lib/coach/remote/session/failures";
 
 /** Distinct speakers + a sample line each, for the one-tap "which voice is you?" UI.
  *  Shared by both entry points (multipart upload + direct-to-storage finalize) so their
@@ -53,10 +54,21 @@ import { transcribeWithDiarization } from "@/lib/care/voice/elevenlabs";
  * already safe and re-transcribing is possible — so it is logged and swallowed.
  * The alternative is telling a rep their recording failed when it did not.
  */
+/**
+ * RSS Phase 1 (0275): which closed reason a failed transcription records. Only an explicit abort/timeout is
+ * called a timeout; anything else is the speech service not answering. Never shown to the rep raw — the rep
+ * still gets the existing "your audio is saved, try again" message.
+ */
+function transcribeFailureCode(err: unknown): "TRANSCRIBE_TIMEOUT" | "AI_UNAVAILABLE" {
+  const name = err instanceof Error ? err.name : "";
+  const msg = err instanceof Error ? err.message : String(err);
+  return name === "AbortError" || name === "TimeoutError" || /time(d)?\s?out/i.test(msg) ? "TRANSCRIBE_TIMEOUT" : "AI_UNAVAILABLE";
+}
+
 async function saveUnattributedTranscript(
   sessionId: string,
   startedAt: string | null | undefined,
-  segments: Array<{ speakerId: string; text: string; start?: number }>,
+  segments: Array<{ speakerId: string; text: string; start?: number; end?: number }>,
 ): Promise<void> {
   try {
     for (const [i, seg] of segments.entries()) {
@@ -69,6 +81,8 @@ async function saveUnattributedTranscript(
         text: seg.text,
         seq: i,
         spokenAt: spokenAtFor(startedAt, seg.start),
+        // When the line ended (0277, RSS Phase 2): the same base and the same honesty rule as spokenAt.
+        endedAt: spokenAtFor(startedAt, seg.end),
         // Which voice (0270): the rep has not said yet, so keep who said what for when they do.
         speakerCluster: seg.speakerId,
       });
@@ -92,7 +106,7 @@ async function saveUnattributedTranscript(
  * back with the speaker choice; see lib/coach/v5/segmentTiming.ts.
  */
 function buildSpeakerResponse(
-  segments: Array<{ speakerId: string; text: string; start?: number }>
+  segments: Array<{ speakerId: string; text: string; start?: number; end?: number }>
 ) {
   const speakerIds = Array.from(new Set(segments.map((s) => s.speakerId)));
   const speakers = speakerIds.map((sid) => ({
@@ -109,6 +123,8 @@ function buildSpeakerResponse(
       ...(typeof s.start === "number" && Number.isFinite(s.start)
         ? { startSeconds: s.start }
         : {}),
+      // And when it ended (RSS Phase 2), echoed back the same way.
+      ...(typeof s.end === "number" && Number.isFinite(s.end) ? { endSeconds: s.end } : {}),
     })),
     speakers,
   };
@@ -250,6 +266,8 @@ export async function POST(
       return NextResponse.json({ error: "Empty recording." }, { status: 400 });
     }
     if (info.sizeBytes > AGENT_MAX_BYTES) {
+      // RSS Phase 1: the closed reason, so a phone/video session shows "File too large" (door: no-op).
+      await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "TOO_LARGE", detail: `${info.sizeBytes} bytes` });
       return NextResponse.json(
         {
           error: `Recording too large (max ${Math.floor(
@@ -315,11 +333,18 @@ export async function POST(
         audio: dl.bytes,
         mimeType: dl.contentType || storedType || "audio/webm",
         numSpeakers: 2,
+        meter: { engine: "stt_batch", companyId, sessionId: id },
       });
       jsonSegments = t.segments;
       jsonDurationSeconds = t.durationSeconds;
+      // RSS Phase 1: a recording with no speech in it is a closed reason, not a silent empty session.
+      if (t.segments.length === 0) {
+        await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "NO_SPEECH" });
+      }
     } catch (err) {
       console.error("[upload-recording] json processing failed:", err);
+      await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: transcribeFailureCode(err) });
+
       return NextResponse.json(
         {
           error:
@@ -363,6 +388,7 @@ export async function POST(
     return NextResponse.json({ error: "Empty audio file." }, { status: 400 });
   }
   if (file.size > AGENT_MAX_BYTES) {
+    await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "TOO_LARGE", detail: `${file.size} bytes` });
     return NextResponse.json(
       { error: `Recording too large (max ${Math.floor(AGENT_MAX_BYTES / 1024 / 1024)}MB).` },
       { status: 413 }
@@ -428,11 +454,17 @@ export async function POST(
       audio: Buffer.from(bytes),
       mimeType,
       numSpeakers: 2,
+      meter: { engine: "stt_batch", companyId, sessionId: id },
     });
     segments = t.segments;
     durationSeconds = t.durationSeconds;
+    if (t.segments.length === 0) {
+      await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "NO_SPEECH" });
+    }
   } catch (err) {
     console.error("[upload-recording] processing failed:", err);
+    await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: transcribeFailureCode(err) });
+
     return NextResponse.json(
       {
         // Rep-facing: plain + actionable, no jargon. The server log above carries the real cause (usually the

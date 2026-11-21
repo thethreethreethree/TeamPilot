@@ -1,4 +1,6 @@
 import "server-only";
+import { recordSttUsage } from "@/lib/llm/usageLedger";
+import type { LlmAttribution } from "@/lib/llm/types";
 
 /**
  * ElevenLabs voice integration — Phase 9 commit 1.
@@ -436,7 +438,8 @@ export async function transcribeSpeech(args: {
   return (result.text ?? "").trim();
 }
 
-export type DiarizedSegment = { speakerId: string; text: string; start: number };
+/** `end` (seconds) is when the segment's last word ended — RSS Phase 2 stats need it; it was computed and dropped. */
+export type DiarizedSegment = { speakerId: string; text: string; start: number; end?: number };
 
 /**
  * Batch speech-to-text WITH speaker diarization (Live Sales Coach S1a).
@@ -454,6 +457,8 @@ export async function transcribeWithDiarization(args: {
   audio: Buffer;
   mimeType: string;
   numSpeakers?: number;
+  /** AI cost ledger (ai_usage.audio_seconds): who this transcription is for. Recorded after a successful read. */
+  meter?: LlmAttribution;
 }): Promise<{ segments: DiarizedSegment[]; durationSeconds: number }> {
   const apiKey = getApiKey();
   const form = new FormData();
@@ -515,12 +520,17 @@ export async function transcribeWithDiarization(args: {
     const last = segments[segments.length - 1];
     if (last && last.speakerId === speakerId) {
       last.text += " " + text;
+      if (typeof w.end === "number") last.end = w.end;
     } else {
-      segments.push({ speakerId, text, start: w.start ?? 0 });
+      segments.push({ speakerId, text, start: w.start ?? 0, ...(typeof w.end === "number" ? { end: w.end } : {}) });
     }
   }
   // durationSeconds is the ACTUAL conversation length from the audio timestamps — used to show an
   // uploaded recording's real length instead of the session wall-clock (§3.5 measurement honesty).
+  if (args.meter) {
+    // The ledger row never delays or fails the transcription (recordSttUsage never throws).
+    await recordSttUsage({ provider: "elevenlabs", model: "scribe_v1", audioSeconds: maxEnd, attribution: args.meter });
+  }
   return { segments, durationSeconds: Math.round(maxEnd) };
 }
 

@@ -2,6 +2,7 @@ import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
 import { methodologyBlock } from "./salesReviewPrompt";
 import { reviewProductBlock } from "./prepShared";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * After Pitch Summary — the MOMENT REDUCER prompt.
@@ -112,7 +113,7 @@ export function buildSalesMomentsUserMessage(args: {
 }): string {
   const header = [
     args.context
-      ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}`
+      ? `Context: ${contextPromptLine(args.context)}`
       : null,
     args.outcome ? `Outcome: ${args.outcome}` : null,
   ]

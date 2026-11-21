@@ -5,6 +5,9 @@ import { Loader2, Gauge, AlertTriangle, Info } from "lucide-react";
 import { PitchDetail } from "./PitchDetail";
 import { ScoringRubricSheet } from "./ScoringRubricSheet";
 import type { StoredPitch } from "@/lib/coach/pitchScore/readPitchScore";
+import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
+import type { SalesContext } from "@/lib/coach/sessionContext";
+import { rubricFor, CODE_RUBRIC_ROWS } from "@/lib/coach/remote/rubric";
 
 /**
  * The Pitch Score, on the session it came from.
@@ -37,9 +40,12 @@ export function PitchScorePanel({
   /** False for a huddle or a meeting — those are not graded against the pitch rubric. */
   scorable = true,
   onSeek,
+  channel,
 }: {
   sessionId: string;
   scorable?: boolean;
+  /** The session's channel. A phone/video score carries the D6 caveat (RSS Phase 3): no remote rubric yet. */
+  channel?: SalesContext;
   onSeek?: (seconds: number) => void;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
@@ -167,11 +173,19 @@ export function PitchScorePanel({
       )}
 
       {state.kind === "scored" && (
-        <PitchDetail
-          pitch={state.pitch}
-          {...(onSeek ? { onSeek } : {})}
-          onDispute={(item) => setDisputing(item)}
-        />
+        <>
+          {/* D6 (open): every pitch is graded with the door rubric in code, so a phone/video score says so —
+              one plain line above the total, never hidden (docs/rss/docs/06-UI-SPEC.md). */}
+          {channel && channel !== "in_person" && (
+            <p className="mb-2 text-[11px] text-muted">{rubricFor(channel, CODE_RUBRIC_ROWS).caveat}</p>
+          )}
+          <PitchDetail
+            pitch={state.pitch}
+            {...(onSeek ? { onSeek } : {})}
+            onDispute={(item) => setDisputing(item)}
+          />
+          <RescoreControl sessionId={sessionId} onDone={load} />
+        </>
       )}
 
       {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
@@ -183,6 +197,100 @@ export function PitchScorePanel({
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Re-score — managers only (RSS Phase 0 step 5, Gong F15.15, decision D3).
+ *
+ * Shown on the manager's flag from useIsSalesCoachManager; the SERVER decides (resolveScoreRequest) and
+ * refuses a rep or a manager's own pitch with a sentence, which is shown as-is. A reason is required, as
+ * for an override, and the copy says what happens: the current score is kept in the history first, and
+ * earlier overrides are not carried over — the count comes back so the manager knows to review them.
+ */
+function RescoreControl({ sessionId, onDone }: { sessionId: string; onDone: () => Promise<void> | void }) {
+  const isManager = useIsSalesCoachManager();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  if (!isManager) return null;
+
+  const submit = async () => {
+    if (reason.trim().length < 3) {
+      setMsg("Say why it needs re-scoring (at least a few words).");
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, reason: reason.trim() }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; earlierOverrides?: number };
+      if (!res.ok) {
+        setMsg(body.error ?? "This pitch could not be re-scored.");
+        return;
+      }
+      setOpen(false);
+      setReason("");
+      const n = body.earlierOverrides ?? 0;
+      setMsg(
+        n > 0
+          ? `Re-scored. The previous score is kept in its history. ${n} earlier ${n === 1 ? "override was" : "overrides were"} not carried over — review ${n === 1 ? "it" : "them"} against the new grades.`
+          : "Re-scored. The previous score is kept in its history."
+      );
+      await onDone();
+    } catch {
+      setMsg("This pitch could not be re-scored.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 border-t border-default pt-3">
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-semibold text-brand hover:underline">
+          Re-score this pitch
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <label className="block text-[11px] text-muted">
+            Why does it need re-scoring? The current score is kept in its history first.
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.currentTarget.value)}
+              rows={2}
+              maxLength={500}
+              className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-xs text-primary"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void submit()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-50"
+            >
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />}
+              Re-score
+            </button>
+            <button type="button" disabled={busy} onClick={() => setOpen(false)} className="rounded-lg border border-default px-3 py-1.5 text-xs text-muted hover:text-primary">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {msg && (
+        <p className="mt-2 text-[11px] text-secondary" role="status">
+          {msg}
+        </p>
+      )}
+    </div>
   );
 }
 

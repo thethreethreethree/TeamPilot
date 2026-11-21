@@ -54,7 +54,7 @@ export async function analyzePitch(args: {
 }): Promise<(PitchAnalysisResult & { model: string }) | null> {
   const durationNote =
     args.durationMs != null ? ` (about ${Math.round(args.durationMs / 1000)}s)` : "";
-  const r = await runBrainCall({
+  const r = await runBrainCall({ engine: "doorlog_analyze",
     companyId: args.companyId,
     basePrompt: buildAnalysisSystemPrompt(),
     messages: [

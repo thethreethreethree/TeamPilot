@@ -17,6 +17,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * flagged on failure). getSession is mocked (its RLS scoping is the real access gate); transcription
  * + storage are mocked.
  */
+vi.mock("@/lib/coach/remote/session/failures", () => ({ recordSessionFailure: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));

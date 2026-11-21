@@ -25,6 +25,9 @@ export interface FlushTurn {
    *  spoken_at so the after-pitch pace metric (agentWpm/speedScore) and the call timeline have real timing.
    *  Absent when the utterance start wasn't known — the metric then degrades honestly (§3.4). */
   spokenAt?: string;
+  /** ISO time the line's last word ended, measured from the realtime word timestamps (liveTiming.ts). Absent when the
+   *  timestamps had not arrived when the line was flushed — interaction stats then estimate that line's end. */
+  endedAt?: string;
 }
 
 export interface FlushSegment {
@@ -33,6 +36,7 @@ export interface FlushSegment {
   seq: number;
   source?: string;
   spokenAt?: string;
+  endedAt?: string;
 }
 
 /**
@@ -58,6 +62,7 @@ export function selectUnflushedSegments(
       seq: i,
       ...(t.source ? { source: t.source } : {}),
       ...(t.spokenAt ? { spokenAt: t.spokenAt } : {}),
+      ...(t.endedAt ? { endedAt: t.endedAt } : {}),
     });
   }
   return out;

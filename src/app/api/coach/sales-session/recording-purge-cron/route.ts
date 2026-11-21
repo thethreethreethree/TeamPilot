@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { DEFAULT_KEEP_PER_REP, keepFor, loadRetention } from "@/lib/coach/remote/retention";
 
 /**
  * GET /api/coach/sales-session/recording-purge-cron — recording retention.
@@ -20,8 +21,8 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
  * Bounded batch with an honest `bounded` flag (§3.4) — never a silent "all done".
  */
 
-// Keep each rep's N most-recent recordings; purge older ones. Founder-chosen N=20 ("save last 20 recordings").
-const KEEP_PER_REP = 20;
+// Keep each rep's N most-recent recordings; purge older ones. N is the company's retention setting (RSS Phase 8,
+// 0284), and DEFAULT_KEEP_PER_REP (20, founder-chosen, "save last 20 recordings") when it has none — D14's stand-in.
 // NB: this cron removes bytes SEQUENTIALLY (one storage.remove() per session, for per-row error isolation —
 // unlike the RCD cron which batches all removes into one call). So 500 sequential storage round-trips could
 // approach the 60s maxDuration under a FULL backlog. Steady-state daily volume is tiny (only sessions that
@@ -51,6 +52,13 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
+  // FAIL CLOSED: the window decides what gets deleted. If the settings cannot be read, purge nothing this run.
+  const retention = await loadRetention(admin);
+  if (!retention.ok) {
+    console.error("[coach/recording-purge-cron] retention settings unreadable; purging nothing:", retention.error);
+    return NextResponse.json({ error: "Retention settings unreadable; nothing purged." }, { status: 500 });
+  }
+
   // Count-based retention: fetch ALL purge-eligible recordings (unsaved, has audio), NEWEST-first, then keep each
   // rep's first KEEP_PER_REP and mark the rest (their older recordings) for purge. fetchAllPaged is cap-safe — the
   // candidate set is only sessions that still HAVE audio (a bounded, self-limiting set once the rule is steady).
@@ -64,6 +72,7 @@ export async function GET(req: NextRequest) {
           .not("audio_asset_url", "is", null)
           .eq("recording_saved", false)
           .order("created_at", { ascending: false })
+          .order("id", { ascending: false }) // tie-break: equal timestamps must not repeat or skip across pages
           .range(from, to),
       { label: "recording-purge-candidates" },
     );
@@ -80,7 +89,7 @@ export async function GET(req: NextRequest) {
     const key = row.agent_id ?? `__null:${row.id}`;
     const n = (seenPerRep.get(key) ?? 0) + 1;
     seenPerRep.set(key, n);
-    if (n > KEEP_PER_REP) beyondWindow.push(row);
+    if (n > keepFor(retention.settings, row.company_id)) beyondWindow.push(row);
   }
   // Purge OLDEST-first (candidates were newest-first, so the tail is oldest) and cap the batch; `bounded` self-heals.
   beyondWindow.reverse();
@@ -131,6 +140,8 @@ export async function GET(req: NextRequest) {
     candidates: candidates.length, // total recordings with audio (unsaved) considered this run
     beyondWindow: beyondWindow.length, // recordings past the per-rep window (the true purge backlog)
     bounded: beyondWindow.length > BATCH, // true = more beyond-window recordings remain; not a silent "all clear"
-    keepPerRep: KEEP_PER_REP,
+    keepPerRep: DEFAULT_KEEP_PER_REP, // the default; companies with their own setting are counted below
+    companiesWithSetting: retention.settings.size,
+    retentionTable: retention.tableMissing ? "not_applied" : "ok",
   });
 }

@@ -9,6 +9,9 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
 import { extractObjectionGuidance } from "@/lib/coach/v5/objectionGuidance";
 import { dissectCoachV5 } from "@/lib/claude";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { assignmentForRep, passedFor } from "@/lib/coach/remote/training";
+import { notifyTrainingAttempted } from "@/lib/coach/gamification/notify";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
@@ -36,7 +39,8 @@ const Message = z.object({
 });
 const Body = z.object({
   phase: z.enum(["turn", "review"]),
-  context: z.enum(["in_person", "video"]),
+  // RSS Phase 7: phone joins (a scenario can be a phone call — D1). The prompt's channel line says which.
+  context: z.enum(["in_person", "video", "phone"]),
   persona: z.string().trim().min(1).max(200),
   customPrompt: z.string().trim().max(600).optional(),
   // Focus-seeded practice (founder 2026-08-26, "Roleplay + focus-scoring"): a specific coaching skill the rep chose
@@ -44,10 +48,14 @@ const Body = z.object({
   // test the skill, and (b) switches the review to a focus-ANCHORED scored read (parsePracticeReview). Absent → the
   // roleplay behaves exactly as before (a generic practice review, no score).
   focus: z.string().trim().max(600).optional(),
+  // RSS Phase 7 (0282): practising an ASSIGNED scenario. The server then scores against the scenario's own skill
+  // (never a client-sent one) and records the attempt for the rep and their manager.
+  assignmentId: z.string().uuid().optional(),
   messages: z.array(Message).max(80),
 });
 
-function channelLine(context: "in_person" | "video"): string {
+function channelLine(context: "in_person" | "video" | "phone"): string {
+  if (context === "phone") return "a phone call (voice only: tone, pace and clear questions matter; neither side can see the other)";
   return context === "in_person"
     ? "an in-person, at-the-door / field conversation (body language, doorstep timing matter)"
     : "a remote video call (framing, pacing, screen presence matter)";
@@ -274,6 +282,14 @@ async function handleRoleplay(req: NextRequest) {
 
   // phase === "review". A focus-seeded practice gets the scored, focus-anchored review; a plain roleplay gets the
   // original qualitative review (unchanged) — single branch, so the default path is untouched.
+  // An assigned scenario: verify it is THIS rep's, and score against the scenario's skill.
+  const assignment = body.assignmentId
+    ? await assignmentForRep(createAdminClient(), companyId, auth.user.id, body.assignmentId)
+    : null;
+  if (body.assignmentId && !assignment) {
+    return NextResponse.json({ error: "That practice isn't assigned to you." }, { status: 404 });
+  }
+  if (assignment) body.focus = assignment.scenario.focus;
   if (body.focus) {
     const r = await dissectCoachV5({
       companyId,
@@ -294,6 +310,30 @@ async function handleRoleplay(req: NextRequest) {
     after(() =>
       recordPracticeScore({ companyId, repId, focus: sc.focus, applied: sc.applied, score: sc.score }),
     );
+    if (assignment) {
+      const passed = passedFor(sc.score, assignment.scenario.pass_score);
+      after(async () => {
+        const { error } = await createAdminClient().from("training_attempts").insert({
+          company_id: companyId,
+          assignment_id: assignment.id,
+          rep_id: repId,
+          score: Math.max(0, Math.min(100, Math.round(sc.score))),
+          applied: sc.applied,
+          passed,
+        });
+        if (error) console.error(`[roleplay] training attempt not recorded assignment=${assignment.id}: ${error.message}`);
+        else
+          await notifyTrainingAttempted({
+            companyId,
+            repId,
+            managerId: assignment.assignedBy,
+            scenarioTitle: assignment.scenario.title,
+            score: sc.score,
+            passed,
+          });
+      });
+      return NextResponse.json({ review: scored.review, scorecard: scored.scorecard, attempt: { passed, passScore: assignment.scenario.pass_score } });
+    }
     return NextResponse.json({ review: scored.review, scorecard: scored.scorecard });
   }
 

@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { CONSTITUTION } from "@/lib/constitution";
 import { emailConfigured } from "@/lib/care/email/configured";
+import {
+  FREE_PLAN_DB_BYTES,
+  FREE_PLAN_STORAGE_BYTES,
+  overallStatus,
+  quotaFromEnv,
+  storageLevel,
+} from "@/lib/system/backendHealth";
+import { cachedProbe, cachedUsage } from "@/lib/system/liveBackendChecks";
 
 /**
  * GET /api/health
@@ -21,11 +29,11 @@ import { emailConfigured } from "@/lib/care/email/configured";
  *    exact commit a host is serving, so a stale domain is provable in one call
  *    instead of inferred. Commit SHA + branch are not secrets.
  *
- * Always returns HTTP 200 — the *contents* describe whether the system is
- * fully operational. A load balancer / monitor should look at the JSON, not
- * just the status code. The honest middle path: don't return 5xx for partial
- * configuration (demo mode is a legitimate state), don't return 200 with
- * lies either.
+ * Returns HTTP 200 unless Supabase is configured but NOT ANSWERING, which returns 503 with status "down".
+ * (Until 2026-11-11 this was "always 200", and it reported "ok" for the whole of a quota suspension in which
+ * no one could sign in — see src/lib/system/backendHealth.ts.) Partial configuration still returns 200: demo
+ * mode is a legitimate state. A quota at warn/critical returns 200 with status "degraded" — the app works,
+ * but someone needs to act. A monitor can alert on the 503 alone, or on the word "degraded" in the body.
  *
  * No-cache headers so monitors always get fresh data.
  */
@@ -40,8 +48,34 @@ export async function GET() {
   };
   const llmReady = llmProviders.deepseek || llmProviders.anthropic;
 
+  // Live backend checks — only when Supabase is configured (demo mode has nothing to probe).
+  const now = Date.now();
+  const probe = supabaseEnabled ? await cachedProbe(now) : null;
+  // Measuring needs a reachable backend; skip it when the probe already says down.
+  const usage = probe?.reachable ? await cachedUsage(now) : null;
+  const storageQuota = quotaFromEnv(process.env.SUPABASE_STORAGE_QUOTA_BYTES, FREE_PLAN_STORAGE_BYTES);
+  const dbQuota = quotaFromEnv(process.env.SUPABASE_DB_QUOTA_BYTES, FREE_PLAN_DB_BYTES);
+  const files = storageLevel(usage?.storage_bytes ?? null, storageQuota.bytes);
+  const database = storageLevel(usage?.db_bytes ?? null, dbQuota.bytes);
+  const status = overallStatus({
+    supabaseEnabled,
+    probe,
+    levels: probe?.reachable ? [files.level, database.level] : [],
+  });
+
   const body = {
-    status: "ok",
+    status,
+    // What the live checks found. Null in demo mode. Percentages only — no bucket names or byte counts, since
+    // this endpoint is public.
+    backend: probe
+      ? {
+          supabase: { reachable: probe.reachable, httpStatus: probe.httpStatus, reason: probe.reason },
+          quota: {
+            fileStorage: { level: files.level, pctUsed: files.pct, quotaSource: storageQuota.source },
+            database: { level: database.level, pctUsed: database.pct, quotaSource: dbQuota.source },
+          },
+        }
+      : null,
     constitution: {
       version: CONSTITUTION.version,
       amendments: CONSTITUTION.amendmentCount,
@@ -95,6 +129,7 @@ export async function GET() {
   };
 
   return NextResponse.json(body, {
+    status: status === "down" ? 503 : 200,
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate",
       "Pragma": "no-cache",

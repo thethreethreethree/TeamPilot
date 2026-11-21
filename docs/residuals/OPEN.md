@@ -48,3 +48,168 @@ real leak rides in behind six fake ones). Both findings are CONFIRMED by test, n
 - [x] 2026-07-28 · build-B · F5 — RESOLVED in build docs/tbc/2026-07-28-verify-manifest-f5/: verify-manifest's line_range check is now ADVISORY (stale range → note, not fail); the HARD guarantee is that the id must appear somewhere in the named source_file (catches a wrong file / invented citation). A governing-doc edit no longer reds the build. Detection-tested (install dir's post-R1 stale ranges pass with notes; a fabricated id fails). All five install-audit findings now disposed. Original finding below. — the manifest's `line_range` mechanism couples every build's think.md to the EXACT line numbers of CLAUDE.md / ThinkerThinker.md. Any governing-doc edit shifts those lines, so verify-manifest fails on the CURRENT build dir until its ranges are hand-re-pointed. Hit twice this session (CLAUDE.md 2.1 insert; TT constitution removal — the latter shifted assets ~191 lines).
       why-unresolved: a design decision on the gate, not a bug to silently patch. The current line-range check is what catches a "plausible range written without opening the file", so it has real value; the cost is the re-point friction on governing-doc edits.
       next-action (RECOMMENDED): make verify-manifest ANCHOR on heading text rather than absolute lines — resolve each id to the line where its `## A<n>` / `### <section>` heading actually lives, and verify the id appears there, instead of trusting a hand-written range. That keeps the "did you open the file" guarantee while making it immune to line shifts. Alternatively, treat the range as advisory (locate the id, warn if the range is stale) so an edit does not RED the build. Either is its own TBC-governed build; surfaced, not self-applied.
+
+## Filed by the login outage diagnosis (2026-11-11)
+
+See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
+
+- [x] 2026-11-11 · health-backend-probe · `npm run check` passes with the new health probe, the 0271 migration, and both new test files
+      why-unresolved: Node is not installed on the machine this was built on; no gate was run, not even typecheck.
+      next-action: run `npm run check` on a machine with Node 24; fix anything it reports before committing.
+- [ ] 2026-11-11 · health-backend-probe · migration 0271 applied, and `/api/health` on production shows `backend.quota.fileStorage.level` other than "unknown"
+      why-unresolved: the project is suspended (402), so `db:verify`/`db:apply` cannot run until service is restored.
+      next-action: after the founder restores the plan: `npm run db:verify` then `npm run db:apply`; curl production health.
+- [ ] 2026-11-11 · health-backend-probe · a person is alerted when `/api/health` is 503 or "degraded"
+      why-unresolved: production has Sentry and email off; no monitor watches health. The endpoint is honest but unwatched.
+      next-action: founder sets up an uptime monitor (non-200 + keyword "degraded") and/or adds NEXT_PUBLIC_SENTRY_DSN.
+- [ ] 2026-11-11 · health-backend-probe · recording retention is bounded by the storage quota, not only by a per-rep count
+      why-unresolved: KEEP_PER_REP=20 × up to 250 MB/file (0241) × reps has no relation to the plan's quota; saved recordings are never purged. A product decision (what to keep) for the founder.
+      next-action: measure actual bucket sizes once restored; propose a quota-aware rule (e.g. refuse new uploads at critical, or shorten retention) as a founder picker.
+- [ ] 2026-11-11 · health-backend-probe · the TBC build directory for this change exists before it is committed
+      why-unresolved: verify-freshness requires docs/tbc/<date>-<slug>/ for src/migrations changes; not created because the change is uncommitted and unverified.
+      next-action: create docs/tbc/2026-11-11-health-backend-probe/ (think/build/check) at commit time.
+
+## Filed by RSS Phase 0, steps 1-4 (2026-11-15, docs/tbc/2026-11-15-rss-p0)
+
+- [x] 2026-11-15 · rss-p0 · `npm run check` exits 0 with 0272, access.ts, set-manager and the Team page change
+      why-unresolved: no Node on the build machine; nothing was executed
+      next-action: run `npm run check` and append the output to the build's check.md
+- [ ] 2026-11-15 · rss-p0 · migration 0272 is applied, and an admin has set managers for a real team (plan step 4 "Looked at")
+      why-unresolved: Supabase project suspended (storage quota)
+      next-action: after restore, `npm run db:verify` then `npm run db:apply`; set managers on the Team page
+- [ ] 2026-11-15 · rss-p0 · an executed SQL test shows an authenticated user cannot change their own manager_id and the service role can
+      why-unresolved: needs the SQL harness (Node + Postgres)
+      next-action: add the case to scripts/sql-harness.mjs or port the scaffold's PGlite RLS suite
+- [x] 2026-11-15 · rss-p0 · is_sales_coach_manager() (0252) treats CFO as a manager, as admin_roles() and the TS authority do — DONE 2026-11-20: it did NOT (old literal without CFO); 0290 makes it call admin_roles() (0265 founder ruling) and skip removed people; INVARIANT 39 found 9 more function copies + the invite policy, fixed verbatim in 0291; executed as signed-in users on PG 16.4
+      why-unresolved: changing it widens access on live policies; Phase 0 step 8 replaces those policies
+      next-action: confirm every policy using it is moved to rss_can_view_rep in step 8, or fix it there
+- [ ] 2026-11-15 · rss-p0 · decide how Phase 2 stats get segment end times (none are stored today)
+      why-unresolved: founder decision, due before Phase 2
+      next-action: picker at the start of Phase 2
+- [ ] 2026-11-15 · rss-p0 · a manager re-score writes an audit_log row (plan Phase 0 step 5)
+      why-unresolved: audit_log is a Phase 8 table; the archive row records who/when/why meanwhile
+      next-action: add the write in the pitch-score route when Phase 8 creates audit_log
+- [ ] 2026-11-15 · rss-p0 · managers can re-score again (refused with 503 until 0272 exists, because the old score cannot be archived first)
+      why-unresolved: Supabase suspended; 0272 not applied
+      next-action: apply 0272
+- [x] 2026-11-15 · rss-p0 · streaming AI calls and speech-to-text audio seconds are recorded in ai_usage, and every engine passes its engine/session label — DONE 2026-11-20: streams metered (DeepSeek stream_options.include_usage, Anthropic message_start/delta → llmStream → recordAiUsage; the non-stream fallback too); STT audio seconds via recordSttUsage at all 5 transcribeWithDiarization callers; engine is REQUIRED on claude.ts call(), runBrainCall and runBrainStream (a new engine without a name does not compile), and the 14 direct llmCall/llmStream sites are labelled. Not yet seen against a live provider
+      why-unresolved: providers return no usage on streams; STT is outside llmCall; only pitch scoring is fully labelled
+      next-action: capture usage from the stream's final event per provider; record audio seconds in the STT batch path; thread `engine` through each runBrainCall/claude.ts caller
+- [ ] 2026-11-15 · rss-p0 · prices are entered for every provider/model in use, so the AI cost page shows no "price missing"
+      why-unresolved: no price is seeded by design; needs the founder to enter them from the providers' pricing pages
+      next-action: /dashboard/admin/ai-cost → Prices, after 0272 is applied
+- [x] 2026-11-15 · rss-p0 · BLOCKING before any company's reps all have managers: the ten manager routes that use the service role apply the reporting tree (patterns, patterns/event, pitch-score/override, pitch-score/disputes, pitch-score/leaderboard, pitch-recordings/comment, pitch-recordings/share, coach-assessment/dashboard, gamification/calibration), with an invariant-audit gate
+      why-unresolved: scope of the step 8 pass
+      next-action: a shared check calling rss_tree_allows through the caller's client; add it to each route; add the gate
+- [x] 2026-11-15 · rss-p0 · the remaining rep-scoped select policies use rss_tree_allows (agent_baseline, agent_point_ledger, growth_record, kpi_snapshot, door_knocks, door_knock_undos, gamification_calibration, rep_day_target, rep_daily_sales_goal, rep_pattern_summaries, pitches, pitch_analyses, pitch_transcripts)
+      why-unresolved: scope of the step 8 pass; until then they show the company, as today
+      next-action: one migration recreating each from its latest definition with the tree term
+- [ ] 2026-11-15 · rss-p0 · sign-in lockout is enforced where it cannot be skipped (Supabase CAPTCHA or the Team-plan password-verification hook)
+      why-unresolved: D4 undecided; the server route only covers our own login pages
+      next-action: decide D4 and the mechanism together
+- [x] 2026-11-15 · rss-p0 · the invite page's sign-in (src/app/invite/[code]/page.tsx) also goes through /api/auth/sign-in
+      why-unresolved: the plan named the two login pages; the invite flow signs in right after account creation
+      next-action: switch it to signInViaServer if its attempts should be recorded
+- [x] 2026-11-15 · rss-p0 · (closure note) the three items above were closed on 2026-11-15: INVARIANT 36 + treeAccess in the ten routes, migration 0274 for the thirteen policies, and the invite page now signs in through /api/auth/sign-in
+      why-unresolved: —
+      next-action: run npm run check with them
+
+## Filed by RSS Phases 1 and 3 (2026-11-15, docs/tbc/2026-11-15-rss-p1-p3)
+
+- [x] 2026-11-15 · rss-p1-p3 · `npm run check` exits 0 with 0275/0276, sessionContext, stage chips and keyword trackers
+      why-unresolved: no Node on the build machine
+      next-action: run it; apply 0272-0276 in order after Supabase is restored
+- [x] 2026-11-15 · rss-p1 · decide whether phone/video sessions must have an outcome before processing (plan F25.9 vs the 2026-08-29 skippable ruling)
+      why-unresolved: founder decision
+      next-action: picker
+- [x] 2026-11-15 · rss-p1 · an in-app notice when an uploaded call finishes processing — DONE 2026-11-20: migration 0289 ('call_ready'), notifyCallReady at the end of generateSessionArtifacts (uploaded phone/video only, once per call), bell sentence + link
+      why-unresolved: needs a manager_notifications type (0242 CHECK) and the bell's enum mirror
+      next-action: one migration extending the CHECK + NotificationBell text
+- [x] 2026-11-15 · rss-p2 · decide how stats get segment end times (none stored)
+      why-unresolved: founder decision; blocks Phase 2 (stats, player, lanes)
+      next-action: picker
+- [ ] 2026-11-15 · rss-p3 · the scorer reads rubric_config per channel (with is_active, not active) and supports N/A per element, with a byte-for-byte door regression test
+      why-unresolved: scoring-engine change, not testable on this machine
+      next-action: build on a machine with Node; then the D6 caveat goes away for a channel that has its own rubric
+- [x] 2026-11-15 · rss (closure note) · the two decisions above were made 2026-11-15: outcome stays skippable everywhere; end times are stored for new recorded calls and estimated for older ones (0277 + RemoteCallPanel)
+      why-unresolved: —
+      next-action: —
+- [x] 2026-11-15 · rss-p2 · comment @mentions and visibility (F9.8) on recording comments — DONE 2026-11-20: 0293 (visibility everyone/named/only_me + recording_comment_mentions; read rule = rss_comment_base_visible AND visibility — narrows, never widens), 0294 ('comment_mention'), route checks each mention with the same SQL rule and refuses by name, composer picker on the Recordings tab; signed-in matrix on PG 16.4: CEO(mentioned) everyone+named, author all, out-of-tree manager (mentioned) nothing, rep everyone only
+      why-unresolved: needs a recording_comments change and the Recordings tab UI
+      next-action: migration for mentions[] + visibility, route + picker
+- [x] 2026-11-15 · rss-p2 · live (non-uploaded) calls store real end times — DONE 2026-11-20: include_timestamps=true on the live socket; the timestamps event (own branch, never a turn) gives endedAt = spokenAt + measured word span (liveTiming.ts; the docs do not state the words' reference point, so only the span is used); /segments + /finalize accept it. A line flushed before its timestamps arrive keeps the estimate. NOT yet seen on a real call
+      why-unresolved: the realtime transcription path does not yet pass word timings through; those lines are estimated
+      next-action: read the realtime commit events' word timings in useLiveCoaching and send endedAt to /segments and /finalize
+- [ ] 2026-11-15 · rss-p4+ · Phases 4-9 of docs/rss (coaching loop, find & reuse, follow-through, training, protection, reach)
+      why-unresolved: not started
+      next-action: Phase 4 written 2026-11-20 (docs/tbc/2026-11-20-rss-p4; migrations 0278, 0279). Phase 5 written 2026-11-20 (docs/tbc/2026-11-20-rss-p5; migration 0280) minus talk-ratio/element/disputed filters, global search, downloads. Phase 6 written 2026-11-20 (docs/tbc/2026-11-20-rss-p6; migration 0281). Phase 7 written 2026-11-20 (docs/tbc/2026-11-20-rss-p7; migrations 0282, 0283). Phase 8 written 2026-11-20 (docs/tbc/2026-11-20-rss-p8; migrations 0284, 0285; AMD-014). Phase 9 written 2026-11-20 (docs/tbc/2026-11-20-rss-p9; migration 0286). All nine phases are written; what remains is the open items below and applying 0271-0286
+
+## Filed by RSS Phase 7 and the first executed gate (2026-11-20, docs/tbc/2026-11-20-rss-p7)
+
+- [x] 2026-11-20 · rss-p7 · (closure note) the three "`npm run check` not run" items above (health-backend-probe, rss-p0, rss-p1-p3) are closed: every step ran on Node 24 with exit 0, migration:audit and sql:harness SKIPPED (no Postgres) with a PGlite replay of all 281 migrations standing in for the first — outputs in the p7 check.md
+      why-unresolved: —
+      next-action: —
+- [ ] 2026-11-20 · rss-p7 · the manager training screen (TrainingManager) is mounted, and the Phase 7 "Looked at" is done (a manager turns a real call into a scenario and assigns it; the rep sees it with a due date)
+      why-unresolved: D18 open (Bootcamp or the Sales Coach Training tab); the plan does not invent an answer
+      next-action: when D18 is answered, mount it there and remove its reachability-audit ALLOWLIST entry
+- [x] 2026-11-20 · rss-p7 · an executed allowed-and-refused test for each 0282 select policy (rep's own; manager under the tree; another company refused) — DONE 2026-11-20: sql-harness CLAIM 4 (training_assignments as five people); executed on PG 16.4, mutation-tested
+      why-unresolved: the PGlite replay ran as superuser
+      next-action: add the cases to scripts/sql-harness.mjs (the 0272 manager_id case above belongs there too)
+- [ ] 2026-11-20 · rss-p7 · migrations 0271-0295 applied to production
+      why-unresolved: Supabase suspended
+      next-action: after restore, `npm run db:verify` then `npm run db:apply`
+
+## Filed by RSS Phase 8 (2026-11-20, docs/tbc/2026-11-20-rss-p8)
+
+- [x] 2026-11-20 · rss-p8 · erasure of a customer's data from the product (F33.6)
+      why-unresolved: —
+      next-action: — (AMD-014 ratified by founder picker; 0285 + /api/coach/remote/erasure + Settings → Protection; executed on PG 16.4)
+- [ ] 2026-11-20 · rss-p8 · the Phase 8 "Looked at" on a real device: an erasure request for a phone number removes that customer's sessions, and the audit log shows who asked
+      why-unresolved: Supabase suspended; 0284/0285 not applied
+      next-action: after db:apply, erase a test customer on a phone-width screen
+- [x] 2026-11-20 · rss-p8 · 0284's read rules executed as signed-in users (audit_log: admin yes, manager no, other company no; recording_trims: the rep and their chain) — DONE 2026-11-20: sql-harness CLAIM 4 (audit_log, erasure_requests, recording_trims, retention, trimmed transcript); executed on PG 16.4, mutation-tested
+      why-unresolved: the PGlite replay runs as superuser
+      next-action: with the 0282 cases, in scripts/sql-harness.mjs
+
+## Filed by RSS Phase 9 (2026-11-20, docs/tbc/2026-11-20-rss-p9)
+
+- [ ] 2026-11-20 · rss-p9 · BLOCKING SETUP: RSS_WEBHOOK_SIGNING_SECRET set in Vercel (app project); then a test webhook from Settings → Protection reaches a real receiver and verify() accepts it (the Phase 9 "Looked at")
+      why-unresolved: external config; nothing is sent until it is set (cron 503, screen says so)
+      next-action: `openssl rand -hex 32` → Vercel env; redeploy; Send a test
+- [ ] 2026-11-20 · rss-p9 · BLOCKING SETUP: Google / Microsoft providers configured in Supabase and verified per docs/AUTH-REDIRECTS.md "OAuth providers"; then NEXT_PUBLIC_AUTH_PROVIDERS set
+      why-unresolved: provider apps and secrets live outside the repo; buttons stay hidden until then
+      next-action: follow the table and the 5 verification steps in docs/AUTH-REDIRECTS.md
+- [x] 2026-11-20 · rss-p9 · a manager named in the team CSV for an invitee is applied when they accept — DONE 2026-11-20: migration 0288 (team_invitations.manager_id + accept trigger, admin's invitations only, never blocks joining); import passes it; executed through accept_invitation on PG 16.4. Still manual: a manager who is being invited in the same file
+      why-unresolved: needs team_invitations.manager_id and a change to the accept path
+      next-action: migration + accept route; until then the import tells the admin to set it after they join
+- [x] 2026-11-20 · rss-p9 · webhook hostnames that resolve to private addresses are refused at send time — DONE 2026-11-20: resolvesPrivate in sendSigned, before every send; webhooks.test.ts
+      why-unresolved: literal private IPs and local names are refused; DNS resolution is not checked
+      next-action: resolve the host in sendSigned and refuse private results
+- [x] 2026-11-20 · rss-p9 · findAuthUserByEmail fails loud on a listing error instead of answering "no account" — DONE 2026-11-20: throws on a failed page (missing env stays a deliberate soft-fail); createInvitation and both add-member paths answer 503 'couldn't check'; test pins page-2 failure
+      why-unresolved: pre-existing (`if (error || !data) break`); its callers would need to handle a throw
+      next-action: throw, and handle it in POST /api/team (createInvitation) and add-member
+- [x] 2026-11-20 · rss-p9 · the Team page says when the reporting tree is OFF and who is keeping it off — DONE 2026-11-20: migration 0287 (rss_tree_blockers; rss_tree_active redefined on it), /api/team/managers returns the verdict, Team page names them; executed on PG 16.4
+      why-unresolved: rss_tree_active (0273) needs every 'staff' profile to have a manager; one unmanaged person (even a CEO marked as a Sales Coach rep) silently keeps managers on company-wide view
+      next-action: on the Team page, list the staff with no manager under "Reporting lines are not in force until these people have a manager"
+- [x] 2026-11-20 · roles · a REMOVED person keeps admin-derived access in SQL helpers that do not check profiles.status (seen: fin_effective_role gives a removed CEO 'cfo'; the 0291 copies keep their original status handling) — DONE 2026-11-20: 0292 adds status <> 'removed' to the 8 caller-based helpers + the invite policy (verbatim otherwise); signed-in: removed CEO → fin null, others unchanged
+      why-unresolved: pre-existing; 0291 changed only the role literal (0265 discipline). Narrowing finance and chat authority per function is its own change
+      next-action: add `and p.status <> 'removed'` to each admin-derived helper (0291's list), with a signed-in test per helper; the app already refuses removed people a session
+- [ ] 2026-11-20 · review · a failed erasure leaves an erasure_requests row with no completion (a retry adds another)
+      why-unresolved: low; nothing is lost, the record just shows requests that look abandoned
+      next-action: show requests without a completion on Settings → Protection as "not finished — run again"
+- [ ] 2026-11-20 · review · two overlapping webhook sends of one delivery can both go out
+      why-unresolved: low; attempts de-duplicate, receivers de-duplicate on the delivery id (documented)
+      next-action: claim a delivery with an insert-first lock row before sending, if receivers report duplicates
+- [ ] 2026-11-20 · review · a trim maps audio time to lines via spoken_at − started_at; a recording that started late could trim the wrong lines
+      why-unresolved: unverified on real uploads; the same offset is used by every RSS time chip
+      next-action: on a real uploaded call, trim a known phrase and confirm the right line disappears (runbook check 3)
+- [x] 2026-11-21 · review · any company member can mark a pending invitation accepted (or set accepted_by) — 0008's update policy is `company_id = auth_company_id()` only — DONE 2026-11-21: 0297 refuses any accepted_* write from authenticated/anon (only accept_invitation, definer, writes them); revocation unchanged; signed-in replay C/H refused, D/G pass
+      why-unresolved: pre-existing (0008). Since 0296 it moves nobody (the manager trigger requires the accepting user to be the caller with the invited email), but the invitation then reads as accepted and its code stops working
+      next-action: narrow the update policy to admins + revoke columns, and route acceptance only through accept_invitation (definer); signed-in test that a member's direct accept is refused
+- [x] 2026-11-21 · review · purge candidates paged by created_at alone could repeat or skip a row across a page boundary — DONE 2026-11-21: `id` tie-break in the order (recording-purge-cron/route.ts)
+      why-unresolved: unconfirmed by the reviewer
+      next-action: —
+
+- [ ] 2026-11-21 · release · A16 / A21 audits not run for the RSS release: whether every AI surface on a remote recording consumes the others' findings (A16), and a cross-module parity inventory of remote recordings vs in-person Sales Coach sessions (A21)
+      why-unresolved: recorded honestly in docs/closures/2026-11-21-rss-release.md rather than claimed
+      next-action: enumerate the AI reads on a recording (review, coaching, scoring) and check each takes the others' output; list shared concepts across remote/in-person and verify parity

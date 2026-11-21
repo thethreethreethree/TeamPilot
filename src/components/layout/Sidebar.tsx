@@ -30,6 +30,7 @@ import {
   Hourglass,
   Building2,
   FolderOpen,
+  Coins,
   Eye,
   Search as SearchIcon,
   Mic,
@@ -401,6 +402,20 @@ const adminNav: Array<{
       how: "Pick a company, then a session, to read its transcript. New customers are NOT auto-included; a company is added to the allowlist deliberately. Access is logged (actor, company, session).",
       principle:
         "Cross-tenant access, when sanctioned, is contained and audited — never silent. Oversight the monitored party could in principle see is honest; surveillance it can't is not.",
+    },
+  },
+  {
+    label: "AI cost",
+    href: "/dashboard/admin/ai-cost",
+    icon: Coins,
+    vendorOnly: true,
+    hint: {
+      whatItIs:
+        "What ELOSTATE's AI calls cost, per session, company and feature, for any day. Vendor-super-admin only; tenants never see it.",
+      why: "AI is the product's largest running cost, and until now nothing recorded it — the out-of-credit outage in September was the first sign of what it cost.",
+      how: "Pick a day. Every AI call's token counts are recorded automatically; cost uses the prices you enter from each provider's pricing page. A call with no entered price shows as \"price missing\", never as free.",
+      principle:
+        "A missing number is shown as missing. Costs are measured from what actually ran, not estimated.",
     },
   },
   {

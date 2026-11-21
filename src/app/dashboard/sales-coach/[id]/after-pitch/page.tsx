@@ -52,6 +52,7 @@ import {
   OUTCOME_ORDER,
   type SalesOutcome,
 } from "@/lib/coach/v5/outcomeLabels";
+import { CONTEXT_LABEL, micHearsRepOnly, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -96,7 +97,7 @@ type Summary = {
 };
 type Session = {
   id: string;
-  context: "in_person" | "video";
+  context: SalesContext;
   clientLabel: string | null;
   audioDurationSeconds: number | null;
   // The saved-recording pointer (audit F3): the [id] GET already returns it (getSession → mapSession);
@@ -355,7 +356,8 @@ export default function AfterPitchPage() {
         // A video session's mic is agent-only by design (the prospect is on the far end), so its transcript is
         // EXPECTED one-sided and its audio holds one voice — auto-recover would just burn a guaranteed-to-decline
         // diarization. Skip it. (Audit 2026-08-14 finding ⑤.)
-        isVideoSession = s?.context === "video";
+        // A phone call's mic is agent-only too (sessionContext.micHearsRepOnly), so the same reasoning holds.
+        isVideoSession = micHearsRepOnly(s?.context);
       }
       if (sumRes && sumRes.ok)
         setWhatHappened((await sumRes.json()).summary ?? null);
@@ -496,11 +498,7 @@ export default function AfterPitchPage() {
     // On success we router.push away and unmount, so the latch stays set.
   };
 
-  const ctxLabel = session
-    ? session.context === "video"
-      ? "Online video"
-      : "In-person"
-    : "";
+  const ctxLabel = session ? CONTEXT_LABEL[session.context] ?? "In-person" : "";
   const dur = durationLabel(
     session?.audioDurationSeconds,
     session?.startedAt,

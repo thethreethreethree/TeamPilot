@@ -14,6 +14,7 @@ import {
   ASSETS_BUCKET,
   EXECUTABLE_EXTENSIONS,
 } from "@/lib/storage/assets";
+import { recordSessionFailure } from "@/lib/coach/remote/session/failures";
 
 /**
  * POST /api/coach/sales-session/[id]/upload-recording/sign
@@ -105,6 +106,8 @@ export async function POST(
     return NextResponse.json({ error: "Empty recording." }, { status: 400 });
   }
   if (body.sizeBytes > AGENT_MAX_BYTES) {
+    // RSS Phase 1: the closed reason, so a phone/video session shows "File too large" (door: no-op).
+    await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "TOO_LARGE", detail: `${body.sizeBytes} bytes` });
     return NextResponse.json(
       {
         error: `Recording too large (max ${Math.floor(

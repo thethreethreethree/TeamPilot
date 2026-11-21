@@ -47,6 +47,10 @@
     {
       "path": "/api/coach/gamification/weekly-digest-cron",
       "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/coach/remote/webhooks/send-cron",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

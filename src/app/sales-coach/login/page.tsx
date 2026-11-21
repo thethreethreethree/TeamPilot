@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
+import { signInViaServer } from "@/lib/auth/signInViaServer";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
 
 /**
  * Sales Coach — branded login (Phase 5).
@@ -43,11 +45,10 @@ export default function SalesCoachLoginPage() {
     setLoading(true);
     const supabase = createClient();
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
+      // Through the server route (records the attempt; RSS Phase 0 step 7), falling back to the direct
+      // sign-in only if the route itself fails. The session cookies end up the same either way.
+      const signInError = await signInViaServer(supabase, email, password);
+      if (signInError) throw new Error(signInError);
       // Land in the Sales Coach shell. If the account somehow has no
       // company, the dashboard layout's gate sends them to /onboarding.
       router.push("/dashboard/sales-coach");
@@ -92,6 +93,9 @@ export default function SalesCoachLoginPage() {
             </div>
           )}
 
+          <div className="mb-4">
+            <OAuthButtons next="/dashboard/sales-coach" />
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <LearningHint
               as="block"

@@ -1,5 +1,6 @@
 import "server-only";
 import type { TranscriptSegment, SalesContext } from "@/lib/data/salesCoach";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * Conversation-intelligence prompt (founder 2026-07-07): extract the COMPETITORS
@@ -52,7 +53,7 @@ export function buildSalesIntelUserMessage(args: {
   segments: TranscriptSegment[];
 }): string {
   const header = args.context
-    ? `Context: ${args.context === "in_person" ? "in-person, door-to-door" : "online video call"}\n\n`
+    ? `Context: ${contextPromptLine(args.context)}\n\n`
     : "";
   const transcript = args.segments
     .map((s) => `${speakerLabel(s.speaker)}: ${s.text}`)

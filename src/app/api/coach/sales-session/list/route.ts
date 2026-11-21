@@ -11,6 +11,7 @@ import {
   gateSessionFlag,
   type SessionFlag,
 } from "@/lib/coach/v5/sessionFlag";
+import { isSalesContext, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/list
@@ -90,7 +91,7 @@ export async function GET(req: Request) {
     query = query.eq("agent_id", ctx.userId);
   }
   // Apply the server-side filters (validated against the known enums).
-  if (fContext === "in_person" || fContext === "video") {
+  if (isSalesContext(fContext)) {
     query = query.eq("context", fContext);
   }
   if (fStatus === "active" || fStatus === "ended") {
@@ -261,7 +262,7 @@ export async function GET(req: Request) {
     return {
       id,
       clientLabel: (s.client_label as string | null) ?? null,
-      context: s.context as "in_person" | "video",
+      context: s.context as SalesContext,
       status: s.status as "active" | "ended" | "reviewed",
       startedAt: s.started_at as string,
       endedAt: (s.ended_at as string | null) ?? null,

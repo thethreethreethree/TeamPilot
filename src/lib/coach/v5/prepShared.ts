@@ -1,5 +1,6 @@
 import type { SalesSession } from "@/lib/data/salesCoach";
 import { capCorpus } from "@/lib/llm/corpusBudget";
+import { contextPromptLine } from "@/lib/coach/sessionContext";
 
 /**
  * Shared prep helpers (audit F3 — §A21, one source instead of per-engine
@@ -36,7 +37,7 @@ export function reviewProductBlock(product?: string | null): string {
 export function sessionContextLines(s: SalesSession): string[] {
   return [
     s.clientLabel ? `Client / campaign: ${s.clientLabel}` : null,
-    `Context: ${s.context === "in_person" ? "in-person, door-to-door" : "online video call"}`,
+    `Context: ${contextPromptLine(s.context)}`,
     s.territory ? `Where: ${s.territory}` : null,
     s.approach ? `How approaching: ${s.approach}` : null,
     s.offer ? `Offer: ${s.offer}` : null,

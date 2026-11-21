@@ -37,6 +37,12 @@ import {
   OUTCOME_ORDER,
   type SalesOutcome,
 } from "@/lib/coach/v5/outcomeLabels";
+import { CONTEXT_LABEL, isRemoteContext, type SalesContext } from "@/lib/coach/sessionContext";
+import { StageChips } from "@/components/sales-coach/StageChips";
+import { TrackerHitChips } from "@/components/sales-coach/TrackerHitChips";
+import { RemoteCallPanel } from "@/components/sales-coach/RemoteCallPanel";
+import { FeedbackRequest } from "@/components/sales-coach/FeedbackRequest";
+import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel";
 
 /**
  * /dashboard/sales-coach/[id] — session review surface.
@@ -55,7 +61,7 @@ type Segment = {
 };
 type Session = {
   id: string;
-  context: "in_person" | "video";
+  context: SalesContext;
   // Coaching kind (0237): 'sales' | 'meeting' | 'huddle'. The API already returned it; the type
   // did not name it. Needed so the Pitch Score panel does not offer to grade a team huddle
   // against a door-to-door rubric and then 409 the person who pressed the button.
@@ -113,6 +119,13 @@ export default function SessionDetail() {
   // Guard against a stale-response race on rapid session navigation (A→B): a slow
   // load for A must not overwrite B's session/review. Stamp + verify still-current.
   const loadReqIdRef = useRef("");
+  // RSS Phase 2: the call panel registers its player's seek here, so the transcript and tracker chips can play
+  // from a moment without owning the player. Null when there is no player (door sessions, no recording).
+  const seekRef = useRef<((seconds: number) => void) | null>(null);
+  const registerSeek = useCallback((fn: ((seconds: number) => void) | null) => {
+    seekRef.current = fn;
+  }, []);
+  const seekTo = useCallback((seconds: number) => seekRef.current?.(seconds), []);
   const load = useCallback(async () => {
     loadReqIdRef.current = id;
     try {
@@ -430,7 +443,7 @@ export default function SessionDetail() {
         title={session?.clientLabel ?? "Session"}
         subtitle={
           session
-            ? `${session.context === "video" ? "Online video" : "In-person"} · ${session.status}`
+            ? `${CONTEXT_LABEL[session.context] ?? "In-person"} · ${session.status}`
             : "Live Sales Coach"
         }
       />
@@ -442,6 +455,18 @@ export default function SessionDetail() {
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
           Back to sessions
         </Link>
+        {/* RSS Phase 1: where a phone/video session is in processing (renders nothing for door or meetings). */}
+        {session && isRemoteContext(session.context) && <StageChips sessionId={id} />}
+        {/* RSS Phase 2: player, talk-time lanes and the stat strip for a finished phone/video call. */}
+        {session && isRemoteContext(session.context) && session.status !== "active" && (
+          <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
+        )}
+        {/* RSS Phase 4: the rep asks their manager for feedback on this call (renders only for the call's own rep). */}
+        {session && isRemoteContext(session.context) && session.status !== "active" && <FeedbackRequest sessionId={id} />}
+        {/* RSS Phase 6: callbacks said on the call → Tasks, and the AI's read of the outcome after the rep's own. */}
+        {session && isRemoteContext(session.context) && session.status !== "active" && (
+          <FollowThroughPanel sessionId={id} onSeek={seekTo} />
+        )}
 
         {/* Auto-generated factual conversation summary (distinct from the
             Dissect evaluation, §A11 — facts, not a verdict). The card renders
@@ -486,7 +511,12 @@ export default function SessionDetail() {
         )}
 
         {/* Full transcript (partner meeting 9/2) — collapsible; RLS-gated to the owner or a same-company admin. */}
-        {!loading && <SessionTranscript sessionId={id} />}
+        {!loading && (
+          <SessionTranscript
+            sessionId={id}
+            {...(session && isRemoteContext(session.context) ? { startedAt: session.startedAt, onSeek: seekTo } : {})}
+          />
+        )}
 
         {/* Pitch Score — BESIDE the existing review and scores, never replacing them. The build
             guide is explicit that "the letter grade and skill scores stay as they are; the Pitch
@@ -496,7 +526,12 @@ export default function SessionDetail() {
           <PitchScorePanel
             sessionId={id}
             scorable={isSalesCall(session.sessionKind)}
+            channel={session.context}
           />
+        )}
+        {/* RSS Phase 3: keyword tracker hits (phone/video); a chip with a time plays from it via the call panel. */}
+        {session && isRemoteContext(session.context) && (
+          <TrackerHitChips sessionId={id} onSeek={seekTo} />
         )}
 
         {loading ? (
@@ -1076,7 +1111,7 @@ export default function SessionDetail() {
                 their engines now answer 409 (salesOnly.ts), so they get a way to their own review instead of a
                 Summarize tab that can only fail. */}
             {!session || isSalesCall(session.sessionKind) ? (
-              <SessionCoachTools key={id} sessionId={id} />
+              <SessionCoachTools key={id} sessionId={id} onSeek={session && isRemoteContext(session.context) ? seekTo : undefined} />
             ) : (
               <section className="rounded-lg border border-default bg-base p-4 text-sm">
                 <p className="text-muted">

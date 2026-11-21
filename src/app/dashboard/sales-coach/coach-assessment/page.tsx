@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Info } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { UnscoredBacklog } from "@/components/sales-coach/UnscoredBacklog";
 import { ScoringRubricSheet } from "@/components/sales-coach/ScoringRubricSheet";
 import { DisputeQueue } from "@/components/sales-coach/DisputeQueue";
+import { CoachingInbox } from "@/components/sales-coach/CoachingInbox";
 import { CoachAssessmentBoard } from "@/components/sales-coach/CoachAssessmentBoard";
 
 /**
@@ -46,7 +48,14 @@ export default function CoachAssessmentPage() {
     <>
       <TopBar title="Coach Assessment" subtitle="How the team is pitching" />
 
-      <div className="px-4 md:px-8 pt-3 w-full flex justify-end">
+      <div className="px-4 md:px-8 pt-3 w-full flex justify-end gap-2">
+        {/* RSS Phase 5: find and reuse — reached from here because the sidebar's contents are a recorded founder ruling. */}
+        <Link href="/dashboard/sales-coach/search" className="inline-flex items-center rounded-full border border-default bg-surface px-3 py-1.5 text-[11px] text-secondary hover:text-primary hover:border-strong">
+          Search calls
+        </Link>
+        <Link href="/dashboard/sales-coach/library" className="inline-flex items-center rounded-full border border-default bg-surface px-3 py-1.5 text-[11px] text-secondary hover:text-primary hover:border-strong">
+          Library
+        </Link>
         <button
           type="button"
           onClick={() => setRubricOpen(true)}
@@ -67,6 +76,10 @@ export default function CoachAssessmentPage() {
         */}
         <div className="px-4 md:px-8 pt-4">
           <UnscoredBacklog />
+        </div>
+        {/* RSS Phase 4: reps' feedback requests on phone/video calls — beside disputes, the other thing a rep asked for. */}
+        <div className="px-4 md:px-8 pt-4">
+          <CoachingInbox />
         </div>
         <div className="px-4 md:px-8 pt-4">
           <DisputeQueue />

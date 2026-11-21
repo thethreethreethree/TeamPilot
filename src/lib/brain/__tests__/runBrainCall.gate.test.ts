@@ -68,7 +68,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
         calls
       )
     );
-    const r = await runBrainCall({
+    const r = await runBrainCall({ engine: "test",
       companyId: "co1",
       basePrompt: "p",
       messages: [{ role: "user", content: "hi" }],
@@ -88,7 +88,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
         calls
       )
     );
-    const r = await runBrainCall({
+    const r = await runBrainCall({ engine: "test",
       companyId: "co1",
       basePrompt: "p",
       messages: [{ role: "user", content: "hi" }],
@@ -106,7 +106,7 @@ describe("runBrainCall — §3.4 control-window enforcement", () => {
         calls
       )
     );
-    const r = await runBrainCall({
+    const r = await runBrainCall({ engine: "test",
       companyId: "co1",
       basePrompt: "p",
       messages: [{ role: "user", content: "hi" }],

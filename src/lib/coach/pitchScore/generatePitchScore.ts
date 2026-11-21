@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { dissectCoachV5 } from "@/lib/claude";
 import { DEEPSEEK_NONREASONING_MODEL } from "@/lib/llm/deepseek";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";
@@ -5,6 +6,7 @@ import type { TranscriptSegment } from "@/lib/data/salesCoach";
 import { buildPitchScoreSystemPrompt, parsePitchScoreResponse } from "./pitchScorePrompt";
 import { scorePitch, type PitchScore } from "./scorePitch";
 import type { GradedElement, DetectedBonus, DetectedViolation } from "./scorePitch";
+import { SCORING_FLOOR } from "@/lib/coach/remote/decisions";
 
 /**
  * Grade and score one recorded pitch — the wiring half of Project 1 Step 1.
@@ -36,6 +38,11 @@ export type PitchScoreResult =
       violations: DetectedViolation[];
       /** True when timestamps could not be derived, so the evidence has no play targets. */
       timestampsUnavailable: boolean;
+      /**
+       * What produced this grading (RSS Phase 0, Gong F15.8): the model that answered and the prompt
+       * version. Optional only so older test doubles still type-check; the real scorer always sets it.
+       */
+      provenance?: { model: string; promptVersion: string };
     }
   | { ok: false; failure: PitchScoreFailure };
 
@@ -44,7 +51,21 @@ export type PitchScoreResult =
  * count in pitch-score/backfill applies the same rule as a query, to stop offering "Score them all" for
  * recordings this function will always refuse; it compares against THIS constant, so the two cannot drift.
  */
-export const MIN_AGENT_SEGMENTS = 1;
+// D5 (scoring floor, docs/rss/docs/00-OPEN-DECISIONS.md) lives in ONE place — decisions.ts — and today's value
+// is today's behaviour (one rep segment). Deciding D5 changes it there, and this, the backfill count and the RSS
+// session rule (state.ts scoringDecision) all follow (§2.2).
+export const MIN_AGENT_SEGMENTS = SCORING_FLOOR.minRepSegments;
+
+/**
+ * The scoring prompt's version, DERIVED rather than typed (RSS Phase 0, provenance).
+ *
+ * No version label existed. A hand-kept constant is a promise someone has to remember on every prompt
+ * edit, and a forgotten bump makes two different prompts look like one. Hashing the prompt TEMPLATE
+ * (built with no company corpus, so it is the same for every tenant) changes exactly when the prompt
+ * code changes. The company's own corpus is not part of it: that is content, recorded nowhere yet.
+ */
+export const PITCH_SCORE_PROMPT_VERSION =
+  "tpl-" + createHash("sha256").update(buildPitchScoreSystemPrompt(null)).digest("hex").slice(0, 12);
 
 /** mm:ss for the prompt — a model handles "4:12" far more reliably than 252. */
 function mmss(totalSeconds: number): string {
@@ -95,6 +116,8 @@ export async function generatePitchScore(args: {
   companyId: string;
   sessionTitle?: string;
   segments: readonly TranscriptSegment[];
+  /** The coaching session being graded, for the AI cost ledger (cost per session, RSS Phase 0 step 6). */
+  sessionId?: string;
 }): Promise<PitchScoreResult> {
   const agentSegments = args.segments.filter((s) => s.speaker === "agent");
   if (agentSegments.length < MIN_AGENT_SEGMENTS) return { ok: false, failure: "no_agent_turns" };
@@ -124,6 +147,8 @@ export async function generatePitchScore(args: {
     // Grading against a fixed rubric is mechanical extraction, not deliberation, so it loses little
     // and gains the whole budget for the answer. Same reasoning, same fix as the meeting dissect.
     model: DEEPSEEK_NONREASONING_MODEL,
+    engine: "pitch_score",
+    ...(args.sessionId ? { sessionId: args.sessionId } : {}),
   });
 
   // Consume the gate's VERDICT rather than re-deriving it (§2.2). The account-based empty-AI
@@ -174,5 +199,13 @@ export async function generatePitchScore(args: {
     reachedDiscovery: parsed.reachedDiscovery,
   });
 
-  return { ok: true, score, elements, bonuses, violations, timestampsUnavailable };
+  return {
+    ok: true,
+    score,
+    elements,
+    bonuses,
+    violations,
+    timestampsUnavailable,
+    provenance: { model: r.model, promptVersion: PITCH_SCORE_PROMPT_VERSION },
+  };
 }

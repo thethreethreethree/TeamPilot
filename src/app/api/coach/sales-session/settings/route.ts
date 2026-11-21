@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { getSalesKnowledgeBase } from "@/lib/coach/v5/salesKnowledgeBase";
@@ -42,6 +43,9 @@ export async function GET() {
       salesCoachRole,
     },
     isManager,
+    // RSS Phase 8: the Protection tab (retention, audit log) is for company admins — the same role set as
+    // admin_roles() in 0284's read rules. The page branches on this verdict; it never re-derives it (§2.2).
+    isCompanyAdmin: isAdminRole(role),
     corpus,
   });
 }

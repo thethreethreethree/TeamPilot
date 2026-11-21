@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * and reveals the model's judged scores. The admin client is faked per-table; the gate, anonymization, and the
  * reveal are the logic under test.
  */
+vi.mock("@/lib/api/treeAccess", () => ({
+  // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
+  treeAllowsRep: vi.fn(async () => true),
+  treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
@@ -28,7 +33,7 @@ function setTables(tables: Record<string, unknown>) {
     from(table: string) {
       const result = tables[table] ?? { data: null, error: null };
       const builder: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "order", "limit", "maybeSingle"]) builder[m] = () => builder;
+      for (const m of ["select", "eq", "in", "order", "limit", "maybeSingle"]) builder[m] = () => builder;
       builder.upsert = (row: unknown) => {
         captured.upsert = row;
         return builder;
@@ -77,6 +82,8 @@ describe("GET — report + anonymized next transcript", () => {
       },
       // Manager already scored s1 → it becomes a report pair; s2 is the next to score.
       gamification_calibration: { data: [{ session_id: "s1", scores: { opener: 8, tone: 6 } }] },
+      // Whose sessions they are, for the reporting-tree filter (RSS Phase 0 step 8).
+      coaching_sessions: { data: [{ id: "s1", agent_id: "r1" }, { id: "s2", agent_id: "r1" }] },
       coaching_transcript_segments_current: {
         data: [
           { speaker: "agent", text: "Hi, is this Rob Ramos?", seq: 0 },
@@ -107,6 +114,7 @@ describe("POST — store blind score then reveal the model", () => {
     const cap = setTables({
       gamification_calibration: { error: null },
       after_pitch_summaries: { data: { payload: { scores: [{ key: "opener", score: 9 }, { key: "close", score: 4 }] } } },
+      coaching_sessions: { data: { agent_id: "r1" } },
     });
     const scores = { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 };
     const res = await POST(postReq({ sessionId: "11111111-1111-4111-8111-111111111111", scores }));
@@ -133,7 +141,7 @@ describe("POST — another company's session", () => {
       from(table: string) {
         const filters: Record<string, unknown> = {};
         const builder: Record<string, unknown> = {};
-        for (const m of ["select", "order", "limit", "maybeSingle"]) builder[m] = () => builder;
+        for (const m of ["select", "in", "order", "limit", "maybeSingle"]) builder[m] = () => builder;
         builder.eq = (col: string, val: unknown) => {
           filters[col] = val;
           return builder;
@@ -143,6 +151,10 @@ describe("POST — another company's session", () => {
           return builder;
         };
         builder.then = (res: (v: unknown) => unknown) => {
+          if (table === "coaching_sessions") {
+            const own = filters.company_id === undefined || filters.company_id === owner;
+            return res({ data: own ? { agent_id: "r1" } : null, error: null });
+          }
           if (table !== "after_pitch_summaries") return res({ data: null, error: null });
           // The row exists — but in `owner`'s company. An unfiltered read sees it; a filtered one
           // sees it only when the filter names the owner.
@@ -178,5 +190,38 @@ describe("POST — another company's session", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).model).toEqual({ opener: 9 });
     expect(cap.upsert).toBeDefined();
+  });
+});
+
+/**
+ * REPORTING TREE (RSS Phase 0 step 8). The pool and the submit are service-role reads, so the route asks the
+ * tree itself: a rep outside the manager's chain contributes nothing to the pool and cannot be scored.
+ */
+describe("reporting tree", () => {
+  it("a session whose rep the manager may not see is left out of the pool", async () => {
+    const { treeFilterReps } = await import("@/lib/api/treeAccess");
+    (treeFilterReps as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    setTables({
+      after_pitch_summaries: { data: [{ session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } }] },
+      gamification_calibration: { data: [] },
+      coaching_sessions: { data: [{ id: "s1", agent_id: "r-outside" }] },
+    });
+    const body = await (await GET(getReq())).json();
+    expect(body.pool).toBe(0);
+    expect(body.next).toBeNull();
+  });
+
+  it("submitting a score for such a session is a 404, and nothing is written", async () => {
+    const { treeAllowsRep } = await import("@/lib/api/treeAccess");
+    (treeAllowsRep as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    const cap = setTables({
+      after_pitch_summaries: { data: { payload: { scores: [{ key: "opener", score: 9 }] } } },
+      coaching_sessions: { data: { agent_id: "r-outside" } },
+    });
+    const scores = { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 };
+    expect((await POST(postReq({ sessionId: "11111111-1111-4111-8111-111111111111", scores }))).status).toBe(404);
+    expect(cap.upsert).toBeUndefined();
   });
 });

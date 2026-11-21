@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(sse(event, data)));
       try {
         if (companyId) {
-          const gen = runBrainStream({
+          const gen = runBrainStream({ engine: "chat_summarize",
             companyId,
             basePrompt: SYSTEM_PROMPT,
             messages: [{ role: "user", content: userTurn }],
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
             send("gate", { suppressed: true, reason: gate.reason });
           }
         } else {
-          for await (const delta of llmStream({
+          for await (const delta of llmStream({ attribution: { engine: "chat_summarize", companyId: companyId ?? null, },
             systemPrompt: SYSTEM_PROMPT,
             messages: [{ role: "user", content: userTurn }],
             maxTokens: 600,

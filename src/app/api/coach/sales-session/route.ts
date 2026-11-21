@@ -7,6 +7,7 @@ import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { sessionStartedAt } from "@/lib/coach/v5/sessionStartedAt";
 import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
+import { SALES_CONTEXTS } from "@/lib/coach/sessionContext";
 
 /**
  * Live Sales Coach — session collection.
@@ -20,7 +21,8 @@ import { createSession, listAgentSessions } from "@/lib/data/salesCoach";
  */
 
 const CreateSchema = z.object({
-  context: z.enum(["in_person", "video"]),
+  // The channel list is one source (RSS Phase 1; 0275 adds phone to the DB check).
+  context: z.enum(SALES_CONTEXTS),
   // Required (founder 2026-07-01): every session must be titled before it can
   // begin — an untitled session creates initial ambiguity in the history.
   clientLabel: z.string().trim().min(1).max(200),
@@ -77,7 +79,13 @@ export async function POST(req: NextRequest) {
   });
   if (!session) {
     return NextResponse.json(
-      { error: "Couldn't start the session." },
+      {
+        // createSession reports no cause, so this cannot know the DB check refused 'phone'; it says what is likely.
+        error:
+          body.context === "phone"
+            ? "Couldn't start the phone session. Phone needs a database update (migration 0275) that may not be applied yet — try Online video meanwhile."
+            : "Couldn't start the session.",
+      },
       { status: 500 }
     );
   }

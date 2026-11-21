@@ -92,7 +92,7 @@ export async function generateRepPatternRollup(args: {
   outcomeCounts: Record<string, number>;
   previousHeadline: string | null;
 }): Promise<(PatternRollupResult & { model: string }) | null> {
-  const r = await runBrainCall({
+  const r = await runBrainCall({ engine: "doorlog_rollup",
     companyId: args.companyId,
     basePrompt: buildRollupSystemPrompt(),
     messages: [

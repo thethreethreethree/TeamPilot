@@ -109,7 +109,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   let segments: StrategyTranscriptSegment[];
   try {
     // Omit numSpeakers → auto-detect N participants (a meeting is N-party, unlike the sales 2-party call).
-    const t = await transcribeWithDiarization({ audio: dl.bytes, mimeType: dl.contentType || "audio/webm" });
+    const t = await transcribeWithDiarization({ audio: dl.bytes, mimeType: dl.contentType || "audio/webm", meter: { engine: "stt_meeting", companyId, sessionId: id } });
     segments = t.segments.map((s, i) => ({ speaker: s.speakerId, text: s.text, seq: i }));
   } catch (err) {
     console.error(`[meeting-dissect] transcription failed session=${id}:`, err instanceof Error ? err.message : err);

@@ -46,4 +46,16 @@ describe("selectUnflushedSegments (incremental transcript persistence)", () => {
   it("drops empty/whitespace turns", () => {
     expect(selectUnflushedSegments([T("   ", "agent"), T("", "customer")], new Set())).toEqual([]);
   });
+
+  it("carries a measured end time through, and leaves it out when there is none (RSS Phase 2 follow-up)", () => {
+    const out = selectUnflushedSegments(
+      [
+        { text: "hi", speaker: "agent", spokenAt: "2026-11-20T10:00:05.000Z", endedAt: "2026-11-20T10:00:07.500Z" },
+        { text: "yes", speaker: "customer", spokenAt: "2026-11-20T10:00:08.000Z" },
+      ],
+      new Set(),
+    );
+    expect(out[0]).toMatchObject({ seq: 0, endedAt: "2026-11-20T10:00:07.500Z" });
+    expect(out[1]).not.toHaveProperty("endedAt");
+  });
 });

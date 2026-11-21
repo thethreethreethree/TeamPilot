@@ -399,19 +399,21 @@ export async function recoverSessionTranscript(args: {
     };
   }
 
-  let diarized: { speakerId: string; text: string; seq: number; start: number }[];
+  let diarized: { speakerId: string; text: string; seq: number; start: number; end?: number }[];
   let durationSeconds = 0;
   try {
     const t = await transcribeWithDiarization({
       audio: dl.bytes,
       mimeType: dl.contentType || "audio/webm",
       numSpeakers: 2,
+      meter: { engine: "stt_recovery", companyId: args.companyId, sessionId: args.sessionId },
     });
     diarized = t.segments.map((s, i) => ({
       speakerId: s.speakerId,
       text: s.text,
       seq: i,
       start: s.start,
+      ...(typeof s.end === "number" ? { end: s.end } : {}),
     }));
     durationSeconds = t.durationSeconds;
   } catch (err) {
@@ -467,6 +469,8 @@ export async function recoverSessionTranscript(args: {
     // The re-read carries word timestamps, so the recovered transcript can be placed on the
     // call's own clock. The route this generalizes dropped them.
     spokenAt: spokenAtFor(session.startedAt, seg.start),
+    // And when the line ended (0277, RSS Phase 2 stats): the same base, the same unknown-stays-null rule.
+    endedAt: spokenAtFor(session.startedAt, seg.end),
     // WHICH VOICE (0270, 2026-10-08). When the rep's voice is not decided every line is saved 'unknown', and this
     // id is then the only record of who said what: without it the later "whose voice is this?" could only
     // relabel every line one way, making the customer's words the rep's on a two-voice call (A39).

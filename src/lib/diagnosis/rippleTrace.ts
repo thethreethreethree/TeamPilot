@@ -54,7 +54,7 @@ ${args.contextSummary}`;
 
   let text = "";
   if (args.companyId) {
-    const r = await runBrainCall({
+    const r = await runBrainCall({ engine: "diagnosis_ripple_trace",
       companyId: args.companyId,
       basePrompt: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userContent }],
@@ -64,7 +64,7 @@ ${args.contextSummary}`;
     if (r.suppressed) return []; // consume the verdict, don't re-derive the gate (§2.2/AMD-010)
     text = r.text;
   } else {
-    const r = await llmCall({
+    const r = await llmCall({ attribution: { engine: "diagnosis_ripple_trace", companyId: args.companyId ?? null, },
       systemPrompt: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userContent }],
       maxTokens: 1000,

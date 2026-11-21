@@ -8,6 +8,7 @@ import { getLatestTeamBrief } from "@/lib/coach/v5/teamTrainingBrief";
 import { readTeamAssessment } from "@/lib/coach/assessment/readTeamAssessment";
 import type { BriefTheme } from "@/lib/coach/assessment/teamAssessment";
 import { readReviewFlags } from "@/lib/coach/assessment/reviewFlags";
+import { treeFilterReps } from "@/lib/api/treeAccess";
 
 /**
  * GET /api/coach/sales-session/coach-assessment/dashboard?period=day|week|month|all
@@ -54,9 +55,12 @@ export async function GET(req: NextRequest) {
     .eq("company_id", manager.companyId)
     .eq("status", "active");
 
+  // Reporting tree (RSS Phase 0 step 8): the roster is read with the service role, so only the people this
+  // manager may see are kept. Not on the tree yet → everyone, as today.
+  const visibleIds = new Set(await treeFilterReps(req, (profiles ?? []).map((p) => String(p.id))));
   const nameByRep = new Map<string, string>();
   for (const p of profiles ?? []) {
-    if (p.full_name) nameByRep.set(String(p.id), String(p.full_name));
+    if (p.full_name && visibleIds.has(String(p.id))) nameByRep.set(String(p.id), String(p.full_name));
   }
 
   // The brief, for the three priority cards and each rep's one focus. Best-effort.

@@ -69,3 +69,43 @@ export async function notifyRecordingEvent(notice: RecordingNotice): Promise<boo
     return false;
   }
 }
+
+/**
+ * Someone was @mentioned on a recording comment (RSS F9.8, migrations 0293/0294). To the person mentioned, about the
+ * rep's call. Same upsert as notifyRecordingEvent: one row per (person, call), and a later mention brings it back to
+ * the top and to unread. The caller has already checked the person can read the comment (rss_comment_base_visible).
+ * Never throws.
+ */
+export async function notifyCommentMention(args: {
+  companyId: string;
+  recipientId: string;
+  repId: string;
+  sessionId: string | null;
+  payload: { pitch_id: string; timestamp_s: number; excerpt: string; author_name: string | null };
+}): Promise<boolean> {
+  try {
+    const { error } = await createAdminClient().from("manager_notifications").upsert(
+      {
+        company_id: args.companyId,
+        recipient_id: args.recipientId,
+        agent_id: args.repId,
+        session_id: args.sessionId,
+        type: "comment_mention",
+        payload: args.payload,
+        created_at: new Date().toISOString(),
+        read_at: null,
+      },
+      { onConflict: "recipient_id,type,session_id" },
+    );
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(`[notifyCommentMention] failed recipient=${args.recipientId}: ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[notifyCommentMention] threw:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}

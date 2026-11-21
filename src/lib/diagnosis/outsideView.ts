@@ -59,7 +59,7 @@ Generate ${count} outside-view alternatives.`;
 
   let text = "";
   if (args.companyId) {
-    const r = await runBrainCall({
+    const r = await runBrainCall({ engine: "diagnosis_outside_view",
       companyId: args.companyId,
       basePrompt: systemPrompt,
       messages: [{ role: "user", content: userContent }],
@@ -69,7 +69,7 @@ Generate ${count} outside-view alternatives.`;
     if (r.suppressed) return []; // consume the verdict, don't re-derive the gate (§2.2/AMD-010)
     text = r.text;
   } else {
-    const r = await llmCall({
+    const r = await llmCall({ attribution: { engine: "diagnosis_outside_view", companyId: args.companyId ?? null, },
       systemPrompt,
       messages: [{ role: "user", content: userContent }],
       maxTokens: 900,

@@ -56,6 +56,8 @@ const BodySchema = z.object({
          * pace score, which is exactly what it gets today.
          */
         startSeconds: z.number().nonnegative().optional(),
+        /** When the line ended (RSS Phase 2), echoed back the same way; optional for the same reason. */
+        endSeconds: z.number().nonnegative().optional(),
       })
     )
     .min(1)
@@ -156,6 +158,7 @@ export async function POST(
     text: seg.text,
     seq: seg.seq,
     spokenAt: spokenAtFor(session.startedAt, seg.startSeconds),
+    endedAt: spokenAtFor(session.startedAt, seg.endSeconds),
   }));
 
   let appended = 0;
@@ -178,6 +181,7 @@ export async function POST(
         text: seg.text,
         seq: seg.seq,
         spokenAt: seg.spokenAt,
+        endedAt: seg.endedAt,
       });
       if (r) appended += 1;
     }
