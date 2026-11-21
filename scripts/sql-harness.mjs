@@ -203,6 +203,7 @@ async function run() {
     console.log("    · unreviewed_violation_flags — security_invoker must still be set on it");
     console.log("    · profile_departments — the RLS policy must admit an admin and refuse a member");
     console.log("    · RSS read rules (0282/0284/0286) — audit log, erasure, webhooks, retention, trims, training, trimmed transcript");
+    console.log("    · manager_id not self-settable (0272); invitations accepted only via accept_invitation (0297); anon reads 0, no error (0298)");
     process.exit(0);
   }
 

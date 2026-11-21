@@ -1,5 +1,7 @@
-# CI for ELOSTATE — runs typecheck, lint, rls:audit, theme:audit, tests, and `next build`
-# on every PR and push to main (mirrors the `check` npm script, plus a production build).
+# CI for ELOSTATE — on every PR and push to main: the `check` npm script's gates plus a production build.
+# The one `check` gate not here is `tbc` (it needs full history and a merge base); it runs on every commit through the
+# pre-commit / commit-msg hooks instead. Until 2026-11-21 writer:audit, enum:audit and sql:harness were missing too —
+# the harness's claims (RLS behaviour as real signed-in users) then ran nowhere, since it skips without Postgres.
 # Closes audit Tier 2 #10 (no CI) from docs/AUDIT-2026-06-02.md.
 
 name: CI
@@ -100,6 +102,12 @@ jobs:
       - name: Reachability audit
         run: npm run reachability:audit
 
+      - name: Writer audit
+        run: npm run writer:audit
+
+      - name: Enum audit
+        run: npm run enum:audit
+
       # Migration apply audit — the whole history against a real Postgres, twice.
       #
       # Pass 1 (fresh): a migration that cannot apply to a database shaped like production is a
@@ -117,6 +125,17 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
         run: npm run migration:audit
+
+      # SQL harness — claims only executed SQL can check (RLS as real signed-in users, anonymous reads, the
+      # reporting-tree and invitation guards). It SKIPS without Postgres, so without this step none of it ran
+      # anywhere; same service and credentials as the migration audit.
+      - name: SQL harness
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: npm run sql:harness
 
       - name: Test
         run: npm run test

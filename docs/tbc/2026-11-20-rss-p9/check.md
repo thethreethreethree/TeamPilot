@@ -479,3 +479,13 @@ auth.role are production's" (compares pg_proc.prosrc with the shim, whitespace-i
 mutant (auth.jwt back to '{}') → FAIL naming auth.jwt; restored byte-identical. Every PGlite replay from today re-run on
 the corrected shim with unchanged results (anon, attack A–H, CLAIM 5, trims, 0300 audio start, 0299 rule).
 npm run check exit 0.
+
+## Correction 2026-11-21 — the SQL harness did not run in CI; now it does
+
+Earlier addenda (CLAIM 5; the residual closures citing it) said the harness "keeps it as a gate on real Postgres" in CI.
+It did not: .github/workflows/ci.yml ran migration:audit against its Postgres service but never sql:harness (nor
+writer:audit / enum:audit), while its header said it mirrored `npm run check`. Locally the harness skips without
+Postgres, so its claims ran nowhere. Fixed: ci.yml now runs writer:audit, enum:audit and sql:harness (same Postgres
+service and credentials as migration:audit); `tbc` stays on the commit hooks (needs full history), stated in the header.
+Before enabling, all 5 claims were run from the harness's own text on PGlite 16.4 through a pg-compatible adapter:
+5 of 5 pass. The no-secrets CI build (`npm run build:ci`) passes. The harness's SKIPPED list now names CLAIM 5.
