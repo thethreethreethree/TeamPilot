@@ -231,3 +231,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: found in the 0300 sweep of every spoken_at→position reader; changing it changes what stored pitch_score_elements.timestamp_s means for every score, so it is its own change, not part of 0300
       next-action: base the offsets on audioBaseIso(started_at, audio_started_at); re-score is not needed for new calls, and old scores keep their meaning (document the cut-over date)
 
+- [ ] 2026-11-21 · storage · SETUP: tell /api/health the Supabase plan's real limits (SUPABASE_STORAGE_QUOTA_BYTES / SUPABASE_DB_QUOTA_BYTES in Vercel)
+      why-unresolved: unset → health assumes the Free plan (1 GB files). Storage is 0.77 GB after the cleanup = 77% → status "degraded" (warn ≥ 70%). If the plan was upgraded after 2026-11-11 that is a false warning; if it is still Free, it is a real one (~230 MB from the limit that suspended the project, and the nightly sweeper removes only orphans, not normal growth). Nothing in the app shows "degraded" (VersionWatcher reads only build.commit) and no monitor watches it, so this is quiet either way.
+      next-action: Supabase dashboard → plan. Upgraded: set both variables in Vercel to the plan's limits in bytes (.env.example has the format). Still Free: decide retention before the limit (Settings → Protection → keep last N per rep).
