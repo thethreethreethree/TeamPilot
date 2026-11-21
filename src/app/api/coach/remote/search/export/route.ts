@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
   const parsed = parseCallSearch(new URL(req.url).searchParams);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const result = await runCallSearch(callerScopedDb(req) ?? (await createClient()), parsed.filters);
+  const result = await runCallSearch(callerScopedDb(req) ?? (await createClient()), { ...parsed.filters, remoteOnly: true }); // Remote Sales: phone and video calls only
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   const day = new Date().toISOString().slice(0, 10);
   // What left the building: the filters and the row count, never the rows themselves.

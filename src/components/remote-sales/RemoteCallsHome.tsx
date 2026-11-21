@@ -78,7 +78,7 @@ export function RemoteCallsHome() {
           Choose <b>Online video</b> or <b>Phone</b>. On the call&apos;s page, record it live or upload the recording; it is
           transcribed, analyzed and scored automatically.
         </p>
-        <StartSessionPanel />
+        <StartSessionPanel module="remote_sales" />
       </section>
 
       <section aria-label="Remote calls">
@@ -99,7 +99,7 @@ export function RemoteCallsHome() {
           <ul className="space-y-2">
             {rows.map((r) => (
               <li key={r.id}>
-                <Link href={`/dashboard/sales-coach/${r.id}`} className="flex flex-col gap-2 rounded-xl border border-default bg-surface p-4 hover:border-brand sm:flex-row sm:items-center">
+                <Link href={`/dashboard/remote-sales/calls/${r.id}`} className="flex flex-col gap-2 rounded-xl border border-default bg-surface p-4 hover:border-brand sm:flex-row sm:items-center">
                   <span className="flex min-w-0 flex-1 items-center gap-3">
                     <span className="shrink-0 text-muted">
                       {r.context === "phone" ? <Phone className="h-4 w-4" aria-label="Phone" /> : <Video className="h-4 w-4" aria-label="Video" />}

@@ -4,9 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Phone,
   Mic,
-  Video,
   DoorOpen,
   ShieldCheck,
   GraduationCap,
@@ -31,7 +29,6 @@ import {
   DeckCard,
   DeckStat,
   DeckButton,
-  DeckGhostButton,
   SectionLabel,
 } from "@/components/sales-coach/ui/deck";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -67,16 +64,10 @@ export default function SalesCoachHome() {
   const [statsError, setStatsError] = useState(false);
   // The rep's name for the mobile "Welcome, [name]" header (PWA home).
   const [name, setName] = useState<string | null>(null);
-  const [context, setContext] = useState<SalesContext>("video");
-  // Spec 1a (2026-07-15): In-person is the default for Standard — door-to-door reps
-  // live at doorsteps, not on video, and defaulting to the channel they never use is
-  // a tiny tax paid on every single session. Expert keeps the prior video default,
-  // unchanged. The effect flips the default once the mode resolves; deps are stable
-  // after load, so a rep's manual pick afterward is never overridden.
-  const { isStandard, loaded: modeLoaded } = useExperienceMode();
-  useEffect(() => {
-    if (modeLoaded && isStandard) setContext("in_person");
-  }, [modeLoaded, isStandard]);
+  // Sales Coach is in-person only (founder 2026-11-22): phone and video calls are started in Remote Sales.
+  const context: SalesContext = "in_person";
+  const { isStandard } = useExperienceMode();
+
   const [clientLabel, setClientLabel] = useState("");
   // Phase 2 capture (optional) — WHERE / HOW / WHAT, entered up front.
   const [territory, setTerritory] = useState("");
@@ -435,41 +426,10 @@ export default function SalesCoachHome() {
             </DeckButton>
           ) : (
             <div className="rounded-xl border border-ember-400/40 bg-surface p-3 space-y-2.5">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setContext("video")}
-                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
-                    context === "video"
-                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                      : "border-default text-secondary"
-                  }`}
-                >
-                  Online video
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContext("in_person")}
-                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
-                    context === "in_person"
-                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                      : "border-default text-secondary"
-                  }`}
-                >
-                  In-person
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContext("phone")}
-                  className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
-                    context === "phone"
-                      ? "border-ember-400/50 bg-ember-400/10 text-brand"
-                      : "border-default text-secondary"
-                  }`}
-                >
-                  Phone
-                </button>
-              </div>
+              <p className="text-[11px] text-secondary">
+                In-person session. Phone and video calls:{" "}
+                <Link href="/dashboard/remote-sales" className="text-brand hover:underline">Remote Sales</Link>.
+              </p>
               {/* Standard: no name field here (founder 2026-07-26, image 4 "take
                   this out"). The pitch is named AFTER the call on the After-Pitch
                   screen, once the rep knows what it was. Expert still names up
@@ -544,35 +504,16 @@ export default function SalesCoachHome() {
           <LearningHint
             as="block"
             category="Sales Coach · Session"
-            title="In-person vs. video"
-            whatItIs="Whether this session is an in-person conversation (a door, a field visit) or a remote video call."
-            why="The coach adapts to the channel — doorstep timing and body language in person; framing and pacing on video. Set right, the cues and the review fit how the conversation actually happens."
-            how="Pick the one that matches this call before you start. It's also what lets you later compare your in-person close rate against your video close rate."
+            title="In-person session"
+            whatItIs="An in-person conversation: a door or a field visit. Phone and video calls are recorded in Remote Sales."
+            why="Sales Coach is built for the doorstep: timing, body language and the next door. Remote calls have their own module so each is coached on its own terms."
+            how="Start the session at the door; the coach listens and the review follows."
             principle="Coach the channel you're actually in."
           >
-            <div className="grid grid-cols-3 gap-2 mb-2.5">
-              <DeckGhostButton
-                active={context === "video"}
-                onClick={() => setContext("video")}
-              >
-                <Video className="w-3.5 h-3.5" aria-hidden />
-                Online video
-              </DeckGhostButton>
-              <DeckGhostButton
-                active={context === "in_person"}
-                onClick={() => setContext("in_person")}
-              >
-                <DoorOpen className="w-3.5 h-3.5" aria-hidden />
-                In-person
-              </DeckGhostButton>
-              <DeckGhostButton
-                active={context === "phone"}
-                onClick={() => setContext("phone")}
-              >
-                <Phone className="w-3.5 h-3.5" aria-hidden />
-                Phone
-              </DeckGhostButton>
-            </div>
+            <p className="mb-2.5 text-xs text-secondary">
+              In-person session. Phone and video calls are recorded in{" "}
+              <Link href="/dashboard/remote-sales" className="text-brand hover:underline">Remote Sales</Link>.
+            </p>
           </LearningHint>
           {/* Standard: no name field here (founder 2026-07-26, image 4) — Standard
               names the pitch AFTER the call on the After-Pitch screen. Expert keeps

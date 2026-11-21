@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import { toCsv } from "@/lib/export/toCsv";
-import { SALES_CONTEXTS } from "@/lib/coach/sessionContext";
+import { REMOTE_CONTEXTS, SALES_CONTEXTS, isRemoteContext } from "@/lib/coach/sessionContext";
 import { ELEMENTS_BY_ID } from "@/lib/coach/pitchScore/rubric";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
@@ -37,6 +37,8 @@ export type CallSearchFilters = {
   talkMax?: number;
   /** Only calls whose score the rep disputed. */
   disputed?: boolean;
+  /** Remote Sales' own search: phone and video calls only (founder 2026-11-22, separate from Sales Coach). */
+  remoteOnly?: boolean;
 };
 
 export type CallSearchHit = { seq: number; speaker: string; text: string; atMs: number | null };
@@ -132,6 +134,8 @@ function narrow(current: Set<string> | null, ids: Set<string>): Set<string> {
 }
 
 export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): Promise<CallSearchResult> {
+  // Remote Sales searches its own calls only; an in-person channel there matches nothing.
+  if (f.remoteOnly && f.channel && !isRemoteContext(f.channel)) return { ok: true, rows: [], truncated: false };
   // 1. Words → which calls, and the matching lines.
   const hitsBySession = new Map<string, CallSearchHit[]>();
   let restrictTo: Set<string> | null = null;
@@ -225,6 +229,7 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     query = query.in("id", [...restrictTo].slice(0, READ_CAP));
   }
   if (f.channel) query = query.eq("context", f.channel);
+  else if (f.remoteOnly) query = query.in("context", [...REMOTE_CONTEXTS]);
   if (f.repId) query = query.eq("agent_id", f.repId);
   if (f.outcome) query = query.eq("outcome", f.outcome);
   if (f.from) query = query.gte("started_at", f.from);

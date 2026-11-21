@@ -42,3 +42,12 @@ cites, when it was read in THIS session, and one sentence on how the build embod
 
 docs/residuals/OPEN.md: RSS_WEBHOOK_SIGNING_SECRET; OAuth providers + NEXT_PUBLIC_AUTH_PROVIDERS; the trim-offset check
 on a real upload; A16/A21 audits above.
+
+## Additional reads — Remote Sales separation (2026-11-22)
+
+| Asset | Read in this session | Intent vs behaviour |
+|---|---|---|
+| ThinkerThinker.md A11 (mirror, don't judge) | 2026-11-21T22:44Z | Unchanged by the move: the session page's existing comment citing it moved with the code (git mv); no new verdict-rendering mechanic added. |
+| ThinkerThinker.md A13 (vocabulary once, by category) | 2026-11-21T11:16Z | "Which calls are remote" stays one definition: REMOTE_CONTEXTS / isRemoteContext drive the module router, the start panel and remoteOnly search — no new copy of the phone/video list. |
+| ThinkerThinker.md A14 (data path ≠ render path) | 2026-11-21T22:44Z | **Partly embodied.** Every moved render branch compiles (build:ci) and its tests pass (101 files), but the two-module call page has not been looked at on the live site yet — the founder's first remote call is that check. |
+| ThinkerThinker.md A18 (the label is the defense) | 2026-11-21T22:44Z | The moved coaching inbox keeps its labels ("open requests", "last feedback") — it invites coaching, not enforcement; nothing relabelled. |

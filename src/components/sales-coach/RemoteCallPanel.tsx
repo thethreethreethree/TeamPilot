@@ -415,7 +415,7 @@ export function RemoteCallPanel({
           {saveNote && (
             <p className="mt-1 text-[11px] text-secondary" role="status">
               {saveNote}{" "}
-              <Link href="/dashboard/sales-coach/library" className="text-brand hover:underline">Open the library</Link>
+              <Link href="/dashboard/remote-sales/library" className="text-brand hover:underline">Open the library</Link>
             </p>
           )}
           {trims.length > 0 && (

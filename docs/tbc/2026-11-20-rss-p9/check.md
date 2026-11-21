@@ -577,3 +577,23 @@ RLS, the reporting tree, sales-calls-only and trims are decided once. Each call 
 up to two matching lines; a failed call search sets salesCallsFailed and the page says so ("the other results are
 complete") instead of reading as no calls. Tests: 3 (included with two hits; failure flagged; empty query → empty shape,
 no call search). Phase 5's R2 residual is closed in OPEN.md (filters, downloads, global search).
+
+## Addendum 2026-11-22 — Remote Sales completely separate from Sales Coach (founder picker: Remote Sales owns video)
+
+Founder: "make sure that the remote sales coach is completely separate from the previous sales coach system"; picker →
+"Remote Sales owns video": Remote Sales = every phone and video call; Sales Coach = in-person only.
+- Call page: the session page body moved (git mv) to components/sessions/SessionDetailView with `module`; rendered at
+  /dashboard/remote-sales/calls/[id] (Remote Sales) and /dashboard/sales-coach/[id] (Sales Coach). A call opened in the
+  other module's page is replaced to its own, keeping the query (?t= jump-to-moment). The After-Pitch door debrief and
+  its redirects are Sales Coach only; naming a remote call reloads the call page. Back link per module.
+- Start: StartSessionPanel({module}) — Remote Sales: Online video / Phone, opens the call in Remote Sales; Sales Coach:
+  in-person only. The Sales Coach home's own start controls (mobile + desktop) are in-person only, with a pointer to
+  Remote Sales.
+- Lists: Sales Coach sessions list requests context=in_person (filter control removed); Remote Sales Calls lists phone
+  + video and links to its own call page.
+- Screens moved out of Sales Coach: Search and Library pages git-mv'd to /dashboard/remote-sales/* (old addresses
+  redirect); coaching inbox removed from Coach Assessment; trackers and the Protection tab removed from Sales Coach
+  settings; Sales Coach links to search/library removed. Remote Sales search and its CSV export are remoteOnly (phone +
+  video); the app-wide search still finds every call and opens each in its own module.
+Data stays in the shared tables (picker: not "separate data"). typecheck · lint · theme 0 · reachability · invariants 0
+· 101 test files / 789 tests · build:ci PASSED.

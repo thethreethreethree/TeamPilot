@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const parsed = parseCallSearch(new URL(req.url).searchParams);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const result = await runCallSearch(callerScopedDb(req) ?? (await createClient()), parsed.filters);
+  const result = await runCallSearch(callerScopedDb(req) ?? (await createClient()), { ...parsed.filters, remoteOnly: true }); // Remote Sales: phone and video calls only
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ rows: result.rows, truncated: result.truncated, narrower: !!result.narrower });
 }

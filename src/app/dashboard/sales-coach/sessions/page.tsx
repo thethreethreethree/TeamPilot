@@ -143,14 +143,9 @@ export default function SalesCoachSessionsPage() {
   } | null>(null);
 
   const [search, setSearch] = useState("");
-  const [context, setContext] = useState<"all" | "remote" | SalesContext>("all");
-  // The sidebar's Remote Sales entry opens this page at ?context=remote (phone + video). Read once on mount, from the
-  // URL, so the filter is also shareable; window.location rather than useSearchParams, which would need a Suspense
-  // boundary around the whole page.
-  useEffect(() => {
-    const c = new URLSearchParams(window.location.search).get("context");
-    if (c === "remote" || c === "in_person" || c === "video" || c === "phone") setContext(c);
-  }, []);
+  // Sales Coach lists in-person sessions only (founder 2026-11-22): phone and video calls are Remote Sales'.
+  // Filtered on the server, so the 300-row page is all in-person.
+  const context: SalesContext = "in_person";
   const [status, setStatus] = useState<
     "all" | "active" | "ended" | "reviewed"
   >("all");
@@ -168,7 +163,7 @@ export default function SalesCoachSessionsPage() {
     // so filtering isn't trapped inside the 300-row cap. Text search stays
     // client-side (matches client + agent name) — see `filtered`.
     const qs = new URLSearchParams();
-    if (context !== "all") qs.set("context", context);
+    qs.set("context", context); // in-person only (Sales Coach)
     if (status !== "all") qs.set("status", status);
     if (period !== "all") qs.set("period", period);
     try {
@@ -214,7 +209,6 @@ export default function SalesCoachSessionsPage() {
 
   const anyFilter =
     search.trim() !== "" ||
-    context !== "all" ||
     status !== "all" ||
     period !== "all";
 
@@ -330,11 +324,6 @@ export default function SalesCoachSessionsPage() {
     <>
       <TopBar title="Sessions" subtitle="Your coaching history" />
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-5xl mx-auto w-full space-y-4 bg-base">
-        {/* RSS Phase 5: search across calls by what was said, and the saved-calls library. */}
-        <div className="flex justify-end gap-3 text-xs">
-          <Link href="/dashboard/sales-coach/search" className="text-brand hover:underline">Search calls</Link>
-          <Link href="/dashboard/sales-coach/library" className="text-brand hover:underline">Library</Link>
-        </div>
         {/* Start a session — Expert only. Spec p2: Standard's Sessions tab is
             browse-only (start lives on Home); Expert keeps the front door here. */}
         {!isStandard && <StartSessionPanel />}
@@ -585,28 +574,7 @@ export default function SalesCoachSessionsPage() {
               />
             </div>
           </LearningHint>
-          <LearningHint
-            as="block"
-            category="Sales Coach · Sessions"
-            title="Context filter"
-            whatItIs="Filters sessions by where the conversation happened: in-person (a door or field visit), video, or phone. Remote shows video and phone together — the calls the Remote Sales entry opens."
-            why="In person and remote are coached differently — body language and doorstep timing matter at the door; framing, pacing, and listening matter on a call. Mixing them hides patterns that only show up within one context."
-            how="Set it to In-person, Remote, Video or Phone when you want to study one channel at a time — for example, to see whether your close rate at the door differs from your close rate on calls. This filter runs on the server, so it searches your whole history, not just what's on screen."
-            principle="Improvement is context-specific; compare like with like."
-          >
-            <Select
-              value={context}
-              onChange={(v) => setContext(v as typeof context)}
-              options={[
-                ["all", "All contexts"],
-                ["remote", "Remote (phone + video)"],
-                ["in_person", "In-person"],
-                ["video", "Video"],
-                ["phone", "Phone"],
-              ]}
-            />
-          </LearningHint>
-          <LearningHint
+                    <LearningHint
             as="block"
             category="Sales Coach · Sessions"
             title="Status filter"
@@ -701,14 +669,11 @@ export default function SalesCoachSessionsPage() {
             principle="Empty because you filtered it out is not the same as empty because it isn't there."
           >
             <p className="text-xs text-muted py-12 text-center">
-              {/* Context/status/period filter on the SERVER, so an empty list under a filter is "nothing matches",
-                  never "no sessions yet" — and the Remote Sales entry lands here with ?context=remote, where the
-                  next step is a phone or video call, started from the panel above (Expert) or from Home (Standard). */}
-              {(sessions ?? []).length === 0 && context === "remote"
-                ? `No phone or video calls yet. Start one ${isStandard ? "from Home" : "above"} — choose Online video or Phone — then record it live or upload the recording on its page.`
-                : (sessions ?? []).length === 0 && context === "all" && status === "all" && period === "all"
-                  ? "No sessions yet. Start one from Home."
-                  : "No sessions match these filters."}
+              {/* Status/period filter on the SERVER, so an empty list under a filter is "nothing matches", never
+                  "no sessions yet". Phone and video calls are in Remote Sales, not here. */}
+              {(sessions ?? []).length === 0 && status === "all" && period === "all"
+                ? "No in-person sessions yet. Start one from Home. Phone and video calls are in Remote Sales."
+                : "No sessions match these filters."}
             </p>
           </LearningHint>
         ) : (

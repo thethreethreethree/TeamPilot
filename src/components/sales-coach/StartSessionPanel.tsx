@@ -18,9 +18,14 @@ import { micHearsRepOnly, type SalesContext } from "@/lib/coach/sessionContext";
  * Sessions" card routes to Sessions and must be able to START a session, not
  * just list them). Own state + start logic. §A21 — one reusable panel.
  */
-export function StartSessionPanel() {
+/**
+ * `module` (founder 2026-11-22: Remote Sales completely separate from Sales Coach): Sales Coach starts in-person
+ * sessions only; Remote Sales starts Online video or Phone calls and opens them on its own call page.
+ */
+export function StartSessionPanel({ module = "sales_coach" }: { module?: "sales_coach" | "remote_sales" } = {}) {
   const router = useRouter();
-  const [context, setContext] = useState<SalesContext>("video");
+  const remote = module === "remote_sales";
+  const [context, setContext] = useState<SalesContext>(remote ? "video" : "in_person");
   const [clientLabel, setClientLabel] = useState("");
   const [territory, setTerritory] = useState("");
   const [approach, setApproach] = useState("");
@@ -73,7 +78,7 @@ export function StartSessionPanel() {
         throw new Error(b?.error ?? `Couldn't start (HTTP ${res.status})`);
       }
       const { session } = await res.json();
-      router.push(`/dashboard/sales-coach/${session.id}`);
+      router.push(remote ? `/dashboard/remote-sales/calls/${session.id}` : `/dashboard/sales-coach/${session.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       startingRef.current = false;
@@ -106,36 +111,36 @@ export function StartSessionPanel() {
       )}
       <LearningHint
         as="block"
-        category="Sales Coach · Session"
-        title="In-person vs. video"
-        whatItIs="Whether this session is an in-person conversation (a door, a field visit) or a remote video call."
-        why="The coach adapts to the channel — doorstep timing and body language in person; framing and pacing on video. Set right, the cues and the review fit how the conversation actually happens."
-        how="Pick the one that matches this call before you start. It's also what lets you later compare your in-person close rate against your video close rate."
+        category={remote ? "Remote Sales · Call" : "Sales Coach · Session"}
+        title={remote ? "Video or phone" : "In-person session"}
+        whatItIs={remote
+          ? "Whether this call happens on an online video meeting or over the phone."
+          : "An in-person conversation: a door or a field visit. Phone and video calls are recorded in Remote Sales."}
+        why={remote
+          ? "The coach reads each channel differently: framing and pacing on video, voice and listening on the phone. Set right, the scoring and the review fit the call."
+          : "Sales Coach is built for the doorstep: timing, body language and the next door. Remote calls have their own module so each is coached on its own terms."}
+        how={remote
+          ? "Pick the one that matches the call, start it, then record it live or upload the recording on its page."
+          : "Start the session at the door; the coach listens and the review follows."}
         principle="Coach the channel you're actually in."
       >
-        <div className="grid grid-cols-3 gap-2 mb-2.5">
-          <DeckGhostButton
-            active={context === "video"}
-            onClick={() => setContext("video")}
-          >
-            <Video className="w-3.5 h-3.5" aria-hidden />
-            Online video
-          </DeckGhostButton>
-          <DeckGhostButton
-            active={context === "in_person"}
-            onClick={() => setContext("in_person")}
-          >
+        {remote ? (
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <DeckGhostButton active={context === "video"} onClick={() => setContext("video")}>
+              <Video className="w-3.5 h-3.5" aria-hidden />
+              Online video
+            </DeckGhostButton>
+            <DeckGhostButton active={context === "phone"} onClick={() => setContext("phone")}>
+              <Phone className="w-3.5 h-3.5" aria-hidden />
+              Phone
+            </DeckGhostButton>
+          </div>
+        ) : (
+          <p className="mb-2.5 inline-flex items-center gap-1.5 text-xs text-secondary">
             <DoorOpen className="w-3.5 h-3.5" aria-hidden />
-            In-person
-          </DeckGhostButton>
-          <DeckGhostButton
-            active={context === "phone"}
-            onClick={() => setContext("phone")}
-          >
-            <Phone className="w-3.5 h-3.5" aria-hidden />
-            Phone
-          </DeckGhostButton>
-        </div>
+            In-person session. Phone and video calls live in Remote Sales.
+          </p>
+        )}
         {/* §3.4 honesty: on video the device mic hears the REP's side only —
             the prospect is on the far end of the call, not in the mic. Say so
             plainly so the rep's mental model matches what the coach can

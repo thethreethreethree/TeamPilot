@@ -224,7 +224,7 @@ export default function SearchPage() {
               {calls.map((c) => (
                 <li key={c.sessionId}>
                   <Link
-                    href={`/dashboard/sales-coach/${c.sessionId}`}
+                    href={c.channel === "phone" || c.channel === "video" ? `/dashboard/remote-sales/calls/${c.sessionId}` : `/dashboard/sales-coach/${c.sessionId}`}
                     className="block rounded-md border border-default bg-white/[0.01] hover:border-strong p-2.5"
                   >
                     <div className="flex items-start gap-2">
