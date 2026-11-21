@@ -25,7 +25,6 @@ import {
   GraduationCap,
   Phone,
 } from "lucide-react";
-import { AssignedPractice } from "@/components/sales-coach/AssignedPractice";
 import { PracticeFollowUp } from "@/components/sales-coach/PracticeFollowUp";
 
 /**
@@ -414,8 +413,7 @@ export default function SalesCoachRoleplayPage() {
               </DeckCard>
             )}
 
-            {/* RSS Phase 7: practice a manager assigned, with due dates (renders nothing when none). */}
-            {!assignment && <AssignedPractice />}
+            {/* Assigned practice lives in Remote Sales → Training (founder 2026-11-22: separate modules). */}
             {assignment && (
               <DeckCard className="p-4">
                 <p className="text-[10px] uppercase tracking-wide text-muted">Assigned practice</p>

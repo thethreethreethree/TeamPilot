@@ -44,7 +44,11 @@ export function RemoteSalesShell({ children }: { children: React.ReactNode }) {
           </div>
           <nav className="-mb-px mt-4 flex gap-1 overflow-x-auto" aria-label="Remote Sales sections">
             {tabs.map((t) => {
-              const active = t.href === "/dashboard/remote-sales" ? pathname === t.href : pathname.startsWith(t.href);
+              // Calls covers a call page; Training covers practising an assignment.
+              const active =
+                t.href === "/dashboard/remote-sales"
+                  ? pathname === t.href || pathname.startsWith("/dashboard/remote-sales/calls/")
+                  : pathname.startsWith(t.href) || (t.label === "Training" && pathname.startsWith("/dashboard/remote-sales/practice"));
               return (
                 <Link
                   key={t.href}

@@ -51,7 +51,7 @@ export function AssignedPractice() {
       <ul className="space-y-1.5">
         {[...open, ...done].map((i) => (
           <li key={i.id} className="flex flex-wrap items-center gap-2 text-xs">
-            <Link href={`/dashboard/sales-coach/roleplay?assignment=${i.id}`} className="font-semibold text-brand hover:underline">
+            <Link href={`/dashboard/remote-sales/practice?assignment=${i.id}`} className="font-semibold text-brand hover:underline">
               {i.scenario?.title ?? "Practice"}
             </Link>
             <span className="text-muted">

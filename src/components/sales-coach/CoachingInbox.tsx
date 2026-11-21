@@ -125,7 +125,7 @@ export function CoachingInbox() {
                 <tr key={i.id} className="border-t border-default align-top">
                   <td className="py-2 pr-3 text-primary">{i.repName ?? "A rep"}</td>
                   <td className="py-2 pr-3">
-                    <Link href={`/dashboard/sales-coach/${i.sessionId}`} className="text-brand hover:underline">
+                    <Link href={`/dashboard/remote-sales/calls/${i.sessionId}`} className="text-brand hover:underline">
                       {i.callLabel || "Untitled call"}
                     </Link>
                     <span className="block text-[10px] text-muted">{CHANNEL[i.context ?? ""] ?? "Call"}</span>

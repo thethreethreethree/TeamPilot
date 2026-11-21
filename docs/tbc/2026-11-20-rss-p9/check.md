@@ -597,3 +597,7 @@ Founder: "make sure that the remote sales coach is completely separate from the 
   video); the app-wide search still finds every call and opens each in its own module.
 Data stays in the shared tables (picker: not "separate data"). typecheck · lint · theme 0 · reachability · invariants 0
 · 101 test files / 789 tests · build:ci PASSED.
+Follow-up: the last links from Remote Sales screens into Sales Coach — the coaching inbox now opens calls in Remote
+Sales; assigned practice opens /dashboard/remote-sales/practice (the role-play screen inside Remote Sales; the Training
+tab stays active), and the assignment list is off the Sales Coach role-play page. The Protection audit log links any
+session to Sales Coach's address, and the module router sends a remote call on to Remote Sales. 54 test files pass.
