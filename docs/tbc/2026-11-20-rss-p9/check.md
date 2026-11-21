@@ -462,3 +462,11 @@ applies to anon (no `to` clause, or public/anon) may not call a function anon ca
 Mutation: 0298 moved aside → 23 violations (22 × rss_tree_allows, 1 × rss_comment_base_visible) — the failure production
 hit on apply; rss_line_trimmed is not flagged because 0300 re-grants it. Restored → 0. Pinned in invariant-audit.test.ts.
 npm run check exit 0.
+
+## Addendum 2026-11-21 — the theme audit now sees uncommitted files
+
+Closes the blind spot recorded in "Correction" above: theme-audit.mjs listed files with `git ls-files src` (tracked
+only). Now `git ls-files --cached --others --exclude-standard src` (plus an existsSync filter for working-tree
+deletions); the two hand-listed untracked chat pages it had patched in are covered generically. Mutation: an untracked
+src/components/zz-theme-mutant.tsx with `bg-ember-400 text-primary` → "Theme-bound leaks: 1" naming it; removed → clean.
+npm run check exit 0.

@@ -33,7 +33,7 @@
 // ─────────
 //   0 if zero theme-bound leaks. 1 otherwise.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const VERBOSE = process.argv.includes("--verbose");
@@ -190,16 +190,17 @@ const FILE_ALLOWLIST = new Map([
 // leak patterns and failed CI. (Root-caused 2026-08-04: this was the chronic red-CI theme:audit step.)
 // Scope to `src` and filter to .ts/.tsx in JS so the SAME set is scanned on every OS/shell — matching this
 // script's stated scope ("every src .ts / .tsx file") and never scanning config, .css, or images.
+// TRACKED AND UNTRACKED (2026-11-21). `git ls-files src` alone saw only COMMITTED files, so a feature built up before
+// its first commit went un-audited: the ~100 RSS files passed every local `npm run check` and the first leak surfaced
+// only once they were tracked (docs/tbc/2026-11-20-rss-p9/check.md, "Correction"). `--others --exclude-standard` adds
+// untracked files that .gitignore does not exclude — still no shell globs, so the cross-OS fix above holds. It also
+// replaces the two hand-listed chat pages that were patched in for the same blind spot. A tracked file deleted in the
+// working tree is still listed by --cached, so only files that exist are read.
 const files = Array.from(
   new Set(
-    execSync("git ls-files src", { encoding: "utf8" })
+    execSync("git ls-files --cached --others --exclude-standard src", { encoding: "utf8" })
       .split("\n")
-      .filter((f) => /\.tsx?$/.test(f))
-      // Untracked Phase-1 chat pages still must be audited.
-      .concat([
-        "src/app/dashboard/chats/page.tsx",
-        "src/app/dashboard/chats/[id]/page.tsx",
-      ])
+      .filter((f) => /\.tsx?$/.test(f) && existsSync(f))
   )
 );
 
