@@ -6,11 +6,13 @@ import { Download, Loader2, Search, Star, X } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
+import { ELEMENTS } from "@/lib/coach/pitchScore/rubric";
 
 /**
  * Sales Coach → Search calls (RSS Phase 5; docs/rss/docs/06-UI-SPEC.md "Find").
  *
- * A filter rail (words, channel, rep, outcome, dates, score range, keyword tracker), the matching calls with the
+ * A filter rail (words, channel, rep, outcome, dates, score range, keyword tracker, rubric item + grade, talk share,
+ * disputed), the matching calls with the
  * lines that matched (each opens the call at that moment), *Save search*, saved searches, and *Export CSV* for
  * managers, and *Ask about these calls* (RSS Phase 6, Gong F13.13): one question over the newest ten results,
  * answered with time chips that open each call at the cited moment. Everything is searched through the viewer's own access: a rep finds their calls, a manager their team's.
@@ -18,9 +20,16 @@ import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer
 type Hit = { seq: number; speaker: string; text: string; atMs: number | null };
 type Row = { sessionId: string; repName: string | null; channel: string; callLabel: string | null; startedAt: string; outcome: string | null; score: number | null; hits: Hit[] };
 type Saved = { id: string; name: string; query: string };
-type Filters = { q: string; channel: string; rep: string; outcome: string; from: string; to: string; scoreMin: string; scoreMax: string; tracker: string };
+type Filters = {
+  q: string; channel: string; rep: string; outcome: string; from: string; to: string; scoreMin: string; scoreMax: string; tracker: string;
+  // 2026-11-22 (Phase 5): a rubric item and the grade the call got on it, the rep's talk share, disputed calls.
+  element: string; grade: string; talkMin: string; talkMax: string; disputed: string;
+};
 
-const EMPTY: Filters = { q: "", channel: "all", rep: "", outcome: "all", from: "", to: "", scoreMin: "", scoreMax: "", tracker: "" };
+const EMPTY: Filters = {
+  q: "", channel: "all", rep: "", outcome: "all", from: "", to: "", scoreMin: "", scoreMax: "", tracker: "",
+  element: "", grade: "missed", talkMin: "", talkMax: "", disputed: "",
+};
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
 const OUTCOME: Record<string, string> = { sold: "Sold", follow_up: "Follow-up", no_sale: "No sale", undecided: "Undecided" };
 const SPEAKER: Record<string, string> = { rep: "Rep", customer: "Customer" };
@@ -178,6 +187,31 @@ export default function SearchCallsPage() {
                 </select>
               </label>
             )}
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <label className="block text-[11px] text-muted">
+                Rubric item
+                <select value={f.element} onChange={set("element")} className={input}>
+                  <option value="">Any</option>
+                  {ELEMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-[11px] text-muted">
+                Graded
+                <select value={f.grade} onChange={set("grade")} disabled={!f.element} className={input}>
+                  <option value="missed">Missed</option>
+                  <option value="partial">Partial</option>
+                  <option value="hit">Hit</option>
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-[11px] text-muted">Rep talk % ≥<input inputMode="numeric" value={f.talkMin} onChange={set("talkMin")} className={input} /></label>
+              <label className="block text-[11px] text-muted">Rep talk % ≤<input inputMode="numeric" value={f.talkMax} onChange={set("talkMax")} className={input} /></label>
+            </div>
+            <label className="flex items-center gap-2 text-[11px] text-muted">
+              <input type="checkbox" checked={f.disputed === "1"} onChange={(e) => setF((x) => ({ ...x, disputed: e.target.checked ? "1" : "" }))} />
+              Only calls whose score the rep disputed
+            </label>
             <div className="flex gap-2 pt-1">
               <button type="submit" disabled={busy} className="inline-flex items-center gap-1 rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-60">
                 <Search className="h-3.5 w-3.5" aria-hidden /> Search

@@ -77,3 +77,64 @@ describe("runCallSearch", () => {
     expect(calls.some(([t]) => t === "coaching_sessions")).toBe(false);
   });
 });
+
+// 2026-11-22 (Phase 5 R2 residual): rubric element + grade, talk share, disputed; and hit offsets from the audio clock.
+describe("parseCallSearch — the added filters", () => {
+  it("rubric element (grade defaults to missed), talk share bounds, disputed", () => {
+    expect(parseCallSearch(new URLSearchParams("element=intro.trucks&talkMin=20&talkMax=60&disputed=1"))).toEqual({
+      filters: { elementId: "intro.trucks", grade: "missed", talkMin: 20, talkMax: 60, disputed: true },
+    });
+    expect(parseCallSearch(new URLSearchParams("element=intro.trucks&grade=hit"))).toMatchObject({ filters: { grade: "hit" } });
+  });
+  it("refuses an unknown element, a bad grade and a talk share outside 0-100", () => {
+    expect(parseCallSearch(new URLSearchParams("element=nope"))).toEqual({ error: "Unknown rubric element." });
+    expect(parseCallSearch(new URLSearchParams("element=intro.trucks&grade=great"))).toEqual({ error: "Grade must be hit, partial or missed." });
+    expect(parseCallSearch(new URLSearchParams("talkMin=120"))).toEqual({ error: "Talk share is a percent from 0 to 100." });
+  });
+});
+
+describe("runCallSearch — the added filters", () => {
+  const sessions = [
+    { id: "s1", agent_id: "r1", context: "phone", client_label: "Acme", started_at: "2026-11-20T10:00:00Z", audio_started_at: null, outcome: "sold" },
+    { id: "s2", agent_id: "r1", context: "video", client_label: "Beta", started_at: "2026-11-19T10:00:00Z", audio_started_at: null, outcome: null },
+  ];
+  it("rubric element + grade narrows the calls to those whose pitch got that grade", async () => {
+    const { db, calls } = fakeDb({ pitch_score_elements: [{ pitch_id: "p1" }], pitch_scores: [{ id: "p1", session_id: "s1", total: 70 }], coaching_sessions: sessions, profiles: [] });
+    await runCallSearch(db, { elementId: "intro.trucks", grade: "missed" });
+    expect(calls).toContainEqual(["pitch_score_elements", "eq", ["element_id", "intro.trucks"]]);
+    expect(calls).toContainEqual(["pitch_score_elements", "eq", ["grade", "missed"]]);
+    expect(calls).toContainEqual(["coaching_sessions", "in", ["id", ["s1"]]]);
+  });
+  it("no pitch got that grade → no calls, without reading sessions", async () => {
+    const { db, calls } = fakeDb({ pitch_score_elements: [] });
+    expect(await runCallSearch(db, { elementId: "intro.trucks", grade: "hit" })).toEqual({ ok: true, rows: [], truncated: false });
+    expect(calls.some(([t]) => t === "coaching_sessions")).toBe(false);
+  });
+  it("disputed narrows to the calls the dispute events name", async () => {
+    const { db, calls } = fakeDb({ events: [{ payload: { session_id: "s2", pitch_id: "p2" } }, { payload: {} }], coaching_sessions: sessions, profiles: [] });
+    await runCallSearch(db, { disputed: true });
+    expect(calls).toContainEqual(["events", "eq", ["kind", "coach.pitch_score_disputed"]]);
+    expect(calls).toContainEqual(["coaching_sessions", "in", ["id", ["s2"]]]);
+  });
+  it("talk share uses the newest transcript version, and a call with no measured share is left out", async () => {
+    const { db } = fakeDb({
+      coaching_sessions: sessions,
+      session_interaction_stats: [
+        { session_id: "s1", transcript_version: 1, talk_ratio_time: 0.9 },
+        { session_id: "s1", transcript_version: 2, talk_ratio_time: 0.4 },
+      ],
+      profiles: [],
+    });
+    const r = await runCallSearch(db, { talkMin: 30, talkMax: 50 });
+    expect(r.ok && r.rows.map((x) => x.sessionId)).toEqual(["s1"]);
+  });
+  it("hit offsets are measured from the recording's own start when known (0300)", async () => {
+    const { db } = fakeDb({
+      coaching_transcript_segments_current: [{ session_id: "s1", seq: 1, speaker: "rep", text: "price", spoken_at: "2026-11-20T10:01:00Z" }],
+      coaching_sessions: [{ ...sessions[0], audio_started_at: "2026-11-20T10:00:56Z" }],
+      profiles: [],
+    });
+    const r = await runCallSearch(db, { q: "price" });
+    expect(r.ok && r.rows[0]!.hits[0]!.atMs).toBe(4_000);
+  });
+});

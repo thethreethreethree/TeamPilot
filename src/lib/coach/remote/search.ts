@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import { toCsv } from "@/lib/export/toCsv";
 import { SALES_CONTEXTS } from "@/lib/coach/sessionContext";
+import { ELEMENTS_BY_ID } from "@/lib/coach/pitchScore/rubric";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * RSS Phase 5 — find calls (Gong F12.1, F12.2; docs/rss/docs/06-UI-SPEC.md "Find").
@@ -14,8 +16,8 @@ import { SALES_CONTEXTS } from "@/lib/coach/sessionContext";
  * Transcript words match on the 0280 'simple' full-text index: exact words, quoted phrases, OR, -exclude
  * (Postgres websearch syntax), no stemming.
  *
- * Filters this pass: words, channel, rep, outcome, date range, score range, keyword tracker. The spec's talk ratio,
- * rubric element and disputed filters are named in docs/residuals/OPEN.md.
+ * Filters: words, channel, rep, outcome, date range, score range, keyword tracker, and (2026-11-22, the Phase 5 R2
+ * residual) rubric element + grade, the rep's talk share, and disputed.
  */
 export type CallSearchFilters = {
   q?: string;
@@ -27,6 +29,14 @@ export type CallSearchFilters = {
   scoreMin?: number;
   scoreMax?: number;
   trackerId?: string;
+  /** Rubric element (ELEMENTS_BY_ID) and the grade the call got on it — "who missed the price close". */
+  elementId?: string;
+  grade?: "hit" | "partial" | "missed";
+  /** The rep's share of speaking time, as whole percent (session_interaction_stats.talk_ratio_time). */
+  talkMin?: number;
+  talkMax?: number;
+  /** Only calls whose score the rep disputed. */
+  disputed?: boolean;
 };
 
 export type CallSearchHit = { seq: number; speaker: string; text: string; atMs: number | null };
@@ -96,7 +106,29 @@ export function parseCallSearch(params: URLSearchParams): { filters: CallSearchF
       f[key] = n;
     }
   }
+  const element = params.get("element");
+  if (element) {
+    if (!ELEMENTS_BY_ID.has(element)) return { error: "Unknown rubric element." };
+    f.elementId = element;
+    const grade = params.get("grade") ?? "missed";
+    if (grade !== "hit" && grade !== "partial" && grade !== "missed") return { error: "Grade must be hit, partial or missed." };
+    f.grade = grade;
+  }
+  for (const [k, key] of [["talkMin", "talkMin"], ["talkMax", "talkMax"]] as const) {
+    const v = params.get(k);
+    if (v !== null && v !== "") {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 100) return { error: "Talk share is a percent from 0 to 100." };
+      f[key] = n;
+    }
+  }
+  if (params.get("disputed") === "1") f.disputed = true;
   return { filters: f };
+}
+
+/** Narrow the call set to `ids` (intersect when a set already exists). Null means "no restriction yet". */
+function narrow(current: Set<string> | null, ids: Set<string>): Set<string> {
+  return current ? new Set([...current].filter((id) => ids.has(id))) : ids;
 }
 
 export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): Promise<CallSearchResult> {
@@ -144,10 +176,47 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
   }
 
+  // 2b. Rubric element + grade → which calls (RLS on both tables decides what is visible).
+  if (f.elementId) {
+    const { data: els, error } = await db.from("pitch_score_elements").select("pitch_id").eq("element_id", f.elementId).eq("grade", f.grade ?? "missed").limit(READ_CAP);
+    if (error) {
+      console.error(`[callSearch] element read failed: ${error.message}`);
+      return { ok: false, status: 500, error: "The rubric filter failed." };
+    }
+    if ((els ?? []).length >= READ_CAP) narrower = true;
+    const pitchIds = [...new Set(((els ?? []) as Array<{ pitch_id: string }>).map((r) => String(r.pitch_id)))];
+    const { data: ps, error: pErr } = pitchIds.length
+      ? await db.from("pitch_scores").select("session_id").in("id", pitchIds)
+      : { data: [], error: null };
+    if (pErr) {
+      console.error(`[callSearch] pitch read failed: ${pErr.message}`);
+      return { ok: false, status: 500, error: "The rubric filter failed." };
+    }
+    restrictTo = narrow(restrictTo, new Set(((ps ?? []) as Array<{ session_id: string | null }>).filter((r) => r.session_id).map((r) => String(r.session_id))));
+    if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
+  }
+
+  // 2c. Disputed → calls whose score the rep disputed (the dispute events name the call).
+  if (f.disputed) {
+    const { data: evs, error } = await db.from("events").select("payload").eq("kind", "coach.pitch_score_disputed").order("created_at", { ascending: false }).limit(READ_CAP);
+    if (error) {
+      console.error(`[callSearch] dispute read failed: ${error.message}`);
+      return { ok: false, status: 500, error: "The disputed filter failed." };
+    }
+    if ((evs ?? []).length >= READ_CAP) narrower = true;
+    const ids = new Set<string>();
+    for (const e of (evs ?? []) as Array<{ payload: Record<string, unknown> | null }>) {
+      const sid = e.payload?.session_id;
+      if (typeof sid === "string" && sid) ids.add(sid);
+    }
+    restrictTo = narrow(restrictTo, ids);
+    if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
+  }
+
   // 3. Calls, with every remaining filter, RLS-scoped.
   let query = db
     .from("coaching_sessions")
-    .select("id, agent_id, context, client_label, started_at, outcome")
+    .select("id, agent_id, context, client_label, started_at, audio_started_at, outcome")
     .not("session_kind", "in", `(${NON_SALES_KINDS.join(",")})`)
     .order("started_at", { ascending: false })
     .limit(MAX_ROWS + 1);
@@ -165,7 +234,7 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     console.error(`[callSearch] session read failed: ${sErr.message}`);
     return { ok: false, status: 500, error: "The search failed." };
   }
-  type S = { id: string; agent_id: string; context: string; client_label: string | null; started_at: string; outcome: string | null };
+  type S = { id: string; agent_id: string; context: string; client_label: string | null; started_at: string; audio_started_at: string | null; outcome: string | null };
   let rows = (sessions ?? []) as S[];
   const truncated = rows.length > MAX_ROWS;
   rows = rows.slice(0, MAX_ROWS);
@@ -173,10 +242,25 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
 
   // 4. Scores and names for those calls.
   const ids = rows.map((r) => String(r.id));
-  const [{ data: scores }, { data: people }] = await Promise.all([
+  const wantTalk = f.talkMin !== undefined || f.talkMax !== undefined;
+  const [{ data: scores }, { data: people }, statsRead] = await Promise.all([
     db.from("pitch_scores").select("session_id, total").in("session_id", ids),
     db.from("profiles").select("id, full_name").in("id", [...new Set(rows.map((r) => String(r.agent_id)))]),
+    wantTalk
+      ? db.from("session_interaction_stats").select("session_id, transcript_version, talk_ratio_time").in("session_id", ids)
+      : Promise.resolve({ data: [], error: null }),
   ]);
+  if (statsRead.error) {
+    console.error(`[callSearch] stats read failed: ${statsRead.error.message}`);
+    return { ok: false, status: 500, error: "The talk-share filter failed." };
+  }
+  // The newest transcript version's stats per call — what the session page shows.
+  const talkBySession = new Map<string, { v: number; ratio: number | null }>();
+  for (const st of (statsRead.data ?? []) as Array<{ session_id: string; transcript_version: number; talk_ratio_time: number | string | null }>) {
+    const k = String(st.session_id);
+    const prev = talkBySession.get(k);
+    if (!prev || st.transcript_version > prev.v) talkBySession.set(k, { v: st.transcript_version, ratio: st.talk_ratio_time === null ? null : Number(st.talk_ratio_time) });
+  }
   const scoreBySession = new Map(((scores ?? []) as Array<{ session_id: string; total: number | string }>).map((s) => [String(s.session_id), Number(s.total)]));
   const nameById = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name]));
 
@@ -185,7 +269,14 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     const score = scoreBySession.get(String(r.id)) ?? null;
     if (f.scoreMin !== undefined && (score === null || score < f.scoreMin)) continue;
     if (f.scoreMax !== undefined && (score === null || score > f.scoreMax)) continue;
-    const started = Date.parse(r.started_at);
+    if (wantTalk) {
+      const ratio = talkBySession.get(String(r.id))?.ratio ?? null;
+      if (ratio === null) continue; // no measured talk share — it cannot satisfy a talk filter
+      if (f.talkMin !== undefined && ratio * 100 < f.talkMin) continue;
+      if (f.talkMax !== undefined && ratio * 100 > f.talkMax) continue;
+    }
+    // Offsets from the recording's own clock (0300), as every other reader of a line's position.
+    const started = Date.parse(audioBaseIso(r.started_at, r.audio_started_at) ?? r.started_at);
     out.push({
       sessionId: String(r.id),
       repId: String(r.agent_id),

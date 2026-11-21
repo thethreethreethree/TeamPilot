@@ -560,3 +560,12 @@ words, and a download would hand out what a manager trimmed for privacy. Every d
 managers, a refusal shown in place. Tests: 6 (managers only; other company / outside tree 404; transcript text, timing,
 audit; audio refused with an active trim; allowed once every trim is restored; bad kind 400). Also fixes "analysed" →
 "analyzed" in the Remote Sales home (caught by the spelling test).
+
+## Addendum 2026-11-22 — the missing search filters (Phase 5 R2 residual, F12.1 / F15.18)
+
+runCallSearch gains: rubric element + grade (pitch_score_elements → pitch_scores.session_id, caller's RLS), the rep's
+talk share (session_interaction_stats.talk_ratio_time, newest transcript version; a call with no measured share
+cannot satisfy it), and disputed (coach.pitch_score_disputed events name the call). Parse validates the element against
+ELEMENTS_BY_ID, grade ∈ hit/partial/missed (default missed), talk 0–100. The Search screen gets a rubric-item + grade
+pair, talk-% bounds and a disputed checkbox. Found on the way and fixed: search hit offsets were measured from
+started_at, the one reader the 0300 sweep missed — now audioBaseIso. Tests +7 (12 pass).
