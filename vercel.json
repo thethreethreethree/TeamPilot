@@ -29,6 +29,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/api/coach/sales-session/unreferenced-upload-sweep-cron",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/coach/kpi/compute-cron",
       "schedule": "0 5 * * *"
     },

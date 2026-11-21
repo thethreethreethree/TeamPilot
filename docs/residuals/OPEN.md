@@ -56,7 +56,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-11 · health-backend-probe · `npm run check` passes with the new health probe, the 0271 migration, and both new test files
       why-unresolved: Node is not installed on the machine this was built on; no gate was run, not even typecheck.
       next-action: run `npm run check` on a machine with Node 24; fix anything it reports before committing.
-- [ ] 2026-11-11 · health-backend-probe · migration 0271 applied, and `/api/health` on production shows `backend.quota.fileStorage.level` other than "unknown"
+- [ ] 2026-11-11 · health-backend-probe · migration 0271 applied, and `/api/health` on production shows `backend.quota.fileStorage.level` other than "unknown" — 0271 APPLIED; system_storage_usage() answers on production (0.77 GB after the 2026-11-21 cleanup). Still open: the deployed /api/health reading it (needs the push)
       why-unresolved: the project is suspended (402), so `db:verify`/`db:apply` cannot run until service is restored.
       next-action: after the founder restores the plan: `npm run db:verify` then `npm run db:apply`; curl production health.
 - [ ] 2026-11-11 · health-backend-probe · a person is alerted when `/api/health` is 503 or "degraded"
@@ -219,4 +219,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-21 · A21 · transcript recovery and the dissect backfill cron regenerate a call's artifacts but do not score it (attribute-unlabelled now scores — 2026-11-21; trim needs none: a trimmed call is already scored and re-scoring is D3's manager action)
       why-unresolved: scoreSession takes the caller's client by design ("whatever that client can see is what gets scored", scoreSession.ts:40); recovery and the cron have no user. Scored calls are unaffected (skipIfScored); an unscored call reached only by these paths waits for the drain
       next-action: decide whether the drain becomes a cron (needs a system-identity client and its own tenant guard) — scoreSession is deliberately caller-scoped, so this is a design change, not a call to add
+- [x] 2026-11-21 · storage · 466 recordings (405.7 MB) nothing referenced — invisible to screens, retention and §3.1.1 erasure — DONE 2026-11-21 (founder: delete + sweeper): 0299 rule, full-schema reference scan clean, dry run = measured set, removed 466 (Storage-confirmed), 7 audit rows; storage 1.196 → 0.77 GB; all live pointers intact; nightly sweeper + INVARIANT 40 (docs/STORAGE-ORPHANS-2026-11-21.md)
+      why-unresolved: —
+      next-action: —
+- [ ] 2026-11-21 · storage · the nightly unreferenced-upload sweeper runs on Vercel and its first report is read
+      why-unresolved: the cron ships with the next push; until then only the one-time cleanup has run
+      next-action: after the push, the cron log at 04:00 (or GET with ?dryRun=1 and the CRON_SECRET) shows candidates 0 or a small, audited number
 

@@ -2551,6 +2551,75 @@ if (!FILES.some((x) => x.path === ERASURE_ROUTE)) {
   }
 }
 
+// ═══ INVARIANT 40 — every dated upload's path is recorded in a column the unreferenced-upload sweeper knows ═══
+//
+// LEARNED: 2026-11-21. Production held 463 recordings (401.5 MB) nothing pointed at — invisible to every screen, to
+// retention, and to §3.1.1 erasure (docs/STORAGE-ORPHANS-2026-11-21.md). The founder chose to delete them and sweep
+// nightly. The sweeper decides "unreferenced" from a FIXED list of columns in rss_unreferenced_uploads (0299). A new
+// upload route that records its path in a column not on that list would have its LIVE files deleted after 24 hours.
+//
+// THE RULE: (1) every file that builds a dated upload path (buildStoragePath / createSignedUploadTarget) is listed
+// below with the column its path is recorded in; (2) every such column appears in the latest definition of
+// rss_unreferenced_uploads; (3) a raw storage writer (.upload( / .createSignedUploadUrl() outside the known set is
+// flagged for review — it may write the dated shape without either helper.
+const DATED_UPLOAD_WRITERS = new Map([
+  ["src/app/api/care/conversations/[id]/agent-upload/route.ts", "files.storage_path"], // createFileRecord
+  ["src/app/api/care/conversations/[id]/upload/route.ts", "files.storage_path"], // createFileRecord
+  ["src/lib/care/uploadSign.ts", "files.storage_path"], // committed by the two care upload routes
+  ["src/app/api/files/route.ts", "files.storage_path"], // createFileRecord
+  ["src/app/api/files/upload-url/route.ts", "files.storage_path"], // committed by /api/files
+  ["src/app/api/coach/meeting-prep/[id]/document/route.ts", "meeting_prep_documents.storage_path"], // addPrepDocument
+  ["src/app/api/coach/sales-session/door-log/route.ts", "pitches.audio_path"],
+  ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts", "coaching_sessions.audio_asset_url"],
+  ["src/app/api/coach/sales-session/[id]/upload-recording/sign/route.ts", "coaching_sessions.audio_asset_url"],
+]);
+const RAW_STORAGE_WRITERS = new Map([
+  ["src/lib/storage/assets.ts", "the dated-upload helpers themselves"],
+  ["src/app/api/care/extension/rcd/route.ts", "<company>/<conversation>/<media> — not the dated shape; row inserted BEFORE the upload"],
+  ["src/app/api/care/agent/tenant/logo/route.ts", "<company>/widget-logo.<ext> — not the dated shape; an image"],
+  ["src/lib/coach/v5/stitchSessionAudio.ts", "chunk / stitched paths under the session — not the dated shape"],
+]);
+{
+  let sweeperDef = "";
+  for (const name of migs) {
+    const sql = readFileSync(join(MIG_DIR, name), "utf8");
+    const m = sql.match(/create\s+or\s+replace\s+function\s+public\.rss_unreferenced_uploads[\s\S]*?\$\$([\s\S]*?)\$\$/i);
+    if (m) sweeperDef = m[1];
+  }
+  for (const f of FILES) {
+    if (f.path === "src/lib/storage/assets.ts") continue;
+    if (/\b(buildStoragePath|createSignedUploadTarget)\s*\(/.test(f.sql) && !DATED_UPLOAD_WRITERS.has(f.path)) {
+      findings.push({
+        rule: "A new dated-upload writer the unreferenced-upload sweeper does not know",
+        file: f.path,
+        why: "this file builds a dated upload path. Add it to DATED_UPLOAD_WRITERS with the column its path is recorded in,\n" +
+          "      and add that column to rss_unreferenced_uploads (0299) — or the nightly sweeper deletes its live files after 24 h.",
+      });
+    }
+    if (/\.(upload|createSignedUploadUrl)\s*\(/.test(f.sql) && /\.storage\b|storage\s*\.\s*from|\.from\(\s*(ASSETS_BUCKET|"assets-v1")/.test(f.sql) &&
+        !RAW_STORAGE_WRITERS.has(f.path) && !DATED_UPLOAD_WRITERS.has(f.path)) {
+      findings.push({
+        rule: "A new raw storage writer (review it against the unreferenced-upload sweeper)",
+        file: f.path,
+        why: "this file writes to storage without the dated-upload helpers. If it can write `<company>/<yyyy>/<mm>/<file>` audio\n" +
+          "      or video, list it in DATED_UPLOAD_WRITERS (and its column in 0299); otherwise add it to RAW_STORAGE_WRITERS saying why not.",
+      });
+    }
+  }
+  for (const [file, col] of DATED_UPLOAD_WRITERS) {
+    const [, column] = col.split(".");
+    const table = col.split(".")[0];
+    if (!new RegExp(`\\b${column}\\b[\\s\\S]{0,40}from\\s+public\\.${table}\\b|from\\s+public\\.${table}\\b[\\s\\S]{0,80}\\b${column}\\b`).test(sweeperDef)) {
+      findings.push({
+        rule: "An upload's referencing column is missing from the sweeper",
+        file: "supabase/migrations (rss_unreferenced_uploads)",
+        why: `${file} records its path in ${col}, which the latest rss_unreferenced_uploads does not check — its live files would\n` +
+          "      read as unreferenced and be deleted. Add the column to the function's refs.",
+      });
+    }
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);

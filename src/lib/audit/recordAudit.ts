@@ -21,6 +21,8 @@ export const AUDIT_ACTIONS = [
   "erasure.request",
   "webhook.add",
   "webhook.off",
+  // A recording nothing referenced, removed by the sweeper (0299; docs/STORAGE-ORPHANS-2026-11-21.md). System actor.
+  "recording.orphan_purge",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

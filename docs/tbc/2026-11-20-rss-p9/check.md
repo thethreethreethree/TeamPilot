@@ -369,3 +369,13 @@ The copy "calls already erased simply won't be found" was checked against 0285: 
 transcript lines (0285:116-149); the erase deletes every transcript version and nulls client_label (0285:200, 219-220).
 Tests: route.test.ts +9 (rule: unfinished / completed / finished-by-retry / earlier completion does not excuse a later
 failure / grace / no hash; GET: admins only, lists with asker, completion-read failure → 500).
+
+## Addendum 2026-11-21 — unreferenced recordings removed; nightly sweeper; INVARIANT 40
+
+Full record: docs/STORAGE-ORPHANS-2026-11-21.md. Founder picker: delete + nightly sweeper. Production: 0299 applied
+(verify:live passed); dry run 466 files / 405.7 MB = the measured set; applied — 466 removed, Storage-confirmed, 7 audit
+rows; storage 1.196 → 0.77 GB; live pointers intact (sessions 21/21, pitches 103/103, files 55/55).
+
+```
+npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 797 passed | 1 skipped · Tests 6100 passed
+```

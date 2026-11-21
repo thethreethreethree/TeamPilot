@@ -30,7 +30,10 @@ const ACTION_WORDS: Record<string, string> = {
   "erasure.request": "Asked for a customer's data to be erased",
   "webhook.add": "Added a webhook",
   "webhook.off": "Turned off a webhook",
+  "recording.orphan_purge": "Removed recordings no call or file pointed to",
 };
+// Actions the system takes on its own (actor_id null) — named as such, not as "someone no longer on the team".
+const SYSTEM_ACTIONS = new Set(["recording.orphan_purge"]);
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -56,6 +59,8 @@ function detail(r: AuditRow): string {
       return String(m.url ?? "");
     case "erasure.request":
       return `${String(m.hint ?? "")}, ${String(m.sessions ?? 0)} call${m.sessions === 1 ? "" : "s"}`;
+    case "recording.orphan_purge":
+      return `${String(m.files ?? 0)} recording${m.files === 1 ? "" : "s"}, ${(Number(m.bytes ?? 0) / 1048576).toFixed(1)} MB`;
     default:
       return "";
   }
@@ -188,7 +193,7 @@ export function ProtectionSettings() {
             {rows.map((r) => (
               <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 border-b border-default py-1.5 text-xs last:border-b-0">
                 <span className="tabular-nums text-muted">{when(r.at)}</span>
-                <span className="font-medium text-primary">{r.actorName ?? "Someone no longer on the team"}</span>
+                <span className="font-medium text-primary">{r.actorName ?? (SYSTEM_ACTIONS.has(r.action) ? "The system" : "Someone no longer on the team")}</span>
                 <span className="text-secondary">{(ACTION_WORDS[r.action] ?? r.action).toLowerCase()}</span>
                 {detail(r) && <span className="text-secondary">· {detail(r)}</span>}
                 {r.objectType === "coaching_session" && (
