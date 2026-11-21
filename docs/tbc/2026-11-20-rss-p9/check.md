@@ -434,3 +434,10 @@ was off by the silence before the first word. buildPitchScoreUserMessage now tak
 audioBaseIso(started_at, audio_started_at) from scoreSession — the base the transcript, trims and stats use (0300);
 first line only with no start time. Tests +3 (8 s first word → [0:08]; a pre-audio line clamps to 0:00; no base keeps
 the old behaviour); 279 scoring tests pass. Scores made before the deploy keep their first-line base.
+
+## Addendum 2026-11-21 — production build before the push
+
+`npm run check` does not include `next build`, which is what Vercel runs. Run locally at HEAD (15 unpushed commits):
+`npm run build exit 0`; the new routes compile (/api/coach/sales-session/unreferenced-upload-sweep-cron,
+/api/coach/remote/erasure, /api/coach/sales-session/[id]/audio-chunk, /dashboard/sales-coach/sessions). One warning,
+pre-existing and non-blocking: Next.js's "middleware" file convention is deprecated in favour of "proxy".
