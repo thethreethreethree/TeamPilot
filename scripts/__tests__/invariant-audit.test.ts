@@ -530,4 +530,14 @@ describe("invariant-audit.mjs — transcript prompt-injection fence", () => {
     expect(SCRIPT).toContain('"src/lib/coach/v5/liveCue.ts"');
     expect(SCRIPT).toMatch(/liveCue[\s\S]{0,300}bespoke inline fence/);
   });
+
+  // INVARIANT 41 (2026-11-21, the 0298 class): a policy that applies to anon may only call functions anon can execute.
+  // Mutation-tested when written: with 0298 removed it reported 23 (22 × rss_tree_allows, 1 × rss_comment_base_visible).
+  it("INVARIANT 41 replays policies against each function's latest anon grant, and skips `to authenticated` policies", () => {
+    expect(SCRIPT).toContain("INVARIANT 41 — a function an RLS policy calls stays executable by the roles the policy applies to");
+    expect(SCRIPT).toContain("if (to && !/\\b(anon|public)\\b/i.test(to[1])) continue;");
+    expect(SCRIPT).toContain("anonExec.set(m[6].toLowerCase(), false)");
+    expect(SCRIPT).toContain("anonExec.set(m[8].toLowerCase(), true)");
+  });
 });
+

@@ -454,3 +454,11 @@ with in-person history, and silent about the active filter. Now: remote → "No 
 (Expert; StartSessionPanel is on this page) / from Home (Standard) — choose Online video or Phone — then record it live or
 upload the recording on its page"; any other active filter → "No sessions match these filters"; no filter → unchanged.
 npm run check exit 0.
+
+## Addendum 2026-11-21 — INVARIANT 41: the 0298 class is caught before a migration ships
+
+Replays every policy (as last defined) and every function's latest revoke/grant from the migrations; a policy that
+applies to anon (no `to` clause, or public/anon) may not call a function anon cannot execute. HEAD: 0 violations.
+Mutation: 0298 moved aside → 23 violations (22 × rss_tree_allows, 1 × rss_comment_base_visible) — the failure production
+hit on apply; rss_line_trimmed is not flagged because 0300 re-grants it. Restored → 0. Pinned in invariant-audit.test.ts.
+npm run check exit 0.

@@ -2620,6 +2620,49 @@ const RAW_STORAGE_WRITERS = new Map([
   }
 }
 
+// ═══ INVARIANT 41 — a function an RLS policy calls stays executable by the roles the policy applies to ═══════
+//
+// LEARNED: 2026-11-21. Applying 0271-0297 to production failed verify:live: "ROLE anon reads 0 … permission denied for
+// function rss_tree_allows". 23 tables' read policies called rss_tree_allows, revoked from anon (0273); Postgres need
+// not test the tenant clause first, so an anonymous read raised 42501 instead of returning no rows. A catalog check then
+// found two more hidden behind the first error (rss_comment_mentions_me, rss_line_trimmed). Fixed in 0298. The live
+// check samples five tables; this checks every policy, as last defined, against every function's latest grants.
+//
+// THE RULE: a policy that applies to anon (no `to` clause, or `to public` / `to anon`) may only call public functions
+// that anon can execute after the last revoke/grant in the migrations. Make the function answer "no" for anon and grant
+// it (0298's shape), or scope the policy `to authenticated`.
+{
+  const policies = new Map(); // "policy X on t" -> { mig, body }
+  const anonExec = new Map(); // fn name -> boolean (latest)
+  for (const name of migs) {
+    const sql = readFileSync(join(MIG_DIR, name), "utf8").replace(/--.*$/gm, "");
+    // statements in file order, so a revoke then a grant in one file resolves to the grant
+    for (const m of sql.matchAll(/create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)([\s\S]*?);|drop\s+policy\s+(?:if\s+exists\s+)?("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)|revoke\s+[\w\s,]+?\s+on\s+function\s+(?:public\.)?(\w+)\s*\([^)]*\)\s+from\s+([\w\s,]+?);|grant\s+execute\s+on\s+function\s+(?:public\.)?(\w+)\s*\([^)]*\)\s+to\s+([\w\s,]+?);|create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(\w+)\s*\(/gi)) {
+      if (m[1]) policies.set(`policy ${m[1]} on ${m[2].toLowerCase()}`, { mig: name, body: m[3] });
+      else if (m[4]) policies.delete(`policy ${m[4]} on ${m[5].toLowerCase()}`);
+      else if (m[6]) { if (/\b(anon|public)\b/i.test(m[7])) anonExec.set(m[6].toLowerCase(), false); }
+      else if (m[8]) { if (/\b(anon|public)\b/i.test(m[9])) anonExec.set(m[8].toLowerCase(), true); }
+      else if (m[10] && !anonExec.has(m[10].toLowerCase())) anonExec.set(m[10].toLowerCase(), true); // default: PUBLIC execute
+    }
+  }
+  for (const [key, def] of policies) {
+    const to = def.body.match(/\bto\s+([\w\s,]+?)(?:\s+using|\s+with\s+check|$)/i);
+    if (to && !/\b(anon|public)\b/i.test(to[1])) continue; // the policy never applies to anon
+    for (const call of def.body.matchAll(/\b(?:public\.)?(\w+)\s*\(/g)) {
+      const fn = call[1].toLowerCase();
+      if (anonExec.get(fn) === false) {
+        findings.push({
+          rule: "An RLS policy calls a function anon cannot execute (an anonymous read errors instead of returning nothing)",
+          file: `supabase/migrations/${def.mig}`,
+          why: `${key}, as last defined here, calls ${fn}(), which anon cannot execute after the latest revoke. Postgres may evaluate it\n` +
+            "      before the tenant test, so an anonymous read raises 42501 (0298). Grant anon and make the function answer \"no\" for it, or scope the policy `to authenticated`.",
+        });
+        break;
+      }
+    }
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
