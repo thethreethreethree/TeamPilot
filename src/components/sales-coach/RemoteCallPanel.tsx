@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BookmarkPlus, EyeOff, Pause, Play, RotateCcw, RotateCw, Scissors, Undo2 } from "lucide-react";
+import { BookmarkPlus, Download, EyeOff, Pause, Play, RotateCcw, RotateCw, Scissors, Undo2 } from "lucide-react";
 import { skipTo } from "@/lib/coach/remote/trim";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
@@ -80,6 +80,7 @@ export function RemoteCallPanel({
   const [only, setOnly] = useState<keyof Lanes | null>(null);
   // Listen tracking: where the current played stretch began, and the last position seen while playing.
   const isManager = useIsSalesCoachManager();
+  const [downloadNote, setDownloadNote] = useState<string | null>(null);
   const [clipStart, setClipStart] = useState<number | null>(null);
   const [clipEnd, setClipEnd] = useState<number | null>(null);
   const [clipTitle, setClipTitle] = useState("");
@@ -304,6 +305,30 @@ export function RemoteCallPanel({
               ))}
             </div>
           </div>
+          {isManager && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" aria-label="Download this call">
+              <a href={`/api/coach/remote/${encodeURIComponent(sessionId)}/download?kind=transcript`}
+                className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-muted hover:text-primary">
+                <Download className="h-3.5 w-3.5" aria-hidden /> Download transcript
+              </a>
+              <button type="button"
+                onClick={async () => {
+                  setDownloadNote(null);
+                  try {
+                    const r = await fetch(`/api/coach/remote/${encodeURIComponent(sessionId)}/download?kind=audio&json=1`);
+                    const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
+                    if (r.ok && j.url) window.location.href = j.url;
+                    else setDownloadNote(j.error ?? "Couldn't download the audio.");
+                  } catch {
+                    setDownloadNote("Couldn't reach the server.");
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-muted hover:text-primary">
+                <Download className="h-3.5 w-3.5" aria-hidden /> Download audio
+              </button>
+              {downloadNote && <span className="text-secondary">{downloadNote}</span>}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             {clipStart === null ? (
               <button type="button" onClick={() => { setClipStart(at); setClipEnd(null); setSaveNote(null); }}

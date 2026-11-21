@@ -26,6 +26,7 @@ const ACTION_WORDS: Record<string, string> = {
   "recording.trim": "Trimmed a call",
   "recording.trim_restore": "Restored a trimmed section",
   "session.export": "Exported calls",
+  "session.download": "Downloaded a call",
   "retention.set": "Changed recording retention",
   "erasure.request": "Asked for a customer's data to be erased",
   "webhook.add": "Added a webhook",
@@ -54,6 +55,8 @@ function detail(r: AuditRow): string {
       return typeof m.reason === "string" && m.reason ? `“${m.reason}”` : "";
     case "session.export":
       return `${String(m.rows ?? 0)} call${m.rows === 1 ? "" : "s"}`;
+    case "session.download":
+      return m.kind === "audio" ? "Audio" : "Transcript";
     case "webhook.add":
     case "webhook.off":
       return String(m.url ?? "");

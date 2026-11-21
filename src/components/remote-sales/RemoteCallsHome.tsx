@@ -76,7 +76,7 @@ export function RemoteCallsHome() {
         <h2 className="mb-2 text-sm font-semibold text-primary">Start a call</h2>
         <p className="mb-3 text-xs text-secondary">
           Choose <b>Online video</b> or <b>Phone</b>. On the call&apos;s page, record it live or upload the recording; it is
-          transcribed, analysed and scored automatically.
+          transcribed, analyzed and scored automatically.
         </p>
         <StartSessionPanel />
       </section>

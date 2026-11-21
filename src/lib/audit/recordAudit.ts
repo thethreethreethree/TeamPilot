@@ -17,6 +17,8 @@ export const AUDIT_ACTIONS = [
   "recording.trim",
   "recording.trim_restore",
   "session.export",
+  // A manager downloaded one call's audio or transcript (RSS Phase 5, F9.15).
+  "session.download",
   "retention.set",
   "erasure.request",
   "webhook.add",

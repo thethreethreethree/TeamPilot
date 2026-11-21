@@ -548,3 +548,15 @@ Reps don't see Coaching/Trackers; Protection is admin-only. Sidebar and command 
 
 typecheck clean · lint clean · Theme-bound leaks 0 · reachability clean · invariant Violations 0 · moduleAccess 20/20 ·
 build:ci PASSED (all 7 routes).
+
+## Addendum 2026-11-22 — call downloads (Phase 5 R2 residual, F9.15)
+
+GET /api/coach/remote/[id]/download?kind=audio|transcript, as 05-ROUTES specifies: managers only
+(requireSalesCoachManager), the call opened with the caller's client, same company, treeAllowsRep — the trim route's
+gate. Transcript = the current version from the _current view (trimmed lines already hidden), timed from audioBaseIso.
+Audio = a 120 s signed link, REFUSED (409, reason in words) while any trim is active: the file still holds the trimmed
+words, and a download would hand out what a manager trimmed for privacy. Every download → audit_log "session.download"
+(new action; Settings → Protection labels it "Downloaded a call"). Panel: "Download transcript" / "Download audio" for
+managers, a refusal shown in place. Tests: 6 (managers only; other company / outside tree 404; transcript text, timing,
+audit; audio refused with an active trim; allowed once every trim is restored; bad kind 400). Also fixes "analysed" →
+"analyzed" in the Remote Sales home (caught by the spelling test).
