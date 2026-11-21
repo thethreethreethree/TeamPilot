@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_OFFSET_SECONDS, spokenAtFor } from "../segmentTiming";
+import { MAX_OFFSET_SECONDS, audioBaseIso, spokenAtFor } from "../segmentTiming";
 
 describe("spokenAtFor", () => {
   const base = "2026-09-10T12:00:00.000Z";
@@ -38,5 +38,21 @@ describe("spokenAtFor", () => {
     expect(spokenAtFor(null, 10)).toBeNull();
     expect(spokenAtFor("", 10)).toBeNull();
     expect(spokenAtFor("not a date", 10)).toBeNull();
+  });
+});
+
+// 0300: where the audio clock starts. A live recorder's own start (browser clock, like spokenAt) wins; otherwise
+// started_at, unchanged — uploads are exact on started_at by construction.
+describe("audioBaseIso", () => {
+  it("uses the recorder start when recorded", () => {
+    expect(audioBaseIso("2026-11-21T10:00:00Z", "2026-11-21T10:00:56Z")).toBe("2026-11-21T10:00:56Z");
+  });
+  it("falls back to started_at when absent or unparseable", () => {
+    expect(audioBaseIso("2026-11-21T10:00:00Z", null)).toBe("2026-11-21T10:00:00Z");
+    expect(audioBaseIso("2026-11-21T10:00:00Z", undefined)).toBe("2026-11-21T10:00:00Z");
+    expect(audioBaseIso("2026-11-21T10:00:00Z", "not a date")).toBe("2026-11-21T10:00:00Z");
+  });
+  it("null when neither exists", () => {
+    expect(audioBaseIso(null, null)).toBeNull();
   });
 });

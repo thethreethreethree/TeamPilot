@@ -6,6 +6,7 @@ import { followThroughCoach } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * RSS Phase 6 — the follow-through read of a phone/video sales call (Gong F25.11 AI outcome, F26.4 callbacks;
@@ -93,10 +94,11 @@ export function parseFollowThrough(raw: string, lines: Line[], callDate: Date): 
   };
 }
 
-type SessionRow = { id: string; company_id: string; agent_id: string; context: string; session_kind: string | null; started_at: string };
+type SessionRow = { id: string; company_id: string; agent_id: string; context: string; session_kind: string | null; started_at: string; audio_started_at: string | null };
 
 /** The current transcript as numbered lines, offsets from the call start. Any client (caller's or service role). */
-export async function loadLines(db: SupabaseClient, sessionId: string, startedAt: string): Promise<{ lines: Line[]; version: number } | null> {
+/** `audioBase`: where the audio clock starts — always audioBaseIso(started_at, audio_started_at) (0300). */
+export async function loadLines(db: SupabaseClient, sessionId: string, audioBase: string): Promise<{ lines: Line[]; version: number } | null> {
   // Every line: PostgREST caps a read at 1000 rows, and a cut-off transcript would hide late callbacks from the AI.
   const { data, error } = await fetchAllPagedResult<{ seq: number; speaker: string; text: string; spoken_at: string | null; version: number | null }>(
     (from, to) =>
@@ -113,7 +115,7 @@ export async function loadLines(db: SupabaseClient, sessionId: string, startedAt
     return null;
   }
   const rows = (data ?? []) as Array<{ seq: number; speaker: string; text: string; spoken_at: string | null; version: number | null }>;
-  const t0 = Date.parse(startedAt);
+  const t0 = Date.parse(audioBase);
   return {
     version: Math.max(1, Number(rows[0]?.version) || 1),
     lines: rows.map((r) => ({
@@ -134,12 +136,12 @@ export async function runFollowThrough(sessionId: string, client?: SupabaseClien
     const admin = client ?? createAdminClient();
     const { data: s } = await admin
       .from("coaching_sessions")
-      .select("id, company_id, agent_id, context, session_kind, started_at")
+      .select("id, company_id, agent_id, context, session_kind, started_at, audio_started_at")
       .eq("id", sessionId)
       .maybeSingle();
     const session = s as SessionRow | null;
     if (!session || !isRemoteContext(session.context) || !isSalesCall(session.session_kind ?? "sales")) return null;
-    const loaded = await loadLines(admin, sessionId, session.started_at);
+    const loaded = await loadLines(admin, sessionId, audioBaseIso(session.started_at, session.audio_started_at) ?? session.started_at);
     if (!loaded || loaded.lines.length < 2) return null;
 
     const { data: existing, error: exErr } = await admin

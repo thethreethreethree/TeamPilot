@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
 import { uploadAssetBytes } from "@/lib/storage/assets";
 import { chunkObjectPath } from "@/lib/coach/v5/stitchSessionAudio";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * POST /api/coach/sales-session/[id]/audio-chunk?seq=N — append one live-recording audio chunk.
@@ -16,6 +17,10 @@ import { chunkObjectPath } from "@/lib/coach/v5/stitchSessionAudio";
  * works. Owner-only (mirrors /segments — the rep owns their own recording), service-role storage write pinned
  * to the caller's company, path never derived from caller input beyond the numeric seq.
  */
+
+// Chunk 0's recStart may sit at most this far from the server's started_at: it is the browser's clock, so allow skew,
+// but a recorder an hour off the session is not a recorder start.
+const MAX_REC_START_SKEW_MS = 60 * 60 * 1000;
 
 // A ~15s webm audio chunk is ~150-300 KB; cap generously so a malformed/oversized body can't be written.
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -68,5 +73,34 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     console.error(`[audio-chunk] upload failed session=${id} seq=${seq}:`, res.error);
     return NextResponse.json({ error: "Couldn't store the recording chunk." }, { status: 502 });
   }
+  if (seq === 0) await recordAudioStart(req, id, companyId, session.startedAt);
   return NextResponse.json({ ok: true, seq });
 }
+
+/**
+ * Chunk 0 carries recStart: when the recorder started, on the browser clock every spokenAt uses. Stored once as
+ * coaching_sessions.audio_started_at (0300) so spoken_at − audio_started_at is the true position in the audio — the
+ * base audioBaseIso / rss_line_trimmed use, so a trim hides the right lines on a recorder that started late. Best-effort:
+ * the chunk is already stored; a missing or implausible value leaves started_at as the base, exactly as before.
+ * Service role (0300 refuses a direct write by the rep, so the clock cannot be slid to un-hide a trim); only while unset.
+ */
+async function recordAudioStart(req: NextRequest, sessionId: string, companyId: string, startedAt: string): Promise<void> {
+  const raw = Number(req.nextUrl.searchParams.get("recStart") ?? "");
+  const base = Date.parse(startedAt);
+  if (!Number.isInteger(raw) || raw <= 0 || !Number.isFinite(base) || Math.abs(raw - base) > MAX_REC_START_SKEW_MS) return;
+  try {
+    const { error } = await createAdminClient()
+      .from("coaching_sessions")
+      .update({ audio_started_at: new Date(raw).toISOString() })
+      .eq("id", sessionId)
+      .eq("company_id", companyId)
+      .is("audio_started_at", null);
+    // Before 0300 the column does not exist (42703 / PGRST204): the old base still applies, nothing to report.
+    if (error && !["42703", "PGRST204"].includes(String((error as { code?: unknown }).code ?? ""))) {
+      console.error(`[audio-chunk] audio start not recorded session=${sessionId}: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`[audio-chunk] audio start not recorded session=${sessionId}:`, err);
+  }
+}
+

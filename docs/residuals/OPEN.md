@@ -200,7 +200,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-20 · review · two overlapping webhook sends of one delivery can both go out
       why-unresolved: low; attempts de-duplicate, receivers de-duplicate on the delivery id (documented)
       next-action: claim a delivery with an insert-first lock row before sending, if receivers report duplicates
-- [ ] 2026-11-20 · review · a trim maps audio time to lines via spoken_at − started_at; a recording that started late could trim the wrong lines
+- [x] 2026-11-20 · review · a trim maps audio time to lines via spoken_at − started_at; a recording that started late could trim the wrong lines — DONE 2026-11-21: measured on production (uploads exact by construction; live chunk 0 lands 17.5–18.7 s after start on 6/7, 74.1 s on 1 → a ~56 s late recorder). 0300 audio_started_at (recorder start on spoken_at's browser clock, sent with chunk 0, set once, service role only) is the base for every reader (audioBaseIso + SQL coalesce); PGlite: the late-recorder trim that left "my card is 4111" visible now hides it; rep write refused. Applied to production. Still to see live: a real live call after the push (runbook 0300 row)
       why-unresolved: unverified on real uploads; the same offset is used by every RSS time chip
       next-action: on a real uploaded call, trim a known phrase and confirm the right line disappears (runbook check 3)
 - [x] 2026-11-21 · review · any company member can mark a pending invitation accepted (or set accepted_by) — 0008's update policy is `company_id = auth_company_id()` only — DONE 2026-11-21: 0297 refuses any accepted_* write from authenticated/anon (only accept_invitation, definer, writes them); revocation unchanged; signed-in replay C/H refused, D/G pass
@@ -225,4 +225,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-21 · storage · the nightly unreferenced-upload sweeper runs on Vercel and its first report is read
       why-unresolved: the cron ships with the next push; until then only the one-time cleanup has run
       next-action: after the push, the cron log at 04:00 (or GET with ?dryRun=1 and the CRON_SECRET) shows candidates 0 or a small, audited number
+- [ ] 2026-11-21 · review · pitch-score evidence times are measured from the FIRST line spoken, not from the recording's start (generatePitchScore.ts:95-100)
+      why-unresolved: found in the 0300 sweep of every spoken_at→position reader; changing it changes what stored pitch_score_elements.timestamp_s means for every score, so it is its own change, not part of 0300
+      next-action: base the offsets on audioBaseIso(started_at, audio_started_at); re-score is not needed for new calls, and old scores keep their meaning (document the cut-over date)
 

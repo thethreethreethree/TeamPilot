@@ -49,3 +49,16 @@ export function spokenAtFor(
   if (startSeconds < 0 || startSeconds > MAX_OFFSET_SECONDS) return null;
   return new Date(baseMs + Math.round(startSeconds * 1000)).toISOString();
 }
+
+/**
+ * Where a session's AUDIO clock starts — the base every "seconds into the recording" is measured from (0300).
+ * A live session that recorded its recorder start (audio_started_at, on the same browser clock as spoken_at) uses it;
+ * otherwise started_at, exactly as before (uploads are exact on started_at by construction: spoken_at = started_at +
+ * the line's offset into the file). The SQL twin is coalesce(audio_started_at, started_at) in rss_line_trimmed.
+ * Every reader that turns spoken_at into an audio position goes through here, so the player, the transcript, the
+ * trackers, the stats and the trim filter can never disagree about where a line is.
+ */
+export function audioBaseIso(startedAt: string | null | undefined, audioStartedAt: string | null | undefined): string | null {
+  if (audioStartedAt && Number.isFinite(Date.parse(audioStartedAt))) return audioStartedAt;
+  return startedAt ?? null;
+}

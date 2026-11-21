@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { matchTracker, type KeywordTracker, type Segment } from "./trackers";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * The writer of tracker_hits (migration 0276; RSS Phase 3 step 3, Gong F11.1): match the company's active
@@ -24,7 +25,7 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
     const admin = client ?? createAdminClient();
     const { data: s } = await admin
       .from("coaching_sessions")
-      .select("id, company_id, agent_id, context, session_kind, started_at")
+      .select("id, company_id, agent_id, context, session_kind, started_at, audio_started_at")
       .eq("id", sessionId)
       .maybeSingle();
     if (!s || !isRemoteContext(s.context) || !isSalesCall((s.session_kind as string | null) ?? "sales")) return 0;
@@ -54,7 +55,8 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
     const rows = (segRows ?? []) as Array<{ speaker: string; text: string; seq: number; spoken_at: string | null; version: number }>;
     if (rows.length === 0) return 0;
 
-    const start = s.started_at ? Date.parse(String(s.started_at)) : NaN;
+    const base = audioBaseIso((s.started_at as string | null) ?? null, (s.audio_started_at as string | null) ?? null); // 0300
+    const start = base ? Date.parse(base) : NaN;
     const segments: Segment[] = rows.map((r) => {
       const at = r.spoken_at ? Date.parse(r.spoken_at) : NaN;
       return {

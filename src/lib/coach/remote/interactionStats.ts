@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { computeInteractionStats, timedSegments, type InteractionStats, type Segment } from "./stats";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * Interaction stats for one remote sales session — computed from its CURRENT transcript and stored per
@@ -26,7 +27,7 @@ export type SessionTiming = {
 export async function loadSessionTiming(db: SupabaseClient, sessionId: string): Promise<SessionTiming | null> {
   const { data: s } = await db
     .from("coaching_sessions")
-    .select("id, company_id, agent_id, context, session_kind, started_at, audio_duration_seconds")
+    .select("id, company_id, agent_id, context, session_kind, started_at, audio_started_at, audio_duration_seconds")
     .eq("id", sessionId)
     .maybeSingle();
   if (!s || !isRemoteContext(s.context) || !isSalesCall((s.session_kind as string | null) ?? "sales")) return null;
@@ -41,7 +42,7 @@ export async function loadSessionTiming(db: SupabaseClient, sessionId: string): 
     return null;
   }
   const list = (rows ?? []) as Array<{ speaker: string; text: string; spoken_at?: string | null; ended_at?: string | null; version?: number }>;
-  const t = timedSegments(list, (s.started_at as string | null) ?? null, (s.audio_duration_seconds as number | null) ?? null);
+  const t = timedSegments(list, audioBaseIso((s.started_at as string | null) ?? null, (s.audio_started_at as string | null) ?? null), (s.audio_duration_seconds as number | null) ?? null);
   return {
     sessionId,
     companyId: String(s.company_id),

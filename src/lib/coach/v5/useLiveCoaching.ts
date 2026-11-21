@@ -38,7 +38,8 @@ import {
   type ConfidenceRead,
 } from "@/lib/coach/v5/liveConfidence";
 import { cueFailureMessage } from "./cueFailureMessage";
-import { micHearsRepOnly } from "@/lib/coach/sessionContext";
+import { micHearsRepOnly } from "@/lib/coach/sessionContext";
+
 import { measuredEndedAt } from "@/lib/coach/v5/liveTiming";
 
 /**
@@ -107,9 +108,12 @@ function detachAndCloseWs(ws: WebSocket | null): void {
   }
 }
 
-function postAudioChunk(sessionId: string, seq: number, blob: Blob): void {
+function postAudioChunk(sessionId: string, seq: number, blob: Blob, recorderStartedAt?: number): void {
+  // Chunk 0 also carries WHEN the recorder started, on this browser's clock — the same clock every spokenAt uses — so
+  // the server can place each line in the audio exactly (0300 audio_started_at; a trim then hides the right words).
+  const recStart = seq === 0 && recorderStartedAt && Number.isFinite(recorderStartedAt) ? `&recStart=${Math.round(recorderStartedAt)}` : "";
   const attempt = () =>
-    fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}`, {
+    fetch(`/api/coach/sales-session/${sessionId}/audio-chunk?seq=${seq}${recStart}`, {
       method: "POST",
       headers: { "Content-Type": blob.type || "audio/webm" },
       body: blob,
@@ -386,6 +390,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   // fresh recording; PERSISTS across a reconnect (the recorder + its stream survive the drop), so the uploaded
   // chunks stay one contiguous, byte-concatenatable webm.
   const audioChunkSeqRef = useRef(0);
+  // When MediaRecorder.start ran (browser clock, like spokenAt) — sent with chunk 0 as the audio clock's start (0300).
+  const recorderStartedAtRef = useRef(0);
   // iOS Safari IGNORES MediaRecorder.start(timeslice) → no periodic chunks → the review-recording is lost on iOS
   // (same class as the Door Log fix 34a8ab71). Force a chunk via requestData() when the timeslice hasn't delivered.
   // Self-guarding (no-ops off a stopped/null recorder) + adaptive via lastAudioDataAt (INERT on Chrome/Android that
@@ -1190,7 +1196,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             // "Never lose the recording" (founder 2026-08-21): upload each chunk fire-and-forget so the audio
             // is in storage no matter how the session ends (drop / tab-close / never-Stop). Sequential
             // MediaRecorder chunks byte-concatenate into a valid webm — seq order is preserved server-side.
-            void postAudioChunk(sessionId, audioChunkSeqRef.current++, e.data);
+            void postAudioChunk(sessionId, audioChunkSeqRef.current++, e.data, recorderStartedAtRef.current);
           };
           rec.onstop = () => {
             // Capture has ended (stop/teardown) — the banner must no longer claim audio is recording.
@@ -1251,7 +1257,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // DURING the call. onstop still yields the full blob from chunksRef, so the clean-Stop persist is
           // byte-identical behaviour.
           rec.start(AUDIO_CHUNK_MS);
-          lastAudioDataAtRef.current = Date.now();
+          recorderStartedAtRef.current = Date.now();
+          lastAudioDataAtRef.current = recorderStartedAtRef.current;
           // Force a chunk when the timeslice hasn't delivered (iOS). requestData() flushes only the delta (no dup);
           // its blob is a valid webm continuation chunk the upload path already handles. Cleared on teardown below.
           if (chunkForceRef.current) clearInterval(chunkForceRef.current);

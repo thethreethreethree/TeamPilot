@@ -402,3 +402,26 @@ npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 797 
 Follow-up: the Remote Sales link is inside /dashboard/sales-coach, so the 0207 module lock (moduleForPath, subtree-based)
 and the Sales Coach layout's membership gate apply to it exactly as to Sales Coach — a care-only account is redirected to
 C.A.R.E. Pinned in moduleAccess.test.ts (20 pass); the test fails if the entry ever leaves the subtree.
+
+## Addendum 2026-11-21 — 0300: a late live recorder can no longer misplace a trim
+
+Measured on production (read-only): uploads are exact (label-transcript sets spoken_at = started_at + file offset).
+Live sessions put spoken_at on the BROWSER clock and started_at on the server's; chunk 0 landed 17.5–18.7 s after
+started_at on 6/7 live sessions (on time) and 74.1 s on one (~56 s late). Every reader that turns spoken_at into an
+audio position — rss_line_trimmed, loadLines (Ask Coach, follow-through), trackerScan, interactionStats, the session
+page's transcript seek — now uses audioBaseIso(started_at, audio_started_at) / its SQL twin coalesce(...).
+audio_started_at is the recorder start on the browser clock, sent with chunk 0 (useLiveCoaching), stored once by the
+audio-chunk route (service role, company-scoped, within an hour of started_at); 0300 refuses a direct write by the rep,
+who could otherwise slide the clock to un-hide a manager's trim. PGlite 16.4:
+
+```
+LIVE before audio_started_at (trim 0:02–0:06 vs line at 60 s on started_at): ["my card is 4111","thanks"]
+rep sets audio_started_at directly: REFUSED: coaching_sessions.audio_started_at is set by the recording upload only
+LIVE after audio_started_at = start + 56 s (line is 4 s into the audio): ["thanks"]
+second change by service role: coaching_sessions.audio_started_at cannot change once set
+OLD (no audio_started_at) still uses started_at — trim 58–62 s hides the 60 s line: []
+npm run check exit 0 · Violations: 0 · Tests 6109 passed
+production: db:verify clean → db:apply "DB now at 0300" → verify:live passed
+```
+Found on the way and logged, not changed: pitch-score evidence times are measured from the first line, not the
+recording's start (OPEN.md).

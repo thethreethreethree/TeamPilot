@@ -61,6 +61,9 @@ export type SalesSession = {
   // wall-clock, which is correct. Consumers prefer this when present so an upload shows its true length.
   audioDurationSeconds: number | null;
   startedAt: string;
+  /** When the live recorder started, on spoken_at's browser clock (0300). Null → startedAt is the audio clock.
+   *  Read it through audioBaseIso (segmentTiming.ts), never on its own. */
+  audioStartedAt: string | null;
   endedAt: string | null;
   // Phase 2 capture (all optional). when = startedAt; why = derived (Phase 3).
   territory: string | null; // WHERE
@@ -132,6 +135,7 @@ function mapSession(row: Record<string, unknown>): SalesSession {
     audioAssetUrl: (row.audio_asset_url as string | null) ?? null,
     audioDurationSeconds: (row.audio_duration_seconds as number | null) ?? null,
     startedAt: row.started_at as string,
+    audioStartedAt: (row.audio_started_at as string | null) ?? null,
     endedAt: (row.ended_at as string | null) ?? null,
     territory: (row.territory as string | null) ?? null,
     approach: (row.approach as string | null) ?? null,

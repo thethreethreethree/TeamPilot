@@ -1,4 +1,4 @@
-# RSS — apply and verify runbook (migrations 0271–0298)
+# RSS — apply and verify runbook (migrations 0271–0300)
 
 Written 2026-11-20, when the Supabase project was suspended (storage quota) and none of these had been applied.
 Every migration below has been replayed in order, twice, on PostgreSQL 16 (PGlite) with `scripts/sql/supabase-shim.sql`;
@@ -8,8 +8,8 @@ the build records are `docs/tbc/2026-11-15-rss-p0` … `docs/tbc/2026-11-20-rss-
 
 1. Restore the Supabase plan (the project returns 402 while suspended). Then confirm the app loads and someone can sign in.
 2. `npm run db:verify` — must report the ledger in step with `supabase/migrations` up to 0270.
-3. `npm run db:apply` — applies 0271 → 0298 in order (the ledger is `public._agent_migrations`). Never paste SQL by hand.
-4. `npm run db:verify` again — must show 0298 as the last applied.
+3. `npm run db:apply` — applies 0271 → 0300 in order (the ledger is `public._agent_migrations`). Never paste SQL by hand.
+4. `npm run db:verify` again — must show 0300 as the last applied.
 
 Each migration is idempotent: if `db:apply` stops part-way, fix the cause and run it again.
 
@@ -49,6 +49,8 @@ table says (on an empty database, "runs" means it returned a row count of 0 with
 | 0296 | Second security review: an invitation's manager is applied only for the signed-in person accepting their own invitation; manager_id immutable; invited_by must be the inviter; comment + mentions in one transaction; the comment-visibility test answers only for the caller | `select pg_get_functiondef('public.rss_insert_comment(uuid,uuid,uuid,integer,text,boolean,text,uuid[])'::regprocedure);` exists; as a member, `update team_invitations set manager_id = '<any>' where id = '<pending>';` → `manager_id is immutable` |
 | 0297 | An invitation is accepted only through accept_invitation (a member can no longer mark someone's invitation accepted); revoking is unchanged | as a member, `update team_invitations set accepted_by = '<any>' where id = '<pending>';` → `accepted only through accept_invitation`; accepting a real invite from the join link still works |
 | 0298 | RLS helpers called from read policies (rss_tree_allows, rss_comment_base_visible, rss_comment_mentions_me, rss_line_trimmed) answer an anonymous caller with "no" instead of a permission error | `npm run db:apply`'s verify:live: "ROLE anon reads 0 from POPULATED tenant tables" PASS |
+| 0299 | rss_unreferenced_uploads — the one rule for recordings nothing points at (cleanup + nightly sweeper) | `select count(*) from rss_unreferenced_uploads(interval '24 hours');` as the service role → 0 after the 2026-11-21 cleanup |
+| 0300 | coaching_sessions.audio_started_at — a live recorder's start on spoken_at's clock; the trim filter's base | after a live call recorded post-push: `select audio_started_at - started_at from coaching_sessions where id = '<id>';` is a few seconds; a trim on that call hides the words heard at that moment |
 
 ## 2. Settings outside the repository (blocking for their features)
 

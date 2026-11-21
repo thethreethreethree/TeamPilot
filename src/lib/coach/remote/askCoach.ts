@@ -6,6 +6,7 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getSession } from "@/lib/data/salesCoach";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { loadLines, type Line } from "./followThrough";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 import { readPitchScore, type StoredPitch } from "@/lib/coach/pitchScore/readPitchScore";
 
 /**
@@ -143,7 +144,7 @@ export async function askCoach(args: {
     const s = await getSession(id, db);
     if (!s) return { ok: false, status: 404, error: "One of these calls isn't available to you." };
     if (!isSalesCall(s.sessionKind)) return { ok: false, status: 409, error: "Ask Coach is for sales calls." };
-    const loaded = await loadLines(db, id, s.startedAt);
+    const loaded = await loadLines(db, id, audioBaseIso(s.startedAt, s.audioStartedAt) ?? s.startedAt);
     if (loaded && loaded.lines.length > 0) {
       const label = `${s.clientLabel ?? "Untitled"} (${new Date(s.startedAt).toISOString().slice(0, 10)})`;
       calls.push({ sessionId: id, label, lines: loaded.lines });

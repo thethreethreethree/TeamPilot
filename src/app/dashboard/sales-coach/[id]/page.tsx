@@ -43,6 +43,7 @@ import { TrackerHitChips } from "@/components/sales-coach/TrackerHitChips";
 import { RemoteCallPanel } from "@/components/sales-coach/RemoteCallPanel";
 import { FeedbackRequest } from "@/components/sales-coach/FeedbackRequest";
 import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * /dashboard/sales-coach/[id] — session review surface.
@@ -69,6 +70,8 @@ type Session = {
   clientLabel: string | null;
   status: "active" | "ended" | "reviewed";
   startedAt: string;
+  /** Live recorder start on spoken_at's clock (0300); read via audioBaseIso. Absent from an older API → started_at. */
+  audioStartedAt?: string | null;
   // Phase 2 capture.
   territory: string | null;
   approach: string | null;
@@ -514,7 +517,7 @@ export default function SessionDetail() {
         {!loading && (
           <SessionTranscript
             sessionId={id}
-            {...(session && isRemoteContext(session.context) ? { startedAt: session.startedAt, onSeek: seekTo } : {})}
+            {...(session && isRemoteContext(session.context) ? { startedAt: audioBaseIso(session.startedAt, session.audioStartedAt), onSeek: seekTo } : {})}
           />
         )}
 
