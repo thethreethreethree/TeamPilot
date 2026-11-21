@@ -339,3 +339,20 @@ now scores after regenerating (owner's client, skipIfScored, verdict consumed) �
 scoreable. Tests +2 (scores after generation on the caller's client; still scores if generation fails; never on a
 customer-only answer; never on a failed write): 27 pass. Invariant Violations: 0 after.
 
+
+## Addendum 2026-11-21 — sql-harness CLAIM 5, and residuals closed on production evidence
+
+CLAIM 5 (scripts/sql-harness.mjs): a rep cannot set their own manager_id, the privileged writer can; a member cannot
+write accepted_* on an invitation, revoking still works (0297); anon reads coaching_sessions / pitch_scores /
+recording_comments / coaching_transcript_segments as 0 rows, no error (0298). The harness skips here (no local
+Postgres), so the claim's exact text was run on PGlite 16.4 through a pg-compatible adapter:
+
+```
+✓ manager_id is not self-settable; invitations accept only via accept_invitation; anon reads 0, no error
+MUTANT profiles triggers off        → ✗ a rep moved themselves under another manager (manager_id not guarded)
+MUTANT team_invitations triggers off → ✗ a member marked an invitation accepted directly (0297)
+MUTANT anon revoked on rss_tree_allows → ✗ coaching_sessions: permission denied for function rss_tree_allows; …
+```
+
+Closed in OPEN.md: rss-p0 manager_id SQL test; rss-p0 re-score audit row (route.ts:208-217, Phase 8); rss-p0 re-score
+503 (production has pitch_score_archive — read-only check, ledger 0298); rss-p7 migrations applied.

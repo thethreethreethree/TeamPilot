@@ -351,6 +351,73 @@ async function run() {
     })
   );
 
+  // ── CLAIM 5 — access-bearing writes and anonymous reads (0272, 0297, 0298) ────────────────────
+  //
+  // manager_id decides who sees a rep's calls, so a rep must not be able to set their own (0272 guard; OPEN.md
+  // rss-p0 "an executed SQL test shows…"). An invitation is accepted only through accept_invitation (0297): a member
+  // writing accepted_* directly is refused, revoking still works. An anonymous read of an RSS-policy table returns
+  // zero rows, never a permission error (0298 — found by verify:live on the production apply). Recorded first on
+  // PGlite 16.4 in docs/tbc/2026-11-20-rss-p9; this keeps it as a gate on real Postgres.
+  results.push(
+    await claim(c, "manager_id is not self-settable; invitations accept only via accept_invitation; anon reads 0, no error", async () => {
+      const id = (n) => `f2000000-0000-4000-8000-0000000000${n}`;
+      const [C, CEO, MGR, REP, PAL, S1, INV] = ["c1", "a1", "a2", "a3", "a4", "b1", "d1"].map(id);
+      await c.query(`set local session_replication_role = replica`);
+      await c.query(`insert into companies (id, name) values ('${C}','Claim5 Co')`);
+      await c.query(`insert into auth.users (id, email) values ('${CEO}','ceo@c5.test'),('${MGR}','m@c5.test'),('${REP}','r@c5.test'),('${PAL}','p@c5.test')`);
+      await c.query(
+        `insert into profiles (id, company_id, role, sales_coach_role, status, manager_id) values
+         ('${CEO}','${C}','CEO',null,'active',null), ('${MGR}','${C}','Member','admin','active','${CEO}'),
+         ('${REP}','${C}','Member','staff','active','${MGR}'), ('${PAL}','${C}','Member','admin','active','${CEO}')`
+      );
+      await c.query(`insert into coaching_sessions (id, company_id, agent_id, context) values ('${S1}','${C}','${REP}','phone')`);
+      await c.query(`insert into team_invitations (id, company_id, email, role, code, invited_by) values ('${INV}','${C}','new@c5.test','Member','c5code','${CEO}')`);
+      await c.query(`set local session_replication_role = origin`);
+      await c.query(`grant usage on schema public to anon, authenticated`);
+      await c.query(`grant select, update on all tables in schema public to authenticated`);
+      await c.query(`grant select on all tables in schema public to anon`);
+
+      const refusedAs = async (uid, sql) => {
+        await c.query("savepoint w");
+        await c.query(`set local role authenticated`);
+        await c.query(`set local "request.jwt.claim.sub" = '${uid}'`);
+        let refused = false;
+        try {
+          await c.query(sql);
+        } catch {
+          refused = true;
+        }
+        await c.query("rollback to savepoint w");
+        await c.query(`reset role`);
+        return refused;
+      };
+      must(await refusedAs(REP, `update profiles set manager_id = '${PAL}' where id = '${REP}'`), "a rep moved themselves under another manager (manager_id not guarded)");
+      must(await refusedAs(REP, `update team_invitations set accepted_by = '${REP}', accepted_at = now() where id = '${INV}'`), "a member marked an invitation accepted directly (0297)");
+      must(!(await refusedAs(REP, `update team_invitations set revoked_at = now(), revoked_by = '${REP}', revoke_reason = 'r' where id = '${INV}'`)), "revoking an invitation was refused (0297 must leave revocation alone)");
+
+      // The privileged writer (service role / owner, as /api/team/set-manager) can.
+      await c.query(`update profiles set manager_id = '${PAL}' where id = '${REP}'`);
+      const now = (await c.query(`select manager_id from profiles where id = '${REP}'`)).rows[0].manager_id;
+      must(now === PAL, `the privileged writer could not set manager_id (got ${now})`);
+
+      // Anonymous reads: zero rows, never an error (0298).
+      const anonErrors = [];
+      for (const t of ["coaching_sessions", "pitch_scores", "recording_comments", "coaching_transcript_segments"]) {
+        await c.query("savepoint a");
+        await c.query(`set local role anon`);
+        try {
+          const n = (await c.query(`select count(*)::int n from ${t}`)).rows[0].n;
+          if (n !== 0) anonErrors.push(`${t}: anon saw ${n}`);
+        } catch (e) {
+          anonErrors.push(`${t}: ${String(e?.message ?? e).split("\n")[0]}`);
+        }
+        await c.query("rollback to savepoint a");
+        await c.query(`reset role`);
+      }
+      must(anonErrors.length === 0, anonErrors.join("; "));
+    })
+  );
+
   await c.end();
 
   for (const r of results) {

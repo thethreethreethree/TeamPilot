@@ -74,10 +74,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-15 · rss-p0 · `npm run check` exits 0 with 0272, access.ts, set-manager and the Team page change
       why-unresolved: no Node on the build machine; nothing was executed
       next-action: run `npm run check` and append the output to the build's check.md
-- [ ] 2026-11-15 · rss-p0 · migration 0272 is applied, and an admin has set managers for a real team (plan step 4 "Looked at")
+- [ ] 2026-11-15 · rss-p0 · migration 0272 is applied, and an admin has set managers for a real team (plan step 4 "Looked at") — 0272 APPLIED 2026-11-21 (production ledger at 0298); still open: managers set on the Team page for a real team
       why-unresolved: Supabase project suspended (storage quota)
       next-action: after restore, `npm run db:verify` then `npm run db:apply`; set managers on the Team page
-- [ ] 2026-11-15 · rss-p0 · an executed SQL test shows an authenticated user cannot change their own manager_id and the service role can
+- [x] 2026-11-15 · rss-p0 · an executed SQL test shows an authenticated user cannot change their own manager_id and the service role can — DONE 2026-11-21: sql-harness CLAIM 5 (also pins 0297 accept-only-via-function and 0298 anon reads 0); run on PGlite 16.4 ✓, and fails with the right message under each of 3 mutants (profiles triggers off, team_invitations triggers off, anon revoked on rss_tree_allows)
       why-unresolved: needs the SQL harness (Node + Postgres)
       next-action: add the case to scripts/sql-harness.mjs or port the scaffold's PGlite RLS suite
 - [x] 2026-11-15 · rss-p0 · is_sales_coach_manager() (0252) treats CFO as a manager, as admin_roles() and the TS authority do — DONE 2026-11-20: it did NOT (old literal without CFO); 0290 makes it call admin_roles() (0265 founder ruling) and skip removed people; INVARIANT 39 found 9 more function copies + the invite policy, fixed verbatim in 0291; executed as signed-in users on PG 16.4
@@ -86,10 +86,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-15 · rss-p0 · decide how Phase 2 stats get segment end times (none are stored today)
       why-unresolved: founder decision, due before Phase 2
       next-action: picker at the start of Phase 2
-- [ ] 2026-11-15 · rss-p0 · a manager re-score writes an audit_log row (plan Phase 0 step 5)
+- [x] 2026-11-15 · rss-p0 · a manager re-score writes an audit_log row (plan Phase 0 step 5) — DONE (Phase 8): pitch-score/route.ts:208-217 records `score.rescore` with pitchId, score, reason, earlierOverrides when the old score is archived first
       why-unresolved: audit_log is a Phase 8 table; the archive row records who/when/why meanwhile
       next-action: add the write in the pitch-score route when Phase 8 creates audit_log
-- [ ] 2026-11-15 · rss-p0 · managers can re-score again (refused with 503 until 0272 exists, because the old score cannot be archived first)
+- [x] 2026-11-15 · rss-p0 · managers can re-score again (refused with 503 until 0272 exists, because the old score cannot be archived first) — DONE 2026-11-21: production has public.pitch_score_archive (read-only check; ledger at 0298)
       why-unresolved: Supabase suspended; 0272 not applied
       next-action: apply 0272
 - [x] 2026-11-15 · rss-p0 · streaming AI calls and speech-to-text audio seconds are recorded in ai_usage, and every engine passes its engine/session label — DONE 2026-11-20: streams metered (DeepSeek stream_options.include_usage, Anthropic message_start/delta → llmStream → recordAiUsage; the non-stream fallback too); STT audio seconds via recordSttUsage at all 5 transcribeWithDiarization callers; engine is REQUIRED on claude.ts call(), runBrainCall and runBrainStream (a new engine without a name does not compile), and the 14 direct llmCall/llmStream sites are labelled. Not yet seen against a live provider
@@ -155,7 +155,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-20 · rss-p7 · an executed allowed-and-refused test for each 0282 select policy (rep's own; manager under the tree; another company refused) — DONE 2026-11-20: sql-harness CLAIM 4 (training_assignments as five people); executed on PG 16.4, mutation-tested
       why-unresolved: the PGlite replay ran as superuser
       next-action: add the cases to scripts/sql-harness.mjs (the 0272 manager_id case above belongs there too)
-- [ ] 2026-11-20 · rss-p7 · migrations 0271-0295 applied to production
+- [x] 2026-11-20 · rss-p7 · migrations 0271-0295 applied to production — DONE 2026-11-21: 0271-0298 applied, verify:live passed (docs/tbc/2026-11-20-rss-p9/check.md)
       why-unresolved: Supabase suspended
       next-action: after restore, `npm run db:verify` then `npm run db:apply`
 
