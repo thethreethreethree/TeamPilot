@@ -425,3 +425,12 @@ production: db:verify clean → db:apply "DB now at 0300" → verify:live passed
 ```
 Found on the way and logged, not changed: pitch-score evidence times are measured from the first line, not the
 recording's start (OPEN.md).
+
+## Addendum 2026-11-21 — scorecard evidence times are positions in the audio
+
+The scoring prompt told the model "Timestamps are [m:ss] from the start of the recording" while measuring them from the
+first line spoken; PitchDetail's play button seeks the audio to timestampS (PitchDetail.tsx:86), so every evidence link
+was off by the silence before the first word. buildPitchScoreUserMessage now takes audioBase =
+audioBaseIso(started_at, audio_started_at) from scoreSession — the base the transcript, trims and stats use (0300);
+first line only with no start time. Tests +3 (8 s first word → [0:08]; a pre-audio line clamps to 0:00; no base keeps
+the old behaviour); 279 scoring tests pass. Scores made before the deploy keep their first-line base.

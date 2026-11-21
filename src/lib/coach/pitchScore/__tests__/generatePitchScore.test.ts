@@ -188,3 +188,26 @@ describe("timestamps in the transcript", () => {
     expect(message).not.toMatch(/\[-/);
   });
 });
+
+// 2026-11-21: evidence times are positions in the AUDIO (the play button seeks to them), measured from the session's
+// audio clock — audioBaseIso(started_at, audio_started_at) — not from the first line spoken.
+describe("buildPitchScoreUserMessage — offsets from the recording's start", () => {
+  const at = (s: number) => new Date(Date.parse("2026-11-21T10:00:00Z") + s * 1000).toISOString();
+  it("measures from audioBase: a first word 8 s into the recording is [0:08], not [0:00]", () => {
+    const { message } = buildPitchScoreUserMessage({
+      segments: [seg("agent", "Hi there", at(8), 0), seg("customer", "Hello", at(20), 1)],
+      audioBase: at(0),
+    });
+    expect(message).toContain("[0:08] REP: Hi there");
+    expect(message).toContain("[0:20] CUSTOMER: Hello");
+  });
+  it("a line before the audio began clamps to 0:00 (never a negative seek)", () => {
+    const { message } = buildPitchScoreUserMessage({ segments: [seg("agent", "Early", at(-3), 0)], audioBase: at(0) });
+    expect(message).toContain("[0:00] REP: Early");
+  });
+  it("no audioBase keeps the old base (the first line) rather than inventing one", () => {
+    const { message } = buildPitchScoreUserMessage({ segments: [seg("agent", "Hi", at(8), 0), seg("customer", "Yo", at(20), 1)] });
+    expect(message).toContain("[0:00] REP: Hi");
+    expect(message).toContain("[0:12] CUSTOMER: Yo");
+  });
+});

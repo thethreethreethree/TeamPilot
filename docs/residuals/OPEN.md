@@ -225,7 +225,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-21 · storage · the nightly unreferenced-upload sweeper runs on Vercel and its first report is read
       why-unresolved: the cron ships with the next push; until then only the one-time cleanup has run
       next-action: after the push, the cron log at 04:00 (or GET with ?dryRun=1 and the CRON_SECRET) shows candidates 0 or a small, audited number
-- [ ] 2026-11-21 · review · pitch-score evidence times are measured from the FIRST line spoken, not from the recording's start (generatePitchScore.ts:95-100)
+- [x] 2026-11-21 · review · pitch-score evidence times are measured from the FIRST line spoken, not from the recording's start (generatePitchScore.ts:95-100) — DONE 2026-11-21: the prompt's [m:ss] are now from audioBaseIso(started_at, audio_started_at) (scoreSession passes it), matching what the prompt already told the model; first line only when a session has no start. Applies to scores made after the push; earlier scores keep their first-line base (cut-over = the deploy date)
       why-unresolved: found in the 0300 sweep of every spoken_at→position reader; changing it changes what stored pitch_score_elements.timestamp_s means for every score, so it is its own change, not part of 0300
       next-action: base the offsets on audioBaseIso(started_at, audio_started_at); re-score is not needed for new calls, and old scores keep their meaning (document the cut-over date)
 

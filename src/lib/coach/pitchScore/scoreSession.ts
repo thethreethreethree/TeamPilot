@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { isProviderOutage } from "@/lib/llm/errors";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -263,6 +264,8 @@ async function scoreSessionOrThrow(args: {
     sessionTitle: session.clientLabel ?? undefined,
     segments,
     sessionId: session.id,
+    // Evidence times are positions in the audio, on the same base as the transcript, trims and stats (0300).
+    audioBase: audioBaseIso(session.startedAt, session.audioStartedAt),
   });
 
   // No zero-score failure path. Every one of these is reported, never stored — a blank LLM answer

@@ -89,9 +89,18 @@ function mmss(totalSeconds: number): string {
 export function buildPitchScoreUserMessage(args: {
   sessionTitle?: string;
   segments: readonly TranscriptSegment[];
+  /**
+   * Where the recording's audio clock starts: audioBaseIso(started_at, audio_started_at) (0300). The [m:ss] offsets —
+   * and so every evidence timestampS the play button seeks to — are measured from it, so they are positions IN THE
+   * AUDIO. Until 2026-11-21 they were measured from the first line spoken, while this prompt told the model "from the
+   * start of the recording": every play button seeked early or late by the silence before the first word. Absent →
+   * the first spoken line, the old base (only for a session with no start time at all).
+   */
+  audioBase?: string | null;
 }): { message: string; timestampsUnavailable: boolean } {
   const timed = args.segments.filter((s) => !!s.spokenAt);
-  const baseMs = timed.length > 0 ? Date.parse(timed[0]!.spokenAt as string) : NaN;
+  const fromAudio = args.audioBase ? Date.parse(args.audioBase) : NaN;
+  const baseMs = timed.length === 0 ? NaN : Number.isFinite(fromAudio) ? fromAudio : Date.parse(timed[0]!.spokenAt as string);
   const timestampsUnavailable = !Number.isFinite(baseMs);
 
   const lines = args.segments.map((s) => {
@@ -118,6 +127,8 @@ export async function generatePitchScore(args: {
   segments: readonly TranscriptSegment[];
   /** The coaching session being graded, for the AI cost ledger (cost per session, RSS Phase 0 step 6). */
   sessionId?: string;
+  /** audioBaseIso(started_at, audio_started_at) — see buildPitchScoreUserMessage. */
+  audioBase?: string | null;
 }): Promise<PitchScoreResult> {
   const agentSegments = args.segments.filter((s) => s.speaker === "agent");
   if (agentSegments.length < MIN_AGENT_SEGMENTS) return { ok: false, failure: "no_agent_turns" };
@@ -130,6 +141,7 @@ export async function generatePitchScore(args: {
   const { message, timestampsUnavailable } = buildPitchScoreUserMessage({
     sessionTitle: args.sessionTitle,
     segments: args.segments,
+    audioBase: args.audioBase,
   });
 
   const r = await dissectCoachV5({
