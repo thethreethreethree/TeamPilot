@@ -210,6 +210,7 @@ export function ProtectionSettings() {
   );
 }
 
+type Unfinished = { id: string; kind: string; hint: string; createdAt: string; requestedBy: string | null };
 type Found = { sessionId: string; startedAt: string; repName: string | null; clientLabel: string | null; channel: string; line: string | null };
 const KIND_WORDS = { phone: "Phone number", email: "Email", client_label: "Client name" } as const;
 const CHANNEL_WORDS: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
@@ -222,6 +223,21 @@ function ErasurePanel() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Requests that did not finish (a failure between recording the request and erasing — OPEN.md 2026-11-20).
+  const [unfinished, setUnfinished] = useState<Unfinished[]>([]);
+  const loadUnfinished = useCallback(async () => {
+    try {
+      const r = await fetch("/api/coach/remote/erasure");
+      if (!r.ok) return; // the notice is an aid; a failed read shows nothing rather than a wrong list
+      const j = (await r.json()) as { unfinished?: Unfinished[] };
+      setUnfinished(j.unfinished ?? []);
+    } catch {
+      /* same: no notice rather than a guess */
+    }
+  }, []);
+  useEffect(() => {
+    void loadUnfinished();
+  }, [loadUnfinished]);
 
   const call = async (body: Record<string, unknown>) => {
     const r = await fetch("/api/coach/remote/erasure", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -266,6 +282,7 @@ function ErasurePanel() {
       setMsg("Couldn't reach the server. Search again to see what was erased.");
     } finally {
       setBusy(false);
+      void loadUnfinished(); // a success may finish an older request; a failure may leave a new one
     }
   };
 
@@ -285,6 +302,25 @@ function ErasurePanel() {
         those calls are deleted for good. That the call happened, who took it and its score stay. What you type is never
         stored.
       </p>
+      {unfinished.length > 0 && (
+        <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3" role="status">
+          <p className="text-xs font-semibold text-primary">
+            {unfinished.length === 1 ? "An erasure didn't finish" : `${unfinished.length} erasures didn't finish`}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-xs text-secondary">
+            {unfinished.map((u) => (
+              <li key={u.id}>
+                {KIND_WORDS[u.kind as keyof typeof KIND_WORDS] ?? u.kind} {u.hint} — asked
+                {u.requestedBy ? ` by ${u.requestedBy}` : ""} on {new Date(u.createdAt).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-secondary">
+            Search for that customer again below and erase the calls to finish. It&apos;s safe to repeat: calls already
+            erased simply won&apos;t be found.
+          </p>
+        </div>
+      )}
       <form
         className="mt-3 flex flex-wrap items-center gap-2"
         onSubmit={(e) => {

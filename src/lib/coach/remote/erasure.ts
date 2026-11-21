@@ -51,3 +51,36 @@ export function identifierHash(kind: ErasureKind, normalised: string, secret = p
   const key = Buffer.from(hkdfSync("sha256", secret, "elostate-erasure", "erasure-request-v1", 32));
   return createHmac("sha256", key).update(`${kind}:${normalised}`).digest("hex");
 }
+
+/**
+ * Erasure requests that never finished (OPEN.md 2026-11-20 review: "a failed erasure leaves an erasure_requests row
+ * with no completion; a retry adds another"). The request row is written FIRST (route step 2), then the audio, then
+ * the erase step (0285, called only from the erasure route) records the completion — so any failure in between leaves a request with no completion. The
+ * identifier is never stored (only its hash), so a request cannot be re-run by itself: the admin searches again.
+ *
+ * A request is FINISHED when it has a completion, or when a LATER request for the same customer (same match_hash) has
+ * one — the retry finished it; without that rule every failure-then-retry would read as unfinished forever.
+ * A request younger than `graceMs` is still running, not failed: the erase route's maxDuration is 300s, so nothing can
+ * be in flight longer than that (the default grace is 6 minutes). Pure; never returns the hash.
+ */
+export type ErasureRequestRow = { id: string; match_hash: string; match_kind: string; match_hint: string; requested_by: string; created_at: string };
+export type UnfinishedErasure = { id: string; kind: string; hint: string; requestedBy: string; createdAt: string };
+export function unfinishedRequests(
+  requests: readonly ErasureRequestRow[],
+  completedRequestIds: ReadonlySet<string>,
+  now: number,
+  graceMs = 6 * 60_000,
+): UnfinishedErasure[] {
+  const lastCompletedAt = new Map<string, number>(); // match_hash → newest completed request time
+  for (const r of requests) {
+    if (!completedRequestIds.has(r.id)) continue;
+    const t = Date.parse(r.created_at);
+    if (t > (lastCompletedAt.get(r.match_hash) ?? -Infinity)) lastCompletedAt.set(r.match_hash, t);
+  }
+  return requests
+    .filter((r) => !completedRequestIds.has(r.id))
+    .filter((r) => now - Date.parse(r.created_at) >= graceMs)
+    .filter((r) => !((lastCompletedAt.get(r.match_hash) ?? -Infinity) > Date.parse(r.created_at)))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+    .map((r) => ({ id: r.id, kind: r.match_kind, hint: r.match_hint, requestedBy: r.requested_by, createdAt: r.created_at }));
+}

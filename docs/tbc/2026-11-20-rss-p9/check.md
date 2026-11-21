@@ -356,3 +356,16 @@ MUTANT anon revoked on rss_tree_allows → ✗ coaching_sessions: permission den
 
 Closed in OPEN.md: rss-p0 manager_id SQL test; rss-p0 re-score audit row (route.ts:208-217, Phase 8); rss-p0 re-score
 503 (production has pitch_score_archive — read-only check, ledger 0298); rss-p7 migrations applied.
+
+## Addendum 2026-11-21 — unfinished erasures are shown (review finding #5)
+
+The erase route records the request first, then removes audio, then rss_erase_sessions records the completion; a
+failure between leaves a request with no completion, and only a hash is stored, so it cannot be re-run alone.
+GET /api/coach/remote/erasure (admins) returns the unfinished ones via `unfinishedRequests` (erasure.ts): no
+completion; not finished by a LATER completed request with the same match_hash (a retry); older than 6 minutes (the
+route's maxDuration is 300s, so nothing younger can be a failure). A failed completion read is a 500, never "none
+finished". ErasurePanel shows them (amber notice, the file family's attention style) and reloads after every erase.
+The copy "calls already erased simply won't be found" was checked against 0285: the search reads client_label and
+transcript lines (0285:116-149); the erase deletes every transcript version and nulls client_label (0285:200, 219-220).
+Tests: route.test.ts +9 (rule: unfinished / completed / finished-by-retry / earlier completion does not excuse a later
+failure / grace / no hash; GET: admins only, lists with asker, completion-read failure → 500).

@@ -194,7 +194,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-20 · roles · a REMOVED person keeps admin-derived access in SQL helpers that do not check profiles.status (seen: fin_effective_role gives a removed CEO 'cfo'; the 0291 copies keep their original status handling) — DONE 2026-11-20: 0292 adds status <> 'removed' to the 8 caller-based helpers + the invite policy (verbatim otherwise); signed-in: removed CEO → fin null, others unchanged
       why-unresolved: pre-existing; 0291 changed only the role literal (0265 discipline). Narrowing finance and chat authority per function is its own change
       next-action: add `and p.status <> 'removed'` to each admin-derived helper (0291's list), with a signed-in test per helper; the app already refuses removed people a session
-- [ ] 2026-11-20 · review · a failed erasure leaves an erasure_requests row with no completion (a retry adds another)
+- [x] 2026-11-20 · review · a failed erasure leaves an erasure_requests row with no completion (a retry adds another) — DONE 2026-11-21: GET /api/coach/remote/erasure lists unfinished requests (no completion, not finished by a later retry for the same customer, older than the 6-min grace over the route's 5-min budget; never the hash); Settings → Protection shows them with "search again and erase to finish"; 9 tests
       why-unresolved: low; nothing is lost, the record just shows requests that look abandoned
       next-action: show requests without a completion on Settings → Protection as "not finished — run again"
 - [ ] 2026-11-20 · review · two overlapping webhook sends of one delivery can both go out

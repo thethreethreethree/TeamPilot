@@ -10,7 +10,9 @@ import {
   identifierHash,
   maskedHint,
   normaliseIdentifier,
+  unfinishedRequests,
   type ErasureKind,
+  type ErasureRequestRow,
 } from "@/lib/coach/remote/erasure";
 
 /**
@@ -34,6 +36,57 @@ const MISSING = new Set(["PGRST205", "PGRST202", "42P01", "42883"]);
 type Match = { session_id: string; started_at: string; agent_id: string; client_label: string | null; context: string; snippet: string | null };
 
 export const maxDuration = 300;
+
+/**
+ * GET /api/coach/remote/erasure — erasure requests that did not finish (company admins only). A failed erase leaves
+ * its request with no completion; this lists those (not the ones a later retry finished, not ones still running —
+ * unfinishedRequests) so Settings → Protection can say "not finished: search again and erase". Hint, kind, who,
+ * when — never the hash. Reads the newest 200 requests, which is far beyond any company's erasure volume.
+ */
+export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, { id: "remote-erasure-list", windowMs: 60_000, max: 30 });
+  if (limited) return limited;
+  const ctx = await resolveApiAuth(req);
+  if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  if (!ctx.isAdmin) return NextResponse.json({ error: "Only a company admin can see erasure requests." }, { status: 403 });
+
+  const admin = createAdminClient();
+  const { data: reqs, error: qErr } = await admin
+    .from("erasure_requests")
+    .select("id, match_hash, match_kind, match_hint, requested_by, created_at")
+    .eq("company_id", ctx.companyId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (qErr) {
+    if (MISSING.has(String(qErr.code))) return NextResponse.json({ error: NOT_APPLIED }, { status: 503 });
+    console.error(`[erasure] request list failed company=${ctx.companyId}: ${qErr.message}`);
+    return NextResponse.json({ error: "Couldn't read erasure requests." }, { status: 500 });
+  }
+  const rows = (reqs ?? []) as ErasureRequestRow[];
+  if (rows.length === 0) return NextResponse.json({ unfinished: [] });
+
+  const { data: done, error: cErr } = await admin
+    .from("erasure_completions")
+    .select("request_id")
+    .eq("company_id", ctx.companyId)
+    .in("request_id", rows.map((r) => r.id));
+  if (cErr) {
+    // A failed read is not "none finished" — that would flag every erasure as failed (the confident-zero shape).
+    console.error(`[erasure] completion list failed company=${ctx.companyId}: ${cErr.message}`);
+    return NextResponse.json({ error: "Couldn't read erasure requests." }, { status: 500 });
+  }
+  const completed = new Set(((done ?? []) as Array<{ request_id: string }>).map((d) => String(d.request_id)));
+  const unfinished = unfinishedRequests(rows, completed, Date.now());
+
+  const askerIds = [...new Set(unfinished.map((u) => u.requestedBy))];
+  const { data: people } = askerIds.length
+    ? await admin.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", askerIds)
+    : { data: [] };
+  const names = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name]));
+  return NextResponse.json({
+    unfinished: unfinished.map((u) => ({ id: u.id, kind: u.kind, hint: u.hint, createdAt: u.createdAt, requestedBy: names.get(u.requestedBy) ?? null })),
+  });
+}
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-erasure", windowMs: 60_000, max: 10 });
