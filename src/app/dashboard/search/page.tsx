@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { useCompanyName } from "@/lib/hooks/useCompany";
-import { FileText, Loader2, MessageSquare, Search } from "lucide-react";
+import { FileText, Loader2, MessageSquare, PhoneCall, Search } from "lucide-react";
 import { LearningHint } from "@/components/learning/LearningHint";
 
 type FileHit = {
@@ -32,6 +32,16 @@ type SupportHit = {
   created_at: string;
 };
 
+// Sales calls matched on what was said (RSS Phase 5, F12.4) — from runCallSearch via /api/search.
+type CallHit = {
+  sessionId: string;
+  callLabel: string | null;
+  channel: string;
+  startedAt: string;
+  repName: string | null;
+  hits: Array<{ seq: number; speaker: string; text: string; atMs: number | null }>;
+};
+
 export default function SearchPage() {
   const companyName = useCompanyName();
   const [q, setQ] = useState("");
@@ -39,6 +49,8 @@ export default function SearchPage() {
   const [files, setFiles] = useState<FileHit[]>([]);
   const [chats, setChats] = useState<ChatHit[]>([]);
   const [supports, setSupports] = useState<SupportHit[]>([]);
+  const [calls, setCalls] = useState<CallHit[]>([]);
+  const [callsFailed, setCallsFailed] = useState(false);
   // A failed search must not read as "No results" — that's indistinguishable
   // from a genuinely empty result set.
   const [loadError, setLoadError] = useState(false);
@@ -49,6 +61,8 @@ export default function SearchPage() {
       setFiles([]);
       setChats([]);
       setSupports([]);
+      setCalls([]);
+      setCallsFailed(false);
       return;
     }
     let cancelled = false;
@@ -68,6 +82,8 @@ export default function SearchPage() {
         setFiles(data.files ?? []);
         setChats(data.chatMessages ?? []);
         setSupports(data.supportMessages ?? []);
+        setCalls(data.salesCalls ?? []);
+        setCallsFailed(!!data.salesCallsFailed);
       } catch {
         if (!cancelled) setLoadError(true);
       } finally {
@@ -125,7 +141,7 @@ export default function SearchPage() {
           </p>
         )}
 
-        {!loading && q.trim() && !loadError && files.length === 0 && chats.length === 0 && supports.length === 0 && (
+        {!loading && q.trim() && !loadError && files.length === 0 && chats.length === 0 && supports.length === 0 && calls.length === 0 && !callsFailed && (
           <p className="text-center text-sm text-muted py-12">
             No results for &ldquo;{q}&rdquo;.
           </p>
@@ -186,6 +202,43 @@ export default function SearchPage() {
                         </p>
                         <p className="text-[10px] text-muted mt-0.5">
                           {new Date(m.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {callsFailed && (
+          <p className="mb-6 text-xs text-secondary">Sales calls couldn&apos;t be searched just now; the other results are complete.</p>
+        )}
+        {calls.length > 0 && (
+          <section className="mb-6">
+            <h2 className="text-xs uppercase tracking-widest text-muted font-bold mb-2">
+              Sales calls ({calls.length})
+            </h2>
+            <ul className="space-y-1.5">
+              {calls.map((c) => (
+                <li key={c.sessionId}>
+                  <Link
+                    href={`/dashboard/sales-coach/${c.sessionId}`}
+                    className="block rounded-md border border-default bg-white/[0.01] hover:border-strong p-2.5"
+                  >
+                    <div className="flex items-start gap-2">
+                      <PhoneCall className="w-3.5 h-3.5 text-brand mt-0.5 flex-shrink-0" aria-hidden />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-primary">{c.callLabel ?? "Untitled call"}</p>
+                        {c.hits.map((h) => (
+                          <p key={h.seq} className="text-xs text-secondary line-clamp-1">
+                            {h.speaker === "agent" || h.speaker === "rep" ? "Rep" : h.speaker === "customer" ? "Customer" : "Unclear"}: {h.text}
+                          </p>
+                        ))}
+                        <p className="text-[10px] uppercase tracking-widest text-muted mt-0.5">
+                          {c.channel === "in_person" ? "in person" : c.channel}
+                          {c.repName ? ` · ${c.repName}` : ""} · {new Date(c.startedAt).toLocaleString()}
                         </p>
                       </div>
                     </div>

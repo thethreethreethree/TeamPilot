@@ -3,6 +3,7 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
+import { runCallSearch } from "@/lib/coach/remote/search";
 
 /**
  * GET /api/search?q=...
@@ -11,6 +12,9 @@ import { sanitizeOrIlikeTerm } from "@/lib/data/searchTerm";
  *   • files (title + description)
  *   • chat_messages (body)
  *   • support_messages (body, excluding internal notes)
+ *   • sales calls by what was said (RSS Phase 5, F12.4) — through runCallSearch, the same function as Remote Sales →
+ *     Search: the caller's RLS and reporting tree, sales calls only, trimmed lines already gone. A failed call search
+ *     is reported (salesCallsFailed), never shown as "no calls".
  *
  * Results grouped by type. RLS enforces company isolation and
  * file access roles. Per founder red-pen 2026-06-19.
@@ -32,6 +36,7 @@ export async function GET(req: NextRequest) {
       files: [],
       chatMessages: [],
       supportMessages: [],
+      salesCalls: [],
     });
   }
   const sb = await createClient();
@@ -70,15 +75,30 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(20);
 
-  const [files, chats, supports] = await Promise.all([
+  const callsPromise = q.length <= 200 ? runCallSearch(sb, { q }) : Promise.resolve(null);
+
+  const [files, chats, supports, calls] = await Promise.all([
     filesPromise,
     chatPromise,
     supportPromise,
+    callsPromise,
   ]);
 
   return NextResponse.json({
     files: files.data ?? [],
     chatMessages: chats.data ?? [],
     supportMessages: supports.data ?? [],
+    salesCalls:
+      calls && calls.ok
+        ? calls.rows.slice(0, 20).map((r) => ({
+            sessionId: r.sessionId,
+            callLabel: r.callLabel,
+            channel: r.channel,
+            startedAt: r.startedAt,
+            repName: r.repName,
+            hits: r.hits.slice(0, 2),
+          }))
+        : [],
+    salesCallsFailed: !!calls && !calls.ok,
   });
 }

@@ -569,3 +569,11 @@ cannot satisfy it), and disputed (coach.pitch_score_disputed events name the cal
 ELEMENTS_BY_ID, grade ∈ hit/partial/missed (default missed), talk 0–100. The Search screen gets a rubric-item + grade
 pair, talk-% bounds and a disputed checkbox. Found on the way and fixed: search hit offsets were measured from
 started_at, the one reader the 0300 sweep missed — now audioBaseIso. Tests +7 (12 pass).
+
+## Addendum 2026-11-22 — sales calls in the app-wide search (F12.4; closes the Phase 5 R2 residual)
+
+/api/search (the Search page) gains salesCalls through runCallSearch — the same function as Remote Sales → Search, so
+RLS, the reporting tree, sales-calls-only and trims are decided once. Each call shows its label, channel, rep, date and
+up to two matching lines; a failed call search sets salesCallsFailed and the page says so ("the other results are
+complete") instead of reading as no calls. Tests: 3 (included with two hits; failure flagged; empty query → empty shape,
+no call search). Phase 5's R2 residual is closed in OPEN.md (filters, downloads, global search).

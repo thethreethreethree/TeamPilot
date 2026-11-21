@@ -234,3 +234,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-21 · storage · SETUP: tell /api/health the Supabase plan's real limits (SUPABASE_STORAGE_QUOTA_BYTES / SUPABASE_DB_QUOTA_BYTES in Vercel)
       why-unresolved: unset → health assumes the Free plan (1 GB files). Storage is 0.77 GB after the cleanup = 77% → status "degraded" (warn ≥ 70%). If the plan was upgraded after 2026-11-11 that is a false warning; if it is still Free, it is a real one (~230 MB from the limit that suspended the project, and the nightly sweeper removes only orphans, not normal growth). Nothing in the app shows "degraded" (VersionWatcher reads only build.commit) and no monitor watches it, so this is quiet either way.
       next-action: Supabase dashboard → plan. Upgraded: set both variables in Vercel to the plan's limits in bytes (.env.example has the format). Still Free: decide retention before the limit (Settings → Protection → keep last N per rep).
+- [x] 2026-11-20 · rss-p5 · R2-filters: spec filters (talk ratio, rubric element, disputed), global search and recording downloads not built — DONE 2026-11-22: rubric element + grade, talk share and disputed filters (c193254b); manager downloads, audited, refused past an active trim (2a46e8f4); sales calls in the app-wide search via runCallSearch, a failed call search flagged (this commit)
+      why-unresolved: —
+      next-action: —
+
