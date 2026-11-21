@@ -143,7 +143,14 @@ export default function SalesCoachSessionsPage() {
   } | null>(null);
 
   const [search, setSearch] = useState("");
-  const [context, setContext] = useState<"all" | SalesContext>("all");
+  const [context, setContext] = useState<"all" | "remote" | SalesContext>("all");
+  // The sidebar's Remote Sales entry opens this page at ?context=remote (phone + video). Read once on mount, from the
+  // URL, so the filter is also shareable; window.location rather than useSearchParams, which would need a Suspense
+  // boundary around the whole page.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("context");
+    if (c === "remote" || c === "in_person" || c === "video" || c === "phone") setContext(c);
+  }, []);
   const [status, setStatus] = useState<
     "all" | "active" | "ended" | "reviewed"
   >("all");
@@ -592,6 +599,7 @@ export default function SalesCoachSessionsPage() {
               onChange={(v) => setContext(v as typeof context)}
               options={[
                 ["all", "All contexts"],
+                ["remote", "Remote (phone + video)"],
                 ["in_person", "In-person"],
                 ["video", "Video"],
                 ["phone", "Phone"],

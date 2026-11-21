@@ -379,3 +379,22 @@ rows; storage 1.196 → 0.77 GB; live pointers intact (sessions 21/21, pitches 1
 ```
 npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 797 passed | 1 skipped · Tests 6100 passed
 ```
+
+## Addendum 2026-11-21 — "Remote Sales" in the feature list (founder request)
+
+Founder, with a screenshot of the live sidebar (PRODUCTION: Command Center … Company Brain; footer "Constitution v1.13"
+— the live build predates this work): "please add the new module to this list of our current feature".
+
+The plan's UI spec places every RSS screen inside Sales Coach and gives the module no entry of its own; this adds one at
+the founder's request. Sidebar: "Remote Sales" (PhoneCall icon) right after Sales Coach, opening
+`/dashboard/sales-coach/sessions?context=remote`, with a hint that names only what ships today. Command palette: the
+same entry (keywords remote/phone/video/call/recording/upload/transcript/score). List API: `context=remote` filters
+`.in("context", REMOTE_CONTEXTS)` — the one definition (sessionContext.ts:14) the session page already uses; any other
+value is still the honest no-op. Sessions page: reads `?context=` on mount (window.location — useSearchParams would need
+a Suspense boundary) and offers "Remote (phone + video)". Highlighting is an exact pathname match (Sidebar.tsx:807), so
+like Sales Coach's other sub-pages the entry does not highlight; no change to that rule.
+
+```
+npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 797 passed | 1 skipped · Tests 6100 passed
+(the American-spelling test caught "analysed" in the hint first; fixed to "analyzed")
+```

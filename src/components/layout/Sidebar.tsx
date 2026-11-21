@@ -37,6 +37,7 @@ import {
   X,
   CalendarDays,
   Presentation,
+  PhoneCall,
 } from "lucide-react";
 import { resolveCyclePhase } from "@/lib/cycle/phase";
 import { LearningHint } from "@/components/learning/LearningHint";
@@ -275,6 +276,22 @@ const productionNav: Array<{
       how: "Start a session (online video or in-person), and your transcript, cues, and review attach to it. After the call, generate the growth review: strengths first, then opportunities with a concrete next step each. Watch your cue-reliance trend fall as the moves become yours.",
       principle:
         "Coach toward independence, not dependence: the goal is needing fewer cues over time, measured against your own past — never a ranking against others.",
+    },
+  },
+  {
+    // The Remote Sales System (docs/rss, Phases 0-9): phone and video sales calls. Its screens live inside Sales Coach
+    // (the plan's UI spec); this entry is the founder's direct way in (2026-11-21) — the sessions list opened on phone +
+    // video (?context=remote, REMOTE_CONTEXTS).
+    label: "Remote Sales",
+    href: "/dashboard/sales-coach/sessions?context=remote",
+    icon: PhoneCall,
+    hint: {
+      whatItIs:
+        "Remote Sales. Your phone and video sales calls in one place: upload or record a call, and it is transcribed, analyzed and scored against the rubric. Each call shows who talked when, interaction stats, tracker hits and the scored rubric with evidence; Ask Coach answers questions about it with links to the exact moments.",
+      why: "A remote call leaves no doorstep and no body language: what happened is in the recording. Turning each call into a transcript, a score and timestamped evidence lets reps and managers coach from what was actually said, instead of from memory.",
+      how: "Open a call to replay it, read the transcript and ask Coach about it. Managers comment at a moment (with @mentions), share clips to the library and answer feedback requests. Settings → Protection holds retention, erasure, the audit log and webhooks.",
+      principle:
+        "Coach from the recording, not from recollection — every claim points to a moment in the call.",
     },
   },
   {

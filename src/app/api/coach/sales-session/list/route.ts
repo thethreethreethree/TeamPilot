@@ -11,7 +11,7 @@ import {
   gateSessionFlag,
   type SessionFlag,
 } from "@/lib/coach/v5/sessionFlag";
-import { isSalesContext, type SalesContext } from "@/lib/coach/sessionContext";
+import { isSalesContext, REMOTE_CONTEXTS, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/list
@@ -93,6 +93,9 @@ export async function GET(req: Request) {
   // Apply the server-side filters (validated against the known enums).
   if (isSalesContext(fContext)) {
     query = query.eq("context", fContext);
+  } else if (fContext === "remote") {
+    // The Remote Sales entry (sidebar): phone AND video — REMOTE_CONTEXTS, the one definition the session page uses.
+    query = query.in("context", [...REMOTE_CONTEXTS]);
   }
   if (fStatus === "active" || fStatus === "ended") {
     query = query.eq("status", fStatus);
