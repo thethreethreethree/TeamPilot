@@ -432,6 +432,24 @@ async function main() {
     };
   });
 
+  await check("the SQL shim's auth.uid / auth.jwt / auth.role are production's (replays run on the real auth helpers)", async () => {
+    // 2026-11-21: the shim's auth.role() defaulted to 'anon' where production returns NULL, and a PGlite replay of the
+    // 0298 fix read a service-role call as anonymous until the difference was found by hand; auth.jwt() and auth.uid()
+    // had drifted too. Every replay, the SQL harness and CI run on the shim, so it must BE production here. Compared on
+    // the function bodies with whitespace removed.
+    const shim = readFileSync(new URL("./sql/supabase-shim.sql", import.meta.url), "utf8");
+    const norm = (s) => s.replace(/\s+/g, "").toLowerCase();
+    const drift = [];
+    for (const fn of ["uid", "jwt", "role"]) {
+      const m = shim.match(new RegExp(`create\\s+or\\s+replace\\s+function\\s+auth\\.${fn}\\(\\)[\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$`, "i"));
+      const live = (await c.query(`select prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'auth' and p.proname = $1`, [fn])).rows[0]?.prosrc;
+      if (!m) drift.push(`auth.${fn}: not in the shim`);
+      else if (!live) drift.push(`auth.${fn}: not in production`);
+      else if (norm(m[1]) !== norm(live)) drift.push(`auth.${fn}: shim differs from production`);
+    }
+    return { pass: drift.length === 0, detail: drift.length ? drift.join("; ") + " — copy production's body into scripts/sql/supabase-shim.sql" : "all three match production" };
+  });
+
   await check("auth-gate invariant: profiles.status CHECK is exactly (active, removed)", async () => {
     // The extension auth gate + requireCareAgent DENYLIST 'removed' (block it, allow the rest). That's only
     // safe because status can ONLY be 'active' or 'removed'. If a migration adds a status (e.g. 'suspended'),

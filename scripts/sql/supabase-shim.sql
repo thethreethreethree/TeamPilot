@@ -77,11 +77,23 @@ end $shim$;
 
 -- The JWT helpers. Every RLS policy in the repo routes through auth.uid(); these read the same
 -- GUCs PostgREST sets, so a policy can be exercised by setting request.jwt.claim.sub.
+-- auth.uid / auth.jwt / auth.role: production's bodies, verbatim (read from the live project 2026-11-21). verify:live
+-- (scripts/verify-invariants-live.mjs) compares these three to production on every db:apply, so a replay can never
+-- again run on an auth helper production does not have (auth.role() used to default to 'anon'; auth.jwt() to '{}';
+-- auth.uid() ignored request.jwt.claims).
 create or replace function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  select
+  coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+  )::uuid $$;
 
 create or replace function auth.jwt() returns jsonb language sql stable as $$
-  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+  select
+    coalesce(
+        nullif(current_setting('request.jwt.claim', true), ''),
+        nullif(current_setting('request.jwt.claims', true), '')
+    )::jsonb $$;
 
 -- Production's definition, verbatim (read from the live project 2026-11-21): NULL when no claims are set — a direct
 -- database session — and the request's role under PostgREST. The shim used to default to 'anon', which made a

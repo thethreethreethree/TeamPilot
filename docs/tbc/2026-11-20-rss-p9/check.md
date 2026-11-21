@@ -470,3 +470,12 @@ only). Now `git ls-files --cached --others --exclude-standard src` (plus an exis
 deletions); the two hand-listed untracked chat pages it had patched in are covered generically. Mutation: an untracked
 src/components/zz-theme-mutant.tsx with `bg-ember-400 text-primary` → "Theme-bound leaks: 1" naming it; removed → clean.
 npm run check exit 0.
+
+## Addendum 2026-11-21 — the SQL shim is checked against production on every db:apply
+
+After auth.role(), auth.jwt() ('{}' vs NULL) and auth.uid() (ignored request.jwt.claims) were also found to differ from
+production; both now carry production's bodies verbatim. verify:live gains "the SQL shim's auth.uid / auth.jwt /
+auth.role are production's" (compares pg_proc.prosrc with the shim, whitespace-insensitive): PASS against production;
+mutant (auth.jwt back to '{}') → FAIL naming auth.jwt; restored byte-identical. Every PGlite replay from today re-run on
+the corrected shim with unchanged results (anon, attack A–H, CLAIM 5, trims, 0300 audio start, 0299 rule).
+npm run check exit 0.
