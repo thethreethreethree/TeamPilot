@@ -514,3 +514,16 @@ Third run, two test workers to cut contention (load 19–60 during; 2088 s again
 route). The three files alone: `3 passed · 41 passed`. Three runs, three different sets of failing files, every
 failure a timeout, every failing file green alone — no assertion has failed. A single clean run still needs a quiet
 machine (iCloud's `bird` stays at ~100% CPU while the Desktop-hosted repo syncs).
+
+## Addendum 2026-11-22 — pushed, deployed, CI green
+
+Pushed 24 commits (0214913c → 3a49f7ee) through VS Code's own Git: Push (the founder's sign-in; this shell has no
+GitHub credentials). elostate.com reported build.commit 3a49f7ee 80 s later. Live: /dashboard/sales-coach/sessions
+?context=remote → 307 to sign-in (expected when signed out); unreferenced-upload-sweep-cron → 401 (CRON_SECRET set);
+/api/health status "degraded" = file storage 71.8% of the assumed Free plan (quotaSource default-free-plan; OPEN.md).
+GitHub CI for 3a49f7ee: job "check" completed **success**, every step green — Typecheck, Lint, RLS, Theme, Invariant,
+Reachability, Writer audit, Enum audit, Migration apply audit, SQL harness, Test, Build, KB bundling. This is the clean
+single run the loaded Mac could not give. One limit: the job log needs a GitHub sign-in (API 403 here), so that the
+harness EXECUTED its claims rather than skipping is inferred — same Postgres service and credentials as the migration
+audit, which passed by applying every migration. Confirm by opening the job → "SQL harness" → five ✓ lines.
+https://github.com/thethreethreethree/TeamPilot/actions/runs/44948341093/job/136980521437
