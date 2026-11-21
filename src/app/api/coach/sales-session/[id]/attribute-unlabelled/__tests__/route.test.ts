@@ -25,6 +25,9 @@ vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async
 vi.mock("@/lib/coach/v5/generateSessionArtifacts", () => ({
   generateSessionArtifacts: vi.fn(async () => ({})),
 }));
+vi.mock("@/lib/coach/pitchScore/scoreSession", () => ({
+  scoreSession: vi.fn(async () => ({ ok: true, pitchId: "p1", alreadyScored: false })),
+}));
 vi.mock("next/server", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return { ...actual, after: (fn: () => unknown) => void fn() };
@@ -38,6 +41,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
+import { scoreSession } from "@/lib/coach/pitchScore/scoreSession";
 import { POST } from "../route";
 
 const mk = <T,>(fn: T) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -164,11 +168,35 @@ describe("POST attribute-unlabelled", () => {
     expect(generateSessionArtifacts).toHaveBeenCalledTimes(1);
   });
 
+  // Audit 2026-11-21: the answer is what makes the call scoreable — score it, as /finalize and /label-transcript do.
+  it("scores the call after regenerating, with the owner's own client and skipIfScored", async () => {
+    await POST(req({ mine: true }), ctx);
+    expect(scoreSession).toHaveBeenCalledTimes(1);
+    const [arg] = mk(scoreSession).mock.calls[0] ?? [];
+    expect(arg).toMatchObject({ sessionId: "sess1", companyId: "co1", skipIfScored: true });
+    expect((arg as { db: { auth: unknown } }).db.auth).toBeDefined(); // the caller's client, not the admin one
+    expect(mk(generateSessionArtifacts).mock.invocationCallOrder[0]!).toBeLessThan(mk(scoreSession).mock.invocationCallOrder[0]!);
+  });
+
+  it("still scores when generation fails, and never scores a customer-only answer", async () => {
+    mk(generateSessionArtifacts).mockRejectedValueOnce(new Error("engine down"));
+    await POST(req({ mine: true }), ctx);
+    expect(scoreSession).toHaveBeenCalledTimes(1);
+    vi.clearAllMocks();
+    setupAdmin();
+    setAuth("rep1");
+    mk(getSession).mockResolvedValue({ id: "sess1", agentId: "rep1", sessionKind: "sales", startedAt: "2026-09-10T07:52:00Z" });
+    mk(getSessionTranscript).mockResolvedValue(unknownTranscript);
+    await POST(req({ mine: false }), ctx);
+    expect(scoreSession).not.toHaveBeenCalled();
+  });
+
   it("does not claim success when the write failed", async () => {
     rpcResult = { data: null, error: { message: "boom" } };
     const res = await POST(req({ mine: true }), ctx);
     expect(res.status).toBe(500);
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
+    expect(scoreSession).not.toHaveBeenCalled();
   });
 });
 

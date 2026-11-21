@@ -105,14 +105,26 @@ describe("invariant-audit.mjs", () => {
   // INVARIANT 16 (LLM/transcription route needs maxDuration). The chokepoint names + known wrappers must
   // match; an ordinary call must not. A silent narrowing of this list = a route times out in prod undetected.
   it("the LLM-call detector matches the chokepoints + known wrappers, not an ordinary call", () => {
-    const LLM_CALL_RE =
-      /\b(llmCall|llmStream|generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken|runLearningCycle|runBrainCall|analyzeCoachV5|followUpCoachV5|gradeCoachV5|debriefCoachV5|liveSalesCue|proposeDecisionDialogue|generateDailyQuestions|generateDailyBriefing|proposeCoachPatterns|generateOutsideViews|traceRipples)\s*\(/;
+    // Mirrors the script (2026-11-21): the wrapper list PLUS every async function src/lib/claude.ts exports, read
+    // from the file so a new model function is covered the day it is written.
+    const claudeSrc = "export async function askCoachTurn(a) {}\nexport const liveMeetingCue = async (a) => {};\nfunction notExported() {}";
+    const CLAUDE_EXPORTS = (claudeSrc.match(/^export (?:async function (\w+)|const (\w+) = async)/gm) ?? []).map((m) =>
+      m.replace(/^export (?:async function |const )/, "").replace(/ = async$/, ""));
+    expect(CLAUDE_EXPORTS).toEqual(["askCoachTurn", "liveMeetingCue"]);
+    const LLM_WRAPPERS = ["llmCall", "llmStream", "generateSales\\w+", "transcribeWithDiarization", "runLearningCycle",
+      "generateSessionArtifacts", "scoreSession", "askCoach", "runFollowThrough", ...CLAUDE_EXPORTS];
+    const LLM_CALL_RE = new RegExp(`\\b(${LLM_WRAPPERS.join("|")})\\s*\\(`);
     expect(LLM_CALL_RE.test("await llmCall({ ... })")).toBe(true); // the shared chokepoint
     expect(LLM_CALL_RE.test("const r = await runLearningCycle(input)")).toBe(true); // the wrapper that slipped once
     expect(LLM_CALL_RE.test("await transcribeWithDiarization({ audio })")).toBe(true);
     expect(LLM_CALL_RE.test("generateSalesPivot(ctx)")).toBe(true); // generateSales\w+
+    expect(LLM_CALL_RE.test("await generateSessionArtifacts({ companyId })")).toBe(true); // the wrapper that slipped twice
+    expect(LLM_CALL_RE.test("const r = await askCoachTurn({})")).toBe(true); // read from claude.ts, not listed
+    expect(LLM_CALL_RE.test("await askCoach({ db })")).toBe(true);
     expect(LLM_CALL_RE.test("await fetchTopics(scope)")).toBe(false); // an ordinary call
-    expect(SCRIPT).toContain("llmCall|llmStream|generateCareReply");
+    expect(SCRIPT).toContain('const CLAUDE_EXPORTS = (FILES.find((f) => f.path === "src/lib/claude.ts")');
+    expect(SCRIPT).toContain('"generateSessionArtifacts", "scoreSession", "generatePitchScore", "askCoach", "runFollowThrough"');
+    expect(SCRIPT).toContain("could not read the model functions src/lib/claude.ts exports"); // fails loud, never empty
   });
 
   // INVARIANT 18 (non-public mutation must reference a recognised auth/tenant gate). The mutation-export and

@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { answerableSpeaker } from "@/lib/coach/v5/transcriptRecovery";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { scoreSession } from "@/lib/coach/pitchScore/scoreSession";
 import { transcriptVoices } from "@/lib/coach/v5/transcriptVoices";
 
 /**
@@ -73,6 +74,11 @@ import { transcriptVoices } from "@/lib/coach/v5/transcriptVoices";
  * punishment — and says nothing about who may write a transcript. The rule is real; the
  * citation was not, and it is stated in plain words here instead of borrowed.
  */
+
+// The answer schedules the five post-call engines AND the pitch score in after() — /finalize's work — so this route
+// gets /finalize's budget. It had none (Vercel's short default would kill the work mid-flight): invariant 16 missed it
+// because generateSessionArtifacts was in no wrapper list (widened 2026-11-21).
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const limited = rateLimit(req, {
@@ -180,6 +186,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error(`[attribute-unlabelled] artifact generation failed session=${id}:`, err);
+        }
+        // SCORE IT, as /finalize and /label-transcript do (audit 2026-11-21): before this answer the call had no
+        // agent turns, so it could not be scored; now it can. The owner's own client (line ~123 refused anyone
+        // else), skipIfScored, and scoreSession's verdict — it never throws and records a remote call's refusal.
+        const scored = await scoreSession({ sessionId: id, companyId, db, skipIfScored: true });
+        if (!scored.ok && scored.reason !== "not_a_sales_call") {
+          // eslint-disable-next-line no-console
+          console.error(`[attribute-unlabelled] session=${id} was not scored: ${scored.reason} — ${scored.humanMessage}`);
         }
       });
     } catch (err) {

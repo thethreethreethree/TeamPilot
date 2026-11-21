@@ -818,8 +818,27 @@ for (const f of FILES) {
 // through, PLUS the known route-invoked wrappers. A direct-chokepoint route can no longer be missed; a new
 // wrapper still needs adding, but the common direct shape is now robust. (Only route.ts files are scanned,
 // so the chokepoint's own definition + lib callers are correctly ignored.)
-const LLM_CALL_RE =
-  /\b(llmCall|llmStream|generateCareReply|dissectCoachV5|generateSales\w+|runAndStore\w+|transcribeWithDiarization|gradeCareAgentReply|generateSessionWhy|mintRealtimeSttToken|runLearningCycle|runBrainCall|analyzeCoachV5|followUpCoachV5|gradeCoachV5|debriefCoachV5|liveSalesCue|proposeDecisionDialogue|generateDailyQuestions|generateDailyBriefing|proposeCoachPatterns|generateOutsideViews|traceRipples)\s*\(/;
+//
+// SECOND BLIND SPOT, same shape (audit 2026-11-21): generateSessionArtifacts (five post-call engines), scoreSession,
+// the RSS askCoach / runFollowThrough wrappers were in no list, so attribute-unlabelled ran five LLM engines in
+// after() with no maxDuration and this gate stayed green. Two closes: (1) every async function src/lib/claude.ts
+// exports is now read from the file — a new model function there is covered the day it is written, no list to
+// update (A13: name the category, not the word); (2) the known multi-call wrappers are added by name.
+const CLAUDE_EXPORTS = (FILES.find((f) => f.path === "src/lib/claude.ts")?.sql ?? "")
+  .match(/^export (?:async function (\w+)|const (\w+) = async)/gm)
+  ?.map((m) => m.replace(/^export (?:async function |const )/, "").replace(/ = async$/, "")) ?? [];
+if (CLAUDE_EXPORTS.length === 0) throw new Error("INVARIANT 16: could not read the model functions src/lib/claude.ts exports");
+const LLM_WRAPPERS = [
+  "llmCall", "llmStream", "generateCareReply", "dissectCoachV5", "generateSales\\w+", "runAndStore\\w+",
+  "transcribeWithDiarization", "gradeCareAgentReply", "generateSessionWhy", "mintRealtimeSttToken", "runLearningCycle",
+  "runBrainCall", "analyzeCoachV5", "followUpCoachV5", "gradeCoachV5", "debriefCoachV5", "liveSalesCue",
+  "proposeDecisionDialogue", "generateDailyQuestions", "generateDailyBriefing", "proposeCoachPatterns",
+  "generateOutsideViews", "traceRipples",
+  // multi-call wrappers (2026-11-21)
+  "generateSessionArtifacts", "scoreSession", "generatePitchScore", "askCoach", "runFollowThrough",
+  ...CLAUDE_EXPORTS,
+];
+const LLM_CALL_RE = new RegExp(`\\b(${[...new Set(LLM_WRAPPERS)].join("|")})\\s*\\(`);
 const MAXDURATION_ALLOWLIST = new Map();
 for (const f of FILES) {
   if (!/\/route\.ts$/.test(f.path)) continue;

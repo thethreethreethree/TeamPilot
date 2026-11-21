@@ -320,3 +320,22 @@ ls-files: only the theme scripts). After the fix:
 ```
 npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 795 passed | 1 skipped · Tests 6078 passed
 ```
+
+## Addendum 2026-11-21 — invariant 16 blind spot; attribute-unlabelled had no time budget and did not score
+
+INVARIANT 16 ("every route that awaits an LLM call exports maxDuration") matched a fixed list of wrapper names; its
+own comment admitted "a new wrapper still needs adding". generateSessionArtifacts (five engines), scoreSession and the
+RSS askCoach / runFollowThrough were in no list. Widened two ways: every async function src/lib/claude.ts exports is
+read from the file (a new model function is covered when written — A13, category not word; the audit throws if it
+reads none), plus the multi-call wrappers by name. First run of the widened rule:
+
+```
+src/app/api/coach/sales-session/[id]/attribute-unlabelled/route.ts — awaits an LLM call, no maxDuration
+Violations: 1
+```
+
+That route runs the five engines in after() on Vercel's short default. Fixed: maxDuration = 300 (finalize's), and it
+now scores after regenerating (owner's client, skipIfScored, verdict consumed) — the answer is what makes the call
+scoreable. Tests +2 (scores after generation on the caller's client; still scores if generation fails; never on a
+customer-only answer; never on a failed write): 27 pass. Invariant Violations: 0 after.
+
