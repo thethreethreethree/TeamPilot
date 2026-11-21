@@ -589,9 +589,9 @@ export default function SalesCoachSessionsPage() {
             as="block"
             category="Sales Coach · Sessions"
             title="Context filter"
-            whatItIs="Filters sessions by where the conversation happened: in-person (a door or field visit) or video (a remote call)."
-            why="The two contexts are coached differently — body language and doorstep timing matter in person; framing, screen presence, and pacing matter on video. Mixing them hides patterns that only show up within one context."
-            how="Set it to In-person or Video when you want to study one channel at a time — for example, to see whether your close rate at the door differs from your close rate on calls. This filter runs on the server, so it searches your whole history, not just what's on screen."
+            whatItIs="Filters sessions by where the conversation happened: in-person (a door or field visit), video, or phone. Remote shows video and phone together — the calls the Remote Sales entry opens."
+            why="In person and remote are coached differently — body language and doorstep timing matter at the door; framing, pacing, and listening matter on a call. Mixing them hides patterns that only show up within one context."
+            how="Set it to In-person, Remote, Video or Phone when you want to study one channel at a time — for example, to see whether your close rate at the door differs from your close rate on calls. This filter runs on the server, so it searches your whole history, not just what's on screen."
             principle="Improvement is context-specific; compare like with like."
           >
             <Select
@@ -711,7 +711,7 @@ export default function SalesCoachSessionsPage() {
             as="block"
             category="Sales Coach · Sessions"
             title="A session row"
-            whatItIs="Each row is one recorded conversation. Left to right: a context icon (a video screen for remote calls, a map pin for in-person), the client label, then a detail line with the date, call length, lifecycle status, territory, and — for managers — which rep ran it. On the right sit the outcome and the artifact badges. Clicking a row opens the full session detail."
+            whatItIs="Each row is one recorded conversation. Left to right: a context icon (a video screen for video calls, a phone for phone calls, a map pin for in-person), the client label, then a detail line with the date, call length, lifecycle status, territory, and — for managers — which rep ran it. On the right sit the outcome and the artifact badges. Clicking a row opens the full session detail."
             why="This is your conversation history laid out so patterns surface — chronological, never ranked. Rank a rep against a leaderboard and they perform for the number; list calls plainly and the record stays honest enough to actually learn from. The row is a door back into a specific call, which is where real review happens."
             how="Scan the detail line to spot patterns — a string of short in-person calls, a run of the same outcome. Click any row to reopen that conversation and study what happened turn by turn. Managers: the rep's name is here for coaching that call, not for stacking people against each other."
             principle="A visible, chronological record teaches; a ranked one just makes people perform."
