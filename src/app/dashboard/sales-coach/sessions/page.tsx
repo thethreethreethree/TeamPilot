@@ -701,9 +701,14 @@ export default function SalesCoachSessionsPage() {
             principle="Empty because you filtered it out is not the same as empty because it isn't there."
           >
             <p className="text-xs text-muted py-12 text-center">
-              {(sessions ?? []).length === 0
-                ? "No sessions yet. Start one from Home."
-                : "No sessions match these filters."}
+              {/* Context/status/period filter on the SERVER, so an empty list under a filter is "nothing matches",
+                  never "no sessions yet" — and the Remote Sales entry lands here with ?context=remote, where the
+                  next step is a phone or video call, started from the panel above (Expert) or from Home (Standard). */}
+              {(sessions ?? []).length === 0 && context === "remote"
+                ? `No phone or video calls yet. Start one ${isStandard ? "from Home" : "above"} — choose Online video or Phone — then record it live or upload the recording on its page.`
+                : (sessions ?? []).length === 0 && context === "all" && status === "all" && period === "all"
+                  ? "No sessions yet. Start one from Home."
+                  : "No sessions match these filters."}
             </p>
           </LearningHint>
         ) : (

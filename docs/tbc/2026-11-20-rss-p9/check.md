@@ -445,3 +445,12 @@ Deploy limits: vercel.json crons 12 (origin/main) → 14 (HEAD: the webhook send
 upload sweeper). Production already deploys 12 including a per-minute cron, which only Pro allows (cap 40), so 14 fits.
 New env vars all fail safe when unset (NEXT_PUBLIC_AUTH_PROVIDERS, RSS_WEBHOOK_SIGNING_SECRET, the two quota vars — the
 last reads 0.77 GB as 77% of the Free plan; OPEN.md).
+
+## Addendum 2026-11-21 — Remote Sales' first screen is not a dead end (§1.5.1 layer 3)
+
+Production has no real remote call yet, so the first click on Remote Sales lands on an empty list. The filter is
+server-side, so `sessions` came back empty and the page said "No sessions yet. Start one from Home." — false for anyone
+with in-person history, and silent about the active filter. Now: remote → "No phone or video calls yet. Start one above
+(Expert; StartSessionPanel is on this page) / from Home (Standard) — choose Online video or Phone — then record it live or
+upload the recording on its page"; any other active filter → "No sessions match these filters"; no filter → unchanged.
+npm run check exit 0.
