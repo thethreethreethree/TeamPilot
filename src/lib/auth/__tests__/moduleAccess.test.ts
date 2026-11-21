@@ -126,3 +126,18 @@ describe("moduleGateDecision", () => {
     expect(moduleGateDecision(false, false)).toBe("hub");
   });
 });
+
+// The sidebar's "Remote Sales" entry (2026-11-21) is a link INTO the Sales Coach subtree, so it inherits exactly the
+// Sales Coach lock: a care-only account is sent back to C.A.R.E, a sales-only account may open it. If the entry is ever
+// moved outside /dashboard/sales-coach, this fails and the lock has to be thought about again.
+describe("the Remote Sales entry follows the Sales Coach module lock", () => {
+  const remote = new URL("https://x/dashboard/sales-coach/sessions?context=remote").pathname;
+  it("is Sales Coach territory", () => {
+    expect(moduleForPath(remote)).toBe("sales_coach");
+  });
+  it("a care-only account is redirected home; a sales-only or complete account is not", () => {
+    expect(redirectForLock("care", remote)).toBe(moduleHome("care"));
+    expect(redirectForLock("sales_coach", remote)).toBeNull();
+    expect(redirectForLock(null, remote)).toBeNull();
+  });
+});

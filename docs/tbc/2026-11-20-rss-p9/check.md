@@ -398,3 +398,7 @@ like Sales Coach's other sub-pages the entry does not highlight; no change to th
 npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 797 passed | 1 skipped · Tests 6100 passed
 (the American-spelling test caught "analysed" in the hint first; fixed to "analyzed")
 ```
+
+Follow-up: the Remote Sales link is inside /dashboard/sales-coach, so the 0207 module lock (moduleForPath, subtree-based)
+and the Sales Coach layout's membership gate apply to it exactly as to Sales Coach — a care-only account is redirected to
+C.A.R.E. Pinned in moduleAccess.test.ts (20 pass); the test fails if the entry ever leaves the subtree.
