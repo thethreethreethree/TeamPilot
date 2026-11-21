@@ -6,6 +6,7 @@ import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { getSession } from "@/lib/data/salesCoach";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { loadLines, type Line } from "./followThrough";
+import { readPitchScore, type StoredPitch } from "@/lib/coach/pitchScore/readPitchScore";
 
 /**
  * RSS Phase 6 — Ask Coach, multi-turn, saved, with clickable timestamp citations, over one call or several
@@ -16,12 +17,23 @@ import { loadLines, type Line } from "./followThrough";
  * CITATIONS. Lines are numbered [1]..[n] across all calls; the model cites [n]; the server maps each [n] it can
  * resolve to {sessionId, seq, atMs} and drops any it cannot — a citation always points at a real line.
  * Day-1 like every Sales Coach engine (controlExempt), consuming the `suppressed` verdict (§2.2).
+ * COMPOSES WITH THE SCORECARD (ThinkerThinker A16, audit 2026-11-21). Each call's stored Pitch Score — the grades the
+ * rep sees on screen, manager corrections already applied (0256 writes the corrected grade) — goes in beside its
+ * transcript, read through readPitchScore on the caller's client (its access rule, its numbers; nothing recomputed
+ * here, §2.2). Without it the coach could call an objection "handled well" that the scorecard marked missed, and the
+ * rep would see the System contradict itself. The coach may still read a moment differently — it must say so, naming
+ * the grade, rather than silently disagree.
  */
 export const ASK_SYSTEM = `You are a sales coach. The rep (or their manager) is asking about one or more recorded sales calls.
 Answer grounded ONLY in the numbered transcript lines below and in sound sales practice.
 
 Cite the lines you rely on with their numbers in square brackets, e.g. "when the customer raised price [14]". Cite
 only numbers that appear below. Never invent a moment.
+
+A call may come with its scorecard: the grades the rep already sees on screen. Do not silently contradict it. When
+the transcript leads you to a different read of something it graded, say so plainly: name the scorecard's grade,
+then what you see, with line numbers — so the rep can raise it with their manager. A grade a manager corrected is
+the grade. If a scorecard "could not be read", do not guess what it says.
 
 Tone: kind and growth-oriented. Point at specific moments. A different approach is an opportunity with one concrete,
 practiceable next step — never a verdict. A few short paragraphs at most.`;
@@ -53,6 +65,25 @@ export function numberAcross(calls: Array<{ sessionId: string; label: string; li
     }
   }
   return { text: parts.join("\n"), refs };
+}
+
+const GRADE_WORD: Record<StoredPitch["elements"][number]["grade"], string> = { hit: "hit", partial: "partial", missed: "missed" };
+
+/** The stored verdict as plain lines for the model. Pure; formats only — every number is the stored one. */
+export function scorecardText(label: string, pitch: StoredPitch | null | "unreadable"): string {
+  if (pitch === "unreadable") return `=== Scorecard: ${label} — could not be read right now ===`;
+  if (!pitch) return `=== Scorecard: ${label} — not scored ===`;
+  const out = [
+    `=== Scorecard: ${label} — ${pitch.total} points${pitch.band ? ` (${pitch.band})` : ""}${pitch.qualifying ? "" : `, not qualifying: ${pitch.notQualifyingReason ?? "no reason stored"}`} ===`,
+  ];
+  for (const e of pitch.elements) {
+    const ev = e.evidence ? ` — "${e.evidence.replace(/\s+/g, " ").slice(0, 160)}"` : "";
+    out.push(`- ${e.label}: ${GRADE_WORD[e.grade]}${ev}`);
+  }
+  for (const o of pitch.overrides.slice(0, 10)) {
+    out.push(`- manager corrected ${o.itemLabel}: ${o.oldValue ?? "—"} → ${o.newValue} (${o.reason.slice(0, 160)})`);
+  }
+  return out.join("\n");
 }
 
 /** The [n] citations in an answer that resolve to a real line, in first-mention order, deduplicated. Pure. */
@@ -107,13 +138,24 @@ export async function askCoach(args: {
 
   // Every call opened as the caller.
   const calls: Array<{ sessionId: string; label: string; lines: Line[] }> = [];
+  const scorecards: string[] = [];
   for (const id of sessionIds) {
     const s = await getSession(id, db);
     if (!s) return { ok: false, status: 404, error: "One of these calls isn't available to you." };
     if (!isSalesCall(s.sessionKind)) return { ok: false, status: 409, error: "Ask Coach is for sales calls." };
     const loaded = await loadLines(db, id, s.startedAt);
     if (loaded && loaded.lines.length > 0) {
-      calls.push({ sessionId: id, label: `${s.clientLabel ?? "Untitled"} (${new Date(s.startedAt).toISOString().slice(0, 10)})`, lines: loaded.lines });
+      const label = `${s.clientLabel ?? "Untitled"} (${new Date(s.startedAt).toISOString().slice(0, 10)})`;
+      calls.push({ sessionId: id, label, lines: loaded.lines });
+      // A failed read is said as such to the model — never presented as "not scored" (the confident-zero shape).
+      let pitch: StoredPitch | null | "unreadable";
+      try {
+        pitch = await readPitchScore(id, db);
+      } catch (err) {
+        console.error(`[askCoach] scorecard read failed session=${id}:`, err);
+        pitch = "unreadable";
+      }
+      scorecards.push(scorecardText(label, pitch));
     }
   }
   if (calls.length === 0) {
@@ -135,7 +177,7 @@ export async function askCoach(args: {
   const r = await askCoachTurn({
     companyId,
     systemPrompt: ASK_SYSTEM + CONVERSATION_IS_DATA,
-    userMessage: `Transcript lines:\n${text}\n\n${prior ? `Conversation so far:\n${prior}\n\n` : ""}Question: ${question}`,
+    userMessage: `Transcript lines:\n${text}\n\nScorecards:\n${scorecards.join("\n\n")}\n\n${prior ? `Conversation so far:\n${prior}\n\n` : ""}Question: ${question}`,
     sessionId: calls.length === 1 ? (calls[0]?.sessionId ?? null) : null,
   });
   if (r.suppressed) return { ok: true, chatId: null, answer: null, citations: [], suppressed: true };

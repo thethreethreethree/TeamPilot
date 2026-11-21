@@ -13,6 +13,9 @@ vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async
 vi.mock("@/lib/coach/v5/generateSessionArtifacts", () => ({
   generateSessionArtifacts: vi.fn(async () => ({})),
 }));
+vi.mock("@/lib/coach/pitchScore/scoreSession", () => ({
+  scoreSession: vi.fn(async () => ({ ok: true, pitchId: "p1", alreadyScored: false })),
+}));
 // Run after()'s callback synchronously so the test can assert the post-response generation fired.
 vi.mock("next/server", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -28,6 +31,7 @@ vi.mock("@/lib/data/salesCoach", () => ({
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { scoreSession } from "@/lib/coach/pitchScore/scoreSession";
 import {
   getSession,
   getSessionTranscript,
@@ -204,6 +208,55 @@ describe("POST /label-transcript", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ appended: 3, requested: 3 });
     expect(generateSessionArtifacts).not.toHaveBeenCalled(); // scheduling failed, but the label stands
+  });
+});
+
+// Audit 2026-11-21 (A21): an uploaded call — every remote call — is scored like a live one (/finalize), or its chip
+// sits on "Scoring" for good (stage.ts:37) against the scope's Done-means (01-SCOPE.md:61).
+describe("scores an uploaded call (parity with /finalize)", () => {
+  const twoLines = () =>
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { speaker: "agent", text: "Hi, I'm from Acme.", seq: 0 },
+        { speaker: "customer", text: "Not interested.", seq: 1 },
+      ]);
+  it("scores with the owner's own client and skipIfScored, after generation", async () => {
+    setAuth("rep1");
+    twoLines();
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(200);
+    expect(scoreSession).toHaveBeenCalledTimes(1);
+    const [arg] = (scoreSession as unknown as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
+    expect(arg).toMatchObject({ sessionId: "sess1", companyId: "co1", skipIfScored: true });
+    // the same client the route's owner check read through (createClient → the signed-in rep)
+    expect((arg as { db: { auth: unknown } }).db.auth).toBeDefined();
+    const genOrder = (generateSessionArtifacts as unknown as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    const scoreOrder = (scoreSession as unknown as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    expect(genOrder).toBeLessThan(scoreOrder);
+  });
+  it("still scores when generation fails (scoring reads the transcript, not the artifacts)", async () => {
+    setAuth("rep1");
+    twoLines();
+    (generateSessionArtifacts as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("engine down"));
+    const res = await POST(req(BODY), ctx);
+    expect(res.status).toBe(200);
+    expect(scoreSession).toHaveBeenCalledTimes(1);
+  });
+  it("never scores on the 409 double-write path", async () => {
+    setAuth("rep1");
+    (getSessionTranscript as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { speaker: "agent", text: "x", seq: 0 },
+      { speaker: "customer", text: "y", seq: 1 },
+    ]);
+    await POST(req(BODY), ctx);
+    expect(scoreSession).not.toHaveBeenCalled();
+  });
+  it("never scores without a company context", async () => {
+    setAuth("rep1");
+    (getCurrentCompanyId as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    await POST(req(BODY), ctx);
+    expect(scoreSession).not.toHaveBeenCalled();
   });
 });
 

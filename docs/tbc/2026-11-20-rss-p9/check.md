@@ -283,3 +283,40 @@ Production: `db:verify` 0298 clean → `db:apply` (first attempt: connection tim
 "applied 1 migration(s). DB now at 0298" · "✓ PASS tenant isolation BEHAVIORAL … anon reads 0 from 5 populated
 tenant tables" · "✓ verify:live passed".
 
+## Addendum 2026-11-21 — A16 / A21 audit after the release commit
+
+**A16 (AI surfaces on one call compose).** Ask Coach read only transcript lines and chat history — it could call an
+objection "handled well" that the rep's scorecard marked missed. Now each call's stored Pitch Score goes in beside its
+transcript via `readPitchScore(id, db)` (the caller's client; corrected grades — 0256 upserts the element grade; the
+override log listed), with a prompt rule: do not silently contradict it; say so, naming the grade. A failed read is told
+to the model as "could not be read", never "not scored". Follow-through: its suggested outcome is compared against
+`session.outcome`, the same source `pitch_scores.outcome` derives from (scoreSession.ts:288), and is labelled a second
+opinion — no contradiction. Practice-ask already passes the review summary.
+
+**A21 (same concept across modules).** Ask Coach: one engine for the per-call route and the cross-call ask. Scoring:
+NOT at parity. `scoreSession` had three callers — finalize (live calls), the Score button, the manual drain; nothing
+scored an UPLOADED call (label-transcript → generateSessionArtifacts only; vercel.json registers no scoring cron). Every
+remote call arrives by upload, so its chip sat on "Scoring" (stage.ts:37) — against 01-SCOPE.md:61 "Done means …
+Uploading → Transcribing → Analysing → Scoring → Ready". Root cause: scoring was wired beside the shared
+post-transcript path, into finalize only. Fix: label-transcript scores after generation exactly as finalize does (owner's
+client, skipIfScored, verdict consumed); maxDuration 60 → 300 (finalize's; it claimed parity at 60).
+
+Tests: askCoach.test.ts +4 (scorecard text, unscored vs unreadable, reaches the model on the caller's client, a failed
+read still answers); label-transcript route.test.ts +4 (scores with the owner's client after generation; still scores
+when generation fails; never on the 409 path; never without a company). 13 + 17 pass. Typecheck clean; invariant
+Violations 0. Residuals: the pre-fix backlog (run the drain once after deploy); recovery / cron / attribute / trim paths
+do not score (OPEN.md).
+
+
+## Correction 2026-11-21 — the theme audit never saw the RSS UI before the release commit
+
+`scripts/theme-audit.mjs:195` scans `git ls-files src` — tracked files only. Every `npm run check` before commit
+e4eaafcd (including the "exit 0" in its message) ran the theme audit WITHOUT the ~100 untracked RSS files. Once they
+were tracked, it found one: `RemoteCallPanel.tsx` playback-speed chip, `bg-ember-400` and `hover:text-primary` in one
+className template. The two are opposite ternary branches (never on one element), so the classes were split into
+SPEED_ON / SPEED_OFF rather than exempting the whole file. No other gate is tracked-only (grep of scripts/ for
+ls-files: only the theme scripts). After the fix:
+
+```
+npm run check exit 0 · Theme-bound leaks: 0 · Violations: 0 · Test Files 795 passed | 1 skipped · Tests 6078 passed
+```

@@ -12,6 +12,7 @@ import {
   replaceSessionTranscript,
 } from "@/lib/data/salesCoach";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { scoreSession } from "@/lib/coach/pitchScore/scoreSession";
 import { spokenAtFor } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -35,9 +36,10 @@ import { spokenAtFor } from "@/lib/coach/v5/segmentTiming";
  * founder-reported "new sessions have no summary page", 2026-08-12).
  */
 
-// Generation runs the five post-call LLM engines (via after(), below), so this route needs the same duration
-// budget as /finalize + /summarize; on Vercel's ~10-15s default the after() work would be killed mid-flight.
-export const maxDuration = 60;
+// Generation runs the five post-call LLM engines AND the pitch score (via after(), below) — exactly /finalize's
+// work — so this route gets /finalize's budget (300). It was 60 while claiming parity with /finalize (300); with
+// scoring added, 60s could kill the score mid-flight and leave the call on "Scoring" — the symptom being fixed.
+export const maxDuration = 300;
 
 const BodySchema = z.object({
   agentSpeakerId: z.string().min(1).max(64),
@@ -225,6 +227,18 @@ export async function POST(
               `[label-transcript] post-call artifact generation failed session=${id}:`,
               err
             );
+          }
+          // SCORE IT, as /finalize does for a live call (finalize/route.ts, after generateSessionArtifacts). Audit
+          // 2026-11-21 (A21): scoring was wired only into /finalize, so an UPLOADED call — every remote call — was
+          // never scored unless a manager pressed Score, and its status chip sat on "Scoring" for good (stage.ts:37),
+          // against the scope's own "Done means" (docs/rss/docs/01-SCOPE.md:61 — Uploading → … → Scoring → Ready).
+          // Same contract as finalize: the session owner's own client (line 104 refused anyone else), skipIfScored so
+          // a retried label never bills twice, and scoreSession returns a verdict — never throws — and records a
+          // remote call's refusal reason itself, so a call that cannot be scored shows why instead of "Scoring".
+          // Independent of the generation above (scoring reads the transcript, not the artifacts).
+          const scored = await scoreSession({ sessionId: id, companyId, db: supabase, skipIfScored: true });
+          if (!scored.ok && scored.reason !== "not_a_sales_call") {
+            console.error(`[label-transcript] session=${id} was not scored: ${scored.reason} — ${scored.humanMessage}`);
           }
         });
       }

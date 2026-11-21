@@ -54,6 +54,11 @@ type Wire =
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 const LANE_LABEL = { rep: "You", customer: "Customer", unknown: "Unclear" } as const;
 const LANE_FILL = { rep: "bg-ember-400", customer: "bg-emerald-500", unknown: "bg-sky-500" } as const;
+// The playback-speed chip's two states. The selected chip is a brand-red fill with dark ink; an unselected chip has
+// no fill and takes text-primary only on hover — the two never sit on one element (theme-audit's red + text-primary
+// rule), so they are kept as separate classes rather than one template the audit reads as a single element.
+const SPEED_ON = "bg-ember-400 text-ink-950";
+const SPEED_OFF = "text-muted hover:text-primary";
 
 const mmss = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -292,7 +297,7 @@ export function RemoteCallPanel({
                     setSpeed(s);
                     if (audio.current) audio.current.playbackRate = s;
                   }}
-                  className={`rounded px-1.5 py-0.5 text-[11px] ${speed === s ? "bg-ember-400 text-ink-950" : "text-muted hover:text-primary"}`}
+                  className={`rounded px-1.5 py-0.5 text-[11px] ${speed === s ? SPEED_ON : SPEED_OFF}`}
                 >
                   {s}×
                 </button>

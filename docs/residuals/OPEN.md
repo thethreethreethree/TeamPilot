@@ -210,6 +210,13 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: unconfirmed by the reviewer
       next-action: —
 
-- [ ] 2026-11-21 · release · A16 / A21 audits not run for the RSS release: whether every AI surface on a remote recording consumes the others' findings (A16), and a cross-module parity inventory of remote recordings vs in-person Sales Coach sessions (A21)
+- [x] 2026-11-21 · release · A16 / A21 audits not run for the RSS release — DONE 2026-11-21: A16 — Ask Coach now reads each call's stored scorecard (readPitchScore, caller's client) and may not silently contradict it; follow-through's outcome already compares against the rep's own (one source, session.outcome). A21 — Ask Coach is one engine for both routes; uploaded calls were never auto-scored (fixed: label-transcript scores like finalize). Was: whether every AI surface on a remote recording consumes the others' findings (A16), and a cross-module parity inventory of remote recordings vs in-person Sales Coach sessions (A21)
       why-unresolved: recorded honestly in docs/closures/2026-11-21-rss-release.md rather than claimed
       next-action: enumerate the AI reads on a recording (review, coaching, scoring) and check each takes the others' output; list shared concepts across remote/in-person and verify parity
+- [ ] 2026-11-21 · A21 · calls uploaded BEFORE the label-transcript scoring fix have no score and show "Scoring" until scored
+      why-unresolved: a one-time backlog; scoring spends one LLM call per recording, so it is run, not migrated
+      next-action: after deploy, a manager opens the scoring backfill (GET /api/coach/sales-session/pitch-score/backfill shows the count first, POST drains in batches) and runs it to remaining = 0
+- [ ] 2026-11-21 · A21 · transcript recovery, the dissect backfill cron, attribute-unlabelled and trim regenerate a call's artifacts but do not score it
+      why-unresolved: scoreSession takes the caller's client by design ("whatever that client can see is what gets scored", scoreSession.ts:40); recovery and the cron have no user. Scored calls are unaffected (skipIfScored); an unscored call reached only by these paths waits for the drain
+      next-action: decide whether the drain becomes a cron (needs a system-identity client and its own tenant guard), or score in attribute-unlabelled (a user request) the way label-transcript now does
+

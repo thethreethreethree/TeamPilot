@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/claude", () => ({ askCoachTurn: vi.fn(), followThroughCoach: vi.fn() }));
 vi.mock("@/lib/data/salesCoach", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({ readPitchScore: vi.fn(async () => null) }));
 const saved = vi.hoisted(() => ({ rows: [] as Array<{ table: string; row: unknown }> }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -22,7 +23,8 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { askCoachTurn } from "@/lib/claude";
 import { getSession } from "@/lib/data/salesCoach";
-import { askCoach, numberAcross, resolveCitations } from "../askCoach";
+import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
+import { askCoach, numberAcross, resolveCitations, scorecardText } from "../askCoach";
 
 const mock = (f: unknown) => f as ReturnType<typeof vi.fn>;
 const callerDb = {
@@ -80,3 +82,44 @@ describe("askCoach", () => {
     expect(mock(askCoachTurn)).not.toHaveBeenCalled();
   });
 });
+
+// A16 (audit 2026-11-21): Ask Coach reads the call's stored scorecard, so it cannot silently contradict the grades the
+// rep sees on screen.
+const pitch = {
+  total: 52, band: "Solid", qualifying: true, notQualifyingReason: null,
+  elements: [
+    { label: "Handles the price objection", grade: "missed", evidence: "Customer said too pricey; rep moved on" },
+    { label: "Opens with a question", grade: "hit", evidence: null },
+  ],
+  overrides: [{ itemLabel: "Opens with a question", oldValue: "partial", newValue: "hit", reason: "Asked at 0:04" }],
+} as never;
+
+describe("scorecard composition (A16)", () => {
+  it("scorecardText: total, every grade with its evidence, and manager corrections", () => {
+    const t = scorecardText("Acme (2026-11-20)", pitch);
+    expect(t).toContain("52 points (Solid)");
+    expect(t).toContain('- Handles the price objection: missed — "Customer said too pricey; rep moved on"');
+    expect(t).toContain("- manager corrected Opens with a question: partial → hit (Asked at 0:04)");
+  });
+  it("unscored and unreadable are told apart (a failed read is never 'not scored')", () => {
+    expect(scorecardText("A", null)).toContain("not scored");
+    expect(scorecardText("A", "unreadable")).toContain("could not be read");
+  });
+  it("the scorecard reaches the model beside the transcript, read on the caller's client", async () => {
+    mock(readPitchScore).mockResolvedValueOnce(pitch);
+    mock(askCoachTurn).mockResolvedValue({ text: "Price [2].", suppressed: false });
+    await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null });
+    expect(mock(readPitchScore)).toHaveBeenCalledWith("s1", callerDb);
+    const msg = mock(askCoachTurn).mock.calls[0]![0].userMessage as string;
+    expect(msg).toContain("Handles the price objection: missed");
+    expect(mock(askCoachTurn).mock.calls[0]![0].systemPrompt).toContain("Do not silently contradict it");
+  });
+  it("a failed scorecard read still answers, and tells the model the read failed", async () => {
+    mock(readPitchScore).mockRejectedValueOnce(new Error("db down"));
+    mock(askCoachTurn).mockResolvedValue({ text: "Price [2].", suppressed: false });
+    const r = await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null });
+    expect(r).toMatchObject({ ok: true });
+    expect(mock(askCoachTurn).mock.calls[0]![0].userMessage).toContain("could not be read");
+  });
+});
+
