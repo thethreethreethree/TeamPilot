@@ -441,3 +441,7 @@ the old behaviour); 279 scoring tests pass. Scores made before the deploy keep t
 `npm run build exit 0`; the new routes compile (/api/coach/sales-session/unreferenced-upload-sweep-cron,
 /api/coach/remote/erasure, /api/coach/sales-session/[id]/audio-chunk, /dashboard/sales-coach/sessions). One warning,
 pre-existing and non-blocking: Next.js's "middleware" file convention is deprecated in favour of "proxy".
+Deploy limits: vercel.json crons 12 (origin/main) → 14 (HEAD: the webhook sender every 5 min, the nightly unreferenced-
+upload sweeper). Production already deploys 12 including a per-minute cron, which only Pro allows (cap 40), so 14 fits.
+New env vars all fail safe when unset (NEXT_PUBLIC_AUTH_PROVIDERS, RSS_WEBHOOK_SIGNING_SECRET, the two quota vars — the
+last reads 0.77 GB as 77% of the Free plan; OPEN.md).
