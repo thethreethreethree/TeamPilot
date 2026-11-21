@@ -216,6 +216,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-21 · A21 · calls uploaded BEFORE the label-transcript scoring fix have no score and show "Scoring" until scored
       why-unresolved: a one-time backlog; scoring spends one LLM call per recording, so it is run, not migrated
       next-action: after deploy, a manager opens the scoring backfill (GET /api/coach/sales-session/pitch-score/backfill shows the count first, POST drains in batches) and runs it to remaining = 0
+      measured 2026-11-21 (production, read-only, ended sales calls): remote 13 ended / 13 unscored / 3 with rep speech; in person 356 / 304 / 111 → the drain scores ~114 (one LLM call each); the rest have no rep speech and are refused, not billed
 - [ ] 2026-11-21 · A21 · transcript recovery and the dissect backfill cron regenerate a call's artifacts but do not score it (attribute-unlabelled now scores — 2026-11-21; trim needs none: a trimmed call is already scored and re-scoring is D3's manager action)
       why-unresolved: scoreSession takes the caller's client by design ("whatever that client can see is what gets scored", scoreSession.ts:40); recovery and the cron have no user. Scored calls are unaffected (skipIfScored); an unscored call reached only by these paths waits for the drain
       next-action: decide whether the drain becomes a cron (needs a system-identity client and its own tenant guard) — scoreSession is deliberately caller-scoped, so this is a design change, not a call to add
