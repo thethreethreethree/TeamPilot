@@ -507,3 +507,10 @@ static gates both runs: Violations: 0
 Composite evidence, not one clean run: the failing files differ run to run, every one passes alone, and bdf02b8a touches
 no code those tests import (ci.yml, the harness's skip message, docs). The last single clean run of the full gate was
 at 4f2c3cb8 + 8aea6588 + 158eac2e (exit 0, 6113 tests). Re-run `npm run check` on a quiet machine before relying on it.
+
+Third run, two test workers to cut contention (load 19–60 during; 2088 s against ~60 s on a quiet machine):
+`Test Files 2 failed | 794 passed | 1 skipped · Tests 2 failed | 6102 passed` — both "Test timed out in 20000ms"
+(writer-audit.test.ts, ScoringRubricSheet.render.test.tsx) plus one worker that failed to start (meeting-prep document
+route). The three files alone: `3 passed · 41 passed`. Three runs, three different sets of failing files, every
+failure a timeout, every failing file green alone — no assertion has failed. A single clean run still needs a quiet
+machine (iCloud's `bird` stays at ~100% CPU while the Desktop-hosted repo syncs).
