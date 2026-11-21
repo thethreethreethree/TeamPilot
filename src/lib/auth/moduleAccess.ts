@@ -29,6 +29,10 @@ export const CARE_ROOT = "/dashboard/care";
 // Coach shell surfaces it. So a sales_coach-locked account may reach it; without this classification the
 // single-module lock (0207) would silently redirect them away (moduleForPath would call it the elostate hub).
 export const MEETING_COACH_ROOT = "/dashboard/meeting-coach";
+// Remote Sales (the RSS build, docs/rss): its own home, but part of the SALES_COACH entitlement like Meeting Coach —
+// its calls are sales sessions and its sections are Sales Coach components. Without this a sales_coach-locked account
+// would be redirected away from it.
+export const REMOTE_SALES_ROOT = "/dashboard/remote-sales";
 
 /**
  * The module a path belongs to. A path is a module's iff it IS the module root or sits under it (`root/`), so
@@ -38,6 +42,7 @@ export function moduleForPath(pathname: string): PathModule {
   if (pathname === SALES_COACH_ROOT || pathname.startsWith(SALES_COACH_ROOT + "/")) return "sales_coach";
   // Meeting Coach is bundled with the sales_coach entitlement (see MEETING_COACH_ROOT).
   if (pathname === MEETING_COACH_ROOT || pathname.startsWith(MEETING_COACH_ROOT + "/")) return "sales_coach";
+  if (pathname === REMOTE_SALES_ROOT || pathname.startsWith(REMOTE_SALES_ROOT + "/")) return "sales_coach";
   if (pathname === CARE_ROOT || pathname.startsWith(CARE_ROOT + "/")) return "care";
   return "elostate";
 }

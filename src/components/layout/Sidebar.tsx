@@ -279,11 +279,10 @@ const productionNav: Array<{
     },
   },
   {
-    // The Remote Sales System (docs/rss, Phases 0-9): phone and video sales calls. Its screens live inside Sales Coach
-    // (the plan's UI spec); this entry is the founder's direct way in (2026-11-21) — the sessions list opened on phone +
-    // video (?context=remote, REMOTE_CONTEXTS).
+    // The Remote Sales System (docs/rss, Phases 0-9): phone and video sales calls, with its own home (2026-11-22) —
+    // Calls, Coaching, Search, Library, Trackers, Training, Protection — instead of the old Sales Coach pages.
     label: "Remote Sales",
-    href: "/dashboard/sales-coach/sessions?context=remote",
+    href: "/dashboard/remote-sales",
     icon: PhoneCall,
     hint: {
       whatItIs:

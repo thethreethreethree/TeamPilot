@@ -527,3 +527,24 @@ single run the loaded Mac could not give. One limit: the job log needs a GitHub 
 harness EXECUTED its claims rather than skipping is inferred — same Postgres service and credentials as the migration
 audit, which passed by applying every migration. Confirm by opening the job → "SQL harness" → five ✓ lines.
 https://github.com/thethreethreethree/TeamPilot/actions/runs/44948341093/job/136980521437
+
+## Addendum 2026-11-22 — Remote Sales gets its own home (founder: "this does not reflect the system")
+
+The founder, with a screenshot of the live sidebar after the deploy: the Remote Sales entry opened the old Sales Coach
+sessions list, so nothing of the new system was visible; "do not model the new system based on what already exists, do
+it based on our build plan". Reviewed the two linked plans: the Gong-vs-ELOSTATE comparison (346 features) and "Gong vs
+ELOSTATE: what it takes to match" (Tech 1–6 + build order). docs/ELOSTATE-REMOTE-SALES-BUILD-PLAN is byte-identical to
+docs/rss on SCOPE / ROUTES / UI-SPEC / BUILD-ORDER — the plan that was built. Audit of what a person can reach: every
+plan API has a screen, but spread over six Sales Coach pages (session page; Coach Assessment; Search; Library; Settings;
+Role-play), and the manager training screen was mounted nowhere (D18).
+
+Built: /dashboard/remote-sales — its own layout (the Sales Coach access decision: membership + 0207 lock; REMOTE_SALES_
+ROOT classified sales_coach) and shell ("Remote Sales", the plan's sections as tabs): Calls (start a phone/video call;
+every remote call with live stage chips, length via conversationDurationSeconds, outcome, rep for managers), Coaching
+(inbox + metrics), Search (transcripts, filters, saved searches, CSV export), Library (folders, clips, team examples),
+Trackers, Training (Assigned to you; managers' scenario builder — mounted for the first time; placement only, D18's
+content question untouched; reachability exception removed), Protection (retention, erasure, audit log, webhooks; admins).
+Reps don't see Coaching/Trackers; Protection is admin-only. Sidebar and command palette open the home.
+
+typecheck clean · lint clean · Theme-bound leaks 0 · reachability clean · invariant Violations 0 · moduleAccess 20/20 ·
+build:ci PASSED (all 7 routes).
