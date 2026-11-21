@@ -489,3 +489,21 @@ Postgres, so its claims ran nowhere. Fixed: ci.yml now runs writer:audit, enum:a
 service and credentials as migration:audit); `tbc` stays on the commit hooks (needs full history), stated in the header.
 Before enabling, all 5 claims were run from the harness's own text on PGlite 16.4 through a pg-compatible adapter:
 5 of 5 pass. The no-secrets CI build (`npm run build:ci`) passes. The harness's SKIPPED list now names CLAIM 5.
+
+## Addendum 2026-11-22 — gate evidence for bdf02b8a (CI gains sql:harness / writer / enum audits)
+
+bdf02b8a was committed before its gate finished (the commit was chained with `;` — a process slip, now a memory rule:
+commit only after a green check). Its gate, run twice under heavy load from iCloud Drive's sync (`bird` at ~100% CPU;
+the repo is on the synced Desktop):
+
+```
+run 1 (load ~69):  npm run check exit 1 — 6 failed (spawn-heavy scripts/__tests__ timeouts)
+                   scripts/__tests__ alone: 136 passed (136)
+run 2 (load 123):  npm run check exit 1 — 2 failed, both timeouts ("pass a timeout value"; "Timeout waiting for worker")
+                   MeetingReview.render.test.tsx + homeDesktopStatsError.render.test.tsx alone: 3 passed (3)
+static gates both runs: Violations: 0
+```
+
+Composite evidence, not one clean run: the failing files differ run to run, every one passes alone, and bdf02b8a touches
+no code those tests import (ci.yml, the harness's skip message, docs). The last single clean run of the full gate was
+at 4f2c3cb8 + 8aea6588 + 158eac2e (exit 0, 6113 tests). Re-run `npm run check` on a quiet machine before relying on it.
