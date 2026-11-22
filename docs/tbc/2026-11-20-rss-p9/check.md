@@ -1089,3 +1089,16 @@ Channel sweep of every list read of pitch scores (same day): Sales Coach Recordi
 contextsOf("sales_coach"))`) and the disputes queue (?module=, pitch_scores_by_channel) were already split; period
 reads go through readPitchPeriod (module); the remaining reads are one pitch by id or by session. Pattern detection was
 the only list read with no channel.
+
+Unscored-calls backlog per module (2026-11-23; founder picker: "Keep manual" — no nightly auto-scoring, the backlog
+made visible). The backfill counted every channel and was shown only in Sales Coach → Coach Assessment, so a Remote
+Sales manager could not see or drain their own unscored phone/video calls, and Sales Coach's number included them. Now
+`?module=remote_sales` scopes the candidate sessions to context in (phone, video); the default scopes to in person
+(`context.is.null,context.eq.in_person`, 0301's coalesce). UnscoredBacklog takes `module` and sends it on the count and
+every pass; Remote Sales → Coaching renders it; a 401/403 renders nothing (a rep opening the URL used to be told the
+count "could not be read"). Production, both filters on ended/reviewed sales sessions → HTTP 200; counts 13 (remote) and
+356 (in person), equal to the A21 measurement of 2026-11-21.
+
+```
+npx vitest run --maxWorkers=1 src/components/sales-coach/__tests__/UnscoredBacklog.render.test.tsx src/app/api/coach/sales-session/pitch-score/backfill/__tests__/route.test.ts → 2 files, 47 passed, exit 0
+```

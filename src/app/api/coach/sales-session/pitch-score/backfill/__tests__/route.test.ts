@@ -395,3 +395,42 @@ describe("an AI provider that is not answering stops the run and says so", () =>
     expect(body.note).toMatch(/not answering/i);
   });
 });
+
+/**
+ * 2026-11-23 (founder: keep the backlog manual, make it visible per module). Remote Sales and Sales Coach are separate:
+ * `?module=remote_sales` counts phone/video calls; anything else counts in-person ones (no context = in person).
+ */
+describe("each module counts its own calls", () => {
+  /** Runs the candidate-sessions query builder the route hands fetchAllPaged against a recorder. */
+  const candidateFilters = async (url: string) => {
+    const calls: Array<[string, unknown[]]> = [];
+    const rec: Record<string, unknown> = {};
+    for (const m of ["from", "select", "eq", "in", "or", "order", "range"]) {
+      rec[m] = (...a: unknown[]) => {
+        calls.push([m, a]);
+        return rec;
+      };
+    }
+    serve([], []);
+    await GET(new Request(url) as never);
+    const builder = asMock(fetchAllPaged).mock.calls[1]![0] as (f: number, t: number) => unknown;
+    const realFrom = DB.from;
+    // The route's db is DB (createClient is mocked to it); swap its `from` for the recorder only while building.
+    (DB as { from: unknown }).from = rec.from;
+    builder(0, 999);
+    (DB as { from: unknown }).from = realFrom;
+    return calls;
+  };
+
+  it("Remote Sales: phone and video only", async () => {
+    const calls = await candidateFilters("http://t/api?module=remote_sales");
+    expect(calls).toContainEqual(["in", ["context", ["phone", "video"]]]);
+    expect(calls.some(([m]) => m === "or")).toBe(false);
+  });
+
+  it("Sales Coach (default): in person, and a session with no context counts as in person", async () => {
+    const calls = await candidateFilters("http://t/api");
+    expect(calls).toContainEqual(["or", ["context.is.null,context.eq.in_person"]]);
+    expect(calls.some(([m, a]) => m === "in" && a[0] === "context")).toBe(false);
+  });
+});

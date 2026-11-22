@@ -7,6 +7,7 @@ import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { MIN_AGENT_SEGMENTS, repWordCount } from "@/lib/coach/pitchScore/generatePitchScore";
 import { SCORING_FLOOR } from "@/lib/coach/remote/decisions";
+import type { CallModule } from "@/lib/coach/sessionContext";
 import {
   scoreSession,
   PERMANENT_REFUSALS,
@@ -102,9 +103,20 @@ async function resolve(req: NextRequest): Promise<Resolved> {
  *
  * Oldest first so "past recordings" — the thing actually asked for — come back before today's.
  */
+/**
+ * Which module's backlog (2026-11-23, founder: keep the backlog manual and make it visible). Remote Sales and Sales Coach
+ * are separate (founder 2026-11-22): `?module=remote_sales` is phone/video calls, anything else is in-person — the same
+ * split the dispute queue uses. Before this, one count covered every channel and was shown only in Sales Coach, so a
+ * Remote Sales manager could neither see nor clear their own unscored calls there.
+ */
+function moduleOf(req: NextRequest): CallModule {
+  return new URL(req.url).searchParams.get("module") === "remote_sales" ? "remote_sales" : "sales_coach";
+}
+
 async function unscoredSessionIds(
   db: Awaited<ReturnType<typeof createClient>>,
-  companyId: string
+  companyId: string,
+  module: CallModule
 ): Promise<string[]> {
   const scored = await fetchAllPaged<{ session_id: string | null }>(
     (from, to) =>
@@ -119,7 +131,8 @@ async function unscoredSessionIds(
 
   const sessions = await fetchAllPaged<{ id: string }>(
     (from, to) =>
-      db
+    {
+      const q = db
         .from("coaching_sessions")
         .select("id")
         .eq("company_id", companyId)
@@ -127,9 +140,12 @@ async function unscoredSessionIds(
         // here keeps them out of the COUNT, so "142 unscored" never includes 60 team huddles that
         // were never going to be scored.
         .eq("session_kind", "sales")
-        .in("status", ["ended", "reviewed"])
-        .order("started_at", { ascending: true })
-        .range(from, to),
+        .in("status", ["ended", "reviewed"]);
+      // No context = in person, the same coalesce pitch_scores_by_channel (0301) uses.
+      const scoped =
+        module === "remote_sales" ? q.in("context", ["phone", "video"]) : q.or("context.is.null,context.eq.in_person");
+      return scoped.order("started_at", { ascending: true }).range(from, to);
+    },
     { label: "pitch-score backfill: candidate sessions" }
   );
 
@@ -189,7 +205,7 @@ export async function GET(req: NextRequest) {
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
 
   try {
-    const ids = await unscoredSessionIds(r.db, r.companyId);
+    const ids = await unscoredSessionIds(r.db, r.companyId, moduleOf(req));
     // `unscored` is what a press can score; `unscorable` is what it never can (no rep speech), said separately
     // so the panel neither offers a button that does nothing nor hides that those recordings exist.
     const scorable = await sessionsWithRepSpeech(r.db, ids);
@@ -213,7 +229,7 @@ export async function POST(req: NextRequest) {
 
   let candidates: string[];
   try {
-    candidates = await unscoredSessionIds(r.db, r.companyId);
+    candidates = await unscoredSessionIds(r.db, r.companyId, moduleOf(req));
   } catch (err) {
     console.error("[pitch-score/backfill] candidate read failed:", err);
     return NextResponse.json({ error: "The backlog could not be read." }, { status: 500 });

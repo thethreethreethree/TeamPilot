@@ -260,3 +260,30 @@ describe("recordings with no rep speech", () => {
     expect(screen.queryByRole("button", { name: /score them all/i })).toBeNull();
   });
 });
+
+describe("each module has its own backlog (2026-11-23)", () => {
+  it("Remote Sales asks for phone/video calls on the count AND on every pass", async () => {
+    serve(3, { scored: 3, remaining: 0, refused: {}, more: false, note: null });
+    render(<UnscoredBacklog module="remote_sales" />);
+    fireEvent.click(await screen.findByRole("button", { name: /score them all/i }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true));
+    const urls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(urls.length).toBeGreaterThanOrEqual(2);
+    for (const u of urls) expect(u).toContain("module=remote_sales");
+  });
+
+  it("Sales Coach (the default) sends no module, which the route reads as in-person", async () => {
+    serve(2);
+    render(<UnscoredBacklog />);
+    await screen.findByText(/2 recordings have never been scored/i);
+    for (const [u] of fetchMock.mock.calls) expect(String(u)).not.toContain("module=");
+  });
+
+  it("shows nothing — not 'could not be read' — to someone who is not a manager", async () => {
+    fetchMock.mockImplementation(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+    const { container } = render(<UnscoredBacklog module="remote_sales" />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.textContent).toBe("");
+  });
+});

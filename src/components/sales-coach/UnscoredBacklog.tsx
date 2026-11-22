@@ -61,7 +61,15 @@ export const REFUSAL_LABEL: Record<ScoreRefusal, string> = {
   provider_down: "could not be scored — the AI service was not answering",
 };
 
-export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
+export function UnscoredBacklog({
+  onDone,
+  module = "sales_coach",
+}: {
+  onDone?: () => void;
+  /** Which module's calls: Sales Coach = in person, Remote Sales = phone/video (the route filters by channel). */
+  module?: "sales_coach" | "remote_sales";
+}) {
+  const scope = module === "remote_sales" ? "&module=remote_sales" : "";
   const [unscored, setUnscored] = useState<number | null>(null);
   /** Recordings the scorer will always refuse (no rep speech) — told, never offered a button. */
   const [unscorable, setUnscorable] = useState(0);
@@ -70,6 +78,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
   const [note, setNote] = useState<string | null>(null);
   const [refused, setRefused] = useState<Refusals>({});
   const [failed, setFailed] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   /** Once a run has happened the panel STAYS, even at zero — otherwise the answer disappears
    *  with it and the press looks like it did nothing. */
@@ -77,7 +86,13 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
 
   const count = useCallback(async () => {
     try {
-      const res = await fetch("/api/coach/sales-session/pitch-score/backfill");
+      const res = await fetch(`/api/coach/sales-session/pitch-score/backfill?${scope.slice(1)}`);
+      if (res.status === 401 || res.status === 403) {
+        // Not a manager: the backlog is not theirs to see or spend on. Nothing to show — NOT a failed read, which
+        // would tell a rep who opened the page directly that a count "could not be read".
+        setForbidden(true);
+        return;
+      }
       if (!res.ok) {
         // A failed count is NOT "nothing to score". Saying zero here would be the confident-zero
         // this whole feature exists to remove.
@@ -90,7 +105,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
     } catch {
       setFailed(true);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void count();
@@ -120,7 +135,7 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
         passes += 1;
         setProgress(`Pass ${passes} — asking the server for the next ${BATCH_HINT}…`);
         const res = await fetch(
-          `/api/coach/sales-session/pitch-score/backfill?offset=${offset}`,
+          `/api/coach/sales-session/pitch-score/backfill?offset=${offset}${scope}`,
           { method: "POST" }
         );
         /**
@@ -212,6 +227,8 @@ export function UnscoredBacklog({ onDone }: { onDone?: () => void }) {
       void count();
     }
   };
+
+  if (forbidden) return null;
 
   if (failed) {
     return (
