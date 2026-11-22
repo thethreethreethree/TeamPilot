@@ -33,14 +33,18 @@ const BRIEF = {
   isOwner: true,
 };
 let brief: typeof BRIEF = BRIEF;
+/** Endpoints that answer with a server error in a test (2026-11-23). */
+let failing: string[] = [];
 
 const fetchMock = vi.fn();
 const json = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(body) });
 
 beforeEach(() => {
   brief = BRIEF;
+  failing = [];
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string, init?: { method?: string }) => {
+    if (failing.some((f) => url.includes(f))) return json({ error: "boom" }, false);
     if (url.endsWith("/brief/review") && init?.method === "POST") return json({ kept: [], failed: 0 });
     if (url.includes("/brief")) return json(brief);
     if (url.includes("/summarize")) return json({ summary: "Betty wants Acme live before March." });
@@ -127,4 +131,38 @@ describe("MacroCallView", () => {
     fireEvent.click(await screen.findByText("Show the full call page"));
     expect(full).toHaveBeenCalled();
   });
+
+  // 2026-11-23: a failed read is never shown as "not ready yet" — and never offers a paid re-run.
+  it("Coaching: a failed review read says so — no 'Prepare my coaching' (a paid AI run the call may not need)", async () => {
+    failing = ["/review?"];
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("tab", { name: "Coaching" }));
+    expect(await screen.findByText(/couldn.t load your coaching/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /prepare my coaching/i })).toBeNull();
+  });
+
+  it("Coaching: a failed score read is not 'appears once the call is scored'", async () => {
+    failing = ["pitch-score"];
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("tab", { name: "Coaching" }));
+    expect(await screen.findByText(/couldn.t load the score/i)).toBeTruthy();
+    expect(screen.queryByText(/appears once the call is scored/i)).toBeNull();
+  });
+
+  it("Highlights: a failed call-brief read is not 'appears once the call is transcribed'", async () => {
+    failing = ["/summarize"];
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    expect(await screen.findByText(/couldn.t load the call brief/i)).toBeTruthy();
+    expect(screen.queryByText(/appears once the call is transcribed/i)).toBeNull();
+  });
+
+  it("Coaching: with no review yet (a real 'none'), the rep can prepare it", async () => {
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("tab", { name: "Coaching" }));
+    expect(await screen.findByRole("button", { name: /prepare my coaching/i })).toBeTruthy();
+  });
 });
+

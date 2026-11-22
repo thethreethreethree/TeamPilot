@@ -1400,3 +1400,15 @@ Sales component and route now has a test.
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemoteMacroToggle.render.test.tsx → 4 passed, exit 0
 ```
+
+Macro Mode call view (MacroCallView): four loads turned a failed read into "none yet". Each route answers "none" with
+200 + null and an error with a non-200, so a failed read is now its own state. The costly one: a failed review read
+showed "Prepare my coaching" — a paid AI review for a call that may already have one; now "Couldn't load your
+coaching." with no button. A failed score read said the score "appears once the call is scored"; a failed summary read
+said the brief "appears once the call is transcribed"; a failed drafts read was silently empty (now a note that earlier
+drafts didn't load; new ones still work). +4 tests (the three failure cases fail on the previous component; a real
+"none" still offers Prepare).
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/MacroCallView.render.test.tsx → 10 passed, exit 0
+```

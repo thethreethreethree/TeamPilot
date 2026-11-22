@@ -149,13 +149,15 @@ function NoBrief({ briefing, onPrepare, reason }: { briefing: boolean; onPrepare
 /* ── Highlights ─────────────────────────────────────────────────────────────────────────────── */
 
 function Highlights({ sessionId, b, briefing, onPrepare, onChanged }: { sessionId: string; b: BriefRes; briefing: boolean; onPrepare: () => void; onChanged: () => void }) {
-  const [summary, setSummary] = useState<string | null | undefined>(undefined);
+  // "failed" is its own state (2026-11-23): each route answers "none yet" with 200 + null and an error with a non-200,
+  // so a failed read is never shown as "not ready yet".
+  const [summary, setSummary] = useState<string | null | undefined | "failed">(undefined);
   useEffect(() => {
     let live = true;
     fetch(`/api/coach/sales-session/${encodeURIComponent(sessionId)}/summarize`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { summary: null }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { summary?: string | null }) => live && setSummary(d.summary ?? null))
-      .catch(() => live && setSummary(null));
+      .catch(() => live && setSummary("failed"));
     return () => {
       live = false;
     };
@@ -168,6 +170,8 @@ function Highlights({ sessionId, b, briefing, onPrepare, onChanged }: { sessionI
         <H>Call brief</H>
         {summary === undefined ? (
           <p className="text-xs text-muted">Loading…</p>
+        ) : summary === "failed" ? (
+          <p className="text-xs text-muted">Couldn&apos;t load the call brief. Refresh to try again.</p>
         ) : summary ? (
           <p className="text-sm leading-relaxed text-primary">{summary}</p>
         ) : (
@@ -273,9 +277,9 @@ function FollowUp({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     let live = true;
     fetch(`/api/coach/remote/${encodeURIComponent(sessionId)}/followup`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { drafts: [] }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { drafts?: Draft[] }) => live && setDrafts(d.drafts ?? []))
-      .catch(() => {});
+      .catch(() => live && setErr("Couldn't load earlier drafts. New ones still work."));
     return () => {
       live = false;
     };
@@ -345,20 +349,22 @@ function FollowUp({ sessionId }: { sessionId: string }) {
 type Review = { strengths: Array<{ point: string; example: string }>; growthAreas: Array<{ opportunity: string; nextStep: string }>; closing?: string };
 
 function Coaching({ sessionId }: { sessionId: string }) {
-  const [score, setScore] = useState<{ base: number; bonus: number; total: number } | null | undefined>(undefined);
-  const [review, setReview] = useState<Review | null | undefined>(undefined);
+  // "failed" is its own state (2026-11-23). A failed review read used to show "Prepare my coaching" — a paid AI review
+  // for a call that may already have one — and a failed score read said the score "appears once the call is scored".
+  const [score, setScore] = useState<{ base: number; bonus: number; total: number } | null | undefined | "failed">(undefined);
+  const [review, setReview] = useState<Review | null | undefined | "failed">(undefined);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
     fetch(`/api/coach/sales-session/pitch-score?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { pitch: null }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { pitch?: { base: number; bonus: number; total: number } | null }) => live && setScore(d.pitch ?? null))
-      .catch(() => live && setScore(null));
+      .catch(() => live && setScore("failed"));
     fetch(`/api/coach/sales-session/review?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { review: null }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { review?: Review | null }) => live && setReview(d.review ?? null))
-      .catch(() => live && setReview(null));
+      .catch(() => live && setReview("failed"));
     return () => {
       live = false;
     };
@@ -382,13 +388,15 @@ function Coaching({ sessionId }: { sessionId: string }) {
       setBusy(false);
     }
   };
-  const base = score ? Math.max(0, Math.min(100, Math.round(score.base))) : 0;
+  const base = score && score !== "failed" ? Math.max(0, Math.min(100, Math.round(score.base))) : 0;
   return (
     <div className="space-y-4">
       <div>
         <H>Score</H>
         {score === undefined ? (
           <p className="text-xs text-muted">Loading…</p>
+        ) : score === "failed" ? (
+          <p className="text-xs text-muted">Couldn&apos;t load the score. Refresh to try again.</p>
         ) : score === null ? (
           <p className="text-xs text-secondary">Your score appears once the call is scored.</p>
         ) : (
@@ -406,6 +414,8 @@ function Coaching({ sessionId }: { sessionId: string }) {
       </div>
       {review === undefined ? (
         <p className="text-xs text-muted">Loading…</p>
+      ) : review === "failed" ? (
+        <p className="text-xs text-muted">Couldn&apos;t load your coaching. Refresh to try again.</p>
       ) : !review ? (
         <div className="rounded-lg border border-dashed border-default p-3 text-xs text-secondary">
           <p>What you did well and what to work on next appear here once your coaching is ready.</p>
