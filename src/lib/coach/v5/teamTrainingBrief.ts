@@ -50,7 +50,10 @@ export async function generateTeamTrainingBrief(
   const admin = createAdminClient();
   const periodLabel = labelForDays(periodDays);
 
-  const { data: profs } = await admin.from("profiles").select("id, full_name").eq("company_id", companyId);
+  const { data: profs, error: profsError } = await admin.from("profiles").select("id, full_name").eq("company_id", companyId);
+  // A failed read is not "not enough coaching yet" (2026-11-23): that answer tells a manager to wait for data that is
+  // already there. Thrown; the route says "couldn't build … try again", and the cron logs it.
+  if (profsError) throw new Error(`team brief: profiles read failed: ${profsError.message}`);
   const agents = (profs ?? []) as { id: string; full_name: string | null }[];
   const agentIds = agents.map((a) => a.id);
   if (agentIds.length === 0) {
@@ -59,7 +62,7 @@ export async function generateTeamTrainingBrief(
   const nameById = new Map(agents.map((a) => [a.id, a.full_name ?? "Unnamed"]));
 
   const cutoff = new Date(Date.now() - periodDays * 86_400_000).toISOString();
-  const { data: dissects } = await admin
+  const { data: dissects, error: dissectsError } = await admin
     .from("events")
     .select("payload, created_at, actor")
     .eq("kind", "coach.dissect_generated")
@@ -67,6 +70,7 @@ export async function generateTeamTrainingBrief(
     .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
     .limit(DISSECT_WINDOW);
+  if (dissectsError) throw new Error(`team brief: coaching events read failed: ${dissectsError.message}`);
   const rows = (dissects ?? []) as { payload: unknown; created_at: unknown; actor: string }[];
   const dissectCount = rows.length;
   if (dissectCount < MIN_DISSECTS) {
@@ -262,8 +266,9 @@ export async function runTeamBriefPregeneration(
         await storeTeamBrief(companyId, result, PERIOD_DAYS);
         generated += 1;
       }
-    } catch {
-      /* best-effort per company */
+    } catch (err) {
+      // Best-effort per company — one failure never stops the sweep — but said, not swallowed.
+      console.error(`[teamTrainingBrief] pregeneration failed company=${companyId}: ${err instanceof Error ? err.message : "unknown"}`);
     }
   }
   // `lookupFailed` is present only when it is true, so a healthy run's shape is unchanged

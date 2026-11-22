@@ -1171,3 +1171,13 @@ nothing is frozen. 3 tests (one per table); run against the previous file, all 3
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/doorlog src/app/api/coach/doorlog → 168 passed, exit 0
 ```
+
+Team training brief (same sweep): a failed profiles or coaching-events read returned `reason: "insufficient"` — "not
+enough coaching yet" — telling a manager to wait for data that exists. Both now throw: the route's existing catch says
+"Couldn't build the team training brief right now — please try again", and the nightly pregeneration, still best-effort
+per company, now logs the failure instead of swallowing it. New teamTrainingBrief.failures.test.ts: 3 tests; against the
+previous file the 2 failure cases fail, the quiet-period case passes.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/v5/__tests__/teamTrainingBrief.failures.test.ts → 3 passed, exit 0
+```
