@@ -65,6 +65,12 @@ login page, a button for a provider nobody configured, an import that invites so
    "how_this_build_will_embody_it": "Admin-filed and reviewed (route), personal data only (0285 inventory), facts kept (blanked rows), hashed request + completion row, one door (INVARIANT 38)."},
   {"id": "§1.5.3", "source_file": "CLAUDE.md", "line_range": "174-196", "read_at": "2026-11-20T21:40:00Z",
    "why_it_governs": "Webhooks need a server secret and sign-in needs provider apps and an allowlist, all outside the repo.",
-   "how_this_build_will_embody_it": "Both fail loud or stay hidden until configured (cron 503 + screen notice; buttons only for declared providers), and both are documented as blocking steps with verification (AUTH-REDIRECTS.md, .env.example, OPEN.md)."}
+   "how_this_build_will_embody_it": "Both fail loud or stay hidden until configured (cron 503 + screen notice; buttons only for declared providers), and both are documented as blocking steps with verification (AUTH-REDIRECTS.md, .env.example, OPEN.md)."},
+  {"id": "§3.4", "source_file": "CLAUDE.md", "line_range": "380-386", "read_at": "2026-11-22T08:36:00Z",
+   "why_it_governs": "Remote live-call capture (eab8523c) cites §3.4 for honesty: the system must not claim to hear what it cannot.",
+   "how_this_build_will_embody_it": "Every case where the prospect's side is not captured (unsupported browser, share declined, tab shared without audio, share lost) is told to the rep in words; nothing silently falls back to mic-only."},
+  {"id": "§2.2", "source_file": "CLAUDE.md", "line_range": "307-317", "read_at": "2026-11-22T08:48:33Z",
+   "why_it_governs": "Who may read a call comment is decided once, by recording_comments' RLS (rss_comment_base_visible); a second copy in a screen would drift.",
+   "how_this_build_will_embody_it": "RemoteCallComments posts to the one comment writer and renders what the one reader returns; it never filters comments itself."}
 ]
 ```

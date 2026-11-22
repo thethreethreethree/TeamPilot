@@ -655,3 +655,20 @@ for the share. recorderMimeDefault drift guard (no forced mimeType) still holds.
 
 **Limits.** Desktop Chrome/Edge only; a call in a desktop app has no tab (Windows "Entire screen" can share system
 audio). Not yet exercised on a real call — the founder's first remote live call with a shared tab is that check.
+
+## Addendum 2026-11-22 — managers can comment on a Remote Sales call (found by the Gong re-grade, F9.8)
+
+**Understanding (from the record).** The 22 Nov re-grade of the Gong ledger (five reviews against eab8523c) found that
+comments with @mentions (0293/0296) are written only from Coach Assessment → Recordings, which lists in-person calls since
+0301. Opening the code confirmed a second, worse half: `readPitchRecordingDetail` — the BY-ID read behind every comment
+display — carried the same in-person filter (added in the separation commit), so a remote call's comments could not be
+read back by the rep or the manager either. A rep's feedback request on a phone/video call (F16.1) lands in an inbox
+that says the manager answers "on the call", where there was no box.
+
+**Build.** `RemoteCallComments` on the Remote Sales call page: managers write at a time in the call, choose who can read
+it, @mention; the rep sees what was sent to them; an unscored call says comments open once it is scored. It reuses the
+one comment writer (pitch-recordings/comment) and the one reader (pitch-recordings?pitchId) — no second copy of who may
+read (§2.2). The by-id read loses its channel filter; the Sales Coach LIST keeps it, and a test guards both.
+
+**Ripple.** Sales Coach totals and lists unchanged (the list read still scopes to in-person). The by-id read is gated by
+RLS (owner, or a manager in the tree), so dropping the channel filter widens nothing beyond what RLS already allows.

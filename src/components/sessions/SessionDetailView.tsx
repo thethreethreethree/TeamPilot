@@ -43,6 +43,7 @@ import { TrackerHitChips } from "@/components/sales-coach/TrackerHitChips";
 import { RemoteCallPanel } from "@/components/sales-coach/RemoteCallPanel";
 import { FeedbackRequest } from "@/components/sales-coach/FeedbackRequest";
 import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel";
+import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -488,6 +489,11 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         {/* RSS Phase 6: callbacks said on the call → Tasks, and the AI's read of the outcome after the rep's own. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && (
           <FollowThroughPanel sessionId={id} onSeek={seekTo} />
+        )}
+        {/* Manager comments on the call (F9.8). Coach Assessment → Recordings lists in-person calls only since 0301, so
+            without this a remote call's feedback request had nowhere to be answered. */}
+        {session && isRemoteContext(session.context) && session.status !== "active" && (
+          <RemoteCallComments sessionId={id} onSeek={seekTo} />
         )}
 
         {/* Auto-generated factual conversation summary (distinct from the

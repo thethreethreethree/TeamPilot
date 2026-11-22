@@ -182,7 +182,9 @@ export async function readPitchRecordingDetail(
     .select(
       "id, rep_id, session_id, recorded_at, duration_s, audio_url, transcript, outcome, base, bonus, violations, total, qualifying, not_qualifying_reason"
     )
-    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
+    // No channel filter here: this is ONE recording fetched by id, gated by RLS (owner, or a manager in the tree).
+    // The in-person scope belongs to the Sales Coach LIST and totals (readPitchRecordings above); applying it to the
+    // by-id read hid every Remote Sales call's comments from both the rep and the manager (2026-11-22 re-grade, F9.8).
     .eq("id", args.pitchId)
     .maybeSingle();
   if (error || !data) return null;
