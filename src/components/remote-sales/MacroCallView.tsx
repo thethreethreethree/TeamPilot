@@ -451,13 +451,66 @@ function Coaching({ sessionId }: { sessionId: string }) {
 /* ── Next Meeting ───────────────────────────────────────────────────────────────────────────── */
 
 function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { sessionId: string; b: BriefRes; briefing: boolean; onPrepare: () => void; onChanged: () => void }) {
+  // §3.3 — ASK FIRST. Before the coach's agenda appears, the rep says what THEY want to cover next time; their items
+  // lead the checklist and the coach's plan follows as a second opinion (the follow-through outcome's rule, applied to
+  // the next meeting). Skipping is allowed — asking is not optional. A reviewed checklist has already been through it.
+  const [own, setOwn] = useState<string[] | null>(null);
+  const [draft, setDraft] = useState("");
   if (!b.brief) return <NoBrief briefing={briefing} onPrepare={onPrepare} reason={b.reason} />;
+  if (!b.review && own === null) {
+    const who = b.prospect?.name ?? b.label ?? "this prospect";
+    return (
+      <div className="space-y-3">
+        <NextCallDate b={b} onChanged={onChanged} />
+        <div className="rounded-lg border border-default bg-base/40 p-3">
+          <label htmlFor="own-plan" className="text-sm font-semibold text-primary">
+            What do you want to cover with {who} next time?
+          </label>
+          <p className="mt-0.5 text-xs text-secondary">Your plan first — one item per line. The coach&apos;s suggestions come after.</p>
+          <textarea
+            id="own-plan"
+            value={draft}
+            onChange={(e) => setDraft(e.currentTarget.value)}
+            rows={3}
+            placeholder={"Confirm the March go-live\nBring the pricing options"}
+            className="mt-2 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary"
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!draft.trim()}
+              onClick={() => setOwn(draft.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 8))}
+              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50"
+            >
+              Add my plan, then show the coach&apos;s
+            </button>
+            <button type="button" onClick={() => setOwn([])} className="rounded-lg border border-default px-3 py-1.5 text-xs text-secondary hover:text-primary">
+              Skip to the coach&apos;s suggestions
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const nm = b.brief.nextMeeting;
   return (
     <div className="space-y-4">
       <NextCallDate b={b} onChanged={onChanged} />
+      {own && own.length > 0 && (
+        <div>
+          <H>Your plan</H>
+          <ul className="space-y-1 text-sm text-primary">
+            {own.map((t, i) => (
+              <li key={i} className="flex gap-2">
+                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" aria-hidden />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
-        <H>Agenda</H>
+        <H>{own && own.length > 0 ? "The coach's agenda" : "Agenda"}</H>
         {nm.agenda.length ? (
           <ol className="list-decimal space-y-1 pl-5 text-sm text-primary">
             {nm.agenda.map((a, i) => (
@@ -483,7 +536,7 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
           <p className="text-xs text-secondary">Nothing left open from this call.</p>
         )}
       </div>
-      <Checklist sessionId={sessionId} b={b} onChanged={onChanged} />
+      <Checklist sessionId={sessionId} b={b} onChanged={onChanged} own={own ?? []} />
     </div>
   );
 }
@@ -521,9 +574,13 @@ function NextCallDate({ b, onChanged }: { b: BriefRes; onChanged: () => void }) 
   );
 }
 
-function Checklist({ sessionId, b, onChanged }: { sessionId: string; b: BriefRes; onChanged: () => void }) {
+function Checklist({ sessionId, b, onChanged, own }: { sessionId: string; b: BriefRes; onChanged: () => void; own: string[] }) {
   const brief = b.brief!;
-  const [items, setItems] = useState(() => brief.nextMeeting.checklist.map((c) => ({ ...c, keep: true })));
+  // The rep's own items lead; the coach's suggestions follow. All editable, all untickable, saved only on review.
+  const [items, setItems] = useState(() => [
+    ...own.map((text) => ({ text, due: null as string | null, keep: true })),
+    ...brief.nextMeeting.checklist.map((c) => ({ ...c, keep: true })),
+  ]);
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

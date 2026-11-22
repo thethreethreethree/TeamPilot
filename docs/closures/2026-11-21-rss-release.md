@@ -64,3 +64,6 @@ on a real upload; A16/A21 audits above.
 
 **Open after these reads:** the live checks in docs/residuals/OPEN.md (2026-11-22 entries); §3.3's ask-first gap on
 Next Meeting (above).
+
+**Update 2026-11-22 (same day):** the §3.3 ask-first gap named above is closed — Next Meeting now asks the rep what they
+want to cover before the coach's agenda appears, and the rep's items lead the checklist (check.md addendum, render test).

@@ -76,6 +76,7 @@ describe("MacroCallView", () => {
     render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
     await screen.findByText("Needs it live before March");
     fireEvent.click(screen.getByRole("tab", { name: "Next Meeting" }));
+    fireEvent.click(await screen.findByText("Skip to the coach's suggestions"));
     expect(await screen.findByText("Walk through the quote")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Keep: Ask about budget"));
     fireEvent.change(screen.getByDisplayValue("Send quote"), { target: { value: "Send the quote to Betty" } });
@@ -83,6 +84,27 @@ describe("MacroCallView", () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith("/brief/review") && i?.method === "POST")).toBe(true));
     const [, init] = fetchMock.mock.calls.find(([u, i]) => String(u).endsWith("/brief/review") && i?.method === "POST")!;
     expect(JSON.parse(init.body)).toEqual({ briefId: "b1", items: [{ text: "Send the quote to Betty", due: "2026-11-26" }] });
+  });
+
+  it("Next Meeting ASKS the rep first (§3.3): the coach's agenda is hidden until they answer, and their items lead", async () => {
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("tab", { name: "Next Meeting" }));
+    expect(await screen.findByText(/What do you want to cover with Betty – Acme next time\?/)).toBeTruthy();
+    expect(screen.queryByText("Walk through the quote")).toBeNull();
+    fireEvent.change(screen.getByLabelText(/What do you want to cover/), { target: { value: "Confirm the go-live date\n\nBring two pricing options" } });
+    fireEvent.click(screen.getByText("Add my plan, then show the coach's"));
+    expect(await screen.findByText("Walk through the quote")).toBeTruthy();
+    expect(screen.getByText("The coach's agenda")).toBeTruthy();
+    fireEvent.click(screen.getByText("Save checklist to Tasks"));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith("/brief/review") && i?.method === "POST")).toBe(true));
+    const [, init] = fetchMock.mock.calls.find(([u, i]) => String(u).endsWith("/brief/review") && i?.method === "POST")!;
+    expect(JSON.parse(init.body).items.map((x: { text: string }) => x.text)).toEqual([
+      "Confirm the go-live date",
+      "Bring two pricing options",
+      "Send quote",
+      "Ask about budget",
+    ]);
   });
 
   it("always offers the full call page — Macro Mode is never a one-way door", async () => {

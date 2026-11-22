@@ -749,3 +749,16 @@ and gains Today; Pipeline is in the full module too. RemoteSalesShell.render.tes
 ```
 npx vitest run src/components/remote-sales/__tests__/RemoteSalesShell.render.test.tsx → Tests 3 passed (3), exit 0
 ```
+
+## Addendum 2026-11-22 — Next Meeting asks the rep first (§3.3, found by the closure read)
+
+Writing the session-reads closure, §3.3 ("the System ASKS the user what they think the best solution is before asserting
+its own") did not hold for Macro Mode's Next Meeting tab: the coach's agenda and checklist showed before the rep was asked
+anything. Now the tab opens with "What do you want to cover with <prospect> next time?" — the rep's items lead the
+checklist and the coach's agenda follows, labelled as the coach's. Skipping is allowed; being asked is not optional. Same
+rule follow-through already enforces for the AI outcome. A render test pins that the agenda is hidden until the rep answers
+and that their items lead what is saved.
+
+```
+npx vitest run src/components/remote-sales → Test Files 3 passed (3), Tests 14 passed (14), exit 0
+```
