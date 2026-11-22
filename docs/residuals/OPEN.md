@@ -250,3 +250,11 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: the team's spec puts its own CRM first and integration second; reminders today are task due dates
       next-action: when a pilot company names its CRM, build that one connector first
 
+- [ ] 2026-11-22 · vocabulary · custom vocabulary for transcription (Gong F8.9) — product, plan and competitor names
+      why-unresolved: ElevenLabs documents `keyterms` (batch: list of strings, ≤1000 terms, ≤50 chars, ≤5 words; realtime:
+      a `keyterms` array query param) at a 20% transcription surcharge (+ a 20 s minimum when >100 terms). Not documented:
+      which models accept it (our batch runs scribe_v1; docs show scribe_v2), and how the list is encoded on the wire.
+      Building on a guess would ship an unverified dependency (§1.5.3), and it adds cost per call.
+      next-action: one live request each (batch scribe_v1 with repeated `keyterms` form fields; realtime with repeated
+      `keyterms=` query params) to confirm acceptance and the session_started echo; then an opt-in per-company list
+      (empty = off = no surcharge), cost shown beside it.
