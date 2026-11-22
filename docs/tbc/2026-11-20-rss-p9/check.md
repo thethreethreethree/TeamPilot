@@ -1423,3 +1423,12 @@ said. 7 new tests; against the previous components the 4 failure cases fail. The
 ```
 npx vitest run --maxWorkers=1 (VoiceEnrollment, RepGoalPanel, TeamTrainingBriefPanel.cached) → 9 passed, exit 0
 ```
+Second form of the pattern (`.catch(() => setX(empty))`, 19 hits): AssignedPractice (Remote Sales → Training, "Assigned
+to you") hid itself on a failed read exactly as for "nothing assigned", so a rep with overdue practice saw nothing; a
+failed read now says so. 3 tests; the failure case fails on the previous component. Sales Coach's Macro Mode read falls
+back to off (the full module) like Remote Sales' — kept. The 15 finance pages showing "not set up" on a thrown load are
+outside this build: filed in docs/residuals/OPEN.md, not changed.
+
+```
+npx vitest run --maxWorkers=1 src/components/sales-coach/__tests__/AssignedPractice.render.test.tsx → 3 passed, exit 0
+```

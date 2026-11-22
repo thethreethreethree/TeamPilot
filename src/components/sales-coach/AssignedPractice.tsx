@@ -28,18 +28,28 @@ const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { mont
 
 export function AssignedPractice() {
   const [items, setItems] = useState<Item[] | null>(null);
+  // A failed read is said (2026-11-23). With nothing assigned the panel stays hidden; a failed read used to hide it the
+  // same way, so a rep with OVERDUE practice saw nothing at all.
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
     fetch("/api/coach/remote/assignments")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { available?: boolean; assignments?: Item[] } | null) => {
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { available?: boolean; assignments?: Item[] }) => {
         if (live) setItems(j?.available ? (j.assignments ?? []) : []);
       })
-      .catch(() => live && setItems([]));
+      .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
   }, []);
+  if (failed) {
+    return (
+      <p className="rounded-2xl border border-default bg-surface p-4 text-xs text-muted" aria-label="Assigned to you">
+        Couldn&apos;t load the practice assigned to you. Refresh to try again.
+      </p>
+    );
+  }
   if (!items || items.length === 0) return null;
   const open = items.filter((i) => i.state === "due" || i.state === "overdue" || i.state === "not_passed_yet");
   const done = items.filter((i) => !open.includes(i));
