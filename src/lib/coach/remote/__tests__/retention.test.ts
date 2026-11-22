@@ -69,6 +69,16 @@ describe("retention (0284, D14)", () => {
       expect(outsideRetention(rows, settings, NOW).map((r) => r.id)).toEqual(["b3", "a3"]);
     });
 
+    it("a latest row with NO count (0308, back to the standard) is the 90-day default again", () => {
+      const settings = latestPerCompany([
+        { id: 1, company_id: "co3", keep_last_per_rep: 1 },
+        { id: 2, company_id: "co3", keep_last_per_rep: null },
+      ]);
+      expect(ruleFor(settings, "co3")).toEqual({ kind: "days", days: 90 });
+      const rows = [row("x1", "co3", "r", 1), row("x2", "co3", "r", 2), row("x3", "co3", "r", 95)];
+      expect(outsideRetention(rows, settings, NOW).map((r) => r.id)).toEqual(["x3"]);
+    });
+
     it("two companies, two rules, in one pass", () => {
       const settings = latestPerCompany([{ id: 1, company_id: "counted", keep_last_per_rep: 1 }]);
       const rows = [row("c1", "counted", "r1", 1), row("c2", "counted", "r1", 2), row("d1", "dflt", "r2", 200), row("d2", "dflt", "r2", 3)];

@@ -9,7 +9,8 @@ import { DEFAULT_KEEP_PER_REP, DEFAULT_RETENTION_DAYS, KEEP_MAX, KEEP_MIN, parse
  * /api/coach/remote/settings/retention — how many recordings each rep keeps (RSS Phase 8, 0284; Gong F33.1; D14).
  * GET — anyone in the company: the current window, whether it is the default, and `canManage` (ctx.isAdmin — the
  *       same role set as admin_roles() in 0284's read rule) for the screen to branch on (§2.2).
- * PUT — company admins: { keepLastPerRep } appends a row (a change never overwrites, §3.1) and an audit row.
+ * PUT — company admins: { keepLastPerRep } appends a row (a change never overwrites, §3.1) and an audit row;
+ *       { useDefault: true } appends a row with NO count = back to the standard 90 days (0308).
  * The purge cron reads the latest row per company; no row = DEFAULT_RETENTION_DAYS (90 days, D14 decided 2026-11-23).
  * `keepLastPerRep` is null on the default; `defaultKeep` is only the number the screen's box starts at.
  * Saved recordings are never purged, whatever the window.
@@ -34,11 +35,12 @@ export async function GET(req: NextRequest) {
     console.error(`[retention] read failed company=${ctx.companyId}: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load the retention setting." }, { status: 500 });
   }
-  const row = (data ?? [])[0] as { keep_last_per_rep: number; set_by: string; created_at: string } | undefined;
+  const row = (data ?? [])[0] as { keep_last_per_rep: number | null; set_by: string; created_at: string } | undefined;
   return NextResponse.json({
     ...base,
     keepLastPerRep: row?.keep_last_per_rep ?? null,
-    isDefault: !row,
+    // No row, or a latest row with no count (0308, "back to the standard") — both are the default.
+    isDefault: row?.keep_last_per_rep == null,
     setAt: row?.created_at ?? null,
   });
 }
@@ -49,14 +51,17 @@ export async function PUT(req: NextRequest) {
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   if (!ctx.isAdmin) return NextResponse.json({ error: "Only a company admin can change retention." }, { status: 403 });
-  let b: { keepLastPerRep?: unknown };
+  let b: { keepLastPerRep?: unknown; useDefault?: unknown };
   try {
     b = await req.json();
   } catch {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
-  const keep = parseKeep(b.keepLastPerRep);
-  if (keep === null) return NextResponse.json({ error: `Pick a whole number from ${KEEP_MIN} to ${KEEP_MAX}.` }, { status: 400 });
+  // Back to the standard is said explicitly ({ useDefault: true }), never inferred from a missing or null number — a
+  // malformed request must not silently change how long a company's audio is kept.
+  const useDefault = b.useDefault === true;
+  const keep = useDefault ? null : parseKeep(b.keepLastPerRep);
+  if (!useDefault && keep === null) return NextResponse.json({ error: `Pick a whole number from ${KEEP_MIN} to ${KEEP_MAX}.` }, { status: 400 });
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -64,6 +69,10 @@ export async function PUT(req: NextRequest) {
     .insert({ company_id: ctx.companyId, keep_last_per_rep: keep, set_by: ctx.userId });
   if (error) {
     if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_APPLIED }, { status: 503 });
+    // 23502 = not-null violation: the count is still required, i.e. 0308 is not applied yet.
+    if (useDefault && String(error.code) === "23502") {
+      return NextResponse.json({ error: "Going back to the standard setting is waiting on database migration 0308." }, { status: 503 });
+    }
     console.error(`[retention] write failed company=${ctx.companyId}: ${error.message}`);
     return NextResponse.json({ error: "Couldn't save the retention setting." }, { status: 500 });
   }
@@ -73,7 +82,7 @@ export async function PUT(req: NextRequest) {
     action: "retention.set",
     objectType: "company",
     objectId: ctx.companyId,
-    meta: { keepLastPerRep: keep },
+    meta: useDefault ? { useDefault: true, defaultDays: DEFAULT_RETENTION_DAYS } : { keepLastPerRep: keep },
   });
-  return NextResponse.json({ keepLastPerRep: keep, isDefault: false });
+  return NextResponse.json({ keepLastPerRep: keep, isDefault: useDefault });
 }

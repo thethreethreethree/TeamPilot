@@ -27,7 +27,8 @@ export function parseKeep(v: unknown): number | null {
   return Number.isInteger(n) && n >= KEEP_MIN && n <= KEEP_MAX ? n : null;
 }
 
-type Row = { id: number; company_id: string; keep_last_per_rep: number; set_by?: string | null; created_at?: string };
+/** keep_last_per_rep NULL = the company went back to the standard default (0308). */
+type Row = { id: number; company_id: string; keep_last_per_rep: number | null; set_by?: string | null; created_at?: string };
 
 /** The latest row per company. Rows may arrive in any order. Pure. */
 export function latestPerCompany(rows: Row[]): Map<string, Row> {

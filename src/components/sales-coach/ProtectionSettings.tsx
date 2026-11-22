@@ -48,7 +48,7 @@ function detail(r: AuditRow): string {
   };
   switch (r.action) {
     case "retention.set":
-      return `Keep the last ${String(m.keepLastPerRep)} per rep`;
+      return m.useDefault ? `Back to the standard ${String(m.defaultDays ?? 90)} days` : `Keep the last ${String(m.keepLastPerRep)} per rep`;
     case "vocabulary.set":
       return Number(m.count) ? `${String(m.count)} term${m.count === 1 ? "" : "s"}` : "Turned off";
     case "recording.trim":
@@ -114,14 +114,14 @@ export function ProtectionSettings() {
     void loadAudit(filter);
   }, [loadAudit, filter]);
 
-  const save = async () => {
+  const save = async (useDefault = false) => {
     setSaving(true);
     setNote(null);
     try {
       const r = await fetch("/api/coach/remote/settings/retention", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keepLastPerRep: Number(keep) }),
+        body: JSON.stringify(useDefault ? { useDefault: true } : { keepLastPerRep: Number(keep) }),
       });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) {
@@ -179,6 +179,12 @@ export function ProtectionSettings() {
                   className="rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-50">
                   {saving ? "Saving…" : "Save"}
                 </button>
+                {ret.keepLastPerRep !== null && (
+                  <button type="button" disabled={saving} onClick={() => void save(true)}
+                    className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:bg-base disabled:opacity-50">
+                    Use the standard {ret.defaultDays} days
+                  </button>
+                )}
               </div>
             ) : null}
             {keep && !valid && ret.canManage && <p className="text-xs text-secondary">Pick a whole number from {ret.min} to {ret.max}.</p>}

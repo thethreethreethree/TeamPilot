@@ -1238,3 +1238,16 @@ push).
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/remote/__tests__/retention.test.ts src/app/api/coach/sales-session/recording-purge-cron src/app/api/coach/remote/settings src/components/sales-coach → passed, exit 0
 ```
+
+Back to the standard retention (same day, closes the residual filed above). 0308 makes
+company_recording_settings.keep_last_per_rep nullable: the latest row with no count = the 90-day default (rows stay
+append-only). The route takes an explicit `{ useDefault: true }` (a null or missing number is still a 400, so a
+malformed request can't change retention), answers 503 naming 0308 on a not-null violation, and audits it as "Back to
+the standard 90 days"; Protection shows "Use the standard 90 days" only when the company has its own count. PGlite
+replay of the 0284 table block + 0308: before, NULL refused (23502); 0308 runs twice; after, NULL accepted, 0 still
+refused (23514), UPDATE still a no-op. db:apply → "306 migration files (through 0308)", "✅ ALL 31 invariants hold";
+production information_schema: keep_last_per_rep is_nullable = YES.
+
+```
+npm run check → 823 files, 6288 tests, exit 0
+```

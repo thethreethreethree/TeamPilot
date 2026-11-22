@@ -53,4 +53,21 @@ describe("retention on the Protection screen", () => {
     fireEvent.change(box, { target: { value: "50" } });
     expect(screen.getByText(/however recent/i)).toBeTruthy();
   });
+
+  it("offers 'Use the standard 90 days' only when a company has its own count, and sends useDefault", async () => {
+    serve({ ...BASE, isDefault: false, keepLastPerRep: 40 });
+    render(<ProtectionSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: /use the standard 90 days/i }));
+    await new Promise((r) => setTimeout(r, 0));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put![1].body))).toEqual({ useDefault: true });
+  });
+
+  it("does not offer it when the company is already on the standard", async () => {
+    serve({ ...BASE, keepLastPerRep: null });
+    render(<ProtectionSettings />);
+    await screen.findByText(/audio is kept for/i);
+    expect(screen.queryByRole("button", { name: /use the standard/i })).toBeNull();
+  });
 });
+

@@ -64,4 +64,33 @@ describe("retention route", () => {
     expect((await PUT(put({ keepLastPerRep: 50 }))).status).toBe(503);
     expect(recordAudit).not.toHaveBeenCalled();
   });
+
+  // 0308 (2026-11-23): back to the standard 90 days is a row with no count.
+  it("PUT { useDefault: true }: appends a row with NO count, audited as a return to the standard", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
+    const res = await PUT(put({ useDefault: true }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ keepLastPerRep: null, isDefault: true });
+    expect(db.inserts).toEqual([{ company_id: "co1", keep_last_per_rep: null, set_by: "u-ceo" }]);
+    expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ meta: { useDefault: true, defaultDays: 90 } }));
+  });
+  it("PUT: only an explicit useDefault returns to the standard — a null or missing number is refused", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
+    for (const body of [{ keepLastPerRep: null }, {}, { useDefault: "yes" }]) expect((await PUT(put(body))).status).toBe(400);
+    expect(db.inserts).toEqual([]);
+  });
+  it("PUT useDefault before 0308 (count still required): 503 naming the migration, no audit row", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
+    db.insertError = { code: "23502", message: "null value in column keep_last_per_rep" };
+    const res = await PUT(put({ useDefault: true }));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/0308/);
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+  it("GET: a latest row with no count reads as the default", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
+    db.read = { data: [{ keep_last_per_rep: null, set_by: "u-ceo", created_at: "2026-11-23T00:00:00Z" }], error: null };
+    expect(await (await GET(get())).json()).toMatchObject({ keepLastPerRep: null, isDefault: true, defaultDays: 90 });
+  });
 });
+

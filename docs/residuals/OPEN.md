@@ -264,6 +264,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-22 · D5 · the scoring backlog count (pitch-score/backfill) counts by rep lines, not the 100-word floor — DONE same day: the count reads each rep line's text and applies the scorer's own repWordCount + SCORING_FLOOR; test added
       why-unresolved: words can't be counted in that query cheaply; the scorer refuses short calls before any AI cost, labelled "too short"
       next-action: count words in the backfill read, or label the offer "some may be too short to score"
-- [ ] 2026-11-23 · D14 · a company that set "keep the last N per rep" cannot go back to the standard 90 days from the screen
+- [x] 2026-11-23 · D14 · a company that set "keep the last N per rep" cannot go back to the standard 90 days from the screen — DONE same day: 0308 (keep_last_per_rep nullable; latest row with no count = the default), PUT { useDefault: true }, "Use the standard 90 days" button; applied to production (is_nullable = YES)
       why-unresolved: company_recording_settings stores a count per row (0284) and the latest row wins; "back to the default" needs a row that means "default" (a nullable count or a kind column) — a migration
       next-action: when a company asks, add the migration (keep_last_per_rep nullable = default) and a "Use the standard 90 days" button; ruleFor already treats a missing count as the default
