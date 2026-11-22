@@ -25,6 +25,7 @@ import { SCORING_FLOOR } from "@/lib/coach/remote/decisions";
 /** Why a grading did not produce a score. Each maps to a different operator response. */
 export type PitchScoreFailure =
   | "no_agent_turns" // nothing for the rep to be graded on
+  | "too_little_rep_speech" // D5: under SCORING_FLOOR.minRepWords — too short to grade fairly
   | "suppressed" // the brain gate declined the call
   | "llm_empty" // the model returned nothing — starvation or provider fault
   | "parse_failed"; // the model answered, but not with a usable grading
@@ -55,6 +56,11 @@ export type PitchScoreResult =
 // is today's behaviour (one rep segment). Deciding D5 changes it there, and this, the backfill count and the RSS
 // session rule (state.ts scoringDecision) all follow (§2.2).
 export const MIN_AGENT_SEGMENTS = SCORING_FLOOR.minRepSegments;
+
+/** The rep's words across their lines — the D5 floor's measure (whitespace-separated tokens). */
+export function repWordCount(segments: ReadonlyArray<{ text: string }>): number {
+  return segments.reduce((n, s) => n + (s.text.trim() ? s.text.trim().split(/\s+/).length : 0), 0);
+}
 
 /**
  * The scoring prompt's version, DERIVED rather than typed (RSS Phase 0, provenance).
@@ -132,6 +138,8 @@ export async function generatePitchScore(args: {
 }): Promise<PitchScoreResult> {
   const agentSegments = args.segments.filter((s) => s.speaker === "agent");
   if (agentSegments.length < MIN_AGENT_SEGMENTS) return { ok: false, failure: "no_agent_turns" };
+  // D5 (founder 2026-11-22): under the word floor the call is refused BEFORE the model runs — no cost, no points.
+  if (repWordCount(agentSegments) < SCORING_FLOOR.minRepWords) return { ok: false, failure: "too_little_rep_speech" };
 
   // The company's own pitch, for recognising the phases. A missing corpus is not fatal — the
   // rubric describes what has to land independently of any script — so a failed load degrades to

@@ -43,12 +43,12 @@ describe("GET weekly-digest-cron", () => {
     expect((await GET(req())).status).toBe(401);
   });
 
-  it("runs BOTH digests and returns their results with a correct Bearer", async () => {
+  it("D10 (founder 2026-11-22): the managers' email no longer sends; the reps' own progress email still does", async () => {
     const res = await GET(req("Bearer s3cret"));
     expect(res.status).toBe(200);
-    expect(run).toHaveBeenCalledOnce();
+    expect(run).not.toHaveBeenCalled();
     expect(runReps).toHaveBeenCalledOnce();
     const body = await res.json();
-    expect(body).toMatchObject({ ok: true, managers: { managersEmailed: 2 }, reps: { repsEmailed: 5 } });
+    expect(body).toMatchObject({ ok: true, managers: { skipped: "D10: manager alerts are in-app only" }, reps: { repsEmailed: 5 } });
   });
 });

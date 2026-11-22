@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runWeeklyManagerDigest, runWeeklyRepDigest } from "@/lib/coach/gamification/weeklyDigest";
 import { constantTimeEqual } from "@/lib/api/constantTime";
+import { MANAGER_DIGEST_EMAIL } from "@/lib/coach/remote/decisions";
 
 /**
  * GET /api/coach/gamification/weekly-digest-cron — the weekly digests (founder 2026-09-04). For each company with
@@ -28,7 +29,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const managers = await runWeeklyManagerDigest();
+    // D10 (founder 2026-11-22): manager alerts are in-app only — the managers' top-performer email no longer sends.
+    // The reps' own progress email was not part of D10 and still runs.
+    const managers = MANAGER_DIGEST_EMAIL ? await runWeeklyManagerDigest() : { skipped: "D10: manager alerts are in-app only", emailConfigured: true };
     const reps = await runWeeklyRepDigest();
     if (!managers.emailConfigured) {
       // eslint-disable-next-line no-console

@@ -61,6 +61,7 @@ const STATUS_FOR: Record<ScoreRefusal, number> = {
   not_found: 404,
   not_a_sales_call: 409,
   no_agent_turns: 422,
+  too_little_rep_speech: 422, // D5: about the recording; a retry won't change it
   /**
    * 502, PRESERVED FROM THE OLD INLINE TERNARY, not because it is the best code for it.
    *

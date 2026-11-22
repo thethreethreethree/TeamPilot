@@ -40,6 +40,8 @@ vi.mock("@/lib/storage/assets", async (importOriginal) => {
   return {
     ...orig,
     AGENT_MAX_BYTES: 32,
+    // D16: phone/video calls get a larger cap than door recordings (here 128 vs 32 bytes).
+    recordingMaxBytes: (context: string | null | undefined) => (context === "phone" || context === "video" ? 128 : 32),
     ASSETS_BUCKET: "assets",
     buildStoragePath: () => "co1/abc/recording.webm",
     uploadAssetBytes: vi.fn(async () => ({ ok: true })),

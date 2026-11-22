@@ -10,7 +10,7 @@ import { getSession } from "@/lib/data/salesCoach";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import {
   createSignedUploadTarget,
-  AGENT_MAX_BYTES,
+  recordingMaxBytes,
   ASSETS_BUCKET,
   EXECUTABLE_EXTENSIONS,
 } from "@/lib/storage/assets";
@@ -105,13 +105,13 @@ export async function POST(
   if (body.sizeBytes === 0) {
     return NextResponse.json({ error: "Empty recording." }, { status: 400 });
   }
-  if (body.sizeBytes > AGENT_MAX_BYTES) {
+  if (body.sizeBytes > recordingMaxBytes(session.context)) {
     // RSS Phase 1: the closed reason, so a phone/video session shows "File too large" (door: no-op).
     await recordSessionFailure({ sessionId: id, companyId, context: session.context, reason: "TOO_LARGE", detail: `${body.sizeBytes} bytes` });
     return NextResponse.json(
       {
         error: `Recording too large (max ${Math.floor(
-          AGENT_MAX_BYTES / 1024 / 1024
+          recordingMaxBytes(session.context) / 1024 / 1024
         )}MB).`,
       },
       { status: 413 }

@@ -19,6 +19,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const ASSETS_BUCKET = "assets-v1";
 
 export const AGENT_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+/** D16 (founder 2026-11-22): a phone/video call recording may be up to 100 MB (~an hour). The bucket allows 250 MB (0241). */
+export const REMOTE_CALL_MAX_BYTES = 100 * 1024 * 1024;
+/** The cap for a call recording upload by the call's channel: phone/video 100 MB, door 25 MB. One rule, three checks. */
+export function recordingMaxBytes(context: string | null | undefined): number {
+  return context === "phone" || context === "video" ? REMOTE_CALL_MAX_BYTES : AGENT_MAX_BYTES;
+}
 export const CUSTOMER_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 /** Block list. Anything not in the allow list AND not explicitly

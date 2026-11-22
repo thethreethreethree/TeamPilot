@@ -970,3 +970,16 @@ calls listened to, by name, most feedback first; a plain line when nothing has h
 ```
 npx vitest run src/lib/coach/remote src/app/api/coach/remote src/app/api/auth src/components/sales-coach/__tests__/CoachingInbox.metrics.render.test.tsx → all passed, exit 0
 ```
+
+## Addendum 2026-11-22 — D5, D10, D16 decided (founder pickers, recommended options)
+
+D5: 100 rep words — generatePitchScore refuses below it BEFORE the model (too_little_rep_speech → BELOW_SCORING_FLOOR,
+422, "Too short to score … No points"); the Remote Sales session rule agrees; existing scores stay. D10: in-app only —
+the managers' top-performer email stops (MANAGER_DIGEST_EMAIL); the reps' own progress email was not asked about and
+still sends (filed in OPEN.md as a question, not decided for the founder). D16: 100 MB for phone/video uploads via one
+rule (recordingMaxBytes) used by the sign, finalize and direct checks; door stays 25 MB; the bucket allows 250 MB (0241);
+the route's 300 s budget covers an hour of audio. Known gap filed: the backlog count still uses lines, not words.
+
+```
+npx vitest run (digest, pitchScore, pitch-score routes, upload-recording, remote, storage, sales-coach components) → Tests 1184 passed (1184), exit 0
+```

@@ -11,6 +11,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/claude", () => ({ dissectCoachV5: vi.fn() }));
 vi.mock("@/lib/data/salesCoach", () => ({ getCurrentSalesCorpus: vi.fn() }));
+// These tests are about GRADING; the D5 word floor (100 rep words) has its own test file, scoringFloor.test.ts.
+vi.mock("@/lib/coach/remote/decisions", async (orig) => ({
+  ...(await orig<typeof import("@/lib/coach/remote/decisions")>()),
+  SCORING_FLOOR: { minRepSegments: 1, minRepWords: 1 },
+}));
 
 import { dissectCoachV5 } from "@/lib/claude";
 import { getCurrentSalesCorpus } from "@/lib/data/salesCoach";

@@ -62,7 +62,7 @@ export const FAILURE_LABEL: Record<SessionFailureCode, string> = {
   TRANSCRIBE_TIMEOUT: 'Transcription timed out',
   AI_UNAVAILABLE: 'The AI service was not answering',
   AI_QUOTA: 'The AI account is out of credit',
-  BELOW_SCORING_FLOOR: 'Too little of the rep to score',
+  BELOW_SCORING_FLOOR: 'Too little of the rep to score (under 100 words)',
   NOT_A_SALES_CALL: 'Not a sales call',
 };
 
@@ -126,9 +126,11 @@ export function closeWithOutcome(
 export function scoringDecision(
   repSegments: number,
   isSalesCall: boolean,
+  repWords: number = Number.POSITIVE_INFINITY,
 ): { score: true } | { score: false; reason: NotScoredReason } {
   if (!isSalesCall) return { score: false, reason: 'NOT_A_SALES_CALL' };
   if (repSegments < SCORING_FLOOR.minRepSegments) return { score: false, reason: 'BELOW_SCORING_FLOOR' };
+  if (repWords < SCORING_FLOOR.minRepWords) return { score: false, reason: 'BELOW_SCORING_FLOOR' }; // D5
   return { score: true };
 }
 

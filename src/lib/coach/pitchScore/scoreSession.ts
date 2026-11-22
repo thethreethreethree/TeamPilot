@@ -11,6 +11,7 @@ import { recordSessionFailure, type SessionFailureCode } from "@/lib/coach/remot
 /** Which scoring refusals are a session failure a manager should see (RSS Phase 1, closed list in 0275). */
 const FAILURE_FOR_REFUSAL: Partial<Record<ScoreRefusal, SessionFailureCode>> = {
   no_agent_turns: "BELOW_SCORING_FLOOR",
+  too_little_rep_speech: "BELOW_SCORING_FLOOR",
   provider_out_of_credit: "AI_QUOTA",
   provider_down: "AI_UNAVAILABLE",
 };
@@ -86,6 +87,8 @@ export type ScoreRefusal =
   | "not_a_sales_call"
   /** Nothing the rep said. Will not change on a retry. */
   | "no_agent_turns"
+  /** D5: the rep said fewer than the floor's words. Will not change on a retry. */
+  | "too_little_rep_speech"
   /** The §3.4 month-1 control gate declined the call. NOT a failure — an account state. */
   | "suppressed"
   | "llm_empty"
@@ -146,6 +149,7 @@ export const PERMANENT_REFUSALS: ReadonlySet<ScoreRefusal> = new Set([
   "not_found",
   "not_a_sales_call",
   "no_agent_turns",
+  "too_little_rep_speech",
   "suppressed",
 ]);
 
@@ -155,6 +159,7 @@ export const REFUSAL_MESSAGE: Record<ScoreRefusal, string> = {
   not_found: "Session not found or not accessible.",
   not_a_sales_call: "Only sales calls are scored against the pitch rubric.",
   no_agent_turns: "This recording has no rep speech to grade.",
+  too_little_rep_speech: "Too short to score: the rep needs to say at least 100 words for a fair grade. No points for this one.",
   suppressed: "AI guidance is off for this account, so pitches are not scored yet.",
   llm_empty: "The scorer returned nothing. This is a fault on our side, not your pitch.",
   parse_failed: "The scorer's answer could not be read. This is a fault on our side.",

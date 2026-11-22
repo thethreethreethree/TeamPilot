@@ -41,8 +41,11 @@ export const GONG_LOCKOUT_REFERENCE: LockoutPolicy = { maxFailures: 5, windowMin
 
 /** D5 - Minimum transcript before a session is scored.
  *  TODAY: one rep segment (generatePitchScore.ts:47). Gong skips under 100 words. */
-export const SCORING_FLOOR: { minRepSegments: number } = { minRepSegments: 1 };
-export const SCORING_FLOOR_IS_TODAYS_BEHAVIOUR = true;
+// DECIDED 2026-11-22 by the founder (picker, recommended): Gong's floor — the rep must say at least 100 words. Calls
+// under it are refused before any AI cost ("too little of the rep to score") and earn no points; scores already
+// given stay as they are.
+export const SCORING_FLOOR: { minRepSegments: number; minRepWords: number } = { minRepSegments: 1, minRepWords: 100 };
+export const SCORING_FLOOR_IS_TODAYS_BEHAVIOUR = false;
 
 /** D8 - What counts as "feedback given" and as "listened".
  *  GONG_FEEDBACK_RULES / GONG-like listen rule are offered as one option, not chosen. */
@@ -59,9 +62,17 @@ export const REDACTION: { enabled: false } | { enabled: true; minDigits: number 
 /** D16 - Upload size limit for remote calls. TODAY: AGENT_MAX_BYTES in src/lib/storage/assets.ts (25 MB), used
  *  as-is — not copied here, so the two cannot drift (§2.2). Deciding D16 means changing that constant (or giving
  *  remote sessions their own), and the storage quota (docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md) with it. */
-export const UPLOAD_MAX_IS_TODAYS_BEHAVIOUR = true;
+// DECIDED 2026-11-22 by the founder (picker, recommended): phone/video recordings up to 100 MB — REMOTE_CALL_MAX_BYTES and
+// recordingMaxBytes in src/lib/storage/assets.ts (the one rule the sign, finalize and direct upload checks share).
+export const UPLOAD_MAX_IS_TODAYS_BEHAVIOUR = false;
 
 /** D19 - Interaction-stat parameters. [ASSUMED] values, labelled as such in docs/04. */
 export const ACKNOWLEDGEMENT_MAX_MS = 1000; // [ASSUMED] utterances this short don't count as a speaker switch
 export const INTERACTIVITY_WINDOW_MS = 5 * 60 * 1000; // [OBSERVED] Gong: per 5-minute block
 export const INTERACTIVITY_CAP = 10; // [OBSERVED] Gong: capped at 10
+
+/** D10 - Manager alerts in-app only, or keep the weekly email digest? DECIDED 2026-11-22 by the founder (picker,
+ *  recommended): IN-APP ONLY — the Monday email to managers naming top performers stops. The reps' own weekly progress
+ *  email was not part of the question and still sends. */
+export const MANAGER_DIGEST_EMAIL = false;
+

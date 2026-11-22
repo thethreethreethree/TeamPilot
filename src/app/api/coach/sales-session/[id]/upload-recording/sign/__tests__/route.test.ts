@@ -21,6 +21,8 @@ vi.mock("@/lib/storage/assets", async (importOriginal) => {
   return {
     ...orig,
     AGENT_MAX_BYTES: 32,
+    // D16: phone/video calls get a larger cap than door recordings (here 128 vs 32 bytes).
+    recordingMaxBytes: (context: string | null | undefined) => (context === "phone" || context === "video" ? 128 : 32),
     ASSETS_BUCKET: "assets",
     createSignedUploadTarget: vi.fn(async () => ({
       ok: true,
@@ -91,6 +93,13 @@ describe("POST /upload-recording/sign", () => {
   it("413 when the claimed size exceeds the cap", async () => {
     setAuth("rep1");
     expect((await POST(sign({ sizeBytes: 64 }), ctx)).status).toBe(413);
+  });
+
+  it("D16: a phone or video call gets the larger cap — 64 is fine there, 200 is not", async () => {
+    setAuth("rep1");
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "sess1", agentId: "rep1", context: "phone" });
+    expect((await POST(sign({ sizeBytes: 64 }), ctx)).status).not.toBe(413);
+    expect((await POST(sign({ sizeBytes: 200 }), ctx)).status).toBe(413);
   });
 
   it("400 for a non-audio/video MIME", async () => {

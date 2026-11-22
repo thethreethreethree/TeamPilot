@@ -50,6 +50,7 @@ export const REFUSAL_LABEL: Record<ScoreRefusal, string> = {
   not_found: "could not be read",
   not_a_sales_call: "were not sales calls",
   no_agent_turns: "have no rep speech to grade",
+  too_little_rep_speech: "are too short to score (under 100 rep words)",
   suppressed: "were skipped — AI guidance is off",
   llm_empty: "got no answer from the scorer (a fault on our side)",
   parse_failed: "got a scorer answer that could not be read (a fault on our side)",
