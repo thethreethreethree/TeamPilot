@@ -119,6 +119,7 @@ export async function POST(req: NextRequest) {
     pitchId: body.pitchId,
     note: body.note,
     channel,
+    actorId: auth.user.id,
   });
 
   return NextResponse.json({ ok: true });

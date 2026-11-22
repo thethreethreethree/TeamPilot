@@ -12,6 +12,7 @@ import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignmentForRep, passedFor } from "@/lib/coach/remote/training";
 import { notifyTrainingAttempted } from "@/lib/coach/gamification/notify";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readBody } from "@/lib/api/validate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { llmErrorResponse } from "@/lib/coach/extension/llmErrorResponse";
@@ -309,8 +310,10 @@ async function handleRoleplay(req: NextRequest) {
     // can't drop it). The rep sees the trend on their portal; the manager sees per-rep growth over time (§A18).
     const repId = auth.user.id;
     const sc = scored.scorecard;
-    // A test run (F17.4) is the manager trying a scenario out: it must not enter their own practice history.
-    if (!body.testRun) {
+    // A test run (F17.4) is the manager trying a scenario out: it must not enter their own practice history. Honoured
+    // for MANAGERS only — otherwise any rep could send testRun and keep a weak score out of the growth view.
+    const isTestRun = !!body.testRun && !!(await requireSalesCoachManager(req));
+    if (!isTestRun) {
       after(() =>
         recordPracticeScore({ companyId, repId, focus: sc.focus, applied: sc.applied, score: sc.score }),
       );

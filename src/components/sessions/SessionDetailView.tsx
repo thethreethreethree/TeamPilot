@@ -47,6 +47,7 @@ import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
+import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -65,6 +66,8 @@ type Segment = {
   seq: number;
 };
 type Session = {
+  /** The rep who took the call — only they confirm recording consent (founder 2026-11-22). */
+  agentId?: string;
   id: string;
   context: SalesContext;
   // Coaching kind (0237): 'sales' | 'meeting' | 'huddle'. The API already returned it; the type
@@ -122,6 +125,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
   // Remote Sales Macro Mode (0303): a finished phone/video call shows the player and three tabs only. "Show the full
   // call page" opens everything for this visit without turning Macro Mode off — never a one-way door.
   const { enabled: remoteMacro } = useRemoteMacroMode();
+  const viewerId = useCurrentUserId();
   const [fullView, setFullView] = useState(false);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
   const [moments, setMoments] = useState<SalesMoment[]>([]);
@@ -1147,7 +1151,9 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
                 sessionId={id}
                 onLabeled={openNaming}
                 hasSavedRecording={!!session?.audioAssetUrl}
-                requireConsent={!!session && isRemoteContext(session.context)}
+                // The call's own rep confirms consent; a manager uploading for them is not asked for a promise only the rep
+                // can make (independent review 2026-11-22: the 403 had blocked manager uploads).
+                requireConsent={!!session && isRemoteContext(session.context) && !!viewerId && session.agentId === viewerId}
               />
             )}
 

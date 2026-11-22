@@ -912,3 +912,25 @@ folding, malformed dates dropped).
 ```
 npx vitest run src/lib/coach/remote/__tests__/ics.test.ts src/components/remote-sales → all passed, exit 0
 ```
+
+## Addendum 2026-11-22 — second independent review (cb340231 → e7fa6293); fixes
+
+No cross-tenant path, no client-writable cost table, keyterms reach both sockets, topic search and tracker preview read
+through the caller's RLS — all confirmed. Six defects found and fixed:
+
+1. **testRun was honoured for anyone** — a rep could keep a weak practice score out of the growth view. Now only when
+   requireSalesCoachManager passes; a rep's testRun is recorded as usual (test added).
+2. **Managers could no longer upload a rep's remote recording** — the consent tick asked for a confirmation only the rep
+   may give (403). The tick is now asked only of the call's own rep (session.agentId === viewer).
+3. **The After-Pitch upload skipped consent** on remote calls — now asks the owning rep.
+4. **Live consent was stored even if the call never started**, and again on each retry — now stored once, when
+   recording actually begins (audioCapturing), still without delaying the share picker.
+5. **dispute_answered on a pitch with no call led nowhere** — the bell opens its report card.
+6. A manager filing for a rep was alerted about their own dispute (filer excluded); the "#dispute-<pitch>" anchor now
+   exists on each queue card; the channel read is chunked so a long queue can't exceed URL limits.
+Not fixed: a dispute alert on a no-call pitch does not dedupe (the unique index treats null session as distinct) — it
+stacks one bell per filing; recorded as a known limit, low.
+
+```
+npx vitest run src/app/api/coach/sales-session/roleplay src/…/pitch-score src/components/sales-coach src/components/remote-sales → Tests 705 passed (705), exit 0
+```

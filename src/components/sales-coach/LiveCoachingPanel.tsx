@@ -95,14 +95,19 @@ export function LiveCoachingPanel({
     // start() FIRST and un-awaited: the browser opens the call-tab share picker only inside this click's user
     // activation, so a network round-trip before it could make the share fail. The confirmation (already ticked — Start
     // is disabled until it is) is saved alongside; if saving fails the rep is told, and the call is not stopped.
-    const started = start({ callAudio: remoteCall && captureProspect && canShareCallAudio });
-    if (remoteCall) {
-      confirmRecordingConsent(sessionId, "live").catch((e) =>
-        setConsentErr(`${e instanceof Error ? e.message : "Couldn't record that the prospect agreed."} Your recording continues.`),
-      );
-    }
-    return started;
+    return start({ callAudio: remoteCall && captureProspect && canShareCallAudio });
   };
+  // The confirmation is stored when recording ACTUALLY begins (audioCapturing turns true), once per visit — not on a
+  // Start whose mic or share was refused, and not again on every retry (independent review 2026-11-22).
+  const consentSavedRef = useRef(false);
+  useEffect(() => {
+    if (!remoteCall || !consentOk || !audioCapturing || consentSavedRef.current) return;
+    consentSavedRef.current = true;
+    confirmRecordingConsent(sessionId, "live").catch((e) => {
+      consentSavedRef.current = false;
+      setConsentErr(`${e instanceof Error ? e.message : "Couldn't record that the prospect agreed."} Your recording continues.`);
+    });
+  }, [remoteCall, consentOk, audioCapturing, sessionId]);
   const [canShareCallAudio, setCanShareCallAudio] = useState(true);
   useEffect(() => setCanShareCallAudio(callAudioSupported()), []);
   const prospectNote = callAudioNote(callAudio);

@@ -221,6 +221,10 @@ function destination(n: Notif): string | null {
       ? "/dashboard/remote-sales/coaching"
       : `/dashboard/sales-coach/coach-assessment${n.payload.pitch_id ? `#dispute-${n.payload.pitch_id}` : ""}`;
   }
+  // A dispute answer on a pitch with no call (a door-log pitch): its report card shows the answer.
+  if (n.type === "dispute_answered" && !n.session_id) {
+    return n.payload.pitch_id ? `/dashboard/sales-coach/doors/report-card/${n.payload.pitch_id}` : null;
+  }
   if (!n.session_id) return null;
   // The session page, NOT /after-pitch and NOT the door-log report card. PitchScorePanel — and
   // the corrections section the rep is being sent to read — renders on

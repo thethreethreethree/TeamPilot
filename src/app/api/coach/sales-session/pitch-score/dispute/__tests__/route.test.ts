@@ -210,6 +210,6 @@ describe("validation", () => {
     setup();
     const res = await POST(req(GOOD));
     expect(res.status).toBe(200);
-    expect(notifyScoreDisputed).toHaveBeenCalledWith(expect.objectContaining({ repId: "rep1", pitchId: PITCH_ID, sessionId: "sess1", channel: "phone" }));
+    expect(notifyScoreDisputed).toHaveBeenCalledWith(expect.objectContaining({ repId: "rep1", pitchId: PITCH_ID, sessionId: "sess1", channel: "phone", actorId: "rep1" }));
   });
 });

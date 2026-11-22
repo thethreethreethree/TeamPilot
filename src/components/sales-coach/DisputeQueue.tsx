@@ -287,7 +287,8 @@ function DisputeCard({
   const who = repName?.(dispute.repId) ?? "A rep";
 
   return (
-    <li className="rounded-xl border border-default bg-surface p-4">
+    // The anchor the bell's "#dispute-<pitchId>" and "Adjust score" links land on.
+    <li id={`dispute-${dispute.pitchId}`} className="scroll-mt-20 rounded-xl border border-default bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[13px] font-medium text-primary">
           {who} disputed{" "}

@@ -70,17 +70,24 @@ export async function GET(req: NextRequest) {
   const scope: CallModule = req.nextUrl.searchParams.get("module") === "remote_sales" ? "remote_sales" : "sales_coach";
   const ids = [...new Set(mine.map((d) => d.pitchId))];
   if (ids.length === 0) return NextResponse.json({ disputes: [] });
-  const { data: ch, error: chErr } = await createAdminClient()
-    .from("pitch_scores_by_channel")
-    .select("id, channel")
-    .eq("company_id", mgr.companyId)
-    .in("id", ids);
+  // In chunks: a long id list in one URL can exceed proxy limits and fail the whole queue.
+  const ch: Array<{ id: string; channel: string }> = [];
+  let chErr: { message: string } | null = null;
+  for (let i = 0; i < ids.length && !chErr; i += 150) {
+    const r = await createAdminClient()
+      .from("pitch_scores_by_channel")
+      .select("id, channel")
+      .eq("company_id", mgr.companyId)
+      .in("id", ids.slice(i, i + 150));
+    if (r.error) chErr = r.error;
+    else ch.push(...((r.data ?? []) as Array<{ id: string; channel: string }>));
+  }
   if (chErr) {
     console.error(`[pitch-disputes] channel read failed company=${mgr.companyId}: ${chErr.message}`);
     return NextResponse.json({ error: "Could not load the dispute queue." }, { status: 500 });
   }
   const allowed = new Set<string>(contextsOf(scope));
-  const inScope = new Set(((ch ?? []) as Array<{ id: string; channel: string }>).filter((r) => allowed.has(r.channel)).map((r) => String(r.id)));
+  const inScope = new Set(ch.filter((r) => allowed.has(r.channel)).map((r) => String(r.id)));
   return NextResponse.json({ disputes: mine.filter((d) => inScope.has(d.pitchId)) });
 }
 

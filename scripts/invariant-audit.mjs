@@ -2415,6 +2415,8 @@ for (const f of FILES) {
 // treeFilterReps (src/lib/api/treeAccess.ts), or be allowlisted here WITH the reason its service-role use
 // cannot reach another rep's data.
 const TREE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/sales-session/roleplay/route.ts",
+    "requireSalesCoachManager decides only whether the CALLER's own practice is a test run (F17.4: a manager trying a scenario is not recorded). Every service-role read or write here concerns the caller themselves (assignmentForRep checks the assignment is theirs; training_attempts are inserted with rep_id = the caller); no other rep is acted on."],
   ["src/app/api/coach/sales-session/patterns/route.ts",
     "The pattern list is read through the caller's client (RLS, switched in 0273); the service role only resolves NAMES for the rep ids that read returned."],
   ["src/app/api/coach/sales-session/pitch-score/route.ts",

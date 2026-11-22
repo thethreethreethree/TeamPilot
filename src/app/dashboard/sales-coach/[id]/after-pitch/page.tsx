@@ -52,7 +52,7 @@ import {
   OUTCOME_ORDER,
   type SalesOutcome,
 } from "@/lib/coach/v5/outcomeLabels";
-import { CONTEXT_LABEL, micHearsRepOnly, type SalesContext } from "@/lib/coach/sessionContext";
+import { CONTEXT_LABEL, isRemoteContext, micHearsRepOnly, type SalesContext } from "@/lib/coach/sessionContext";
 
 /**
  * After Pitch Summary — the rep's private "between doors" debrief (AMD-006
@@ -699,6 +699,8 @@ export default function AfterPitchPage() {
                 // re-transcribe it automatically so the rep lands on the one-tap "which voice is you?" instead
                 // of having to tap "Re-transcribe" first.
                 autoRetranscribe={!!session?.audioAssetUrl}
+                // A phone/video call uploaded here asks the rep to confirm consent too (founder 2026-11-22).
+                requireConsent={isOwner && !!session && isRemoteContext(session.context)}
               />
             </div>
             <button

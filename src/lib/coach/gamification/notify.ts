@@ -283,9 +283,11 @@ export async function notifyScoreDisputed(args: {
   pitchId: string;
   note: string;
   channel: string | null;
+  /** Who filed it — a manager filing on a rep's behalf is not told about their own dispute. */
+  actorId?: string;
 }): Promise<number> {
   try {
-    const recipients = await resolveManagers(args.companyId, args.repId);
+    const recipients = (await resolveManagers(args.companyId, args.repId)).filter((id) => id !== args.actorId);
     if (recipients.length === 0) return 0;
     const admin = createAdminClient();
     const { data: prof } = await admin.from("profiles").select("full_name").eq("company_id", args.companyId).eq("id", args.repId).maybeSingle();
