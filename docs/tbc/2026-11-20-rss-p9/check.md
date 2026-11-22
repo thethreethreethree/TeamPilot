@@ -738,3 +738,14 @@ it — a to-do deleted on the Tasks board would still read as the prospect's ope
 ```
 npx vitest run src/lib/coach/remote/__tests__/prospects.test.ts → Tests 2 passed (2), exit 0
 ```
+
+## Addendum 2026-11-22 — a manager's tabs do not change in Macro Mode (spec re-read)
+
+The spec's manager section: "Nothing will change here, except we have a section where managers can see sales reps'
+pipeline." The first Macro Mode cut replaced every tab with Today / Pipeline / Calls for everyone, which would have
+taken a manager's Coaching inbox and Trackers away. Now: a rep in Macro Mode gets the three; a manager keeps every tab
+and gains Today; Pipeline is in the full module too. RemoteSalesShell.render.test.tsx pins all three cases.
+
+```
+npx vitest run src/components/remote-sales/__tests__/RemoteSalesShell.render.test.tsx → Tests 3 passed (3), exit 0
+```
