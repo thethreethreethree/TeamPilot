@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/claude", () => ({ askCoachTurn: vi.fn(), followThroughCoach: vi.fn() }));
 vi.mock("@/lib/data/salesCoach", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({ readPitchScore: vi.fn(async () => null) }));
-const saved = vi.hoisted(() => ({ rows: [] as Array<{ table: string; row: unknown }> }));
+const saved = vi.hoisted(() => ({ rows: [] as Array<{ table: string; row: unknown }>, turnsFail: false }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
@@ -14,8 +14,9 @@ vi.mock("@/lib/supabase/admin", () => ({
         saved.rows.push({ table, row });
         return b;
       };
-      b.maybeSingle = async () => ({ data: table === "ask_coach_chats" ? { id: "ch1" } : null, error: null });
-      b.then = (res: (v: unknown) => unknown) => res({ data: [], error: null });
+      b.maybeSingle = async () => ({ data: table === "ask_coach_chats" ? { id: "ch1", session_ids: ["s1"] } : null, error: null });
+      b.then = (res: (v: unknown) => unknown) =>
+        res(table === "ask_coach_turns" && saved.turnsFail ? { data: null, error: { message: "boom" } } : { data: [], error: null });
       return b;
     },
   }),
@@ -46,6 +47,7 @@ const callerDb = {
 beforeEach(() => {
   vi.clearAllMocks();
   saved.rows = [];
+  saved.turnsFail = false;
   mock(getSession).mockResolvedValue({ id: "s1", sessionKind: "sales", startedAt: "2026-11-20T10:00:00Z", clientLabel: "Acme" });
 });
 
@@ -75,6 +77,27 @@ describe("askCoach", () => {
     mock(askCoachTurn).mockResolvedValue({ text: "", suppressed: true });
     expect(await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null })).toMatchObject({ ok: true, suppressed: true });
     expect(saved.rows).toEqual([]);
+  });
+  // 2026-11-23: failed reads stop BEFORE the paid AI call — never "no transcript", never an answer out of context.
+  it("a transcript that fails to read is 'try again' — not 'no transcript', and no AI call", async () => {
+    const failingDb = {
+      from: () => {
+        const b: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "order", "limit", "range"]) b[m] = () => b;
+        b.then = (res: (v: unknown) => unknown) => res({ data: null, error: { message: "boom" } });
+        return b;
+      },
+    } as never;
+    const r = await askCoach({ db: failingDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null });
+    expect(r).toMatchObject({ ok: false, status: 500 });
+    expect(JSON.stringify(r)).not.toMatch(/no transcript/i);
+    expect(mock(askCoachTurn)).not.toHaveBeenCalled();
+  });
+  it("a continued chat whose earlier turns can't be read is 'try again', and no AI call", async () => {
+    saved.turnsFail = true;
+    const r = await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "and then?", chatId: "ch1" });
+    expect(r).toMatchObject({ ok: false, status: 500 });
+    expect(mock(askCoachTurn)).not.toHaveBeenCalled();
   });
   it("a call the caller cannot open is refused, not skipped", async () => {
     mock(getSession).mockResolvedValueOnce(null);

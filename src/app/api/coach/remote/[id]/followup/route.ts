@@ -73,14 +73,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!isRemoteContext(session.context)) return NextResponse.json({ error: "Follow-ups are for phone and video calls." }, { status: 400 });
 
   const loaded = await loadLines(db, id, audioBaseIso(session.startedAt, session.audioStartedAt ?? null) ?? session.startedAt);
-  if (!loaded || loaded.lines.length < 2) return NextResponse.json({ error: "This call has too little transcript to write from." }, { status: 422 });
-  const { data: brief } = await db
+  // A failed read (null) is "try again", not "too little transcript" (2026-11-23).
+  if (!loaded) return NextResponse.json({ error: "Couldn't read this call's transcript — try again." }, { status: 500 });
+  if (loaded.lines.length < 2) return NextResponse.json({ error: "This call has too little transcript to write from." }, { status: 422 });
+  const { data: brief, error: briefErr } = await db
     .from("remote_call_briefs")
     .select("next_steps")
     .eq("session_id", id)
     .order("transcript_version", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Stop BEFORE the paid AI call (2026-11-23): a failed read used to write — and bill — a follow-up saying no next
+  // steps were agreed when they had been. (No brief yet is fine: the draft says "(none found)" truthfully.)
+  if (briefErr) {
+    console.error(`[followup] next-steps read failed session=${id}: ${briefErr.message}`);
+    return NextResponse.json({ error: "Couldn't read this call's next steps — try again." }, { status: 500 });
+  }
   const steps = (Array.isArray(brief?.next_steps) ? brief.next_steps : []) as Array<{ text: string }>;
 
   const admin = createAdminClient();

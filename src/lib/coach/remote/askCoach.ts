@@ -44,7 +44,7 @@ export type Turn = { role: "user" | "coach"; content: string; citations: Citatio
 export type AskResult =
   | { ok: true; chatId: string | null; answer: string; citations: Citation[]; suppressed: false }
   | { ok: true; chatId: null; answer: null; citations: []; suppressed: true }
-  | { ok: false; status: 400 | 403 | 404 | 409 | 502; error: string };
+  | { ok: false; status: 400 | 403 | 404 | 409 | 500 | 502; error: string };
 
 const MAX_LINES = 900;
 
@@ -117,22 +117,26 @@ export async function askCoach(args: {
   let sessionIds = [...new Set(args.sessionIds)];
   const history: Turn[] = [];
   if (args.chatId) {
-    const { data: chat } = await admin
+    const { data: chat, error: chatErr } = await admin
       .from("ask_coach_chats")
       .select("id, session_ids")
       .eq("company_id", companyId)
       .eq("owner_id", userId)
       .eq("id", args.chatId)
       .maybeSingle();
+    // Failed reads are "try again", never "not found" or a context-free answer (2026-11-23).
+    if (chatErr) return { ok: false, status: 500, error: "Couldn't open this chat — try again." };
     if (!chat) return { ok: false, status: 404, error: "Chat not found." };
     sessionIds = (chat.session_ids as string[]).map(String);
-    const { data: turns } = await admin
+    const { data: turns, error: turnsErr } = await admin
       .from("ask_coach_turns")
       .select("role, content, citations")
       .eq("company_id", companyId)
       .eq("chat_id", args.chatId)
       .order("id", { ascending: true })
       .limit(40);
+    // Without the earlier turns a follow-up question would be answered out of context — and billed.
+    if (turnsErr) return { ok: false, status: 500, error: "Couldn't load this chat's earlier answers — try again." };
     for (const t of (turns ?? []) as Array<{ role: "user" | "coach"; content: string; citations: Citation[] }>) history.push(t);
   }
   if (sessionIds.length === 0 || sessionIds.length > 10) return { ok: false, status: 400, error: "Ask about 1 to 10 calls." };
@@ -145,7 +149,10 @@ export async function askCoach(args: {
     if (!s) return { ok: false, status: 404, error: "One of these calls isn't available to you." };
     if (!isSalesCall(s.sessionKind)) return { ok: false, status: 409, error: "Ask Coach is for sales calls." };
     const loaded = await loadLines(db, id, audioBaseIso(s.startedAt, s.audioStartedAt) ?? s.startedAt);
-    if (loaded && loaded.lines.length > 0) {
+    // A failed read (null) is not "no transcript": dropping the call would answer about fewer calls than were asked
+    // about, and if all failed the rep was told the calls have no transcript. Stop before the AI call.
+    if (!loaded) return { ok: false, status: 500, error: "Couldn't read one of these calls' transcripts — try again." };
+    if (loaded.lines.length > 0) {
       const label = `${s.clientLabel ?? "Untitled"} (${new Date(s.startedAt).toISOString().slice(0, 10)})`;
       calls.push({ sessionId: id, label, lines: loaded.lines });
       // A failed read is said as such to the model — never presented as "not scored" (the confident-zero shape).

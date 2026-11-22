@@ -1280,3 +1280,17 @@ case fails (1 of 6) — the other rules were already right, now pinned.
 ```
 npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/brief/review/__tests__" → 6 passed, exit 0
 ```
+
+Follow-up drafts and Ask Coach stop before the paid AI call on a failed read (same day, untested-routes pass).
+[id]/followup (no tests before): a failed next-steps read wrote — and billed — a draft saying "(none found)" when steps
+had been agreed; a failed transcript read answered 422 "too little transcript". Both are now 500 "try again" before the
+AI call (§2.2's empty-but-billed shape). askCoach: a call whose transcript failed to read was silently dropped (an answer
+about fewer calls than asked; if all failed, "There's no transcript on these calls yet"), and a continued chat whose
+earlier turns failed to read was answered out of context; both are now 500 "try again" before the AI call (the result
+type gains 500; both routes pass the status through). loadLines' other callers (callBrief, followThrough) are background
+generators that already log and produce nothing. Tests: followup route 7 (2 fail on the previous route), askCoach +2
+(fail on the previous file).
+
+```
+npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/followup/__tests__" src/lib/coach/remote/__tests__/askCoach.test.ts → 18 passed, exit 0
+```
