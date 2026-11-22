@@ -1328,3 +1328,11 @@ Still untested: day and search/export (both already scanned clean).
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/scenarios src/app/api/coach/remote/saved-searches src/app/api/coach/remote/prospects/__tests__ → 19 passed, exit 0
 ```
+Search export pinned (no code change): managers only (a rep searches and audits nothing); phone/video only, through the
+caller's client; the audit row holds the filters and the count, never the rows; a formula-leading cell leaves as
+`'=HYPERLINK…` via the real callSearchCsv/toCsv (CWE-1236), not dropped. 4 tests. The only remote route left without
+tests is day (scanned clean; its date-boundary helper is file-local to a route and can't be exported).
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/search/export/__tests__ → 4 passed, exit 0
+```
