@@ -46,10 +46,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!brief) return NextResponse.json({ error: "Checklist not found." }, { status: 404 });
   // Once per brief (0304 unique index): checked BEFORE any task is created, so a second save or a double-click can't
   // create every task twice.
-  const { data: prior } = await db.from("remote_checklist_reviews").select("kept").eq("brief_id", body.briefId).limit(1).maybeSingle();
+  const { data: prior, error: priorErr } = await db.from("remote_checklist_reviews").select("kept").eq("brief_id", body.briefId).limit(1).maybeSingle();
+  // Can't tell whether it was already reviewed → stop BEFORE creating any task (a guess here duplicates every task).
+  if (priorErr) {
+    console.error(`[brief-review] prior-review read failed session=${id}: ${priorErr.message}`);
+    return NextResponse.json({ error: "Couldn't check the checklist — try again." }, { status: 500 });
+  }
   if (prior) return NextResponse.json({ error: "This checklist has already been reviewed.", kept: prior.kept }, { status: 409 });
 
-  const { data: link } = await db.from("remote_prospect_calls").select("prospect_id").eq("session_id", id).maybeSingle();
+  const { data: link, error: linkErr } = await db.from("remote_prospect_calls").select("prospect_id").eq("session_id", id).maybeSingle();
+  // Unknown prospect link → the to-dos would silently miss the prospect's list; refuse instead.
+  if (linkErr) {
+    console.error(`[brief-review] prospect link read failed session=${id}: ${linkErr.message}`);
+    return NextResponse.json({ error: "Couldn't check which prospect this call belongs to — try again." }, { status: 500 });
+  }
   const admin = createAdminClient();
   const { data: rep } = await admin
     .from("profiles")

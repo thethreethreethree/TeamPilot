@@ -48,13 +48,18 @@ async function read(req: NextRequest, id: string, userId: string) {
   // Who may act on this call's pipeline link and checklist: the rep who took it (0304). A manager reads.
   const isOwner = session.agentId === userId;
   if (!row) return { status: 200 as const, body: { available: true, remote: true, brief: null, review: null, prospect, label, isOwner } };
-  const { data: rev } = await db
+  const { data: rev, error: revErr } = await db
     .from("remote_checklist_reviews")
     .select("kept, created_at")
     .eq("brief_id", row.id)
     .order("id", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // A failed read must not show a reviewed checklist as unreviewed (inviting a second review).
+  if (revErr) {
+    console.error(`[call-brief] review read failed session=${id}: ${revErr.message}`);
+    return { status: 500 as const, body: { error: "Couldn't read the call brief." } };
+  }
   return {
     status: 200 as const,
     body: {

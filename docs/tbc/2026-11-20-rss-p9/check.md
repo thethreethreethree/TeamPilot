@@ -1008,3 +1008,7 @@ route each answer 500 instead of a wrong number or a wrongly-open request.
 ```
 npx vitest run feedback.test.ts, coaching-inbox, coaching-metrics, [id]/feedback-request → Tests 26 passed (26), exit 0
 ```
+Sweep of today's routes for reads whose error was ignored: three could cause a wrong ACTION, now fail loud — the
+checklist review's "already reviewed?" read (a failure would have created every task twice), its prospect-link read (to-
+dos would silently miss the prospect), and the brief's review read (a reviewed checklist shown as unreviewed). The rest
+were auth lookups or display names, where a miss only loses a name.
