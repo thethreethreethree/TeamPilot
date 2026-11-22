@@ -440,7 +440,7 @@ const EVENT_WORDS: Record<string, string> = {
 };
 
 function WebhooksPanel() {
-  const [data, setData] = useState<{ configured: boolean; endpoints: Endpoint[]; notReady?: string } | null>(null);
+  const [data, setData] = useState<{ configured: boolean; endpoints: Endpoint[]; notReady?: string; historyUnreadable?: boolean } | null>(null);
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<Set<string>>(new Set(Object.keys(EVENT_WORDS)));
   const [busy, setBusy] = useState<string | null>(null);
@@ -528,7 +528,9 @@ function WebhooksPanel() {
                   <p className="mt-0.5 text-muted">
                     {e.last
                       ? `Last: ${e.last.ok ? "delivered" : "failed"}${e.last.status ? ` (${e.last.status})` : e.last.error ? ` (${e.last.error})` : ""}, ${new Date(e.last.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`
-                      : "Nothing sent yet."}
+                      : data.historyUnreadable
+                        ? "Couldn't load the last delivery."
+                        : "Nothing sent yet."}
                   </p>
                   {e.active && (
                     <div className="mt-1 flex flex-wrap gap-3">

@@ -1302,3 +1302,12 @@ two new cases fail on the previous route.
 ```
 npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/brief/__tests__" → 6 passed, exit 0
 ```
+Webhooks (no tests before): a failed delivery-history read showed every endpoint as "Nothing sent yet."; it now returns
+`historyUnreadable` and the screen says "Couldn't load the last delivery." A failed endpoint read answered 404 "not
+found"; now 500 "try again". 5 tests; 3 fail on the previous route (the two new cases and the new response field).
+Remaining untested remote routes scanned: day, scenarios, saved-searches, vocabulary, prospects, macro-mode, ask,
+practice-ask, tracker-hits, search, search/export — no read ignores its error.
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/webhooks/__tests__ → 5 passed, exit 0
+```

@@ -52,14 +52,20 @@ export async function GET(req: NextRequest) {
   const endpoints = (eps ?? []) as Ep[];
   // The latest attempt per endpoint, for "last delivery: 200 OK, 3 minutes ago".
   const last = new Map<string, { ok: boolean; status: number | null; error: string | null; at: string; event: string }>();
+  // A failed history read is not "nothing sent yet" (2026-11-23): said separately so the screen can say so.
+  let historyUnreadable = false;
   if (endpoints.length) {
-    const { data: recent } = await db
+    const { data: recent, error: recentErr } = await db
       .from("webhook_deliveries")
       .select("id, endpoint_id, event, webhook_attempts(ok, status, error, created_at)")
       .eq("company_id", a.ctx.companyId)
       .in("endpoint_id", endpoints.map((e) => e.id))
       .order("id", { ascending: false })
       .limit(200);
+    if (recentErr) {
+      historyUnreadable = true;
+      console.error(`[webhooks] delivery history read failed company=${a.ctx.companyId}: ${recentErr.message}`);
+    }
     for (const d of (recent ?? []) as Array<{ endpoint_id: string; event: string; webhook_attempts: Array<{ ok: boolean; status: number | null; error: string | null; created_at: string }> }>) {
       const tries = [...(d.webhook_attempts ?? [])].sort((x, y) => y.created_at.localeCompare(x.created_at));
       const t = tries[0];
@@ -71,6 +77,7 @@ export async function GET(req: NextRequest) {
     configured: !!process.env.RSS_WEBHOOK_SIGNING_SECRET,
     events: WEBHOOK_EVENTS,
     maxAttempts: MAX_ATTEMPTS,
+    historyUnreadable,
     endpoints: endpoints.map((e) => ({ id: e.id, url: e.url, events: e.events, active: e.active, createdAt: e.created_at, last: last.get(e.id) ?? null })),
   });
 }
@@ -114,12 +121,16 @@ export async function POST(req: NextRequest) {
   }
 
   const endpointId = typeof b.endpointId === "string" ? b.endpointId : "";
-  const { data: ep } = await db
+  const { data: ep, error: epErr } = await db
     .from("webhook_endpoints")
     .select("id, url, active")
     .eq("company_id", ctx.companyId)
     .eq("id", endpointId)
     .maybeSingle();
+  if (epErr) {
+    console.error(`[webhooks] endpoint read failed company=${ctx.companyId}: ${epErr.message}`);
+    return NextResponse.json({ error: "Couldn't open that webhook — try again." }, { status: 500 });
+  }
   if (!ep) return NextResponse.json({ error: "Webhook not found." }, { status: 404 });
 
   let secret: string;
