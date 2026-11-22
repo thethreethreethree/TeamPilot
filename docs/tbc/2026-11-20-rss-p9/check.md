@@ -1207,3 +1207,7 @@ prospects/[pid]/__tests__/route.get.test.ts: 3 tests; against the previous route
 ```
 npx vitest run --maxWorkers=1 "src/app/api/coach/remote/prospects/[pid]/__tests__" → 3 passed, exit 0
 ```
+Sweep closed (same day): every `.data ??` read in src/app/api/coach and src/lib/coach now checks its error (team,
+team-analytics as an explicit `degraded` flag, disputes, rep-activity, coach-assessment, scoreHistory were already
+right). Error-ignoring reads that remain return display NAMES (profiles.full_name, fallback "there"/"Unnamed"),
+best-effort notifications, or worker samples that retry on the next run — none of them presents a failure as a fact.
