@@ -1198,3 +1198,12 @@ npx vitest run --maxWorkers=1 src/lib/coach/gamification src/lib/__tests__/noQue
 Rest of the dadfad4e edit set re-checked (same day): all 27 channel filters pair `context` with coaching_sessions and
 `channel` with a *_by_channel view (0301), and each sits in an unbroken chain; the weekly digest line was the only one
 whose query continued inside the comment.
+
+Remote Sales sweep (same day; reads in Promise.all checked too, not only destructured ones): the prospect page's second
+round of reads (its calls and to-dos) ignored errors, so a failure showed a prospect with no calls and no to-dos. Now
+500 "Couldn't load this prospect.", as the first round already was. Remote day and search were already checked. New
+prospects/[pid]/__tests__/route.get.test.ts: 3 tests; against the previous route the 2 failure cases fail.
+
+```
+npx vitest run --maxWorkers=1 "src/app/api/coach/remote/prospects/[pid]/__tests__" → 3 passed, exit 0
+```

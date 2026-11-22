@@ -56,6 +56,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
       : Promise.resolve({ data: [], error: null }),
     taskIds.length ? db.from("tasks").select("id, title, status, due_date").in("id", taskIds).is("deleted_at", null) : Promise.resolve({ data: [], error: null }),
   ]);
+  // Not "no calls, no to-dos" (2026-11-23): a failed second read would show an empty prospect.
+  if (sess.error || tasks.error) {
+    console.error(`[prospect] calls/to-dos read failed id=${pid}: ${(sess.error ?? tasks.error)?.message}`);
+    return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
+  }
   return NextResponse.json({
     prospect: p,
     history: ev.data ?? [],
