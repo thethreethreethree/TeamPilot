@@ -1251,3 +1251,14 @@ production information_schema: keep_last_per_rep is_nullable = YES.
 ```
 npm run check → 823 files, 6288 tests, exit 0
 ```
+
+Pattern history: the in-person filter moves into the query (same day; closes the "known limit" noted above).
+readApplicableGrades now joins pitch_score_elements to pitch_scores_by_channel (0301, security_invoker) and filters
+`channel in (in_person)` there, so the 900-row window holds in-person grades only; the JS check stays as a backstop.
+Production, read-only, one rep: the new select with the channel filter → HTTP 200, 382 rows (= without it; that rep's
+calls are all in person). The test fake now applies the channel filter as the database would, and asserts the query
+asks for it.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/patterns src/lib/coach/pitchScore → 456 passed, exit 0
+```

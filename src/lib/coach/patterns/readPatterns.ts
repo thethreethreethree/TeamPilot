@@ -3,7 +3,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { ELEMENTS_BY_ID, BONUSES_BY_ID, VIOLATIONS_BY_ID, type Grade } from "../pitchScore/rubric";
 import { statusOf, countPatterns, type StatusVerdict } from "./status";
 import type { GradedPitch } from "./detect";
-import { isRemoteContext } from "@/lib/coach/sessionContext";
+import { contextsOf, isRemoteContext } from "@/lib/coach/sessionContext";
 
 /**
  * Load a rep's patterns for the Pattern Interrupt boards, each with its resolved status.
@@ -354,11 +354,7 @@ export function teamWidePatterns(patterns: readonly PatternRow[], minReps = 3) {
  * `created_at`, which is when the SCORER ran. Ordering a rep's history by when a machine got
  * round to it would put a re-scored pitch from last week at the front of "the last 10".
  */
-type ParentPitch = {
-  rep_id: string;
-  recorded_at: string;
-  coaching_sessions?: { context: string | null } | Array<{ context: string | null }> | null;
-};
+type ParentPitch = { rep_id: string; recorded_at: string; channel: string | null };
 
 export async function readApplicableGrades(
   args: { repId: string; limit?: number },
@@ -371,8 +367,13 @@ export async function readApplicableGrades(
 
   const { data, error } = await supabase
     .from("pitch_score_elements")
-    .select("element_id, grade, points, pitch_id, pitch_scores!inner(rep_id, recorded_at, coaching_sessions(context))")
-    .eq("pitch_scores.rep_id", args.repId)
+    // IN-PERSON ONLY, IN THE QUERY (2026-11-23). Joined through pitch_scores_by_channel (0301: channel = the session's
+    // context, no session = in_person) and filtered there, so the 900-row window holds in-person grades only — a rep
+    // with many phone/video calls no longer gets a shorter in-person history. The view is security_invoker, so the
+    // caller's RLS still decides what is visible.
+    .select("element_id, grade, points, pitch_id, pitch_scores_by_channel!inner(rep_id, recorded_at, channel)")
+    .eq("pitch_scores_by_channel.rep_id", args.repId)
+    .in("pitch_scores_by_channel.channel", [...contextsOf("sales_coach")])
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -388,19 +389,15 @@ export async function readApplicableGrades(
     grade: Grade;
     points: number | string;
     pitch_id: string;
-    pitch_scores: ParentPitch | ParentPitch[];
+    pitch_scores_by_channel: ParentPitch | ParentPitch[];
   }>) {
     // PostgREST returns an embedded row as an object for a to-one join and an array for to-many;
     // the shape depends on how it reads the FK, so both are handled rather than assumed.
-    const parent = Array.isArray(row.pitch_scores) ? row.pitch_scores[0] : row.pitch_scores;
+    const parent = Array.isArray(row.pitch_scores_by_channel) ? row.pitch_scores_by_channel[0] : row.pitch_scores_by_channel;
     if (!parent?.recorded_at) continue;
-    // IN-PERSON ONLY (2026-11-23). Pattern Interrupt lives in Sales Coach, which is in-person only
-    // (decision of 2026-11-22, d4fc60d1). A phone/video pitch is graded on the phone & video rubric,
-    // and letting it in would open Sales Coach patterns on items an in-person rep is never graded on
-    // ("Into enrollment, on the call") and mix two channels into one "last 10". No session = in
-    // person, the same coalesce pitch_scores_by_channel (0301) uses.
-    const session = Array.isArray(parent.coaching_sessions) ? parent.coaching_sessions[0] : parent.coaching_sessions;
-    if (isRemoteContext(session?.context)) continue;
+    // Pattern Interrupt is Sales Coach, which is in-person only (decision 2026-11-22, d4fc60d1). The query already
+    // filters by channel; this repeats it so a row from another channel can never reach a Sales Coach pattern.
+    if (isRemoteContext(parent.channel)) continue;
     const list = byItem.get(row.element_id) ?? [];
     list.push({
       pitchId: row.pitch_id,

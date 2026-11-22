@@ -40,15 +40,22 @@ function db(opts: {
   eventsFail?: boolean;
 }) {
   const elementQueries: string[] = [];
+  const channelQueries: string[][] = [];
   const make = (table: string) => {
-    const state: { rep?: string } = {};
+    const state: { rep?: string; channels?: string[] } = {};
     const chain: Record<string, unknown> = {
       select: () => chain,
       order: () => chain,
       limit: () => chain,
-      in: () => chain,
+      in: (col: string, vals: string[]) => {
+        if (col === "pitch_scores_by_channel.channel") {
+          state.channels = vals;
+          channelQueries.push(vals);
+        }
+        return chain;
+      },
       eq: (col: string, val: string) => {
-        if (col === "pitch_scores.rep_id") {
+        if (col === "pitch_scores_by_channel.rep_id") {
           state.rep = val;
           elementQueries.push(val);
         }
@@ -73,19 +80,23 @@ function db(opts: {
     if (table === "pitch_score_elements") {
       (chain as { then: unknown }).then = (res: (v: unknown) => void) => {
         if (opts.gradesFail) return res({ data: null, error: { message: "grades boom" } });
-        const rows = (opts.elementsByRep?.[state.rep ?? ""] ?? []).map((r) => ({
+        // Applies the channel filter the way the database would: channel = the session's context, none = in_person
+        // (pitch_scores_by_channel, 0301). A query that stops asking for it gets every channel back here too.
+        const rows = (opts.elementsByRep?.[state.rep ?? ""] ?? [])
+          .filter((r) => !state.channels || state.channels.includes(r.context ?? "in_person"))
+          .map((r) => ({
           element_id: r.element_id,
           grade: r.grade,
           points: r.grade === "hit" ? 3 : 0,
           pitch_id: `${state.rep}-${r.recorded_at}`,
-          pitch_scores: { rep_id: state.rep, recorded_at: r.recorded_at, coaching_sessions: r.context === undefined ? null : { context: r.context } },
+          pitch_scores_by_channel: { rep_id: state.rep, recorded_at: r.recorded_at, channel: r.context ?? "in_person" },
         }));
         return res({ data: rows, error: null });
       };
     }
     return chain;
   };
-  return { client: { from: make } as never, elementQueries };
+  return { client: { from: make } as never, elementQueries, channelQueries };
 }
 
 const el = (element_id: string, grade: Grade, day: number) => ({
@@ -203,7 +214,7 @@ describe("the row it builds", () => {
 
 describe("applicable grades are in-person only (Pattern Interrupt is Sales Coach)", () => {
   it("leaves out phone and video pitches; a pitch with no session counts as in person", async () => {
-    const { client } = db({
+    const { client, channelQueries } = db({
       elementsByRep: {
         "rep-1": [
           { ...el("disc.currentSpeeds", "missed", 1), context: "in_person" },
@@ -218,6 +229,8 @@ describe("applicable grades are in-person only (Pattern Interrupt is Sales Coach
     const grades = await readApplicableGrades({ repId: "rep-1" }, client);
     expect(grades.get("disc.currentSpeeds")?.map((g) => g.grade)).toEqual(["missed", "hit", "partial"]);
     expect(grades.has("close.enrollOnCall")).toBe(false);
+    // In the QUERY, not after it: the 900-row window must hold in-person grades only (2026-11-23).
+    expect(channelQueries).toEqual([["in_person"]]);
   });
 });
 
