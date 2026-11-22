@@ -145,7 +145,12 @@ export async function POST(req: NextRequest) {
     }
     const r = await sendSigned(String(ep.url), secret, webhookBody({ deliveryId: delivery.id, event: "ping", createdAt: delivery.created_at, payload }));
     // Recorded as attempt 1 so the cron does not send the test a second time.
-    await db.from("webhook_attempts").insert({ company_id: ctx.companyId, delivery_id: delivery.id, attempt_no: 1, ok: r.ok, status: r.status, error: r.error });
+    const { error: attemptError } = await db
+      .from("webhook_attempts")
+      .insert({ company_id: ctx.companyId, delivery_id: delivery.id, attempt_no: 1, ok: r.ok, status: r.status, error: r.error });
+    // Not fatal — the test was sent and its result is returned — but said: without this row the cron sends the ping
+    // again (receivers de-duplicate on the delivery id, which is why this is a log and not a 500).
+    if (attemptError) console.error(`[webhooks] test attempt not recorded delivery=${delivery.id}: ${attemptError.message}`);
     return NextResponse.json({ ok: r.ok, status: r.status, error: r.error });
   }
 

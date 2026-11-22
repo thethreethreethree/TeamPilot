@@ -1262,3 +1262,11 @@ asks for it.
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/patterns src/lib/coach/pitchScore → 456 passed, exit 0
 ```
+
+Unchecked writes in Remote Sales (same day): one — the webhook test send's attempt row. Not fatal (the test was sent
+and its result returned; without the row the cron re-sends the ping, which receivers de-duplicate on the delivery id),
+so it is now logged rather than silently lost. Every other remote write already checks its error.
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/webhooks src/lib/coach/remote → 171 passed, exit 0
+```
