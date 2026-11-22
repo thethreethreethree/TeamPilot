@@ -1374,3 +1374,13 @@ failed read shows no totals; the switch-and-fail case — which fails on the pre
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemotePipeline.render.test.tsx → 4 passed, exit 0
 ```
+Today screen (RemoteToday, no tests before): `showForm = !plan || editing` showed the blank "Plan my day" form while the
+day was loading and after a failed load — a rep who had already planned their day was offered an empty form, and saving
+it makes the new plan today's (the old row stays, append-only, but is no longer current). Now the form shows only once
+the day has loaded with no plan (or when editing); loading and failure say so in its place. Also, a failure was never
+cleared — a later successful load kept "Couldn't load"; a success now clears it. 4 render tests; the loading and failed
+cases fail on the previous component.
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemoteToday.render.test.tsx → 4 passed, exit 0
+```

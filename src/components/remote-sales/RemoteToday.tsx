@@ -44,6 +44,7 @@ export function RemoteToday() {
       const r = await fetch(`/api/coach/remote/day?day=${day}&tz=${tz}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       setD(await r.json());
+      setFailed(false); // a later success clears an earlier failure (2026-11-23)
     } catch {
       setFailed(true);
     }
@@ -78,7 +79,9 @@ export function RemoteToday() {
   };
 
   const plan = d?.plan;
-  const showForm = !plan || editing;
+  // The blank form only once the day has LOADED and has no plan (2026-11-23). Before, it showed while loading and after
+  // a failed load too — offering a rep who had already planned their day an empty form whose save replaces that plan.
+  const showForm = editing || (d !== null && !plan);
 
   return (
     <div className="space-y-5">
@@ -111,6 +114,14 @@ export function RemoteToday() {
               )}
             </div>
           </>
+        ) : !plan ? (
+          failed ? (
+            <p className="mt-2 text-xs text-muted">Couldn&apos;t load your plan for today. Refresh to try again.</p>
+          ) : (
+            <p className="mt-2 flex items-center gap-2 text-xs text-muted">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading your day…
+            </p>
+          )
         ) : (
           <div className="mt-3 space-y-4">
             {plan.needleMovers.length > 0 && (
