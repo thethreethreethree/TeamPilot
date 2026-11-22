@@ -18,6 +18,8 @@ function mockDb(opts: {
   saleValueCents?: number | null;
   counts?: Counts;
   onInsert?: (row: Record<string, unknown>) => void;
+  /** A table whose read fails (2026-11-23). */
+  failTable?: string;
 }) {
   const from = (table: string) => {
     let outcomeSold = false;
@@ -33,6 +35,7 @@ function mockDb(opts: {
     builder.gte = chain;
     builder.lte = chain;
     builder.maybeSingle = async () => {
+      if (opts.failTable === table) return { data: null, error: { code: "XX000", message: `${table} read failed` } };
       if (table === "rep_day_target") return { data: opts.frozen ?? null, error: null };
       if (table === "rep_daily_sales_goal") return { data: opts.goal == null ? null : { sales_goal: opts.goal, sale_value_cents: opts.saleValueCents ?? null }, error: null };
       return { data: null, error: null };
@@ -42,6 +45,7 @@ function mockDb(opts: {
     });
     // The count queries are awaited directly on the builder (thenable).
     (builder as { then: unknown }).then = (res: (v: unknown) => unknown) => {
+      if (opts.failTable === table) return Promise.resolve(res({ count: null, data: null, error: { code: "XX000", message: `${table} read failed` } }));
       const c = opts.counts ?? { doors: 0, sold: 0, presentations: 0 };
       const count = spokenTo ? c.presentations : outcomeSold ? c.sold : c.doors;
       return Promise.resolve(res({ count, error: null }));
@@ -138,4 +142,14 @@ describe("getOrFreezeDayTarget", () => {
   });
 
   it("WINDOW_DAYS is 30", () => expect(WINDOW_DAYS).toBe(30));
+
+  // 2026-11-23: every read feeds a target frozen for the whole day. A failed read must not freeze a wrong one.
+  for (const table of ["rep_daily_sales_goal", "rep_day_target", "door_knocks_live"]) {
+    it(`a failed ${table} read throws and freezes NOTHING (not a target computed from zeros)`, async () => {
+      const insert = vi.fn();
+      const db = mockDb({ goal: 3, counts: { doors: 400, sold: 12, presentations: 90 }, onInsert: insert, failTable: table });
+      await expect(getOrFreezeDayTarget({ ...base, db })).rejects.toMatchObject({ message: `${table} read failed` });
+      expect(insert).not.toHaveBeenCalled();
+    });
+  }
 });

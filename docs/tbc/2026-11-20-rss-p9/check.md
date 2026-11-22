@@ -1160,3 +1160,14 @@ every rep at 0 doors / 0 sold and dropped reps who only knocked. It now returns 
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/assessment src/app/api/coach/sales-session/coach-assessment → 54 passed, exit 0
 ```
+
+Door day target: fail, don't freeze (same sweep). getOrFreezeDayTarget computes the rep's day target and FREEZES it for
+the whole day; it ignored the errors of all six reads. A failed manager-goal read froze a derived goal in place of the
+manager's; failed 30-day counts froze a starter target computed from zeros; a failed frozen-row read recomputed
+mid-day. Each read now throws its database error unchanged, which the route already catches — 503 "not available yet"
+for a missing table (its migration guard reads code/message), 500 "Couldn't load the door screen." otherwise — and
+nothing is frozen. 3 tests (one per table); run against the previous file, all 3 fail.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/doorlog src/app/api/coach/doorlog → 168 passed, exit 0
+```

@@ -71,21 +71,26 @@ export async function getOrFreezeDayTarget(args: {
   // select("*") not a named projection so a pre-0248 DB (sale_value_cents not yet added) doesn't error (A34); the
   // column reads as undefined and the cash box degrades to "sales to goal". Read LIVE on every open (not frozen)
   // because it's a display rate the manager may change intra-day — unlike the targets, which freeze.
-  const { data: goalRow } = await db
+  const { data: goalRow, error: goalError } = await db
     .from("rep_daily_sales_goal")
     .select("*")
     .eq("rep_id", repId)
     .maybeSingle();
+  // FAIL, DON'T FREEZE (2026-11-23). Every read below feeds a target that is FROZEN for the whole day. A swallowed error
+  // here froze a derived goal in place of the manager's; a swallowed count froze a starter target computed from zeros.
+  // The database error is thrown as-is so the route's migration guard (code/message) still recognises a missing table.
+  if (goalError) throw goalError;
   const salesGoal = (goalRow?.sales_goal as number | null) ?? null;
   const saleValueCents = (goalRow?.sale_value_cents as number | null | undefined) ?? null;
 
   // 1. Already frozen for today → return it unchanged (never recompute intra-day), with the LIVE $-per-sale.
-  const { data: frozen } = await db
+  const { data: frozen, error: frozenError } = await db
     .from("rep_day_target")
     .select("doors_target, presentations_target, sold_target, used_starter, sales_goal, close_ratio, contact_ratio")
     .eq("rep_id", repId)
     .eq("local_date", localDate)
     .maybeSingle();
+  if (frozenError) throw frozenError;
   if (frozen) {
     return {
       doorsTarget: frozen.doors_target as number,
@@ -122,6 +127,8 @@ export async function getOrFreezeDayTarget(args: {
     // do, and they would meet it before lunch on day one.
     db.from("door_knocks_live").select("local_date").eq("rep_id", repId).gte("local_date", since).lte("local_date", localDate),
   ]);
+  const countError = [doorsRes, soldRes, presRes, daysRes].find((r) => r.error)?.error;
+  if (countError) throw countError;
   const doors = doorsRes.count ?? 0;
   const sold = soldRes.count ?? 0;
   const presentations = presRes.count ?? 0;
