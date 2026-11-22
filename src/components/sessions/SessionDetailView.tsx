@@ -477,7 +477,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
           </Link>
           <StageChips sessionId={id} />
           <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
-          <MacroCallView sessionId={id} onFullView={() => setFullView(true)} />
+          <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
         </div>
       </>
     );

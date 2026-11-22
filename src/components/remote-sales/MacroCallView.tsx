@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Check, ClipboardCopy, Loader2, Mail, MessageSquareText, Plus, Sparkles } from "lucide-react";
+import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 
 /**
  * Remote Sales Macro Mode — one call, three tabs (docs/rss/MACRO-MODE-SPEC.md: "KEEP IT SIMPLE … 3 tabs").
@@ -39,7 +40,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "next", label: "Next Meeting" },
 ];
 
-export function MacroCallView({ sessionId, onFullView }: { sessionId: string; onFullView: () => void }) {
+export function MacroCallView({ sessionId, onFullView, onSeek }: { sessionId: string; onFullView: () => void; onSeek?: (s: number) => void }) {
   const [tab, setTab] = useState<Tab>("highlights");
   const [b, setB] = useState<BriefRes | null>(null);
   const [failed, setFailed] = useState(false);
@@ -101,7 +102,12 @@ export function MacroCallView({ sessionId, onFullView }: { sessionId: string; on
         ) : tab === "highlights" ? (
           <Highlights sessionId={sessionId} b={b} briefing={briefing} onPrepare={() => void prepare()} onChanged={() => void load()} />
         ) : tab === "coaching" ? (
-          <Coaching sessionId={sessionId} />
+          <>
+            <Coaching sessionId={sessionId} />
+            {/* The coaching loop lives here too: a rep reads what their manager sent; a manager answers a feedback
+                request from the inbox without leaving Macro Mode (the inbox links to this page). */}
+            <RemoteCallComments sessionId={sessionId} onSeek={onSeek} />
+          </>
         ) : (
           <NextMeeting sessionId={sessionId} b={b} briefing={briefing} onPrepare={() => void prepare()} onChanged={() => void load()} />
         )}

@@ -712,3 +712,17 @@ exit=0
 **Not done / limits.** Salesforce/HubSpot push and calendar sync (the spec's later steps). The AI reads have not run on a
 real call yet — the founder's first remote call after push is that check. 0303 must be applied before the code deploys
 (the screens say "waiting on migration 0303" otherwise, they do not break).
+
+## Addendum 2026-11-22 — Macro Mode's Coaching tab carries manager comments (workflow trace, §1.5.1 layer 3)
+
+Traced the manager's path after Macro Mode shipped: a rep's feedback request → Coaching inbox → "the manager comments on
+the call" → the call page. In Macro Mode that page shows the player and three tabs only, so the comment box added the
+same day (6f6b2f76) was not on it: the manager would land with no way to answer. `RemoteCallComments` now sits in the
+Coaching tab (a rep reads "From your manager" there; a manager writes there). MacroCallView render tests (4) cover the
+tabs, the pipeline entry, the checklist sending only what the rep kept as edited, the comment in Coaching, and the
+full-page escape hatch.
+
+```
+npx vitest run src/components/remote-sales → Test Files 2 passed (2), Tests 10 passed (10)
+npm run check → Test Files 802 passed | 1 skipped (803), CHECK_EXIT=0
+```

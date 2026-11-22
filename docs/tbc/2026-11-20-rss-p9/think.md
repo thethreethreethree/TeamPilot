@@ -77,6 +77,9 @@ login page, a button for a provider nobody configured, an import that invites so
    "how_this_build_will_embody_it": "0303 stores each change as a remote_prospect_events row and derives the current value in remote_prospects_current; every Macro Mode table has no-update/no-delete rules, checked by SQL harness claim 6."},
   {"id": "§3.3", "source_file": "CLAUDE.md", "line_range": "368-373", "read_at": "2026-11-22T09:04:20Z",
    "why_it_governs": "The follow-up draft and the Next Meeting checklist are the AI offering words and plans for the rep.",
-   "how_this_build_will_embody_it": "Nothing is sent or saved for the rep: drafts are copied and sent by the rep; the checklist becomes tasks only after the rep reviews, edits and saves it; the day plan only organizes what the rep wrote."}
+   "how_this_build_will_embody_it": "Nothing is sent or saved for the rep: drafts are copied and sent by the rep; the checklist becomes tasks only after the rep reviews, edits and saves it; the day plan only organizes what the rep wrote."},
+  {"id": "§1.5.1", "source_file": "CLAUDE.md", "line_range": "94-98", "read_at": "2026-11-22T09:07:38Z",
+   "why_it_governs": "Layer 3 (workflow continuity): Macro Mode's call view must not break the manager's feedback path from the Coaching inbox.",
+   "how_this_build_will_embody_it": "Traced inbox → call page in Macro Mode; the comment box moved into the Coaching tab so the path ends in an action, covered by a render test."}
 ]
 ```
