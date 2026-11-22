@@ -1195,3 +1195,6 @@ chains excluded); it matches the bugged line and finds nothing in the tree now.
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/gamification src/lib/__tests__/noQueryChainInComment.test.ts → passed, exit 0
 ```
+Rest of the dadfad4e edit set re-checked (same day): all 27 channel filters pair `context` with coaching_sessions and
+`channel` with a *_by_channel view (0301), and each sits in an unbroken chain; the weekly digest line was the only one
+whose query continued inside the comment.
