@@ -1,5 +1,5 @@
 import { ASSETS_BUCKET } from "@/lib/storage/assets";
-import { chunkPrefix } from "@/lib/coach/v5/stitchSessionAudio";
+import { chunkPrefix, finalRecordingPath } from "@/lib/coach/v5/stitchSessionAudio";
 
 /**
  * Remove one session's audio bytes from storage.
@@ -96,4 +96,43 @@ export async function removeRecordingAudio(
   }
 
   return { ok: true, chunksRemoved };
+}
+
+/**
+ * Remove EVERY audio object stored under one session's own folder — its live chunks and its canonical stitched
+ * file — and FAIL if storage refuses or cannot list. For legal erasure (CLAUDE.md §3.1.1 item 2: recordings are
+ * deleted), where "best effort" is not good enough: a chunk is a piece of the customer's recorded voice.
+ *
+ * WHY ERASURE NEEDS THIS AS WELL AS removeRecordingAudio (2026-11-23):
+ *   · removeRecordingAudio's chunk cleanup swallows errors by design (retention/delete must not strand a pointer),
+ *     so an erasure could report success with chunks still stored;
+ *   · it only runs for a call that HAS a recording pointer. A live call whose chunks were never stitched (a crash,
+ *     a lost tab) has no pointer and its chunks were never touched; nor was a stitched file whose pointer write
+ *     failed.
+ *
+ * Paths are derived from the ids, so nothing is guessed: the stitched file's path is fixed
+ * (finalRecordingPath), and remove() on a missing path is not an error, which here is the end state wanted.
+ * Chunks are listed and removed until a listing comes back empty (bounded), because a listing is capped.
+ */
+export async function removeSessionChunks(
+  storage: RecordingStorage,
+  args: { companyId: string; sessionId: string },
+): Promise<{ ok: true; removed: number } | { ok: false; reason: "storage-failed"; message: string }> {
+  const prefix = chunkPrefix(args.companyId, args.sessionId);
+  const bucket = storage.from(ASSETS_BUCKET);
+  let removed = 0;
+  for (let round = 0; round < 20; round++) {
+    const { data, error } = await bucket.list(prefix, { limit: 1000 });
+    if (error) return { ok: false, reason: "storage-failed", message: `listing chunks: ${error.message}` };
+    const names = (data ?? []).map((o) => `${prefix}/${o.name}`);
+    if (names.length === 0) {
+      const { error: fErr } = await bucket.remove([finalRecordingPath(args.companyId, args.sessionId)]);
+      if (fErr && !isAlreadyGone(fErr.message)) return { ok: false, reason: "storage-failed", message: fErr.message };
+      return { ok: true, removed };
+    }
+    const { error: rErr } = await bucket.remove(names);
+    if (rErr && !isAlreadyGone(rErr.message)) return { ok: false, reason: "storage-failed", message: rErr.message };
+    removed += names.length;
+  }
+  return { ok: false, reason: "storage-failed", message: "chunks were still listed after 20 removal rounds" };
 }

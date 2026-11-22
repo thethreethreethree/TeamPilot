@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
-vi.mock("@/lib/coach/v5/removeRecordingAudio", () => ({ removeRecordingAudio: vi.fn() }));
+vi.mock("@/lib/coach/v5/removeRecordingAudio", () => ({ removeRecordingAudio: vi.fn(), removeSessionChunks: vi.fn() }));
 const db = vi.hoisted(() => ({
   log: [] as string[],
   matches: [] as unknown[],
@@ -44,7 +44,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
-import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
+import { removeRecordingAudio, removeSessionChunks } from "@/lib/coach/v5/removeRecordingAudio";
 import { GET, POST } from "../route";
 import { unfinishedRequests } from "@/lib/coach/remote/erasure";
 
@@ -65,6 +65,7 @@ beforeEach(() => {
   db.completionsError = null;
   vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
   vi.mocked(removeRecordingAudio).mockResolvedValue({ ok: true, chunksRemoved: 0 });
+  vi.mocked(removeSessionChunks).mockResolvedValue({ ok: true, removed: 0 });
 });
 
 describe("POST /api/coach/remote/erasure", () => {
@@ -105,6 +106,24 @@ describe("POST /api/coach/remote/erasure", () => {
     expect(removeRecordingAudio).toHaveBeenCalledOnce();
     expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "erasure.request", objectId: "req-1" }));
     expect(await res.json()).toMatchObject({ erased: 1, audioRemoved: 1 });
+  });
+  // 2026-11-23: §3.1.1 item 2 — recordings deleted, including live chunks of a call that never got a recording pointer.
+  it("clears every asked call's own audio folder, including a call with no recording file", async () => {
+    db.audio = [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }];
+    const res = await POST(post({ action: "erase", kind: "phone", value: "5550100123", sessionIds: ["s1", "s2"] }));
+    expect(res.status).toBe(200);
+    expect(removeRecordingAudio).toHaveBeenCalledOnce(); // only s1 has a pointer
+    expect(vi.mocked(removeSessionChunks).mock.calls.map((c) => c[1])).toEqual([
+      { companyId: "co1", sessionId: "s1" },
+      { companyId: "co1", sessionId: "s2" },
+    ]);
+  });
+  it("a chunk folder that can't be cleared stops the erasure before the database is touched", async () => {
+    vi.mocked(removeSessionChunks).mockResolvedValue({ ok: false, reason: "storage-failed", message: "listing chunks: boom" });
+    const res = await POST(post({ action: "erase", kind: "phone", value: "5550100123", sessionIds: ["s2"] }));
+    expect(res.status).toBe(500);
+    expect(db.log).not.toContain("rpc:rss_erase_sessions");
+    expect((await res.json()).error).toMatch(/nothing else was erased/i);
   });
   it("no hashing key on the server: refused before anything is recorded or removed", async () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;

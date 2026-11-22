@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { removeRecordingAudio, type RecordingStorage } from "../removeRecordingAudio";
+import { removeRecordingAudio, removeSessionChunks, type RecordingStorage } from "../removeRecordingAudio";
 import { ASSETS_BUCKET } from "@/lib/storage/assets";
 
 /**
@@ -124,5 +124,74 @@ describe("removeRecordingAudio", () => {
     });
     expect(result).toEqual({ ok: true, chunksRemoved: 0 });
     expect(calls.filter((c) => c.op === "list")).toHaveLength(0);
+  });
+});
+
+/**
+ * Erasure's strict version (2026-11-23, CLAUDE.md §3.1.1 item 2). A stateful fake: the bucket holds objects, list
+ * returns what is under a prefix (capped), remove deletes them — so "until the listing is empty" is really exercised.
+ */
+function bucketWith(paths: string[], opts: { cap?: number; listError?: string; removeError?: string } = {}) {
+  const held = new Set(paths);
+  const removed: string[][] = [];
+  const storage: RecordingStorage = {
+    from() {
+      return {
+        async remove(ps: string[]) {
+          removed.push(ps);
+          if (opts.removeError) return { error: { message: opts.removeError } };
+          for (const x of ps) held.delete(x);
+          return { error: null };
+        },
+        async list(prefix: string, o?: { limit?: number }) {
+          if (opts.listError) return { data: null, error: { message: opts.listError } };
+          const under = [...held].filter((x) => x.startsWith(`${prefix}/`)).map((x) => ({ name: x.slice(prefix.length + 1) }));
+          return { data: under.slice(0, Math.min(o?.limit ?? 100, opts.cap ?? Infinity)), error: null };
+        },
+      };
+    },
+  };
+  return { storage, held, removed };
+}
+
+describe("removeSessionChunks (erasure: strict)", () => {
+  const ids = { companyId: "comp-1", sessionId: "sess-1" };
+
+  it("removes every chunk, past a capped listing, and the canonical stitched file", async () => {
+    const chunks = Array.from({ length: 7 }, (_, i) => `comp-1/sess-1/chunks/${i}.webm`);
+    const { storage, held, removed } = bucketWith([...chunks, "comp-1/sess-1/recording.webm", "comp-1/other/chunks/0.webm"], { cap: 3 });
+    expect(await removeSessionChunks(storage, ids)).toEqual({ ok: true, removed: 7 });
+    expect([...held]).toEqual(["comp-1/other/chunks/0.webm"]); // another session's audio is untouched
+    expect(removed.at(-1)).toEqual(["comp-1/sess-1/recording.webm"]);
+  });
+
+  it("succeeds on a call with nothing stored — the end state is already true", async () => {
+    const { storage } = bucketWith([]);
+    expect(await removeSessionChunks(storage, ids)).toEqual({ ok: true, removed: 0 });
+  });
+
+  it("FAILS when the chunks cannot be listed — unlike removeRecordingAudio's best-effort cleanup", async () => {
+    const { storage } = bucketWith(["comp-1/sess-1/chunks/0.webm"], { listError: "denied" });
+    expect(await removeSessionChunks(storage, ids)).toMatchObject({ ok: false, reason: "storage-failed" });
+  });
+
+  it("FAILS when storage refuses to remove them", async () => {
+    const { storage } = bucketWith(["comp-1/sess-1/chunks/0.webm"], { removeError: "quota" });
+    expect(await removeSessionChunks(storage, ids)).toMatchObject({ ok: false, reason: "storage-failed", message: "quota" });
+  });
+
+  it("does not loop forever when chunks never go away", async () => {
+    let lists = 0;
+    const storage: RecordingStorage = {
+      from: () => ({
+        remove: async () => ({ error: null }),
+        list: async () => {
+          lists++;
+          return { data: [{ name: "0.webm" }], error: null };
+        },
+      }),
+    };
+    expect(await removeSessionChunks(storage, ids)).toMatchObject({ ok: false, reason: "storage-failed" });
+    expect(lists).toBe(20);
   });
 });

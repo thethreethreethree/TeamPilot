@@ -1125,3 +1125,17 @@ coached, dropped AWAITING REP REVIEW and restarted stalled clocks. It now return
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/patterns src/app/api/coach/sales-session/patterns → 191 passed, exit 0
 ```
+
+Erasure removes every piece of a call's recorded audio (2026-11-23; CLAUDE.md §3.1.1 item 2, read this session). Two
+gaps, found in a sweep of reads that ignore their error: (1) erasure removed audio only for calls with a recording
+pointer, so a live call whose chunks were never stitched (crash, lost tab) kept its chunks — and a stitched file whose
+pointer write failed was never touched; (2) removeRecordingAudio's chunk cleanup is best-effort by design (retention and
+the manager delete must not strand a pointer), so an erasure could report success with chunks still stored. Now
+removeSessionChunks lists and removes `${company}/${session}/chunks` until a listing is empty (bounded at 20 rounds),
+then removes the canonical `recording.webm`, and FAILS on any list or remove error; erasure runs it for every asked call
+after the pointer removals and stops before rss_erase_sessions if one fails. Retention and manager delete unchanged.
+Production storage: listing a prefix that does not exist → HTTP 200 `[]` (so a call with no chunks erases cleanly).
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/erasure src/lib/coach/v5/__tests__/removeRecordingAudio.test.ts src/app/api/coach/sales-session → 668 passed, exit 0
+```

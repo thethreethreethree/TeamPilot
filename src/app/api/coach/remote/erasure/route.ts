@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
-import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
+import { removeRecordingAudio, removeSessionChunks } from "@/lib/coach/v5/removeRecordingAudio";
 import {
   ERASURE_KINDS,
   ErasureInputError,
@@ -195,6 +195,19 @@ export async function POST(req: NextRequest) {
       );
     }
     audioRemoved += 1;
+  }
+  // Every asked call's own audio folder too — live chunks and the canonical stitched file — and strictly. A call that
+  // never got a recording pointer (chunks never stitched) was skipped above, and removeRecordingAudio's chunk cleanup is
+  // best-effort; neither is acceptable for an erasure (2026-11-23).
+  for (const id of asked) {
+    const c = await removeSessionChunks(admin.storage, { companyId: ctx.companyId, sessionId: id });
+    if (!c.ok) {
+      console.error(`[erasure] audio chunks not removed session=${id} request=${request.id}: ${c.message}`);
+      return NextResponse.json(
+        { error: "A recording couldn't be removed, so nothing else was erased. Try again.", audioRemovedBeforeStop: audioRemoved },
+        { status: 500 },
+      );
+    }
   }
 
   const { data: result, error: eErr } = await admin.rpc("rss_erase_sessions", {
