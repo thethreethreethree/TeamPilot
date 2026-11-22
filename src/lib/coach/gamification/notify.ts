@@ -269,3 +269,88 @@ export async function notifyCallReady(args: { companyId: string; sessionId: stri
     return false;
   }
 }
+
+/**
+ * Gong F15.21 (0305): a rep disputed a score → the rep's managers (resolveManagers — the one fan-out rule). Upserted on
+ * (recipient_id, type, session_id): a second dispute on the same call brings the one alert back to the top. The
+ * payload carries the call's channel so the bell sends the manager to the right module's queue (Remote Sales →
+ * Coaching for a phone/video call, Coach Assessment for a door pitch). Best-effort; the dispute is already stored.
+ */
+export async function notifyScoreDisputed(args: {
+  companyId: string;
+  repId: string;
+  sessionId: string | null;
+  pitchId: string;
+  note: string;
+  channel: string | null;
+}): Promise<number> {
+  try {
+    const recipients = await resolveManagers(args.companyId, args.repId);
+    if (recipients.length === 0) return 0;
+    const admin = createAdminClient();
+    const { data: prof } = await admin.from("profiles").select("full_name").eq("company_id", args.companyId).eq("id", args.repId).maybeSingle();
+    const now = new Date().toISOString();
+    const { error } = await admin.from("manager_notifications").upsert(
+      recipients.map((recipient_id) => ({
+        company_id: args.companyId,
+        recipient_id,
+        agent_id: args.repId,
+        session_id: args.sessionId,
+        type: "score_disputed",
+        payload: { agent_name: (prof?.full_name as string | null) ?? null, pitch_id: args.pitchId, excerpt: args.note.slice(0, 160), channel: args.channel },
+        created_at: now,
+        read_at: null,
+      })),
+      { onConflict: "recipient_id,type,session_id" },
+    );
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(`[gamification-notify] score_disputed failed pitch=${args.pitchId}: ${error.message}`);
+      return 0;
+    }
+    return recipients.length;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[gamification-notify] notifyScoreDisputed threw:", e instanceof Error ? e.message : e);
+    return 0;
+  }
+}
+
+/** Gong F15.21 (0305): a manager answered a rep's dispute → that rep. Upserted like the dispute. Best-effort. */
+export async function notifyDisputeAnswered(args: {
+  companyId: string;
+  repId: string;
+  managerId: string;
+  sessionId: string | null;
+  pitchId: string;
+  note: string;
+}): Promise<boolean> {
+  try {
+    if (args.repId === args.managerId) return false;
+    const { error } = await createAdminClient().from("manager_notifications").upsert(
+      [
+        {
+          company_id: args.companyId,
+          recipient_id: args.repId,
+          agent_id: args.repId,
+          session_id: args.sessionId,
+          type: "dispute_answered",
+          payload: { pitch_id: args.pitchId, excerpt: args.note.slice(0, 160) },
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ],
+      { onConflict: "recipient_id,type,session_id" },
+    );
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(`[gamification-notify] dispute_answered failed pitch=${args.pitchId}: ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[gamification-notify] notifyDisputeAnswered threw:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}

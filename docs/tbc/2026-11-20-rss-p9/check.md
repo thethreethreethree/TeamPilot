@@ -794,3 +794,24 @@ exit=0
 (without 0304) ✗ 0304: … — a manager used up the rep's checklist review   exit=1
 ```
 Render tests: a manager viewing a rep's call reads but cannot act (MacroCallView, 15 tests pass).
+
+## Addendum 2026-11-22 — score disputes reach the other person, in the right module (Gong F15.21)
+
+**Understanding.** The re-graded ledger kept F15.21 LACK: filing or answering a dispute notified nobody. Reading the
+queue found a second, separation gap: the dispute queue (all channels) lived only in Sales Coach → Coach Assessment, so a
+remote rep's dispute surfaced outside Remote Sales and a Remote Sales manager had no queue in their module.
+
+**Build.** 0305 adds `score_disputed` (→ the rep's managers, via resolveManagers, the one fan-out rule) and
+`dispute_answered` (→ the rep) to the closed notification set; both upsert on (recipient, type, session) like
+feedback_requested. The dispute route alerts after the event is stored (with the call's channel); the answer route
+alerts the rep after the answer is stored, never on a failed save. The queue route takes ?module= and filters by
+pitch_scores_by_channel (0301): Coach Assessment = in person, Remote Sales → Coaching (new section) = phone/video. The
+bell: wording for both, the dot for the rep's, and destinations — a dispute opens its own module's queue.
+
+**Verification.** enum:audit: every declared mirror matches its CHECK set (the bell's union = 0305's list). Tests: the
+dispute alert carries the channel; each module's queue holds only its calls' disputes; an answer alerts the rep, a failed
+answer alerts nobody.
+
+```
+npx vitest run src/app/api/coach/sales-session/pitch-score/dispute src/…/disputes → Tests 38 passed, exit 0
+```

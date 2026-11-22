@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyDisputeAnswered } from "@/lib/coach/gamification/notify";
+import { contextsOf, type CallModule } from "@/lib/coach/sessionContext";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
@@ -60,7 +62,26 @@ export async function GET(req: NextRequest) {
   // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
   // readDisputes reads the company with the service role; only the reps this manager may see are kept.
   const visible = new Set(await treeFilterReps(req, [...new Set(disputes.map((d) => d.repId))]));
-  return NextResponse.json({ disputes: disputes.filter((d) => visible.has(d.repId)) });
+  const mine = disputes.filter((d) => visible.has(d.repId));
+
+  // Each module's queue holds its own calls' disputes (founder 2026-11-22: Remote Sales separate from Sales Coach):
+  // ?module=remote_sales → phone/video; default → in-person. The channel comes from pitch_scores_by_channel (0301), the
+  // same view every other Sales Coach / Remote Sales split reads. A failed channel read is a 500, never a wrong queue.
+  const scope: CallModule = req.nextUrl.searchParams.get("module") === "remote_sales" ? "remote_sales" : "sales_coach";
+  const ids = [...new Set(mine.map((d) => d.pitchId))];
+  if (ids.length === 0) return NextResponse.json({ disputes: [] });
+  const { data: ch, error: chErr } = await createAdminClient()
+    .from("pitch_scores_by_channel")
+    .select("id, channel")
+    .eq("company_id", mgr.companyId)
+    .in("id", ids);
+  if (chErr) {
+    console.error(`[pitch-disputes] channel read failed company=${mgr.companyId}: ${chErr.message}`);
+    return NextResponse.json({ error: "Could not load the dispute queue." }, { status: 500 });
+  }
+  const allowed = new Set<string>(contextsOf(scope));
+  const inScope = new Set(((ch ?? []) as Array<{ id: string; channel: string }>).filter((r) => allowed.has(r.channel)).map((r) => String(r.id)));
+  return NextResponse.json({ disputes: mine.filter((d) => inScope.has(d.pitchId)) });
 }
 
 export async function POST(req: NextRequest) {
@@ -80,7 +101,7 @@ export async function POST(req: NextRequest) {
   // this is a write and the tenant has to be proven on the way IN.
   const { data: pitch, error: readError } = await admin
     .from("pitch_scores")
-    .select("id, rep_id, company_id")
+    .select("id, rep_id, company_id, session_id")
     .eq("id", body.pitchId)
     .maybeSingle();
 
@@ -117,6 +138,16 @@ export async function POST(req: NextRequest) {
     // the rep is left with silence — which is exactly the state the dispute was meant to end.
     return NextResponse.json({ error: "Your reply was not saved. Please try again." }, { status: 500 });
   }
+
+  // F15.21 (0305): the rep is told their dispute was answered. Best-effort; the answer is already on record.
+  await notifyDisputeAnswered({
+    companyId: mgr.companyId,
+    repId: String(pitch.rep_id),
+    managerId: mgr.userId,
+    sessionId: (pitch.session_id as string | null) ?? null,
+    pitchId: body.pitchId,
+    note: body.note,
+  });
 
   return NextResponse.json({ ok: true });
 }

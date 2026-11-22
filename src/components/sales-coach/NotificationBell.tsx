@@ -50,7 +50,9 @@ type Notif = {
     | "feedback_requested"
     | "training_attempted"
     | "call_ready"
-    | "comment_mention";
+    | "comment_mention"
+    | "score_disputed"
+    | "dispute_answered";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -74,6 +76,8 @@ type Notif = {
     author_name?: string | null;
     /** call_ready: the client name the rep gave the uploaded call, if any. */
     client_label?: string | null;
+    /** score_disputed: the call's channel, which picks the module whose queue the alert opens. */
+    channel?: string | null;
     passed?: boolean | null;
   };
   created_at: string;
@@ -108,6 +112,10 @@ function text(n: Notif): string {
   if (n.type === "recording_share_requested") {
     return "Your manager asked to play one of your pitches to the team";
   }
+  // Gong F15.21 (0305): the rep's dispute has an answer. Addressed to the rep.
+  if (n.type === "dispute_answered") {
+    return `Your manager answered your score dispute${n.payload.excerpt ? `: “${n.payload.excerpt}”` : ""}`;
+  }
   if (n.type === "pattern_coached") {
     const what = n.payload.pattern_label ? ` on “${n.payload.pattern_label}”` : "";
     // The action decides the verb, which is why one notification type carries three of them.
@@ -122,6 +130,10 @@ function text(n: Notif): string {
   if (n.type === "pattern_clip_disputed") {
     const what = n.payload.pattern_label ? ` on “${n.payload.pattern_label}”` : "";
     return `${who} says a clip looks wrong${what}`;
+  }
+  // Gong F15.21 (0305): a rep disputed a score — to their managers.
+  if (n.type === "score_disputed") {
+    return `${who} disputed a score${n.payload.excerpt ? `: “${n.payload.excerpt}”` : ""}`;
   }
   // RSS F9.8 (0294): someone @mentioned this person on a recording comment.
   if (n.type === "comment_mention") {
@@ -179,6 +191,7 @@ const REP_ADDRESSED: ReadonlySet<Notif["type"]> = new Set([
   "recording_comment",
   "recording_share_requested",
   "pattern_coached",
+  "dispute_answered",
 ]);
 
 /**
@@ -201,12 +214,21 @@ function destination(n: Notif): string | null {
       ? `/dashboard/sales-coach/doors/report-card/${n.payload.pitch_id}`
       : null;
   }
+  // F15.21: a dispute lands on the queue of the module the call belongs to — Remote Sales → Coaching for phone/video,
+  // Coach Assessment (at the dispute) for a door pitch. Never the other module's queue, which would not list it.
+  if (n.type === "score_disputed") {
+    return n.payload.channel === "phone" || n.payload.channel === "video"
+      ? "/dashboard/remote-sales/coaching"
+      : `/dashboard/sales-coach/coach-assessment${n.payload.pitch_id ? `#dispute-${n.payload.pitch_id}` : ""}`;
+  }
   if (!n.session_id) return null;
   // The session page, NOT /after-pitch and NOT the door-log report card. PitchScorePanel — and
   // the corrections section the rep is being sent to read — renders on
   // /dashboard/sales-coach/[id], where [id] is the session id. The door-log report card takes a
   // pitchId and belongs to a different feature that happens to share the word "pitch".
-  return n.type === "pitch_score_corrected" || n.type === "call_ready" || n.type === "comment_mention"
+  // dispute_answered: the call page, where the answer shows under the score (the module router sends a remote call to
+  // Remote Sales).
+  return n.type === "pitch_score_corrected" || n.type === "call_ready" || n.type === "comment_mention" || n.type === "dispute_answered"
     ? `/dashboard/sales-coach/${n.session_id}`
     : `/dashboard/sales-coach/${n.session_id}/after-pitch`;
 }

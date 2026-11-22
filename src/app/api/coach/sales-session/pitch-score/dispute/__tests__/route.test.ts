@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: vi.fn(() => null) }));
 vi.mock("@/lib/api/callerCompanyId", () => ({ callerCompanyId: vi.fn(async () => "co1") }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
+vi.mock("@/lib/coach/gamification/notify", () => ({ notifyScoreDisputed: vi.fn(async () => 1) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { callerCompanyId } from "@/lib/api/callerCompanyId";
@@ -46,6 +47,13 @@ const setup = (opts: {
         data: "pitch" in opts ? opts.pitch : PITCH_ROW,
         error: opts.readError ?? null,
       });
+      return chain;
+    }
+    if (table === "coaching_sessions") {
+      const chain: Record<string, unknown> = {};
+      chain.select = () => chain;
+      chain.eq = () => chain;
+      chain.maybeSingle = async () => ({ data: { context: "phone" }, error: null });
       return chain;
     }
     return {
@@ -195,5 +203,13 @@ describe("validation", () => {
     const res = await POST(req({ pitchId: PITCH_ID, note: "x".repeat(1001) }));
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(inserted).toBeNull();
+  });
+
+  it("tells the rep's managers, with the call's channel so the alert opens the right module's queue (F15.21)", async () => {
+    const { notifyScoreDisputed } = await import("@/lib/coach/gamification/notify");
+    setup();
+    const res = await POST(req(GOOD));
+    expect(res.status).toBe(200);
+    expect(notifyScoreDisputed).toHaveBeenCalledWith(expect.objectContaining({ repId: "rep1", pitchId: PITCH_ID, sessionId: "sess1", channel: "phone" }));
   });
 });

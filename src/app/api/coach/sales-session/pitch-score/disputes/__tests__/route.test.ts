@@ -20,6 +20,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/readDisputes", () => ({ readDisputes: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
+vi.mock("@/lib/coach/gamification/notify", () => ({ notifyDisputeAnswered: vi.fn(async () => true) }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
@@ -46,6 +47,14 @@ const setDb = (opts: { pitch?: unknown; readError?: { message: string } | null }
           data: "pitch" in opts ? opts.pitch : { id: PITCH_ID, rep_id: "rep1", company_id: "c1" },
           error: opts.readError ?? null,
         });
+        return chain;
+      }
+      if (table === "pitch_scores_by_channel") {
+        // 0301 channel per pitch: p-door is in person, p-phone a phone call.
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.in = async () => ({ data: [{ id: "p-door", channel: "in_person" }, { id: "p-phone", channel: "phone" }], error: null });
         return chain;
       }
       return {
@@ -97,9 +106,22 @@ describe("managers only, both verbs", () => {
 
 describe("GET — the queue", () => {
   it("returns the open disputes", async () => {
-    asMock(readDisputes).mockResolvedValue([{ id: "d1", note: "wrong", open: true }]);
+    asMock(readDisputes).mockResolvedValue([{ id: "d1", pitchId: "p-door", repId: "rep1", note: "wrong", open: true }]);
     const body = await (await GET(getReq())).json();
     expect(body.disputes).toHaveLength(1);
+  });
+
+  it("each module's queue holds its own calls' disputes (Remote Sales separate from Sales Coach)", async () => {
+    const both = [
+      { id: "d1", pitchId: "p-door", repId: "rep1", note: "door", open: true },
+      { id: "d2", pitchId: "p-phone", repId: "rep1", note: "phone", open: true },
+    ];
+    asMock(readDisputes).mockResolvedValue(both);
+    const sales = await (await GET(getReq())).json();
+    expect(sales.disputes.map((d: { id: string }) => d.id)).toEqual(["d1"]);
+    asMock(readDisputes).mockResolvedValue(both);
+    const remote = await (await GET(getReq("module=remote_sales"))).json();
+    expect(remote.disputes.map((d: { id: string }) => d.id)).toEqual(["d2"]);
   });
 
   it("500s rather than showing an empty queue when the read fails", async () => {
@@ -216,3 +238,22 @@ describe("validation and limits", () => {
     expect(requireSalesCoachManager).not.toHaveBeenCalled();
   });
 });
+
+describe("F15.21 — the rep hears the answer", () => {
+  it("a saved answer notifies the rep whose score it is", async () => {
+    const { notifyDisputeAnswered } = await import("@/lib/coach/gamification/notify");
+    const res = await POST(postReq(GOOD));
+    expect(res.status).toBe(200);
+    expect(notifyDisputeAnswered).toHaveBeenCalledWith(expect.objectContaining({ repId: "rep1", managerId: "mgr1", pitchId: PITCH_ID }));
+  });
+
+  it("a failed answer notifies nobody — the rep must not be told about a reply that does not exist", async () => {
+    const { notifyDisputeAnswered } = await import("@/lib/coach/gamification/notify");
+    insertError = { message: "boom" };
+    // setDb resets insertError, so set it after the db is in place.
+    const res = await POST(postReq(GOOD));
+    expect(res.status).toBe(500);
+    expect(notifyDisputeAnswered).not.toHaveBeenCalled();
+  });
+});
+

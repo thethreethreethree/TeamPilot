@@ -94,14 +94,16 @@ function mmss(totalSeconds: number): string {
   return `${Math.floor(totalSeconds / 60)}:${String(Math.floor(totalSeconds % 60)).padStart(2, "0")}`;
 }
 
-export function DisputeQueue({ repName }: { repName?: (repId: string) => string }) {
+export function DisputeQueue({ repName, module = "sales_coach" }: { repName?: (repId: string) => string; module?: "sales_coach" | "remote_sales" }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [showAnswered, setShowAnswered] = useState(false);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     try {
-      const res = await fetch(`${ENDPOINT}${showAnswered ? "?includeAnswered=1" : ""}`);
+      // Each module shows its own calls' disputes (the route filters by channel).
+      const qs = new URLSearchParams({ ...(showAnswered ? { includeAnswered: "1" } : {}), ...(module === "remote_sales" ? { module } : {}) }).toString();
+      const res = await fetch(`${ENDPOINT}${qs ? `?${qs}` : ""}`);
       if (!res.ok) {
         setState({ kind: "failed" });
         return;
@@ -111,7 +113,7 @@ export function DisputeQueue({ repName }: { repName?: (repId: string) => string 
     } catch {
       setState({ kind: "failed" });
     }
-  }, [showAnswered]);
+  }, [showAnswered, module]);
 
   useEffect(() => {
     void load();

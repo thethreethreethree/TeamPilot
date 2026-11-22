@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyScoreDisputed } from "@/lib/coach/gamification/notify";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
@@ -103,6 +104,22 @@ export async function POST(req: NextRequest) {
     // and which does not exist is worse than an error they can retry.
     return NextResponse.json({ error: "Your dispute was not sent. Please try again." }, { status: 500 });
   }
+
+  // F15.21 (0305): the rep's managers are told — before this, a dispute waited until someone opened the queue. The
+  // call's channel picks which module's queue the alert opens. Best-effort: the dispute itself is already on record.
+  let channel: string | null = null;
+  if (pitch.session_id) {
+    const { data: s } = await supabase.from("coaching_sessions").select("context").eq("id", pitch.session_id).maybeSingle();
+    channel = (s?.context as string | null) ?? null;
+  }
+  await notifyScoreDisputed({
+    companyId,
+    repId: String(pitch.rep_id),
+    sessionId: (pitch.session_id as string | null) ?? null,
+    pitchId: body.pitchId,
+    note: body.note,
+    channel,
+  });
 
   return NextResponse.json({ ok: true });
 }
