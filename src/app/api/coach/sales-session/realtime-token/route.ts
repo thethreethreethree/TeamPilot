@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { mintRealtimeSttToken } from "@/lib/care/voice/elevenlabs";
+import { readCompanyKeyterms } from "@/lib/coach/remote/vocabulary";
 
 /**
  * POST /api/coach/sales-session/realtime-token (Live Sales Coach S1b)
@@ -37,7 +38,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const token = await mintRealtimeSttToken();
-    return NextResponse.json({ token });
+    // The company's transcription vocabulary (0306, opt-in; [] = off). Read through the CALLER's client: the select
+    // policy is the caller's own company. The browser appends it to the socket as repeated `keyterms=` params.
+    // Best-effort: a failed lookup gives no vocabulary, never a failed token.
+    let keyterms: string[] = [];
+    try {
+      const { data: prof } = await supabase.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle();
+      if (prof?.company_id) keyterms = await readCompanyKeyterms(supabase, String(prof.company_id));
+    } catch (e) {
+      console.error("[realtime-token] vocabulary lookup failed:", e instanceof Error ? e.message : e);
+    }
+    return NextResponse.json({ token, keyterms });
   } catch (err) {
     // Log the real cause server-side (missing ELEVENLABS_API_KEY vs a provider 401/402/403/429 — see
     // elevenlabs.ts getApiKey + mintRealtimeSttToken), but never show the rep developer jargon like

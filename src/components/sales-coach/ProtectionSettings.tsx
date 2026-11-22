@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { VocabularySettings } from "@/components/remote-sales/VocabularySettings";
 
 /**
  * Settings → Protection (RSS Phase 8, migration 0284; docs/rss/docs/06-UI-SPEC.md "Admin"). Company admins only — the
@@ -28,6 +29,7 @@ const ACTION_WORDS: Record<string, string> = {
   "session.export": "Exported calls",
   "session.download": "Downloaded a call",
   "retention.set": "Changed recording retention",
+  "vocabulary.set": "Changed the transcription vocabulary",
   "erasure.request": "Asked for a customer's data to be erased",
   "webhook.add": "Added a webhook",
   "webhook.off": "Turned off a webhook",
@@ -47,6 +49,8 @@ function detail(r: AuditRow): string {
   switch (r.action) {
     case "retention.set":
       return `Keep the last ${String(m.keepLastPerRep)} per rep`;
+    case "vocabulary.set":
+      return Number(m.count) ? `${String(m.count)} term${m.count === 1 ? "" : "s"}` : "Turned off";
     case "recording.trim":
     case "recording.trim_restore":
       return `${mmss(m.startMs)}–${mmss(m.endMs)}`;
@@ -174,6 +178,8 @@ export function ProtectionSettings() {
           </div>
         )}
       </section>
+
+      <VocabularySettings />
 
       <section className="rounded-xl border border-default bg-surface p-4" aria-label="Audit log">
         <div className="flex flex-wrap items-center gap-2">

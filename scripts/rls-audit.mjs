@@ -225,6 +225,10 @@ const ALLOWLIST = new Map([
   ["remote_followup_drafts.delete", "0303 §3.1 append-only (DB rule too)."],
   ["remote_day_plans.update", "0303 §3.1 append-only (DB rule too): changing the plan appends; the latest for the day is current."],
   ["remote_day_plans.delete", "0303 §3.1 append-only (DB rule too)."],
+  // 0306 — transcription vocabulary (Gong F8.9).
+  ["company_stt_vocabulary.insert", "0306 written by /api/coach/remote/settings/vocabulary (service role) after it checks the caller is a company admin and validates every term against the provider's rules; it costs money, so no client may write it."],
+  ["company_stt_vocabulary.update", "0306 §3.1 append-only (DB rule too): a change is a new row; the latest is current."],
+  ["company_stt_vocabulary.delete", "0306 §3.1 append-only (DB rule too)."],
   ["callback_tasks.delete", "0281 §3.1 append-only (DB rule too)."],
   ["ask_coach_chats.insert", "0281 written by askCoach after every call in it was opened through the caller's client; owner stamped from auth."],
   ["ask_coach_chats.update", "0281 §3.1 append-only (DB rule too)."],

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readCompanyKeyterms } from "@/lib/coach/remote/vocabulary";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession } from "@/lib/data/salesCoach";
@@ -156,6 +157,7 @@ export async function POST(
       mimeType: dl.contentType || "audio/webm",
       numSpeakers: 2,
       meter: { engine: "stt_retranscribe", companyId, sessionId: id },
+      keyterms: await readCompanyKeyterms(admin, companyId), // 0306 vocabulary; [] when unset
     });
     segments = t.segments;
     durationSeconds = t.durationSeconds;

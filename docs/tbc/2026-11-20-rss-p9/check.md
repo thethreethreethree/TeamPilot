@@ -872,3 +872,31 @@ training_attempt is stored either.
 npx vitest run src/app/api/coach/sales-session/roleplay → Tests 18 passed (18), exit 0 (testRun.route.test.ts: ordinary
 practice recorded once; a test run recorded nowhere)
 ```
+
+## Addendum 2026-11-22 — transcription vocabulary, verified live first (Gong F8.9)
+
+**Understanding.** ElevenLabs documents `keyterms` (batch and realtime) at a 20% transcription surcharge, but not which
+models accept it nor the wire encoding. Rather than build on a guess (§1.5.3), five live probes with one second of
+generated silence (no customer data; the API key read in-script, never printed):
+
+```
+batch scribe_v1 keyterms=none: HTTP 200
+batch scribe_v1 keyterms=repeated: HTTP 200
+batch scribe_v1 keyterms=json: HTTP 400 {"detail":{"type":"validation_error","code":"invalid_parameters","message":"Some keyword contains invalid characters",...
+batch scribe_v2 keyterms=repeated: HTTP 200
+realtime first message: session_started keyterms=["Spectrum","AT&T Fiber"]
+```
+
+**Build.** 0306 company_stt_vocabulary (append-only; latest row = current; empty = off = no surcharge; ≤100 terms —
+above 100 the provider bills a 20 s minimum). The provider's term rules (≤50 chars, ≤5 words, no < > { } [ ] \) are
+enforced on save, since a refused list would fail every transcription. Batch: upload-recording, retranscribe and
+transcript recovery pass the list as repeated form fields. Live: realtime-token returns it with the token (read via the
+caller's client) and both sockets — the rep's mic and the prospect's call audio — append repeated keyterms=. Protection →
+Transcription vocabulary (admins edit; the 20% cost is stated; audited as vocabulary.set).
+
+```
+npx vitest run src/lib/coach/remote/__tests__/vocabulary.test.ts src/lib/care/voice/__tests__/transcribeKeyterms.test.ts → 7 passed, exit 0
+```
+Found by the gate: the first cut of readCompanyKeyterms could THROW (a client without the table), which aborted
+transcript recovery and token minting in three existing suites. It now never throws — no vocabulary, never a failed
+transcription or socket — and a test pins it (vocabulary.test.ts: erroring and throwing clients → []).

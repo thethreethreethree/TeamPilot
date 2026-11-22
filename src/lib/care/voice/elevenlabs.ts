@@ -459,6 +459,9 @@ export async function transcribeWithDiarization(args: {
   numSpeakers?: number;
   /** AI cost ledger (ai_usage.audio_seconds): who this transcription is for. Recorded after a successful read. */
   meter?: LlmAttribution;
+  /** The company's vocabulary (0306, opt-in — costs a 20% surcharge). Sent as REPEATED form fields: verified live
+   *  2026-11-22 that scribe_v1 accepts them (200) and refuses a JSON-encoded list (400 invalid_keyword). */
+  keyterms?: string[];
 }): Promise<{ segments: DiarizedSegment[]; durationSeconds: number }> {
   const apiKey = getApiKey();
   const form = new FormData();
@@ -470,6 +473,7 @@ export async function transcribeWithDiarization(args: {
   form.append("model_id", "scribe_v1");
   form.append("language_code", STT_LANGUAGE_CODE); // force English (see STT_LANGUAGE_CODE) — no auto-detect misfires
   form.append("diarize", "true");
+  for (const t of args.keyterms ?? []) form.append("keyterms", t);
   if (args.numSpeakers && args.numSpeakers > 1) {
     form.append("num_speakers", String(args.numSpeakers));
   }

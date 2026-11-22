@@ -48,6 +48,7 @@ import {
   requestCallAudio,
   type CallAudioState,
 } from "@/lib/coach/v5/callAudio";
+import { keytermsQuery } from "@/lib/coach/remote/vocabulary";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -1349,7 +1350,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
         const b = (await tokRes.json().catch(() => null)) as { error?: string } | null;
         throw new Error(b?.error ?? "Couldn't get a realtime token.");
       }
-      const { token } = await tokRes.json();
+      const { token, keyterms } = (await tokRes.json()) as { token: string; keyterms?: string[] };
       // Unmounted during the token round-trip? Free the stream + recorder and abort.
       if (unmountedRef.current) {
         teardownMedia();
@@ -1391,7 +1392,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           // committed_transcript_with_timestamps, whose word span gives the line's real end time (liveTiming.ts).
           // It is handled in its OWN branch below and never creates a turn. (Incompatible only with
           // filter_background_audio, which this socket does not set.)
-          `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${sr}`
+          `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${sr}` +
+          // The company's vocabulary (0306, opt-in): repeated keyterms= — verified live 2026-11-22, echoed in session_started.
+          keytermsQuery(keyterms ?? [])
       );
       wsRef.current = ws;
 
@@ -1402,7 +1405,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           track: sharedTrack,
           wsUrl: (tok, rate) =>
             `${REALTIME_WS}?token=${encodeURIComponent(tok)}` +
-            `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${rate}`,
+            `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${rate}` +
+            keytermsQuery(keyterms ?? []),
           getToken: async () => {
             const r = await fetch("/api/coach/sales-session/realtime-token", { method: "POST" });
             if (!r.ok) throw new Error(String(r.status));

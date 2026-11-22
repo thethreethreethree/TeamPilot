@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readCompanyKeyterms } from "@/lib/coach/remote/vocabulary";
 import { callerCompanyId } from "@/lib/api/callerCompanyId";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { getSession, appendTranscriptSegment } from "@/lib/data/salesCoach";
@@ -334,6 +335,8 @@ export async function POST(
         mimeType: dl.contentType || storedType || "audio/webm",
         numSpeakers: 2,
         meter: { engine: "stt_batch", companyId, sessionId: id },
+        // The company's vocabulary (0306, opt-in). Read with the service role scoped to this company; [] when unset.
+        keyterms: await readCompanyKeyterms(createAdminClient(), companyId),
       });
       jsonSegments = t.segments;
       jsonDurationSeconds = t.durationSeconds;
@@ -455,6 +458,7 @@ export async function POST(
       mimeType,
       numSpeakers: 2,
       meter: { engine: "stt_batch", companyId, sessionId: id },
+      keyterms: await readCompanyKeyterms(createAdminClient(), companyId),
     });
     segments = t.segments;
     durationSeconds = t.durationSeconds;

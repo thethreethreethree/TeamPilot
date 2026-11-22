@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = [
   // A manager downloaded one call's audio or transcript (RSS Phase 5, F9.15).
   "session.download",
   "retention.set",
+  // A company admin changed the transcription vocabulary (0306, Gong F8.9).
+  "vocabulary.set",
   "erasure.request",
   "webhook.add",
   "webhook.off",

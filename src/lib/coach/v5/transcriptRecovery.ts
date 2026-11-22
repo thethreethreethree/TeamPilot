@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readCompanyKeyterms } from "@/lib/coach/remote/vocabulary";
 import {
   getSession,
   getSessionTranscript,
@@ -407,6 +408,7 @@ export async function recoverSessionTranscript(args: {
       mimeType: dl.contentType || "audio/webm",
       numSpeakers: 2,
       meter: { engine: "stt_recovery", companyId: args.companyId, sessionId: args.sessionId },
+      keyterms: await readCompanyKeyterms(admin, args.companyId), // 0306 vocabulary; [] when unset
     });
     diarized = t.segments.map((s, i) => ({
       speakerId: s.speakerId,
