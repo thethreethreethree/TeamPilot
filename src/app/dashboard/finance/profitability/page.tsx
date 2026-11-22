@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Customer = { id: string; name: string };
 type ProjRow = { project_id: string; code: string; name: string; status: string; budget: number | null; revenue: number; direct_cost: number; total_cost: number; allocated_overhead: number | null; loaded_margin: number | null };
@@ -38,9 +39,9 @@ export default function ProfitabilityPage() {
     try {
       setLoadFailed(false);
       const [ac, prof, cu] = await Promise.all([
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/profitability").then((r) => r.json()),
-        fetch("/api/finance/ar/customers").then((r) => r.json()),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/profitability"),
+        getJson("/api/finance/ar/customers"),
       ]);
       setAccountsCount(accountsFrom(ac).length);
       setProjects(prof.projects ?? []);

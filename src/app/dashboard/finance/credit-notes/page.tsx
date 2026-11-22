@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2 } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Customer = { id: string; name: string };
 type Invoice = { id: string; invoice_number: string; customer_id: string; status: string };
@@ -39,10 +40,10 @@ export default function CreditNotesPage() {
     try {
       setLoadFailed(false);
       const [cu, inv, cn, ac] = await Promise.all([
-        fetch("/api/finance/ar/customers").then((r) => r.json()),
-        fetch("/api/finance/ar/invoices").then((r) => r.json()),
-        fetch("/api/finance/ar/credit-notes").then((r) => r.json()),
-        fetch("/api/finance/accounts").then((r) => r.json()),
+        getJson("/api/finance/ar/customers"),
+        getJson("/api/finance/ar/invoices"),
+        getJson("/api/finance/ar/credit-notes"),
+        getJson("/api/finance/accounts"),
       ]);
       setCustomers(cu.customers ?? []);
       setInvoices(inv.invoices ?? []);

@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, TrendingDown } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Account = { id: string; code: string; name: string; type: string };
 type Dim = { id: string; code: string; name: string };
@@ -35,10 +36,10 @@ export default function BudgetsPage() {
     try {
       setLoadFailed(false);
       const [a, dim, b, rw] = await Promise.all([
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/dimensions").then((r) => r.json()),
-        fetch("/api/finance/budgets").then((r) => r.json()),
-        fetch("/api/finance/runway").then((r) => r.json()),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/dimensions"),
+        getJson("/api/finance/budgets"),
+        getJson("/api/finance/runway"),
       ]);
       setAccounts(accountsFrom(a));
       setCostCenters(dim.costCenters ?? []);

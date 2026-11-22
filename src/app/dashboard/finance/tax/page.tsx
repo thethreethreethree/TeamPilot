@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, Lock } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type TaxCode = { id: string; code: string; name: string; jurisdiction: string | null; rate_pct: number; kind: string; direction: string; is_active: boolean };
 type TaxReport = { rows: { jurisdiction: string; output_tax: number; input_tax: number; net_tax: number }[]; total_output: number; total_input: number; total_net: number };
@@ -32,8 +33,8 @@ export default function TaxPage() {
     try {
       setLoadFailed(false);
       const [ac, tc] = await Promise.all([
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/tax-codes").then((r) => r.json()),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/tax-codes"),
       ]);
       setAccountsCount(accountsFrom(ac).length);
       setCodes(tc.taxCodes ?? []);

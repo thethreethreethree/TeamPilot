@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Account = { id: string; code: string; name: string; type: string };
 type Report = {
@@ -41,9 +42,9 @@ export default function ExpensesPage() {
     try {
       setLoadFailed(false);
       const [a, r, dim] = await Promise.all([
-        fetch("/api/finance/accounts").then((x) => x.json()),
-        fetch("/api/finance/expenses/reports").then((x) => x.json()),
-        fetch("/api/finance/dimensions").then((x) => x.json()),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/expenses/reports"),
+        getJson("/api/finance/dimensions"),
       ]);
       setAccounts(accountsFrom(a));
       setReports(r.reports ?? []);

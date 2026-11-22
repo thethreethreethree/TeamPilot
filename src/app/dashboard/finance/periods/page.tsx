@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Lock, LockOpen, CheckCircle2 } from "lucide-react";
+import { getJson } from "@/lib/finance/getJson";
 
 type Period = { id: string; name: string; start_date: string; end_date: string; status: string };
 
@@ -12,12 +13,16 @@ export default function PeriodsPage() {
   const toast = useToast();
   const [periods, setPeriods] = useState<Period[]>([]);
   const [busy, setBusy] = useState(false);
+  // A failed load is "couldn't load", not "No periods yet — initialize finance" (2026-11-23).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/finance/periods").then((x) => x.json());
+      const r = await getJson("/api/finance/periods");
       setPeriods(r.periods ?? []);
+      setLoadFailed(false);
     } catch {
+      setLoadFailed(true);
       toast.error("Couldn't load periods", "Check your connection and refresh.");
     }
   }, [toast]);
@@ -89,7 +94,9 @@ export default function PeriodsPage() {
 
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-primary mb-3">Periods</h2>
-          {periods.length === 0 ? (
+          {loadFailed ? (
+            <p className="text-xs text-muted">Couldn&apos;t load periods. Refresh to try again.</p>
+          ) : periods.length === 0 ? (
             <p className="text-xs text-muted">No periods yet — initialize finance to seed the current year.</p>
           ) : (
             <table className="w-full text-sm">

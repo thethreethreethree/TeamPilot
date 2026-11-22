@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, DollarSign, CalendarClock } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -68,13 +69,13 @@ export default function ApPage() {
     try {
       setLoadFailed(false);
       const [v, a, b, g, d, dim, tx] = await Promise.all([
-        fetch("/api/finance/ap/vendors").then((r) => r.json()),
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/ap/bills").then((r) => r.json()),
-        fetch("/api/finance/ap/aging").then((r) => r.json()),
-        fetch("/api/finance/ap/duplicates").then((r) => r.json()),
-        fetch("/api/finance/dimensions").then((r) => r.json()),
-        fetch("/api/finance/tax-codes").then((r) => r.json()),
+        getJson("/api/finance/ap/vendors"),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/ap/bills"),
+        getJson("/api/finance/ap/aging"),
+        getJson("/api/finance/ap/duplicates"),
+        getJson("/api/finance/dimensions"),
+        getJson("/api/finance/tax-codes"),
       ]);
       setVendors(v.vendors ?? []);
       setAccounts(accountsFrom(a));

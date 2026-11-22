@@ -10,6 +10,7 @@ import { todayIso } from "@/lib/finance/dateRange";
 import { parseMoneyInput } from "@/lib/finance/format";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -29,9 +30,9 @@ export default function PosPage() {
     try {
       setLoadFailed(false);
       const [v, a, p] = await Promise.all([
-        fetch("/api/finance/ap/vendors").then((r) => r.json()),
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/ap/pos").then((r) => r.json()),
+        getJson("/api/finance/ap/vendors"),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/ap/pos"),
       ]);
       setVendors(v.vendors ?? []);
       setAccounts(accountsFrom(a));

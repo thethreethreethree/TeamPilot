@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Customer = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -66,14 +67,14 @@ export default function ArPage() {
     try {
       setLoadFailed(false);
       const [c, a, i, g, o, dim, tx, inv] = await Promise.all([
-        fetch("/api/finance/ar/customers").then((r) => r.json()),
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/ar/invoices").then((r) => r.json()),
-        fetch("/api/finance/ar/aging").then((r) => r.json()),
-        fetch("/api/finance/ar/collections").then((r) => r.json()),
-        fetch("/api/finance/dimensions").then((r) => r.json()),
-        fetch("/api/finance/tax-codes").then((r) => r.json()),
-        fetch("/api/finance/inventory").then((r) => r.json()),
+        getJson("/api/finance/ar/customers"),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/ar/invoices"),
+        getJson("/api/finance/ar/aging"),
+        getJson("/api/finance/ar/collections"),
+        getJson("/api/finance/dimensions"),
+        getJson("/api/finance/tax-codes"),
+        getJson("/api/finance/inventory"),
       ]);
       setCustomers(c.customers ?? []);
       setAccounts(accountsFrom(a));

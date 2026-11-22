@@ -1487,3 +1487,16 @@ follows in its own commit.
 ```
 npx vitest run --maxWorkers=1 src/app/api/finance src/lib/finance → passed, exit 0
 ```
+
+Finance data routes — step 2, the pages (founder picker 2026-11-23: "Fix all 14 now"). src/lib/finance/getJson.ts:
+a GET that throws on a non-OK answer or an `{ error }` body (untyped by default, as the `r.json()` it replaces). Every
+`fetch("/api/finance/…").then((r) => r.json())` inside a page's main `load` was switched to it — ap 7, ar 8, banking 2,
+budgets 4, credit-notes 4, expenses 3, periods 1, pos 3, profitability 3, recurring 3, tax 2 — so a failed read lands in
+the load's catch (FinanceLoadFailed, from the accountsFrom change) instead of an empty list. Pages whose load already
+reads the response's `error` itself (cards, controls, assets, forecast and 10 more) keep their own messages. Periods had
+no failed state: it now says "Couldn't load periods" instead of "No periods yet — initialize finance". Reads outside the
+main load (row drill-downs) are unchanged. getJson: 3 tests.
+
+```
+npx vitest run --maxWorkers=1 src/lib/finance src/components/finance → 120 passed, exit 0
+```

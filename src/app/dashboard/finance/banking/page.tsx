@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { Plus, Upload, Wand2, Landmark } from "lucide-react";
 import { accountsFrom } from "@/lib/finance/accountsFrom";
 import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
+import { getJson } from "@/lib/finance/getJson";
 
 type Account = { id: string; code: string; name: string; type: string };
 type BankAccount = {
@@ -54,8 +55,8 @@ export default function BankingPage() {
     try {
       setLoadFailed(false);
       const [a, b] = await Promise.all([
-        fetch("/api/finance/accounts").then((r) => r.json()),
-        fetch("/api/finance/bank/accounts").then((r) => r.json()),
+        getJson("/api/finance/accounts"),
+        getJson("/api/finance/bank/accounts"),
       ]);
       setAccounts(accountsFrom(a));
       setBanks(b.accounts ?? []);
