@@ -762,3 +762,35 @@ and that their items lead what is saved.
 ```
 npx vitest run src/components/remote-sales → Test Files 3 passed (3), Tests 14 passed (14), exit 0
 ```
+
+## Addendum 2026-11-22 — independent review of today's Remote Sales code; ownership fixes (0304)
+
+An outside-view reviewer (given the code, not my conclusions) read eab8523c → 26dda31d. It found no cross-tenant or
+cross-rep path and no raw DB error to a client, and six real defects, all fixed here:
+
+1. **High — a manager could take a rep's call into the manager's own pipeline, permanently.** Macro Mode is the viewer's
+   switch, so a manager sees a rep's Highlights; "Add to pipeline" created the prospect with rep_id = the manager and the
+   one-row-per-call link could never be undone. 0304: a call joins only a prospect whose rep took it (policy), the
+   route answers 403/409 in words, and a manager's screen reads "the rep adds it from their side".
+2. **Medium — a manager's checklist review used up the rep's** (skipping the rep's ask-first) and a second review
+   duplicated every task. 0304: only the call's rep may insert the review, unique per brief; the route checks before
+   creating any task; a manager sees the suggested checklist read-only, "waiting for the rep".
+3. **Creation was not atomic** (a failure left an undeletable nameless prospect). 0304 rss_create_prospect (security
+   invoker: 0303's policies still apply) writes prospect, first facts and call link in one transaction. A to-do whose
+   link fails now says so instead of reporting ok.
+4. Malformed ids → 404/400, not 500 (all new [id]/[pid]/repId inputs).
+5. Call audio: the reconnect budget refills only after 15 s stable (an open-then-drop loop minted tokens forever); the
+   shared tab's tracks now stop with the mix, after the recorder's final flush.
+6. A failed next-call-date save is shown, not silent.
+
+Verification — SQL harness CLAIM 7 (new), executed with CLAIM 6 on PGlite 17 after all 304 migrations; and a mutation
+run without 0304, which fails as it should:
+
+```
+migrations through 0304_macro_mode_ownership.sql; failures: 0
+✓ 0303 pipeline: latest-event state, append-only, tree visibility, private day plan, no foreign links
+✓ 0304: a call joins only its rep's prospect; only the rep reviews, once; creation is all-or-nothing
+exit=0
+(without 0304) ✗ 0304: … — a manager used up the rep's checklist review   exit=1
+```
+Render tests: a manager viewing a rep's call reads but cannot act (MacroCallView, 15 tests pass).

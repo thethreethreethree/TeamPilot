@@ -877,12 +877,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     callTranscriberRef.current?.stop();
     callTranscriberRef.current = null;
     callAudioLiveRef.current = false;
-    callStreamRef.current?.getTracks().forEach((t) => t.stop());
+    // The shared tab's tracks stop WITH the mix, a beat after the recorder's final flush — stopping them first cut the
+    // last moment of the prospect's audio from the recording (independent review 2026-11-22).
+    const callStream = callStreamRef.current;
     callStreamRef.current = null;
     const mix = mixCtxRef.current;
     mixCtxRef.current = null;
     mixDestRef.current = null;
-    if (mix) setTimeout(() => void mix.close().catch(() => undefined), 1000);
+    setTimeout(() => {
+      callStream?.getTracks().forEach((t) => t.stop());
+      if (mix) void mix.close().catch(() => undefined);
+    }, 1000);
   }, []);
 
   const stop = useCallback(() => {

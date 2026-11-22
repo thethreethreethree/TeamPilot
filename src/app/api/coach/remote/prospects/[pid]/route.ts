@@ -25,6 +25,7 @@ const Set_ = z.object({
 });
 const Link = z.object({ action: z.literal("link"), sessionId: z.string().uuid() });
 const Todo = z.object({ action: z.literal("todo"), title: z.string().trim().min(1).max(200), due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() });
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const Body = z.discriminatedUnion("action", [Set_, Link, Todo]);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ pid: string }> }) {
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { pid } = await params;
+  if (!UUID.test(pid)) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
   const db = callerScopedDb(req) ?? (await createClient());
   const { data: p, error } = await db.from("remote_prospects_current").select("*").eq("id", pid).maybeSingle();
   if (error) {
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
   const { pid } = await params;
+  if (!UUID.test(pid)) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
   const db = callerScopedDb(req) ?? (await createClient());
   const { data: p } = await db.from("remote_prospects").select("id, rep_id, company_id").eq("id", pid).maybeSingle();
   if (!p) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
@@ -93,7 +96,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
     const { error } = await db.from("remote_prospect_calls").insert({ prospect_id: pid, session_id: body.sessionId, company_id: p.company_id, linked_by: ctx.userId });
     if (error) {
       if (error.code === "23505") return NextResponse.json({ error: "That call already belongs to a prospect." }, { status: 409 });
-      return NextResponse.json({ error: "Couldn't link that call — it may not be yours to link." }, { status: 403 });
+      // 0304: a call joins only the pipeline of the rep who took it.
+      return NextResponse.json({ error: "Only a call this prospect's rep took can be linked to it." }, { status: 403 });
     }
     return NextResponse.json({ ok: true });
   }
@@ -121,6 +125,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
     return NextResponse.json({ error: "Couldn't add the to-do." }, { status: 500 });
   }
   const { error: lErr } = await db.from("remote_prospect_tasks").insert({ prospect_id: pid, task_id: task.id, company_id: p.company_id, created_by: ctx.userId });
-  if (lErr) console.error(`[prospect] to-do link failed id=${pid}: ${lErr.message}`);
+  if (lErr) {
+    // Said, not swallowed: the task exists but is not on this prospect, so the pipeline would not show it.
+    console.error(`[prospect] to-do link failed id=${pid}: ${lErr.message}`);
+    return NextResponse.json({ error: "The task was created but couldn't be attached to this prospect.", taskId: String(task.id) }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, taskId: String(task.id) });
 }

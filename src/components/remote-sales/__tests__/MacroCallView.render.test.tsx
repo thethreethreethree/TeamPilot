@@ -30,16 +30,19 @@ const BRIEF = {
   review: null,
   prospect: null,
   label: "Betty – Acme",
+  isOwner: true,
 };
+let brief: typeof BRIEF = BRIEF;
 
 const fetchMock = vi.fn();
 const json = (body: unknown, ok = true) => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(body) });
 
 beforeEach(() => {
+  brief = BRIEF;
   fetchMock.mockReset();
   fetchMock.mockImplementation((url: string, init?: { method?: string }) => {
     if (url.endsWith("/brief/review") && init?.method === "POST") return json({ kept: [], failed: 0 });
-    if (url.includes("/brief")) return json(BRIEF);
+    if (url.includes("/brief")) return json(brief);
     if (url.includes("/summarize")) return json({ summary: "Betty wants Acme live before March." });
     if (url.includes("/followup")) return json({ drafts: [] });
     if (url.includes("pitch-score")) return json({ pitch: { id: "p1", repId: "rep1", base: 82.4, bonus: 5, total: 87.4 } });
@@ -105,6 +108,17 @@ describe("MacroCallView", () => {
       "Send quote",
       "Ask about budget",
     ]);
+  });
+
+  it("a manager viewing a rep's call reads it but does not act for the rep (0304)", async () => {
+    brief = { ...BRIEF, isOwner: false };
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    expect(await screen.findByText(/the rep adds it from their side/)).toBeTruthy();
+    expect(screen.queryByText(/Add “Betty – Acme”/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Next Meeting" }));
+    expect(await screen.findByText("Walk through the quote")).toBeTruthy(); // no ask-first for a non-owner
+    expect(screen.getByText(/Waiting for the rep to review it/)).toBeTruthy();
+    expect(screen.queryByText("Save checklist to Tasks")).toBeNull();
   });
 
   it("always offers the full call page — Macro Mode is never a one-way door", async () => {

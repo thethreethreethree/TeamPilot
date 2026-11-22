@@ -492,6 +492,70 @@ async function run() {
     })
   );
 
+  // ── CLAIM 7 — Macro Mode ownership (0304) ────────────────────────────────────────────────────────
+  //
+  // Macro Mode is the viewer's switch, so a manager sees a rep's call in it. The independent review (2026-11-22) found a
+  // manager could link the rep's call into the MANAGER's pipeline (permanently — one row per call, append-only) and use
+  // up the rep's checklist review. 0304: a call joins only its own rep's prospect; only the call's rep reviews, once; a
+  // prospect is created in one transaction, so a refused call leaves no nameless prospect behind.
+  results.push(
+    await claim(c, "0304: a call joins only its rep's prospect; only the rep reviews, once; creation is all-or-nothing", async () => {
+      const id = (n) => `f4000000-0000-4000-8000-0000000000${n}`;
+      const [C, CEO, MGR, REP, S1, S2, B1] = ["c1", "a1", "a2", "a3", "b1", "b2", "d1"].map(id);
+      await c.query(`set local session_replication_role = replica`);
+      await c.query(`insert into companies (id, name) values ('${C}','Claim7 Co')`);
+      await c.query(`insert into auth.users (id) values ('${CEO}'),('${MGR}'),('${REP}')`);
+      await c.query(
+        `insert into profiles (id, company_id, role, sales_coach_role, status, manager_id) values
+         ('${CEO}','${C}','CEO',null,'active',null), ('${MGR}','${C}','Member','admin','active','${CEO}'),
+         ('${REP}','${C}','Member','staff','active','${MGR}')`
+      );
+      await c.query(`insert into coaching_sessions (id, company_id, agent_id, context, started_at) values
+        ('${S1}','${C}','${REP}','phone','2026-11-20T10:00:00Z'), ('${S2}','${C}','${REP}','video','2026-11-21T10:00:00Z')`);
+      await c.query(`insert into remote_call_briefs (id, session_id, company_id, rep_id, transcript_version) values ('${B1}','${S1}','${C}','${REP}',1)`);
+      await c.query(`set local session_replication_role = origin`);
+      await c.query(`grant usage on schema auth to authenticated`);
+      await c.query(`grant select, insert, update, delete on all tables in schema public to authenticated`);
+      await c.query(`set local role authenticated`);
+      const as = (u) => c.query(`set local "request.jwt.claim.sub" = '${u}'`);
+      const refused = async (sql) => {
+        await c.query("savepoint o");
+        try {
+          await c.query(sql);
+          await c.query("release savepoint o");
+          return false;
+        } catch {
+          await c.query("rollback to savepoint o");
+          return true;
+        }
+      };
+      const count = async (sql) => Number((await c.query(sql)).rows[0].n);
+
+      // The manager, viewing the rep's call: cannot take it into their own pipeline, and nothing is left behind.
+      await as(MGR);
+      const before = await count(`select count(*) n from remote_prospects where rep_id = '${MGR}'`);
+      must(await refused(`select rss_create_prospect('Betty', null, null, null, null, '${S1}')`), "a manager linked the rep's call into the manager's own pipeline");
+      must((await count(`select count(*) n from remote_prospects where rep_id = '${MGR}'`)) === before, "a refused create left a nameless prospect behind");
+      must(await refused(`insert into remote_checklist_reviews (brief_id, company_id, reviewed_by) values ('${B1}','${C}','${MGR}')`), "a manager used up the rep's checklist review");
+
+      // The rep: creates and links in one call; reviews once; a second review is refused.
+      await as(REP);
+      const P = (await c.query(`select rss_create_prospect('Betty', 'Acme', 1500, 'Proposal', '2026-11-28', '${S1}') id`)).rows[0].id;
+      const cur = (await c.query(`select name, organization, amount, stage_label, next_call_date, call_count from remote_prospects_current where id = '${P}'`)).rows[0];
+      must(cur && cur.name === "Betty" && cur.organization === "Acme" && Number(cur.amount) === 1500 && cur.stage_label === "Proposal" && cur.next_call_date === "2026-11-28" && Number(cur.call_count) === 1,
+        `rss_create_prospect did not write every first fact: ${JSON.stringify(cur)}`);
+      must(await refused(`select rss_create_prospect('Dup', null, null, null, null, '${S1}')`), "a call already in a pipeline was linked again");
+      must(!(await refused(`insert into remote_checklist_reviews (brief_id, company_id, reviewed_by) values ('${B1}','${C}','${REP}')`)), "the rep could not review their own checklist");
+      must(await refused(`insert into remote_checklist_reviews (brief_id, company_id, reviewed_by) values ('${B1}','${C}','${REP}')`), "a checklist was reviewed twice");
+
+      // A manager's prospect cannot take the rep's other call either, even inserted directly.
+      await as(MGR);
+      const PM = (await c.query(`select rss_create_prospect('Manager lead') id`)).rows[0].id;
+      must(await refused(`insert into remote_prospect_calls (prospect_id, session_id, company_id, linked_by) values ('${PM}','${S2}','${C}','${MGR}')`), "a rep's call joined a manager's prospect");
+      await c.query(`reset role`);
+    })
+  );
+
   await c.end();
 
   for (const r of results) {

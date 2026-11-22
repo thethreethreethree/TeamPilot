@@ -149,6 +149,7 @@ export class CallAudioTranscriber {
   private stopped = false;
   private attempts = 0;
   private utteranceStart: number | null = null;
+  private stableTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly opts: {
@@ -220,8 +221,13 @@ export class CallAudioTranscriber {
     let opened = false;
     ws.onopen = () => {
       opened = true;
-      this.attempts = 0;
       this.opts.onState("live");
+      // Refill the reconnect budget only once the socket proves STABLE — resetting on every open let a socket that
+      // opens and drops loop forever, minting a token each time (the mic socket learned this on 2026-08-21).
+      if (this.stableTimer) clearTimeout(this.stableTimer);
+      this.stableTimer = setTimeout(() => {
+        this.attempts = 0;
+      }, 15_000);
     };
     ws.onclose = () => {
       if (this.stopped) return;
@@ -272,6 +278,10 @@ export class CallAudioTranscriber {
   }
 
   private freeGraph(): void {
+    if (this.stableTimer) {
+      clearTimeout(this.stableTimer);
+      this.stableTimer = null;
+    }
     const ws = this.ws;
     this.ws = null;
     if (ws) {

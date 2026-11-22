@@ -24,6 +24,7 @@ export const maxDuration = 60;
  * Pushing into Salesforce/HubSpot is the spec's later step, not this one.
  */
 const Body = z.object({ channel: z.enum(["email", "text"]) });
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = rateLimit(req, { id: "remote-followup-read", windowMs: 60_000, max: 60 });
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { id } = await params;
+  if (!UUID.test(id)) return NextResponse.json({ error: "Call not found." }, { status: 404 });
   const db = callerScopedDb(req) ?? (await createClient());
   const { data, error } = await db
     .from("remote_followup_drafts")
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
   const { id } = await params;
+  if (!UUID.test(id)) return NextResponse.json({ error: "Call not found." }, { status: 404 });
 
   const db = callerScopedDb(req) ?? (await createClient());
   const session = await getSession(id, db);

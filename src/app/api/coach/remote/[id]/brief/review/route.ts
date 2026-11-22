@@ -32,12 +32,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
   const { id } = await params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return NextResponse.json({ error: "Call not found." }, { status: 404 });
 
   const db = callerScopedDb(req) ?? (await createClient());
   const session = await getSession(id, db);
   if (!session) return NextResponse.json({ error: "Call not found." }, { status: 404 });
+  // The checklist is the rep's to review (0304 enforces it too): a manager reading it in Macro Mode must not use up
+  // the rep's review, nor skip the rep's ask-first step.
+  if (session.agentId !== ctx.userId) {
+    return NextResponse.json({ error: "Only the rep who took this call can review its checklist." }, { status: 403 });
+  }
   const { data: brief } = await db.from("remote_call_briefs").select("id").eq("id", body.briefId).eq("session_id", id).maybeSingle();
   if (!brief) return NextResponse.json({ error: "Checklist not found." }, { status: 404 });
+  // Once per brief (0304 unique index): checked BEFORE any task is created, so a second save or a double-click can't
+  // create every task twice.
+  const { data: prior } = await db.from("remote_checklist_reviews").select("kept").eq("brief_id", body.briefId).limit(1).maybeSingle();
+  if (prior) return NextResponse.json({ error: "This checklist has already been reviewed.", kept: prior.kept }, { status: 409 });
 
   const { data: link } = await db.from("remote_prospect_calls").select("prospect_id").eq("session_id", id).maybeSingle();
   const admin = createAdminClient();
@@ -88,7 +98,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (rErr) {
     console.error(`[brief-review] review insert failed session=${id}: ${rErr.message}`);
-    return NextResponse.json({ error: "Couldn't save the review." }, { status: 500 });
+    // The tasks exist; say so, so the rep does not save again and duplicate them.
+    return NextResponse.json({ error: "Your to-dos were added, but the review itself didn't save — don't save again.", kept }, { status: 500 });
   }
   const failed = kept.filter((k) => !k.task_id).length;
   return NextResponse.json({ kept, failed });

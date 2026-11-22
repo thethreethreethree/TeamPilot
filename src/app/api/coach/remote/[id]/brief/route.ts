@@ -17,7 +17,10 @@ export const maxDuration = 60;
  */
 const MISSING = new Set(["PGRST205", "42P01"]);
 
-async function read(req: NextRequest, id: string) {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function read(req: NextRequest, id: string, userId: string) {
+  if (!UUID.test(id)) return { status: 404 as const, body: { error: "Call not found." } };
   const db = callerScopedDb(req) ?? (await createClient());
   const session = await getSession(id, db);
   if (!session) return { status: 404 as const, body: { error: "Call not found." } };
@@ -42,7 +45,9 @@ async function read(req: NextRequest, id: string) {
     if (pc) prospect = { id: String(pc.id), name: pc.name ?? null, status: String(pc.status), nextCallDate: pc.next_call_date ?? null };
   }
   const label = session.clientLabel ?? null;
-  if (!row) return { status: 200 as const, body: { available: true, remote: true, brief: null, review: null, prospect, label } };
+  // Who may act on this call's pipeline link and checklist: the rep who took it (0304). A manager reads.
+  const isOwner = session.agentId === userId;
+  if (!row) return { status: 200 as const, body: { available: true, remote: true, brief: null, review: null, prospect, label, isOwner } };
   const { data: rev } = await db
     .from("remote_checklist_reviews")
     .select("kept, created_at")
@@ -59,6 +64,7 @@ async function read(req: NextRequest, id: string) {
       review: rev ? { kept: rev.kept, createdAt: rev.created_at } : null,
       prospect,
       label,
+      isOwner,
     },
   };
 }
@@ -69,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { id } = await params;
-  const r = await read(req, id);
+  const r = await read(req, id, ctx.userId);
   return NextResponse.json(r.body, { status: r.status });
 }
 
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { id } = await params;
+  if (!UUID.test(id)) return NextResponse.json({ error: "Call not found." }, { status: 404 });
   // The caller must be able to see the call (RLS) before the service role is asked to read it.
   const db = callerScopedDb(req) ?? (await createClient());
   const session = await getSession(id, db);
@@ -88,6 +95,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!briefId) {
     return NextResponse.json({ error: "Couldn't brief this call — it may have too little transcript yet." }, { status: 422 });
   }
-  const r = await read(req, id);
+  const r = await read(req, id, ctx.userId);
   return NextResponse.json(r.body, { status: r.status });
 }

@@ -31,6 +31,8 @@ type BriefRes = {
   review: { kept: Array<{ text: string; due: string | null; task_id: string | null }>; createdAt: string } | null;
   prospect: { id: string; name: string | null; status: string; nextCallDate: string | null } | null;
   label: string | null;
+  /** The viewer took this call. Only they link it to a pipeline and review its checklist (0304); a manager reads. */
+  isOwner?: boolean;
 };
 type Tab = "highlights" | "coaching" | "next";
 
@@ -227,6 +229,9 @@ function ProspectStrip({ b, sessionId, onChanged }: { b: BriefRes; sessionId: st
         </span>
       </Link>
     );
+  }
+  if (!b.isOwner) {
+    return <p className="rounded-lg border border-dashed border-default px-3 py-2 text-xs text-secondary">This call isn&apos;t in its rep&apos;s pipeline yet — the rep adds it from their side.</p>;
   }
   const add = async () => {
     setBusy(true);
@@ -457,7 +462,7 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
   const [own, setOwn] = useState<string[] | null>(null);
   const [draft, setDraft] = useState("");
   if (!b.brief) return <NoBrief briefing={briefing} onPrepare={onPrepare} reason={b.reason} />;
-  if (!b.review && own === null) {
+  if (!b.review && own === null && b.isOwner) {
     const who = b.prospect?.name ?? b.label ?? "this prospect";
     return (
       <div className="space-y-3">
@@ -536,25 +541,48 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
           <p className="text-xs text-secondary">Nothing left open from this call.</p>
         )}
       </div>
-      <Checklist sessionId={sessionId} b={b} onChanged={onChanged} own={own ?? []} />
+      {b.isOwner || b.review ? (
+        <Checklist sessionId={sessionId} b={b} onChanged={onChanged} own={own ?? []} />
+      ) : (
+        <div>
+          <H>Suggested checklist</H>
+          <ul className="space-y-1 text-sm text-primary">
+            {b.brief.nextMeeting.checklist.map((c, i) => (
+              <li key={i}>
+                {c.text}
+                {c.due && <span className="ml-1 text-[11px] text-muted">due {c.due}</span>}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[11px] text-muted">Waiting for the rep to review it — their plan comes first.</p>
+        </div>
+      )}
     </div>
   );
 }
 
 function NextCallDate({ b, onChanged }: { b: BriefRes; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   if (!b.prospect) {
     return <p className="rounded-lg border border-dashed border-default px-3 py-2 text-xs text-secondary">Add this call to your pipeline (Highlights) to set the next call date and keep its to-dos together.</p>;
   }
   const set = async (date: string) => {
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/coach/remote/prospects/${b.prospect!.id}`, {
+      const r = await fetch(`/api/coach/remote/prospects/${b.prospect!.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "set", kind: "next_call", value: date || null }),
       });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? "Couldn't save the date.");
+      }
       onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't save the date.");
     } finally {
       setBusy(false);
     }
@@ -570,6 +598,7 @@ function NextCallDate({ b, onChanged }: { b: BriefRes; onChanged: () => void }) 
         onChange={(e) => void set(e.currentTarget.value)}
         className="rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary"
       />
+      {err && <span className="w-full text-amber-700 dark:text-amber-300">{err}</span>}
     </label>
   );
 }
@@ -625,7 +654,11 @@ function Checklist({ sessionId, b, onChanged, own }: { sessionId: string; b: Bri
         body: JSON.stringify({ briefId: brief.id, items: items.filter((i) => i.keep && i.text.trim()).map((i) => ({ text: i.text.trim(), due: i.due || null })) }),
       });
       const d = (await r.json().catch(() => ({}))) as { error?: string; failed?: number };
-      if (!r.ok) throw new Error(d.error ?? "Couldn't save the checklist.");
+      if (!r.ok) {
+        // Already reviewed (409), or to-dos added but the review row failed (500): reload rather than invite a re-save.
+        if (r.status === 409) onChanged();
+        throw new Error(d.error ?? "Couldn't save the checklist.");
+      }
       if (d.failed) setErr(`${d.failed} item${d.failed === 1 ? "" : "s"} couldn't be added to Tasks.`);
       onChanged();
     } catch (e) {
