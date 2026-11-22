@@ -67,6 +67,17 @@ review it." (The team notes the call review already exists in sessions.)
   Append-only (§3.1): stage and amount changes are events; the current value is the latest event.
 - The daily brain dump: what the rep wrote, the to-dos taken from it, the two needle movers, and yesterday's numbers.
 
+## Rules the build keeps (constitution)
+
+- **Ask first (§3.3).** Next Meeting asks the rep what they want to cover before the coach's agenda appears; their
+  items lead the checklist. The AI's call outcome likewise shows only after the rep's own.
+- **The rep stays the author.** Follow-ups are drafts the rep sends; the checklist becomes tasks only after review; the
+  day plan only organizes what the rep wrote (an item with no word from the brain dump is dropped).
+- **Nothing invented.** Key points, next steps and "bring up" items must cite a transcript line or they are dropped.
+- **Append-only (§3.1).** Pipeline changes are events; the current value is the latest one.
+- **Never a one-way door.** "Show the full call page" on every Macro call; the switch is always on Calls; a manager's
+  tabs do not change.
+
 ## Not in the first cut (named so they are not forgotten)
 
 - Pushing to Salesforce/HubSpot (the team's fallback; own CRM comes first).
