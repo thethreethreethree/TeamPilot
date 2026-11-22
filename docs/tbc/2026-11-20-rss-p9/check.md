@@ -1384,3 +1384,12 @@ cases fail on the previous component.
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemoteToday.render.test.tsx → 4 passed, exit 0
 ```
+Vocabulary panel and Calls list pinned (no code change): vocabulary — empty is "off", a rep reads read-only, an admin
+saves one term per line (blank lines and spaces dropped), clearing offers "Turn off", a failed load says so and never
+"off"; Calls — asks for context=remote, lists the calls, and a failed OR degraded read is "Couldn't load your calls",
+never a partial list. The only Remote Sales component left without a render test is the Macro Mode toggle (its route
+is tested; the switch is disabled until its state is known).
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales → 47 passed, exit 0
+```
