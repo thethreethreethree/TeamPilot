@@ -68,12 +68,26 @@ describe("POST /api/auth/sign-in", () => {
     expect(state.inserts[0]).toMatchObject({ succeeded: false });
   });
 
-  it("D4 is NOT DECIDED, so even many recent failures never block a sign-in", async () => {
+  it("D4 decided (founder 2026-11-22): 5 recent failures lock the account — 429, and the password is never tried", async () => {
     const now = Date.now();
-    state.attempts = Array.from({ length: 20 }, (_, i) => ({
+    state.attempts = Array.from({ length: 5 }, (_, i) => ({
       email: "rep@example.com",
       succeeded: false,
-      created_at: new Date(now - i * 60_000).toISOString(),
+      created_at: new Date(now - (i + 1) * 60_000).toISOString(),
+    }));
+    state.signIn.mockResolvedValue({ error: null });
+    const res = await POST(req({ email: "rep@example.com", password: "pw" }));
+    expect(res.status).toBe(429);
+    expect((await res.json()).locked).toBe(true);
+    expect(state.signIn).not.toHaveBeenCalled();
+  });
+
+  it("failures older than the 60-minute window don't lock", async () => {
+    const now = Date.now();
+    state.attempts = Array.from({ length: 5 }, (_, i) => ({
+      email: "rep@example.com",
+      succeeded: false,
+      created_at: new Date(now - (61 + i) * 60_000).toISOString(),
     }));
     state.signIn.mockResolvedValue({ error: null });
     expect((await POST(req({ email: "rep@example.com", password: "pw" }))).status).toBe(200);

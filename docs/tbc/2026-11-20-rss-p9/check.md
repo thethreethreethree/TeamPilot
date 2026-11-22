@@ -955,3 +955,18 @@ is stored as "card [number removed], it's $89.99 a month".
 ```
 npx vitest run src/lib/data/__tests__/appendTranscriptSegment.migrationGuard.test.ts src/app/api/coach/sales-session/[id] src/lib/coach/remote → Tests 351 passed (351), exit 0
 ```
+
+## Addendum 2026-11-22 — D4 and D8 decided (founder pickers); coaching metrics view built
+
+Asked as AskUserQuestion pickers with the recommended option first (§6, item 0); all three answered with the
+recommendation: D4 lockout = 5 failures / 60 min → locked 60 min; D8 feedback = GONG_RULES; D8 listened = half the call
+(minShareOfSession 0.5). Set in decisions.ts; the four tests that pinned "undecided" now pin the decided behaviour
+(sign-in: 5 recent failures → 429 and the password is never tried; failures outside the window don't lock).
+
+Found while switching D8 on: CoachingInbox typed the decided response as `{ decided: true }` and rendered nothing for it —
+deciding D8 would have unlocked an empty space. Built the view: per manager over the last 30 days, feedback given and
+calls listened to, by name, most feedback first; a plain line when nothing has happened yet. Render test added.
+
+```
+npx vitest run src/lib/coach/remote src/app/api/coach/remote src/app/api/auth src/components/sales-coach/__tests__/CoachingInbox.metrics.render.test.tsx → all passed, exit 0
+```

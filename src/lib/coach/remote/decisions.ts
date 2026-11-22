@@ -35,7 +35,8 @@ export const RESCORE_REAPPLIES_OVERRIDES: boolean = false;
 /** D4 - Account lockout: how many failures, in what window, locked for how long.
  *  Gong's figure (5 failures, 60 min) is in GONG_LOCKOUT_REFERENCE for comparison only. */
 export interface LockoutPolicy { maxFailures: number; windowMinutes: number; lockMinutes: number }
-export const LOCKOUT_POLICY: LockoutPolicy | NotDecided = NOT_DECIDED;
+// DECIDED 2026-11-22 by the founder (picker, recommended): Gong's rule — 5 failures in 60 minutes lock for 60 minutes.
+export const LOCKOUT_POLICY: LockoutPolicy | NotDecided = { maxFailures: 5, windowMinutes: 60, lockMinutes: 60 };
 export const GONG_LOCKOUT_REFERENCE: LockoutPolicy = { maxFailures: 5, windowMinutes: 60, lockMinutes: 60 };
 
 /** D5 - Minimum transcript before a session is scored.
@@ -45,8 +46,11 @@ export const SCORING_FLOOR_IS_TODAYS_BEHAVIOUR = true;
 
 /** D8 - What counts as "feedback given" and as "listened".
  *  GONG_FEEDBACK_RULES / GONG-like listen rule are offered as one option, not chosen. */
-export const FEEDBACK_POLICY: 'NOT DECIDED' | 'GONG_RULES' | 'ALL_MANAGER_ACTIONS' = NOT_DECIDED;
-export const LISTENED_THRESHOLD: { minSeconds: number } | { minShareOfSession: number } | NotDecided = NOT_DECIDED;
+// DECIDED 2026-11-22 by the founder (picker, recommended): deliberate coaching counts (Gong's rule — a comment sent to
+// the rep, a score correction, a dispute answer, a pattern marked coached; never AI scores or drafts), and a manager
+// "listened" once they played at least half the call.
+export const FEEDBACK_POLICY: 'NOT DECIDED' | 'GONG_RULES' | 'ALL_MANAGER_ACTIONS' = 'GONG_RULES';
+export const LISTENED_THRESHOLD: { minSeconds: number } | { minShareOfSession: number } | NotDecided = { minShareOfSession: 0.5 };
 
 /** D15 - Number redaction: on/off and the digit-run length. DECIDED 2026-11-22 by the founder (picker): ON for runs of
  *  9+ digits — card numbers, SSNs, account numbers (and 10-digit phone numbers). New lines only; see redact.ts. */

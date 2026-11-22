@@ -30,7 +30,9 @@ type Item = {
   youListenedSeconds: number;
 };
 type Wire = { available: false; reason: string } | { available: true; items: Item[] };
-type Metrics = { decided: false; decision: string; reason: string } | { decided: true };
+type Metrics =
+  | { decided: false; decision: string; reason: string }
+  | { decided: true; since: string; sessions: number; feedbackGiven: Record<string, number>; callsListened: Record<string, number> };
 
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
 const ago = (iso: string) => {
@@ -47,6 +49,7 @@ export function CoachingInbox() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [openOnly, setOpenOnly] = useState(true);
   const [toYouOnly, setToYouOnly] = useState(false);
+  const [names, setNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let live = true;
@@ -58,6 +61,12 @@ export function CoachingInbox() {
       })
       .then((w) => live && w && setWire(w))
       .catch(() => live && setFailed(true));
+    fetch("/api/team")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { members?: Array<{ id: string; full_name?: string | null }> } | null) => {
+        if (live && d?.members) setNames(Object.fromEntries(d.members.map((m) => [m.id, m.full_name ?? "Unnamed teammate"])));
+      })
+      .catch(() => {});
     fetch("/api/coach/remote/coaching-metrics")
       .then(async (r) => (r.status === 409 || r.ok ? ((await r.json()) as Metrics) : null))
       .then((m) => live && m && setMetrics(m))
@@ -149,6 +158,50 @@ export function CoachingInbox() {
         A request closes when a comment sent to the rep, a score correction or a dispute answer is made on that call after it.
         {metrics && !metrics.decided ? ` Coaching metrics: not shown yet — ${metrics.reason}` : ""}
       </p>
+      {/* Coaching metrics (D8 decided 2026-11-22): per manager, over the last 30 days of phone/video calls they may see.
+          Feedback = deliberate coaching (a comment sent, a correction, a dispute answer, a pattern coached); listened =
+          played at least half the call. */}
+      {metrics?.decided && (
+        <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching metrics">
+          <p className="text-xs font-semibold text-primary">Coaching in the last 30 days</p>
+          {(() => {
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened)])].sort(
+              (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
+            );
+            if (ids.length === 0) {
+              return (
+                <p className="mt-1 text-xs text-secondary">
+                  No feedback given or calls listened to yet across {metrics.sessions} phone and video {metrics.sessions === 1 ? "call" : "calls"}.
+                </p>
+              );
+            }
+            return (
+              <table className="mt-2 w-full text-left text-xs">
+                <thead className="text-[11px] text-muted">
+                  <tr>
+                    <th className="py-1 font-normal">Manager</th>
+                    <th className="py-1 font-normal">Feedback given</th>
+                    <th className="py-1 font-normal">Calls listened to</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ids.map((id) => (
+                    <tr key={id} className="border-t border-default">
+                      <td className="py-1.5 text-primary">{names[id] ?? "A teammate"}</td>
+                      <td className="py-1.5 tabular-nums text-primary">{metrics.feedbackGiven[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsListened[id] ?? 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
+          <p className="mt-1 text-[11px] text-muted">
+            Feedback counts a comment sent to the rep, a score correction, a dispute answer or a pattern marked coached. A call
+            counts as listened once at least half of it was played.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

@@ -10,7 +10,6 @@ import {
   parseListenRange,
   type CoachingEvent,
 } from "../feedback";
-import { NotDecidedError } from "../decisions";
 
 const at = (iso: string) => new Date(iso);
 const ALL_KINDS: CoachingEvent[] = [
@@ -75,9 +74,16 @@ describe("listening", () => {
   });
 });
 
-describe("D8 not decided is loud", () => {
-  it("countsAsFeedback and counted throw NotDecidedError", () => {
-    expect(() => countsAsFeedback(ALL_KINDS[0]!)).toThrow(NotDecidedError);
-    expect(() => counted([[0, 1000]], 1000)).toThrow(NotDecidedError);
+describe("D8 as decided by the founder (2026-11-22): deliberate coaching; listened = half the call", () => {
+  it("a sent comment, a correction and a dispute answer count; an unsent draft does not", () => {
+    const byKind = (k: string) => countsAsFeedback(ALL_KINDS.find((e) => e.kind === k)!);
+    expect(byKind("comment_sent_to_rep")).toBe(true);
+    expect(byKind("score_override")).toBe(true);
+    expect(byKind("dispute_answered")).toBe(true);
+    expect(byKind("comment_draft")).toBe(false);
+  });
+  it("playing half the call counts as listened; less does not", () => {
+    expect(counted([[0, 600_000]], 1_200_000)).toBe(true);
+    expect(counted([[0, 500_000]], 1_200_000)).toBe(false);
   });
 });
