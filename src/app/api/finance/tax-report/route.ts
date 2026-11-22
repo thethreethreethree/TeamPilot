@@ -15,6 +15,10 @@ export async function GET(req: NextRequest) {
   if (from && DATE.test(from)) args.p_from = from;
   if (to && DATE.test(to)) args.p_to = to;
   const { data, error } = await sb.rpc("fin_tax_report", args);
-  if (error) return NextResponse.json({ report: null });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ report: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/tax-report] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ report: data });
 }

@@ -19,7 +19,11 @@ export async function GET() {
     .from("fin_credit_note_summary")
     .select("id, customer_id, invoice_id, credit_number, credit_date, status, reason, total")
     .order("credit_date", { ascending: false });
-  if (error) return NextResponse.json({ creditNotes: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ creditNotes: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ar/credit-notes] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ creditNotes: data });
 }
 

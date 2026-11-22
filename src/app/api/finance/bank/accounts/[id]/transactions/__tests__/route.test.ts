@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * and, rather than silently hiding older lines, returns { total, truncated } so the UI can say "showing the most
  * recent 1,000 of N". Locks: (1) under the cap → truncated:false, total = rows returned, and NO head-count query
  * is paid for; (2) at the cap with more rows behind it → truncated:true, total = the exact head count; (3) the
- * unauth gate; (4) a read error yields the honest empty shape, not a leak.
+ * unauth gate; (4) a read error is a 500 — never an empty list (founder 2026-11-23: an empty answer read as "no
+ * transactions") — and still never leaks the database's own message.
  */
 vi.mock("@/lib/supabase/config", () => ({ supabaseEnabled: true }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -111,12 +112,13 @@ describe("GET /finance/bank/accounts/[id]/transactions — honest truncation", (
     expect(body.total).toBe(1000);
   });
 
-  it("a read error yields the honest empty shape (no leak)", async () => {
+  it("a read error is a 500, not an empty list — and leaks nothing", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mock(fakeSb({ rows: null, error: { message: "raw pg detail" } }));
     const res = await run();
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(500);
     const body = await res.json();
-    expect(body.transactions).toEqual([]);
+    expect(body.transactions).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("raw pg detail");
   });
 });

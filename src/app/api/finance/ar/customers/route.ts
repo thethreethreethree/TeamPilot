@@ -15,7 +15,11 @@ export async function GET() {
     .from("fin_customers")
     .select("id, name, email, terms_days, is_active")
     .order("name");
-  if (error) return NextResponse.json({ customers: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ customers: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ar/customers] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ customers: data });
 }
 

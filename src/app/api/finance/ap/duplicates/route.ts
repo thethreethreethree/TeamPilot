@@ -16,6 +16,10 @@ export async function GET() {
     .select("bill_id, vendor_name, bill_number, bill_date, status, total, other_bill_number, other_bill_date, other_status, days_apart")
     .order("total", { ascending: false })
     .limit(100);
-  if (error) return NextResponse.json({ duplicates: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ duplicates: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ap/duplicates] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ duplicates: data ?? [] });
 }

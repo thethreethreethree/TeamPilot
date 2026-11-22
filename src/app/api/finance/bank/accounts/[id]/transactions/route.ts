@@ -22,7 +22,11 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("bank_account_id", id)
     .order("txn_date", { ascending: false })
     .limit(PAGE_MAX);
-  if (error) return NextResponse.json({ transactions: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ transactions: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/bank/accounts/[id]/transactions] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   const rows = data ?? [];
   const pageFull = rows.length >= PAGE_MAX;
   // Only pay for the exact count when the page is full (otherwise the returned rows ARE the total). If that count

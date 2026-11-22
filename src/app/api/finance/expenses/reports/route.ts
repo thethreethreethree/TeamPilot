@@ -19,7 +19,11 @@ export async function GET() {
     .from("fin_expense_report_summary")
     .select("id, title, status, employee_user_id, submitted_at, approved_at, reimbursed_at, total")
     .order("submitted_at", { ascending: false, nullsFirst: false });
-  if (error) return NextResponse.json({ reports: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ reports: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/expenses/reports] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ reports: data });
 }
 

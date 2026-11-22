@@ -15,7 +15,11 @@ export async function GET() {
     .from("fin_recurring_bills")
     .select("id, vendor_id, description, account_id, amount, tax_amount, frequency, next_date, is_active")
     .order("next_date");
-  if (error) return NextResponse.json({ templates: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ templates: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ap/recurring] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ templates: data });
 }
 

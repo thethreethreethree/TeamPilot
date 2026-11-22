@@ -20,7 +20,11 @@ export async function GET() {
     .from("fin_bill_summary")
     .select("id, vendor_id, bill_number, bill_date, due_date, currency, status, total, paid")
     .order("bill_date", { ascending: false });
-  if (error) return NextResponse.json({ bills: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ bills: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ap/bills] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ bills: data });
 }
 

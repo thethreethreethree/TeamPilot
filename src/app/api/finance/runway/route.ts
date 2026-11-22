@@ -9,6 +9,10 @@ export async function GET() {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { data, error } = await sb.rpc("fin_runway");
-  if (error) return NextResponse.json({ runway: null });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ runway: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/runway] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ runway: data });
 }

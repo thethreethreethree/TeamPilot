@@ -1476,3 +1476,14 @@ first fails on the previous page).
 ```
 npx vitest run --maxWorkers=1 src/components/finance src/lib/finance → passed, exit 0
 ```
+
+Finance data routes (founder picker 2026-11-23: "Fix all 14 now") — step 1, the routes. 14 GET routes under
+src/app/api/finance answered a database error with an empty value (`{ bills: [] }`, `{ runway: null }`…) and 200 — a
+failed read looked like "no bills / no invoices". Each now logs and answers 500 "Could not load this right now." (no
+database detail in the body). The one test that pinned the old shape (bank transactions, "honest empty shape") now pins
+the 500 and still checks nothing leaks. Step 2 — pages treating a non-OK answer as a failure through one helper —
+follows in its own commit.
+
+```
+npx vitest run --maxWorkers=1 src/app/api/finance src/lib/finance → passed, exit 0
+```

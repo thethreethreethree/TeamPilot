@@ -19,7 +19,11 @@ export async function GET() {
     .from("fin_vendors")
     .select("id, name, email, tax_id, terms_days, is_active")
     .order("name");
-  if (error) return NextResponse.json({ vendors: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ vendors: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ap/vendors] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ vendors: data });
 }
 

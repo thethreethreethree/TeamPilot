@@ -15,7 +15,11 @@ export async function GET() {
     .from("fin_purchase_orders")
     .select("id, vendor_id, po_number, order_date, expected_date, status")
     .order("order_date", { ascending: false });
-  if (error) return NextResponse.json({ pos: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ pos: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/ap/pos] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ pos: data });
 }
 

@@ -18,7 +18,11 @@ export async function GET() {
     .from("fin_bank_positions")
     .select("id, name, institution, mask, currency, is_active, gl_account_id, gl_balance, unmatched_count")
     .order("name");
-  if (error) return NextResponse.json({ accounts: [] });
+  // A failed read is an error, never an empty answer (2026-11-23): `{ accounts: … }` here read as "none".
+  if (error) {
+    console.error(`[finance/bank/accounts] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load this right now." }, { status: 500 });
+  }
   return NextResponse.json({ accounts: data });
 }
 
