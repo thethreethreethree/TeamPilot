@@ -1318,3 +1318,13 @@ zero-row write is a 500, not an echo; signed out 401; booleans only). 9 tests, a
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/settings/vocabulary/__tests__ src/app/api/coach/remote/macro-mode/__tests__ → 9 passed, exit 0
 ```
+More routes pinned (no code change): prospects (one rss_create_prospect call carrying every first fact; 409 for a call
+already in a pipeline; 403 naming why for someone else's call; a failed read is 500, never an empty pipeline; repId is a
+uuid or "team"), saved-searches (every read, insert and removal names company AND owner — INV29; a removal touching
+nothing is 404; a query the search page refuses is refused), scenarios (managers only; "from this call" needs a call the
+manager can open AND a rep in their tree, else 404 with nothing saved). 19 tests, all passing on the code as it was.
+Still untested: day and search/export (both already scanned clean).
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/scenarios src/app/api/coach/remote/saved-searches src/app/api/coach/remote/prospects/__tests__ → 19 passed, exit 0
+```
