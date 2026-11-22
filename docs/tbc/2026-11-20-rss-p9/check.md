@@ -930,6 +930,9 @@ through the caller's RLS — all confirmed. Six defects found and fixed:
    exists on each queue card; the channel read is chunked so a long queue can't exceed URL limits.
 Not fixed: a dispute alert on a no-call pitch does not dedupe (the unique index treats null session as distinct) — it
 stacks one bell per filing; recorded as a known limit, low.
+**Closed the same day:** with no call, the sender now leaves out anyone who already has an UNREAD alert of that type for
+that pitch (company-scoped read); with a call the unique index still dedupes. notify.test.ts covers both, the filer
+exclusion, and the rep's answer alert.
 
 ```
 npx vitest run src/app/api/coach/sales-session/roleplay src/…/pitch-score src/components/sales-coach src/components/remote-sales → Tests 705 passed (705), exit 0

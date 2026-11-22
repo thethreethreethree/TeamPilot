@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   tree: { data: null as boolean | null, error: { code: "PGRST202", message: "function not found" } as { code: string; message: string } | null },
   upserts: [] as Array<{ rows: unknown[]; opts: unknown }>,
   upsertError: null as { message: string } | null,
+  // Recipients who already have an UNREAD alert of the type asked (the no-call dispute dedupe).
+  unread: [] as string[],
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -26,7 +28,11 @@ vi.mock("@/lib/supabase/admin", () => ({
         return chain;
       }
       if (table === "manager_notifications") {
+        const read: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "is", "in"]) read[m] = () => read;
+        read.then = (resolve: (v: unknown) => unknown) => resolve({ data: state.unread.map((recipient_id) => ({ recipient_id })), error: null });
         return {
+          ...read,
           upsert: async (rows: unknown[], opts: unknown) => {
             if (state.upsertError) return { error: state.upsertError };
             state.upserts.push({ rows, opts });
@@ -39,7 +45,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { notifyStrongSession, notifyDealClosed } = await import("../notify");
+const { notifyStrongSession, notifyDealClosed, notifyScoreDisputed, notifyDisputeAnswered } = await import("../notify");
 
 beforeEach(() => {
   state.profiles = [
@@ -50,6 +56,7 @@ beforeEach(() => {
   ];
   state.upserts = [];
   state.upsertError = null;
+  state.unread = [];
   state.tree = { data: null, error: { code: "PGRST202", message: "function not found" } };
 });
 
@@ -115,3 +122,34 @@ describe("gamification notify", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("score disputes (Gong F15.21, 0305)", () => {
+  const recipients = () => state.upserts.flatMap((u) => (u.rows as Array<{ recipient_id: string }>).map((r) => r.recipient_id)).sort();
+
+  it("a dispute alerts the rep's managers — never the manager who filed it", async () => {
+    await notifyScoreDisputed({ companyId: "c1", repId: "agent", sessionId: "s1", pitchId: "p1", note: "wrong", channel: "phone", actorId: "mgr" });
+    expect(recipients()).toEqual(["ceo"]);
+  });
+
+  it("with no call (a door pitch), anyone with an unread alert for that pitch is not told again", async () => {
+    state.unread = ["ceo"];
+    await notifyScoreDisputed({ companyId: "c1", repId: "agent", sessionId: null, pitchId: "p1", note: "again", channel: null });
+    expect(recipients()).toEqual(["mgr"]);
+  });
+
+  it("with a call, the unique index dedupes — no extra read is needed and everyone is upserted", async () => {
+    state.unread = ["ceo", "mgr"]; // would filter, but must not be consulted when there is a session
+    await notifyScoreDisputed({ companyId: "c1", repId: "agent", sessionId: "s1", pitchId: "p1", note: "x", channel: "video" });
+    expect(recipients()).toEqual(["ceo", "mgr"]);
+  });
+
+  it("an answer reaches the rep once while their alert is unread (no-call pitch)", async () => {
+    state.unread = ["agent"];
+    expect(await notifyDisputeAnswered({ companyId: "c1", repId: "agent", managerId: "mgr", sessionId: null, pitchId: "p1", note: "ok" })).toBe(true);
+    expect(state.upserts).toHaveLength(0);
+    state.unread = [];
+    await notifyDisputeAnswered({ companyId: "c1", repId: "agent", managerId: "mgr", sessionId: null, pitchId: "p1", note: "ok" });
+    expect(recipients()).toEqual(["agent"]);
+  });
+});
+

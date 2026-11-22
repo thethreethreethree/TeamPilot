@@ -287,9 +287,16 @@ export async function notifyScoreDisputed(args: {
   actorId?: string;
 }): Promise<number> {
   try {
-    const recipients = (await resolveManagers(args.companyId, args.repId)).filter((id) => id !== args.actorId);
-    if (recipients.length === 0) return 0;
     const admin = createAdminClient();
+    const recipients = await withoutUnreadFor(
+      admin,
+      (await resolveManagers(args.companyId, args.repId)).filter((id) => id !== args.actorId),
+      "score_disputed",
+      args.sessionId,
+      args.pitchId,
+      args.companyId,
+    );
+    if (recipients.length === 0) return 0;
     const { data: prof } = await admin.from("profiles").select("full_name").eq("company_id", args.companyId).eq("id", args.repId).maybeSingle();
     const now = new Date().toISOString();
     const { error } = await admin.from("manager_notifications").upsert(
@@ -329,6 +336,7 @@ export async function notifyDisputeAnswered(args: {
 }): Promise<boolean> {
   try {
     if (args.repId === args.managerId) return false;
+    if ((await withoutUnreadFor(createAdminClient(), [args.repId], "dispute_answered", args.sessionId, args.pitchId, args.companyId)).length === 0) return true;
     const { error } = await createAdminClient().from("manager_notifications").upsert(
       [
         {
@@ -356,3 +364,35 @@ export async function notifyDisputeAnswered(args: {
     return false;
   }
 }
+
+/**
+ * Dedupe for a pitch with NO call (a door-log pitch): the (recipient, type, session) unique index treats a null session
+ * as distinct, so an upsert would stack one bell per filing. Leave out anyone who already has an UNREAD alert of this
+ * type for this pitch. With a session the index already dedupes, so the list is returned unchanged. Best-effort.
+ */
+async function withoutUnreadFor(
+  admin: ReturnType<typeof createAdminClient>,
+  recipients: string[],
+  type: "score_disputed" | "dispute_answered",
+  sessionId: string | null,
+  pitchId: string,
+  companyId: string,
+): Promise<string[]> {
+  if (sessionId || recipients.length === 0) return recipients;
+  try {
+    const { data, error } = await admin
+      .from("manager_notifications")
+      .select("recipient_id")
+      .eq("company_id", companyId)
+      .eq("type", type)
+      .is("read_at", null)
+      .eq("payload->>pitch_id", pitchId)
+      .in("recipient_id", recipients);
+    if (error) return recipients;
+    const has = new Set(((data ?? []) as Array<{ recipient_id: string }>).map((r) => String(r.recipient_id)));
+    return recipients.filter((id) => !has.has(id));
+  } catch {
+    return recipients;
+  }
+}
+
