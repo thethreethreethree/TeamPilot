@@ -42,7 +42,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (session.agentId !== ctx.userId) {
     return NextResponse.json({ error: "Only the rep who took this call can review its checklist." }, { status: 403 });
   }
-  const { data: brief } = await db.from("remote_call_briefs").select("id").eq("id", body.briefId).eq("session_id", id).maybeSingle();
+  const { data: brief, error: briefErr } = await db.from("remote_call_briefs").select("id").eq("id", body.briefId).eq("session_id", id).maybeSingle();
+  // A failed read is "try again", not "not found" (2026-11-23).
+  if (briefErr) {
+    console.error(`[brief-review] brief read failed session=${id}: ${briefErr.message}`);
+    return NextResponse.json({ error: "Couldn't open the checklist — try again." }, { status: 500 });
+  }
   if (!brief) return NextResponse.json({ error: "Checklist not found." }, { status: 404 });
   // Once per brief (0304 unique index): checked BEFORE any task is created, so a second save or a double-click can't
   // create every task twice.

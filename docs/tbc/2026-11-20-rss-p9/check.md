@@ -1270,3 +1270,13 @@ so it is now logged rather than silently lost. Every other remote write already 
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/webhooks src/lib/coach/remote → 171 passed, exit 0
 ```
+
+Untested Remote Sales routes (same day): 15 routes had no test. First, the checklist review ([id]/brief/review) — 6
+tests pin its rules: only the call's rep (a manager gets 403, nothing written); never twice (409 before any task);
+nothing created when it can't tell whether it was reviewed; a failed review save says "don't save again". One fix: a
+failed checklist read answered 404 "not found"; it is now 500 "try again". Against the previous route, only that new
+case fails (1 of 6) — the other rules were already right, now pinned.
+
+```
+npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/brief/review/__tests__" → 6 passed, exit 0
+```
