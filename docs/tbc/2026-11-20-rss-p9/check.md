@@ -1119,3 +1119,9 @@ existing 500 "Could not load patterns."); scoreSession already catches and logs 
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/patterns src/app/api/coach/sales-session/patterns → 10 files, 190 passed, exit 0
 ```
+Same file, same class: the pattern_events read ignored its error, so a failed read showed every pattern as never
+coached, dropped AWAITING REP REVIEW and restarted stalled clocks. It now returns null (→ "Could not load patterns.").
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/patterns src/app/api/coach/sales-session/patterns → 191 passed, exit 0
+```

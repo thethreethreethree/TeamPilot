@@ -221,11 +221,17 @@ export async function readPatterns(
   // One events read for every pattern, rather than one per pattern. The board shows up to a
   // dozen patterns across five reps and an N+1 here would be a dozen round trips to render a
   // page that already waits on the grades read.
-  const { data: eventData } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from("pattern_events")
     .select("pattern_id, kind, created_at, actor_id, body")
     .in("pattern_id", records.map((r) => r.id))
     .order("created_at", { ascending: true });
+  // A failed events read is not "never coached": it would show every pattern as uncoached, drop AWAITING REP REVIEW
+  // and restart stalled clocks. Same rule as the grades read — say it could not load (2026-11-23).
+  if (eventError) {
+    console.error(`[readPatterns] pattern events read failed: ${eventError.message}`);
+    return null;
+  }
 
   const events = (eventData ?? []) as EventRecord[];
   const coachedAt = new Map<string, string>();

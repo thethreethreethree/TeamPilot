@@ -37,6 +37,7 @@ function db(opts: {
   events?: unknown[];
   elementsByRep?: Record<string, Array<{ element_id: string; grade: Grade; recorded_at: string; context?: string | null }>>;
   gradesFail?: boolean;
+  eventsFail?: boolean;
 }) {
   const elementQueries: string[] = [];
   const make = (table: string) => {
@@ -67,7 +68,7 @@ function db(opts: {
     }
     if (table === "pattern_events") {
       (chain as { then: unknown }).then = (res: (v: unknown) => void) =>
-        res({ data: opts.events ?? [], error: null });
+        res(opts.eventsFail ? { data: null, error: { message: "events boom" } } : { data: opts.events ?? [], error: null });
     }
     if (table === "pitch_score_elements") {
       (chain as { then: unknown }).then = (res: (v: unknown) => void) => {
@@ -235,6 +236,14 @@ describe("a failed grades read is a failed read, not an empty history (2026-11-2
     const { client } = db({
       patterns: [{ id: "p1", rep_id: "rep-1", item_id: "disc.currentSpeeds", item_kind: "element", first_seen: "2026-03-01", misses_at_detection: 3, applicable_at_detection: 5, cost_per_pitch: 2, strip_at_detection: [], fixed_at: null }],
       gradesFail: true,
+    });
+    expect(await readPatterns({ repId: "rep-1" }, client)).toBeNull();
+  });
+
+  it("readPatterns returns null — not 'never coached' — when the coaching events fail to read", async () => {
+    const { client } = db({
+      patterns: [{ id: "p1", rep_id: "rep-1", item_id: "disc.currentSpeeds", item_kind: "element", first_seen: "2026-03-01", misses_at_detection: 3, applicable_at_detection: 5, cost_per_pitch: 2, strip_at_detection: [], fixed_at: null }],
+      eventsFail: true,
     });
     expect(await readPatterns({ repId: "rep-1" }, client)).toBeNull();
   });
