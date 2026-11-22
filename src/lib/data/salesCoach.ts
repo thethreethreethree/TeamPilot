@@ -5,6 +5,8 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { selectWinningLines } from "@/lib/coach/v5/winningLines";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { REDACTION } from "@/lib/coach/remote/decisions";
+import { redactNumbers } from "@/lib/coach/remote/redact";
 
 /**
  * Live Sales Coach — data layer (subsystem 2: Recording & Storage).
@@ -363,7 +365,9 @@ export async function appendTranscriptSegment(args: {
   const base = {
     session_id: args.sessionId,
     speaker: args.speaker,
-    text: args.text,
+    // D15 number redaction, applied at the ONE place transcript lines are written (switched by REDACTION in
+    // decisions.ts; off until the founder decides). Off = the text is stored exactly as heard.
+    text: REDACTION.enabled ? redactNumbers(args.text, REDACTION.minDigits) : args.text,
     seq: args.seq,
     spoken_at: args.spokenAt ?? null,
   };

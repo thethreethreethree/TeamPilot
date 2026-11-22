@@ -937,3 +937,15 @@ exclusion, and the rep's answer alert.
 ```
 npx vitest run src/app/api/coach/sales-session/roleplay src/…/pitch-score src/components/sales-coach src/components/remote-sales → Tests 705 passed (705), exit 0
 ```
+
+## Addendum 2026-11-22 — number redaction built, switched off (D15)
+
+The decisions record said D15's function was "built, switched off"; grep showed only the switch. Built it so the
+founder's answer is a one-line change: redactNumbers (a digit run — spaces, dashes or dots allowed between groups — at or
+above minDigits → "[number removed]"), applied in appendTranscriptSegment, the one writer of transcript lines (writer
+audit / INVARIANT 32). REDACTION stays { enabled: false } — stored text is unchanged until D15 is answered. Limits stated
+in the code: spoken-word numbers not caught, audio not altered, existing lines untouched. 00-OPEN-DECISIONS D15 corrected.
+
+```
+npx vitest run src/lib/coach/remote/__tests__/redact.test.ts → Tests 4 passed (4), exit 0
+```
