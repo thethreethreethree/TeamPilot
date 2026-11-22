@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { CreditCard, Upload, Wand2, Plus } from "lucide-react";
@@ -37,7 +37,8 @@ type Card = {
 
 export default function CardsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [label, setLabel] = useState("");
@@ -50,16 +51,14 @@ export default function CardsPage() {
     // company has no card exposure — so a read failure is never rendered as an empty, reassuring list.
     if (j.error) {
       setLoadError(j.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
     setCards(j.cards ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function addCard() {
@@ -121,7 +120,7 @@ export default function CardsPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Corporate cards" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Corporate cards" />;
 
   const totalUnmatched = cards.reduce((s, c) => s + Number(c.unmatched_total || 0), 0);
   const totalUnmatchedCount = cards.reduce((s, c) => s + Number(c.unmatched_count || 0), 0);

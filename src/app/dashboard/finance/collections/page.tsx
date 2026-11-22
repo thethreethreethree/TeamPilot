@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { PhoneCall, Mail, AlertTriangle } from "lucide-react";
@@ -43,7 +43,8 @@ type Row = {
 
 export default function CollectionsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   // THE LADDER. Without a policy, stage_due is always null and this page is INERT — an empty collections
   // list that looks perfectly healthy. That is the worst way for a feature to fail, so the page has to be
@@ -61,17 +62,15 @@ export default function CollectionsPage() {
     // that claim is false and dangerously reassuring — so a failure is never rendered as an empty list.
     if (j.error) {
       setLoadError(j.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
     setRows(j.worklist ?? []);
     setPolicies(j.policies ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function record(inv: Row, channel: "email" | "phone") {
@@ -94,7 +93,7 @@ export default function CollectionsPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Collections" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Collections" />;
 
   const totalOverdue = rows.reduce((s, r) => s + Number(r.outstanding || 0), 0);
   // The backlog: invoices where the ladder has moved on and nobody has followed it.

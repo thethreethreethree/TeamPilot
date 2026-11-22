@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { CalendarClock, AlertTriangle, X } from "lucide-react";
@@ -42,7 +42,8 @@ type Row = {
 
 export default function SchedulesPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,16 +54,14 @@ export default function SchedulesPage() {
     // only safely act on one of them.
     if (j.error) {
       setLoadError(j.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
     setRows(j.schedules ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function act(id: string, action: "execute" | "cancel") {
@@ -91,7 +90,7 @@ export default function SchedulesPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Scheduled payments" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Scheduled payments" />;
 
   const due = rows.filter((r) => r.is_due);
   const dueTotal = due.reduce((s, r) => s + Number(r.amount || 0), 0);

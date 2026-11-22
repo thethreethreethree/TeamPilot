@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from "react";
 import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { findOpenPeriodContaining } from "@/lib/finance/periodSelection";
 import { useToast } from "@/components/ui/toast";
@@ -50,7 +50,8 @@ type Period = { id: string; status: string; start_date: string; end_date: string
 
 export default function PayrollPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [runs, setRuns] = useState<Run[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,17 +70,15 @@ export default function PayrollPage() {
     ]);
     if (r.error) {
       setLoadError(r.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
     setRuns(r.runs ?? []);
     setPeriods((p.periods ?? []).filter((x: Period) => x.status === "open"));
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   // The payroll entry is dated `payDate` (used as entry_date by fin_post_payroll_run) and GL views aggregate
@@ -148,7 +147,7 @@ export default function PayrollPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Payroll" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Payroll" />;
 
   const totalCost = runs.reduce(
     (s, r) => s + Number(r.gross || 0) + Number(r.employer_tax || 0) + Number(r.benefits || 0),

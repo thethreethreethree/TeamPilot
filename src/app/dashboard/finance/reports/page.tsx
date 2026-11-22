@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { BarChart3, Play, Trash2, Download } from "lucide-react";
@@ -62,7 +62,8 @@ const PERIOD_LABEL: Record<string, string> = {
 
 export default function ReportsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [active, setActive] = useState<Report | null>(null);
@@ -79,16 +80,14 @@ export default function ReportsPage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not load reports.");
-      setReady(true);
       return;
     }
     setLoadError(null);
     setReports(j.reports ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function run(r: Report) {
@@ -154,7 +153,7 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url); // release the blob URL — click() has already fired the download
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Reports" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Reports" />;
 
   const total = (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
 

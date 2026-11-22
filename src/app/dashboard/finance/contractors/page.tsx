@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { HardHat, AlertTriangle, Download } from "lucide-react";
@@ -41,7 +41,8 @@ type Vendor = { id: string; name: string; is_1099: boolean; tax_id: string | nul
 
 export default function ContractorsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [rows, setRows] = useState<Row[]>([]);
   const [blockers, setBlockers] = useState<Blocker[] | null>([]);
@@ -54,7 +55,6 @@ export default function ContractorsPage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not load.");
-      setReady(true);
       return;
     }
     setLoadError(null);
@@ -63,11 +63,10 @@ export default function ContractorsPage() {
     setBlockers(j.blockers);
     setBlockersUnknown(Boolean(j.blockersUnknown));
     setVendors(j.vendors ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function mark(vendorId: string, is1099: boolean) {
@@ -105,7 +104,7 @@ export default function ContractorsPage() {
     URL.revokeObjectURL(url); // release the blob URL — click() has already fired the download
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Contractors" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Contractors" />;
 
   const reportable = rows.filter((r) => r.meets_threshold);
   const total = reportable.reduce((s, r) => s + Number(r.total_paid || 0), 0);

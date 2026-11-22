@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { parseTrialBalance, tbImbalance } from "@/lib/finance/trialBalance";
 import { useToast } from "@/components/ui/toast";
@@ -48,7 +48,8 @@ const today = todayIso;
 
 export default function OpeningBalancesPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -69,7 +70,6 @@ export default function OpeningBalancesPage() {
     ]);
     if (o.error) {
       setLoadError(o.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
@@ -78,11 +78,10 @@ export default function OpeningBalancesPage() {
     setBatches(o.batches ?? []);
     setObe(o.imbalance ?? null);
     setObeUnknown(Boolean(o.imbalanceUnknown));
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   const parsed = parseTrialBalance(raw, accounts);
@@ -141,7 +140,7 @@ export default function OpeningBalancesPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Opening balances" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Opening balances" />;
 
   return (
     <>

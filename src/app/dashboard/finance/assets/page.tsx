@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Boxes, Plus } from "lucide-react";
@@ -44,7 +44,8 @@ type Period = { id: string; name?: string; start_date: string; status: string };
 
 export default function AssetsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -67,18 +68,16 @@ export default function AssetsPage() {
     // owns nothing.
     if (a.error) {
       setLoadError(a.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
     setAssets(a.assets ?? []);
     setAccounts(ac.accounts ?? []);
     setPeriods((pe.periods ?? []).filter((p: Period) => p.status === "open"));
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   const openPeriod = periods[0];
@@ -151,7 +150,7 @@ export default function AssetsPage() {
     }
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Fixed assets" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Fixed assets" />;
 
   const assetAccounts = accounts.filter((a) => a.type === "asset");
 

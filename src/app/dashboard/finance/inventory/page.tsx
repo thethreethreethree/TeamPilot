@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Package, AlertTriangle, Plus } from "lucide-react";
@@ -41,7 +41,8 @@ type MissingCogs = { invoice_id: string; invoice_number: string; invoice_date: s
 
 export default function InventoryPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [discrepancies, setDiscrepancies] = useState<Disc[]>([]);
   const [shrinkage, setShrinkage] = useState<Shrink[]>([]);
@@ -60,7 +61,6 @@ export default function InventoryPage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not load inventory.");
-      setReady(true);
       return;
     }
     setLoadError(null);
@@ -69,11 +69,10 @@ export default function InventoryPage() {
     setShrinkage(j.shrinkage ?? []);
     setMissingCogs(j.missingCogs ?? []);
     setPeriodId(j.openPeriodId ?? null);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function post(body: Record<string, unknown>, ok: string) {
@@ -113,7 +112,7 @@ export default function InventoryPage() {
     post({ action: "adjust", itemId: item.id, qtyDelta: delta, reason: reason.trim() }, "Adjustment posted");
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Inventory" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Inventory" />;
 
   const totalValue = items.reduce((s, i) => s + Number(i.qty_on_hand) * Number(i.avg_cost), 0);
   const recentShrink = shrinkage[0];

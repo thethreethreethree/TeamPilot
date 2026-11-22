@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { ShieldAlert, CheckCircle2 } from "lucide-react";
 
@@ -41,7 +41,8 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export default function AnomaliesPage() {
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rows, setRows] = useState<Anomaly[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -50,19 +51,17 @@ export default function AnomaliesPage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not check for anomalies.");
-      setReady(true);
       return;
     }
     setLoadError(null);
     setRows(j.anomalies ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
-  if (ready === false) return <FinanceNotSetUp feature="Spend anomalies" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Spend anomalies" />;
 
   return (
     <>

@@ -1432,3 +1432,16 @@ outside this build: filed in docs/residuals/OPEN.md, not changed.
 ```
 npx vitest run --maxWorkers=1 src/components/sales-coach/__tests__/AssignedPractice.render.test.tsx → 3 passed, exit 0
 ```
+
+Finance "not set up" on a failed load (founder picker 2026-11-23: "Fix it now"). Read first: FinanceNotSetUp means "the
+Chart of Accounts is empty — initialize finance", but on all 15 pages `ready` was set false ONLY in
+`load().catch(...)`, and none checks for an empty Chart of Accounts — so the screen appeared only when a load threw
+(network error, non-JSON 500) and told an admin to initialize finance they had already set up. Each page now sets
+`loadFailed` and renders the new FinanceLoadFailed ("Couldn't load <feature> — refresh"); `ready` had no other reader
+and is removed (30 `setReady(true)` calls with it). The JSON-error paths each page already had (e.g. cards' loadError)
+are unchanged. Tests: the cards page on a rejected fetch shows "Couldn't load Corporate cards" and not "isn't set up
+yet" (fails on the previous page); a scan of every finance page for FinanceNotSetUp wired to a failed load.
+
+```
+npx vitest run --maxWorkers=1 src/components/finance/__tests__/FinanceLoadFailed.render.test.tsx → 2 passed, exit 0
+```

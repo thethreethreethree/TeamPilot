@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { Target, RotateCcw } from "lucide-react";
 
@@ -42,7 +42,8 @@ type Coverage = { tagged_cost: number; untagged_cost: number; tagged_share: numb
 type Prob = { problem_id: string; problem_title: string; cost: number };
 
 export default function CostPerOutcomePage() {
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [s, setS] = useState<Summary | null>(null);
   const [cov, setCov] = useState<Coverage | null>(null);
   const [problems, setProblems] = useState<Prob[]>([]);
@@ -53,21 +54,19 @@ export default function CostPerOutcomePage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not load.");
-      setReady(true);
       return;
     }
     setLoadError(null);
     setS(j.summary ?? null);
     setCov(j.coverage ?? null);
     setProblems(j.problems ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
-  if (ready === false) return <FinanceNotSetUp feature="Cost per outcome" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Cost per outcome" />;
 
   const share = cov?.tagged_share != null ? Number(cov.tagged_share) : null;
   const thin = share != null && share < 0.25;

@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { todayIso } from "@/lib/finance/dateRange";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { ShieldCheck, Plus, Gauge, Ban, UserCheck, Split } from "lucide-react";
@@ -55,7 +55,8 @@ const today = todayIso;
 
 export default function FinanceControlsPage() {
   const toast = useToast();
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [mileage, setMileage] = useState<MileageRate[]>([]);
@@ -113,7 +114,6 @@ export default function FinanceControlsPage() {
     // lags behind. §A14 + the migration-coupling lesson: a newer feature's read must not hide the core.
     if (r.error || p.error || rt.error) {
       setLoadError(r.error || p.error || rt.error);
-      setReady(true);
       return;
     }
     setLoadError(null);
@@ -128,11 +128,10 @@ export default function FinanceControlsPage() {
     setDelegations(dg.error ? [] : (dg.delegations ?? []));
     setMembers(tm.members ?? []);
     setAccounts((ac.accounts ?? []).filter((a: Account) => a.type === "expense"));
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
   async function addPolicy() {
@@ -230,7 +229,7 @@ export default function FinanceControlsPage() {
     load();
   }
 
-  if (ready === false) return <FinanceNotSetUp feature="Finance controls" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Finance controls" />;
 
   const nameOf = (id: string) => members.find((m) => m.id === id)?.full_name ?? `${id.slice(0, 8)}…`;
   const t = today();

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import TopBar from "@/components/layout/TopBar";
 import FinanceNav from "@/components/finance/FinanceNav";
-import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney } from "@/lib/finance/format";
 import { AlertTriangle, TrendingDown } from "lucide-react";
 
@@ -41,7 +41,8 @@ type Commitment = {
 };
 
 export default function ForecastPage() {
-  const [ready, setReady] = useState<boolean | null>(null);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [days, setDays] = useState<Day[]>([]);
   const [gap, setGap] = useState<Gap | null>(null);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
@@ -52,21 +53,19 @@ export default function ForecastPage() {
     const j = await res.json();
     if (!res.ok || j.error) {
       setLoadError(j.error ?? "Could not build the forecast.");
-      setReady(true);
       return;
     }
     setLoadError(null);
     setDays(j.days ?? []);
     setGap(j.gap ?? null);
     setCommitments(j.commitments ?? []);
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    load().catch(() => setReady(false));
+    load().catch(() => setLoadFailed(true));
   }, [load]);
 
-  if (ready === false) return <FinanceNotSetUp feature="Cash forecast" />;
+  if (loadFailed) return <FinanceLoadFailed feature="Cash forecast" />;
 
   const firstNegative = days.find((d) => d.is_negative) ?? null;
   const low = days.reduce<Day | null>(
