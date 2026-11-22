@@ -7,6 +7,7 @@ import TopBar from "@/components/layout/TopBar";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
 import { ELEMENTS } from "@/lib/coach/pitchScore/rubric";
+import { REMOTE_ELEMENTS } from "@/lib/coach/pitchScore/rubricRemote";
 
 /**
  * Sales Coach → Search calls (RSS Phase 5; docs/rss/docs/06-UI-SPEC.md "Find").
@@ -198,7 +199,11 @@ export default function SearchCallsPage() {
                 Rubric item
                 <select value={f.element} onChange={set("element")} className={input}>
                   <option value="">Any</option>
-                  {ELEMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+                  {/* Remote Search: the phone & video rubric's items (D6), then door-only items for calls scored before it. */}
+                  {REMOTE_ELEMENTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+                  {ELEMENTS.filter((e) => !REMOTE_ELEMENTS.some((r) => r.id === e.id)).map((e) => (
+                    <option key={e.id} value={e.id}>{e.label} (door rubric)</option>
+                  ))}
                 </select>
               </label>
               <label className="block text-[11px] text-muted">

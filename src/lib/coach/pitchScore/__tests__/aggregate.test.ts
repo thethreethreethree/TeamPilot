@@ -286,3 +286,18 @@ describe("activity KPIs", () => {
     ).toBe(61);
   });
 });
+
+describe("phone & video scores in the stats (D6)", () => {
+  it("a remote-only item graded under the phone & video rubric shows up in the element stats", async () => {
+    const { REMOTE_RUBRIC } = await import("../rubricRegistry");
+    const remoteIds = REMOTE_RUBRIC.elements.map((e) => e.id);
+    const elements = remoteIds.map((elementId) => ({ elementId, grade: "hit" as const }));
+    const agg = aggregatePitches([
+      { score: scorePitch({ elements, objectionOccurred: true, reachedDiscovery: true, rubric: REMOTE_RUBRIC }), elements },
+    ]);
+    const ids = agg.elementStats.map((s) => s.elementId);
+    expect(ids).toContain("close.enrollOnCall");
+    expect(ids).toContain("intro.permissionAgenda");
+    expect(agg.elementStats.find((s) => s.elementId === "close.enrollOnCall")!.label).toBe("Into enrollment, on the call");
+  });
+});

@@ -216,6 +216,14 @@ export const VIOLATIONS_BY_ID: ReadonlyMap<string, RubricViolation> = new Map(
   VIOLATIONS.map((v) => [v.id, v])
 );
 
+/** Every element and bonus either rubric (door, phone & video — D6) can grade: door items first, then remote-only.
+ *  For readers that summarise scores across rubrics; a stat with no graded instances is skipped by them anyway. */
+export const ALL_ELEMENTS: readonly RubricElement[] = [...ELEMENTS_BY_ID.values()];
+export const ALL_BONUSES: readonly RubricBonus[] = [...BONUSES_BY_ID.values()];
+export function allElementsForSection(section: SectionId): RubricElement[] {
+  return ALL_ELEMENTS.filter((e) => e.section === section);
+}
+
 export function elementsForSection(section: SectionId): RubricElement[] {
   return ELEMENTS.filter((e) => e.section === section);
 }

@@ -8,7 +8,7 @@ import { Loader2, AlertTriangle, Info, TrendingUp } from "lucide-react";
 // their authority on the day they were written.
 import {
   SECTIONS,
-  elementsForSection,
+  allElementsForSection,
   lowestSection,
   type SectionId,
 } from "@/lib/coach/pitchScore/rubric";
@@ -310,7 +310,7 @@ function Board({
 
                 {isOpen && stats.length > 0 && (
                   <ul className="border-t border-default">
-                    {elementsForSection(s.id).map((def) => {
+                    {allElementsForSection(s.id).map((def) => {
                       const e = stats.find((x) => x.elementId === def.id);
                       if (!e) return null;
                       return (

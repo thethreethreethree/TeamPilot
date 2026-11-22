@@ -1,6 +1,6 @@
 import {
-  BONUSES,
-  ELEMENTS,
+  ALL_BONUSES,
+  ALL_ELEMENTS,
   GRADE_CREDIT,
   PRIZE_ELIGIBLE_MIN_PITCHES,
   SECTIONS,
@@ -195,7 +195,8 @@ export function aggregatePitches(pitches: readonly AggregablePitch[]): PeriodAgg
   // counted pitches. An element the rep never reached is not a miss they can be coached on, and
   // Pattern Interrupt applies the same applicable-only rule when it counts 3 of the last 10.
   const elementStats: ElementStat[] = [];
-  for (const def of ELEMENTS) {
+  // Both rubrics' items (D6): a phone/video score's own items must not drop out of its stats.
+  for (const def of ALL_ELEMENTS) {
     let hit = 0;
     let partial = 0;
     let missed = 0;
@@ -227,7 +228,7 @@ export function aggregatePitches(pitches: readonly AggregablePitch[]): PeriodAgg
   }
 
   const bonusStats: BonusStat[] = [];
-  for (const def of BONUSES) {
+  for (const def of ALL_BONUSES) {
     let earnedIn = 0;
     let points = 0;
     for (const p of counted) {

@@ -1048,3 +1048,8 @@ so the channel caveat is gone for them. Draft doc, decisions record updated.
 ```
 npx vitest run src/lib/coach/pitchScore src/lib/coach/remote src/components/sales-coach src/app/api/coach/sales-session/pitch-score → all passed, exit 0
 ```
+D6 ripple (same day): three remote surfaces listed only the door rubric's items, so phone/video-only items would have
+dropped out silently — period stats (aggregatePitches looped door ELEMENTS/BONUSES), the Breakdown's per-section list,
+and Remote Search's rubric-item filter. They now use ALL_ELEMENTS / ALL_BONUSES / allElementsForSection (door first, then
+remote-only; stats skip ungraded items) and Remote Search lists the phone & video items first, door-only ones marked
+"(door rubric)" for calls scored before approval. aggregate.test.ts: a remote score's own items appear in the stats.
