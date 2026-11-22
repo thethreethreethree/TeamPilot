@@ -1,15 +1,6 @@
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import {
-  AUDIO_BONUS_CONFIDENCE_THRESHOLD,
-  BONUSES,
-  BONUS_CAP,
-  NEVER_GRADE_FOR_ACCURACY,
-  QUALIFYING_MIN_BASE,
-  RUBRIC_VERSION,
-  SECTIONS,
-  VIOLATIONS,
-  elementsForSection,
-} from "./rubric";
+import { AUDIO_BONUS_CONFIDENCE_THRESHOLD, NEVER_GRADE_FOR_ACCURACY } from "./rubric";
+import { DOOR_RUBRIC, type Rubric } from "./rubricRegistry";
 
 /**
  * The grading prompt for the Pitch Score engine — Step 1 item 2 of the build guide: "Extend the AI
@@ -42,17 +33,18 @@ export type RawGradedPitch = {
   violations: Array<{ violationId: string; timestampS?: number; evidence?: string }>;
 };
 
-function renderSections(): string {
-  return SECTIONS.map((section) => {
-    const rows = elementsForSection(section.id)
+function renderSections(rubric: Rubric): string {
+  return rubric.sections.map((section) => {
+    const rows = rubric.elements
+      .filter((e) => e.section === section.id)
       .map((e) => `    - ${e.id} — ${e.label} (${e.points} pts): ${e.whatCounts}`)
       .join("\n");
     return `  ${section.label} (${section.maxPoints} pts):\n${rows}`;
   }).join("\n\n");
 }
 
-function renderBonuses(): string {
-  return BONUSES.map((b) => {
+function renderBonuses(rubric: Rubric): string {
+  return rubric.bonuses.map((b) => {
     const repeat = b.repeatable ? `, repeatable up to +${b.maxTotal}` : "";
     const audio = b.audioInferred
       ? ` [AUDIO-INFERRED — you MUST return a confidence 0..1]`
@@ -61,8 +53,8 @@ function renderBonuses(): string {
   }).join("\n");
 }
 
-function renderViolations(): string {
-  return VIOLATIONS.map((v) => {
+function renderViolations(rubric: Rubric): string {
+  return rubric.violations.map((v) => {
     const repeat = v.repeatable
       ? `, repeatable${v.maxTotal ? ` up to −${v.maxTotal}` : ""}`
       : "";
@@ -78,7 +70,10 @@ function renderViolations(): string {
  * not have to say it verbatim, and grading fidelity to a script would punish the reps who adapt
  * best to the customer in front of them.
  */
-export function buildPitchScoreSystemPrompt(salesCorpus?: string | null): string {
+export function buildPitchScoreSystemPrompt(salesCorpus?: string | null, rubric: Rubric = DOOR_RUBRIC): string {
+  const BONUS_CAP = rubric.bonusCap;
+  const QUALIFYING_MIN_BASE = rubric.qualifyingMinBase;
+  const RUBRIC_VERSION = rubric.version;
   return `You are scoring a recorded door-to-door sales pitch for AT&T Fiber against a fixed rubric.
 
 You return OBSERVATIONS ONLY. Do not compute points, totals, averages or a final score — a separate
@@ -105,12 +100,12 @@ EVIDENCE IS REQUIRED. For every element, bonus and violation you report, give:
 A grade with no evidence cannot be disputed, reviewed, or learned from, so it is not acceptable.
 
 BASE ELEMENTS
-${renderSections()}
+${renderSections(rubric)}
 
 BONUSES (the scorer caps the total at +${BONUS_CAP} per pitch; report every one you observe)
 Every bonus must come from what you HEARD. None are self-reported by the rep, so never award one
 because the rep claims it.
-${renderBonuses()}
+${renderBonuses(rubric)}
 
 For AUDIO-INFERRED bonuses, return confidence 0..1. The scorer discards anything below
 ${AUDIO_BONUS_CONFIDENCE_THRESHOLD}. Infer being inside or in the backyard from: explicit invitations
@@ -120,7 +115,7 @@ uncertainty — a low confidence is more useful than a confident guess, because 
 wrong award and the confidence is what answers them.
 
 VIOLATIONS
-${renderViolations()}
+${renderViolations(rubric)}
 
 Set violation triggers at clear extremes. Talk/listen balance and question quality already cost
 points as Delivery elements, so a rep who is only slightly talk-heavy should lose a little there and

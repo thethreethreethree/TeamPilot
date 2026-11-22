@@ -16,6 +16,8 @@
  * may be edited in place once scores reference it. A change means a NEW version.
  */
 
+import { REMOTE_BONUSES, REMOTE_ELEMENTS } from "./rubricRemote";
+
 export const RUBRIC_VERSION = "attfiber-v1" as const;
 
 export type SectionId =
@@ -200,12 +202,16 @@ export const NEVER_GRADE_FOR_ACCURACY = [
 
 // ── Lookups ───────────────────────────────────────────────────────────────────────────────────
 
-export const ELEMENTS_BY_ID: ReadonlyMap<string, RubricElement> = new Map(
-  ELEMENTS.map((e) => [e.id, e])
-);
-export const BONUSES_BY_ID: ReadonlyMap<string, RubricBonus> = new Map(
-  BONUSES.map((b) => [b.id, b])
-);
+// Lookups by id include the phone/video rubric's own ids (rubricRemote.ts, D6), so a label lookup on a remote score
+// finds its element. Shared ids keep the door entry — the remote rubric only reuses an id when the label is the same.
+// Door items first and in rubric order (readers order a breakdown by this map), then only the remote-only ids.
+const withRemoteOnly = <T extends { id: string }>(door: readonly T[], remote: readonly T[]): Map<string, T> => {
+  const m = new Map(door.map((x) => [x.id, x] as [string, T]));
+  for (const x of remote) if (!m.has(x.id)) m.set(x.id, x);
+  return m;
+};
+export const ELEMENTS_BY_ID: ReadonlyMap<string, RubricElement> = withRemoteOnly(ELEMENTS, REMOTE_ELEMENTS);
+export const BONUSES_BY_ID: ReadonlyMap<string, RubricBonus> = withRemoteOnly(BONUSES, REMOTE_BONUSES);
 export const VIOLATIONS_BY_ID: ReadonlyMap<string, RubricViolation> = new Map(
   VIOLATIONS.map((v) => [v.id, v])
 );

@@ -1012,3 +1012,23 @@ Sweep of today's routes for reads whose error was ignored: three could cause a w
 checklist review's "already reviewed?" read (a failure would have created every task twice), its prospect-link read (to-
 dos would silently miss the prospect), and the brief's review read (a reviewed checklist shown as unreviewed). The rest
 were auth lookups or display names, where a miss only loses a name.
+
+## Addendum 2026-11-22 — D6: phone & video rubric drafted, wired behind an OFF switch
+
+Founder (picker): "I draft one for you" — docs/rss/REMOTE-RUBRIC-DRAFT.md, line by line from attfiber-v1: same six
+sections and weights (sums tested), door-only items swapped (trucks → reason for the call; why we're here → permission
+and agenda; inside the house → decision maker joins; next-door walk → referral with a name), call wording adapted
+elsewhere, every change marked with its reason. Also the founder kept the reps' weekly email (OPEN.md).
+
+So approval is a switch, not a project: rubricRemote.ts transcribes the draft; rubricRegistry.ts bundles each rubric
+(sections, elements, bonuses, violations, version, lookups) and rubricForChannel picks one — REMOTE_RUBRIC_APPROVED is
+FALSE, so every call is scored with the door rubric exactly as before. scorePitch, the grading prompt and
+generatePitchScore take the rubric (default: door) so a score's elements, prompt and stored version always come from one
+rubric; scoreSession passes rubricForChannel(session.context). Label lookups by id know the remote-only ids, with door
+items first and in order (the first cut put remote first and reordered a breakdown — caught by readPitchScore's test).
+Left for approval day: the rubric_config row for attfiber-remote-v1 (pitch_scores.rubric_version is a foreign key) and
+flipping the switch.
+
+```
+npx vitest run (pitchScore, patterns, sales-coach components, assessment, recordings, remote) → Tests 1201 passed (1201), exit 0
+```

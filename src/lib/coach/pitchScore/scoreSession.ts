@@ -20,6 +20,7 @@ import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { isProviderOutage } from "@/lib/llm/errors";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
+import { rubricForChannel } from "./rubricRegistry";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -271,6 +272,8 @@ async function scoreSessionOrThrow(args: {
     sessionId: session.id,
     // Evidence times are positions in the audio, on the same base as the transcript, trims and stats (0300).
     audioBase: audioBaseIso(session.startedAt, session.audioStartedAt),
+    // D6: the call's rubric — the door rubric for every call until the phone/video draft is approved.
+    rubric: rubricForChannel(session.context),
   });
 
   // No zero-score failure path. Every one of these is reported, never stored — a blank LLM answer

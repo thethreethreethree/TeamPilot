@@ -1,16 +1,5 @@
-import {
-  BONUSES_BY_ID,
-  BONUS_CAP,
-  ELEMENTS_BY_ID,
-  GRADE_CREDIT,
-  OBJECTION_ELEMENT_ID,
-  QUALIFYING_MIN_BASE,
-  RUBRIC_VERSION,
-  SECTIONS,
-  VIOLATIONS_BY_ID,
-  type Grade,
-  type SectionId,
-} from "./rubric";
+import { GRADE_CREDIT, type Grade, type SectionId } from "./rubric";
+import { DOOR_RUBRIC, type Rubric } from "./rubricRegistry";
 
 /**
  * The Pitch Score calculation — Project 1 of the 2026-09-19 coaching build.
@@ -67,6 +56,8 @@ export type ScorePitchInput = {
    * so the founder can tune it after testing without touching this file (guide open decision #4).
    */
   audioConfidenceThreshold?: number;
+  /** D6: which rubric the pitch is worth points under. Defaults to the door rubric (today's behaviour). */
+  rubric?: Rubric;
 };
 
 export type ScoredBonus = { bonusId: string; points: number; capped: boolean };
@@ -121,6 +112,14 @@ export type PitchScore = {
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 export function scorePitch(input: ScorePitchInput): PitchScore {
+  const rubric = input.rubric ?? DOOR_RUBRIC;
+  const SECTIONS = rubric.sections;
+  const ELEMENTS_BY_ID = rubric.elementsById;
+  const BONUSES_BY_ID = rubric.bonusesById;
+  const VIOLATIONS_BY_ID = rubric.violationsById;
+  const OBJECTION_ELEMENT_ID = rubric.objectionElementId;
+  const BONUS_CAP = rubric.bonusCap;
+  const QUALIFYING_MIN_BASE = rubric.qualifyingMinBase;
   const threshold = input.audioConfidenceThreshold ?? 0.8;
 
   // ── Base ────────────────────────────────────────────────────────────────────────────────────
@@ -257,7 +256,7 @@ export function scorePitch(input: ScorePitchInput): PitchScore {
   }
 
   return {
-    rubricVersion: RUBRIC_VERSION,
+    rubricVersion: rubric.version,
     base,
     bonus,
     violations,

@@ -7,6 +7,7 @@ import { buildPitchScoreSystemPrompt, parsePitchScoreResponse } from "./pitchSco
 import { scorePitch, type PitchScore } from "./scorePitch";
 import type { GradedElement, DetectedBonus, DetectedViolation } from "./scorePitch";
 import { SCORING_FLOOR } from "@/lib/coach/remote/decisions";
+import { DOOR_RUBRIC, type Rubric } from "./rubricRegistry";
 
 /**
  * Grade and score one recorded pitch — the wiring half of Project 1 Step 1.
@@ -72,6 +73,12 @@ export function repWordCount(segments: ReadonlyArray<{ text: string }>): number 
  */
 export const PITCH_SCORE_PROMPT_VERSION =
   "tpl-" + createHash("sha256").update(buildPitchScoreSystemPrompt(null)).digest("hex").slice(0, 12);
+/** The prompt version for a given rubric (D6) — the door rubric's is PITCH_SCORE_PROMPT_VERSION. */
+export function promptVersionFor(rubric: Rubric): string {
+  return rubric.version === DOOR_RUBRIC.version
+    ? PITCH_SCORE_PROMPT_VERSION
+    : "tpl-" + createHash("sha256").update(buildPitchScoreSystemPrompt(null, rubric)).digest("hex").slice(0, 12);
+}
 
 /** mm:ss for the prompt — a model handles "4:12" far more reliably than 252. */
 function mmss(totalSeconds: number): string {
@@ -135,7 +142,10 @@ export async function generatePitchScore(args: {
   sessionId?: string;
   /** audioBaseIso(started_at, audio_started_at) — see buildPitchScoreUserMessage. */
   audioBase?: string | null;
+  /** D6: the rubric this call is graded under (rubricForChannel). Defaults to the door rubric. */
+  rubric?: Rubric;
 }): Promise<PitchScoreResult> {
+  const rubric = args.rubric ?? DOOR_RUBRIC;
   const agentSegments = args.segments.filter((s) => s.speaker === "agent");
   if (agentSegments.length < MIN_AGENT_SEGMENTS) return { ok: false, failure: "no_agent_turns" };
   // D5 (founder 2026-11-22): under the word floor the call is refused BEFORE the model runs — no cost, no points.
@@ -145,7 +155,7 @@ export async function generatePitchScore(args: {
   // rubric describes what has to land independently of any script — so a failed load degrades to
   // an unscripted prompt rather than blocking the scoring.
   const corpus = await getCurrentSalesCorpus(args.companyId).catch(() => null);
-  const systemPrompt = buildPitchScoreSystemPrompt(corpus?.content);
+  const systemPrompt = buildPitchScoreSystemPrompt(corpus?.content, rubric);
   const { message, timestampsUnavailable } = buildPitchScoreUserMessage({
     sessionTitle: args.sessionTitle,
     segments: args.segments,
@@ -217,6 +227,7 @@ export async function generatePitchScore(args: {
     violations,
     objectionOccurred: parsed.objectionOccurred,
     reachedDiscovery: parsed.reachedDiscovery,
+    rubric,
   });
 
   return {
@@ -226,6 +237,6 @@ export async function generatePitchScore(args: {
     bonuses,
     violations,
     timestampsUnavailable,
-    provenance: { model: r.model, promptVersion: PITCH_SCORE_PROMPT_VERSION },
+    provenance: { model: r.model, promptVersion: promptVersionFor(rubric) },
   };
 }
