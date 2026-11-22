@@ -27,7 +27,7 @@ simplified view (5). Updated 2026-11-22 for the build at e7fa6293.
 | 2 | Open the prepared call | Status chips (Uploading → Transcribing → Analyzing → Scoring → **Ready**); a failure says why in words |
 | 3 | Player + talk-time lanes | Who spoke when ("You" / "Customer"); tap a bar to jump there; play one speaker only |
 | 4 | Interaction stats | Talk ratio, longest monologue, patience, questions per hour — against the rep's own average |
-| 5 | Scorecard | Each rubric item graded hit / partial / missed **with the evidence quoted**; play any evidence |
+| 5 | Scorecard | Each rubric item graded hit / partial / missed **with the evidence quoted**; play any evidence. Phone and video calls are scored with their own **phone & video rubric** (same sections and weights as the door rubric — "How points work" shows it) |
 | 6 | Transcript | Searchable; tap any line to hear it |
 | 7 | **Ask Coach** | "How did I handle the price objection?" — the answer cites lines you can click |
 | 8 | Follow-through | The callbacks the customer asked for, each quoting its line; one click makes it a task |
@@ -57,6 +57,7 @@ The team's brief: "KEEP IT SIMPLE … What would set us apart is the simplicity.
 
 ## Points worth saying
 
+- **A rubric made for calls.** Phone and video calls are graded on what a call needs — the reason for the call, permission and agenda, enrolling on the call — not on door-knocking items, with the same weights so scores compare across channels.
 - **Every claim points at a moment in the call.** Scores, key points, Ask Coach answers and comments link to the audio;
   a key point the call does not support is dropped, not shown.
 - **Both sides of a live call.** The prospect is recorded from the call itself, labelled by where the audio came from,
