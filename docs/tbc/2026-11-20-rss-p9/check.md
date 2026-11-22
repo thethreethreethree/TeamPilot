@@ -672,3 +672,43 @@ read (§2.2). The by-id read loses its channel filter; the Sales Coach LIST keep
 
 **Ripple.** Sales Coach totals and lists unchanged (the list read still scopes to in-person). The by-id read is gated by
 RLS (owner, or a manager in the tree), so dropping the channel filter widens nothing beyond what RLS already allows.
+
+## Addendum 2026-11-22 — Remote Sales Macro Mode (the team's simplified system)
+
+**Source.** The team's "General Sales Interface for Elostate" (3 pages, shared by the founder 2026-11-22) and the
+founder's direction: "we need to create a macro mode that will have this simplified remote sales system — similar to what
+we have done for the previous sales coach." Recorded as docs/rss/MACRO-MODE-SPEC.md, which maps each ask to what exists
+and what is new.
+
+**Understanding.** "Similar to Sales Coach" = Sales Coach's per-rep Macro Mode switch (0219, profiles.macro_mode_enabled,
+MacroModeToggle) that focuses the module. Remote Sales gets its OWN column (the founder required the two modules separate).
+Reused, not rebuilt: the call summary (Call Brief), the growth review (did well / improve, strengths-first tone law), the
+pitch score (0–100), Tasks (to-dos and reminders), the reporting tree (manager sees reports' pipelines).
+Found while building: a sales-only company is module-locked away from /dashboard/operations (the Tasks page) — so every
+to-do is shown and ticked off inside Remote Sales, and "Done" walks the Tasks transition graph (To Do → In Progress →
+Completed) through PATCH /api/tasks rather than writing a status.
+
+**Build.**
+- 0303: the switch; remote_call_briefs; remote_checklist_reviews; the pipeline as prospects + EVENTS (stage, amount,
+  next call, name — current value = latest event, remote_prospects_current) + call links + to-do links; follow-up drafts;
+  day plans (rep-only). All append-only; caller-client writes checked by insert policies.
+- callBrief.ts (after-call pipeline, beside follow-through): key points / next steps / bring-up must cite a real line or
+  are dropped; checklist due dates bounded. macroMode.ts: follow-up drafts refuse template slots; the day plan may only
+  organise what the rep wrote; yesterday is counted, never written by a model.
+- Routes: macro-mode, [id]/brief (+ /review), [id]/followup, prospects, prospects/[pid], day.
+- Screens: the switch on Calls; Macro tabs Today · Pipeline · Calls; a finished call in Macro Mode = player + Highlights /
+  Coaching / Next Meeting, with "Show the full call page" (never a one-way door).
+
+**Verification.** Unit tests (macroMode.test.ts, 11) — one found a real bug: a missing score averaged as 0 (Number(null)),
+fixed in summariseYesterday. SQL: the committed harness CLAIM 6 text, executed on PGlite 17 after replaying all 303
+migrations:
+
+```
+migrations through 0303_remote_macro_mode.sql; failures: 0
+✓ 0303 pipeline: latest-event state, append-only, tree visibility, private day plan, no foreign links
+exit=0
+```
+
+**Not done / limits.** Salesforce/HubSpot push and calendar sync (the spec's later steps). The AI reads have not run on a
+real call yet — the founder's first remote call after push is that check. 0303 must be applied before the code deploys
+(the screens say "waiting on migration 0303" otherwise, they do not break).

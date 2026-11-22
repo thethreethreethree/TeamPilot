@@ -44,6 +44,8 @@ import { RemoteCallPanel } from "@/components/sales-coach/RemoteCallPanel";
 import { FeedbackRequest } from "@/components/sales-coach/FeedbackRequest";
 import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel";
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
+import { MacroCallView } from "@/components/remote-sales/MacroCallView";
+import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -116,6 +118,10 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
   const [transcript, setTranscript] = useState<Segment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  // Remote Sales Macro Mode (0303): a finished phone/video call shows the player and three tabs only. "Show the full
+  // call page" opens everything for this visit without turning Macro Mode off — never a one-way door.
+  const { enabled: remoteMacro } = useRemoteMacroMode();
+  const [fullView, setFullView] = useState(false);
   const [pivot, setPivot] = useState<PivotMoment | null>(null);
   const [moments, setMoments] = useState<SalesMoment[]>([]);
   const [intel, setIntel] = useState<SalesIntel | null>(null);
@@ -459,6 +465,23 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
       whySubmitRef.current = false;
     }
   };
+
+  if (module === "remote_sales" && remoteMacro === true && !fullView && session && isRemoteContext(session.context) && session.status !== "active") {
+    return (
+      <>
+        <TopBar title={session.clientLabel ?? "Call"} subtitle={`${CONTEXT_LABEL[session.context] ?? "Call"} · Macro Mode`} />
+        <div className="flex-1 overflow-y-auto px-4 py-6 max-w-md mx-auto w-full space-y-5 bg-base">
+          <Link href="/dashboard/remote-sales" className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary">
+            <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
+            Back to calls
+          </Link>
+          <StageChips sessionId={id} />
+          <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
+          <MacroCallView sessionId={id} onFullView={() => setFullView(true)} />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PhoneCall } from "lucide-react";
 import { useCurrentUserRole, useIsSalesCoachManager, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
+import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 
 /**
  * The Remote Sales module's frame: its name, what it is, and its sections as tabs. The sections follow the RSS
@@ -22,11 +23,23 @@ const TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin
   { href: "/dashboard/remote-sales/protection", label: "Protection", who: "admin" },
 ];
 
+/**
+ * Macro Mode (0303, docs/rss/MACRO-MODE-SPEC.md): the simplified system — the rep's day, their pipeline, their calls.
+ * Managers keep Pipeline, where they can open each report's (the spec's one manager addition). Everything else is a
+ * tap away by turning Macro Mode off on Calls.
+ */
+const MACRO_TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin" }> = [
+  { href: "/dashboard/remote-sales/today", label: "Today", who: "all" },
+  { href: "/dashboard/remote-sales/pipeline", label: "Pipeline", who: "all" },
+  { href: "/dashboard/remote-sales", label: "Calls", who: "all" },
+];
+
 export function RemoteSalesShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const isManager = useIsSalesCoachManager();
   const isAdmin = isCompanyAdminRole(useCurrentUserRole());
-  const tabs = TABS.filter((t) => t.who === "all" || (t.who === "manager" ? isManager || isAdmin : isAdmin));
+  const { enabled: macro } = useRemoteMacroMode();
+  const tabs = (macro ? MACRO_TABS : TABS).filter((t) => t.who === "all" || (t.who === "manager" ? isManager || isAdmin : isAdmin));
 
   return (
     <div className="min-h-full bg-base">
@@ -39,7 +52,9 @@ export function RemoteSalesShell({ children }: { children: React.ReactNode }) {
             <div className="min-w-0">
               <h1 className="text-lg font-semibold text-primary">Remote Sales</h1>
               <p className="text-xs text-secondary">
-                Phone and video sales calls — recorded, transcribed, scored with evidence, and coached.
+                {macro
+                  ? "Your day, your pipeline, your calls — simple."
+                  : "Phone and video sales calls — recorded, transcribed, scored with evidence, and coached."}
               </p>
             </div>
           </div>

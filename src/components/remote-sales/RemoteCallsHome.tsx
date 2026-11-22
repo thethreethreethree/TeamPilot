@@ -7,6 +7,7 @@ import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { StageChips } from "@/components/sales-coach/StageChips";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
+import { RemoteMacroToggle } from "@/components/remote-sales/RemoteMacroToggle";
 
 /**
  * Remote Sales → Calls. The plan's "Done means" (docs/rss/docs/01-SCOPE.md): a rep uploads or live-records a phone or
@@ -59,6 +60,7 @@ export function RemoteCallsHome() {
 
   return (
     <div className="space-y-6">
+      <RemoteMacroToggle />
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Remote calls at a glance">
         {[
           { k: "Remote calls", v: rows ? rows.length : "—" },

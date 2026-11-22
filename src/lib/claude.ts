@@ -726,6 +726,52 @@ export async function followThroughCoach(args: {
   });
 }
 
+/**
+ * Remote Sales Macro Mode (0303): the call brief — key points, next steps, and the Next Meeting agenda / things to
+ * bring up / checklist, as JSON, each item tied to a transcript line. A factual read of what was said (like the
+ * follow-through read), so controlExempt; the caller consumes `suppressed` (§2.2). Labelled for the AI cost ledger.
+ */
+export async function callBriefCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1400,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_call_brief",
+    sessionId: args.sessionId,
+  });
+}
+
+/** Remote Sales Macro Mode (0303): a follow-up email or text for the rep to edit and send. Day-1 (controlExempt). */
+export async function followUpDraftCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 700,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_followup_draft",
+    sessionId: args.sessionId,
+  });
+}
+
+/** Remote Sales Macro Mode (0303): the rep's morning brain dump, organised into a day plan. The rep's own words. */
+export async function dayPlanCoach(args: { companyId?: string; systemPrompt: string; userMessage: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 700,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_day_plan",
+    sessionId: null,
+  });
+}
+
 /** RSS Phase 6: one Ask Coach turn over one or more calls, answering with [n] line citations. Day-1 (controlExempt). */
 export async function askCoachTurn(args: {
   companyId?: string;

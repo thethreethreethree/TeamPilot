@@ -17,6 +17,7 @@ vi.mock("@/lib/coach/v5/engineTimeout", () => ({
 vi.mock("@/lib/coach/remote/trackerScan", () => ({ scanSessionTrackers: vi.fn(async () => 0) }));
 vi.mock("@/lib/coach/remote/interactionStats", () => ({ storeInteractionStats: vi.fn(async () => null) }));
 vi.mock("@/lib/coach/remote/followThrough", () => ({ runFollowThrough: vi.fn(async () => null) }));
+vi.mock("@/lib/coach/remote/callBrief", () => ({ runCallBrief: vi.fn(async () => null) }));
 vi.mock("@/lib/coach/v5/salesDissect", () => ({ runAndStoreDissect: vi.fn() }));
 vi.mock("@/lib/coach/v5/salesSummary", () => ({ runAndStoreSummary: vi.fn() }));
 vi.mock("@/lib/coach/v5/salesPivot", () => ({ runAndStorePivot: vi.fn() }));

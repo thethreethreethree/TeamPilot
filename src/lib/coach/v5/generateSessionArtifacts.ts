@@ -10,6 +10,7 @@ import { isSalesCall } from "./salesOnly";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { runFollowThrough } from "@/lib/coach/remote/followThrough";
+import { runCallBrief } from "@/lib/coach/remote/callBrief";
 import { notifyCallReady } from "@/lib/coach/gamification/notify";
 
 /**
@@ -79,6 +80,9 @@ export async function generateSessionArtifacts(args: {
   // Follow-through (RSS Phase 6, migration 0281): AI-suggested outcome + callback to-dos, phone/video sales calls only
   // (returns null inside for door). Runs beside the five engines under the same time bound; never throws.
   const followThrough = withEngineTimeout(runFollowThrough(sessionId), null, note("follow_through"));
+  // Remote Sales Macro Mode (0303): the call brief behind Highlights / Next Meeting. Same bound, never throws; null
+  // for door calls.
+  const callBrief = withEngineTimeout(runCallBrief(sessionId), null, note("call_brief"));
 
   const [dissect, summary, moments, pivot, intel] = await Promise.all([
     withEngineTimeout(
@@ -141,6 +145,7 @@ export async function generateSessionArtifacts(args: {
   ]);
 
   await followThrough;
+  await callBrief;
 
   const words = segments.reduce(
     (n, seg) => n + String(seg.text ?? "").split(/\s+/).filter(Boolean).length,

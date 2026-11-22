@@ -419,6 +419,79 @@ async function run() {
     })
   );
 
+  // ── CLAIM 6 — Remote Sales Macro Mode's pipeline and day plan (0303) ─────────────────────────────
+  //
+  // The pipeline is append-only (§3.1): a prospect's stage, amount and next call are EVENTS and the current value is
+  // the latest one (remote_prospects_current). A rep sees their own prospects, their manager (tree) sees them, a peer
+  // does not; a peer cannot add events to, or link a call into, what they cannot see; the day plan is the rep's own
+  // (no manager read). Recorded first on PGlite 17 (scratchpad replay, 2026-11-22, 20/20); this keeps it on real
+  // Postgres.
+  results.push(
+    await claim(c, "0303 pipeline: latest-event state, append-only, tree visibility, private day plan, no foreign links", async () => {
+      const id = (n) => `f3000000-0000-4000-8000-0000000000${n}`;
+      const [C, CEO, MGR, REP, PEER, S1, S2] = ["c1", "a1", "a2", "a3", "a4", "b1", "b2"].map(id);
+      await c.query(`set local session_replication_role = replica`);
+      await c.query(`insert into companies (id, name) values ('${C}','Claim6 Co')`);
+      await c.query(`insert into auth.users (id) values ('${CEO}'),('${MGR}'),('${REP}'),('${PEER}')`);
+      await c.query(
+        `insert into profiles (id, company_id, role, sales_coach_role, status, manager_id) values
+         ('${CEO}','${C}','CEO',null,'active',null), ('${MGR}','${C}','Member','admin','active','${CEO}'),
+         ('${REP}','${C}','Member','staff','active','${MGR}'), ('${PEER}','${C}','Member','staff','active','${CEO}')`
+      );
+      await c.query(`insert into coaching_sessions (id, company_id, agent_id, context, started_at) values
+        ('${S1}','${C}','${REP}','phone','2026-11-20T10:00:00Z'), ('${S2}','${C}','${REP}','video','2026-11-21T10:00:00Z')`);
+      await c.query(`set local session_replication_role = origin`);
+      await c.query(`grant usage on schema auth to authenticated`);
+      await c.query(`grant select, insert, update, delete on all tables in schema public to authenticated`);
+      await c.query(`set local role authenticated`);
+      const as = (u) => c.query(`set local "request.jwt.claim.sub" = '${u}'`);
+      const refused = async (sql) => {
+        await c.query("savepoint m");
+        try {
+          await c.query(sql);
+          await c.query("release savepoint m");
+          return false;
+        } catch {
+          await c.query("rollback to savepoint m");
+          return true;
+        }
+      };
+      await as(REP);
+      const P = (await c.query(`insert into remote_prospects (company_id, rep_id, created_by) values ('${C}','${REP}','${REP}') returning id`)).rows[0].id;
+      await c.query(`insert into remote_prospect_events (prospect_id, company_id, kind, value, actor_id) values
+        ('${P}','${C}','name','{"text":"Betty"}','${REP}'), ('${P}','${C}','amount','{"amount":1200}','${REP}'),
+        ('${P}','${C}','stage','{"status":"open"}','${REP}'), ('${P}','${C}','amount','{"amount":1500}','${REP}')`);
+      await c.query(`insert into remote_prospect_calls (prospect_id, session_id, company_id, linked_by) values ('${P}','${S1}','${C}','${REP}')`);
+      await c.query(`update remote_prospect_events set value='{"amount":1}' where prospect_id='${P}'`);
+      await c.query(`delete from remote_prospect_events where prospect_id='${P}'`);
+      await c.query(`insert into remote_day_plans (company_id, rep_id, day, dump) values ('${C}','${REP}','2026-11-22','Call Betty')`);
+      const cur = (await c.query(`select name, status, amount, call_count from remote_prospects_current where id='${P}'`)).rows[0];
+      must(cur && cur.name === "Betty" && cur.status === "open" && Number(cur.amount) === 1500 && Number(cur.call_count) === 1,
+        `current state is not the latest events (or an update/delete landed): ${JSON.stringify(cur)}`);
+      must(await refused(`insert into remote_prospect_events (prospect_id, company_id, kind, value, actor_id) values ('${P}','${C}','stage','{"status":"maybe"}','${REP}')`), "a stage other than open/won/lost was stored");
+
+      const sees = async (u, sql) => { await as(u); return (await c.query(sql)).rowCount; };
+      const wrong = [];
+      for (const [who, u, want] of [["rep", REP, 1], ["manager", MGR, 1], ["peer", PEER, 0]]) {
+        const n = await sees(u, `select 1 from remote_prospects_current where id='${P}'`);
+        if (n !== want) wrong.push(`prospect as ${who}: ${n}, expected ${want}`);
+      }
+      for (const [who, u, want] of [["rep", REP, 1], ["manager", MGR, 0]]) {
+        const n = await sees(u, `select 1 from remote_day_plans where rep_id='${REP}'`);
+        if (n !== want) wrong.push(`day plan as ${who}: ${n}, expected ${want}`);
+      }
+      must(wrong.length === 0, wrong.join("; "));
+
+      await as(PEER);
+      must(await refused(`insert into remote_prospect_events (prospect_id, company_id, kind, value, actor_id) values ('${P}','${C}','stage','{"status":"lost"}','${PEER}')`), "a peer changed a prospect they cannot see");
+      const P2 = (await c.query(`insert into remote_prospects (company_id, rep_id, created_by) values ('${C}','${PEER}','${PEER}') returning id`)).rows[0].id;
+      must(await refused(`insert into remote_prospect_calls (prospect_id, session_id, company_id, linked_by) values ('${P2}','${S2}','${C}','${PEER}')`), "a peer linked another rep's call into their own pipeline");
+      await as(REP);
+      must(!(await refused(`insert into remote_prospect_calls (prospect_id, session_id, company_id, linked_by) values ('${P}','${S2}','${C}','${REP}')`)), "the rep could not link their own call (control)");
+      await c.query(`reset role`);
+    })
+  );
+
   await c.end();
 
   for (const r of results) {

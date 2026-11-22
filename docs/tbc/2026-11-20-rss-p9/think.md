@@ -71,6 +71,12 @@ login page, a button for a provider nobody configured, an import that invites so
    "how_this_build_will_embody_it": "Every case where the prospect's side is not captured (unsupported browser, share declined, tab shared without audio, share lost) is told to the rep in words; nothing silently falls back to mic-only."},
   {"id": "§2.2", "source_file": "CLAUDE.md", "line_range": "307-317", "read_at": "2026-11-22T08:48:33Z",
    "why_it_governs": "Who may read a call comment is decided once, by recording_comments' RLS (rss_comment_base_visible); a second copy in a screen would drift.",
-   "how_this_build_will_embody_it": "RemoteCallComments posts to the one comment writer and renders what the one reader returns; it never filters comments itself."}
+   "how_this_build_will_embody_it": "RemoteCallComments posts to the one comment writer and renders what the one reader returns; it never filters comments itself."},
+  {"id": "§3.1", "source_file": "CLAUDE.md", "line_range": "339-344", "read_at": "2026-11-22T09:04:20Z",
+   "why_it_governs": "Macro Mode's pipeline is entity state (a prospect's stage, amount, next call).",
+   "how_this_build_will_embody_it": "0303 stores each change as a remote_prospect_events row and derives the current value in remote_prospects_current; every Macro Mode table has no-update/no-delete rules, checked by SQL harness claim 6."},
+  {"id": "§3.3", "source_file": "CLAUDE.md", "line_range": "368-373", "read_at": "2026-11-22T09:04:20Z",
+   "why_it_governs": "The follow-up draft and the Next Meeting checklist are the AI offering words and plans for the rep.",
+   "how_this_build_will_embody_it": "Nothing is sent or saved for the rep: drafts are copied and sent by the rep; the checklist becomes tasks only after the rep reviews, edits and saves it; the day plan only organizes what the rep wrote."}
 ]
 ```
