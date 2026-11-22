@@ -1,7 +1,7 @@
 # Remote Sales — partner review walkthrough
 
 For the founder presenting the Remote Sales module. About 20 minutes: the full module (15), then Macro Mode, the
-simplified view (5). Updated 2026-11-22 for the build at 26dda31d.
+simplified view (5). Updated 2026-11-22 for the build at cb340231.
 
 ## Before the review (once, ~25 minutes)
 
@@ -32,6 +32,7 @@ simplified view (5). Updated 2026-11-22 for the build at 26dda31d.
 | 7 | **Ask Coach** | "How did I handle the price objection?" — the answer cites lines you can click |
 | 8 | Follow-through | The callbacks the customer asked for, each quoting its line; one click makes it a task |
 | 9 | **Comments** (manager) | On the call page: comment at a time, @mention a colleague, choose who can read it; the rep sees it |
+| 9b | **Coaching** tab (manager) | The feedback requests and the score-dispute queue for phone and video calls; a rep's dispute rings the manager's bell, and the answer rings the rep's |
 | 10 | **Search** | Find calls by what was said; filter by score, rubric item, talk share, tracker, disputed; export CSV |
 | 11 | **Scoreboard** | Remote Sales has its own points and leaderboard — phone and video calls only |
 | 12 | **Protection** (admin) | Retention, legal erasure of one customer's data, and the audit log of who did what |
