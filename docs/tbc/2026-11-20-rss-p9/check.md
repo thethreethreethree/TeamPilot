@@ -983,3 +983,5 @@ the route's 300 s budget covers an hour of audio. Known gap filed: the backlog c
 ```
 npx vitest run (digest, pitchScore, pitch-score routes, upload-recording, remote, storage, sales-coach components) → Tests 1184 passed (1184), exit 0
 ```
+D5 follow-up (same day): the backlog count now reads each rep line's text and applies the scorer's own repWordCount and
+SCORING_FLOOR.minRepWords, so it no longer offers calls the scorer will refuse as too short (backfill tests: 25 passed).

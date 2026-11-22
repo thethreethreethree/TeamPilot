@@ -5,7 +5,8 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
-import { MIN_AGENT_SEGMENTS } from "@/lib/coach/pitchScore/generatePitchScore";
+import { MIN_AGENT_SEGMENTS, repWordCount } from "@/lib/coach/pitchScore/generatePitchScore";
+import { SCORING_FLOOR } from "@/lib/coach/remote/decisions";
 import {
   scoreSession,
   PERMANENT_REFUSALS,
@@ -136,7 +137,8 @@ async function unscoredSessionIds(
 }
 
 /**
- * Which of these sessions the scorer could grade: those with at least MIN_AGENT_SEGMENTS rep lines.
+ * Which of these sessions the scorer could grade: at least MIN_AGENT_SEGMENTS rep lines AND (D5) at least
+ * SCORING_FLOOR.minRepWords rep words.
  *
  * THE SCORER'S OWN RULE, AS A QUERY (2026-10-01). generatePitchScore refuses `no_agent_turns` when a transcript
  * has fewer than MIN_AGENT_SEGMENTS lines with speaker 'agent'. The count used to include those recordings, so
@@ -149,27 +151,34 @@ async function sessionsWithRepSpeech(
   db: Awaited<ReturnType<typeof createClient>>,
   ids: readonly string[]
 ): Promise<Set<string>> {
+  // D5 (2026-11-22): the scorer also needs SCORING_FLOOR.minRepWords rep words, so the text is read too and counted
+  // with the scorer's own repWordCount — the two answers still cannot differ.
   const lines = new Map<string, number>();
+  const words = new Map<string, number>();
   // Only sessions asked about: the query already filters by id, and this keeps `unscorable` from ever going
   // negative if a row for another session arrived anyway.
   const wanted = new Set(ids);
   for (let i = 0; i < ids.length; i += 100) {
     const chunk = ids.slice(i, i + 100);
-    const rows = await fetchAllPaged<{ session_id: string }>(
+    const rows = await fetchAllPaged<{ session_id: string; text: string | null }>(
       (from, to) =>
         db
           .from("coaching_transcript_segments_current")
-          .select("session_id")
+          .select("session_id, text")
           .eq("speaker", "agent")
           .in("session_id", chunk)
           .range(from, to),
       { label: "pitch-score backfill: rep lines" }
     );
     for (const r of rows) {
-      if (wanted.has(r.session_id)) lines.set(r.session_id, (lines.get(r.session_id) ?? 0) + 1);
+      if (!wanted.has(r.session_id)) continue;
+      lines.set(r.session_id, (lines.get(r.session_id) ?? 0) + 1);
+      words.set(r.session_id, (words.get(r.session_id) ?? 0) + repWordCount([{ text: r.text ?? "" }]));
     }
   }
-  return new Set([...lines].filter(([, n]) => n >= MIN_AGENT_SEGMENTS).map(([id]) => id));
+  return new Set(
+    [...lines].filter(([id, n]) => n >= MIN_AGENT_SEGMENTS && (words.get(id) ?? 0) >= SCORING_FLOOR.minRepWords).map(([id]) => id),
+  );
 }
 
 export async function GET(req: NextRequest) {

@@ -58,12 +58,16 @@ const req = (offset = 0) =>
  * third time: the rep's transcript lines per candidate (`repLines`, default one line for every session, so a
  * test that is not about rep speech is not changed by it).
  */
+let shortSessions = new Set<string>();
+const lineText = (id: string) => Array.from({ length: shortSessions.has(id) ? 5 : 100 }, (_, i) => `w${i}`).join(" ");
+
 const serve = (scoredIds: string[], sessionIds: string[], repLines?: string[]) => {
   asMock(fetchAllPaged).mockReset();
   asMock(fetchAllPaged)
     .mockImplementationOnce(async () => scoredIds.map((id) => ({ session_id: id })))
     .mockImplementationOnce(async () => sessionIds.map((id) => ({ id })))
-    .mockImplementationOnce(async () => (repLines ?? sessionIds).map((id) => ({ session_id: id })));
+    // Each rep line carries 100 words by default — a real call's worth, over D5's floor (scoringFloor.test.ts).
+    .mockImplementationOnce(async () => (repLines ?? sessionIds).map((id) => ({ session_id: id, text: lineText(id) })));
 };
 
 const scored = () => ({ ok: true as const, pitchId: "p", alreadyScored: false });
@@ -100,6 +104,13 @@ describe("the count a manager sees before anything is spent", () => {
     serve([], ["s1", "s2"], [...enough, ...fewer]);
     const body = await (await GET(req())).json();
     expect(body).toEqual({ unscored: 1, unscorable: 1 });
+  });
+
+  it("D5: a call with enough rep lines but under 100 rep words is unscorable, not backlog", async () => {
+    shortSessions = new Set(["s2"]);
+    serve([], ["s1", "s2"]);
+    expect(await (await GET(req())).json()).toEqual({ unscored: 1, unscorable: 1 });
+    shortSessions = new Set();
   });
 
   it("does not score anything while counting", async () => {
