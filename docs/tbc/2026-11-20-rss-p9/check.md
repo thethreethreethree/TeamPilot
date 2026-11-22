@@ -1393,3 +1393,10 @@ is tested; the switch is disabled until its state is known).
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales → 47 passed, exit 0
 ```
+Macro Mode switch pinned (no code change): reflects the saved setting; turning it on shows the server's answer; a failed
+save flips it back and shows why; a failed read falls back to off — the full module — and stays switchable. Every Remote
+Sales component and route now has a test.
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemoteMacroToggle.render.test.tsx → 4 passed, exit 0
+```
