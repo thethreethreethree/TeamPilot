@@ -171,3 +171,23 @@ export function stepsToCompleted(status: string, graph: Record<string, string[]>
   }
   return [];
 }
+
+/**
+ * The rep's calendar day as [start, end) ISO instants (Macro Mode → Today, /api/coach/remote/day). `offsetMin` is the
+ * browser's Date.getTimezoneOffset(): minutes BEHIND UTC (Los Angeles +480, Manila −480), so local midnight is UTC
+ * midnight PLUS the offset. Moved here from the route (2026-11-23) so it is tested. One known edge: on a daylight-saving
+ * change day the day is 23 or 25 hours and this uses that morning's offset for both ends.
+ */
+export function dayBounds(day: string, offsetMin: number): [string, string] {
+  const start = Date.parse(`${day}T00:00:00Z`) + offsetMin * 60_000;
+  return [new Date(start).toISOString(), new Date(start + 86_400_000).toISOString()];
+}
+
+/** The calendar day before `day` (YYYY-MM-DD). Noon-based so no offset can move it across a date. */
+export const prevDay = (day: string): string => new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+
+/** A browser time-zone offset from a query string: a whole number within ±14 h (840 min), else 0 (UTC). */
+export function clampOffset(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= -840 && n <= 840 ? n : 0;
+}

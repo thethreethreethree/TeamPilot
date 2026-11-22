@@ -7,7 +7,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { REMOTE_CONTEXTS } from "@/lib/coach/sessionContext";
 import { dayPlanCoach } from "@/lib/claude";
-import { DAY_PLAN_SYSTEM, parseDayPlan, summariseYesterday } from "@/lib/coach/remote/macroMode";
+import { clampOffset, DAY_PLAN_SYSTEM, dayBounds, parseDayPlan, prevDay, summariseYesterday } from "@/lib/coach/remote/macroMode";
 import { listProspects } from "@/lib/coach/remote/prospects";
 
 export const maxDuration = 60;
@@ -23,12 +23,6 @@ export const maxDuration = 60;
 const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Body = z.object({ day: Day, dump: z.string().trim().min(1).max(4000), tzOffsetMin: z.number().int().min(-840).max(840).optional() });
 
-/** [start, end) of a calendar day in the rep's zone, as ISO instants. offset = Date.getTimezoneOffset() (minutes). */
-function dayBounds(day: string, offsetMin: number): [string, string] {
-  const start = Date.parse(`${day}T00:00:00Z`) + offsetMin * 60_000;
-  return [new Date(start).toISOString(), new Date(start + 86_400_000).toISOString()];
-}
-const prevDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-day-read", windowMs: 60_000, max: 60 });
@@ -37,7 +31,7 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const day = Day.safeParse(req.nextUrl.searchParams.get("day"));
   if (!day.success) return NextResponse.json({ error: "Which day?" }, { status: 400 });
-  const offset = Number(req.nextUrl.searchParams.get("tz") ?? 0) || 0;
+  const offset = clampOffset(req.nextUrl.searchParams.get("tz"));
   const db = callerScopedDb(req) ?? (await createClient());
 
   const { data: planRow, error: pErr } = await db

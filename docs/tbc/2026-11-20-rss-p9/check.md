@@ -1336,3 +1336,11 @@ tests is day (scanned clean; its date-boundary helper is file-local to a route a
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/search/export/__tests__ → 4 passed, exit 0
 ```
+Today's day boundaries tested (same day): dayBounds and prevDay moved from the day route (file-local, untestable) into
+macroMode.ts unchanged; the GET's `tz` query is now clamped to a whole ±840 minutes like the POST body (before: any
+number, NaN → 0). Tests: Manila and Los Angeles bounds, yesterday across month/year/leap ends, bad offsets → UTC.
+Known edge, documented in the code: a daylight-saving change day uses that morning's offset for both ends.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/remote/__tests__/macroMode.test.ts → 15 passed, exit 0
+```

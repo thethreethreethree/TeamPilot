@@ -5,7 +5,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/claude", () => ({ callBriefCoach: vi.fn(), followThroughCoach: vi.fn() }));
 
 import { parseCallBrief } from "../callBrief";
-import { eventValue, parseDayPlan, parseFollowUp, pipelineTotals, stepsToCompleted, summariseYesterday } from "../macroMode";
+import { clampOffset, dayBounds, eventValue, prevDay, parseDayPlan, parseFollowUp, pipelineTotals, stepsToCompleted, summariseYesterday } from "../macroMode";
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 
 /**
@@ -136,5 +136,24 @@ describe("stepsToCompleted — 'Done' walks the Tasks module's own graph", () =>
     expect(stepsToCompleted("Blocked", TASK_STATUS_TRANSITIONS)).toEqual(["In Progress", "Completed"]);
     expect(stepsToCompleted("Completed", TASK_STATUS_TRANSITIONS)).toEqual([]);
     expect(stepsToCompleted("Unknown", TASK_STATUS_TRANSITIONS)).toEqual([]);
+  });
+});
+
+describe("the rep's calendar day (Today, 2026-11-23)", () => {
+  it("Manila (offset −480): 23 Nov runs 22 Nov 16:00Z → 23 Nov 16:00Z", () => {
+    expect(dayBounds("2026-11-23", -480)).toEqual(["2026-11-22T16:00:00.000Z", "2026-11-23T16:00:00.000Z"]);
+  });
+  it("Los Angeles (offset +480): 23 Nov runs 23 Nov 08:00Z → 24 Nov 08:00Z", () => {
+    expect(dayBounds("2026-11-23", 480)).toEqual(["2026-11-23T08:00:00.000Z", "2026-11-24T08:00:00.000Z"]);
+  });
+  it("yesterday crosses month and year ends", () => {
+    expect(prevDay("2026-12-01")).toBe("2026-11-30");
+    expect(prevDay("2027-01-01")).toBe("2026-12-31");
+    expect(prevDay("2028-03-01")).toBe("2028-02-29");
+  });
+  it("an offset outside ±14 h, or not a whole number, is UTC", () => {
+    expect(clampOffset("-480")).toBe(-480);
+    expect(clampOffset("840")).toBe(840);
+    for (const bad of ["9999", "-900", "2.5", "abc", null, ""]) expect(clampOffset(bad)).toBe(0);
   });
 });
