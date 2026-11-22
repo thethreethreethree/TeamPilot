@@ -1365,3 +1365,12 @@ inside the click. 2 tests.
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales → 31 passed, exit 0
 ```
+
+Pipeline screen (RemotePipeline, no tests before): a failed read left the previous data in state, so after a manager
+switched "Whose pipeline" and the read failed, the stage totals still showed the PREVIOUS person's amounts and counts
+above "Couldn't load the pipeline". A failed read now clears it. 4 render tests (totals + open list; Closed Won tab;
+failed read shows no totals; the switch-and-fail case — which fails on the previous component).
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RemotePipeline.render.test.tsx → 4 passed, exit 0
+```

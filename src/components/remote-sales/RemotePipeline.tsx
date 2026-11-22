@@ -66,6 +66,9 @@ export function RemotePipeline() {
       if (!r.ok) throw new Error(String(r.status));
       setData(await r.json());
     } catch {
+      // Clear what was shown (2026-11-23): otherwise, after switching "Whose pipeline", the stage totals kept the
+      // PREVIOUS person's amounts and counts above "Couldn't load the pipeline".
+      setData(null);
       setFailed(true);
     }
   }, [whose]);
