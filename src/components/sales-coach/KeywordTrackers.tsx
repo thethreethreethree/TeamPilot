@@ -11,6 +11,13 @@ import { useCallback, useEffect, useState } from "react";
  * offers to scan recent phone/video calls, since a tracker otherwise only applies to calls that land later.
  */
 type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean };
+type Preview = {
+  callsChecked: number;
+  callsWithHits: number;
+  hitCount: number;
+  perPhrase: Array<{ phrase: string; hits: number; calls: number }>;
+  examples: Array<{ sessionId: string; label: string | null; startedAt: string; atMs: number | null; speaker: string; matched: string; text: string }>;
+};
 type Read =
   | { available: true; trackers: Tracker[]; canManage: boolean }
   | { available: false; reason: string; canManage: boolean };
@@ -25,6 +32,33 @@ export function KeywordTrackers() {
   const [side, setSide] = useState<Tracker["side"]>("any");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // F11.4: try the phrases on recent calls before saving — what it would catch, and which phrase is noisy.
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const runPreview = async () => {
+    const list = phrases.split("\n").map((p) => p.trim()).filter(Boolean);
+    if (list.length === 0) {
+      setMsg("Write at least one phrase to preview.");
+      return;
+    }
+    setPreviewing(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/coach/remote/trackers/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phrases: list, side }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { preview?: Preview; error?: string };
+      if (!r.ok || !j.preview) throw new Error(j.error ?? "Couldn't preview the tracker.");
+      setPreview(j.preview);
+    } catch (e) {
+      setPreview(null);
+      setMsg(e instanceof Error ? e.message : "Couldn't preview the tracker.");
+    } finally {
+      setPreviewing(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -169,6 +203,14 @@ export function KeywordTrackers() {
                 </button>
                 <button
                   type="button"
+                  disabled={busy || previewing}
+                  onClick={() => void runPreview()}
+                  className="rounded-lg border border-default px-3 py-2 text-xs text-primary hover:border-ember-400 disabled:opacity-50"
+                >
+                  {previewing ? "Previewing…" : "Preview on recent calls"}
+                </button>
+                <button
+                  type="button"
                   disabled={busy}
                   onClick={() => void scan()}
                   className="rounded-lg border border-default px-3 py-2 text-xs text-muted hover:text-primary disabled:opacity-50"
@@ -176,6 +218,47 @@ export function KeywordTrackers() {
                   Check recent calls
                 </button>
               </div>
+              {preview && (
+                <div className="rounded-lg border border-default bg-base/40 p-3 text-xs md:col-span-2" aria-label="Tracker preview">
+                  <p className="text-primary">
+                    {preview.callsChecked === 0
+                      ? "No finished phone or video calls to try it on yet."
+                      : `Would catch ${preview.hitCount} ${preview.hitCount === 1 ? "mention" : "mentions"} in ${preview.callsWithHits} of your last ${preview.callsChecked} calls.`}{" "}
+                    <span className="text-muted">Nothing is saved until you add it.</span>
+                  </p>
+                  {preview.perPhrase.length > 1 && (
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {preview.perPhrase.map((p) => (
+                        <li
+                          key={p.phrase}
+                          className={`rounded-full border px-2 py-0.5 ${preview.callsChecked > 0 && p.calls / preview.callsChecked > 0.6 ? "border-amber-500/60 text-amber-700 dark:text-amber-300" : "border-default text-secondary"}`}
+                          title={preview.callsChecked > 0 && p.calls / preview.callsChecked > 0.6 ? "On most calls — probably too common to mean much" : undefined}
+                        >
+                          {p.phrase} · {p.calls} {p.calls === 1 ? "call" : "calls"}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {preview.examples.length > 0 && (
+                    <ul className="mt-2 space-y-1.5">
+                      {preview.examples.map((e) => (
+                        <li key={e.sessionId}>
+                          <a
+                            href={`/dashboard/remote-sales/calls/${e.sessionId}${e.atMs !== null ? `?t=${Math.floor(e.atMs / 1000)}` : ""}`}
+                            className="block rounded-md px-1 py-0.5 hover:bg-surface"
+                          >
+                            <span className="text-muted">
+                              {e.label ?? "Untitled call"} · {e.speaker === "rep" ? "Rep" : e.speaker === "customer" ? "Customer" : "Unlabelled"}
+                              {e.atMs !== null ? ` · ${Math.floor(e.atMs / 60000)}:${String(Math.floor((e.atMs % 60000) / 1000)).padStart(2, "0")}` : ""}:
+                            </span>{" "}
+                            <span className="text-primary">“{e.text}”</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>

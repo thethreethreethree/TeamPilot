@@ -31,3 +31,50 @@ export function matchTracker(tracker: KeywordTracker, segments: Segment[]): Trac
   }
   return hits;
 }
+
+/**
+ * F11.4 — preview a tracker against recent calls BEFORE saving it. The same matcher the real scan uses (matchTracker),
+ * so what the preview shows is what the tracker will catch. Per-phrase counts make a noisy phrase visible ("price"
+ * hitting every call) before it floods the call pages. Pure; nothing is stored.
+ */
+export interface PreviewCall { sessionId: string; label: string | null; startedAt: string; segments: Segment[] }
+export interface TrackerPreview {
+  callsChecked: number;
+  callsWithHits: number;
+  hitCount: number;
+  perPhrase: Array<{ phrase: string; hits: number; calls: number }>;
+  examples: Array<{ sessionId: string; label: string | null; startedAt: string; atMs: number | null; speaker: Speaker; matched: string; text: string }>;
+}
+
+export function previewTracker(tracker: Omit<KeywordTracker, 'id'>, calls: PreviewCall[], maxExamples = 8): TrackerPreview {
+  const t: KeywordTracker = { id: 'preview', ...tracker };
+  const phrases = normalisePhrases(tracker.phrases); // throws TrackerError on a bad list, same as saving would
+  const perPhrase = new Map(phrases.map((p) => [p, { hits: 0, calls: new Set<string>() }]));
+  const examples: TrackerPreview['examples'] = [];
+  let callsWithHits = 0;
+  let hitCount = 0;
+  for (const c of calls) {
+    const hits = matchTracker(t, c.segments);
+    if (hits.length) callsWithHits += 1;
+    hitCount += hits.length;
+    for (const h of hits) {
+      const pp = perPhrase.get(h.matched);
+      if (pp) {
+        pp.hits += 1;
+        pp.calls.add(c.sessionId);
+      }
+      // One example per call first, so a single chatty call doesn't fill the list.
+      if (examples.length < maxExamples && !examples.some((e) => e.sessionId === c.sessionId)) {
+        const seg = c.segments.find((s) => s.seq === h.seq) ?? c.segments.find((s) => s.startMs === h.atMs);
+        examples.push({ sessionId: c.sessionId, label: c.label, startedAt: c.startedAt, atMs: h.atMs, speaker: h.speaker, matched: h.matched, text: (seg?.text ?? '').slice(0, 220) });
+      }
+    }
+  }
+  return {
+    callsChecked: calls.length,
+    callsWithHits,
+    hitCount,
+    perPhrase: [...perPhrase.entries()].map(([phrase, v]) => ({ phrase, hits: v.hits, calls: v.calls.size })).sort((a, b) => b.hits - a.hits),
+    examples,
+  };
+}

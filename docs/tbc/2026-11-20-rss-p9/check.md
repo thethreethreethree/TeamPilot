@@ -815,3 +815,16 @@ answer alerts nobody.
 ```
 npx vitest run src/app/api/coach/sales-session/pitch-score/dispute src/…/disputes → Tests 38 passed, exit 0
 ```
+
+## Addendum 2026-11-22 — preview a keyword tracker on recent calls before saving (Gong F11.4)
+
+The ledger's P2 list had F11.4 LACK: a manager wrote a phrase list blind and learned only from future calls whether it
+caught anything — or caught everything. Now "Preview on recent calls" (Remote Sales → Trackers) runs the phrases on the
+manager's last 30 finished phone/video calls with the SAME matcher the real scan uses (previewTracker → matchTracker):
+how many mentions in how many calls, per-phrase counts (a phrase on most calls is flagged as too common), and up to 8
+example lines — one per call — each opening the call at that moment. Read through the caller's client (only calls they
+may see); nothing stored; no AI.
+
+```
+npx vitest run src/lib/coach/remote/__tests__/trackerPreview.test.ts src/app/api/coach/remote/trackers/preview → 8 passed, exit 0
+```
