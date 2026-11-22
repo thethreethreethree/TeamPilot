@@ -1,7 +1,7 @@
 # Remote Sales — partner review walkthrough
 
 For the founder presenting the Remote Sales module. About 20 minutes: the full module (15), then Macro Mode, the
-simplified view (5). Updated 2026-11-22 for the build at 0999e317.
+simplified view (5). Updated 2026-11-22 for the build at e7fa6293.
 
 ## Before the review (once, ~25 minutes)
 
@@ -34,8 +34,11 @@ simplified view (5). Updated 2026-11-22 for the build at 0999e317.
 | 9 | **Comments** (manager) | On the call page: comment at a time, @mention a colleague, choose who can read it; the rep sees it |
 | 9b | **Coaching** tab (manager) | The feedback requests and the score-dispute queue for phone and video calls; a rep's dispute rings the manager's bell, and the answer rings the rep's |
 | 10 | **Search** | Find calls by what was said; filter by score, rubric item, talk share, tracker, disputed; export CSV |
+| 10b | **Trackers** (manager) | Write a phrase list and press **Preview on recent calls**: how many of the last 30 calls it would catch, which phrase is too common, and example lines that open the call there — before saving |
+| 10c | **Search** → Topic or competitor | "pricing" or a competitor's name finds the calls where the AI heard it discussed |
 | 11 | **Scoreboard** | Remote Sales has its own points and leaderboard — phone and video calls only |
-| 12 | **Protection** (admin) | Retention, legal erasure of one customer's data, and the audit log of who did what |
+| 12 | **Protection** (admin) | Retention, legal erasure of one customer's data, the audit log of who did what, and the **transcription vocabulary** (product and competitor names transcription should get right — opt-in, about 20% more transcription cost) |
+| 13 | **Training** (manager) | **Try it** on a scenario plays it as a rep would, as a test run that is recorded nowhere; then **Assign** |
 
 ## The walkthrough — Macro Mode (the simplified system)
 
