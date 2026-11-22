@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/pitch-score/best?period=…&limit=3 — a rep's highest counted pitches.
@@ -68,8 +69,9 @@ export async function GET(req: NextRequest) {
   const repId = params.get("repId") ?? ctx.userId;
 
   let q = sb
-    .from("pitch_scores")
+    .from("pitch_scores_by_channel")
     .select("id, session_id, recorded_at, total, outcome")
+    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("rep_id", repId)
     .eq("qualifying", true)
     .order("total", { ascending: false })

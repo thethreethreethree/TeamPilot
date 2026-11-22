@@ -34,6 +34,10 @@ function db(rows: unknown[] | null, error: { message: string } | null = null) {
   const calls: Record<string, unknown> = { eq: {}, gte: null, order: null, orders: [], limit: null };
   const q: Record<string, unknown> = {};
   q.select = () => q;
+  q.in = (col: string, val: unknown) => {
+    calls.channel = [col, val]; // the 0301 channel scope
+    return q;
+  };
   q.eq = (col: string, val: unknown) => {
     (calls.eq as Record<string, unknown>)[col] = val;
     return q;
@@ -87,6 +91,14 @@ describe("GET /pitch-score/best", () => {
     expect((calls.eq as Record<string, unknown>).qualifying).toBe(true);
     expect(calls.order).toEqual({ col: "total", ascending: false });
     expect(calls.limit).toBe(3);
+  });
+
+  // Founder 2026-11-22: Sales Coach counts in-person pitches only; phone/video calls belong to Remote Sales (0301).
+  it("reads in-person pitches only — a remote call never becomes a Sales Coach best pitch", async () => {
+    const { client, calls } = db([]);
+    asMock(createClient).mockResolvedValue(client);
+    await GET(req());
+    expect(calls.channel).toEqual(["channel", ["in_person"]]);
   });
 
   it("breaks a tie deterministically, because the cards are tappable", async () => {

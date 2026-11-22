@@ -8,6 +8,7 @@ import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchPeriod } from "@/lib/coach/pitchScore/readPitchPeriod";
 import { buildPitchLeaderboard, standingOf, gapsAround } from "@/lib/coach/pitchScore/leaderboard";
+import type { CallModule } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/pitch-score/leaderboard?period=week|month|all
@@ -73,6 +74,8 @@ export async function GET(req: NextRequest) {
 
   const requested = new URL(req.url).searchParams.get("period") ?? "all";
   const period = PERIODS.has(requested) ? requested : "all";
+  // Whose board (founder 2026-11-22): Sales Coach (in-person, the default) or Remote Sales (phone + video calls).
+  const scope: CallModule = new URL(req.url).searchParams.get("module") === "remote_sales" ? "remote_sales" : "sales_coach";
   const from = fromFor(period);
 
   const manager = await requireSalesCoachManager(req);
@@ -93,7 +96,7 @@ export async function GET(req: NextRequest) {
   // but would then be running the board through a different client than the rep does — two code
   // paths producing one number is the shape that drifts.
   const admin = createAdminClient();
-  const read = await readPitchPeriod({ from, companyId, limit: 900 }, admin);
+  const read = await readPitchPeriod({ from, companyId, limit: 900, module: scope }, admin);
   if (!read) {
     // readPitchPeriod logs the detail. Returning an empty board here would tell a team that nobody
     // scored this week, which is the error-as-no-data class this codebase has paid for twice.

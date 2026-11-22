@@ -69,14 +69,15 @@ function ordinal(n: number): string {
   return `${n}${rem10 === 1 ? "st" : rem10 === 2 ? "nd" : rem10 === 3 ? "rd" : "th"}`;
 }
 
-export function PitchLeaderboard() {
+/** `module`: Sales Coach's board (in-person pitches, the default) or Remote Sales' (phone + video calls). */
+export function PitchLeaderboard({ module = "sales_coach" }: { module?: "sales_coach" | "remote_sales" } = {}) {
   const [period, setPeriod] = useState<Period>("week");
   const [state, setState] = useState<State>({ kind: "loading" });
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     try {
-      const res = await fetch(`${ENDPOINT}?period=${period}`);
+      const res = await fetch(`${ENDPOINT}?period=${period}${module === "remote_sales" ? "&module=remote_sales" : ""}`);
       if (!res.ok) {
         setState({ kind: "failed" });
         return;
@@ -85,7 +86,7 @@ export function PitchLeaderboard() {
     } catch {
       setState({ kind: "failed" });
     }
-  }, [period]);
+  }, [period, module]);
 
   useEffect(() => {
     void load();

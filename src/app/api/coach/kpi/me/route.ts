@@ -39,6 +39,7 @@ import {
   type RecommendationInput,
   type ProspectSessionInput,
 } from "@/lib/coach/kpi/compute";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
 const LAYER3_KEYS = ["opener", "objection", "tone", "close", "question_rate", "next_step"] as const;
@@ -95,6 +96,7 @@ export async function GET(req: Request) {
       sb
         .from("coaching_sessions")
         .select("id, outcome, deal_value, started_at, ended_at, audio_duration_seconds, client_label")
+        .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
         .in("agent_id", agentIds)
         .order("started_at", { ascending: true })
         .range(from, to),

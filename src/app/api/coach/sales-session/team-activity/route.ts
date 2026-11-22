@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/team-activity — per-rep session ACTIVITY for the manager's roster (founder 2026-08-27:
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
         admin
           .from("coaching_sessions")
           .select("agent_id, started_at, audio_asset_url")
+          .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .eq("company_id", companyId)
           .gte("started_at", cutoff)
           .range(from, to),

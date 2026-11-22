@@ -42,6 +42,7 @@ const pitchRow = (o: Partial<Record<string, unknown>> = {}) => ({
 
 /** Records the filters applied, so the tests can assert the query was actually scoped. */
 let applied: { eq: [string, unknown][]; gte: unknown[]; lt: unknown[]; limit: number | null };
+let channelFilter: [string, unknown] | null = null;
 
 const mockDb = (opts: {
   pitches?: unknown[];
@@ -51,11 +52,16 @@ const mockDb = (opts: {
   childError?: { message: string };
 } = {}) => {
   applied = { eq: [], gte: [], lt: [], limit: null };
+  channelFilter = null;
   asMock(createClient).mockResolvedValue({
     from: (table: string) => {
-      if (table === "pitch_scores") {
+      if (table === "pitch_scores_by_channel") {
         const chain: Record<string, unknown> = {};
         chain.select = () => chain;
+        chain.in = (c: string, v: unknown) => {
+          channelFilter = [c, v];
+          return chain;
+        };
         chain.order = () => chain;
         chain.eq = (c: string, v: unknown) => {
           applied.eq.push([c, v]);
@@ -97,6 +103,16 @@ beforeEach(() => {
 });
 
 describe("the query is actually scoped", () => {
+  // 0301 / founder 2026-11-22: Sales Coach counts in-person pitches only; Remote Sales its phone and video calls.
+  it("defaults to Sales Coach: in-person pitches only (pitch_scores_by_channel)", async () => {
+    await readPitchPeriod({});
+    expect(channelFilter).toEqual(["channel", ["in_person"]]);
+  });
+  it("Remote Sales reads phone and video calls only", async () => {
+    await readPitchPeriod({ module: "remote_sales" });
+    expect(channelFilter).toEqual(["channel", ["video", "phone"]]);
+  });
+
   it("filters to one rep when asked", async () => {
     await readPitchPeriod({ repId: "rep9" });
     expect(applied.eq).toContainEqual(["rep_id", "rep9"]);

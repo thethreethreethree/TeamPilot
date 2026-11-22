@@ -601,3 +601,22 @@ Follow-up: the last links from Remote Sales screens into Sales Coach — the coa
 Sales; assigned practice opens /dashboard/remote-sales/practice (the role-play screen inside Remote Sales; the Training
 tab stays active), and the assignment list is off the Sales Coach role-play page. The Protection audit log links any
 session to Sales Coach's address, and the module router sends a remote call on to Remote Sales. 54 test files pass.
+
+## Addendum 2026-11-22 — separate numbers: Sales Coach counts in-person; Remote Sales has its own scoreboard
+
+Founder picker: "Own scoreboard in Remote". Audit found ~25 Sales Coach aggregations with no channel filter (dashboard,
+KPIs + KPI cron, points, leaderboard/breakdown/milestones/team assessment via readPitchPeriod, Recordings tab, rep and
+team activity, team analytics, weekly digest, Elo, why-patterns, best pitch).
+- 0301: views pitch_scores_by_channel / agent_point_ledger_by_channel (security_invoker; channel =
+  coalesce(session.context, 'in_person')) — views, not a column, because agent_point_ledger refuses UPDATE (0242) and
+  could not be backfilled. Applied to production (verify:live passed); views see every row (scores 52/52 in_person;
+  points 152 = 149 in_person + 3 video — three old video test-session rows now leave Sales Coach totals).
+- TS twin contextsOf(module) (sessionContext.ts). readPitchPeriod takes `module` (default sales_coach); 23 Sales Coach
+  reads scoped to in_person (sessions by context; scores and points through the views by channel).
+- Remote Sales → Scoreboard: MyProgress + PitchLeaderboard with module=remote_sales (my-points and leaderboard take
+  ?module=remote_sales; anything else is Sales Coach). Same rule as Sales Coach's board: managers see the ranking, reps
+  their own standing.
+- Found on the way: INVARIANT 29 delimits a statement at `;`, and the first comment text "(0301; founder …)" ended six
+  statements before their company_id filter — the queries were tenant-scoped; the comment now uses a comma.
+Tests: readPitchPeriod +2 (default in_person; remote = video+phone), best pitch +1, leaderboard +2; fakes updated for the
+channel scope. 394 test files / 3471 tests pass · Violations 0 · RLS audit (views invoker) · theme 0 · build:ci PASSED.

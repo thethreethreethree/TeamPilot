@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import type { ScoreCategory } from "./summaryTypes";
 import type { SalesOutcome } from "@/lib/data/salesCoach";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * Agent Sales Effectivity Rating — an ELO the rep plays against OUR MEASUREMENT
@@ -312,6 +313,7 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
     const { data, error } = await admin
       .from("coaching_sessions")
       .select("id, outcome, ended_at, started_at")
+      .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
       .in("id", idList.slice(i, i + 1000));
     if (error) {
       // eslint-disable-next-line no-console

@@ -265,3 +265,17 @@ describe("the period", () => {
     expect(readPitchPeriod).not.toHaveBeenCalled();
   });
 });
+
+// Founder 2026-11-22: Sales Coach's board counts in-person pitches; Remote Sales has its own board (phone + video).
+describe("whose board", () => {
+  it("defaults to Sales Coach (in-person pitches)", async () => {
+    await GET(req());
+    expect((asMock(readPitchPeriod).mock.calls[0]![0] as { module?: string }).module).toBe("sales_coach");
+  });
+  it("?module=remote_sales reads Remote Sales' phone and video calls; anything else is Sales Coach", async () => {
+    await GET(new Request("https://x.test/api/coach/sales-session/pitch-score/leaderboard?period=all&module=remote_sales") as never);
+    expect((asMock(readPitchPeriod).mock.calls[0]![0] as { module?: string }).module).toBe("remote_sales");
+    await GET(new Request("https://x.test/api/coach/sales-session/pitch-score/leaderboard?period=all&module=other") as never);
+    expect((asMock(readPitchPeriod).mock.calls[1]![0] as { module?: string }).module).toBe("sales_coach");
+  });
+});

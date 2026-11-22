@@ -14,6 +14,7 @@ import {
   type KpiSessionRow,
   type MetricResult,
 } from "@/lib/coach/kpi/compute";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/kpi/compute-cron — scheduled KPI persistence (SalesCoach-KPI-System.md Phase 5).
@@ -79,6 +80,7 @@ export async function GET(req: NextRequest) {
         admin
           .from("coaching_sessions")
           .select("company_id, agent_id")
+          .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .order("id")
           .range(from, to),
       { label: "cron KPI agent enumeration" },
@@ -107,6 +109,7 @@ export async function GET(req: NextRequest) {
           .select(
             `id, agent_id, outcome, deal_value, started_at, ended_at${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, audio_duration_seconds",
           )
+          .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .in("agent_id", agents)
           .order("started_at", { ascending: true })
           .range(from, to),

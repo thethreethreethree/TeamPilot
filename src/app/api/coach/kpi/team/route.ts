@@ -32,6 +32,7 @@ import {
   type RecommendationInput,
   type ProspectSessionInput,
 } from "@/lib/coach/kpi/compute";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/kpi/team — the MANAGER rollup (SalesCoach-KPI-System.md).
@@ -120,6 +121,7 @@ export async function GET(req: Request) {
           .select(
             `id, agent_id, outcome, deal_value, started_at, ended_at, client_label${durCol}` as "id, agent_id, outcome, deal_value, started_at, ended_at, client_label, audio_duration_seconds",
           )
+          .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .in("agent_id", memberIds)
           .order("started_at", { ascending: true })
           .range(from, to),

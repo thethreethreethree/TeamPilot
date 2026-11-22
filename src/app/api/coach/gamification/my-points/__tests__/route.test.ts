@@ -19,6 +19,7 @@ const setRows = (rows: unknown[]) =>
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
       chain.eq = () => chain;
+      chain.in = () => chain; // the 0301 channel scope
       chain.order = () => chain;
       chain.limit = () => chain;
       chain.range = () => chain;

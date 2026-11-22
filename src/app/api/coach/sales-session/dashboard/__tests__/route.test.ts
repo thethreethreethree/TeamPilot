@@ -33,11 +33,14 @@ function fakeSb(o: {
         // ends on .order().range(): page 0 returns the rows (or throws via `error`), page 1+ returns [].
         return {
           select: () => ({
-            eq: () => ({
-              order: () => ({
-                range: async (from: number) => ({
-                  data: from > 0 ? [] : (o.sessions ?? null),
-                  error: o.sessionsErr ?? null,
+            // the 0301 channel scope: Sales Coach counts in-person sessions only
+            in: () => ({
+              eq: () => ({
+                order: () => ({
+                  range: async (from: number) => ({
+                    data: from > 0 ? [] : (o.sessions ?? null),
+                    error: o.sessionsErr ?? null,
+                  }),
                 }),
               }),
             }),

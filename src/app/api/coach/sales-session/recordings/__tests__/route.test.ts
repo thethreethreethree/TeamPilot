@@ -32,6 +32,7 @@ const mockAdmin = () =>
     from: () => {
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
+      chain.in = () => chain; // the 0301 channel scope
       chain.not = () => chain;
       chain.order = () => chain;
       chain.limit = () => chain;

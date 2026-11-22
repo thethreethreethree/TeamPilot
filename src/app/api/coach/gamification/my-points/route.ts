@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { STRONG_SESSION_THRESHOLD } from "@/lib/coach/gamification/bands";
 import { deriveMilestoneDates } from "@/lib/coach/gamification/milestones";
+import { contextsOf, type CallModule } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/gamification/my-points — the signed-in rep's OWN points history: each banked session's points +
@@ -28,6 +29,8 @@ export async function GET(req: NextRequest) {
   // Caller-scoped read: the mobile Bearer client (auth.uid() resolves so the owner-RLS applies) or the web cookie
   // client. The eq(agent_id) below is belt-and-suspenders on top of RLS.
   const supabase = callerScopedDb(req) ?? (await createClient());
+  // Whose points (founder 2026-11-22): Sales Coach's (in-person, the default) or Remote Sales' (phone + video calls).
+  const scope: CallModule = new URL(req.url).searchParams.get("module") === "remote_sales" ? "remote_sales" : "sales_coach";
   // RLS: the caller reads their OWN ledger rows (agent_id = auth.uid()). session_score rows only — the per-session
   // banks (not corrections), oldest→newest so the trend reads left-to-right. Paged so the summary is over the FULL
   // set (not a truncated page), keeping total/avg/sessions consistent with the board.
@@ -35,8 +38,9 @@ export async function GET(req: NextRequest) {
   const { data, error } = await fetchAllPagedResult<LedgerRow>(
     (from, to) =>
       supabase
-        .from("agent_point_ledger")
+        .from("agent_point_ledger_by_channel")
         .select("session_id, points, detail, created_at")
+        .in("channel", [...contextsOf(scope)]) // this module's calls only (0301, founder 2026-11-22)
         .eq("agent_id", ctx.userId)
         .eq("reason", "session_score")
         .order("created_at", { ascending: true })
@@ -67,6 +71,7 @@ export async function GET(req: NextRequest) {
   const { data: sold } = await supabase
     .from("coaching_sessions")
     .select("created_at")
+    .in("context", [...contextsOf(scope)]) // this module's calls only (0301, founder 2026-11-22)
     .eq("agent_id", ctx.userId)
     .eq("outcome", "sold")
     .order("created_at", { ascending: true });

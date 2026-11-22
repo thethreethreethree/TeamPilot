@@ -13,6 +13,18 @@ export type SalesContext = (typeof SALES_CONTEXTS)[number];
 /** The remote channels the RSS session lifecycle applies to (required outcome, stage chips). */
 export const REMOTE_CONTEXTS = ["video", "phone"] as const satisfies readonly SalesContext[];
 
+/**
+ * The two modules and the calls each one owns (founder 2026-11-22): Sales Coach = in-person; Remote Sales = phone +
+ * video. Every reader that counts calls, scores or points for a module filters on contextsOf(module) — against
+ * coaching_sessions.context, or the `channel` of pitch_scores_by_channel / agent_point_ledger_by_channel (0301, which
+ * derive it the same way). One list per module, so a stat can never count the other module's calls.
+ */
+export type CallModule = "sales_coach" | "remote_sales";
+export const SALES_COACH_CONTEXTS = ["in_person"] as const satisfies readonly SalesContext[];
+export function contextsOf(module: CallModule): readonly SalesContext[] {
+  return module === "remote_sales" ? REMOTE_CONTEXTS : SALES_COACH_CONTEXTS;
+}
+
 export const CONTEXT_LABEL: Record<SalesContext, string> = {
   in_person: "In-person",
   video: "Online video",

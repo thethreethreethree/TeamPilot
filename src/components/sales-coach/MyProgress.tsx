@@ -40,19 +40,20 @@ function Trend({ rows }: { rows: Row[] }) {
   );
 }
 
-export function MyProgress() {
+/** `module`: Sales Coach points (in-person, the default) or Remote Sales points (phone + video calls). */
+export function MyProgress({ module = "sales_coach" }: { module?: "sales_coach" | "remote_sales" } = {}) {
   const [data, setData] = useState<Resp | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/coach/gamification/my-points")
+    fetch(module === "remote_sales" ? "/api/coach/gamification/my-points?module=remote_sales" : "/api/coach/gamification/my-points")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => alive && d && setData(d as Resp))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, []);
+  }, [module]);
 
   if (!data || data.sessions === 0) return null; // no points yet → the board's own empty-state copy covers it
 

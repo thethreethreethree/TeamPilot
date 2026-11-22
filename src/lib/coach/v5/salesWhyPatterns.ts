@@ -2,6 +2,7 @@ import "server-only";
 import { dissectCoachV5 } from "@/lib/claude";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * Live Sales Coach — cross-session WHY patterns (Sessions Phase 4). Reads a
@@ -141,6 +142,7 @@ export async function gatherWhyPairs(args: {
   const { data: sessionsData, error: sessErr } = await admin
     .from("coaching_sessions")
     .select("id, outcome")
+    .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("agent_id", args.agentId)
     .eq("company_id", args.companyId)
     .not("outcome", "is", null)

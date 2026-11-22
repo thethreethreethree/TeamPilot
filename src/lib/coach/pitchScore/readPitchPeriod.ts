@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { BONUSES_BY_ID, SECTIONS, VIOLATIONS_BY_ID, type Grade, type SectionId } from "./rubric";
 import type { AggregablePitch } from "./aggregate";
+import { contextsOf, type CallModule } from "@/lib/coach/sessionContext";
 
 /**
  * Load a period of scored pitches in the shape the aggregator wants.
@@ -79,6 +80,11 @@ export async function readPitchPeriod(
      * date "First pitch" to the 900th-most-recent pitch and be confidently wrong about it.
      */
     oldestFirst?: boolean;
+    /**
+     * Whose scores (founder 2026-11-22): Sales Coach counts in-person pitches only; Remote Sales its phone and video
+     * calls. Defaults to Sales Coach so no existing board can start counting the other module's calls.
+     */
+    module?: CallModule;
   },
   client?: SupabaseClient
 ): Promise<PeriodRead | null> {
@@ -92,9 +98,11 @@ export async function readPitchPeriod(
   // filtering afterwards throws at runtime. It typechecked only because the injected client is
   // an un-generic SupabaseClient, which loosens these calls to `any`. Found by a test that
   // records which filters were actually applied rather than trusting that they were.
+  // pitch_scores_by_channel (0301): the same rows, plus the channel of their session — the one module rule.
   let q = sb
-    .from("pitch_scores")
-    .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome");
+    .from("pitch_scores_by_channel")
+    .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome")
+    .in("channel", [...contextsOf(args.module ?? "sales_coach")]);
 
   if (args.companyId) q = q.eq("company_id", args.companyId);
   if (args.repId) q = q.eq("rep_id", args.repId);

@@ -6,6 +6,7 @@ import { emailConfigured } from "@/lib/care/email/configured";
 import { STRONG_SESSION_THRESHOLD, bandFor, BAND_LABEL, type PointsBand } from "./bands";
 import { isAdminRole } from "@/lib/roles";
 import { competitionRanks } from "./competitionRank";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * Weekly manager digest (founder 2026-09-04) — a once-a-week email to each manager summarizing their team's last
@@ -184,8 +185,9 @@ export async function runWeeklyManagerDigest(deps?: {
 
   // Companies with points activity this week.
   const { data: weekRows } = await admin
-    .from("agent_point_ledger")
+    .from("agent_point_ledger_by_channel")
     .select("company_id, agent_id, points, created_at")
+    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("reason", "session_score")
     .gte("created_at", sinceIso);
   const byCompany = new Map<string, { agent_id: string; points: number }[]>();
@@ -205,6 +207,7 @@ export async function runWeeklyManagerDigest(deps?: {
     const { data: sold } = await admin
       .from("coaching_sessions")
       .select("agent_id")
+      .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
       .eq("company_id", companyId)
       .eq("outcome", "sold")
       .gte("created_at", sinceIso);
@@ -364,8 +367,9 @@ export async function runWeeklyRepDigest(deps?: {
   };
 
   const { data: weekRows } = await admin
-    .from("agent_point_ledger")
+    .from("agent_point_ledger_by_channel")
     .select("agent_id, points, session_id")
+    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("reason", "session_score")
     .gte("created_at", sinceIso);
   const byAgent = new Map<string, { points: number; session_id: string | null }[]>();
@@ -376,7 +380,8 @@ export async function runWeeklyRepDigest(deps?: {
   }
 
   // Deals this week, per agent (service-role; grouped in JS).
-  const { data: sold } = await admin.from("coaching_sessions").select("agent_id").eq("outcome", "sold").gte("created_at", sinceIso);
+  const { data: sold } = await admin.from("coaching_sessions").select("agent_id")
+  .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22).eq("outcome", "sold").gte("created_at", sinceIso);
   const dealsByAgent = new Map<string, number>();
   for (const s of sold ?? []) {
     const id = String((s as { agent_id: string }).agent_id);

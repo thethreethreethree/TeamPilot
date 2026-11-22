@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCueRelianceSeries } from "@/lib/data/salesCoach";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/dashboard
@@ -34,6 +35,7 @@ export async function GET() {
       supabase
         .from("coaching_sessions")
         .select("id, status, started_at")
+        .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
         .eq("agent_id", agentId)
         .order("id")
         .range(from, to),

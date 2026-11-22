@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager, canManagerViewRepSkills } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/recordings[?agentId=<rep>] — the recordings the Sessions tab shows.
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
     admin
       .from("coaching_sessions")
       .select(cols)
+      .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
       .eq("company_id", companyId)
       .eq("agent_id", targetAgentId)
       .not("audio_asset_url", "is", null)

@@ -13,6 +13,7 @@ import { useCurrentUserRole, useIsSalesCoachManager, isCompanyAdminRole } from "
  */
 const TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin" }> = [
   { href: "/dashboard/remote-sales", label: "Calls", who: "all" },
+  { href: "/dashboard/remote-sales/scoreboard", label: "Scoreboard", who: "all" },
   { href: "/dashboard/remote-sales/coaching", label: "Coaching", who: "manager" },
   { href: "/dashboard/remote-sales/search", label: "Search", who: "all" },
   { href: "/dashboard/remote-sales/library", label: "Library", who: "all" },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * GET /api/coach/sales-session/team-analytics
@@ -89,6 +90,7 @@ export async function GET() {
   const totalRes = await admin
     .from("coaching_sessions")
     .select("id", { count: "exact", head: true })
+    .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("company_id", ctx.companyId);
   if (totalRes.error) degraded = true;
   const sessionsTotal = totalRes.count ?? 0;
@@ -99,6 +101,7 @@ export async function GET() {
   const weekRes = await admin
     .from("coaching_sessions")
     .select("id", { count: "exact", head: true })
+    .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("company_id", ctx.companyId)
     .gte("started_at", weekAgoIso);
   if (weekRes.error) degraded = true;
@@ -119,6 +122,7 @@ export async function GET() {
   const sessRes = await admin
     .from("coaching_sessions")
     .select("id, status, started_at, agent_id")
+    .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("company_id", ctx.companyId)
     .order("started_at", { ascending: false })
     .limit(SESSION_WINDOW);

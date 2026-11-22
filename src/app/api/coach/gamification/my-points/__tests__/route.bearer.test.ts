@@ -26,7 +26,7 @@ const bearerReq = () =>
 /** A minimal thenable query builder returning `rows` (mirrors the paged read in the route). */
 function scopedClientReturning(rows: unknown[]) {
   const chain: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order", "range"]) chain[m] = () => chain;
+  for (const m of ["select", "eq", "in", "order", "range"]) chain[m] = () => chain;
   chain.then = (res: (v: unknown) => unknown) => res({ data: rows, error: null });
   return { from: () => chain };
 }

@@ -10,6 +10,7 @@ import {
   type TimedLine,
 } from "./keyMoments";
 import type { Grade } from "../pitchScore/rubric";
+import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
  * The Recordings tab's reads — guide Step 4, items 1, 3, 4, 5.
@@ -106,11 +107,12 @@ export async function readPitchRecordings(
    * the whole set.
    */
   const { data, error, count } = await supabase
-    .from("pitch_scores")
+    .from("pitch_scores_by_channel")
     .select(
       "id, rep_id, session_id, recorded_at, duration_s, audio_url, outcome, base, bonus, violations, total, qualifying, not_qualifying_reason",
       { count: "exact" }
     )
+    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("rep_id", args.repId)
     .order("recorded_at", { ascending: false })
     .limit(limit);
@@ -176,10 +178,11 @@ export async function readPitchRecordingDetail(
   const supabase = db ?? (await createServerClient());
 
   const { data, error } = await supabase
-    .from("pitch_scores")
+    .from("pitch_scores_by_channel")
     .select(
       "id, rep_id, session_id, recorded_at, duration_s, audio_url, transcript, outcome, base, bonus, violations, total, qualifying, not_qualifying_reason"
     )
+    .in("channel", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
     .eq("id", args.pitchId)
     .maybeSingle();
   if (error || !data) return null;
