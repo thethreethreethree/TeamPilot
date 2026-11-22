@@ -80,6 +80,9 @@ login page, a button for a provider nobody configured, an import that invites so
    "how_this_build_will_embody_it": "Nothing is sent or saved for the rep: drafts are copied and sent by the rep; the checklist becomes tasks only after the rep reviews, edits and saves it; the day plan only organizes what the rep wrote."},
   {"id": "§1.5.1", "source_file": "CLAUDE.md", "line_range": "94-98", "read_at": "2026-11-22T09:07:38Z",
    "why_it_governs": "Layer 3 (workflow continuity): Macro Mode's call view must not break the manager's feedback path from the Coaching inbox.",
-   "how_this_build_will_embody_it": "Traced inbox → call page in Macro Mode; the comment box moved into the Coaching tab so the path ends in an action, covered by a render test."}
+   "how_this_build_will_embody_it": "Traced inbox → call page in Macro Mode; the comment box moved into the Coaching tab so the path ends in an action, covered by a render test."},
+  {"id": "§6", "source_file": "CLAUDE.md", "line_range": "452-455", "read_at": "2026-11-22T09:32:51Z",
+   "why_it_governs": "Item 0: recording consent on remote calls is a decision for the founder, not the builder.",
+   "how_this_build_will_embody_it": "Asked as an AskUserQuestion picker with the recommendation first; built exactly the chosen option (rep confirms at Start)."}
 ]
 ```

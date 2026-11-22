@@ -5,6 +5,7 @@ import { Upload, Loader2, UserCheck } from "lucide-react";
 import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { createClient } from "@/lib/supabase/client";
+import { ConsentCheck, confirmRecordingConsent } from "@/components/remote-sales/RecordingConsent";
 
 // Voice-memo + recording formats a phone actually produces — Apple Voice Memos (.m4a/.caf),
 // Android recorders (.m4a/.amr/.3gp/.ogg/.wav), plus the universal ones. Listed explicitly (on
@@ -34,8 +35,11 @@ export function SessionRecordingUpload({
   initialBlob = null,
   hasSavedRecording = false,
   autoRetranscribe = false,
+  requireConsent = false,
 }: {
   sessionId: string;
+  /** Phone/video call (founder 2026-11-22): the rep confirms the prospect knew the call was recorded before uploading. */
+  requireConsent?: boolean;
   onLabeled: () => void;
   /** F2: a recording handed in from the live coaching loop. When set,
    *  it's uploaded automatically (no file picker). */
@@ -67,6 +71,7 @@ export function SessionRecordingUpload({
   const [segments, setSegments] = useState<DiarizedSegment[]>([]);
   const [speakers, setSpeakers] = useState<SpeakerSample[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [consentOk, setConsentOk] = useState(false);
 
   // Shared response handling for both transcription entry points (fresh upload
   // and re-transcribe-from-storage) — they return the identical {segments,speakers}
@@ -197,6 +202,15 @@ export function SessionRecordingUpload({
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (requireConsent) {
+      try {
+        await confirmRecordingConsent(sessionId, "upload");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't record that the prospect agreed.");
+        e.target.value = "";
+        return;
+      }
+    }
     await uploadBlob(file, file.name || "recording.webm");
   };
 
@@ -308,8 +322,10 @@ export function SessionRecordingUpload({
           how="Tap it, pick a voice memo or call recording from your phone, and wait while it transcribes. Then you'll tap which voice is you."
           principle="A call you don't capture is a lesson that evaporates."
         >
+        {requireConsent && <ConsentCheck checked={consentOk} onChange={setConsentOk} past />}
         <LoadingButton
           pending={phase === "uploading"}
+          disabled={requireConsent && !consentOk}
           onClick={() => fileRef.current?.click()}
           icon={<Upload className="w-3.5 h-3.5" aria-hidden />}
           pendingLabel={stage === "sending" ? "Uploading…" : "Transcribing…"}

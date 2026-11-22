@@ -840,3 +840,21 @@ only; the final calls read stays RLS-scoped, so nothing outside the viewer's cal
 ```
 npx vitest run src/lib/coach/remote/__tests__/search.test.ts → Tests 14 passed (14), exit 0
 ```
+
+## Addendum 2026-11-22 — recording consent on phone and video calls (founder decision: "Rep confirms at Start")
+
+**Why now.** Remote live calls record the prospect's side since eab8523c; many places require every party's consent to
+record a phone/video call. The record covered only door recordings (2026-08-18). Put to the founder as a picker (§6, item 0);
+chosen: the rep confirms at Start.
+
+**Build.** On a phone/video call: live Start is disabled until the rep ticks "The prospect knows this call is recorded"
+(with a suggested line to say); uploading a remote call's recording asks "The prospect knew this call was recorded".
+Each confirmation is an appended event (coach.recording_consent_confirmed, payload how=live|upload) via
+/api/coach/remote/:id/consent — only the rep on the call may confirm; remote calls only. The call page shows whether
+consent was confirmed, and how. Order matters on live: start() runs first, un-awaited, so the call-tab share picker
+keeps the click's user activation; the confirmation is saved alongside, and a failed save is told to the rep without
+stopping the call.
+
+```
+npx vitest run src/app/api/coach/remote/[id]/consent src/components/sales-coach src/test → Tests 493 passed (493), exit 0
+```

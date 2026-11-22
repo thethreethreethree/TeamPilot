@@ -45,6 +45,7 @@ import { FeedbackRequest } from "@/components/sales-coach/FeedbackRequest";
 import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel";
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
+import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
@@ -476,6 +477,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
             Back to calls
           </Link>
           <StageChips sessionId={id} />
+          <ConsentStatus sessionId={id} />
           <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
           <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
         </div>
@@ -503,6 +505,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         </Link>
         {/* RSS Phase 1: where a phone/video session is in processing (renders nothing for door or meetings). */}
         {session && isRemoteContext(session.context) && <StageChips sessionId={id} />}
+        {session && isRemoteContext(session.context) && session.status !== "active" && <ConsentStatus sessionId={id} />}
         {/* RSS Phase 2: player, talk-time lanes and the stat strip for a finished phone/video call. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && (
           <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
@@ -1144,6 +1147,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
                 sessionId={id}
                 onLabeled={openNaming}
                 hasSavedRecording={!!session?.audioAssetUrl}
+                requireConsent={!!session && isRemoteContext(session.context)}
               />
             )}
 
