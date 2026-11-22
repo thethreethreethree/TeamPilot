@@ -1,7 +1,7 @@
 # Remote Sales — partner review walkthrough
 
 For the founder presenting the Remote Sales module. About 20 minutes: the full module (15), then Macro Mode, the
-simplified view (5). Updated 2026-11-22 for the build at cb340231.
+simplified view (5). Updated 2026-11-22 for the build at 0999e317.
 
 ## Before the review (once, ~25 minutes)
 
@@ -13,7 +13,7 @@ simplified view (5). Updated 2026-11-22 for the build at cb340231.
    upload a recording, or record live (see step 3 below for the prospect's side). Tap which voice is the rep, name the
    call. Wait a few minutes for each to reach **Ready**.
 3. **Record one call live with both sides** (desktop Chrome or Edge). Have the call open in another tab (Meet, Zoom,
-   Teams, a browser dialer). Start live coaching, keep "Record and transcribe the prospect too" ticked, pick the call's
+   Teams, a browser dialer). Tick "The prospect knows this call is recorded" (and say the suggested line on the call), start live coaching, keep "Record and transcribe the prospect too" ticked, pick the call's
    tab in the share box and tick **Share tab audio**. The transcript shows Salesperson lines from your mic and Prospect
    lines from the call.
 4. **Fill the scores.** As an admin, run the scoring backfill once (it shows the count first).
