@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Check, ClipboardCopy, Loader2, Mail, MessageSquareText, Plus, Sparkles } from "lucide-react";
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
+import { downloadIcs } from "@/lib/coach/remote/ics";
 
 /**
  * Remote Sales Macro Mode — one call, three tabs (docs/rss/MACRO-MODE-SPEC.md: "KEEP IT SIMPLE … 3 tabs").
@@ -466,7 +467,7 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
     const who = b.prospect?.name ?? b.label ?? "this prospect";
     return (
       <div className="space-y-3">
-        <NextCallDate b={b} onChanged={onChanged} />
+        <NextCallDate b={b} onChanged={onChanged} sessionId={sessionId} />
         <div className="rounded-lg border border-default bg-base/40 p-3">
           <label htmlFor="own-plan" className="text-sm font-semibold text-primary">
             What do you want to cover with {who} next time?
@@ -500,7 +501,7 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
   const nm = b.brief.nextMeeting;
   return (
     <div className="space-y-4">
-      <NextCallDate b={b} onChanged={onChanged} />
+      <NextCallDate b={b} onChanged={onChanged} sessionId={sessionId} />
       {own && own.length > 0 && (
         <div>
           <H>Your plan</H>
@@ -561,7 +562,7 @@ function NextMeeting({ sessionId, b, briefing, onPrepare, onChanged }: { session
   );
 }
 
-function NextCallDate({ b, onChanged }: { b: BriefRes; onChanged: () => void }) {
+function NextCallDate({ b, onChanged, sessionId }: { b: BriefRes; onChanged: () => void; sessionId: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   if (!b.prospect) {
@@ -598,6 +599,25 @@ function NextCallDate({ b, onChanged }: { b: BriefRes; onChanged: () => void }) 
         onChange={(e) => void set(e.currentTarget.value)}
         className="rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary"
       />
+      {b.prospect.nextCallDate && (
+        <button
+          type="button"
+          onClick={() =>
+            downloadIcs(`call-${b.prospect!.name ?? "prospect"}`, [
+              {
+                uid: `${b.prospect!.id}-next-call-${b.prospect!.nextCallDate}`,
+                date: b.prospect!.nextCallDate!,
+                title: `Call ${b.prospect!.name ?? "prospect"}`,
+                description: b.brief?.nextMeeting.agenda.length ? `Agenda: ${b.brief.nextMeeting.agenda.map((a) => a.text).join("; ")}` : undefined,
+                url: `${window.location.origin}/dashboard/remote-sales/calls/${sessionId}`,
+              },
+            ])
+          }
+          className="text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline"
+        >
+          Add to calendar
+        </button>
+      )}
       {err && <span className="w-full text-amber-700 dark:text-amber-300">{err}</span>}
     </label>
   );
@@ -629,6 +649,22 @@ function Checklist({ sessionId, b, onChanged, own }: { sessionId: string; b: Bri
           ))}
         </ul>
         <p className="mt-1 text-[11px] text-muted">
+          {b.review.kept.some((k) => k.due) && (
+            <button
+              type="button"
+              onClick={() =>
+                downloadIcs(
+                  "next-meeting-checklist",
+                  b.review!.kept
+                    .filter((k) => k.due)
+                    .map((k, i) => ({ uid: `${b.brief!.id}-item-${i}`, date: k.due!, title: k.text, url: `${window.location.origin}/dashboard/remote-sales/calls/${sessionId}` })),
+                )
+              }
+              className="mr-1 underline"
+            >
+              Add the dated ones to my calendar.
+            </button>
+          )}
           {b.prospect ? (
             <>
               Each item is a to-do on{" "}

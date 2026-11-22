@@ -7,6 +7,7 @@ import { AlertCircle, Check, Loader2, Phone, Plus, Video, X } from "lucide-react
 import { useIsSalesCoachManager, useCurrentUserRole, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
+import { downloadIcs } from "@/lib/coach/remote/ics";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -367,6 +368,20 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </label>
       </div>
 
+      {(p.next_call_date || d.todos.some((t) => !t.done && t.due)) && (
+        <button
+          type="button"
+          onClick={() =>
+            downloadIcs(`${p.name ?? "prospect"}-reminders`, [
+              ...(p.next_call_date ? [{ uid: `${p.id}-next-call-${p.next_call_date}`, date: p.next_call_date, title: `Call ${p.name ?? "prospect"}` }] : []),
+              ...d.todos.filter((t) => !t.done && t.due).map((t) => ({ uid: `${t.id}-todo`, date: t.due!, title: `${t.title} (${p.name ?? "prospect"})` })),
+            ].map((e) => ({ ...e, url: `${window.location.origin}/dashboard/remote-sales/pipeline?p=${p.id}` })))
+          }
+          className="text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline"
+        >
+          Add the next call and dated to-dos to my calendar
+        </button>
+      )}
       <div>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">To do</p>
         {d.todos.length === 0 && <p className="text-xs text-secondary">Nothing yet.</p>}

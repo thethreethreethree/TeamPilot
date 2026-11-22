@@ -900,3 +900,15 @@ npx vitest run src/lib/coach/remote/__tests__/vocabulary.test.ts src/lib/care/vo
 Found by the gate: the first cut of readCompanyKeyterms could THROW (a client without the table), which aborted
 transcript recovery and token minting in three existing suites. It now never throws — no vocabulary, never a failed
 transcription or socket — and a test pins it (vocabulary.test.ts: erroring and throwing clients → []).
+
+## Addendum 2026-11-22 — calendar reminders as .ics (Macro Mode spec: "integrated with calendar for reminders if needed")
+
+No calendar account to connect: "Add to calendar" downloads an .ics file (opens in Google Calendar, Outlook and Apple
+Calendar) — on Next Meeting for the prospect's next call (with the agenda), for a reviewed checklist's dated items, and
+on a pipeline prospect for the next call and dated open to-dos. All-day events with a reminder the evening before; each
+links back to the call or prospect. Nothing stored. ics.test.ts pins the format (structure, CRLF, escaping, 75-octet
+folding, malformed dates dropped).
+
+```
+npx vitest run src/lib/coach/remote/__tests__/ics.test.ts src/components/remote-sales → all passed, exit 0
+```
