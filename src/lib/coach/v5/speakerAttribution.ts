@@ -111,8 +111,9 @@ export function shouldReleaseLock(
 // SINGLE SOURCE for the attribution `source` values (0236). The type is DERIVED from this runtime array, and
 // the /segments + /finalize route schemas build their zod enum from it (`z.enum(ATTRIBUTION_SOURCES)`), so a
 // new source can't be added to the type while a route silently REJECTS segments carrying it. (The DB CHECK in
-// migration 0236 mirrors these; a drift-guard test asserts they agree.)
-export const ATTRIBUTION_SOURCES = ["video-mic", "manual", "content", "pitch", "loudness"] as const;
+// migration 0236, widened by 0302, mirrors these; a drift-guard test asserts they agree.)
+// "call-audio" (0302): the line came from the call's own audio (the shared call tab) — the prospect by source.
+export const ATTRIBUTION_SOURCES = ["video-mic", "manual", "content", "pitch", "loudness", "call-audio"] as const;
 export type AttributionSource = (typeof ATTRIBUTION_SOURCES)[number];
 
 /**

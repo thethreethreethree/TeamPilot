@@ -521,6 +521,15 @@ Pushed 24 commits (0214913c → 3a49f7ee) through VS Code's own Git: Push (the f
 GitHub credentials). elostate.com reported build.commit 3a49f7ee 80 s later. Live: /dashboard/sales-coach/sessions
 ?context=remote → 307 to sign-in (expected when signed out); unreferenced-upload-sweep-cron → 401 (CRON_SECRET set);
 /api/health status "degraded" = file storage 71.8% of the assumed Free plan (quotaSource default-free-plan; OPEN.md).
+Re-read 2026-11-22 for the record (A38), `curl -s https://api.github.com/repos/thethreethreethree/TeamPilot/commits/3a49f7ee/check-runs`
+
+```
+check completed success
+build completed success
+deploy completed success
+report-build-status completed success
+exit=0
+```
 GitHub CI for 3a49f7ee: job "check" completed **success**, every step green — Typecheck, Lint, RLS, Theme, Invariant,
 Reachability, Writer audit, Enum audit, Migration apply audit, SQL harness, Test, Build, KB bundling. This is the clean
 single run the loaded Mac could not give. One limit: the job log needs a GitHub sign-in (API 403 here), so that the
@@ -620,3 +629,29 @@ team activity, team analytics, weekly digest, Elo, why-patterns, best pitch).
   statements before their company_id filter — the queries were tenant-scoped; the comment now uses a comma.
 Tests: readPitchPeriod +2 (default in_person; remote = video+phone), best pitch +1, leaderboard +2; fakes updated for the
 channel scope. 394 test files / 3471 tests pass · Violations 0 · RLS audit (views invoker) · theme 0 · build:ci PASSED.
+
+## Addendum 2026-11-22 — both sides of a remote live call (founder: "the audio needs to be recorded and monitored for both the agent and the prospect")
+
+**Understanding (from the record).** The Start panel said it plainly: on video/phone "your mic hears your side — not the
+prospect's audio from the far end". useLiveCoaching.ts opened one getUserMedia mic, recorded it, and fed one Scribe
+socket; composeProvisional forced every turn to "agent" (source video-mic) because the prospect is never in the mic.
+So a live remote call saved and transcribed one voice. Uploads were unaffected (the file has both voices).
+
+**Build.** The only browser route to another tab's audio is getDisplayMedia with "Share tab audio".
+- `src/lib/coach/v5/callAudio.ts` (new): requestCallAudio (asked FIRST at Start, inside the click's activation, before
+  the mic prompt), CallAudioTranscriber (the shared track → its own AudioContext → its own Scribe socket, bounded
+  reconnect, "lost" when the share ends), prospectTurn (speaker customer, source call-audio), callAudioNote (every
+  no-capture case named to the rep: unsupported / declined / shared without audio / lost).
+- `useLiveCoaching.ts`: mic + call tab mixed into ONE recording track (MediaStreamDestination) so the saved audio holds
+  both voices; the prospect socket appends final "customer" turns and starts the cue clock on them; the mic socket is
+  unchanged (still the rep). Talk-share confidence counts the prospect when the call audio is live.
+- 0302 widens 0236's CHECK by 'call-audio'; ATTRIBUTION_SOURCES gains it; the drift test now reads 0302.
+- LiveCoachingPanel: on a remote call, "Record and transcribe the prospect too" (on by default) with the one instruction
+  for the picker; the prospect's live words show under the rep's. StartSessionPanel's disclosure updated.
+
+**Ripple.** 0302 must be live BEFORE this code: finalize/segments accept 'call-audio' (zod from the array) and the old
+CHECK would reject the insert and lose the transcript — so the migration is applied first. Reconnect path never re-asks
+for the share. recorderMimeDefault drift guard (no forced mimeType) still holds.
+
+**Limits.** Desktop Chrome/Edge only; a call in a desktop app has no tab (Windows "Entire screen" can share system
+audio). Not yet exercised on a real call — the founder's first remote live call with a shared tab is that check.

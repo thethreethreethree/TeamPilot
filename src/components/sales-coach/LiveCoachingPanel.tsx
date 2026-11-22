@@ -11,6 +11,8 @@ import { LoadingButton } from "@/components/sales-coach/ui/LoadingButton";
 import { LearningHint } from "@/components/learning/LearningHint";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { persistRecording } from "@/lib/coach/v5/persistRecording";
+import { callAudioNote, callAudioSupported } from "@/lib/coach/v5/callAudio";
+import { micHearsRepOnly } from "@/lib/coach/sessionContext";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -42,6 +44,8 @@ export function LiveCoachingPanel({
     micLevel,
     status,
     audioCapturing,
+    callAudio,
+    prospectPartial,
     turns,
     partial,
     currentCue,
@@ -77,6 +81,13 @@ export function LiveCoachingPanel({
   // confirming they're on an in-ear earpiece (honest enforcement of an
   // instruction, not a false guarantee).
   const [earpieceOk, setEarpieceOk] = useState(false);
+  // Remote call (phone/video): the mic hears the rep only, so the prospect is captured from the call's own audio —
+  // the rep shares the call's tab when Start is pressed (callAudio.ts). On by default; the rep can opt out.
+  const remoteCall = micHearsRepOnly(context);
+  const [captureProspect, setCaptureProspect] = useState(true);
+  const [canShareCallAudio, setCanShareCallAudio] = useState(true);
+  useEffect(() => setCanShareCallAudio(callAudioSupported()), []);
+  const prospectNote = callAudioNote(callAudio);
 
   const live = status === "live";
 
@@ -288,7 +299,7 @@ export function LiveCoachingPanel({
           {!live ? (
             <LoadingButton
               pending={status === "connecting"}
-              onClick={() => void start()}
+              onClick={() => void start({ callAudio: remoteCall && captureProspect && canShareCallAudio })}
               disabled={!earpieceOk}
               icon={<Radio className="w-3.5 h-3.5" aria-hidden />}
               pendingLabel="Connecting…"
@@ -620,6 +631,37 @@ export function LiveCoachingPanel({
         </LearningHint>
       )}
 
+      {/* The prospect's side (founder 2026-11-22). Shown before Start on a remote call: what will happen and the one
+          thing the rep must do in the share picker. Unsupported browsers are told so, never silently mic-only. */}
+      {!live && remoteCall && (
+        canShareCallAudio ? (
+          <label className="flex items-start gap-2 mt-2 text-[11px] text-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={captureProspect}
+              onChange={(e) => setCaptureProspect(e.target.checked)}
+              className="accent-ember-400 mt-0.5"
+            />
+            <span>
+              Record and transcribe the <strong className="text-primary">prospect</strong> too. When you press Start, pick
+              the call&apos;s tab (Meet, Zoom, Teams, your dialer) and tick <strong className="text-primary">Share tab audio</strong>.
+            </span>
+          </label>
+        ) : (
+          <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+            {callAudioNote("unsupported")?.text}
+          </p>
+        )
+      )}
+      {prospectNote && (live || callAudio !== "off") && (
+        <p
+          role={prospectNote.tone === "warn" ? "alert" : undefined}
+          className={`mt-2 text-[11px] ${prospectNote.tone === "warn" ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}
+        >
+          {prospectNote.text}
+        </p>
+      )}
+
       {error && (
         <p role="alert" className="text-xs text-amber-700 dark:text-amber-300 mt-2">
           {error}
@@ -744,7 +786,7 @@ export function LiveCoachingPanel({
           principle="A system that shows its uncertainty earns the trust one that hides it can't."
         >
         <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-default bg-base/40 p-3 space-y-1.5">
-          {turns.length === 0 && !partial && (
+          {turns.length === 0 && !partial && !prospectPartial && (
             <p className="text-[11px] text-muted">Listening…</p>
           )}
           {turns.map((t, i) => (
@@ -766,6 +808,9 @@ export function LiveCoachingPanel({
           ))}
           {partial && (
             <p className="text-xs text-muted italic leading-relaxed">{partial}</p>
+          )}
+          {prospectPartial && (
+            <p className="text-xs text-brand/70 italic leading-relaxed">Prospect: {prospectPartial}</p>
           )}
         </div>
         </LearningHint>

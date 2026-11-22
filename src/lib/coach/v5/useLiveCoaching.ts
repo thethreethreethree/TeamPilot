@@ -41,6 +41,13 @@ import { cueFailureMessage } from "./cueFailureMessage";
 import { micHearsRepOnly } from "@/lib/coach/sessionContext";
 
 import { measuredEndedAt } from "@/lib/coach/v5/liveTiming";
+import {
+  CallAudioTranscriber,
+  floatTo16BitPCMBase64,
+  prospectTurn,
+  requestCallAudio,
+  type CallAudioState,
+} from "@/lib/coach/v5/callAudio";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -251,20 +258,6 @@ function volumeVerdict(
   };
 }
 
-function floatTo16BitPCMBase64(input: Float32Array): string {
-  const buf = new ArrayBuffer(input.length * 2);
-  const view = new DataView(buf);
-  for (let i = 0; i < input.length; i += 1) {
-    const s = Math.max(-1, Math.min(1, input[i] ?? 0));
-    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i] ?? 0);
-  }
-  return btoa(binary);
-}
 
 /** A short earcon to the rep's output when they toggle "I'm speaking" (founder
  *  2026-07-03) — the rep holds the earbud as a mic, off-ear, so a tap gives no
@@ -314,6 +307,15 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const [status, setStatus] = useState<LiveStatus>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [partial, setPartial] = useState("");
+  // The prospect's side on a remote call (callAudio.ts, founder 2026-11-22): the shared call tab's audio, mixed into
+  // the recording and transcribed on its own socket. "off" for in-person or when not requested.
+  const [callAudio, setCallAudio] = useState<CallAudioState>("off");
+  const [prospectPartial, setProspectPartial] = useState("");
+  const callStreamRef = useRef<MediaStream | null>(null);
+  const mixCtxRef = useRef<AudioContext | null>(null);
+  const mixDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const callTranscriberRef = useRef<CallAudioTranscriber | null>(null);
+  const callAudioLiveRef = useRef(false);
   const [currentCue, setCurrentCue] = useState<string | null>(null);
   // After Pitch Summary cue loop (0080): the rep can confirm they USED the
   // current cue (source='rep_marked'), which the summary prefers over any
@@ -869,6 +871,20 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     [sessionId]
   );
 
+  // Free the prospect's side (socket, share, mix) straight from refs — no setState, safe after unmount. The mix
+  // context closes a beat later so the recorder's final chunk (flushed by stop()) isn't cut off.
+  const freeCallAudio = useCallback(() => {
+    callTranscriberRef.current?.stop();
+    callTranscriberRef.current = null;
+    callAudioLiveRef.current = false;
+    callStreamRef.current?.getTracks().forEach((t) => t.stop());
+    callStreamRef.current = null;
+    const mix = mixCtxRef.current;
+    mixCtxRef.current = null;
+    mixDestRef.current = null;
+    if (mix) setTimeout(() => void mix.close().catch(() => undefined), 1000);
+  }, []);
+
   const stop = useCallback(() => {
     stoppedRef.current = true; // intentional stop → the ws.onclose below must NOT auto-reconnect
     if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
@@ -943,6 +959,9 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     streamRef.current = null;
     detachAndCloseWs(wsRef.current); // intentional stop → detach so onclose can't re-enter reconnect
     wsRef.current = null;
+    freeCallAudio();
+    setProspectPartial("");
+    setCallAudio((prev) => (prev === "off" ? prev : "off"));
     // A2 readout: the "is it fluid?" summary for this call — median/p90 end-to-end
     // cue latency + delivered/suppressed counts (§3.5 consequence, §3.6 visible).
     if (cueTracesRef.current.length > 0) {
@@ -979,7 +998,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
       lockWarnTimerRef.current = null;
     }
     setLockHeldWarning(false);
-  }, [sessionId]);
+  }, [sessionId, freeCallAudio]);
 
   // Free every live-coaching media resource straight from the refs — NO setState, so it is safe
   // to call after the component has unmounted. Shared by the unmount cleanup AND start()'s
@@ -1008,12 +1027,13 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     streamRef.current = null;
     detachAndCloseWs(wsRef.current);
     wsRef.current = null;
+    freeCallAudio();
     if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     if (flushTimerRef.current) { clearInterval(flushTimerRef.current); flushTimerRef.current = null; }
     if (lockWarnTimerRef.current) { clearTimeout(lockWarnTimerRef.current); lockWarnTimerRef.current = null; }
     if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
-  }, []);
+  }, [freeCallAudio]);
 
   // Teardown for a RECONNECT (2026-08-21 capture fix): free ONLY the STT socket + audio graph (ws/proc/ctx),
   // and LEAVE the call recorder + mic stream RUNNING. The MediaRecorder records the raw mic and is independent
@@ -1031,7 +1051,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     if (stableTimerRef.current) { clearTimeout(stableTimerRef.current); stableTimerRef.current = null; }
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (opts?: { callAudio?: boolean }) => {
     setError(null);
     // Fresh readout per call — clear the prior session's traces + summary.
     cueTracesRef.current = [];
@@ -1124,6 +1144,24 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     };
 
     try {
+      // 0. The prospect's side (remote calls, callAudio.ts). FIRST await on purpose: the browser only opens the
+      //    share picker inside the Start click's user activation, and the mic prompt below can outlast it. A
+      //    reconnect never re-asks — the share (and its own socket) outlive a mic-socket drop.
+      if (!isReconnect) {
+        freeCallAudio();
+        setProspectPartial("");
+        if (opts?.callAudio) {
+          const got = await requestCallAudio();
+          if (got.ok) {
+            callStreamRef.current = got.stream;
+            setCallAudio("connecting");
+          } else {
+            setCallAudio(got.state);
+          }
+        } else {
+          setCallAudio("off");
+        }
+      }
       // 1. Mic. On a RECONNECT, REUSE the existing live stream — re-acquiring after a mobile
       //    background/screen-lock frequently fails or hangs and permanently ends capture. Only a fresh
       //    start (or a stream whose track has died) requests a new one.
@@ -1182,7 +1220,26 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
             // captured chunks now span two webm recordings; flag it so onstop drops the corrupt seam.
             recorderRecreatedRef.current = true;
           }
-          const rec = new MediaRecorder(stream);
+          // Both sides in ONE recording when the call's audio is shared: mic + call tab mixed into one track, so
+          // the saved audio (and the after-call diarization) holds the prospect too. Built once per fresh start and
+          // reused if the recorder is recreated on a reconnect; mic-only otherwise (unchanged behaviour).
+          const callTrack = callStreamRef.current?.getAudioTracks()[0];
+          if (!mixDestRef.current && callTrack && callTrack.readyState === "live") {
+            try {
+              const mix = new AudioContext();
+              if (mix.state === "suspended") await mix.resume().catch(() => undefined);
+              const dest = mix.createMediaStreamDestination();
+              mix.createMediaStreamSource(stream).connect(dest);
+              mix.createMediaStreamSource(new MediaStream([callTrack])).connect(dest);
+              mixCtxRef.current = mix;
+              mixDestRef.current = dest;
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.warn("[live-coaching] call-audio mix unavailable — recording the mic only", err);
+            }
+          }
+          const recordStream = mixDestRef.current?.stream ?? stream;
+          const rec = new MediaRecorder(recordStream);
           rec.onerror = (e: Event) => {
             const err = (e as unknown as { error?: { name?: string; message?: string } }).error;
             captureRecorderErrorRef.current = err?.name || err?.message || "MediaRecorder error";
@@ -1332,6 +1389,62 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${sr}`
       );
       wsRef.current = ws;
+
+      // 4b. The prospect's socket — fresh start only, independent of this one (its own token, context, reconnect).
+      const sharedTrack = callStreamRef.current?.getAudioTracks()[0];
+      if (!isReconnect && sharedTrack && !callTranscriberRef.current) {
+        const t = new CallAudioTranscriber({
+          track: sharedTrack,
+          wsUrl: (tok, rate) =>
+            `${REALTIME_WS}?token=${encodeURIComponent(tok)}` +
+            `&model_id=scribe_v2_realtime&language_code=eng&commit_strategy=vad&include_timestamps=true&audio_format=pcm_${rate}`,
+          getToken: async () => {
+            const r = await fetch("/api/coach/sales-session/realtime-token", { method: "POST" });
+            if (!r.ok) throw new Error(String(r.status));
+            return ((await r.json()) as { token: string }).token;
+          },
+          onState: (st) => {
+            callAudioLiveRef.current = st === "live";
+            if (!unmountedRef.current) setCallAudio(st);
+          },
+          onPartial: (text) => {
+            if (!unmountedRef.current) setProspectPartial(text);
+          },
+          onCommit: (text, startedAtMs) => {
+            if (stoppedRef.current || unmountedRef.current) return;
+            const index = turnsRef.current.length;
+            turnsRef.current = [...turnsRef.current, prospectTurn(text, startedAtMs)];
+            setTurns(turnsRef.current);
+            // The prospect just finished a line — the same moment the in-person path waits for before cueing.
+            // Known by source, so the cue clock starts now (no /attribute round-trip). A rep commit cancels it.
+            if (cueTimerRef.current) clearTimeout(cueTimerRef.current);
+            if (autoCoachRef.current) {
+              cueScheduledAtCommitRef.current = index;
+              const turnEndedAt = performance.now();
+              cueTimerRef.current = setTimeout(
+                () => void invokeCue(false, false, undefined, turnEndedAt),
+                TURN_SETTLE_MS
+              );
+            }
+          },
+          onTimestamps: (text, words) => {
+            const turns = turnsRef.current;
+            for (let i = turns.length - 1; i >= Math.max(0, turns.length - 4); i--) {
+              const tn = turns[i];
+              if (tn && tn.source === "call-audio" && !tn.endedAt && tn.text === text) {
+                const endedAt = measuredEndedAt(tn.spokenAt, words);
+                if (endedAt) {
+                  turnsRef.current = [...turns.slice(0, i), { ...tn, endedAt }, ...turns.slice(i + 1)];
+                  setTurns(turnsRef.current);
+                }
+                break;
+              }
+            }
+          },
+        });
+        callTranscriberRef.current = t;
+        void t.start();
+      }
 
       // 5. Audio graph. ScriptProcessorNode is deprecated but works;
       //    AudioWorklet is the eventual upgrade.
@@ -1500,7 +1613,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
           const turns = turnsRef.current;
           for (let i = turns.length - 1; i >= Math.max(0, turns.length - 3); i--) {
             const t = turns[i];
-            if (t && !t.endedAt && t.text === text) {
+            if (t && t.source !== "call-audio" && !t.endedAt && t.text === text) {
               const endedAt = measuredEndedAt(t.spokenAt, (msg as { words?: unknown }).words);
               if (endedAt) {
                 turnsRef.current = [...turns.slice(0, i), { ...t, endedAt }, ...turns.slice(i + 1)];
@@ -1735,7 +1848,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
               // Video is mic-only: the prospect isn't in the mic, so talk-share
               // is unmeasurable (custW is always 0) — don't let it read as a
               // false "over-talking" (§1.5 ripple of the video attribution gate).
-              customerAudible: !isVideo,
+              // ...unless the call's own audio is being transcribed: then the prospect IS heard (callAudio.ts).
+              customerAudible: !isVideo || callAudioLiveRef.current,
             });
             confidenceRef.current = conf;
             setConfidence(conf);
@@ -1805,7 +1919,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // `status` intentionally omitted: the only read was the stale onclose check,
     // now replaced by the functional setStatus form. Keeping it here would
     // recreate `start` on every status transition for no benefit.
-  }, [invokeCue, stop, classifyTurn, teardownMedia, teardownForReconnect, flushSegments, sessionId]);
+  }, [invokeCue, stop, classifyTurn, teardownMedia, teardownForReconnect, flushSegments, sessionId, freeCallAudio]);
 
   const updateMode = useCallback((m: CueMode) => {
     modeRef.current = m;
@@ -1890,6 +2004,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     micLevel,
     status,
     audioCapturing,
+    callAudio,
+    prospectPartial,
     turns,
     partial,
     currentCue,

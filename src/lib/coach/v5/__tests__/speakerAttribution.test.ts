@@ -119,17 +119,17 @@ describe("composeProvisional — signal priority (A16)", () => {
 });
 
 describe("ATTRIBUTION_SOURCES — the DB CHECK must match the code single source (drift guard)", () => {
-  it("migration 0236's `source in (...)` CHECK lists exactly ATTRIBUTION_SOURCES", () => {
+  it("the latest `source in (...)` CHECK (0302, widening 0236) lists exactly ATTRIBUTION_SOURCES", () => {
     // The values live in THREE places — the type (derived from ATTRIBUTION_SOURCES), the /segments + /finalize
     // zod enums (now built from ATTRIBUTION_SOURCES), and the DB CHECK. This guards the one leg code can't
     // import: a new source added to the array without updating 0236 (or vice-versa) fails HERE, not silently
     // in prod (an insert rejected by the CHECK, or a value the DB accepts that the app never emits).
     const sql = readFileSync(
-      resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../supabase/migrations/0236_transcript_segment_attribution_source.sql"),
+      resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../supabase/migrations/0302_call_audio_source.sql"),
       "utf8",
     );
     const group = sql.match(/source\s+in\s+\(([^)]+)\)/i)?.[1];
-    expect(group, "0236 should contain a `source in (...)` CHECK").toBeTruthy();
+    expect(group, "0302 should contain a `source in (...)` CHECK").toBeTruthy();
     const dbValues = (group ?? "").split(",").map((s) => s.trim().replace(/^'|'$/g, "")).sort();
     expect(dbValues).toEqual([...ATTRIBUTION_SOURCES].sort());
   });

@@ -145,15 +145,15 @@ export function StartSessionPanel({ module = "sales_coach" }: { module?: "sales_
             the prospect is on the far end of the call, not in the mic. Say so
             plainly so the rep's mental model matches what the coach can
             actually do, rather than expecting it to react to the prospect's
-            live words. (Capturing the far-end call audio is a separate,
-            not-yet-built capability — founder A/B pending.) */}
+            live words. The far end is captured by sharing the call's tab audio at
+            live Start (callAudio.ts, founder 2026-11-22). */}
         {micHearsRepOnly(context) && (
           <p className="flex items-start gap-1.5 text-[11px] leading-snug text-secondary mb-2.5">
             <Mic className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
             <span>
-              On {context === "phone" ? "a phone call" : "video"}, your mic hears <strong className="text-primary">your</strong> side — not
-              the prospect&apos;s audio from the far end of the call. The coach guides your
-              delivery: pacing, filler, framing, and the words you choose.
+              On {context === "phone" ? "a phone call" : "video"}, your mic hears <strong className="text-primary">your</strong> side. To
+              record and transcribe the <strong className="text-primary">prospect</strong> too, share the call&apos;s tab with its audio when
+              you start live (desktop Chrome or Edge) — or upload the call&apos;s recording afterwards.
             </span>
           </p>
         )}
