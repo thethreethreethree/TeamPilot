@@ -206,7 +206,15 @@ export async function readPatterns(
     // to choose between "nothing has been missed three times" (a finding) and "nothing has been
     // scored yet" (an absence), and nothing else on this path can tell them apart. A rep WITH
     // patterns never pays for this.
-    const scored = args.repId ? (await readApplicableGrades({ repId: args.repId }, supabase)).size > 0 : false;
+    let scored = false;
+    if (args.repId) {
+      try {
+        scored = (await readApplicableGrades({ repId: args.repId }, supabase)).size > 0;
+      } catch (err) {
+        console.error("[readPatterns]", err);
+        return null;
+      }
+    }
     return { patterns: [], counts: countPatterns([]), capped: false, scored };
   }
 
@@ -251,8 +259,14 @@ export async function readPatterns(
   if (args.gradesByRep) {
     for (const [k, v] of args.gradesByRep) gradesByRep.set(k, v);
   } else {
-    for (const id of repIds) {
-      gradesByRep.set(id, await readApplicableGrades({ repId: id }, supabase));
+    try {
+      for (const id of repIds) {
+        gradesByRep.set(id, await readApplicableGrades({ repId: id }, supabase));
+      }
+    } catch (err) {
+      // A status judged against a history that failed to load would be a confident wrong answer.
+      console.error("[readPatterns]", err);
+      return null;
     }
   }
 
@@ -357,7 +371,11 @@ export async function readApplicableGrades(
     .limit(limit);
 
   const byItem = new Map<string, GradedPitch[]>();
-  if (error || !data) return byItem;
+  // FAIL LOUD (2026-11-23). This used to return an empty map on a failed read, which every caller reads as "this rep
+  // has no grades": the board's empty state said "nothing scored yet", each pattern's status was judged against an
+  // empty history, and detection found nothing — all with no error anywhere. A throw lets readPatterns answer null
+  // (the board's "could not load") and lets scoreSession log the failed detection.
+  if (error || !data) throw new Error(`applicable grades read failed for rep=${args.repId}: ${error?.message ?? "no data"}`);
 
   for (const row of data as unknown as Array<{
     element_id: string;

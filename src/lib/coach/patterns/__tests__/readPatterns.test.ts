@@ -36,6 +36,7 @@ function db(opts: {
   patterns?: unknown[] | null;
   events?: unknown[];
   elementsByRep?: Record<string, Array<{ element_id: string; grade: Grade; recorded_at: string; context?: string | null }>>;
+  gradesFail?: boolean;
 }) {
   const elementQueries: string[] = [];
   const make = (table: string) => {
@@ -70,6 +71,7 @@ function db(opts: {
     }
     if (table === "pitch_score_elements") {
       (chain as { then: unknown }).then = (res: (v: unknown) => void) => {
+        if (opts.gradesFail) return res({ data: null, error: { message: "grades boom" } });
         const rows = (opts.elementsByRep?.[state.rep ?? ""] ?? []).map((r) => ({
           element_id: r.element_id,
           grade: r.grade,
@@ -215,5 +217,25 @@ describe("applicable grades are in-person only (Pattern Interrupt is Sales Coach
     const grades = await readApplicableGrades({ repId: "rep-1" }, client);
     expect(grades.get("disc.currentSpeeds")?.map((g) => g.grade)).toEqual(["missed", "hit", "partial"]);
     expect(grades.has("close.enrollOnCall")).toBe(false);
+  });
+});
+
+describe("a failed grades read is a failed read, not an empty history (2026-11-23)", () => {
+  it("readApplicableGrades throws instead of answering 'no grades'", async () => {
+    const { client } = db({ gradesFail: true });
+    await expect(readApplicableGrades({ repId: "rep-1" }, client)).rejects.toThrow(/grades read failed/);
+  });
+
+  it("readPatterns returns null — not 'nothing scored yet' — for a rep with no patterns", async () => {
+    const { client } = db({ patterns: [], gradesFail: true });
+    expect(await readPatterns({ repId: "rep-1" }, client)).toBeNull();
+  });
+
+  it("readPatterns returns null — not statuses judged on an empty history — when patterns exist", async () => {
+    const { client } = db({
+      patterns: [{ id: "p1", rep_id: "rep-1", item_id: "disc.currentSpeeds", item_kind: "element", first_seen: "2026-03-01", misses_at_detection: 3, applicable_at_detection: 5, cost_per_pitch: 2, strip_at_detection: [], fixed_at: null }],
+      gradesFail: true,
+    });
+    expect(await readPatterns({ repId: "rep-1" }, client)).toBeNull();
   });
 });

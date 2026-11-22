@@ -1109,3 +1109,13 @@ Today shows "N phone/video calls are waiting to be scored … Review and score i
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/UnscoredCallsNotice.render.test.tsx → 6 passed, exit 0
 ```
+
+Pattern grades read fails loud (2026-11-23, found while scoping Pattern Interrupt to in person): readApplicableGrades
+answered an empty map on a failed read (`if (error || !data) return byItem;`, pre-existing). Every caller read that as
+"no grades": the board's empty state said nothing had been scored, each pattern's status was judged on an empty
+history, and detection found nothing — no error anywhere. It now throws; readPatterns turns it into null (the route's
+existing 500 "Could not load patterns."); scoreSession already catches and logs a failed detection.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/patterns src/app/api/coach/sales-session/patterns → 10 files, 190 passed, exit 0
+```
