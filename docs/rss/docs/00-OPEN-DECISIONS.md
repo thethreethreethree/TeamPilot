@@ -95,6 +95,14 @@ and acting on their own session. Listening: a minimum number of seconds, or a sh
 Gong uses voice and scores practice with the live scorecard. Ours is text, with a focus score.
 Nothing in this plan assumes either answer. Scenarios and assignments work with both.
 
+**DECIDED 2026-11-23 (founder, picker): keep as is** — text practice, 0–100 focus score. Revisit once the phone & video
+rubric has scored real calls, so practice would be scored by a rubric proven on real calls.
+
+## D17 — Languages for remote calls
+
+**DECIDED 2026-11-23 (founder, picker): English only.** Speech-to-text stays fixed to English. A language is added when a
+pilot company actually sells in it, so prompts and trackers are tested in that language rather than guessed.
+
 ## D10 — Weekly email digest
 
 Your recorded decision is in-app only. The code emails managers top performers weekly. Pick one.

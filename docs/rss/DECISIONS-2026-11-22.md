@@ -23,16 +23,17 @@ of each is in `docs/rss/docs/00-OPEN-DECISIONS.md` (plan decisions) and `docs/tb
 
 | # | Question | Decision | What changed in the product | Commit |
 |---|---|---|---|---|
-| — | Score repaired calls automatically each night? | Keep manual; make the waiting calls visible | Remote Sales → Coaching shows its own "never been scored" panel for phone/video calls; Sales Coach's counts in-person only | eda03ec5 |
+| — | Score repaired calls automatically each night? | Keep manual; make the waiting calls visible | Remote Sales → Coaching shows its own "never been scored" panel for phone/video calls; Sales Coach's counts in-person only; managers' Today shows how many are waiting | eda03ec5, 93dfeefa |
+| D9 | Voice role-play; score practice with the rubric? | Keep as is | Nothing — text practice, 0–100 focus score; revisit after real remote calls are scored | — |
+| D17 | Languages other than English for remote calls | English only | Nothing — added when a pilot sells in another language | — |
 
 Follow-on fixes from the phone & video rubric (no decision needed): its items appear in stats, breakdown and search
 (11f487e9); a phone/video pitch can earn Clean sweep (baa11d07); Pattern Interrupt (Sales Coach) counts in-person calls
 only (dfcd8279).
 
-## Still open (not decided today)
+## Still open
 
-- **D9** — voice role-play, and scoring practice with the pitch rubric.
-- **D17** — languages other than English for remote calls.
+- No plan decisions are open (D9 and D17 decided 23 November).
 - Founder setup (not decisions): Google/Microsoft sign-in setup, the webhook signing secret, AI provider prices,
   Supabase quota numbers — each listed in `docs/residuals/OPEN.md`.
 
