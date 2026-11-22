@@ -1445,3 +1445,12 @@ yet" (fails on the previous page); a scan of every finance page for FinanceNotSe
 ```
 npx vitest run --maxWorkers=1 src/components/finance/__tests__/FinanceLoadFailed.render.test.tsx → 2 passed, exit 0
 ```
+Last two `.catch(() => set…(null))` hits: LlmConnectionPanel — a failed /api/health read showed every provider tile
+"Not configured" (an admin goes hunting for keys that are set); it now says it couldn't read the configuration.
+Finance statements — a failed cash-flow read made that statement silently vanish from the page; it now says it couldn't
+load. 2 panel tests (the failure case fails on the previous panel). Not render-tested: the statements page (a full
+fixture of all four statements); its change is typed and linted, and small.
+
+```
+npx vitest run --maxWorkers=1 src/components/settings/__tests__/LlmConnectionPanel.render.test.tsx → 2 passed, exit 0
+```

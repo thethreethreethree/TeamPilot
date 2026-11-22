@@ -59,6 +59,8 @@ export default function StatementsPage() {
   const [period, setPeriod] = useState<Period>("all");
   const [cFrom, setCFrom] = useState("");
   const [cf, setCf] = useState<CashFlow | null>(null);
+  // The cash-flow statement failed to load (2026-11-23): said, rather than the page quietly showing one statement fewer.
+  const [cfFailed, setCfFailed] = useState(false);
   const [cTo, setCTo] = useState("");
   const { from, to } = rangeFor(period, cFrom, cTo);
   const prior = priorRange(from, to);
@@ -75,10 +77,17 @@ export default function StatementsPage() {
         if (!res.ok) throw new Error(`statements ${res.status}`);
         const r = await res.json();
         if (r.error) throw new Error(r.error);
+        setCfFailed(false);
         fetch(`/api/finance/statements/cash-flow`)
           .then((x) => x.json())
-          .then((j) => setCf(j.error ? null : j))
-          .catch(() => setCf(null));
+          .then((j) => {
+            if (j.error) throw new Error(j.error);
+            setCf(j);
+          })
+          .catch(() => {
+            setCf(null);
+            setCfFailed(true);
+          });
         setS(r.statements ?? null);
         // Period-over-period: fetch the prior same-length window when a bounded period is selected.
         if (prior.from && prior.to) {
@@ -182,6 +191,11 @@ export default function StatementsPage() {
             {sPrior && <PeriodComparison cur={s.income_statement} prior={sPrior.income_statement} priorLabel={`${prior.from} → ${prior.to}`} />}
             <BalanceSheet bs={s.balance_sheet} />
             {cf && <CashFlowStatement cf={cf} />}
+            {cfFailed && (
+              <p className="glass-card p-4 text-xs text-amber-700 dark:text-amber-300" role="status">
+                Couldn&apos;t load the cash-flow statement. Refresh to try again.
+              </p>
+            )}
             <TrialBalance tb={s.trial_balance} />
           </>
         )}

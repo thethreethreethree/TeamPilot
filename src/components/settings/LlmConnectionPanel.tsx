@@ -66,6 +66,9 @@ type PingResult = PingOk | PingFail;
 
 export function LlmConnectionPanel() {
   const [caps, setCaps] = useState<Capabilities | null>(null);
+  // A failed health read is not "no key configured" (2026-11-23): every tile would read "Not configured" and send an
+  // admin hunting for keys that are there.
+  const [capsFailed, setCapsFailed] = useState(false);
   const [status, setStatus] = useState<
     | { state: "idle" }
     | { state: "loading" }
@@ -77,8 +80,11 @@ export function LlmConnectionPanel() {
     // Pull provider-key presence from /api/health (cheap — no token cost).
     fetch("/api/health")
       .then((r) => r.json())
-      .then((j) => setCaps(j.capabilities ?? null))
-      .catch(() => setCaps(null));
+      .then((j) => {
+        if (!j?.capabilities) throw new Error("no capabilities in /api/health");
+        setCaps(j.capabilities);
+      })
+      .catch(() => setCapsFailed(true));
   }, []);
 
   const runTest = async () => {
@@ -125,6 +131,12 @@ export function LlmConnectionPanel() {
         why="The intelligence layer runs on a real provider key — if none is set, nothing downstream can work. This shows the true state read from the server, not a hopeful assumption, so you're never debugging a feature when the real problem is a missing key."
         how="A green dot means the key is present; the 'Active' tag marks the provider requests will use. If a tile you expect reads 'Not configured', add its key to the environment and restart."
         principle="Show the real configuration, not the one you wish were loaded.">
+        {capsFailed && (
+          <p className="mb-3 text-xs text-amber-700 dark:text-amber-300" role="status">
+            Couldn&apos;t read which providers are configured, so the tiles below may say &ldquo;Not configured&rdquo; when a key is set.
+            Refresh to check again, or run the test below.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3 mb-5">
           <ProviderTile
             name="DeepSeek"
