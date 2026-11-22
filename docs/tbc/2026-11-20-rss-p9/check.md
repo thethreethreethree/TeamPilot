@@ -985,3 +985,15 @@ npx vitest run (digest, pitchScore, pitch-score routes, upload-recording, remote
 ```
 D5 follow-up (same day): the backlog count now reads each rep line's text and applies the scorer's own repWordCount and
 SCORING_FLOOR.minRepWords, so it no longer offers calls the scorer will refuse as too short (backfill tests: 25 passed).
+
+## Addendum 2026-11-22 — coaching metrics count when coaching happened (Gong F16.9)
+
+With D8 live, the metrics counted coaching on calls STARTED in the last 30 days — a manager who reviewed a six-week-old
+call today got no credit, and the panel's "in the last 30 days" label was not what was counted. Now: calls are looked up
+over a bounded 180 days; feedback counts when its event is within 30 days; listening counts only plays recorded within
+30 days. The 180-day id list is read in chunks of 150 (loadCoachingEvents and listen_events put ids in .in()); a failed
+listen read is a 500, never a silent undercount.
+
+```
+npx vitest run src/app/api/coach/remote/coaching-metrics → Tests 3 passed (3), exit 0 (whenItHappened.test.ts)
+```
