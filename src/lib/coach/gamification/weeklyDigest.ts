@@ -380,8 +380,14 @@ export async function runWeeklyRepDigest(deps?: {
   }
 
   // Deals this week, per agent (service-role; grouped in JS).
-  const { data: sold } = await admin.from("coaching_sessions").select("agent_id")
-  .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22).eq("outcome", "sold").gte("created_at", sinceIso);
+  // The outcome and week filters once sat INSIDE the trailing comment of the line above them (a 2026-11-22 edit), so
+  // every in-person session ever, of any outcome, counted as a deal this week. Found 2026-11-23, before it shipped.
+  const { data: sold } = await admin
+    .from("coaching_sessions")
+    .select("agent_id")
+    .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
+    .eq("outcome", "sold")
+    .gte("created_at", sinceIso);
   const dealsByAgent = new Map<string, number>();
   for (const s of sold ?? []) {
     const id = String((s as { agent_id: string }).agent_id);

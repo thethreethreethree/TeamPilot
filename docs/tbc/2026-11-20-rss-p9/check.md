@@ -1181,3 +1181,17 @@ previous file the 2 failure cases fail, the quiet-period case passes.
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/v5/__tests__/teamTrainingBrief.failures.test.ts → 3 passed, exit 0
 ```
+
+**Defect I introduced, found before it shipped (2026-11-23).** In dadfad4e (22 Nov, "Sales Coach counts in-person calls
+only") my edit to runWeeklyRepDigest appended the in-person comment to a line that continued the query chain, so
+`.eq("outcome", "sold").gte("created_at", sinceIso)` sat INSIDE the `// …` comment. Typecheck, lint and the existing
+tests all passed (no test exercised runWeeklyRepDigest's query). Effect had it shipped: each rep's weekly "Deals" = every
+in-person session they ever had, any outcome, and reps with no activity this week emailed anyway. Not live: production
+runs 08368270, before dadfad4e. Fixed; production has 0 sales sessions with a null context (so `in ("in_person")` misses
+none). weeklyRepDigest.filters.test.ts uses a fake that APPLIES in/eq/gte to rows — both tests fail on the bugged file.
+noQueryChainInComment.test.ts scans src/ and scripts/ for a `//` comment ending in `).queryMethod(…);` (backtick-quoted
+chains excluded); it matches the bugged line and finds nothing in the tree now.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/gamification src/lib/__tests__/noQueryChainInComment.test.ts → passed, exit 0
+```
