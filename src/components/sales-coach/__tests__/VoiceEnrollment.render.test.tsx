@@ -76,3 +76,17 @@ describe("VoiceEnrollment — re-entrancy + lifecycle guards (review fixes)", ()
     await waitFor(() => expect(stoppedTracks).toContain(1)); // the acquired track was stopped on teardown
   });
 });
+
+describe("enrollment status (2026-11-23)", () => {
+  it("a failed status read says it couldn't check — never presents an enrolled rep as new", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) }) as Response));
+    render(<VoiceEnrollment />);
+    expect(await screen.findByText(/couldn.t check whether your voice is already enrolled/i)).toBeTruthy();
+  });
+
+  it("an enrolled rep is shown as enrolled", async () => {
+    mockFetch(true, []);
+    render(<VoiceEnrollment />);
+    expect(await screen.findByText(/voice enrolled/i)).toBeTruthy();
+  });
+});

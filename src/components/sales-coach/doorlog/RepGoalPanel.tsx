@@ -18,26 +18,38 @@ export function RepGoalPanel() {
   // Dollar value per sale (for the door screen's cash box). Stored in cents; edited here in whole dollars.
   const [saleValue, setSaleValue] = useState<string>("");
   const [loadingGoal, setLoadingGoal] = useState(false);
+  // A failed goal read blocks saving (2026-11-23): the fields would show blank, and saving a goal with the optional
+  // $-per-sale left blank CLEARS the rep's saved value.
+  const [goalUnread, setGoalUnread] = useState(false);
+  const [teamFailed, setTeamFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/coach/sales-session/team")
-      .then((r) => (r.ok ? r.json() : { members: [] }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => setMembers((d.members ?? []) as Member[]))
-      .catch(() => setMembers([]));
+      .catch(() => {
+        setMembers([]);
+        setTeamFailed(true);
+      });
   }, []);
 
   const loadGoal = useCallback(async (id: string) => {
     if (!id) return;
-    setLoadingGoal(true); setSaved(false); setError(null);
+    setLoadingGoal(true); setSaved(false); setError(null); setGoalUnread(false);
     try {
       const res = await fetch(`/api/coach/doorlog/rep-goal?repId=${encodeURIComponent(id)}`);
-      const d = res.ok ? await res.json() : { salesGoal: null, saleValueCents: null };
+      if (!res.ok) throw new Error(String(res.status));
+      const d = await res.json();
       setValue(d.salesGoal != null ? String(d.salesGoal) : "");
       setSaleValue(d.saleValueCents != null ? String(d.saleValueCents / 100) : "");
-    } catch { setValue(""); setSaleValue(""); } finally { setLoadingGoal(false); }
+    } catch {
+      setValue(""); setSaleValue("");
+      setGoalUnread(true);
+      setError("Couldn't load this rep's goal. Pick them again to retry — saving is off until it loads.");
+    } finally { setLoadingGoal(false); }
   }, []);
 
   const onPick = (id: string) => { setRepId(id); void loadGoal(id); };
@@ -46,6 +58,7 @@ export function RepGoalPanel() {
     setError(null); setSaved(false);
     const n = Number(value.trim());
     if (!repId) { setError("Pick a rep first."); return; }
+    if (goalUnread) { setError("This rep's current goal didn't load, so saving could overwrite it. Pick them again to retry."); return; }
     if (!Number.isInteger(n) || n <= 0) { setError("Enter a whole number of sales, 1 or more."); return; }
     // $-per-sale is optional: blank clears it (null); otherwise dollars → cents.
     const sv = saleValue.trim();
@@ -67,7 +80,7 @@ export function RepGoalPanel() {
         setError(b?.error ?? "Couldn't save the goal.");
       } else { setSaved(true); }
     } catch { setError("Couldn't reach the server."); } finally { setSaving(false); }
-  }, [repId, value, saleValue]);
+  }, [repId, value, saleValue, goalUnread]);
 
   return (
     <section className="rounded-2xl border border-default bg-surface p-4 space-y-3">
@@ -86,7 +99,7 @@ export function RepGoalPanel() {
           onChange={(e) => onPick(e.target.value)}
           className="rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary"
         >
-          <option value="">{members === null ? "Loading team…" : "Choose a rep…"}</option>
+          <option value="">{members === null ? "Loading team…" : teamFailed ? "Couldn't load the team — refresh" : "Choose a rep…"}</option>
           {(members ?? []).map((m) => (
             <option key={m.id} value={m.id}>{m.full_name ?? "Unnamed"}</option>
           ))}
@@ -125,7 +138,7 @@ export function RepGoalPanel() {
               <button
                 type="button"
                 onClick={() => void save()}
-                disabled={saving || loadingGoal}
+                disabled={saving || loadingGoal || goalUnread}
                 className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5" /> : null}

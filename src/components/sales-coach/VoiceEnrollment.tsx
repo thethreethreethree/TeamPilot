@@ -59,9 +59,14 @@ export function VoiceEnrollment() {
   useEffect(() => {
     let live = true;
     void fetch("/api/coach/voice-enrollment")
-      .then((r) => (r.ok ? r.json() : { enrolled: false, f0Hz: null }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => { if (!live) return; setF0(d.f0Hz ?? null); setPhase(d.enrolled ? "enrolled" : "idle"); })
-      .catch(() => { if (live) setPhase("idle"); });
+      // A failed read is not "not enrolled" (2026-11-23): say so, rather than present a rep who is enrolled as new.
+      .catch(() => {
+        if (!live) return;
+        setPhase("error");
+        setMessage("Couldn't check whether your voice is already enrolled. Refresh to check again, or enroll now.");
+      });
     return () => { live = false; teardown(); };
   }, [teardown]);
 

@@ -1412,3 +1412,14 @@ drafts didn't load; new ones still work). +4 tests (the three failure cases fail
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/MacroCallView.render.test.tsx → 10 passed, exit 0
 ```
+
+The same client pattern elsewhere (`r.ok ? r.json() : { …empty… }`, swept across src/components and src/app/dashboard —
+three more): RepGoalPanel (door) — a failed goal read showed blank fields, and saving a goal with $-per-sale left
+blank CLEARS the rep's saved value; saving is now off until the goal loads, with the reason, and a failed team read
+says so. VoiceEnrollment — a failed status read showed an enrolled rep as not enrolled; it now says it couldn't check.
+TeamTrainingBriefPanel — a failed read of the overnight brief looked like "no brief" (inviting a paid rebuild); now
+said. 7 new tests; against the previous components the 4 failure cases fail. The pattern no longer appears in the tree.
+
+```
+npx vitest run --maxWorkers=1 (VoiceEnrollment, RepGoalPanel, TeamTrainingBriefPanel.cached) → 9 passed, exit 0
+```

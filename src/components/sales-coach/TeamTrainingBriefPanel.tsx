@@ -19,19 +19,21 @@ export function TeamTrainingBriefPanel() {
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("week");
   const [loading, setLoading] = useState(false);
+  // The overnight brief failed to load (2026-11-23) — said, so "no brief" doesn't send a manager to pay for a rebuild.
+  const [cachedUnread, setCachedUnread] = useState(false);
 
   // Show the pre-generated brief the overnight cron cached, so the manager opens to a ready brief (no Build click).
   useEffect(() => {
     let alive = true;
     fetch("/api/coach/sales-session/team-training-brief")
-      .then((r) => (r.ok ? r.json() : { cached: null }))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { cached: CachedTeamBrief | null }) => {
         if (!alive || !d?.cached) return;
         setBrief(d.cached.result);
         setGeneratedAt(d.cached.generatedAt || null);
         setPeriod(d.cached.periodDays <= 1 ? "day" : "week");
       })
-      .catch(() => {});
+      .catch(() => alive && setCachedUnread(true));
     return () => {
       alive = false;
     };
@@ -100,6 +102,11 @@ export function TeamTrainingBriefPanel() {
         Build a team brief from {period === "day" ? "the last day" : "the last 7 days"} of coaching — the shared
         patterns to work on, a drill you can run, and one focus per rep.
       </p>
+      {!brief && cachedUnread && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-300 mb-3">
+          Couldn&apos;t load the brief prepared overnight. Refresh to try again — Build makes a new one.
+        </p>
+      )}
       {brief && (
         <>
           {/* The DISPLAYED brief's own window (from its result), NOT the pending toggle — so toggling Day/Week without
