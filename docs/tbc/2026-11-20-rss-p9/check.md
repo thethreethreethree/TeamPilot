@@ -997,3 +997,14 @@ listen read is a 500, never a silent undercount.
 ```
 npx vitest run src/app/api/coach/remote/coaching-metrics → Tests 3 passed (3), exit 0 (whenItHappened.test.ts)
 ```
+
+## Addendum 2026-11-22 — coaching reads fail loud (INV22)
+
+Found reading loadCoachingEvents for F16.9: each of its four reads logged an error and returned what it had, so a failed
+read surfaced as "no feedback given" (metrics), "still open" (the inbox and the rep's request) — the confident-zero this
+codebase keeps finding. It now throws FeedbackReadError; the metrics route, the coaching inbox and the feedback-request
+route each answer 500 instead of a wrong number or a wrongly-open request.
+
+```
+npx vitest run feedback.test.ts, coaching-inbox, coaching-metrics, [id]/feedback-request → Tests 26 passed (26), exit 0
+```

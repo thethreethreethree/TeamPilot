@@ -87,3 +87,18 @@ describe("D8 as decided by the founder (2026-11-22): deliberate coaching; listen
     expect(counted([[0, 500_000]], 1_200_000)).toBe(false);
   });
 });
+
+describe("loadCoachingEvents fails loud (INV22)", () => {
+  it("a failed read throws FeedbackReadError — never an empty list that reads as 'no coaching happened'", async () => {
+    const { loadCoachingEvents, FeedbackReadError } = await import("../feedback");
+    const failing = {
+      from: () => {
+        const q: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "in"]) q[m] = () => q;
+        (q as { then: unknown }).then = (res: (v: unknown) => unknown) => Promise.resolve(res({ data: null, error: { message: "boom" } }));
+        return q;
+      },
+    };
+    await expect(loadCoachingEvents(failing as never, "c1", ["s1"])).rejects.toBeInstanceOf(FeedbackReadError);
+  });
+});

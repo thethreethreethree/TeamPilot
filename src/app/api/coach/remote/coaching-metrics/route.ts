@@ -68,7 +68,13 @@ export async function GET(req: NextRequest) {
   // In chunks: 180 days of calls is too many ids for one URL (loadCoachingEvents and the listen read put them in .in()).
   const CHUNK = 150;
   const events = [];
-  for (let i = 0; i < ids.length; i += CHUNK) events.push(...(await loadCoachingEvents(admin, mgr.companyId, ids.slice(i, i + CHUNK))));
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) events.push(...(await loadCoachingEvents(admin, mgr.companyId, ids.slice(i, i + CHUNK))));
+  } catch (e) {
+    // A failed read is an error, never "no feedback given".
+    console.error(`[coaching-metrics] coaching read failed company=${mgr.companyId}: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
+  }
   for (const e of events) {
     if ("managerId" in e && e.at.toISOString() >= since && countsAsFeedback(e)) feedbackGiven[e.managerId] = (feedbackGiven[e.managerId] ?? 0) + 1;
   }

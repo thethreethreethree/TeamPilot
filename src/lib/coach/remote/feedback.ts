@@ -116,6 +116,10 @@ const ANSWER_KIND = "coach.pitch_score_answered";
  * The coaching events on these sessions, from rows that already exist. Service-role reads, every one pinned to
  * `companyId`. A missing table/column degrades to fewer events (logged), never a throw.
  */
+/** A coaching read failed. Thrown, never folded into "no events": an empty list means "no coaching happened", which a
+ *  failed read does not know (INV22 — error is not no-data). Callers answer with an error, not a count. */
+export class FeedbackReadError extends Error {}
+
 export async function loadCoachingEvents(
   admin: SupabaseClient,
   companyId: string,
@@ -128,10 +132,7 @@ export async function loadCoachingEvents(
     .select("id, session_id, rep_id")
     .eq("company_id", companyId)
     .in("session_id", [...sessionIds]);
-  if (pErr) {
-    console.error(`[feedback] pitch read failed: ${pErr.message}`);
-    return out;
-  }
+  if (pErr) throw new FeedbackReadError(`pitch read failed: ${pErr.message}`);
   const bySession = new Map<string, { sessionId: string; repId: string }>();
   for (const p of (pitches ?? []) as Array<{ id: string; session_id: string | null; rep_id: string }>) {
     if (p.session_id) bySession.set(String(p.id), { sessionId: String(p.session_id), repId: String(p.rep_id) });
@@ -144,7 +145,7 @@ export async function loadCoachingEvents(
     .select("pitch_id, author_id, sent_to_rep, created_at")
     .eq("company_id", companyId)
     .in("pitch_id", pitchIds);
-  if (cErr) console.error(`[feedback] comment read failed: ${cErr.message}`);
+  if (cErr) throw new FeedbackReadError(`comment read failed: ${cErr.message}`);
   for (const c of (comments ?? []) as Array<{ pitch_id: string; author_id: string; sent_to_rep: boolean; created_at: string }>) {
     const p = bySession.get(String(c.pitch_id));
     if (!p) continue;
@@ -161,7 +162,7 @@ export async function loadCoachingEvents(
     .select("pitch_id, actor_id, created_at")
     .eq("company_id", companyId)
     .in("pitch_id", pitchIds);
-  if (oErr) console.error(`[feedback] override read failed: ${oErr.message}`);
+  if (oErr) throw new FeedbackReadError(`override read failed: ${oErr.message}`);
   for (const o of (overrides ?? []) as Array<{ pitch_id: string; actor_id: string; created_at: string }>) {
     const p = bySession.get(String(o.pitch_id));
     if (!p) continue;
@@ -175,7 +176,7 @@ export async function loadCoachingEvents(
     .eq("company_id", companyId)
     .eq("kind", ANSWER_KIND)
     .in("subject", pitchIds.map((id) => `pitch:${id}`));
-  if (aErr) console.error(`[feedback] answer read failed: ${aErr.message}`);
+  if (aErr) throw new FeedbackReadError(`answer read failed: ${aErr.message}`);
   for (const a of (answers ?? []) as Array<{ actor: string | null; subject: string; created_at: string }>) {
     const p = bySession.get(String(a.subject).replace(/^pitch:/, ""));
     if (!p || !a.actor) continue;

@@ -46,12 +46,20 @@ export async function GET(req: NextRequest) {
   const sessionIds = [...new Set(rows.map((r) => String(r.session_id)))];
   const repIds = [...new Set(rows.map((r) => String(r.requester_id)))];
 
-  const [{ data: sessions }, { data: reps }, events, { data: listens, error: lErr }] = await Promise.all([
+  // A failed coaching read throws (FeedbackReadError): every request would otherwise read as still OPEN.
+  let loaded;
+  try {
+    loaded = await Promise.all([
     admin.from("coaching_sessions").select("id, client_label, context, started_at").eq("company_id", mgr.companyId).in("id", sessionIds),
     admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).in("id", repIds),
     loadCoachingEvents(admin, mgr.companyId, sessionIds),
     admin.from("listen_events").select("session_id, from_ms, to_ms").eq("company_id", mgr.companyId).eq("listener_id", mgr.userId).in("session_id", sessionIds),
-  ]);
+    ]);
+  } catch (e) {
+    console.error(`[coaching-inbox] coaching read failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load the coaching inbox." }, { status: 500 });
+  }
+  const [{ data: sessions }, { data: reps }, events, { data: listens, error: lErr }] = loaded;
   if (lErr && !MISSING.has(String(lErr.code))) console.error(`[coaching-inbox] listen read failed: ${lErr.message}`);
 
   const sessionById = new Map(((sessions ?? []) as Array<{ id: string; client_label: string | null; context: string; started_at: string }>).map((s) => [String(s.id), s]));

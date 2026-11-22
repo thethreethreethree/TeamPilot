@@ -37,7 +37,13 @@ async function readRequests(companyId: string, sessionId: string) {
     .order("created_at", { ascending: true });
   if (error) return { error, requests: [] };
   const rows = (data ?? []) as Array<{ id: string; requester_id: string; recipient_id: string | null; message: string | null; created_at: string }>;
-  const events = rows.length ? await loadCoachingEvents(admin, companyId, [sessionId]) : [];
+  let events: Awaited<ReturnType<typeof loadCoachingEvents>> = [];
+  try {
+    events = rows.length ? await loadCoachingEvents(admin, companyId, [sessionId]) : [];
+  } catch (e) {
+    // Never "open" because the answer couldn't be read.
+    return { error: { code: "FEEDBACK_READ", message: e instanceof Error ? e.message : String(e) }, requests: [] };
+  }
   return {
     error: null,
     requests: rows.map((r) => ({
