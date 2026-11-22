@@ -1294,3 +1294,11 @@ generators that already log and produce nothing. Tests: followup route 7 (2 fail
 ```
 npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/followup/__tests__" src/lib/coach/remote/__tests__/askCoach.test.ts → 18 passed, exit 0
 ```
+Call brief ([id]/brief, no tests before): a failed read of the call's prospect link (or of the prospect) showed a linked
+call as unlinked — offering "Add to pipeline", whose second add makes a duplicate prospect. Both reads now answer 500
+"Couldn't read the call brief." like the review read already did. 6 tests (isOwner, in-person, each failed read); the
+two new cases fail on the previous route.
+
+```
+npx vitest run --maxWorkers=1 "src/app/api/coach/remote/[id]/brief/__tests__" → 6 passed, exit 0
+```

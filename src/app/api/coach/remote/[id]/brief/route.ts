@@ -38,10 +38,20 @@ async function read(req: NextRequest, id: string, userId: string) {
     return { status: 500 as const, body: { error: "Couldn't read the call brief." } };
   }
   // Which prospect this call belongs to (0303), so the tabs can offer "Add to pipeline" or show the link.
-  const { data: link } = await db.from("remote_prospect_calls").select("prospect_id").eq("session_id", id).maybeSingle();
+  const { data: link, error: linkErr } = await db.from("remote_prospect_calls").select("prospect_id").eq("session_id", id).maybeSingle();
+  // A failed read is not "not in the pipeline" (2026-11-23): it would offer "Add to pipeline" for a call that is already
+  // linked, and a second add makes a duplicate prospect.
+  if (linkErr) {
+    console.error(`[call-brief] prospect link read failed session=${id}: ${linkErr.message}`);
+    return { status: 500 as const, body: { error: "Couldn't read the call brief." } };
+  }
   let prospect: { id: string; name: string | null; status: string; nextCallDate: string | null } | null = null;
   if (link?.prospect_id) {
-    const { data: pc } = await db.from("remote_prospects_current").select("id, name, status, next_call_date").eq("id", link.prospect_id).maybeSingle();
+    const { data: pc, error: pcErr } = await db.from("remote_prospects_current").select("id, name, status, next_call_date").eq("id", link.prospect_id).maybeSingle();
+    if (pcErr) {
+      console.error(`[call-brief] prospect read failed session=${id}: ${pcErr.message}`);
+      return { status: 500 as const, body: { error: "Couldn't read the call brief." } };
+    }
     if (pc) prospect = { id: String(pc.id), name: pc.name ?? null, status: String(pc.status), nextCallDate: pc.next_call_date ?? null };
   }
   const label = session.clientLabel ?? null;
