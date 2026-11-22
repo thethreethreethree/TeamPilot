@@ -41,3 +41,18 @@ describe("0268 — the seeded rubric is the code's rubric", () => {
     expect(sql).toMatch(/on conflict \(version\) do nothing;/);
   });
 });
+
+describe("0307 — the phone/video rubric row is the code's draft, seeded INACTIVE (D6)", () => {
+  it("carries exactly remoteRubricConfigRow(), and stays inactive until approval", async () => {
+    const { remoteRubricConfigRow } = await import("../rubricRegistry");
+    const s = readFileSync(join(process.cwd(), "supabase/migrations/0307_seed_rubric_config_attfiber_remote_v1.sql"), "utf8");
+    const b = [...s.matchAll(/\$rubric\$([\s\S]*?)\$rubric\$::jsonb/g)].map((m) => JSON.parse(m[1]!));
+    const row = remoteRubricConfigRow();
+    expect(s).toContain(`'${row.version}'`);
+    expect(b).toEqual([row.elements, row.bonuses, row.violations].map((x) => JSON.parse(JSON.stringify(x))));
+    const tail = s.slice(s.lastIndexOf("$rubric$::jsonb") + "$rubric$::jsonb".length);
+    expect(tail).toMatch(/\bfalse\b/);
+    expect(row.is_active).toBe(false);
+    expect(s).toMatch(/on conflict \(version\) do nothing;/);
+  });
+});

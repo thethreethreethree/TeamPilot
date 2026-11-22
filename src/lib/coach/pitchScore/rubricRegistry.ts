@@ -74,3 +74,25 @@ export function rubricForChannel(context: string | null | undefined, approved: b
 export function rubricByVersion(version: string | null | undefined): Rubric {
   return version === REMOTE_RUBRIC_VERSION ? REMOTE_RUBRIC : DOOR_RUBRIC;
 }
+
+/**
+ * The rubric_config row the phone/video rubric needs (pitch_scores.rubric_version is a foreign key — 0268's lesson: a
+ * scorer stamping a version with no row loses every score). Seeded INACTIVE by 0307 while D6 awaits approval; the
+ * migration is generated from this function and a test asserts they match (§2.2).
+ */
+export function remoteRubricConfigRow() {
+  return {
+    version: REMOTE_RUBRIC.version,
+    company_id: null,
+    label: REMOTE_RUBRIC.label,
+    elements: REMOTE_RUBRIC.elements,
+    bonuses: REMOTE_RUBRIC.bonuses,
+    violations: REMOTE_RUBRIC.violations,
+    base_max: REMOTE_RUBRIC.baseMax,
+    bonus_cap: REMOTE_RUBRIC.bonusCap,
+    qualifying_min_base: REMOTE_RUBRIC.qualifyingMinBase,
+    audio_confidence_threshold: REMOTE_RUBRIC.audioConfidenceThreshold,
+    is_active: false,
+  };
+}
+

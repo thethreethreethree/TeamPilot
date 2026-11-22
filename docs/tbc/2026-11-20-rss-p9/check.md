@@ -1032,3 +1032,6 @@ flipping the switch.
 ```
 npx vitest run (pitchScore, patterns, sales-coach components, assessment, recordings, remote) → Tests 1201 passed (1201), exit 0
 ```
+D6 follow-up: the attfiber-remote-v1 rubric_config row is seeded INACTIVE by 0307, generated from
+remoteRubricConfigRow() (rubricConfigMigration.test.ts asserts equality and is_active = false). Approval is now only
+REMOTE_RUBRIC_APPROVED = true. PGlite replay of all 307 migrations: failures 0; claims 6 and 7 still pass.
