@@ -3,26 +3,26 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
-import { DEFAULT_KEEP_PER_REP, keepFor, loadRetention } from "@/lib/coach/remote/retention";
+import { DEFAULT_RETENTION_DAYS, loadRetention, outsideRetention } from "@/lib/coach/remote/retention";
 
 /**
  * GET /api/coach/sales-session/recording-purge-cron — recording retention.
  *
- * RETENTION MODEL (founder 2026-08-26, revised from the old 2-day age rule): keep each rep's most-recent
- * KEEP_PER_REP recordings; purge only the ones OLDER than that per-rep window. The age rule deleted a rep's
- * recordings after 2 days, so a rep who didn't pitch for >2 days had NOTHING for the manager to pull from — the
- * count rule guarantees a rolling window of recent recordings regardless of how long ago they pitched.
+ * RETENTION MODEL. D14 DECIDED 2026-11-23 (founder, picker): by default audio older than 90 DAYS is removed, however
+ * many calls a rep has; a company that sets "keep the last N per rep" (Settings → Protection, 0284) keeps that instead.
+ * History: a 2-day age rule (removed 2026-08-26 because a rep who paused for 2 days had nothing left for a manager to
+ * pull from), then each rep's last 20. 90 days keeps a quarter of coaching material even for an occasional rep. The
+ * decision is retention.ts's `outsideRetention` — one pure, tested function.
  *
- * Deletes the AUDIO asset + nulls audio_asset_url for the purge-eligible sessions (recording_saved = false,
- * beyond the rep's KEEP_PER_REP most-recent). Transcript + scores are KEPT — we drop the recording bytes, not the
- * analytics that feed the skill profile. Saved recordings (rep or manager) are exempt (never candidates).
+ * Deletes the AUDIO asset + nulls audio_asset_url for sessions outside the window (recording_saved = false).
+ * Transcript + scores are KEPT — we drop the recording bytes, not the analytics that feed the skill profile. Saved
+ * recordings (rep or manager) are exempt (never candidates).
  *
  * Auth: same CRON_SECRET Bearer pattern as the durability/task-overrun crons (constantTimeEqual).
  * Bounded batch with an honest `bounded` flag (§3.4) — never a silent "all done".
  */
 
-// Keep each rep's N most-recent recordings; purge older ones. N is the company's retention setting (RSS Phase 8,
-// 0284), and DEFAULT_KEEP_PER_REP (20, founder-chosen, "save last 20 recordings") when it has none — D14's stand-in.
+// The window per company: its own "last N per rep" (0284), or DEFAULT_RETENTION_DAYS (90, D14) when it has none.
 // NB: this cron removes bytes SEQUENTIALLY (one storage.remove() per session, for per-row error isolation —
 // unlike the RCD cron which batches all removes into one call). So 500 sequential storage round-trips could
 // approach the 60s maxDuration under a FULL backlog. Steady-state daily volume is tiny (only sessions that
@@ -81,16 +81,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Purge query failed." }, { status: 500 });
   }
 
-  // Per rep, the first KEEP_PER_REP (newest) stay; everything after is beyond the window → purge. A null agent_id
-  // (shouldn't happen) is treated as its own bucket so it's never mixed with a real rep's window.
-  const seenPerRep = new Map<string, number>();
-  const beyondWindow: typeof candidates = [];
-  for (const row of candidates) {
-    const key = row.agent_id ?? `__null:${row.id}`;
-    const n = (seenPerRep.get(key) ?? 0) + 1;
-    seenPerRep.set(key, n);
-    if (n > keepFor(retention.settings, row.company_id)) beyondWindow.push(row);
-  }
+  // Outside the window: older than the company's days (the 90-day default, D14), or past its "last N per rep".
+  // One pure decision in retention.ts, tested there.
+  const beyondWindow = outsideRetention(candidates, retention.settings, Date.now());
   // Purge OLDEST-first (candidates were newest-first, so the tail is oldest) and cap the batch; `bounded` self-heals.
   beyondWindow.reverse();
   const expired = beyondWindow.slice(0, BATCH);
@@ -140,7 +133,7 @@ export async function GET(req: NextRequest) {
     candidates: candidates.length, // total recordings with audio (unsaved) considered this run
     beyondWindow: beyondWindow.length, // recordings past the per-rep window (the true purge backlog)
     bounded: beyondWindow.length > BATCH, // true = more beyond-window recordings remain; not a silent "all clear"
-    keepPerRep: DEFAULT_KEEP_PER_REP, // the default; companies with their own setting are counted below
+    defaultRetentionDays: DEFAULT_RETENTION_DAYS, // the default (D14); companies with their own setting are counted below
     companiesWithSetting: retention.settings.size,
     retentionTable: retention.tableMissing ? "not_applied" : "ok",
   });

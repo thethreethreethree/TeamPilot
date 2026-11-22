@@ -149,7 +149,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-20 · rss-p7 · (closure note) the three "`npm run check` not run" items above (health-backend-probe, rss-p0, rss-p1-p3) are closed: every step ran on Node 24 with exit 0, migration:audit and sql:harness SKIPPED (no Postgres) with a PGlite replay of all 281 migrations standing in for the first — outputs in the p7 check.md
       why-unresolved: —
       next-action: —
-- [ ] 2026-11-20 · rss-p7 · the manager training screen (TrainingManager) is mounted, and the Phase 7 "Looked at" is done (a manager turns a real call into a scenario and assigns it; the rep sees it with a due date) — MOUNTED 2026-11-22 (62a1d297): Remote Sales → Training shows TrainingManager to managers and AssignedPractice to reps; reachability exemption removed. Still open: the "Looked at" on a real call after the push
+- [ ] 2026-11-20 · rss-p7 · (D18 DECIDED 2026-11-23: Remote Sales → Training stays) the manager training screen (TrainingManager) is mounted, and the Phase 7 "Looked at" is done (a manager turns a real call into a scenario and assigns it; the rep sees it with a due date) — MOUNTED 2026-11-22 (62a1d297): Remote Sales → Training shows TrainingManager to managers and AssignedPractice to reps; reachability exemption removed. Still open: the "Looked at" on a real call after the push
       why-unresolved: D18 open (Bootcamp or the Sales Coach Training tab); the plan does not invent an answer
       next-action: when D18 is answered, mount it there and remove its reachability-audit ALLOWLIST entry
 - [x] 2026-11-20 · rss-p7 · an executed allowed-and-refused test for each 0282 select policy (rep's own; manager under the tree; another company refused) — DONE 2026-11-20: sql-harness CLAIM 4 (training_assignments as five people); executed on PG 16.4, mutation-tested
@@ -264,3 +264,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-22 · D5 · the scoring backlog count (pitch-score/backfill) counts by rep lines, not the 100-word floor — DONE same day: the count reads each rep line's text and applies the scorer's own repWordCount + SCORING_FLOOR; test added
       why-unresolved: words can't be counted in that query cheaply; the scorer refuses short calls before any AI cost, labelled "too short"
       next-action: count words in the backfill read, or label the offer "some may be too short to score"
+- [ ] 2026-11-23 · D14 · a company that set "keep the last N per rep" cannot go back to the standard 90 days from the screen
+      why-unresolved: company_recording_settings stores a count per row (0284) and the latest row wins; "back to the default" needs a row that means "default" (a nullable count or a kind column) — a migration
+      next-action: when a company asks, add the migration (keep_last_per_rep nullable = default) and a "Use the standard 90 days" button; ruleFor already treats a missing count as the default

@@ -1219,3 +1219,22 @@ npm run build:ci → "✓ Compiled successfully", 439/439 pages, "✅ Secretless
 npm run db:verify → 305 migration files (through 0307), "nothing pending — DB is up to date"
 npm run verify:live → "✅ ALL 31 invariants hold."
 ```
+
+D7, D14, D18, D19 decided (2026-11-23, founder, picker) — and a correction. My earlier note said no plan decisions were
+open after D9/D17; D7, D14, D18 and D19 were still open (found while updating APPLY-RUNBOOK.md, whose decisions table was
+also stale). Corrected on the decisions page. D7 keep three levels; D19 keep Gong's values; D18 Remote Sales → Training
+(already placed) — no code change for these three.
+
+D14 → 90 days (code change). Before building, measured on production (read-only): 18 recordings with audio and not
+saved, 6 reps, 0 company_recording_settings rows; vs the last-20 rule, 90 days removes 1 more (2026-08-24, a day past the
+cutoff) and keeps 0 more. retention.ts now holds one pure decision, outsideRetention (no setting → older than
+DEFAULT_RETENTION_DAYS = 90, however many; a company's own "last N per rep" → as before), which the purge cron calls
+(response: defaultRetentionDays). The settings route returns keepLastPerRep: null + defaultDays on the default; the
+Protection screen says "audio is kept for 90 days (the standard setting)" and warns that switching to a count can remove
+recent audio. Not built: a "back to the standard 90 days" button once a company has set a count (the table stores a
+count, not null); residual filed. APPLY-RUNBOOK.md: its section 3 rewritten (decisions done), section 5 added (what to look at after the
+push).
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/remote/__tests__/retention.test.ts src/app/api/coach/sales-session/recording-purge-cron src/app/api/coach/remote/settings src/components/sales-coach → passed, exit 0
+```

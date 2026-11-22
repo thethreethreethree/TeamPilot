@@ -26,6 +26,10 @@ of each is in `docs/rss/docs/00-OPEN-DECISIONS.md` (plan decisions) and `docs/tb
 | — | Score repaired calls automatically each night? | Keep manual; make the waiting calls visible | Remote Sales → Coaching shows its own "never been scored" panel for phone/video calls; Sales Coach's counts in-person only; managers' Today shows how many are waiting | eda03ec5, 93dfeefa |
 | D9 | Voice role-play; score practice with the rubric? | Keep as is | Nothing — text practice, 0–100 focus score; revisit after real remote calls are scored | — |
 | D17 | Languages other than English for remote calls | English only | Nothing — added when a pilot sells in another language | — |
+| D18 | Where trainings live | Remote Sales → Training | Nothing — it was already there (placed 22 Nov) | — |
+| D14 | Default recording retention | 90 days | With no company setting, audio older than 90 days is removed nightly, however many calls; a company's "keep the last N" still wins; Protection says which applies. First run removes 1 recording (of 18) | (this commit) |
+| D7 | Rubric grades | Keep hit / partial / missed | Nothing | — |
+| D19 | Talk-pattern settings | Keep Gong's values | Nothing | — |
 
 Follow-on fixes from the phone & video rubric (no decision needed): its items appear in stats, breakdown and search
 (11f487e9); a phone/video pitch can earn Clean sweep (baa11d07); Pattern Interrupt (Sales Coach) counts in-person calls
@@ -33,7 +37,10 @@ only (dfcd8279).
 
 ## Still open
 
-- No plan decisions are open (D9 and D17 decided 23 November).
+- Correction (23 Nov): an earlier version of this page said no plan decisions were open after D9 and D17. D7, D14, D18
+  and D19 were also still open; all four were decided later the same day. Still undecided, on purpose: D11 (recording
+  notice wording — the product asks the rep to confirm the prospect knows; no legal wording is drafted here), D12
+  (meeting bot) and D13 (dialer), both listed as separate products.
 - Founder setup (not decisions): Google/Microsoft sign-in setup, the webhook signing secret, AI provider prices,
   Supabase quota numbers — each listed in `docs/residuals/OPEN.md`.
 

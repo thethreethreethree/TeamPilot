@@ -25,7 +25,8 @@ function reqWith(auth?: string) {
 // Admin mock: the coaching_sessions select chain resolves to `rows`; storage.remove records its calls;
 // the update chain resolves cleanly. `.update()` returns a distinct object so the select-chain `.eq`
 // (chainable) and the update-chain `.eq` (terminal) don't collide.
-// N recordings for ONE rep, newest-first (i=0 newest); beyond KEEP_PER_REP=20 the oldest are purge-eligible.
+// N recordings for ONE rep, newest-first (i=0 newest). The OLDEST is 100 days old, so it is outside D14's 90-day
+// default (decided 2026-11-23) and purge-eligible; the rest are seconds apart and kept.
 function repRows(n: number, opts: { malformedOldest?: boolean } = {}) {
   return Array.from({ length: n }, (_, i) => ({
     id: `s${i + 1}`,
@@ -33,7 +34,7 @@ function repRows(n: number, opts: { malformedOldest?: boolean } = {}) {
     agent_id: "a1",
     audio_asset_url:
       opts.malformedOldest && i === n - 1 ? "https://external.example/orphan.mp3" : `${ASSETS_BUCKET}/company/s${i + 1}.webm`,
-    created_at: new Date(Date.now() - i * 1000).toISOString(),
+    created_at: new Date(Date.now() - (i === n - 1 ? 100 * 86_400_000 : i * 1000)).toISOString(),
   }));
 }
 function adminWith(rows: unknown[], opts: { removeError?: { message: string } } = {}) {
@@ -89,7 +90,7 @@ describe("recording-purge-cron — auth gate", () => {
 describe("recording-purge-cron — malformed-pointer guard (false-ok prevention)", () => {
   it("REFUSES to purge a row whose audio_asset_url isn't a recognized bucket path", async () => {
     process.env.CRON_SECRET = "s3cret";
-    // The OLDEST (s21, beyond the 20-window) has an unrecognized pointer — the guard must refuse it.
+    // The OLDEST (s21, past the 90-day default) has an unrecognized pointer — the guard must refuse it.
     const { admin, removeCalls } = adminWith(repRows(21, { malformedOldest: true }));
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
     const json = await (await GET(reqWith("Bearer s3cret"))).json();
@@ -100,7 +101,7 @@ describe("recording-purge-cron — malformed-pointer guard (false-ok prevention)
 
   it("purges a well-formed bucket-relative pointer: removes the bytes, then nulls the pointer", async () => {
     process.env.CRON_SECRET = "s3cret";
-    // 21 recordings; s21 (oldest, beyond the 20-window) is well-formed → its bytes removed, pointer nulled.
+    // 21 recordings; s21 (oldest, past the 90-day default) is well-formed → its bytes removed, pointer nulled.
     const { admin, removeCalls } = adminWith(repRows(21));
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
     const json = await (await GET(reqWith("Bearer s3cret"))).json();

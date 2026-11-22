@@ -61,13 +61,11 @@ table says (on an empty database, "runs" means it returned a row count of 0 with
 | `NEXT_PUBLIC_AUTH_PROVIDERS` (`google`, `azure`) | Vercel, after the providers verify | Same |
 | AI prices | `/dashboard/admin/ai-cost` → Prices | The AI cost page shows "price missing" |
 
-## 3. Decisions still open (the build uses the plan's stand-in)
+## 3. Decisions (updated 2026-11-23)
 
-| Decision | Stand-in today |
-|---|---|
-| D4 sign-in lockout mechanism | Our login pages record attempts; Supabase itself is not locked |
-| D6 phone/video rubric | The door rubric scores everything; remote score panels print the caveat |
-| D18 where trainings live | The manager training screen is built and not on a page; reps' "Assigned to you" is live |
+All plan decisions the build depended on are decided — D4 lockout, D6 phone & video rubric, D14 retention (90 days),
+D18 trainings on Remote Sales → Training, and the rest; see `docs/rss/DECISIONS-2026-11-22.md`. Left undecided on
+purpose: D11 (legal wording of a recording notice), D12 (meeting bot) and D13 (dialer).
 
 ## 4. Looked at, on a real phone, after applying
 
@@ -78,3 +76,25 @@ table says (on an empty database, "runs" means it returned a row count of 0 with
 5. Recordings tab: comment "Only the people I mention", mention a manager → they get the bell; the rep does not see it.
 6. Webhooks: add a test receiver, "Send a test" → it verifies with the shown secret.
 7. Training (once D18 places the screen): turn a call into a scenario, assign it, practise as the rep → the manager's bell.
+
+## 5. After the 23 November push — what to look at (all migrations through 0307 are already applied)
+
+Each needs a real call in desktop Chrome on elostate.com, after Vercel shows the new build.
+
+1. **Both voices recorded.** Remote Sales → start a video call, tick "Share tab audio" in Chrome's picker. After it
+   ends: the saved audio has both sides, and the transcript has "Prospect" lines. Once without ticking it: the rep is
+   told only their side is recorded.
+2. **Consent.** Starting (or uploading) a phone/video call asks the rep to confirm "The prospect knows this call is
+   recorded".
+3. **Phone & video rubric.** The call's score panel names the phone & video rubric (attfiber-remote-v1); its items —
+   "Reason for the call", "Into enrollment, on the call" — appear in the breakdown and in Remote Search's rubric filter.
+4. **Too short.** A call under 100 rep words shows "Too short to score" and earns no points.
+5. **Macro Mode.** Remote Sales → Calls → turn Macro Mode on; open the call: Highlights (brief, key points, next steps,
+   follow-up draft), Coaching (score, review, comments), Next Meeting (checklist saves into the prospect's to-dos);
+   Today plans a day.
+6. **Unscored calls.** As a manager: Today shows "N phone/video calls are waiting to be scored" when any are; Coaching
+   shows the panel and scores them. A rep sees neither.
+7. **Retention.** Settings → Protection says "audio is kept for 90 days (the standard setting)".
+8. **Nightly jobs** (Vercel → Cron logs, next morning): the recording clean-up reports `defaultRetentionDays: 90`; the
+   unreferenced-upload sweep reports 0 or a small, audited number.
+

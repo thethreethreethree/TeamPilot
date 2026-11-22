@@ -33,9 +33,9 @@ beforeEach(() => {
 });
 
 describe("retention route", () => {
-  it("GET with no row: the D14 default, marked as default", async () => {
+  it("GET with no row: the D14 default — 90 days, no count — marked as default", async () => {
     vi.mocked(resolveApiAuth).mockResolvedValue(REP as never);
-    expect(await (await GET(get())).json()).toMatchObject({ keepLastPerRep: 20, isDefault: true, canManage: false });
+    expect(await (await GET(get())).json()).toMatchObject({ keepLastPerRep: null, defaultDays: 90, defaultKeep: 20, isDefault: true, canManage: false });
   });
   it("GET returns the latest setting", async () => {
     vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);

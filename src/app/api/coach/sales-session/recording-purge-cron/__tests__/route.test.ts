@@ -36,18 +36,22 @@ const adminRead = (o: { data?: unknown[]; error?: unknown }) => ({
     }),
   }),
 });
-// N recordings for ONE rep, NEWEST-first (i=0 newest). Beyond KEEP_PER_REP=20, the oldest are purge-eligible.
-const repRows = (n: number, opts: { malformedOldest?: boolean } = {}) =>
+// N recordings for ONE rep, NEWEST-first (i=0 newest), seconds apart. `oldestDaysAgo` moves the OLDEST one back in time
+// (D14's 90-day default only removes audio older than 90 days; a company's "last N" removes beyond its N).
+const DAY = 86_400_000;
+const repRows = (n: number, opts: { malformedOldest?: boolean; oldestDaysAgo?: number } = {}) =>
   Array.from({ length: n }, (_, i) => ({
     id: `s${i + 1}`,
     company_id: "co1",
     agent_id: "a1",
     audio_asset_url:
       opts.malformedOldest && i === n - 1 ? "https://example.com/full/url.mp3" : `assets-v1/co1/s${i + 1}/recording.webm`,
-    created_at: new Date(Date.now() - i * 1000).toISOString(),
+    created_at: new Date(
+      Date.now() - (opts.oldestDaysAgo !== undefined && i === n - 1 ? opts.oldestDaysAgo * DAY : i * 1000),
+    ).toISOString(),
   }));
 // RSS Phase 8 (0284): the cron first reads company_recording_settings (select → order → range). `retention` is what
-// that read answers: rows, a missing table (0284 not applied), or an error. Default: no rows (D14 stand-in, 20).
+// that read answers: rows, a missing table (0284 not applied), or an error. Default: no rows (D14: 90 days).
 type Retention = { rows?: unknown[]; missing?: boolean; error?: string };
 const withRetention = (v: Record<string, unknown>, r: Retention = {}) => ({
   ...v,
@@ -100,15 +104,14 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     expect(JSON.stringify(await res.json())).not.toContain("internal pg detail");
   });
 
-  it("purges only the recordings BEYOND the rep's 20 most-recent (count-based retention), oldest first", async () => {
-    // The founder 2026-08-26 count rule: keep each rep's 20 newest recordings; purge older ones (so a rep who
-    // hasn't pitched recently still has a rolling window to pull from). 21 recordings → exactly the oldest (s21) is
-    // beyond the window and purged, with its chunk cleanup; s1..s20 are untouched.
+  it("D14 default (no setting): purges only audio older than 90 days, with its chunks", async () => {
+    // D14 decided 2026-11-23: 90 days, however many calls. 21 recordings, the oldest (s21) 91 days old → only s21 goes,
+    // with its chunk cleanup; s1..s20 are untouched.
     process.env.CRON_SECRET = "s3cret";
     const removed: string[] = [];
     const listed: string[] = [];
     const updated: string[] = [];
-    const rows = repRows(21);
+    const rows = repRows(21, { oldestDaysAgo: 91 });
     setAdmin({
       from: () => ({
         select: () => ({
@@ -128,8 +131,8 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
       },
     });
     const body = await (await GET(req("Bearer s3cret"))).json();
-    expect(body.purged).toBe(1); // exactly the 1 beyond the 20-window
-    expect(body.keepPerRep).toBe(20);
+    expect(body.purged).toBe(1); // exactly the one older than 90 days
+    expect(body.defaultRetentionDays).toBe(90);
     expect(removed).toContain("co1/s21/recording.webm"); // the OLDEST recording, not the recent ones
     expect(listed).toContain("co1/s21/chunks"); // its chunks cleaned up
     expect(updated).toEqual(["s21"]); // ONLY s21 nulled — s1..s20 (the kept window) are untouched
@@ -149,6 +152,16 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
         list: async () => ({ data: [], error: null }),
       }),
     },
+  });
+
+  it("D14 default: many RECENT recordings are all kept — the default is no longer a count", async () => {
+    process.env.CRON_SECRET = "s3cret";
+    const removed: string[] = [];
+    const updated: string[] = [];
+    setAdmin(purgeFake(repRows(45, { oldestDaysAgo: 89 }), removed, updated));
+    const body = await (await GET(req("Bearer s3cret"))).json();
+    expect(body.purged).toBe(0);
+    expect(removed).toEqual([]);
   });
 
   it("a company's own setting (latest row) sets its window: keep 25 → 21 recordings purge nothing", async () => {
@@ -187,12 +200,12 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     expect(updated).toEqual([]);
   });
 
-  it("before 0284 is applied (no table) the D14 default of 20 applies, and the response says so", async () => {
+  it("before 0284 is applied (no table) the D14 default of 90 days applies, and the response says so", async () => {
     process.env.CRON_SECRET = "s3cret";
     retention = { missing: true };
     const removed: string[] = [];
     const updated: string[] = [];
-    setAdmin(purgeFake(repRows(21), removed, updated));
+    setAdmin(purgeFake(repRows(21, { oldestDaysAgo: 120 }), removed, updated));
     const body = await (await GET(req("Bearer s3cret"))).json();
     expect(body.purged).toBe(1);
     expect(body.retentionTable).toBe("not_applied");
@@ -204,8 +217,8 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     // that would leave the audio PII alive forever while the run reports retention ran). No storage/update
     // mock is needed — a malformed row is skipped before either call.
     process.env.CRON_SECRET = "s3cret";
-    // 21 recordings; the OLDEST (s21, beyond the 20-window) carries a full-URL pointer this cron can't verify.
-    setAdmin(adminRead({ data: repRows(21, { malformedOldest: true }) }));
+    // 21 recordings; the OLDEST (s21, past the 90-day default) carries a full-URL pointer this cron can't verify.
+    setAdmin(adminRead({ data: repRows(21, { malformedOldest: true, oldestDaysAgo: 100 }) }));
     const res = await GET(req("Bearer s3cret"));
     expect(res.status).toBe(200);
     const body = await res.json();

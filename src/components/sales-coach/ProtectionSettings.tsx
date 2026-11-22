@@ -17,7 +17,7 @@ import { VocabularySettings } from "@/components/remote-sales/VocabularySettings
  *   · Webhooks (F31.8): send session.scored / session.closed / deal.closed to the company's own https address,
  *     signed with that endpoint's secret.
  */
-type Retention = { keepLastPerRep: number; isDefault: boolean; defaultKeep: number; min: number; max: number; canManage: boolean; notReady?: string };
+type Retention = { keepLastPerRep: number | null; isDefault: boolean; defaultKeep: number; defaultDays: number; min: number; max: number; canManage: boolean; notReady?: string };
 type AuditRow = { id: number; at: string; action: string; actorName: string | null; objectType: string; objectId: string; meta: Record<string, unknown> };
 
 const ACTION_WORDS: Record<string, string> = {
@@ -88,7 +88,7 @@ export function ProtectionSettings() {
     if (r?.ok) {
       const j = (await r.json()) as Retention;
       setRet(j);
-      setKeep(String(j.keepLastPerRep));
+      setKeep(String(j.keepLastPerRep ?? j.defaultKeep));
     }
   }, []);
 
@@ -140,14 +140,15 @@ export function ProtectionSettings() {
 
   const n = Number(keep);
   const valid = ret ? Number.isInteger(n) && n >= ret.min && n <= ret.max : false;
-  const shrinking = ret && valid && n < ret.keepLastPerRep;
+  // Switching from the 90-day default to a count, or lowering a count, can remove recent audio at the next clean-up.
+  const shrinking = ret && valid && (ret.keepLastPerRep === null || n < ret.keepLastPerRep);
 
   return (
     <div className="space-y-4">
       <section className="rounded-xl border border-default bg-surface p-4" aria-label="Recording retention">
         <h3 className="text-sm font-semibold text-primary">Recording retention</h3>
         <p className="mt-1 text-xs text-secondary">
-          How many recordings each rep keeps. Older ones lose their audio in the nightly clean-up; the transcript, scores
+          How long call audio is kept. Older recordings lose their audio in the nightly clean-up; the transcript, scores
           and coaching stay. Recordings anyone saved are never removed.
         </p>
         {!ret ? (
@@ -155,8 +156,16 @@ export function ProtectionSettings() {
         ) : (
           <div className="mt-3 space-y-2">
             <p className="text-xs text-primary">
-              Now: keep each rep&apos;s last <span className="font-semibold tabular-nums">{ret.keepLastPerRep}</span>
-              {ret.isDefault ? <span className="text-muted"> (the standard setting)</span> : null}
+              {ret.keepLastPerRep === null ? (
+                <>
+                  Now: audio is kept for <span className="font-semibold tabular-nums">{ret.defaultDays}</span> days
+                  <span className="text-muted"> (the standard setting)</span>
+                </>
+              ) : (
+                <>
+                  Now: keep each rep&apos;s last <span className="font-semibold tabular-nums">{ret.keepLastPerRep}</span> recordings
+                </>
+              )}
             </p>
             {ret.notReady ? (
               <p className="text-xs text-muted">{ret.notReady}</p>
@@ -173,7 +182,7 @@ export function ProtectionSettings() {
               </div>
             ) : null}
             {keep && !valid && ret.canManage && <p className="text-xs text-secondary">Pick a whole number from {ret.min} to {ret.max}.</p>}
-            {shrinking && <p className="text-xs text-secondary">A smaller number removes the audio of each rep&apos;s older recordings at the next clean-up. That can&apos;t be undone.</p>}
+            {shrinking && <p className="text-xs text-secondary">Saving removes the audio of each rep&apos;s recordings beyond that number at the next clean-up, however recent. That can&apos;t be undone.</p>}
             {note && <p className="text-xs text-secondary" role="status">{note}</p>}
           </div>
         )}

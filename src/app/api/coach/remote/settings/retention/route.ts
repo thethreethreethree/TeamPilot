@@ -3,18 +3,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
-import { DEFAULT_KEEP_PER_REP, KEEP_MAX, KEEP_MIN, parseKeep } from "@/lib/coach/remote/retention";
+import { DEFAULT_KEEP_PER_REP, DEFAULT_RETENTION_DAYS, KEEP_MAX, KEEP_MIN, parseKeep } from "@/lib/coach/remote/retention";
 
 /**
  * /api/coach/remote/settings/retention — how many recordings each rep keeps (RSS Phase 8, 0284; Gong F33.1; D14).
  * GET — anyone in the company: the current window, whether it is the default, and `canManage` (ctx.isAdmin — the
  *       same role set as admin_roles() in 0284's read rule) for the screen to branch on (§2.2).
  * PUT — company admins: { keepLastPerRep } appends a row (a change never overwrites, §3.1) and an audit row.
- * The purge cron reads the latest row per company; no row = DEFAULT_KEEP_PER_REP (20), D14's stand-in.
+ * The purge cron reads the latest row per company; no row = DEFAULT_RETENTION_DAYS (90 days, D14 decided 2026-11-23).
+ * `keepLastPerRep` is null on the default; `defaultKeep` is only the number the screen's box starts at.
  * Saved recordings are never purged, whatever the window.
  */
 const MISSING = new Set(["PGRST205", "42P01"]);
-const NOT_APPLIED = "The retention setting is waiting on database migration 0284. Until then each rep keeps their last 20.";
+const NOT_APPLIED = `The retention setting is waiting on database migration 0284. Until then recordings are kept for ${DEFAULT_RETENTION_DAYS} days.`;
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-retention-read", windowMs: 60_000, max: 60 });
@@ -27,16 +28,16 @@ export async function GET(req: NextRequest) {
     .eq("company_id", ctx.companyId)
     .order("id", { ascending: false })
     .limit(1);
-  const base = { canManage: ctx.isAdmin, defaultKeep: DEFAULT_KEEP_PER_REP, min: KEEP_MIN, max: KEEP_MAX };
+  const base = { canManage: ctx.isAdmin, defaultKeep: DEFAULT_KEEP_PER_REP, defaultDays: DEFAULT_RETENTION_DAYS, min: KEEP_MIN, max: KEEP_MAX };
   if (error) {
-    if (MISSING.has(String(error.code))) return NextResponse.json({ ...base, keepLastPerRep: DEFAULT_KEEP_PER_REP, isDefault: true, notReady: NOT_APPLIED });
+    if (MISSING.has(String(error.code))) return NextResponse.json({ ...base, keepLastPerRep: null, isDefault: true, notReady: NOT_APPLIED });
     console.error(`[retention] read failed company=${ctx.companyId}: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load the retention setting." }, { status: 500 });
   }
   const row = (data ?? [])[0] as { keep_last_per_rep: number; set_by: string; created_at: string } | undefined;
   return NextResponse.json({
     ...base,
-    keepLastPerRep: row?.keep_last_per_rep ?? DEFAULT_KEEP_PER_REP,
+    keepLastPerRep: row?.keep_last_per_rep ?? null,
     isDefault: !row,
     setAt: row?.created_at ?? null,
   });
