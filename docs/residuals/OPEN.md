@@ -149,7 +149,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-20 · rss-p7 · (closure note) the three "`npm run check` not run" items above (health-backend-probe, rss-p0, rss-p1-p3) are closed: every step ran on Node 24 with exit 0, migration:audit and sql:harness SKIPPED (no Postgres) with a PGlite replay of all 281 migrations standing in for the first — outputs in the p7 check.md
       why-unresolved: —
       next-action: —
-- [ ] 2026-11-20 · rss-p7 · the manager training screen (TrainingManager) is mounted, and the Phase 7 "Looked at" is done (a manager turns a real call into a scenario and assigns it; the rep sees it with a due date)
+- [ ] 2026-11-20 · rss-p7 · the manager training screen (TrainingManager) is mounted, and the Phase 7 "Looked at" is done (a manager turns a real call into a scenario and assigns it; the rep sees it with a due date) — MOUNTED 2026-11-22 (62a1d297): Remote Sales → Training shows TrainingManager to managers and AssignedPractice to reps; reachability exemption removed. Still open: the "Looked at" on a real call after the push
       why-unresolved: D18 open (Bootcamp or the Sales Coach Training tab); the plan does not invent an answer
       next-action: when D18 is answered, mount it there and remove its reachability-audit ALLOWLIST entry
 - [x] 2026-11-20 · rss-p7 · an executed allowed-and-refused test for each 0282 select policy (rep's own; manager under the tree; another company refused) — DONE 2026-11-20: sql-harness CLAIM 4 (training_assignments as five people); executed on PG 16.4, mutation-tested
@@ -237,4 +237,16 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-20 · rss-p5 · R2-filters: spec filters (talk ratio, rubric element, disputed), global search and recording downloads not built — DONE 2026-11-22: rubric element + grade, talk share and disputed filters (c193254b); manager downloads, audited, refused past an active trim (2a46e8f4); sales calls in the app-wide search via runCallSearch, a failed call search flagged (this commit)
       why-unresolved: —
       next-action: —
+
+## Filed 2026-11-22 (prospect audio, call comments, Remote Sales Macro Mode — docs/tbc/2026-11-20-rss-p9/check.md addenda)
+
+- [ ] 2026-11-22 · call-audio · a real remote live call in desktop Chrome with the call's tab shared: the recording holds both voices and the transcript shows "Prospect" lines from the call audio
+      why-unresolved: built and tested in code (eab8523c, 0302 applied); browsers' share-picker behaviour cannot be exercised in tests
+      next-action: after the push, run one live video call with "Share tab audio" ticked; check the saved audio and the Prospect lines; try once WITHOUT ticking it and confirm the rep is told only their side is recorded
+- [ ] 2026-11-22 · macro-mode · the Macro Mode "Looked at": on a real remote call, Highlights shows the brief / key points / next steps, a follow-up draft is written, Coaching shows the score and review, the Next Meeting checklist saves into the prospect's to-dos, and Today plans a real day
+      why-unresolved: built (bb0ec011, 9364350a; 0303 applied); the AI reads have not run on a real call — no real remote call has run in production yet
+      next-action: after the push, turn Macro Mode on (Remote Sales → Calls), make or upload one call, walk the three tabs, add the prospect, review the checklist, tick a to-do Done
+- [ ] 2026-11-22 · macro-mode · send follow-ups / pipeline changes to the company's CRM (Salesforce, HubSpot), and calendar reminders for checklist items
+      why-unresolved: the team's spec puts its own CRM first and integration second; reminders today are task due dates
+      next-action: when a pilot company names its CRM, build that one connector first
 
