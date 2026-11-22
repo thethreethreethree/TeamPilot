@@ -33,6 +33,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) })
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { generatePitchScore } from "../generatePitchScore";
 import { storePitchScore } from "../storePitchScore";
+import { runDetection } from "@/lib/coach/patterns/runDetection";
 import { scoreSession, PERMANENT_REFUSALS, REFUSAL_MESSAGE } from "../scoreSession";
 import { LlmError, classifyStatus } from "@/lib/llm/errors";
 
@@ -234,5 +235,48 @@ describe("an AI provider that is not answering", () => {
   it("is worth retrying later", () => {
     expect(PERMANENT_REFUSALS.has("provider_down")).toBe(false);
     expect(REFUSAL_MESSAGE.provider_down).toMatch(/try again in a few minutes/i);
+  });
+});
+
+/**
+ * 2026-11-23. Pattern Interrupt is Sales Coach, which is in-person only (decision of 2026-11-22). A phone or
+ * video call is scored on its own rubric and must not open Sales Coach patterns.
+ */
+describe("pattern detection runs for in-person calls only", () => {
+  const scoredAndStored = () => {
+    asMock(generatePitchScore).mockResolvedValue({
+      ok: true,
+      score: { total: 71 },
+      elements: [],
+      bonuses: [],
+      violations: [],
+      timestampsUnavailable: false,
+    });
+    asMock(storePitchScore).mockResolvedValue({ ok: true, pitchId: "p1" });
+  };
+
+  it("runs after an in-person score (and for a session with no context, which is in person)", async () => {
+    for (const context of ["in_person", undefined]) {
+      vi.clearAllMocks();
+      asMock(getSession).mockResolvedValue({ ...sellingSession, context });
+      asMock(getSessionTranscript).mockResolvedValue([{ speaker: "agent", text: "hello" }]);
+      scoredAndStored();
+      const out = await scoreSession(llmArgs);
+      expect(out.ok).toBe(true);
+      expect(runDetection).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("does not run after a phone or video score", async () => {
+    for (const context of ["phone", "video"]) {
+      vi.clearAllMocks();
+      asMock(getSession).mockResolvedValue({ ...sellingSession, context });
+      asMock(getSessionTranscript).mockResolvedValue([{ speaker: "agent", text: "hello" }]);
+      scoredAndStored();
+      const out = await scoreSession(llmArgs);
+      expect(out.ok).toBe(true);
+      expect(generatePitchScore).toHaveBeenCalledTimes(1);
+      expect(runDetection).not.toHaveBeenCalled();
+    }
   });
 });

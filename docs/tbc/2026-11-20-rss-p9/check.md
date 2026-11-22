@@ -1070,3 +1070,22 @@ Reach: the milestones route reads readPitchPeriod with the default module (sales
 Sales has no milestones strip, so today no screen shows a remote Clean sweep — the fix keeps the derivation right for
 when one does. pitch_scores_by_channel is `select p.*` (0301, after 0252 added rubric_version); production read of
 `id,rubric_version` on the view → HTTP 200.
+
+Pattern Interrupt stays in-person (2026-11-23): scoreSession ran pattern detection after EVERY score, and
+readApplicableGrades read all of a rep's grades with no channel. Pattern Interrupt, Rep progress and the bell are Sales
+Coach screens, and Sales Coach is in-person only (decision 2026-11-22, d4fc60d1) — so a phone/video score would have
+opened Sales Coach patterns on items an in-person rep is never graded on (close.enrollOnCall) and mixed two channels
+into one "last 10". Now: readApplicableGrades embeds coaching_sessions(context) and skips phone/video pitches (no
+session = in person, as 0301's coalesce); scoreSession skips detection for a phone/video call. Production has no scored
+remote call yet (residual A21 measurement), so no pattern was ever opened this way. Production read of the embed
+`pitch_scores!inner(recorded_at,coaching_sessions(context))` → HTTP 200, to-one object. Known limit: the 900-row read
+window now counts remote rows before they are dropped — a rep with many remote calls has a shorter in-person history read.
+Not built: patterns for Remote Sales (no screen specified for it).
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/patterns src/lib/coach/pitchScore → 26 files, 452 passed, exit 0
+```
+Channel sweep of every list read of pitch scores (same day): Sales Coach Recordings (readRecordings, `.in("channel",
+contextsOf("sales_coach"))`) and the disputes queue (?module=, pitch_scores_by_channel) were already split; period
+reads go through readPitchPeriod (module); the remaining reads are one pitch by id or by session. Pattern detection was
+the only list read with no channel.

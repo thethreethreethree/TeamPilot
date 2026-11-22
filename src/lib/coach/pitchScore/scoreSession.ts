@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
+import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { generatePitchScore } from "./generatePitchScore";
 import type { PitchScore } from "./scorePitch";
 import { storePitchScore } from "./storePitchScore";
@@ -330,15 +331,20 @@ async function scoreSessionOrThrow(args: {
   // the right outcome is a logged error, not telling a rep their pitch could not be scored. The
   // service-role client is required — `patterns` has no insert policy, so a caller-scoped client
   // would write nothing and report success.
-  try {
-    const detection = await runDetection({ companyId, repId: session.agentId }, createAdminClient());
-    if (detection.opened > 0) {
-      console.info(
-        `[scoreSession] detection opened ${detection.opened} pattern(s) for rep=${session.agentId} (examined ${detection.examined} items)`
-      );
+  //
+  // In-person calls only: Pattern Interrupt is Sales Coach, which is in-person (readApplicableGrades
+  // leaves phone/video grades out for the same reason). A phone/video score has nothing to detect over.
+  if (!isRemoteContext(session.context)) {
+    try {
+      const detection = await runDetection({ companyId, repId: session.agentId }, createAdminClient());
+      if (detection.opened > 0) {
+        console.info(
+          `[scoreSession] detection opened ${detection.opened} pattern(s) for rep=${session.agentId} (examined ${detection.examined} items)`
+        );
+      }
+    } catch (err) {
+      console.error(`[scoreSession] pattern detection failed for rep=${session.agentId}:`, err);
     }
-  } catch (err) {
-    console.error(`[scoreSession] pattern detection failed for rep=${session.agentId}:`, err);
   }
 
   return {

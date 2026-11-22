@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readPatterns } from "../readPatterns";
+import { readPatterns, readApplicableGrades } from "../readPatterns";
 import type { Grade } from "../../pitchScore/rubric";
 
 /**
@@ -35,7 +35,7 @@ const record = (over: Record<string, unknown> = {}) => ({
 function db(opts: {
   patterns?: unknown[] | null;
   events?: unknown[];
-  elementsByRep?: Record<string, Array<{ element_id: string; grade: Grade; recorded_at: string }>>;
+  elementsByRep?: Record<string, Array<{ element_id: string; grade: Grade; recorded_at: string; context?: string | null }>>;
 }) {
   const elementQueries: string[] = [];
   const make = (table: string) => {
@@ -75,7 +75,7 @@ function db(opts: {
           grade: r.grade,
           points: r.grade === "hit" ? 3 : 0,
           pitch_id: `${state.rep}-${r.recorded_at}`,
-          pitch_scores: { rep_id: state.rep, recorded_at: r.recorded_at },
+          pitch_scores: { rep_id: state.rep, recorded_at: r.recorded_at, coaching_sessions: r.context === undefined ? null : { context: r.context } },
         }));
         return res({ data: rows, error: null });
       };
@@ -195,5 +195,25 @@ describe("the row it builds", () => {
   it("returns null on a failed read rather than an empty list", async () => {
     // An empty list here becomes "no patterns" on screen, which on this board reads as praise.
     expect(await readPatterns({ repId: "rep-1" }, db({ patterns: null }).client)).toBeNull();
+  });
+});
+
+describe("applicable grades are in-person only (Pattern Interrupt is Sales Coach)", () => {
+  it("leaves out phone and video pitches; a pitch with no session counts as in person", async () => {
+    const { client } = db({
+      elementsByRep: {
+        "rep-1": [
+          { ...el("disc.currentSpeeds", "missed", 1), context: "in_person" },
+          { ...el("disc.currentSpeeds", "missed", 2), context: "phone" },
+          { ...el("disc.currentSpeeds", "hit", 3), context: "video" },
+          { ...el("disc.currentSpeeds", "hit", 4), context: null },
+          el("disc.currentSpeeds", "partial", 5),
+          { ...el("close.enrollOnCall", "missed", 6), context: "phone" },
+        ],
+      },
+    });
+    const grades = await readApplicableGrades({ repId: "rep-1" }, client);
+    expect(grades.get("disc.currentSpeeds")?.map((g) => g.grade)).toEqual(["missed", "hit", "partial"]);
+    expect(grades.has("close.enrollOnCall")).toBe(false);
   });
 });
