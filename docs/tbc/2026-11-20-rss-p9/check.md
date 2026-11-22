@@ -949,3 +949,9 @@ in the code: spoken-word numbers not caught, audio not altered, existing lines u
 ```
 npx vitest run src/lib/coach/remote/__tests__/redact.test.ts → Tests 4 passed (4), exit 0
 ```
+**D15 decided the same day** (founder, AskUserQuestion picker, recommended option): ON, runs of 9+ digits.
+REDACTION = { enabled: true, minDigits: 9 }; appendTranscriptSegment test: "card 4111 1111 1111 1111, it's $89.99 a month"
+is stored as "card [number removed], it's $89.99 a month".
+```
+npx vitest run src/lib/data/__tests__/appendTranscriptSegment.migrationGuard.test.ts src/app/api/coach/sales-session/[id] src/lib/coach/remote → Tests 351 passed (351), exit 0
+```

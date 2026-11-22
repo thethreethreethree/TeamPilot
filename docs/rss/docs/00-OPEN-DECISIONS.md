@@ -25,7 +25,7 @@ matter.
 | D12 | Meeting bot for video calls: build, buy, or stay mic-and-upload? | Mic (live session, Chrome extension) and file upload | High, and it sits outside this plan: a bot is its own product. |
 | D13 | Phone capture: a dialer, telephony import, or extension plus upload? | Chrome extension (Google Voice etc.), mic, upload | High. A dialer brings numbers, carriers and regional recording rules. |
 | D14 | Default recording retention per company | No row means today's behaviour: keep each rep's last 20 recordings | Low. One setting. |
-| D15 | Number redaction: on or off, and the digit length | **Corrected 2026-11-22:** only the switch exists (`REDACTION.enabled = false` in decisions.ts); no redaction function was built (grep: no `redact` code in src). | Low before go-live. Redaction only applies to new calls; older recordings stay unredacted. |
+| D15 | Number redaction: on or off, and the digit length | **DECIDED 2026-11-22 (founder, picker): ON, runs of 9+ digits.** Built at the one transcript writer (redact.ts; 364df23f) and switched on. | New calls only; older recordings stay unredacted. Spoken-word numbers not caught; audio unchanged. |
 | D16 | Upload size limit for remote calls | Today's 25 MB, plus an explicit `TOO_LARGE` reason | Low. Storage cost and quota grow with it, after this week's storage-quota suspension. |
 | D17 | Languages for remote calls | English only (speech-to-text is fixed to English on purpose) | Medium. Every engine prompt and the trackers assume English. |
 | D18 | Where trainings live: Bootcamp, or the Sales Coach Training tab | Tables built; screen placement open | Low. |

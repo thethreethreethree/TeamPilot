@@ -48,8 +48,9 @@ export const SCORING_FLOOR_IS_TODAYS_BEHAVIOUR = true;
 export const FEEDBACK_POLICY: 'NOT DECIDED' | 'GONG_RULES' | 'ALL_MANAGER_ACTIONS' = NOT_DECIDED;
 export const LISTENED_THRESHOLD: { minSeconds: number } | { minShareOfSession: number } | NotDecided = NOT_DECIDED;
 
-/** D15 - Number redaction: on/off and the digit-run length. Function exists; switched off. */
-export const REDACTION: { enabled: false } | { enabled: true; minDigits: number } = { enabled: false };
+/** D15 - Number redaction: on/off and the digit-run length. DECIDED 2026-11-22 by the founder (picker): ON for runs of
+ *  9+ digits — card numbers, SSNs, account numbers (and 10-digit phone numbers). New lines only; see redact.ts. */
+export const REDACTION: { enabled: false } | { enabled: true; minDigits: number } = { enabled: true, minDigits: 9 };
 
 /** D16 - Upload size limit for remote calls. TODAY: AGENT_MAX_BYTES in src/lib/storage/assets.ts (25 MB), used
  *  as-is — not copied here, so the two cannot drift (§2.2). Deciding D16 means changing that constant (or giving

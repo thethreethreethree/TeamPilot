@@ -68,3 +68,12 @@ describe("appendTranscriptSegment — migration-coupling fallback for the 0236 `
     expect(state.inserts).toHaveLength(1); // a dup is NOT a missing-column → no retry
   });
 });
+
+describe("D15 number redaction at the one transcript writer (founder 2026-11-22: on, 9+ digits)", () => {
+  it("stores a card number as removed; ordinary numbers stay", async () => {
+    state.inserts = [];
+    state.results = [{ data: { id: "seg" }, error: null }];
+    await appendTranscriptSegment({ sessionId: "s1", speaker: "customer", text: "card 4111 1111 1111 1111, it's $89.99 a month", seq: 1 });
+    expect(state.inserts[0]!.text).toBe("card [number removed], it's $89.99 a month");
+  });
+});
