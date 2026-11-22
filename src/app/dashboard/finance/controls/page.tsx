@@ -10,6 +10,7 @@ import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { ShieldCheck, Plus, Gauge, Ban, UserCheck, Split } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
 
 /**
  * Finance controls — the ceilings the company sets on its own spending.
@@ -127,7 +128,7 @@ export default function FinanceControlsPage() {
     setDgUnavailable(Boolean(dg.error));
     setDelegations(dg.error ? [] : (dg.delegations ?? []));
     setMembers(tm.members ?? []);
-    setAccounts((ac.accounts ?? []).filter((a: Account) => a.type === "expense"));
+    setAccounts(accountsFrom(ac).filter((a: Account) => a.type === "expense"));
   }, []);
 
   useEffect(() => {

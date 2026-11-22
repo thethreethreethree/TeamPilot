@@ -9,6 +9,8 @@ import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/form
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2, DollarSign, CalendarClock } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -46,6 +48,8 @@ export default function ApPage() {
   const [problems, setProblems] = useState<ProblemDim[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const acctName = (id: string) => {
     const a = accounts.find((x) => x.id === id);
@@ -62,6 +66,7 @@ export default function ApPage() {
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [v, a, b, g, d, dim, tx] = await Promise.all([
         fetch("/api/finance/ap/vendors").then((r) => r.json()),
         fetch("/api/finance/accounts").then((r) => r.json()),
@@ -72,7 +77,7 @@ export default function ApPage() {
         fetch("/api/finance/tax-codes").then((r) => r.json()),
       ]);
       setVendors(v.vendors ?? []);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setBills(b.bills ?? []);
       setAging(g.aging ?? null);
       setDups(d.duplicates ?? []);
@@ -82,6 +87,7 @@ export default function ApPage() {
       setTaxCodes((tx.taxCodes ?? []).filter((t: TaxCode) => t.direction === "input"));
     } catch {
       toast.error("Couldn't load payables", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -218,7 +224,9 @@ export default function ApPage() {
     <div className="min-h-screen bg-base">
       <TopBar title="Accounts Payable" subtitle="Vendors, bills, approvals & payments" />
       <FinanceNav />
-      {loaded && accounts.length === 0 ? (
+      {loadFailed ? (
+        <FinanceLoadFailed feature="Accounts Payable" />
+      ) : loaded && accounts.length === 0 ? (
         <FinanceNotSetUp feature="Accounts Payable" />
       ) : (
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">

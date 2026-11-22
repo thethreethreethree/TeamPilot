@@ -7,6 +7,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, CheckCircle2 } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Customer = { id: string; name: string };
 type Invoice = { id: string; invoice_number: string; customer_id: string; status: string };
@@ -30,9 +32,12 @@ export default function CreditNotesPage() {
   const [accountsCount, setAccountsCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [cu, inv, cn, ac] = await Promise.all([
         fetch("/api/finance/ar/customers").then((r) => r.json()),
         fetch("/api/finance/ar/invoices").then((r) => r.json()),
@@ -42,9 +47,10 @@ export default function CreditNotesPage() {
       setCustomers(cu.customers ?? []);
       setInvoices(inv.invoices ?? []);
       setNotes(cn.creditNotes ?? []);
-      setAccountsCount((ac.accounts ?? []).length);
+      setAccountsCount(accountsFrom(ac).length);
     } catch {
       toast.error("Couldn't load credit notes", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -102,6 +108,8 @@ export default function CreditNotesPage() {
       void load();
     } else toast.error("Couldn't issue", j?.error ?? "");
   };
+
+  if (loadFailed) return <FinanceLoadFailed feature="Credit Notes" />;
 
   if (loaded && accountsCount === 0)
     return (

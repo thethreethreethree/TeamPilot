@@ -7,6 +7,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Play, Power } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Vendor = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -27,21 +29,25 @@ export default function RecurringPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [v, a, t] = await Promise.all([
         fetch("/api/finance/ap/vendors").then((r) => r.json()),
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/ap/recurring").then((r) => r.json()),
       ]);
       setVendors(v.vendors ?? []);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setTemplates(t.templates ?? []);
     } catch {
       toast.error("Couldn't load recurring bills", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -95,6 +101,8 @@ export default function RecurringPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   };
+
+  if (loadFailed) return <FinanceLoadFailed feature="Recurring Bills" />;
 
   if (loaded && accounts.length === 0)
     return (

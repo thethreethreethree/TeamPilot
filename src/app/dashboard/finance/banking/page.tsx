@@ -9,6 +9,8 @@ import { formatMoney } from "@/lib/finance/format";
 import { parseCsv } from "@/lib/finance/bankCsv";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Upload, Wand2, Landmark } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Account = { id: string; code: string; name: string; type: string };
 type BankAccount = {
@@ -45,17 +47,21 @@ export default function BankingPage() {
   const [sel, setSel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [a, b] = await Promise.all([
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/bank/accounts").then((r) => r.json()),
       ]);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setBanks(b.accounts ?? []);
     } catch {
       toast.error("Couldn't load banking", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -205,6 +211,8 @@ export default function BankingPage() {
     if (res.ok) { void load(); void loadTxns(bankId); }
     else toast.error("Couldn't ignore");
   });
+
+  if (loadFailed) return <FinanceLoadFailed feature="Banking" />;
 
   if (loaded && accounts.length === 0)
     return (

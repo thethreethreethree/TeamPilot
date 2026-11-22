@@ -7,6 +7,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, TrendingDown } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Account = { id: string; code: string; name: string; type: string };
 type Dim = { id: string; code: string; name: string };
@@ -26,21 +28,25 @@ export default function BudgetsPage() {
   const [runway, setRunway] = useState<Runway | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [a, dim, b, rw] = await Promise.all([
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/dimensions").then((r) => r.json()),
         fetch("/api/finance/budgets").then((r) => r.json()),
         fetch("/api/finance/runway").then((r) => r.json()),
       ]);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setCostCenters(dim.costCenters ?? []);
       setBudgets(b.budgets ?? []);
       setRunway(rw.runway ?? null);
     } catch {
       toast.error("Couldn't load budgets", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -87,6 +93,8 @@ export default function BudgetsPage() {
     if (res.ok) { setLAmt(""); toast.success("Budget line saved"); void loadLines(sel); }
     else toast.error("Couldn't save line", j?.error ?? "");
   };
+
+  if (loadFailed) return <FinanceLoadFailed feature="Budgeting" />;
 
   if (loaded && accounts.length === 0)
     return (

@@ -18,8 +18,14 @@ export async function GET() {
     .select("id, code, name, type, is_active, cost_type")
     .eq("is_active", true)
     .order("code");
-  if (error) return NextResponse.json({ accounts: [] });
-  return NextResponse.json({ accounts: data });
+  // A failed read is an ERROR, never `{ accounts: [] }` (2026-11-23): an empty Chart of Accounts is how every finance
+  // page decides "Finance isn't set up yet", so answering a database error with an empty list told admins to initialize
+  // finance they had already set up.
+  if (error) {
+    console.error(`[finance/accounts] read failed: ${error.message}`);
+    return NextResponse.json({ error: "Could not load the Chart of Accounts." }, { status: 500 });
+  }
+  return NextResponse.json({ accounts: data ?? [] });
 }
 
 /**

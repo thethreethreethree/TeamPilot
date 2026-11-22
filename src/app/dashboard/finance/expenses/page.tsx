@@ -8,6 +8,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, CheckCircle2, DollarSign } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Account = { id: string; code: string; name: string; type: string };
 type Report = {
@@ -30,23 +32,27 @@ export default function ExpensesPage() {
   // 0179: the problem this money was spent on. Without this picker the dimension is unreachable.
   const [problems, setProblems] = useState<ProblemDim[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [a, r, dim] = await Promise.all([
         fetch("/api/finance/accounts").then((x) => x.json()),
         fetch("/api/finance/expenses/reports").then((x) => x.json()),
         fetch("/api/finance/dimensions").then((x) => x.json()),
       ]);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setReports(r.reports ?? []);
       setCostCenters(dim.costCenters ?? []);
       setProjects(dim.projects ?? []);
       setProblems(dim.problems ?? []);
     } catch {
       toast.error("Couldn't load expenses", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -115,6 +121,8 @@ export default function ExpensesPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   });
+
+  if (loadFailed) return <FinanceLoadFailed feature="Expenses" />;
 
   if (loaded && accounts.length === 0)
     return (

@@ -10,6 +10,7 @@ import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 import { formatMoney, parseMoneyInput } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Boxes, Plus } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
 
 /**
  * Fixed asset register (0166).
@@ -72,7 +73,7 @@ export default function AssetsPage() {
     }
     setLoadError(null);
     setAssets(a.assets ?? []);
-    setAccounts(ac.accounts ?? []);
+    setAccounts(accountsFrom(ac));
     setPeriods((pe.periods ?? []).filter((p: Period) => p.status === "open"));
   }, []);
 

@@ -7,6 +7,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Lock } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type TaxCode = { id: string; code: string; name: string; jurisdiction: string | null; rate_pct: number; kind: string; direction: string; is_active: boolean };
 type TaxReport = { rows: { jurisdiction: string; output_tax: number; input_tax: number; net_tax: number }[]; total_output: number; total_input: number; total_net: number };
@@ -19,6 +21,8 @@ export default function TaxPage() {
   const [report, setReport] = useState<TaxReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const year = new Date().getFullYear();
   const [from, setFrom] = useState(`${year}-01-01`);
@@ -26,14 +30,16 @@ export default function TaxPage() {
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [ac, tc] = await Promise.all([
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/tax-codes").then((r) => r.json()),
       ]);
-      setAccountsCount((ac.accounts ?? []).length);
+      setAccountsCount(accountsFrom(ac).length);
       setCodes(tc.taxCodes ?? []);
     } catch {
       toast.error("Couldn't load tax data", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -80,6 +86,8 @@ export default function TaxPage() {
     if (res.ok) toast.success(action === "close" ? `Year ${closeYear} closed` : `Year ${closeYear} reopened`, "Retained Earnings updated; periods locked/unlocked.");
     else toast.error(`Couldn't ${action} the year`, j?.error ?? "");
   };
+
+  if (loadFailed) return <FinanceLoadFailed feature="Tax" />;
 
   if (loaded && accountsCount === 0)
     return (

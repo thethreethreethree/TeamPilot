@@ -9,6 +9,8 @@ import { formatMoney, computeLineTax, parseMoneyInput } from "@/lib/finance/form
 import { todayIso } from "@/lib/finance/dateRange";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Send, DollarSign } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Customer = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string };
@@ -38,6 +40,8 @@ export default function ArPage() {
   const [stock, setStock] = useState<StockItem[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [aging, setAging] = useState<Aging | null>(null);
   const [overdue, setOverdue] = useState<Overdue[]>([]);
@@ -60,6 +64,7 @@ export default function ArPage() {
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [c, a, i, g, o, dim, tx, inv] = await Promise.all([
         fetch("/api/finance/ar/customers").then((r) => r.json()),
         fetch("/api/finance/accounts").then((r) => r.json()),
@@ -71,7 +76,7 @@ export default function ArPage() {
         fetch("/api/finance/inventory").then((r) => r.json()),
       ]);
       setCustomers(c.customers ?? []);
-      setAccounts(a.accounts ?? []);
+      setAccounts(accountsFrom(a));
       setInvoices(i.invoices ?? []);
       setAging(g.aging ?? null);
       setOverdue(o.overdue ?? []);
@@ -81,6 +86,7 @@ export default function ArPage() {
       setStock((inv.items ?? []).filter((it: StockItem & { is_active: boolean }) => it.is_active));
     } catch {
       toast.error("Couldn't load receivables", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -181,6 +187,8 @@ export default function ArPage() {
       void load();
     } else toast.error(`Couldn't ${action}`, j?.error ?? "");
   });
+
+  if (loadFailed) return <FinanceLoadFailed feature="Accounts Receivable" />;
 
   if (loaded && accounts.length === 0)
     return (

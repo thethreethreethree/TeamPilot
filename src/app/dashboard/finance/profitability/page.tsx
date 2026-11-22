@@ -7,6 +7,8 @@ import FinanceNotSetUp from "@/components/finance/FinanceNotSetUp";
 import { formatMoney } from "@/lib/finance/format";
 import { useToast } from "@/components/ui/toast";
 import { Plus } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
+import FinanceLoadFailed from "@/components/finance/FinanceLoadFailed";
 
 type Customer = { id: string; name: string };
 type ProjRow = { project_id: string; code: string; name: string; status: string; budget: number | null; revenue: number; direct_cost: number; total_cost: number; allocated_overhead: number | null; loaded_margin: number | null };
@@ -29,15 +31,18 @@ export default function ProfitabilityPage() {
   const [custProfit, setCustProfit] = useState<CuRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // A failed load is "couldn't load", not "not set up" (2026-11-23; see accountsFrom / FinanceLoadFailed).
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [ac, prof, cu] = await Promise.all([
         fetch("/api/finance/accounts").then((r) => r.json()),
         fetch("/api/finance/profitability").then((r) => r.json()),
         fetch("/api/finance/ar/customers").then((r) => r.json()),
       ]);
-      setAccountsCount((ac.accounts ?? []).length);
+      setAccountsCount(accountsFrom(ac).length);
       setProjects(prof.projects ?? []);
       setUnallocated(Number(prof.unallocatedOverhead ?? 0));
       setCostCenters(prof.costCenters ?? []);
@@ -45,6 +50,7 @@ export default function ProfitabilityPage() {
       setCustomers(cu.customers ?? []);
     } catch {
       toast.error("Couldn't load profitability", "Check your connection and refresh.");
+      setLoadFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -71,6 +77,8 @@ export default function ProfitabilityPage() {
     if (res.ok) { reset(); toast.success("Created"); void load(); }
     else toast.error("Couldn't create", j?.error ?? "");
   };
+
+  if (loadFailed) return <FinanceLoadFailed feature="Profitability" />;
 
   if (loaded && accountsCount === 0)
     return (

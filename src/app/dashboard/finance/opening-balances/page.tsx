@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/finance/format";
 import { parseTrialBalance, tbImbalance } from "@/lib/finance/trialBalance";
 import { useToast } from "@/components/ui/toast";
 import { Upload, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { accountsFrom } from "@/lib/finance/accountsFrom";
 
 /**
  * Opening balances — bringing the old books in.
@@ -73,7 +74,7 @@ export default function OpeningBalancesPage() {
       return;
     }
     setLoadError(null);
-    setAccounts(a.accounts ?? []);
+    setAccounts(accountsFrom(a));
     setPeriods((p.periods ?? []).filter((x: Period) => x.status === "open"));
     setBatches(o.batches ?? []);
     setObe(o.imbalance ?? null);

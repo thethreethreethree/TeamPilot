@@ -1462,3 +1462,17 @@ the test with that reason rather than changed. Any new instance fails the gate.
 ```
 npx vitest run --maxWorkers=1 src/lib/__tests__/noFailedReadAsEmpty.test.ts → 2 passed, exit 0
 ```
+
+Finance "not set up" — the second form (same founder decision). Ten pages (ap, ar, expenses, profitability, tax,
+banking, pos, budgets, credit-notes, recurring) DO decide "Finance isn't set up yet" from an empty Chart of Accounts —
+but the root was the route: GET /api/finance/accounts answered a database error with `{ accounts: [] }` (200), and the
+pages read `a.accounts ?? []` and, in their catch, still set loaded with an empty list. Every failed read became "not
+set up". Now: the route returns 500 with an error; src/lib/finance/accountsFrom.ts throws unless it gets an actual list;
+all 13 callers use it (the three pickers-only pages — controls, opening-balances, assets — fall into their existing
+FinanceLoadFailed); the ten set loadFailed and render FinanceLoadFailed, keeping FinanceNotSetUp for a list that really
+is empty. Tests: accountsFrom (2); Tax page — failed read → "Couldn't load Tax", empty list → "isn't set up yet" (the
+first fails on the previous page).
+
+```
+npx vitest run --maxWorkers=1 src/components/finance src/lib/finance → passed, exit 0
+```
