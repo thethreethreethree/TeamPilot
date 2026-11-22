@@ -138,3 +138,27 @@ describe("runCallSearch — the added filters", () => {
     expect(r.ok && r.rows[0]!.hits[0]!.atMs).toBe(4_000);
   });
 });
+
+describe("topic or competitor filter (Gong F11.12)", () => {
+  it("parses a topic, lower-cased, and refuses a long one", async () => {
+    const { parseCallSearch } = await import("../search");
+    expect(parseCallSearch(new URLSearchParams("topic=  Pricing "))).toEqual({ filters: { topic: "pricing" } });
+    expect(parseCallSearch(new URLSearchParams(`topic=${"x".repeat(61)}`))).toEqual({ error: "Keep the topic under 60 characters." });
+  });
+
+  it("matches the LATEST intel read per call, on topics or competitors, by substring", async () => {
+    const { sessionsWithTopic } = await import("../search");
+    const evs = [
+      // newest first, as the route reads them
+      { subject: "sales_session:a", payload: { intel: { topics: ["contract length"], competitors: [] } } },
+      { subject: "sales_session:a", payload: { intel: { topics: ["pricing"], competitors: [] } } }, // older read of a — ignored
+      { subject: "sales_session:b", payload: { intel: { topics: ["installation"], competitors: ["Spectrum"] } } },
+      { subject: "sales_session:c", payload: { intel: { topics: ["Pricing tiers"], competitors: [] } } },
+      { subject: "pitch:zzz", payload: { intel: { topics: ["pricing"] } } }, // not a call
+      { subject: "sales_session:d", payload: null },
+    ];
+    expect([...sessionsWithTopic(evs, "pric")].sort()).toEqual(["c"]);
+    expect([...sessionsWithTopic(evs, "spectrum")]).toEqual(["b"]);
+    expect(sessionsWithTopic(evs, "nothing").size).toBe(0);
+  });
+});

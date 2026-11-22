@@ -828,3 +828,15 @@ may see); nothing stored; no AI.
 ```
 npx vitest run src/lib/coach/remote/__tests__/trackerPreview.test.ts src/app/api/coach/remote/trackers/preview → 8 passed, exit 0
 ```
+
+## Addendum 2026-11-22 — search calls by topic or competitor (Gong F11.12)
+
+F11.12 was LACK: the intel engine already stores each call's 3–5 topics and the competitors actually said
+(coach.session_intel_generated), but Search could not filter by them. Now "Topic or competitor" (Remote Sales → Search;
+the shared parser gives saved searches and CSV export the same filter) narrows to calls whose LATEST intel read names
+the term, case-insensitively and by substring ("pric" finds "pricing tiers"). The events read narrows the candidate set
+only; the final calls read stays RLS-scoped, so nothing outside the viewer's calls appears.
+
+```
+npx vitest run src/lib/coach/remote/__tests__/search.test.ts → Tests 14 passed (14), exit 0
+```

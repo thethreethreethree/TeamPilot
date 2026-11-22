@@ -37,6 +37,8 @@ export type CallSearchFilters = {
   talkMax?: number;
   /** Only calls whose score the rep disputed. */
   disputed?: boolean;
+  /** A topic or competitor the call's AI read found (coach.session_intel_generated) — Gong F11.12. Case-insensitive. */
+  topic?: string;
   /** Remote Sales' own search: phone and video calls only (founder 2026-11-22, separate from Sales Coach). */
   remoteOnly?: boolean;
 };
@@ -125,7 +127,31 @@ export function parseCallSearch(params: URLSearchParams): { filters: CallSearchF
     }
   }
   if (params.get("disputed") === "1") f.disputed = true;
+  const topic = (params.get("topic") ?? "").trim().toLowerCase();
+  if (topic) {
+    if (topic.length > 60) return { error: "Keep the topic under 60 characters." };
+    f.topic = topic;
+  }
   return { filters: f };
+}
+
+/**
+ * Which calls' latest intel read names `term` among its topics or competitors (case-insensitive, substring — "price"
+ * finds "pricing"). Events arrive newest first; only the first (latest) read per call counts. Pure.
+ */
+export function sessionsWithTopic(events: Array<{ subject: string | null; payload: unknown }>, term: string): Set<string> {
+  const seen = new Set<string>();
+  const out = new Set<string>();
+  const t = term.toLowerCase();
+  for (const e of events) {
+    const id = typeof e.subject === "string" && e.subject.startsWith("sales_session:") ? e.subject.slice("sales_session:".length) : null;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const intel = (e.payload as { intel?: { topics?: unknown; competitors?: unknown } } | null)?.intel;
+    const words = [...(Array.isArray(intel?.topics) ? intel.topics : []), ...(Array.isArray(intel?.competitors) ? intel.competitors : [])];
+    if (words.some((w) => typeof w === "string" && w.toLowerCase().includes(t))) out.add(id);
+  }
+  return out;
 }
 
 /** Narrow the call set to `ids` (intersect when a set already exists). Null means "no restriction yet". */
@@ -214,6 +240,24 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
       if (typeof sid === "string" && sid) ids.add(sid);
     }
     restrictTo = narrow(restrictTo, ids);
+    if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
+  }
+
+  // 2d. Topic or competitor → calls whose LATEST intel read names it (F11.12). The intel engine stores 3–5 topics and
+  // the competitors actually said, per call, as events; a newer read of a call replaces the older in this match.
+  if (f.topic) {
+    const { data: evs, error } = await db
+      .from("events")
+      .select("subject, payload")
+      .eq("kind", "coach.session_intel_generated")
+      .order("created_at", { ascending: false })
+      .limit(READ_CAP);
+    if (error) {
+      console.error(`[callSearch] topic read failed: ${error.message}`);
+      return { ok: false, status: 500, error: "The topic filter failed." };
+    }
+    if ((evs ?? []).length >= READ_CAP) narrower = true;
+    restrictTo = narrow(restrictTo, sessionsWithTopic((evs ?? []) as Array<{ subject: string | null; payload: unknown }>, f.topic));
     if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
   }
 

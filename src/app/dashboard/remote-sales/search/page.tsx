@@ -24,11 +24,13 @@ type Filters = {
   q: string; channel: string; rep: string; outcome: string; from: string; to: string; scoreMin: string; scoreMax: string; tracker: string;
   // 2026-11-22 (Phase 5): a rubric item and the grade the call got on it, the rep's talk share, disputed calls.
   element: string; grade: string; talkMin: string; talkMax: string; disputed: string;
+  // F11.12: a topic or competitor the call's AI read found.
+  topic: string;
 };
 
 const EMPTY: Filters = {
   q: "", channel: "all", rep: "", outcome: "all", from: "", to: "", scoreMin: "", scoreMax: "", tracker: "",
-  element: "", grade: "missed", talkMin: "", talkMax: "", disputed: "",
+  element: "", grade: "missed", talkMin: "", talkMax: "", disputed: "", topic: "",
 };
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video" }; // Remote Sales: phone and video only
 const OUTCOME: Record<string, string> = { sold: "Sold", follow_up: "Follow-up", no_sale: "No sale", undecided: "Undecided" };
@@ -178,6 +180,10 @@ export default function SearchCallsPage() {
               <label className="block text-[11px] text-muted">Score ≥<input inputMode="numeric" value={f.scoreMin} onChange={set("scoreMin")} className={input} /></label>
               <label className="block text-[11px] text-muted">Score ≤<input inputMode="numeric" value={f.scoreMax} onChange={set("scoreMax")} className={input} /></label>
             </div>
+            <label className="block text-[11px] text-muted">
+              Topic or competitor
+              <input value={f.topic} onChange={set("topic")} placeholder="e.g. pricing, Spectrum" maxLength={60} className={input} />
+            </label>
             {trackers.length > 0 && (
               <label className="block text-[11px] text-muted">
                 Mentions tracker
