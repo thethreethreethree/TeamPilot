@@ -1139,3 +1139,16 @@ Production storage: listing a prefix that does not exist → HTTP 200 `[]` (so a
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/erasure src/lib/coach/v5/__tests__/removeRecordingAudio.test.ts src/app/api/coach/sales-session → 668 passed, exit 0
 ```
+
+Recordings fail loud (same sweep, 2026-11-23): the Sales Coach recordings list ignored the errors of its patterns and
+missed-elements reads, so a failure showed every recording with 0 pattern moments; the one-recording read ignored the
+errors of its grades, events, comments and patterns reads, so a failed grades read rendered a pitch with no misses —
+clean-looking — and the route's share-history read ignored its error, so a shared recording would read as private. Now
+the list answers null (route 500 "Could not load recordings."), the detail throws (route 500 "Could not load this
+recording.", not the 404 that null means), and a failed share read is a 500. The transcript-lines read is left as it
+was: on failure it falls back to the flat text, which the screen already labels approximate.
+New readRecordings.failures.test.ts: 8 tests; run against the previous readRecordings.ts, 6 fail (the failure cases).
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/recordings src/app/api/coach/sales-session/pitch-recordings src/components/sales-coach → passed, exit 0
+```

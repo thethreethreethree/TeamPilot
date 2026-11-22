@@ -122,7 +122,7 @@ export async function readPitchRecordings(
   if (pitches.length === 0) return { rows: [], capped: false, total: count ?? 0 };
 
   // The rep's OPEN patterns, so a miss on one of those items is a pattern moment.
-  const { data: patternData } = await supabase
+  const { data: patternData, error: patternError } = await supabase
     .from("patterns")
     .select("item_id")
     .eq("rep_id", args.repId)
@@ -130,11 +130,17 @@ export async function readPitchRecordings(
   const openItems = new Set((patternData ?? []).map((p: { item_id: string }) => p.item_id));
 
   // One read of the missed elements across every listed pitch, rather than one per row.
-  const { data: missed } = await supabase
+  const { data: missed, error: missedError } = await supabase
     .from("pitch_score_elements")
     .select("pitch_id, element_id")
     .in("pitch_id", pitches.map((p) => p.id))
     .eq("grade", "missed");
+  // A failed read here is not "no pattern moments" (2026-11-23): every row would show 0 and read as clean. Say the list
+  // could not load instead (the route's 500).
+  if (patternError || missedError) {
+    console.error(`[readRecordings] list sub-read failed: ${(patternError ?? missedError)?.message}`);
+    return null;
+  }
 
   const patternCount = new Map<string, number>();
   for (const m of (missed ?? []) as Array<{ pitch_id: string; element_id: string }>) {
@@ -206,6 +212,10 @@ export async function readPitchRecordingDetail(
       .order("timestamp_s", { ascending: true }),
     supabase.from("patterns").select("item_id").eq("rep_id", pitch.rep_id).is("fixed_at", null),
   ]);
+  // THROWN, not null (2026-11-23): null means "not found" to the route, and a failed grades read rendered as a recording
+  // with no misses — a clean-looking pitch — with no error anywhere. The route answers "could not load" (500).
+  const failed = [elementsRes, eventsRes, commentsRes, patternsRes].find((r) => r.error);
+  if (failed) throw new Error(`recording detail read failed for pitch=${pitch.id}: ${failed.error!.message}`);
 
   const moments = keyMoments({
     elements: ((elementsRes.data ?? []) as Array<Record<string, unknown>>).map((e) => ({

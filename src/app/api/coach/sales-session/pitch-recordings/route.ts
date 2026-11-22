@@ -39,7 +39,13 @@ export async function GET(req: NextRequest) {
   const pitchId = req.nextUrl.searchParams.get("pitchId");
 
   if (pitchId) {
-    const detail = await readPitchRecordingDetail({ pitchId }, supabase);
+    let detail: Awaited<ReturnType<typeof readPitchRecordingDetail>>;
+    try {
+      detail = await readPitchRecordingDetail({ pitchId }, supabase);
+    } catch (err) {
+      console.error("[pitch-recordings] detail read failed:", err);
+      return NextResponse.json({ error: "Could not load this recording. Try again." }, { status: 500 });
+    }
     if (!detail) {
       // Indistinguishable from "not yours" on purpose: RLS returns no row either way, and a
       // 404-vs-403 split here would tell a caller whether a pitch id exists in another company.
@@ -48,11 +54,16 @@ export async function GET(req: NextRequest) {
 
     // The team-example permission, replayed from its log. Returned as the verdict the button
     // branches on; no surface re-decides whether a revocation counted (§2.2).
-    const { data: shareRows } = await supabase
+    const { data: shareRows, error: shareError } = await supabase
       .from("recording_share_events")
       .select("kind, actor_id, note, created_at")
       .eq("pitch_id", pitchId)
       .order("created_at", { ascending: true });
+    if (shareError) {
+      // Not "never shared": a failed read would show a shared recording as private and offer to share it again.
+      console.error(`[pitch-recordings] share events read failed pitch=${pitchId}: ${shareError.message}`);
+      return NextResponse.json({ error: "Could not load this recording. Try again." }, { status: 500 });
+    }
 
     const share = shareState(
       ((shareRows ?? []) as Array<Record<string, unknown>>).map(
