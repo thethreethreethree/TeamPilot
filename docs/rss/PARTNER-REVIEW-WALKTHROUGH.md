@@ -1,42 +1,72 @@
 # Remote Sales — partner review walkthrough
 
-For the founder presenting the Remote Sales module. About 15 minutes. Everything below ships in the current build.
+For the founder presenting the Remote Sales module. About 20 minutes: the full module (15), then Macro Mode, the
+simplified view (5). Updated 2026-11-22 for the build at 26dda31d.
 
-## Before the review (once, ~20 minutes)
+## Before the review (once, ~25 minutes)
 
-1. **Confirm the new build is live.** Sidebar footer reads "Constitution v1.14", and **Remote Sales** appears under
-   Sales Coach.
-2. **Put 2–3 real calls in.** Remote Sales → start a session → choose **Phone** or **Online video** → on the session
-   page, upload a recording (a real sales call, or a 3–5 minute role-play recorded on a phone). Tap which voice is the
-   rep, name the call. Wait a few minutes for each to reach **Ready**.
-3. **Fill the dashboards.** As an admin, run the scoring backfill once (it shows the count first: about 114 calls).
-4. **Pick one call** with a clear objection or price discussion — it makes the scorecard and Ask Coach land.
+1. **Push and confirm the new build is live.** VS Code → Source Control → **Sync Changes**. Then the sidebar shows
+   **Remote Sales** as its own module, and inside it the tabs **Calls · Pipeline · Scoreboard · Search · Library ·
+   Training** (managers also see Coaching and Trackers; admins see Protection). The database for everything below is
+   already applied.
+2. **Put 2–3 real calls in.** Remote Sales → Calls → choose **Phone** or **Online video** → on the call's page, either
+   upload a recording, or record live (see step 3 below for the prospect's side). Tap which voice is the rep, name the
+   call. Wait a few minutes for each to reach **Ready**.
+3. **Record one call live with both sides** (desktop Chrome or Edge). Have the call open in another tab (Meet, Zoom,
+   Teams, a browser dialer). Start live coaching, keep "Record and transcribe the prospect too" ticked, pick the call's
+   tab in the share box and tick **Share tab audio**. The transcript shows Salesperson lines from your mic and Prospect
+   lines from the call.
+4. **Fill the scores.** As an admin, run the scoring backfill once (it shows the count first).
+5. **Pick one call** with a clear objection or price discussion — it makes the scorecard and Ask Coach land.
 
-## The walkthrough
+## The walkthrough — the full module
 
 | Step | Click | What it shows |
 |---|---|---|
-| 1 | Sidebar → **Remote Sales** | Phone and video calls in one list, newest first, with outcome and status |
-| 2 | Open the prepared call | Status chips (Uploading → Transcribing → Analysing → Scoring → **Ready**) — every stage is visible, and a failure says why in words |
-| 3 | Player + talk-time lanes | Who spoke when ("You" / "Customer"); tap a bar to jump there |
-| 4 | Interaction stats | Talk ratio, longest monologue, patience, questions per hour — against the rep's own average, not a generic benchmark |
-| 5 | Scorecard | Each rubric item graded hit / partial / missed **with the evidence quoted**; press play on any evidence to hear that exact moment |
+| 1 | Sidebar → **Remote Sales** → Calls | Phone and video calls in one list, newest first, with outcome and live status chips |
+| 2 | Open the prepared call | Status chips (Uploading → Transcribing → Analyzing → Scoring → **Ready**); a failure says why in words |
+| 3 | Player + talk-time lanes | Who spoke when ("You" / "Customer"); tap a bar to jump there; play one speaker only |
+| 4 | Interaction stats | Talk ratio, longest monologue, patience, questions per hour — against the rep's own average |
+| 5 | Scorecard | Each rubric item graded hit / partial / missed **with the evidence quoted**; play any evidence |
 | 6 | Transcript | Searchable; tap any line to hear it |
-| 7 | **Ask Coach** | Ask "How did I handle the price objection?" — the answer cites line numbers you can click, and it says so if it reads the moment differently from the scorecard |
-| 8 | Manager view: comment on a moment | Comments at a timestamp, @mention a colleague, choose who can see it |
-| 9 | Library | A strong moment saved as a clip for the team |
-| 10 | Settings → **Protection** | Retention ("keep the last N per rep"), legal erasure of one customer's data, and the audit log of who did what |
+| 7 | **Ask Coach** | "How did I handle the price objection?" — the answer cites lines you can click |
+| 8 | Follow-through | The callbacks the customer asked for, each quoting its line; one click makes it a task |
+| 9 | **Comments** (manager) | On the call page: comment at a time, @mention a colleague, choose who can read it; the rep sees it |
+| 10 | **Search** | Find calls by what was said; filter by score, rubric item, talk share, tracker, disputed; export CSV |
+| 11 | **Scoreboard** | Remote Sales has its own points and leaderboard — phone and video calls only |
+| 12 | **Protection** (admin) | Retention, legal erasure of one customer's data, and the audit log of who did what |
+
+## The walkthrough — Macro Mode (the simplified system)
+
+The team's brief: "KEEP IT SIMPLE … What would set us apart is the simplicity."
+
+| Step | Click | What it shows |
+|---|---|---|
+| 1 | Calls → **Macro Mode** switch on | A rep's tabs become **Today · Pipeline · Calls** (a manager keeps every tab and gains Today) |
+| 2 | **Today** | "Hello …, what's our to-do list for the day?" Type the day in plain words → organized by time, with the **two needle movers**; plus today's scheduled calls and due to-dos from the pipeline, and yesterday in numbers |
+| 3 | Open a call | Just the player and three tabs |
+| 4 | **Highlights** | Call brief, key points, next steps; **Draft an email / Draft a text** to copy and send; "Add to pipeline" |
+| 5 | **Coaching** | The score out of 100, what you did well, your next level — and the manager's comments |
+| 6 | **Next Meeting** | Agenda, what to bring up again, and the **checklist you review** — edit it, untick what you won't do, save it as to-dos with due dates; set the next call date |
+| 7 | **Pipeline** | **Open ($) · Closed Won · Closed Lost**; per prospect the next to-do, stage, next and last call, amount; tick a to-do done; managers open each rep's pipeline |
+| 8 | "Show the full call page" | Macro Mode is never a one-way door |
 
 ## Points worth saying
 
-- **Every claim points at a moment in the call.** Scores, Ask Coach answers and comments all link to the audio.
-- **The rep's judgement comes first.** The AI's read of the outcome is shown only after the rep records their own,
-  as a second opinion.
-- **Privacy is built in.** A manager can trim a sensitive moment (a card number) and it disappears from every reader;
-  a customer's data can be erased on request, with the erasure itself on the record.
+- **Every claim points at a moment in the call.** Scores, key points, Ask Coach answers and comments link to the audio;
+  a key point the call does not support is dropped, not shown.
+- **Both sides of a live call.** The prospect is recorded from the call itself, labelled by where the audio came from,
+  not guessed from loudness.
+- **The rep stays the author.** Follow-ups are drafts the rep sends; the checklist is saved only after the rep reviews
+  it; the day plan only organizes what the rep wrote. The AI's read of the outcome appears after the rep's own.
+- **Our own simple CRM.** No trip to HubSpot and back; every change is kept on the record.
+- **Privacy is built in.** Trim a sensitive moment and it disappears from every reader; erase a customer's data on
+  request, with the erasure itself on the record.
 
 ## Avoid during the review
 
 - **Admin → AI cost** — shows "price missing" until AI prices are entered.
-- **Settings → Protection → Webhooks** — says "not configured" until the signing secret is set.
+- **Protection → Webhooks** — says "not configured" until the signing secret is set.
 - **Google / Microsoft sign-in** — hidden until the providers are set up; sign in with email.
+- **Live prospect capture on Safari or a phone** — the browser can't share another tab's audio there; the screen says
+  so. Use desktop Chrome or Edge, or upload the recording.
