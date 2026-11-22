@@ -258,7 +258,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       next-action: one live request each (batch scribe_v1 with repeated `keyterms` form fields; realtime with repeated
       `keyterms=` query params) to confirm acceptance and the session_started echo; then an opt-in per-company list
       (empty = off = no surcharge), cost shown beside it.
-- [ ] 2026-11-22 · D10 · the reps' own weekly progress email still sends (D10 covered only the managers' email)
+- [x] 2026-11-22 · D10 · the reps' own weekly progress email still sends (D10 covered only the managers' email) — DECIDED same day (founder, picker): KEEP the reps' weekly email
       why-unresolved: not part of the question the founder answered; deciding it for them would be overtaking
       next-action: ask as a picker when convenient — keep the reps' weekly email, or in-app only for everyone
 - [x] 2026-11-22 · D5 · the scoring backlog count (pitch-score/backfill) counts by rep lines, not the 100-word floor — DONE same day: the count reads each rep line's text and applies the scorer's own repWordCount + SCORING_FLOOR; test added
