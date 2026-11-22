@@ -19,6 +19,16 @@ of each is in `docs/rss/docs/00-OPEN-DECISIONS.md` (plan decisions) and `docs/tb
 | D16 | Largest phone/video upload | 100 MB | Phone/video recordings up to ~an hour; door stays 25 MB | 9e491bda |
 | D6 | How phone and video calls are scored | A phone & video rubric drafted from the door rubric — approved as drafted | New phone/video calls scored with it; each score says which rubric it used | 98b190ca |
 
+## Decided on 23 November 2026
+
+| # | Question | Decision | What changed in the product | Commit |
+|---|---|---|---|---|
+| — | Score repaired calls automatically each night? | Keep manual; make the waiting calls visible | Remote Sales → Coaching shows its own "never been scored" panel for phone/video calls; Sales Coach's counts in-person only | eda03ec5 |
+
+Follow-on fixes from the phone & video rubric (no decision needed): its items appear in stats, breakdown and search
+(11f487e9); a phone/video pitch can earn Clean sweep (baa11d07); Pattern Interrupt (Sales Coach) counts in-person calls
+only (dfcd8279).
+
 ## Still open (not decided today)
 
 - **D9** — voice role-play, and scoring practice with the pitch rubric.
