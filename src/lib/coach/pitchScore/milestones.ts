@@ -1,4 +1,4 @@
-import { ELEMENTS } from "./rubric";
+import { rubricByVersion, type Rubric } from "./rubricRegistry";
 import type { AggregablePitch } from "./aggregate";
 
 /**
@@ -78,16 +78,30 @@ const CENTURY_COUNT = 100;
 
 export type PitchMilestoneDates = Record<PitchMilestoneKey, string | null>;
 
-/** Every element id, grouped by section — the denominator for "every phase fully hit". */
-const ELEMENTS_BY_SECTION = (() => {
+/**
+ * Every element id of a rubric, grouped by section — the denominator for "every phase fully hit".
+ *
+ * PER RUBRIC (D6, 2026-11-22). A phone/video pitch is graded on the phone & video rubric, which
+ * has no "Trucks / neighborhood notice" or "Why we're here". Measured against the door rubric's
+ * ids it could never sweep, however perfect the call. The denominator is the rubric the pitch was
+ * SCORED under (`rubricVersion`); a pitch read without one is a door pitch, the only rubric before.
+ */
+const elementsBySection = (rubric: Rubric): Map<string, string[]> => {
   const map = new Map<string, string[]>();
-  for (const e of ELEMENTS) {
+  for (const e of rubric.elements) {
     const list = map.get(e.section) ?? [];
     list.push(e.id);
     map.set(e.section, list);
   }
   return map;
-})();
+};
+const BY_SECTION_CACHE = new Map<string, Map<string, string[]>>();
+function sectionsFor(version: string | undefined): Map<string, string[]> {
+  const rubric = rubricByVersion(version);
+  let m = BY_SECTION_CACHE.get(rubric.version);
+  if (!m) BY_SECTION_CACHE.set(rubric.version, (m = elementsBySection(rubric)));
+  return m;
+}
 
 /**
  * Did this pitch hit EVERY element of EVERY phase?
@@ -106,7 +120,7 @@ function isCleanSweep(pitch: AggregablePitch): boolean {
   const hit = new Set(
     pitch.elements.filter((e) => e.grade === "hit").map((e) => e.elementId)
   );
-  for (const [, ids] of ELEMENTS_BY_SECTION) {
+  for (const [, ids] of sectionsFor(pitch.rubricVersion)) {
     if (!ids.every((id) => hit.has(id))) return false;
   }
   return true;

@@ -16,6 +16,7 @@ import { describe, it, expect } from "vitest";
 
 import { derivePitchMilestones, PITCH_MILESTONE_KEYS } from "../milestones";
 import { ELEMENTS } from "../rubric";
+import { REMOTE_ELEMENTS, REMOTE_RUBRIC_VERSION } from "../rubricRemote";
 import type { AggregablePitch } from "../aggregate";
 
 const SECTIONS_ZERO = {
@@ -207,6 +208,27 @@ describe("Clean sweep is every phase fully hit, not an absence of violations", (
       expect(derivePitchMilestones([pitch("2026-09-15", { elements: els })]).cleanSweep)
         .toBe("2026-09-15");
     }
+  });
+
+  it("judges a phone/video pitch against the phone & video rubric it was scored under (D6)", () => {
+    // Before this, the denominator was the door rubric: a remote pitch is never graded on
+    // "Trucks / neighborhood notice", so it could not sweep however perfect the call.
+    const remoteAllHit = REMOTE_ELEMENTS.map((e) => ({ elementId: e.id, grade: "hit" as const }));
+    const remote = { ...pitch("2026-11-23", { elements: remoteAllHit }), rubricVersion: REMOTE_RUBRIC_VERSION };
+    expect(derivePitchMilestones([remote]).cleanSweep).toBe("2026-11-23");
+
+    // The same grades read as a door pitch (no version = the door rubric) are not a sweep.
+    expect(derivePitchMilestones([pitch("2026-11-23", { elements: remoteAllHit })]).cleanSweep).toBeNull();
+
+    // And a remote pitch missing one remote-only element is not a sweep.
+    const oneMissed = remoteAllHit.map((e) =>
+      e.elementId === "close.enrollOnCall" ? { ...e, grade: "missed" as const } : e
+    );
+    expect(oneMissed.some((e) => e.grade === "missed")).toBe(true);
+    expect(
+      derivePitchMilestones([{ ...pitch("2026-11-23", { elements: oneMissed }), rubricVersion: REMOTE_RUBRIC_VERSION }])
+        .cleanSweep
+    ).toBeNull();
   });
 });
 

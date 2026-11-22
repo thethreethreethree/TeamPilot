@@ -78,6 +78,12 @@ export type AggregablePitch = {
    * a milestone but not when.
    */
   recordedAt?: string;
+  /**
+   * The rubric the pitch was scored under (pitch_scores.rubric_version). Optional: only readers
+   * that judge a pitch against its OWN rubric's full element list need it (Clean sweep). Absent
+   * reads as the door rubric, the only one before D6.
+   */
+  rubricVersion?: string;
   score: AggregableScore;
   /** The grades that produced the score — needed for the per-element hit/partial/missed rates. */
   elements: ReadonlyArray<{ elementId: string; grade: Grade }>;

@@ -101,7 +101,7 @@ export async function readPitchPeriod(
   // pitch_scores_by_channel (0301): the same rows, plus the channel of their session — the one module rule.
   let q = sb
     .from("pitch_scores_by_channel")
-    .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome")
+    .select("id, rep_id, recorded_at, base, bonus, violations, total, qualifying, not_qualifying_reason, section_points, outcome, rubric_version")
     .in("channel", [...contextsOf(args.module ?? "sales_coach")]);
 
   if (args.companyId) q = q.eq("company_id", args.companyId);
@@ -196,6 +196,7 @@ export async function readPitchPeriod(
     pitches.push({
       repId: (r.rep_id as string | null) ?? undefined,
       recordedAt: (r.recorded_at as string | null) ?? undefined,
+      rubricVersion: (r.rubric_version as string | null) ?? undefined,
       score: {
         base: num(r.base),
         bonus: num(r.bonus),

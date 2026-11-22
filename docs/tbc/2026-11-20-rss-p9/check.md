@@ -1053,3 +1053,20 @@ dropped out silently — period stats (aggregatePitches looped door ELEMENTS/BON
 and Remote Search's rubric-item filter. They now use ALL_ELEMENTS / ALL_BONUSES / allElementsForSection (door first, then
 remote-only; stats skip ungraded items) and Remote Search lists the phone & video items first, door-only ones marked
 "(door rubric)" for calls scored before approval. aggregate.test.ts: a remote score's own items appear in the stats.
+
+D6 ripple, second sweep (2026-11-23): every remaining reader of the door-only lists was checked. Pattern detection
+already resolves ids through ELEMENTS_BY_ID, which includes the remote-only items. One more gap: the "Clean sweep"
+milestone measured every pitch against the door rubric's elements, so a phone/video pitch could never earn it (it is
+never graded on "Trucks / neighborhood notice"). readPitchPeriod now reads rubric_version, AggregablePitch carries it,
+and Clean sweep checks against rubricByVersion (absent = door). milestones.test.ts: a remote all-hit pitch sweeps; the
+same grades read as door do not; one remote-only miss does not. Not changed, on purpose: "In the door" stays the door's
+own bonus (bonus.inside) — whether "Decision maker joins the call" earns it on remote is a product question, not a fix.
+Team assessment's theme vocabulary uses door labels only; the Sales Coach assessment is in-person, so it is unaffected.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/pitchScore → 18 files, 295 passed, exit 0
+```
+Reach: the milestones route reads readPitchPeriod with the default module (sales_coach → in-person only), and Remote
+Sales has no milestones strip, so today no screen shows a remote Clean sweep — the fix keeps the derivation right for
+when one does. pitch_scores_by_channel is `select p.*` (0301, after 0252 added rubric_version); production read of
+`id,rubric_version` on the view → HTTP 200.
