@@ -1152,3 +1152,11 @@ New readRecordings.failures.test.ts: 8 tests; run against the previous readRecor
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/recordings src/app/api/coach/sales-session/pitch-recordings src/components/sales-coach → passed, exit 0
 ```
+
+Team assessment fails loud (same sweep): readTeamAssessment ignored the rep_kpi_daily read's error, so a failure showed
+every rep at 0 doors / 0 sold and dropped reps who only knocked. It now returns null — the dashboard route's existing
+"could not load". Test added beside the existing failed-pitch-read test.
+
+```
+npx vitest run --maxWorkers=1 src/lib/coach/assessment src/app/api/coach/sales-session/coach-assessment → 54 passed, exit 0
+```

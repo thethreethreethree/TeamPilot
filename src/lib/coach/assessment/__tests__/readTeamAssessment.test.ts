@@ -48,7 +48,7 @@ const pitch = (over: Partial<Pitch> & { id: string }): Pitch => ({
 });
 
 /** Doubles the two reads: `pitch_scores` (via readPitchPeriod) and the `rep_kpi_daily` view. */
-function db(opts: { pitches?: Pitch[]; daily?: Array<Record<string, unknown>>; failPitches?: boolean }) {
+function db(opts: { pitches?: Pitch[]; daily?: Array<Record<string, unknown>>; failPitches?: boolean; failDaily?: boolean }) {
   const make = (table: string) => {
     const chain: Record<string, unknown> = {
       select: () => chain,
@@ -60,7 +60,7 @@ function db(opts: { pitches?: Pitch[]; daily?: Array<Record<string, unknown>>; f
       in: () => chain,
     };
     (chain as { then: unknown }).then = (res: (v: unknown) => void) => {
-      if (table === "rep_kpi_daily") return res({ data: opts.daily ?? [], error: null });
+      if (table === "rep_kpi_daily") return res(opts.failDaily ? { data: null, error: { message: "boom" } } : { data: opts.daily ?? [], error: null });
       if (opts.failPitches) return res({ data: null, error: { message: "boom" } });
       return res({
         data: (opts.pitches ?? []).map((p) => ({
@@ -264,6 +264,12 @@ describe("failure is a failure", () => {
   it("returns null when the pitch read fails, rather than an empty team", async () => {
     // A dashboard of zeros about a week the team worked reads as a collapse, not as a failed read.
     expect(await readTeamAssessment({ companyId: "co" }, db({ failPitches: true }))).toBeNull();
+  });
+
+  it("returns null when the door-activity read fails, rather than every rep at 0 doors (2026-11-23)", async () => {
+    expect(
+      await readTeamAssessment({ companyId: "co" }, db({ pitches: [pitch({ id: "a", repId: "rep-1" })], failDaily: true }))
+    ).toBeNull();
   });
 });
 

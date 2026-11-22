@@ -133,7 +133,13 @@ export async function readTeamAssessment(
     .eq("company_id", args.companyId);
   if (args.from) dailyQ = dailyQ.gte("local_date", args.from.slice(0, 10));
   if (args.to) dailyQ = dailyQ.lte("local_date", args.to.slice(0, 10));
-  const { data: dailyData } = await dailyQ;
+  const { data: dailyData, error: dailyError } = await dailyQ;
+  // Not "nobody knocked a door" (2026-11-23): a failed read would show every rep at 0 doors and 0 sold, and drop the
+  // reps who only knocked. The page's "could not load" (null) is the honest answer.
+  if (dailyError) {
+    console.error(`[readTeamAssessment] rep_kpi_daily read failed company=${args.companyId}: ${dailyError.message}`);
+    return null;
+  }
 
   const activityByRep = new Map<string, { doors: number; sold: number; noAnswer: number }>();
   for (const row of (dailyData ?? []) as DailyKpiRow[]) {
