@@ -1102,3 +1102,10 @@ count "could not be read"). Production, both filters on ended/reviewed sales ses
 ```
 npx vitest run --maxWorkers=1 src/components/sales-coach/__tests__/UnscoredBacklog.render.test.tsx src/app/api/coach/sales-session/pitch-score/backfill/__tests__/route.test.ts → 2 files, 47 passed, exit 0
 ```
+Today nudge (same day, completing the picked option "add the waiting count to the manager's Today"): Remote Sales →
+Today shows "N phone/video calls are waiting to be scored … Review and score in Coaching" from the same backfill count
+(?module=remote_sales). Silent at zero, for a non-manager, and on a failed read (the Coaching panel says that loudly).
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/UnscoredCallsNotice.render.test.tsx → 6 passed, exit 0
+```
