@@ -1,6 +1,6 @@
 # Phone & video pitch rubric — DRAFT for approval (decision D6)
 
-**Status: draft. Nothing is scored with this until you approve it.** Today every phone and video call is scored with
+**Status: APPROVED by the founder on 2026-11-22 ("Approve as drafted"). New phone and video calls are scored with it (`attfiber-remote-v1`); door calls keep the door rubric; past scores keep the rubric they were made under.** Today every phone and video call is scored with
 the door rubric (`attfiber-v1`, src/lib/coach/pitchScore/rubric.ts) and the score panel says so. You chose on
 2026-11-22 to have a phone/video version drafted for your review.
 

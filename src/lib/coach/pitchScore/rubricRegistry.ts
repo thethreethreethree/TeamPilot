@@ -20,11 +20,12 @@ import { REMOTE_BONUSES, REMOTE_ELEMENTS, REMOTE_RUBRIC_VERSION } from "./rubric
  * Which rubric scores a call (decision D6). One bundle per rubric, so the scorer, the prompt and the stored version
  * always come from the same rubric — never door elements with a remote version label.
  *
- * REMOTE_RUBRIC_APPROVED is OFF: the phone/video rubric is a draft (docs/rss/REMOTE-RUBRIC-DRAFT.md) under the
- * founder's review. While off, rubricForChannel returns the door rubric for every call — exactly today's behaviour.
- * Turning it on also needs its rubric_config row (pitch_scores.rubric_version is a foreign key) — see the draft doc.
+ * REMOTE_RUBRIC_APPROVED: the phone/video rubric (docs/rss/REMOTE-RUBRIC-DRAFT.md) was approved by the founder on
+ * 2026-11-22 — phone and video calls scored from then on use it; door calls keep the door rubric. Its rubric_config row
+ * (pitch_scores.rubric_version is a foreign key) is seeded by 0307. Past scores keep the rubric they were made under.
  */
-export const REMOTE_RUBRIC_APPROVED = false;
+// APPROVED 2026-11-22 by the founder (picker, "Approve as drafted"): new phone/video calls are scored with it.
+export const REMOTE_RUBRIC_APPROVED = true;
 
 export type Rubric = {
   version: string;

@@ -4,16 +4,13 @@ import { useEffect, useState } from "react";
 import { X, ChevronDown, ChevronRight } from "lucide-react";
 import {
   BASE_MAX,
-  BONUSES,
   BONUS_CAP,
   MAX_SCORE,
   PRIZE_ELIGIBLE_MIN_PITCHES,
   QUALIFYING_MIN_BASE,
-  SECTIONS,
-  VIOLATIONS,
-  elementsForSection,
   type SectionId,
 } from "@/lib/coach/pitchScore/rubric";
+import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
 
 /**
  * "How points work" — the read-only scoring rubric.
@@ -64,7 +61,12 @@ const competitionRules = [
   "A pitch never scores below 0. Think a score is wrong? Tap Dispute on the pitch.",
 ];
 
-export function ScoringRubricSheet({ onClose }: { onClose: () => void }) {
+export function ScoringRubricSheet({ onClose, version }: { onClose: () => void; /** D6: the rubric to show (a score's own version). Default: door. */ version?: string }) {
+  const rubric = rubricByVersion(version);
+  const SECTIONS = rubric.sections;
+  const BONUSES = rubric.bonuses;
+  const VIOLATIONS = rubric.violations;
+  const elementsForSection = (id: SectionId) => rubric.elements.filter((e) => e.section === id);
   // Close is the default state for every section — the sheet is a reference, and six expanded
   // sections would bury the bonus and violation tables below two screens of scrolling.
   const [openSections, setOpenSections] = useState<Partial<Record<SectionId, boolean>>>({});
@@ -100,6 +102,7 @@ export function ScoringRubricSheet({ onClose }: { onClose: () => void }) {
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 bg-base border-b border-default">
           <div>
             <h2 className="text-sm font-semibold text-primary">How points work</h2>
+            <p className="text-[11px] text-muted">{rubric.label}</p>
             <p className="text-[11px] text-muted">EloState AT&amp;T Fiber pitch rubric</p>
           </div>
           {/* "Close rubric", not "Close": the rubric HAS a section called Close, and two buttons named

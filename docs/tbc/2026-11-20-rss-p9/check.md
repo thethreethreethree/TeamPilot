@@ -1035,3 +1035,16 @@ npx vitest run (pitchScore, patterns, sales-coach components, assessment, record
 D6 follow-up: the attfiber-remote-v1 rubric_config row is seeded INACTIVE by 0307, generated from
 remoteRubricConfigRow() (rubricConfigMigration.test.ts asserts equality and is_active = false). Approval is now only
 REMOTE_RUBRIC_APPROVED = true. PGlite replay of all 307 migrations: failures 0; claims 6 and 7 still pass.
+
+## Addendum 2026-11-22 — D6 approved: phone & video calls scored with their own rubric
+
+Founder (picker): "Approve as drafted". REMOTE_RUBRIC_APPROVED = true — scoreSession grades phone/video calls with
+attfiber-remote-v1 (its rubric_config row was seeded by 0307; the FK holds). Surfaces follow the SCORE's own version, not
+the channel: the score note reads "Scored with the phone & video rubric." for new remote scores and keeps "Scored with
+the door rubric — … before the phone & video rubric was approved." for older ones; the rubric sheet and the rubric route
+(?version=) show the rubric a score was made under (rubricByVersion). CODE_RUBRIC_ROWS now lists phone and video rows,
+so the channel caveat is gone for them. Draft doc, decisions record updated.
+
+```
+npx vitest run src/lib/coach/pitchScore src/lib/coach/remote src/components/sales-coach src/app/api/coach/sales-session/pitch-score → all passed, exit 0
+```

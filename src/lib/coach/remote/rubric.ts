@@ -14,7 +14,12 @@ export interface RubricRow { version: string; channel: Channel | 'any'; active: 
  * door rubric". A phone or video score therefore carries the D6 caveat until the scorer reads per-channel
  * rubrics (RSS Phase 3 step 1, open).
  */
-export const CODE_RUBRIC_ROWS: RubricRow[] = [{ version: 'code', channel: 'door', active: true }];
+// D6 approved 2026-11-22: phone and video have their own rubric (attfiber-remote-v1, rubricRegistry.ts).
+export const CODE_RUBRIC_ROWS: RubricRow[] = [
+  { version: 'code', channel: 'door', active: true },
+  { version: 'attfiber-remote-v1', channel: 'phone', active: true },
+  { version: 'attfiber-remote-v1', channel: 'video', active: true },
+];
 
 export function rubricFor(channel: Channel, rows: RubricRow[]): { version: string; caveat: string | null } {
   const active = rows.filter((r) => r.active);

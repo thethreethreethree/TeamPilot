@@ -1,19 +1,15 @@
+import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
   BASE_MAX,
   BONUS_CAP,
-  BONUSES,
-  ELEMENTS,
   GRADE_CREDIT,
   MAX_SCORE,
   NEVER_GRADE_FOR_ACCURACY,
   PRIZE_ELIGIBLE_MIN_PITCHES,
   QUALIFYING_MIN_BASE,
-  RUBRIC_VERSION,
-  SECTIONS,
-  VIOLATIONS,
 } from "@/lib/coach/pitchScore/rubric";
 
 /**
@@ -70,9 +66,11 @@ export async function GET(req: NextRequest) {
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
+  // D6: ?version= serves that rubric (a score's own); default is the door rubric, as before.
+  const rubric = rubricByVersion(req.nextUrl?.searchParams.get("version"));
   return NextResponse.json(
     {
-      version: RUBRIC_VERSION,
+      version: rubric.version,
       /** The three structural numbers the boards print: "100 + 30 − Viol. = 130 Max score". */
       baseMax: BASE_MAX,
       bonusCap: BONUS_CAP,
@@ -94,10 +92,10 @@ export async function GET(req: NextRequest) {
       prizeEligibleMinPitches: PRIZE_ELIGIBLE_MIN_PITCHES,
       /** What the AI may never grade for accuracy — the answer a rep gets when disputing a score. */
       neverGradeForAccuracy: NEVER_GRADE_FOR_ACCURACY,
-      sections: SECTIONS,
-      elements: ELEMENTS,
-      bonuses: BONUSES,
-      violations: VIOLATIONS,
+      sections: rubric.sections,
+      elements: rubric.elements,
+      bonuses: rubric.bonuses,
+      violations: rubric.violations,
     },
     {
       headers: {

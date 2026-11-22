@@ -7,7 +7,7 @@ import { ScoringRubricSheet } from "./ScoringRubricSheet";
 import type { StoredPitch } from "@/lib/coach/pitchScore/readPitchScore";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import type { SalesContext } from "@/lib/coach/sessionContext";
-import { rubricFor, CODE_RUBRIC_ROWS } from "@/lib/coach/remote/rubric";
+import { REMOTE_RUBRIC_VERSION } from "@/lib/coach/pitchScore/rubricRemote";
 
 /**
  * The Pitch Score, on the session it came from.
@@ -174,10 +174,14 @@ export function PitchScorePanel({
 
       {state.kind === "scored" && (
         <>
-          {/* D6 (open): every pitch is graded with the door rubric in code, so a phone/video score says so —
-              one plain line above the total, never hidden (docs/rss/docs/06-UI-SPEC.md). */}
+          {/* D6 (approved 2026-11-22): a phone/video score says which rubric it was made under — the SCORE's own
+              version, so a call scored on the door rubric before approval keeps saying so (never hidden). */}
           {channel && channel !== "in_person" && (
-            <p className="mb-2 text-[11px] text-muted">{rubricFor(channel, CODE_RUBRIC_ROWS).caveat}</p>
+            <p className="mb-2 text-[11px] text-muted">
+              {state.pitch.rubricVersion === REMOTE_RUBRIC_VERSION
+                ? "Scored with the phone & video rubric."
+                : "Scored with the door rubric — this call was scored before the phone & video rubric was approved."}
+            </p>
           )}
           <PitchDetail
             pitch={state.pitch}
@@ -188,7 +192,12 @@ export function PitchScorePanel({
         </>
       )}
 
-      {rubricOpen && <ScoringRubricSheet onClose={() => setRubricOpen(false)} />}
+      {rubricOpen && (
+        <ScoringRubricSheet
+          onClose={() => setRubricOpen(false)}
+          version={state.kind === "scored" ? state.pitch.rubricVersion : channel === "phone" || channel === "video" ? REMOTE_RUBRIC_VERSION : undefined}
+        />
+      )}
       {disputing && state.kind === "scored" && (
         <DisputeSheet
           pitchId={state.pitch.id}

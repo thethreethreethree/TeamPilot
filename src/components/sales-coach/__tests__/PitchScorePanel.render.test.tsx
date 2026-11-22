@@ -189,3 +189,17 @@ describe("dispute", () => {
     expect(screen.queryByText(/^Sent\./)).toBeNull();
   });
 });
+
+describe("which rubric a phone/video score was made with (D6, approved 2026-11-22)", () => {
+  it("a remote call scored with the phone & video rubric says so", async () => {
+    respond({ ok: true, body: { pitch: { ...SCORED, rubricVersion: "attfiber-remote-v1" } } });
+    render(<PitchScorePanel sessionId="s1" channel="phone" />);
+    expect(await screen.findByText("Scored with the phone & video rubric.")).toBeTruthy();
+  });
+
+  it("a remote call scored on the door rubric before approval keeps saying so", async () => {
+    respond({ ok: true, body: { pitch: SCORED } });
+    render(<PitchScorePanel sessionId="s1" channel="video" />);
+    expect(await screen.findByText(/Scored with the door rubric/)).toBeTruthy();
+  });
+});

@@ -8,7 +8,7 @@ import { buildPitchScoreSystemPrompt } from "../pitchScorePrompt";
  * The phone & video rubric draft (D6, docs/rss/REMOTE-RUBRIC-DRAFT.md). Its promise to the founder: same sections and
  * weights as the door rubric, so scores stay comparable; and it scores nothing until approved.
  */
-describe("phone & video rubric draft", () => {
+describe("phone & video rubric (D6, approved 2026-11-22)", () => {
   it("has the door rubric's sections and weights — every section sums to the same maximum, 100 in all", () => {
     for (const s of SECTIONS) {
       const remote = REMOTE_ELEMENTS.filter((e) => e.section === s.id).reduce((n, e) => n + e.points, 0);
@@ -36,9 +36,11 @@ describe("phone & video rubric draft", () => {
     expect(ELEMENTS_BY_ID.get("intro.trucks")?.label).toBe("Trucks / neighborhood notice"); // door items unchanged
   });
 
-  it("is NOT used until approved: every call gets the door rubric today", () => {
-    expect(REMOTE_RUBRIC_APPROVED).toBe(false);
-    for (const c of ["phone", "video", "in_person", null]) expect(rubricForChannel(c)).toBe(DOOR_RUBRIC);
+  it("approved by the founder 2026-11-22: phone and video calls get it today; door calls keep the door rubric", () => {
+    expect(REMOTE_RUBRIC_APPROVED).toBe(true);
+    expect(rubricForChannel("phone")).toBe(REMOTE_RUBRIC);
+    expect(rubricForChannel("video")).toBe(REMOTE_RUBRIC);
+    for (const c of ["in_person", null]) expect(rubricForChannel(c)).toBe(DOOR_RUBRIC);
   });
 
   it("once approved, phone and video get it and door doesn't; stored scores read by their own version", () => {
