@@ -76,7 +76,8 @@ export async function listProspects(db: SupabaseClient, repId?: string): Promise
   const linkRows = (links ?? []) as Array<{ prospect_id: string; task_id: string }>;
   let tasks: TaskRow[] = [];
   if (linkRows.length) {
-    const { data: t, error: tErr } = await db.from("tasks").select("id, title, status, due_date").in("id", linkRows.map((l) => l.task_id));
+    // A task deleted on the Tasks board is soft-deleted (deleted_at): it is not an open to-do any more.
+    const { data: t, error: tErr } = await db.from("tasks").select("id, title, status, due_date").in("id", linkRows.map((l) => l.task_id)).is("deleted_at", null);
     if (tErr) {
       console.error(`[prospects] to-dos failed: ${tErr.message}`);
       return null;

@@ -726,3 +726,15 @@ full-page escape hatch.
 npx vitest run src/components/remote-sales → Test Files 2 passed (2), Tests 10 passed (10)
 npm run check → Test Files 802 passed | 1 skipped (803), CHECK_EXIT=0
 ```
+
+## Addendum 2026-11-22 — pipeline to-dos ignore soft-deleted tasks (Macro Mode audit)
+
+Audited the pipeline's dependence on Tasks against the replayed schema (PGlite, all 303 migrations): tasks' only policy
+is `tasks - all` (company-scoped, any member), so a rep's to-do insert and "Done" (PATCH /api/tasks, any signed-in member)
+pass. Found: tasks carry a soft-delete trigger and `deleted_at`, and both pipeline reads selected tasks without filtering
+it — a to-do deleted on the Tasks board would still read as the prospect's open "To do". Both reads now filter
+`deleted_at is null`; prospects.test.ts asserts the filter, the next-to-do choice, and that a failed read is null.
+
+```
+npx vitest run src/lib/coach/remote/__tests__/prospects.test.ts → Tests 2 passed (2), exit 0
+```

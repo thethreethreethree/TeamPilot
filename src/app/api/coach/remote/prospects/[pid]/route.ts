@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     sessionIds.length
       ? db.from("coaching_sessions").select("id, client_label, context, started_at, outcome").in("id", sessionIds).order("started_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
-    taskIds.length ? db.from("tasks").select("id, title, status, due_date").in("id", taskIds) : Promise.resolve({ data: [], error: null }),
+    taskIds.length ? db.from("tasks").select("id, title, status, due_date").in("id", taskIds).is("deleted_at", null) : Promise.resolve({ data: [], error: null }),
   ]);
   return NextResponse.json({
     prospect: p,
