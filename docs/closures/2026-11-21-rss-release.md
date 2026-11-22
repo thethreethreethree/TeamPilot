@@ -51,3 +51,16 @@ on a real upload; A16/A21 audits above.
 | ThinkerThinker.md A13 (vocabulary once, by category) | 2026-11-21T11:16Z | "Which calls are remote" stays one definition: REMOTE_CONTEXTS / isRemoteContext drive the module router, the start panel and remoteOnly search — no new copy of the phone/video list. |
 | ThinkerThinker.md A14 (data path ≠ render path) | 2026-11-21T22:44Z | **Partly embodied.** Every moved render branch compiles (build:ci) and its tests pass (101 files), but the two-module call page has not been looked at on the live site yet — the founder's first remote call is that check. |
 | ThinkerThinker.md A18 (the label is the defense) | 2026-11-21T22:44Z | The moved coaching inbox keeps its labels ("open requests", "last feedback") — it invites coaching, not enforcement; nothing relabelled. |
+
+## Additional reads — prospect audio, call comments, Macro Mode (2026-11-22, commits eab8523c → 73c92a86)
+
+| Asset | Read in this session | Intent vs behaviour |
+|---|---|---|
+| CLAUDE.md §3.4 (lines 380–386) | 2026-11-22T08:36Z | **Embodied for capture honesty:** every case where the prospect's side is NOT captured (unsupported browser, share declined, tab shared without audio, share lost) is told to the rep in words; nothing falls back to mic-only silently. §3.4's month-1 control is untouched: the new AI reads (call brief, follow-up, day plan) are controlExempt like follow-through — factual reads and rep-authored drafts, not guidance. That exemption is a judgement, recorded here so it can be challenged. |
+| CLAUDE.md §2.2 (lines 307–317) | 2026-11-22T08:48Z | Comments: one writer, one reader, the database's rule decides who reads. "Is this to-do done": the Tasks module's isTaskClosed; "Done" walks TASK_STATUS_TRANSITIONS through PATCH /api/tasks — no second copy of either rule. |
+| CLAUDE.md §3.1 (lines 339–344) | 2026-11-22T09:04Z | The pipeline's facts are events (remote_prospect_events); current values are derived (remote_prospects_current); every 0303 table has no-update/no-delete rules (harness claim 6). |
+| CLAUDE.md §3.3 (lines 368–373) | 2026-11-22T09:04Z | **Partly.** The rep stays the author: drafts are sent by the rep, the checklist is saved only after review, the day plan only organizes the rep's words. Not embodied: §3.3's "ASK the user first" — the brief and Next Meeting plan are generated before the rep is asked what they think the next steps are. A rep-first prompt on Next Meeting is a candidate follow-up. |
+| CLAUDE.md §1.5.1 layer 3 (lines 94–98) | 2026-11-22T09:07:38Z | Traced two paths after building and fixed both: manager inbox → Macro call page (comment box moved into Coaching), and the manager's tabs in Macro Mode (unchanged, per the spec). Found during the build: a sales-only company cannot open /dashboard/operations, so to-dos are shown and completed inside Remote Sales. |
+
+**Open after these reads:** the live checks in docs/residuals/OPEN.md (2026-11-22 entries); §3.3's ask-first gap on
+Next Meeting (above).
