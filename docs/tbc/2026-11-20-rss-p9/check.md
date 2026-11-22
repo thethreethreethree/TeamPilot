@@ -1344,3 +1344,15 @@ Known edge, documented in the code: a daylight-saving change day uses that morni
 ```
 npx vitest run --maxWorkers=1 src/lib/coach/remote/__tests__/macroMode.test.ts → 15 passed, exit 0
 ```
+
+Recording consent pinned (no code change; neither gate had a test). RecordingConsent: present-tense check with a line to
+say before a live call, past tense for an upload; the confirmation is posted per call with how; a failed save throws;
+the call page says confirmed/when/how, or "No recording-consent confirmation on record", and a failed read claims
+neither. SessionRecordingUpload: the upload button is disabled until the box is ticked; the confirmation is stored before
+anything uploads, and if it can't be, nothing uploads and the rep sees why; in-person uploads ask nothing. Mutation:
+removing the button's consent condition fails the gate test. (Live Start's gate — `disabled={!earpieceOk || (remoteCall
+&& !consentOk)}` in LiveCoachingPanel — is unchanged; that component needs a mic and share picker to render.)
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RecordingConsent.render.test.tsx src/components/sales-coach/__tests__/SessionRecordingUpload.consent.render.test.tsx → 12 passed, exit 0
+```
