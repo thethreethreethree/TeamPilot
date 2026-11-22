@@ -1211,3 +1211,11 @@ Sweep closed (same day): every `.data ??` read in src/app/api/coach and src/lib/
 team-analytics as an explicit `degraded` flag, disputes, rep-activity, coach-assessment, scoreHistory were already
 right). Error-ignoring reads that remain return display NAMES (profiles.full_name, fallback "there"/"Unnamed"),
 best-effort notifications, or worker samples that retry on the next run — none of them presents a failure as a fact.
+
+Pre-push verification at 4e19347a (2026-11-23), for the 66 unpushed commits:
+
+```
+npm run build:ci → "✓ Compiled successfully", 439/439 pages, "✅ Secretless build PASSED", exit 0
+npm run db:verify → 305 migration files (through 0307), "nothing pending — DB is up to date"
+npm run verify:live → "✅ ALL 31 invariants hold."
+```
