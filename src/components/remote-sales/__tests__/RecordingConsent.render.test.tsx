@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
-import { ConsentCheck, ConsentStatus, confirmRecordingConsent, CONSENT_LINE } from "../RecordingConsent";
+import { canStartLive, ConsentCheck, ConsentStatus, confirmRecordingConsent, CONSENT_LINE } from "../RecordingConsent";
 
 /**
  * Recording consent on phone/video calls (founder 2026-11-22: "Rep confirms at Start"). Pinned 2026-11-23: the check
@@ -69,5 +69,17 @@ describe("consent on the call page", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("may live recording start (the Start button and startLive share this rule)", () => {
+  it("a phone/video call needs the earpiece AND the prospect's consent", () => {
+    expect(canStartLive({ earpieceOk: true, remoteCall: true, consentOk: true })).toBe(true);
+    expect(canStartLive({ earpieceOk: true, remoteCall: true, consentOk: false })).toBe(false);
+    expect(canStartLive({ earpieceOk: false, remoteCall: true, consentOk: true })).toBe(false);
+  });
+  it("an in-person call needs only the earpiece", () => {
+    expect(canStartLive({ earpieceOk: true, remoteCall: false, consentOk: false })).toBe(true);
+    expect(canStartLive({ earpieceOk: false, remoteCall: false, consentOk: true })).toBe(false);
   });
 });

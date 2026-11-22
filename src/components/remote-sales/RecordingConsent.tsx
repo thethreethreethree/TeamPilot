@@ -11,6 +11,15 @@ import { ShieldCheck } from "lucide-react";
  */
 export const CONSENT_LINE = "Just so you know, I record my calls so I can review them and serve you better — is that okay?";
 
+/**
+ * May live recording start? The earpiece is in, and on a phone/video call the rep has confirmed the prospect knows
+ * (founder 2026-11-22). ONE rule for the Start button's disabled state AND startLive itself (2026-11-23), so recording
+ * cannot begin without it even if the button were bypassed. Synchronous: the share picker needs the click's activation.
+ */
+export function canStartLive(args: { earpieceOk: boolean; remoteCall: boolean; consentOk: boolean }): boolean {
+  return args.earpieceOk && (!args.remoteCall || args.consentOk);
+}
+
 export function ConsentCheck({ checked, onChange, past = false }: { checked: boolean; onChange: (v: boolean) => void; past?: boolean }) {
   return (
     <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] text-secondary">

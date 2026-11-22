@@ -13,7 +13,7 @@ import { useExperienceMode } from "@/components/experience/ExperienceModeProvide
 import { persistRecording } from "@/lib/coach/v5/persistRecording";
 import { callAudioNote, callAudioSupported } from "@/lib/coach/v5/callAudio";
 import { micHearsRepOnly } from "@/lib/coach/sessionContext";
-import { ConsentCheck, confirmRecordingConsent } from "@/components/remote-sales/RecordingConsent";
+import { canStartLive, ConsentCheck, confirmRecordingConsent } from "@/components/remote-sales/RecordingConsent";
 
 /**
  * LiveCoachingPanel — Live Sales Coach S1b surface.
@@ -91,6 +91,7 @@ export function LiveCoachingPanel({
   const [consentOk, setConsentOk] = useState(false);
   const [consentErr, setConsentErr] = useState<string | null>(null);
   const startLive = () => {
+    if (!canStartLive({ earpieceOk, remoteCall: !!remoteCall, consentOk })) return;
     setConsentErr(null);
     // start() FIRST and un-awaited: the browser opens the call-tab share picker only inside this click's user
     // activation, so a network round-trip before it could make the share fail. The confirmation (already ticked — Start
@@ -323,7 +324,7 @@ export function LiveCoachingPanel({
             <LoadingButton
               pending={status === "connecting"}
               onClick={() => void startLive()}
-              disabled={!earpieceOk || (remoteCall && !consentOk)}
+              disabled={!canStartLive({ earpieceOk, remoteCall: !!remoteCall, consentOk })}
               icon={<Radio className="w-3.5 h-3.5" aria-hidden />}
               pendingLabel="Connecting…"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors"

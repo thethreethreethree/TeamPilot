@@ -1356,3 +1356,12 @@ removing the button's consent condition fails the gate test. (Live Start's gate 
 ```
 npx vitest run --maxWorkers=1 src/components/remote-sales/__tests__/RecordingConsent.render.test.tsx src/components/sales-coach/__tests__/SessionRecordingUpload.consent.render.test.tsx → 12 passed, exit 0
 ```
+Live Start's consent rule is now one tested function (same day): canStartLive({ earpieceOk, remoteCall, consentOk }) in
+RecordingConsent.tsx — earpiece in, and on a phone/video call the prospect's consent confirmed. LiveCoachingPanel uses it
+for the Start button's disabled state (same expression as before) AND as the first line of startLive, so recording can't
+begin without consent even if the button were bypassed; the check is synchronous, so the share picker still opens
+inside the click. 2 tests.
+
+```
+npx vitest run --maxWorkers=1 src/components/remote-sales → 31 passed, exit 0
+```
