@@ -51,6 +51,8 @@ const Body = z.object({
   // RSS Phase 7 (0282): practising an ASSIGNED scenario. The server then scores against the scenario's own skill
   // (never a client-sent one) and records the attempt for the rep and their manager.
   assignmentId: z.string().uuid().optional(),
+  /** F17.4: a manager's test run of a scenario before assigning it — scored for them to see, recorded nowhere. */
+  testRun: z.boolean().optional(),
   messages: z.array(Message).max(80),
 });
 
@@ -307,9 +309,12 @@ async function handleRoleplay(req: NextRequest) {
     // can't drop it). The rep sees the trend on their portal; the manager sees per-rep growth over time (§A18).
     const repId = auth.user.id;
     const sc = scored.scorecard;
-    after(() =>
-      recordPracticeScore({ companyId, repId, focus: sc.focus, applied: sc.applied, score: sc.score }),
-    );
+    // A test run (F17.4) is the manager trying a scenario out: it must not enter their own practice history.
+    if (!body.testRun) {
+      after(() =>
+        recordPracticeScore({ companyId, repId, focus: sc.focus, applied: sc.applied, score: sc.score }),
+      );
+    }
     if (assignment) {
       const passed = passedFor(sc.score, assignment.scenario.pass_score);
       after(async () => {

@@ -131,7 +131,9 @@ export function TrainingManager() {
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="font-semibold text-primary">{s.title}</span>
                 <span className="text-muted">{CHANNEL[s.channel]} · {s.difficulty} · {s.length_min} min{s.pass_score !== null ? ` · pass ${s.pass_score}` : ""}</span>
-                <button type="button" onClick={() => { setAssignFor(assignFor === s.id ? null : s.id); setPicked([]); }} className="ml-auto text-brand hover:underline">Assign</button>
+                {/* F17.4: try it as a rep will, before assigning — a test run records nothing. */}
+                <a href={`/dashboard/remote-sales/practice?scenario=${s.id}`} className="ml-auto text-secondary hover:text-primary hover:underline">Try it</a>
+                <button type="button" onClick={() => { setAssignFor(assignFor === s.id ? null : s.id); setPicked([]); }} className="text-brand hover:underline">Assign</button>
                 <button type="button" disabled={busy} onClick={() => send("/api/coach/remote/scenarios", "PATCH", { id: s.id }, "Scenario retired.")} className="text-muted hover:text-primary">Retire</button>
               </div>
               <p className="text-secondary">Skill: {s.focus}</p>

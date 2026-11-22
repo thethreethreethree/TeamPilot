@@ -858,3 +858,17 @@ stopping the call.
 ```
 npx vitest run src/app/api/coach/remote/[id]/consent src/components/sales-coach src/test → Tests 493 passed (493), exit 0
 ```
+
+## Addendum 2026-11-22 — a manager tries a training scenario before assigning it (Gong F17.4)
+
+F17.4 was LACK: a manager wrote a scenario and assigned it without ever playing it. Remote Sales → Training now has "Try
+it" on each scenario: the role-play opens seeded with it (persona, situation, channel, skill; ?scenario=<id>, read from
+the manager-only scenarios list) under a "Test run — not recorded" banner. Found while checking that promise: every
+scored practice is written to the person's practice history (recordPracticeScore), so a test run would have entered
+the manager's own stats. The role-play route now takes testRun and skips recording; with no assignment id no
+training_attempt is stored either.
+
+```
+npx vitest run src/app/api/coach/sales-session/roleplay → Tests 18 passed (18), exit 0 (testRun.route.test.ts: ordinary
+practice recorded once; a test run recorded nowhere)
+```

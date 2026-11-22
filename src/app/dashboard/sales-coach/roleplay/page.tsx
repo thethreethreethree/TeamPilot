@@ -63,6 +63,9 @@ export default function SalesCoachRoleplayPage() {
   // RSS Phase 7: practising an assigned scenario (?assignment=<id>). The server scores it against the scenario's skill
   // and records the attempt; `attempt` carries the pass result back.
   const [assignment, setAssignment] = useState<{ id: string; title: string; passScore: number | null } | null>(null);
+  // Gong F17.4 (2026-11-22): a manager tries a scenario before assigning it (?scenario=<id>). Seeded like an
+  // assignment, but nothing is recorded against anyone — there is no assignment id, so no attempt is stored.
+  const [testRun, setTestRun] = useState<{ title: string; passScore: number | null } | null>(null);
   const [attempt, setAttempt] = useState<{ passed: boolean | null; passScore: number | null } | null>(null);
   const [persona, setPersona] = useState<string>(
     PERSONAS[0]?.label ?? "Skeptical & guarded"
@@ -106,7 +109,7 @@ export default function SalesCoachRoleplayPage() {
       // roleplay and graft the new skill onto it (which would score an unrelated conversation against a skill it never
       // practiced). Skip recovery and drop the stale copy so the focus effect below seeds a fresh setup + banner.
       const qs = new URLSearchParams(window.location.search);
-      if (qs.get("focus")?.trim() || qs.get("assignment")) {
+      if (qs.get("focus")?.trim() || qs.get("assignment") || qs.get("scenario")) {
         sessionStorage.removeItem(STORAGE_KEY);
         return;
       }
@@ -159,6 +162,30 @@ export default function SalesCoachRoleplayPage() {
         },
       )
       .catch(() => setError("Couldn't load the assigned practice."));
+  }, []);
+
+  // F17.4: a manager's test run of a scenario (?scenario=<id>) — the manager-only scenarios list, same seeding.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("scenario");
+    if (!id) return;
+    fetch("/api/coach/remote/scenarios")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (j: {
+          scenarios?: Array<{ id: string; title: string; persona: string; situation: string; focus: string; channel: "in_person" | "video" | "phone"; pass_score: number | null }>;
+        } | null) => {
+          const sc = j?.scenarios?.find((s) => s.id === id);
+          if (!sc) return setError("That scenario isn't available to test.");
+          scenarioAttemptedRef.current = sc.focus;
+          setTestRun({ title: sc.title, passScore: sc.pass_score });
+          setContext(sc.channel);
+          setPersona(sc.persona);
+          setCustom(sc.situation);
+          setPracticeFocus(sc.focus);
+          setScenario({ title: sc.title, persona: sc.persona, situation: sc.situation });
+        },
+      )
+      .catch(() => setError("Couldn't load the scenario."));
   }, []);
 
   // Focus seed from the Training tab (?focus=...). Read once on mount from the URL (avoids useSearchParams' Suspense
@@ -298,6 +325,7 @@ export default function SalesCoachRoleplayPage() {
         customPrompt: custom.trim() || undefined,
         focus: practiceFocus ?? undefined,
         assignmentId: assignment?.id,
+        ...(testRun ? { testRun: true } : {}),
         messages: msgs,
       }),
     });
@@ -410,6 +438,17 @@ export default function SalesCoachRoleplayPage() {
                     )}
                   </>
                 ) : null}
+              </DeckCard>
+            )}
+
+            {testRun && (
+              <DeckCard className="p-4">
+                <p className="text-[10px] uppercase tracking-wide text-muted">Test run — not recorded</p>
+                <p className="text-sm text-primary font-semibold">{testRun.title}</p>
+                <p className="text-xs text-secondary mt-0.5">
+                  Try the scenario the way a rep will see it, before you assign it. Nothing is saved or counted
+                  {testRun.passScore !== null ? `; its pass mark is ${testRun.passScore}/100` : ""}.
+                </p>
               </DeckCard>
             )}
 
