@@ -42,7 +42,7 @@ login page, a button for a provider nobody configured, an import that invites so
   {"id": "§1.5.2", "source_file": "CLAUDE.md", "line_range": "139-141", "read_at": "2026-11-20T20:37:00Z",
    "why_it_governs": "Look past the task: the gate's own detectors can be wrong.",
    "how_this_build_will_embody_it": "INVARIANT 33's ignoreDuplicates exemption and sql-harness's empty-reason probe were both found wrong and fixed."},
-  {"id": "§6", "source_file": "CLAUDE.md", "line_range": "434-436", "read_at": "2026-11-20T20:37:00Z",
+  {"id": "§6", "source_file": "CLAUDE.md", "line_range": "450-452", "read_at": "2026-11-20T20:37:00Z",
    "why_it_governs": "Checklist item 0: a decision the plan already settles is not put to the founder.",
    "how_this_build_will_embody_it": "D18 follows the plan's stand-in (unmounted, allowlisted with reason), not a picker."},
   {"id": "A19", "source_file": "ThinkerThinker.md", "line_range": "455-460", "read_at": "2026-11-20T20:37:00Z",
