@@ -1311,3 +1311,10 @@ practice-ask, tracker-hits, search, search/export — no read ignores its error.
 ```
 npx vitest run --maxWorkers=1 src/app/api/coach/remote/webhooks/__tests__ → 5 passed, exit 0
 ```
+Settings routes pinned (no code change): vocabulary (a rep can't change it; an admin's change is a new row, audited;
+non-string lists refused; 503 before 0306) and Remote Sales Macro Mode (writes only the caller's own profile column; a
+zero-row write is a 500, not an echo; signed out 401; booleans only). 9 tests, all passing on the code as it was.
+
+```
+npx vitest run --maxWorkers=1 src/app/api/coach/remote/settings/vocabulary/__tests__ src/app/api/coach/remote/macro-mode/__tests__ → 9 passed, exit 0
+```
