@@ -1454,3 +1454,11 @@ fixture of all four statements); its change is typed and linted, and small.
 ```
 npx vitest run --maxWorkers=1 src/components/settings/__tests__/LlmConnectionPanel.render.test.tsx → 2 passed, exit 0
 ```
+Guard against the pattern returning: src/lib/__tests__/noFailedReadAsEmpty.test.ts scans src/components and src/app for
+`r.ok ? r.json() : { …null | [] | false… }`. Its first run found two more (fallback `false`): both are Sales Coach's
+Macro Mode read falling back to off — the full module, a safe default that can only show more — so they are listed in
+the test with that reason rather than changed. Any new instance fails the gate.
+
+```
+npx vitest run --maxWorkers=1 src/lib/__tests__/noFailedReadAsEmpty.test.ts → 2 passed, exit 0
+```
