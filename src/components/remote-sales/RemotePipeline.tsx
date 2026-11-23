@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Check, Loader2, Phone, Plus, Sparkles, Video, X } from "lucide-react";
+import { AlertCircle, Check, GraduationCap, Loader2, Phone, Plus, Sparkles, Video, X } from "lucide-react";
 import { useIsSalesCoachManager, useCurrentUserRole, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
@@ -455,6 +455,8 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </div>
       </div>
 
+      {d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
+
       <div>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Calls</p>
         {d.calls.length === 0 ? (
@@ -577,5 +579,74 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Training by deal stage (2026-11-23; 0310; founder picker "Rep starts it"). The practice scenarios a manager set for
+ * this prospect's stage. The prospect's own rep starts one as their own practice, due on the next call, and goes
+ * straight into the role-play; a manager viewing a report's prospect sees the list without the button. Keyed by the
+ * stage, so renaming the stage re-reads it. Shows nothing when no scenario is set for the stage.
+ */
+type StageScenario = { id: string; title: string; focus: string; difficulty: string; lengthMin: number; assignmentId: string | null };
+
+function StagePractice({ prospectId }: { prospectId: string }) {
+  const router = useRouter();
+  const [res, setRes] = useState<{ stage: string | null; canStart: boolean; scenarios: StageScenario[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/coach/remote/stage-practice?prospectId=${encodeURIComponent(prospectId)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j) => live && setRes(j))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [prospectId]);
+
+  if (failed) return <p className="text-xs text-muted">Couldn&apos;t load practice for this stage.</p>;
+  if (!res || res.scenarios.length === 0) return null;
+
+  const start = async (s: StageScenario) => {
+    if (s.assignmentId) return router.push(`/dashboard/remote-sales/practice?assignment=${s.assignmentId}`);
+    setBusy(s.id);
+    setErr(null);
+    try {
+      const r = await fetch("/api/coach/remote/stage-practice", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prospectId, scenarioId: s.id }) });
+      const j = (await r.json().catch(() => ({}))) as { assignmentId?: string; error?: string };
+      if (!r.ok || !j.assignmentId) throw new Error(j.error ?? "Couldn't start the practice.");
+      router.push(`/dashboard/remote-sales/practice?assignment=${j.assignmentId}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't start the practice.");
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        <GraduationCap className="h-3.5 w-3.5" aria-hidden /> Practice for “{res.stage}”
+      </p>
+      <ul className="space-y-1">
+        {res.scenarios.map((s) => (
+          <li key={s.id} className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium text-primary">{s.title}</span>
+              <span className="text-muted"> · {s.lengthMin} min · {s.difficulty} · {s.focus}</span>
+            </span>
+            {res.canStart && (
+              <button type="button" disabled={busy !== null} onClick={() => void start(s)} className="rounded-lg border border-brand px-2 py-0.5 text-[11px] font-semibold text-brand hover:bg-brand/10 disabled:opacity-50">
+                {busy === s.id ? "Starting…" : s.assignmentId ? "Continue" : "Practice"}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {err && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{err}</p>}
+    </div>
   );
 }

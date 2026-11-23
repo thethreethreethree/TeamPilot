@@ -2423,6 +2423,8 @@ const TREE_ROUTE_ALLOWLIST = new Map([
     "getSession reads the session through the caller's RLS (switched in 0273) before anything else; a manager outside the chain gets 404 there. The service role is used only to archive a score already proven visible."],
   ["src/app/api/coach/remote/search/export/route.ts",
     "The exported calls are read by runCallSearch through the caller's own client (RLS, tree-scoped since 0273); the service role writes only the audit_log row recording the export."],
+  ["src/app/api/coach/remote/scenarios/stages/route.ts",
+    "The service role reads and writes only company-wide objects — scenario stage tags and the scenario row being tagged (0310), both pinned to the manager's company, like the scenarios route. The one read of rep data (stage names on prospects) goes through the caller's own client, so the reporting tree applies."],
   ["src/app/api/coach/sales-session/pitch-score/leaderboard/route.ts",
     "The Scoreboard is a company-wide ranking shown to reps as well as managers, by product design; it returns standings and names, not sessions, scores' evidence or transcripts."],
 ]);

@@ -30,6 +30,7 @@ of each is in `docs/rss/docs/00-OPEN-DECISIONS.md` (plan decisions) and `docs/tb
 | D14 | Default recording retention | 90 days | With no company setting, audio older than 90 days is removed nightly, however many calls; a company's "keep the last N" still wins; Protection says which applies. First run removes 1 recording (of 18) | (this commit) |
 | D7 | Rubric grades | Keep hit / partial / missed | Nothing | — |
 | D19 | Talk-pattern settings | Keep Gong's values | Nothing | — |
+| — | Training by deal stage: how a stage scenario reaches the rep | Rep starts it | A manager tags a scenario with stage names (Training → Scenarios → "+ Stage"); a rep's open prospect at that stage shows "Practice for …" and one click starts it as their own practice, due on the next call, marked "self-started" | (this commit) |
 
 Follow-on fixes from the phone & video rubric (no decision needed): its items appear in stats, breakdown and search
 (11f487e9); a phone/video pitch can earn Clean sweep (baa11d07); Pattern Interrupt (Sales Coach) counts in-person calls

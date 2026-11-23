@@ -71,6 +71,8 @@ export async function GET(req: NextRequest) {
       repId: r.rep_id,
       repName: nameById.get(String(r.rep_id)) ?? null,
       assignedByName: nameById.get(String(r.assigned_by)) ?? null,
+      // Training by deal stage (0310): a rep who started a stage scenario themselves is its assigned_by.
+      selfStarted: String(r.assigned_by) === String(r.rep_id),
       dueAt,
       scenario,
       attempts: tries,

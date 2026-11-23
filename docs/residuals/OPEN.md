@@ -307,3 +307,15 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · calendar · calendar week read is capped at 500 calls
       why-unresolved: far above any team's week today
       next-action: if a team nears it, page the read and say "showing the first 500"
+
+## Filed by training by deal stage (2026-11-23, docs/tbc/2026-11-23-stage-training)
+
+- [ ] 2026-11-23 · stage-training · stage names are free text; a scenario's stage tag matches only the same name (ignoring case and spacing)
+      why-unresolved: a company stage list is a pipeline change of its own
+      next-action: an optional company stage list offered in the prospect's stage box and the tag box
+- [ ] 2026-11-23 · client reads · 11 client reads map a failed fetch to null (`r.ok ? r.json() : null`) — some may show "nothing" on a failure
+      why-unresolved: each must be read to tell a label read from a data read
+      next-action: read each; extend noFailedReadAsEmpty to the null form with an allowlist for label reads
+- [ ] 2026-11-23 · stage-training · "rep needs" not yet used — the stage's scenarios are not ranked by the rep's weakest rubric items
+      why-unresolved: stage first
+      next-action: order the list by the rep's lowest-scoring focus areas from pitch_scores_by_channel

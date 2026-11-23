@@ -18,7 +18,7 @@ type Scenario = {
   difficulty: string; length_min: number; pass_score: number | null; source_session_id: string | null; retired_at: string | null;
 };
 type Assignment = {
-  id: string; repName: string | null; dueAt: string; state: string; best: number | null;
+  id: string; repName: string | null; dueAt: string; state: string; best: number | null; selfStarted?: boolean;
   scenario: { title: string; pass_score: number | null } | null;
 };
 type Member = { id: string; full_name: string | null };
@@ -40,14 +40,32 @@ export function TrainingManager() {
   const [picked, setPicked] = useState<string[]>([]);
   const [due, setDue] = useState("");
 
+  // A failed read is said, not shown as "No scenarios yet" / "Nothing assigned yet" (2026-11-23).
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [stageTags, setStageTags] = useState<Array<{ scenarioId: string; label: string }>>([]);
+  const [stageNames, setStageNames] = useState<string[]>([]);
+  const [stagesReady, setStagesReady] = useState(true);
+  const [tagFor, setTagFor] = useState<string | null>(null);
+  const [tagText, setTagText] = useState("");
+
   const load = useCallback(async () => {
-    const [s, a] = await Promise.all([
-      fetch("/api/coach/remote/scenarios").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/coach/remote/assignments?team=1").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ]);
-    if (s && s.available === false) setNotReady(s.reason);
-    setScenarios(s?.scenarios ?? []);
-    setAssignments(a?.assignments ?? []);
+    const ok = (r: Response) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))));
+    try {
+      const [s, a, st] = await Promise.all([
+        fetch("/api/coach/remote/scenarios").then(ok),
+        fetch("/api/coach/remote/assignments?team=1").then(ok),
+        fetch("/api/coach/remote/scenarios/stages").then(ok),
+      ]);
+      setLoadFailed(false);
+      if (s && s.available === false) setNotReady(s.reason);
+      setScenarios(s?.scenarios ?? []);
+      setAssignments(a?.assignments ?? []);
+      setStagesReady(st?.available !== false);
+      setStageTags(st?.tags ?? []);
+      setStageNames(st?.stages ?? []);
+    } catch {
+      setLoadFailed(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -79,6 +97,13 @@ export function TrainingManager() {
   };
 
   if (notReady) return <p className="text-xs text-muted">{notReady}</p>;
+  if (loadFailed)
+    return (
+      <p className="rounded-2xl border border-default bg-surface p-4 text-xs text-muted">
+        Couldn&apos;t load training.{" "}
+        <button type="button" onClick={() => void load()} className="underline">Try again</button>
+      </p>
+    );
   if (!scenarios) return <Loader2 className="h-4 w-4 animate-spin text-muted" aria-hidden />;
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
   const active = scenarios.filter((s) => !s.retired_at);
@@ -94,7 +119,7 @@ export function TrainingManager() {
           <label className="text-[11px] text-muted">Title<input value={form.title} onChange={set("title")} maxLength={120} className={input} placeholder="The price-shopper on the phone" /></label>
           <label className="text-[11px] text-muted">Who the prospect is<input value={form.persona} onChange={set("persona")} maxLength={200} className={input} placeholder="Owner of a 5-person shop, already has two quotes" /></label>
           <label className="text-[11px] text-muted md:col-span-2">The situation<textarea value={form.situation} onChange={set("situation")} maxLength={600} rows={2} className={input} placeholder="Called back after a voicemail; opens with 'just give me your best price'." /></label>
-          <label className="text-[11px] text-muted md:col-span-2">The skill being practised (what the attempt is scored on)<input value={form.focus} onChange={set("focus")} maxLength={600} className={input} placeholder="Move a price question to value before quoting" /></label>
+          <label className="text-[11px] text-muted md:col-span-2">The skill being practiced (what the attempt is scored on)<input value={form.focus} onChange={set("focus")} maxLength={600} className={input} placeholder="Move a price question to value before quoting" /></label>
           <label className="text-[11px] text-muted">Channel
             <select value={form.channel} onChange={set("channel")} className={input}>{Object.entries(CHANNEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           </label>
@@ -124,6 +149,7 @@ export function TrainingManager() {
 
       <section className="rounded-2xl border border-default bg-surface p-4 space-y-2" aria-label="Scenarios">
         <h2 className="text-sm font-semibold text-primary">Scenarios</h2>
+        <datalist id="stage-names">{stageNames.map((n) => <option key={n} value={n} />)}</datalist>
         {active.length === 0 && <p className="text-xs text-muted">No scenarios yet.</p>}
         <ul className="space-y-2">
           {active.map((s) => (
@@ -137,6 +163,35 @@ export function TrainingManager() {
                 <button type="button" disabled={busy} onClick={() => send("/api/coach/remote/scenarios", "PATCH", { id: s.id }, "Scenario retired.")} className="text-muted hover:text-primary">Retire</button>
               </div>
               <p className="text-secondary">Skill: {s.focus}</p>
+              {/* Training by deal stage (0310): reps whose open prospect is at one of these stages can start this. */}
+              {stagesReady && (
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] text-muted">For stages:</span>
+                  {stageTags.filter((t) => t.scenarioId === s.id).map((t) => (
+                    <span key={t.label} className="inline-flex items-center gap-1 rounded-full border border-default px-2 py-0.5 text-[11px] text-primary">
+                      {t.label}
+                      <button type="button" disabled={busy} aria-label={`Remove stage ${t.label}`} onClick={() => send("/api/coach/remote/scenarios/stages", "PUT", { scenarioId: s.id, stage: t.label, on: false }, `Removed “${t.label}”.`)} className="text-muted hover:text-primary">×</button>
+                    </span>
+                  ))}
+                  {tagFor === s.id ? (
+                    <form
+                      className="inline-flex items-center gap-1"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const v = tagText.trim();
+                        if (!v) return;
+                        if (await send("/api/coach/remote/scenarios/stages", "PUT", { scenarioId: s.id, stage: v, on: true }, `Reps at “${v}” can now start this.`)) { setTagFor(null); setTagText(""); }
+                      }}
+                    >
+                      <input autoFocus list="stage-names" value={tagText} onChange={(e) => setTagText(e.target.value)} maxLength={60} placeholder="Stage name" aria-label="Stage name" className="w-32 rounded border border-default bg-base px-1.5 py-0.5 text-[11px] text-primary" />
+                      <button type="submit" disabled={busy || !tagText.trim()} className="text-[11px] text-brand hover:underline disabled:opacity-50">Add</button>
+                      <button type="button" onClick={() => setTagFor(null)} className="text-[11px] text-muted hover:text-primary">Cancel</button>
+                    </form>
+                  ) : (
+                    <button type="button" onClick={() => { setTagFor(s.id); setTagText(""); }} className="text-[11px] text-brand hover:underline">+ Stage</button>
+                  )}
+                </div>
+              )}
               {assignFor === s.id && (
                 <div className="mt-2 space-y-2 rounded-lg border border-default p-2">
                   <div className="flex flex-wrap gap-1">
@@ -177,7 +232,7 @@ export function TrainingManager() {
                 {assignments.map((a) => (
                   <tr key={a.id} className="border-t border-default">
                     <td className="py-1.5 pr-3 text-primary">{a.repName ?? "A rep"}</td>
-                    <td className="py-1.5 pr-3 text-secondary">{a.scenario?.title ?? "—"}</td>
+                    <td className="py-1.5 pr-3 text-secondary">{a.scenario?.title ?? "—"}{a.selfStarted ? <span className="ml-1 text-[10px] text-muted">(self-started)</span> : null}</td>
                     <td className="py-1.5 pr-3">
                       <input type="date" defaultValue={day(a.dueAt)} aria-label={`Due date for ${a.repName ?? "rep"}`}
                         onBlur={(e) => { if (e.target.value && e.target.value !== day(a.dueAt)) void send("/api/coach/remote/assignments", "PATCH", { assignmentId: a.id, dueAt: `${e.target.value}T23:59:00` }, "Due date changed."); }}

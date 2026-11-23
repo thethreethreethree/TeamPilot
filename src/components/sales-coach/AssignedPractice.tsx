@@ -15,6 +15,7 @@ type Item = {
   state: "due" | "overdue" | "attempted" | "passed" | "not_passed_yet";
   best: number | null;
   assignedByName: string | null;
+  selfStarted?: boolean;
   scenario: { title: string; channel: string; difficulty: string; pass_score: number | null } | null;
 };
 const STATE: Record<Item["state"], string> = {
@@ -66,7 +67,7 @@ export function AssignedPractice() {
             </Link>
             <span className="text-muted">
               {i.scenario ? `${i.scenario.channel === "in_person" ? "In person" : i.scenario.channel === "phone" ? "Phone" : "Video"} · ${i.scenario.difficulty}` : ""}
-              {i.assignedByName ? ` · from ${i.assignedByName}` : ""}
+              {i.selfStarted ? " · you started this" : i.assignedByName ? ` · from ${i.assignedByName}` : ""}
             </span>
             <span className={`ml-auto ${i.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}`}>
               {STATE[i.state]}
