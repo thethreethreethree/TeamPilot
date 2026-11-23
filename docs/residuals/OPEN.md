@@ -362,5 +362,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: no closed-deal history yet
       next-action: once ~30 deals have closed, compare how often "at risk" deals were lost vs the rest; adjust only on that evidence (§4)
 - [ ] 2026-11-23 · deal-risk · the Ask box doesn't see each deal's risk reasons; no close-date field, so no forecast by month
+      resolved (part 1, 2026-11-23): the Ask box now sees each deal's risk reasons — docs/tbc/2026-11-23-deal-risk/remediate.md addendum. The close-date part stays open.
       why-unresolved: next small change / a pipeline field of its own
       next-action: add risk reasons to buildPipelineContext; an optional expected-close event kind

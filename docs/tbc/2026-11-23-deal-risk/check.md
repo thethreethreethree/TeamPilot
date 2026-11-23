@@ -19,3 +19,10 @@ severity: low
 class: a derived fact one surface shows and another can't use.
 sweep: `grep -n "dealRisk" src/lib/coach/remote/askPipeline.ts` → none.
 severity: low
+
+## Addendum 2026-11-23 — F2 follow-up
+
+```
+npx vitest run askPipeline.test.ts + ask-pipeline route → 9 passed, exit 0
+npm run check → exit 0 · Tests 6502 passed | 15 skipped
+```

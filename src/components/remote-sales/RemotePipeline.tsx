@@ -534,7 +534,7 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
       const r = await fetch("/api/coach/remote/ask-pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, scope }),
+        body: JSON.stringify({ question: text, scope, today: today() }),
       });
       const j = (await r.json().catch(() => ({}))) as { answer?: string | null; suppressed?: boolean; citations?: PipelineCitation[]; prospects?: number; capped?: boolean; error?: string };
       if (!r.ok) setNote(j.error ?? "Couldn't get an answer. Try again.");

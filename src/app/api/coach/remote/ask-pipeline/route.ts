@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const ctx = await resolveApiAuth(req);
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  let body: { question?: unknown; scope?: unknown };
+  let body: { question?: unknown; scope?: unknown; today?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
   const scope = typeof body.scope === "string" ? body.scope : "mine";
   if (scope !== "mine" && scope !== "team" && !UUID.test(scope)) return NextResponse.json({ error: "Whose pipeline?" }, { status: 400 });
   const repId = scope === "mine" ? ctx.userId : scope === "team" ? undefined : scope;
+  // The viewer's calendar day, so "overdue" matches what their Pipeline screen shows; the server's UTC day otherwise.
+  const today = typeof (body as { today?: unknown }).today === "string" && /^\d{4}-\d{2}-\d{2}$/.test((body as { today: string }).today) ? (body as { today: string }).today : undefined;
 
-  const r = await askPipeline({ db: callerScopedDb(req) ?? (await createClient()), companyId: ctx.companyId, repId, question });
+  const r = await askPipeline({ db: callerScopedDb(req) ?? (await createClient()), companyId: ctx.companyId, repId, question, today });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   if (r.suppressed) return NextResponse.json({ answer: null, suppressed: true });
   return NextResponse.json({ answer: r.answer, citations: r.citations, prospects: r.prospects, capped: r.capped });

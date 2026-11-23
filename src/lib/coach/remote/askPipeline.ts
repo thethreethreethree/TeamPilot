@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { askCoachTurn } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { listProspects, type ProspectRow } from "./prospects";
+import { dealRisk, RISK_WORDS } from "./dealRisk";
 
 /**
  * Ask Coach across a whole pipeline (2026-11-23; Gong's Assistant on Deal and Account Boards). Ask Coach over calls
@@ -30,7 +31,7 @@ const texts = (v: unknown): string[] =>
   (Array.isArray(v) ? v : []).map((x) => (typeof x === "string" ? x : typeof (x as { text?: unknown })?.text === "string" ? (x as { text: string }).text : "")).filter(Boolean);
 
 /** Pure: the numbered context the AI reads, and the ref → prospect map. */
-export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<string, Brief>): { text: string; refs: Map<number, { prospectId: string; name: string }> } {
+export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<string, Brief>, today: string = new Date().toISOString().slice(0, 10)): { text: string; refs: Map<number, { prospectId: string; name: string }> } {
   const refs = new Map<number, { prospectId: string; name: string }>();
   const blocks = prospects.map((p, i) => {
     const n = i + 1;
@@ -41,6 +42,9 @@ export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<strin
       `[P${n}] ${name}${p.organization ? ` (${p.organization})` : ""} — ${p.status}${p.stageLabel ? `, stage "${p.stageLabel}"` : ""}${p.amount !== null ? `, $${p.amount}` : ""}${p.source ? `, source "${p.source}"` : ""}`,
       `   next call: ${p.nextCallDate ?? "none booked"} · last call: ${p.lastCallAt ? p.lastCallAt.slice(0, 10) : "none"} · calls: ${p.callCount} · open to-dos: ${p.openTodos}${p.nextTodo ? ` (next: "${p.nextTodo.title}"${p.nextTodo.due ? ` due ${p.nextTodo.due}` : ""})` : ""}`,
     ];
+    // The same risk rule the Pipeline shows (dealRisk.ts), so the answer and the screen agree (§2.2).
+    const risk = dealRisk(p, today);
+    if (risk.level !== "ok") lines.push(`   risk: ${risk.level === "at_risk" ? "AT RISK" : "watch"} — ${risk.reasons.filter((x) => x !== "no_amount").map((x) => RISK_WORDS[x]).join("; ")}`);
     if (b?.keyPoints.length) lines.push(`   latest call — key points: ${b.keyPoints.slice(0, 5).join(" | ")}`);
     if (b?.nextSteps.length) lines.push(`   latest call — agreed next steps: ${b.nextSteps.slice(0, 5).join(" | ")}`);
     return lines.join("\n");
@@ -67,7 +71,7 @@ export type PipelineAnswer =
   | { ok: true; suppressed: false; answer: string; citations: PipelineCitation[]; prospects: number; capped: boolean }
   | { ok: false; status: 400 | 500 | 502; error: string };
 
-export async function askPipeline(args: { db: SupabaseClient; companyId: string; repId?: string; question: string }): Promise<PipelineAnswer> {
+export async function askPipeline(args: { db: SupabaseClient; companyId: string; repId?: string; question: string; today?: string }): Promise<PipelineAnswer> {
   const { db, companyId, question } = args;
   const all = await listProspects(db, args.repId);
   if (all === null) return { ok: false, status: 500, error: "Couldn't read the pipeline — try again." };
@@ -100,7 +104,7 @@ export async function askPipeline(args: { db: SupabaseClient; companyId: string;
     }
   }
 
-  const { text, refs } = buildPipelineContext(prospects, briefs);
+  const { text, refs } = buildPipelineContext(prospects, briefs, args.today);
   const capped = all.length > prospects.length;
   const r = await askCoachTurn({
     companyId,

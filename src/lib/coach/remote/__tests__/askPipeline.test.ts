@@ -136,3 +136,15 @@ describe("askPipeline", () => {
     expect(mock(askCoachTurn).mock.calls[0]![0].userMessage).toContain("the 60 with the most recent activity of 65");
   });
 });
+
+describe("buildPipelineContext risk line", () => {
+  it("names the same reasons the Pipeline shows (dealRisk), not the missing-amount note", () => {
+    const { text } = buildPipelineContext(
+      [p("a", { name: "Acme", nextCallDate: null, nextTodo: { id: "t", title: "Send quote", due: "2026-11-01" } }), p("b", { name: "Beta", nextCallDate: "2026-11-30", lastCallAt: "2026-11-20T00:00:00Z" })],
+      new Map(),
+      "2026-11-23",
+    );
+    expect(text).toContain("risk: AT RISK — No next call booked; No call in 21+ days; Overdue to-do");
+    expect(text.split("[P2]")[1]).not.toContain("risk:");
+  });
+});
