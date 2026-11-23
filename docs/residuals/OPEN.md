@@ -427,5 +427,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 ## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
 
 - [ ] 2026-11-23 · coaching · monthly coaching email to managers (the export exists; the subscription doesn't)
+      closed 2026-11-23 — not built, by decision: D10 (founder 2026-11-22) makes manager alerts in-app only and switched the managers' weekly email off; a monthly managers' email would contradict it. Reopen only if D10 changes.
       why-unresolved: a scheduled email is its own build
       next-action: a monthly cron beside the weekly digest, sending each manager their coaching CSV numbers
