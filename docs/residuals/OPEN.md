@@ -328,3 +328,15 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · transcript-edits · a corrected line keeps its times; per-line speaker changes are not offered
       why-unresolved: re-timing needs audio alignment; speaker edits are a separate kind
       next-action: add a speaker choice to the line editor, recorded the same way (new version + edit row)
+
+## Filed by vulnerability disclosure (2026-11-23, docs/tbc/2026-11-23-security-disclosure)
+
+- [ ] 2026-11-23 · security-disclosure · security reports have no alert — a new one waits until a founder opens Security reports
+      why-unresolved: no founder alert channel outside the Sales Coach bell; email sending is C.A.R.E-only
+      next-action: send the founders an email (or a bell entry in the vendor shell) when security_reports gets a row
+- [ ] 2026-11-23 · security-disclosure · AFTER PUSH: open https://elostate.com/.well-known/security.txt and https://elostate.com/security; send one test report and see it in Security reports
+      why-unresolved: not deployed until pushed
+      next-action: founder push, then the three checks
+- [ ] 2026-11-23 · security-disclosure · founders' decisions: safe-harbour wording for good-faith researchers; how to remove a reporter's name/contact on request (reports are append-only)
+      why-unresolved: legal wording and an erasure path for non-customers are the founders' to decide
+      next-action: decide; then add the wording to /security and, if wanted, a redaction event

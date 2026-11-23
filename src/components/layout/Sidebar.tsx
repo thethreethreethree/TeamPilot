@@ -31,6 +31,7 @@ import {
   Building2,
   FolderOpen,
   Coins,
+  ShieldAlert,
   Eye,
   Search as SearchIcon,
   Mic,
@@ -418,6 +419,20 @@ const adminNav: Array<{
       how: "Pick a company, then a session, to read its transcript. New customers are NOT auto-included; a company is added to the allowlist deliberately. Access is logged (actor, company, session).",
       principle:
         "Cross-tenant access, when sanctioned, is contained and audited — never silent. Oversight the monitored party could in principle see is honest; surveillance it can't is not.",
+    },
+  },
+  {
+    label: "Security reports",
+    href: "/dashboard/admin/security",
+    icon: ShieldAlert,
+    vendorOnly: true,
+    hint: {
+      whatItIs:
+        "Security and privacy issues reported from the public page elostate.com/security (linked from /.well-known/security.txt). Vendor-super-admin only; no customer company sees them.",
+      why: "Researchers who find a problem need one place to tell us, and a report nobody reads is worse than none.",
+      how: "Open a new report, read it, and mark it Looked at, Fixed, Not an issue or Duplicate, with a note. Each choice is recorded; reports are never edited.",
+      principle:
+        "A reported weakness is an asset: it is kept, answered and closed on the record.",
     },
   },
   {

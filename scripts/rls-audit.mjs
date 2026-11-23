@@ -368,6 +368,17 @@ const ALLOWLIST = new Map([
   ["pilot_codes.insert", "0197 seeded by the operator (service role) only; a client insert could mint free access."],
   ["pilot_codes.update", "0197 redeem_pilot_code() (DEFINER) marks single-use; a client update could un-redeem a code."],
   ["pilot_codes.delete", "0197 redemption history is the record of who onboarded; never client-deletable."],
+  // 0312 security_reports / security_report_events — the public vulnerability-disclosure inbox. SEALED BY DESIGN (no
+  // policies): a report never belongs to a customer company; the public route inserts and the vendor inbox reads, both
+  // with the service role (requireVendorAdmin on the inbox).
+  ["security_reports.select", "0312 read only by /api/admin/security-reports (vendor admins, service role); a client read would expose every report to any user."],
+  ["security_reports.insert", "0312 written only by /api/security-report (rate-limited, service role); a direct client insert would skip its limits."],
+  ["security_reports.update", "0312 §3.1 a report is never edited (DB rule too)."],
+  ["security_reports.delete", "0312 §3.1 append-only (DB rule too)."],
+  ["security_report_events.select", "0312 read only by the vendor inbox (service role)."],
+  ["security_report_events.insert", "0312 written only by the vendor inbox's PUT after requireVendorAdmin."],
+  ["security_report_events.update", "0312 §3.1 append-only (DB rule too)."],
+  ["security_report_events.delete", "0312 §3.1 append-only (DB rule too)."],
 
   // 0213 coaching_retranscribe_cache — a CACHE of the /retranscribe diarization result (avoids a duplicate STT
   // charge on reload / 2nd tab / auto-fire). RLS ENABLED with NO policies BY DESIGN: every access is via the

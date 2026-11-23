@@ -1,0 +1,6 @@
+# How to report a security or privacy issue in ELOSTATE (RFC 9116).
+Contact: https://elostate.com/security
+Policy: https://elostate.com/security
+Preferred-Languages: en
+Canonical: https://elostate.com/.well-known/security.txt
+Expires: 2027-11-23T00:00:00.000Z
