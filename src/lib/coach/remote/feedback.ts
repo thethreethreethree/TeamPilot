@@ -56,22 +56,31 @@ export function countsAsFeedback(e: CoachingEvent): boolean {
   return FEEDBACK_POLICY === "GONG_RULES" ? gongRules(e) : allManagerActions(e);
 }
 
-/** A feedback request is open until a manager it was addressed to acts on that session after it. */
-export function isRequestOpen(
-  request: { sessionId: string; managerId: string | null; requesterId: string; createdAt: Date },
-  events: CoachingEvent[],
-  rule: (e: CoachingEvent) => boolean = closesUnderEveryPolicy,
-): boolean {
-  return !events.some(
-    (e) =>
-      "sessionId" in e &&
-      e.sessionId === request.sessionId &&
-      "managerId" in e &&
-      e.managerId !== request.requesterId &&
-      (request.managerId === null || e.managerId === request.managerId) &&
-      e.at.getTime() >= request.createdAt.getTime() &&
-      rule(e),
+type FeedbackRequest = { sessionId: string; managerId: string | null; requesterId: string; createdAt: Date };
+
+/** The one test of "this event answers this request" — isRequestOpen and requestAnsweredAt both use it (§2.2). */
+function answers(request: FeedbackRequest, e: CoachingEvent, rule: (e: CoachingEvent) => boolean): boolean {
+  return (
+    "sessionId" in e &&
+    e.sessionId === request.sessionId &&
+    "managerId" in e &&
+    e.managerId !== request.requesterId &&
+    (request.managerId === null || e.managerId === request.managerId) &&
+    e.at.getTime() >= request.createdAt.getTime() &&
+    rule(e)
   );
+}
+
+/** A feedback request is open until a manager it was addressed to acts on that session after it. */
+export function isRequestOpen(request: FeedbackRequest, events: CoachingEvent[], rule: (e: CoachingEvent) => boolean = closesUnderEveryPolicy): boolean {
+  return !events.some((e) => answers(request, e, rule));
+}
+
+/** When the request was first answered (the earliest answering event), or null while it is open. */
+export function requestAnsweredAt(request: FeedbackRequest, events: CoachingEvent[], rule: (e: CoachingEvent) => boolean = closesUnderEveryPolicy): Date | null {
+  let first: Date | null = null;
+  for (const e of events) if (answers(request, e, rule) && (first === null || e.at < first)) first = e.at;
+  return first;
 }
 
 /** Merge listen ranges (ms) and return the seconds actually covered — overlaps and replays count once. */

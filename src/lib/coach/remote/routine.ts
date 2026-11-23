@@ -29,4 +29,52 @@ export function routineSteps(c: Record<StepKey, Count>): Step[] {
 }
 
 /** How many steps are done out of those that could be checked. */
-export const routineProgress = (steps: Step[]) => ({ done: steps.filter((s) => s.state === "done").length, checked: steps.filter((s) => s.state !== "unknown").length });
+export const routineProgress = (steps: Array<Pick<Step, "state">>) => ({ done: steps.filter((s) => s.state === "done").length, checked: steps.filter((s) => s.state !== "unknown").length });
+
+/**
+ * The rep's own week (2026-11-23; ledger F16.12, the self-coaching half): what only the rep can do, counted from their
+ * own records — practice still due, answers from a manager they asked for feedback, and recent calls they haven't
+ * written a note on. Same rule as the manager's: an unread count is "unknown", never "done".
+ */
+export type RepStepKey = "practice" | "answers" | "notes";
+export type RepStep = { key: RepStepKey; label: string; detail: string; state: "todo" | "done" | "unknown"; count: Count; href: string };
+export type RepCounts = {
+  practice: Count;
+  answers: Count;
+  waiting: Count; // requests still open — context for the answers step, not a to-do for the rep
+  notes: Count;
+  answersHref?: string | null; // the newest answered call
+  notesHref?: string | null; // the newest call without a note
+};
+
+export function repRoutineSteps(c: RepCounts): RepStep[] {
+  const state = (n: Count): RepStep["state"] => (n === null ? "unknown" : n > 0 ? "todo" : "done");
+  const unknown = "Couldn't check right now.";
+  const waiting = c.waiting !== null && c.waiting > 0 ? ` ${plural(c.waiting, "request is", "requests are")} still waiting.` : "";
+  return [
+    {
+      key: "practice",
+      label: "Do your assigned practice",
+      count: c.practice,
+      state: state(c.practice),
+      href: "/dashboard/remote-sales/training",
+      detail: c.practice === null ? unknown : c.practice > 0 ? `${plural(c.practice, "practice is", "practices are")} still due.` : "No practice is due.",
+    },
+    {
+      key: "answers",
+      label: "Read the feedback you asked for",
+      count: c.answers,
+      state: state(c.answers),
+      href: c.answersHref ?? "/dashboard/remote-sales",
+      detail: c.answers === null ? unknown : (c.answers > 0 ? `${plural(c.answers, "request was", "requests were")} answered this week.` : "No new answers this week.") + waiting,
+    },
+    {
+      key: "notes",
+      label: "Note what you learned on your calls",
+      count: c.notes,
+      state: state(c.notes),
+      href: c.notesHref ?? "/dashboard/remote-sales",
+      detail: c.notes === null ? unknown : c.notes > 0 ? `${plural(c.notes, "call", "calls")} this week ${c.notes === 1 ? "has" : "have"} no note from you.` : "Every call this week has a note.",
+    },
+  ];
+}

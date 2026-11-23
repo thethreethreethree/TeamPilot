@@ -8,6 +8,7 @@ import {
   isRequestOpen,
   listenedSeconds,
   parseListenRange,
+  requestAnsweredAt,
   type CoachingEvent,
 } from "../feedback";
 
@@ -100,5 +101,25 @@ describe("loadCoachingEvents fails loud (INV22)", () => {
       },
     };
     await expect(loadCoachingEvents(failing as never, "c1", ["s1"])).rejects.toBeInstanceOf(FeedbackReadError);
+  });
+});
+
+describe("requestAnsweredAt — same test as isRequestOpen (§2.2)", () => {
+  const req = { sessionId: "s1", managerId: null, requesterId: "rep", createdAt: new Date("2026-11-20T10:00:00Z") };
+  const ev = (kind: "comment_sent_to_rep" | "comment_draft" | "own_session_action", at: string, managerId = "m1") =>
+    ({ kind, managerId, repId: "rep", at: new Date(at), sessionId: "s1" }) as const;
+  it("the earliest answering event after the ask; drafts, the rep's own actions and earlier events don't answer", () => {
+    const events = [
+      ev("comment_sent_to_rep", "2026-11-19T10:00:00Z"),
+      ev("comment_draft", "2026-11-20T11:00:00Z"),
+      ev("own_session_action", "2026-11-20T11:30:00Z", "rep"),
+      ev("comment_sent_to_rep", "2026-11-22T10:00:00Z"),
+      ev("comment_sent_to_rep", "2026-11-21T10:00:00Z"),
+    ];
+    expect(requestAnsweredAt(req, events)?.toISOString()).toBe("2026-11-21T10:00:00.000Z");
+    expect(isRequestOpen(req, events)).toBe(false);
+    const unanswered = events.slice(0, 3);
+    expect(requestAnsweredAt(req, unanswered)).toBeNull();
+    expect(isRequestOpen(req, unanswered)).toBe(true);
   });
 });

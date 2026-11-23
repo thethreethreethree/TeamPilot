@@ -437,6 +437,13 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: render tests not yet written for those components
       next-action: add render tests for AskPipeline (citations open the prospect on its tab), RemoteCalendar, StagePractice, CallNotes and the SessionTranscript editor
       mostly done 2026-11-23: render tests for the Ask box (closed-deal citation opens on its tab; mutation-checked), RemoteCalendar, CallNotes, CallPipelineLink, MarketView, AdoptionBoard and the transcript editor. StagePractice (inside RemotePipeline) still untested on screen. — done 2026-11-23 (RemotePipeline.stagePractice.render.test.tsx: the rep starts it and lands in the role-play; no button for someone who can't start it). This correction is closed.
-- [ ] 2026-11-23 · coaching · a self-coaching routine for reps (their practice due, calls without a review, feedback answered)
+- [x] 2026-11-23 · coaching · a self-coaching routine for reps (their practice due, calls without a review, feedback answered)
       why-unresolved: the manager routine came first (docs/tbc/2026-11-23-coaching-routine)
       next-action: the same pattern on Remote Sales → Today for reps
+      done 2026-11-23: "Your coaching this week" on Remote Sales → Today (practice due, feedback answered, calls without a note) — docs/tbc/2026-11-23-rep-routine.
+
+## Filed by the rep routine (2026-11-23, docs/tbc/2026-11-23-rep-routine)
+
+- [ ] 2026-11-23 · coaching · an answered feedback request stays a to-do for 7 days even after the rep has read it
+      why-unresolved: no "read" record exists for feedback
+      next-action: record when the rep opens an answered call's feedback, and count only unread answers

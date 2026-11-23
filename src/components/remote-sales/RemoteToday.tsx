@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarClock, Loader2, Target } from "lucide-react";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
+import { RepRoutine } from "./RepRoutine";
 
 /**
  * Remote Sales → Today (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — the brain dump at the start of the day.
@@ -13,7 +14,8 @@ import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
  *   An open-format read of yesterday — counted from the record (calls, average score, outcomes), never written by AI.
  *
  * The pipeline feeds it too: calls scheduled for today and to-dos due or overdue, so the plan starts from what the
- * rep already committed to. The plan is the rep's own; no manager reads it (0303).
+ * rep already committed to. The plan is the rep's own; no manager reads it (0303). Below the plan, "Your coaching this
+ * week" (RepRoutine, 2026-11-23): practice due, feedback answered, calls without a note.
  */
 type Plan = { dump?: string; items: Array<{ time: string | null; what: string }>; needleMovers: string[]; createdAt?: string };
 type DayRes = {
@@ -163,6 +165,8 @@ export function RemoteToday() {
         )}
         {err && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{err}</p>}
       </section>
+
+      <RepRoutine />
 
       {failed ? (
         <p className="rounded-xl border border-default bg-surface p-4 text-xs text-muted">Couldn&apos;t load today&apos;s calls and to-dos. Refresh to try again.</p>
