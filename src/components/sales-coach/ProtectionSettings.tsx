@@ -433,6 +433,12 @@ function ErasurePanel() {
       {kind === "phone" && (
         <p className="mt-1 text-[11px] text-muted">Numbers are found when the transcript wrote them as digits. A number said as words may be missed, so also search by name.</p>
       )}
+      {kind === "client_label" && (
+        <p className="mt-1 text-[11px] text-muted">
+          Calls match the client name exactly as entered. Reps&apos; day plans and the pipeline match any mention of it, so a
+          shorter form (&ldquo;Betty&rdquo; for &ldquo;Betty Ross&rdquo;) is found only by searching it too.
+        </p>
+      )}
 
       {found && (
         <div className="mt-3 space-y-2">

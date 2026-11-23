@@ -488,6 +488,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: 0316 reaches prospects only through linked calls
       next-action: match the identifier against remote_prospects_current name/organization in the erasure search; list and blank them like day plans
       done 2026-11-23: 0323 (applied) — docs/tbc/2026-11-23-erasure-prospects.
-- [ ] 2026-11-23 · erasure · a day plan that names the customer differently ("Betty" for client "Betty Ross") isn't found
+- [x] 2026-11-23 · erasure · a day plan that names the customer differently ("Betty" for client "Betty Ross") isn't found
       why-unresolved: a first name alone would match other customers
       next-action: say in the panel that a shorter name can be searched separately
+      done 2026-11-23: the panel says so when searching by client name — docs/tbc/2026-11-23-erasure-polish.

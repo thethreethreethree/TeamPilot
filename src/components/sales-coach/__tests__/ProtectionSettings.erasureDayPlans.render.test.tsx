@@ -32,6 +32,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("erasure and day plans", () => {
+  it("searching by client name says a shorter form must be searched too", async () => {
+    render(<ProtectionSettings />);
+    fireEvent.change(await screen.findByLabelText("Find by"), { target: { value: "client_label" } });
+    expect(screen.getByText(/a shorter form .* is found only by searching it too/)).toBeTruthy();
+  });
   it("a customer only in a day plan: listed by rep and day, and erased", async () => {
     render(<ProtectionSettings />);
     const input = await screen.findByPlaceholderText("(555) 010-0123");
