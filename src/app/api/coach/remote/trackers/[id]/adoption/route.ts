@@ -3,9 +3,8 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
-import { fetchAllPagedResult } from "@/lib/supabase/paginate";
-import { REMOTE_CONTEXTS } from "@/lib/coach/sessionContext";
-import { computeAdoption, currentGoal, goalStatus, type AdoptionCall, type AdoptionHit } from "@/lib/coach/remote/adoption";
+import { computeAdoption, currentGoal, goalStatus } from "@/lib/coach/remote/adoption";
+import { readAdoptionInputs } from "@/lib/coach/remote/adoptionRead";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -16,7 +15,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * on a partial read would misstate how a message is landing.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CHUNK = 100;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = rateLimit(req, { id: "tracker-adoption", windowMs: 60_000, max: 30 });
@@ -37,39 +35,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!tracker) return NextResponse.json({ error: "Tracker not found." }, { status: 404 });
   const since = new Date(Math.max(Date.parse(String(tracker.created_at)), Date.now() - days * 86_400_000)).toISOString();
 
-  const sessions = await fetchAllPagedResult<{ id: string; agent_id: string; started_at: string }>(
-    (from, to) =>
-      db.from("coaching_sessions").select("id, agent_id, started_at").in("context", [...REMOTE_CONTEXTS]).gte("started_at", since).order("started_at", { ascending: true }).order("id", { ascending: true }).range(from, to),
-    { label: "adoption sessions" },
-  );
-  if (sessions.error) return fail("sessions", sessions.error.message);
-  const rows = sessions.data ?? [];
-  const ids = rows.map((r) => r.id);
-
-  // Current transcript version per call = its newest stats version; a call with no stats has not been analysed yet.
-  const versionOf = new Map<string, number>();
-  const hits: AdoptionHit[] = [];
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const chunk = ids.slice(i, i + CHUNK);
-    // Paged: a call can have many hits (and several stats versions), so a single capped read could drop some.
-    const [st, h] = await Promise.all([
-      fetchAllPagedResult<{ session_id: string; transcript_version: number }>(
-        (from, to) => db.from("session_interaction_stats").select("session_id, transcript_version").in("session_id", chunk).order("session_id").order("transcript_version").range(from, to),
-        { label: "adoption stats" },
-      ),
-      fetchAllPagedResult<{ session_id: string; transcript_version: number; id: number }>(
-        (from, to) => db.from("tracker_hits").select("session_id, transcript_version, id").eq("tracker_id", id).in("session_id", chunk).order("id").range(from, to),
-        { label: "adoption hits" },
-      ),
-    ]);
-    if (st.error) return fail("stats", st.error.message);
-    if (h.error) return fail("hits", h.error.message);
-    for (const s of st.data ?? []) versionOf.set(s.session_id, Math.max(versionOf.get(s.session_id) ?? 0, Number(s.transcript_version)));
-    for (const x of h.data ?? []) hits.push({ sessionId: x.session_id, version: Number(x.transcript_version) });
-  }
-  const calls: AdoptionCall[] = rows
-    .filter((r) => versionOf.has(r.id))
-    .map((r) => ({ sessionId: r.id, repId: r.agent_id, startedAt: r.started_at, version: versionOf.get(r.id)! }));
+  // The shared reads (adoptionRead.ts): the same counting as the board of all trackers.
+  const inputs = await readAdoptionInputs(db, [id], since);
+  if (!inputs) return fail("reads");
+  const calls = inputs.calls;
+  const hits = inputs.hitsByTracker.get(id) ?? [];
   const result = computeAdoption(String(tracker.created_at), calls, hits);
 
   // The goal (0318), if a manager set one. A missing table (0318 not applied) is no goal; any other failure is a 500.
@@ -86,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     since,
     ...result,
     reps: result.reps.map((r) => ({ ...r, name: nameOf.get(r.repId) ?? "Unnamed teammate" })).sort((a, b) => a.name.localeCompare(b.name)),
-    awaitingAnalysis: rows.length - calls.length,
+    awaitingAnalysis: inputs.sessionsInWindow - calls.length,
     goal,
     goalStatus: goalStatus(goal, result.rate),
     canSetGoal: !!(await requireSalesCoachManager(req)),

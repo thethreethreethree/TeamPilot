@@ -43,7 +43,7 @@ beforeEach(() => {
     keyword_trackers: { data: { id: ID, name: "New bundle", created_at: recent(20) }, error: null },
     coaching_sessions: { data: [{ id: "s1", agent_id: "r1", started_at: recent(10) }, { id: "s2", agent_id: "r1", started_at: recent(5) }, { id: "s3", agent_id: "r2", started_at: recent(2) }], error: null },
     session_interaction_stats: { data: [{ session_id: "s1", transcript_version: 1 }, { session_id: "s2", transcript_version: 1 }], error: null }, // s3 not analysed yet
-    tracker_hits: { data: [{ session_id: "s1", transcript_version: 1, id: 1 }], error: null },
+    tracker_hits: { data: [{ tracker_id: ID, session_id: "s1", transcript_version: 1, id: 1 }], error: null },
     profiles: { data: [{ id: "r1", full_name: "Rob" }], error: null },
     tracker_goals: { data: [{ id: 3, direction: "at_least", target_pct: 60 }], error: null },
   };

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { TrackerAdoption } from "./TrackerAdoption";
+import { AdoptionBoard } from "./AdoptionBoard";
 
 /**
  * Keyword trackers — the manager screen (RSS Phase 3 step 3, Gong F11.1). In Settings → Coaching.
@@ -140,6 +141,9 @@ export function KeywordTrackers() {
           {read.trackers.length === 0 ? (
             <p className="mb-3 text-sm text-muted">No trackers yet.</p>
           ) : (
+            <>
+            {/* All messages at a glance (F18.1); choosing one opens its Adoption view in the list. */}
+            <AdoptionBoard onOpen={(id) => setAdoptionFor(id)} />
             <ul className="mb-3 space-y-1.5">
               {read.trackers.map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -169,6 +173,7 @@ export function KeywordTrackers() {
                 </li>
               ))}
             </ul>
+            </>
           )}
           {read.canManage && (
             <div className="grid gap-2 md:grid-cols-2">

@@ -28,3 +28,11 @@ npm run db:apply → applying 0318_tracker_adoption_goals.sql … ok · DB now a
 npm run check → first: ✗ RLS gaps (tracker_goals → allowlisted: route-written, append-only), ✗ invariant 36 (adoption route →
   allowlisted: service role touches only the tracker and its goal) → exit 0 · Tests 6547 passed | 15 skipped
 ```
+
+## Addendum 2026-11-23 — board
+
+```
+adoption route moved onto readAdoptionInputs → 12 passed (fixture gained tracker_id on hits, which the read now selects)
+npx vitest run trackers/adoption-board → 2 passed
+npm run check → exit 0 · Tests 6549 passed | 15 skipped
+```
