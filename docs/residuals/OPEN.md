@@ -423,3 +423,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       part done 2026-11-23: Sales Coach → Analytics now shows Market (in-person calls) to managers; topic grouping stays open.
       why-unresolved: needs a grouping pass; Remote Sales first
       next-action: group similar topics; mount MarketView module="sales_coach" on Sales Coach analytics
+
+## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
+
+- [ ] 2026-11-23 · coaching · monthly coaching email to managers (the export exists; the subscription doesn't)
+      why-unresolved: a scheduled email is its own build
+      next-action: a monthly cron beside the weekly digest, sending each manager their coaching CSV numbers

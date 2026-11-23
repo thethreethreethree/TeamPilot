@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordAudit } from "@/lib/audit/recordAudit";
+import { toCsv } from "@/lib/export/toCsv";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
@@ -111,6 +113,31 @@ export async function GET(req: NextRequest) {
     const [listener, session] = k.split("|");
     if (!listener || !session) continue;
     if (counted(r, lengthMs.get(session) ?? 0)) callsListened[listener] = (callsListened[listener] ?? 0) + 1;
+  }
+  // Coaching export (2026-11-23; ledger F16.11): the same numbers as a CSV, one row per person, audited like every
+  // coaching export (the audit-route invariant). Same computation as the panel, so the file can't disagree with it.
+  if (new URL(req.url).searchParams.get("format") === "csv") {
+    const people = [...new Set([...Object.keys(feedbackGiven), ...Object.keys(callsListened)])];
+    const { data: profs, error: pErr } = people.length
+      ? await admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).in("id", people)
+      : { data: [], error: null };
+    if (pErr) {
+      console.error(`[coaching-metrics] names read failed company=${mgr.companyId}: ${pErr.message}`);
+      return NextResponse.json({ error: "Couldn't build the export." }, { status: 500 });
+    }
+    const nameOf = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name]));
+    const rows = people
+      .map((id) => ({ person: nameOf.get(id) ?? "Unnamed teammate", feedback_given: feedbackGiven[id] ?? 0, calls_listened: callsListened[id] ?? 0, period_start: since.slice(0, 10), period_end: new Date().toISOString().slice(0, 10) }))
+      .sort((a, b) => a.person.localeCompare(b.person));
+    await recordAudit(admin, { companyId: mgr.companyId, actorId: mgr.userId, action: "session.export", objectType: "company", objectId: mgr.companyId, meta: { kind: "coaching_metrics", rows: rows.length } });
+    return new NextResponse(toCsv(rows, ["person", "feedback_given", "calls_listened", "period_start", "period_end"]), {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="coaching-${new Date().toISOString().slice(0, 10)}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
   return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsListened });
 }

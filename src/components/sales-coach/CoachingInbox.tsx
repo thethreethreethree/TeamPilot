@@ -163,7 +163,11 @@ export function CoachingInbox() {
           played at least half the call. */}
       {metrics?.decided && (
         <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching metrics">
-          <p className="text-xs font-semibold text-primary">Coaching in the last 30 days</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-primary">Coaching in the last 30 days</p>
+            {/* Coaching export (2026-11-23, F16.11): the same numbers as a CSV; the download is audit-logged. */}
+            <a href="/api/coach/remote/coaching-metrics?format=csv" className="text-[11px] text-brand hover:underline">Download CSV</a>
+          </div>
           {(() => {
             const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened)])].sort(
               (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
