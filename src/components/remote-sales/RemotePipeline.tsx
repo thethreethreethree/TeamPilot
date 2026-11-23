@@ -8,6 +8,7 @@ import { useIsSalesCoachManager, useCurrentUserRole, isCompanyAdminRole } from "
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
+import { stagesInUse } from "@/lib/coach/remote/stageTraining";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
@@ -158,6 +159,9 @@ export function RemotePipeline() {
 
       {/* One datalist of the sources already used in this pipeline, for every source box on the page. */}
       <datalist id="lead-sources">{sourcesInUse(data?.prospects ?? []).map((s) => <option key={s} value={s} />)}</datalist>
+      {/* Stage names already used in this pipeline (2026-11-23): picking one keeps spellings the same, so a practice
+          scenario tagged "Demo" reaches every prospect at "Demo" (stage tags match on the normalised name). */}
+      <datalist id="stage-names-in-use">{stagesInUse((data?.prospects ?? []).map((p) => p.stageLabel)).map((s) => <option key={s} value={s} />)}</datalist>
       {view === "calendar" ? (
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
       ) : view === "sources" ? (
@@ -414,6 +418,8 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
             defaultValue={p.stage_label ?? ""}
             placeholder="e.g. Proposal"
             aria-label="Stage name"
+            list="stage-names-in-use"
+            maxLength={60}
             onBlur={(e) => {
               const v = e.currentTarget.value.trim();
               if (v !== (p.stage_label ?? "")) void post({ action: "set", kind: "stage", value: { status: p.status, ...(v ? { label: v } : {}) } });

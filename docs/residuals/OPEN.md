@@ -319,6 +319,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · stage-training · stage names are free text; a scenario's stage tag matches only the same name (ignoring case and spacing)
       why-unresolved: a company stage list is a pipeline change of its own
       next-action: an optional company stage list offered in the prospect's stage box and the tag box
+      part done 2026-11-23: the prospect's stage box now suggests the stage names in use (one spelling each) — docs/tbc/2026-11-23-stage-suggestions. A company list stays open.
 - [ ] 2026-11-23 · client reads · 11 client reads map a failed fetch to null (`r.ok ? r.json() : null`) — some may show "nothing" on a failure
       resolved 2026-11-23 (docs/tbc/2026-11-23-null-reads): 7 data reads fixed (plus 6 more found in src/app), the null form is now a gate with 7 listed label reads.
       why-unresolved: each must be read to tell a label read from a data read

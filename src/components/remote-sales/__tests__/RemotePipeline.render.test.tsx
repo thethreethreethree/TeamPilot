@@ -122,5 +122,17 @@ describe("the pipeline", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to the real dates" }));
     expect(table.textContent).not.toContain("Past due");
   });
+
+  it("stage names already in use are offered in one spelling each (so stage practice tags match)", async () => {
+    const a = { ...P("p1", "Pat Prospect", "open", 1500), stageLabel: "Demo" };
+    const b = { ...P("p5", "Bea", "open", 100), stageLabel: "demo " };
+    const c = { ...P("p6", "Cal", "open", 100), stageLabel: "Proposal" };
+    const d = { ...P("p7", "Dee", "open", 100), stageLabel: "Demo" };
+    respond({ "/api/coach/remote/prospects": { ...MINE, prospects: [a, b, c, d] } }); // "Demo" twice beats "demo " once
+    const { container } = render(<RemotePipeline />);
+    await screen.findByText("Pat Prospect");
+    const opts = [...container.querySelectorAll("datalist#stage-names-in-use option")].map((o) => o.getAttribute("value"));
+    expect(opts).toEqual(["Demo", "Proposal"]);
+  });
 });
 
