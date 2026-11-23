@@ -525,7 +525,8 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by pipeline changes (2026-11-23, docs/tbc/2026-11-23-pipeline-changes)
 
-- [ ] 2026-11-23 · forecast · no pipeline value trend over weeks and no stage funnel
+- [x] 2026-11-23 · forecast · no pipeline value trend over weeks and no stage funnel
       why-unresolved: changes first
       next-action: replay the same events into open value per week (a small chart) and counts per stage (a funnel)
+      done 2026-11-23: docs/tbc/2026-11-23-pipeline-trend.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pipelineChanges, summarize, type ProspectEvent } from "../pipelineChanges";
+import { openValueAt, pipelineChanges, stageFunnel, summarize, type ProspectEvent } from "../pipelineChanges";
 
 let n = 0;
 const ev = (prospectId: string, at: string, kind: string, value: Record<string, unknown>): ProspectEvent => ({ prospectId, kind, value, at, id: ++n });
@@ -38,5 +38,30 @@ describe("pipelineChanges", () => {
     expect(c.find((x) => x.kind === "won")).toMatchObject({ amount: 800 });
     expect(c.find((x) => x.kind === "amount")).toMatchObject({ from: 600, to: 800 });
     expect(summarize(c)).toMatchObject({ won: 1, wonValue: 800, lost: 1, slipped: 1, new: 0 });
+  });
+});
+
+describe("openValueAt and stageFunnel", () => {
+  it("open value as of each instant: created before, still open then, latest amount then", () => {
+    const evs = [
+      ev("x", "2026-11-01T10:00:00Z", "stage", { status: "open" }),
+      ev("x", "2026-11-01T10:00:00Z", "amount", { amount: 100 }),
+      ev("x", "2026-11-10T10:00:00Z", "amount", { amount: 300 }),
+      ev("x", "2026-11-18T10:00:00Z", "stage", { status: "won" }),
+      ev("y", "2026-11-12T10:00:00Z", "stage", { status: "open" }),
+    ];
+    expect(openValueAt(evs, ["2026-11-05T00:00:00Z", "2026-11-15T00:00:00Z", "2026-11-20T00:00:00Z"])).toEqual([
+      { at: "2026-11-05T00:00:00Z", open: 1, value: 100, unpriced: 0 },
+      { at: "2026-11-15T00:00:00Z", open: 2, value: 300, unpriced: 1 },
+      { at: "2026-11-20T00:00:00Z", open: 1, value: 0, unpriced: 1 },
+    ]);
+  });
+  it("the funnel counts open deals per stage name, spelling-insensitive", () => {
+    expect(stageFunnel([
+      { status: "open", stageLabel: "Demo", amount: 100 },
+      { status: "open", stageLabel: "demo ", amount: 50 },
+      { status: "open", stageLabel: null, amount: null },
+      { status: "won", stageLabel: "Demo", amount: 999 },
+    ])).toEqual([{ stage: "Demo", count: 2, value: 150 }, { stage: "No stage", count: 1, value: 0 }]);
   });
 });

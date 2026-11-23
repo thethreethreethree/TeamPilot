@@ -38,6 +38,11 @@ describe("GET prospects/changes", () => {
     expect(j.changes).toEqual([{ kind: "won", prospectId: "a", at: "2026-11-20T10:00:00Z", amount: null, name: "Acme" }]);
     expect(j.summary).toMatchObject({ won: 1 });
   });
+  it("weeks=N adds the open-value trend, oldest first", async () => {
+    const j = await (await GET(get(`${W}&weeks=3`))).json();
+    expect(j.trend.map((t: { at: string }) => t.at)).toEqual(["2026-11-09T00:00:00.000Z", "2026-11-16T00:00:00.000Z", "2026-11-23T00:00:00.000Z"]);
+    expect(j.trend.map((t: { open: number }) => t.open)).toEqual([1, 1, 0]); // won on the 20th
+  });
   it("a bad period is refused; a failed read is a 500", async () => {
     expect((await GET(get("from=x&to=y"))).status).toBe(400);
     expect((await GET(get("from=2026-01-01T00:00:00Z&to=2026-11-01T00:00:00Z"))).status).toBe(400);

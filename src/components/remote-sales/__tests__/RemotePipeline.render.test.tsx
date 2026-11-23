@@ -139,6 +139,7 @@ describe("the pipeline", () => {
     respond({
       "/api/coach/remote/prospects/changes": {
         summary: { new: 0, newValue: 0, won: 1, wonValue: 900, lost: 0, lostValue: 0, moved: 1, slipped: 0 },
+        trend: [{ at: "2026-11-09T00:00:00Z", open: 1, value: 500, unpriced: 0 }, { at: "2026-11-16T00:00:00Z", open: 1, value: 1500, unpriced: 0 }],
         changes: [
           { kind: "won", prospectId: "p2", at: new Date().toISOString(), amount: 900, name: "Won Co" },
           { kind: "stage", prospectId: "p1", at: new Date().toISOString(), from: "Discovery", to: "Demo", name: "Pat Prospect" },
@@ -152,8 +153,10 @@ describe("the pipeline", () => {
     const card = await screen.findByRole("region", { name: "Pipeline changes" });
     await waitFor(() => expect(card.textContent).toContain("Discovery → Demo"));
     expect(card.textContent).toContain("1 won ($900)");
+    expect(screen.getByRole("region", { name: "Open deals by stage" }).textContent).toContain("No stage");
     const asked = fetchMock.mock.calls.map(([u]) => String(u)).find((u) => u.includes("/prospects/changes"))!;
-    expect(asked).toMatch(/from=.*&to=/);
+    expect(asked).toMatch(/from=.*&to=.*&weeks=8/);
+    expect(card.textContent).toMatch(/Open pipeline over 8 weeks: \$500 → \$1,500/);
   });
 });
 

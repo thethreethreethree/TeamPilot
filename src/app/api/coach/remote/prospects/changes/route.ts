@@ -5,13 +5,14 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { listProspects } from "@/lib/coach/remote/prospects";
-import { pipelineChanges, summarize, type ProspectEvent } from "@/lib/coach/remote/pipelineChanges";
+import { openValueAt, pipelineChanges, summarize, type ProspectEvent } from "@/lib/coach/remote/pipelineChanges";
 
 /**
  * GET /api/coach/remote/prospects/changes?repId=<id|team>&from=<ISO>&to=<ISO> — what changed in the pipeline in the period
  * (2026-11-23; pipelineChanges.ts; ledger F23.7). Read through the CALLER's client: the prospects they may see (their own,
  * a report's, or their tree for "team") and those prospects' full event history (needed to know each one's state before
- * the period). A failed read is a 500, never an empty week.
+ * the period). A failed read is a 500, never an empty week. `weeks=N` (2–12) adds `trend`: the open pipeline value at
+ * `to` and at each of the N−1 earlier week boundaries (openValueAt), oldest first.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
@@ -49,5 +50,7 @@ export async function GET(req: NextRequest) {
   }
   const changes = pipelineChanges(events, new Date(from).toISOString(), new Date(to).toISOString());
   const nameOf = new Map(prospects.map((p) => [p.id, p.name]));
-  return NextResponse.json({ summary: summarize(changes), changes: changes.map((c) => ({ ...c, name: nameOf.get(c.prospectId) ?? null })) });
+  const weeks = Math.min(12, Math.max(0, Number(sp.get("weeks")) || 0));
+  const trend = weeks >= 2 ? openValueAt(events, Array.from({ length: weeks }, (_, i) => new Date(Date.parse(to) - (weeks - 1 - i) * 7 * 86_400_000).toISOString())) : undefined;
+  return NextResponse.json({ summary: summarize(changes), changes: changes.map((c) => ({ ...c, name: nameOf.get(c.prospectId) ?? null })), ...(trend ? { trend } : {}) });
 }

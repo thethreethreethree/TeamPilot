@@ -14,6 +14,7 @@ import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
 import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
+import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -923,7 +924,7 @@ type ChangeRow = { kind: string; prospectId: string; at: string; name: string | 
 const CHANGE_WORDS: Record<string, string> = { new: "New deal", won: "Won", lost: "Lost", stage: "Moved", amount: "Amount", close_slipped: "Close date pushed out", close_pulled_in: "Close date pulled in" };
 function PipelineChanges({ whose, onOpen }: { whose: string; onOpen: (id: string) => void }) {
   const [week, setWeek] = useState<0 | 1>(0);
-  const [res, setRes] = useState<{ summary: { new: number; newValue: number; won: number; wonValue: number; lost: number; lostValue: number; moved: number; slipped: number }; changes: ChangeRow[] } | null>(null);
+  const [res, setRes] = useState<{ summary: { new: number; newValue: number; won: number; wonValue: number; lost: number; lostValue: number; moved: number; slipped: number }; changes: ChangeRow[]; trend?: Array<{ at: string; open: number; value: number; unpriced: number }> } | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
@@ -933,7 +934,7 @@ function PipelineChanges({ whose, onOpen }: { whose: string; onOpen: (id: string
     const toIso = new Date(`${addDays(start, 7)}T00:00:00`).toISOString();
     setRes(null);
     setFailed(false);
-    const q = new URLSearchParams({ from: fromIso, to: toIso, ...(whose === "mine" ? {} : { repId: whose }) });
+    const q = new URLSearchParams({ from: fromIso, to: toIso, weeks: "8", ...(whose === "mine" ? {} : { repId: whose }) });
     fetch(`/api/coach/remote/prospects/changes?${q}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j) => {
@@ -968,9 +969,13 @@ function PipelineChanges({ whose, onOpen }: { whose: string; onOpen: (id: string
       ) : !res ? (
         <p className="mt-2 flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Reading the pipeline&apos;s history…</p>
       ) : res.changes.length === 0 ? (
-        <p className="mt-2 text-xs text-secondary">No changes {week === 0 ? "so far this week" : "last week"}.</p>
+        <>
+          <TrendStrip trend={res.trend} />
+          <p className="mt-2 text-xs text-secondary">No changes {week === 0 ? "so far this week" : "last week"}.</p>
+        </>
       ) : (
         <>
+          <TrendStrip trend={res.trend} />
           <p className="mt-1 text-[11px] text-secondary">
             {res.summary.new} new ({money(res.summary.newValue)}) · {res.summary.won} won ({money(res.summary.wonValue)}) · {res.summary.lost} lost ({money(res.summary.lostValue)}) · {res.summary.moved} moved · {res.summary.slipped} close dates pushed out
           </p>
@@ -989,6 +994,55 @@ function PipelineChanges({ whose, onOpen }: { whose: string; onOpen: (id: string
           </ul>
         </>
       )}
+    </section>
+  );
+}
+
+/** Open pipeline value at the end of each of the last 8 weeks (F23.7 trend), as a labelled bar strip. */
+function TrendStrip({ trend }: { trend?: Array<{ at: string; open: number; value: number; unpriced: number }> }) {
+  if (!trend || trend.length < 2) return null;
+  const max = Math.max(1, ...trend.map((t) => t.value));
+  const first = trend[0]!;
+  const last = trend[trend.length - 1]!;
+  const delta = last.value - first.value;
+  return (
+    <div className="mt-2">
+      <p className="text-[11px] text-secondary">
+        Open pipeline over 8 weeks: {money(first.value)} → <span className="font-semibold text-primary">{money(last.value)}</span>{" "}
+        <span className={delta < 0 ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"}>({delta < 0 ? "−" : "+"}{money(Math.abs(delta))})</span>
+      </p>
+      <ol aria-label="Open pipeline value by week" className="mt-1 flex h-10 items-end gap-1">
+        {trend.map((t) => (
+          <li
+            key={t.at}
+            aria-label={`Week ending ${shortDate(t.at)}: ${money(t.value)} open in ${t.open} ${t.open === 1 ? "deal" : "deals"}${t.unpriced ? `, ${t.unpriced} with no amount` : ""}`}
+            title={`Week ending ${shortDate(t.at)}: ${money(t.value)} · ${t.open} open`}
+            className="flex-1 rounded-sm bg-brand/60"
+            style={{ height: `${Math.max(6, Math.round((t.value / max) * 100))}%` }}
+          />
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Open deals per stage now (F23.7 funnel), from the prospects already on screen. */
+function StageFunnel({ prospects }: { prospects: Prospect[] }) {
+  const rows = stageFunnel(prospects);
+  if (rows.length === 0) return null;
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  return (
+    <section aria-label="Open deals by stage" className="rounded-xl border border-default bg-surface p-3">
+      <p className="text-xs font-semibold text-primary">Open deals by stage</p>
+      <ul className="mt-2 space-y-1">
+        {rows.map((r) => (
+          <li key={r.stage} className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-2 text-xs">
+            <span className="truncate text-primary">{r.stage}</span>
+            <span className="h-2 rounded-sm bg-brand/60" style={{ width: `${Math.max(4, Math.round((r.count / max) * 100))}%` }} aria-hidden />
+            <span className="tabular-nums text-secondary">{r.count} · {money(r.value)}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -1048,6 +1102,8 @@ function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | n
       </div>
 
       <ByCloseMonth prospects={prospects} today={t} />
+
+      <StageFunnel prospects={prospects} />
 
       <div className={card}>
         <p className="text-xs font-semibold text-primary">Deals at risk</p>

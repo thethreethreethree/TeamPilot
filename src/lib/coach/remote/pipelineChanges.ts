@@ -70,3 +70,51 @@ export function summarize(changes: Change[]) {
   }
   return s;
 }
+
+/**
+ * Open pipeline value at each instant in `ends` (2026-11-23; F23.7 trend): replay every prospect's events up to that
+ * instant; a prospect counts if it existed, was open, and its value is its latest amount (none = 0, counted apart as
+ * unpriced). Erased or later-closed deals count for the weeks they were open — this is the history, not today's view.
+ */
+export function openValueAt(events: ProspectEvent[], ends: string[]): Array<{ at: string; open: number; value: number; unpriced: number }> {
+  const byProspect = new Map<string, ProspectEvent[]>();
+  for (const e of events) byProspect.set(e.prospectId, [...(byProspect.get(e.prospectId) ?? []), e]);
+  for (const list of byProspect.values()) list.sort((a, b) => a.id - b.id);
+  return ends.map((end) => {
+    let open = 0;
+    let value = 0;
+    let unpriced = 0;
+    for (const list of byProspect.values()) {
+      let exists = false;
+      let status = "open";
+      let amount: number | null = null;
+      for (const e of list) {
+        if (e.at >= end) break;
+        exists = true;
+        const v = e.value ?? {};
+        if (e.kind === "stage") status = str(v.status) ?? "open";
+        if (e.kind === "amount") amount = num(v.amount);
+      }
+      if (!exists || status !== "open") continue;
+      open++;
+      if (amount === null) unpriced++;
+      else value += amount;
+    }
+    return { at: end, open, value, unpriced };
+  });
+}
+
+/** Open deals per stage name (the funnel), most first; no stage name counted as "No stage". */
+export function stageFunnel(prospects: Array<{ status: string; stageLabel: string | null; amount: number | null }>): Array<{ stage: string; count: number; value: number }> {
+  const by = new Map<string, { stage: string; count: number; value: number }>();
+  for (const p of prospects) {
+    if (p.status !== "open") continue;
+    const label = p.stageLabel?.trim() || "No stage";
+    const k = label.toLowerCase().replace(/\s+/g, " ");
+    const e = by.get(k) ?? { stage: label, count: 0, value: 0 };
+    e.count++;
+    e.value += p.amount ?? 0;
+    by.set(k, e);
+  }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.stage.localeCompare(b.stage));
+}
