@@ -11,6 +11,7 @@ import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { cleanLine, editMarks, type EditRow } from "@/lib/coach/transcriptEdits";
+import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
 
 /**
  * /api/coach/sales-session/:id/transcript-edit — correct a line of a call's transcript (2026-11-23; migration 0311;
@@ -92,7 +93,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
   const seq = Number(b.seq);
-  const text = cleanLine(b.text);
+  // A corrected line is stored under the same number redaction as every transcript line (D15).
+  const cleaned = cleanLine(b.text);
+  const text = cleaned === null ? null : transcriptTextForStorage(cleaned);
   if (!Number.isInteger(seq) || !text) return NextResponse.json({ error: "Name the line and its corrected words (1-4000 characters)." }, { status: 400 });
 
   // The line must be one the editor can see now (current version, not inside a trim).

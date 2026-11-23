@@ -76,6 +76,10 @@ describe("POST transcript-edit", () => {
     expect((await POST(post({ seq: 1, text: "  " }), P)).status).toBe(400);
     expect(st.rpc).not.toHaveBeenCalled();
   });
+  it("a typed card number is stored redacted, like every transcript line (D15)", async () => {
+    await POST(post({ seq: 1, text: "card 4111 1111 1111 1111 please" }), P);
+    expect(st.rpc).toHaveBeenCalledWith("edit_transcript_line", expect.objectContaining({ p_text: "card [number removed] please" }));
+  });
   it("the same words change nothing", async () => {
     expect(await (await POST(post({ seq: 1, text: "we can do fifty" }), P)).json()).toEqual({ ok: true, changed: false });
     expect(st.rpc).not.toHaveBeenCalled();

@@ -5,8 +5,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { selectWinningLines } from "@/lib/coach/v5/winningLines";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
-import { REDACTION } from "@/lib/coach/remote/decisions";
-import { redactNumbers } from "@/lib/coach/remote/redact";
+import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
 
 /**
  * Live Sales Coach — data layer (subsystem 2: Recording & Storage).
@@ -365,9 +364,9 @@ export async function appendTranscriptSegment(args: {
   const base = {
     session_id: args.sessionId,
     speaker: args.speaker,
-    // D15 number redaction, applied at the ONE place transcript lines are written (switched by REDACTION in
-    // decisions.ts; off until the founder decides). Off = the text is stored exactly as heard.
-    text: REDACTION.enabled ? redactNumbers(args.text, REDACTION.minDigits) : args.text,
+    // D15 number redaction (REDACTION in decisions.ts), through the one helper every transcript writer uses —
+    // this path, replaceSessionTranscript and the line-correction route (transcriptRedactionGate.test.ts).
+    text: transcriptTextForStorage(args.text),
     seq: args.seq,
     spoken_at: args.spokenAt ?? null,
   };
@@ -445,7 +444,9 @@ export async function replaceSessionTranscript(
     // rather than the transcript. (Migration-coupling: never assert.)
     p_segments: segments.map((s) => ({
       speaker: s.speaker,
-      text: s.text,
+      // D15 applies here too (2026-11-23): this is the uploaded-recording and recovery path, and it used to store
+      // the text exactly as heard.
+      text: transcriptTextForStorage(s.text),
       seq: s.seq,
       spokenAt: s.spokenAt ?? null,
       speakerId: s.speakerId ?? null,

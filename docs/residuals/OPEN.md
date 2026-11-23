@@ -393,3 +393,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       cause found and fixed 2026-11-23 (docs/tbc/2026-11-23-call-pipeline-link): the control existed only in Macro Mode and could only create a new prospect; now on every remote call view with existing prospects offered.
       why-unresolved: a workflow step
       next-action: consider prompting "Add to pipeline" at the end of a remote call
+
+## Filed by redaction on every writer (2026-11-23, docs/tbc/2026-11-23-redaction-all-writers)
+
+- [ ] 2026-11-23 · redaction · numbers spoken as words ("four one one one …") are not removed from transcripts
+      why-unresolved: D15 covers digit runs only
+      next-action: a word-to-digit pass before redactNumbers, tested on real transcripts

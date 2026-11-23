@@ -9,10 +9,22 @@
  * Limits, stated rather than hidden: numbers spoken as WORDS ("four one one one") are not caught; the AUDIO is not
  * altered; lines already stored stay as they are (redaction is for new calls).
  */
+import { REDACTION } from "./decisions";
+
 export const REDACTED = "[number removed]";
 
 export function redactNumbers(text: string, minDigits: number): string {
   if (!text || minDigits < 1) return text;
   // Digit groups joined by a single space, dash or dot (no letters in between).
   return text.replace(/\d(?:[ \-.]?\d)*/g, (run) => (run.replace(/\D/g, "").length >= minDigits ? REDACTED : run));
+}
+
+/**
+ * The text a transcript line is STORED as (D15, decisions.ts REDACTION). Every path that writes transcript text must
+ * pass through this: appendTranscriptSegment (live lines), replaceSessionTranscript (uploaded recordings, recovery)
+ * and the line-correction route (typed text). Before 2026-11-23 only the first did, so an uploaded call's card number
+ * was stored in full. A guard test (transcriptRedactionGate) fails if a writer stops using it.
+ */
+export function transcriptTextForStorage(text: string): string {
+  return REDACTION.enabled ? redactNumbers(text, REDACTION.minDigits) : text;
 }
