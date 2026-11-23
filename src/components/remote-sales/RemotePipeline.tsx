@@ -8,6 +8,7 @@ import { useIsSalesCoachManager, useCurrentUserRole, isCompanyAdminRole } from "
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
+import { RemoteCalendar } from "./RemoteCalendar";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -52,6 +53,7 @@ export function RemotePipeline() {
   const isManager = scManager || isCompanyAdminRole(role);
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
+  const [view, setView] = useState<"list" | "calendar">("list");
   const [whose, setWhose] = useState<string>("mine");
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
@@ -88,6 +90,14 @@ export function RemotePipeline() {
   const rows = useMemo(() => (data?.prospects ?? []).filter((p) => p.status === tab), [data, tab]);
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? null;
   const open = (id: string | null) => router.replace(id ? `/dashboard/remote-sales/pipeline?p=${id}` : "/dashboard/remote-sales/pipeline", { scroll: false });
+  // Go to a prospect from elsewhere on the page (an Ask answer, the calendar): the list, on the tab that holds it — a
+  // closed prospect would otherwise "open" on a tab that isn't showing.
+  const goTo = (id: string) => {
+    const p = data?.prospects.find((x) => x.id === id);
+    if (p) setTab(p.status);
+    setView("list");
+    open(id);
+  };
 
   return (
     <div className="space-y-4">
@@ -112,6 +122,19 @@ export function RemotePipeline() {
                 ))}
             </select>
           )}
+          <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
+            {(["list", "calendar"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={`px-2.5 py-1.5 text-xs ${view === v ? "bg-brand/15 font-semibold text-primary" : "bg-surface text-secondary hover:text-primary"}`}
+              >
+                {v === "list" ? "List" : "Calendar"}
+              </button>
+            ))}
+          </div>
           <button type="button" onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black">
             <Plus className="h-3.5 w-3.5" aria-hidden /> New prospect
           </button>
@@ -120,6 +143,10 @@ export function RemotePipeline() {
 
       {adding && <NewProspect onDone={(id) => { setAdding(false); void load(); if (id) open(id); }} />}
 
+      {view === "calendar" ? (
+        <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
+      ) : (
+        <>
       <div role="tablist" aria-label="Pipeline stages" className="grid grid-cols-3 gap-2">
         {([
           ["open", "Open"],
@@ -141,7 +168,7 @@ export function RemotePipeline() {
         ))}
       </div>
 
-      {data && data.prospects.length > 0 && <AskPipeline key={whose} scope={whose} onOpen={open} />}
+      {data && data.prospects.length > 0 && <AskPipeline key={whose} scope={whose} onOpen={goTo} />}
 
       {failed ? (
         <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>
@@ -193,6 +220,8 @@ export function RemotePipeline() {
             );
           })}
         </ul>
+      )}
+        </>
       )}
     </div>
   );

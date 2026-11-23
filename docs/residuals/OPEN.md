@@ -298,3 +298,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · ask-pipeline · no component test renders the Ask box (citation buttons; reset when switching "Whose pipeline")
       why-unresolved: the remote-sales screens have no component-test harness yet
       next-action: add a testing-library render for RemotePipeline's AskPipeline with a mocked fetch
+
+## Filed by the team call calendar (2026-11-23, docs/tbc/2026-11-23-team-calendar)
+
+- [ ] 2026-11-23 · calendar · booked calls show a date only (a prospect's next call has no time)
+      why-unresolved: next_call_date is a date column
+      next-action: an optional next-call time on the prospect event, shown on the calendar and in the .ics reminder
+- [ ] 2026-11-23 · calendar · calendar week read is capped at 500 calls
+      why-unresolved: far above any team's week today
+      next-action: if a team nears it, page the read and say "showing the first 500"
