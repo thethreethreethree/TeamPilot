@@ -141,3 +141,20 @@ export function forecastByMonth(prospects: P[], today: string): { pastDue: Month
   }
   return { pastDue, months: [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month)), undated };
 }
+
+/** forecastByMonth's months summed into calendar quarters ("2026-Q4"); past due stays apart. Expected stays null when
+ *  the months' is (below MIN_CLOSED_FOR_FORECAST closed deals). */
+export function byQuarter(months: MonthRow[]): MonthRow[] {
+  const q = new Map<string, MonthRow>();
+  for (const m of months) {
+    const [y, mm] = m.month.split("-");
+    const key = `${y}-Q${Math.floor((Number(mm) - 1) / 3) + 1}`;
+    const r = q.get(key) ?? { month: key, count: 0, amount: 0, unpriced: 0, expected: m.expected === null ? null : 0 };
+    r.count += m.count;
+    r.amount += m.amount;
+    r.unpriced += m.unpriced;
+    if (r.expected !== null && m.expected !== null) r.expected += m.expected;
+    q.set(key, r);
+  }
+  return [...q.values()].sort((a, b) => a.month.localeCompare(b.month));
+}

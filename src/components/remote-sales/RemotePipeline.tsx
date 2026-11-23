@@ -11,7 +11,7 @@ import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
+import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -787,18 +787,30 @@ function RiskLine({ p }: { p: Prospect }) {
 /** Open deals by the month the rep expects them to close (0320, dealRisk.forecastByMonth). */
 function ByCloseMonth({ prospects, today: t }: { prospects: Prospect[]; today: string }) {
   const f = forecastByMonth(prospects, t);
+  const [quarters, setQuarters] = useState(false);
   const monthName = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
-  const rows = [...(f.pastDue.count ? [{ ...f.pastDue, label: "Past due" }] : []), ...f.months.map((m) => ({ ...m, label: monthName(m.month) }))];
+  const quarterName = (q: string) => `${q.slice(5)} ${q.slice(0, 4)}`;
+  const periods = quarters ? byQuarter(f.months).map((m) => ({ ...m, label: quarterName(m.month) })) : f.months.map((m) => ({ ...m, label: monthName(m.month) }));
+  const rows = [...(f.pastDue.count ? [{ ...f.pastDue, label: "Past due" }] : []), ...periods];
   return (
     <section aria-label="By expected close month" className="rounded-xl border border-default bg-surface p-3">
-      <p className="text-xs font-semibold text-primary">By expected close month</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-primary">By expected close {quarters ? "quarter" : "month"}</p>
+        <div role="group" aria-label="Group by" className="inline-flex overflow-hidden rounded-lg border border-default text-[11px]">
+          {([false, true] as const).map((q) => (
+            <button key={String(q)} type="button" aria-pressed={quarters === q} onClick={() => setQuarters(q)} className={`px-2 py-0.5 ${quarters === q ? "bg-brand/15 font-semibold text-primary" : "text-secondary"}`}>
+              {q ? "Quarters" : "Months"}
+            </button>
+          ))}
+        </div>
+      </div>
       {rows.length === 0 ? (
         <p className="mt-1 text-xs text-secondary">No open deal has an expected close date yet — set one on a prospect&apos;s card.</p>
       ) : (
         <table className="mt-2 w-full text-left text-xs">
           <thead className="text-[10px] uppercase tracking-wide text-muted">
             <tr>
-              <th className="py-1 pr-2 font-medium">Month</th>
+              <th className="py-1 pr-2 font-medium">{quarters ? "Quarter" : "Month"}</th>
               <th className="py-1 pr-2 text-right font-medium">Deals</th>
               <th className="py-1 pr-2 text-right font-medium">Value</th>
               <th className="py-1 text-right font-medium">Expected</th>

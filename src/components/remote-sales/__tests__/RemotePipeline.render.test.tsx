@@ -93,5 +93,8 @@ describe("the pipeline", () => {
     expect(table.textContent).toContain("$400");
     expect(table.textContent).toContain("$2,000");
     expect(table.textContent).toContain("1 open deal has no expected close date ($1,500)");
+    fireEvent.click(screen.getByRole("button", { name: "Quarters" }));
+    expect(table.textContent).toMatch(/Q[1-4] 20\d\d/);
+    expect(table.textContent).toContain("Past due");
   });
 });

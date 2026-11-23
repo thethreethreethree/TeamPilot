@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST } from "../dealRisk";
+import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST } from "../dealRisk";
 
 const TODAY = "2026-11-23";
 const p = (over: Partial<Parameters<typeof dealRisk>[0]> = {}) => ({
@@ -77,5 +77,16 @@ describe("expected close date (0320)", () => {
     const closed = [...Array(3)].map((_, i) => p({ id: `w${i}`, status: "won" })).concat([...Array(2)].map((_, i) => p({ id: `l${i}`, status: "lost" })));
     const enough = forecastByMonth([...open, ...closed], TODAY);
     expect(enough.months[1]!.expected).toBeCloseTo(500 * 0.6);
+  });
+});
+
+describe("byQuarter", () => {
+  it("sums months into calendar quarters; expected stays null when unknown", () => {
+    const m = (month: string, amount: number, expected: number | null) => ({ month, count: 1, amount, unpriced: 0, expected });
+    expect(byQuarter([m("2026-11", 100, null), m("2026-12", 50, null), m("2027-01", 10, null)])).toEqual([
+      { month: "2026-Q4", count: 2, amount: 150, unpriced: 0, expected: null },
+      { month: "2027-Q1", count: 1, amount: 10, unpriced: 0, expected: null },
+    ]);
+    expect(byQuarter([m("2026-10", 100, 60), m("2026-12", 50, 30)])[0]!.expected).toBe(90);
   });
 });
