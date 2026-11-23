@@ -9,6 +9,7 @@ import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
+import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
 import { dealRisk, forecast, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
 
@@ -584,6 +585,7 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
           ))}
         </div>
       )}
+      {!busy && <PromptLibrary scope="pipeline" onPick={(t) => { setQ(t); setRes(null); setNote(null); }} />}
       {busy && <p className="mt-2 text-xs text-muted">Reading the pipeline…</p>}
       {note && (
         <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-secondary">

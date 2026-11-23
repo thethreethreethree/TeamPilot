@@ -374,3 +374,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · client reads · other spellings of "failed read → nothing" (e.g. `if (!r.ok) return null`, `.catch(() => [])`) are not matched by the guard
       why-unresolved: each spelling needs its own safe pattern
       next-action: grep each spelling, read in context, add to noFailedReadAsEmpty with counted allowances
+
+## Filed by the Ask Coach prompt library (2026-11-23, docs/tbc/2026-11-23-prompt-library)
+
+- [ ] 2026-11-23 · prompt-library · run each library prompt on one real call and one real pipeline; rewrite any that produce a vague answer; then a team's own saved prompts
+      why-unresolved: needs real data and paid AI calls; custom prompts are their own build
+      next-action: after the first real remote calls are scored

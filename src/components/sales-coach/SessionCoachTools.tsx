@@ -1,5 +1,6 @@
 "use client";
 
+import { PromptLibrary } from "@/components/remote-sales/PromptLibrary";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FileText,
@@ -596,6 +597,7 @@ function AskCoachPanel({ sessionId, onSeek }: { sessionId: string; onSeek?: (sec
       >
         Ask
       </LoadingButton>
+      {!loading && turns.length === 0 && <PromptLibrary scope="call" onPick={setQuestion} />}
       {error && <p className="text-xs text-amber-300 mt-2">{error}</p>}
       {thread}
       {chatId && (
