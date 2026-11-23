@@ -35,3 +35,9 @@ export function currentStatus(events: Array<{ report_id: string; status: string;
   for (const e of [...events].sort((a, b) => a.created_at.localeCompare(b.created_at))) out.set(e.report_id, { status: e.status, note: e.note, at: e.created_at });
   return out;
 }
+
+/** Reports with no response recorded yet (no status event) — the founders' "waiting" count (2026-11-23). */
+export function waitingCount(reportIds: string[], events: Array<{ report_id: string }>): number {
+  const answered = new Set(events.map((e) => String(e.report_id)));
+  return reportIds.filter((id) => !answered.has(String(id))).length;
+}

@@ -335,9 +335,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by vulnerability disclosure (2026-11-23, docs/tbc/2026-11-23-security-disclosure)
 
-- [ ] 2026-11-23 · security-disclosure · security reports have no alert — a new one waits until a founder opens Security reports
+- [x] 2026-11-23 · security-disclosure · security reports have no alert — a new one waits until a founder opens Security reports
       why-unresolved: no founder alert channel outside the Sales Coach bell; email sending is C.A.R.E-only
       next-action: send the founders an email (or a bell entry in the vendor shell) when security_reports gets a row
+      done 2026-11-23: in-app (D10) — an amber count of waiting reports on the founders' "Security reports" sidebar item — docs/tbc/2026-11-23-security-alert.
 - [ ] 2026-11-23 · security-disclosure · AFTER PUSH: open https://elostate.com/.well-known/security.txt and https://elostate.com/security; send one test report and see it in Security reports
       why-unresolved: not deployed until pushed
       next-action: founder push, then the three checks

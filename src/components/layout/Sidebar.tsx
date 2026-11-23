@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { isAdminRole } from "@/lib/roles";
+import { SecurityWaitingBadge } from "./SecurityWaitingBadge";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
@@ -985,6 +986,7 @@ export default function Sidebar() {
                       )}
                     />
                     {item.label}
+                    {item.href === "/dashboard/admin/security" && <SecurityWaitingBadge refreshKey={pathname} />}
                   </Link>
                 </LearningHint>
               );
