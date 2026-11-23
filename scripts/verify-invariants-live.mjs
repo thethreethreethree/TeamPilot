@@ -547,7 +547,7 @@ async function main() {
       "select count(*)::int n, coalesce(string_agg(distinct cl.relname, ', '), '') as tbls " +
       "from pg_policies pol join pg_class cl on cl.relname = pol.tablename " +
       "join pg_namespace ns on ns.oid=cl.relnamespace and ns.nspname='public' " +
-      "where pol.schemaname='public' and pol.tablename like 'fin_%' and pol.cmd in ('SELECT','ALL') " +
+      "where pol.schemaname='public' and pol.tablename like 'fin_%' and pol.cmd in ('SELECT','ALL') and pol.permissive = 'PERMISSIVE' " +
       "and exists (select 1 from information_schema.columns col where col.table_name=cl.relname and col.column_name='company_id') " +
       "and lower(coalesce(pol.qual,'')) not like '%auth_company_id%' and lower(coalesce(pol.qual,'')) not like '%company_id%'");
     const n = r.rows[0].n;
@@ -569,6 +569,23 @@ async function main() {
     return { pass: n === 0, detail: n === 0 ? "all storage.objects read policies are authenticated + scoped" : `${n} anon/public/permissive read policy(ies) → possible PII leak: ${r.rows[0].pols}` };
   });
 
+  await check("multi-factor sign-in holds in the database: every table that grants access has the mfa_required policy (0309)", async () => {
+    // 2026-11-23. The browser can call Supabase's REST API directly with its own token, past our middleware. 0309 puts a
+    // RESTRICTIVE mfa_required policy on every public table that grants access (has a permissive policy) and on
+    // storage.objects, so an aal1 token of someone who turned MFA on reads and writes nothing. A table added later that
+    // grants access without it re-opens that path for its rows — this fails until the migration adds the policy.
+    const r = await c.query(
+      "select coalesce(string_agg(t.relname, ', '), '') as tbls, count(*)::int n from (" +
+      " select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace and n.nspname='public' " +
+      " where c.relkind in ('r','p') and c.relrowsecurity " +
+      " and exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=c.relname and p.permissive='PERMISSIVE') " +
+      " and not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=c.relname and p.policyname='mfa_required' and p.permissive='RESTRICTIVE')" +
+      " union all select 'storage.objects' where not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='mfa_required')" +
+      ") t");
+    const n = r.rows[0].n;
+    return { pass: n === 0, detail: n === 0 ? "every access-granting table and storage.objects carries mfa_required" : `${n} table(s) grant access without mfa_required → an unverified session can reach them: ${r.rows[0].tbls}` };
+  });
+
   await check("Macro-Mode pitch tables keep the PER-REP owner restriction (peer-rep isolation — F8)", async () => {
     // Q4 = rep + manager: a rep sees only their OWN door-to-door pitches/knocks/analyses/summaries; a
     // same-company manager (role CEO/COO/admin or sales_coach_role='admin') sees the team. The tenant-pin
@@ -586,7 +603,7 @@ async function main() {
     const tbls = ["door_knocks", "pitches", "pitch_transcripts", "pitch_analyses", "rep_pattern_summaries"];
     const r = await c.query(
       "select coalesce(string_agg(tablename || '.' || policyname, ', '), '') as pols, count(*)::int n " +
-      "from pg_policies where schemaname='public' and tablename = any($1) and cmd in ('SELECT','ALL') " +
+      "from pg_policies where schemaname='public' and tablename = any($1) and cmd in ('SELECT','ALL') and permissive = 'PERMISSIVE' " +
       "and lower(coalesce(qual,'')) not like '%rep_id = auth.uid()%'",
       [tbls]);
     const n = r.rows[0].n;

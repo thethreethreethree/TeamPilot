@@ -274,3 +274,18 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a customer-facing statement; the options were to verify DeepSeek's API data terms and name both, or keep customer data on Anthropic only
       next-action: when revisited, read DeepSeek's current API data-use terms first; then either name both providers accurately or route customer data to Anthropic only
 
+## Filed by multi-factor sign-in (2026-11-23, docs/tbc/2026-11-23-mfa)
+
+- [ ] 2026-11-23 · mfa · BLOCKING SETUP: TOTP multi-factor must be enabled in the Supabase project (Auth → Multi-Factor → TOTP); then one real enrolment from Settings → Sign-in codes, a sign-out, and a sign-in that asks for the code
+      why-unresolved: dashboard config outside the repo; the public settings endpoint does not report it
+      next-action: after the push, enrol a test account in Settings; if it is off, enrolment says "Couldn't start setup…" (the provider's reason is in the server log)
+- [ ] 2026-11-23 · mfa · 128 SECURITY DEFINER functions callable by authenticated are outside the database rule (0309 covers tables and storage)
+      why-unresolved: each must be read to see whether it reads or writes customer data
+      next-action: add `if not public.rss_mfa_ok() then raise exception` to the data-bearing ones; a live invariant over the list
+- [ ] 2026-11-23 · mfa · the mobile app and Chrome extension have no code step, so they refuse an account with codes on
+      why-unresolved: each client needs its own MFA screen
+      next-action: add the code step to each client's sign-in (challengeAndVerify), then drop the Settings warning
+- [ ] 2026-11-23 · mfa · company-wide "require sign-in codes" setting (admins)
+      why-unresolved: per-person codes first
+      next-action: append-only company setting; the middleware sends people without an authenticator to Settings to set one up
+

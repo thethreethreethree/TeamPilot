@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseEnabled } from "@/lib/supabase/config";
 import { decideAuthRedirect } from "@/lib/auth/routeGuard";
 import { lockFromPilotModule, redirectForLock } from "@/lib/auth/moduleAccess";
+import { isMfaExempt, mfaHold, mfaVerdict, MFA_REQUIRED_MESSAGE } from "@/lib/auth/mfa";
 
 /**
  * Redirect while carrying over any auth cookies Supabase rotated onto `response` this request.
@@ -37,6 +38,17 @@ export function redirectPreservingCookies(response: NextResponse, url: URL): Nex
 export async function middleware(request: NextRequest) {
   if (!supabaseEnabled) return NextResponse.next({ request });
 
+  const path = request.nextUrl.pathname;
+  const isApi = path.startsWith("/api/");
+  // MULTI-FACTOR SIGN-IN (2026-11-23). API requests are matched only so a session that still owes its code is refused
+  // in front of all 395 routes (most identify the caller themselves, many then use the service role). A request with no
+  // session cookie — cron, a mobile/extension Bearer token — passes untouched and costs nothing; resolveApiAuth applies
+  // the same rule to Bearer tokens.
+  if (isApi) {
+    const hasSessionCookie = request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    if (!hasSessionCookie || isMfaExempt(path)) return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -56,9 +68,31 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  if (isApi) {
+    // getClaims verifies the access token locally (the project signs with an asymmetric ES256 key) — no network call per
+    // API request. Only the signed claims are trusted, never the cookie's user object (lib/auth/mfa.ts).
+    const { data: claimData } = await supabase.auth.getClaims();
+    if (mfaVerdict(claimData?.claims) === "needs_code") {
+      const refused = NextResponse.json({ error: MFA_REQUIRED_MESSAGE, mfa: true }, { status: 401 });
+      response.cookies.getAll().forEach((cookie) => refused.cookies.set(cookie));
+      return refused;
+    }
+    return response;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // A signed-in person who turned on multi-factor sign-in and has not entered a code this session is held at the code
+  // screen; every page except sign-in and the code screen itself waits for it.
+  if (user && !isMfaExempt(path)) {
+    const { data: claimData } = await supabase.auth.getClaims();
+    if (mfaVerdict(claimData?.claims) === "needs_code") {
+      const hold = mfaHold(path, request.nextUrl.search);
+      if (hold.kind === "redirect") return redirectPreservingCookies(response, new URL(hold.to, request.url));
+    }
+  }
 
   // Route-protection decision extracted to a pure, unit-tested function
   // (src/lib/auth/routeGuard.ts) so its security invariants can't silently
@@ -105,5 +139,8 @@ export const config = {
     // So the authed-user redirect on the branded login (above) actually
     // runs — without this entry the middleware never fires there.
     "/sales-coach/login",
+    // Multi-factor sign-in: every API route, so a session that owes its code is refused in front of all of them. Requests
+    // without a session cookie return at once (see the top of middleware()).
+    "/api/:path*",
   ],
 };

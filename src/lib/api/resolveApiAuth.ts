@@ -20,6 +20,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAuthContext, type AuthContext } from "@/lib/supabase/auth-helpers";
 import { isAdminRole } from "@/lib/roles";
+import { mfaVerdict, unverifiedClaims } from "@/lib/auth/mfa";
 
 /** Resolve the caller from the web cookie session OR a mobile Bearer token. Returns null if neither authenticates. */
 export async function resolveApiAuth(req: Request): Promise<AuthContext | null> {
@@ -35,6 +36,11 @@ export async function resolveApiAuth(req: Request): Promise<AuthContext | null> 
   const admin = createAdminClient();
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) return null;
+
+  // Multi-factor sign-in (2026-11-23): a token for someone who turned MFA on must have passed its code (aal2). The
+  // token was just verified by getUser, so reading its claims is safe. The middleware applies the same verdict to
+  // cookie sessions; this is the Bearer path (mobile app, extension).
+  if (mfaVerdict(unverifiedClaims(token)) === "needs_code") return null;
 
   // Resolve the same profile fields getCurrentAuthContext resolves, so the returned shape is identical.
   const { data: profile } = await admin

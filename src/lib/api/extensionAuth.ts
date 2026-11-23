@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MFA_REQUIRED_MESSAGE, mfaVerdict, unverifiedClaims } from "@/lib/auth/mfa";
 import {
   getExtensionEntitlement,
   type ExtensionEntitlement,
@@ -41,6 +42,8 @@ export async function requireExtensionAuth(req: NextRequest): Promise<
   const admin = createAdminClient();
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user) return unauth("Invalid or expired session.", 401);
+  // Multi-factor sign-in (2026-11-23): same verdict as the middleware and resolveApiAuth; the token was just verified.
+  if (mfaVerdict(unverifiedClaims(token)) === "needs_code") return unauth(MFA_REQUIRED_MESSAGE, 401);
 
   // Combined read, with a FALLBACK to the original two columns if must_change_password is absent (unapplied
   // migration 0235). Selecting a non-existent column errors the WHOLE query and yields a null profile, which

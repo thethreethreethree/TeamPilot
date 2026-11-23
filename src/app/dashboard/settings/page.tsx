@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { LlmConnectionPanel } from "@/components/settings/LlmConnectionPanel";
 import { ChangePasswordPanel } from "@/components/settings/ChangePasswordPanel";
+import { TwoFactorPanel } from "@/components/settings/TwoFactorPanel";
 import { CoachTogglePanel } from "@/components/settings/CoachTogglePanel";
 import { LearningModePanel } from "@/components/settings/LearningModePanel";
 import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
@@ -236,6 +237,9 @@ export default function SettingsPage() {
           {/* In-app password rotation. Hidden in demo mode (no auth). */}
           <ChangePasswordPanel />
         </LearningHint>
+
+        {/* Multi-factor sign-in (2026-11-23): authenticator-app codes after the password. */}
+        {supabaseEnabled && <TwoFactorPanel />}
 
         <LearningHint
           as="block"

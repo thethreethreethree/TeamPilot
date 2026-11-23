@@ -27,6 +27,10 @@ export const AUDIT_ACTIONS = [
   "webhook.off",
   // A recording nothing referenced, removed by the sweeper (0299; docs/STORAGE-ORPHANS-2026-11-21.md). System actor.
   "recording.orphan_purge",
+  // Multi-factor sign-in (2026-11-23): a person turned on / removed an authenticator; an admin reset a member's.
+  "mfa.enabled",
+  "mfa.removed",
+  "mfa.reset",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

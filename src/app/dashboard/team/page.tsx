@@ -396,6 +396,23 @@ Their current password stops working immediately.`)) return;
     }
     toast.error("Couldn't reset the password", data?.error ?? "Something went wrong — try again.");
   };
+  // Multi-factor sign-in (2026-11-23): remove a member's authenticators after a lost phone. Same visibility as the
+  // password reset; the route refuses self and admin targets too.
+  const [resettingCodes, setResettingCodes] = useState(false);
+  const resetCodes = async () => {
+    if (!confirm(`Remove ${member.fullName ?? "this member"}'s authenticator apps?
+
+They'll sign in with their password alone until they set codes up again.`)) return;
+    setResettingCodes(true);
+    const res = await fetch("/api/team/mfa-reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: member.id }) });
+    setResettingCodes(false);
+    const data = (await res.json().catch(() => null)) as { removed?: number; error?: string } | null;
+    if (!res.ok) {
+      toast.error("Couldn't reset sign-in codes", data?.error ?? "Something went wrong — try again.");
+      return;
+    }
+    toast.success(data?.removed ? "Sign-in codes removed" : "This member had no authenticator set up");
+  };
   // Set who this member reports to (RSS Phase 0, Gong F2.4). Admin-only, enforced server-side; the server
   // refuses self, another company and loops with a sentence, and the database refuses them again.
   const setManager = async (next: string) => {
@@ -647,6 +664,18 @@ Their current password stops working immediately.`)) return;
             ) : (
               <KeyRound aria-hidden="true" className="w-3.5 h-3.5" />
             )}
+          </button>
+        )}
+        {amAdmin && !isAdminRole(member.role) && (
+          <button
+            type="button"
+            onClick={() => void resetCodes()}
+            disabled={resettingCodes}
+            className="flex items-center gap-1.5 text-xs text-muted hover:text-brand disabled:opacity-40 p-2 -m-2"
+            aria-label={`Reset sign-in codes for ${member.fullName ?? ""}`.trim()}
+            title="Reset sign-in codes"
+          >
+            {resettingCodes ? <Loader2 aria-hidden="true" className="w-3.5 h-3.5 animate-spin" /> : <ShieldOff aria-hidden="true" className="w-3.5 h-3.5" />}
           </button>
         )}
         <button
