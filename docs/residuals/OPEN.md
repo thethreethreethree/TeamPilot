@@ -355,3 +355,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · transcript-only · transcripts-only check is one query per call (bounded by the batch of 500)
       why-unresolved: small at today's volume
       next-action: replace with one grouped read if a company's daily calls approach the batch
+
+## Filed by deal risk and forecast (2026-11-23, docs/tbc/2026-11-23-deal-risk)
+
+- [ ] 2026-11-23 · deal-risk · thresholds unmeasured (21 days quiet, 14 for a new prospect, two reasons = at risk, five closed deals before a forecast)
+      why-unresolved: no closed-deal history yet
+      next-action: once ~30 deals have closed, compare how often "at risk" deals were lost vs the rest; adjust only on that evidence (§4)
+- [ ] 2026-11-23 · deal-risk · the Ask box doesn't see each deal's risk reasons; no close-date field, so no forecast by month
+      why-unresolved: next small change / a pipeline field of its own
+      next-action: add risk reasons to buildPipelineContext; an optional expected-close event kind

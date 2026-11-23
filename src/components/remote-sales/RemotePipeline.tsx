@@ -10,6 +10,7 @@ import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
+import { dealRisk, forecast, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -34,6 +35,7 @@ type Prospect = {
   nextCallDate: string | null;
   lastCallAt: string | null;
   callCount: number;
+  createdAt: string;
   openTodos: number;
   nextTodo: { id: string; title: string; due: string | null } | null;
 };
@@ -55,7 +57,7 @@ export function RemotePipeline() {
   const isManager = scManager || isCompanyAdminRole(role);
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
-  const [view, setView] = useState<"list" | "calendar" | "sources">("list");
+  const [view, setView] = useState<"list" | "calendar" | "sources" | "forecast">("list");
   const [whose, setWhose] = useState<string>("mine");
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
@@ -125,7 +127,7 @@ export function RemotePipeline() {
             </select>
           )}
           <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
-            {(["list", "calendar", "sources"] as const).map((v) => (
+            {(["list", "calendar", "sources", "forecast"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -133,7 +135,7 @@ export function RemotePipeline() {
                 onClick={() => setView(v)}
                 className={`px-2.5 py-1.5 text-xs ${view === v ? "bg-brand/15 font-semibold text-primary" : "bg-surface text-secondary hover:text-primary"}`}
               >
-                {v === "list" ? "List" : v === "calendar" ? "Calendar" : "Sources"}
+                {v === "list" ? "List" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : "Forecast"}
               </button>
             ))}
           </div>
@@ -151,6 +153,8 @@ export function RemotePipeline() {
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
       ) : view === "sources" ? (
         <SourcesView prospects={data?.prospects ?? null} failed={failed} />
+      ) : view === "forecast" ? (
+        <ForecastView prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
       ) : (
         <>
       <div role="tablist" aria-label="Pipeline stages" className="grid grid-cols-3 gap-2">
@@ -220,6 +224,7 @@ export function RemotePipeline() {
                     <span className="text-secondary">Next call: {shortDate(p.nextCallDate)}</span>
                     <span className="text-secondary">Last call: {shortDate(p.lastCallAt)}</span>
                   </div>
+                  <RiskLine p={p} />
                 </button>
                 {selected === p.id && <ProspectDetail id={p.id} onChanged={() => void load()} onClose={() => open(null)} />}
               </li>
@@ -726,6 +731,107 @@ function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; fail
         </table>
       </div>
       <p className="text-[11px] text-muted">Win rate counts closed deals only (won ÷ won + lost); “—” means none have closed yet.</p>
+    </section>
+  );
+}
+
+/** Deal risk on a list row (2026-11-23, dealRisk.ts): the reasons, in words, for an open deal that may slip. */
+function RiskLine({ p }: { p: Prospect }) {
+  const r = dealRisk(p, today());
+  if (r.level === "ok" && r.reasons.length === 0) return null;
+  const tone = r.level === "at_risk" ? "text-amber-700 dark:text-amber-300" : "text-secondary";
+  return (
+    <p className={`mt-1.5 flex flex-wrap items-center gap-1 text-[11px] ${tone}`}>
+      {r.level !== "ok" && <AlertCircle className="h-3 w-3" aria-hidden />}
+      <span className="font-semibold">{r.level === "at_risk" ? "At risk" : r.level === "watch" ? "Watch" : "Missing"}:</span>
+      {r.reasons.map((x) => RISK_WORDS[x]).join(" · ")}
+    </p>
+  );
+}
+
+/**
+ * Pipeline → Forecast (2026-11-23, dealRisk.ts). For the pipeline in view: open value; the expected value from THIS
+ * pipeline's own closed-deal win rate (no number until enough deals have closed); a what-if without the at-risk
+ * deals; and the at-risk deals themselves, largest first, each opening its prospect.
+ */
+function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | null; failed: boolean; onOpen: (id: string) => void }) {
+  if (failed) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>;
+  if (!prospects)
+    return (
+      <p className="flex items-center justify-center gap-2 p-6 text-xs text-muted">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading pipeline…
+      </p>
+    );
+  const t = today();
+  const f = forecast(prospects, t);
+  const risky = prospects
+    .filter((p) => p.status === "open")
+    .map((p) => ({ p, r: dealRisk(p, t) }))
+    .filter((x) => x.r.level === "at_risk")
+    .sort((a, b) => (b.p.amount ?? 0) - (a.p.amount ?? 0));
+  const card = "rounded-xl border border-default bg-surface p-3";
+  return (
+    <section aria-label="Forecast" className="space-y-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className={card}>
+          <p className="text-[11px] uppercase tracking-wider text-muted">Open pipeline</p>
+          <p className="mt-0.5 text-lg font-semibold tabular-nums text-primary">{money(f.openAmount)}</p>
+          <p className="text-[11px] text-secondary">
+            {f.openCount} open {f.openCount === 1 ? "deal" : "deals"}
+            {f.unpriced ? ` · ${f.unpriced} with no amount (not counted)` : ""}
+          </p>
+        </div>
+        <div className={card}>
+          <p className="text-[11px] uppercase tracking-wider text-muted">Expected from open deals</p>
+          {f.expected === null ? (
+            <>
+              <p className="mt-0.5 text-lg font-semibold text-muted">Not yet</p>
+              <p className="text-[11px] text-secondary">
+                Needs {MIN_CLOSED_FOR_FORECAST} closed deals to use this pipeline&apos;s own win rate — {f.closed} so far.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums text-primary">{money(f.expected)}</p>
+              <p className="text-[11px] text-secondary">
+                Open value × win rate {Math.round((f.winRate ?? 0) * 100)}% ({f.won} won of {f.closed} closed)
+              </p>
+            </>
+          )}
+        </div>
+        <div className={card}>
+          <p className="text-[11px] uppercase tracking-wider text-muted">If the at-risk deals are lost</p>
+          <p className="mt-0.5 text-lg font-semibold tabular-nums text-primary">{money(f.openWithoutAtRisk)}</p>
+          <p className="text-[11px] text-secondary">
+            {f.atRiskCount} at risk · {money(f.atRiskAmount)}
+          </p>
+        </div>
+      </div>
+
+      <div className={card}>
+        <p className="text-xs font-semibold text-primary">Deals at risk</p>
+        {risky.length === 0 ? (
+          <p className="mt-1 text-xs text-secondary">None right now — every open deal has at most one warning.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {risky.map(({ p, r }) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => onOpen(p.id)} className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-base">
+                  <span className="min-w-0">
+                    <span className="text-sm font-medium text-primary">{p.name ?? "Unnamed prospect"}</span>
+                    <span className="block text-[11px] text-amber-700 dark:text-amber-300">{r.reasons.map((x) => RISK_WORDS[x]).join(" · ")}</span>
+                  </span>
+                  <span className="text-sm tabular-nums text-primary">{p.amount !== null ? money(p.amount) : "—"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <p className="text-[11px] text-muted">
+        A deal is at risk when two of these are true: no next call booked, its booked call date passed with no call, no call
+        in 21 days (14 for a new prospect), an overdue to-do. These are checks, not predictions.
+      </p>
     </section>
   );
 }
