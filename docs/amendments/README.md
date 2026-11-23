@@ -65,3 +65,4 @@ Once an amendment file is written, **its text is not edited**. Status is updated
 | [AMD-012](AMD-012-user-specified-experience-is-layer-2.md) | A user-specified experience/design property is layer-2 (the intended result), not layer-4 (waivable polish) | ratified | 2026-08-20 |
 | [AMD-013](AMD-013-decision-picker-enforcement.md) | Every founder-decision is a picker, enforced by a Stop-hook gate | ratified | 2026-08-22 |
 | [AMD-014](AMD-014-legal-erasure-exception.md) | Legal erasure: the one exception to append-only | ratified | 2026-11-20 |
+| [AMD-015](AMD-015-PROPOSED-company-departure-deletion.md) | Company departure: deleting a former customer's data after notice and export | proposed | 2026-11-23 |

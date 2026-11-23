@@ -531,3 +531,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       next-action: replay the same events into open value per week (a small chart) and counts per stage (a funnel)
       done 2026-11-23: docs/tbc/2026-11-23-pipeline-trend.
 
+## Filed by the company-departure question (2026-11-23)
+
+- [ ] 2026-11-23 · retention · FOUNDER: review and ratify (or deny) AMD-015 — deleting a company's data after its contract ends (docs/amendments/AMD-015-PROPOSED-company-departure-deletion.md); decide the grace period (30 or 90 days) and the two defaults it lists
+      why-unresolved: a constitutional amendment (§7) — only the founder ratifies
+      next-action: once ratified, build: contract-end date in the vendor back office, the export, the scheduled deletion job and its record, and the privacy-page wording
+
