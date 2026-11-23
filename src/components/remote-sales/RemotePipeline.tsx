@@ -39,6 +39,7 @@ type Prospect = {
   createdAt: string;
   openTodos: number;
   nextTodo: { id: string; title: string; due: string | null } | null;
+  sentiment?: { last: "warming" | "cooling" | "flat"; trend: "warming" | "cooling" | "steady" | null; calls: number } | null;
 };
 type Totals = Record<"open" | "won" | "lost", { count: number; amount: number }>;
 
@@ -228,6 +229,7 @@ export function RemotePipeline() {
                     <span className="text-secondary">Next call: {shortDate(p.nextCallDate)}</span>
                     <span className="text-secondary">Last call: {shortDate(p.lastCallAt)}</span>
                   </div>
+                  <SentimentLine s={p.sentiment ?? null} />
                   <RiskLine p={p} />
                 </button>
                 {selected === p.id && <ProspectDetail id={p.id} onChanged={() => void load()} onClose={() => open(null)} />}
@@ -835,8 +837,26 @@ function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | n
       </div>
       <p className="text-[11px] text-muted">
         A deal is at risk when two of these are true: no next call booked, its booked call date passed with no call, no call
-        in 21 days (14 for a new prospect), an overdue to-do. These are checks, not predictions.
+        in 21 days (14 for a new prospect), an overdue to-do, the customer cooled on the last call. These are checks, not
+        predictions.
       </p>
     </section>
+  );
+}
+
+/**
+ * The customer's sentiment across a deal's calls (2026-11-23, dealSentiment.ts): the last call's net reading from its
+ * timeline, and whether it rose or fell against the call before. Nothing shows until a linked call has a reading.
+ */
+function SentimentLine({ s }: { s: { last: "warming" | "cooling" | "flat"; trend: "warming" | "cooling" | "steady" | null; calls: number } | null }) {
+  if (!s) return null;
+  const word = s.last === "warming" ? "warming" : s.last === "cooling" ? "cooling" : "neutral";
+  const tone = s.last === "warming" ? "text-emerald-700 dark:text-emerald-300" : s.last === "cooling" ? "text-amber-700 dark:text-amber-300" : "text-secondary";
+  const trend = s.trend === "warming" ? " — better than the call before" : s.trend === "cooling" ? " — worse than the call before" : s.trend === "steady" ? " — same as the call before" : "";
+  return (
+    <p className={`mt-1 text-[11px] ${tone}`}>
+      Customer on the last call: {word}
+      {trend}
+    </p>
   );
 }

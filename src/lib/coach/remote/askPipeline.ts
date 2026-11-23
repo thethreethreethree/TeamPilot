@@ -44,6 +44,7 @@ export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<strin
     ];
     // The same risk rule the Pipeline shows (dealRisk.ts), so the answer and the screen agree (§2.2).
     const risk = dealRisk(p, today);
+    if (p.sentiment) lines.push(`   customer sentiment on the last call: ${p.sentiment.last}${p.sentiment.trend ? ` (${p.sentiment.trend === "steady" ? "same as" : p.sentiment.trend === "warming" ? "better than" : "worse than"} the call before)` : ""}`);
     if (risk.level !== "ok") lines.push(`   risk: ${risk.level === "at_risk" ? "AT RISK" : "watch"} — ${risk.reasons.filter((x) => x !== "no_amount").map((x) => RISK_WORDS[x]).join("; ")}`);
     if (b?.keyPoints.length) lines.push(`   latest call — key points: ${b.keyPoints.slice(0, 5).join(" | ")}`);
     if (b?.nextSteps.length) lines.push(`   latest call — agreed next steps: ${b.nextSteps.slice(0, 5).join(" | ")}`);
@@ -73,7 +74,7 @@ export type PipelineAnswer =
 
 export async function askPipeline(args: { db: SupabaseClient; companyId: string; repId?: string; question: string; today?: string }): Promise<PipelineAnswer> {
   const { db, companyId, question } = args;
-  const all = await listProspects(db, args.repId);
+  const all = await listProspects(db, args.repId, { sentiment: true });
   if (all === null) return { ok: false, status: 500, error: "Couldn't read the pipeline — try again." };
   if (all.length === 0) return { ok: false, status: 400, error: "There are no prospects in this pipeline yet." };
   const activity = (p: ProspectRow) => p.lastCallAt ?? p.createdAt;

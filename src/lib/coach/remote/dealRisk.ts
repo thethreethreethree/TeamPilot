@@ -8,7 +8,7 @@
  * day-one behavior claiming understanding it cannot have). Pure, so every rule is tested.
  */
 
-export type RiskReason = "no_next_call" | "missed_next_call" | "gone_quiet" | "overdue_todo" | "no_amount";
+export type RiskReason = "no_next_call" | "missed_next_call" | "gone_quiet" | "overdue_todo" | "cooled" | "no_amount";
 export type RiskLevel = "at_risk" | "watch" | "ok";
 
 export const QUIET_DAYS = 21;
@@ -22,6 +22,7 @@ export const RISK_WORDS: Record<RiskReason, string> = {
   missed_next_call: "Booked call date passed, no call since",
   gone_quiet: `No call in ${QUIET_DAYS}+ days`,
   overdue_todo: "Overdue to-do",
+  cooled: "Customer cooled on the last call",
   no_amount: "No deal amount",
 };
 
@@ -34,12 +35,14 @@ type P = {
   lastCallAt: string | null;
   createdAt: string;
   nextTodo: { due: string | null } | null;
+  /** dealSentiment.ts — the last call's net customer sentiment, when read. */
+  sentiment?: { last: "warming" | "cooling" | "flat" } | null;
 };
 
 const DAY = 86_400_000;
 const dayOf = (iso: string) => iso.slice(0, 10);
 
-/** Why an OPEN deal may slip, and how much: two or more of the first four reasons = at risk; one = watch. A missing
+/** Why an OPEN deal may slip, and how much: two or more of the first five reasons = at risk; one = watch. A missing
  *  amount is a data gap, shown but never enough on its own to call a deal at risk. `today` is the viewer's YYYY-MM-DD. */
 export function dealRisk(p: P, today: string): { level: RiskLevel; reasons: RiskReason[] } {
   if (p.status !== "open") return { level: "ok", reasons: [] };
@@ -52,6 +55,8 @@ export function dealRisk(p: P, today: string): { level: RiskLevel; reasons: Risk
     : todayMs - Date.parse(p.createdAt) > NEW_GRACE_DAYS * DAY;
   if (quiet) reasons.push("gone_quiet");
   if (p.nextTodo?.due && p.nextTodo.due < today) reasons.push("overdue_todo");
+  // The customer cooled over the last call (net sentiment from its timeline, 2026-11-23).
+  if (p.sentiment?.last === "cooling") reasons.push("cooled");
   const serious = reasons.length;
   if (p.amount === null) reasons.push("no_amount");
   return { level: serious >= 2 ? "at_risk" : serious === 1 ? "watch" : "ok", reasons };

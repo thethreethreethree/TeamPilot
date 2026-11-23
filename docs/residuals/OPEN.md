@@ -386,3 +386,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · usage · sign-ins via Google/Microsoft or the mobile app aren't counted; Tasks / C.A.R.E / Finance use isn't in the view; email lookup is one call per person
       why-unresolved: only /api/auth/sign-in writes login_attempts; first version covers the coaching records
       next-action: record a sign-in event on every session creation path; add module columns; batch the lookup past ~100 people
+
+## Filed by deal sentiment (2026-11-23, docs/tbc/2026-11-23-deal-sentiment)
+
+- [ ] 2026-11-23 · deal-sentiment · production has 0 calls linked to prospects, so deal sentiment (and last-call dates, briefs in the Ask box) stay empty until reps use "Add to pipeline" on their calls
+      why-unresolved: a workflow step
+      next-action: consider prompting "Add to pipeline" at the end of a remote call

@@ -1,4 +1,5 @@
 import "server-only";
+import { readDealSentiment, type DealSentiment } from "./dealSentiment";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 
@@ -15,6 +16,8 @@ export type ProspectRow = {
   organization: string | null;
   status: "open" | "won" | "lost";
   stageLabel: string | null;
+  /** The customer's sentiment across this prospect's calls (dealSentiment.ts); null when not read or no reading. */
+  sentiment?: DealSentiment | null;
   /** Where the prospect came from (0313), e.g. "Webinar". */
   source: string | null;
   amount: number | null;
@@ -55,7 +58,7 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
 }
 
 /** The prospects the caller may see, optionally one rep's. Null on a failed read (never an empty pipeline). */
-export async function listProspects(db: SupabaseClient, repId?: string): Promise<ProspectRow[] | null> {
+export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean } = {}): Promise<ProspectRow[] | null> {
   let q = db
     .from("remote_prospects_current")
     .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source")
@@ -89,10 +92,20 @@ export async function listProspects(db: SupabaseClient, repId?: string): Promise
     tasks = (t ?? []) as TaskRow[];
   }
   const byId = new Map(tasks.map((t) => [String(t.id), t]));
-  return rows.map((r) =>
-    toRow(
+  // Deal sentiment (2026-11-23, dealSentiment.ts) — only for callers that show it; a failed read fails the whole list.
+  let sentiment: Map<string, DealSentiment> | null = new Map();
+  if (opts.sentiment) {
+    sentiment = await readDealSentiment(db, rows.map((r) => String(r.id)));
+    if (sentiment === null) {
+      console.error("[prospects] deal sentiment read failed");
+      return null;
+    }
+  }
+  return rows.map((r) => ({
+    ...toRow(
       r,
       linkRows.filter((l) => l.prospect_id === r.id).flatMap((l) => (byId.has(String(l.task_id)) ? [byId.get(String(l.task_id))!] : [])),
     ),
-  );
+    sentiment: sentiment!.get(String(r.id)) ?? null,
+  }));
 }

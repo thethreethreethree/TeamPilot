@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const asked = req.nextUrl.searchParams.get("repId");
   if (asked && asked !== "team" && !UUID.test(asked)) return NextResponse.json({ error: "Unknown rep." }, { status: 400 });
   const repId = asked === "team" ? undefined : asked || ctx.userId;
-  const rows = await listProspects(db, repId);
+  const rows = await listProspects(db, repId, { sentiment: true });
   if (rows === null) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
   return NextResponse.json({ prospects: rows, totals: pipelineTotals(rows), repId: repId ?? "team", viewerId: ctx.userId });
 }

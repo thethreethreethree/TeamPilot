@@ -27,6 +27,11 @@ describe("dealRisk", () => {
   it("a missing amount is shown but never makes a deal at risk on its own", () => {
     expect(dealRisk(p({ amount: null }), TODAY)).toEqual({ level: "ok", reasons: ["no_amount"] });
   });
+  it("a customer who cooled on the last call is a reason; with one more, the deal is at risk", () => {
+    expect(dealRisk(p({ sentiment: { last: "cooling" } }), TODAY)).toEqual({ level: "watch", reasons: ["cooled"] });
+    expect(dealRisk(p({ sentiment: { last: "cooling" }, nextCallDate: null }), TODAY).level).toBe("at_risk");
+    expect(dealRisk(p({ sentiment: { last: "warming" } }), TODAY).reasons).toEqual([]);
+  });
   it("closed deals are never at risk", () => {
     expect(dealRisk(p({ status: "won", nextCallDate: null }), TODAY)).toEqual({ level: "ok", reasons: [] });
   });
