@@ -328,9 +328,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by editable transcripts (2026-11-23, docs/tbc/2026-11-23-transcript-edits)
 
-- [ ] 2026-11-23 · transcript-edits · transcript corrections do not redo the AI summary, review and follow-through (trackers and talk stats are redone)
+- [x] 2026-11-23 · transcript-edits · transcript corrections do not redo the AI summary, review and follow-through (trackers and talk stats are redone)
       why-unresolved: five paid AI calls per edit
       next-action: a "Refresh AI notes with corrections" button that runs generateSessionArtifacts once after a batch of edits
+      done 2026-11-23: the button exists (same rights as editing, audited, rate-limited) — docs/tbc/2026-11-23-refresh-notes.
 - [ ] 2026-11-23 · transcript-edits · a corrected line keeps its times; per-line speaker changes are not offered
       why-unresolved: re-timing needs audio alignment; speaker edits are a separate kind
       next-action: add a speaker choice to the line editor, recorded the same way (new version + edit row)
@@ -362,6 +363,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · transcript-only · transcripts-only check is one query per call (bounded by the batch of 500)
       why-unresolved: small at today's volume
       next-action: replace with one grouped read if a company's daily calls approach the batch
+      measured 2026-11-23 (production, read-only): 0 companies use "keep transcripts only"; the most calls with audio any company recorded in one day in 90 days: 6. The trigger (approaching 500) is far off; left as is — the one-at-a-time head count is the fail-closed design.
 
 ## Filed by deal risk and forecast (2026-11-23, docs/tbc/2026-11-23-deal-risk)
 
@@ -496,3 +498,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a first name alone would match other customers
       next-action: say in the panel that a shorter name can be searched separately
       done 2026-11-23: the panel says so when searching by client name — docs/tbc/2026-11-23-erasure-polish.
+
+## Filed by refresh notes (2026-11-23, docs/tbc/2026-11-23-refresh-notes)
+
+- [ ] 2026-11-23 · transcript-edits · the call page doesn't say when its AI notes are older than the latest correction
+      why-unresolved: needs the notes' build time compared with the latest edit
+      next-action: show "notes predate the corrections" and the refresh button only then

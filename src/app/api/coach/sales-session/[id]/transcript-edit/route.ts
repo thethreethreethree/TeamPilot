@@ -12,6 +12,7 @@ import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { cleanLine, editMarks, type EditRow } from "@/lib/coach/transcriptEdits";
 import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
+import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
 
 /**
  * /api/coach/sales-session/:id/transcript-edit — correct a line of a call's transcript (2026-11-23; migration 0311;
@@ -23,6 +24,8 @@ import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
  *        and offers its existing regenerate.
  * Who: the call's rep, or a manager whose reporting tree includes the rep (0273). Never while the call is live.
  */
+export const maxDuration = 300;
+
 const MISSING = new Set(["PGRST205", "42P01", "PGRST202", "42883"]);
 const NOT_READY = "Transcript corrections are waiting on database migration 0311.";
 
@@ -123,4 +126,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await storeInteractionStats(id, admin);
   });
   return NextResponse.json({ ok: true, changed: true, version });
+}
+
+/**
+ * PUT — "Refresh AI notes with corrections" (2026-11-23; OPEN.md "transcript corrections do not redo the AI summary,
+ * review and follow-through"). Corrections redo the free reads at once (trackers, talk stats); the AI notes cost
+ * several paid calls, so they are redone only when someone asks, once, after a batch of edits. Same people as editing
+ * (the rep, or their manager in the tree); only on a call that has at least one correction; audit-logged; at most 3 per
+ * 10 minutes per person. Runs after the response (as a trim does).
+ */
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const limited = rateLimit(req, { id: "transcript-refresh-notes", windowMs: 10 * 60_000, max: 3 });
+  if (limited) return limited;
+  const { id } = await params;
+  const a = await access(req, id);
+  if (!a.ok) return NextResponse.json({ error: a.status === 401 ? "Not authenticated." : "Session not found or not accessible." }, { status: a.status });
+  if (!a.canEdit) return NextResponse.json({ error: "Only the rep on this call, or their manager, can refresh its notes." }, { status: 403 });
+  if (a.session.status === "active") return NextResponse.json({ error: "This call is still live." }, { status: 409 });
+  const { count, error } = await a.db.from("transcript_line_edits").select("seq", { count: "exact", head: true }).eq("session_id", id);
+  if (error) {
+    if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
+    return NextResponse.json({ error: "Couldn't check the corrections. Try again." }, { status: 500 });
+  }
+  if (!count) return NextResponse.json({ error: "This call has no corrections — its notes already match its transcript." }, { status: 409 });
+
+  const admin = createAdminClient();
+  await recordAudit(admin, { companyId: a.ctx.companyId, actorId: a.ctx.userId, action: "transcript.refresh_notes", objectType: "coaching_session", objectId: id, meta: { corrections: count } });
+  const session = a.session;
+  after(async () => {
+    try {
+      const segments = await getSessionTranscript(id, admin);
+      await generateSessionArtifacts({ companyId: a.ctx.companyId, actorId: a.ctx.userId, sessionId: id, session, segments });
+    } catch (err) {
+      console.error(`[transcript-edit] notes refresh failed session=${id}:`, err);
+    }
+  });
+  return NextResponse.json({ ok: true, refreshing: true });
 }

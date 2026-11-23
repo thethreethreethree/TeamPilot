@@ -33,6 +33,8 @@ export const AUDIT_ACTIONS = [
   "mfa.reset",
   // Editable transcripts (0311): the call's rep or their manager corrected one line (a new transcript version).
   "transcript.edit",
+  // ...and asked for the AI notes (summary, review, follow-through) to be redone on the corrected words (2026-11-23).
+  "transcript.refresh_notes",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

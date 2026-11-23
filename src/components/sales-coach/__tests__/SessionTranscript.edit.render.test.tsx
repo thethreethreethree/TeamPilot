@@ -41,4 +41,30 @@ describe("SessionTranscript editing", () => {
     expect(await screen.findByText("we can do fifteen a month")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Correct this line" })).toBeNull();
   });
+
+  it("with corrections, an editor can ask once for the AI notes to be redone", async () => {
+    const puts: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string }) => {
+      if (url.includes("transcript-edit") && init?.method === "PUT") {
+        puts.push(url);
+        return json({ ok: true, refreshing: true });
+      }
+      if (url.includes("transcript-edit")) return json({ canEdit: true, edits: [{ seq: 1, original: "x", editedAt: "2026-11-23T10:00:00Z", editedByName: "Rob", count: 1 }] });
+      return json({ segments: SEGS });
+    }));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Refresh the AI notes with these corrections" }));
+    expect(await screen.findByText(/Refreshing the summary, review and follow-through/)).toBeTruthy();
+    expect(puts).toEqual(["/api/coach/sales-session/s1/transcript-edit"]);
+    expect(screen.queryByRole("button", { name: "Refresh the AI notes with these corrections" })).toBeNull();
+  });
+  it("no corrections, or no right to edit: no refresh button", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => (url.includes("transcript-edit") ? json({ canEdit: true, edits: [] }) : json({ segments: SEGS }))));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    await screen.findByText("we can do fifteen a month");
+    expect(screen.queryByRole("button", { name: /Refresh the AI notes/ })).toBeNull();
+  });
 });
+

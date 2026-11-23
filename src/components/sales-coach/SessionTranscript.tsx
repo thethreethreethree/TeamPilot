@@ -44,6 +44,25 @@ export function SessionTranscript({
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState<number | null>(null);
+  // Corrections redo the free reads at once; the AI notes only when asked (several paid calls) — 2026-11-23.
+  const [refreshing, setRefreshing] = useState<"idle" | "sending" | "sent">("idle");
+  const refreshNotes = async () => {
+    setRefreshing("sending");
+    try {
+      const r = await fetch(`/api/coach/sales-session/${sessionId}/transcript-edit`, { method: "PUT" });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) {
+        setNote(j.error ?? "Couldn't refresh the notes. Try again.");
+        setRefreshing("idle");
+        return;
+      }
+      setNote("Refreshing the summary, review and follow-through from the corrected transcript — reload the call in a minute to see them.");
+      setRefreshing("sent");
+    } catch {
+      setNote("Couldn't reach the server. Try again.");
+      setRefreshing("idle");
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,6 +175,16 @@ export function SessionTranscript({
                 <p role="status" className="rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-secondary">
                   {note}
                 </p>
+              )}
+              {canEdit && marks.size > 0 && refreshing !== "sent" && (
+                <button
+                  type="button"
+                  disabled={refreshing === "sending"}
+                  onClick={() => void refreshNotes()}
+                  className="self-start rounded-lg border border-default px-2.5 py-1 text-xs text-primary hover:bg-base disabled:opacity-50"
+                >
+                  {refreshing === "sending" ? "Asking…" : "Refresh the AI notes with these corrections"}
+                </button>
               )}
               {segs?.map((s) => (
                 <p

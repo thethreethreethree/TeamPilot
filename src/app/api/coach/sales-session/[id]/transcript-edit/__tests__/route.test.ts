@@ -10,7 +10,8 @@ vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true)
 vi.mock("@/lib/coach/remote/trackerScan", () => ({ scanSessionTrackers: vi.fn(async () => 0) }));
 vi.mock("@/lib/coach/remote/interactionStats", () => ({ storeInteractionStats: vi.fn(async () => null) }));
 vi.mock("@/lib/data/salesCoach", () => ({ getSession: vi.fn(), getSessionTranscript: vi.fn() }));
-const st = vi.hoisted(() => ({ rpc: vi.fn(), edits: { data: [] as unknown[] | null, error: null as unknown } }));
+vi.mock("@/lib/coach/v5/generateSessionArtifacts", () => ({ generateSessionArtifacts: vi.fn(async () => ({})) }));
+const st = vi.hoisted(() => ({ rpc: vi.fn(), edits: { data: [] as unknown[] | null, error: null as unknown, count: 0 as number | null | undefined } as { data: unknown[] | null; error: unknown; count?: number | null } }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ rpc: st.rpc }) }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -29,7 +30,8 @@ import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
-import { GET, POST } from "../route";
+import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { GET, POST, PUT } from "../route";
 
 const P = { params: Promise.resolve({ id: "s1" }) };
 const post = (body: unknown) => new Request("http://x/api", { method: "POST", body: JSON.stringify(body) }) as never;
@@ -101,4 +103,27 @@ describe("GET transcript-edit", () => {
     st.edits = { data: null, error: { code: "XX000", message: "x" } };
     expect((await GET(get(), P)).status).toBe(500);
   });
+
+  describe("PUT — refresh the AI notes after corrections", () => {
+    const put = () => PUT(new Request("http://x/api", { method: "PUT" }) as never, P);
+    it("the call's rep, with corrections: audited, then the notes are redone", async () => {
+      st.edits = { data: null, error: null, count: 2 };
+      const r = await put();
+      expect(r.status).toBe(200);
+      expect(vi.mocked(recordAudit).mock.calls[0]![1]).toMatchObject({ action: "transcript.refresh_notes", meta: { corrections: 2 } });
+      await vi.waitFor(() => expect(generateSessionArtifacts).toHaveBeenCalledTimes(1));
+    });
+    it("no corrections: refused, nothing paid for", async () => {
+      st.edits = { data: null, error: null, count: 0 };
+      expect((await put()).status).toBe(409);
+      expect(generateSessionArtifacts).not.toHaveBeenCalled();
+    });
+    it("someone who can't edit is refused", async () => {
+      asUser("stranger");
+      st.edits = { data: null, error: null, count: 2 };
+      expect((await put()).status).toBe(403);
+      expect(generateSessionArtifacts).not.toHaveBeenCalled();
+    });
+  });
 });
+
