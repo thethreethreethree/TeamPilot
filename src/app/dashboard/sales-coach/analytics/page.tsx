@@ -15,6 +15,8 @@ import { LearningHint } from "@/components/learning/LearningHint";
 import { AgentEloBadge } from "@/components/sales-coach/AgentEloBadge";
 import { useExperienceMode } from "@/components/experience/ExperienceModeProvider";
 import { StandardAnalyticsManagerView } from "@/components/sales-coach/StandardAnalyticsManagerView";
+import { MarketView } from "@/components/remote-sales/MarketView";
+import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { gradeSkill } from "@/lib/coach/v5/skillGrade";
 
 type SkillRow = {
@@ -70,6 +72,7 @@ type TeamStats = {
 const MIN_COACHES_FOR_TREND = 3;
 
 export default function SalesCoachAnalyticsPage() {
+  const isMarketManager = useIsSalesCoachManager();
   const [stats, setStats] = useState<Stats | null>(null);
   const [series, setSeries] = useState<ProgressPoint[]>([]);
   // Team aggregate — only populated for managers (the endpoint 403s
@@ -479,6 +482,8 @@ export default function SalesCoachAnalyticsPage() {
             )}
           </>
         )}
+        {/* Market (2026-11-23, ledger F14.6): competitors and topics across in-person calls, for managers. */}
+        {isMarketManager && <MarketView module="sales_coach" />}
       </div>
     </>
   );

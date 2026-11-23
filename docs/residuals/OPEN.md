@@ -420,5 +420,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 ## Filed by Market (2026-11-23, docs/tbc/2026-11-23-market)
 
 - [ ] 2026-11-23 · market · topic labels fragment ("Price" vs "pricing concerns"); no Market view in Sales Coach yet
+      part done 2026-11-23: Sales Coach → Analytics now shows Market (in-person calls) to managers; topic grouping stays open.
       why-unresolved: needs a grouping pass; Remote Sales first
       next-action: group similar topics; mount MarketView module="sales_coach" on Sales Coach analytics
