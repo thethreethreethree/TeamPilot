@@ -13,6 +13,7 @@ import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { cleanLine, editMarks, type EditRow } from "@/lib/coach/transcriptEdits";
 import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
 import { generateSessionArtifacts } from "@/lib/coach/v5/generateSessionArtifacts";
+import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 
 /**
  * /api/coach/sales-session/:id/transcript-edit — correct a line of a call's transcript (2026-11-23; migration 0311;
@@ -75,8 +76,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ? await a.db.from("profiles").select("id, full_name").in("id", editorIds)
     : { data: [] as Array<{ id: string; full_name: string | null }> };
   const nameOf = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name]));
+  // When the AI notes were last built (2026-11-23): the newest "generated" event of the summary, moments, pivot or intel.
+  // The editor compares it with the latest correction to say the notes are older; null = unknown (button stays offered).
+  // Only a sales call has AI notes (salesOnly.ts): a meeting or huddle is never offered a refresh.
+  const aiNotes = isSalesCall(a.session.sessionKind);
+  const { data: built } = !aiNotes ? { data: [] } : await a.db
+    .from("events")
+    .select("created_at")
+    .eq("subject", `sales_session:${id}`)
+    .in("kind", ["coach.session_summary_generated", "coach.session_moments_generated", "coach.session_pivot_generated", "coach.session_intel_generated"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const notesBuiltAt = ((built ?? []) as Array<{ created_at: string }>)[0]?.created_at ?? null;
   return NextResponse.json({
     canEdit,
+    aiNotes,
+    notesBuiltAt,
     edits: marks.map((m) => ({ seq: m.seq, original: m.original, editedAt: m.editedAt, editedByName: nameOf.get(m.editedBy) ?? null, count: m.count })),
   });
 }
@@ -143,6 +158,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!a.ok) return NextResponse.json({ error: a.status === 401 ? "Not authenticated." : "Session not found or not accessible." }, { status: a.status });
   if (!a.canEdit) return NextResponse.json({ error: "Only the rep on this call, or their manager, can refresh its notes." }, { status: 403 });
   if (a.session.status === "active") return NextResponse.json({ error: "This call is still live." }, { status: 409 });
+  if (!isSalesCall(a.session.sessionKind)) return NextResponse.json({ error: "Only a sales call has AI notes to refresh." }, { status: 409 });
   const { count, error } = await a.db.from("transcript_line_edits").select("seq", { count: "exact", head: true }).eq("session_id", id);
   if (error) {
     if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });

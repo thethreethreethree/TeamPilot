@@ -60,6 +60,25 @@ const SINGLE_SESSION_EVENT_READ =
   /\.eq\(\s*["']subject["']\s*,\s*`[^`]*sales_session:\$\{[^`]*`\s*\)/;
 const HAS_GATE = /getSession\s*\(/;
 
+/**
+ * A handler may gate through a helper in the same file (2026-11-23: transcript-edit's `access()` calls getSession() and
+ * returns 404 on null, used by GET/POST/PUT alike). Names of the file's own functions, declared before the handlers,
+ * whose body calls getSession( — calling one of them counts as the gate.
+ */
+export function gatingHelpers(preamble: string): string[] {
+  const names: string[] = [];
+  const decl = /(?:async\s+)?function\s+(\w+)\s*\(/g;
+  const starts = [...preamble.matchAll(decl)].map((m) => ({ name: m[1]!, at: m.index ?? 0 }));
+  starts.forEach((f, i) => {
+    const body = preamble.slice(f.at, starts[i + 1]?.at ?? preamble.length);
+    if (HAS_GATE.test(body)) names.push(f.name);
+  });
+  return names;
+}
+export function handlerGated(body: string, helpers: string[]): boolean {
+  return HAS_GATE.test(body) || helpers.some((h) => new RegExp(`\\b${h}\\s*\\(`).test(body));
+}
+
 describe("coaching-artifact readbacks gate on getSession before reading company-wide events (peer-rep IDOR)", () => {
   const files = routeFiles(ROUTE_DIR);
 
@@ -69,12 +88,14 @@ describe("coaching-artifact readbacks gate on getSession before reading company-
 
   for (const file of files) {
     const rel = file.replace(process.cwd(), "").replace(/\\/g, "/");
-    const bodies = handlerBodies(readFileSync(file, "utf8"));
+    const src = readFileSync(file, "utf8");
+    const bodies = handlerBodies(src);
+    const helpers = gatingHelpers(src.split(/export\s+async\s+function\s+(?:GET|POST|PUT|PATCH|DELETE)\b/)[0] ?? "");
     bodies.forEach((body, i) => {
       if (!SINGLE_SESSION_EVENT_READ.test(body)) return;
       it(`${rel} handler #${i + 1} gates a single-session events read with getSession()`, () => {
         expect(
-          HAS_GATE.test(body),
+          handlerGated(body, helpers),
           `A handler in ${rel} reads a sales_session:-subject row from the company-wide ` +
             `events table without calling getSession() first — a peer rep could read another ` +
             `rep's private coaching artifact (IDOR). Add the owner-or-manager gate before the read.`
@@ -83,3 +104,13 @@ describe("coaching-artifact readbacks gate on getSession before reading company-
     });
   }
 });
+
+describe("the gate may live in a same-file helper", () => {
+  const pre = `async function access(req, id) {\n  const session = await getSession(id, db);\n  if (!session) return null;\n}\nfunction other() { return 1; }\n`;
+  it("a helper that calls getSession counts; one that doesn't, doesn't", () => {
+    expect(gatingHelpers(pre)).toEqual(["access"]);
+    expect(handlerGated("const a = await access(req, id); db.eq(...)", gatingHelpers(pre))).toBe(true);
+    expect(handlerGated("const x = other(); db.eq(...)", gatingHelpers(pre))).toBe(false);
+  });
+});
+

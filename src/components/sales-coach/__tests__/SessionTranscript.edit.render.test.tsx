@@ -66,5 +66,20 @@ describe("SessionTranscript editing", () => {
     await screen.findByText("we can do fifteen a month");
     expect(screen.queryByRole("button", { name: /Refresh the AI notes/ })).toBeNull();
   });
+
+  it("notes built after the latest correction: no prompt to refresh; older notes: the prompt says why", async () => {
+    const edit = { seq: 1, original: "x", editedAt: "2026-11-23T10:00:00Z", editedByName: "Rob", count: 1 };
+    vi.stubGlobal("fetch", vi.fn((url: string) => (url.includes("transcript-edit") ? json({ canEdit: true, edits: [edit], notesBuiltAt: "2026-11-23T11:00:00Z" }) : json({ segments: SEGS }))));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    await screen.findByText("we can do fifteen a month");
+    expect(screen.queryByRole("button", { name: /Refresh the AI notes/ })).toBeNull();
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn((url: string) => (url.includes("transcript-edit") ? json({ canEdit: true, edits: [edit], notesBuiltAt: "2026-11-23T09:00:00Z" }) : json({ segments: SEGS }))));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    expect(await screen.findByText(/were made before your latest correction/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Refresh the AI notes/ })).toBeTruthy();
+  });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanLine, editMarks, type EditRow } from "../transcriptEdits";
+import { cleanLine, editMarks, type EditRow, notesPredateCorrections } from "../transcriptEdits";
 
 const e = (seq: number, from: number, to: number, at = `2026-11-23T0${to}:00:00Z`): EditRow => ({ seq, from_version: from, to_version: to, edited_by: "u1", created_at: at });
 
@@ -26,5 +26,14 @@ describe("cleanLine", () => {
     expect(cleanLine("   ")).toBeNull();
     expect(cleanLine("x".repeat(4001))).toBeNull();
     expect(cleanLine(5)).toBeNull();
+  });
+});
+
+describe("notesPredateCorrections", () => {
+  it("true when the latest correction is newer than the notes, or the notes' time is unknown; false otherwise", () => {
+    expect(notesPredateCorrections(["2026-11-23T10:00:00Z", "2026-11-23T12:00:00Z"], "2026-11-23T11:00:00Z")).toBe(true);
+    expect(notesPredateCorrections(["2026-11-23T10:00:00Z"], "2026-11-23T11:00:00Z")).toBe(false);
+    expect(notesPredateCorrections(["2026-11-23T10:00:00Z"], null)).toBe(true);
+    expect(notesPredateCorrections([], null)).toBe(false);
   });
 });

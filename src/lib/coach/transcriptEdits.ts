@@ -29,3 +29,11 @@ export function cleanLine(v: unknown): string | null {
   const t = v.trim();
   return t.length >= 1 && t.length <= 4000 ? t : null;
 }
+
+/** The AI notes are older than the latest correction (2026-11-23). Unknown build time → true (offer the refresh). */
+export function notesPredateCorrections(editedAts: string[], notesBuiltAt: string | null): boolean {
+  if (editedAts.length === 0) return false;
+  if (!notesBuiltAt) return true;
+  const latest = Math.max(...editedAts.map((t) => Date.parse(t)));
+  return latest > Date.parse(notesBuiltAt);
+}

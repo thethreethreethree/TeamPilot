@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { notesPredateCorrections } from "@/lib/coach/transcriptEdits";
 import { ChevronDown, Loader2, FileText, Pencil, Search } from "lucide-react";
 
 /**
@@ -39,6 +40,8 @@ export function SessionTranscript({
 
   const [canEdit, setCanEdit] = useState(false);
   const [marks, setMarks] = useState<Map<number, Mark>>(new Map());
+  const [notesBuiltAt, setNotesBuiltAt] = useState<string | null>(null);
+  const [aiNotes, setAiNotes] = useState(true); // false for a meeting or huddle: no AI notes to refresh
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -75,7 +78,9 @@ export function SessionTranscript({
       ]);
       if (res.ok) setSegs(((await res.json()).segments ?? []) as Seg[]);
       else setError(true);
-      const e = ed && ed.ok ? ((await ed.json()) as { canEdit?: boolean; edits?: Mark[] }) : null;
+      const e = ed && ed.ok ? ((await ed.json()) as { canEdit?: boolean; edits?: Mark[]; notesBuiltAt?: string | null; aiNotes?: boolean }) : null;
+      setNotesBuiltAt(e?.notesBuiltAt ?? null);
+      setAiNotes(e?.aiNotes !== false);
       setCanEdit(!!e?.canEdit);
       setMarks(new Map((e?.edits ?? []).map((m) => [m.seq, m])));
     } catch {
@@ -176,7 +181,10 @@ export function SessionTranscript({
                   {note}
                 </p>
               )}
-              {canEdit && marks.size > 0 && refreshing !== "sent" && (
+              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...marks.values()].map((m) => m.editedAt), notesBuiltAt) && (
+                <span className="text-[11px] text-secondary">The AI notes (summary, review, follow-through) were made before your latest correction.</span>
+              )}
+              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...marks.values()].map((m) => m.editedAt), notesBuiltAt) && (
                 <button
                   type="button"
                   disabled={refreshing === "sending"}

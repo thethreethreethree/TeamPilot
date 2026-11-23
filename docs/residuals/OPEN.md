@@ -501,6 +501,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by refresh notes (2026-11-23, docs/tbc/2026-11-23-refresh-notes)
 
-- [ ] 2026-11-23 · transcript-edits · the call page doesn't say when its AI notes are older than the latest correction
+- [x] 2026-11-23 · transcript-edits · the call page doesn't say when its AI notes are older than the latest correction
       why-unresolved: needs the notes' build time compared with the latest edit
       next-action: show "notes predate the corrections" and the refresh button only then
+      done 2026-11-23: docs/tbc/2026-11-23-stale-notes.

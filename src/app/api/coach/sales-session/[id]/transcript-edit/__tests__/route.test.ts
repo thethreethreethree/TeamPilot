@@ -118,6 +118,12 @@ describe("GET transcript-edit", () => {
       expect((await put()).status).toBe(409);
       expect(generateSessionArtifacts).not.toHaveBeenCalled();
     });
+    it("a meeting or huddle has no AI notes: refused", async () => {
+      vi.mocked(getSession).mockResolvedValue({ id: "s1", companyId: "co1", agentId: "rep1", status: "completed", sessionKind: "meeting" } as never);
+      st.edits = { data: null, error: null, count: 2 };
+      expect((await put()).status).toBe(409);
+      expect(generateSessionArtifacts).not.toHaveBeenCalled();
+    });
     it("someone who can't edit is refused", async () => {
       asUser("stranger");
       st.edits = { data: null, error: null, count: 2 };
