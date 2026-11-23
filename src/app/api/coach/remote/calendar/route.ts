@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -35,26 +36,33 @@ export async function GET(req: NextRequest) {
 
   const [start] = dayBounds(from, offset);
   const [, end] = dayBounds(to, offset);
-  let sq = db
-    .from("coaching_sessions")
-    .select("id, agent_id, client_label, started_at, outcome")
-    .in("context", [...REMOTE_CONTEXTS])
-    .gte("started_at", start)
-    .lt("started_at", end)
-    .order("started_at", { ascending: true })
-    .limit(500);
-  if (repId) sq = sq.eq("agent_id", repId);
-  const [prospects, sessions] = await Promise.all([listProspects(db, repId), sq]);
+  // Every call of the week, paged (2026-11-23: was capped at 500 — a busy team's week would have lost calls silently).
+  const page = (from: number, to: number) => {
+    let q = db
+      .from("coaching_sessions")
+      .select("id, agent_id, client_label, started_at, outcome")
+      .in("context", [...REMOTE_CONTEXTS])
+      .gte("started_at", start)
+      .lt("started_at", end)
+      .order("started_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (repId) q = q.eq("agent_id", repId);
+    return q.range(from, to);
+  };
+  const [prospects, sessions] = await Promise.all([
+    listProspects(db, repId),
+    fetchAllPagedResult<{ id: string; agent_id: string; client_label: string | null; started_at: string; outcome: string | null }>(page, { label: "calendar sessions" }),
+  ]);
   if (prospects === null || sessions.error) {
     console.error(`[calendar] read failed user=${ctx.userId}: ${sessions.error?.message ?? "prospects"}`);
     return NextResponse.json({ error: "Couldn't load the calendar." }, { status: 500 });
   }
-  const rows = (sessions.data ?? []) as Array<{ id: string; agent_id: string; client_label: string | null; started_at: string; outcome: string | null }>;
+  const rows = sessions.data ?? [];
 
   // Which prospect each held call belongs to (a call is linked to at most one — 0303's unique session_id).
   const linkOf = new Map<string, string>();
-  if (rows.length) {
-    const { data: links, error } = await db.from("remote_prospect_calls").select("session_id, prospect_id").in("session_id", rows.map((r) => r.id));
+  for (let i = 0; i < rows.length; i += 100) {
+    const { data: links, error } = await db.from("remote_prospect_calls").select("session_id, prospect_id").in("session_id", rows.slice(i, i + 100).map((r) => r.id));
     if (error) {
       console.error(`[calendar] call links failed user=${ctx.userId}: ${error.message}`);
       return NextResponse.json({ error: "Couldn't load the calendar." }, { status: 500 });
