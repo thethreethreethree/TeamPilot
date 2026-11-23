@@ -516,3 +516,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · stage-training · MANAGER STEP: tag practice scenarios with the rubric items they train (Training → "Trains:" → "+ Rubric item"); until then the ranking has nothing to rank by
       why-unresolved: a manager's judgement of what each scenario trains
       next-action: tag the existing scenarios once; check a prospect card shows "Trains … — missed on N of the last M"
+
+## Filed by car controls (2026-11-23, docs/tbc/2026-11-23-car-controls)
+
+- [ ] 2026-11-23 · playback · FOUNDER CHECK: play a recorded call on a phone, lock it, and use the lock-screen (or car) controls — play/pause and ±15 s should work, titled "Recorded call"
+      why-unresolved: needs a real device
+      next-action: one try on iPhone Safari and one on Android Chrome
+

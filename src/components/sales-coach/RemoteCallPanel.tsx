@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookmarkPlus, Download, EyeOff, Pause, Play, RotateCcw, RotateCw, Scissors, Undo2 } from "lucide-react";
 import { skipTo } from "@/lib/coach/remote/trim";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
+import { useCallMediaSession } from "@/lib/hooks/useCallMediaSession";
 
 /**
  * The phone/video call panel on the session page (RSS Phase 2; docs/rss/docs/06-UI-SPEC.md §2-4; Gong F9.2,
@@ -74,6 +75,9 @@ export function RemoteCallPanel({
 }) {
   const [wire, setWire] = useState<Wire | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
+  // Lock screen / car controls while the call plays (F30.8). A neutral title: a lock screen is visible to anyone nearby,
+  // so the customer's name is never shown there.
+  useCallMediaSession(audio, { title: "Recorded call", artist: "ELOSTATE", ready: !!(wire && "audioUrl" in wire && wire.audioUrl) });
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(1);

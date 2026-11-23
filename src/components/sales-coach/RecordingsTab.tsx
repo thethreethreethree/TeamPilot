@@ -8,6 +8,7 @@ import type { ShareState } from "@/lib/coach/recordings/shareState";
 import { linesAround } from "@/lib/coach/recordings/keyMoments";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { loadPeaks } from "@/lib/coach/recordings/peaks";
+import { useCallMediaSession } from "@/lib/hooks/useCallMediaSession";
 
 /**
  * The Recordings tab — Project 4 of the 2026-09-19 coaching build.
@@ -283,6 +284,9 @@ function Player({ pitchId, isManager }: { pitchId: string; isManager: boolean })
   const [peaks, setPeaks] = useState<number[] | null>(null);
   const [peaksNote, setPeaksNote] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
+  // Lock screen / car controls while the call plays (F30.8). A neutral title: a lock screen is visible to anyone nearby,
+  // so the customer's name is never shown there.
+  useCallMediaSession(audio, { title: "Recorded call", artist: "ELOSTATE", ready: !!wire?.audioUrl });
 
   useEffect(() => {
     let live = true;
