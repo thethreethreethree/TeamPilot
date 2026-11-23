@@ -4,6 +4,7 @@ import { CoachingInbox } from "@/components/sales-coach/CoachingInbox";
 import { DisputeQueue } from "@/components/sales-coach/DisputeQueue";
 import { UnscoredBacklog } from "@/components/sales-coach/UnscoredBacklog";
 import { TeamUsage } from "@/components/remote-sales/TeamUsage";
+import { WeeklyRoutine } from "@/components/remote-sales/WeeklyRoutine";
 
 /**
  * Remote Sales → Coaching: the coaching inbox and coaching metrics (plan Phase 4), and the score-dispute queue for phone
@@ -17,10 +18,15 @@ import { TeamUsage } from "@/components/remote-sales/TeamUsage";
 export default function RemoteSalesCoachingPage() {
   return (
     <div className="space-y-6">
-      <UnscoredBacklog module="remote_sales" />
-      <CoachingInbox />
+      <WeeklyRoutine />
+      <div id="unscored-calls" className="scroll-mt-20">
+        <UnscoredBacklog module="remote_sales" />
+      </div>
+      <div id="coaching-inbox" className="scroll-mt-20">
+        <CoachingInbox />
+      </div>
       <TeamUsage />
-      <section aria-label="Score disputes">
+      <section aria-label="Score disputes" id="score-disputes" className="scroll-mt-20">
         <h2 className="mb-2 text-sm font-semibold text-primary">Score disputes</h2>
         <DisputeQueue module="remote_sales" />
       </section>

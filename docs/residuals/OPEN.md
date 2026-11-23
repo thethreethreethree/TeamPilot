@@ -430,3 +430,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       closed 2026-11-23 — not built, by decision: D10 (founder 2026-11-22) makes manager alerts in-app only and switched the managers' weekly email off; a monthly managers' email would contradict it. Reopen only if D10 changes.
       why-unresolved: a scheduled email is its own build
       next-action: a monthly cron beside the weekly digest, sending each manager their coaching CSV numbers
+
+## Correction (2026-11-23, found while testing WeeklyRoutine)
+
+- [ ] 2026-11-23 · tests · CORRECTION: earlier entries today said the remote-sales screens have "no component-test harness yet". That was wrong — `@testing-library/react` with `// @vitest-environment jsdom` is already used (RemoteSalesShell.render.test.tsx, MacroCallView.render.test.tsx, and now WeeklyRoutine.render.test.tsx). The Ask box, the pipeline calendar, stage practice, call notes and the transcript editor are simply untested on screen.
+      why-unresolved: render tests not yet written for those components
+      next-action: add render tests for AskPipeline (citations open the prospect on its tab), RemoteCalendar, StagePractice, CallNotes and the SessionTranscript editor
+- [ ] 2026-11-23 · coaching · a self-coaching routine for reps (their practice due, calls without a review, feedback answered)
+      why-unresolved: the manager routine came first (docs/tbc/2026-11-23-coaching-routine)
+      next-action: the same pattern on Remote Sales → Today for reps
