@@ -54,3 +54,48 @@ describe("no failed read is presented as an empty one", () => {
     expect(hits).toEqual([]);
   });
 });
+
+/**
+ * THE NULL FORM (2026-11-23, second sweep). `r.ok ? r.json() : null` escaped the pattern above (it maps to null, not to
+ * { x: null }) and hid the same failure: a rep with points read "No coached pitches yet", a manager's Assign picker and
+ * "Whose pipeline" list were silently empty. Those were fixed. What remains are reads that only LABEL something already
+ * on screen (names on chips, a first name in a greeting, the voice badge's "unknown") — a failure there shows less
+ * decoration, never a false "none". Each is listed by file and count; a new one anywhere fails.
+ */
+const NULL_PATTERN = /r\.ok \? r\.json\(\) : null\)/g;
+const NULL_ALLOWED: Record<string, [number, string]> = {
+  "src/components/sales-coach/CoachingInbox.tsx": [1, "team names on inbox rows; ids still show"],
+  "src/components/sales-coach/RecordingsTab.tsx": [1, "share-with name suggestions"],
+  "src/components/sales-coach/StartSessionPanel.tsx": [1, "voice badge: a failure reads as 'unknown' (null), not 'not enrolled'"],
+  "src/components/sales-coach/RepArena.tsx": [1, "leaderboard rank only; the points read above it fails loud"],
+  "src/components/remote-sales/RemoteToday.tsx": [1, "first name in the greeting"],
+  "src/components/remote-sales/RemoteCallComments.tsx": [1, "@mention name suggestions"],
+  "src/app/dashboard/sales-coach/analytics/page.tsx": [1, "the next line turns null into setSkillsError(true) — the failure IS shown"],
+};
+
+describe("the null form of a failed read", () => {
+  it("the pattern catches it", () => {
+    expect(".then((r) => (r.ok ? r.json() : null))".match(NULL_PATTERN)?.length).toBe(1);
+  });
+  it("only label reads keep it, each counted", () => {
+    const root = process.cwd();
+    const bad: string[] = [];
+    for (const dir of ["src/components", "src/app"]) {
+      for (const f of files(join(root, dir))) {
+        const rel = relative(root, f);
+        const n = (readFileSync(f, "utf8").match(NULL_PATTERN) ?? []).length;
+        const allowed = NULL_ALLOWED[rel]?.[0] ?? 0;
+        if (n !== allowed) bad.push(`${rel}: ${n} (allowed ${allowed})`);
+      }
+    }
+    // Also fails when an allowance is spare (a fixed file must have its entry removed).
+    for (const rel of Object.keys(NULL_ALLOWED)) {
+      try {
+        statSync(join(root, rel));
+      } catch {
+        bad.push(`${rel}: listed but missing`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});

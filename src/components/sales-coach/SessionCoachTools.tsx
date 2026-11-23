@@ -199,15 +199,17 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
   const [dissect, setDissect] = useState<DissectView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [readFailed, setReadFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     fetch(`/api/coach/sales-session/dissect?sessionId=${sessionId}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => {
         if (alive && d?.dissect) setDissect(d.dissect as DissectView);
       })
-      .catch(() => {})
+      // A failed read of a saved dissect is said (2026-11-23), not shown as "run a dissect".
+      .catch(() => alive && setReadFailed(true))
       .finally(() => {
         if (alive) setLoaded(true);
       });
@@ -265,7 +267,10 @@ function DissectPanel({ sessionId }: { sessionId: string }) {
 
       {error && <p className="text-xs text-amber-300">{error}</p>}
 
-      {!hasContent && loaded && !loading && !error && (
+      {readFailed && !hasContent && !loading && !error && (
+        <p className="text-[11px] text-muted">Couldn&apos;t load this call&apos;s saved dissect. Refresh, or run it again.</p>
+      )}
+      {!hasContent && loaded && !readFailed && !loading && !error && (
         <p className="text-[11px] text-muted">
           Run a dissect once the conversation has enough of your side to teach
           from. It reasons from your coaching methodology.
@@ -509,15 +514,17 @@ function AskCoachPanel({ sessionId, onSeek }: { sessionId: string; onSeek?: (sec
   const [chatId, setChatId] = useState<string | null>(null);
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [saved, setSaved] = useState<SavedChat[]>([]);
+  const [savedFailed, setSavedFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
     fetch(`/api/coach/remote/ask?sessionId=${encodeURIComponent(sessionId)}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { available?: boolean; chats?: SavedChat[] } | null) => {
         if (live && j?.available) setSaved(j.chats ?? []);
       })
-      .catch(() => {});
+      // Earlier questions that can't be loaded are said, not shown as none (2026-11-23).
+      .catch(() => live && setSavedFailed(true));
     return () => {
       live = false;
     };
@@ -595,6 +602,9 @@ function AskCoachPanel({ sessionId, onSeek }: { sessionId: string; onSeek?: (sec
         <button type="button" onClick={() => { setChatId(null); setTurns([]); }} className="mt-2 text-[11px] text-muted hover:text-primary">
           Start a new question
         </button>
+      )}
+      {savedFailed && turns.length === 0 && (
+        <p className="text-[11px] text-muted">Couldn&apos;t load your earlier questions on this call.</p>
       )}
       {saved.length > 0 && turns.length === 0 && (
         <div className="mt-3 border-t border-default pt-2">

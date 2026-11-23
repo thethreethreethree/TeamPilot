@@ -61,6 +61,8 @@ export default function SearchCallsPage() {
   const [savedAvailable, setSavedAvailable] = useState(true);
   const [trackers, setTrackers] = useState<Array<{ id: string; name: string }>>([]);
   const [reps, setReps] = useState<Array<{ id: string; full_name: string | null }>>([]);
+  // Failed reads are said, not shown as "none" (2026-11-23).
+  const [listFailed, setListFailed] = useState({ saved: false, trackers: false, reps: false });
   const [saveName, setSaveName] = useState("");
   const [askQ, setAskQ] = useState("");
   const [asking, setAsking] = useState(false);
@@ -89,25 +91,25 @@ export default function SearchCallsPage() {
   useEffect(() => {
     void run(EMPTY);
     fetch("/api/coach/remote/saved-searches")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { available: boolean; searches: Saved[] } | null) => {
         if (!j) return;
         setSavedAvailable(j.available);
         setSaved(j.searches);
       })
-      .catch(() => {});
+      .catch(() => setListFailed((x) => ({ ...x, saved: true })));
     fetch("/api/coach/remote/trackers")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { trackers?: Array<{ id: string; name: string }> } | null) => setTrackers(j?.trackers ?? []))
-      .catch(() => {});
+      .catch(() => setListFailed((x) => ({ ...x, trackers: true })));
   }, [run]);
 
   useEffect(() => {
     if (!isManager) return;
     fetch("/api/team")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { members?: Array<{ id: string; full_name: string | null }> } | null) => setReps(j?.members ?? []))
-      .catch(() => {});
+      .catch(() => setListFailed((x) => ({ ...x, reps: true })));
   }, [isManager]);
 
   const query = useMemo(() => toQuery(f), [f]);
@@ -165,6 +167,7 @@ export default function SearchCallsPage() {
                 <select value={f.rep} onChange={set("rep")} className={input}>
                   <option value="">Everyone</option>
                   {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name ?? "Unnamed"}</option>)}
+                  {listFailed.reps && <option disabled>Couldn&apos;t load your team — refresh</option>}
                 </select>
               </label>
             )}
@@ -191,6 +194,7 @@ export default function SearchCallsPage() {
                 <select value={f.tracker} onChange={set("tracker")} className={input}>
                   <option value="">Any</option>
                   {trackers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {listFailed.trackers && <option disabled>Couldn&apos;t load trackers — refresh</option>}
                 </select>
               </label>
             )}
@@ -230,7 +234,8 @@ export default function SearchCallsPage() {
               <button type="button" onClick={() => { setF(EMPTY); void run(EMPTY); }} className="rounded-lg px-2 py-1.5 text-xs text-muted hover:text-primary">Clear</button>
             </div>
 
-            {savedAvailable && (
+            {listFailed.saved && <p className="border-t border-default pt-3 text-[11px] text-muted">Couldn&apos;t load your saved searches. Refresh to try again.</p>}
+            {savedAvailable && !listFailed.saved && (
               <div className="space-y-1 border-t border-default pt-3">
                 <div className="flex gap-1">
                   <input value={saveName} onChange={(e) => setSaveName(e.target.value)} maxLength={60} placeholder="Name this search" aria-label="Saved search name" className={input} />

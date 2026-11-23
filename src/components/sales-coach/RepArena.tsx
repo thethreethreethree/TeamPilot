@@ -176,11 +176,13 @@ export function RepArena() {
   const [mp, setMp] = useState<MyPoints | null>(null);
   const [lb, setLb] = useState<Lb | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // A failed points read is said (2026-11-23) — it used to fall into "No coached pitches yet", untrue for a rep with points.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     Promise.all([
-      fetch("/api/coach/gamification/my-points").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/coach/gamification/my-points").then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
       fetch("/api/coach/gamification/leaderboard?period=all").then((r) => (r.ok ? r.json() : null)),
     ])
       .then(([m, l]) => {
@@ -198,7 +200,7 @@ export function RepArena() {
           });
         }
       })
-      .catch(() => {})
+      .catch(() => alive && setFailed(true))
       .finally(() => alive && setLoaded(true));
     return () => {
       alive = false;
@@ -209,6 +211,15 @@ export function RepArena() {
     return (
       <div className="ra-wrap ra-empty">
         Loading your arena…
+        <ArenaStyles />
+      </div>
+    );
+  }
+  if (failed) {
+    return (
+      <div className="ra-wrap ra-empty">
+        <p className="ra-empty__h">Couldn&apos;t load your points</p>
+        <p className="ra-empty__p">Refresh to try again.</p>
         <ArenaStyles />
       </div>
     );

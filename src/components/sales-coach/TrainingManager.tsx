@@ -33,6 +33,7 @@ export function TrainingManager() {
   const [notReady, setNotReady] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [membersFailed, setMembersFailed] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ title: "", persona: "", situation: "", focus: "", channel: "phone", difficulty: "intermediate", lengthMin: "5", passScore: "", sourceSessionId: "" });
@@ -71,9 +72,10 @@ export function TrainingManager() {
   useEffect(() => {
     void load();
     fetch("/api/team")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { members?: Member[] } | null) => setMembers(j?.members ?? []))
-      .catch(() => {});
+      // The Assign picker is empty without the team; say why (2026-11-23).
+      .catch(() => setMembersFailed(true));
     const from = new URLSearchParams(window.location.search).get("fromSession");
     if (from) setForm((f) => ({ ...f, sourceSessionId: from }));
   }, [load]);
@@ -194,6 +196,7 @@ export function TrainingManager() {
               )}
               {assignFor === s.id && (
                 <div className="mt-2 space-y-2 rounded-lg border border-default p-2">
+                  {membersFailed && <p className="text-[11px] text-muted">Couldn&apos;t load your team. Refresh to assign.</p>}
                   <div className="flex flex-wrap gap-1">
                     {members.map((m) => (
                       <button key={m.id} type="button" aria-pressed={picked.includes(m.id)}

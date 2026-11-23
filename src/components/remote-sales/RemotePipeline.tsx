@@ -60,6 +60,7 @@ export function RemotePipeline() {
   const [view, setView] = useState<"list" | "calendar" | "sources" | "forecast">("list");
   const [whose, setWhose] = useState<string>("mine");
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
+  const [peopleFailed, setPeopleFailed] = useState(false);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -84,11 +85,12 @@ export function RemotePipeline() {
   useEffect(() => {
     if (!isManager) return;
     fetch("/api/team")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { members?: Array<{ id: string; full_name?: string | null }> } | null) =>
         setPeople((d?.members ?? []).map((m) => ({ id: m.id, name: m.full_name ?? "Unnamed teammate" }))),
       )
-      .catch(() => {});
+      // Without the team the list offers only "mine" and "team"; say why (2026-11-23).
+      .catch(() => setPeopleFailed(true));
   }, [isManager]);
 
   const rows = useMemo(() => (data?.prospects ?? []).filter((p) => p.status === tab), [data, tab]);
@@ -117,6 +119,7 @@ export function RemotePipeline() {
             >
               <option value="mine">My pipeline</option>
               <option value="team">My team&apos;s pipeline</option>
+              {peopleFailed && <option disabled>Couldn&apos;t load your reports — refresh</option>}
               {people
                 .filter((p) => p.id !== data?.viewerId)
                 .map((p) => (

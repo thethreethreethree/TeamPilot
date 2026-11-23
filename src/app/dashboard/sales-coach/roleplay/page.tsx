@@ -141,7 +141,8 @@ export default function SalesCoachRoleplayPage() {
     const id = new URLSearchParams(window.location.search).get("assignment");
     if (!id) return;
     fetch(`/api/coach/remote/assignments?id=${encodeURIComponent(id)}`)
-      .then((r) => (r.ok ? r.json() : null))
+      // A failed read goes to the catch below ("Couldn't load…"), never to "isn't assigned to you" (2026-11-23).
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(
         (j: {
           assignments?: Array<{
@@ -169,7 +170,8 @@ export default function SalesCoachRoleplayPage() {
     const id = new URLSearchParams(window.location.search).get("scenario");
     if (!id) return;
     fetch("/api/coach/remote/scenarios")
-      .then((r) => (r.ok ? r.json() : null))
+      // A failed read is not "isn't available to test" (2026-11-23).
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(
         (j: {
           scenarios?: Array<{ id: string; title: string; persona: string; situation: string; focus: string; channel: "in_person" | "video" | "phone"; pass_score: number | null }>;

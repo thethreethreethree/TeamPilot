@@ -80,11 +80,12 @@ export default function CommandDashboard() {
       // is false, so the page is unchanged for tenants who
       // haven't touched C.A.R.E yet.
       fetch("/api/dashboard/care-stats")
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
         .then(
           (data) => (data?.stats as CareStats | null) ?? null
         )
-        .catch(() => null),
+        // A failed read joins the load-error banner below (2026-11-23) instead of quietly hiding the section.
+        .catch(() => "failed" as const),
     ]);
     setTasks(t.tasks);
     setTasksMode(t.mode);
@@ -92,7 +93,7 @@ export default function CommandDashboard() {
     setSignalsMode(s.mode);
     setProblems(p.problems);
     setResolutions(r.resolutions);
-    setCareStats(careRes);
+    setCareStats(careRes === "failed" ? null : careRes);
     // Honest aggregation of loader errors. A failure becomes
     // a banner the user can see + retry from, not a silent zero.
     const errs: string[] = [];
@@ -100,6 +101,7 @@ export default function CommandDashboard() {
     if (s.mode === "live-error") errs.push("signals");
     if (p.mode === "live-error") errs.push("problems");
     if (r.mode === "live-error") errs.push("resolutions");
+    if (careRes === "failed") errs.push("C.A.R.E activity");
     setLoadError(errs);
     setLoading(false);
   };

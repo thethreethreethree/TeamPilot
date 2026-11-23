@@ -314,6 +314,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a company stage list is a pipeline change of its own
       next-action: an optional company stage list offered in the prospect's stage box and the tag box
 - [ ] 2026-11-23 · client reads · 11 client reads map a failed fetch to null (`r.ok ? r.json() : null`) — some may show "nothing" on a failure
+      resolved 2026-11-23 (docs/tbc/2026-11-23-null-reads): 7 data reads fixed (plus 6 more found in src/app), the null form is now a gate with 7 listed label reads.
       why-unresolved: each must be read to tell a label read from a data read
       next-action: read each; extend noFailedReadAsEmpty to the null form with an allowlist for label reads
 - [ ] 2026-11-23 · stage-training · "rep needs" not yet used — the stage's scenarios are not ranked by the rep's weakest rubric items
@@ -365,3 +366,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       resolved (part 1, 2026-11-23): the Ask box now sees each deal's risk reasons — docs/tbc/2026-11-23-deal-risk/remediate.md addendum. The close-date part stays open.
       why-unresolved: next small change / a pipeline field of its own
       next-action: add risk reasons to buildPipelineContext; an optional expected-close event kind
+
+## Filed by the null-form sweep (2026-11-23, docs/tbc/2026-11-23-null-reads)
+
+- [ ] 2026-11-23 · client reads · other spellings of "failed read → nothing" (e.g. `if (!r.ok) return null`, `.catch(() => [])`) are not matched by the guard
+      why-unresolved: each spelling needs its own safe pattern
+      next-action: grep each spelling, read in context, add to noFailedReadAsEmpty with counted allowances
