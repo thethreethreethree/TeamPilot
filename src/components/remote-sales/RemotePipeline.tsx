@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Check, Loader2, Phone, Plus, Video, X } from "lucide-react";
+import { AlertCircle, Check, Loader2, Phone, Plus, Sparkles, Video, X } from "lucide-react";
 import { useIsSalesCoachManager, useCurrentUserRole, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
 import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
@@ -140,6 +140,8 @@ export function RemotePipeline() {
           </button>
         ))}
       </div>
+
+      {data && data.prospects.length > 0 && <AskPipeline key={whose} scope={whose} onOpen={open} />}
 
       {failed ? (
         <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>
@@ -444,5 +446,107 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
       </div>
       {err && <p className="text-xs text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
+  );
+}
+
+/**
+ * Ask Coach across the pipeline (2026-11-23). One question over every prospect in view — stage, amount, next call,
+ * to-dos and the latest call's key points — answered with [P#] references that open the prospect. Keyed by "whose",
+ * so switching pipelines clears an answer that was about someone else's.
+ */
+type PipelineCitation = { ref: number; prospectId: string; name: string };
+const PIPELINE_STARTERS = ["Which deals are at risk of slipping?", "Which prospects have no next call booked?", "What should I do first this week?"];
+
+function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<{ answer: string; citations: PipelineCitation[]; prospects: number; capped: boolean } | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const ask = async (question: string) => {
+    const text = question.trim();
+    if (text.length < 3 || busy) return;
+    setQ(text);
+    setBusy(true);
+    setNote(null);
+    setRes(null);
+    try {
+      const r = await fetch("/api/coach/remote/ask-pipeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, scope }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; suppressed?: boolean; citations?: PipelineCitation[]; prospects?: number; capped?: boolean; error?: string };
+      if (!r.ok) setNote(j.error ?? "Couldn't get an answer. Try again.");
+      else if (j.suppressed || !j.answer) setNote("Coaching answers are switched off for this account right now.");
+      else setRes({ answer: j.answer, citations: j.citations ?? [], prospects: j.prospects ?? 0, capped: !!j.capped });
+    } catch {
+      setNote("Couldn't reach the coach. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const byRef = new Map((res?.citations ?? []).map((c) => [c.ref, c]));
+  const parts = res ? res.answer.split(/(\[P\d+\])/g) : [];
+
+  return (
+    <section aria-label="Ask about this pipeline" className="rounded-xl border border-default bg-surface p-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask(q);
+        }}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <Sparkles className="h-4 w-4 shrink-0 text-brand" aria-hidden />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+          maxLength={1000}
+          placeholder="Ask about this pipeline — e.g. which deals are stalling?"
+          aria-label="Question about this pipeline"
+          className="min-w-0 flex-1 rounded-lg border border-default bg-surface px-2 py-1.5 text-xs text-primary"
+        />
+        <button type="submit" disabled={busy || q.trim().length < 3} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50">
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null} Ask
+        </button>
+      </form>
+      {!res && !busy && !note && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {PIPELINE_STARTERS.map((s) => (
+            <button key={s} type="button" onClick={() => void ask(s)} className="rounded-full border border-default px-2.5 py-1 text-[11px] text-secondary hover:border-brand/60">
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      {busy && <p className="mt-2 text-xs text-muted">Reading the pipeline…</p>}
+      {note && (
+        <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-secondary">
+          <AlertCircle className="h-3.5 w-3.5" aria-hidden /> {note}
+        </p>
+      )}
+      {res && (
+        <div className="mt-3 space-y-2">
+          <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">
+            {parts.map((part, i) => {
+              const m = /^\[P(\d+)\]$/.exec(part);
+              const c = m ? byRef.get(Number(m[1])) : undefined;
+              return c ? (
+                <button key={i} type="button" onClick={() => onOpen(c.prospectId)} title={c.name} className="mx-0.5 rounded bg-brand/15 px-1 text-[11px] font-semibold text-brand hover:bg-brand/25">
+                  {c.name}
+                </button>
+              ) : (
+                <span key={i}>{part}</span>
+              );
+            })}
+          </p>
+          <p className="text-[11px] text-muted">
+            Based on {res.capped ? `the ${res.prospects} prospects with the most recent activity` : `${res.prospects} ${res.prospects === 1 ? "prospect" : "prospects"}`} and each one&apos;s latest call summary — not full transcripts.
+          </p>
+        </div>
+      )}
+    </section>
   );
 }

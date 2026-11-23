@@ -289,3 +289,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: per-person codes first
       next-action: append-only company setting; the middleware sends people without an authenticator to Settings to set one up
 
+
+## Filed by Ask Coach across the pipeline (2026-11-23, docs/tbc/2026-11-23-ask-pipeline)
+
+- [ ] 2026-11-23 · ask-pipeline · pipeline questions are not saved as a chat thread (Ask Coach over calls is)
+      why-unresolved: one-shot first
+      next-action: reuse ask_coach_chats with a pipeline scope column, append-only turns
+- [ ] 2026-11-23 · ask-pipeline · no component test renders the Ask box (citation buttons; reset when switching "Whose pipeline")
+      why-unresolved: the remote-sales screens have no component-test harness yet
+      next-action: add a testing-library render for RemotePipeline's AskPipeline with a mocked fetch
