@@ -586,6 +586,19 @@ async function main() {
     return { pass: n === 0, detail: n === 0 ? "every access-granting table and storage.objects carries mfa_required" : `${n} table(s) grant access without mfa_required → an unverified session can reach them: ${r.rows[0].tbls}` };
   });
 
+  await check("multi-factor sign-in holds for owner-rights functions: the PostgREST pre-request hook is installed and checks rss_mfa_ok (0315)", async () => {
+    // 2026-11-23. SECURITY DEFINER functions run as their owner, so 0309's table policy does not apply inside them; 68 are
+    // callable over the REST API (60 finance). 0315's pre-request hook refuses /rpc/* for a session that must pass a
+    // code first. If the role setting is dropped or the function stops calling the rule, that path re-opens silently.
+    const r = await c.query(
+      "select coalesce((select array_to_string(rolconfig, ',') from pg_roles where rolname = 'authenticator'), '') as cfg," +
+      " coalesce((select pg_get_functiondef(p.oid) from pg_proc p join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public' where p.proname = 'rss_pre_request'), '') as def");
+    const { cfg, def } = r.rows[0];
+    const hooked = /pgrst\.db_pre_request=public\.rss_pre_request/.test(cfg);
+    const checks = /rss_mfa_ok\(\)/.test(def) && /\/rpc\//.test(def);
+    return { pass: hooked && checks, detail: hooked && checks ? "authenticator runs public.rss_pre_request, which refuses /rpc/* without a passed code" : `hook installed: ${hooked}; function checks the rule: ${checks}` };
+  });
+
   await check("Macro-Mode pitch tables keep the PER-REP owner restriction (peer-rep isolation — F8)", async () => {
     // Q4 = rep + manager: a rep sees only their OWN door-to-door pitches/knocks/analyses/summaries; a
     // same-company manager (role CEO/COO/admin or sales_coach_role='admin') sees the team. The tenant-pin

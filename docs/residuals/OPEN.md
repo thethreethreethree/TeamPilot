@@ -277,9 +277,11 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 ## Filed by multi-factor sign-in (2026-11-23, docs/tbc/2026-11-23-mfa)
 
 - [ ] 2026-11-23 · mfa · BLOCKING SETUP: TOTP multi-factor must be enabled in the Supabase project (Auth → Multi-Factor → TOTP); then one real enrolment from Settings → Sign-in codes, a sign-out, and a sign-in that asks for the code
+      also (0315): while held at the code screen, try a finance action from another tab — it must be refused ("Enter the code…").
       why-unresolved: dashboard config outside the repo; the public settings endpoint does not report it
       next-action: after the push, enrol a test account in Settings; if it is off, enrolment says "Couldn't start setup…" (the provider's reason is in the server log)
 - [ ] 2026-11-23 · mfa · 128 SECURITY DEFINER functions callable by authenticated are outside the database rule (0309 covers tables and storage)
+      resolved 2026-11-23 (docs/tbc/2026-11-23-mfa-functions, 0315): a PostgREST pre-request hook refuses /rpc/* for a held session; live API shows x-rss-guard: 1; live invariant 33.
       why-unresolved: each must be read to see whether it reads or writes customer data
       next-action: add `if not public.rss_mfa_ok() then raise exception` to the data-bearing ones; a live invariant over the list
 - [ ] 2026-11-23 · mfa · the mobile app and Chrome extension have no code step, so they refuse an account with codes on
