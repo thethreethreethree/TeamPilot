@@ -411,9 +411,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a product/legal judgment
       next-action: decide; if "retire", add a retire of scenarios whose source_session_id is erased (as a 0316 extension)
       decided + done 2026-11-23: founder "Retire them" → 0317 (applied); see docs/tbc/2026-11-23-call-notes-erasure remediate addendum.
-- [ ] 2026-11-23 · erasure · a rep's daily brain dump (remote_day_plans) may name a customer but has no call key, so erasure can't find it
+- [x] 2026-11-23 · erasure · a rep's daily brain dump (remote_day_plans) may name a customer but has no call key, so erasure can't find it
       why-unresolved: no session to match on
       next-action: match erasure's identifier against day-plan text, show matches to the admin with the calls
+      done 2026-11-23: 0322 (applied) — erasure finds day plans (rep + day shown, never the words) and replaces only the identifier — docs/tbc/2026-11-23-erasure-day-plans.
 
 ## Filed by message adoption (2026-11-23, docs/tbc/2026-11-23-message-adoption)
 
@@ -480,3 +481,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · forecast · forecast by month only — no quarter view, no what-if (move a deal's date and see the months change)
       why-unresolved: months first
       next-action: a quarter toggle summing the month rows; a what-if that changes dates on screen only, never stored
+
+## Filed by erasure of day plans (2026-11-23, docs/tbc/2026-11-23-erasure-day-plans)
+
+- [ ] 2026-11-23 · erasure · a pipeline prospect never linked to a call keeps its name/organization after the customer is erased
+      why-unresolved: 0316 reaches prospects only through linked calls
+      next-action: match the identifier against remote_prospects_current name/organization in the erasure search; list and blank them like day plans
+- [ ] 2026-11-23 · erasure · a day plan that names the customer differently ("Betty" for client "Betty Ross") isn't found
+      why-unresolved: a first name alone would match other customers
+      next-action: say in the panel that a shorter name can be searched separately

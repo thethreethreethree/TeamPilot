@@ -289,11 +289,15 @@ type Found = { sessionId: string; startedAt: string; repName: string | null; cli
 const KIND_WORDS = { phone: "Phone number", email: "Email", client_label: "Client name" } as const;
 const CHANNEL_WORDS: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
 
+type DayPlanMatch = { id: number; repName: string | null; day: string };
+
 function ErasurePanel() {
   const [kind, setKind] = useState<keyof typeof KIND_WORDS>("phone");
   const [value, setValue] = useState("");
-  const [found, setFound] = useState<{ hint: string; capped: boolean; matches: Found[] } | null>(null);
+  const [found, setFound] = useState<{ hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[] } | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  // Reps' day plans that mention the customer (0322) — rep and day only; a plan's words are the rep's own.
+  const [pickedPlans, setPickedPlans] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -329,9 +333,10 @@ function ErasurePanel() {
         setMsg(String(j.error ?? "The search failed."));
         return;
       }
-      const f = j as unknown as { hint: string; capped: boolean; matches: Found[] };
+      const f = j as unknown as { hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[] };
       setFound(f);
       setPicked(new Set(f.matches.map((m) => m.sessionId)));
+      setPickedPlans(new Set((f.dayPlans ?? []).map((d) => d.id)));
     } catch {
       setMsg("Couldn't reach the server.");
     } finally {
@@ -343,12 +348,15 @@ function ErasurePanel() {
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await call({ action: "erase", kind, value, sessionIds: [...picked] });
+      const { ok, j } = await call({ action: "erase", kind, value, sessionIds: [...picked], dayPlanIds: [...pickedPlans] });
       if (!ok) {
         setMsg(String(j.error ?? "Nothing was erased."));
         return;
       }
-      setMsg(`Erased ${String(j.erased)} call${j.erased === 1 ? "" : "s"} for ${String(j.hint)}. The audit log below records it.`);
+      const plans = Number(j.plansErased ?? 0);
+      setMsg(
+        `Erased ${String(j.erased)} call${j.erased === 1 ? "" : "s"}${plans ? ` and removed them from ${plans} day plan${plans === 1 ? "" : "s"}` : ""} for ${String(j.hint)}. The audit log below records it.`,
+      );
       setFound(null);
       setValue("");
       setConfirming(false);
@@ -422,14 +430,16 @@ function ErasurePanel() {
 
       {found && (
         <div className="mt-3 space-y-2">
-          {found.matches.length === 0 ? (
-            <p className="text-xs text-secondary">No calls mention {found.hint}.</p>
+          {found.matches.length === 0 && (found.dayPlans?.length ?? 0) === 0 ? (
+            <p className="text-xs text-secondary">No calls or day plans mention {found.hint}.</p>
           ) : (
             <>
+              {found.matches.length > 0 && (
               <p className="text-xs text-primary">
                 {found.matches.length} call{found.matches.length === 1 ? "" : "s"} mention {found.hint}
                 {found.capped ? " (the first 200; erase these, then search again)" : ""}. Untick any that are someone else.
               </p>
+              )}
               <ul className="space-y-1">
                 {found.matches.map((m) => (
                   <li key={m.sessionId} className="flex items-start gap-2 rounded-lg border border-default p-2 text-xs">
@@ -445,24 +455,54 @@ function ErasurePanel() {
                   </li>
                 ))}
               </ul>
+              {(found.dayPlans?.length ?? 0) > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-primary">
+                    {found.dayPlans!.length} rep day plan{found.dayPlans!.length === 1 ? "" : "s"} mention {found.hint}. Only the
+                    customer&apos;s details are removed from them; a plan is the rep&apos;s own, so its words aren&apos;t shown here.
+                  </p>
+                  <ul className="space-y-1">
+                    {found.dayPlans!.map((d) => (
+                      <li key={d.id} className="flex items-center gap-2 rounded-lg border border-default p-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={pickedPlans.has(d.id)}
+                          onChange={() => setPickedPlans((cur) => {
+                            const next = new Set(cur);
+                            if (next.has(d.id)) next.delete(d.id);
+                            else next.add(d.id);
+                            return next;
+                          })}
+                          aria-label={`Remove the customer from ${d.repName ?? "a former rep"}'s plan for ${d.day}`}
+                        />
+                        <span className="text-primary">
+                          {new Date(`${d.day}T12:00:00Z`).toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" })} · {d.repName ?? "a former rep"}&apos;s day plan
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {confirming ? (
                 <div className="rounded-lg border border-default bg-base p-3 text-xs">
                   <p className="text-primary">
-                    Erase {picked.size} call{picked.size === 1 ? "" : "s"} for {found.hint}? Their transcripts, recordings, the AI&apos;s
-                    summaries and quotes, saved clips and Ask Coach chats about them are deleted. This can&apos;t be undone.
+                    Erase {picked.size} call{picked.size === 1 ? "" : "s"}
+                    {pickedPlans.size ? ` and remove them from ${pickedPlans.size} day plan${pickedPlans.size === 1 ? "" : "s"}` : ""} for {found.hint}?
+                    The calls&apos; transcripts, recordings, the AI&apos;s summaries and quotes, saved clips and Ask Coach chats about them
+                    are deleted. This can&apos;t be undone.
                   </p>
                   <div className="mt-2 flex gap-2">
-                    <button type="button" disabled={busy || picked.size === 0} onClick={() => void erase()}
+                    <button type="button" disabled={busy || picked.size + pickedPlans.size === 0} onClick={() => void erase()}
                       className="rounded-lg bg-ember-400 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50">
-                      {busy ? "Erasing…" : `Erase ${picked.size}`}
+                      {busy ? "Erasing…" : `Erase ${picked.size + pickedPlans.size}`}
                     </button>
                     <button type="button" onClick={() => setConfirming(false)} className="px-2 text-muted hover:text-primary">Keep them</button>
                   </div>
                 </div>
               ) : (
-                <button type="button" disabled={picked.size === 0} onClick={() => setConfirming(true)}
+                <button type="button" disabled={picked.size + pickedPlans.size === 0} onClick={() => setConfirming(true)}
                   className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:bg-base disabled:opacity-50">
-                  Erase {picked.size} selected…
+                  Erase {picked.size + pickedPlans.size} selected…
                 </button>
               )}
             </>

@@ -18,8 +18,11 @@ import {
 /**
  * POST /api/coach/remote/erasure — erase one customer's data (RSS Phase 8, migration 0285; CLAUDE.md §3.1.1, AMD-014).
  * Company admins only.
- *   { action: "find", kind, value }              → the calls that customer is on, each with the matching line, to review.
- *   { action: "erase", kind, value, sessionIds } → erase the confirmed calls.
+ *   { action: "find", kind, value }              → the calls that customer is on, each with the matching line, to review;
+ *                                                  and the reps' day plans that mention them (rep and day only — a plan is
+ *                                                  the rep's own, 0303/A10, so its words are never shown; 0322).
+ *   { action: "erase", kind, value, sessionIds, dayPlanIds? } → erase the confirmed calls, and the identifier inside the
+ *                                                  confirmed day plans (rss_erase_day_plans, before rss_erase_sessions).
  *
  * ERASE, IN ORDER, AND WHY:
  *   1. The search runs again here. Only calls it returns may be erased — a request can never reach a call that does
@@ -119,9 +122,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
   }
   const matches = (found ?? []) as Match[];
+  // Day plans that mention the customer (0322). Before the migration: none, as before.
+  const { data: planFound, error: pErr } = await admin.rpc("rss_erasure_day_plan_matches", { p_company: ctx.companyId, p_kind: kind, p_value: normalised });
+  if (pErr && !MISSING.has(String(pErr.code))) {
+    console.error(`[erasure] day-plan search failed company=${ctx.companyId}: ${pErr.message}`);
+    return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
+  }
+  const planMatches = ((pErr ? [] : planFound) ?? []) as Array<{ plan_id: number | string; rep_id: string; day: string }>;
 
   if (b.action === "find") {
-    const repIds = [...new Set(matches.map((m) => String(m.agent_id)))];
+    const repIds = [...new Set([...matches.map((m) => String(m.agent_id)), ...planMatches.map((p) => String(p.rep_id))])];
     const { data: reps } = repIds.length
       ? await admin.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", repIds)
       : { data: [] };
@@ -137,15 +147,20 @@ export async function POST(req: NextRequest) {
         channel: m.context,
         line: m.snippet,
       })),
+      dayPlans: planMatches.map((p) => ({ id: Number(p.plan_id), repName: names.get(String(p.rep_id)) ?? null, day: p.day })),
     });
   }
 
   if (b.action !== "erase") return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   const asked = Array.isArray(b.sessionIds) ? [...new Set(b.sessionIds.filter((x): x is string => typeof x === "string"))] : [];
+  const askedPlans = Array.isArray((b as { dayPlanIds?: unknown }).dayPlanIds)
+    ? [...new Set(((b as { dayPlanIds: unknown[] }).dayPlanIds).map(Number).filter((x) => Number.isSafeInteger(x) && x > 0))]
+    : [];
   const allowed = new Set(matches.map((m) => String(m.session_id)));
-  if (asked.length === 0) return NextResponse.json({ error: "Pick at least one call to erase." }, { status: 400 });
-  if (asked.some((id) => !allowed.has(id))) {
-    return NextResponse.json({ error: "Some of those calls don't mention this customer. Search again and pick from the results." }, { status: 400 });
+  const allowedPlans = new Set(planMatches.map((p) => Number(p.plan_id)));
+  if (asked.length === 0 && askedPlans.length === 0) return NextResponse.json({ error: "Pick at least one call or day plan to erase." }, { status: 400 });
+  if (asked.some((id) => !allowed.has(id)) || askedPlans.some((id) => !allowedPlans.has(id))) {
+    return NextResponse.json({ error: "Some of those don't mention this customer. Search again and pick from the results." }, { status: 400 });
   }
 
   let hash: string;
@@ -210,6 +225,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Day plans (0322): the identifier inside each confirmed plan. With no calls, this records the completion itself.
+  let plansErased = 0;
+  if (askedPlans.length) {
+    const { data: n, error: dErr } = await admin.rpc("rss_erase_day_plans", {
+      p_company: ctx.companyId,
+      p_request: request.id,
+      p_plans: askedPlans,
+      p_kind: kind,
+      p_value: normalised,
+      p_by: ctx.userId,
+      p_complete: asked.length === 0,
+    });
+    if (dErr) {
+      console.error(`[erasure] day-plan erasure failed request=${request.id}: ${dErr.message}`);
+      return NextResponse.json({ error: "The day plans couldn't be erased. Try again: it is safe to repeat.", audioRemoved }, { status: 500 });
+    }
+    plansErased = Number(n) || 0;
+  }
+  if (asked.length === 0) {
+    await recordAudit(admin, {
+      companyId: ctx.companyId,
+      actorId: ctx.userId,
+      action: "erasure.request",
+      objectType: "erasure_request",
+      objectId: String(request.id),
+      meta: { hint, kind, sessions: 0, plansErased },
+    });
+    return NextResponse.json({ erased: 0, plansErased, audioRemoved, hint });
+  }
+
   const { data: result, error: eErr } = await admin.rpc("rss_erase_sessions", {
     p_company: ctx.companyId,
     p_request: request.id,
@@ -230,7 +275,7 @@ export async function POST(req: NextRequest) {
     action: "erasure.request",
     objectType: "erasure_request",
     objectId: String(request.id),
-    meta: { hint, kind, sessions: asked.length, audioRemoved, result },
+    meta: { hint, kind, sessions: asked.length, plansErased, audioRemoved, result },
   });
-  return NextResponse.json({ erased: asked.length, audioRemoved, hint, result });
+  return NextResponse.json({ erased: asked.length, plansErased, audioRemoved, hint, result });
 }

@@ -14,6 +14,8 @@ const db = vi.hoisted(() => ({
   requests: [] as unknown[],
   completions: [] as unknown[],
   completionsError: null as unknown,
+  plans: [] as unknown[],
+  planArgs: null as Record<string, unknown> | null,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -21,6 +23,11 @@ vi.mock("@/lib/supabase/admin", () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => {
       db.log.push(`rpc:${fn}`);
       if (fn === "rss_erasure_matches") return { data: db.matches, error: null, args };
+      if (fn === "rss_erasure_day_plan_matches") return { data: db.plans, error: null };
+      if (fn === "rss_erase_day_plans") {
+        db.planArgs = args;
+        return { data: (args.p_plans as unknown[]).length, error: null };
+      }
       return { data: db.eraseError ? null : { sessions: (args.p_sessions as unknown[]).length }, error: db.eraseError };
     },
     from: (table: string) => {
@@ -63,6 +70,8 @@ beforeEach(() => {
   db.requests = [];
   db.completions = [];
   db.completionsError = null;
+  db.plans = [];
+  db.planArgs = null;
   vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
   vi.mocked(removeRecordingAudio).mockResolvedValue({ ok: true, chunksRemoved: 0 });
   vi.mocked(removeSessionChunks).mockResolvedValue({ ok: true, removed: 0 });
@@ -98,7 +107,7 @@ describe("POST /api/coach/remote/erasure", () => {
     db.audio = [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }];
     const res = await POST(post({ action: "erase", kind: "phone", value: "+1 (555) 010-0123", sessionIds: ["s1"] }));
     expect(res.status).toBe(200);
-    expect(db.log).toEqual(["rpc:rss_erasure_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
+    expect(db.log).toEqual(["rpc:rss_erasure_matches", "rpc:rss_erasure_day_plan_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
     const reqRow = db.inserts[0]!.row;
     expect(reqRow).toMatchObject({ company_id: "co1", requested_by: "ceo", match_kind: "phone", match_hint: "phone ••••0123" });
     expect(String(reqRow.match_hash)).toMatch(/^[0-9a-f]{64}$/);
@@ -180,6 +189,36 @@ describe("GET /api/coach/remote/erasure", () => {
     db.requests = [R("r1", "h", "2026-11-01T10:00:00Z")];
     db.completionsError = { message: "boom" };
     expect((await get()).status).toBe(500);
+  });
+});
+
+describe("day plans (0322)", () => {
+  const PLAN = (id: number) => ({ plan_id: id, rep_id: "ceo", day: "2026-11-20" });
+  it("find lists the plans that mention the customer — rep and day only, never the plan's words", async () => {
+    db.plans = [PLAN(7)];
+    const body = await (await POST(post({ action: "find", kind: "phone", value: "5550100123" }))).json();
+    expect(body.dayPlans).toEqual([{ id: 7, repName: "Casey CEO", day: "2026-11-20" }]);
+    expect(JSON.stringify(body.dayPlans)).not.toMatch(/dump|plan"|what/);
+  });
+  it("erase: confirmed plans first (the identifier as searched), then the calls", async () => {
+    db.plans = [PLAN(7)];
+    const r = await POST(post({ action: "erase", kind: "phone", value: "+1 555 010 0123", sessionIds: ["s1"], dayPlanIds: [7] }));
+    expect(r.status).toBe(200);
+    expect(db.log.slice(-2)).toEqual(["rpc:rss_erase_day_plans", "rpc:rss_erase_sessions"]);
+    expect(db.planArgs).toMatchObject({ p_plans: [7], p_kind: "phone", p_value: "5550100123", p_complete: false });
+  });
+  it("a customer only in a day plan: erased, and the plan step completes the request", async () => {
+    db.matches = [];
+    db.plans = [PLAN(7)];
+    const j = await (await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: [], dayPlanIds: [7] }))).json();
+    expect(j).toMatchObject({ erased: 0, plansErased: 1 });
+    expect(db.planArgs).toMatchObject({ p_complete: true });
+    expect(db.log).not.toContain("rpc:rss_erase_sessions");
+  });
+  it("a plan the search did not return is refused, and nothing is written", async () => {
+    db.plans = [PLAN(7)];
+    expect((await POST(post({ action: "erase", kind: "phone", value: "5550100123", sessionIds: ["s1"], dayPlanIds: [8] }))).status).toBe(400);
+    expect(db.inserts).toEqual([]);
   });
 });
 
