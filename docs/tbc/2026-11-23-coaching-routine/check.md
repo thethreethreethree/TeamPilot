@@ -14,3 +14,12 @@ class: a claim about the codebase recorded without checking.
 sweep: `grep -rln "@vitest-environment jsdom" src/components/remote-sales/__tests__` → RemoteSalesShell, MacroCallView,
 WeeklyRoutine.
 severity: medium
+
+## Addendum 2026-11-23 — render tests for today's screens (closing the F1 correction)
+
+```
+CallNotesAndLink.render.test.tsx → 4 passed · InsightViews.render.test.tsx (calendar, market, adoption board) → 5 passed
+SessionTranscript.edit.render.test.tsx → 2 passed · RemotePipeline.ask.render.test.tsx → 1 passed
+mutation: goTo without setTab(p.status) → RemotePipeline.ask test 1 failed; restored (git diff empty)
+npm run check → first: ✗ typecheck (notes array type in the new test) → fixed → exit 0 · Tests 6571 passed | 15 skipped
+```
