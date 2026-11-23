@@ -479,10 +479,11 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by close dates (2026-11-23, docs/tbc/2026-11-23-close-date)
 
-- [ ] 2026-11-23 · forecast · forecast by month only — no quarter view, no what-if (move a deal's date and see the months change)
+- [x] 2026-11-23 · forecast · forecast by month only — no quarter view, no what-if (move a deal's date and see the months change)
       why-unresolved: months first
       next-action: a quarter toggle summing the month rows; a what-if that changes dates on screen only, never stored
       part done 2026-11-23: Months / Quarters switch — docs/tbc/2026-11-23-forecast-quarters. The what-if stays open.
+      done 2026-11-23: "What if?" on screen only — docs/tbc/2026-11-23-forecast-what-if.
 
 ## Filed by erasure of day plans (2026-11-23, docs/tbc/2026-11-23-erasure-day-plans)
 

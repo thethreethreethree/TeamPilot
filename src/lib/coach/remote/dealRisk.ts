@@ -158,3 +158,9 @@ export function byQuarter(months: MonthRow[]): MonthRow[] {
   }
   return [...q.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
+
+/** What-if (2026-11-23): the same deals with some expected close dates moved ON SCREEN ONLY ("" clears one). Nothing
+ *  is saved; the forecast is recomputed from the copy. */
+export function withMovedDates<T extends { id: string; closeDate?: string | null }>(prospects: T[], moved: Record<string, string>): T[] {
+  return prospects.map((p) => (p.id in moved ? { ...p, closeDate: moved[p.id] || null } : p));
+}

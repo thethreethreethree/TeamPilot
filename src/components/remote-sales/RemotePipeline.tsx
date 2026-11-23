@@ -11,7 +11,7 @@ import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
+import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -785,9 +785,13 @@ function RiskLine({ p }: { p: Prospect }) {
  * deals; and the at-risk deals themselves, largest first, each opening its prospect.
  */
 /** Open deals by the month the rep expects them to close (0320, dealRisk.forecastByMonth). */
-function ByCloseMonth({ prospects, today: t }: { prospects: Prospect[]; today: string }) {
-  const f = forecastByMonth(prospects, t);
+function ByCloseMonth({ prospects: saved, today: t }: { prospects: Prospect[]; today: string }) {
   const [quarters, setQuarters] = useState(false);
+  // What-if (2026-11-23): move deals' expected dates here to see the months change. On screen only — never saved.
+  const [moved, setMoved] = useState<Record<string, string> | null>(null);
+  const prospects = moved ? withMovedDates(saved, moved) : saved;
+  const f = forecastByMonth(prospects, t);
+  const openDeals = saved.filter((p) => p.status === "open");
   const monthName = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
   const quarterName = (q: string) => `${q.slice(5)} ${q.slice(0, 4)}`;
   const periods = quarters ? byQuarter(f.months).map((m) => ({ ...m, label: quarterName(m.month) })) : f.months.map((m) => ({ ...m, label: monthName(m.month) }));
@@ -804,6 +808,40 @@ function ByCloseMonth({ prospects, today: t }: { prospects: Prospect[]; today: s
           ))}
         </div>
       </div>
+      {openDeals.length > 0 && (
+        <div className="mt-1">
+          {moved === null ? (
+            <button type="button" onClick={() => setMoved({})} className="text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline">
+              What if? Move deals&apos; dates to see the totals change
+            </button>
+          ) : (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">What if — on screen only, nothing is saved</p>
+                <button type="button" onClick={() => setMoved(null)} className="text-[11px] text-secondary hover:text-primary hover:underline">
+                  Back to the real dates
+                </button>
+              </div>
+              <ul className="mt-1.5 max-h-48 space-y-1 overflow-y-auto" aria-label="What-if dates">
+                {openDeals.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <span className="min-w-0 truncate text-primary">
+                      {p.name ?? "Unnamed prospect"} <span className="text-muted">· {p.amount !== null ? money(p.amount) : "no amount"}</span>
+                    </span>
+                    <input
+                      type="date"
+                      value={p.id in moved ? moved[p.id] : (p.closeDate ?? "")}
+                      onChange={(e) => setMoved({ ...moved, [p.id]: e.currentTarget.value })}
+                      aria-label={`What-if close date for ${p.name ?? "unnamed prospect"}`}
+                      className="rounded border border-default bg-surface px-1.5 py-0.5 text-[11px] text-primary"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
       {rows.length === 0 ? (
         <p className="mt-1 text-xs text-secondary">No open deal has an expected close date yet — set one on a prospect&apos;s card.</p>
       ) : (

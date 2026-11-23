@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST } from "../dealRisk";
+import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, withMovedDates } from "../dealRisk";
 
 const TODAY = "2026-11-23";
 const p = (over: Partial<Parameters<typeof dealRisk>[0]> = {}) => ({
@@ -88,5 +88,14 @@ describe("byQuarter", () => {
       { month: "2027-Q1", count: 1, amount: 10, unpriced: 0, expected: null },
     ]);
     expect(byQuarter([m("2026-10", 100, 60), m("2026-12", 50, 30)])[0]!.expected).toBe(90);
+  });
+});
+
+describe("withMovedDates (what-if)", () => {
+  it("moves only the named deals on a copy; '' clears; the originals are untouched", () => {
+    const ps = [p({ id: "a", closeDate: "2026-12-01" }), p({ id: "b", closeDate: "2026-12-05" })];
+    const w = withMovedDates(ps, { a: "2027-01-10", b: "" });
+    expect(w.map((x) => x.closeDate)).toEqual(["2027-01-10", null]);
+    expect(ps.map((x) => x.closeDate)).toEqual(["2026-12-01", "2026-12-05"]);
   });
 });

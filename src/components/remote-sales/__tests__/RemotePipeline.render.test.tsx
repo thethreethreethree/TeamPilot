@@ -97,4 +97,30 @@ describe("the pipeline", () => {
     expect(table.textContent).toMatch(/Q[1-4] 20\d\d/);
     expect(table.textContent).toContain("Past due");
   });
+
+  it("what-if: moving a deal's date changes the months on screen and sends nothing", async () => {
+    const day = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const soon = { ...P("p4", "Soon Co", "open", 2000), closeDate: day(5) };
+    respond({ "/api/coach/remote/prospects": { ...MINE, prospects: [soon] } });
+    render(<RemotePipeline />);
+    await screen.findByText("Soon Co");
+    fireEvent.click(screen.getByRole("button", { name: "Forecast" }));
+    const table = await screen.findByRole("region", { name: "By expected close month" });
+    const before = table.querySelectorAll("tbody tr").length;
+    fireEvent.click(screen.getByRole("button", { name: /What if\?/ }));
+    expect(screen.getByText(/nothing is saved/)).toBeTruthy();
+    const posts = () => fetchMock.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method === "POST").length;
+    const sent = posts();
+    fireEvent.change(screen.getByLabelText("What-if close date for Soon Co"), { target: { value: day(-30) } });
+    expect(table.textContent).toContain("Past due");
+    expect(table.querySelectorAll("tbody tr").length).toBe(before); // moved from its month into Past due
+    expect(posts()).toBe(sent);
+    fireEvent.click(screen.getByRole("button", { name: "Back to the real dates" }));
+    expect(table.textContent).not.toContain("Past due");
+  });
 });
+
