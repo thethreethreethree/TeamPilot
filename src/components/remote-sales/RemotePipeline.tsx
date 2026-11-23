@@ -9,6 +9,7 @@ import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
 import { stagesInUse } from "@/lib/coach/remote/stageTraining";
+import { addDays, weekStart } from "@/lib/coach/remote/calendar";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
@@ -167,7 +168,10 @@ export function RemotePipeline() {
       ) : view === "sources" ? (
         <SourcesView prospects={data?.prospects ?? null} failed={failed} />
       ) : view === "forecast" ? (
-        <ForecastView prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
+        <>
+          <ForecastView prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
+          {data && <PipelineChanges key={whose} whose={whose} onOpen={goTo} />}
+        </>
       ) : (
         <>
       <div role="tablist" aria-label="Pipeline stages" className="grid grid-cols-3 gap-2">
@@ -907,6 +911,84 @@ function ByCloseMonth({ prospects: saved, today: t }: { prospects: Prospect[]; t
         </p>
       )}
       <p className="mt-1 text-[10px] text-muted">&ldquo;Expected&rdquo; = value × this pipeline&apos;s win rate, shown once {MIN_CLOSED_FOR_FORECAST} deals have closed; &ldquo;—&rdquo; until then.</p>
+    </section>
+  );
+}
+
+/**
+ * What changed in the pipeline (2026-11-23; pipelineChanges.ts; ledger F23.7): this week or last week (Monday first, the
+ * viewer's own days), read from the prospects' own event history. Follows "Whose pipeline".
+ */
+type ChangeRow = { kind: string; prospectId: string; at: string; name: string | null; amount?: number | null; from?: string | number | null; to?: string | number | null };
+const CHANGE_WORDS: Record<string, string> = { new: "New deal", won: "Won", lost: "Lost", stage: "Moved", amount: "Amount", close_slipped: "Close date pushed out", close_pulled_in: "Close date pulled in" };
+function PipelineChanges({ whose, onOpen }: { whose: string; onOpen: (id: string) => void }) {
+  const [week, setWeek] = useState<0 | 1>(0);
+  const [res, setRes] = useState<{ summary: { new: number; newValue: number; won: number; wonValue: number; lost: number; lostValue: number; moved: number; slipped: number }; changes: ChangeRow[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const monday = weekStart(today());
+    const start = addDays(monday, -7 * week);
+    const fromIso = new Date(`${start}T00:00:00`).toISOString();
+    const toIso = new Date(`${addDays(start, 7)}T00:00:00`).toISOString();
+    setRes(null);
+    setFailed(false);
+    const q = new URLSearchParams({ from: fromIso, to: toIso, ...(whose === "mine" ? {} : { repId: whose }) });
+    fetch(`/api/coach/remote/prospects/changes?${q}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j) => {
+        if (!live) return;
+        if (j && Array.isArray(j.changes) && j.summary) setRes(j);
+        else setFailed(true); // a reply without the list is not "no changes"
+      })
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [whose, week]);
+  const detail = (c: ChangeRow) =>
+    c.kind === "stage" ? `${c.from ?? "no stage"} → ${c.to ?? "no stage"}`
+    : c.kind === "amount" ? `${c.from == null ? "none" : money(Number(c.from))} → ${c.to == null ? "none" : money(Number(c.to))}`
+    : c.kind === "close_slipped" || c.kind === "close_pulled_in" ? `${shortDate(String(c.from))} → ${shortDate(String(c.to))}`
+    : c.amount != null ? money(c.amount) : "";
+  return (
+    <section aria-label="Pipeline changes" className="mt-3 rounded-xl border border-default bg-surface p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-primary">What changed {week === 0 ? "this week" : "last week"}</p>
+        <div role="group" aria-label="Week" className="inline-flex overflow-hidden rounded-lg border border-default text-[11px]">
+          {([0, 1] as const).map((w) => (
+            <button key={w} type="button" aria-pressed={week === w} onClick={() => setWeek(w)} className={`px-2 py-0.5 ${week === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary"}`}>
+              {w === 0 ? "This week" : "Last week"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {failed ? (
+        <p className="mt-2 text-xs text-muted">Couldn&apos;t load the changes. Refresh to try again.</p>
+      ) : !res ? (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Reading the pipeline&apos;s history…</p>
+      ) : res.changes.length === 0 ? (
+        <p className="mt-2 text-xs text-secondary">No changes {week === 0 ? "so far this week" : "last week"}.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-[11px] text-secondary">
+            {res.summary.new} new ({money(res.summary.newValue)}) · {res.summary.won} won ({money(res.summary.wonValue)}) · {res.summary.lost} lost ({money(res.summary.lostValue)}) · {res.summary.moved} moved · {res.summary.slipped} close dates pushed out
+          </p>
+          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+            {res.changes.map((c, i) => (
+              <li key={`${c.prospectId}-${c.kind}-${i}`}>
+                <button type="button" onClick={() => onOpen(c.prospectId)} className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-xs hover:bg-base">
+                  <span className="min-w-0">
+                    <span className={`font-semibold ${c.kind === "won" ? "text-emerald-700 dark:text-emerald-300" : c.kind === "lost" || c.kind === "close_slipped" ? "text-amber-700 dark:text-amber-300" : "text-primary"}`}>{CHANGE_WORDS[c.kind] ?? c.kind}</span>{" "}
+                    <span className="text-primary">{c.name ?? "Unnamed prospect"}</span> <span className="text-muted">{detail(c)}</span>
+                  </span>
+                  <span className="text-[10px] text-muted">{shortDate(c.at)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

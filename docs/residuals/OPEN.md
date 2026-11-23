@@ -523,3 +523,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: needs a real device
       next-action: one try on iPhone Safari and one on Android Chrome
 
+## Filed by pipeline changes (2026-11-23, docs/tbc/2026-11-23-pipeline-changes)
+
+- [ ] 2026-11-23 · forecast · no pipeline value trend over weeks and no stage funnel
+      why-unresolved: changes first
+      next-action: replay the same events into open value per week (a small chart) and counts per stage (a funnel)
+
