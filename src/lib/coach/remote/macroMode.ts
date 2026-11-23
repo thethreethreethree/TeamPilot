@@ -123,9 +123,11 @@ export function pipelineTotals(rows: Array<{ status: string; amount: number | st
 }
 
 /** The stored value for each kind — the shapes 0303's CHECKs and remote_prospects_current read. Null = refused. */
-export type ProspectFact = "name" | "organization" | "stage" | "amount" | "next_call";
+export type ProspectFact = "name" | "organization" | "stage" | "amount" | "next_call" | "source";
 export function eventValue(kind: ProspectFact, value: unknown): Record<string, unknown> | null {
   if (kind === "name" || kind === "organization") return typeof value === "string" && value.trim() ? { text: value.trim() } : null;
+  // Lead source (0313): 1-60 characters, like a stage name.
+  if (kind === "source") return typeof value === "string" && value.trim() && value.trim().length <= 60 ? { text: value.trim() } : null;
   if (kind === "amount") return typeof value === "number" && value >= 0 ? { amount: value } : null;
   if (kind === "next_call") {
     if (value === null) return { date: null };

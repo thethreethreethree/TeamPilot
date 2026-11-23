@@ -9,6 +9,7 @@ import { TASK_STATUS_TRANSITIONS } from "@/lib/tasks/statusLabels";
 import { stepsToCompleted } from "@/lib/coach/remote/macroMode";
 import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
+import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -28,6 +29,7 @@ type Prospect = {
   organization: string | null;
   status: "open" | "won" | "lost";
   stageLabel: string | null;
+  source: string | null;
   amount: number | null;
   nextCallDate: string | null;
   lastCallAt: string | null;
@@ -53,7 +55,7 @@ export function RemotePipeline() {
   const isManager = scManager || isCompanyAdminRole(role);
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar" | "sources">("list");
   const [whose, setWhose] = useState<string>("mine");
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
@@ -123,7 +125,7 @@ export function RemotePipeline() {
             </select>
           )}
           <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
-            {(["list", "calendar"] as const).map((v) => (
+            {(["list", "calendar", "sources"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -131,7 +133,7 @@ export function RemotePipeline() {
                 onClick={() => setView(v)}
                 className={`px-2.5 py-1.5 text-xs ${view === v ? "bg-brand/15 font-semibold text-primary" : "bg-surface text-secondary hover:text-primary"}`}
               >
-                {v === "list" ? "List" : "Calendar"}
+                {v === "list" ? "List" : v === "calendar" ? "Calendar" : "Sources"}
               </button>
             ))}
           </div>
@@ -143,8 +145,12 @@ export function RemotePipeline() {
 
       {adding && <NewProspect onDone={(id) => { setAdding(false); void load(); if (id) open(id); }} />}
 
+      {/* One datalist of the sources already used in this pipeline, for every source box on the page. */}
+      <datalist id="lead-sources">{sourcesInUse(data?.prospects ?? []).map((s) => <option key={s} value={s} />)}</datalist>
       {view === "calendar" ? (
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
+      ) : view === "sources" ? (
+        <SourcesView prospects={data?.prospects ?? null} failed={failed} />
       ) : (
         <>
       <div role="tablist" aria-label="Pipeline stages" className="grid grid-cols-3 gap-2">
@@ -232,6 +238,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
   const [org, setOrg] = useState("");
   const [amount, setAmount] = useState("");
   const [next, setNext] = useState("");
+  const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const save = async () => {
@@ -247,6 +254,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
           ...(org.trim() ? { organization: org.trim() } : {}),
           ...(a !== undefined && Number.isFinite(a) ? { amount: a } : {}),
           ...(next ? { nextCallDate: next } : {}),
+          ...(source.trim() ? { source: source.trim() } : {}),
         }),
       });
       const d = (await r.json().catch(() => ({}))) as { id?: string; error?: string };
@@ -269,6 +277,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
           Next call
           <input type="date" value={next} onChange={(e) => setNext(e.currentTarget.value)} className={field} />
         </label>
+        <input value={source} onChange={(e) => setSource(e.currentTarget.value)} list="lead-sources" maxLength={60} placeholder="Lead source, e.g. Webinar (optional)" aria-label="Lead source" className={field} />
       </div>
       <div className="mt-2 flex gap-2">
         <button type="button" onClick={() => void save()} disabled={busy || !name.trim()} className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50">
@@ -284,7 +293,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
 }
 
 type Detail = {
-  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null };
+  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null };
   calls: Array<{ id: string; label: string | null; context: string; startedAt: string; outcome: string | null }>;
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
 };
@@ -399,6 +408,21 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         <label className="flex items-center gap-2">
           Next call
           <input type="date" defaultValue={p.next_call_date ?? ""} disabled={busy} onChange={(e) => void post({ action: "set", kind: "next_call", value: e.currentTarget.value || null })} className={field} />
+        </label>
+        <label className="flex items-center gap-2">
+          Source
+          <input
+            defaultValue={p.source ?? ""}
+            list="lead-sources"
+            maxLength={60}
+            placeholder="e.g. Referral"
+            aria-label="Lead source"
+            onBlur={(e) => {
+              const v = e.currentTarget.value.trim();
+              if (v && v !== (p.source ?? "")) void post({ action: "set", kind: "source", value: v });
+            }}
+            className={`${field} w-36`}
+          />
         </label>
       </div>
 
@@ -648,5 +672,60 @@ function StagePractice({ prospectId }: { prospectId: string }) {
       </ul>
       {err && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
+  );
+}
+
+/**
+ * Pipeline → Sources (2026-11-23; 0313). Deals by where they came from, for the pipeline in view ("Whose pipeline"):
+ * prospects, open value, won and lost, and the win rate on closed deals (none until a source has one).
+ */
+function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; failed: boolean }) {
+  if (failed) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>;
+  if (!prospects)
+    return (
+      <p className="flex items-center justify-center gap-2 p-6 text-xs text-muted">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading pipeline…
+      </p>
+    );
+  if (prospects.length === 0) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-secondary">No prospects yet.</p>;
+  const rows = sourceBreakdown(prospects);
+  const withSource = prospects.filter((p) => p.source && p.source.trim()).length;
+  return (
+    <section aria-label="Deals by lead source" className="space-y-2">
+      <p className="text-xs text-secondary">
+        {withSource} of {prospects.length} {prospects.length === 1 ? "prospect has" : "prospects have"} a source. Set one on a prospect, or when you add it.
+      </p>
+      <div className="overflow-x-auto rounded-xl border border-default bg-surface">
+        <table className="w-full text-left text-xs">
+          <thead className="text-[10px] uppercase tracking-wide text-muted">
+            <tr>
+              <th className="px-3 py-2 font-medium">Source</th>
+              <th className="px-3 py-2 text-right font-medium">Prospects</th>
+              <th className="px-3 py-2 text-right font-medium">Open</th>
+              <th className="px-3 py-2 text-right font-medium">Won</th>
+              <th className="px-3 py-2 text-right font-medium">Lost</th>
+              <th className="px-3 py-2 text-right font-medium">Win rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.source} className="border-t border-default">
+                <td className={`px-3 py-2 ${r.source === NO_SOURCE ? "italic text-muted" : "font-medium text-primary"}`}>{r.source}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-primary">{r.prospects}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-secondary">
+                  {r.open} · {money(r.openAmount)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-secondary">
+                  {r.won} · {money(r.wonAmount)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.lost}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-primary">{r.winRate === null ? "—" : `${Math.round(r.winRate * 100)}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-muted">Win rate counts closed deals only (won ÷ won + lost); “—” means none have closed yet.</p>
+    </section>
   );
 }

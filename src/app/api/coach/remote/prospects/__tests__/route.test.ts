@@ -41,7 +41,12 @@ describe("adding a prospect", () => {
   it("is one transaction carrying every first fact and the call", async () => {
     const res = await post({ name: "Pat", organization: "Acme", amount: 120, stageLabel: "Demo", nextCallDate: "2026-11-30", sessionId: CALL });
     expect(await res.json()).toEqual({ id: "p-new", linked: true });
-    expect(st.rpc).toEqual([{ fn: "rss_create_prospect", args: { p_name: "Pat", p_organization: "Acme", p_amount: 120, p_stage_label: "Demo", p_next_call: "2026-11-30", p_session: CALL } }]);
+    expect(st.rpc).toEqual([{ fn: "rss_create_prospect", args: { p_name: "Pat", p_organization: "Acme", p_amount: 120, p_stage_label: "Demo", p_next_call: "2026-11-30", p_session: CALL, p_source: null } }]);
+  });
+
+  it("carries the lead source in the same transaction (0313)", async () => {
+    await post({ name: "Pat", source: " Webinar " });
+    expect(st.rpc[0]).toMatchObject({ fn: "rss_create_prospect", args: { p_name: "Pat", p_source: "Webinar" } });
   });
 
   it("a call already in a pipeline → 409", async () => {

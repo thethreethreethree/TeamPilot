@@ -25,6 +25,8 @@ const Body = z.object({
   stageLabel: z.string().trim().max(60).optional(),
   nextCallDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sessionId: z.string().uuid().optional(),
+  // Lead source (0313), e.g. "Webinar", "Referral".
+  source: z.string().trim().max(60).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
     p_stage_label: body.stageLabel ?? null,
     p_next_call: body.nextCallDate ?? null,
     p_session: body.sessionId ?? null,
+    p_source: body.source || null,
   });
   if (error || !id) {
     if (error?.code === "23505") return NextResponse.json({ error: "That call is already in a pipeline." }, { status: 409 });

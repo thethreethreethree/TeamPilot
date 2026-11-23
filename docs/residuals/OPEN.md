@@ -340,3 +340,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · security-disclosure · founders' decisions: safe-harbour wording for good-faith researchers; how to remove a reporter's name/contact on request (reports are append-only)
       why-unresolved: legal wording and an erasure path for non-customers are the founders' to decide
       next-action: decide; then add the wording to /security and, if wanted, a redaction event
+
+## Filed by lead source on prospects (2026-11-23, docs/tbc/2026-11-23-lead-source)
+
+- [ ] 2026-11-23 · lead-source · AFTER PUSH: add a prospect with a source on the live site; it shows on the card and under Pipeline → Sources
+      why-unresolved: not deployed until pushed
+      next-action: founder push, then the check
