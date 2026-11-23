@@ -11,7 +11,7 @@ import { downloadIcs } from "@/lib/coach/remote/ics";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { dealRisk, forecast, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
+import { dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Pipeline (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — ELOSTATE's own simple CRM, so a rep does
@@ -34,6 +34,7 @@ type Prospect = {
   source: string | null;
   amount: number | null;
   nextCallDate: string | null;
+  closeDate?: string | null;
   lastCallAt: string | null;
   callCount: number;
   createdAt: string;
@@ -227,7 +228,10 @@ export function RemotePipeline() {
                       {p.openTodos > 1 ? ` +${p.openTodos - 1}` : ""}
                     </span>
                     <span className="text-secondary">Next call: {shortDate(p.nextCallDate)}</span>
-                    <span className="text-secondary">Last call: {shortDate(p.lastCallAt)}</span>
+                    <span className="text-secondary">
+                      Last call: {shortDate(p.lastCallAt)}
+                      {p.closeDate ? ` · Close: ${shortDate(p.closeDate)}` : ""}
+                    </span>
                   </div>
                   <SentimentLine s={p.sentiment ?? null} />
                   <RiskLine p={p} />
@@ -304,7 +308,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
 }
 
 type Detail = {
-  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null };
+  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null; close_date?: string | null };
   calls: Array<{ id: string; label: string | null; context: string; startedAt: string; outcome: string | null }>;
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
 };
@@ -419,6 +423,10 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         <label className="flex items-center gap-2">
           Next call
           <input type="date" defaultValue={p.next_call_date ?? ""} disabled={busy} onChange={(e) => void post({ action: "set", kind: "next_call", value: e.currentTarget.value || null })} className={field} />
+        </label>
+        <label className="flex items-center gap-2">
+          Expected close
+          <input type="date" defaultValue={p.close_date ?? ""} disabled={busy} aria-label="Expected close date" onChange={(e) => void post({ action: "set", kind: "close_date", value: e.currentTarget.value || null })} className={field} />
         </label>
         <label className="flex items-center gap-2">
           Source
@@ -761,6 +769,51 @@ function RiskLine({ p }: { p: Prospect }) {
  * pipeline's own closed-deal win rate (no number until enough deals have closed); a what-if without the at-risk
  * deals; and the at-risk deals themselves, largest first, each opening its prospect.
  */
+/** Open deals by the month the rep expects them to close (0320, dealRisk.forecastByMonth). */
+function ByCloseMonth({ prospects, today: t }: { prospects: Prospect[]; today: string }) {
+  const f = forecastByMonth(prospects, t);
+  const monthName = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+  const rows = [...(f.pastDue.count ? [{ ...f.pastDue, label: "Past due" }] : []), ...f.months.map((m) => ({ ...m, label: monthName(m.month) }))];
+  return (
+    <section aria-label="By expected close month" className="rounded-xl border border-default bg-surface p-3">
+      <p className="text-xs font-semibold text-primary">By expected close month</p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-xs text-secondary">No open deal has an expected close date yet — set one on a prospect&apos;s card.</p>
+      ) : (
+        <table className="mt-2 w-full text-left text-xs">
+          <thead className="text-[10px] uppercase tracking-wide text-muted">
+            <tr>
+              <th className="py-1 pr-2 font-medium">Month</th>
+              <th className="py-1 pr-2 text-right font-medium">Deals</th>
+              <th className="py-1 pr-2 text-right font-medium">Value</th>
+              <th className="py-1 text-right font-medium">Expected</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.month} className="border-t border-default">
+                <td className={`py-1.5 pr-2 font-medium ${r.month === "past_due" ? "text-amber-700 dark:text-amber-300" : "text-primary"}`}>{r.label}</td>
+                <td className="py-1.5 pr-2 text-right tabular-nums text-secondary">
+                  {r.count}
+                  {r.unpriced ? ` (${r.unpriced} no amount)` : ""}
+                </td>
+                <td className="py-1.5 pr-2 text-right tabular-nums text-primary">{money(r.amount)}</td>
+                <td className="py-1.5 text-right tabular-nums text-secondary">{r.expected === null ? "—" : money(r.expected)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {f.undated.count > 0 && (
+        <p className="mt-1 text-[11px] text-secondary">
+          {f.undated.count} open {f.undated.count === 1 ? "deal has" : "deals have"} no expected close date ({money(f.undated.amount)}).
+        </p>
+      )}
+      <p className="mt-1 text-[10px] text-muted">&ldquo;Expected&rdquo; = value × this pipeline&apos;s win rate, shown once {MIN_CLOSED_FOR_FORECAST} deals have closed; &ldquo;—&rdquo; until then.</p>
+    </section>
+  );
+}
+
 function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | null; failed: boolean; onOpen: (id: string) => void }) {
   if (failed) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>;
   if (!prospects)
@@ -815,6 +868,8 @@ function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | n
         </div>
       </div>
 
+      <ByCloseMonth prospects={prospects} today={t} />
+
       <div className={card}>
         <p className="text-xs font-semibold text-primary">Deals at risk</p>
         {risky.length === 0 ? (
@@ -837,8 +892,8 @@ function ForecastView({ prospects, failed, onOpen }: { prospects: Prospect[] | n
       </div>
       <p className="text-[11px] text-muted">
         A deal is at risk when two of these are true: no next call booked, its booked call date passed with no call, no call
-        in 21 days (14 for a new prospect), an overdue to-do, the customer cooled on the last call. These are checks, not
-        predictions.
+        in 21 days (14 for a new prospect), an overdue to-do, the customer cooled on the last call, its expected close date
+        passed. These are checks, not predictions.
       </p>
     </section>
   );

@@ -12,7 +12,7 @@ import { eventValue } from "@/lib/coach/remote/macroMode";
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
  *   GET  → { prospect, history, calls, todos }
- *   POST { action: "set", kind, value }   — a new fact (stage/amount/next call/name/organization/source) as an EVENT (§3.1)
+ *   POST { action: "set", kind, value }   — a new fact (stage/amount/next call/name/organization/source/expected close date, 0320) as an EVENT (§3.1)
  *        { action: "link", sessionId }    — this call belongs to this prospect (last call date is derived from links)
  *        { action: "todo", title, due }   — a to-do, created as a Task assigned to the prospect's rep
  * All reads and writes go through the caller's client: a prospect the caller cannot see is a 404 for reads and a
@@ -20,7 +20,7 @@ import { eventValue } from "@/lib/coach/remote/macroMode";
  */
 const Set_ = z.object({
   action: z.literal("set"),
-  kind: z.enum(["name", "organization", "stage", "amount", "next_call", "source"]),
+  kind: z.enum(["name", "organization", "stage", "amount", "next_call", "source", "close_date"]),
   value: z.union([z.string().max(120), z.number().min(0).max(1e10), z.null(), z.object({ status: z.enum(["open", "won", "lost"]), label: z.string().max(60).optional() })]),
 });
 const Link = z.object({ action: z.literal("link"), sessionId: z.string().uuid() });

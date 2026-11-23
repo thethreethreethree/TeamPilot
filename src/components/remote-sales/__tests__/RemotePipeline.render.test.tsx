@@ -75,4 +75,23 @@ describe("the pipeline", () => {
     expect(await screen.findByText(/couldn.t load the pipeline/i)).toBeTruthy();
     await waitFor(() => expect(screen.queryByText(/1 prospect\b/)).toBeNull());
   });
+
+  it("Forecast shows open deals by expected close month, with past-due apart and undated counted (0320)", async () => {
+    const day = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const late = { ...P("p3", "Late Co", "open", 400), closeDate: day(-3) };
+    const soon = { ...P("p4", "Soon Co", "open", 2000), closeDate: day(40) };
+    respond({ "/api/coach/remote/prospects": { ...MINE, prospects: [...MINE.prospects, late, soon] } });
+    render(<RemotePipeline />);
+    await screen.findByText("Pat Prospect");
+    fireEvent.click(screen.getByRole("button", { name: "Forecast" }));
+    const table = await screen.findByRole("region", { name: "By expected close month" });
+    expect(table.textContent).toContain("Past due");
+    expect(table.textContent).toContain("$400");
+    expect(table.textContent).toContain("$2,000");
+    expect(table.textContent).toContain("1 open deal has no expected close date ($1,500)");
+  });
 });

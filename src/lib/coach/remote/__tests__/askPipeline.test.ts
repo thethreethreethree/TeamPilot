@@ -19,6 +19,7 @@ const p = (id: string, over: Partial<ProspectRow> = {}): ProspectRow => ({
   source: null,
   amount: null,
   nextCallDate: null,
+  closeDate: null,
   lastCallAt: null,
   callCount: 0,
   createdAt: "2026-11-01T00:00:00Z",

@@ -297,9 +297,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · ask-pipeline · pipeline questions are not saved as a chat thread (Ask Coach over calls is)
       why-unresolved: one-shot first
       next-action: reuse ask_coach_chats with a pipeline scope column, append-only turns
-- [ ] 2026-11-23 · ask-pipeline · no component test renders the Ask box (citation buttons; reset when switching "Whose pipeline")
+- [x] 2026-11-23 · ask-pipeline · no component test renders the Ask box (citation buttons; reset when switching "Whose pipeline")
       why-unresolved: the remote-sales screens have no component-test harness yet
       next-action: add a testing-library render for RemotePipeline's AskPipeline with a mocked fetch
+      done 2026-11-23: RemotePipeline.ask.render.test.tsx (citation opens the prospect on its tab; mutation-checked) — see the correction entry below.
 
 ## Filed by the team call calendar (2026-11-23, docs/tbc/2026-11-23-team-calendar)
 
@@ -364,10 +365,11 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · deal-risk · thresholds unmeasured (21 days quiet, 14 for a new prospect, two reasons = at risk, five closed deals before a forecast)
       why-unresolved: no closed-deal history yet
       next-action: once ~30 deals have closed, compare how often "at risk" deals were lost vs the rest; adjust only on that evidence (§4)
-- [ ] 2026-11-23 · deal-risk · the Ask box doesn't see each deal's risk reasons; no close-date field, so no forecast by month
+- [x] 2026-11-23 · deal-risk · the Ask box doesn't see each deal's risk reasons; no close-date field, so no forecast by month
       resolved (part 1, 2026-11-23): the Ask box now sees each deal's risk reasons — docs/tbc/2026-11-23-deal-risk/remediate.md addendum. The close-date part stays open.
       why-unresolved: next small change / a pipeline field of its own
       next-action: add risk reasons to buildPipelineContext; an optional expected-close event kind
+      done 2026-11-23: expected close date (0320, applied) and Pipeline → Forecast by month; the Ask box already sees risk reasons (ask-pipeline build) and now the close date — docs/tbc/2026-11-23-close-date.
 
 ## Filed by the null-form sweep (2026-11-23, docs/tbc/2026-11-23-null-reads)
 
@@ -402,7 +404,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by call notes + erasure coverage (2026-11-23, docs/tbc/2026-11-23-call-notes-erasure)
 
-- [ ] 2026-11-23 · erasure · FOUNDER DECISION: practice scenarios built "from this call" (training_scenarios.source_session_id) may describe the customer; erasure doesn't touch them (they are immutable by design). Retire them on erasure, or leave them as manager-written training material?
+- [x] 2026-11-23 · erasure · FOUNDER DECISION: practice scenarios built "from this call" (training_scenarios.source_session_id) may describe the customer; erasure doesn't touch them (they are immutable by design). Retire them on erasure, or leave them as manager-written training material?
       why-unresolved: a product/legal judgment
       next-action: decide; if "retire", add a retire of scenarios whose source_session_id is erased (as a 0316 extension)
       decided + done 2026-11-23: founder "Retire them" → 0317 (applied); see docs/tbc/2026-11-23-call-notes-erasure remediate addendum.
@@ -412,7 +414,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by message adoption (2026-11-23, docs/tbc/2026-11-23-message-adoption)
 
-- [ ] 2026-11-23 · adoption · adoption goals per tracker (a target share, shown against the actual)
+- [x] 2026-11-23 · adoption · adoption goals per tracker (a target share, shown against the actual)
       done 2026-11-23: 0318 (applied) — see docs/tbc/2026-11-23-message-adoption remediate addendum.
       why-unresolved: measure first
       next-action: an append-only goal row per tracker; the Adoption panel shows the gap
@@ -446,7 +448,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
 
-- [ ] 2026-11-23 · coaching · monthly coaching email to managers (the export exists; the subscription doesn't)
+- [x] 2026-11-23 · coaching · monthly coaching email to managers (the export exists; the subscription doesn't)
       closed 2026-11-23 — not built, by decision: D10 (founder 2026-11-22) makes manager alerts in-app only and switched the managers' weekly email off; a monthly managers' email would contradict it. Reopen only if D10 changes.
       why-unresolved: a scheduled email is its own build
       next-action: a monthly cron beside the weekly digest, sending each manager their coaching CSV numbers
@@ -467,3 +469,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · coaching · an answered feedback request stays a to-do for 7 days even after the rep has read it
       why-unresolved: no "read" record exists for feedback
       next-action: record when the rep opens an answered call's feedback, and count only unread answers
+
+## Filed by close dates (2026-11-23, docs/tbc/2026-11-23-close-date)
+
+- [ ] 2026-11-23 · forecast · forecast by month only — no quarter view, no what-if (move a deal's date and see the months change)
+      why-unresolved: months first
+      next-action: a quarter toggle summing the month rows; a what-if that changes dates on screen only, never stored

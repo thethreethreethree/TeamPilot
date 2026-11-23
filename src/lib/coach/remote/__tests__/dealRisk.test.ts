@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dealRisk, forecast, MIN_CLOSED_FOR_FORECAST } from "../dealRisk";
+import { dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST } from "../dealRisk";
 
 const TODAY = "2026-11-23";
 const p = (over: Partial<Parameters<typeof dealRisk>[0]> = {}) => ({
@@ -49,5 +49,33 @@ describe("forecast", () => {
     expect(f.winRate).toBeCloseTo(0.6);
     expect(f.expected).toBeCloseTo(1400 * 0.6);
     expect(f.unpriced).toBe(1);
+  });
+});
+
+describe("expected close date (0320)", () => {
+  it("a passed close date on an open deal is a reason; today or later is not; a closed deal never", () => {
+    expect(dealRisk(p({ closeDate: "2026-11-22" }), TODAY).reasons).toEqual(["past_close_date"]);
+    expect(dealRisk(p({ closeDate: TODAY }), TODAY).reasons).toEqual([]);
+    expect(dealRisk(p({ closeDate: "2026-11-01", status: "won" }), TODAY).reasons).toEqual([]);
+    expect(dealRisk(p({ closeDate: "2026-11-01", nextCallDate: null }), TODAY).level).toBe("at_risk");
+  });
+  it("open deals by expected close month: past due kept apart, undated counted apart, expected only with enough closed deals", () => {
+    const open = [
+      p({ id: "a", closeDate: "2026-11-30", amount: 1000 }),
+      p({ id: "b", closeDate: "2026-12-05", amount: 500 }),
+      p({ id: "c", closeDate: "2026-12-20", amount: null }),
+      p({ id: "d", closeDate: "2026-11-02", amount: 300 }),
+      p({ id: "e", closeDate: null, amount: 700 }),
+    ];
+    const few = forecastByMonth(open, TODAY);
+    expect(few.pastDue).toEqual({ month: "past_due", count: 1, amount: 300, unpriced: 0, expected: null });
+    expect(few.months).toEqual([
+      { month: "2026-11", count: 1, amount: 1000, unpriced: 0, expected: null },
+      { month: "2026-12", count: 2, amount: 500, unpriced: 1, expected: null },
+    ]);
+    expect(few.undated).toEqual({ count: 1, amount: 700 });
+    const closed = [...Array(3)].map((_, i) => p({ id: `w${i}`, status: "won" })).concat([...Array(2)].map((_, i) => p({ id: `l${i}`, status: "lost" })));
+    const enough = forecastByMonth([...open, ...closed], TODAY);
+    expect(enough.months[1]!.expected).toBeCloseTo(500 * 0.6);
   });
 });

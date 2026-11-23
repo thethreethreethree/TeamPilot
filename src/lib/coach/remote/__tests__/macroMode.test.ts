@@ -125,6 +125,9 @@ describe("eventValue — the shapes 0303's CHECKs accept", () => {
     expect(eventValue("amount", 1200)).toEqual({ amount: 1200 });
     expect(eventValue("next_call", null)).toEqual({ date: null });
     expect(eventValue("next_call", "tomorrow")).toBeNull();
+    expect(eventValue("close_date", "2026-12-31")).toEqual({ date: "2026-12-31" }); // 0320
+    expect(eventValue("close_date", null)).toEqual({ date: null });
+    expect(eventValue("close_date", "end of Q4")).toBeNull();
     expect(eventValue("name", "  ")).toBeNull();
   });
 });

@@ -13,7 +13,7 @@ import { dealRisk, RISK_WORDS } from "./dealRisk";
  * rep sees their own pipeline and a manager the reports RLS lets them see.
  */
 export const PIPELINE_SYSTEM = `You are a sales coach. A rep, or their manager, is asking about their pipeline of prospects.
-Answer grounded ONLY in the numbered prospects below: their stage, amount, next call, open to-dos and what was said on
+Answer grounded ONLY in the numbered prospects below: their stage, amount, next call, expected close date, open to-dos and what was said on
 their latest call. Cite the prospects you rely on with their numbers in square brackets, e.g. "Acme has no next call
 booked [P3]". Cite only numbers that appear below. Never invent a prospect, a figure or a conversation; if the data
 cannot answer the question, say what is missing.
@@ -40,7 +40,7 @@ export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<strin
     const b = briefs.get(p.id);
     const lines = [
       `[P${n}] ${name}${p.organization ? ` (${p.organization})` : ""} — ${p.status}${p.stageLabel ? `, stage "${p.stageLabel}"` : ""}${p.amount !== null ? `, $${p.amount}` : ""}${p.source ? `, source "${p.source}"` : ""}`,
-      `   next call: ${p.nextCallDate ?? "none booked"} · last call: ${p.lastCallAt ? p.lastCallAt.slice(0, 10) : "none"} · calls: ${p.callCount} · open to-dos: ${p.openTodos}${p.nextTodo ? ` (next: "${p.nextTodo.title}"${p.nextTodo.due ? ` due ${p.nextTodo.due}` : ""})` : ""}`,
+      `   next call: ${p.nextCallDate ?? "none booked"} · expected close: ${p.closeDate ?? "not set"} · last call: ${p.lastCallAt ? p.lastCallAt.slice(0, 10) : "none"} · calls: ${p.callCount} · open to-dos: ${p.openTodos}${p.nextTodo ? ` (next: "${p.nextTodo.title}"${p.nextTodo.due ? ` due ${p.nextTodo.due}` : ""})` : ""}`,
     ];
     // The same risk rule the Pipeline shows (dealRisk.ts), so the answer and the screen agree (§2.2).
     const risk = dealRisk(p, today);
