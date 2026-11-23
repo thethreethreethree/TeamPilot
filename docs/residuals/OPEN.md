@@ -413,5 +413,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 ## Filed by message adoption (2026-11-23, docs/tbc/2026-11-23-message-adoption)
 
 - [ ] 2026-11-23 · adoption · adoption goals per tracker (a target share, shown against the actual)
+      done 2026-11-23: 0318 (applied) — see docs/tbc/2026-11-23-message-adoption remediate addendum.
       why-unresolved: measure first
       next-action: an append-only goal row per tracker; the Adoption panel shows the gap

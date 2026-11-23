@@ -35,3 +35,20 @@ describe("computeAdoption", () => {
     expect(weekOf("2026-11-09T00:30:00Z")).toBe("2026-11-09");
   });
 });
+
+import { currentGoal, goalStatus } from "../adoption";
+describe("adoption goals", () => {
+  it("at least / at most against the actual share; no calls or no goal → no verdict", () => {
+    expect(goalStatus({ direction: "at_least", targetPct: 60 }, 0.6)).toBe("met");
+    expect(goalStatus({ direction: "at_least", targetPct: 60 }, 0.59)).toBe("not_met");
+    expect(goalStatus({ direction: "at_most", targetPct: 5 }, 0.04)).toBe("met");
+    expect(goalStatus({ direction: "at_most", targetPct: 5 }, 0.2)).toBe("not_met");
+    expect(goalStatus(null, 0.5)).toBeNull();
+    expect(goalStatus({ direction: "at_least", targetPct: 60 }, null)).toBeNull();
+  });
+  it("the latest row wins; a row with no target clears the goal", () => {
+    expect(currentGoal([{ id: 1, direction: "at_least", target_pct: 50 }, { id: 2, direction: "at_most", target_pct: 10 }])).toEqual({ direction: "at_most", targetPct: 10 });
+    expect(currentGoal([{ id: 2, direction: null, target_pct: null }, { id: 1, direction: "at_least", target_pct: 50 }])).toBeNull();
+    expect(currentGoal([])).toBeNull();
+  });
+});

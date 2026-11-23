@@ -53,3 +53,20 @@ export function computeAdoption(trackerCreatedAt: string, calls: AdoptionCall[],
     weeks: [...byWeek.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([weekStart, v]) => ({ weekStart, ...v, rate: rate(v.said, v.calls) })) as WeekAdoption[],
   };
 }
+
+/** A manager's goal for a message (0318): said in at least / at most this share of calls. */
+export type AdoptionGoal = { direction: "at_least" | "at_most"; targetPct: number };
+
+/** Is the actual share on the right side of the goal? null when there is no goal or no calls yet. */
+export function goalStatus(goal: AdoptionGoal | null, rate: number | null): "met" | "not_met" | null {
+  if (!goal || rate === null) return null;
+  const pct = rate * 100;
+  return (goal.direction === "at_least" ? pct >= goal.targetPct : pct <= goal.targetPct) ? "met" : "not_met";
+}
+
+/** The latest goal row wins; a row with no target means the goal was cleared. Rows may arrive in any order. */
+export function currentGoal(rows: Array<{ id: number; direction: string | null; target_pct: number | null }>): AdoptionGoal | null {
+  const latest = [...rows].sort((a, b) => b.id - a.id)[0];
+  if (!latest || latest.target_pct === null || (latest.direction !== "at_least" && latest.direction !== "at_most")) return null;
+  return { direction: latest.direction, targetPct: latest.target_pct };
+}

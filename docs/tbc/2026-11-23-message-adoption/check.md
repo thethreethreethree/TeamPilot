@@ -19,3 +19,12 @@ severity: medium
 class: Gong's high/low adoption goals (F18.3) are not modeled.
 sweep: `grep -rn "goal" src/lib/coach/remote/adoption.ts` → none.
 severity: low
+
+## Addendum 2026-11-23 — goals (0318)
+
+```
+npx vitest run adoption.test.ts + adoption route → 12 passed
+npm run db:apply → applying 0318_tracker_adoption_goals.sql … ok · DB now at 0318 · ✅ ALL 33 invariants hold
+npm run check → first: ✗ RLS gaps (tracker_goals → allowlisted: route-written, append-only), ✗ invariant 36 (adoption route →
+  allowlisted: service role touches only the tracker and its goal) → exit 0 · Tests 6547 passed | 15 skipped
+```

@@ -17,6 +17,9 @@ type Res = {
   awaitingAnalysis: number;
   reps: Array<{ repId: string; name: string; calls: number; said: number; rate: number | null }>;
   weeks: Array<{ weekStart: string; calls: number; said: number; rate: number | null }>;
+  goal: { direction: "at_least" | "at_most"; targetPct: number } | null;
+  goalStatus: "met" | "not_met" | null;
+  canSetGoal: boolean;
 };
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -25,6 +28,22 @@ export function TrackerAdoption({ trackerId }: { trackerId: string }) {
   const [days, setDays] = useState<30 | 90>(90);
   const [res, setRes] = useState<Res | null>(null);
   const [failed, setFailed] = useState(false);
+  const [editGoal, setEditGoal] = useState(false);
+  const [dir, setDir] = useState<"at_least" | "at_most">("at_least");
+  const [target, setTarget] = useState("60");
+  const [goalErr, setGoalErr] = useState<string | null>(null);
+  const saveGoal = async (clear: boolean) => {
+    setGoalErr(null);
+    const r = await fetch(`/api/coach/remote/trackers/${trackerId}/adoption`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clear ? { clear: true } : { direction: dir, targetPct: Number(target) }),
+    }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { error?: string }) : { error: "Couldn't reach the server." };
+    if (!r?.ok) return setGoalErr(j.error ?? "Couldn't save the goal.");
+    setEditGoal(false);
+    await load();
+  };
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -68,6 +87,36 @@ export function TrackerAdoption({ trackerId }: { trackerId: string }) {
             <span className="text-base font-semibold text-primary">{pct(res.rate)}</span> of calls since {day(res.since)} said it ({res.said} of {res.calls}).
             {res.awaitingAnalysis > 0 ? ` ${res.awaitingAnalysis} more ${res.awaitingAnalysis === 1 ? "call isn't" : "calls aren't"} analyzed yet and aren't counted.` : ""}
           </p>
+          {res.goal ? (
+            <p className={`mt-1 ${res.goalStatus === "met" ? "text-emerald-700 dark:text-emerald-300" : res.goalStatus === "not_met" ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}>
+              Goal: {res.goal.direction === "at_least" ? "at least" : "at most"} {res.goal.targetPct}% of calls
+              {res.goalStatus === "met" ? " — on target" : res.goalStatus === "not_met" ? " — not there yet" : ""}
+            </p>
+          ) : res.canSetGoal ? (
+            <p className="mt-1 text-muted">No goal set for this message.</p>
+          ) : null}
+          {res.canSetGoal && (
+            <div className="mt-1">
+              {!editGoal ? (
+                <button type="button" onClick={() => setEditGoal(true)} className="text-[11px] text-brand hover:underline">
+                  {res.goal ? "Change goal" : "Set a goal"}
+                </button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <select value={dir} onChange={(e) => setDir(e.currentTarget.value as "at_least" | "at_most")} aria-label="Goal direction" className="rounded border border-default bg-surface px-1 py-0.5 text-xs text-primary">
+                    <option value="at_least">Said in at least</option>
+                    <option value="at_most">Said in at most</option>
+                  </select>
+                  <input value={target} onChange={(e) => setTarget(e.currentTarget.value.replace(/[^0-9]/g, "").slice(0, 3))} inputMode="numeric" aria-label="Goal percentage" className="w-12 rounded border border-default bg-surface px-1 py-0.5 text-xs text-primary" />
+                  <span className="text-secondary">% of calls</span>
+                  <button type="button" onClick={() => void saveGoal(false)} disabled={!target || Number(target) > 100} className="rounded bg-ember-400 px-2 py-0.5 text-[11px] font-semibold text-ink-950 disabled:opacity-50">Save</button>
+                  {res.goal && <button type="button" onClick={() => void saveGoal(true)} className="text-[11px] text-muted hover:text-primary">Clear goal</button>}
+                  <button type="button" onClick={() => setEditGoal(false)} className="text-[11px] text-muted hover:text-primary">Cancel</button>
+                </div>
+              )}
+              {goalErr && <p className="text-amber-700 dark:text-amber-300">{goalErr}</p>}
+            </div>
+          )}
           {res.weeks.length > 1 && (
             <div className="mt-2 flex items-end gap-1" aria-label="Share of calls by week">
               {res.weeks.map((w) => (

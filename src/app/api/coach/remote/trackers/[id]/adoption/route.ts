@@ -5,7 +5,9 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { REMOTE_CONTEXTS } from "@/lib/coach/sessionContext";
-import { computeAdoption, type AdoptionCall, type AdoptionHit } from "@/lib/coach/remote/adoption";
+import { computeAdoption, currentGoal, goalStatus, type AdoptionCall, type AdoptionHit } from "@/lib/coach/remote/adoption";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/coach/remote/trackers/:id/adoption?days=30|90 — how often the team says a tracked message (2026-11-23,
@@ -70,6 +72,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .map((r) => ({ sessionId: r.id, repId: r.agent_id, startedAt: r.started_at, version: versionOf.get(r.id)! }));
   const result = computeAdoption(String(tracker.created_at), calls, hits);
 
+  // The goal (0318), if a manager set one. A missing table (0318 not applied) is no goal; any other failure is a 500.
+  const { data: goalRows, error: gErr } = await db.from("tracker_goals").select("id, direction, target_pct").eq("tracker_id", id).order("id", { ascending: false }).limit(1);
+  if (gErr && !["PGRST205", "42P01"].includes(String(gErr.code))) return fail("goal", gErr.message);
+  const goal = gErr ? null : currentGoal((goalRows ?? []) as Array<{ id: number; direction: string | null; target_pct: number | null }>);
+
   const repIds = result.reps.map((r) => r.repId);
   const { data: people } = repIds.length ? await db.from("profiles").select("id, full_name").in("id", repIds) : { data: [] };
   const nameOf = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name]));
@@ -80,5 +87,49 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ...result,
     reps: result.reps.map((r) => ({ ...r, name: nameOf.get(r.repId) ?? "Unnamed teammate" })).sort((a, b) => a.name.localeCompare(b.name)),
     awaitingAnalysis: rows.length - calls.length,
+    goal,
+    goalStatus: goalStatus(goal, result.rate),
+    canSetGoal: !!(await requireSalesCoachManager(req)),
   });
+}
+
+/**
+ * PUT { direction: "at_least" | "at_most", targetPct: 0-100 } or { clear: true } — a manager sets or clears the
+ * message's goal (0318). Appends a row (§3.1); the tracker must be this company's.
+ */
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const limited = rateLimit(req, { id: "tracker-goal-write", windowMs: 60_000, max: 20 });
+  if (limited) return limited;
+  const mgr = await requireSalesCoachManager(req);
+  if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  const { id } = await params;
+  if (!UUID.test(id)) return NextResponse.json({ error: "Tracker not found." }, { status: 404 });
+  let b: { direction?: unknown; targetPct?: unknown; clear?: unknown };
+  try {
+    b = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+  }
+  const clear = b.clear === true;
+  const direction = b.direction === "at_least" || b.direction === "at_most" ? b.direction : null;
+  const target = Number(b.targetPct);
+  if (!clear && (!direction || !Number.isInteger(target) || target < 0 || target > 100)) {
+    return NextResponse.json({ error: "Choose 'at least' or 'at most' and a whole percentage from 0 to 100." }, { status: 400 });
+  }
+  const admin = createAdminClient();
+  const { data: t, error: tErr } = await admin.from("keyword_trackers").select("id").eq("company_id", mgr.companyId).eq("id", id).maybeSingle();
+  if (tErr) {
+    console.error(`[tracker-goal] tracker read failed: ${tErr.message}`);
+    return NextResponse.json({ error: "Couldn't save the goal." }, { status: 500 });
+  }
+  if (!t) return NextResponse.json({ error: "Tracker not found." }, { status: 404 });
+  const { error } = await admin
+    .from("tracker_goals")
+    .insert({ company_id: mgr.companyId, tracker_id: id, direction: clear ? null : direction, target_pct: clear ? null : target, set_by: mgr.userId });
+  if (error) {
+    if (["PGRST205", "42P01"].includes(String(error.code))) return NextResponse.json({ error: "Goals are waiting on database migration 0318." }, { status: 503 });
+    console.error(`[tracker-goal] write failed: ${error.message}`);
+    return NextResponse.json({ error: "Couldn't save the goal." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }
