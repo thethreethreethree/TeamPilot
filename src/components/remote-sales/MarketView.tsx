@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { TopicGroups } from "./TopicGroups";
 
 /**
  * Market (2026-11-23, market.ts): which competitors come up on calls, how often and how deals go when they do, and the
@@ -15,6 +16,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
   const [days, setDays] = useState<30 | 90>(90);
   const [res, setRes] = useState<Res | null>(null);
   const [failed, setFailed] = useState(false);
+  const [version, setVersion] = useState(0); // a topic group accepted or ungrouped → count again
 
   useEffect(() => {
     let live = true;
@@ -27,7 +29,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
     return () => {
       live = false;
     };
-  }, [module, days]);
+  }, [module, days, version]);
 
   const maxWeek = res ? Math.max(1, ...res.competitors.flatMap((c) => c.weeks.map((w) => w.calls))) : 1;
   return (
@@ -119,10 +121,13 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                 ))}
               </ul>
             )}
-            {res.topics.length > 0 && <p className="mt-2 text-[10px] text-muted">The same topic in different wording (word order, plurals) is counted once; hover a topic to see how else it was said.</p>}
+            {res.topics.length > 0 && <p className="mt-2 text-[10px] text-muted">The same topic in different wording (word order, plurals) is counted once, and so are topics a manager grouped; hover a topic to see how else it was said.</p>}
           </section>
         </>
       )}
+
+      {/* Outside the counted view: recounting after an accept must not drop the suggestions still on screen. */}
+      <TopicGroups module={module} onChanged={() => setVersion((v) => v + 1)} />
     </div>
   );
 }

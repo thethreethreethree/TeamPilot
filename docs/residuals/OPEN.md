@@ -427,9 +427,22 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by Market topic groups (2026-11-23, docs/tbc/2026-11-23-market-topic-groups)
 
-- [ ] 2026-11-23 · market · topics with the same meaning in different words ("pricing" / "monthly price" / "monthly bill amount") are separate rows
+- [x] 2026-11-23 · market · topics with the same meaning in different words ("pricing" / "monthly price" / "monthly bill amount") are separate rows
       why-unresolved: needs a decision on how to judge sameness — a synonym list, an AI grouping pass, or topic groups a manager names
       next-action: ask the founder which; then build it with the merged wordings visible, as now
+      done 2026-11-23: founder chose "AI suggests, manager OKs" — built (0319, applied): docs/tbc/2026-11-23-market-topic-suggestions.
+
+## Filed by topic-group suggestions (2026-11-23, docs/tbc/2026-11-23-market-topic-suggestions)
+
+- [ ] 2026-11-23 · market · FOUNDER CHECK: run "Suggest groups" once on Market with real topics and judge the AI's groups
+      why-unresolved: only a manager's click in the product runs it
+      next-action: Remote Sales → Market → Topic groups → Suggest groups; accept one, confirm Topics recounts
+- [ ] 2026-11-23 · market · legal erasure does not reach topic-group members (company topics on 2+ calls, not tied to a call)
+      why-unresolved: needs a rule for matching an erased customer's words to group labels
+      next-action: decide whether erasure should drop a member that appears only in erased calls
+- [ ] 2026-11-23 · market · a manager can edit an AI suggestion but not build a topic group from scratch
+      why-unresolved: the founder's choice was AI-suggests-manager-OKs
+      next-action: a "Make a group" picker over the topics on 2+ calls, same save route (source "manager")
 
 ## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
 

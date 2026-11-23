@@ -72,7 +72,28 @@ function group(calls: MarketCall[], intel: Map<string, Intel>, pick: (i: Intel) 
   });
 }
 
-export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, topN = 15) {
+/** A manager-accepted topic group (0319): its name and the wordings it gathers. */
+export type TopicGroup = { id: string; name: string; members: string[] };
+
+/**
+ * The one key that decides which topics are counted together (§2.2): a wording belongs to a manager's group when its
+ * topicKey matches a member's; otherwise it keys on its own wording. A wording in two groups goes to the newer one
+ * (groups arrive newest first).
+ */
+export function topicGrouper(groups: TopicGroup[]) {
+  const byKey = new Map<string, TopicGroup>();
+  for (const g of groups) for (const m of g.members) if (!byKey.has(topicKey(m))) byKey.set(topicKey(m), g);
+  return {
+    key: (raw: string) => {
+      const k = topicKey(raw);
+      const g = byKey.get(k);
+      return g ? `group:${g.id}` : k;
+    },
+    groupOf: (raw: string) => byKey.get(topicKey(raw)) ?? null,
+  };
+}
+
+export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, topN = 15, groups: TopicGroup[] = []) {
   const withIntel = calls.filter((c) => intel.has(c.sessionId));
   const competitors = group(withIntel, intel, (i) => i.competitors)
     .map((x) => {
@@ -89,8 +110,15 @@ export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, to
     })
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name))
     .slice(0, topN);
-  const topics = group(withIntel, intel, (i) => i.topics, topicKey)
-    .map((x) => ({ name: x.name, calls: x.calls.length, variants: x.variants }))
+  const grouper = topicGrouper(groups);
+  const topics = group(withIntel, intel, (i) => i.topics, grouper.key)
+    .map((x) => {
+      const g = grouper.groupOf(x.name);
+      if (!g) return { name: x.name, calls: x.calls.length, variants: x.variants };
+      // A manager's group is named as they named it; every wording it gathered is listed.
+      const all = [...new Set([x.name.toLowerCase(), ...x.variants])].filter((v) => v !== g.name.toLowerCase()).sort((a, b) => a.localeCompare(b));
+      return { name: g.name, calls: x.calls.length, variants: all, groupId: g.id };
+    })
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name))
     .slice(0, topN);
   return {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeMarket, MIN_CLOSED, topicKey, type MarketCall } from "../market";
+import { computeMarket, MIN_CLOSED, topicGrouper, topicKey, type MarketCall } from "../market";
 
 const call = (id: string, outcome: string | null, day = "2026-11-10"): MarketCall => ({ sessionId: id, startedAt: `${day}T10:00:00Z`, outcome });
 
@@ -68,5 +68,25 @@ describe("topicKey — merges wording, never meaning (production labels, 2026-11
       { name: "internet and tv bundle", calls: 3, variants: ["bundled internet and tv", "tv and internet bundle"] },
       { name: "price increase", calls: 1, variants: [] },
     ]);
+  });
+});
+
+describe("topic groups (0319)", () => {
+  const calls = ["a", "b", "c"].map((id) => ({ sessionId: id, startedAt: "2026-11-10T10:00:00Z", outcome: null }));
+  const intel = new Map([
+    ["a", { competitors: [], topics: ["pricing", "monthly price"] }],
+    ["b", { competitors: [], topics: ["monthly bill amount"] }],
+    ["c", { competitors: [], topics: ["price increase"] }],
+  ]);
+  it("a manager's group counts its wordings together, once per call, under the manager's name", () => {
+    const m = computeMarket(calls, intel, 15, [{ id: "g", name: "Price", members: ["pricing", "monthly prices", "monthly bill amount"] }]);
+    expect(m.topics).toEqual([
+      { name: "Price", calls: 2, variants: ["monthly bill amount", "monthly price", "pricing"], groupId: "g" },
+      { name: "price increase", calls: 1, variants: [] },
+    ]);
+  });
+  it("a wording in two groups goes to the newer (first) one", () => {
+    const g = topicGrouper([{ id: "new", name: "N", members: ["pricing", "a"] }, { id: "old", name: "O", members: ["price", "b"] }]);
+    expect(g.groupOf("Pricing")?.id).toBe("new");
   });
 });

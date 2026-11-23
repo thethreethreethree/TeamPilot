@@ -772,6 +772,24 @@ export async function dayPlanCoach(args: { companyId?: string; systemPrompt: str
   });
 }
 
+/**
+ * Market topic groups (2026-11-23, 0319; founder picker "AI suggests, manager OKs"): proposes which of the company's own
+ * topic labels mean the same thing. Day-1 (controlExempt): it organizes a manager's analytics and changes nothing until
+ * a manager accepts a group — it is not guidance to a rep.
+ */
+export async function topicGroupCoach(args: { companyId: string; systemPrompt: string; userMessage: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1500,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_topic_groups",
+    sessionId: null,
+  });
+}
+
 /** RSS Phase 6: one Ask Coach turn over one or more calls, answering with [n] line citations. Day-1 (controlExempt). */
 export async function askCoachTurn(args: {
   companyId?: string;
