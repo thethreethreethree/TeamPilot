@@ -173,6 +173,8 @@ const ALLOWLIST = new Map([
   ["tracker_goals.insert", "0318 written only by the adoption route's PUT after requireSalesCoachManager and a company-pinned tracker check."],
   ["tracker_goals.update", "0318 §3.1 append-only: a new goal is a new row (DB rule too)."],
   ["tracker_goals.delete", "0318 §3.1 append-only; clearing a goal is a row with no target (DB rule too)."],
+  ["feedback_answer_views.update", "0321 §3.1 append-only: a view is a fact; a later view is a new row (DB rule too)."],
+  ["feedback_answer_views.delete", "0321 §3.1 append-only (DB rule too)."],
   ["market_topic_groups.insert", "0319 written only by the topic-groups route's POST after requireSalesCoachManager, company-pinned, members checked against topics on 2+ calls."],
   ["market_topic_groups.update", "0319 §3.1 append-only: an edit is a new group plus a retirement row (DB rule too)."],
   ["market_topic_groups.delete", "0319 §3.1 append-only; ungrouping is a retirement row (DB rule too)."],

@@ -468,9 +468,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by the rep routine (2026-11-23, docs/tbc/2026-11-23-rep-routine)
 
-- [ ] 2026-11-23 · coaching · an answered feedback request stays a to-do for 7 days even after the rep has read it
+- [x] 2026-11-23 · coaching · an answered feedback request stays a to-do for 7 days even after the rep has read it
       why-unresolved: no "read" record exists for feedback
       next-action: record when the rep opens an answered call's feedback, and count only unread answers
+      done 2026-11-23: 0321 (applied) — the call page records the rep seeing an answer; the checklist counts only unseen answers — docs/tbc/2026-11-23-feedback-seen.
 
 ## Filed by close dates (2026-11-23, docs/tbc/2026-11-23-close-date)
 

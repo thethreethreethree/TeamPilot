@@ -10,7 +10,8 @@ import { isRequestOpen, loadCoachingEvents, requestAnsweredAt } from "@/lib/coac
  * (2026-11-23, routine.ts repRoutineSteps; ledger F16.12, the self-coaching half).
  *
  *   answers: { answered, waiting, newestSessionId } | null — the caller's feedback requests (last 30 days): how many
- *            were answered in the last 7 days and how many are still open. Answered/open is the coaching inbox's own
+ *            were answered in the last 7 days and NOT yet seen (an answer after the rep's latest view of that call,
+ *            feedback_answer_views 0321), and how many are still open. Answered/open is the coaching inbox's own
  *            rule (feedback.ts isRequestOpen / requestAnsweredAt over loadCoachingEvents), so the rep and the manager
  *            never disagree about a request (§2.2).
  *   notes:   { without, newestSessionId } | null — the caller's finished phone/video calls in the last 7 days with no
@@ -57,6 +58,23 @@ async function answers(admin: Admin, ctx: Ctx, weekAgo: number, now: number) {
     console.error(`[my-coaching] coaching read failed: ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
+  // When the rep last saw each call's answer (0321). Before the migration: never seen (today's behaviour).
+  const { data: views, error: vErr } = await admin
+    .from("feedback_answer_views")
+    .select("session_id, seen_at")
+    .eq("company_id", ctx.companyId)
+    .eq("rep_id", ctx.userId)
+    .in("session_id", [...new Set(rows.map((r) => String(r.session_id)))])
+    .limit(1000);
+  if (vErr && !MISSING.has(String(vErr.code))) {
+    console.error(`[my-coaching] view read failed: ${vErr.message}`);
+    return null;
+  }
+  const lastSeen = new Map<string, number>();
+  for (const v of (views ?? []) as Array<{ session_id: string; seen_at: string }>) {
+    const t = Date.parse(v.seen_at);
+    if (t > (lastSeen.get(String(v.session_id)) ?? 0)) lastSeen.set(String(v.session_id), t);
+  }
   let answered = 0;
   let waiting = 0;
   let newest: { at: number; sessionId: string } | null = null;
@@ -68,6 +86,7 @@ async function answers(admin: Admin, ctx: Ctx, weekAgo: number, now: number) {
     }
     const at = requestAnsweredAt(request, events)?.getTime() ?? 0;
     if (at < weekAgo) continue;
+    if ((lastSeen.get(request.sessionId) ?? 0) >= at) continue; // seen since it was answered
     answered++;
     if (!newest || at > newest.at) newest = { at, sessionId: request.sessionId };
   }

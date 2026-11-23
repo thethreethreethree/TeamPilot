@@ -66,7 +66,7 @@ export function repRoutineSteps(c: RepCounts): RepStep[] {
       count: c.answers,
       state: state(c.answers),
       href: c.answersHref ?? "/dashboard/remote-sales",
-      detail: c.answers === null ? unknown : (c.answers > 0 ? `${plural(c.answers, "request was", "requests were")} answered this week.` : "No new answers this week.") + waiting,
+      detail: c.answers === null ? unknown : (c.answers > 0 ? `${plural(c.answers, "answer", "answers")} from your manager to read.` : "No new answers to read.") + waiting,
     },
     {
       key: "notes",

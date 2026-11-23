@@ -17,7 +17,7 @@ describe("RepRoutine", () => {
     }));
     render(<RepRoutine />);
     expect(await screen.findByText("2 practices are still due.")).toBeTruthy();
-    expect(screen.getByText("1 request was answered this week.")).toBeTruthy();
+    expect(screen.getByText("1 answer from your manager to read.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Read the feedback you asked for" }).getAttribute("href")).toBe("/dashboard/remote-sales/calls/s9");
     expect(screen.getByText("Every call this week has a note.")).toBeTruthy();
     expect(screen.getByText("1 of 3 clear")).toBeTruthy();

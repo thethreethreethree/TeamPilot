@@ -63,6 +63,14 @@ describe("GET my-coaching", () => {
     expect(db.eqs).toContainEqual(["coaching_sessions", "agent_id", "rep1"]);
     expect(db.eqs).toContainEqual(["call_notes", "author_id", "rep1"]);
   });
+  it("an answer the rep has seen since (0321) is no longer counted; a view before the answer doesn't hide it", async () => {
+    DATA.feedback_answer_views = [{ session_id: "s1", seen_at: hour(1).toISOString() }];
+    expect((await (await GET(req())).json()).answers).toEqual({ answered: 0, waiting: 1, newestSessionId: null });
+    DATA.feedback_answer_views = [{ session_id: "s1", seen_at: hour(3).toISOString() }]; // answered 2h ago, seen 3h ago
+    expect((await (await GET(req())).json()).answers).toEqual({ answered: 1, waiting: 1, newestSessionId: "s1" });
+    expect(db.eqs).toContainEqual(["feedback_answer_views", "rep_id", "rep1"]);
+    delete DATA.feedback_answer_views;
+  });
   it("a failed read is null for that part only, never zero", async () => {
     db.fail.add("call_notes");
     const j = await (await GET(req())).json();

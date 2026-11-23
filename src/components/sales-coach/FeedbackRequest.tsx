@@ -10,7 +10,8 @@ import { MessageSquarePlus } from "lucide-react";
  * requests in the Coach Assessment inbox instead. States, in words (never colour alone):
  *   · no request yet  → button, with an optional note for the manager;
  *   · open            → "Feedback requested — waiting on your manager";
- *   · answered        → "Your manager answered" + ask-again button (a new request, the old one stays on record).
+ *   · answered        → "Your manager answered" + ask-again button (a new request, the old one stays on record);
+ *                       showing it records that the rep saw the answer (feedback-seen, 0321).
  * Before migration 0278 the route says so and this renders nothing — the call page is unchanged.
  */
 type Req = { id: string; createdAt: string; message: string | null; toNamedManager: boolean; open: boolean };
@@ -37,6 +38,14 @@ export function FeedbackRequest({ sessionId }: { sessionId: string }) {
       live = false;
     };
   }, [sessionId]);
+
+  // The rep is looking at an answer → record it (0321), so "Your coaching this week" stops listing it. Once per view of
+  // the page; best-effort — a failure only leaves the answer listed.
+  const answeredShown = !!(wire && wire.available && wire.mine && wire.requests.length > 0 && !wire.requests[wire.requests.length - 1]!.open);
+  useEffect(() => {
+    if (!answeredShown) return;
+    fetch(`/api/coach/remote/${encodeURIComponent(sessionId)}/feedback-seen`, { method: "POST" }).catch(() => {});
+  }, [answeredShown, sessionId]);
 
   if (!wire || !wire.available || !wire.mine) return null;
   const latest = wire.requests[wire.requests.length - 1] ?? null;
