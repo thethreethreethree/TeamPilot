@@ -433,10 +433,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Correction (2026-11-23, found while testing WeeklyRoutine)
 
-- [ ] 2026-11-23 · tests · CORRECTION: earlier entries today said the remote-sales screens have "no component-test harness yet". That was wrong — `@testing-library/react` with `// @vitest-environment jsdom` is already used (RemoteSalesShell.render.test.tsx, MacroCallView.render.test.tsx, and now WeeklyRoutine.render.test.tsx). The Ask box, the pipeline calendar, stage practice, call notes and the transcript editor are simply untested on screen.
+- [x] 2026-11-23 · tests · CORRECTION: earlier entries today said the remote-sales screens have "no component-test harness yet". That was wrong — `@testing-library/react` with `// @vitest-environment jsdom` is already used (RemoteSalesShell.render.test.tsx, MacroCallView.render.test.tsx, and now WeeklyRoutine.render.test.tsx). The Ask box, the pipeline calendar, stage practice, call notes and the transcript editor are simply untested on screen.
       why-unresolved: render tests not yet written for those components
       next-action: add render tests for AskPipeline (citations open the prospect on its tab), RemoteCalendar, StagePractice, CallNotes and the SessionTranscript editor
-      mostly done 2026-11-23: render tests for the Ask box (closed-deal citation opens on its tab; mutation-checked), RemoteCalendar, CallNotes, CallPipelineLink, MarketView, AdoptionBoard and the transcript editor. StagePractice (inside RemotePipeline) still untested on screen.
+      mostly done 2026-11-23: render tests for the Ask box (closed-deal citation opens on its tab; mutation-checked), RemoteCalendar, CallNotes, CallPipelineLink, MarketView, AdoptionBoard and the transcript editor. StagePractice (inside RemotePipeline) still untested on screen. — done 2026-11-23 (RemotePipeline.stagePractice.render.test.tsx: the rep starts it and lands in the role-play; no button for someone who can't start it). This correction is closed.
 - [ ] 2026-11-23 · coaching · a self-coaching routine for reps (their practice due, calls without a review, feedback answered)
       why-unresolved: the manager routine came first (docs/tbc/2026-11-23-coaching-routine)
       next-action: the same pattern on Remote Sales → Today for reps

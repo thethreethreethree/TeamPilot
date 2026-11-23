@@ -23,3 +23,10 @@ SessionTranscript.edit.render.test.tsx → 2 passed · RemotePipeline.ask.render
 mutation: goTo without setTab(p.status) → RemotePipeline.ask test 1 failed; restored (git diff empty)
 npm run check → first: ✗ typecheck (notes array type in the new test) → fixed → exit 0 · Tests 6571 passed | 15 skipped
 ```
+
+## Addendum 2026-11-23 — stage practice render test (correction closed)
+
+```
+RemotePipeline.stagePractice.render.test.tsx → 2 passed (rep starts the stage's practice → role-play; no button for someone who can't start it)
+npm run check → exit 0 · Tests 6573 passed | 15 skipped
+```
