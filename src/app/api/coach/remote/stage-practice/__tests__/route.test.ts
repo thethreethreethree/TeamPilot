@@ -55,6 +55,29 @@ describe("GET stage-practice", () => {
     st.caller.training_scenario_stages_current = { data: null, error: { message: "x" } };
     expect((await GET(get())).status).toBe(500);
   });
+  it("rep needs (0326): the scenario training the rep's most-missed item comes first, with why", async () => {
+    st.caller.training_scenario_stages_current = { data: [{ scenario_id: "s1" }, { scenario_id: "s2" }], error: null };
+    st.caller.training_scenarios = {
+      data: [
+        { id: "s1", title: "Demo opener", focus: "Agenda", difficulty: "easy", length_min: 5 },
+        { id: "s2", title: "Close it", focus: "Ask for the order", difficulty: "hard", length_min: 8 },
+      ],
+      error: null,
+    };
+    st.caller.training_scenario_elements_current = { data: [{ scenario_id: "s2", element_id: "close.ask" }], error: null };
+    st.caller.pitch_scores_by_channel = { data: [{ id: "p1" }, { id: "p2" }, { id: "p3" }], error: null };
+    st.caller.pitch_score_elements = { data: [{ element_id: "close.ask", grade: "missed" }, { element_id: "close.ask", grade: "missed" }, { element_id: "close.ask", grade: "hit" }], error: null };
+    const j = await (await GET(get())).json();
+    expect(j.scenarios.map((s: { id: string }) => s.id)).toEqual(["s2", "s1"]);
+    expect(j.scenarios[0].need).toMatchObject({ misses: 2, graded: 3 });
+    expect(j.scenarios[1].need).toBeNull();
+  });
+  it("needs that can't be read leave the list in its order, never hidden", async () => {
+    st.caller.training_scenario_elements_current = { data: null, error: { message: "x" } };
+    const j = await (await GET(get())).json();
+    expect(j.scenarios).toHaveLength(1);
+    expect(j.scenarios[0].need).toBeNull();
+  });
   it("a closed prospect gets no stage practice", async () => {
     st.caller.remote_prospects_current = prospect({ status: "won" });
     expect(await (await GET(get())).json()).toMatchObject({ scenarios: [] });

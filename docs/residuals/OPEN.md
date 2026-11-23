@@ -323,9 +323,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       resolved 2026-11-23 (docs/tbc/2026-11-23-null-reads): 7 data reads fixed (plus 6 more found in src/app), the null form is now a gate with 7 listed label reads.
       why-unresolved: each must be read to tell a label read from a data read
       next-action: read each; extend noFailedReadAsEmpty to the null form with an allowlist for label reads
-- [ ] 2026-11-23 · stage-training · "rep needs" not yet used — the stage's scenarios are not ranked by the rep's weakest rubric items
+- [x] 2026-11-23 · stage-training · "rep needs" not yet used — the stage's scenarios are not ranked by the rep's weakest rubric items
       why-unresolved: stage first
       next-action: order the list by the rep's lowest-scoring focus areas from pitch_scores_by_channel
+      done 2026-11-23: 0326 (applied) — scenarios tagged with rubric items; ranked by the rep's recent misses — docs/tbc/2026-11-23-rep-needs.
 
 ## Filed by editable transcripts (2026-11-23, docs/tbc/2026-11-23-transcript-edits)
 
@@ -506,3 +507,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: needs the notes' build time compared with the latest edit
       next-action: show "notes predate the corrections" and the refresh button only then
       done 2026-11-23: docs/tbc/2026-11-23-stale-notes.
+
+## Filed by rep needs (2026-11-23, docs/tbc/2026-11-23-rep-needs)
+
+- [ ] 2026-11-23 · stage-training · MANAGER STEP: tag practice scenarios with the rubric items they train (Training → "Trains:" → "+ Rubric item"); until then the ranking has nothing to rank by
+      why-unresolved: a manager's judgement of what each scenario trains
+      next-action: tag the existing scenarios once; check a prospect card shows "Trains … — missed on N of the last M"

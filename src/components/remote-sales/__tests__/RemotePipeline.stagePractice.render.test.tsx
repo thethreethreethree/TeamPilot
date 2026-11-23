@@ -46,4 +46,16 @@ describe("Stage practice on the prospect card", () => {
     expect(await screen.findByText("Demo opener")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Practice" })).toBeNull();
   });
+
+  it("rep needs (0326): a scenario ranked by a weak rubric item says why", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url.includes("stage-practice")) return json({ stage: "Demo", canStart: true, scenarios: [{ id: "sc2", title: "Close it", focus: "Ask", difficulty: "hard", lengthMin: 8, assignmentId: null, need: { item: "Asks for the order", misses: 3, graded: 5 } }] });
+      if (url.startsWith("/api/coach/remote/prospects/p1")) return json({ prospect: { id: "p1", name: "Acme", organization: null, status: "open", stage_label: "Demo", amount: 100, next_call_date: null }, calls: [], todos: [] });
+      if (url.startsWith("/api/coach/remote/prospects")) return json({ prospects: [PROSPECT], totals: { open: { count: 1, amount: 100 }, won: { count: 0, amount: 0 }, lost: { count: 0, amount: 0 } }, viewerId: "r" });
+      return json({});
+    }));
+    render(<RemotePipeline />);
+    expect(await screen.findByText(/Trains Asks for the order — missed on 3 of the last 5 scored calls/)).toBeTruthy();
+  });
 });
+

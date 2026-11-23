@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { REMOTE_CONTEXTS } from "@/lib/coach/sessionContext";
+import { REMOTE_RUBRIC } from "@/lib/coach/pitchScore/rubricRegistry";
+import { missRates, rankByNeeds, type Need } from "@/lib/coach/remote/repNeeds";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,6 +41,32 @@ async function matching(req: NextRequest, ctx: Ctx, prospectId: string) {
   return { prospect, scenarios: (scen ?? []) as Scen[], db };
 }
 
+/**
+ * Rep needs (0326, repNeeds.ts): the stage's scenarios ordered by the weakest rubric item each is tagged to train, from
+ * the prospect's rep's last RECENT_SCORED scored phone/video calls. Read through the caller's client (the rep, or a
+ * manager in the tree). Best-effort: if tags or grades can't be read, the list keeps its order without needs — the
+ * ranking is a hint, never a reason to hide practice.
+ */
+const RECENT_SCORED = 10;
+async function rankForRep(db: Awaited<ReturnType<typeof createClient>>, repId: string, scenarios: Scen[]) {
+  const plain = scenarios.map((s) => ({ ...s, need: null as Need | null }));
+  if (scenarios.length < 1) return plain;
+  const [tags, pitches] = await Promise.all([
+    db.from("training_scenario_elements_current").select("scenario_id, element_id").in("scenario_id", scenarios.map((s) => s.id)),
+    db.from("pitch_scores_by_channel").select("id").eq("rep_id", repId).in("channel", [...REMOTE_CONTEXTS]).order("created_at", { ascending: false }).limit(RECENT_SCORED),
+  ]);
+  if (tags.error || pitches.error || !(tags.data ?? []).length || !(pitches.data ?? []).length) return plain;
+  const { data: grades, error } = await db
+    .from("pitch_score_elements")
+    .select("element_id, grade")
+    .in("pitch_id", ((pitches.data ?? []) as Array<{ id: string }>).map((p) => p.id))
+    .limit(1000);
+  if (error) return plain;
+  const byScenario = new Map<string, string[]>();
+  for (const t of (tags.data ?? []) as Array<{ scenario_id: string; element_id: string }>) byScenario.set(t.scenario_id, [...(byScenario.get(t.scenario_id) ?? []), t.element_id]);
+  return rankByNeeds(scenarios, byScenario, missRates(((grades ?? []) as Array<{ element_id: string; grade: string }>).map((g) => ({ elementId: g.element_id, grade: g.grade }))));
+}
+
 const ERR: Record<number, string> = { 404: "Prospect not found.", 500: "Couldn't load practice for this stage.", 503: "Training by stage is waiting on database migration 0310." };
 
 export async function GET(req: NextRequest) {
@@ -56,10 +85,19 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: ERR[500] }, { status: 500 });
     for (const a of (data ?? []) as Array<{ id: string; scenario_id: string }>) byScenario.set(a.scenario_id, a.id);
   }
+  const ranked = await rankForRep(m.db, m.prospect.rep_id, m.scenarios);
   return NextResponse.json({
     stage: m.prospect.stage_label,
     canStart: own && m.prospect.status === "open",
-    scenarios: m.scenarios.map((s) => ({ id: s.id, title: s.title, focus: s.focus, difficulty: s.difficulty, lengthMin: s.length_min, assignmentId: byScenario.get(s.id) ?? null })),
+    scenarios: ranked.map((s) => ({
+      id: s.id,
+      title: s.title,
+      focus: s.focus,
+      difficulty: s.difficulty,
+      lengthMin: s.length_min,
+      assignmentId: byScenario.get(s.id) ?? null,
+      need: s.need ? { item: REMOTE_RUBRIC.elementsById.get(s.need.elementId)?.label ?? s.need.elementId, misses: s.need.misses, graded: s.need.graded } : null,
+    })),
   });
 }
 

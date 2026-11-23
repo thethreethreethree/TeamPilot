@@ -48,14 +48,19 @@ export function TrainingManager() {
   const [stagesReady, setStagesReady] = useState(true);
   const [tagFor, setTagFor] = useState<string | null>(null);
   const [tagText, setTagText] = useState("");
+  // Rubric items each scenario trains (0326, "rep needs"): orders a stage's practice by what the rep misses most.
+  const [itemTags, setItemTags] = useState<Array<{ scenarioId: string; elementId: string }>>([]);
+  const [items, setItems] = useState<Array<{ id: string; label: string }>>([]);
+  const [itemsReady, setItemsReady] = useState(true);
 
   const load = useCallback(async () => {
     const ok = (r: Response) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))));
     try {
-      const [s, a, st] = await Promise.all([
+      const [s, a, st, el] = await Promise.all([
         fetch("/api/coach/remote/scenarios").then(ok),
         fetch("/api/coach/remote/assignments?team=1").then(ok),
         fetch("/api/coach/remote/scenarios/stages").then(ok),
+        fetch("/api/coach/remote/scenarios/elements").then(ok),
       ]);
       setLoadFailed(false);
       if (s && s.available === false) setNotReady(s.reason);
@@ -64,6 +69,9 @@ export function TrainingManager() {
       setStagesReady(st?.available !== false);
       setStageTags(st?.tags ?? []);
       setStageNames(st?.stages ?? []);
+      setItemsReady(el?.available !== false);
+      setItems(el?.items ?? []);
+      setItemTags(el?.tags ?? []);
     } catch {
       setLoadFailed(true);
     }
@@ -192,6 +200,36 @@ export function TrainingManager() {
                   ) : (
                     <button type="button" onClick={() => { setTagFor(s.id); setTagText(""); }} className="text-[11px] text-brand hover:underline">+ Stage</button>
                   )}
+                </div>
+              )}
+              {itemsReady && items.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] text-muted">Trains:</span>
+                  {itemTags.filter((t) => t.scenarioId === s.id).map((t) => {
+                    const label = items.find((i) => i.id === t.elementId)?.label ?? t.elementId;
+                    return (
+                      <span key={t.elementId} className="inline-flex items-center gap-1 rounded-full border border-default px-2 py-0.5 text-[11px] text-primary">
+                        {label}
+                        <button type="button" disabled={busy} aria-label={`Remove rubric item ${label}`} onClick={() => send("/api/coach/remote/scenarios/elements", "PUT", { scenarioId: s.id, elementId: t.elementId, on: false }, `Removed “${label}”.`)} className="text-muted hover:text-primary">×</button>
+                      </span>
+                    );
+                  })}
+                  <select
+                    value=""
+                    disabled={busy}
+                    aria-label={`Add a rubric item that ${s.title} trains`}
+                    onChange={(e) => {
+                      const id = e.currentTarget.value;
+                      const label = items.find((i) => i.id === id)?.label ?? id;
+                      if (id) void send("/api/coach/remote/scenarios/elements", "PUT", { scenarioId: s.id, elementId: id, on: true }, `Reps who miss “${label}” will see this first.`);
+                    }}
+                    className="rounded border border-default bg-base px-1 py-0.5 text-[11px] text-secondary"
+                  >
+                    <option value="">+ Rubric item</option>
+                    {items.filter((i) => !itemTags.some((t) => t.scenarioId === s.id && t.elementId === i.id)).map((i) => (
+                      <option key={i.id} value={i.id}>{i.label}</option>
+                    ))}
+                  </select>
                 </div>
               )}
               {assignFor === s.id && (

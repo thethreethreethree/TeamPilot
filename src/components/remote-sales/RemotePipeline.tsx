@@ -668,7 +668,7 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
  * straight into the role-play; a manager viewing a report's prospect sees the list without the button. Keyed by the
  * stage, so renaming the stage re-reads it. Shows nothing when no scenario is set for the stage.
  */
-type StageScenario = { id: string; title: string; focus: string; difficulty: string; lengthMin: number; assignmentId: string | null };
+type StageScenario = { id: string; title: string; focus: string; difficulty: string; lengthMin: number; assignmentId: string | null; need?: { item: string; misses: number; graded: number } | null };
 
 function StagePractice({ prospectId }: { prospectId: string }) {
   const router = useRouter();
@@ -717,6 +717,11 @@ function StagePractice({ prospectId }: { prospectId: string }) {
             <span className="min-w-0 flex-1">
               <span className="font-medium text-primary">{s.title}</span>
               <span className="text-muted"> · {s.lengthMin} min · {s.difficulty} · {s.focus}</span>
+              {s.need && (
+                <span className="block text-[11px] text-amber-700 dark:text-amber-300">
+                  Trains {s.need.item} — missed on {s.need.misses} of the last {s.need.graded} scored calls
+                </span>
+              )}
             </span>
             {res.canStart && (
               <button type="button" disabled={busy !== null} onClick={() => void start(s)} className="rounded-lg border border-brand px-2 py-0.5 text-[11px] font-semibold text-brand hover:bg-brand/10 disabled:opacity-50">

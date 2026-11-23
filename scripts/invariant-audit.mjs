@@ -2442,6 +2442,8 @@ const TREE_ROUTE_ALLOWLIST = new Map([
     "The exported calls are read by runCallSearch through the caller's own client (RLS, tree-scoped since 0273); the service role writes only the audit_log row recording the export."],
   ["src/app/api/coach/remote/trackers/[id]/adoption/route.ts",
     "The service role is used only by PUT, to check the tracker belongs to the manager's company and append its goal (0318) — company-wide objects, no rep data. All rep data in GET is read through the caller's own client, where the tree applies."],
+  ["src/app/api/coach/remote/scenarios/elements/route.ts",
+    "0326: the service role reads and writes only company-wide objects — scenario rubric-item tags and the scenario row being tagged, pinned to the manager's company, exactly like the stages route. No rep data is read here (the rubric items come from code)."],
   ["src/app/api/coach/remote/scenarios/stages/route.ts",
     "The service role reads and writes only company-wide objects — scenario stage tags and the scenario row being tagged (0310), both pinned to the manager's company, like the scenarios route. The one read of rep data (stage names on prospects) goes through the caller's own client, so the reporting tree applies."],
   ["src/app/api/coach/sales-session/pitch-score/leaderboard/route.ts",
