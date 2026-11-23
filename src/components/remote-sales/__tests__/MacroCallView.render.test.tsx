@@ -46,6 +46,7 @@ beforeEach(() => {
   fetchMock.mockImplementation((url: string, init?: { method?: string }) => {
     if (failing.some((f) => url.includes(f))) return json({ error: "boom" }, false);
     if (url.endsWith("/brief/review") && init?.method === "POST") return json({ kept: [], failed: 0 });
+    if (url.includes("/pipeline-link")) return json({ remote: true, live: false, isOwner: brief.isOwner, label: brief.label, prospect: null, options: [] });
     if (url.includes("/brief")) return json(brief);
     if (url.includes("/summarize")) return json({ summary: "Betty wants Acme live before March." });
     if (url.includes("/followup")) return json({ drafts: [] });
@@ -67,7 +68,8 @@ describe("MacroCallView", () => {
     expect(await screen.findByText("Betty wants Acme live before March.")).toBeTruthy();
     expect(screen.getByText("Needs it live before March")).toBeTruthy();
     expect(screen.getByText("Send the quote Thursday")).toBeTruthy();
-    expect(screen.getByText(/Add “Betty – Acme”/)).toBeTruthy();
+    expect(await screen.findByRole("option", { name: "New prospect: Betty – Acme" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Add to pipeline/ })).toBeTruthy();
   });
 
   it("Coaching: the score out of 100 and the manager's comment", async () => {
@@ -118,7 +120,7 @@ describe("MacroCallView", () => {
     brief = { ...BRIEF, isOwner: false };
     render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
     expect(await screen.findByText(/the rep adds it from their side/)).toBeTruthy();
-    expect(screen.queryByText(/Add “Betty – Acme”/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add to pipeline/ })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Next Meeting" }));
     expect(await screen.findByText("Walk through the quote")).toBeTruthy(); // no ask-first for a non-owner
     expect(screen.getByText(/Waiting for the rep to review it/)).toBeTruthy();

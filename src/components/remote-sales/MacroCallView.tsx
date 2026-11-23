@@ -1,8 +1,9 @@
 "use client";
 
+import { CallPipelineLink } from "./CallPipelineLink";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Check, ClipboardCopy, Loader2, Mail, MessageSquareText, Plus, Sparkles } from "lucide-react";
+import { CalendarClock, Check, ClipboardCopy, Loader2, Mail, MessageSquareText, Sparkles } from "lucide-react";
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { downloadIcs } from "@/lib/coach/remote/ics";
 
@@ -165,7 +166,8 @@ function Highlights({ sessionId, b, briefing, onPrepare, onChanged }: { sessionI
 
   return (
     <div className="space-y-4">
-      <ProspectStrip b={b} sessionId={sessionId} onChanged={onChanged} />
+      {/* One pipeline control for every remote call view (CallPipelineLink, 2026-11-23): existing prospect or new. */}
+      <CallPipelineLink sessionId={sessionId} onLinked={onChanged} />
       <div>
         <H>Call brief</H>
         {summary === undefined ? (
@@ -212,57 +214,6 @@ function Highlights({ sessionId, b, briefing, onPrepare, onChanged }: { sessionI
         </>
       )}
       <FollowUp sessionId={sessionId} />
-    </div>
-  );
-}
-
-function ProspectStrip({ b, sessionId, onChanged }: { b: BriefRes; sessionId: string; onChanged: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  if (b.prospect) {
-    return (
-      <Link
-        href={`/dashboard/remote-sales/pipeline?p=${b.prospect.id}`}
-        className="flex items-center justify-between rounded-lg border border-default bg-base/40 px-3 py-2 text-xs hover:border-brand"
-      >
-        <span className="text-primary">
-          In your pipeline: <b>{b.prospect.name ?? "Unnamed prospect"}</b>
-        </span>
-        <span className="text-muted">
-          {b.prospect.status === "won" ? "Closed won" : b.prospect.status === "lost" ? "Closed lost" : "Open"}
-          {b.prospect.nextCallDate ? ` · next call ${b.prospect.nextCallDate}` : ""}
-        </span>
-      </Link>
-    );
-  }
-  if (!b.isOwner) {
-    return <p className="rounded-lg border border-dashed border-default px-3 py-2 text-xs text-secondary">This call isn&apos;t in its rep&apos;s pipeline yet — the rep adds it from their side.</p>;
-  }
-  const add = async () => {
-    setBusy(true);
-    setErr(null);
-    try {
-      const r = await fetch("/api/coach/remote/prospects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: (b.label ?? "New prospect").slice(0, 120), sessionId }),
-      });
-      const d = (await r.json().catch(() => ({}))) as { error?: string };
-      if (!r.ok) throw new Error(d.error ?? "Couldn't add to the pipeline.");
-      onChanged();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't add to the pipeline.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-default px-3 py-2 text-xs">
-      <span className="text-secondary">This call isn&apos;t in your pipeline yet.</span>
-      <button type="button" onClick={() => void add()} disabled={busy} className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-primary hover:border-brand disabled:opacity-50">
-        <Plus className="h-3.5 w-3.5" aria-hidden /> Add {b.label ? `“${b.label}”` : "this prospect"}
-      </button>
-      {err && <span className="w-full text-amber-700 dark:text-amber-300">{err}</span>}
     </div>
   );
 }

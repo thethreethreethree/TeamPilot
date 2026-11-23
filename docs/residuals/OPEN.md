@@ -390,5 +390,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 ## Filed by deal sentiment (2026-11-23, docs/tbc/2026-11-23-deal-sentiment)
 
 - [ ] 2026-11-23 · deal-sentiment · production has 0 calls linked to prospects, so deal sentiment (and last-call dates, briefs in the Ask box) stay empty until reps use "Add to pipeline" on their calls
+      cause found and fixed 2026-11-23 (docs/tbc/2026-11-23-call-pipeline-link): the control existed only in Macro Mode and could only create a new prospect; now on every remote call view with existing prospects offered.
       why-unresolved: a workflow step
       next-action: consider prompting "Add to pipeline" at the end of a remote call
