@@ -104,6 +104,22 @@ describe("GET transcript-edit", () => {
     expect((await GET(get(), P)).status).toBe(500);
   });
 
+  describe("POST { speaker } — who said the line (0328)", () => {
+    it("the call's rep changes a line's speaker; audited as a transcript edit of the speaker", async () => {
+      st.rpc.mockResolvedValueOnce({ data: 3, error: null });
+      const r = await POST(post({ seq: 1, speaker: "customer" }), P);
+      expect(await r.json()).toEqual({ ok: true, changed: true, version: 3 });
+      expect(st.rpc).toHaveBeenCalledWith("edit_transcript_speaker", { p_session_id: "s1", p_seq: 1, p_speaker: "customer", p_editor: "rep1" });
+      expect(vi.mocked(recordAudit).mock.calls[0]![1]).toMatchObject({ action: "transcript.edit", meta: { field: "speaker" } });
+    });
+    it("only rep or customer; a stranger is refused", async () => {
+      expect((await POST(post({ seq: 1, speaker: "unknown" }), P)).status).toBe(400);
+      asUser("stranger");
+      expect((await POST(post({ seq: 1, speaker: "customer" }), P)).status).toBe(403);
+      expect(st.rpc).not.toHaveBeenCalled();
+    });
+  });
+
   describe("PUT — refresh the AI notes after corrections", () => {
     const put = () => PUT(new Request("http://x/api", { method: "PUT" }) as never, P);
     it("the call's rep, with corrections: audited, then the notes are redone", async () => {

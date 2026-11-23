@@ -81,5 +81,29 @@ describe("SessionTranscript editing", () => {
     expect(await screen.findByText(/were made before your latest correction/)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Refresh the AI notes/ })).toBeTruthy();
   });
+
+  it("a line credited to the wrong person: 'Said by the customer' sends a speaker change (0328)", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (url.includes("transcript-edit") && init?.method === "POST") {
+        posts.push(JSON.parse(init.body!));
+        return json({ ok: true, changed: true, version: 2 });
+      }
+      if (url.includes("transcript-edit")) return json({ canEdit: true, edits: [] });
+      return json({ segments: SEGS });
+    }));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Correct this line" }));
+    fireEvent.click(screen.getByRole("button", { name: "Said by the customer" }));
+    expect(await screen.findByText(/that line is now the customer.s/)).toBeTruthy();
+    expect(posts).toEqual([{ seq: 1, speaker: "customer" }]);
+  });
+  it("a speaker change alone also dates the AI notes (latestEditAt), so the refresh is offered", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => (url.includes("transcript-edit") ? json({ canEdit: true, edits: [], latestEditAt: "2026-11-23T12:00:00Z", notesBuiltAt: "2026-11-23T10:00:00Z" }) : json({ segments: SEGS }))));
+    render(<SessionTranscript sessionId="s1" />);
+    fireEvent.click(screen.getByRole("button", { name: /Full transcript/ }));
+    expect(await screen.findByRole("button", { name: /Refresh the AI notes/ })).toBeTruthy();
+  });
 });
 

@@ -41,6 +41,7 @@ export function SessionTranscript({
   const [canEdit, setCanEdit] = useState(false);
   const [marks, setMarks] = useState<Map<number, Mark>>(new Map());
   const [notesBuiltAt, setNotesBuiltAt] = useState<string | null>(null);
+  const [latestEditAt, setLatestEditAt] = useState<string | null>(null); // any edit, incl. a speaker change (0328)
   const [aiNotes, setAiNotes] = useState(true); // false for a meeting or huddle: no AI notes to refresh
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -80,6 +81,7 @@ export function SessionTranscript({
       else setError(true);
       const e = ed && ed.ok ? ((await ed.json()) as { canEdit?: boolean; edits?: Mark[]; notesBuiltAt?: string | null; aiNotes?: boolean }) : null;
       setNotesBuiltAt(e?.notesBuiltAt ?? null);
+      setLatestEditAt((e as { latestEditAt?: string } | null)?.latestEditAt ?? null);
       setAiNotes(e?.aiNotes !== false);
       setCanEdit(!!e?.canEdit);
       setMarks(new Map((e?.edits ?? []).map((m) => [m.seq, m])));
@@ -103,11 +105,33 @@ export function SessionTranscript({
       if (!r.ok) throw new Error(j.error ?? "Couldn't save the correction.");
       setEditing(null);
       if (j.changed) {
-        setNote("Saved. Keyword hits and talk stats now use the corrected words. The summary and review were written from the earlier words — regenerate them if this correction changes their meaning.");
+        setNote("Saved. Keyword hits and talk stats now use the corrected words. The AI notes were written from the earlier words — refresh them below if this changes their meaning.");
         await load();
       }
     } catch (err) {
       setNote(err instanceof Error ? err.message : "Couldn't save the correction.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Who said the line (0328): the other speaker, as a new version like a word correction.
+  const saveSpeaker = async (seq: number, speaker: "agent" | "customer") => {
+    setSaving(true);
+    setNote(null);
+    try {
+      const r = await fetch(`/api/coach/sales-session/${sessionId}/transcript-edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seq, speaker }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; changed?: boolean };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't save the change.");
+      setEditing(null);
+      setNote(`Saved: that line is now the ${speaker === "agent" ? "rep's" : "customer's"}. Talk stats and keyword hits follow it.`);
+      await load();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Couldn't save the change.");
     } finally {
       setSaving(false);
     }
@@ -181,10 +205,10 @@ export function SessionTranscript({
                   {note}
                 </p>
               )}
-              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...marks.values()].map((m) => m.editedAt), notesBuiltAt) && (
+              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...[...marks.values()].map((m) => m.editedAt), ...(latestEditAt ? [latestEditAt] : [])], notesBuiltAt) && (
                 <span className="text-[11px] text-secondary">The AI notes (summary, review, follow-through) were made before your latest correction.</span>
               )}
-              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...marks.values()].map((m) => m.editedAt), notesBuiltAt) && (
+              {canEdit && aiNotes && refreshing !== "sent" && notesPredateCorrections([...[...marks.values()].map((m) => m.editedAt), ...(latestEditAt ? [latestEditAt] : [])], notesBuiltAt) && (
                 <button
                   type="button"
                   disabled={refreshing === "sending"}
@@ -234,7 +258,17 @@ export function SessionTranscript({
                         <button type="button" disabled={saving} onClick={() => setEditing(null)} className="text-xs text-muted hover:text-primary">
                           Cancel
                         </button>
-                        <span className="text-[11px] text-muted">The original words stay on record.</span>
+                        {(s.speaker === "agent" || s.speaker === "customer") && (
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void saveSpeaker(s.seq, s.speaker === "agent" ? "customer" : "agent")}
+                            className="text-xs text-secondary underline-offset-2 hover:text-primary hover:underline"
+                          >
+                            Said by the {s.speaker === "agent" ? "customer" : "rep"}
+                          </button>
+                        )}
+                        <span className="text-[11px] text-muted">The original stays on record.</span>
                       </span>
                     </span>
                   ) : (

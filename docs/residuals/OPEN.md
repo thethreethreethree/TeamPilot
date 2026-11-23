@@ -280,7 +280,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       also (0315): while held at the code screen, try a finance action from another tab — it must be refused ("Enter the code…").
       why-unresolved: dashboard config outside the repo; the public settings endpoint does not report it
       next-action: after the push, enrol a test account in Settings; if it is off, enrolment says "Couldn't start setup…" (the provider's reason is in the server log)
-- [ ] 2026-11-23 · mfa · 128 SECURITY DEFINER functions callable by authenticated are outside the database rule (0309 covers tables and storage)
+- [x] 2026-11-23 · mfa · 128 SECURITY DEFINER functions callable by authenticated are outside the database rule (0309 covers tables and storage)
       resolved 2026-11-23 (docs/tbc/2026-11-23-mfa-functions, 0315): a PostgREST pre-request hook refuses /rpc/* for a held session; live API shows x-rss-guard: 1; live invariant 33.
       why-unresolved: each must be read to see whether it reads or writes customer data
       next-action: add `if not public.rss_mfa_ok() then raise exception` to the data-bearing ones; a live invariant over the list
@@ -320,7 +320,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a company stage list is a pipeline change of its own
       next-action: an optional company stage list offered in the prospect's stage box and the tag box
       part done 2026-11-23: the prospect's stage box now suggests the stage names in use (one spelling each) — docs/tbc/2026-11-23-stage-suggestions. A company list stays open.
-- [ ] 2026-11-23 · client reads · 11 client reads map a failed fetch to null (`r.ok ? r.json() : null`) — some may show "nothing" on a failure
+- [x] 2026-11-23 · client reads · 11 client reads map a failed fetch to null (`r.ok ? r.json() : null`) — some may show "nothing" on a failure
       resolved 2026-11-23 (docs/tbc/2026-11-23-null-reads): 7 data reads fixed (plus 6 more found in src/app), the null form is now a gate with 7 listed label reads.
       why-unresolved: each must be read to tell a label read from a data read
       next-action: read each; extend noFailedReadAsEmpty to the null form with an allowlist for label reads
@@ -338,6 +338,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · transcript-edits · a corrected line keeps its times; per-line speaker changes are not offered
       why-unresolved: re-timing needs audio alignment; speaker edits are a separate kind
       next-action: add a speaker choice to the line editor, recorded the same way (new version + edit row)
+      part done 2026-11-23: speaker changes per line (0328, applied) — docs/tbc/2026-11-23-speaker-edit. Re-timing stays open.
 
 ## Filed by vulnerability disclosure (2026-11-23, docs/tbc/2026-11-23-security-disclosure)
 

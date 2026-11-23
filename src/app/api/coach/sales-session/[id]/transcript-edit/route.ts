@@ -56,6 +56,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const rows = (edits ?? []) as EditRow[];
   const canEdit = a.canEdit && a.session.status !== "active";
   if (!rows.length) return NextResponse.json({ canEdit, edits: [] });
+  // The newest edit of any kind — a speaker change (0328) has no "edited" words mark but still dates the AI notes.
+  const latestEditAt = rows.reduce((m, r) => (r.created_at > m ? r.created_at : m), "");
 
   // The words before and after each correction, read through the caller's client (the base table's RLS keeps
   // trimmed lines hidden, 0295), and the current transcript.
@@ -90,6 +92,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const notesBuiltAt = ((built ?? []) as Array<{ created_at: string }>)[0]?.created_at ?? null;
   return NextResponse.json({
     canEdit,
+    latestEditAt,
     aiNotes,
     notesBuiltAt,
     edits: marks.map((m) => ({ seq: m.seq, original: m.original, editedAt: m.editedAt, editedByName: nameOf.get(m.editedBy) ?? null, count: m.count })),
@@ -104,13 +107,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!a.ok) return NextResponse.json({ error: a.status === 401 ? "Not authenticated." : "Session not found or not accessible." }, { status: a.status });
   if (!a.canEdit) return NextResponse.json({ error: "Only the rep on this call, or their manager, can correct its transcript." }, { status: 403 });
   if (a.session.status === "active") return NextResponse.json({ error: "This call is still live. Correct the transcript once it has ended." }, { status: 409 });
-  let b: { seq?: unknown; text?: unknown };
+  let b: { seq?: unknown; text?: unknown; speaker?: unknown };
   try {
     b = await req.json();
   } catch {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
   const seq = Number(b.seq);
+  // Who said the line (0328): { seq, speaker: "agent" | "customer" } instead of new words.
+  if (b.speaker !== undefined) {
+    if (!Number.isInteger(seq) || (b.speaker !== "agent" && b.speaker !== "customer")) return NextResponse.json({ error: "Name the line and who said it (the rep or the customer)." }, { status: 400 });
+    const admin = createAdminClient();
+    const { data: version, error } = await admin.rpc("edit_transcript_speaker", { p_session_id: id, p_seq: seq, p_speaker: b.speaker, p_editor: a.ctx.userId });
+    if (error) {
+      if (MISSING.has(String(error.code))) return NextResponse.json({ error: "Speaker corrections are waiting on database migration 0328." }, { status: 503 });
+      if (String(error.code) === "P0002") return NextResponse.json({ error: "That line isn't in this call's transcript." }, { status: 404 });
+      console.error(`[transcript-edit] speaker edit failed session=${id}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't save the change. Try again." }, { status: 500 });
+    }
+    await recordAudit(admin, { companyId: a.ctx.companyId, actorId: a.ctx.userId, action: "transcript.edit", objectType: "coaching_session", objectId: id, meta: { seq, version, field: "speaker" } });
+    after(async () => {
+      await scanSessionTrackers(id, admin);
+      await storeInteractionStats(id, admin);
+    });
+    return NextResponse.json({ ok: true, changed: true, version });
+  }
   // A corrected line is stored under the same number redaction as every transcript line (D15).
   const cleaned = cleanLine(b.text);
   const text = cleaned === null ? null : transcriptTextForStorage(cleaned);
