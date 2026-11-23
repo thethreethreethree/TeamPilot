@@ -79,6 +79,27 @@ describe("retention (0284, D14)", () => {
       expect(outsideRetention(rows, settings, NOW).map((r) => r.id)).toEqual(["x3"]);
     });
 
+    it("transcripts only (0314): a finished call goes 24h after it is KNOWN to be transcribed; unknown keeps the audio", () => {
+      const settings = latestPerCompany([{ id: 1, company_id: "co1", keep_last_per_rep: null, transcript_only: true }]);
+      expect(ruleFor(settings, "co1")).toEqual({ kind: "transcript_only", graceHours: 24 });
+      const h = (hours: number) => new Date(NOW - hours * 3_600_000).toISOString();
+      const rows = [
+        { id: "a", company_id: "co1", agent_id: "r", created_at: h(25), hasTranscript: true },
+        { id: "b", company_id: "co1", agent_id: "r", created_at: h(23), hasTranscript: true }, // inside the day
+        { id: "c", company_id: "co1", agent_id: "r", created_at: h(48), hasTranscript: false },
+        { id: "d", company_id: "co1", agent_id: "r", created_at: h(48) }, // unknown
+        { id: "e", company_id: "co1", agent_id: "r", created_at: h(48), hasTranscript: true, live: true },
+      ];
+      expect(outsideRetention(rows, settings, NOW).map((r) => r.id)).toEqual(["a"]);
+    });
+    it("a later count or default row ends transcripts-only", () => {
+      const settings = latestPerCompany([
+        { id: 1, company_id: "co1", keep_last_per_rep: null, transcript_only: true },
+        { id: 2, company_id: "co1", keep_last_per_rep: null, transcript_only: false },
+      ]);
+      expect(ruleFor(settings, "co1")).toEqual({ kind: "days", days: 90 });
+    });
+
     it("two companies, two rules, in one pass", () => {
       const settings = latestPerCompany([{ id: 1, company_id: "counted", keep_last_per_rep: 1 }]);
       const rows = [row("c1", "counted", "r1", 1), row("c2", "counted", "r1", 2), row("d1", "dflt", "r2", 200), row("d2", "dflt", "r2", 3)];

@@ -17,7 +17,7 @@ import { VocabularySettings } from "@/components/remote-sales/VocabularySettings
  *   · Webhooks (F31.8): send session.scored / session.closed / deal.closed to the company's own https address,
  *     signed with that endpoint's secret.
  */
-type Retention = { keepLastPerRep: number | null; isDefault: boolean; defaultKeep: number; defaultDays: number; min: number; max: number; canManage: boolean; notReady?: string };
+type Retention = { keepLastPerRep: number | null; transcriptOnly?: boolean; graceHours?: number; isDefault: boolean; defaultKeep: number; defaultDays: number; min: number; max: number; canManage: boolean; notReady?: string };
 type AuditRow = { id: number; at: string; action: string; actorName: string | null; objectType: string; objectId: string; meta: Record<string, unknown> };
 
 const ACTION_WORDS: Record<string, string> = {
@@ -52,6 +52,7 @@ function detail(r: AuditRow): string {
   };
   switch (r.action) {
     case "retention.set":
+      if (m.transcriptOnly) return "Keep transcripts only (audio removed after transcription)";
       return m.useDefault ? `Back to the standard ${String(m.defaultDays ?? 90)} days` : `Keep the last ${String(m.keepLastPerRep)} per rep`;
     case "vocabulary.set":
       return Number(m.count) ? `${String(m.count)} term${m.count === 1 ? "" : "s"}` : "Turned off";
@@ -86,14 +87,18 @@ export function ProtectionSettings() {
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState("");
   const [auditNote, setAuditNote] = useState<string | null>(null);
+  // A failed read is said, not left as "Loading…" forever (2026-11-23).
+  const [retFailed, setRetFailed] = useState(false);
+  const [confirmTranscriptOnly, setConfirmTranscriptOnly] = useState(false);
 
   const loadRetention = useCallback(async () => {
     const r = await fetch("/api/coach/remote/settings/retention").catch(() => null);
     if (r?.ok) {
       const j = (await r.json()) as Retention;
       setRet(j);
+      setRetFailed(false);
       setKeep(String(j.keepLastPerRep ?? j.defaultKeep));
-    }
+    } else setRetFailed(true);
   }, []);
 
   const loadAudit = useCallback(async (action: string, before?: number) => {
@@ -118,14 +123,14 @@ export function ProtectionSettings() {
     void loadAudit(filter);
   }, [loadAudit, filter]);
 
-  const save = async (useDefault = false) => {
+  const save = async (useDefault = false, transcriptOnly = false) => {
     setSaving(true);
     setNote(null);
     try {
       const r = await fetch("/api/coach/remote/settings/retention", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(useDefault ? { useDefault: true } : { keepLastPerRep: Number(keep) }),
+        body: JSON.stringify(useDefault ? { useDefault: true } : transcriptOnly ? { transcriptOnly: true } : { keepLastPerRep: Number(keep) }),
       });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) {
@@ -133,6 +138,7 @@ export function ProtectionSettings() {
         return;
       }
       setNote("Saved. The nightly clean-up uses it from its next run.");
+      setConfirmTranscriptOnly(false);
       await loadRetention();
       await loadAudit(filter);
     } catch {
@@ -155,12 +161,22 @@ export function ProtectionSettings() {
           How long call audio is kept. Older recordings lose their audio in the nightly clean-up; the transcript, scores
           and coaching stay. Recordings anyone saved are never removed.
         </p>
-        {!ret ? (
+        {retFailed && !ret ? (
+          <p className="mt-3 text-xs text-muted">
+            Couldn&apos;t load the retention setting.{" "}
+            <button type="button" onClick={() => void loadRetention()} className="underline">Try again</button>
+          </p>
+        ) : !ret ? (
           <p className="mt-3 flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading…</p>
         ) : (
           <div className="mt-3 space-y-2">
             <p className="text-xs text-primary">
-              {ret.keepLastPerRep === null ? (
+              {ret.transcriptOnly ? (
+                <>
+                  Now: <span className="font-semibold">transcripts only</span> — each call&apos;s audio is removed{" "}
+                  {ret.graceHours ?? 24} hours after its transcript is ready
+                </>
+              ) : ret.keepLastPerRep === null ? (
                 <>
                   Now: audio is kept for <span className="font-semibold tabular-nums">{ret.defaultDays}</span> days
                   <span className="text-muted"> (the standard setting)</span>
@@ -183,7 +199,13 @@ export function ProtectionSettings() {
                   className="rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-50">
                   {saving ? "Saving…" : "Save"}
                 </button>
-                {ret.keepLastPerRep !== null && (
+                {!ret.transcriptOnly && (
+                  <button type="button" disabled={saving} onClick={() => setConfirmTranscriptOnly(true)}
+                    className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:bg-base disabled:opacity-50">
+                    Keep transcripts only
+                  </button>
+                )}
+                {(ret.keepLastPerRep !== null || ret.transcriptOnly) && (
                   <button type="button" disabled={saving} onClick={() => void save(true)}
                     className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:bg-base disabled:opacity-50">
                     Use the standard {ret.defaultDays} days
@@ -192,6 +214,25 @@ export function ProtectionSettings() {
               </div>
             ) : null}
             {keep && !valid && ret.canManage && <p className="text-xs text-secondary">Pick a whole number from {ret.min} to {ret.max}.</p>}
+            {confirmTranscriptOnly && ret.canManage && (
+              <div className="space-y-2 rounded-lg border border-default bg-base p-3 text-xs text-secondary" role="alertdialog" aria-label="Keep transcripts only">
+                <p className="font-semibold text-primary">Keep transcripts only?</p>
+                <p>
+                  Every call still has to be recorded so it can be transcribed. From the next nightly clean-up, a call&apos;s
+                  audio is removed once its transcript is ready and the call is {ret.graceHours ?? 24} hours old — including
+                  the calls you have now. Transcripts, scores and coaching stay.
+                </p>
+                <p>Once a call&apos;s audio is gone: no playback, no audio clips in patterns or the library, no re-transcribing. Recordings someone saved are kept. This can&apos;t be undone for the audio already removed.</p>
+                <div className="flex gap-2">
+                  <button type="button" disabled={saving} onClick={() => void save(false, true)} className="rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-50">
+                    {saving ? "Saving…" : "Yes, keep transcripts only"}
+                  </button>
+                  <button type="button" disabled={saving} onClick={() => setConfirmTranscriptOnly(false)} className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             {shrinking && <p className="text-xs text-secondary">Saving removes the audio of each rep&apos;s recordings beyond that number at the next clean-up, however recent. That can&apos;t be undone.</p>}
             {note && <p className="text-xs text-secondary" role="status">{note}</p>}
           </div>

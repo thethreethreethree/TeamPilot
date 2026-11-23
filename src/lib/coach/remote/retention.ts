@@ -19,6 +19,9 @@ export const DEFAULT_RETENTION_DAYS = 90;
 export const DEFAULT_KEEP_PER_REP = 20;
 export const KEEP_MIN = 1;
 export const KEEP_MAX = 1000;
+/** "Keep transcripts only" (0314): a call's audio is removed once it has a transcript and is this old. The wait lets
+ *  the "which voice is you?" step and a re-transcription run on the audio first. */
+export const TRANSCRIPT_ONLY_GRACE_HOURS = 24;
 
 const TABLE_MISSING = new Set(["PGRST205", "42P01"]);
 
@@ -28,7 +31,7 @@ export function parseKeep(v: unknown): number | null {
 }
 
 /** keep_last_per_rep NULL = the company went back to the standard default (0308). */
-type Row = { id: number; company_id: string; keep_last_per_rep: number | null; set_by?: string | null; created_at?: string };
+type Row = { id: number; company_id: string; keep_last_per_rep: number | null; transcript_only?: boolean | null; set_by?: string | null; created_at?: string };
 
 /** The latest row per company. Rows may arrive in any order. Pure. */
 export function latestPerCompany(rows: Row[]): Map<string, Row> {
@@ -40,11 +43,13 @@ export function latestPerCompany(rows: Row[]): Map<string, Row> {
   return out;
 }
 
-export type RetentionRule = { kind: "count"; keepPerRep: number } | { kind: "days"; days: number };
+export type RetentionRule = { kind: "count"; keepPerRep: number } | { kind: "days"; days: number } | { kind: "transcript_only"; graceHours: number };
 
-/** The rule for one company: its own "last N per rep" if it set one, else the 90-day default. Pure. */
+/** The rule for one company: "transcripts only" or its own "last N per rep" if it set one, else the 90-day default. Pure. */
 export function ruleFor(settings: Map<string, Row>, companyId: string | null): RetentionRule {
-  const keep = companyId ? settings.get(companyId)?.keep_last_per_rep : undefined;
+  const row = companyId ? settings.get(companyId) : undefined;
+  if (row?.transcript_only === true) return { kind: "transcript_only", graceHours: TRANSCRIPT_ONLY_GRACE_HOURS };
+  const keep = row?.keep_last_per_rep;
   return keep != null ? { kind: "count", keepPerRep: keep } : { kind: "days", days: DEFAULT_RETENTION_DAYS };
 }
 
@@ -52,7 +57,7 @@ export function ruleFor(settings: Map<string, Row>, companyId: string | null): R
  * Which recordings are outside their company's window. `rows` MUST be newest-first (the count rule keeps each rep's
  * first N). Pure, so the cron's decision is tested directly; the cron only fetches, removes and reports.
  */
-export function outsideRetention<T extends { company_id: string | null; agent_id: string | null; id: string; created_at: string }>(
+export function outsideRetention<T extends { company_id: string | null; agent_id: string | null; id: string; created_at: string; hasTranscript?: boolean; live?: boolean }>(
   rows: readonly T[],
   settings: Map<string, Row>,
   nowMs: number,
@@ -61,6 +66,13 @@ export function outsideRetention<T extends { company_id: string | null; agent_id
   const out: T[] = [];
   for (const row of rows) {
     const rule = ruleFor(settings, row.company_id);
+    if (rule.kind === "transcript_only") {
+      // Only a finished call whose transcript is KNOWN to exist (hasTranscript === true): an unknown answer keeps the
+      // audio — removing it before transcription would lose the call entirely.
+      const t = Date.parse(row.created_at);
+      if (row.hasTranscript === true && row.live !== true && Number.isFinite(t) && t < nowMs - rule.graceHours * 3_600_000) out.push(row);
+      continue;
+    }
     if (rule.kind === "days") {
       const t = Date.parse(row.created_at);
       if (Number.isFinite(t) && t < nowMs - rule.days * 86_400_000) out.push(row);
@@ -88,7 +100,7 @@ export async function loadRetention(
 ): Promise<{ ok: true; settings: Map<string, Row>; tableMissing: boolean } | { ok: false; error: string }> {
   const { data, error } = await fetchAllPagedResult<Row>(
     (from, to) =>
-      admin.from("company_recording_settings").select("id, company_id, keep_last_per_rep").order("id", { ascending: true }).range(from, to),
+      admin.from("company_recording_settings").select("id, company_id, keep_last_per_rep, transcript_only").order("id", { ascending: true }).range(from, to),
     { label: "retention settings" },
   );
   if (error) {

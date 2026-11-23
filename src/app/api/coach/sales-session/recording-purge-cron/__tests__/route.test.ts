@@ -225,4 +225,44 @@ describe("GET /api/coach/sales-session/recording-purge-cron", () => {
     expect(body.malformed).toBe(1);
     expect(body.purged).toBe(0);
   });
+
+  it("transcripts only (0314): removes audio a day after transcription — never before a transcript is known", async () => {
+    process.env.CRON_SECRET = "s3cret";
+    retention = { rows: [{ id: 1, company_id: "co1", keep_last_per_rep: null, transcript_only: true }] };
+    const H = 3_600_000;
+    const at = (h: number) => new Date(Date.now() - h * H).toISOString();
+    const rows = [
+      { id: "fresh", company_id: "co1", agent_id: "a1", audio_asset_url: "assets-v1/co1/fresh/recording.webm", created_at: at(2), status: "completed" },
+      { id: "done", company_id: "co1", agent_id: "a1", audio_asset_url: "assets-v1/co1/done/recording.webm", created_at: at(30), status: "completed" },
+      { id: "untranscribed", company_id: "co1", agent_id: "a1", audio_asset_url: "assets-v1/co1/untranscribed/recording.webm", created_at: at(30), status: "completed" },
+      { id: "checkfails", company_id: "co1", agent_id: "a1", audio_asset_url: "assets-v1/co1/checkfails/recording.webm", created_at: at(30), status: "completed" },
+      { id: "live", company_id: "co1", agent_id: "a1", audio_asset_url: "assets-v1/co1/live/recording.webm", created_at: at(30), status: "active" },
+    ];
+    const updated: string[] = [];
+    const checked: string[] = [];
+    setAdmin({
+      from: (table: string) =>
+        table === "coaching_transcript_segments_current"
+          ? {
+              select: () => ({
+                eq: async (_c: string, id: string) => {
+                  checked.push(id);
+                  if (id === "checkfails") return { count: null, error: { message: "x" } };
+                  return { count: id === "untranscribed" ? 0 : 12, error: null };
+                },
+              }),
+            }
+          : {
+              select: () => ({
+                not: () => ({ eq: () => ({ order: () => chainOrder(async (from: number) => (from === 0 ? { data: rows, error: null } : { data: [], error: null })) }) }),
+              }),
+              update: () => ({ eq: async (_col: string, val: string) => { updated.push(val); return { error: null }; } }),
+            },
+      storage: { from: () => ({ remove: async () => ({ error: null }), list: async () => ({ data: [], error: null }) }) },
+    });
+    const body = await (await GET(req("Bearer s3cret"))).json();
+    expect(updated).toEqual(["done"]); // only the transcribed, finished call past the day
+    expect(checked.sort()).toEqual(["checkfails", "done", "untranscribed"]); // the fresh and live calls are never checked
+    expect(body).toMatchObject({ purged: 1, transcriptChecks: 3, transcriptCheckErrors: 1 });
+  });
 });

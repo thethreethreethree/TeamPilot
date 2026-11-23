@@ -66,11 +66,23 @@ describe("retention route", () => {
   });
 
   // 0308 (2026-11-23): back to the standard 90 days is a row with no count.
+  it("PUT { transcriptOnly: true }: appends a transcripts-only row with no count, audited", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
+    const res = await PUT(put({ transcriptOnly: true, keepLastPerRep: 5 }));
+    expect(await res.json()).toEqual({ keepLastPerRep: null, transcriptOnly: true, isDefault: false });
+    expect(db.inserts).toEqual([{ company_id: "co1", keep_last_per_rep: null, set_by: "u-ceo", transcript_only: true }]);
+    expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ meta: { transcriptOnly: true, graceHours: 24 } }));
+  });
+  it("PUT transcriptOnly by a non-admin is refused", async () => {
+    vi.mocked(resolveApiAuth).mockResolvedValue(REP as never);
+    expect((await PUT(put({ transcriptOnly: true }))).status).toBe(403);
+    expect(db.inserts).toEqual([]);
+  });
   it("PUT { useDefault: true }: appends a row with NO count, audited as a return to the standard", async () => {
     vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
     const res = await PUT(put({ useDefault: true }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ keepLastPerRep: null, isDefault: true });
+    expect(await res.json()).toEqual({ keepLastPerRep: null, transcriptOnly: false, isDefault: true });
     expect(db.inserts).toEqual([{ company_id: "co1", keep_last_per_rep: null, set_by: "u-ceo" }]);
     expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ meta: { useDefault: true, defaultDays: 90 } }));
   });

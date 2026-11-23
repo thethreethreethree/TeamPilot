@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
-import { DEFAULT_RETENTION_DAYS, loadRetention, outsideRetention } from "@/lib/coach/remote/retention";
+import { DEFAULT_RETENTION_DAYS, loadRetention, outsideRetention, ruleFor, TRANSCRIPT_ONLY_GRACE_HOURS } from "@/lib/coach/remote/retention";
 
 /**
  * GET /api/coach/sales-session/recording-purge-cron — recording retention.
@@ -62,13 +62,13 @@ export async function GET(req: NextRequest) {
   // Count-based retention: fetch ALL purge-eligible recordings (unsaved, has audio), NEWEST-first, then keep each
   // rep's first KEEP_PER_REP and mark the rest (their older recordings) for purge. fetchAllPaged is cap-safe — the
   // candidate set is only sessions that still HAVE audio (a bounded, self-limiting set once the rule is steady).
-  let candidates: Array<{ id: string; company_id: string | null; agent_id: string | null; audio_asset_url: string; created_at: string }>;
+  let candidates: Array<{ id: string; company_id: string | null; agent_id: string | null; audio_asset_url: string; created_at: string; status?: string | null; hasTranscript?: boolean; live?: boolean }>;
   try {
     candidates = await fetchAllPaged(
       (from, to) =>
         admin
           .from("coaching_sessions")
-          .select("id, company_id, agent_id, audio_asset_url, created_at")
+          .select("id, company_id, agent_id, audio_asset_url, created_at, status")
           .not("audio_asset_url", "is", null)
           .eq("recording_saved", false)
           .order("created_at", { ascending: false })
@@ -81,7 +81,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Purge query failed." }, { status: 500 });
   }
 
-  // Outside the window: older than the company's days (the 90-day default, D14), or past its "last N per rep".
+  // "Keep transcripts only" (0314): a call past the grace window loses its audio only once its transcript is KNOWN to
+  // exist. Checked one call at a time (a head count on the current transcript), so a long transcript can never read as
+  // "none"; a failed check leaves hasTranscript unset, which keeps the audio (fail closed).
+  const graceCutoff = Date.now() - TRANSCRIPT_ONLY_GRACE_HOURS * 3_600_000;
+  let transcriptChecks = 0;
+  let transcriptCheckErrors = 0;
+  for (const c of candidates) {
+    if (ruleFor(retention.settings, c.company_id).kind !== "transcript_only") continue;
+    c.live = c.status === "active";
+    if (c.live || !(Date.parse(c.created_at) < graceCutoff) || transcriptChecks >= BATCH) continue;
+    transcriptChecks += 1;
+    const { count, error } = await admin.from("coaching_transcript_segments_current").select("session_id", { count: "exact", head: true }).eq("session_id", c.id);
+    if (error) transcriptCheckErrors += 1;
+    else c.hasTranscript = (count ?? 0) > 0;
+  }
+
+  // Outside the window: older than the company's days (the 90-day default, D14), past its "last N per rep", or — for
+  // "transcripts only" — transcribed and a day old.
   // One pure decision in retention.ts, tested there.
   const beyondWindow = outsideRetention(candidates, retention.settings, Date.now());
   // Purge OLDEST-first (candidates were newest-first, so the tail is oldest) and cap the batch; `bounded` self-heals.
@@ -135,6 +152,8 @@ export async function GET(req: NextRequest) {
     bounded: beyondWindow.length > BATCH, // true = more beyond-window recordings remain; not a silent "all clear"
     defaultRetentionDays: DEFAULT_RETENTION_DAYS, // the default (D14); companies with their own setting are counted below
     companiesWithSetting: retention.settings.size,
+    transcriptChecks,
+    transcriptCheckErrors, // non-zero: those calls kept their audio this run (fail closed), retried next run
     retentionTable: retention.tableMissing ? "not_applied" : "ok",
   });
 }
