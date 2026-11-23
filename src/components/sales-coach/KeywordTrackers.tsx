@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { TrackerAdoption } from "./TrackerAdoption";
 
 /**
  * Keyword trackers — the manager screen (RSS Phase 3 step 3, Gong F11.1). In Settings → Coaching.
@@ -27,6 +28,8 @@ const API = "/api/coach/remote/trackers";
 
 export function KeywordTrackers() {
   const [read, setRead] = useState<Read | null>(null);
+  // Which tracker's adoption panel is open (2026-11-23).
+  const [adoptionFor, setAdoptionFor] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phrases, setPhrases] = useState("");
   const [side, setSide] = useState<Tracker["side"]>("any");
@@ -144,16 +147,25 @@ export function KeywordTrackers() {
                   <span className="text-xs text-muted">
                     {t.active ? SIDE[t.side] : "Switched off"} · {t.phrases.join(", ")}
                   </span>
+                  <button
+                    type="button"
+                    aria-expanded={adoptionFor === t.id}
+                    onClick={() => setAdoptionFor(adoptionFor === t.id ? null : t.id)}
+                    className="ml-auto rounded-lg border border-default px-2 py-0.5 text-xs text-secondary hover:text-primary"
+                  >
+                    Adoption
+                  </button>
                   {read.canManage && t.active && (
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void switchOff(t)}
-                      className="ml-auto rounded-lg border border-default px-2 py-0.5 text-xs text-muted hover:text-primary disabled:opacity-50"
+                      className="rounded-lg border border-default px-2 py-0.5 text-xs text-muted hover:text-primary disabled:opacity-50"
                     >
                       Switch off
                     </button>
                   )}
+                  {adoptionFor === t.id && <TrackerAdoption trackerId={t.id} />}
                 </li>
               ))}
             </ul>

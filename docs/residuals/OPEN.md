@@ -409,3 +409,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · erasure · a rep's daily brain dump (remote_day_plans) may name a customer but has no call key, so erasure can't find it
       why-unresolved: no session to match on
       next-action: match erasure's identifier against day-plan text, show matches to the admin with the calls
+
+## Filed by message adoption (2026-11-23, docs/tbc/2026-11-23-message-adoption)
+
+- [ ] 2026-11-23 · adoption · adoption goals per tracker (a target share, shown against the actual)
+      why-unresolved: measure first
+      next-action: an append-only goal row per tracker; the Adoption panel shows the gap
