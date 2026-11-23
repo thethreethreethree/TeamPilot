@@ -1,5 +1,5 @@
 ---
-started_at: 2026-11-23T11:24:00Z
+started_at: 2026-11-23T11:21:00Z
 trigger: Founder 2026-11-23 "keep building everything in the list" — ledger F16.12 "Coaching routines" (LACK).
 doc_integrity:
   CLAUDE.md: 2be659e5431e
@@ -80,7 +80,7 @@ sections it links to.
     "source_file": "CLAUDE.md",
     "line_range": "307-311",
     "read_at": "2026-11-23T11:22:39Z",
-    "why_it_governs": "One rule for 'done'.",
+    "why_it_governs": "If the panel decided 'done' its own way per step, a step could show a tick its rule wouldn't give.",
     "how_this_build_will_embody_it": "routineSteps in routine.ts; the panel only renders it."
   },
   {
@@ -88,7 +88,7 @@ sections it links to.
     "source_file": "CLAUDE.md",
     "line_range": "339-343",
     "read_at": "2026-11-23T11:22:39Z",
-    "why_it_governs": "Derived, not stored.",
+    "why_it_governs": "A routine that stored its own counts would drift from the queues it summarizes.",
     "how_this_build_will_embody_it": "Counts are read live."
   },
   {
