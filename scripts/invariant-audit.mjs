@@ -2520,6 +2520,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0317_erasure_retires_scenarios.sql",
+    "Founder picker 2026-11-23: erasure also retires practice scenarios built from an erased call (the one change 0282's guard allows). Same function, same single caller."],
   ["0316_call_notes_and_erasure_coverage.sql",
     "Extends rss_erase_sessions to the Macro Mode tables (call briefs, checklist reviews, follow-up drafts, prospect name/organization, their Tasks), call notes, feedback-request messages and notification excerpts, which 0285 predates; makes those tables' rules erasure-aware with 0285's exact pattern. §3.1.1(2): erasure must reach every stored copy of the customer's words."],
 ]);

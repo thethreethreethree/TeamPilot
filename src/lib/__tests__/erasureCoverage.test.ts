@@ -23,8 +23,7 @@ const NO_CUSTOMER_WORDS: Record<string, string> = {
   ai_usage: "engine, provider, model and token counts — no words",
   gamification_calibration: "score numbers — no words",
   session_failures: "technical failure code and error detail — no call words",
-  training_scenarios:
-    "written by a manager as practice material; a scenario 'from this call' keeps the link. Immutable by design (0282); whether erasure should retire such scenarios is filed for the founder (OPEN.md).",
+  training_scenarios: "retired by rss_erase_sessions since 0317 (founder: 'Retire them'); it appears in the body, this entry only documents why the text itself stays",
 };
 
 const DIR = join(process.cwd(), "supabase/migrations");

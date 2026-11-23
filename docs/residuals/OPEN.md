@@ -405,6 +405,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · erasure · FOUNDER DECISION: practice scenarios built "from this call" (training_scenarios.source_session_id) may describe the customer; erasure doesn't touch them (they are immutable by design). Retire them on erasure, or leave them as manager-written training material?
       why-unresolved: a product/legal judgment
       next-action: decide; if "retire", add a retire of scenarios whose source_session_id is erased (as a 0316 extension)
+      decided + done 2026-11-23: founder "Retire them" → 0317 (applied); see docs/tbc/2026-11-23-call-notes-erasure remediate addendum.
 - [ ] 2026-11-23 · erasure · a rep's daily brain dump (remote_day_plans) may name a customer but has no call key, so erasure can't find it
       why-unresolved: no session to match on
       next-action: match erasure's identifier against day-plan text, show matches to the admin with the calls

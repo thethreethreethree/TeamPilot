@@ -43,3 +43,11 @@ severity: high
 class: manager-written, immutable text linked to a call.
 sweep: `grep -n "source_session_id" supabase/migrations/0282_rss_p7_training.sql` → linked; immutable by trigger.
 severity: medium
+
+## Addendum 2026-11-23 — 0317
+
+```
+replay (0317 on the full chain): erasure result … "scenarios_retired":1 … · after: betty_retired true · other_retired false
+npm run db:apply → applying 0317_erasure_retires_scenarios.sql … ok · DB now at 0317 · ✅ ALL 33 invariants hold
+npm run check → exit 0 · Tests 6535 passed | 15 skipped
+```
