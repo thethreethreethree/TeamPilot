@@ -45,3 +45,41 @@ describe("erasure and day plans", () => {
     expect(await screen.findByText(/removed them from 1 day plan/)).toBeTruthy();
   });
 });
+
+describe("erasure and pipeline prospects (0323)", () => {
+  it("prospects are listed by name, can be unticked, and are sent with the erase", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+      if (String(url).endsWith("/remote/erasure") && init?.method === "POST") {
+        const b = JSON.parse(init.body!) as Record<string, unknown>;
+        posts.push(b);
+        if (b.action === "find")
+          return json({
+            hint: "client B•••",
+            capped: false,
+            matches: [],
+            dayPlans: [],
+            prospects: [
+              { id: "p1", repName: "Dana Rep", name: "Betty Ross", organization: "Ross Bakery" },
+              { id: "p2", repName: "Dana Rep", name: "Sam Lee", organization: "Betty Ross Holdings" },
+            ],
+          });
+        return json({ erased: 0, plansErased: 0, prospectsErased: 1, hint: "client B•••" });
+      }
+      if (String(url).includes("/settings/retention")) return json({ isDefault: true, defaultKeep: 20, defaultDays: 90, min: 1, max: 1000, canManage: true, keepLastPerRep: null });
+      if (String(url).includes("/audit")) return json({ rows: [], more: false });
+      if (String(url).includes("/erasure")) return json({ unfinished: [] });
+      if (String(url).includes("/vocabulary")) return json({ terms: [], canManage: false });
+      if (String(url).includes("/webhooks")) return json({ endpoints: [], canManage: false });
+      return json({});
+    });
+    render(<ProtectionSettings />);
+    fireEvent.change(await screen.findByPlaceholderText("(555) 010-0123"), { target: { value: "Betty Ross" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find calls" }));
+    expect(await screen.findByText(/2 pipeline prospects mention client B/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Erase the prospect Sam Lee" })); // someone else
+    fireEvent.click(screen.getByRole("button", { name: "Erase 1 selected…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Erase 1" }));
+    await waitFor(() => expect(posts.at(-1)).toMatchObject({ action: "erase", sessionIds: [], dayPlanIds: [], prospectIds: ["p1"] }));
+    expect(await screen.findByText(/removed them from 1 pipeline prospect/)).toBeTruthy();
+  });
+});

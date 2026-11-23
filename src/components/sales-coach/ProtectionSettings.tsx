@@ -290,14 +290,17 @@ const KIND_WORDS = { phone: "Phone number", email: "Email", client_label: "Clien
 const CHANNEL_WORDS: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
 
 type DayPlanMatch = { id: number; repName: string | null; day: string };
+type ProspectMatch = { id: string; repName: string | null; name: string | null; organization: string | null };
 
 function ErasurePanel() {
   const [kind, setKind] = useState<keyof typeof KIND_WORDS>("phone");
   const [value, setValue] = useState("");
-  const [found, setFound] = useState<{ hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[] } | null>(null);
+  const [found, setFound] = useState<{ hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[]; prospects?: ProspectMatch[] } | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   // Reps' day plans that mention the customer (0322) — rep and day only; a plan's words are the rep's own.
   const [pickedPlans, setPickedPlans] = useState<Set<number>>(new Set());
+  // Pipeline prospects whose name/organization mentions the customer (0323) — shown by name; ticked by default.
+  const [pickedProspects, setPickedProspects] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -333,10 +336,11 @@ function ErasurePanel() {
         setMsg(String(j.error ?? "The search failed."));
         return;
       }
-      const f = j as unknown as { hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[] };
+      const f = j as unknown as { hint: string; capped: boolean; matches: Found[]; dayPlans?: DayPlanMatch[]; prospects?: ProspectMatch[] };
       setFound(f);
       setPicked(new Set(f.matches.map((m) => m.sessionId)));
       setPickedPlans(new Set((f.dayPlans ?? []).map((d) => d.id)));
+      setPickedProspects(new Set((f.prospects ?? []).map((p) => p.id)));
     } catch {
       setMsg("Couldn't reach the server.");
     } finally {
@@ -348,14 +352,16 @@ function ErasurePanel() {
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await call({ action: "erase", kind, value, sessionIds: [...picked], dayPlanIds: [...pickedPlans] });
+      const { ok, j } = await call({ action: "erase", kind, value, sessionIds: [...picked], dayPlanIds: [...pickedPlans], prospectIds: [...pickedProspects] });
       if (!ok) {
         setMsg(String(j.error ?? "Nothing was erased."));
         return;
       }
       const plans = Number(j.plansErased ?? 0);
+      const prospects = Number(j.prospectsErased ?? 0);
+      const extra = [plans ? `${plans} day plan${plans === 1 ? "" : "s"}` : "", prospects ? `${prospects} pipeline prospect${prospects === 1 ? "" : "s"}` : ""].filter(Boolean);
       setMsg(
-        `Erased ${String(j.erased)} call${j.erased === 1 ? "" : "s"}${plans ? ` and removed them from ${plans} day plan${plans === 1 ? "" : "s"}` : ""} for ${String(j.hint)}. The audit log below records it.`,
+        `Erased ${String(j.erased)} call${j.erased === 1 ? "" : "s"}${extra.length ? ` and removed them from ${extra.join(" and ")}` : ""} for ${String(j.hint)}. The audit log below records it.`,
       );
       setFound(null);
       setValue("");
@@ -430,8 +436,8 @@ function ErasurePanel() {
 
       {found && (
         <div className="mt-3 space-y-2">
-          {found.matches.length === 0 && (found.dayPlans?.length ?? 0) === 0 ? (
-            <p className="text-xs text-secondary">No calls or day plans mention {found.hint}.</p>
+          {found.matches.length === 0 && (found.dayPlans?.length ?? 0) === 0 && (found.prospects?.length ?? 0) === 0 ? (
+            <p className="text-xs text-secondary">No calls, day plans or pipeline prospects mention {found.hint}.</p>
           ) : (
             <>
               {found.matches.length > 0 && (
@@ -483,26 +489,55 @@ function ErasurePanel() {
                   </ul>
                 </div>
               )}
+              {(found.prospects?.length ?? 0) > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-primary">
+                    {found.prospects!.length} pipeline prospect{found.prospects!.length === 1 ? "" : "s"} mention {found.hint}. Their name and
+                    organization are removed; the deal&apos;s stage, amount and dates stay. Untick any that are someone else.
+                  </p>
+                  <ul className="space-y-1">
+                    {found.prospects!.map((p) => (
+                      <li key={p.id} className="flex items-center gap-2 rounded-lg border border-default p-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={pickedProspects.has(p.id)}
+                          onChange={() => setPickedProspects((cur) => {
+                            const next = new Set(cur);
+                            if (next.has(p.id)) next.delete(p.id);
+                            else next.add(p.id);
+                            return next;
+                          })}
+                          aria-label={`Erase the prospect ${p.name ?? "unnamed"}`}
+                        />
+                        <span className="text-primary">
+                          {p.name ?? "Unnamed prospect"}{p.organization ? ` · ${p.organization}` : ""} · {p.repName ?? "a former rep"}&apos;s pipeline
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {confirming ? (
                 <div className="rounded-lg border border-default bg-base p-3 text-xs">
                   <p className="text-primary">
                     Erase {picked.size} call{picked.size === 1 ? "" : "s"}
-                    {pickedPlans.size ? ` and remove them from ${pickedPlans.size} day plan${pickedPlans.size === 1 ? "" : "s"}` : ""} for {found.hint}?
+                    {pickedPlans.size ? ` and remove them from ${pickedPlans.size} day plan${pickedPlans.size === 1 ? "" : "s"}` : ""}
+                    {pickedProspects.size ? `${pickedPlans.size ? " and" : " and remove them from"} ${pickedProspects.size} pipeline prospect${pickedProspects.size === 1 ? "" : "s"}` : ""} for {found.hint}?
                     The calls&apos; transcripts, recordings, the AI&apos;s summaries and quotes, saved clips and Ask Coach chats about them
                     are deleted. This can&apos;t be undone.
                   </p>
                   <div className="mt-2 flex gap-2">
-                    <button type="button" disabled={busy || picked.size + pickedPlans.size === 0} onClick={() => void erase()}
+                    <button type="button" disabled={busy || picked.size + pickedPlans.size + pickedProspects.size === 0} onClick={() => void erase()}
                       className="rounded-lg bg-ember-400 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50">
-                      {busy ? "Erasing…" : `Erase ${picked.size + pickedPlans.size}`}
+                      {busy ? "Erasing…" : `Erase ${picked.size + pickedPlans.size + pickedProspects.size}`}
                     </button>
                     <button type="button" onClick={() => setConfirming(false)} className="px-2 text-muted hover:text-primary">Keep them</button>
                   </div>
                 </div>
               ) : (
-                <button type="button" disabled={picked.size + pickedPlans.size === 0} onClick={() => setConfirming(true)}
+                <button type="button" disabled={picked.size + pickedPlans.size + pickedProspects.size === 0} onClick={() => setConfirming(true)}
                   className="rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:bg-base disabled:opacity-50">
-                  Erase {picked.size + pickedPlans.size} selected…
+                  Erase {picked.size + pickedPlans.size + pickedProspects.size} selected…
                 </button>
               )}
             </>

@@ -484,9 +484,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by erasure of day plans (2026-11-23, docs/tbc/2026-11-23-erasure-day-plans)
 
-- [ ] 2026-11-23 · erasure · a pipeline prospect never linked to a call keeps its name/organization after the customer is erased
+- [x] 2026-11-23 · erasure · a pipeline prospect never linked to a call keeps its name/organization after the customer is erased
       why-unresolved: 0316 reaches prospects only through linked calls
       next-action: match the identifier against remote_prospects_current name/organization in the erasure search; list and blank them like day plans
+      done 2026-11-23: 0323 (applied) — docs/tbc/2026-11-23-erasure-prospects.
 - [ ] 2026-11-23 · erasure · a day plan that names the customer differently ("Betty" for client "Betty Ross") isn't found
       why-unresolved: a first name alone would match other customers
       next-action: say in the panel that a shorter name can be searched separately

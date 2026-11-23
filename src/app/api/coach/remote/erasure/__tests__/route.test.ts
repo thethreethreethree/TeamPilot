@@ -16,6 +16,8 @@ const db = vi.hoisted(() => ({
   completionsError: null as unknown,
   plans: [] as unknown[],
   planArgs: null as Record<string, unknown> | null,
+  prospects: [] as unknown[],
+  prospectArgs: null as Record<string, unknown> | null,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -24,6 +26,11 @@ vi.mock("@/lib/supabase/admin", () => ({
       db.log.push(`rpc:${fn}`);
       if (fn === "rss_erasure_matches") return { data: db.matches, error: null, args };
       if (fn === "rss_erasure_day_plan_matches") return { data: db.plans, error: null };
+      if (fn === "rss_erasure_prospect_matches") return { data: db.prospects, error: null };
+      if (fn === "rss_erase_prospects") {
+        db.prospectArgs = args;
+        return { data: (args.p_prospects as unknown[]).length, error: null };
+      }
       if (fn === "rss_erase_day_plans") {
         db.planArgs = args;
         return { data: (args.p_plans as unknown[]).length, error: null };
@@ -72,6 +79,8 @@ beforeEach(() => {
   db.completionsError = null;
   db.plans = [];
   db.planArgs = null;
+  db.prospects = [];
+  db.prospectArgs = null;
   vi.mocked(resolveApiAuth).mockResolvedValue(ADMIN as never);
   vi.mocked(removeRecordingAudio).mockResolvedValue({ ok: true, chunksRemoved: 0 });
   vi.mocked(removeSessionChunks).mockResolvedValue({ ok: true, removed: 0 });
@@ -107,7 +116,7 @@ describe("POST /api/coach/remote/erasure", () => {
     db.audio = [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }];
     const res = await POST(post({ action: "erase", kind: "phone", value: "+1 (555) 010-0123", sessionIds: ["s1"] }));
     expect(res.status).toBe(200);
-    expect(db.log).toEqual(["rpc:rss_erasure_matches", "rpc:rss_erasure_day_plan_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
+    expect(db.log).toEqual(["rpc:rss_erasure_matches", "rpc:rss_erasure_day_plan_matches", "rpc:rss_erasure_prospect_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
     const reqRow = db.inserts[0]!.row;
     expect(reqRow).toMatchObject({ company_id: "co1", requested_by: "ceo", match_kind: "phone", match_hint: "phone ••••0123" });
     expect(String(reqRow.match_hash)).toMatch(/^[0-9a-f]{64}$/);
@@ -222,3 +231,31 @@ describe("day plans (0322)", () => {
   });
 });
 
+describe("pipeline prospects (0323)", () => {
+  const PR = { prospect_id: "p9", rep_id: "ceo", name: "Betty Ross", organization: "Ross Bakery" };
+  it("find lists matching prospects by name so the admin can tell them apart", async () => {
+    db.prospects = [PR];
+    const body = await (await POST(post({ action: "find", kind: "client_label", value: "Betty Ross" }))).json();
+    expect(body.prospects).toEqual([{ id: "p9", repName: "Casey CEO", name: "Betty Ross", organization: "Ross Bakery" }]);
+  });
+  it("plans, then prospects, then calls; only the last step before the calls' own completes nothing", async () => {
+    db.plans = [{ plan_id: 7, rep_id: "ceo", day: "2026-11-20" }];
+    db.prospects = [PR];
+    expect((await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], dayPlanIds: [7], prospectIds: ["p9"] }))).status).toBe(200);
+    expect(db.log.slice(-3)).toEqual(["rpc:rss_erase_day_plans", "rpc:rss_erase_prospects", "rpc:rss_erase_sessions"]);
+    expect(db.planArgs).toMatchObject({ p_complete: false });
+    expect(db.prospectArgs).toMatchObject({ p_prospects: ["p9"], p_complete: false });
+  });
+  it("only a prospect (no call, no plan): erased, and it completes the request", async () => {
+    db.matches = [];
+    db.prospects = [PR];
+    const j = await (await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: [], prospectIds: ["p9"] }))).json();
+    expect(j).toMatchObject({ erased: 0, prospectsErased: 1 });
+    expect(db.prospectArgs).toMatchObject({ p_complete: true });
+  });
+  it("a prospect the search did not return is refused, nothing written", async () => {
+    db.prospects = [PR];
+    expect((await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], prospectIds: ["other"] }))).status).toBe(400);
+    expect(db.inserts).toEqual([]);
+  });
+});

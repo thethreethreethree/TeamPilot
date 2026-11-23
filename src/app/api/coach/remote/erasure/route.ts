@@ -21,8 +21,12 @@ import {
  *   { action: "find", kind, value }              → the calls that customer is on, each with the matching line, to review;
  *                                                  and the reps' day plans that mention them (rep and day only — a plan is
  *                                                  the rep's own, 0303/A10, so its words are never shown; 0322).
- *   { action: "erase", kind, value, sessionIds, dayPlanIds? } → erase the confirmed calls, and the identifier inside the
- *                                                  confirmed day plans (rss_erase_day_plans, before rss_erase_sessions).
+ *                                                  And pipeline prospects whose name or organization mentions them
+ *                                                  (0323; shown by name — the pipeline is the company's).
+ *   { action: "erase", kind, value, sessionIds, dayPlanIds?, prospectIds? } → erase the confirmed calls; the identifier
+ *                                                  inside the confirmed day plans (rss_erase_day_plans); the confirmed
+ *                                                  prospects' name and organization (rss_erase_prospects) — both before
+ *                                                  rss_erase_sessions.
  *
  * ERASE, IN ORDER, AND WHY:
  *   1. The search runs again here. Only calls it returns may be erased — a request can never reach a call that does
@@ -129,9 +133,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
   }
   const planMatches = ((pErr ? [] : planFound) ?? []) as Array<{ plan_id: number | string; rep_id: string; day: string }>;
+  // Pipeline prospects whose name or organization mentions the customer (0323). Before the migration: none.
+  const { data: prospectFound, error: prErr } = await admin.rpc("rss_erasure_prospect_matches", { p_company: ctx.companyId, p_kind: kind, p_value: normalised });
+  if (prErr && !MISSING.has(String(prErr.code))) {
+    console.error(`[erasure] prospect search failed company=${ctx.companyId}: ${prErr.message}`);
+    return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
+  }
+  const prospectMatches = ((prErr ? [] : prospectFound) ?? []) as Array<{ prospect_id: string; rep_id: string; name: string | null; organization: string | null }>;
 
   if (b.action === "find") {
-    const repIds = [...new Set([...matches.map((m) => String(m.agent_id)), ...planMatches.map((p) => String(p.rep_id))])];
+    const repIds = [...new Set([...matches.map((m) => String(m.agent_id)), ...planMatches.map((p) => String(p.rep_id)), ...prospectMatches.map((p) => String(p.rep_id))])];
     const { data: reps } = repIds.length
       ? await admin.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", repIds)
       : { data: [] };
@@ -148,6 +159,7 @@ export async function POST(req: NextRequest) {
         line: m.snippet,
       })),
       dayPlans: planMatches.map((p) => ({ id: Number(p.plan_id), repName: names.get(String(p.rep_id)) ?? null, day: p.day })),
+      prospects: prospectMatches.map((p) => ({ id: String(p.prospect_id), repName: names.get(String(p.rep_id)) ?? null, name: p.name, organization: p.organization })),
     });
   }
 
@@ -156,10 +168,16 @@ export async function POST(req: NextRequest) {
   const askedPlans = Array.isArray((b as { dayPlanIds?: unknown }).dayPlanIds)
     ? [...new Set(((b as { dayPlanIds: unknown[] }).dayPlanIds).map(Number).filter((x) => Number.isSafeInteger(x) && x > 0))]
     : [];
+  const askedProspects = Array.isArray((b as { prospectIds?: unknown }).prospectIds)
+    ? [...new Set(((b as { prospectIds: unknown[] }).prospectIds).filter((x): x is string => typeof x === "string"))]
+    : [];
   const allowed = new Set(matches.map((m) => String(m.session_id)));
   const allowedPlans = new Set(planMatches.map((p) => Number(p.plan_id)));
-  if (asked.length === 0 && askedPlans.length === 0) return NextResponse.json({ error: "Pick at least one call or day plan to erase." }, { status: 400 });
-  if (asked.some((id) => !allowed.has(id)) || askedPlans.some((id) => !allowedPlans.has(id))) {
+  const allowedProspects = new Set(prospectMatches.map((p) => String(p.prospect_id)));
+  if (asked.length === 0 && askedPlans.length === 0 && askedProspects.length === 0) {
+    return NextResponse.json({ error: "Pick at least one call, day plan or prospect to erase." }, { status: 400 });
+  }
+  if (asked.some((id) => !allowed.has(id)) || askedPlans.some((id) => !allowedPlans.has(id)) || askedProspects.some((id) => !allowedProspects.has(id))) {
     return NextResponse.json({ error: "Some of those don't mention this customer. Search again and pick from the results." }, { status: 400 });
   }
 
@@ -235,13 +253,31 @@ export async function POST(req: NextRequest) {
       p_kind: kind,
       p_value: normalised,
       p_by: ctx.userId,
-      p_complete: asked.length === 0,
+      p_complete: asked.length === 0 && askedProspects.length === 0,
     });
     if (dErr) {
       console.error(`[erasure] day-plan erasure failed request=${request.id}: ${dErr.message}`);
       return NextResponse.json({ error: "The day plans couldn't be erased. Try again: it is safe to repeat.", audioRemoved }, { status: 500 });
     }
     plansErased = Number(n) || 0;
+  }
+  // Prospects (0323): their name and organization. Completes the request when there are no calls.
+  let prospectsErased = 0;
+  if (askedProspects.length) {
+    const { data: n, error: prE } = await admin.rpc("rss_erase_prospects", {
+      p_company: ctx.companyId,
+      p_request: request.id,
+      p_prospects: askedProspects,
+      p_kind: kind,
+      p_value: normalised,
+      p_by: ctx.userId,
+      p_complete: asked.length === 0,
+    });
+    if (prE) {
+      console.error(`[erasure] prospect erasure failed request=${request.id}: ${prE.message}`);
+      return NextResponse.json({ error: "The prospects couldn't be erased. Try again: it is safe to repeat.", audioRemoved, plansErased }, { status: 500 });
+    }
+    prospectsErased = Number(n) || 0;
   }
   if (asked.length === 0) {
     await recordAudit(admin, {
@@ -250,9 +286,9 @@ export async function POST(req: NextRequest) {
       action: "erasure.request",
       objectType: "erasure_request",
       objectId: String(request.id),
-      meta: { hint, kind, sessions: 0, plansErased },
+      meta: { hint, kind, sessions: 0, plansErased, prospectsErased },
     });
-    return NextResponse.json({ erased: 0, plansErased, audioRemoved, hint });
+    return NextResponse.json({ erased: 0, plansErased, prospectsErased, audioRemoved, hint });
   }
 
   const { data: result, error: eErr } = await admin.rpc("rss_erase_sessions", {
@@ -275,7 +311,7 @@ export async function POST(req: NextRequest) {
     action: "erasure.request",
     objectType: "erasure_request",
     objectId: String(request.id),
-    meta: { hint, kind, sessions: asked.length, plansErased, audioRemoved, result },
+    meta: { hint, kind, sessions: asked.length, plansErased, prospectsErased, audioRemoved, result },
   });
-  return NextResponse.json({ erased: asked.length, plansErased, audioRemoved, hint, result });
+  return NextResponse.json({ erased: asked.length, plansErased, prospectsErased, audioRemoved, hint, result });
 }

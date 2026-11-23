@@ -2526,6 +2526,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0323_erasure_prospects.sql",
+    "Legal erasure reaches pipeline prospects never linked to an erased call: a match function and 0316's exact prospect step (name/organization removed, renamed '(erased on request)', its to-do Tasks blanked), called only by the same erasure route for the same request, before rss_erase_sessions."],
   ["0322_erasure_day_plans.sql",
     "Legal erasure reaches reps' day plans (remote_day_plans), which name customers but are tied to no call: a match function and a replace-the-identifier function, called only by the same erasure route for the same request, before rss_erase_sessions; remote_day_plans' rules made erasure-aware with 0285's exact pattern. §3.1.1(2): that customer's data and nothing else."],
   ["0317_erasure_retires_scenarios.sql",
