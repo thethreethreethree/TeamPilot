@@ -549,8 +549,14 @@ const PIPELINE_STARTERS = ["Which deals are at risk of slipping?", "Which prospe
 function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) => void }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<{ answer: string; citations: PipelineCitation[]; prospects: number; capped: boolean } | null>(null);
+  // The conversation (founder picker 2026-11-23: "Follow-ups, not stored"): kept on this page only; the earlier turns go
+  // back with each follow-up so "that deal" means something. Leaving the page, or "New conversation", clears it.
+  const [thread, setThread] = useState<Array<{ question: string; answer: string; citations: PipelineCitation[]; prospects: number; capped: boolean }>>([]);
   const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    setThread([]); // another person's pipeline is another conversation
+    setNote(null);
+  }, [scope]);
 
   const ask = async (question: string) => {
     const text = question.trim();
@@ -558,17 +564,19 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
     setQ(text);
     setBusy(true);
     setNote(null);
-    setRes(null);
     try {
       const r = await fetch("/api/coach/remote/ask-pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, scope, today: today() }),
+        body: JSON.stringify({ question: text, scope, today: today(), history: thread.map((t) => ({ question: t.question, answer: t.answer })) }),
       });
       const j = (await r.json().catch(() => ({}))) as { answer?: string | null; suppressed?: boolean; citations?: PipelineCitation[]; prospects?: number; capped?: boolean; error?: string };
       if (!r.ok) setNote(j.error ?? "Couldn't get an answer. Try again.");
       else if (j.suppressed || !j.answer) setNote("Coaching answers are switched off for this account right now.");
-      else setRes({ answer: j.answer, citations: j.citations ?? [], prospects: j.prospects ?? 0, capped: !!j.capped });
+      else {
+        setThread((t) => [...t, { question: text, answer: j.answer!, citations: j.citations ?? [], prospects: j.prospects ?? 0, capped: !!j.capped }]);
+        setQ("");
+      }
     } catch {
       setNote("Couldn't reach the coach. Check your connection and try again.");
     } finally {
@@ -576,11 +584,34 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
     }
   };
 
-  const byRef = new Map((res?.citations ?? []).map((c) => [c.ref, c]));
-  const parts = res ? res.answer.split(/(\[P\d+\])/g) : [];
+  const last = thread[thread.length - 1];
+  const answerParts = (t: (typeof thread)[number]) => {
+    const byRef = new Map(t.citations.map((c) => [c.ref, c]));
+    return t.answer.split(/(\[P\d+\])/g).map((part, i) => {
+      const m = /^\[P(\d+)\]$/.exec(part);
+      const c = m ? byRef.get(Number(m[1])) : undefined;
+      return c ? (
+        <button key={i} type="button" onClick={() => onOpen(c.prospectId)} title={c.name} className="mx-0.5 rounded bg-brand/15 px-1 text-[11px] font-semibold text-brand hover:bg-brand/25">
+          {c.name}
+        </button>
+      ) : (
+        <span key={i}>{part}</span>
+      );
+    });
+  };
 
   return (
     <section aria-label="Ask about this pipeline" className="rounded-xl border border-default bg-surface p-3">
+      {thread.length > 0 && (
+        <ol className="mb-3 space-y-3" aria-label="This conversation">
+          {thread.map((t, i) => (
+            <li key={i} className="space-y-1">
+              <p className="text-xs font-semibold text-primary">{t.question}</p>
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">{answerParts(t)}</p>
+            </li>
+          ))}
+        </ol>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -593,15 +624,20 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
           maxLength={1000}
-          placeholder="Ask about this pipeline — e.g. which deals are stalling?"
+          placeholder={thread.length ? "Ask a follow-up — e.g. what should I say to them?" : "Ask about this pipeline — e.g. which deals are stalling?"}
           aria-label="Question about this pipeline"
           className="min-w-0 flex-1 rounded-lg border border-default bg-surface px-2 py-1.5 text-xs text-primary"
         />
         <button type="submit" disabled={busy || q.trim().length < 3} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null} Ask
         </button>
+        {thread.length > 0 && !busy && (
+          <button type="button" onClick={() => { setThread([]); setQ(""); setNote(null); }} className="text-[11px] text-secondary hover:text-primary hover:underline">
+            New conversation
+          </button>
+        )}
       </form>
-      {!res && !busy && !note && (
+      {thread.length === 0 && !busy && !note && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {PIPELINE_STARTERS.map((s) => (
             <button key={s} type="button" onClick={() => void ask(s)} className="rounded-full border border-default px-2.5 py-1 text-[11px] text-secondary hover:border-brand/60">
@@ -610,32 +646,17 @@ function AskPipeline({ scope, onOpen }: { scope: string; onOpen: (id: string) =>
           ))}
         </div>
       )}
-      {!busy && <PromptLibrary scope="pipeline" onPick={(t) => { setQ(t); setRes(null); setNote(null); }} />}
+      {!busy && <PromptLibrary scope="pipeline" onPick={(t) => { setQ(t); setNote(null); }} />}
       {busy && <p className="mt-2 text-xs text-muted">Reading the pipeline…</p>}
       {note && (
         <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-secondary">
           <AlertCircle className="h-3.5 w-3.5" aria-hidden /> {note}
         </p>
       )}
-      {res && (
-        <div className="mt-3 space-y-2">
-          <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">
-            {parts.map((part, i) => {
-              const m = /^\[P(\d+)\]$/.exec(part);
-              const c = m ? byRef.get(Number(m[1])) : undefined;
-              return c ? (
-                <button key={i} type="button" onClick={() => onOpen(c.prospectId)} title={c.name} className="mx-0.5 rounded bg-brand/15 px-1 text-[11px] font-semibold text-brand hover:bg-brand/25">
-                  {c.name}
-                </button>
-              ) : (
-                <span key={i}>{part}</span>
-              );
-            })}
-          </p>
-          <p className="text-[11px] text-muted">
-            Based on {res.capped ? `the ${res.prospects} prospects with the most recent activity` : `${res.prospects} ${res.prospects === 1 ? "prospect" : "prospects"}`} and each one&apos;s latest call summary — not full transcripts.
-          </p>
-        </div>
+      {last && (
+        <p className="mt-2 text-[11px] text-muted">
+          Based on {last.capped ? `the ${last.prospects} prospects with the most recent activity` : `${last.prospects} ${last.prospects === 1 ? "prospect" : "prospects"}`} and each one&apos;s latest call summary — not full transcripts. This conversation isn&apos;t saved.
+        </p>
       )}
     </section>
   );

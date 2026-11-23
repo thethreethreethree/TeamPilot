@@ -38,4 +38,31 @@ describe("RemotePipeline Ask box", () => {
     expect(screen.getByRole("tab", { name: /Closed Won/ }).getAttribute("aria-selected")).toBe("true");
     expect(replace).toHaveBeenCalledWith("/dashboard/remote-sales/pipeline?p=w1", { scroll: false });
   });
+
+  it("a follow-up sends the earlier turn back; the thread shows both; New conversation clears it", async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (url.includes("ask-pipeline") && init?.method === "POST") {
+        const b = JSON.parse(init.body!) as Record<string, unknown>;
+        bodies.push(b);
+        return json({ answer: bodies.length === 1 ? "Openco has no next call [P1]." : "Book Openco for Tuesday.", citations: [{ ref: 1, prospectId: "o1", name: "Openco" }], prospects: 1, capped: false });
+      }
+      if (url.startsWith("/api/coach/remote/prospects")) return json({ prospects: [P("o1", "Openco", "open")], totals: { open: { count: 1, amount: 100 }, won: { count: 0, amount: 0 }, lost: { count: 0, amount: 0 } }, viewerId: "r" });
+      return json({});
+    }));
+    render(<RemotePipeline />);
+    await screen.findAllByText("Openco");
+    fireEvent.change(screen.getByLabelText("Question about this pipeline"), { target: { value: "Which deals stall?" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Ask$/ }));
+    await screen.findByText("Which deals stall?");
+    fireEvent.change(screen.getByLabelText("Question about this pipeline"), { target: { value: "What should I do?" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Ask$/ }));
+    expect(await screen.findByText("Book Openco for Tuesday.")).toBeTruthy();
+    expect(bodies[0]!.history).toEqual([]);
+    expect(bodies[1]!.history).toEqual([{ question: "Which deals stall?", answer: "Openco has no next call [P1]." }]);
+    expect(screen.getByText(/This conversation isn.t saved/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    expect(screen.queryByText("Which deals stall?")).toBeNull();
+  });
 });
+

@@ -294,9 +294,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by Ask Coach across the pipeline (2026-11-23, docs/tbc/2026-11-23-ask-pipeline)
 
-- [ ] 2026-11-23 · ask-pipeline · pipeline questions are not saved as a chat thread (Ask Coach over calls is)
+- [x] 2026-11-23 · ask-pipeline · pipeline questions are not saved as a chat thread (Ask Coach over calls is)
       why-unresolved: one-shot first
       next-action: reuse ask_coach_chats with a pipeline scope column, append-only turns
+      closed 2026-11-23 by decision: founder picker "Follow-ups, not stored" — the page keeps the thread and sends it back; nothing saved — docs/tbc/2026-11-23-pipeline-followups.
 - [x] 2026-11-23 · ask-pipeline · no component test renders the Ask box (citation buttons; reset when switching "Whose pipeline")
       why-unresolved: the remote-sales screens have no component-test harness yet
       next-action: add a testing-library render for RemotePipeline's AskPipeline with a mocked fetch
