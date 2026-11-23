@@ -42,13 +42,16 @@ describe("MarketView", () => {
     vi.stubGlobal("fetch", vi.fn(() => json({
       calls: 10, withIntel: 9, closed: 6, winRate: 0.5,
       competitors: [{ name: "Acme", calls: 3, share: 0.33, closed: 2, winRate: null, weeks: [{ weekStart: "2026-11-16", calls: 3 }] }],
-      topics: [{ name: "Price", calls: 7 }],
+      topics: [{ name: "Price", calls: 7 }, { name: "internet and tv bundle", calls: 5, variants: ["bundled internet and tv", "tv and internet bundle"] }],
     })));
     render(<MarketView module="remote_sales" />);
     expect(await screen.findByText("Acme")).toBeTruthy();
     const row = screen.getByText("Acme").closest("tr")!;
     expect(row.textContent).toContain("—");
     expect(screen.getByText(/Price/)).toBeTruthy();
+    const bundle = screen.getByText(/internet and tv bundle/).closest("li")!;
+    expect(bundle.textContent).toContain("(+2 wordings)");
+    expect(bundle.getAttribute("title")).toBe("Also said as: bundled internet and tv, tv and internet bundle");
   });
   it("a failed load says so", async () => {
     vi.stubGlobal("fetch", vi.fn(() => json({ error: "x" }, 500)));

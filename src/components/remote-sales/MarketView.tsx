@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
  * topics customers raise most — added up from each call's own intel. Win rates appear only with enough closed calls.
  */
 type Comp = { name: string; calls: number; share: number; closed: number; winRate: number | null; weeks: Array<{ weekStart: string; calls: number }> };
-type Res = { calls: number; withIntel: number; closed: number; winRate: number | null; competitors: Comp[]; topics: Array<{ name: string; calls: number }> };
+type Res = { calls: number; withIntel: number; closed: number; winRate: number | null; competitors: Comp[]; topics: Array<{ name: string; calls: number; variants?: string[] }> };
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
 
 export function MarketView({ module }: { module: "remote_sales" | "sales_coach" }) {
@@ -112,12 +112,14 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
             ) : (
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {res.topics.map((t) => (
-                  <li key={t.name} className="rounded-full border border-default px-2.5 py-1 text-xs text-primary">
+                  <li key={t.name} className="rounded-full border border-default px-2.5 py-1 text-xs text-primary" title={t.variants?.length ? `Also said as: ${t.variants.join(", ")}` : undefined}>
                     {t.name} <span className="tabular-nums text-muted">· {t.calls}</span>
+                    {t.variants && t.variants.length > 0 && <span className="ml-1 text-[10px] text-muted">(+{t.variants.length} {t.variants.length === 1 ? "wording" : "wordings"})</span>}
                   </li>
                 ))}
               </ul>
             )}
+            {res.topics.length > 0 && <p className="mt-2 text-[10px] text-muted">The same topic in different wording (word order, plurals) is counted once; hover a topic to see how else it was said.</p>}
           </section>
         </>
       )}

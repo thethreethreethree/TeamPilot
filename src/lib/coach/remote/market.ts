@@ -14,6 +14,28 @@ export type MarketCall = { sessionId: string; startedAt: string; outcome: string
 export type Intel = { competitors: string[]; topics: string[] };
 
 const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * Topic grouping (2026-11-23, docs/tbc/2026-11-23-market-topic-groups). The model words the same topic many ways —
+ * production had 720 labels for 1,430 mentions: "internet and tv bundle" / "tv and internet bundle" / "bundled internet
+ * and tv"; "pricing" / "price"; "internet speed" / "internet speeds". topicKey merges WORDING only: case, punctuation,
+ * small words, word order, and word endings (-s, -ing, -ed, a trailing e). It never merges MEANING — "price increase"
+ * stays apart from "pricing", "monthly bill" from "monthly price" — because a wrong merge would overstate how often a
+ * topic comes up (§3.4). Tried on every production label before shipping: 41 merges, none wrong.
+ */
+const SMALL_WORDS = new Set(["a", "an", "and", "the", "of", "for", "with", "to", "in", "on", "from", "vs", "versus", "like", "or", "about", "their", "his", "her", "my", "our", "your"]);
+function stem(w: string): string {
+  let x = w;
+  if (x.length > 5 && x.endsWith("ing")) x = x.slice(0, -3);
+  else if (x.length > 5 && x.endsWith("ed") && !x.endsWith("eed")) x = x.slice(0, -2);
+  else if (x.length > 3 && x.endsWith("s") && !x.endsWith("ss")) x = x.slice(0, -1);
+  if (x.length > 3 && x.endsWith("e")) x = x.slice(0, -1);
+  return x;
+}
+export function topicKey(s: string): string {
+  const words = s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter((w) => w && !SMALL_WORDS.has(w));
+  return [...new Set(words.map(stem))].sort().join(" ");
+}
 const closed = (o: string | null) => o === "sold" || o === "no_sale";
 const winRate = (calls: MarketCall[]) => {
   const c = calls.filter((x) => closed(x.outcome));
@@ -25,26 +47,29 @@ function weekOf(iso: string): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow)).toISOString().slice(0, 10);
 }
 
-function group(calls: MarketCall[], intel: Map<string, Intel>, pick: (i: Intel) => string[]) {
+function group(calls: MarketCall[], intel: Map<string, Intel>, pick: (i: Intel) => string[], key: (s: string) => string = norm) {
   const g = new Map<string, { names: Map<string, number>; calls: MarketCall[] }>();
   for (const c of calls) {
     const i = intel.get(c.sessionId);
     if (!i) continue;
     const seen = new Set<string>();
     for (const raw of pick(i)) {
-      const k = norm(raw);
-      if (!k || seen.has(k)) continue;
-      seen.add(k);
+      const k = key(raw);
+      if (!k) continue;
       const e = g.get(k) ?? { names: new Map<string, number>(), calls: [] as MarketCall[] };
-      e.names.set(raw.trim(), (e.names.get(raw.trim()) ?? 0) + 1);
-      e.calls.push(c);
+      e.names.set(raw.trim(), (e.names.get(raw.trim()) ?? 0) + 1); // every wording is kept…
+      if (!seen.has(k)) e.calls.push(c); // …but a call counts once per group
+      seen.add(k);
       g.set(k, e);
     }
   }
-  return [...g.values()].map((e) => ({
-    name: [...e.names.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]![0],
-    calls: e.calls,
-  }));
+  return [...g.values()].map((e) => {
+    // The wording used most names the group; the others are listed so the manager sees what was merged.
+    const byUse = [...e.names.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([n]) => n);
+    const name = byUse[0]!;
+    const variants = [...new Set(byUse.slice(1).filter((n) => norm(n) !== norm(name)).map((n) => n.toLowerCase()))].sort((a, b) => a.localeCompare(b));
+    return { name, calls: e.calls, variants };
+  });
 }
 
 export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, topN = 15) {
@@ -64,8 +89,8 @@ export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, to
     })
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name))
     .slice(0, topN);
-  const topics = group(withIntel, intel, (i) => i.topics)
-    .map((x) => ({ name: x.name, calls: x.calls.length }))
+  const topics = group(withIntel, intel, (i) => i.topics, topicKey)
+    .map((x) => ({ name: x.name, calls: x.calls.length, variants: x.variants }))
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name))
     .slice(0, topN);
   return {

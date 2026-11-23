@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeMarket, MIN_CLOSED, type MarketCall } from "../market";
+import { computeMarket, MIN_CLOSED, topicKey, type MarketCall } from "../market";
 
 const call = (id: string, outcome: string | null, day = "2026-11-10"): MarketCall => ({ sessionId: id, startedAt: `${day}T10:00:00Z`, outcome });
 
@@ -31,6 +31,42 @@ describe("computeMarket", () => {
     expect(m.competitors.find((c) => c.name === "Zed Corp")).toMatchObject({ calls: 1, closed: 0, winRate: null, weeks: [{ weekStart: "2026-11-16", calls: 1 }] });
   });
   it("topics are grouped ignoring case and spacing, most raised first", () => {
-    expect(m.topics).toEqual([{ name: "Price", calls: 12 }, { name: "Install date", calls: 6 }]);
+    expect(m.topics).toEqual([{ name: "Price", calls: 12, variants: [] }, { name: "Install date", calls: 6, variants: [] }]);
+  });
+});
+
+describe("topicKey — merges wording, never meaning (production labels, 2026-11-23)", () => {
+  const same = (a: string, b: string) => expect(topicKey(a)).toBe(topicKey(b));
+  const apart = (a: string, b: string) => expect(topicKey(a)).not.toBe(topicKey(b));
+  it("merges word order, small words, plurals and -ing/-ed forms", () => {
+    same("internet and tv bundle", "tv and internet bundle");
+    same("internet and tv bundle", "bundled internet and tv");
+    same("internet and tv bundle", "internet and TV bundling");
+    same("pricing", "price");
+    same("internet speed", "internet speeds");
+    same("throwing the game", "throwing a game");
+    same("work-from-home and zoom usage", "work-from-home/zoom usage");
+    same("fiber vs copper", "copper vs fiber");
+  });
+  it("keeps different topics apart", () => {
+    apart("price increase", "pricing");
+    apart("monthly bill", "monthly price");
+    apart("internet speed", "internet speed test");
+    apart("hbo", "hbo add-on");
+    apart("installation", "installation deposit");
+    expect(topicKey("speed")).toBe("speed"); // -eed is not an -ed ending
+  });
+  it("a grouped topic is named by its most used wording and lists the others", () => {
+    const calls = ["a", "b", "c", "d"].map((id) => ({ sessionId: id, startedAt: "2026-11-10T10:00:00Z", outcome: null }));
+    const intel = new Map([
+      ["a", { competitors: [], topics: ["internet and tv bundle"] }],
+      ["b", { competitors: [], topics: ["internet and tv bundle", "TV and internet bundle"] }],
+      ["c", { competitors: [], topics: ["bundled internet and tv"] }],
+      ["d", { competitors: [], topics: ["price increase"] }],
+    ]);
+    expect(computeMarket(calls, intel).topics).toEqual([
+      { name: "internet and tv bundle", calls: 3, variants: ["bundled internet and tv", "tv and internet bundle"] },
+      { name: "price increase", calls: 1, variants: [] },
+    ]);
   });
 });

@@ -419,10 +419,17 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by Market (2026-11-23, docs/tbc/2026-11-23-market)
 
-- [ ] 2026-11-23 · market · topic labels fragment ("Price" vs "pricing concerns"); no Market view in Sales Coach yet
+- [x] 2026-11-23 · market · topic labels fragment ("Price" vs "pricing concerns"); no Market view in Sales Coach yet
       part done 2026-11-23: Sales Coach → Analytics now shows Market (in-person calls) to managers; topic grouping stays open.
       why-unresolved: needs a grouping pass; Remote Sales first
       next-action: group similar topics; mount MarketView module="sales_coach" on Sales Coach analytics
+      done 2026-11-23: topics that differ only in wording are grouped (word order, small words, word endings) and the wordings are shown — docs/tbc/2026-11-23-market-topic-groups. Grouping by meaning stays open (below).
+
+## Filed by Market topic groups (2026-11-23, docs/tbc/2026-11-23-market-topic-groups)
+
+- [ ] 2026-11-23 · market · topics with the same meaning in different words ("pricing" / "monthly price" / "monthly bill amount") are separate rows
+      why-unresolved: needs a decision on how to judge sameness — a synonym list, an AI grouping pass, or topic groups a manager names
+      next-action: ask the founder which; then build it with the merged wordings visible, as now
 
 ## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
 
