@@ -123,6 +123,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
   const [session, setSession] = useState<Session | null>(null);
   const [transcript, setTranscript] = useState<Segment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
+  const [partFailed, setPartFailed] = useState({ review: false, summary: false, why: false });
   const [summary, setSummary] = useState<string | null>(null);
   // Remote Sales Macro Mode (0303): a finished phone/video call shows the player and three tabs only. "Show the full
   // call page" opens everything for this visit without turning Macro Mode off — never a one-way door.
@@ -169,6 +170,10 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
       } else {
         setError("Couldn't load the session.");
       }
+      // A failed read of a part is NOT "this call has none" (2026-11-23 sweep): with the review unread the button said
+      // "Generate growth review" (a paid run) over a review that existed; with the rep's read unread the composer let
+      // them append a second, permanent one. Each part remembers its own failure.
+      setPartFailed({ review: !(rRes && rRes.ok), summary: !(sumRes && sumRes.ok), why: !(wRes && wRes.ok) });
       if (rRes && rRes.ok) setReview((await rRes.json()).review);
       if (sumRes && sumRes.ok) {
         const sj = await sumRes.json();
@@ -534,7 +539,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
             when ANY artifact has signal — summary, timeline, or pivot — each is
             generated independently and best-effort, so a failed summary must NOT
             hide the timeline (the hero) or pivot (audit finding 1, §A14/§1.5). */}
-        {(summary || moments.length > 0 || pivot || intel) && (
+        {(summary || moments.length > 0 || pivot || intel || partFailed.summary) && (
           <LearningHint
             as="block"
             category="Sales Coach · Review"
@@ -555,6 +560,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
                   {summary}
                 </p>
               )}
+              {!summary && partFailed.summary && <p className="text-xs text-muted">Couldn&apos;t load the summary. Refresh to try again.</p>}
               {/* Founder 2026-07-07: the Pivot Moment + private scores at the END
                   of the conversation summary — same shared component as the
                   Summarize panel (§A13/§A21). The pivot is manager-visible; the
@@ -667,13 +673,17 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
                 <LoadingButton
                   pending={generating}
                   onClick={() => void generateReview()}
-                  disabled={transcript.length === 0}
+                  disabled={transcript.length === 0 || partFailed.review}
+                  title={partFailed.review ? "Couldn't check whether this call already has a review — refresh first." : undefined}
                   icon={<Sparkles className="w-3.5 h-3.5" aria-hidden />}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#09090B] bg-ember-400 hover:bg-ember-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {review ? "Regenerate growth review" : "Generate growth review"}
                 </LoadingButton>
               </LearningHint>
+              )}
+              {!isStandard && partFailed.review && (
+                <span className="self-center text-[11px] text-muted">Couldn&apos;t load this call&apos;s review — refresh before generating one.</span>
               )}
               {/* After Pitch Summary — the rep's private "between doors" debrief
                   (timeline + private scores + one focus + Start Next Door). L3
@@ -964,6 +974,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
                       {repHypothesis}
                     </p>
                   </div>
+                ) : partFailed.why ? (
+                  <p className="text-xs text-muted">Couldn&apos;t load your read of this call. Refresh to try again.</p>
                 ) : (
                   <div className="space-y-2">
                     <p className="text-xs text-secondary leading-relaxed">

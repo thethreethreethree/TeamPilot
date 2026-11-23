@@ -374,9 +374,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by the null-form sweep (2026-11-23, docs/tbc/2026-11-23-null-reads)
 
-- [ ] 2026-11-23 · client reads · other spellings of "failed read → nothing" (e.g. `if (!r.ok) return null`, `.catch(() => [])`) are not matched by the guard
+- [x] 2026-11-23 · client reads · other spellings of "failed read → nothing" (e.g. `if (!r.ok) return null`, `.catch(() => [])`) are not matched by the guard
       why-unresolved: each spelling needs its own safe pattern
       next-action: grep each spelling, read in context, add to noFailedReadAsEmpty with counted allowances
+      done 2026-11-23: ~40 sites read in context; fixed the team-password dialogs and the call page (review/summary/why); else-form guard added — docs/tbc/2026-11-23-failed-read-sweep-3.
 
 ## Filed by the Ask Coach prompt library (2026-11-23, docs/tbc/2026-11-23-prompt-library)
 

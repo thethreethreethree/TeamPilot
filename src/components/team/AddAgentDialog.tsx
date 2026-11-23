@@ -19,13 +19,15 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
   const [fullName, setFullName] = useState("");
   const [coachRole, setCoachRole] = useState<CoachRole>("staff");
   const [passwords, setPasswords] = useState<TeamPassword[] | null>(null);
+  // A failed read is not "no team password yet" — that would send the admin to create a duplicate (2026-11-23).
+  const [passwordsFailed, setPasswordsFailed] = useState(false);
   const [teamPasswordId, setTeamPasswordId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setEmail(""); setFullName(""); setError(null); setMode("existing"); setCoachRole("staff");
+    setEmail(""); setFullName(""); setError(null); setMode("existing"); setCoachRole("staff"); setPasswordsFailed(false);
     // Load team passwords (for the "new user" path picker).
     void (async () => {
       const res = await fetch("/api/team/passwords").catch(() => null);
@@ -34,7 +36,8 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
         const list: TeamPassword[] = d.passwords ?? [];
         setPasswords(list);
         setTeamPasswordId(list[0]?.id ?? "");
-      } else setPasswords([]);
+        setPasswordsFailed(false);
+      } else setPasswordsFailed(true);
     })();
   }, [open]);
 
@@ -117,7 +120,9 @@ export function AddAgentDialog({ open, onClose, onAdded }: { open: boolean; onCl
           {mode === "new" && (
             <div>
               <label className="block text-[11px] font-medium text-secondary mb-1">Team password (their first login)</label>
-              {passwords === null ? (
+              {passwordsFailed ? (
+                <p className="text-[11px] text-muted py-2">Couldn&apos;t load the team passwords. Close and open this again to retry.</p>
+              ) : passwords === null ? (
                 <div className="flex items-center gap-2 text-[11px] text-muted py-2"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading…</div>
               ) : passwords.length === 0 ? (
                 <p className="text-[11px] text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-2">

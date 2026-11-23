@@ -99,3 +99,37 @@ describe("the null form of a failed read", () => {
     expect(bad).toEqual([]);
   });
 });
+
+/**
+ * THE ELSE FORM (2026-11-23, third sweep). `if (res && res.ok) setList(...); else setList([]);` — a failed response set
+ * to the same empty list a real "none" gives. Both team-password dialogs did it ("No team password yet — create one",
+ * inviting a duplicate). Caught here: an `else` that sets an empty list/zero/false within a few lines after an `.ok`
+ * check. A failure must set a failed state instead.
+ */
+export function elseEmptyAfterOk(src: string): number {
+  let n = 0;
+  for (const m of src.matchAll(/else\s+set\w+\(\s*(\[\]|0|false)\s*\)/g)) {
+    const before = src.slice(Math.max(0, (m.index ?? 0) - 300), m.index);
+    if (/\.ok\b/.test(before)) n++;
+  }
+  return n;
+}
+
+describe("the else form of a failed read", () => {
+  it("catches the dialogs' old shape, not an unrelated reset", () => {
+    expect(elseEmptyAfterOk(`if (res && res.ok) setList((await res.json()).passwords ?? []);\n    else setList([]);`)).toBe(1);
+    expect(elseEmptyAfterOk(`if (res && res.ok) {\n  const d = await res.json();\n  setPasswords(d.passwords);\n} else setPasswords([]);`)).toBe(1);
+    expect(elseEmptyAfterOk(`useEffect(() => { if (sel) void loadLines(sel); else setLines([]); }, [sel]);`)).toBe(0);
+  });
+  it("no screen has it", () => {
+    const root = process.cwd();
+    const hits: string[] = [];
+    for (const dir of ["src/components", "src/app"]) {
+      for (const f of files(join(root, dir))) {
+        const n = elseEmptyAfterOk(readFileSync(f, "utf8"));
+        if (n) hits.push(`${relative(root, f)}: ${n}`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
+});

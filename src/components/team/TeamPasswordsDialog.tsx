@@ -14,6 +14,8 @@ type TeamPassword = { id: string; title: string; secret: string; created_at: str
 
 export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [list, setList] = useState<TeamPassword[] | null>(null);
+  // A failed read is not "no passwords yet" — that would invite creating a duplicate (2026-11-23 sweep).
+  const [loadFailed, setLoadFailed] = useState(false);
   const [title, setTitle] = useState("");
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,13 +24,15 @@ export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose:
 
   const load = async () => {
     const res = await fetch("/api/team/passwords").catch(() => null);
-    if (res && res.ok) setList((await res.json()).passwords ?? []);
-    else setList([]);
+    if (res && res.ok) {
+      setList((await res.json()).passwords ?? []);
+      setLoadFailed(false);
+    } else setLoadFailed(true);
   };
 
   useEffect(() => {
     if (!open) return;
-    setTitle(""); setSecret(""); setError(null); setList(null);
+    setTitle(""); setSecret(""); setError(null); setList(null); setLoadFailed(false);
     void load();
   }, [open]);
 
@@ -100,7 +104,9 @@ export function TeamPasswordsDialog({ open, onClose }: { open: boolean; onClose:
         </form>
 
         {/* List */}
-        {list === null ? (
+        {loadFailed ? (
+          <p className="text-[11px] text-muted py-6 text-center">Couldn&apos;t load the team passwords. Close and open this again to retry.</p>
+        ) : list === null ? (
           <div className="flex items-center gap-2 text-[11px] text-muted py-6 justify-center"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> Loading…</div>
         ) : list.length === 0 ? (
           <p className="text-[11px] text-muted py-6 text-center">No team passwords yet — create one above.</p>
