@@ -319,3 +319,12 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · stage-training · "rep needs" not yet used — the stage's scenarios are not ranked by the rep's weakest rubric items
       why-unresolved: stage first
       next-action: order the list by the rep's lowest-scoring focus areas from pitch_scores_by_channel
+
+## Filed by editable transcripts (2026-11-23, docs/tbc/2026-11-23-transcript-edits)
+
+- [ ] 2026-11-23 · transcript-edits · transcript corrections do not redo the AI summary, review and follow-through (trackers and talk stats are redone)
+      why-unresolved: five paid AI calls per edit
+      next-action: a "Refresh AI notes with corrections" button that runs generateSessionArtifacts once after a batch of edits
+- [ ] 2026-11-23 · transcript-edits · a corrected line keeps its times; per-line speaker changes are not offered
+      why-unresolved: re-timing needs audio alignment; speaker edits are a separate kind
+      next-action: add a speaker choice to the line editor, recorded the same way (new version + edit row)

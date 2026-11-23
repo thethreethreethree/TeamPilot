@@ -31,6 +31,8 @@ export const AUDIT_ACTIONS = [
   "mfa.enabled",
   "mfa.removed",
   "mfa.reset",
+  // Editable transcripts (0311): the call's rep or their manager corrected one line (a new transcript version).
+  "transcript.edit",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

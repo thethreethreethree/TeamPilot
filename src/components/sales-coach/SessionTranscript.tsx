@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ChevronDown, Loader2, FileText, Search } from "lucide-react";
+import { ChevronDown, Loader2, FileText, Pencil, Search } from "lucide-react";
 
 /**
  * SessionTranscript — a collapsible full-transcript view for a session (partner meeting 9/2, John Ramos: admin
@@ -12,9 +12,13 @@ import { ChevronDown, Loader2, FileText, Search } from "lucide-react";
  * RSS Phase 2 (Gong F9.4): a search box pinned at the top highlights matching lines, and — when the page has a
  * player and passes `onSeek` with the session's start time — tapping a line plays from it. Both are optional,
  * so every existing use renders exactly as before.
+ *
+ * Editable transcripts (2026-11-23, migration 0311): the call's rep and their managers can correct a line (pencil on
+ * the line). A correction is a new transcript version — the original words stay, and an "edited" mark shows them.
  */
 
 type Seg = { speaker: "agent" | "customer" | "unknown"; text: string; seq: number; spoken_at: string | null };
+type Mark = { seq: number; original: string; editedAt: string; editedByName: string | null; count: number };
 
 export function SessionTranscript({
   sessionId,
@@ -33,19 +37,57 @@ export function SessionTranscript({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
+  const [canEdit, setCanEdit] = useState(false);
+  const [marks, setMarks] = useState<Map<number, Mark>>(new Map());
+  const [editing, setEditing] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [showOriginal, setShowOriginal] = useState<number | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(`/api/coach/sales-session/${sessionId}/segments`);
+      const [res, ed] = await Promise.all([
+        fetch(`/api/coach/sales-session/${sessionId}/segments`),
+        // The corrections are an extra layer: if they can't load, the transcript still shows, without edit controls.
+        fetch(`/api/coach/sales-session/${sessionId}/transcript-edit`).catch(() => null),
+      ]);
       if (res.ok) setSegs(((await res.json()).segments ?? []) as Seg[]);
       else setError(true);
+      const e = ed && ed.ok ? ((await ed.json()) as { canEdit?: boolean; edits?: Mark[] }) : null;
+      setCanEdit(!!e?.canEdit);
+      setMarks(new Map((e?.edits ?? []).map((m) => [m.seq, m])));
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
   }, [sessionId]);
+
+  const save = async (seq: number) => {
+    setSaving(true);
+    setNote(null);
+    try {
+      const r = await fetch(`/api/coach/sales-session/${sessionId}/transcript-edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seq, text: draft }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; changed?: boolean };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't save the correction.");
+      setEditing(null);
+      if (j.changed) {
+        setNote("Saved. Keyword hits and talk stats now use the corrected words. The summary and review were written from the earlier words — regenerate them if this correction changes their meaning.");
+        await load();
+      }
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Couldn't save the correction.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Whole words, case-insensitive, punctuation ignored — the same rule as keyword trackers.
   const matches = useMemo(() => {
@@ -110,6 +152,11 @@ export function SessionTranscript({
                   </span>
                 )}
               </label>
+              {note && (
+                <p role="status" className="rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-secondary">
+                  {note}
+                </p>
+              )}
               {segs?.map((s) => (
                 <p
                   key={s.seq}
@@ -132,7 +179,63 @@ export function SessionTranscript({
                   >
                     {s.speaker === "agent" ? "Rep" : s.speaker === "customer" ? "Customer" : "?"}
                   </span>
-                  <span className="text-secondary">{s.text}</span>
+                  {editing === s.seq ? (
+                    <span className="mt-1 block space-y-1">
+                      <textarea
+                        autoFocus
+                        value={draft}
+                        onChange={(e) => setDraft(e.currentTarget.value)}
+                        maxLength={4000}
+                        rows={Math.min(6, Math.max(2, Math.ceil(draft.length / 80)))}
+                        aria-label="Corrected words for this line"
+                        className="w-full rounded-lg border border-default bg-base px-2 py-1 text-sm text-primary"
+                      />
+                      <span className="flex items-center gap-2">
+                        <button type="button" disabled={saving || !draft.trim()} onClick={() => void save(s.seq)} className="rounded-lg bg-ember-400 px-2.5 py-1 text-xs font-semibold text-ink-950 disabled:opacity-50">
+                          {saving ? "Saving…" : "Save correction"}
+                        </button>
+                        <button type="button" disabled={saving} onClick={() => setEditing(null)} className="text-xs text-muted hover:text-primary">
+                          Cancel
+                        </button>
+                        <span className="text-[11px] text-muted">The original words stay on record.</span>
+                      </span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-secondary">{s.text}</span>
+                      {marks.has(s.seq) && (
+                        <button
+                          type="button"
+                          onClick={() => setShowOriginal(showOriginal === s.seq ? null : s.seq)}
+                          aria-expanded={showOriginal === s.seq}
+                          className="ml-1.5 text-[11px] italic text-muted underline decoration-dotted hover:text-primary"
+                        >
+                          edited
+                        </button>
+                      )}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditing(s.seq);
+                            setDraft(s.text);
+                            setNote(null);
+                          }}
+                          aria-label="Correct this line"
+                          className="ml-1.5 inline-flex align-middle text-muted opacity-60 hover:text-primary hover:opacity-100"
+                        >
+                          <Pencil size={12} aria-hidden />
+                        </button>
+                      )}
+                      {showOriginal === s.seq && marks.get(s.seq) && (
+                        <span className="mt-0.5 block rounded bg-base px-2 py-1 text-xs text-muted">
+                          Originally: “{marks.get(s.seq)!.original}” · corrected{marks.get(s.seq)!.editedByName ? ` by ${marks.get(s.seq)!.editedByName}` : ""}{" "}
+                          {new Date(marks.get(s.seq)!.editedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          {marks.get(s.seq)!.count > 1 ? ` (${marks.get(s.seq)!.count} corrections)` : ""}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </p>
               ))}
             </div>

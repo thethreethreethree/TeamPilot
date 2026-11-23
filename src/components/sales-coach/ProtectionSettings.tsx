@@ -33,6 +33,7 @@ const ACTION_WORDS: Record<string, string> = {
   "mfa.enabled": "Turned on sign-in codes",
   "mfa.removed": "Removed an authenticator",
   "mfa.reset": "Reset a member's sign-in codes",
+  "transcript.edit": "Corrected a transcript line",
   "erasure.request": "Asked for a customer's data to be erased",
   "webhook.add": "Added a webhook",
   "webhook.off": "Turned off a webhook",

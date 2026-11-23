@@ -2222,6 +2222,10 @@ const RAW_TRANSCRIPT_USES = new Map([
   ["src/lib/data/salesCoach.ts", [2,
     "appendTranscriptSegment's insert and its pre-0236 fallback insert. Inserts carry no version; the 0269 " +
       "trigger puts them in the session's current one."]],
+  ["src/app/api/coach/sales-session/[id]/transcript-edit/route.ts", [1,
+    "The 'edited' mark (0311) needs the words BEFORE a correction, which live only in the earlier version. The read " +
+      "names exact versions and lines (.in version, .in seq) and keys by version:seq, so versions are never mixed; it " +
+      "goes through the caller's client, where the base table's RLS still hides trimmed lines (0295)."]],
 ]);
 const RAW_TRANSCRIPT_RE = /\.from\(\s*["']coaching_transcript_segments["']\s*\)/g;
 for (const f of FILES) {
