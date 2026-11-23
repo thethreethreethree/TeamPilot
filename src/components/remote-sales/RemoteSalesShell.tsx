@@ -20,6 +20,7 @@ const TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin
   { href: "/dashboard/remote-sales/search", label: "Search", who: "all" },
   { href: "/dashboard/remote-sales/library", label: "Library", who: "all" },
   { href: "/dashboard/remote-sales/trackers", label: "Trackers", who: "manager" },
+  { href: "/dashboard/remote-sales/market", label: "Market", who: "manager" },
   { href: "/dashboard/remote-sales/training", label: "Training", who: "all" },
   { href: "/dashboard/remote-sales/protection", label: "Protection", who: "admin" },
 ];

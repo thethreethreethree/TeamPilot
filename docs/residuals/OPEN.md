@@ -416,3 +416,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       done 2026-11-23: 0318 (applied) — see docs/tbc/2026-11-23-message-adoption remediate addendum.
       why-unresolved: measure first
       next-action: an append-only goal row per tracker; the Adoption panel shows the gap
+
+## Filed by Market (2026-11-23, docs/tbc/2026-11-23-market)
+
+- [ ] 2026-11-23 · market · topic labels fragment ("Price" vs "pricing concerns"); no Market view in Sales Coach yet
+      why-unresolved: needs a grouping pass; Remote Sales first
+      next-action: group similar topics; mount MarketView module="sales_coach" on Sales Coach analytics

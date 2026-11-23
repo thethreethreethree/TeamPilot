@@ -33,7 +33,7 @@ describe("RemoteSalesShell tabs", () => {
     macro = true;
     manager = true;
     render(<RemoteSalesShell>x</RemoteSalesShell>);
-    expect(tabs()).toEqual(["Today", "Calls", "Pipeline", "Scoreboard", "Coaching", "Search", "Library", "Trackers", "Training"]);
+    expect(tabs()).toEqual(["Today", "Calls", "Pipeline", "Scoreboard", "Coaching", "Search", "Library", "Trackers", "Market", "Training"]);
   });
 
   it("with Macro Mode off (or still loading), the full module — Pipeline included", () => {
