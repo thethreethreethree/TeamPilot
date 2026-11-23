@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { TopicGroups } from "./TopicGroups";
+import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
  * Market (2026-11-23, market.ts): which competitors come up on calls, how often and how deals go when they do, and the
@@ -17,6 +18,26 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
   const [res, setRes] = useState<Res | null>(null);
   const [failed, setFailed] = useState(false);
   const [version, setVersion] = useState(0); // a topic group accepted or ungrouped → count again
+  // Turn a topic into a keyword tracker (2026-11-23; ledger F14.4): a manager tracks the topic's wordings on the
+  // customer's side from now on. Uses the trackers route as it is, then scans recent calls so the tracker isn't empty.
+  const isManager = useIsSalesCoachManager();
+  const [tracked, setTracked] = useState<Record<string, "saving" | "done" | string>>({});
+  const track = async (t: { name: string; variants?: string[] }) => {
+    setTracked((x) => ({ ...x, [t.name]: "saving" }));
+    try {
+      const r = await fetch("/api/coach/remote/trackers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: t.name.slice(0, 60), phrases: [t.name, ...(t.variants ?? [])].slice(0, 200), side: "customer" }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't create the tracker.");
+      void fetch("/api/coach/remote/trackers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "scan" }) }).catch(() => {});
+      setTracked((x) => ({ ...x, [t.name]: "done" }));
+    } catch (e) {
+      setTracked((x) => ({ ...x, [t.name]: e instanceof Error ? e.message : "Couldn't create the tracker." }));
+    }
+  };
 
   useEffect(() => {
     let live = true;
@@ -117,6 +138,20 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                   <li key={t.name} className="rounded-full border border-default px-2.5 py-1 text-xs text-primary" title={t.variants?.length ? `Also said as: ${t.variants.join(", ")}` : undefined}>
                     {t.name} <span className="tabular-nums text-muted">· {t.calls}</span>
                     {t.variants && t.variants.length > 0 && <span className="ml-1 text-[10px] text-muted">(+{t.variants.length} {t.variants.length === 1 ? "wording" : "wordings"})</span>}
+                    {isManager && module === "remote_sales" && (
+                      tracked[t.name] === "done" ? (
+                        <a href="/dashboard/remote-sales/trackers" className="ml-1.5 text-[10px] font-medium text-brand hover:underline">Tracking ✓</a>
+                      ) : tracked[t.name] === "saving" ? (
+                        <span className="ml-1.5 text-[10px] text-muted">Saving…</span>
+                      ) : (
+                        <>
+                          <button type="button" onClick={() => void track(t)} title="Track this topic on every call from now on" aria-label={`Track ${t.name}`} className="ml-1.5 text-[10px] text-secondary hover:text-primary hover:underline">
+                            {tracked[t.name] ? "Try again" : "Track"}
+                          </button>
+                          {tracked[t.name] && <span role="alert" className="ml-1 text-[10px] text-amber-700 dark:text-amber-300">{tracked[t.name]}</span>}
+                        </>
+                      )
+                    )}
                   </li>
                 ))}
               </ul>

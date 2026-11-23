@@ -398,6 +398,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: only /api/auth/sign-in writes login_attempts; first version covers the coaching records
       next-action: record a sign-in event on every session creation path; add module columns; batch the lookup past ~100 people
       part done 2026-11-23: sign-ins now count every method (auth.sessions + the web form, merged; 0327 applied) and the per-person lookup is gone — docs/tbc/2026-11-23-sign-ins. Open: a signed-out mobile/social session leaves no record; module columns.
+      measured 2026-11-23 (production events, all time, counts only): task 37, care 83 (11 with a person), chat 357, no finance events; last 30 days only coach/doorlog/chat. Module columns would show near-zero; left until those modules carry real team use. The view stays the coaching usage view (Gong's counterpart covers Gong's own features).
 
 ## Filed by deal sentiment (2026-11-23, docs/tbc/2026-11-23-deal-sentiment)
 
