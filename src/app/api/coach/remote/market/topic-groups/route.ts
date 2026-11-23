@@ -13,7 +13,9 @@ import { candidates } from "@/lib/coach/remote/topicSuggest";
  * /api/coach/remote/market/topic-groups — the company's Market topic groups (2026-11-23, 0319; founder picker "AI
  * suggests, manager OKs").
  *   GET    → { canManage, groups: [{ id, name, members, source, createdAt }] } — anyone in the company (groups are how
- *            the company's topics are counted).
+ *            the company's topics are counted). ?candidates=1&module= (managers) adds `candidates`: the topics that
+ *            may be grouped (2+ calls in 90 days, not in a group; plus the members of ?editing=<groupId>) for "Make a
+ *            group" and "Edit" — the same rule the POST check applies, so the form never offers a topic it would refuse.
  *   POST   { module, name, members[], source: "ai_suggested"|"manager", replaces? } (managers) → stores a group. Every
  *            member must be a topic on 2+ calls in the manager's last 90 days and not in another group (topicSuggest
  *            candidates) — so no one-off label, which could be one customer's words, lands in a company table.
@@ -35,7 +37,17 @@ export async function GET(req: NextRequest) {
     console.error(`[topic-groups] read failed company=${ctx.companyId}: ${groups.message}`);
     return NextResponse.json({ error: "Couldn't load the topic groups." }, { status: 500 });
   }
-  return NextResponse.json({ canManage: !!mgr, groups: groups.groups });
+  const sp = new URL(req.url).searchParams;
+  if (sp.get("candidates") !== "1" || !mgr) return NextResponse.json({ canManage: !!mgr, groups: groups.groups });
+  const callModule = sp.get("module") === "sales_coach" ? "sales_coach" : "remote_sales";
+  const editing = sp.get("editing");
+  const inputs = await readMarketInputs(db, callModule, 90);
+  if (!inputs.ok) {
+    console.error(`[topic-groups] candidate read failed company=${ctx.companyId}: ${inputs.message}`);
+    return NextResponse.json({ error: "Couldn't load the topics." }, { status: 500 });
+  }
+  const others = groups.groups.filter((g) => g.id !== editing);
+  return NextResponse.json({ canManage: true, groups: groups.groups, candidates: candidates(computeMarket(inputs.calls, inputs.intel, 10_000, others).topics) });
 }
 
 export async function POST(req: NextRequest) {

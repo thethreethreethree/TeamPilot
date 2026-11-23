@@ -48,4 +48,46 @@ describe("TopicGroups", () => {
     expect((screen.getByRole("button", { name: "Accept" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("Keep at least two topics.")).toBeTruthy();
   });
+
+  it("Make a group: pick topics from the server's list and save as the manager's own", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(init.body!));
+        return json({ group: { id: "g9" } });
+      }
+      if (url.includes("candidates=1")) return json({ canManage: true, groups: [], candidates: [{ name: "pricing", calls: 54 }, { name: "monthly bill", calls: 13 }, { name: "hbo", calls: 21 }] });
+      return json({ canManage: true, groups: [] });
+    }));
+    const changed = vi.fn();
+    render(<TopicGroups module="remote_sales" onChanged={changed} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Make a group/ }));
+    fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "What they pay" } });
+    fireEvent.click(await screen.findByRole("checkbox", { name: /pricing/ }));
+    expect((screen.getByRole("button", { name: "Save group" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /monthly bill/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save group" }));
+    await waitFor(() => expect(changed).toHaveBeenCalled());
+    expect(posts).toEqual([{ module: "remote_sales", name: "What they pay", members: ["pricing", "monthly bill"], source: "manager" }]);
+  });
+  it("Edit opens the group with its topics ticked and saves as a replacement", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(init.body!));
+        return json({ group: { id: "g2" } });
+      }
+      if (url.includes("candidates=1")) return json({ candidates: [{ name: "Pricing", calls: 54 }, { name: "monthly price", calls: 10 }, { name: "hbo", calls: 21 }] });
+      return json({ canManage: true, groups: [{ id: "g1", name: "Price", members: ["pricing", "monthly prices"], source: "ai_suggested" }] });
+    }));
+    render(<TopicGroups module="remote_sales" onChanged={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Price" }));
+    expect(((await screen.findByRole("checkbox", { name: /Pricing/ })) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("checkbox", { name: /monthly price/ }) as HTMLInputElement).checked).toBe(true); // matched by wording
+    expect((screen.getByRole("checkbox", { name: /hbo/ }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole("checkbox", { name: /hbo/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save group" }));
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toEqual({ module: "remote_sales", name: "Price", members: ["Pricing", "monthly price", "hbo"], source: "manager", replaces: "g1" });
+  });
 });

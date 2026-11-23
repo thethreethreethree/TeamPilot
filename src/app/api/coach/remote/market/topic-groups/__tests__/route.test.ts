@@ -58,6 +58,18 @@ describe("topic-groups", () => {
     const j = await (await GET(new Request("http://x/api") as never)).json();
     expect(j).toEqual({ canManage: false, groups: [] });
   });
+  it("GET ?candidates=1 lists the topics a group may take — the same rule the save check applies", async () => {
+    st.groups = [{ id: "g1", name: "TV", members: ["hbo", "pricing"], source: "manager", createdAt: "" }];
+    const plain = await (await GET(new Request("http://x/api?candidates=1") as never)).json();
+    expect(plain.candidates).toEqual([{ name: "monthly price", calls: 2 }]); // pricing is in g1; one-offs never
+    const editing = await (await GET(new Request("http://x/api?candidates=1&editing=g1") as never)).json();
+    expect(editing.candidates.map((c: { name: string }) => c.name)).toEqual(["monthly price", "pricing"]);
+  });
+  it("GET ?candidates=1 gives no list to someone who can't manage", async () => {
+    (requireSalesCoachManager as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    const j = await (await GET(new Request("http://x/api?candidates=1") as never)).json();
+    expect(j).toEqual({ canManage: false, groups: [] });
+  });
   it("POST is managers only", async () => {
     (requireSalesCoachManager as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
     expect((await POST(post({ name: "Price", members: ["pricing", "monthly price"] }))).status).toBe(403);

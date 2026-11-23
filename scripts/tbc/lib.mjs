@@ -352,3 +352,16 @@ export function splitFindings(md) {
   if (cur) out.push(cur);
   return out;
 }
+
+/**
+ * NEW RECORD DIRS WITHOUT A THINK.MD (2026-11-23). currentBuildDir() ranks a dir with no think.md (no started_at)
+ * BELOW every real build, so a new record missing its think.md is silently skipped and the gates validate the
+ * PREVIOUS build — a full `npm run check` went green that way on 2026-11-23 (docs/tbc/2026-11-23-topic-group-builder,
+ * think.md lost to a script error). tbc:freshness said "one gate per fact: that's tbc:manifest's failure", but
+ * tbc:manifest only reads the dir currentBuildDir() picked — this one never. Pure: returns the names that fail.
+ * A dir with history (committed before) is exempt: ten 2026-09 records legitimately have no think.md, and an
+ * addendum to one must not fail.
+ */
+export function newDirsWithoutThink(names, { hasThink, hasHistory }) {
+  return names.filter((n) => !hasThink(n) && !hasHistory(n));
+}

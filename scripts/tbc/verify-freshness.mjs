@@ -18,7 +18,7 @@
 // gate (A30) and not a noisy one (A33): it fires only on code-without-a-build.
 
 import { join } from "node:path";
-import { run, stagedFiles, git, exists, read, frontMatter, loadAllowlist, TBC_DIR } from "./lib.mjs";
+import { run, stagedFiles, git, exists, read, frontMatter, loadAllowlist, newDirsWithoutThink, TBC_DIR } from "./lib.mjs";
 
 const ENFORCED = /^(src|scripts|migrations)\//;
 const BUILD_DIR = /^docs\/tbc\/\d{4}-\d{2}-\d{2}-[^/]+\//;
@@ -108,10 +108,21 @@ function checkStartTimes(r, files) {
   )];
   const allow = new Set(loadAllowlist("freshness").map((a) => a.pattern ?? a.id));
 
+  for (const name of newDirsWithoutThink(dirs, {
+    hasThink: (n) => exists(join(TBC_DIR, n, "think.md")),
+    hasHistory: (n) => git(`log -1 --format=%H -- "docs/tbc/${n}"`, "").trim() !== "",
+  })) {
+    r.fail("A30 / A38",
+      `${name}: a new build record with no think.md.`,
+      "Without think.md the record has no started_at, so currentBuildDir() ranks it below every other\n" +
+      "build and the TBC gates validate the PREVIOUS build instead — this record would ship unchecked.\n" +
+      "Write docs/tbc/" + name + "/think.md (front matter with started_at, and the session-read manifest).");
+  }
+
   for (const name of dirs) {
     if (allow.has(name)) continue;
     const think = join(TBC_DIR, name, "think.md");
-    if (!exists(think)) continue; // a dir without a think.md is tbc:manifest's failure, not this one.
+    if (!exists(think)) continue; // a NEW dir without one failed above; an old one predates the rule.
 
     const started = frontMatter(read(think))?.started_at;
     if (!started) continue; // tbc:manifest fails on a missing started_at; one gate per fact.

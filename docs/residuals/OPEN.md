@@ -443,9 +443,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · market · legal erasure does not reach topic-group members (company topics on 2+ calls, not tied to a call)
       why-unresolved: needs a rule for matching an erased customer's words to group labels
       next-action: decide whether erasure should drop a member that appears only in erased calls
-- [ ] 2026-11-23 · market · a manager can edit an AI suggestion but not build a topic group from scratch
+- [x] 2026-11-23 · market · a manager can edit an AI suggestion but not build a topic group from scratch
       why-unresolved: the founder's choice was AI-suggests-manager-OKs
       next-action: a "Make a group" picker over the topics on 2+ calls, same save route (source "manager")
+      done 2026-11-23: "Make a group" and "Edit" on Market → Topic groups — docs/tbc/2026-11-23-topic-group-builder.
 
 ## Filed by coaching export (2026-11-23, docs/tbc/2026-11-23-coaching-export)
 
