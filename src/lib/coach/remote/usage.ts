@@ -31,3 +31,30 @@ export function buildUsage(members: Array<{ id: string; name: string }>, events:
   const totals = (k: "last7" | "last30") => USAGE_KINDS.reduce((acc, u) => ({ ...acc, [u]: rows.reduce((t, r) => t + r[k][u], 0) }), zero());
   return { rows, active7: active("last7"), active30: active("last30"), people: rows.length, totals7: totals("last7"), totals30: totals("last30") };
 }
+
+/**
+ * One sign-in, recorded twice (0327): the web password form logs it in login_attempts and Supabase opens a session for
+ * it. A password record and a session record for the same person within SAME_SIGN_IN_MS are one sign-in; a session with
+ * no password record (Google, Microsoft, the mobile app) is its own; a password record whose session was later removed
+ * (signed out) still counts. Pure, so the rule is tested.
+ */
+export const SAME_SIGN_IN_MS = 2 * 60_000;
+export function mergeSignIns(rows: Array<{ userId: string; at: string; source: "session" | "password" | string }>): Array<{ personId: string; at: string }> {
+  const out: Array<{ personId: string; at: string }> = [];
+  const byPerson = new Map<string, typeof rows>();
+  for (const r of rows) byPerson.set(r.userId, [...(byPerson.get(r.userId) ?? []), r]);
+  for (const [personId, list] of byPerson) {
+    const sessions = list.filter((r) => r.source === "session").map((r) => Date.parse(r.at)).sort((a, b) => a - b);
+    const used = new Set<number>();
+    for (const p of list.filter((r) => r.source === "password").sort((a, b) => a.at.localeCompare(b.at))) {
+      const t = Date.parse(p.at);
+      const match = sessions.findIndex((s, i) => !used.has(i) && Math.abs(s - t) <= SAME_SIGN_IN_MS);
+      if (match >= 0) used.add(match);
+      out.push({ personId, at: p.at });
+    }
+    sessions.forEach((s, i) => {
+      if (!used.has(i)) out.push({ personId, at: new Date(s).toISOString() });
+    });
+  }
+  return out;
+}

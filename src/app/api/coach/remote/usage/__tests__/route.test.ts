@@ -4,10 +4,14 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn() }));
 type Res = { data: unknown; error: unknown };
-const st = vi.hoisted(() => ({ reads: {} as Record<string, Res>, filters: [] as Array<[string, string, unknown]> }));
+const st = vi.hoisted(() => ({ reads: {} as Record<string, Res>, filters: [] as Array<[string, string, unknown]>, rpcArgs: null as Record<string, unknown> | null }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    auth: { admin: { getUserById: async (id: string) => ({ data: { user: { email: `${id}@Example.com` } } }) } },
+    // 0327: sign-in times come from one database function (sessions + the web form), matched by user id.
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      st.rpcArgs = args;
+      return fn === "rss_sign_in_times" ? (st.reads.rss_sign_in_times ?? { data: [], error: null }) : { data: null, error: { message: "unknown" } };
+    },
     from: (t: string) => {
       const b: Record<string, unknown> = {};
       for (const m of ["select", "gte", "limit"]) b[m] = () => b;
@@ -35,7 +39,14 @@ beforeEach(() => {
     coaching_sessions: { data: [{ agent_id: "r1", started_at: recent }], error: null },
     ask_coach_chats: { data: [{ id: "ch", owner_id: "r1" }], error: null },
     ask_coach_turns: { data: [{ chat_id: "ch", created_at: recent }], error: null },
-    login_attempts: { data: [{ email: "r1@example.com", created_at: recent }], error: null },
+    // r1 signed in once on the web (both records, a second apart) and once on the mobile app (a session only).
+    rss_sign_in_times: {
+      data: [
+        { user_id: "r1", at: recent, source: "password" },
+        { user_id: "r1", at: new Date(Date.parse(recent) + 1000).toISOString(), source: "session" },
+      ],
+      error: null,
+    },
   };
 });
 
@@ -51,6 +62,13 @@ describe("GET /api/coach/remote/usage", () => {
     expect(st.filters).toContainEqual(["coaching_sessions", "agent_id", ["m", "r1"]]);
     expect(st.filters).toContainEqual(["coaching_sessions", "company_id", "co1"]);
     expect(st.filters).toContainEqual(["ask_coach_turns", "role", "user"]);
+    expect(st.rpcArgs).toMatchObject({ p_company: "co1", p_users: ["m", "r1"] }); // sign-ins: company + those people only
+  });
+  it("a sign-in from the mobile app (a session with no web-form record) counts too; a failed sign-in read is a 500", async () => {
+    st.reads.rss_sign_in_times = { data: [{ user_id: "r1", at: recent, source: "session" }, { user_id: "r1", at: recent, source: "password" }, { user_id: "r1", at: new Date(Date.parse(recent) + 3_600_000).toISOString(), source: "session" }], error: null };
+    expect((await (await GET(req())).json()).rows[1].last7.signIns).toBe(2);
+    st.reads.rss_sign_in_times = { data: null, error: { message: "x" } };
+    expect((await GET(req())).status).toBe(500);
   });
   it("never sends anyone's email to the browser", async () => {
     expect(JSON.stringify(await (await GET(req())).json())).not.toMatch(/@example\.com/i);

@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterReps } from "@/lib/api/treeAccess";
-import { buildUsage, type UsageEvent } from "@/lib/coach/remote/usage";
+import { buildUsage, mergeSignIns, type UsageEvent } from "@/lib/coach/remote/usage";
 
 /**
  * GET /api/coach/remote/usage — how much the team uses the product, last 7 and 30 days (2026-11-23, usage.ts).
@@ -57,27 +57,18 @@ export async function GET(req: NextRequest) {
     turns = (t.data ?? []) as typeof turns;
   }
 
-  // Sign-ins: login_attempts is keyed by email (it is written before a session exists). Emails come from each person's
-  // own sign-in account; they are used only to match and are not sent to the browser.
-  const emailOf = new Map<string, string>();
-  const looked = await Promise.all(ids.map((id) => admin.auth.admin.getUserById(id).catch(() => null)));
-  looked.forEach((r, i) => {
-    const email = r?.data?.user?.email;
-    if (email) emailOf.set(email.toLowerCase(), ids[i]!);
-  });
-  let logins: Array<{ email: string; created_at: string }> = [];
-  if (emailOf.size) {
-    const l = await admin.from("login_attempts").select("email, created_at").in("email", [...emailOf.keys()]).eq("succeeded", true).gte("created_at", since).limit(CAP);
-    if (l.error) return fail("sign-ins", l.error.message);
-    logins = (l.data ?? []) as typeof logins;
-  }
+  // Sign-ins (0327): every method — auth.sessions (Google, Microsoft, the mobile app, the web) and login_attempts (the
+  // web form, kept after sign-out) — matched by user id inside the database; one sign-in recorded twice counts once.
+  const { data: signRows, error: sErr } = await admin.rpc("rss_sign_in_times", { p_company: mgr.companyId, p_users: ids, p_since: since });
+  if (sErr) return fail("sign-ins", sErr.message);
+  const logins = mergeSignIns(((signRows ?? []) as Array<{ user_id: string; at: string; source: string }>).map((r) => ({ userId: String(r.user_id), at: r.at, source: r.source })));
 
   const events: UsageEvent[] = [
     ...((sessions.data ?? []) as Array<{ agent_id: string; started_at: string }>).map((r) => ({ personId: r.agent_id, kind: "calls" as const, at: r.started_at })),
     ...turns.map((r) => ({ personId: ownerOf.get(r.chat_id) ?? "", kind: "questions" as const, at: r.created_at })),
     ...((attempts.data ?? []) as Array<{ rep_id: string; created_at: string }>).map((r) => ({ personId: r.rep_id, kind: "practice" as const, at: r.created_at })),
     ...((pevents.data ?? []) as Array<{ actor_id: string; created_at: string }>).map((r) => ({ personId: r.actor_id, kind: "pipeline" as const, at: r.created_at })),
-    ...logins.map((r) => ({ personId: emailOf.get(r.email) ?? "", kind: "signIns" as const, at: r.created_at })),
+    ...logins.map((r) => ({ personId: r.personId, kind: "signIns" as const, at: r.at })),
   ];
   const capped = [
     ["calls", (sessions.data ?? []).length],
@@ -85,7 +76,7 @@ export async function GET(req: NextRequest) {
     ["question threads", (chats.data ?? []).length],
     ["practice", (attempts.data ?? []).length],
     ["pipeline updates", (pevents.data ?? []).length],
-    ["sign-ins", logins.length],
+    ["sign-ins", (signRows ?? []).length],
   ].filter(([, n]) => n === CAP).map(([k]) => k);
   return NextResponse.json({ ...buildUsage(members, events, Date.now()), windowDays: 30, capped });
 }

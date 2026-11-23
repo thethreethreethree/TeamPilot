@@ -397,6 +397,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · usage · sign-ins via Google/Microsoft or the mobile app aren't counted; Tasks / C.A.R.E / Finance use isn't in the view; email lookup is one call per person
       why-unresolved: only /api/auth/sign-in writes login_attempts; first version covers the coaching records
       next-action: record a sign-in event on every session creation path; add module columns; batch the lookup past ~100 people
+      part done 2026-11-23: sign-ins now count every method (auth.sessions + the web form, merged; 0327 applied) and the per-person lookup is gone — docs/tbc/2026-11-23-sign-ins. Open: a signed-out mobile/social session leaves no record; module columns.
 
 ## Filed by deal sentiment (2026-11-23, docs/tbc/2026-11-23-deal-sentiment)
 
