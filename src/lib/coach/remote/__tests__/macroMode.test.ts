@@ -128,6 +128,11 @@ describe("eventValue — the shapes 0303's CHECKs accept", () => {
     expect(eventValue("close_date", "2026-12-31")).toEqual({ date: "2026-12-31" }); // 0320
     expect(eventValue("close_date", null)).toEqual({ date: null });
     expect(eventValue("close_date", "end of Q4")).toBeNull();
+    // 0325: a next call may carry a local time; a close date never does
+    expect(eventValue("next_call", { date: "2026-12-01", time: "15:30" })).toEqual({ date: "2026-12-01", time: "15:30" });
+    expect(eventValue("next_call", { date: "2026-12-01", time: "" })).toEqual({ date: "2026-12-01" });
+    expect(eventValue("next_call", { date: "2026-12-01", time: "3pm" })).toBeNull();
+    expect(eventValue("close_date", { date: "2026-12-01", time: "15:30" })).toBeNull();
     expect(eventValue("name", "  ")).toBeNull();
   });
 });

@@ -4,7 +4,7 @@
  * HELD (remote coaching sessions that started that day, in the viewer's time zone). Pure, so the bucketing is tested.
  */
 
-export type Booked = { prospectId: string; repId: string; name: string | null; organization: string | null };
+export type Booked = { prospectId: string; repId: string; name: string | null; organization: string | null; time?: string | null };
 export type Held = { sessionId: string; repId: string; startedAt: string; label: string | null; outcome: string | null; prospectId: string | null; prospectName: string | null };
 export type CalendarDay = { day: string; booked: Booked[]; held: Held[] };
 
@@ -24,7 +24,8 @@ export const localDay = (iso: string, offsetMin: number): string => new Date(Dat
 export function buildWeek(from: string, booked: Array<Booked & { day: string }>, held: Held[], offsetMin: number): CalendarDay[] {
   const days: CalendarDay[] = Array.from({ length: 7 }, (_, i) => ({ day: addDays(from, i), booked: [], held: [] }));
   const at = new Map(days.map((d) => [d.day, d]));
-  for (const b of booked) {
+  // Booked calls with a time first, in time order; untimed after (0325).
+  for (const b of [...booked].sort((x, y) => (x.time ?? "99:99").localeCompare(y.time ?? "99:99"))) {
     const { day, ...rest } = b;
     at.get(day)?.booked.push(rest);
   }

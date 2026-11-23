@@ -118,7 +118,10 @@ export function RemoteCalendar({ scope, nameOf, onOpenProspect }: { scope: strin
                       <button type="button" onClick={() => onOpenProspect(b.prospectId)} className="flex w-full items-start gap-1 rounded-md bg-brand/10 px-1.5 py-1 text-left text-[11px] text-primary hover:bg-brand/20">
                         <CalendarClock className="mt-0.5 h-3 w-3 shrink-0 text-brand" aria-hidden />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium">{b.name ?? "Unnamed prospect"}</span>
+                          <span className="block truncate font-medium">
+                            {b.time ? `${new Date(`2000-01-01T${b.time}:00`).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · ` : ""}
+                            {b.name ?? "Unnamed prospect"}
+                          </span>
                           <span className="block truncate text-muted">{[b.organization, showRep ? nameOf(b.repId) : null].filter(Boolean).join(" · ") || "Booked"}</span>
                         </span>
                       </button>

@@ -40,7 +40,7 @@ export function buildPipelineContext(prospects: ProspectRow[], briefs: Map<strin
     const b = briefs.get(p.id);
     const lines = [
       `[P${n}] ${name}${p.organization ? ` (${p.organization})` : ""} — ${p.status}${p.stageLabel ? `, stage "${p.stageLabel}"` : ""}${p.amount !== null ? `, $${p.amount}` : ""}${p.source ? `, source "${p.source}"` : ""}`,
-      `   next call: ${p.nextCallDate ?? "none booked"} · expected close: ${p.closeDate ?? "not set"} · last call: ${p.lastCallAt ? p.lastCallAt.slice(0, 10) : "none"} · calls: ${p.callCount} · open to-dos: ${p.openTodos}${p.nextTodo ? ` (next: "${p.nextTodo.title}"${p.nextTodo.due ? ` due ${p.nextTodo.due}` : ""})` : ""}`,
+      `   next call: ${p.nextCallDate ? `${p.nextCallDate}${p.nextCallTime ? ` ${p.nextCallTime}` : ""}` : "none booked"} · expected close: ${p.closeDate ?? "not set"} · last call: ${p.lastCallAt ? p.lastCallAt.slice(0, 10) : "none"} · calls: ${p.callCount} · open to-dos: ${p.openTodos}${p.nextTodo ? ` (next: "${p.nextTodo.title}"${p.nextTodo.due ? ` due ${p.nextTodo.due}` : ""})` : ""}`,
     ];
     // The same risk rule the Pipeline shows (dealRisk.ts), so the answer and the screen agree (§2.2).
     const risk = dealRisk(p, today);

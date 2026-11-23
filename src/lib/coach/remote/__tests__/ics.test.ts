@@ -25,3 +25,15 @@ describe("buildIcs", () => {
     for (const line of ics.split("\r\n")) expect(line.length).toBeLessThanOrEqual(75);
   });
 });
+
+describe("a next call with a time (0325)", () => {
+  it("is a 30-minute floating-time event with a 15-minute reminder; an untimed one stays all-day", () => {
+    const out = buildIcs([{ uid: "a", date: "2026-12-01", time: "23:45", title: "Call Betty" }, { uid: "b", date: "2026-12-02", title: "To-do" }], new Date("2026-11-23T00:00:00Z"));
+    expect(out).toContain("DTSTART:20261201T234500");
+    expect(out).toContain("DTEND:20261202T001500"); // crosses midnight
+    expect(out).toContain("TRIGGER:-PT15M");
+    expect(out).toContain("DTSTART;VALUE=DATE:20261202");
+    expect(out).toContain("TRIGGER:-PT15H");
+    expect(out).not.toMatch(/DTSTART:\d{8}T\d{6}Z/); // floating: no zone
+  });
+});

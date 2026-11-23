@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Check, GraduationCap, Loader2, Phone, Plus, Sparkles, Video, X } from "lucide-react";
@@ -34,6 +34,7 @@ type Prospect = {
   source: string | null;
   amount: number | null;
   nextCallDate: string | null;
+  nextCallTime?: string | null;
   closeDate?: string | null;
   lastCallAt: string | null;
   callCount: number;
@@ -44,6 +45,8 @@ type Prospect = {
 };
 type Totals = Record<"open" | "won" | "lost", { count: number; amount: number }>;
 
+/** "15:00" → the viewer's own clock format, e.g. "3:00 PM" (0325). */
+const clock = (hm: string) => new Date(`2000-01-01T${hm}:00`).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 const money = (n: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 const today = () => {
   const d = new Date();
@@ -227,7 +230,10 @@ export function RemotePipeline() {
                       To do: {p.nextTodo ? `${p.nextTodo.title}${p.nextTodo.due ? ` (${shortDate(p.nextTodo.due)})` : ""}` : "nothing open"}
                       {p.openTodos > 1 ? ` +${p.openTodos - 1}` : ""}
                     </span>
-                    <span className="text-secondary">Next call: {shortDate(p.nextCallDate)}</span>
+                    <span className="text-secondary">
+                      Next call: {shortDate(p.nextCallDate)}
+                      {p.nextCallDate && p.nextCallTime ? ` · ${clock(p.nextCallTime)}` : ""}
+                    </span>
                     <span className="text-secondary">
                       Last call: {shortDate(p.lastCallAt)}
                       {p.closeDate ? ` · Close: ${shortDate(p.closeDate)}` : ""}
@@ -308,7 +314,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
 }
 
 type Detail = {
-  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null; close_date?: string | null };
+  prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null; close_date?: string | null; next_call_time?: string | null };
   calls: Array<{ id: string; label: string | null; context: string; startedAt: string; outcome: string | null }>;
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
 };
@@ -319,6 +325,14 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
   const [busy, setBusy] = useState(false);
   const [todo, setTodo] = useState("");
   const [due, setDue] = useState("");
+  // The next call's date and time (0325) are one fact: each input sends both, so changing one keeps the other.
+  const callDateRef = useRef<HTMLInputElement>(null);
+  const callTimeRef = useRef<HTMLInputElement>(null);
+  const setNextCall = () => {
+    const date = callDateRef.current?.value || null;
+    const time = callTimeRef.current?.value || null;
+    void post({ action: "set", kind: "next_call", value: date ? { date, time } : null });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -422,7 +436,8 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </label>
         <label className="flex items-center gap-2">
           Next call
-          <input type="date" defaultValue={p.next_call_date ?? ""} disabled={busy} onChange={(e) => void post({ action: "set", kind: "next_call", value: e.currentTarget.value || null })} className={field} />
+          <input ref={callDateRef} type="date" defaultValue={p.next_call_date ?? ""} disabled={busy} aria-label="Next call date" onChange={setNextCall} className={field} />
+          <input ref={callTimeRef} type="time" defaultValue={p.next_call_time ?? ""} disabled={busy || !p.next_call_date} aria-label="Next call time" onBlur={(e) => { if ((e.currentTarget.value || null) !== (p.next_call_time ?? null)) setNextCall(); }} className={`${field} w-28`} />
         </label>
         <label className="flex items-center gap-2">
           Expected close
@@ -450,7 +465,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
           type="button"
           onClick={() =>
             downloadIcs(`${p.name ?? "prospect"}-reminders`, [
-              ...(p.next_call_date ? [{ uid: `${p.id}-next-call-${p.next_call_date}`, date: p.next_call_date, title: `Call ${p.name ?? "prospect"}` }] : []),
+              ...(p.next_call_date ? [{ uid: `${p.id}-next-call-${p.next_call_date}`, date: p.next_call_date, time: p.next_call_time ?? null, title: `Call ${p.name ?? "prospect"}` }] : []),
               ...d.todos.filter((t) => !t.done && t.due).map((t) => ({ uid: `${t.id}-todo`, date: t.due!, title: `${t.title} (${p.name ?? "prospect"})` })),
             ].map((e) => ({ ...e, url: `${window.location.origin}/dashboard/remote-sales/pipeline?p=${p.id}` })))
           }

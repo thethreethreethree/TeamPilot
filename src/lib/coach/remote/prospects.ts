@@ -22,6 +22,8 @@ export type ProspectRow = {
   source: string | null;
   amount: number | null;
   nextCallDate: string | null;
+  /** The next call's local time (0325), "HH:MM", when the rep gave one. */
+  nextCallTime: string | null;
   /** When the rep expects the deal to close (0320), YYYY-MM-DD. */
   closeDate: string | null;
   lastCallAt: string | null;
@@ -36,6 +38,7 @@ type CurrentRow = {
   amount: number | string | null; next_call_date: string | null; last_call_at: string | null; call_count: number | string; created_at: string;
   source?: string | null;
   close_date?: string | null;
+  next_call_time?: string | null;
 };
 type TaskRow = { id: string; title: string; status: string | null; due_date: string | null };
 
@@ -53,6 +56,7 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
     amount: Number.isFinite(amount) ? amount : null,
     nextCallDate: r.next_call_date,
     closeDate: r.close_date ?? null,
+    nextCallTime: r.next_call_time ?? null,
     lastCallAt: r.last_call_at,
     callCount: Number(r.call_count) || 0,
     createdAt: r.created_at,
@@ -65,7 +69,7 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
 export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean } = {}): Promise<ProspectRow[] | null> {
   let q = db
     .from("remote_prospects_current")
-    .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date")
+    .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time")
     .order("created_at", { ascending: false })
     .limit(500);
   if (repId) q = q.eq("rep_id", repId);

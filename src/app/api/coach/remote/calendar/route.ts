@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   const booked = prospects
     .filter((p) => p.status === "open" && p.nextCallDate && p.nextCallDate >= from && p.nextCallDate <= to)
-    .map((p) => ({ day: p.nextCallDate as string, prospectId: p.id, repId: p.repId, name: p.name, organization: p.organization }));
+    .map((p) => ({ day: p.nextCallDate as string, prospectId: p.id, repId: p.repId, name: p.name, organization: p.organization, time: p.nextCallTime }));
   const nameOf = new Map(prospects.map((p) => [p.id, p.name]));
   const held: Held[] = rows.map((r) => {
     const prospectId = linkOf.get(r.id) ?? null;

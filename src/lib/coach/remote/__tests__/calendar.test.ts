@@ -35,3 +35,11 @@ describe("buildWeek", () => {
     expect(w.flatMap((d) => d.booked).map((b) => b.prospectId)).not.toContain("p2");
   });
 });
+
+describe("booked calls with a time (0325)", () => {
+  it("timed calls first in time order, untimed after", () => {
+    const b = (prospectId: string, time: string | null) => ({ day: "2026-11-23", prospectId, repId: "r", name: prospectId, organization: null, time });
+    const w = buildWeek("2026-11-23", [b("none", null), b("late", "16:00"), b("early", "09:30")], [], 0);
+    expect(w[0]!.booked.map((x) => x.prospectId)).toEqual(["early", "late", "none"]);
+  });
+});

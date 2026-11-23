@@ -131,7 +131,15 @@ export function eventValue(kind: ProspectFact, value: unknown): Record<string, u
   if (kind === "amount") return typeof value === "number" && value >= 0 ? { amount: value } : null;
   if (kind === "next_call" || kind === "close_date") {
     if (value === null) return { date: null };
-    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? { date: value } : null;
+    if (typeof value === "string") return /^\d{4}-\d{2}-\d{2}$/.test(value) ? { date: value } : null;
+    // 0325: a next call may carry the rep's local time, { date, time: "HH:MM" } (a close date never does).
+    if (kind === "next_call" && value && typeof value === "object") {
+      const v = value as { date?: unknown; time?: unknown };
+      if (typeof v.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.date)) return null;
+      if (v.time === undefined || v.time === null || v.time === "") return { date: v.date };
+      return typeof v.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v.time) ? { date: v.date, time: v.time } : null;
+    }
+    return null;
   }
   if (value && typeof value === "object") {
     const v = value as { status?: unknown; label?: unknown };

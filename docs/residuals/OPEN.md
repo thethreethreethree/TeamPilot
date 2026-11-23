@@ -304,9 +304,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by the team call calendar (2026-11-23, docs/tbc/2026-11-23-team-calendar)
 
-- [ ] 2026-11-23 · calendar · booked calls show a date only (a prospect's next call has no time)
+- [x] 2026-11-23 · calendar · booked calls show a date only (a prospect's next call has no time)
       why-unresolved: next_call_date is a date column
       next-action: an optional next-call time on the prospect event, shown on the calendar and in the .ics reminder
+      done 2026-11-23: 0325 (applied) — time on the card, row, calendar, Ask box and .ics — docs/tbc/2026-11-23-next-call-time.
 - [ ] 2026-11-23 · calendar · calendar week read is capped at 500 calls
       why-unresolved: far above any team's week today
       next-action: if a team nears it, page the read and say "showing the first 500"
