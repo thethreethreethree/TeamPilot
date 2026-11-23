@@ -400,9 +400,10 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by redaction on every writer (2026-11-23, docs/tbc/2026-11-23-redaction-all-writers)
 
-- [ ] 2026-11-23 · redaction · numbers spoken as words ("four one one one …") are not removed from transcripts
+- [x] 2026-11-23 · redaction · numbers spoken as words ("four one one one …") are not removed from transcripts
       why-unresolved: D15 covers digit runs only
       next-action: a word-to-digit pass before redactNumbers, tested on real transcripts
+      done 2026-11-23: redactSpokenNumbers inside transcriptTextForStorage; run over all 2,963 production lines (0 changed after a counting exception) — docs/tbc/2026-11-23-spoken-number-redaction.
 
 ## Filed by call notes + erasure coverage (2026-11-23, docs/tbc/2026-11-23-call-notes-erasure)
 
