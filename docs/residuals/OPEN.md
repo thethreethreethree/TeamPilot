@@ -380,3 +380,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · prompt-library · run each library prompt on one real call and one real pipeline; rewrite any that produce a vague answer; then a team's own saved prompts
       why-unresolved: needs real data and paid AI calls; custom prompts are their own build
       next-action: after the first real remote calls are scored
+
+## Filed by team usage (2026-11-23, docs/tbc/2026-11-23-team-usage)
+
+- [ ] 2026-11-23 · usage · sign-ins via Google/Microsoft or the mobile app aren't counted; Tasks / C.A.R.E / Finance use isn't in the view; email lookup is one call per person
+      why-unresolved: only /api/auth/sign-in writes login_attempts; first version covers the coaching records
+      next-action: record a sign-in event on every session creation path; add module columns; batch the lookup past ~100 people

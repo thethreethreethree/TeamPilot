@@ -1987,6 +1987,8 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
   ["src/app/api/admin/security-reports/route.ts::security_reports::id", "0312: security reports belong to NO company, so there is no tenant to name; requireVendorAdmin() gates the route (founders only) and the tables are sealed (no policy)."],
   ["src/app/api/admin/security-reports/route.ts::security_report_events::write", "0312: security reports belong to NO company, so there is no tenant to name; requireVendorAdmin() gates the route (founders only) and the tables are sealed (no policy)."],
   ["src/app/api/security-report/route.ts::security_reports::write", "0312: the public disclosure form writes one row of a report that belongs to NO company (no tenant exists); rate-limited, bot field, sealed table read only by the vendor inbox. It reads nothing."],
+  ["src/app/api/coach/remote/usage/route.ts::login_attempts::email",
+    "login_attempts has no company column (0272: written before a session exists). The read is narrowed by .in('email', …) to the emails of the caller's OWN company members inside their reporting tree (profiles .eq company_id, then treeFilterReps), looked up server-side and never returned."],
   ["src/app/api/coach/gamification/notifications/route.ts::manager_notifications::recipient_id",
     "Marks the caller's own notifications read: `.eq(\"recipient_id\", ctx.userId)`. Narrower than company."],
   ["src/app/api/coach/sales-session/my-training/route.ts::events::kind",
