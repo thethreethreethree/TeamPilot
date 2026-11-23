@@ -170,6 +170,8 @@ const ALLOWLIST = new Map([
   ["training_scenario_stages.insert", "0310 written by /api/coach/remote/scenarios/stages (managers, company-pinned, scenario checked); a client insert could tag scenarios without being a manager."],
   ["training_scenario_stages.update", "0310 §3.1 append-only: untagging is a new is_on=false row (DB rule too)."],
   ["training_scenario_stages.delete", "0310 §3.1 append-only (DB rule too)."],
+  ["call_notes.update", "0316 §3.1 append-only: a correction is a new note (DB rule too; lifted only during legal erasure, 0285 pattern)."],
+  ["call_notes.delete", "0316 §3.1 append-only; only rss_erase_sessions deletes, under rss.erasure (§3.1.1)."],
   ["transcript_line_edits.insert", "0311 written only inside edit_transcript_line (service role), after the route's rep-or-manager-in-tree check; a client insert could forge who corrected a line."],
   ["transcript_line_edits.update", "0311 §3.1 append-only (DB rule too)."],
   ["transcript_line_edits.delete", "0311 §3.1: no app path deletes edit rows; only the coaching_sessions cascade removes them with their call."],

@@ -46,6 +46,7 @@ import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel"
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { CallPipelineLink } from "@/components/remote-sales/CallPipelineLink";
+import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
@@ -485,6 +486,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
           <ConsentStatus sessionId={id} />
           <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
           <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
+          <CallNotes sessionId={id} onSeek={seekTo} />
         </div>
       </>
     );
@@ -571,6 +573,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
 
         {/* Which prospect this call belongs to — in the full view too (2026-11-23); before, only Macro Mode had it. */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallPipelineLink sessionId={id} />}
+        {/* The rep's notes on the call (0316) — during a live call too, stamped with the moment. */}
+        {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallNotes sessionId={id} onSeek={seekTo} />}
 
         {/* Full transcript (partner meeting 9/2) — collapsible; RLS-gated to the owner or a same-company admin. */}
         {!loading && (

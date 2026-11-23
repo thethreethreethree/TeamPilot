@@ -2516,8 +2516,15 @@ for (const f of FILES) {
     });
   }
 }
+// Later migrations that EXTEND the one door — redefine rss_erase_sessions itself, or make a new call-keyed table's
+// append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
+// (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
+const ERASURE_EXTENSIONS = new Map([
+  ["0316_call_notes_and_erasure_coverage.sql",
+    "Extends rss_erase_sessions to the Macro Mode tables (call briefs, checklist reviews, follow-up drafts, prospect name/organization, their Tasks), call notes, feedback-request messages and notification excerpts, which 0285 predates; makes those tables' rules erasure-aware with 0285's exact pattern. §3.1.1(2): erasure must reach every stored copy of the customer's words."],
+]);
 for (const name of migs) {
-  if (/^0285_/.test(name)) continue;
+  if (/^0285_/.test(name) || ERASURE_EXTENSIONS.has(name)) continue;
   const sql = readFileSync(join(MIG_DIR, name), "utf8");
   if (/rss\.erasure|rss_erase_sessions/.test(sql)) {
     findings.push({
