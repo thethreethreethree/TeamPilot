@@ -32,3 +32,21 @@ export const OUTCOME_ORDER: SalesOutcome[] = [
 export function outcomeLabel(outcome: string): string {
   return OUTCOME_LABELS[outcome as SalesOutcome] ?? outcome;
 }
+
+/**
+ * Outcome tone (2026-11-25; Gong ledger F26.10; founder picker "Green / grey / amber"): positive = Sold (green),
+ * caution = No sale (amber — a warm caution, never red on a rep's call), neutral = everything else (grey). Door-log
+ * outcomes use the same three: Not interested is the door's "no sale". One rule for every badge.
+ */
+export type OutcomeTone = "positive" | "neutral" | "caution";
+export function outcomeTone(outcome: string | null | undefined): OutcomeTone {
+  if (outcome === "sold") return "positive";
+  if (outcome === "no_sale" || outcome === "not_interested") return "caution";
+  return "neutral";
+}
+/** Saturated in both themes (theme audit: no pale text that vanishes on light). */
+export const OUTCOME_TONE_CLASS: Record<OutcomeTone, string> = {
+  positive: "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400",
+  neutral: "bg-zinc-500/10 text-secondary",
+  caution: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+};

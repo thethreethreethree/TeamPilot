@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { OutcomeBadge } from "@/components/sales-coach/OutcomeBadge";
 import { Mic, Play, Pause, RotateCcw, RotateCw, Send, SlidersHorizontal, Share2, Info } from "lucide-react";
 import type { PitchRecordingRow, PitchRecordingDetail } from "@/lib/coach/recordings/readRecordings";
 import type { MomentKind } from "@/lib/coach/recordings/keyMoments";
 import type { ShareState } from "@/lib/coach/recordings/shareState";
 import { linesAround } from "@/lib/coach/recordings/keyMoments";
-import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { loadPeaks } from "@/lib/coach/recordings/peaks";
 import { useCallMediaSession } from "@/lib/hooks/useCallMediaSession";
 
@@ -220,7 +220,7 @@ export default function RecordingsTab({
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                 {r.durationS !== null && <span className="tabular-nums">{clock(r.durationS)}</span>}
-                {r.outcome && <span>{outcomeLabel(r.outcome)}</span>}
+                {r.outcome && <OutcomeBadge outcome={r.outcome} />}
                 {/* The board labels an excluded pitch rather than hiding it: a rep who sees a
                     score and a manager who does not would be looking at different histories. */}
                 {!r.qualifying && (

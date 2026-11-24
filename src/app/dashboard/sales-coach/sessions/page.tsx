@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OutcomeBadge } from "@/components/sales-coach/OutcomeBadge";
 import Link from "next/link";
 import {
   Phone,
@@ -24,12 +25,10 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Modal from "@/components/ui/Modal";
-import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import type { SessionFlag } from "@/lib/coach/v5/sessionFlag";
 import {
   DeckCard,
-  DeckPill,
   DeckStat,
   SectionLabel,
   Sparkline,
@@ -738,7 +737,7 @@ export default function SalesCoachSessionsPage() {
                   )}
                   {s.outcome && (
                     <span className="shrink-0">
-                      <DeckPill>{outcomeLabel(s.outcome)}</DeckPill>
+                      <OutcomeBadge outcome={s.outcome} />
                     </span>
                   )}
                   {badgesAvailable && (

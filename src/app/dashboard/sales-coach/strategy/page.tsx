@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OutcomeBadge } from "@/components/sales-coach/OutcomeBadge";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import { DeckCard, SectionLabel, DeckPill } from "@/components/sales-coach/ui/deck";
 import { ONE_LINERS_LABEL } from "@/lib/coach/labels";
 import { LearningHint } from "@/components/learning/LearningHint";
-import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import {
   Quote,
   BookOpen,
@@ -123,9 +123,7 @@ export default function SalesCoachStrategyPage() {
                                 </span>
                               )}
                               {c.outcome && (
-                                <span className="text-[10px] text-muted">
-                                  · {outcomeLabel(c.outcome)}
-                                </span>
+                                <OutcomeBadge outcome={c.outcome} />
                               )}
                             </div>
                           </div>

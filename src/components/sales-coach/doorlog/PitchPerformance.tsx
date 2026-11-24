@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { OUTCOME_TONE_CLASS } from "@/lib/coach/v5/outcomeLabels";
 import Link from "next/link";
 import { ChevronRight, Loader2 } from "lucide-react";
 
@@ -11,12 +12,14 @@ import { ChevronRight, Loader2 } from "lucide-react";
  * this surface is purely the record of pitches. Read-only; a load error is honest, never a false "no pitches".
  */
 
+// Colors from the one outcome-tone rule (F26.10, 2026-11-25): Sold green, Not interested amber, the rest neutral.
+// Go Back keeps the brand accent: it is the door's "come back later", an open opportunity.
 const OUTCOME_BADGE: Record<string, { label: string; cls: string }> = {
-  sold: { label: "Sold", cls: "bg-emerald-500/15 text-emerald-400" },
+  sold: { label: "Sold", cls: OUTCOME_TONE_CLASS.positive },
   go_back: { label: "Go Back", cls: "bg-ember-400/15 text-brand" },
-  non_decision_maker: { label: "Non-DM", cls: "bg-surface text-secondary" },
-  not_interested: { label: "Not Int.", cls: "bg-surface text-muted" },
-  no_answer: { label: "No Answer", cls: "bg-surface text-muted" },
+  non_decision_maker: { label: "Non-DM", cls: OUTCOME_TONE_CLASS.neutral },
+  not_interested: { label: "Not Int.", cls: OUTCOME_TONE_CLASS.caution },
+  no_answer: { label: "No Answer", cls: OUTCOME_TONE_CLASS.neutral },
 };
 
 type Pitch = {

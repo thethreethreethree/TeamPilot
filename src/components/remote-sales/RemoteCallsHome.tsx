@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OutcomeBadge } from "@/components/sales-coach/OutcomeBadge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -8,7 +9,6 @@ import { markTodaySeen, todaySeenToday } from "@/lib/coach/remote/todayShown";
 import { Loader2, Phone, Video } from "lucide-react";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { StageChips } from "@/components/sales-coach/StageChips";
-import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { RemoteMacroToggle } from "@/components/remote-sales/RemoteMacroToggle";
 
@@ -125,7 +125,8 @@ export function RemoteCallsHome() {
                         {new Date(r.startedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} ·{" "}
                         {mmss(conversationDurationSeconds(r.audioDurationSeconds, r.startedAt, r.endedAt))}
                         {isManager && r.agentName ? ` · ${r.agentName}` : ""}
-                        {r.outcome ? ` · ${outcomeLabel(r.outcome)}` : r.status === "active" ? " · in progress" : " · no outcome yet"}
+                        {r.outcome ? " · " : r.status === "active" ? " · in progress" : " · no outcome yet"}
+                        {r.outcome && <OutcomeBadge outcome={r.outcome} />}
                       </span>
                     </span>
                   </span>
