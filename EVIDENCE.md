@@ -47,3 +47,36 @@ duplicate them.
 This is Phase 0. `02-decisions.md` is itself a hard STOP: **eight decisions only John can make** (Q1–Q8), and
 Phases 04–08 cannot be specified until those answers plus the Phase-01 codebase inspection exist. No migration,
 component, or code is written until that is done and approved.
+
+---
+
+# EVIDENCE — "General Sales Interface for Elostate.pdf" (founder, 2026-11-24)
+
+Phase 0 per the Evidence Protocol. Source: `/Users/elostate/Downloads/General Sales Interface for Elostate.pdf`, 1,286,648
+bytes, 3 pages. Opened 2026-11-24 by rendering every page to an image (PDFKit, scratchpad/gsi/page1-3.png) and reading
+each, plus the page text. This is the same document `docs/rss/MACRO-MODE-SPEC.md` names as its source (l.3, "3 pages,
+shared by the founder 2026-11-22").
+
+| Page | Opened | Proof — a fact from inside |
+|---|---|---|
+| 1 | YES (image + text) | [OBSERVED] A Gong call-page screenshot titled "RealityCorp Demo", "Jul 8, 2024 · 42m · Listened · Credax", tabs Highlights/Outline/Transcript/Call Info/Points of interest/Slides, player at "00:00 / 42:01" with three speaker lanes (Alex Castillo, Lorna Rice, Laurel Harmon). Text: "3 tabs — Highlights, Coaching, Next Meeting … Too many"; Highlights (cyan) = Call Brief, Key Points, Next Steps, then "generate follow up email/text/API integration (SalesForce/whatever platform the company uses)"; Coaching (green) = "scorechart 0-100, what they did well, what they need to improve upon. Harvard research on psychological effect on the wordings … (This is a way for us to boast about our system)". |
+| 2 | YES (image + text) | [OBSERVED] Next Meeting (yellow) = "set the agenda, key points … Custom checklist upon finishing the call (must be reviewed) … integrated with calendar for reminders". "That's it. Nothing else. Super Simple." CRM: a Gong pipeline screenshot (cards "Open $5.58M (87)", "Commit $1.983M (13)", "Most Likely $683.5K (11)", "Best Case $1.31M (27)", "Closed Won $2.19M (36)"; rows BitForge, Sourcemax, WulfExtract, Indis, Exempla, ApexMind, Fundex, Exellix with Score/Warnings/Contacts/Activity/Next Call; overlay "pipeline inspection."). Top tabs wanted: "Open $figure, Closed Won, Closed Lost". |
+| 3 | YES (image + text) | [OBSERVED] Per prospect: "To do (ex: send a follow up email), stage, next call date, last call date, potential/deal amount"; "oh I have to send Betty a follow up email on next steps". Video link "Using Gong Engage to Manage My Pipeline // How Gong Uses Gong". Manager flow: "Nothing will change here, except … see sales rep's pipeline/sales presentation". Braindump: "Hello Moses, what is our to do list for the day … 2 biggest needle mover … Open format summary of yesterday's performance." |
+
+## Against the code (2026-11-24)
+
+- Built (Macro Mode, 0303): the three call tabs (MacroCallView.tsx:41-44), follow-up email/text drafts, score +
+  did-well + improve, agenda + checklist that must be reviewed + .ics reminders, pipeline tabs Open/Closed Won/Closed
+  Lost with to-do, stage, next call, last call, amount, the manager's "Whose pipeline", and Today's brain dump with two
+  needle movers and yesterday's numbers.
+- Not built: "API integration (Salesforce/whatever platform)" — MacroCallView.tsx:293 says "Sending to Salesforce or
+  HubSpot comes later; for now, copy it." [OBSERVED]
+- Not shown: the Harvard-research basis of the coaching wording (MACRO-MODE-SPEC.md:25 records it; no screen cites it;
+  no source is in the tree). [OBSERVED]
+- At odds with "KEEP IT SIMPLE / nothing else": Macro Mode reduces a rep's TABS to Today, Pipeline, Calls
+  (RemoteSalesShell.tsx:34-38), but features added 2026-11-23 live inside those screens and are not hidden in Macro
+  Mode — on Pipeline: List/Calendar/Sources/Forecast views, the Ask box, risk and sentiment lines, stage practice, lead
+  source, expected close; on Today: "Your coaching this week". [OBSERVED in code; whether each shows in Macro Mode is
+  INFERRED from the absence of a macro check in RemotePipeline.tsx and RemoteToday.tsx]
+
+Not opened: the video link on page 3 (a YouTube page; not fetched).

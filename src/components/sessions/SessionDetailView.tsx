@@ -491,7 +491,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
           <ConsentStatus sessionId={id} />
           <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
           <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
-          <CallNotes sessionId={id} onSeek={seekTo} />
+          {/* "KEEP IT SIMPLE" (founder picker 2026-11-24): Macro Mode's call page is the player and the PDF's three tabs;
+              call notes are in the full view, one tap away. */}
         </div>
       </>
     );

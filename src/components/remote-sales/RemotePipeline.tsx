@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Check, GraduationCap, Loader2, Phone, Plus, Sparkles, Video, X } from "lucide-react";
@@ -57,6 +58,14 @@ const today = () => {
 };
 const shortDate = (iso: string | null) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—");
 
+/**
+ * "KEEP IT SIMPLE" (founder picker 2026-11-24, General Sales Interface PDF): with Macro Mode on, a REP sees exactly the
+ * PDF — Open / Closed Won / Closed Lost, and per prospect the to-do, stage, next call, last call and amount. The views,
+ * the Ask box, risk and sentiment lines, stage practice, lead source and expected close appear only with Macro Mode
+ * off. Managers keep their full view. If the setting can't be read, the full view shows (the module's safe default).
+ */
+const SimpleView = createContext(false);
+
 export function RemotePipeline() {
   const router = useRouter();
   const params = useSearchParams();
@@ -64,10 +73,15 @@ export function RemotePipeline() {
   const scManager = useIsSalesCoachManager();
   const role = useCurrentUserRole();
   const isManager = scManager || isCompanyAdminRole(role);
+  const { enabled: macro } = useRemoteMacroMode();
+  const simple = macro === true && !isManager;
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
   const [view, setView] = useState<"list" | "calendar" | "sources" | "forecast">("list");
   const [whose, setWhose] = useState<string>("mine");
+  useEffect(() => {
+    if (simple) setView("list");
+  }, [simple]);
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [peopleFailed, setPeopleFailed] = useState(false);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
@@ -115,6 +129,7 @@ export function RemotePipeline() {
   };
 
   return (
+    <SimpleView.Provider value={simple}>
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-primary">Pipeline</h2>
@@ -138,7 +153,7 @@ export function RemotePipeline() {
                 ))}
             </select>
           )}
-          <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
+          {!simple && <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
             {(["list", "calendar", "sources", "forecast"] as const).map((v) => (
               <button
                 key={v}
@@ -150,7 +165,7 @@ export function RemotePipeline() {
                 {v === "list" ? "List" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : "Forecast"}
               </button>
             ))}
-          </div>
+          </div>}
           <button type="button" onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black">
             <Plus className="h-3.5 w-3.5" aria-hidden /> New prospect
           </button>
@@ -196,7 +211,7 @@ export function RemotePipeline() {
         ))}
       </div>
 
-      {data && data.prospects.length > 0 && <AskPipeline key={whose} scope={whose} onOpen={goTo} />}
+      {!simple && data && data.prospects.length > 0 && <AskPipeline key={whose} scope={whose} onOpen={goTo} />}
 
       {failed ? (
         <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>
@@ -245,11 +260,11 @@ export function RemotePipeline() {
                     </span>
                     <span className="text-secondary">
                       Last call: {shortDate(p.lastCallAt)}
-                      {p.closeDate ? ` · Close: ${shortDate(p.closeDate)}` : ""}
+                      {!simple && p.closeDate ? ` · Close: ${shortDate(p.closeDate)}` : ""}
                     </span>
                   </div>
-                  <SentimentLine s={p.sentiment ?? null} />
-                  <RiskLine p={p} />
+                  {!simple && <SentimentLine s={p.sentiment ?? null} />}
+                  {!simple && <RiskLine p={p} />}
                 </button>
                 {selected === p.id && <ProspectDetail id={p.id} onChanged={() => void load()} onClose={() => open(null)} />}
               </li>
@@ -260,10 +275,12 @@ export function RemotePipeline() {
         </>
       )}
     </div>
+    </SimpleView.Provider>
   );
 }
 
 function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
+  const simpleNew = useContext(SimpleView);
   const [name, setName] = useState("");
   const [org, setOrg] = useState("");
   const [amount, setAmount] = useState("");
@@ -307,7 +324,7 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
           Next call
           <input type="date" value={next} onChange={(e) => setNext(e.currentTarget.value)} className={field} />
         </label>
-        <input value={source} onChange={(e) => setSource(e.currentTarget.value)} list="lead-sources" maxLength={60} placeholder="Lead source, e.g. Webinar (optional)" aria-label="Lead source" className={field} />
+        {!simpleNew && <input value={source} onChange={(e) => setSource(e.currentTarget.value)} list="lead-sources" maxLength={60} placeholder="Lead source, e.g. Webinar (optional)" aria-label="Lead source" className={field} />}
       </div>
       <div className="mt-2 flex gap-2">
         <button type="button" onClick={() => void save()} disabled={busy || !name.trim()} className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50">
@@ -329,6 +346,7 @@ type Detail = {
 };
 
 function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () => void; onClose: () => void }) {
+  const simple = useContext(SimpleView);
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -450,11 +468,11 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
           <input ref={callDateRef} type="date" defaultValue={p.next_call_date ?? ""} disabled={busy} aria-label="Next call date" onChange={setNextCall} className={field} />
           <input ref={callTimeRef} type="time" defaultValue={p.next_call_time ?? ""} disabled={busy || !p.next_call_date} aria-label="Next call time" onBlur={(e) => { if ((e.currentTarget.value || null) !== (p.next_call_time ?? null)) setNextCall(); }} className={`${field} w-28`} />
         </label>
-        <label className="flex items-center gap-2">
+        {!simple && <label className="flex items-center gap-2">
           Expected close
           <input type="date" defaultValue={p.close_date ?? ""} disabled={busy} aria-label="Expected close date" onChange={(e) => void post({ action: "set", kind: "close_date", value: e.currentTarget.value || null })} className={field} />
-        </label>
-        <label className="flex items-center gap-2">
+        </label>}
+        {!simple && <label className="flex items-center gap-2">
           Source
           <input
             defaultValue={p.source ?? ""}
@@ -468,7 +486,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
             }}
             className={`${field} w-36`}
           />
-        </label>
+        </label>}
       </div>
 
       {(p.next_call_date || d.todos.some((t) => !t.done && t.due)) && (
@@ -524,7 +542,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </div>
       </div>
 
-      {d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
+      {!simple && d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
 
       <div>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Calls</p>

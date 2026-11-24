@@ -537,3 +537,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: a constitutional amendment (§7) — only the founder ratifies
       next-action: once ratified, build: contract-end date in the vendor back office, the export, the scheduled deletion job and its record, and the privacy-page wording
 
+## Filed by the General Sales Interface PDF (2026-11-24, docs/tbc/2026-11-24-macro-simple)
+
+- [ ] 2026-11-24 · coaching · FOUNDER APPROVAL: the published research behind the coaching wording (the PDF's "Harvard research") — the agent brings studies and exact quotes; nothing is shown in the product until approved
+      why-unresolved: founder picker "I'll find & you approve"
+      next-action: review the proposed citations and wording rules; on approval, apply the rules to the coaching prompt and add the line on the Coaching tab
+
