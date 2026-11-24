@@ -54,5 +54,8 @@ describe("coaching metrics count when coaching happened (F16.9)", () => {
     expect(body.sessions).toBe(1); // the 45-day-old call is in view
     expect(body.feedbackGiven).toEqual({ m1: 1 }); // m2's comment was 40 days ago; m1's draft doesn't count
     expect(body.callsListened).toEqual({ m1: 1 }); // m1 played 400 of 600 s two days ago; m2's listen was 35 days ago
+    // F16.5: the same events give the rep's row — today's comment counts; the 45-day-old call is outside 30 days.
+    expect(body.byRep).toHaveLength(1);
+    expect(body.byRep[0]).toMatchObject({ repId: "r1", feedback30: 1, calls30: 0, overdue: false });
   });
 });

@@ -194,3 +194,50 @@ export async function loadCoachingEvents(
   }
   return out;
 }
+
+/**
+ * Coaching by rep (2026-11-25, ledger F16.5 "Coaching inbox": one row per direct report). Built from the same events
+ * and the same D8 rule (countsAsFeedback) as the per-manager numbers, so the two views cannot disagree. Per rep, over
+ * the last 30 days: feedback received, the last time any was given (ever, within the events read), whether it is
+ * OVERDUE (none in 30 days while the rep had calls), open feedback requests, calls, and calls nobody has coached yet.
+ * Sorted for attention: overdue first, then least feedback, then by name. Pure.
+ */
+export type RepCoaching = {
+  repId: string;
+  name: string;
+  feedback30: number;
+  lastFeedbackAt: string | null;
+  overdue: boolean;
+  openRequests: number;
+  calls30: number;
+  callsWithoutFeedback30: number;
+};
+export function coachingByRep(args: {
+  reps: Array<{ id: string; name: string }>;
+  calls: Array<{ id: string; repId: string; startedAt: string }>;
+  events: CoachingEvent[];
+  requests: Array<{ sessionId: string; managerId: string | null; requesterId: string; createdAt: Date }>;
+  now: Date;
+}): RepCoaching[] {
+  const since = args.now.getTime() - 30 * 86_400_000;
+  const feedback = args.events.filter((e) => countsAsFeedback(e) && "managerId" in e && e.managerId !== e.repId);
+  return args.reps
+    .map((rep) => {
+      const mine = feedback.filter((e) => e.repId === rep.id);
+      const last = mine.reduce<Date | null>((m, e) => (!m || e.at > m ? e.at : m), null);
+      const coachedCalls = new Set(mine.map((e) => ("sessionId" in e ? e.sessionId : null)).filter(Boolean) as string[]);
+      const calls = args.calls.filter((c) => c.repId === rep.id && Date.parse(c.startedAt) >= since);
+      const feedback30 = mine.filter((e) => e.at.getTime() >= since).length;
+      return {
+        repId: rep.id,
+        name: rep.name,
+        feedback30,
+        lastFeedbackAt: last ? last.toISOString() : null,
+        overdue: calls.length > 0 && feedback30 === 0,
+        openRequests: args.requests.filter((r) => r.requesterId === rep.id && r.createdAt.getTime() >= since && isRequestOpen(r, args.events)).length,
+        calls30: calls.length,
+        callsWithoutFeedback30: calls.filter((c) => !coachedCalls.has(c.id)).length,
+      };
+    })
+    .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.feedback30 - b.feedback30 || a.name.localeCompare(b.name));
+}

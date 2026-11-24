@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Inbox, Loader2 } from "lucide-react";
+import type { RepCoaching } from "@/lib/coach/remote/feedback";
 
 /**
  * The manager's coaching inbox on Coach Assessment (RSS Phase 4, Gong F16.4; docs/rss/docs/06-UI-SPEC.md).
@@ -32,7 +33,15 @@ type Item = {
 type Wire = { available: false; reason: string } | { available: true; items: Item[] };
 type Metrics =
   | { decided: false; decision: string; reason: string }
-  | { decided: true; since: string; sessions: number; feedbackGiven: Record<string, number>; callsListened: Record<string, number> };
+  | {
+      decided: true;
+      since: string;
+      sessions: number;
+      feedbackGiven: Record<string, number>;
+      callsListened: Record<string, number>;
+      /** F16.5 (2026-11-25): one row per rep — RepCoaching from feedback.ts, already sorted overdue-first. */
+      byRep?: RepCoaching[];
+    };
 
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
 const ago = (iso: string) => {
@@ -42,6 +51,11 @@ const ago = (iso: string) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+
+const daysAgo = (iso: string) => {
+  const d = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
+};
 
 export function CoachingInbox() {
   const [wire, setWire] = useState<Wire | null>(null);
@@ -203,6 +217,45 @@ export function CoachingInbox() {
           <p className="mt-1 text-[11px] text-muted">
             Feedback counts a comment sent to the rep, a score correction, a dispute answer or a pattern marked coached. A call
             counts as listened once at least half of it was played.
+          </p>
+        </div>
+      )}
+      {/* By rep (F16.5): who needs coaching — overdue first. Same rule and same 30 days as the table above. */}
+      {metrics?.decided && metrics.byRep && metrics.byRep.length > 0 && (
+        <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching by rep">
+          <p className="text-xs font-semibold text-primary">Your reps, last 30 days</p>
+          <div className="overflow-x-auto">
+            <table className="mt-2 w-full text-left text-xs">
+              <thead className="text-[11px] text-muted">
+                <tr>
+                  <th className="py-1 pr-2 font-normal">Rep</th>
+                  <th className="py-1 pr-2 font-normal">Last feedback</th>
+                  <th className="py-1 pr-2 text-right font-normal">Feedback</th>
+                  <th className="py-1 pr-2 text-right font-normal">Open requests</th>
+                  <th className="py-1 text-right font-normal">Calls · not yet coached</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.byRep.map((r) => (
+                  <tr key={r.repId} className="border-t border-default">
+                    <td className="py-1.5 pr-2 text-primary">{r.name}</td>
+                    <td className={`py-1.5 pr-2 ${r.overdue ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}>
+                      {r.overdue ? "Overdue · " : ""}
+                      {r.lastFeedbackAt ? daysAgo(r.lastFeedbackAt) : "never"}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right tabular-nums text-primary">{r.feedback30}</td>
+                    <td className={`py-1.5 pr-2 text-right tabular-nums ${r.openRequests ? "font-semibold text-primary" : "text-muted"}`}>{r.openRequests}</td>
+                    <td className="py-1.5 text-right tabular-nums text-secondary">
+                      {r.calls30} · {r.callsWithoutFeedback30}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            Overdue: calls in the last 30 days and no feedback in that time. &ldquo;Not yet coached&rdquo; counts the rep&apos;s calls
+            with no feedback on them.
           </p>
         </div>
       )}

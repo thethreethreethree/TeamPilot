@@ -40,4 +40,18 @@ describe("coaching metrics", () => {
     render(<CoachingInbox />);
     expect(await screen.findByText(/No feedback given or calls listened to yet across 7 phone and video calls/)).toBeTruthy();
   });
+
+  it("by rep (F16.5): overdue first, last feedback, open requests, calls not yet coached", async () => {
+    metrics = {
+      decided: true, since: "x", sessions: 3, feedbackGiven: {}, callsListened: {},
+      byRep: [
+        { repId: "bo", name: "Bo", feedback30: 0, lastFeedbackAt: null, overdue: true, openRequests: 1, calls30: 2, callsWithoutFeedback30: 2 },
+        { repId: "ana", name: "Ana", feedback30: 3, lastFeedbackAt: new Date(Date.now() - 86_400_000).toISOString(), overdue: false, openRequests: 0, calls30: 4, callsWithoutFeedback30: 1 },
+      ],
+    };
+    render(<CoachingInbox />);
+    const table = await screen.findByLabelText("Coaching by rep");
+    const rows = [...table.querySelectorAll("tbody tr")].map((r) => r.textContent);
+    expect(rows).toEqual(["BoOverdue · never012 · 2", "Anayesterday304 · 1"]);
+  });
 });

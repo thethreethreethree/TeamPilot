@@ -8,7 +8,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterReps } from "@/lib/api/treeAccess";
 import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decisions";
-import { countsAsFeedback, counted, loadCoachingEvents } from "@/lib/coach/remote/feedback";
+import { countsAsFeedback, counted, loadCoachingEvents, coachingByRep } from "@/lib/coach/remote/feedback";
 
 /**
  * GET /api/coach/remote/coaching-metrics — per-manager coaching activity, last 30 days (RSS Phase 4, Gong F16.2).
@@ -114,6 +114,34 @@ export async function GET(req: NextRequest) {
     if (!listener || !session) continue;
     if (counted(r, lengthMs.get(session) ?? 0)) callsListened[listener] = (callsListened[listener] ?? 0) + 1;
   }
+  // Coaching by rep (2026-11-25, ledger F16.5): one row per rep this manager may see — from the SAME calls and events
+  // as the numbers above, plus their open feedback requests and names. The manager's own calls are not a rep's row.
+  const repIds = [...allowed].filter((id) => id !== mgr.userId);
+  let byRep: ReturnType<typeof coachingByRep> = [];
+  if (repIds.length) {
+    const [{ data: profs, error: nErr }, { data: reqs, error: rErr }] = await Promise.all([
+      admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).in("id", repIds),
+      admin.from("feedback_requests").select("session_id, requester_id, recipient_id, created_at").eq("company_id", mgr.companyId).in("requester_id", repIds).gte("created_at", since),
+    ]);
+    if (nErr || rErr) {
+      console.error(`[coaching-metrics] by-rep read failed company=${mgr.companyId}: ${(nErr ?? rErr)!.message}`);
+      return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
+    }
+    const names = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "Unnamed teammate"]));
+    byRep = coachingByRep({
+      reps: repIds.map((id) => ({ id, name: names.get(id) ?? "Unnamed teammate" })),
+      calls: mine.map((s) => ({ id: String(s.id), repId: String(s.agent_id), startedAt: s.started_at })),
+      events,
+      requests: ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).map((r) => ({
+        sessionId: String(r.session_id),
+        managerId: r.recipient_id,
+        requesterId: String(r.requester_id),
+        createdAt: new Date(r.created_at),
+      })),
+      now: new Date(),
+    });
+  }
+
   // Coaching export (2026-11-23; ledger F16.11): the same numbers as a CSV, one row per person, audited like every
   // coaching export (the audit-route invariant). Same computation as the panel, so the file can't disagree with it.
   if (new URL(req.url).searchParams.get("format") === "csv") {
@@ -139,5 +167,5 @@ export async function GET(req: NextRequest) {
       },
     });
   }
-  return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsListened });
+  return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsListened, byRep });
 }

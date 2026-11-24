@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   allManagerActions,
+  coachingByRep,
   closesUnderEveryPolicy,
   countsAsFeedback,
   counted,
@@ -121,5 +122,46 @@ describe("requestAnsweredAt — same test as isRequestOpen (§2.2)", () => {
     const unanswered = events.slice(0, 3);
     expect(requestAnsweredAt(req, unanswered)).toBeNull();
     expect(isRequestOpen(req, unanswered)).toBe(true);
+  });
+});
+
+describe("coachingByRep (F16.5) — one row per rep, same D8 rule", () => {
+  const now = new Date("2026-11-25T12:00:00Z");
+  const d = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86_400_000);
+  const rows = coachingByRep({
+    reps: [{ id: "ana", name: "Ana" }, { id: "bo", name: "Bo" }, { id: "cy", name: "Cy" }],
+    calls: [
+      { id: "a1", repId: "ana", startedAt: d(3).toISOString() },
+      { id: "a2", repId: "ana", startedAt: d(4).toISOString() },
+      { id: "b1", repId: "bo", startedAt: d(2).toISOString() },
+      { id: "b0", repId: "bo", startedAt: d(60).toISOString() },
+    ],
+    events: [
+      { kind: "comment_sent_to_rep", managerId: "m", repId: "ana", at: d(1), sessionId: "a1" },
+      { kind: "comment_draft", managerId: "m", repId: "bo", at: d(1), sessionId: "b1" }, // a draft is not feedback
+      { kind: "score_override", managerId: "m", repId: "bo", at: d(45), sessionId: "b0" }, // old feedback
+      { kind: "own_session_action", managerId: "bo", repId: "bo", at: d(1), sessionId: "b1" }, // acting on your own call
+    ],
+    requests: [
+      { sessionId: "b1", managerId: null, requesterId: "bo", createdAt: d(2) },
+      { sessionId: "a1", managerId: null, requesterId: "ana", createdAt: d(2) }, // answered by the comment on day 1
+    ],
+    now,
+  });
+  const by = (id: string) => rows.find((r) => r.repId === id)!;
+
+  it("counts feedback the D8 way, and which calls nobody coached", () => {
+    expect(by("ana")).toMatchObject({ feedback30: 1, overdue: false, calls30: 2, callsWithoutFeedback30: 1, openRequests: 0 });
+    expect(by("ana").lastFeedbackAt).toBe(d(1).toISOString());
+  });
+  it("overdue = calls in 30 days and no feedback in 30 days; an old correction is the last feedback, a draft is not", () => {
+    expect(by("bo")).toMatchObject({ feedback30: 0, overdue: true, calls30: 1, callsWithoutFeedback30: 1, openRequests: 1 });
+    expect(by("bo").lastFeedbackAt).toBe(d(45).toISOString());
+  });
+  it("a rep with no calls is not overdue", () => {
+    expect(by("cy")).toMatchObject({ overdue: false, calls30: 0, lastFeedbackAt: null });
+  });
+  it("overdue first, then least feedback, then name", () => {
+    expect(rows.map((r) => r.repId)).toEqual(["bo", "cy", "ana"]);
   });
 });
