@@ -70,6 +70,7 @@ const NULL_ALLOWED: Record<string, [number, string]> = {
   "src/components/sales-coach/RepArena.tsx": [1, "leaderboard rank only; the points read above it fails loud"],
   "src/components/remote-sales/RemoteToday.tsx": [1, "first name in the greeting"],
   "src/components/remote-sales/RemoteCallComments.tsx": [1, "@mention name suggestions"],
+  "src/components/sales-coach/RemoteCallPanel.tsx": [1, "library folder-name suggestions (2026-11-25); the field still takes any name typed"],
   "src/app/dashboard/sales-coach/analytics/page.tsx": [1, "the next line turns null into setSkillsError(true) — the failure IS shown"],
 };
 

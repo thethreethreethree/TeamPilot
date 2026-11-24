@@ -16,6 +16,8 @@ import { assetUrlToStoragePath, signAssetUrl } from "@/lib/storage/assets";
  *
  *   GET ?scope=mine|company → { available, folders, items }
  *   POST { action: "add", scope, folderId?, folderName?, sessionId, clip?: { startMs, endMs, title }, note? }
+ *        folderName works for BOTH scopes (2026-11-25, F12.6 / F9.16): a named folder of your own ("Listen later",
+ *        "Objections") or a named company folder; found by name, created on first use. Default: "Mine" / "Team examples".
  *   POST { action: "remove", itemId }
  *
  * WHO SEES WHAT
@@ -229,12 +231,8 @@ export async function POST(req: NextRequest) {
     if (!f) return NextResponse.json({ error: "Folder not found." }, { status: 404 });
     folderId = String(f.id);
   } else {
-    const name =
-      scope === "company"
-        ? typeof body.folderName === "string" && body.folderName.trim()
-          ? body.folderName.trim().slice(0, 60)
-          : "Team examples"
-        : "Mine";
+    const named = typeof body.folderName === "string" && body.folderName.trim() ? body.folderName.trim().replace(/\s+/g, " ").slice(0, 60) : null;
+    const name = named ?? (scope === "company" ? "Team examples" : "Mine");
     let lookup = admin
       .from("library_folders")
       .select("id")

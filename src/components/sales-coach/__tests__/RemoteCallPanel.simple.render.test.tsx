@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
 /**
  * The player in Macro Mode (General Sales Interface PDF; founder 2026-11-25 "the macro system did not follow the PDF"):
@@ -50,5 +50,29 @@ describe("RemoteCallPanel", () => {
     expect(screen.getByText(/Download transcript/)).toBeTruthy();
     expect(screen.getByText(/Start a clip/)).toBeTruthy();
     expect(screen.getByText("Longest monologue")).toBeTruthy();
+  });
+});
+
+describe("RemoteCallPanel — saving to a folder (F12.6 / F9.16)", () => {
+  it("Listen later saves to your 'Listen later' folder; Save call sends the folder and note typed", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "POST" && url === "/api/coach/remote/library") {
+        posts.push(JSON.parse(init.body!));
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ item: { id: "i1" } }) });
+      }
+      if (url.startsWith("/api/coach/remote/library?")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ folders: [{ name: "Objections" }] }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? WIRE : { trims: [] }) });
+    }));
+    render(<RemoteCallPanel sessionId="s1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Listen later" }));
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({ action: "add", scope: "mine", sessionId: "s1", folderName: "Listen later" });
+    expect(await screen.findByText(/Added to “Listen later”/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Folder"), { target: { value: "Objections" } });
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "great reframe at 3:10" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save call to Mine/ }));
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(posts[1]).toMatchObject({ scope: "mine", folderName: "Objections", note: "great reframe at 3:10" });
   });
 });

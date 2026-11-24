@@ -96,6 +96,10 @@ export function RemoteCallPanel({
   const [clipTitle, setClipTitle] = useState("");
   const [saveNote, setSaveNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Library save (F12.6 / F9.16): an optional folder name and note; folder names already in use are suggested.
+  const [folder, setFolder] = useState("");
+  const [saveNoteText, setSaveNoteText] = useState("");
+  const [folderNames, setFolderNames] = useState<string[]>([]);
   // Trims (RSS Phase 8, 0284): sections cut from this call. Playback skips them; managers can trim and restore.
   const [trims, setTrims] = useState<Array<{ id: string; startMs: number; endMs: number }>>([]);
   const [trimNote, setTrimNote] = useState<string | null>(null);
@@ -131,6 +135,23 @@ export function RemoteCallPanel({
       onHide();
     };
   }, [flushListen]);
+
+  // Folder names already in use (yours, and the company's) for the save row's suggestions. Not in Macro Mode's player.
+  useEffect(() => {
+    if (simple) return;
+    let live = true;
+    Promise.all(
+      (["mine", "company"] as const).map((scope) =>
+        fetch(`/api/coach/remote/library?scope=${scope}`, { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j: { folders?: Array<{ name: string }> } | null) => (j?.folders ?? []).map((f) => f.name))
+          .catch(() => [] as string[]),
+      ),
+    ).then((lists) => live && setFolderNames([...new Set(["Listen later", ...lists.flat()])].sort()));
+    return () => {
+      live = false;
+    };
+  }, [simple]);
 
   useEffect(() => {
     let live = true;
@@ -379,6 +400,47 @@ export function RemoteCallPanel({
                 <button type="button" onClick={() => { setClipStart(null); setClipEnd(null); }} className="px-1 text-muted hover:text-primary">Cancel</button>
               </>
             )}
+            {/* F12.6 / F9.16 (2026-11-25): which folder, an optional note, and a one-tap "Listen later". */}
+            <input
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              maxLength={60}
+              list="library-folders"
+              placeholder="Folder (optional)"
+              aria-label="Folder"
+              className="w-32 rounded border border-default bg-surface px-2 py-1 text-xs text-primary"
+            />
+            <datalist id="library-folders">{folderNames.map((n) => <option key={n} value={n} />)}</datalist>
+            <input
+              value={saveNoteText}
+              onChange={(e) => setSaveNoteText(e.target.value)}
+              maxLength={500}
+              placeholder="Note (optional)"
+              aria-label="Note"
+              className="w-40 rounded border border-default bg-surface px-2 py-1 text-xs text-primary"
+            />
+            <button type="button" disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                setSaveNote(null);
+                try {
+                  const r = await fetch("/api/coach/remote/library", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "add", scope: "mine", sessionId, folderName: "Listen later", note: saveNoteText.trim() || undefined }),
+                  });
+                  const j = (await r.json().catch(() => ({}))) as { error?: string };
+                  setSaveNote(r.ok ? "Added to “Listen later” in your library." : j.error ?? "Couldn't save it.");
+                  if (r.ok) setSaveNoteText("");
+                } catch {
+                  setSaveNote("Couldn't reach the server. Try again.");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-muted hover:text-primary disabled:opacity-50">
+              <BookmarkPlus className="h-3.5 w-3.5" aria-hidden /> Listen later
+            </button>
             <div className="ml-auto flex gap-1">
               {(["mine", ...(isManager ? (["company"] as const) : [])] as const).map((scope) => (
                 <button key={scope} type="button" disabled={saving || (clipStart !== null && (clipEnd === null || !clipTitle.trim()))}
@@ -392,11 +454,11 @@ export function RemoteCallPanel({
                       const r = await fetch("/api/coach/remote/library", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "add", scope, sessionId, clip }),
+                        body: JSON.stringify({ action: "add", scope, sessionId, clip, folderName: folder.trim() || undefined, note: saveNoteText.trim() || undefined }),
                       });
                       const j = (await r.json().catch(() => ({}))) as { error?: string; needsApproval?: boolean; pitchId?: string | null };
                       if (!r.ok) { setSaveNote(j.error ?? "Couldn't save it."); return; }
-                      let msg = `Saved to ${scope === "company" ? "the company library" : "your library"}.`;
+                      let msg = `Saved to ${folder.trim() ? `“${folder.trim()}” in ` : ""}${scope === "company" ? "the company library" : "your library"}.`;
                       if (j.needsApproval && j.pitchId) {
                         // One consent path: the existing team-example request (0260), which also rings the rep's bell.
                         const ask = await fetch("/api/coach/sales-session/pitch-recordings/share", {
@@ -409,7 +471,7 @@ export function RemoteCallPanel({
                         msg += " Peers will hear it once the call is scored and the rep approves it.";
                       }
                       setSaveNote(msg);
-                      setClipStart(null); setClipEnd(null); setClipTitle("");
+                      setClipStart(null); setClipEnd(null); setClipTitle(""); setSaveNoteText("");
                     } catch {
                       setSaveNote("Couldn't reach the server. Try again.");
                     } finally {
