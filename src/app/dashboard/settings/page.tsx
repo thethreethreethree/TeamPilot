@@ -27,6 +27,7 @@ import { ExperienceModePanel } from "@/components/settings/ExperienceModePanel";
 import { AvatarCustomizationPanel } from "@/components/settings/AvatarCustomizationPanel";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
 import { ThemePanel } from "@/components/settings/ThemePanel";
+import { NotificationMutesPanel } from "@/components/settings/NotificationMutesPanel";
 import { formatInTimeZone } from "@/lib/datetime/format";
 
 interface Settings {
@@ -265,6 +266,9 @@ export default function SettingsPage() {
 
         {/* Experience Mode — the Standard/Expert complexity dial (0110). */}
         <ExperienceModePanel />
+
+        {/* Bell notices (0334): turn off FYI notices; action notices always arrive. */}
+        {supabaseEnabled && <NotificationMutesPanel />}
 
         {!supabaseEnabled && (
           <div className="glass-card p-6 text-center">

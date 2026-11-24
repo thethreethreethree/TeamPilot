@@ -25,7 +25,7 @@ type Call = { method: string; args: unknown[] };
 /** A query-builder double that records every call on one chain and resolves to `result`. */
 function chain(result: unknown, calls: Call[]) {
   const c: Record<string, unknown> = {};
-  for (const m of ["select", "order", "limit", "is", "eq", "in", "update"]) {
+  for (const m of ["select", "order", "limit", "is", "eq", "in", "update", "not"]) {
     c[m] = (...args: unknown[]) => {
       calls.push({ method: m, args });
       return c;
@@ -36,12 +36,13 @@ function chain(result: unknown, calls: Call[]) {
 }
 
 /** The two GET queries, in order: the page, then the unread count. */
-function setDb(page: unknown, unread: unknown) {
+function setDb(page: unknown, unread: unknown, mutes: unknown = { data: [], error: null }) {
   const listCalls: Call[] = [];
   const unreadCalls: Call[] = [];
   let n = 0;
   (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    from: () => (n++ === 0 ? chain(page, listCalls) : chain(unread, unreadCalls)),
+    // 0334: the caller's mutes are read first; then the page, then the unread count.
+    from: (table: string) => (table === "notification_mutes" ? chain(mutes, []) : n++ === 0 ? chain(page, listCalls) : chain(unread, unreadCalls)),
   });
   return { listCalls, unreadCalls };
 }
@@ -110,5 +111,22 @@ describe("POST /notifications (mark read)", () => {
     await POST(req({ ids: [id] }));
     expect(calls).toContainEqual({ method: "eq", args: ["recipient_id", "mgr1"] });
     expect(calls).toContainEqual({ method: "in", args: ["id", [id]] });
+  });
+});
+
+describe("GET /notifications — muted FYI notices (0334)", () => {
+  it("leaves the muted types out of the list AND the badge", async () => {
+    const { listCalls, unreadCalls } = setDb({ data: [], error: null, count: 0 }, { count: 0, error: null }, {
+      data: [{ id: 1, type: "call_scored", muted: true }, { id: 2, type: "deal_closed", muted: true }, { id: 3, type: "deal_closed", muted: false }],
+      error: null,
+    });
+    await GET(req());
+    expect(listCalls).toContainEqual({ method: "not", args: ["type", "in", "(call_scored)"] });
+    expect(unreadCalls).toContainEqual({ method: "not", args: ["type", "in", "(call_scored)"] });
+  });
+  it("a failed mutes read hides nothing", async () => {
+    const { listCalls } = setDb({ data: [], error: null, count: 0 }, { count: 0, error: null }, { data: null, error: { message: "x" } });
+    expect((await GET(req())).status).toBe(200);
+    expect(listCalls.some((c) => c.method === "not")).toBe(false);
   });
 });

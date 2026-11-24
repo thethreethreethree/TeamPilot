@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { currentlyMuted } from "@/lib/notifications/mutes";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
@@ -31,10 +32,22 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
   const supabase = callerScopedDb(req) ?? (await createClient());
+  // FYI notices the caller turned off (0334): left out of the list AND the unread count, so the badge never counts
+  // what the bell won't show. A failed read hides nothing (every notice shows) — muting is a preference, the notices
+  // are the record.
+  let muted: string[] = [];
+  {
+    const { data: mutes, error: mErr } = await supabase.from("notification_mutes").select("id, type, muted").eq("user_id", ctx.userId);
+    if (mErr) console.error("[gamification-notifications] mutes read failed:", mErr.message);
+    else muted = currentlyMuted((mutes ?? []) as Array<{ id: number; type: string; muted: boolean }>);
+  }
+  const notMuted = <Q extends { not: (c: string, op: string, v: string) => Q }>(q: Q): Q => (muted.length ? q.not("type", "in", `(${muted.join(",")})`) : q);
   // RLS: recipient_id = auth.uid() — the caller reads only their own notifications.
-  const { data, error, count } = await supabase
-    .from("manager_notifications")
-    .select("id, agent_id, session_id, type, payload, created_at, read_at", { count: "exact" })
+  const { data, error, count } = await notMuted(
+    supabase
+      .from("manager_notifications")
+      .select("id, agent_id, session_id, type, payload, created_at, read_at", { count: "exact" }),
+  )
     .order("created_at", { ascending: false })
     .limit(PAGE);
   if (error) {
@@ -58,10 +71,9 @@ export async function GET(req: NextRequest) {
    * Best-effort: if the count fails, the list still renders. `null` is passed through rather than
    * substituting the page's own tally, which would be the undercount with a confident face on it.
    */
-  const { count: unreadCount, error: unreadError } = await supabase
-    .from("manager_notifications")
-    .select("id", { count: "exact", head: true })
-    .is("read_at", null);
+  const { count: unreadCount, error: unreadError } = await notMuted(
+    supabase.from("manager_notifications").select("id", { count: "exact", head: true }),
+  ).is("read_at", null);
   if (unreadError) {
     // eslint-disable-next-line no-console
     console.error("[gamification-notifications] unread count error:", unreadError.message);

@@ -558,3 +558,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       next-action: extend detection to each rubric's own items once phone/video calls are being scored
 - [x] 2026-11-25 · patterns · CORRECTION to the entry above ("repeated misses on phone/video calls don't become patterns"): that is a recorded decision, not a gap — Pattern Interrupt is Sales Coach, in-person only (2026-11-22, d4fc60d1; readPatterns.ts says so). Nothing to build.
 - [x] 2026-11-25 · rss-p3 · (the 2026-11-15 item "the scorer reads rubric_config per channel … and supports N/A per element") DONE: per-channel rubrics since D6 (rubricRegistry, 2026-11-22); N/A per element by a manager's correction, 0331 (docs/tbc/2026-11-24-rubric-item-na).
+- [ ] 2026-11-25 · webhooks · VERIFIED MISSING: production /api/health (commit 7f02329) reports capabilities.webhooks = false — RSS_WEBHOOK_SIGNING_SECRET is not set in Vercel. Until it is, every webhook (session.scored, session.closed, deal.closed, call.to_crm) is queued and not sent, and "Send to CRM" tells the rep it isn't switched on (docs/tbc/2026-11-24-crm-send-fail-loud). Same check also shows email = false.
+      why-unresolved: founder-owned config (the item at line 176)
+      next-action: set RSS_WEBHOOK_SIGNING_SECRET (a long random string) in Vercel → redeploy → /api/health shows webhooks: true
