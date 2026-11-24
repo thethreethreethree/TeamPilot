@@ -10,6 +10,7 @@ import {
   type TimedLine,
 } from "./keyMoments";
 import type { ElementGrade } from "../pitchScore/rubric";
+import { applyCommentRevisions, type RevisionRow } from "./commentRevisions";
 import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
@@ -207,7 +208,7 @@ export async function readPitchRecordingDetail(
       .eq("pitch_id", pitch.id),
     supabase
       .from("recording_comments")
-      .select("id, timestamp_s, body, created_at")
+      .select("id, timestamp_s, body, created_at, author_id")
       .eq("pitch_id", pitch.id)
       .order("timestamp_s", { ascending: true }),
     supabase.from("patterns").select("item_id").eq("rep_id", pitch.rep_id).is("fixed_at", null),
@@ -216,6 +217,31 @@ export async function readPitchRecordingDetail(
   // with no misses — a clean-looking pitch — with no error anywhere. The route answers "could not load" (500).
   const failed = [elementsRes, eventsRes, commentsRes, patternsRes].find((r) => r.error);
   if (failed) throw new Error(`recording detail read failed for pitch=${pitch.id}: ${failed.error!.message}`);
+
+  // Edits and removals (0333): read under the caller's RLS (a revision is visible exactly when its comment is), then
+  // the latest revision decides what is shown. A failed read throws like the others — never the unedited text.
+  const commentRows = ((commentsRes.data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+    id: String(c.id),
+    timestampS: num(c.timestamp_s),
+    body: String(c.body),
+    createdAt: String(c.created_at),
+    authorId: String(c.author_id ?? ""),
+  }));
+  let revisionRows: RevisionRow[] = [];
+  if (commentRows.length) {
+    const rv = await supabase
+      .from("recording_comment_revisions")
+      .select("id, comment_id, body, removed")
+      .in("comment_id", commentRows.map((c) => c.id));
+    if (rv.error) throw new Error(`recording comment revisions read failed for pitch=${pitch.id}: ${rv.error.message}`);
+    revisionRows = ((rv.data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      id: Number(r.id),
+      commentId: String(r.comment_id),
+      body: (r.body as string | null) ?? null,
+      removed: r.removed === true,
+    }));
+  }
+  const shownComments = applyCommentRevisions(commentRows, revisionRows);
 
   const moments = keyMoments({
     elements: ((elementsRes.data ?? []) as Array<Record<string, unknown>>).map((e) => ({
@@ -255,11 +281,13 @@ export async function readPitchRecordingDetail(
       }];
     }),
     patternItemIds: ((patternsRes.data ?? []) as Array<{ item_id: string }>).map((p) => p.item_id),
-    comments: ((commentsRes.data ?? []) as Array<Record<string, unknown>>).map((c) => ({
-      id: String(c.id),
-      timestampS: num(c.timestamp_s),
-      body: String(c.body),
-      authorLabel: `Comment · ${new Date(String(c.created_at)).toLocaleDateString()}`,
+    comments: shownComments.map((c) => ({
+      id: c.id,
+      timestampS: c.timestampS,
+      body: c.body,
+      authorLabel: `Comment · ${new Date(c.createdAt).toLocaleDateString()}`,
+      authorId: c.authorId,
+      edited: c.edited,
     })),
   });
 

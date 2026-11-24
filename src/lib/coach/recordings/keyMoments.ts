@@ -47,6 +47,9 @@ export type KeyMoment = {
    * bonus, null where the question does not apply (a comment, a pattern moment).
    */
   points: number | null;
+  /** Comments only (0333): who wrote it — the author may edit or remove it — and whether it was edited. */
+  authorId?: string;
+  edited?: boolean;
 };
 
 /**
@@ -100,6 +103,8 @@ export type MomentSource = {
     timestampS: number;
     body: string;
     authorLabel: string;
+    authorId?: string;
+    edited?: boolean;
   }>;
 };
 
@@ -162,6 +167,8 @@ export function keyMoments(src: MomentSource): KeyMoment[] {
       label: c.authorLabel,
       detail: c.body,
       points: null,
+      ...(c.authorId ? { authorId: c.authorId } : {}),
+      ...(c.edited ? { edited: true } : {}),
     });
   }
 

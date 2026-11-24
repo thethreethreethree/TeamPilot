@@ -197,3 +197,72 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ comment: { ...inserted, visibility }, notified, mentioned: mentionedCount });
 }
+
+/**
+ * PATCH — the AUTHOR edits or removes their own comment (0333; Gong F9.8 "edit/delete"). { commentId, body } edits;
+ * { commentId, remove: true } removes. Nothing is overwritten: a revision row is appended and readers show the latest
+ * (applyCommentRevisions). Only the comment's author, in the same company, and only while the comment still shows (an
+ * edit after a removal would bring back a comment its author took down).
+ */
+export async function PATCH(req: NextRequest) {
+  const limited = rateLimit(req, { id: "coach-pitch-recording-comment", windowMs: 60_000, max: 30 });
+  if (limited) return limited;
+  const manager = await requireSalesCoachManager(req);
+  if (!manager) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+
+  let body: { commentId?: unknown; body?: unknown; remove?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+  }
+  const commentId = typeof body.commentId === "string" ? body.commentId : "";
+  const remove = body.remove === true;
+  const text = typeof body.body === "string" ? body.body.trim() : "";
+  if (!commentId) return NextResponse.json({ error: "Which comment?" }, { status: 400 });
+  if (!remove && !text) return NextResponse.json({ error: "A comment needs something in it." }, { status: 400 });
+  if (text.length > 2000) return NextResponse.json({ error: "Keep a comment under 2000 characters." }, { status: 400 });
+
+  const admin = createAdminClient();
+  const { data: c, error: cErr } = await admin
+    .from("recording_comments")
+    .select("id, company_id, author_id, body")
+    .eq("id", commentId)
+    .eq("company_id", manager.companyId)
+    .maybeSingle();
+  if (cErr) {
+    console.error(`[recording-comment] edit read failed comment=${commentId}: ${cErr.message}`);
+    return NextResponse.json({ error: "Could not save the change." }, { status: 500 });
+  }
+  if (!c) return NextResponse.json({ error: "Comment not found." }, { status: 404 });
+  if (String(c.author_id) !== manager.userId) return NextResponse.json({ error: "Only the person who wrote a comment can change it." }, { status: 403 });
+
+  const { data: last, error: lErr } = await admin
+    .from("recording_comment_revisions")
+    .select("body, removed")
+    .eq("comment_id", commentId)
+    .eq("company_id", manager.companyId)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lErr) {
+    console.error(`[recording-comment] revision read failed comment=${commentId}: ${lErr.message}`);
+    return NextResponse.json({ error: "Could not save the change." }, { status: 500 });
+  }
+  if (last?.removed) return NextResponse.json({ error: "That comment was removed." }, { status: 409 });
+  const current = (last?.body as string | null) ?? String(c.body);
+  if (!remove && text === current) return NextResponse.json({ ok: true, changed: false });
+
+  const { error } = await admin.from("recording_comment_revisions").insert({
+    company_id: manager.companyId,
+    comment_id: commentId,
+    author_id: manager.userId,
+    body: remove ? null : text,
+    removed: remove,
+  });
+  if (error) {
+    console.error(`[recording-comment] revision insert failed comment=${commentId}: ${error.message}`);
+    return NextResponse.json({ error: "Could not save the change." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, changed: true, removed: remove });
+}

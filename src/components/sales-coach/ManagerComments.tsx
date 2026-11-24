@@ -59,6 +59,7 @@ export function ManagerComments({ pitchId }: { pitchId: string }) {
           <li key={c.id} className="rounded-xl border border-subtle bg-surface p-3">
             <p className="text-[11px] tabular-nums text-muted">
               {c.atSeconds !== null ? `At ${clock(c.atSeconds)}` : "On this pitch"} · {c.label}
+              {c.edited ? " · edited" : ""}
             </p>
             <p className="mt-1 text-sm text-strong">{c.detail}</p>
           </li>

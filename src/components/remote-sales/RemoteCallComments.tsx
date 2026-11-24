@@ -82,19 +82,7 @@ export function RemoteCallComments({ sessionId, onSeek }: { sessionId: string; o
           {comments && comments.length > 0 ? (
             <ul className="space-y-2">
               {comments.map((c) => (
-                <li key={c.id} className="rounded-lg border border-subtle bg-base/40 p-3">
-                  <p className="text-[11px] tabular-nums text-muted">
-                    {c.atSeconds !== null ? (
-                      <button type="button" className="underline-offset-2 hover:underline" onClick={() => onSeek?.(c.atSeconds ?? 0)} disabled={!onSeek}>
-                        At {clock(c.atSeconds)}
-                      </button>
-                    ) : (
-                      "On this call"
-                    )}{" "}
-                    · {c.label}
-                  </p>
-                  <p className="mt-1 text-sm text-primary">{c.detail}</p>
-                </li>
+                <CommentItem key={c.id} c={c} mine={!!viewerId && c.authorId === viewerId} onSeek={onSeek} onChanged={() => void load()} />
               ))}
             </ul>
           ) : (
@@ -245,5 +233,97 @@ function Composer({ pitchId, repId, viewerId, onSaved }: { pitchId: string; repI
       {atS === null && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Write the time as m:ss, for example 1:05.</p>}
       {said && <p className="mt-2 text-xs text-muted">{said}</p>}
     </div>
+  );
+}
+
+/**
+ * One comment. Its author can edit or remove it (0333): each change is a new revision, never an overwrite, and the
+ * comment shows "edited". Removing asks first, since the rep may already have read it.
+ */
+function CommentItem({ c, mine, onSeek, onChanged }: { c: KeyMoment; mine: boolean; onSeek?: (s: number) => void; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(c.detail ?? "");
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const send = async (payload: { body?: string; remove?: boolean }) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/coach/sales-session/pitch-recordings/comment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId: c.id, ...payload }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) return setErr(j.error ?? "Couldn't save the change.");
+      setEditing(false);
+      setConfirmRemove(false);
+      onChanged();
+    } catch {
+      setErr("Couldn't reach the server. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <li className="rounded-lg border border-subtle bg-base/40 p-3">
+      <p className="text-[11px] tabular-nums text-muted">
+        {c.atSeconds !== null ? (
+          <button type="button" className="underline-offset-2 hover:underline" onClick={() => onSeek?.(c.atSeconds ?? 0)} disabled={!onSeek}>
+            At {clock(c.atSeconds)}
+          </button>
+        ) : (
+          "On this call"
+        )}{" "}
+        · {c.label}
+        {c.edited ? " · edited" : ""}
+      </p>
+      {editing ? (
+        <div className="mt-1 space-y-1.5">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.currentTarget.value)}
+            maxLength={2000}
+            rows={3}
+            aria-label="Edit comment"
+            className="w-full rounded-lg border border-default bg-surface p-2 text-sm text-primary"
+          />
+          <div className="flex gap-2 text-xs">
+            <button type="button" disabled={busy || !text.trim()} onClick={() => void send({ body: text })} className="rounded-lg bg-brand px-2.5 py-1 font-semibold text-black disabled:opacity-50">
+              Save
+            </button>
+            <button type="button" disabled={busy} onClick={() => { setEditing(false); setText(c.detail ?? ""); }} className="px-1 text-muted hover:text-primary">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm text-primary">{c.detail}</p>
+      )}
+      {mine && !editing && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+          <button type="button" disabled={busy} onClick={() => setEditing(true)} className="text-secondary hover:text-primary">
+            Edit
+          </button>
+          {confirmRemove ? (
+            <>
+              <span className="text-secondary">Remove it? The rep may already have read it.</span>
+              <button type="button" disabled={busy} onClick={() => void send({ remove: true })} className="font-semibold text-primary hover:underline">
+                Remove
+              </button>
+              <button type="button" disabled={busy} onClick={() => setConfirmRemove(false)} className="text-muted hover:text-primary">
+                Keep it
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} className="text-secondary hover:text-primary">
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+      {err && <p role="status" className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{err}</p>}
+    </li>
   );
 }
