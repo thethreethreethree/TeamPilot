@@ -539,7 +539,8 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by the General Sales Interface PDF (2026-11-24, docs/tbc/2026-11-24-macro-simple)
 
-- [ ] 2026-11-24 · coaching · FOUNDER APPROVAL: the published research behind the coaching wording (the PDF's "Harvard research") — the agent brings studies and exact quotes; nothing is shown in the product until approved
+- [x] 2026-11-24 · coaching · FOUNDER APPROVAL: the published research behind the coaching wording (the PDF's "Harvard research") — the agent brings studies and exact quotes; nothing is shown in the product until approved
       why-unresolved: founder picker "I'll find & you approve"
       next-action: review the proposed citations and wording rules; on approval, apply the rules to the coaching prompt and add the line on the Coaching tab
+      done 2026-11-24: approved "Rules + cite 3 studies" — docs/tbc/2026-11-24-coaching-research.
 

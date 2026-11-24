@@ -409,6 +409,14 @@ function Coaching({ sessionId }: { sessionId: string }) {
             )}
           </div>
           {review.closing && <p className="text-sm text-primary">{review.closing}</p>}
+          {/* Founder picker 2026-11-24 "Rules + cite 3 studies" (docs/rss/COACHING-WORDING-RESEARCH.md). No Harvard claim:
+              no peer-reviewed Harvard study on feedback wording was found. */}
+          <p className="text-[11px] text-muted">
+            Written the way research on feedback says helps people improve:{" "}
+            <a href="https://doi.org/10.1037/0033-2909.119.2.254" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">Kluger &amp; DeNisi 1996</a>,{" "}
+            <a href="https://doi.org/10.1037/0022-3514.75.1.33" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">Mueller &amp; Dweck 1998</a>,{" "}
+            <a href="https://doi.org/10.1037/a0033906" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">Yeager et al. 2014</a>.
+          </p>
         </>
       )}
     </div>
