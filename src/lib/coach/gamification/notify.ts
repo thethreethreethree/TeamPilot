@@ -271,6 +271,42 @@ export async function notifyCallReady(args: { companyId: string; sessionId: stri
 }
 
 /**
+ * Gong F15.13 (0332): the AI's score for a rep's phone/video call has landed — tell the rep, with the total. Once per call
+ * (0242's dedupe index; a re-score after a trim is a 23505 no-op). Door pitches are not notified (dozens a day, each
+ * seen on the spot). Never throws; the score is already stored.
+ */
+export async function notifyCallScored(args: { companyId: string; sessionId: string; total: number }): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data: s } = await admin
+      .from("coaching_sessions")
+      .select("agent_id, context, client_label")
+      .eq("company_id", args.companyId)
+      .eq("id", args.sessionId)
+      .maybeSingle();
+    if (!s || !["phone", "video"].includes(String(s.context))) return false;
+    const { error } = await admin.from("manager_notifications").insert({
+      company_id: args.companyId,
+      recipient_id: s.agent_id,
+      agent_id: s.agent_id,
+      session_id: args.sessionId,
+      type: "call_scored",
+      payload: { client_label: (s.client_label as string | null) ?? null, total: Math.round(args.total) },
+    });
+    if (error && error.code !== "23505") {
+      // eslint-disable-next-line no-console
+      console.error(`[gamification-notify] call_scored failed session=${args.sessionId}: ${error.message}`);
+      return false;
+    }
+    return !error;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[gamification-notify] notifyCallScored threw:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
+/**
  * Gong F15.21 (0305): a rep disputed a score → the rep's managers (resolveManagers — the one fan-out rule). Upserted on
  * (recipient_id, type, session_id): a second dispute on the same call brings the one alert back to the top. The
  * payload carries the call's channel so the bell sends the manager to the right module's queue (Remote Sales →

@@ -451,3 +451,13 @@ describe("a count the server could not read", () => {
     await waitFor(() => expect(bell.getAttribute("aria-label")).toBe("Notifications"));
   });
 });
+
+describe("call_scored (0332): the rep's call score landed", () => {
+  it("says the score and opens the call page", async () => {
+    respond([{ ...CORRECTION, id: "n9", type: "call_scored" as const, payload: { client_label: "Betty", total: 83 } }]);
+    const { container } = render(<NotificationBell />);
+    await openBell();
+    expect(await screen.findByText(/Your call with Betty is scored: 83 \/ 100/)).toBeTruthy();
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/dashboard/sales-coach/sess-9");
+  });
+});

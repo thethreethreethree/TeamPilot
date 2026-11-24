@@ -22,6 +22,7 @@ import { isProviderOutage } from "@/lib/llm/errors";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 import { rubricForChannel } from "./rubricRegistry";
+import { notifyCallScored } from "@/lib/coach/gamification/notify";
 
 /**
  * Score one recorded sales session, as ONE authority that every caller consumes.
@@ -345,6 +346,9 @@ async function scoreSessionOrThrow(args: {
     } catch (err) {
       console.error(`[scoreSession] pattern detection failed for rep=${session.agentId}:`, err);
     }
+  } else {
+    // F15.13 (0332): a phone/video rep is told their call's score landed (once per call; never fails the caller).
+    await notifyCallScored({ companyId, sessionId: session.id, total: result.score.total });
   }
 
   return {

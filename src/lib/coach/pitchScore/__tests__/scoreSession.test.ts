@@ -29,11 +29,13 @@ vi.mock("../storePitchScore", () => ({ storePitchScore: vi.fn() }));
 vi.mock("@/lib/coach/patterns/runDetection", () => ({ runDetection: vi.fn(async () => null) }));
 vi.mock("@/lib/coach/remote/session/failures", () => ({ recordSessionFailure: vi.fn(async () => undefined) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) }));
+vi.mock("@/lib/coach/gamification/notify", () => ({ notifyCallScored: vi.fn(async () => true) }));
 
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { generatePitchScore } from "../generatePitchScore";
 import { storePitchScore } from "../storePitchScore";
 import { runDetection } from "@/lib/coach/patterns/runDetection";
+import { notifyCallScored } from "@/lib/coach/gamification/notify";
 import { scoreSession, PERMANENT_REFUSALS, REFUSAL_MESSAGE } from "../scoreSession";
 import { LlmError, classifyStatus } from "@/lib/llm/errors";
 
@@ -278,5 +280,36 @@ describe("pattern detection runs for in-person calls only", () => {
       expect(generatePitchScore).toHaveBeenCalledTimes(1);
       expect(runDetection).not.toHaveBeenCalled();
     }
+  });
+});
+
+/** F15.13 (0332): the rep is told when a phone/video call's score lands; door pitches are not notified. */
+describe("the rep is told their call is scored", () => {
+  const scored = () => {
+    asMock(generatePitchScore).mockResolvedValue({ ok: true, score: { total: 82.6 }, elements: [], bonuses: [], violations: [], timestampsUnavailable: false });
+    asMock(storePitchScore).mockResolvedValue({ ok: true, pitchId: "p1" });
+  };
+  it("phone and video: one notice with the total", async () => {
+    for (const context of ["phone", "video"]) {
+      vi.clearAllMocks();
+      asMock(getSession).mockResolvedValue({ ...sellingSession, context });
+      asMock(getSessionTranscript).mockResolvedValue([{ speaker: "agent", text: "hello" }]);
+      scored();
+      expect((await scoreSession(llmArgs)).ok).toBe(true);
+      expect(notifyCallScored).toHaveBeenCalledWith({ companyId: "co1", sessionId: "s1", total: 82.6 });
+    }
+  });
+  it("in person (a door pitch): no notice", async () => {
+    asMock(getSession).mockResolvedValue({ ...sellingSession, context: "in_person" });
+    scored();
+    expect((await scoreSession(llmArgs)).ok).toBe(true);
+    expect(notifyCallScored).not.toHaveBeenCalled();
+  });
+  it("a refused score: no notice", async () => {
+    asMock(getSession).mockResolvedValue({ ...sellingSession, context: "phone" });
+    asMock(generatePitchScore).mockResolvedValue({ ok: true, score: { total: 50 }, elements: [], bonuses: [], violations: [], timestampsUnavailable: false });
+    asMock(storePitchScore).mockResolvedValue({ ok: false, cause: "write" });
+    expect((await scoreSession(llmArgs)).ok).toBe(false);
+    expect(notifyCallScored).not.toHaveBeenCalled();
   });
 });

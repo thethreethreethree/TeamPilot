@@ -52,7 +52,8 @@ type Notif = {
     | "call_ready"
     | "comment_mention"
     | "score_disputed"
-    | "dispute_answered";
+    | "dispute_answered"
+    | "call_scored";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -145,6 +146,12 @@ function text(n: Notif): string {
     const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
     return `Your uploaded call${label} is ready: transcript, review and score`;
   }
+  // F15.13 (0332): the AI's score for the rep's own phone/video call has landed.
+  if (n.type === "call_scored") {
+    const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
+    const total = typeof n.payload.total === "number" ? ` ${n.payload.total} / 100` : "";
+    return `Your call${label} is scored:${total} — see what went well and your next step`;
+  }
   // RSS Phase 7 (0283): a rep practised a scenario this manager assigned.
   if (n.type === "training_attempted") {
     const what = n.payload.scenario_title ? ` “${n.payload.scenario_title}”` : " an assigned scenario";
@@ -232,7 +239,7 @@ function destination(n: Notif): string | null {
   // pitchId and belongs to a different feature that happens to share the word "pitch".
   // dispute_answered: the call page, where the answer shows under the score (the module router sends a remote call to
   // Remote Sales).
-  return n.type === "pitch_score_corrected" || n.type === "call_ready" || n.type === "comment_mention" || n.type === "dispute_answered"
+  return n.type === "pitch_score_corrected" || n.type === "call_ready" || n.type === "call_scored" || n.type === "comment_mention" || n.type === "dispute_answered"
     ? `/dashboard/sales-coach/${n.session_id}`
     : `/dashboard/sales-coach/${n.session_id}/after-pitch`;
 }
