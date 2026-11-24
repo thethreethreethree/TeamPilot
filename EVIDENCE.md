@@ -80,3 +80,19 @@ shared by the founder 2026-11-22").
   INFERRED from the absence of a macro check in RemotePipeline.tsx and RemoteToday.tsx]
 
 Not opened: the video link on page 3 (a YouTube page; not fetched).
+
+## Re-read 2026-11-25 — General Sales Interface PDF (founder: "the macro system did not follow the PDF")
+
+- /Users/elostate/Downloads/General Sales Interface for Elostate.pdf · 1,286,648 bytes · 3 pages · opened as text (PDFKit) AND each page rendered to PNG and viewed.
+- p1 image: Gong call page — "Ask anything about this call" box, tabs Highlights/Outline/Transcript/Call Info/Points of interest/Slides on the LEFT with "Call brief" + "Key points"; video tile, player (1.5x, 15s back/forward) and per-speaker talk lanes (Alex Castillo, Lorna Rice, Laurel Harmon) on the RIGHT. Text: "3 tabs … Highlights, Coaching, Next Meeting … Too many." Cyan highlight: Call Brief, Key Points, Next Steps, "then at the bottom generate follow up email/text/API integration". Green: "scorechart 0-100, what they did well … need to improve … Harvard research".
+- p2: yellow highlight "set the agenda, key points … Custom checklist upon finishing the call (must be reviewed) … integrated with calendar"; "That's it. Nothing else. Super Simple."; image: Gong pipeline — top tiles "Open $5.58M (87)", Commit, Most Likely, Best Case, "Closed Won $2.19M (36)", Closed Lost; a TABLE with columns Name · Score · Warnings · Contacts · Activity · Next Call. Green: "top tabs —- Open $figure, Closed Won, Closed Lost".
+- p3: cyan "tabs for each prospect —- To do, stage, next call date, last call date, potential/deal amount"; Manager flow "Nothing will change here, except … a section where managers can see sales rep's pipeline/sales presentation"; brain dump "when they first open the software … Hello Moses … 2 biggest needle mover … Open format summary of yesterday's performance."
+
+Compared with the code [OBSERVED]:
+1. Managers/admins in Macro Mode keep all 10 tabs + Today, the full pipeline and full Today (RemoteSalesShell.tsx:45, RemotePipeline.tsx:77, RemoteToday.tsx:40) — the PDF's simple screens only reach reps.
+2. Macro call page (SessionDetailView.tsx:481) is one phone-width column: stage chips, consent status, a player with Download transcript/audio, Save clip, Trim and talk lanes, THEN the three tabs — not "3 tabs, nothing else", not the picture's tabs-left / player-right.
+3. Opening Remote Sales lands on Calls (stats, start a call, list), not the brain dump "when they first open the software".
+4. Pipeline prospects are stacked cards; the PDF's picture is a table with one column per field.
+Present and matching: the three tabs and their sections in order; Send to CRM; scorechart 0–100 + did well / improve + cited research; agenda / bring up again / reviewed checklist with Add to calendar; Open $ / Closed Won / Closed Lost tiles; To do / stage / next / last call / amount per prospect; brain dump, needle movers, yesterday.
+
+Not opened: the linked video "Using Gong Engage to Manage My Pipeline" (a YouTube link in the PDF).

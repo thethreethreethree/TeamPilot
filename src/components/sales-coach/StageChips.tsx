@@ -23,7 +23,9 @@ type Wire =
 
 const END_STATES = new Set(["scored", "failed", "not_scored", "live"]);
 
-export function StageChips({ sessionId }: { sessionId: string }) {
+/** `hideWhenReady` (Macro Mode): shown only while the call is still processing or has failed — an explanation for empty
+ *  tabs, never a fixture on a finished call. */
+export function StageChips({ sessionId, hideWhenReady = false }: { sessionId: string; hideWhenReady?: boolean }) {
   const [wire, setWire] = useState<Wire | null>(null);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function StageChips({ sessionId }: { sessionId: string }) {
     };
   }, [sessionId]);
 
-  if (!wire || !wire.remote || wire.state === "live") return null;
+  if (!wire || !wire.remote || wire.state === "live" || (hideWhenReady && wire.state === "scored")) return null;
 
   if (wire.failure) {
     return (

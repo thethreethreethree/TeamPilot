@@ -482,17 +482,23 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
     return (
       <>
         <TopBar title={session.clientLabel ?? "Call"} subtitle={`${CONTEXT_LABEL[session.context] ?? "Call"} · Macro Mode`} />
-        <div className="flex-1 overflow-y-auto px-4 py-6 max-w-md mx-auto w-full space-y-5 bg-base">
+        <div className="flex-1 overflow-y-auto px-4 py-6 max-w-6xl mx-auto w-full space-y-4 bg-base">
           <Link href="/dashboard/remote-sales" className="inline-flex items-center gap-1.5 text-xs text-secondary hover:text-primary">
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
             Back to calls
           </Link>
-          <StageChips sessionId={id} />
-          <ConsentStatus sessionId={id} />
-          <RemoteCallPanel sessionId={id} registerSeek={registerSeek} />
-          <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
-          {/* "KEEP IT SIMPLE" (founder picker 2026-11-24): Macro Mode's call page is the player and the PDF's three tabs;
-              call notes are in the full view, one tap away. */}
+          {/* The General Sales Interface PDF's picture: the three tabs on the left, the player and talk lanes on the
+              right; on a phone the player comes first. "That's it. Nothing else." (founder 2026-11-25) — stage chips,
+              consent, downloads, clips, trims, stats and notes are in the full call page (stage chips only while it's processing), one tap away. */}
+          <StageChips sessionId={id} hideWhenReady />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
+            <div className="lg:sticky lg:top-4 lg:order-2">
+              <RemoteCallPanel sessionId={id} registerSeek={registerSeek} simple />
+            </div>
+            <div className="min-w-0 lg:order-1">
+              <MacroCallView sessionId={id} onFullView={() => setFullView(true)} onSeek={seekTo} />
+            </div>
+          </div>
         </div>
       </>
     );

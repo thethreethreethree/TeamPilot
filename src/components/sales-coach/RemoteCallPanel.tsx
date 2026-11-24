@@ -69,9 +69,15 @@ const mmss = (ms: number) => {
 export function RemoteCallPanel({
   sessionId,
   registerSeek,
+  simple = false,
 }: {
   sessionId: string;
   registerSeek?: (seek: ((seconds: number) => void) | null) => void;
+  /**
+   * Macro Mode (General Sales Interface PDF, founder 2026-11-25): the picture's player only — play, 15-second skips,
+   * speed and the talk lanes. Downloads, clips, trimming and the stat tiles are in the full call page.
+   */
+  simple?: boolean;
 }) {
   const [wire, setWire] = useState<Wire | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -241,6 +247,7 @@ export function RemoteCallPanel({
   const sec = (x: number | null | undefined) => (x == null ? "—" : `${(x / 1000).toFixed(1)} s`);
   const num = (x: number | null | undefined) => (x == null ? "—" : String(Math.round(x * 10) / 10));
   const a = averages;
+  const skip = simple ? 15 : 10;
 
   return (
     <section className="rounded-2xl border border-default bg-base p-4 space-y-3" aria-label="Call">
@@ -275,7 +282,7 @@ export function RemoteCallPanel({
             }}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => seek(at - 10)} aria-label="Back 10 seconds" className="rounded-lg border border-default p-2 text-muted hover:text-primary">
+            <button type="button" onClick={() => seek(at - skip)} aria-label={`Back ${skip} seconds`} className="rounded-lg border border-default p-2 text-muted hover:text-primary">
               <RotateCcw className="h-4 w-4" aria-hidden />
             </button>
             <button
@@ -286,7 +293,7 @@ export function RemoteCallPanel({
             >
               {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
             </button>
-            <button type="button" onClick={() => seek(at + 10)} aria-label="Forward 10 seconds" className="rounded-lg border border-default p-2 text-muted hover:text-primary">
+            <button type="button" onClick={() => seek(at + skip)} aria-label={`Forward ${skip} seconds`} className="rounded-lg border border-default p-2 text-muted hover:text-primary">
               <RotateCw className="h-4 w-4" aria-hidden />
             </button>
             <span className="text-xs tabular-nums text-muted">
@@ -309,7 +316,7 @@ export function RemoteCallPanel({
               ))}
             </div>
           </div>
-          {isManager && (
+          {isManager && !simple && (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" aria-label="Download this call">
               <a href={`/api/coach/remote/${encodeURIComponent(sessionId)}/download?kind=transcript`}
                 className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-muted hover:text-primary">
@@ -333,7 +340,7 @@ export function RemoteCallPanel({
               {downloadNote && <span className="text-secondary">{downloadNote}</span>}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+          {!simple && <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             {clipStart === null ? (
               <button type="button" onClick={() => { setClipStart(at); setClipEnd(null); setSaveNote(null); }}
                 className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-muted hover:text-primary">
@@ -415,7 +422,7 @@ export function RemoteCallPanel({
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
           {saveNote && (
             <p className="mt-1 text-[11px] text-secondary" role="status">
               {saveNote}{" "}
@@ -428,7 +435,7 @@ export function RemoteCallPanel({
                 <li key={t.id} className="flex items-center gap-2 text-secondary">
                   <EyeOff className="h-3.5 w-3.5 text-muted" aria-hidden />
                   <span>Trimmed {mmss(t.startMs)}–{mmss(t.endMs)}: skipped in playback, left out of the transcript and the AI&apos;s reads</span>
-                  {isManager && (
+                  {isManager && !simple && (
                     <button type="button" disabled={trimBusy}
                       onClick={() => void sendTrim({ restoreTrimId: t.id }, "Restored. The AI's reads of this call are being redone with it.")}
                       className="ml-auto inline-flex items-center gap-1 text-brand hover:underline disabled:opacity-50">
@@ -481,6 +488,7 @@ export function RemoteCallPanel({
         ))}
       </div>
 
+      {!simple && <>
       <div className="grid grid-cols-3 gap-2">
         {tile("Talk ratio (time)", pct(stats.talkRatioTime), a ? pct(a.talkRatioTime) : null)}
         {tile("Longest monologue", mmss(stats.longestRepMonologueMs), a?.longestRepMonologueMs != null ? mmss(a.longestRepMonologueMs) : null)}
@@ -494,6 +502,7 @@ export function RemoteCallPanel({
         {wire.estimated ? " Some lines' end times were estimated (until the next person spoke), so pauses count as talk." : ""}
         {wire.untimed ? ` ${wire.untimed} line${wire.untimed === 1 ? "" : "s"} had no time and are left out.` : ""}
       </p>
+      </>}
     </section>
   );
 }

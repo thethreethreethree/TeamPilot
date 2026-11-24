@@ -6,7 +6,6 @@ import { AlertCircle, CalendarClock, Loader2, Target } from "lucide-react";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { RepRoutine } from "./RepRoutine";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
-import { isCompanyAdminRole, useCurrentUserRole, useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
  * Remote Sales → Today (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — the brain dump at the start of the day.
@@ -34,10 +33,8 @@ const localDay = () => {
 
 export function RemoteToday() {
   const { enabled: macro } = useRemoteMacroMode();
-  const isScManager = useIsSalesCoachManager();
-  const role = useCurrentUserRole(); // both hooks always run (rules of hooks)
-  const leads = isScManager || isCompanyAdminRole(role);
-  const simple = macro === true && !leads; // managers keep their full view
+  // Macro Mode is the PDF for everyone, managers included (founder picker 2026-11-25).
+  const simple = macro === true;
   const [name, setName] = useState<string | null>(null);
   const [d, setD] = useState<DayRes | null>(null);
   const [failed, setFailed] = useState(false);

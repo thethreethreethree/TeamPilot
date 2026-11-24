@@ -20,3 +20,8 @@ off. Managers keep their full view.
 ## Not opened
 
 No image, icon, logo, favicon or graphic asset was touched. The PDF's page-3 video link was not fetched.
+
+## Update 2026-11-24 (appended)
+
+R1-crm-send is built: "Send to CRM" on Macro Highlights, through the company's webhook (commit ace7b9f5,
+docs/tbc/2026-11-24-crm-send). With it, every element the General Sales Interface PDF lists is in Macro Mode.

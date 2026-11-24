@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import { Loader2, Phone, Video } from "lucide-react";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { StageChips } from "@/components/sales-coach/StageChips";
@@ -32,7 +34,28 @@ type Row = {
 
 const mmss = (s: number | null) => (s == null ? "—" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 
+/** The day Today was last opened automatically, per browser (Macro Mode's "braindump when they first open"). */
+const TODAY_SHOWN_KEY = "rss-macro-today-shown";
+const localDay = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export function RemoteCallsHome() {
+  const router = useRouter();
+  const { enabled: macro } = useRemoteMacroMode();
+  // General Sales Interface PDF: "a braindump when they first open the software". In Macro Mode the first visit of the
+  // day goes to Today; after that, Calls opens as asked. Storage failing just means Calls shows (never a loop).
+  useEffect(() => {
+    if (macro !== true) return;
+    try {
+      if (window.localStorage.getItem(TODAY_SHOWN_KEY) === localDay()) return;
+      window.localStorage.setItem(TODAY_SHOWN_KEY, localDay());
+    } catch {
+      return;
+    }
+    router.replace("/dashboard/remote-sales/today");
+  }, [macro, router]);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [isManager, setIsManager] = useState(false);
@@ -61,7 +84,7 @@ export function RemoteCallsHome() {
   return (
     <div className="space-y-6">
       <RemoteMacroToggle />
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Remote calls at a glance">
+      {macro !== true && <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Remote calls at a glance">
         {[
           { k: "Remote calls", v: rows ? rows.length : "—" },
           { k: "This week", v: rows ? thisWeek : "—" },
@@ -72,7 +95,7 @@ export function RemoteCallsHome() {
             <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{t.v}</p>
           </div>
         ))}
-      </section>
+      </section>}
 
       <section aria-label="Start a remote call">
         <h2 className="mb-2 text-sm font-semibold text-primary">Start a call</h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -59,10 +59,12 @@ const today = () => {
 const shortDate = (iso: string | null) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—");
 
 /**
- * "KEEP IT SIMPLE" (founder picker 2026-11-24, General Sales Interface PDF): with Macro Mode on, a REP sees exactly the
- * PDF — Open / Closed Won / Closed Lost, and per prospect the to-do, stage, next call, last call and amount. The views,
- * the Ask box, risk and sentiment lines, stage practice, lead source and expected close appear only with Macro Mode
- * off. Managers keep their full view. If the setting can't be read, the full view shows (the module's safe default).
+ * "KEEP IT SIMPLE" (founder picker 2026-11-24, General Sales Interface PDF): with Macro Mode on, everyone sees exactly
+ * the PDF — Open / Closed Won / Closed Lost, and per prospect a row with the to-do, stage, next call, last call and
+ * amount (the PDF's picture is a table, one column per field). The views, the Ask box, risk and sentiment lines, stage
+ * practice, lead source and expected close appear only with Macro Mode off. Managers too (founder picker 2026-11-25,
+ * "PDF screens + team section"): their one addition is the PDF's manager section — "Whose pipeline", to review each
+ * rep's. If the setting can't be read, the full view shows (the module's safe default).
  */
 const SimpleView = createContext(false);
 
@@ -74,7 +76,7 @@ export function RemotePipeline() {
   const role = useCurrentUserRole();
   const isManager = scManager || isCompanyAdminRole(role);
   const { enabled: macro } = useRemoteMacroMode();
-  const simple = macro === true && !isManager;
+  const simple = macro === true;
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
   const [view, setView] = useState<"list" | "calendar" | "sources" | "forecast">("list");
@@ -227,6 +229,8 @@ export function RemotePipeline() {
               ? "No closed-won deals yet."
               : "No closed-lost deals."}
         </p>
+      ) : simple ? (
+        <SimpleTable rows={rows} selected={selected} onOpen={open} onChanged={() => void load()} repName={whose !== "mine" ? nameOf : null} />
       ) : (
         <ul className="space-y-2">
           {rows.map((p) => {
@@ -1166,5 +1170,86 @@ function SentimentLine({ s }: { s: { last: "warming" | "cooling" | "flat"; trend
       Customer on the last call: {word}
       {trend}
     </p>
+  );
+}
+
+/**
+ * The PDF's pipeline (Macro Mode): one row per prospect, one column per field it names — To do, Stage, Next call,
+ * Last call, Amount. On a phone the same rows stack as cards (CSS only, so an open prospect is mounted once).
+ */
+function SimpleTable({
+  rows,
+  selected,
+  onOpen,
+  onChanged,
+  repName,
+}: {
+  rows: Prospect[];
+  selected: string | null;
+  onOpen: (id: string | null) => void;
+  onChanged: () => void;
+  repName: ((id: string) => string | null) | null;
+}) {
+  const cell = "block px-3 py-0.5 sm:table-cell sm:py-2.5";
+  const label = "text-muted sm:hidden";
+  return (
+    <div className="overflow-hidden rounded-xl border border-default bg-surface">
+      <table className="block w-full text-left text-xs sm:table">
+        <thead className="hidden text-[10px] uppercase tracking-wide text-muted sm:table-header-group">
+          <tr className="border-b border-default">
+            <th className="px-3 py-2 font-medium">Prospect</th>
+            <th className="px-3 py-2 font-medium">To do</th>
+            <th className="px-3 py-2 font-medium">Stage</th>
+            <th className="px-3 py-2 font-medium">Next call</th>
+            <th className="px-3 py-2 font-medium">Last call</th>
+            <th className="px-3 py-2 text-right font-medium">Amount</th>
+          </tr>
+        </thead>
+        <tbody className="block sm:table-row-group">
+          {rows.map((p) => {
+            const overdue = !!p.nextTodo?.due && p.nextTodo.due < today();
+            const isOpen = selected === p.id;
+            return (
+              <Fragment key={p.id}>
+                <tr
+                  onClick={() => onOpen(isOpen ? null : p.id)}
+                  className={`block cursor-pointer border-b border-default py-2 hover:bg-base/60 sm:table-row sm:py-0 ${isOpen ? "bg-brand/5" : ""}`}
+                >
+                  <td className={cell}>
+                    <button type="button" aria-expanded={isOpen} className="text-left" onClick={(e) => { e.stopPropagation(); onOpen(isOpen ? null : p.id); }}>
+                      <span className="block text-sm font-semibold text-primary">{p.name ?? "Unnamed prospect"}</span>
+                      {(p.organization || repName) && (
+                        <span className="block text-[11px] text-muted">{[p.organization, repName ? repName(p.repId) : null].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </button>
+                  </td>
+                  <td className={`${cell} ${overdue ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}>
+                    <span className={label}>To do: </span>
+                    {overdue && <AlertCircle className="mr-1 inline h-3 w-3" aria-label="Overdue" />}
+                    {p.nextTodo ? `${p.nextTodo.title}${p.nextTodo.due ? ` (${shortDate(p.nextTodo.due)})` : ""}` : "—"}
+                    {p.openTodos > 1 ? ` +${p.openTodos - 1}` : ""}
+                  </td>
+                  <td className={`${cell} text-secondary`}><span className={label}>Stage: </span>{p.stageLabel ?? "—"}</td>
+                  <td className={`${cell} text-secondary`}>
+                    <span className={label}>Next call: </span>
+                    {shortDate(p.nextCallDate)}
+                    {p.nextCallDate && p.nextCallTime ? ` · ${clock(p.nextCallTime)}` : ""}
+                  </td>
+                  <td className={`${cell} text-secondary`}><span className={label}>Last call: </span>{shortDate(p.lastCallAt)}</td>
+                  <td className={`${cell} font-semibold tabular-nums text-primary sm:text-right`}><span className={`${label} font-normal`}>Amount: </span>{p.amount !== null ? money(p.amount) : "—"}</td>
+                </tr>
+                {isOpen && (
+                  <tr className="block sm:table-row">
+                    <td colSpan={6} className="block p-2 sm:table-cell">
+                      <ProspectDetail id={p.id} onChanged={onChanged} onClose={() => onOpen(null)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

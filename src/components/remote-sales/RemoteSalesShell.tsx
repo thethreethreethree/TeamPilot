@@ -27,9 +27,9 @@ const TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin
 
 /**
  * Macro Mode (0303, docs/rss/MACRO-MODE-SPEC.md): the simplified system — the rep's day, their pipeline, their calls.
- * The spec's manager rule: "Nothing will change here, except … a section where managers can see sales reps'
- * pipeline". So a MANAGER in Macro Mode keeps every tab they had and gains Today; only a rep's view is reduced.
- * Everything else is a tap away by turning Macro Mode off on Calls.
+ * Everyone in Macro Mode sees the PDF's three places — Today, Pipeline, Calls (founder picker 2026-11-25, "PDF screens
+ * + team section": managers too; their section to review reps is "Whose pipeline" on Pipeline). Everything else is a
+ * tap away by turning Macro Mode off on Calls.
  */
 const MACRO_TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin" }> = [
   { href: "/dashboard/remote-sales/today", label: "Today", who: "all" },
@@ -44,7 +44,7 @@ export function RemoteSalesShell({ children }: { children: React.ReactNode }) {
   const { enabled: macro } = useRemoteMacroMode();
   const leads = isManager || isAdmin;
   const visible = (list: typeof TABS) => list.filter((t) => t.who === "all" || (t.who === "manager" ? leads : isAdmin));
-  const tabs = !macro ? visible(TABS) : leads ? [MACRO_TABS[0]!, ...visible(TABS)] : visible(MACRO_TABS);
+  const tabs = macro ? MACRO_TABS : visible(TABS);
 
   return (
     <div className="min-h-full bg-base">

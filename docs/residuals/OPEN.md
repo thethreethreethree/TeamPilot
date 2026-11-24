@@ -550,3 +550,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-24 · trackers · FOUNDER CHECK: add one smart tracker ("Same idea, any words") with 2–3 example sentences and look at the calls it marks — are the matches right? (docs/tbc/2026-11-24-smart-trackers R1)
       why-unresolved: AI match quality can only be judged on real calls
       next-action: if matches are loose, tighten SMART_SYSTEM's "when unsure, leave it out" rule with the founder's examples
+- [ ] 2026-11-25 · macro · FOUNDER CHECK: with Macro Mode on (as a manager), Remote Sales should show only Today · Pipeline · Calls, open on Today the first time each day, show the pipeline as a table, and show a call's three tabs beside the player (docs/tbc/2026-11-24-macro-pdf-correction R1)
+      why-unresolved: render tests only; not yet seen in a signed-in browser
+      next-action: say what still differs from the PDF and it gets fixed

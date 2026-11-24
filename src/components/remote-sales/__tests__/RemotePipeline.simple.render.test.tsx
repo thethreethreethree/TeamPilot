@@ -5,7 +5,8 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 /**
  * "KEEP IT SIMPLE" (General Sales Interface PDF; founder picker 2026-11-24 "Macro Mode = PDF only"): a rep in Macro Mode
  * sees Open / Closed Won / Closed Lost and, per prospect, to-do, stage, next call, last call, amount — nothing else.
- * A manager keeps the full view; Macro Mode off shows everything.
+ * Since 2026-11-25 (founder picker "PDF screens + team section") a manager gets the same screen plus "Whose pipeline";
+ * Macro Mode off shows everything. The prospects are a table, one column per field, like the PDF's picture.
  */
 const st = vi.hoisted(() => ({ macro: true as boolean | null, manager: false }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -31,21 +32,27 @@ describe("pipeline in Macro Mode", () => {
     expect(await screen.findByText("Acme")).toBeTruthy();
     expect(screen.getByRole("tab", { name: /Closed Won/ })).toBeTruthy();
     expect(screen.getByText(/Send Betty the follow-up/)).toBeTruthy();
-    expect(screen.getByText(/Next call:/)).toBeTruthy();
-    expect(screen.getByText(/Last call:/)).toBeTruthy();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Prospect", "To do", "Stage", "Next call", "Last call", "Amount"]);
+    expect(screen.getByText("Demo")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Whose pipeline" })).toBeNull();
     expect(screen.queryByRole("group", { name: "View" })).toBeNull(); // no Calendar / Sources / Forecast
     expect(screen.queryByRole("region", { name: "Ask about this pipeline" })).toBeNull();
     expect(screen.queryByText(/Close:/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /New prospect/ }));
     expect(screen.queryByLabelText("Lead source")).toBeNull();
   });
-  it("a manager in Macro Mode, or anyone with it off, keeps the full view", async () => {
+  it("a manager in Macro Mode gets the same PDF screen plus the team section (Whose pipeline)", async () => {
     st.manager = true;
     stub();
     render(<RemotePipeline />);
     await screen.findByText("Acme");
-    expect(screen.getByRole("group", { name: "View" })).toBeTruthy();
-    cleanup();
+    expect(screen.queryByRole("group", { name: "View" })).toBeNull();
+    expect(screen.queryByText(/Close:/)).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Whose pipeline" })).toBeTruthy();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(6);
+  });
+
+  it("with Macro Mode off, anyone keeps the full view", async () => {
     st.manager = false;
     st.macro = false;
     stub();

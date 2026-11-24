@@ -44,6 +44,11 @@ overview of what to say.
 "Nothing will change here, except we have a section where managers can see sales reps' pipeline / sales presentation to
 review it." (The team notes the call review already exists in sessions.)
 
+> Read on 2026-11-25 (founder picker "PDF screens + team section", after "the macro system did not follow the PDF"): this
+> sentence is about the manager's WORKFLOW, not their screens. With Macro Mode on, a manager sees the same simple screens
+> as a rep; the "section" is "Whose pipeline" on Pipeline (a rep's pipeline, and from it their calls). Before, a manager
+> kept every tab, which is why Macro Mode looked unchanged to anyone signed in as a manager.
+
 ### Daily brain dump (on first open of the day)
 
 "Hello Moses, what is our to-do list for the day?" — the rep types their day (meetings, follow-ups). Then: "What are our
