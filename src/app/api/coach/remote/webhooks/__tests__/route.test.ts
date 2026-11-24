@@ -12,6 +12,7 @@ vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => s
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
 vi.mock("@/lib/coach/remote/webhooks", () => ({
   assertEndpointUrl: vi.fn(),
+  webhooksConfigured: () => !!process.env.RSS_WEBHOOK_SIGNING_SECRET,
   endpointSecret: () => "secret",
   EndpointUrlError: class extends Error {},
   MAX_ATTEMPTS: 6,

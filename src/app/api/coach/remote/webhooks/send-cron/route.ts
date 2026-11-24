@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildCrmCall } from "@/lib/coach/remote/crmExport";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
-import { endpointSecret, sendSigned, webhookBody } from "@/lib/coach/remote/webhooks";
+import { endpointSecret, sendSigned, webhookBody, webhooksConfigured } from "@/lib/coach/remote/webhooks";
 
 /**
  * GET /api/coach/remote/webhooks/send-cron — deliver due webhooks (RSS Phase 9, migration 0286; Gong F31.8).
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (!constantTimeEqual(req.headers.get("authorization") ?? "", `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
-  if (!process.env.RSS_WEBHOOK_SIGNING_SECRET) {
+  if (!webhooksConfigured()) {
     return NextResponse.json({ error: "RSS_WEBHOOK_SIGNING_SECRET not set — webhooks are queued but not sent." }, { status: 503 });
   }
 

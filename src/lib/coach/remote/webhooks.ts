@@ -24,6 +24,14 @@ export const MAX_ATTEMPTS = 6;
 export class WebhookConfigError extends Error {}
 export class EndpointUrlError extends Error {}
 
+/**
+ * Can this server sign — and so send — webhooks? The one verdict (§2.2) read by the Protection panel, "Send to CRM",
+ * the send cron and /api/health, so none of them can disagree about whether a queued webhook will ever leave.
+ */
+export function webhooksConfigured(): boolean {
+  return Boolean(process.env.RSS_WEBHOOK_SIGNING_SECRET);
+}
+
 /** The endpoint's own signing secret. Throws WebhookConfigError when the deployment secret is missing (fail loud). */
 export function endpointSecret(endpointId: string, master = process.env.RSS_WEBHOOK_SIGNING_SECRET): string {
   if (!master) throw new WebhookConfigError("RSS_WEBHOOK_SIGNING_SECRET is not set");

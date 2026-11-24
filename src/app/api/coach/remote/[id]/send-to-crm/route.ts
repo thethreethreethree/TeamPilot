@@ -8,6 +8,7 @@ import { recordAudit } from "@/lib/audit/recordAudit";
 import { getSession } from "@/lib/data/salesCoach";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
+import { webhooksConfigured } from "@/lib/coach/remote/webhooks";
 
 /**
  * POST /api/coach/remote/:id/send-to-crm — "Send to CRM" on a call's Highlights (2026-11-24, migration 0330; General
@@ -27,6 +28,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session || session.companyId !== ctx.companyId) return NextResponse.json({ error: "Call not found." }, { status: 404 });
   if (!isRemoteContext(session.context) || !isSalesCall(session.sessionKind)) return NextResponse.json({ error: "Only a phone or video sales call can be sent to the CRM." }, { status: 409 });
   if (session.status === "active") return NextResponse.json({ error: "This call is still live. Send it once it has ended." }, { status: 409 });
+
+  // §1.5.3 fail loud: without the signing secret a queued delivery would never leave, while the rep read "Sent to
+  // your CRM". Refused here, in plain words, and nothing is queued.
+  if (!webhooksConfigured()) {
+    return NextResponse.json(
+      { error: "Sending to a CRM isn't switched on for ELOSTATE yet — a setup step on our side. Nothing was sent; copy the follow-up for now." },
+      { status: 503 },
+    );
+  }
 
   const admin = createAdminClient();
   const { data: queued, error } = await admin.rpc("rss_webhook_enqueue", { p_company: ctx.companyId, p_event: "call.to_crm", p_payload: { sessionId: id, sentBy: ctx.userId } });

@@ -3,15 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
-import {
-  assertEndpointUrl,
-  endpointSecret,
-  EndpointUrlError,
-  MAX_ATTEMPTS,
-  sendSigned,
-  WEBHOOK_EVENTS,
-  webhookBody,
-} from "@/lib/coach/remote/webhooks";
+import { assertEndpointUrl, endpointSecret, EndpointUrlError, MAX_ATTEMPTS, sendSigned, WEBHOOK_EVENTS, webhookBody, webhooksConfigured } from "@/lib/coach/remote/webhooks";
 
 /**
  * /api/coach/remote/webhooks — a company's webhook endpoints (RSS Phase 9, migration 0286; Gong F31.8). Admins only.
@@ -74,7 +66,7 @@ export async function GET(req: NextRequest) {
     }
   }
   return NextResponse.json({
-    configured: !!process.env.RSS_WEBHOOK_SIGNING_SECRET,
+    configured: webhooksConfigured(),
     events: WEBHOOK_EVENTS,
     maxAttempts: MAX_ATTEMPTS,
     historyUnreadable,

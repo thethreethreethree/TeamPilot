@@ -17,9 +17,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(S as never);
   st.rpc.mockResolvedValue({ data: 1, error: null });
+  process.env.RSS_WEBHOOK_SIGNING_SECRET = "test-master";
 });
 
 describe("send-to-crm", () => {
+  it("signing not set up on the server → 503 in plain words, and nothing is queued (§1.5.3)", async () => {
+    delete process.env.RSS_WEBHOOK_SIGNING_SECRET;
+    const r = await call();
+    expect(r.status).toBe(503);
+    expect((await r.json()).error).toMatch(/isn't switched on for ELOSTATE yet.*Nothing was sent/);
+    expect(st.rpc).not.toHaveBeenCalled();
+  });
   it("queues the call (ids only) for the company's CRM endpoints", async () => {
     expect(await (await call()).json()).toEqual({ queued: 1 });
     expect(st.rpc).toHaveBeenCalledWith("rss_webhook_enqueue", { p_company: "co1", p_event: "call.to_crm", p_payload: { sessionId: "s1", sentBy: "rep1" } });

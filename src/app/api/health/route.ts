@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { webhooksConfigured } from "@/lib/coach/remote/webhooks";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { CONSTITUTION } from "@/lib/constitution";
 import { emailConfigured } from "@/lib/care/email/configured";
@@ -110,6 +111,8 @@ export async function GET() {
       },
       // Whether email can send (the weekly digest, C.A.R.E email replies). The shared verdict, not a copy (2026-10-03).
       email: emailConfigured(),
+      // Whether webhooks (and "Send to CRM") can be signed and sent — RSS_WEBHOOK_SIGNING_SECRET (2026-11-25, §1.5.3).
+      webhooks: webhooksConfigured(),
     },
     runtime: {
       node: process.version,
