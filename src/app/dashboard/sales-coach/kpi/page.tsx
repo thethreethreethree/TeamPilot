@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { PERIOD_METRICS, type PeriodDays } from "@/lib/coach/kpi/period";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
 import { toCsv } from "@/lib/export/toCsv";
@@ -158,13 +159,15 @@ export default function KpiAnalyticsPage() {
   // objective Layer-1 numbers show today. Set to "company" once the team fetch confirms the viewer is a manager.
   // A non-admin never sends "company" (and the route falls back to self anyway), so it can't leak another business.
   const [scope, setScope] = useState<"self" | "company">("self");
+  // F23.8 (founder 2026-11-25 "Outcome numbers only"): the period for the outcome numbers; null = all time.
+  const [period, setPeriod] = useState<PeriodDays>(null);
 
   // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
   const loadMe = useCallback(async () => {
     setLoadError(false);
     setLoading(true);
     try {
-      const res = await fetch(`/api/coach/kpi/me?scope=${scope}`);
+      const res = await fetch(`/api/coach/kpi/me?scope=${scope}${period ? `&days=${period}` : ""}`);
       if (res.ok) setData(await res.json());
       else setLoadError(true); // 401/500/etc — an error, NOT "no data yet"
     } catch {
@@ -172,7 +175,7 @@ export default function KpiAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [scope]);
+  }, [scope, period]);
 
   useEffect(() => {
     void loadMe();
@@ -365,6 +368,20 @@ export default function KpiAnalyticsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {/* F23.8: the period switch. It changes the outcome numbers only; each card says which window it uses. */}
+          <div role="group" aria-label="Period" className="inline-flex items-center rounded-md border border-default overflow-hidden text-[11px] font-semibold">
+            {([null, 90, 30] as const).map((p, i) => (
+              <button
+                key={String(p)}
+                type="button"
+                aria-pressed={period === p}
+                onClick={() => setPeriod(p)}
+                className={`px-2.5 py-1.5 transition-colors ${i ? "border-l border-default " : ""}${period === p ? "bg-ember-400/15 text-brand" : "text-secondary hover:text-primary"}`}
+              >
+                {p === null ? "All time" : `${p} days`}
+              </button>
+            ))}
+          </div>
           {/* Company / Mine scope toggle — only a manager/admin sees it (team loaded ⇒ the /team route returned
               200, which it only does for managers). Company pools the whole business's outcomes so Layer-1 shows
               real numbers; Mine is the individual's own view. (Founder 2026-08-29.) */}
@@ -584,7 +601,16 @@ export default function KpiAnalyticsPage() {
                           <span className={`block text-xs ${m.headline ? "font-semibold text-emerald-700 dark:text-emerald-300" : "font-medium text-primary"}`}>
                             {m.name}
                           </span>
-                          <span className="block text-[11px] text-muted leading-snug">{m.note}</span>
+                          <span className="block text-[11px] text-muted leading-snug">
+                            {m.note}
+                            {period !== null && m.apiKey
+                              ? (PERIOD_METRICS as readonly string[]).includes(m.apiKey)
+                                ? ` · last ${period} days`
+                                : m.apiKey === "quotaAttainment"
+                                  ? " · this month"
+                                  : " · all time"
+                              : ""}
+                          </span>
                         </span>
                         {canDrill ? (
                           <button

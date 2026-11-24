@@ -160,3 +160,32 @@ describe("GET /api/coach/kpi/me", () => {
     expect(body.scope).toBe("self"); // a non-admin can never widen to the company
   });
 });
+
+describe("GET /api/coach/kpi/me — period (F23.8; founder: outcome numbers only)", () => {
+  const day = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+  const tables = () => ({
+    coaching_sessions: { data: [1, 2, 3, 4, 5].map((i) => sess(`new${i}`, day(i))).concat([1, 2, 3, 4, 5].map((i) => sess(`old${i}`, day(200 + i)))) },
+    after_pitch_summaries: { data: [] },
+    coaching_cues: { data: [] },
+    coaching_cue_outcomes: { data: [] },
+    coaching_transcript_segments: { data: [] },
+  });
+  it("30 days: revenue counts only the last 30 days' sessions; all time counts every one", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
+    setTables(tables());
+    const recent = await (await GET(new Request("http://localhost/api/coach/kpi/me?days=30"))).json();
+    expect(recent.periodDays).toBe(30);
+    expect(recent.periodSessionCount).toBe(5);
+    expect(recent.metrics.revenue.value).toBe(500);
+    expect(recent.sessionCount).toBe(10); // the page's session count stays all-time
+    setTables(tables());
+    const all = await (await GET(req())).json();
+    expect(all.periodDays).toBeNull();
+    expect(all.metrics.revenue.value).toBe(1000);
+  });
+  it("an unknown period is all time", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
+    setTables(tables());
+    expect((await (await GET(new Request("http://localhost/api/coach/kpi/me?days=7"))).json()).periodDays).toBeNull();
+  });
+});

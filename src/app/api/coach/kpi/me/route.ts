@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { inPeriod, parsePeriod } from "@/lib/coach/kpi/period";
 import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
@@ -117,14 +118,18 @@ export async function GET(req: Request) {
     audioDurationSeconds: (r.audio_duration_seconds as number | null) ?? null,
   }));
 
+  // Period (F23.8; founder "Outcome numbers only"): ?days=30|90 narrows ONLY the outcome numbers (PERIOD_METRICS) to
+  // sessions started in that window; everything else below keeps its own window. Default all time, as before.
+  const periodDays = parsePeriod(new URL(req.url).searchParams.get("days"));
+  const periodRows = inPeriod(rows, periodDays);
   const metrics: Record<string, MetricResult> = {
-    conversionRate: conversionRate(rows),
-    closeRate: closeRate(rows),
-    winLossRatio: winLossRatio(rows),
-    revenue: revenue(rows),
-    avgDealSize: avgDealSize(rows),
-    sessionsPerDay: sessionsPerDay(rows),
-    avgSessionDurationMin: avgSessionDurationMin(rows),
+    conversionRate: conversionRate(periodRows),
+    closeRate: closeRate(periodRows),
+    winLossRatio: winLossRatio(periodRows),
+    revenue: revenue(periodRows),
+    avgDealSize: avgDealSize(periodRows),
+    sessionsPerDay: sessionsPerDay(periodRows),
+    avgSessionDurationMin: avgSessionDurationMin(periodRows),
   };
 
   // Quota attainment (founder: monthly deals-won target). Fetch the company target (A34-guarded: a missing
@@ -166,12 +171,14 @@ export async function GET(req: Request) {
   metrics.quotaAttainment = quotaAttainment(dealsWonThisMonth, monthlyTarget);
 
   // Self-comparison deltas (recent half − prior half) for the session-based metrics — spec principle #1.
+  // These follow the period too (recent half vs prior half OF THE PERIOD), so a card never pairs a 30-day number with
+  // an all-time trend.
   const deltas: Record<string, number | null> = {
-    conversionRate: selfDelta(rows, conversionRate),
-    closeRate: selfDelta(rows, closeRate),
-    avgDealSize: selfDelta(rows, avgDealSize),
-    sessionsPerDay: selfDelta(rows, sessionsPerDay),
-    avgSessionDurationMin: selfDelta(rows, avgSessionDurationMin),
+    conversionRate: selfDelta(periodRows, conversionRate),
+    closeRate: selfDelta(periodRows, closeRate),
+    avgDealSize: selfDelta(periodRows, avgDealSize),
+    sessionsPerDay: selfDelta(periodRows, sessionsPerDay),
+    avgSessionDurationMin: selfDelta(periodRows, avgSessionDurationMin),
   };
 
   // Layer 3 — reuse the after-pitch evidenced scores (no new scoring). payload.scores is a
@@ -305,6 +312,9 @@ export async function GET(req: Request) {
     sessionCount: rows.length,
     minSessions: MIN_SESSIONS,
     scope: effectiveScope,
+    // F23.8: which period the outcome numbers (PERIOD_METRICS) are over; null = all time. Sessions in it.
+    periodDays,
+    periodSessionCount: periodRows.length,
     metrics,
     deltas,
     sessions,
