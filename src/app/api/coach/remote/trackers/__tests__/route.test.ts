@@ -12,11 +12,16 @@ vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => ids) }));
 vi.mock("@/lib/coach/remote/trackerScan", () => ({ scanSessionTrackers: vi.fn(async () => 2) }));
+vi.mock("@/lib/coach/remote/smartTrackerScan", () => ({ scanSmartTrackers: vi.fn(async () => 1) }));
+// after() runs once the response is sent; outside Next's request scope the test collects and runs it by hand.
+const later = vi.hoisted(() => ({ fns: [] as Array<() => Promise<void>> }));
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: (fn: () => Promise<void>) => void later.fns.push(fn) }));
 
 const db = vi.hoisted(() => ({
   inserts: [] as Array<Record<string, unknown>>,
   updates: [] as Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }>,
-  sessions: [] as Array<{ id: string; agent_id: string }>,
+  sessions: [] as Array<{ id: string; agent_id: string; session_kind?: string | null }>,
+  smartOn: 0,
   updateFound: true,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
@@ -36,7 +41,7 @@ vi.mock("@/lib/supabase/admin", () => ({
         }
         return { data: { id: "t-new" }, error: null };
       };
-      b.then = (res: (v: unknown) => unknown) => res({ data: db.sessions, error: null });
+      b.then = (res: (v: unknown) => unknown) => res({ data: db.sessions, count: db.smartOn, error: null });
       return b;
     },
   }),
@@ -45,6 +50,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterReps } from "@/lib/api/treeAccess";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
+import { scanSmartTrackers } from "@/lib/coach/remote/smartTrackerScan";
 import { POST, PATCH } from "../route";
 
 const mock = <T,>(f: T) => f as unknown as ReturnType<typeof vi.fn>;
@@ -57,6 +63,8 @@ beforeEach(() => {
   db.inserts = [];
   db.updates = [];
   db.sessions = [];
+  db.smartOn = 0;
+  later.fns = [];
   db.updateFound = true;
   mock(requireSalesCoachManager).mockResolvedValue(MGR);
 });
@@ -72,7 +80,7 @@ describe("POST /api/coach/remote/trackers", () => {
     const res = await POST(req({ name: "Competitors", phrases: ["  Spectrum ", "spectrum", "XFINITY"], side: "customer", company_id: "evil" }));
     expect(res.status).toBe(201);
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", created_by: "mgr1" },
+      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", created_by: "mgr1" },
     ]);
   });
 
@@ -88,6 +96,44 @@ describe("POST /api/coach/remote/trackers", () => {
     const res = await POST(req({ action: "scan" }));
     expect(await res.json()).toEqual({ scanned: 1, hits: 2 });
     expect(mock(scanSessionTrackers).mock.calls.map((c) => c[0])).toEqual(["s1"]);
+  });
+});
+
+describe("POST — smart trackers (0329)", () => {
+  it("saves the examples as written (trimmed, deduped), then reads the last visible SALES calls for that tracker alone", async () => {
+    db.sessions = [
+      { id: "s1", agent_id: "r1", session_kind: "sales" },
+      { id: "m1", agent_id: "r1", session_kind: "meeting" },
+      { id: "s2", agent_id: "r-outside", session_kind: "sales" },
+      { id: "s3", agent_id: "r1", session_kind: null },
+    ];
+    mock(treeFilterReps).mockResolvedValueOnce(["r1"]);
+    const res = await POST(req({ name: "Locked in", kind: "smart", side: "customer", phrases: ["  We're locked into a contract ", "We're locked into a contract", "Our deal ends in June"] }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: "t-new", backfilling: 2 });
+    expect(db.inserts).toEqual([
+      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", created_by: "mgr1" },
+    ]);
+    expect(scanSmartTrackers).not.toHaveBeenCalled(); // nothing before the response
+    for (const f of later.fns) await f();
+    expect(mock(scanSmartTrackers).mock.calls.map((c) => [c[0], c[2]])).toEqual([
+      ["s1", { onlyTrackerId: "t-new" }],
+      ["s3", { onlyTrackerId: "t-new" }],
+    ]);
+  });
+
+  it("the 11th smart tracker is refused with how to make room; nothing is written", async () => {
+    db.smartOn = 10;
+    const res = await POST(req({ name: "One more", kind: "smart", phrases: ["Can you call me next week"] }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/switch one off/);
+    expect(db.inserts).toEqual([]);
+  });
+
+  it("an example too short to mean anything is a 400", async () => {
+    const res = await POST(req({ name: "X", kind: "smart", phrases: ["ok"] }));
+    expect(res.status).toBe(400);
+    expect(db.inserts).toEqual([]);
   });
 });
 

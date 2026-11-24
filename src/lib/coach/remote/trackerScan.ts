@@ -33,14 +33,15 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
 
     const { data: trackerRows, error: tErr } = await admin
       .from("keyword_trackers")
-      .select("id, name, phrases, side")
+      .select("id, name, phrases, side, kind")
       .eq("company_id", companyId)
       .eq("active", true);
     if (tErr) {
       console.error(`[trackerScan] trackers read failed company=${companyId}: ${tErr.message}`);
       return null;
     }
-    const trackers = (trackerRows ?? []) as KeywordTracker[];
+    // Smart trackers (0329) are matched by meaning in smartTrackerScan.ts, never as phrases here.
+    const trackers = ((trackerRows ?? []) as Array<KeywordTracker & { kind?: string }>).filter((t) => (t.kind ?? "keyword") !== "smart");
     if (trackers.length === 0) return 0;
 
     const { data: segRows, error: sErr } = await admin

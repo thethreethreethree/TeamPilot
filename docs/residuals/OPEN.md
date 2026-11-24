@@ -547,3 +547,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-24 · crm · CUSTOMER SETUP: "Send to CRM" (docs/tbc/2026-11-24-crm-send) works once a company admin adds a webhook in Remote Sales → Protection → Webhooks subscribed to "A call is sent to your CRM", wired into their CRM (its own automation or a connector such as Zapier)
       why-unresolved: external config each customer owns (§1.5.3); until then reps see a plain 409 telling them who sets it up
       next-action: include it in onboarding for any company using Macro Mode; build a native Salesforce/HubSpot connector only if customers ask
+- [ ] 2026-11-24 · trackers · FOUNDER CHECK: add one smart tracker ("Same idea, any words") with 2–3 example sentences and look at the calls it marks — are the matches right? (docs/tbc/2026-11-24-smart-trackers R1)
+      why-unresolved: AI match quality can only be judged on real calls
+      next-action: if matches are loose, tighten SMART_SYSTEM's "when unsure, leave it out" rule with the founder's examples

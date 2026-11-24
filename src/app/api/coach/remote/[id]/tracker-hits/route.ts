@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data, error } = await db
     .from("tracker_hits")
-    .select("tracker_id, seq, at_ms, speaker, matched, transcript_version, keyword_trackers(name)")
+    .select("tracker_id, seq, at_ms, speaker, matched, transcript_version, keyword_trackers(name, kind)")
     .eq("session_id", id)
     .order("seq", { ascending: true });
   if (error) {
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       atMs: r.at_ms == null ? null : Number(r.at_ms),
       speaker: String(r.speaker),
       matched: String(r.matched),
+      // Smart (0329): `matched` is the tracker's example the line meant, not words from the call.
+      smart: (r.keyword_trackers as { kind?: string } | null)?.kind === "smart",
     }));
   return NextResponse.json({ available: true, hits });
 }

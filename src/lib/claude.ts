@@ -790,6 +790,24 @@ export async function topicGroupCoach(args: { companyId: string; systemPrompt: s
   });
 }
 
+/**
+ * Smart trackers (2026-11-23, 0329; founder picker "One AI read per call"): one read of a finished call against all the
+ * company's smart trackers. Day-1 (controlExempt): it labels the call for the company's own analytics, like keyword
+ * trackers; it gives no guidance to the rep.
+ */
+export async function smartTrackerCoach(args: { companyId: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 800,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_smart_trackers",
+    sessionId: args.sessionId,
+  });
+}
+
 /** RSS Phase 6: one Ask Coach turn over one or more calls, answering with [n] line citations. Day-1 (controlExempt). */
 export async function askCoachTurn(args: {
   companyId?: string;

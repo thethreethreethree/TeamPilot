@@ -9,6 +9,7 @@ import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { getSession, getSessionTranscript } from "@/lib/data/salesCoach";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
+import { carrySmartHits } from "@/lib/coach/remote/smartTrackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { cleanLine, editMarks, type EditRow } from "@/lib/coach/transcriptEdits";
 import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     after(async () => {
       await scanSessionTrackers(id, admin);
       await storeInteractionStats(id, admin);
+      if (typeof version === "number") await carrySmartHits(id, version, seq, admin);
     });
     return NextResponse.json({ ok: true, changed: true, version });
   }
@@ -160,6 +162,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   after(async () => {
     await scanSessionTrackers(id, admin);
     await storeInteractionStats(id, admin);
+    // Smart-tracker hits on the untouched lines follow the new version (no AI call; 0329).
+    if (typeof version === "number") await carrySmartHits(id, version, seq, admin);
   });
   return NextResponse.json({ ok: true, changed: true, version });
 }

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
  * Tapping a chip seeks the player when the page provides one and the hit has a time; a hit with no time (an
  * older transcript with no wall clock) is shown without one rather than pointing at 0:00.
  */
-type Hit = { trackerId: string; name: string; atMs: number | null; speaker: string; matched: string };
+type Hit = { trackerId: string; name: string; atMs: number | null; speaker: string; matched: string; smart?: boolean };
 
 const clock = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -37,7 +37,7 @@ export function TrackerHitChips({ sessionId, onSeek }: { sessionId: string; onSe
       <h2 className="mb-2 text-sm font-semibold text-primary">Keyword trackers</h2>
       <div className="flex flex-wrap gap-1.5">
         {hits.map((h, i) => {
-          const label = `${h.name} · ${h.atMs === null ? "no time" : clock(h.atMs)} · ${WHO[h.speaker] ?? h.speaker} · “${h.matched}”`;
+          const label = `${h.name} · ${h.atMs === null ? "no time" : clock(h.atMs)} · ${WHO[h.speaker] ?? h.speaker} · ${h.smart ? "like " : ""}“${h.matched}”`;
           return onSeek && h.atMs !== null ? (
             <button
               key={i}

@@ -11,8 +11,12 @@ import { AdoptionBoard } from "./AdoptionBoard";
  * the list read-only: it says what their calls are listened for. A tracker is never edited: "Switch off" keeps
  * its past hits explainable, and changing the words means a new tracker (0276). After creating one, the screen
  * offers to scan recent phone/video calls, since a tracker otherwise only applies to calls that land later.
+ *
+ * Smart trackers (0329): example sentences instead of exact words; an AI read finds lines that mean the same thing in
+ * any words. Saving one reads the last calls for it in the background (the route), so there is no preview or scan.
  */
-type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean };
+type Kind = "keyword" | "smart";
+type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind };
 type Preview = {
   callsChecked: number;
   callsWithHits: number;
@@ -34,6 +38,7 @@ export function KeywordTrackers() {
   const [name, setName] = useState("");
   const [phrases, setPhrases] = useState("");
   const [side, setSide] = useState<Tracker["side"]>("any");
+  const [kind, setKind] = useState<Kind>("keyword");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // F11.4: try the phrases on recent calls before saving — what it would catch, and which phrase is noisy.
@@ -78,25 +83,32 @@ export function KeywordTrackers() {
 
   const send = async (method: "POST" | "PATCH", body: unknown) => {
     const r = await fetch(API, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const j = (await r.json().catch(() => ({}))) as { error?: string; scanned?: number; hits?: number };
+    const j = (await r.json().catch(() => ({}))) as { error?: string; scanned?: number; hits?: number; backfilling?: number };
     return { ok: r.ok, j };
   };
 
   const create = async () => {
     const list = phrases.split("\n").map((p) => p.trim()).filter(Boolean);
     if (!name.trim() || list.length === 0) {
-      setMsg("Give the tracker a name and at least one word or phrase.");
+      setMsg(kind === "smart" ? "Give the tracker a name and at least one example sentence." : "Give the tracker a name and at least one word or phrase.");
       return;
     }
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side });
+      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind });
       if (!ok) return setMsg(j.error ?? "Couldn't save the tracker.");
       setName("");
       setPhrases("");
       setSide("any");
-      setMsg("Saved. New phone and video calls will be checked for it.");
+      setPreview(null);
+      setMsg(
+        kind === "smart"
+          ? j.backfilling
+            ? `Saved. Reading your last ${j.backfilling} ${j.backfilling === 1 ? "call" : "calls"} for it now — mentions show on those calls within a few minutes. New calls are checked as they land.`
+            : "Saved. New phone and video calls will be checked for it."
+          : "Saved. New phone and video calls will be checked for it.",
+      );
       await load();
     } finally {
       setBusy(false);
@@ -148,8 +160,14 @@ export function KeywordTrackers() {
               {read.trackers.map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className={t.active ? "font-medium text-primary" : "text-muted line-through"}>{t.name}</span>
+                  {t.kind === "smart" && (
+                    <span className="rounded-full border border-default px-1.5 py-px text-[10px] text-secondary" title="Finds the same idea in any words">
+                      Smart
+                    </span>
+                  )}
                   <span className="text-xs text-muted">
-                    {t.active ? SIDE[t.side] : "Switched off"} · {t.phrases.join(", ")}
+                    {t.active ? SIDE[t.side] : "Switched off"} ·{" "}
+                    {t.kind === "smart" ? t.phrases.map((p) => `“${p}”`).join(" ") : t.phrases.join(", ")}
                   </span>
                   <button
                     type="button"
@@ -177,6 +195,34 @@ export function KeywordTrackers() {
           )}
           {read.canManage && (
             <div className="grid gap-2 md:grid-cols-2">
+              <fieldset className="md:col-span-2">
+                <legend className="text-xs text-muted">What to listen for</legend>
+                <div className="mt-1 flex flex-wrap gap-2" role="radiogroup">
+                  {(
+                    [
+                      ["keyword", "Exact words", "Matches the words you write"],
+                      ["smart", "Same idea, any words", "AI finds lines that mean what your examples say"],
+                    ] as const
+                  ).map(([k, label, hint]) => (
+                    <label key={k} className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${kind === k ? "border-ember-400 text-primary" : "border-default text-secondary"}`}>
+                      <input
+                        type="radio"
+                        name="tracker-kind"
+                        value={k}
+                        checked={kind === k}
+                        onChange={() => {
+                          setKind(k);
+                          setPreview(null);
+                          setMsg(null);
+                        }}
+                      />
+                      <span>
+                        {label} <span className="text-muted">· {hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <label className="text-xs text-muted">
                 Name
                 <input
@@ -200,12 +246,14 @@ export function KeywordTrackers() {
                 </select>
               </label>
               <label className="text-xs text-muted md:col-span-2">
-                Words or phrases, one per line (whole words, any capitalisation)
+                {kind === "smart"
+                  ? "Example sentences, one per line (up to 10) — write them the way a customer or rep might say it"
+                  : "Words or phrases, one per line (whole words, any capitalisation)"}
                 <textarea
                   value={phrases}
                   rows={3}
                   onChange={(e) => setPhrases(e.currentTarget.value)}
-                  placeholder={"spectrum\nxfinity"}
+                  placeholder={kind === "smart" ? "We're locked into a contract until June\nOur deal with the other company hasn't ended yet" : "spectrum\nxfinity"}
                   className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary"
                 />
               </label>
@@ -218,6 +266,7 @@ export function KeywordTrackers() {
                 >
                   Add tracker
                 </button>
+                {kind === "keyword" && (
                 <button
                   type="button"
                   disabled={busy || previewing}
@@ -226,6 +275,8 @@ export function KeywordTrackers() {
                 >
                   {previewing ? "Previewing…" : "Preview on recent calls"}
                 </button>
+                )}
+                {kind === "keyword" && (
                 <button
                   type="button"
                   disabled={busy}
@@ -234,6 +285,12 @@ export function KeywordTrackers() {
                 >
                   Check recent calls
                 </button>
+                )}
+                {kind === "smart" && (
+                  <p className="basis-full text-[11px] text-muted">
+                    After you add it, your last 10 calls are read for it. Each call is read once for all your smart trackers (up to 10). A mention shows the example it matched.
+                  </p>
+                )}
               </div>
               {preview && (
                 <div className="rounded-lg border border-default bg-base/40 p-3 text-xs md:col-span-2" aria-label="Tracker preview">

@@ -8,6 +8,7 @@ import { withEngineTimeout, COACH_ENGINE_TIMEOUT_MS } from "./engineTimeout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCall } from "./salesOnly";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
+import { scanSmartTrackers } from "@/lib/coach/remote/smartTrackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
 import { runFollowThrough } from "@/lib/coach/remote/followThrough";
 import { runCallBrief } from "@/lib/coach/remote/callBrief";
@@ -55,6 +56,8 @@ export async function generateSessionArtifacts(args: {
   // Keyword trackers (RSS Phase 3, migration 0276): match the transcript that just landed. Deterministic, no AI
   // call, never throws; phone/video sales sessions only (door sessions return 0 inside).
   await scanSessionTrackers(sessionId);
+  // Smart trackers (0329): one AI read of this call against all the company's smart trackers; none → no AI call.
+  await scanSmartTrackers(sessionId);
   // Interaction stats (RSS Phase 2, migration 0277): deterministic, no AI call, never throws; phone/video only.
   await storeInteractionStats(sessionId);
 
