@@ -399,6 +399,8 @@ export async function readApplicableGrades(
     // Pattern Interrupt is Sales Coach, which is in-person only (decision 2026-11-22, d4fc60d1). The query already
     // filters by channel; this repeats it so a row from another channel can never reach a Sales Coach pattern.
     if (isRemoteContext(parent.channel)) continue;
+    // "Doesn't apply" (0331): the item did NOT apply on that pitch, so it is not part of its history.
+    if ((row.grade as string) === "na") continue;
     const list = byItem.get(row.element_id) ?? [];
     list.push({
       pitchId: row.pitch_id,

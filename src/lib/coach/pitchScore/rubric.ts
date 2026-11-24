@@ -28,8 +28,16 @@ export type SectionId =
   | "transitions"
   | "delivery";
 
-// enum-source: pitch_score_elements.grade
+/** A grade the scorer (AI) can give, and a manager can correct to. Each earns GRADE_CREDIT of the item's points. */
 export type Grade = "hit" | "partial" | "missed";
+
+/**
+ * What a stored item can hold (0331): a Grade, or "na" — "Doesn't apply to this call", set only by a manager's
+ * correction (founder 2026-11-24). An N/A item earns nothing and its points leave its section's maximum; the section
+ * is scaled back to full, like Objection handling when no objection happens.
+ */
+// enum-source: pitch_score_elements.grade
+export type ElementGrade = "hit" | "partial" | "missed" | "na";
 
 /** Credit multiplier per grade. Partial is explicitly "half points" in the rubric. */
 export const GRADE_CREDIT: Record<Grade, number> = {

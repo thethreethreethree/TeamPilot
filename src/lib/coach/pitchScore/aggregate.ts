@@ -5,7 +5,7 @@ import {
   PRIZE_ELIGIBLE_MIN_PITCHES,
   SECTIONS,
   VIOLATIONS,
-  type Grade,
+  type ElementGrade,
   type SectionId,
 } from "./rubric";
 import type { PitchScore } from "./scorePitch";
@@ -86,7 +86,7 @@ export type AggregablePitch = {
   rubricVersion?: string;
   score: AggregableScore;
   /** The grades that produced the score — needed for the per-element hit/partial/missed rates. */
-  elements: ReadonlyArray<{ elementId: string; grade: Grade }>;
+  elements: ReadonlyArray<{ elementId: string; grade: ElementGrade }>;
   /** Sale outcome, for the close rate. */
   outcome?: "sold" | "follow_up" | "no_sale";
 };
@@ -211,7 +211,8 @@ export function aggregatePitches(pitches: readonly AggregablePitch[]): PeriodAgg
       if (!g) continue;
       if (g.grade === "hit") hit++;
       else if (g.grade === "partial") partial++;
-      else missed++;
+      else if (g.grade === "missed") missed++;
+      // "na" (0331): the item didn't apply on that call — not graded in, so it moves no rate.
     }
     const gradedIn = hit + partial + missed;
     if (gradedIn === 0) continue;

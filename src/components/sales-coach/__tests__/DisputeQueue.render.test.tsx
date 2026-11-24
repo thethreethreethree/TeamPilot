@@ -184,7 +184,13 @@ describe("correcting the score from the queue", () => {
     await openOne();
     const select = screen.getByLabelText(/correct it/i) as HTMLSelectElement;
     const options = [...select.options].map((o) => o.textContent);
-    expect(options).toEqual(["Leave as scored", "Hit", "Partial", "Missed"]);
+    expect(options).toEqual(["Leave as scored", "Hit", "Partial", "Missed", "Doesn't apply to this call"]);
+  });
+
+  it("a phone-only item (phone/video rubric) is correctable too (2026-11-25)", async () => {
+    await openOne({ itemId: "intro.reasonForCall", itemLabel: "Reason for the call" });
+    const select = screen.getByLabelText(/correct it/i) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toContain("Partial");
   });
 
   it("offers award/take-back for a bonus instead of grades", async () => {

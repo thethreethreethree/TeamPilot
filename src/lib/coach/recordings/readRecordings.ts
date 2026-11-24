@@ -9,7 +9,7 @@ import {
   type KeyMoment,
   type TimedLine,
 } from "./keyMoments";
-import type { Grade } from "../pitchScore/rubric";
+import type { ElementGrade } from "../pitchScore/rubric";
 import { contextsOf } from "@/lib/coach/sessionContext";
 
 /**
@@ -221,7 +221,7 @@ export async function readPitchRecordingDetail(
     elements: ((elementsRes.data ?? []) as Array<Record<string, unknown>>).map((e) => ({
       id: String(e.id),
       elementId: String(e.element_id),
-      grade: e.grade as Grade,
+      grade: e.grade as ElementGrade,
       points: num(e.points),
       timestampS: e.timestamp_s === null || e.timestamp_s === undefined ? null : num(e.timestamp_s),
       evidence: (e.evidence as string | null) ?? null,

@@ -556,3 +556,5 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-25 · patterns · repeated misses on phone/video calls don't become patterns: runDetection reads door-rubric scores only (docs/tbc/2026-11-24-score-own-rubric R1)
       why-unresolved: patterns were designed on the door rubric
       next-action: extend detection to each rubric's own items once phone/video calls are being scored
+- [x] 2026-11-25 · patterns · CORRECTION to the entry above ("repeated misses on phone/video calls don't become patterns"): that is a recorded decision, not a gap — Pattern Interrupt is Sales Coach, in-person only (2026-11-22, d4fc60d1; readPatterns.ts says so). Nothing to build.
+- [x] 2026-11-25 · rss-p3 · (the 2026-11-15 item "the scorer reads rubric_config per channel … and supports N/A per element") DONE: per-channel rubrics since D6 (rubricRegistry, 2026-11-22); N/A per element by a manager's correction, 0331 (docs/tbc/2026-11-24-rubric-item-na).

@@ -1,7 +1,7 @@
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { BAND_LABEL, bandFor as gamificationBandFor } from "@/lib/coach/gamification/bands";
 import { scorePitch, type GradedElement, type DetectedBonus, type DetectedViolation } from "./scorePitch";
-import { GRADE_CREDIT, type Grade } from "./rubric";
+import { GRADE_CREDIT, type ElementGrade, type Grade } from "./rubric";
 import { rubricByVersion, type Rubric } from "./rubricRegistry";
 import type { StoredPitch } from "./readPitchScore";
 
@@ -32,14 +32,14 @@ export type OverrideRequest = {
   // enum-source: pitch_score_overrides.item_type
   itemType: "element" | "bonus" | "violation";
   itemId: string;
-  /** element: the new grade. bonus/violation: "awarded" | "removed". */
+  /** element: the new grade, or "na" — "Doesn't apply to this call" (0331). bonus/violation: "awarded" | "removed". */
   newValue: string;
   reason: string;
 };
 
 export type OverrideResult =
   | { ok: true; overrideId: string; base: number; total: number; qualifying: boolean }
-  | { ok: false; reason: "not_found" | "unknown_item" | "invalid_value" | "write_failed" };
+  | { ok: false; reason: "not_found" | "unknown_item" | "invalid_value" | "section_all_na" | "write_failed" };
 
 /** What the corrected pitch would score. Pure, so the recompute can be tested without a database. */
 export function recomputeWithOverride(
@@ -64,7 +64,7 @@ export function recomputeWithOverride(
 
   if (req.itemType === "element") {
     const i = elements.findIndex((e) => e.elementId === req.itemId);
-    const graded: GradedElement = { elementId: req.itemId, grade: req.newValue as Grade };
+    const graded: GradedElement = { elementId: req.itemId, grade: req.newValue as ElementGrade };
     if (i >= 0) elements[i] = graded;
     else elements.push(graded);
   } else if (req.itemType === "bonus") {
@@ -101,7 +101,8 @@ export function recomputeWithOverride(
 function pointsFor(rubric: Rubric, itemType: OverrideRequest["itemType"], itemId: string, newValue: string): number {
   if (itemType === "element") {
     const def = rubric.elementsById.get(itemId);
-    return def ? def.points * (GRADE_CREDIT[newValue as Grade] ?? 0) : 0;
+    // "na" earns nothing: its weight leaves the section's maximum instead (scorePitch).
+    return def && newValue !== "na" ? def.points * (GRADE_CREDIT[newValue as Grade] ?? 0) : 0;
   }
   if (newValue === "removed") return 0;
   if (itemType === "bonus") return rubric.bonusesById.get(itemId)?.points ?? 0;
@@ -110,7 +111,7 @@ function pointsFor(rubric: Rubric, itemType: OverrideRequest["itemType"], itemId
 
 function validValue(itemType: OverrideRequest["itemType"], value: string): boolean {
   return itemType === "element"
-    ? value === "hit" || value === "partial" || value === "missed"
+    ? value === "hit" || value === "partial" || value === "missed" || value === "na"
     : value === "awarded" || value === "removed";
 }
 
@@ -127,6 +128,9 @@ export async function applyOverride(
         : rubric.violationsById.has(req.itemId);
   if (!known) return { ok: false, reason: "unknown_item" };
   if (!validValue(req.itemType, req.newValue)) return { ok: false, reason: "invalid_value" };
+  if (req.itemType === "element" && req.newValue === "na" && leavesSectionAllNa(rubric, pitch, req.itemId)) {
+    return { ok: false, reason: "section_all_na" };
+  }
 
   // What it was, for the log. Read from the stored evidence rather than assumed, so the row says
   // what actually changed rather than what the caller believed was there.
@@ -183,4 +187,17 @@ export async function applyOverride(
     total: score.total,
     qualifying: score.qualifying,
   };
+}
+
+/**
+ * Would marking `itemId` N/A leave its section with no item that applies? Then the section would have nothing to be
+ * scored out of, so the correction is refused and the manager grades an item instead (0331). Ungraded items count as
+ * applying (they score 0 today, as they always have).
+ */
+export function leavesSectionAllNa(rubric: Rubric, pitch: Pick<StoredPitch, "elements">, itemId: string): boolean {
+  const def = rubric.elementsById.get(itemId);
+  if (!def) return false;
+  const naNow = new Set(pitch.elements.filter((e) => e.grade === "na").map((e) => e.elementId));
+  naNow.add(itemId);
+  return rubric.elements.filter((e) => e.section === def.section).every((e) => naNow.has(e.id));
 }

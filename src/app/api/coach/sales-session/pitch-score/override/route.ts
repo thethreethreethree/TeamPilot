@@ -38,7 +38,8 @@ const BodySchema = z.object({
   itemType: z.enum(["element", "bonus", "violation"]),
   itemId: z.string().min(1).max(120),
   /** element: hit | partial | missed. bonus/violation: awarded | removed. */
-  newValue: z.enum(["hit", "partial", "missed", "awarded", "removed"]),
+  // "na" = "Doesn't apply to this call" (0331; founder 2026-11-24: managers only, when correcting).
+  newValue: z.enum(["hit", "partial", "missed", "na", "awarded", "removed"]),
   reason: z.string().trim().min(1).max(1000),
 });
 
@@ -46,6 +47,7 @@ const FAILURE_STATUS: Record<string, number> = {
   not_found: 404,
   unknown_item: 422,
   invalid_value: 422,
+  section_all_na: 422,
   write_failed: 500,
 };
 
@@ -53,6 +55,7 @@ const FAILURE_MESSAGE: Record<string, string> = {
   not_found: "That pitch could not be found.",
   unknown_item: "That item is not in the current rubric.",
   invalid_value: "That value is not valid for this kind of item.",
+  section_all_na: "That would leave nothing in this section that applies. Grade at least one of its items instead.",
   write_failed: "The correction could not be saved.",
 };
 

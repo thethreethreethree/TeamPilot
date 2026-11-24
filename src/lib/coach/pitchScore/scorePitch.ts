@@ -1,4 +1,4 @@
-import { GRADE_CREDIT, type Grade, type SectionId } from "./rubric";
+import { GRADE_CREDIT, type ElementGrade, type SectionId } from "./rubric";
 import { DOOR_RUBRIC, type Rubric } from "./rubricRegistry";
 
 /**
@@ -19,7 +19,8 @@ import { DOOR_RUBRIC, type Rubric } from "./rubricRegistry";
 
 export type GradedElement = {
   elementId: string;
-  grade: Grade;
+  /** "na" only from a manager's correction (0331) — the AI's answer is parsed to hit / partial / missed. */
+  grade: ElementGrade;
   /** Seconds into the recording — powers the play button that jumps to the moment. */
   timestampS?: number;
   /** Short quote or note explaining the grade, required by the rubric's per-element output rule. */
@@ -78,7 +79,7 @@ export type ScoredViolation = { violationId: string; deduction: number; capped: 
  */
 export type ScoredElement = {
   elementId: string;
-  grade: Grade;
+  grade: ElementGrade;
   section: SectionId;
   points: number;
 };
@@ -127,6 +128,8 @@ export function scorePitch(input: ScorePitchInput): PitchScore {
     SECTIONS.map((s) => [s.id, 0])
   ) as Record<SectionId, number>;
 
+  // Points of items a manager marked "Doesn't apply" (0331), per section: removed from that section's maximum.
+  const naPoints = Object.fromEntries(SECTIONS.map((s) => [s.id, 0])) as Record<SectionId, number>;
   let deliveryEarnedExObjection = 0;
   let deliveryMaxExObjection = 0;
   const elementBreakdown: ScoredElement[] = [];
@@ -150,6 +153,13 @@ export function scorePitch(input: ScorePitchInput): PitchScore {
     if (seenElements.has(def.id)) continue;
     seenElements.add(def.id);
 
+    if (graded.grade === "na") {
+      // Neither earned nor missed: it leaves the section's maximum (scaled below). Listed, worth 0, so the score
+      // page says why its points aren't there.
+      naPoints[def.section] += def.points;
+      elementBreakdown.push({ elementId: def.id, grade: "na", section: def.section, points: 0 });
+      continue;
+    }
     const earned = def.points * GRADE_CREDIT[graded.grade];
     sectionPoints[def.section] += earned;
     elementBreakdown.push({
@@ -176,6 +186,17 @@ export function scorePitch(input: ScorePitchInput): PitchScore {
     const deliveryMax = SECTIONS.find((s) => s.id === "delivery")!.maxPoints;
     sectionPoints.delivery = (deliveryEarnedExObjection / deliveryMaxExObjection) * deliveryMax;
     deliveryScaled = true;
+  }
+
+  // N/A scaling (0331, ledger F15.5): a section with items marked "Doesn't apply" is scored out of what applied and
+  // scaled back to its full value — the rubric's own rule for Objection handling, applied to any item. Delivery,
+  // when already scaled above, is computed over the graded, applicable items only, so it is not scaled twice.
+  // With no N/A anywhere this block changes nothing (every door score stored before 0331 recomputes identically).
+  for (const s of SECTIONS) {
+    const na = naPoints[s.id];
+    if (na <= 0 || (s.id === "delivery" && deliveryScaled)) continue;
+    const applicable = s.maxPoints - na;
+    sectionPoints[s.id] = applicable > 0 ? (sectionPoints[s.id] / applicable) * s.maxPoints : 0;
   }
 
   for (const s of SECTIONS) sectionPoints[s.id] = r1(sectionPoints[s.id]);

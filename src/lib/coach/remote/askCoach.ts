@@ -68,7 +68,7 @@ export function numberAcross(calls: Array<{ sessionId: string; label: string; li
   return { text: parts.join("\n"), refs };
 }
 
-const GRADE_WORD: Record<StoredPitch["elements"][number]["grade"], string> = { hit: "hit", partial: "partial", missed: "missed" };
+const GRADE_WORD: Record<StoredPitch["elements"][number]["grade"], string> = { hit: "hit", partial: "partial", missed: "missed", na: "doesn't apply (manager)" };
 
 /** The stored verdict as plain lines for the model. Pure; formats only — every number is the stored one. */
 export function scorecardText(label: string, pitch: StoredPitch | null | "unreadable"): string {

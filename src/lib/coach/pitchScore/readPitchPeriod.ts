@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { BONUSES_BY_ID, SECTIONS, VIOLATIONS_BY_ID, type Grade, type SectionId } from "./rubric";
+import { BONUSES_BY_ID, SECTIONS, VIOLATIONS_BY_ID, type ElementGrade, type SectionId } from "./rubric";
 import type { AggregablePitch } from "./aggregate";
 import { contextsOf, type CallModule } from "@/lib/coach/sessionContext";
 
@@ -144,10 +144,10 @@ export async function readPitchPeriod(
     return null;
   }
 
-  const elementsByPitch = new Map<string, { elementId: string; grade: Grade }[]>();
+  const elementsByPitch = new Map<string, { elementId: string; grade: ElementGrade }[]>();
   for (const r of elementRows ?? []) {
     const list = elementsByPitch.get(r.pitch_id as string) ?? [];
-    list.push({ elementId: r.element_id as string, grade: r.grade as Grade });
+    list.push({ elementId: r.element_id as string, grade: r.grade as ElementGrade });
     elementsByPitch.set(r.pitch_id as string, list);
   }
 

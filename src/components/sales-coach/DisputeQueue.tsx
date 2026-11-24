@@ -61,6 +61,9 @@ const VALUE_OPTIONS: Record<"element" | "bonus" | "violation", { value: string; 
     { value: "hit", label: "Hit" },
     { value: "partial", label: "Partial" },
     { value: "missed", label: "Missed" },
+    // 0331 (founder 2026-11-24, managers only): the item couldn't happen on this call; its points leave the section's
+    // maximum and the section is scaled, like Objection handling when no objection is raised.
+    { value: "na", label: "Doesn't apply to this call" },
   ],
   bonus: [
     { value: "awarded", label: "Award it" },

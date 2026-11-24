@@ -288,3 +288,35 @@ describe("a phone/video score is corrected under ITS rubric (2026-11-25)", () =>
     expect(rpc.mock.calls[0]![1]).toMatchObject({ p_new_points: 1.5, p_base: 98.5 });
   });
 });
+
+describe("N/A by a manager's correction (0331)", () => {
+  const pitch = {
+    rubricVersion: DOOR_RUBRIC.version,
+    elements: DOOR_RUBRIC.elements.map((e) => ({ elementId: e.id, grade: e.id === "intro.trucks" ? ("missed" as const) : ("hit" as const) })),
+    events: [],
+    deliveryScaled: false,
+    notQualifyingReason: null,
+  } as unknown as StoredPitch;
+
+  it("marking a missed item N/A gives its section back its full value, logged at 0 points", async () => {
+    mockRpc();
+    const res = await applyOverride({ companyId: "c", pitchId: "p", actorId: "m", itemType: "element", itemId: "intro.trucks", newValue: "na", reason: "No crews in this area" }, pitch);
+    expect(res).toMatchObject({ ok: true, base: 100 });
+    expect(rpc.mock.calls[0]![1]).toMatchObject({ p_new_value: "na", p_new_points: 0, p_base: 100 });
+  });
+
+  it("refuses N/A on the last applicable item of a section", async () => {
+    mockRpc();
+    const introIds = DOOR_RUBRIC.elements.filter((e) => e.section === "introduction").map((e) => e.id);
+    const allButOne = { ...pitch, elements: pitch.elements.map((e) => (introIds.slice(1).includes(e.elementId) ? { ...e, grade: "na" } : e)) } as unknown as StoredPitch;
+    const res = await applyOverride({ companyId: "c", pitchId: "p", actorId: "m", itemType: "element", itemId: introIds[0]!, newValue: "na", reason: "r" }, allButOne);
+    expect(res).toEqual({ ok: false, reason: "section_all_na" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("N/A is not a value for a bonus", async () => {
+    mockRpc();
+    const res = await applyOverride({ companyId: "c", pitchId: "p", actorId: "m", itemType: "bonus", itemId: "bonus.directv", newValue: "na", reason: "r" }, pitch);
+    expect(res).toEqual({ ok: false, reason: "invalid_value" });
+  });
+});

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { SECTIONS, type SectionId } from "./rubric";
+import { SECTIONS, type ElementGrade, type SectionId } from "./rubric";
 import { rubricByVersion } from "./rubricRegistry";
 import { replayDisputes, type DisputeEventRow, type DisputeRow } from "./readDisputes";
 
@@ -26,7 +26,8 @@ export type PitchElementRow = {
   /** The rubric's label, resolved here so every screen shows the same words. */
   label: string;
   section: SectionId | null;
-  grade: "hit" | "partial" | "missed";
+  /** "na" = a manager marked it "Doesn't apply" (0331). */
+  grade: ElementGrade;
   /** Raw rubric weight. NOT scaled — see sectionPoints for the figure that sums to base. */
   points: number;
   maxPoints: number | null;

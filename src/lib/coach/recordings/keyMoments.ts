@@ -1,4 +1,4 @@
-import type { Grade } from "../pitchScore/rubric";
+import type { ElementGrade } from "../pitchScore/rubric";
 import { bonusInAnyRubric, elementInAnyRubric, violationInAnyRubric } from "../pitchScore/rubricRegistry";
 
 /**
@@ -77,7 +77,7 @@ export type MomentSource = {
   elements: ReadonlyArray<{
     id: string;
     elementId: string;
-    grade: Grade;
+    grade: ElementGrade;
     points: number;
     timestampS: number | null;
     evidence: string | null;

@@ -35,6 +35,8 @@ const GRADE_STYLE: Record<PitchElementRow["grade"], { label: string; cls: string
   hit: { label: "HIT", cls: "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 border-emerald-600/40" },
   partial: { label: "PARTIAL", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40" },
   missed: { label: "MISSED", cls: "bg-zinc-500/10 text-muted border-default" },
+  // A manager's "Doesn't apply" (0331): neutral and outlined, because it is neither credit nor a miss.
+  na: { label: "N/A", cls: "bg-transparent text-secondary border-default border-dashed" },
 };
 
 /**
