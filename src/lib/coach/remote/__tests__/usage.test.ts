@@ -47,3 +47,28 @@ describe("mergeSignIns (0327)", () => {
     expect(out.filter((x) => x.personId === "b")).toHaveLength(1);
   });
 });
+
+describe("time on calls (F10.7)", () => {
+  const now = Date.parse("2026-11-25T12:00:00Z");
+  const at = (daysAgo: number) => new Date(now - daysAgo * 86_400_000).toISOString();
+  const u = buildUsage(
+    [{ id: "a", name: "Ana" }],
+    [
+      { personId: "a", kind: "calls", at: at(1), seconds: 600 },
+      { personId: "a", kind: "calls", at: at(2), seconds: null }, // unknown length: counted as a call, not as time
+      { personId: "a", kind: "calls", at: at(10), seconds: 1200 },
+      { personId: "a", kind: "questions", at: at(1), seconds: 999 }, // only calls carry time
+    ],
+    now,
+  );
+  const a = u.rows[0]!;
+  it("adds known call lengths per window and counts how many were known", () => {
+    expect(a.last7.calls).toBe(2);
+    expect(a.time7).toEqual({ seconds: 600, timed: 1 });
+    expect(a.time30).toEqual({ seconds: 1800, timed: 2 });
+  });
+  it("a person with no calls has zero time, not a guess", () => {
+    const v = buildUsage([{ id: "b", name: "Bo" }], [], now).rows[0]!;
+    expect(v.time30).toEqual({ seconds: 0, timed: 0 });
+  });
+});

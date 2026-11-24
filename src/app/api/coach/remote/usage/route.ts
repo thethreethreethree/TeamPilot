@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
 
   const [sessions, chats, attempts, pevents] = await Promise.all([
-    admin.from("coaching_sessions").select("agent_id, started_at").eq("company_id", mgr.companyId).in("agent_id", ids).gte("started_at", since).limit(CAP),
+    admin.from("coaching_sessions").select("agent_id, started_at, ended_at, audio_duration_seconds").eq("company_id", mgr.companyId).in("agent_id", ids).gte("started_at", since).limit(CAP),
     admin.from("ask_coach_chats").select("id, owner_id").eq("company_id", mgr.companyId).in("owner_id", ids).limit(CAP),
     admin.from("training_attempts").select("rep_id, created_at").eq("company_id", mgr.companyId).in("rep_id", ids).gte("created_at", since).limit(CAP),
     admin.from("remote_prospect_events").select("actor_id, created_at").eq("company_id", mgr.companyId).in("actor_id", ids).gte("created_at", since).limit(CAP),
@@ -64,7 +65,13 @@ export async function GET(req: NextRequest) {
   const logins = mergeSignIns(((signRows ?? []) as Array<{ user_id: string; at: string; source: string }>).map((r) => ({ userId: String(r.user_id), at: r.at, source: r.source })));
 
   const events: UsageEvent[] = [
-    ...((sessions.data ?? []) as Array<{ agent_id: string; started_at: string }>).map((r) => ({ personId: r.agent_id, kind: "calls" as const, at: r.started_at })),
+    // A call's length only from conversationDurationSeconds (audio length, else a capped wall-clock span; null = unknown).
+    ...((sessions.data ?? []) as Array<{ agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null }>).map((r) => ({
+      personId: r.agent_id,
+      kind: "calls" as const,
+      at: r.started_at,
+      seconds: conversationDurationSeconds(r.audio_duration_seconds, r.started_at, r.ended_at),
+    })),
     ...turns.map((r) => ({ personId: ownerOf.get(r.chat_id) ?? "", kind: "questions" as const, at: r.created_at })),
     ...((attempts.data ?? []) as Array<{ rep_id: string; created_at: string }>).map((r) => ({ personId: r.rep_id, kind: "practice" as const, at: r.created_at })),
     ...((pevents.data ?? []) as Array<{ actor_id: string; created_at: string }>).map((r) => ({ personId: r.actor_id, kind: "pipeline" as const, at: r.created_at })),

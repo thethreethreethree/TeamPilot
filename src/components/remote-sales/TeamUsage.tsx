@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Loader2 } from "lucide-react";
-import type { Counts, PersonUsage } from "@/lib/coach/remote/usage";
+import type { CallTime, Counts, PersonUsage } from "@/lib/coach/remote/usage";
 
 /**
  * Remote Sales → Coaching → Team usage (2026-11-23, usage.ts). For managers: who used the product in the last 7 and 30
@@ -17,6 +17,18 @@ const COLS: Array<[keyof Counts, string]> = [
   ["practice", "Practice"],
   ["pipeline", "Pipeline"],
 ];
+/** Hours and minutes on calls, e.g. "3h 05m" or "42m"; a dash when no call had a known length. */
+const onCalls = (t: CallTime) => {
+  if (!t.timed) return "—";
+  const m = Math.round(t.seconds / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`;
+};
+/** Average call length, m:ss. */
+const avgCall = (t: CallTime) => {
+  if (!t.timed) return "—";
+  const s = Math.round(t.seconds / t.timed);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 const ago = (iso: string | null) => {
   if (!iso) return "—";
   const d = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
@@ -79,6 +91,8 @@ export function TeamUsage() {
                   {COLS.map(([, label]) => (
                     <th key={label} className="py-1 pr-3 text-right font-medium">{label}</th>
                   ))}
+                  <th className="py-1 pr-3 text-right font-medium">Time on calls</th>
+                  <th className="py-1 pr-3 text-right font-medium">Avg call</th>
                   <th className="py-1 font-medium">Last active</th>
                 </tr>
               </thead>
@@ -89,6 +103,19 @@ export function TeamUsage() {
                     {COLS.map(([k]) => (
                       <td key={k} className={`py-1.5 pr-3 text-right tabular-nums ${p[range][k] ? "text-primary" : "text-muted"}`}>{p[range][k]}</td>
                     ))}
+                    {(() => {
+                      const t = range === "last7" ? p.time7 : p.time30;
+                      const untimed = p[range].calls - t.timed;
+                      return (
+                        <>
+                          <td className={`py-1.5 pr-3 text-right tabular-nums ${t.timed ? "text-primary" : "text-muted"}`} title={untimed > 0 ? `${untimed} ${untimed === 1 ? "call has" : "calls have"} no known length and ${untimed === 1 ? "isn't" : "aren't"} counted` : undefined}>
+                            {onCalls(t)}
+                            {untimed > 0 && t.timed > 0 ? "*" : ""}
+                          </td>
+                          <td className={`py-1.5 pr-3 text-right tabular-nums ${t.timed ? "text-primary" : "text-muted"}`}>{avgCall(t)}</td>
+                        </>
+                      );
+                    })()}
                     <td className="py-1.5 text-secondary">{ago(p.lastActive)}</td>
                   </tr>
                 ))}
@@ -97,7 +124,9 @@ export function TeamUsage() {
           </div>
           <p className="mt-2 text-[11px] text-muted">
             Counted from what the product already records: sign-ins through the email and password form, calls, Ask Coach
-            questions on calls, practice attempts and pipeline changes. Shown alphabetically — this is usage, not a ranking.
+            questions on calls, practice attempts and pipeline changes. Time on calls adds up each call&apos;s recorded length (or,
+            for a live call, start to end); * means some calls had no known length and aren&apos;t counted. Shown alphabetically —
+            this is usage, not a ranking.
             {data.capped.length ? ` Some counts hit the 1,000-row read limit and may be higher: ${data.capped.join(", ")}.` : ""}
           </p>
         </>

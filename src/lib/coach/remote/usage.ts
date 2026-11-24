@@ -9,21 +9,41 @@
  */
 export const USAGE_KINDS = ["signIns", "calls", "questions", "practice", "pipeline"] as const;
 export type UsageKind = (typeof USAGE_KINDS)[number];
-export type UsageEvent = { personId: string; kind: UsageKind; at: string };
+/** `seconds` (calls only): the call's length from conversationDurationSeconds; null = unknown, never guessed. */
+export type UsageEvent = { personId: string; kind: UsageKind; at: string; seconds?: number | null };
 export type Counts = Record<UsageKind, number>;
-export type PersonUsage = { id: string; name: string; last7: Counts; last30: Counts; lastActive: string | null };
+/**
+ * Time on calls in a window (2026-11-25, ledger F10.7 "Activity stats"): total seconds over the calls whose length is
+ * known, and how many those were — the average is seconds ÷ timed, and calls without a known length are said, not
+ * averaged in as zero (§3.4).
+ */
+export type CallTime = { seconds: number; timed: number };
+export type PersonUsage = { id: string; name: string; last7: Counts; last30: Counts; lastActive: string | null; time7: CallTime; time30: CallTime };
 
 const zero = (): Counts => ({ signIns: 0, calls: 0, questions: 0, practice: 0, pipeline: 0 });
 const DAY = 86_400_000;
 
 export function buildUsage(members: Array<{ id: string; name: string }>, events: UsageEvent[], nowMs: number) {
-  const people = new Map<string, PersonUsage>(members.map((m) => [m.id, { id: m.id, name: m.name, last7: zero(), last30: zero(), lastActive: null }]));
+  const people = new Map<string, PersonUsage>(
+    members.map((m) => [m.id, { id: m.id, name: m.name, last7: zero(), last30: zero(), lastActive: null, time7: { seconds: 0, timed: 0 }, time30: { seconds: 0, timed: 0 } }]),
+  );
   for (const e of events) {
     const p = people.get(e.personId);
     const t = Date.parse(e.at);
     if (!p || !Number.isFinite(t) || t > nowMs || t < nowMs - 30 * DAY) continue;
     p.last30[e.kind] += 1;
-    if (t >= nowMs - 7 * DAY) p.last7[e.kind] += 1;
+    const timed = e.kind === "calls" && typeof e.seconds === "number" && Number.isFinite(e.seconds) && e.seconds > 0;
+    if (timed) {
+      p.time30.seconds += e.seconds!;
+      p.time30.timed += 1;
+    }
+    if (t >= nowMs - 7 * DAY) {
+      p.last7[e.kind] += 1;
+      if (timed) {
+        p.time7.seconds += e.seconds!;
+        p.time7.timed += 1;
+      }
+    }
     if (!p.lastActive || e.at > p.lastActive) p.lastActive = e.at;
   }
   const rows = [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
