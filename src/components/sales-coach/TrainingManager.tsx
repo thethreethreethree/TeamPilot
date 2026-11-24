@@ -88,6 +88,31 @@ export function TrainingManager() {
     if (from) setForm((f) => ({ ...f, sourceSessionId: from }));
   }, [load]);
 
+  // F17.3 (2026-11-25): the AI drafts title, prospect, situation and skill from the source call's customer lines —
+  // no personal details; the manager edits before saving. Nothing is saved by drafting.
+  const [drafting, setDrafting] = useState(false);
+  const [draftNote, setDraftNote] = useState<string | null>(null);
+  const draftFromCall = async () => {
+    setDrafting(true);
+    setDraftNote(null);
+    try {
+      const r = await fetch("/api/coach/remote/scenarios/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: form.sourceSessionId }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { draft?: { title: string; persona: string; situation: string; focus: string } | null; reason?: string; error?: string };
+      if (!r.ok) return setDraftNote(j.error ?? "Couldn't draft it. Write it by hand.");
+      if (!j.draft) return setDraftNote(j.reason ?? "Couldn't draft it. Write it by hand.");
+      setForm((f) => ({ ...f, title: j.draft!.title, persona: j.draft!.persona, situation: j.draft!.situation, focus: j.draft!.focus }));
+      setDraftNote("Drafted from the call — check it, change anything, then save.");
+    } catch {
+      setDraftNote("Couldn't reach the server. Try again.");
+    } finally {
+      setDrafting(false);
+    }
+  };
+
   const send = async (url: string, method: string, body: unknown, ok: string) => {
     setBusy(true);
     setMsg(null);
@@ -124,7 +149,21 @@ export function TrainingManager() {
 
       <section className="rounded-2xl border border-default bg-surface p-4 space-y-2" aria-label="New scenario">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-primary"><ClipboardList className="h-4 w-4 text-brand" aria-hidden /> New practice scenario</h2>
-        {form.sourceSessionId && <p className="text-[11px] text-muted">Built from a real call — it stays linked to that call.</p>}
+        {form.sourceSessionId && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] text-muted">Built from a real call — it stays linked to that call.</p>
+            <button
+              type="button"
+              disabled={drafting}
+              onClick={() => void draftFromCall()}
+              className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-[11px] text-primary hover:border-brand disabled:opacity-50"
+            >
+              {drafting ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+              Draft it from the call
+            </button>
+            {draftNote && <p role="status" className="basis-full text-[11px] text-secondary">{draftNote}</p>}
+          </div>
+        )}
         <div className="grid gap-2 md:grid-cols-2">
           <label className="text-[11px] text-muted">Title<input value={form.title} onChange={set("title")} maxLength={120} className={input} placeholder="The price-shopper on the phone" /></label>
           <label className="text-[11px] text-muted">Who the prospect is<input value={form.persona} onChange={set("persona")} maxLength={200} className={input} placeholder="Owner of a 5-person shop, already has two quotes" /></label>

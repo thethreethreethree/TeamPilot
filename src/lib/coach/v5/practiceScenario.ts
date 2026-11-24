@@ -91,3 +91,61 @@ export function parsePracticeScenario(text: string): PracticeScenario | null {
   if (!persona && !situation) return null;
   return { title, persona, situation };
 }
+
+/**
+ * A practice scenario DRAFTED FROM A REAL PHONE/VIDEO CALL (2026-11-25; Gong ledger F17.3 "Scenario from real calls").
+ * The call's transcript is diarized (Rep / Customer lines), so the customer's side is known, not inferred. The draft
+ * describes the KIND of prospect and the moment that tested the rep — never the person: a scenario lives on after the
+ * call and legal erasure only retires it (0317), so it must hold no personal details. The prompt forbids them and
+ * stripPersonalDetails removes any that slip through; the manager reviews and edits before anything is saved.
+ */
+export type CallScenarioDraft = { title: string; persona: string; situation: string; focus: string };
+
+export function buildCallScenarioSystemPrompt(): string {
+  return `You turn a REAL recorded sales call (phone or video) into a reusable practice scenario, so other reps can practice the moment that call turned on.
+
+You get the transcript with each line marked Rep or Customer. Work only from what the CUSTOMER actually said and did; never invent objections they didn't raise.
+
+Write:
+- title: 3-6 words naming the situation, e.g. "The price-shopper with two quotes".
+- persona: the KIND of prospect, one short phrase (role, mood, situation), e.g. "Owner of a small shop, busy, already has two quotes".
+- situation: 1-2 sentences: what the customer wants or objects to, and the moment that tests the rep.
+- focus: the ONE skill the rep most needed in that call, in plain words, e.g. "Handling a price objection".
+
+PRIVACY — this scenario is kept and shown to other reps: no names of people or companies, no addresses or places smaller than a region, no phone/account/card numbers, no email addresses, no dates or amounts that could identify the customer. Describe the type of person, never the person.
+
+Do NOT use em dashes or en dashes. Return ONLY JSON:
+{"title":"...","persona":"...","situation":"...","focus":"..."}`;
+}
+
+export function buildCallScenarioUserMessage(lines: Array<{ speaker: "agent" | "customer" | "unknown"; text: string }>): string {
+  const body = lines
+    .map((l) => `${l.speaker === "agent" ? "Rep" : l.speaker === "customer" ? "Customer" : "Unclear"}: ${l.text}`)
+    .join("\n")
+    .slice(0, 12_000);
+  return `Transcript:\n${body}\n\nReturn the JSON only.`;
+}
+
+/** Removes what the prompt forbids if it slips through: emails, runs of 4+ digits (phone, account, card), and URLs. */
+export function stripPersonalDetails(s: string): string {
+  return s
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[removed]")
+    .replace(/https?:\/\/\S+/g, "[removed]")
+    .replace(/\d[\d\s().-]{2,}\d/g, (m) => ((m.match(/\d/g) ?? []).length >= 4 ? "[removed]" : m))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function parseCallScenarioDraft(text: string): CallScenarioDraft | null {
+  let j: unknown;
+  try {
+    j = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, ""));
+  } catch {
+    return null;
+  }
+  if (!j || typeof j !== "object") return null;
+  const o = j as Record<string, unknown>;
+  const field = (k: string, max: number) => (typeof o[k] === "string" ? stripPersonalDetails(o[k] as string).slice(0, max) : "");
+  const draft = { title: field("title", 120), persona: field("persona", 200), situation: field("situation", 600), focus: field("focus", 120) };
+  return draft.title && draft.persona && draft.situation && draft.focus ? draft : null;
+}

@@ -46,6 +46,7 @@ import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel"
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { CallPipelineLink } from "@/components/remote-sales/CallPipelineLink";
+import { ScenarioFromCallLink } from "@/components/remote-sales/ScenarioFromCallLink";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -586,6 +587,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
 
         {/* Which prospect this call belongs to — in the full view too (2026-11-23); before, only Macro Mode had it. */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallPipelineLink sessionId={id} />}
+        {/* F17.3: a manager turns this call into a practice scenario (drafted by AI, edited, saved linked to the call). */}
+        {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && session.status !== "active" && <ScenarioFromCallLink sessionId={id} />}
         {/* The rep's notes on the call (0316) — during a live call too, stamped with the moment. */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallNotes sessionId={id} onSeek={seekTo} />}
 
