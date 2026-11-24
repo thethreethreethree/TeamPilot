@@ -194,10 +194,13 @@ export async function applyOverride(
  * scored out of, so the correction is refused and the manager grades an item instead (0331). Ungraded items count as
  * applying (they score 0 today, as they always have).
  */
-export function leavesSectionAllNa(rubric: Rubric, pitch: Pick<StoredPitch, "elements">, itemId: string): boolean {
+export function leavesSectionAllNa(rubric: Rubric, pitch: Pick<StoredPitch, "elements" | "deliveryScaled">, itemId: string): boolean {
   const def = rubric.elementsById.get(itemId);
   if (!def) return false;
   const naNow = new Set(pitch.elements.filter((e) => e.grade === "na").map((e) => e.elementId));
   naNow.add(itemId);
+  // No objection on this call (deliveryScaled): Objection handling doesn't apply either, so it can't be the item that
+  // keeps Delivery scorable (review 2026-11-25: otherwise Delivery fell to 0 of 35).
+  if (pitch.deliveryScaled) naNow.add(rubric.objectionElementId);
   return rubric.elements.filter((e) => e.section === def.section).every((e) => naNow.has(e.id));
 }

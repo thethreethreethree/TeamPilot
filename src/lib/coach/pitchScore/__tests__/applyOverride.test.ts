@@ -320,3 +320,21 @@ describe("N/A by a manager's correction (0331)", () => {
     expect(res).toEqual({ ok: false, reason: "invalid_value" });
   });
 });
+
+describe("N/A guard with no objection (review 2026-11-25)", () => {
+  it("when no objection happened, the last real Delivery item can't be marked N/A (Delivery would fall to 0)", async () => {
+    mockRpc();
+    const delivery = DOOR_RUBRIC.elements.filter((e) => e.section === "delivery" && e.id !== DOOR_RUBRIC.objectionElementId).map((e) => e.id);
+    const pitch = {
+      rubricVersion: DOOR_RUBRIC.version,
+      elements: DOOR_RUBRIC.elements
+        .filter((e) => e.id !== DOOR_RUBRIC.objectionElementId)
+        .map((e) => ({ elementId: e.id, grade: delivery.slice(1).includes(e.id) ? ("na" as const) : ("hit" as const) })),
+      events: [],
+      deliveryScaled: true,
+      notQualifyingReason: null,
+    } as unknown as StoredPitch;
+    const res = await applyOverride({ companyId: "c", pitchId: "p", actorId: "m", itemType: "element", itemId: delivery[0]!, newValue: "na", reason: "r" }, pitch);
+    expect(res).toEqual({ ok: false, reason: "section_all_na" });
+  });
+});

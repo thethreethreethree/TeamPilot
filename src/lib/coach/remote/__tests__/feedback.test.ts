@@ -166,3 +166,31 @@ describe("coachingByRep (F16.5) — one row per rep, same D8 rule", () => {
     expect(rows.map((r) => r.repId)).toEqual(["bo", "cy", "ana"]);
   });
 });
+
+describe("loadCoachingEvents — a removed comment is not feedback (0333; review 2026-11-25)", () => {
+  it("leaves out a comment whose latest revision removed it; keeps an edited one", async () => {
+    const { loadCoachingEvents } = await import("../feedback");
+    const DATA: Record<string, unknown[]> = {
+      pitch_scores: [{ id: "p1", session_id: "s1", rep_id: "rep" }],
+      recording_comments: [
+        { id: "c-removed", pitch_id: "p1", author_id: "m1", sent_to_rep: true, created_at: "2026-11-20T10:00:00Z" },
+        { id: "c-edited", pitch_id: "p1", author_id: "m1", sent_to_rep: true, created_at: "2026-11-21T10:00:00Z" },
+      ],
+      recording_comment_revisions: [
+        { id: 1, comment_id: "c-removed", removed: true },
+        { id: 2, comment_id: "c-edited", removed: false },
+      ],
+    };
+    const db = {
+      from: (t: string) => {
+        const q: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "in"]) q[m] = () => q;
+        (q as { then: unknown }).then = (res: (v: unknown) => unknown) => Promise.resolve(res({ data: DATA[t] ?? [], error: null }));
+        return q;
+      },
+    };
+    const events = await loadCoachingEvents(db as never, "c1", ["s1"]);
+    const comments = events.filter((e) => e.kind === "comment_sent_to_rep");
+    expect(comments.map((e) => e.at.toISOString())).toEqual(["2026-11-21T10:00:00.000Z"]);
+  });
+});

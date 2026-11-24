@@ -33,3 +33,13 @@ describe("TeamCallStats (F10.9)", () => {
     await waitFor(() => expect(container.textContent).toBe(""));
   });
 });
+
+describe("TeamCallStats — time format (review 2026-11-25)", () => {
+  it("119.6 s reads 2:00, never 1:60", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => json({ days: 30, team: A({ calls: 1, longestRepMonologueMs: 119_600 }), reps: [{ repId: "a", name: "Ana", ...A({ calls: 1, longestRepMonologueMs: 119_600 }) }] })));
+    render(<TeamCallStats />);
+    const rows = await screen.findAllByRole("row");
+    expect(rows[1]!.textContent).toContain("2:00");
+    expect(rows[1]!.textContent).not.toContain("1:60");
+  });
+});

@@ -64,4 +64,14 @@ describe("remote calls", () => {
     expect(nav.replace).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Remote calls at a glance")).toBeTruthy();
   });
+
+  it("Macro Mode: having opened Today already today, Calls stays on Calls (review 2026-11-25)", async () => {
+    nav.macro = true;
+    const { markTodaySeen } = await import("@/lib/coach/remote/todayShown");
+    markTodaySeen(); // what RemoteToday does on open
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ sessions: [ROW], isManager: false }) });
+    render(<RemoteCallsHome />);
+    expect(await screen.findByText("Pat Prospect")).toBeTruthy();
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
 });

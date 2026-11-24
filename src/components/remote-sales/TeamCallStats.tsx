@@ -14,7 +14,12 @@ type Resp = { days: number; reps: RepStats[]; team: Averages };
 /** YYYY-MM-DD of `days` ago, the Search "from" filter for the same period. */
 const sinceDay = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 const pct = (x: number | null) => (x == null ? "—" : `${Math.round(x * 100)}%`);
-const mmss = (ms: number | null) => (ms == null ? "—" : `${Math.floor(ms / 60000)}:${String(Math.round((ms % 60000) / 1000)).padStart(2, "0")}`);
+// Whole seconds first, then split — rounding the leftover seconds alone could show "1:60" (review 2026-11-25).
+const mmss = (ms: number | null) => {
+  if (ms == null) return "—";
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 const secs = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)} s`);
 const num = (x: number | null) => (x == null ? "—" : String(Math.round(x * 10) / 10));
 const COLS: Array<[string, (a: Averages) => string]> = [

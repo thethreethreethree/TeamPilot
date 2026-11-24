@@ -151,11 +151,30 @@ export async function loadCoachingEvents(
 
   const { data: comments, error: cErr } = await admin
     .from("recording_comments")
-    .select("pitch_id, author_id, sent_to_rep, created_at")
+    .select("id, pitch_id, author_id, sent_to_rep, created_at")
     .eq("company_id", companyId)
     .in("pitch_id", pitchIds);
   if (cErr) throw new FeedbackReadError(`comment read failed: ${cErr.message}`);
-  for (const c of (comments ?? []) as Array<{ pitch_id: string; author_id: string; sent_to_rep: boolean; created_at: string }>) {
+  // A comment its author REMOVED (0333) no longer reaches the rep, so it is not feedback given and doesn't answer a
+  // request (review 2026-11-25). Its latest revision decides; an edit still counts.
+  const commentRows = (comments ?? []) as Array<{ id: string; pitch_id: string; author_id: string; sent_to_rep: boolean; created_at: string }>;
+  const removed = new Set<string>();
+  if (commentRows.length) {
+    const { data: revs, error: rErr } = await admin
+      .from("recording_comment_revisions")
+      .select("id, comment_id, removed")
+      .eq("company_id", companyId)
+      .in("comment_id", commentRows.map((c) => String(c.id)));
+    if (rErr) throw new FeedbackReadError(`comment revision read failed: ${rErr.message}`);
+    const latest = new Map<string, { id: number; removed: boolean }>();
+    for (const r of (revs ?? []) as Array<{ id: number; comment_id: string; removed: boolean }>) {
+      const had = latest.get(String(r.comment_id));
+      if (!had || Number(r.id) > had.id) latest.set(String(r.comment_id), { id: Number(r.id), removed: r.removed === true });
+    }
+    for (const [id, l] of latest) if (l.removed) removed.add(id);
+  }
+  for (const c of commentRows) {
+    if (removed.has(String(c.id))) continue;
     const p = bySession.get(String(c.pitch_id));
     if (!p) continue;
     const base = { managerId: String(c.author_id), repId: p.repId, at: new Date(c.created_at), sessionId: p.sessionId };

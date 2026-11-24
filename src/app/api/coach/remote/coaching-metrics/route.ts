@@ -128,10 +128,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
     }
     const names = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "Unnamed teammate"]));
+    // A recent request can be about a call older than the 180 days read above; load that call's coaching too, or its
+    // answer is never seen and the request counts as open forever (review 2026-11-25).
+    const inView = new Set(ids);
+    const extra = [...new Set(((reqs ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))].filter((id) => !inView.has(id));
+    const requestEvents = [...events];
+    try {
+      for (let i = 0; i < extra.length; i += CHUNK) requestEvents.push(...(await loadCoachingEvents(admin, mgr.companyId, extra.slice(i, i + CHUNK))));
+    } catch (e) {
+      console.error(`[coaching-metrics] request-call coaching read failed company=${mgr.companyId}: ${e instanceof Error ? e.message : String(e)}`);
+      return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
+    }
     byRep = coachingByRep({
       reps: repIds.map((id) => ({ id, name: names.get(id) ?? "Unnamed teammate" })),
       calls: mine.map((s) => ({ id: String(s.id), repId: String(s.agent_id), startedAt: s.started_at, label: s.client_label ?? null })),
-      events,
+      events: requestEvents,
       requests: ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).map((r) => ({
         sessionId: String(r.session_id),
         managerId: r.recipient_id,

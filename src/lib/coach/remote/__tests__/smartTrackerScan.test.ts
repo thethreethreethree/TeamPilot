@@ -89,7 +89,7 @@ describe("scanSmartTrackers", () => {
     expect(inserts).toEqual([]);
   });
 
-  it("guidance off for this company (suppressed): nothing is written", async () => {
+  it("a suppressed verdict from the AI gate is consumed: nothing is written (§2.2; the engine is control-exempt today)", async () => {
     ai.suppressed = true;
     const { db, inserts } = fake({ session: S, trackers: T, segs: SEGS });
     expect(await scanSmartTrackers("s1", db)).toBe(0);

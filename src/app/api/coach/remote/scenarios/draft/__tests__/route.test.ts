@@ -53,7 +53,7 @@ describe("POST scenarios/draft", () => {
     expect((await call()).status).toBe(409);
     expect(st.calls).toBe(0);
   });
-  it("AI guidance off (baseline month) → no draft, the reason in plain words", async () => {
+  it("a suppressed verdict from the AI gate is consumed: no draft, a plain reason (§2.2; Sales Coach is day-1 today)", async () => {
     st.llm = { text: "", suppressed: true };
     const j = await (await call()).json();
     expect(j.draft).toBeNull();

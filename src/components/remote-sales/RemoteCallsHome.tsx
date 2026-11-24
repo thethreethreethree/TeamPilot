@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
+import { markTodaySeen, todaySeenToday } from "@/lib/coach/remote/todayShown";
 import { Loader2, Phone, Video } from "lucide-react";
 import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { StageChips } from "@/components/sales-coach/StageChips";
@@ -34,13 +35,6 @@ type Row = {
 
 const mmss = (s: number | null) => (s == null ? "—" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 
-/** The day Today was last opened automatically, per browser (Macro Mode's "braindump when they first open"). */
-const TODAY_SHOWN_KEY = "rss-macro-today-shown";
-const localDay = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-
 export function RemoteCallsHome() {
   const router = useRouter();
   const { enabled: macro } = useRemoteMacroMode();
@@ -48,12 +42,8 @@ export function RemoteCallsHome() {
   // day goes to Today; after that, Calls opens as asked. Storage failing just means Calls shows (never a loop).
   useEffect(() => {
     if (macro !== true) return;
-    try {
-      if (window.localStorage.getItem(TODAY_SHOWN_KEY) === localDay()) return;
-      window.localStorage.setItem(TODAY_SHOWN_KEY, localDay());
-    } catch {
-      return;
-    }
+    if (todaySeenToday() !== false) return; // seen today, or storage unavailable (then Calls just shows)
+    if (!markTodaySeen()) return;
     router.replace("/dashboard/remote-sales/today");
   }, [macro, router]);
   const [rows, setRows] = useState<Row[] | null>(null);

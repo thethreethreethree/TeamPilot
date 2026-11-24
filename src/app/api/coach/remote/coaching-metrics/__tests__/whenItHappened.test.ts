@@ -13,7 +13,8 @@ vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager:
 vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => ids) }));
 vi.mock("@/lib/coach/remote/feedback", async (orig) => ({
   ...(await orig<typeof import("@/lib/coach/remote/feedback")>()),
-  loadCoachingEvents: vi.fn(async () => [
+  // Events belong to call "old" only, so loading another call's coaching adds nothing.
+  loadCoachingEvents: vi.fn(async (_a: unknown, _c: string, ids: readonly string[]) => !ids.includes("old") ? [] : [
     { kind: "comment_sent_to_rep", managerId: "m1", repId: "r1", at: new Date(iso(1)), sessionId: "old" }, // today-ish, old call → counts
     { kind: "comment_sent_to_rep", managerId: "m2", repId: "r1", at: new Date(iso(40)), sessionId: "old" }, // 40 days ago → not
     { kind: "comment_draft", managerId: "m1", repId: "r1", at: new Date(iso(1)), sessionId: "old" }, // a draft never counts
@@ -33,6 +34,9 @@ vi.mock("@/lib/supabase/admin", () => ({
           const rows = [{ id: "old", agent_id: "r1", started_at: iso(45), ended_at: iso(45), audio_duration_seconds: 600 }].filter((r) => r.started_at >= since);
           return Promise.resolve(res({ data: rows, error: null }));
         }
+        // A request from the last 30 days about a call outside the 180-day calls read (review 2026-11-25).
+        if (table === "feedback_requests") return Promise.resolve(res({ data: [{ session_id: "ancient", requester_id: "r1", recipient_id: null, created_at: iso(2) }], error: null }));
+        if (table === "profiles") return Promise.resolve(res({ data: [{ id: "r1", full_name: "Rae" }], error: null }));
         // listen_events: the read must be limited to the last 30 days (created_at).
         const since = String(filters.find(([c]) => c === "created_at")?.[1]);
         const rows = [
@@ -57,5 +61,10 @@ describe("coaching metrics count when coaching happened (F16.9)", () => {
     // F16.5: the same events give the rep's row — today's comment counts; the 45-day-old call is outside 30 days.
     expect(body.byRep).toHaveLength(1);
     expect(body.byRep[0]).toMatchObject({ repId: "r1", feedback30: 1, calls30: 0, overdue: false });
+    // review 2026-11-25: a request about a call outside the 180-day read has that call's coaching loaded too.
+    const { loadCoachingEvents } = await import("@/lib/coach/remote/feedback");
+    const asked = vi.mocked(loadCoachingEvents).mock.calls.map((c) => [...c[2]]);
+    expect(asked).toContainEqual(["ancient"]); // loaded for the request, though outside the calls read
+
   });
 });

@@ -17,8 +17,9 @@ import { buildCallScenarioSystemPrompt, buildCallScenarioUserMessage, parseCallS
  * (2026-11-25; ledger F17.3). Managers only, for a call they may open (getSession under their own client: RLS and the
  * reporting tree decide), a finished sales call. Nothing is saved: the manager reviews and edits the draft in the
  * scenario form, which saves through POST /api/coach/remote/scenarios linked to the call (so erasure retires it, 0317).
- * The draft holds no personal details (prompt + stripPersonalDetails). Guidance gate: an AI read like any coaching —
- * when the company's AI guidance is off, the answer says so and the manager writes it by hand.
+ * The draft holds no personal details (prompt + stripPersonalDetails). Sales Coach AI runs from day 1 (the recorded
+ * decision every sales engine follows: dissectCoachV5 is controlExempt), so drafting isn't held back in a company's
+ * control month; `suppressed` is still consumed as the verdict (§2.2) in case that ever changes.
  */
 export const maxDuration = 60;
 const Body = z.object({ sessionId: z.string().uuid() });

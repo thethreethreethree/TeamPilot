@@ -6,6 +6,7 @@ import { AlertCircle, CalendarClock, Loader2, Target } from "lucide-react";
 import { outcomeLabel } from "@/lib/coach/v5/outcomeLabels";
 import { RepRoutine } from "./RepRoutine";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
+import { markTodaySeen } from "@/lib/coach/remote/todayShown";
 
 /**
  * Remote Sales → Today (Macro Mode, docs/rss/MACRO-MODE-SPEC.md, 0303) — the brain dump at the start of the day.
@@ -43,6 +44,10 @@ export function RemoteToday() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const day = localDay();
+  // Opening Today counts as having seen it today, so Calls won't send you back here (review 2026-11-25).
+  useEffect(() => {
+    if (macro === true) markTodaySeen();
+  }, [macro]);
   const tz = new Date().getTimezoneOffset();
 
   const load = useCallback(async () => {
