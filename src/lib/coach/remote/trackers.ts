@@ -5,7 +5,14 @@
 export type Speaker = 'rep' | 'customer' | 'unknown';
 export interface Segment { speaker: Speaker; startMs: number | null; text: string; seq?: number }
 
-export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any' }
+/** `within_first_seconds` (0335): count only lines said in the first N seconds of the call; null/absent = the whole call. */
+export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any'; within_first_seconds?: number | null }
+
+/** Whether a line at `startMs` is inside the tracker's window. No window → always. A line with no time can't be placed. */
+export function inWindow(withinFirstSeconds: number | null | undefined, startMs: number | null): boolean {
+  if (withinFirstSeconds == null) return true;
+  return startMs !== null && startMs <= withinFirstSeconds * 1000;
+}
 export interface TrackerHit { trackerId: string; atMs: number | null; speaker: Speaker; matched: string; seq?: number }
 
 export class TrackerError extends Error {}
@@ -27,6 +34,7 @@ export function matchTracker(tracker: KeywordTracker, segments: Segment[]): Trac
   const hits: TrackerHit[] = [];
   for (const s of segments) {
     if (tracker.side !== 'any' && s.speaker !== tracker.side) continue;
+    if (!inWindow(tracker.within_first_seconds, s.startMs)) continue;
     for (const { p, re } of res) if (re.test(s.text)) hits.push({ trackerId: tracker.id, atMs: s.startMs, speaker: s.speaker, matched: p, ...(s.seq !== undefined ? { seq: s.seq } : {}) });
   }
   return hits;

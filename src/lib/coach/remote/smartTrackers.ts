@@ -17,7 +17,7 @@ export function cleanExamples(raw: string[]): string[] {
   return out;
 }
 
-export type SmartTracker = { id: string; name: string; examples: string[]; side: "rep" | "customer" | "any" };
+export type SmartTracker = { id: string; name: string; examples: string[]; side: "rep" | "customer" | "any"; withinFirstSeconds?: number | null };
 export type Line = { seq: number; speaker: "rep" | "customer" | "unknown"; text: string };
 export type SmartHit = { trackerId: string; seq: number; speaker: Line["speaker"]; example: string };
 

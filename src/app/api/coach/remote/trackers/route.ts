@@ -40,6 +40,8 @@ const CreateBody = z.object({
   phrases: z.array(z.string()).min(1).max(200),
   side: z.enum(["rep", "customer", "any"]).default("any"),
   kind: z.enum(["keyword", "smart"]).default("keyword"),
+  // 0335: count only the first N minutes of a call (null/absent = the whole call). 0.5 to 60 minutes.
+  withinFirstMinutes: z.number().min(0.5).max(60).nullable().optional(),
 });
 const ScanBody = z.object({ action: z.literal("scan") });
 const PatchBody = z.object({ id: z.string().uuid() });
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   const db = callerScopedDb(req) ?? (await createClient());
   const [{ data, error }, manager] = await Promise.all([
-    db.from("keyword_trackers").select("id, name, phrases, side, kind, active, created_at").order("active", { ascending: false }).order("name"),
+    db.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds, active, created_at").order("active", { ascending: false }).order("name"),
     requireSalesCoachManager(req),
   ]);
   if (error) {
@@ -127,7 +129,15 @@ export async function POST(req: NextRequest) {
   }
   const { data, error } = await admin
     .from("keyword_trackers")
-    .insert({ company_id: manager.companyId, name: body.name, phrases, side: body.side, kind: body.kind, created_by: manager.userId })
+    .insert({
+      company_id: manager.companyId,
+      name: body.name,
+      phrases,
+      side: body.side,
+      kind: body.kind,
+      within_first_seconds: body.withinFirstMinutes != null ? Math.round(body.withinFirstMinutes * 60) : null,
+      created_by: manager.userId,
+    })
     .select("id")
     .maybeSingle();
   if (error || !data) {

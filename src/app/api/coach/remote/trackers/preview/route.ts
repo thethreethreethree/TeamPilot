@@ -19,6 +19,7 @@ import { previewTracker, TrackerError, type PreviewCall, type Segment } from "@/
 const Body = z.object({
   phrases: z.array(z.string().max(80)).min(1).max(200),
   side: z.enum(["rep", "customer", "any"]),
+  withinFirstMinutes: z.number().min(0.5).max(60).nullable().optional(),
 });
 const CALLS = 30;
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    return NextResponse.json({ preview: previewTracker({ name: "preview", phrases: body.phrases, side: body.side }, calls) });
+    return NextResponse.json({ preview: previewTracker({ name: "preview", phrases: body.phrases, side: body.side, within_first_seconds: body.withinFirstMinutes != null ? Math.round(body.withinFirstMinutes * 60) : null }, calls) });
   } catch (e) {
     if (e instanceof TrackerError) return NextResponse.json({ error: e.message }, { status: 400 });
     throw e;

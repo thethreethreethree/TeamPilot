@@ -119,3 +119,16 @@ describe("carrySmartHits", () => {
     ]);
   });
 });
+
+describe("smart trackers with a window (0335)", () => {
+  it("keeps only hits in the first N seconds; an untimed line is left out", async () => {
+    ai.text = JSON.stringify({ hits: [{ tracker: 1, line: 3, example: 1 }] });
+    const windowed = [{ ...T[0], within_first_seconds: 60 }]; // line 3 is at 65 s
+    const { db, inserts } = fake({ session: S, trackers: windowed, segs: SEGS });
+    expect(await scanSmartTrackers("s1", db)).toBe(0);
+    expect(inserts).toEqual([]);
+    ai.text = JSON.stringify({ hits: [{ tracker: 1, line: 3, example: 1 }] });
+    const wide = fake({ session: S, trackers: [{ ...T[0], within_first_seconds: 120 }], segs: SEGS });
+    expect(await scanSmartTrackers("s1", wide.db)).toBe(1);
+  });
+});

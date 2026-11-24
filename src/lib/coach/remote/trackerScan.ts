@@ -33,7 +33,7 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
 
     const { data: trackerRows, error: tErr } = await admin
       .from("keyword_trackers")
-      .select("id, name, phrases, side, kind")
+      .select("id, name, phrases, side, kind, within_first_seconds")
       .eq("company_id", companyId)
       .eq("active", true);
     if (tErr) {

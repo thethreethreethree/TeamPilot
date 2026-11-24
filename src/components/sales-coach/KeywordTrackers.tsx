@@ -16,7 +16,7 @@ import { AdoptionBoard } from "./AdoptionBoard";
  * any words. Saving one reads the last calls for it in the background (the route), so there is no preview or scan.
  */
 type Kind = "keyword" | "smart";
-type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind };
+type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind; within_first_seconds?: number | null };
 type Preview = {
   callsChecked: number;
   callsWithHits: number;
@@ -39,6 +39,13 @@ export function KeywordTrackers() {
   const [phrases, setPhrases] = useState("");
   const [side, setSide] = useState<Tracker["side"]>("any");
   const [kind, setKind] = useState<Kind>("keyword");
+  // 0335 (F11.3): only the first N minutes of a call; empty = the whole call.
+  const [windowMin, setWindowMin] = useState("");
+  const windowMinutes = (): number | null | "bad" => {
+    if (!windowMin.trim()) return null;
+    const n = Number(windowMin);
+    return Number.isFinite(n) && n >= 0.5 && n <= 60 ? n : "bad";
+  };
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // F11.4: try the phrases on recent calls before saving — what it would catch, and which phrase is noisy.
@@ -56,7 +63,7 @@ export function KeywordTrackers() {
       const r = await fetch("/api/coach/remote/trackers/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phrases: list, side }),
+        body: JSON.stringify({ phrases: list, side, withinFirstMinutes: windowMinutes() === "bad" ? null : windowMinutes() }),
       });
       const j = (await r.json().catch(() => ({}))) as { preview?: Preview; error?: string };
       if (!r.ok || !j.preview) throw new Error(j.error ?? "Couldn't preview the tracker.");
@@ -93,14 +100,20 @@ export function KeywordTrackers() {
       setMsg(kind === "smart" ? "Give the tracker a name and at least one example sentence." : "Give the tracker a name and at least one word or phrase.");
       return;
     }
+    const w = windowMinutes();
+    if (w === "bad") {
+      setMsg("The window is between 0.5 and 60 minutes — or leave it empty for the whole call.");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind });
+      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w });
       if (!ok) return setMsg(j.error ?? "Couldn't save the tracker.");
       setName("");
       setPhrases("");
       setSide("any");
+      setWindowMin("");
       setPreview(null);
       setMsg(
         kind === "smart"
@@ -166,7 +179,8 @@ export function KeywordTrackers() {
                     </span>
                   )}
                   <span className="text-xs text-muted">
-                    {t.active ? SIDE[t.side] : "Switched off"} ·{" "}
+                    {t.active ? SIDE[t.side] : "Switched off"}
+                    {t.within_first_seconds ? ` · first ${Math.round((t.within_first_seconds / 60) * 10) / 10} min` : ""} ·{" "}
                     {t.kind === "smart" ? t.phrases.map((p) => `“${p}”`).join(" ") : t.phrases.join(", ")}
                   </span>
                   <button
@@ -244,6 +258,18 @@ export function KeywordTrackers() {
                   <option value="rep">The rep</option>
                   <option value="customer">The customer</option>
                 </select>
+              </label>
+              <label className="text-xs text-muted">
+                Only in the first … minutes (optional)
+                <input
+                  value={windowMin}
+                  inputMode="decimal"
+                  onChange={(e) => setWindowMin(e.currentTarget.value)}
+                  placeholder="Whole call"
+                  aria-label="Only in the first minutes"
+                  className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary"
+                />
+                <span className="mt-0.5 block text-[11px]">e.g. 2 — for a disclosure that must come early. Lines with no time aren&apos;t counted.</span>
               </label>
               <label className="text-xs text-muted md:col-span-2">
                 {kind === "smart"

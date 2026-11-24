@@ -80,8 +80,17 @@ describe("POST /api/coach/remote/trackers", () => {
     const res = await POST(req({ name: "Competitors", phrases: ["  Spectrum ", "spectrum", "XFINITY"], side: "customer", company_id: "evil" }));
     expect(res.status).toBe(201);
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", created_by: "mgr1" },
+      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", within_first_seconds: null, created_by: "mgr1" },
     ]);
+  });
+
+  it("a window in minutes is stored in seconds (0335); none means the whole call", async () => {
+    await POST(req({ name: "Disclosure", phrases: ["recorded line"], side: "rep", withinFirstMinutes: 2 }));
+    expect(db.inserts[0]).toMatchObject({ within_first_seconds: 120 });
+    db.inserts = [];
+    await POST(req({ name: "Comp", phrases: ["spectrum"] }));
+    expect(db.inserts[0]).toMatchObject({ within_first_seconds: null });
+    expect((await POST(req({ name: "Bad", phrases: ["xx"], withinFirstMinutes: 0.1 }))).status).toBe(400);
   });
 
   it("a one-character phrase is a 400 with the reason", async () => {
@@ -112,7 +121,7 @@ describe("POST — smart trackers (0329)", () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ id: "t-new", backfilling: 2 });
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", created_by: "mgr1" },
+      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", within_first_seconds: null, created_by: "mgr1" },
     ]);
     expect(scanSmartTrackers).not.toHaveBeenCalled(); // nothing before the response
     for (const f of later.fns) await f();

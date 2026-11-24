@@ -29,3 +29,16 @@ describe('keyword trackers — repo additions', () => {
     expect(() => normalisePhrases(Array.from({ length: 201 }, (_, i) => `p${i}`))).toThrow(/200/);
   });
 });
+
+describe("partial-call window (0335, F11.3)", () => {
+  const T = { id: "t", name: "Disclosure", phrases: ["recorded line"], side: "rep" as const, within_first_seconds: 120 };
+  const seg = (startMs: number | null) => ({ speaker: "rep" as const, startMs, text: "this is a recorded line", seq: 1 });
+  it("counts a line inside the window, not one after it", () => {
+    expect(matchTracker(T, [seg(90_000)])).toHaveLength(1);
+    expect(matchTracker(T, [seg(121_000)])).toHaveLength(0);
+  });
+  it("a line with no time can't be placed in the window — left out; with no window it counts", () => {
+    expect(matchTracker(T, [seg(null)])).toHaveLength(0);
+    expect(matchTracker({ ...T, within_first_seconds: null }, [seg(null)])).toHaveLength(1);
+  });
+});

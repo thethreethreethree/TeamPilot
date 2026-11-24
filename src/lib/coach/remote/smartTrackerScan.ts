@@ -6,6 +6,7 @@ import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { smartTrackerCoach } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
+import { inWindow } from "./trackers";
 import { MAX_SMART_TRACKERS, parseSmartHits, smartPrompt, SMART_SYSTEM, type Line, type SmartTracker } from "./smartTrackers";
 
 /**
@@ -21,7 +22,7 @@ export async function scanSmartTrackers(sessionId: string, client?: SupabaseClie
     const { data: s } = await admin.from("coaching_sessions").select("id, company_id, agent_id, context, session_kind, started_at, audio_started_at").eq("id", sessionId).maybeSingle();
     if (!s || !isRemoteContext(s.context) || !isSalesCall((s.session_kind as string | null) ?? "sales")) return 0;
     const companyId = String(s.company_id);
-    let tq = admin.from("keyword_trackers").select("id, name, phrases, side, kind").eq("company_id", companyId).eq("active", true).eq("kind", "smart");
+    let tq = admin.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds").eq("company_id", companyId).eq("active", true).eq("kind", "smart");
     if (opts.onlyTrackerId) tq = tq.eq("id", opts.onlyTrackerId);
     // The route caps active smart trackers at MAX_SMART_TRACKERS; oldest first so an over-cap race drops the newest.
     const { data: tr, error: tErr } = await tq.order("created_at", { ascending: true }).limit(MAX_SMART_TRACKERS);
@@ -29,7 +30,13 @@ export async function scanSmartTrackers(sessionId: string, client?: SupabaseClie
       console.error(`[smartTrackerScan] trackers read failed company=${companyId}: ${tErr.message}`);
       return null;
     }
-    const trackers: SmartTracker[] = ((tr ?? []) as Array<{ id: string; name: string; phrases: string[]; side: SmartTracker["side"] }>).map((t) => ({ id: String(t.id), name: t.name, examples: t.phrases, side: t.side }));
+    const trackers: SmartTracker[] = ((tr ?? []) as Array<{ id: string; name: string; phrases: string[]; side: SmartTracker["side"]; within_first_seconds?: number | null }>).map((t) => ({
+      id: String(t.id),
+      name: t.name,
+      examples: t.phrases,
+      side: t.side,
+      withinFirstSeconds: t.within_first_seconds ?? null,
+    }));
     if (trackers.length === 0) return 0; // nothing to look for: no AI call
 
     const { data: segs, error: sErr } = await admin.from("coaching_transcript_segments_current").select("speaker, text, seq, spoken_at, version").eq("session_id", sessionId).order("seq", { ascending: true });
@@ -56,8 +63,11 @@ export async function scanSmartTrackers(sessionId: string, client?: SupabaseClie
       console.error(`[smartTrackerScan] unreadable answer session=${sessionId}`);
       return null;
     }
-    if (hits.length === 0) return 0;
-    return await writeHits(admin, { sessionId, companyId, repId: String(s.agent_id), version }, hits.map((h) => ({ trackerId: h.trackerId, seq: h.seq, atMs: atMsBySeq.get(h.seq) ?? null, speaker: h.speaker, matched: h.example })));
+    // 0335: a windowed tracker keeps only hits inside its first N seconds (an untimed line can't be placed — left out).
+    const windowOf = new Map(trackers.map((t) => [t.id, t.withinFirstSeconds ?? null]));
+    const inside = hits.filter((h) => inWindow(windowOf.get(h.trackerId), atMsBySeq.get(h.seq) ?? null));
+    if (inside.length === 0) return 0;
+    return await writeHits(admin, { sessionId, companyId, repId: String(s.agent_id), version }, inside.map((h) => ({ trackerId: h.trackerId, seq: h.seq, atMs: atMsBySeq.get(h.seq) ?? null, speaker: h.speaker, matched: h.example })));
   } catch (err) {
     console.error(`[smartTrackerScan] failed session=${sessionId}:`, err);
     return null;
