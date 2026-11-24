@@ -153,6 +153,7 @@ describe("coachingByRep (F16.5) — one row per rep, same D8 rule", () => {
   it("counts feedback the D8 way, and which calls nobody coached", () => {
     expect(by("ana")).toMatchObject({ feedback30: 1, overdue: false, calls30: 2, callsWithoutFeedback30: 1, openRequests: 0 });
     expect(by("ana").lastFeedbackAt).toBe(d(1).toISOString());
+    expect(by("ana").uncoached.map((c) => c.id)).toEqual(["a2"]); // F16.6: the call nobody coached
   });
   it("overdue = calls in 30 days and no feedback in 30 days; an old correction is the last feedback, a draft is not", () => {
     expect(by("bo")).toMatchObject({ feedback30: 0, overdue: true, calls30: 1, callsWithoutFeedback30: 1, openRequests: 1 });

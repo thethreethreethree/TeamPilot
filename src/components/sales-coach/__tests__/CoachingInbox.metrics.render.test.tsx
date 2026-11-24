@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
 /**
  * The coaching metrics under the inbox (D8 decided 2026-11-22). Before the decision the route answered 409 and the panel
@@ -45,13 +45,18 @@ describe("coaching metrics", () => {
     metrics = {
       decided: true, since: "x", sessions: 3, feedbackGiven: {}, callsListened: {},
       byRep: [
-        { repId: "bo", name: "Bo", feedback30: 0, lastFeedbackAt: null, overdue: true, openRequests: 1, calls30: 2, callsWithoutFeedback30: 2 },
-        { repId: "ana", name: "Ana", feedback30: 3, lastFeedbackAt: new Date(Date.now() - 86_400_000).toISOString(), overdue: false, openRequests: 0, calls30: 4, callsWithoutFeedback30: 1 },
+        { repId: "bo", name: "Bo", feedback30: 0, lastFeedbackAt: null, overdue: true, openRequests: 1, calls30: 2, callsWithoutFeedback30: 2, uncoached: [{ id: "c2", label: "Betty", startedAt: "2026-11-24T10:00:00Z" }, { id: "c1", label: null, startedAt: "2026-11-20T10:00:00Z" }] },
+        { repId: "ana", name: "Ana", feedback30: 3, lastFeedbackAt: new Date(Date.now() - 86_400_000).toISOString(), overdue: false, openRequests: 0, calls30: 4, callsWithoutFeedback30: 1, uncoached: [{ id: "c9", label: "Acme", startedAt: "2026-11-23T10:00:00Z" }] },
       ],
     };
     render(<CoachingInbox />);
     const table = await screen.findByLabelText("Coaching by rep");
     const rows = [...table.querySelectorAll("tbody tr")].map((r) => r.textContent);
     expect(rows).toEqual(["BoOverdue · never012 · 2", "Anayesterday304 · 1"]);
+    // F16.6: a rep's uncoached count opens those calls, each a link to the call.
+    fireEvent.click(screen.getAllByRole("button", { name: "2" })[0]!);
+    const list = screen.getByLabelText("Bo's calls not yet coached");
+    expect([...list.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/dashboard/remote-sales/calls/c2", "/dashboard/remote-sales/calls/c1"]);
+    expect(list.textContent).toContain("Untitled call");
   });
 });

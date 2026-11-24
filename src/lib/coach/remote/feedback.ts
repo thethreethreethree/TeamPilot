@@ -211,10 +211,12 @@ export type RepCoaching = {
   openRequests: number;
   calls30: number;
   callsWithoutFeedback30: number;
+  /** F16.6 (2026-11-25): those calls, newest first, so the manager can go straight to one. */
+  uncoached: Array<{ id: string; label: string | null; startedAt: string }>;
 };
 export function coachingByRep(args: {
   reps: Array<{ id: string; name: string }>;
-  calls: Array<{ id: string; repId: string; startedAt: string }>;
+  calls: Array<{ id: string; repId: string; startedAt: string; label?: string | null }>;
   events: CoachingEvent[];
   requests: Array<{ sessionId: string; managerId: string | null; requesterId: string; createdAt: Date }>;
   now: Date;
@@ -228,6 +230,10 @@ export function coachingByRep(args: {
       const coachedCalls = new Set(mine.map((e) => ("sessionId" in e ? e.sessionId : null)).filter(Boolean) as string[]);
       const calls = args.calls.filter((c) => c.repId === rep.id && Date.parse(c.startedAt) >= since);
       const feedback30 = mine.filter((e) => e.at.getTime() >= since).length;
+      const uncoached = calls
+        .filter((c) => !coachedCalls.has(c.id))
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+        .map((c) => ({ id: c.id, label: c.label ?? null, startedAt: c.startedAt }));
       return {
         repId: rep.id,
         name: rep.name,
@@ -236,7 +242,8 @@ export function coachingByRep(args: {
         overdue: calls.length > 0 && feedback30 === 0,
         openRequests: args.requests.filter((r) => r.requesterId === rep.id && r.createdAt.getTime() >= since && isRequestOpen(r, args.events)).length,
         calls30: calls.length,
-        callsWithoutFeedback30: calls.filter((c) => !coachedCalls.has(c.id)).length,
+        callsWithoutFeedback30: uncoached.length,
+        uncoached,
       };
     })
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.feedback30 - b.feedback30 || a.name.localeCompare(b.name));

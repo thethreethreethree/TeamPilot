@@ -43,13 +43,13 @@ export async function GET(req: NextRequest) {
   // who reviews a six-week-old call today is coaching today. Calls are looked up over a bounded 180 days.
   const since = new Date(Date.now() - 30 * DAY).toISOString();
   const callsSince = new Date(Date.now() - 180 * DAY).toISOString();
-  type S = { id: string; agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null };
+  type S = { id: string; agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null; client_label: string | null };
   // Every session in the window: PostgREST caps a read at 1000, and a capped read would undercount silently.
   const { data: sessions, error } = await fetchAllPagedResult<S>(
     (from, to) =>
       admin
         .from("coaching_sessions")
-        .select("id, agent_id, started_at, ended_at, audio_duration_seconds")
+        .select("id, agent_id, started_at, ended_at, audio_duration_seconds, client_label")
         .eq("company_id", mgr.companyId)
         .in("context", ["phone", "video"])
         .gte("started_at", callsSince)
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     const names = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "Unnamed teammate"]));
     byRep = coachingByRep({
       reps: repIds.map((id) => ({ id, name: names.get(id) ?? "Unnamed teammate" })),
-      calls: mine.map((s) => ({ id: String(s.id), repId: String(s.agent_id), startedAt: s.started_at })),
+      calls: mine.map((s) => ({ id: String(s.id), repId: String(s.agent_id), startedAt: s.started_at, label: s.client_label ?? null })),
       events,
       requests: ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).map((r) => ({
         sessionId: String(r.session_id),

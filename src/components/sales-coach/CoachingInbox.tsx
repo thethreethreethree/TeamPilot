@@ -58,6 +58,8 @@ const daysAgo = (iso: string) => {
 };
 
 export function CoachingInbox() {
+  // F16.6: which rep's uncoached calls are listed (one at a time).
+  const [openRep, setOpenRep] = useState<string | null>(null);
   const [wire, setWire] = useState<Wire | null>(null);
   const [failed, setFailed] = useState(false);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -246,13 +248,44 @@ export function CoachingInbox() {
                     <td className="py-1.5 pr-2 text-right tabular-nums text-primary">{r.feedback30}</td>
                     <td className={`py-1.5 pr-2 text-right tabular-nums ${r.openRequests ? "font-semibold text-primary" : "text-muted"}`}>{r.openRequests}</td>
                     <td className="py-1.5 text-right tabular-nums text-secondary">
-                      {r.calls30} · {r.callsWithoutFeedback30}
+                      {r.calls30} ·{" "}
+                      {r.callsWithoutFeedback30 > 0 ? (
+                        <button
+                          type="button"
+                          aria-expanded={openRep === r.repId}
+                          onClick={() => setOpenRep(openRep === r.repId ? null : r.repId)}
+                          className="font-semibold text-brand hover:underline"
+                        >
+                          {r.callsWithoutFeedback30}
+                        </button>
+                      ) : (
+                        0
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {(() => {
+            const rep = metrics.byRep.find((x) => x.repId === openRep);
+            if (!rep || rep.uncoached.length === 0) return null;
+            return (
+              <div className="mt-2 rounded-lg border border-default bg-surface p-2" aria-label={`${rep.name}'s calls not yet coached`}>
+                <p className="text-[11px] font-semibold text-primary">{rep.name}&apos;s calls with no feedback yet</p>
+                <ul className="mt-1 space-y-1">
+                  {rep.uncoached.map((c) => (
+                    <li key={c.id}>
+                      <Link href={`/dashboard/remote-sales/calls/${c.id}`} className="flex justify-between gap-2 rounded px-1 py-0.5 text-xs hover:bg-base">
+                        <span className="text-primary">{c.label ?? "Untitled call"}</span>
+                        <span className="text-muted">{new Date(c.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Go to call</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
           <p className="mt-1 text-[11px] text-muted">
             Overdue: calls in the last 30 days and no feedback in that time. &ldquo;Not yet coached&rdquo; counts the rep&apos;s calls
             with no feedback on them.
