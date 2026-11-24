@@ -97,3 +97,46 @@ export function remoteRubricConfigRow() {
   };
 }
 
+
+/** Every rubric a stored score can have been made under. */
+export const ALL_RUBRICS: readonly Rubric[] = [DOOR_RUBRIC, REMOTE_RUBRIC];
+
+/**
+ * Which kind of rubric item an id is, in ANY rubric (2026-11-25). A screen that lists scores from both rubrics (the
+ * dispute queue) must know a phone-only item like "intro.reasonForCall" is an element — the door rubric alone calls it
+ * unknown and offers no correction. An id has the same kind in every rubric. Null = no rubric knows it (retired).
+ */
+export function itemKindInAnyRubric(itemId: string | null | undefined): "element" | "bonus" | "violation" | null {
+  if (!itemId) return null;
+  if (ALL_RUBRICS.some((r) => r.elementsById.has(itemId))) return "element";
+  if (ALL_RUBRICS.some((r) => r.bonusesById.has(itemId))) return "bonus";
+  if (ALL_RUBRICS.some((r) => r.violationsById.has(itemId))) return "violation";
+  return null;
+}
+
+/**
+ * An item's definition from whichever rubric has it, for READERS that show items from scores of both rubrics (labels,
+ * sections). Safe because an id shared by two rubrics has the same label and section in both (checked 2026-11-25:
+ * only the phone-only and door-only items differ). Arithmetic must use the score's own rubric (rubricByVersion).
+ */
+export function elementInAnyRubric(id: string) {
+  for (const r of ALL_RUBRICS) {
+    const d = r.elementsById.get(id);
+    if (d) return d;
+  }
+  return undefined;
+}
+export function bonusInAnyRubric(id: string) {
+  for (const r of ALL_RUBRICS) {
+    const d = r.bonusesById.get(id);
+    if (d) return d;
+  }
+  return undefined;
+}
+export function violationInAnyRubric(id: string) {
+  for (const r of ALL_RUBRICS) {
+    const d = r.violationsById.get(id);
+    if (d) return d;
+  }
+  return undefined;
+}

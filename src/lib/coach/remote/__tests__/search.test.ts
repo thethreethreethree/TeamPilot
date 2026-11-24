@@ -88,6 +88,8 @@ describe("parseCallSearch — the added filters", () => {
   });
   it("refuses an unknown element, a bad grade and a talk share outside 0-100", () => {
     expect(parseCallSearch(new URLSearchParams("element=nope"))).toEqual({ error: "Unknown rubric element." });
+    // The page offers the phone/video rubric's items; a phone-only one is a real element (2026-11-25).
+    expect(parseCallSearch(new URLSearchParams("element=intro.reasonForCall&grade=missed"))).toMatchObject({ filters: { elementId: "intro.reasonForCall" } });
     expect(parseCallSearch(new URLSearchParams("element=intro.trucks&grade=great"))).toEqual({ error: "Grade must be hit, partial or missed." });
     expect(parseCallSearch(new URLSearchParams("talkMin=120"))).toEqual({ error: "Talk share is a percent from 0 to 100." });
   });

@@ -1,4 +1,5 @@
-import { ELEMENTS_BY_ID, BONUSES_BY_ID, VIOLATIONS_BY_ID, type Grade } from "../pitchScore/rubric";
+import type { Grade } from "../pitchScore/rubric";
+import { bonusInAnyRubric, elementInAnyRubric, violationInAnyRubric } from "../pitchScore/rubricRegistry";
 
 /**
  * The moments in a recording worth jumping to — guide Step 4, items 3 and 4.
@@ -120,7 +121,7 @@ export function keyMoments(src: MomentSource): KeyMoment[] {
 
   for (const e of src.elements) {
     if (e.grade !== "missed") continue;
-    const rubric = ELEMENTS_BY_ID.get(e.elementId);
+    const rubric = elementInAnyRubric(e.elementId); // labels from whichever rubric scored the call
     out.push({
       id: e.id,
       // A missed element the rep has an open pattern on is a PATTERN moment, not just a miss.
@@ -141,7 +142,7 @@ export function keyMoments(src: MomentSource): KeyMoment[] {
     // rejected_bonus missed and fell back to printing the raw `item_id` — `bonus.inside` where a
     // human should read "Got inside the house".
     const rubric =
-      ev.type === "violation" ? VIOLATIONS_BY_ID.get(ev.itemId) : BONUSES_BY_ID.get(ev.itemId);
+      ev.type === "violation" ? violationInAnyRubric(ev.itemId) : bonusInAnyRubric(ev.itemId);
     out.push({
       id: ev.id,
       kind: ev.type,

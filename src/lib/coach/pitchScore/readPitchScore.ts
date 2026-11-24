@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { BONUSES_BY_ID, ELEMENTS_BY_ID, SECTIONS, VIOLATIONS_BY_ID, type SectionId } from "./rubric";
+import { SECTIONS, type SectionId } from "./rubric";
+import { rubricByVersion } from "./rubricRegistry";
 import { replayDisputes, type DisputeEventRow, type DisputeRow } from "./readDisputes";
 
 /**
@@ -172,6 +173,8 @@ export async function readPitchScore(
 
   // Rubric order, not insertion order. The model returns elements in whatever order it graded
   // them; a rep reading their pitch back expects Introduction before Close.
+  // Labels, order and maxima from the rubric this score was made under (a phone/video score has phone-only items).
+  const { elementsById: ELEMENTS_BY_ID, bonusesById: BONUSES_BY_ID, violationsById: VIOLATIONS_BY_ID } = rubricByVersion(pitch.rubric_version as string | null);
   const order = new Map([...ELEMENTS_BY_ID.keys()].map((id, i) => [id, i]));
   const elements: PitchElementRow[] = (elementRows ?? [])
     .map((r): PitchElementRow => {

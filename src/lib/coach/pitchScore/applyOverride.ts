@@ -1,7 +1,8 @@
 import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/admin";
 import { BAND_LABEL, bandFor as gamificationBandFor } from "@/lib/coach/gamification/bands";
 import { scorePitch, type GradedElement, type DetectedBonus, type DetectedViolation } from "./scorePitch";
-import { BONUSES_BY_ID, ELEMENTS_BY_ID, GRADE_CREDIT, VIOLATIONS_BY_ID, type Grade } from "./rubric";
+import { GRADE_CREDIT, type Grade } from "./rubric";
+import { rubricByVersion, type Rubric } from "./rubricRegistry";
 import type { StoredPitch } from "./readPitchScore";
 
 /**
@@ -15,6 +16,10 @@ import type { StoredPitch } from "./readPitchScore";
  * scaling, the +30 bonus cap, the zero floor and the 40-base qualifying test all keep exactly one
  * home. A SQL version of this would restate six decisions that already have authorities, and all
  * six would agree on the day they were written, which is what makes that class invisible (§2.2).
+ *
+ * The rubric is the one the score was MADE under (`rubricByVersion(pitch.rubricVersion)`, 2026-11-25): a phone/video
+ * score recomputed under the door rubric would drop every phone-only item ("Reason for the call", "Into enrollment,
+ * on the call") and lose their points on any correction — the stored score's own rubric is the authority (§2.2).
  *
  * The band comes from `gamification/bands.ts` for the same reason — a copy of those thresholds
  * shipped earlier today and disagreed with the rep's own Arena on the same page.
@@ -38,9 +43,11 @@ export type OverrideResult =
 
 /** What the corrected pitch would score. Pure, so the recompute can be tested without a database. */
 export function recomputeWithOverride(
-  pitch: Pick<StoredPitch, "elements" | "events" | "deliveryScaled" | "notQualifyingReason">,
+  pitch: Pick<StoredPitch, "elements" | "events" | "deliveryScaled" | "notQualifyingReason"> & { rubricVersion?: string | null },
   req: Pick<OverrideRequest, "itemType" | "itemId" | "newValue">
 ): ReturnType<typeof scorePitch> {
+  const rubric = rubricByVersion(pitch.rubricVersion);
+  const { elementsById: ELEMENTS_BY_ID, bonusesById: BONUSES_BY_ID, violationsById: VIOLATIONS_BY_ID } = rubric;
   const elements: GradedElement[] = pitch.elements
     .filter((e) => ELEMENTS_BY_ID.has(e.elementId))
     .map((e) => ({ elementId: e.elementId, grade: e.grade }));
@@ -86,18 +93,19 @@ export function recomputeWithOverride(
     // the transcript, which is a re-score, not a correction.
     objectionOccurred: !pitch.deliveryScaled,
     reachedDiscovery: pitch.notQualifyingReason !== "Didn't reach Discovery",
+    rubric,
   });
 }
 
 /** Points the corrected item is now worth, from the rubric — used for the log row, not the total. */
-function pointsFor(itemType: OverrideRequest["itemType"], itemId: string, newValue: string): number {
+function pointsFor(rubric: Rubric, itemType: OverrideRequest["itemType"], itemId: string, newValue: string): number {
   if (itemType === "element") {
-    const def = ELEMENTS_BY_ID.get(itemId);
+    const def = rubric.elementsById.get(itemId);
     return def ? def.points * (GRADE_CREDIT[newValue as Grade] ?? 0) : 0;
   }
   if (newValue === "removed") return 0;
-  if (itemType === "bonus") return BONUSES_BY_ID.get(itemId)?.points ?? 0;
-  return VIOLATIONS_BY_ID.get(itemId)?.deduction ?? 0;
+  if (itemType === "bonus") return rubric.bonusesById.get(itemId)?.points ?? 0;
+  return rubric.violationsById.get(itemId)?.deduction ?? 0;
 }
 
 function validValue(itemType: OverrideRequest["itemType"], value: string): boolean {
@@ -110,12 +118,13 @@ export async function applyOverride(
   req: OverrideRequest,
   pitch: StoredPitch
 ): Promise<OverrideResult> {
+  const rubric = rubricByVersion(pitch.rubricVersion);
   const known =
     req.itemType === "element"
-      ? ELEMENTS_BY_ID.has(req.itemId)
+      ? rubric.elementsById.has(req.itemId)
       : req.itemType === "bonus"
-        ? BONUSES_BY_ID.has(req.itemId)
-        : VIOLATIONS_BY_ID.has(req.itemId);
+        ? rubric.bonusesById.has(req.itemId)
+        : rubric.violationsById.has(req.itemId);
   if (!known) return { ok: false, reason: "unknown_item" };
   if (!validValue(req.itemType, req.newValue)) return { ok: false, reason: "invalid_value" };
 
@@ -145,7 +154,7 @@ export async function applyOverride(
     p_old_value: oldValue,
     p_new_value: req.newValue,
     p_old_points: oldPoints,
-    p_new_points: pointsFor(req.itemType, req.itemId, req.newValue),
+    p_new_points: pointsFor(rubric, req.itemType, req.itemId, req.newValue),
     p_reason: req.reason,
     p_base: score.base,
     p_bonus: score.bonus,

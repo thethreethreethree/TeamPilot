@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Flag, AlertTriangle, Check } from "lucide-react";
 import type { DisputeRow } from "@/lib/coach/pitchScore/readDisputes";
-import { BONUSES_BY_ID, ELEMENTS_BY_ID, VIOLATIONS_BY_ID } from "@/lib/coach/pitchScore/rubric";
+import { itemKindInAnyRubric } from "@/lib/coach/pitchScore/rubricRegistry";
 
 /**
  * The manager's side of a dispute.
@@ -47,15 +47,12 @@ const OVERRIDE_ENDPOINT = "/api/coach/sales-session/pitch-score/override";
  * offer the wrong controls for it while every test still passed (§2.2). The rubric is the
  * authority; this asks it.
  *
- * Null means the current rubric does not know the id: a retired item, or a whole-score dispute.
+ * Null means no rubric knows the id: a retired item, or a whole-score dispute.
  * Either way there is nothing safe to correct, and the server would refuse it anyway.
  */
 function itemKindOf(itemId: string | null): "element" | "bonus" | "violation" | null {
-  if (!itemId) return null;
-  if (ELEMENTS_BY_ID.has(itemId)) return "element";
-  if (BONUSES_BY_ID.has(itemId)) return "bonus";
-  if (VIOLATIONS_BY_ID.has(itemId)) return "violation";
-  return null;
+  // Every rubric, not only the door one (2026-11-25): a phone/video score's phone-only items are correctable too.
+  return itemKindInAnyRubric(itemId);
 }
 
 /** What a manager can set an item to, by kind. Mirrors the route's own enum. */

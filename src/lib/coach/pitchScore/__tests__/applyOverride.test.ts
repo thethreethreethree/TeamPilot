@@ -13,6 +13,8 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyOverride, recomputeWithOverride } from "../applyOverride";
+import { REMOTE_RUBRIC, DOOR_RUBRIC } from "../rubricRegistry";
+import { scorePitch } from "../scorePitch";
 import { BONUSES, ELEMENTS_BY_ID, BONUS_CAP } from "../rubric";
 import { BAND_LABEL, bandFor as gamificationBandFor } from "@/lib/coach/gamification/bands";
 import type { StoredPitch } from "../readPitchScore";
@@ -249,5 +251,40 @@ describe("the reason travels with the change", () => {
   it("passes the manager's words through to the log", async () => {
     await applyOverride(REQ, basePitch());
     expect(params().p_reason).toContain("8:44");
+  });
+});
+
+describe("a phone/video score is corrected under ITS rubric (2026-11-25)", () => {
+  // Before: recompute and the known-item check used the door rubric, so correcting any item on a phone/video score
+  // dropped the phone-only items ("Reason for the call", "Into enrollment, on the call") and their points, and a
+  // phone-only item could not be corrected at all ("not in the current rubric").
+  const remoteOnly = REMOTE_RUBRIC.elements.filter((e) => !DOOR_RUBRIC.elementsById.has(e.id)).map((e) => e.id);
+  const graded = REMOTE_RUBRIC.elements.map((e) => ({ elementId: e.id, grade: "hit" as const }));
+  const original = scorePitch({ elements: graded, objectionOccurred: true, reachedDiscovery: true, rubric: REMOTE_RUBRIC });
+  const pitch = {
+    rubricVersion: REMOTE_RUBRIC.version,
+    elements: graded.map((g) => ({ elementId: g.elementId, grade: g.grade })),
+    events: [],
+    deliveryScaled: false,
+    notQualifyingReason: null,
+  } as unknown as StoredPitch;
+
+  it("the remote rubric really has phone-only items (the case this guards)", () => {
+    expect(remoteOnly.length).toBeGreaterThan(0);
+    expect(original.base).toBe(100);
+  });
+
+  it("re-grading a shared item moves the score by that item alone; phone-only items keep their points", () => {
+    const after = recomputeWithOverride(pitch, { itemType: "element", itemId: "disc.usage", newValue: "missed" });
+    expect(after.rubricVersion).toBe(REMOTE_RUBRIC.version);
+    expect(after.base).toBe(96); // 100 − the 4-point Internet usage
+    for (const id of remoteOnly) expect(after.elementBreakdown.some((e) => e.elementId === id)).toBe(true);
+  });
+
+  it("a phone-only item can itself be corrected", async () => {
+    mockRpc();
+    const res = await applyOverride({ companyId: "c", pitchId: "p", actorId: "m", itemType: "element", itemId: "intro.reasonForCall", newValue: "partial", reason: "r" }, pitch);
+    expect(res).toMatchObject({ ok: true, base: 98.5 });
+    expect(rpc.mock.calls[0]![1]).toMatchObject({ p_new_points: 1.5, p_base: 98.5 });
   });
 });

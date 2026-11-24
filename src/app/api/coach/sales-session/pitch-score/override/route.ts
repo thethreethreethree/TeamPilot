@@ -7,7 +7,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readPitchScore, PitchScoreReadError } from "@/lib/coach/pitchScore/readPitchScore";
 import { applyOverride } from "@/lib/coach/pitchScore/applyOverride";
 import { notifyPitchCorrected } from "@/lib/coach/pitchScore/notifyCorrection";
-import { BONUSES_BY_ID, ELEMENTS_BY_ID, VIOLATIONS_BY_ID } from "@/lib/coach/pitchScore/rubric";
+import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
 import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { recordAudit } from "@/lib/audit/recordAudit";
 
@@ -151,9 +151,9 @@ export async function POST(req: NextRequest) {
     // The rubric's own label, so the alert names the item the same way every other screen does.
     // Falls back to the raw id rather than blanking: an alert about "" is worse than a technical one.
       itemLabel:
-        ELEMENTS_BY_ID.get(body.itemId)?.label ??
-        BONUSES_BY_ID.get(body.itemId)?.label ??
-        VIOLATIONS_BY_ID.get(body.itemId)?.label ??
+        rubricByVersion(pitch.rubricVersion).elementsById.get(body.itemId)?.label ??
+        rubricByVersion(pitch.rubricVersion).bonusesById.get(body.itemId)?.label ??
+        rubricByVersion(pitch.rubricVersion).violationsById.get(body.itemId)?.label ??
         body.itemId,
       total: result.total,
       qualifying: result.qualifying,

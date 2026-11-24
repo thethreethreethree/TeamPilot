@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { ELEMENTS_BY_ID, BONUSES_BY_ID, VIOLATIONS_BY_ID, type Grade } from "../pitchScore/rubric";
+import type { Grade } from "../pitchScore/rubric";
+import { bonusInAnyRubric, elementInAnyRubric, violationInAnyRubric } from "../pitchScore/rubricRegistry";
 import { statusOf, countPatterns, type StatusVerdict } from "./status";
 import type { GradedPitch } from "./detect";
 import { contextsOf, isRemoteContext } from "@/lib/coach/sessionContext";
@@ -127,11 +128,11 @@ const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) 
  */
 export function describeItem(itemId: string, kind: PatternRow["itemKind"]): { label: string; section: string | null } {
   if (kind === "element") {
-    const el = ELEMENTS_BY_ID.get(itemId);
+    const el = elementInAnyRubric(itemId);
     return { label: el?.label ?? itemId, section: el?.section ?? null };
   }
-  if (kind === "bonus") return { label: BONUSES_BY_ID.get(itemId)?.label ?? itemId, section: "bonus" };
-  return { label: VIOLATIONS_BY_ID.get(itemId)?.label ?? itemId, section: "violation" };
+  if (kind === "bonus") return { label: bonusInAnyRubric(itemId)?.label ?? itemId, section: "bonus" };
+  return { label: violationInAnyRubric(itemId)?.label ?? itemId, section: "violation" };
 }
 
 /**

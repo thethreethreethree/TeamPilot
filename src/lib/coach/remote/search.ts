@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import { toCsv } from "@/lib/export/toCsv";
 import { REMOTE_CONTEXTS, SALES_CONTEXTS, isRemoteContext } from "@/lib/coach/sessionContext";
-import { ELEMENTS_BY_ID } from "@/lib/coach/pitchScore/rubric";
+import { elementInAnyRubric } from "@/lib/coach/pitchScore/rubricRegistry";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -29,7 +29,7 @@ export type CallSearchFilters = {
   scoreMin?: number;
   scoreMax?: number;
   trackerId?: string;
-  /** Rubric element (ELEMENTS_BY_ID) and the grade the call got on it — "who missed the price close". */
+  /** Rubric element (any rubric — elementInAnyRubric) and the grade the call got on it — "who missed the price close". */
   elementId?: string;
   grade?: "hit" | "partial" | "missed";
   /** The rep's share of speaking time, as whole percent (session_interaction_stats.talk_ratio_time). */
@@ -112,7 +112,9 @@ export function parseCallSearch(params: URLSearchParams): { filters: CallSearchF
   }
   const element = params.get("element");
   if (element) {
-    if (!ELEMENTS_BY_ID.has(element)) return { error: "Unknown rubric element." };
+    // Any rubric (2026-11-25): the Search page offers the phone/video rubric's items, and the door rubric alone refused
+    // the phone-only ones ("Reason for the call") as unknown.
+    if (!elementInAnyRubric(element)) return { error: "Unknown rubric element." };
     f.elementId = element;
     const grade = params.get("grade") ?? "missed";
     if (grade !== "hit" && grade !== "partial" && grade !== "missed") return { error: "Grade must be hit, partial or missed." };
