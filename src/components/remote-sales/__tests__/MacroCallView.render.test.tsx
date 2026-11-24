@@ -168,3 +168,36 @@ describe("MacroCallView", () => {
   });
 });
 
+
+describe("Send to CRM (0330 — the PDF's CRM integration, via the company's webhook)", () => {
+  const withCrm = (status: number, body: unknown) => {
+    const base = fetchMock.getMockImplementation()!;
+    const posts: string[] = [];
+    fetchMock.mockImplementation((url: string, init?: { method?: string }) => {
+      if (url.includes("/send-to-crm")) {
+        posts.push(url);
+        return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+      }
+      return base(url, init);
+    });
+    return posts;
+  };
+  it("sends the call once and says where it went; the button can't send it twice", async () => {
+    const posts = withCrm(200, { queued: 1 });
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("button", { name: "Send to CRM" }));
+    expect(await screen.findByText(/Sent to your CRM/)).toBeTruthy();
+    const sent = screen.getByRole("button", { name: "Sent to CRM" }) as HTMLButtonElement;
+    expect(sent.disabled).toBe(true);
+    expect(posts).toEqual(["/api/coach/remote/s1/send-to-crm"]);
+  });
+  it("no CRM connected: the rep reads the server's plain reason and can try again", async () => {
+    withCrm(409, { error: "Your company hasn't connected a CRM yet." });
+    render(<MacroCallView sessionId="s1" onFullView={() => {}} />);
+    await screen.findByText("Needs it live before March");
+    fireEvent.click(screen.getByRole("button", { name: "Send to CRM" }));
+    expect(await screen.findByText("Your company hasn't connected a CRM yet.")).toBeTruthy();
+    await waitFor(() => expect((screen.getByRole("button", { name: "Send to CRM" }) as HTMLButtonElement).disabled).toBe(false));
+  });
+});

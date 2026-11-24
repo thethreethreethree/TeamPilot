@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildCrmCall } from "@/lib/coach/remote/crmExport";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { constantTimeEqual } from "@/lib/api/constantTime";
 import { endpointSecret, sendSigned, webhookBody } from "@/lib/coach/remote/webhooks";
@@ -30,10 +31,19 @@ export async function GET(req: NextRequest) {
   }
   type Due = { delivery_id: number; company_id: string; endpoint_id: string; url: string; event: string; payload: unknown; created_at: string; attempts: number };
   const due = (data ?? []) as Due[];
+  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://elostate.com";
   let delivered = 0;
   let failed = 0;
   for (const d of due) {
-    const body = webhookBody({ deliveryId: d.delivery_id, event: d.event, createdAt: d.created_at, payload: d.payload });
+    // call.to_crm (0330): the queue holds only the call's id; the content is assembled now, so it is current and an
+    // erased call sends only what is left.
+    let payload = d.payload;
+    if (d.event === "call.to_crm") {
+      const sid = (d.payload as { sessionId?: unknown } | null)?.sessionId;
+      const built = typeof sid === "string" ? await buildCrmCall(admin, d.company_id, sid, origin) : null;
+      payload = built ?? { call: { id: sid ?? null }, missing: true };
+    }
+    const body = webhookBody({ deliveryId: d.delivery_id, event: d.event, createdAt: d.created_at, payload });
     const r = await sendSigned(d.url, endpointSecret(d.endpoint_id), body);
     const { error: aErr } = await admin.from("webhook_attempts").insert({
       company_id: d.company_id,

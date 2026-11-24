@@ -12,7 +12,10 @@ vi.mock("@/lib/coach/remote/webhooks", async (orig) => ({
   sendSigned: vi.fn(async (url: string) => (url.includes("down") ? { ok: false, status: 503, error: "HTTP 503" } : { ok: true, status: 200, error: null })),
 }));
 
+vi.mock("@/lib/coach/remote/crmExport", () => ({ buildCrmCall: vi.fn(async (_a: unknown, _c: string, sid: string) => ({ call: { id: sid }, brief: { summary: "built at send time" } })) }));
+
 import { GET } from "../route";
+import { sendSigned } from "@/lib/coach/remote/webhooks";
 
 const req = (auth?: string) => ({ headers: { get: (k: string) => (k.toLowerCase() === "authorization" ? (auth ?? null) : null) } }) as never;
 const due = (id: number, url: string, attempts = 0) => ({ delivery_id: id, company_id: "co1", endpoint_id: "ep", url, event: "session.scored", payload: {}, created_at: "2026-11-20T10:00:00Z", attempts });
@@ -43,4 +46,12 @@ describe("webhook send cron", () => {
       { company_id: "co1", delivery_id: 2, attempt_no: 3, ok: false, status: 503, error: "HTTP 503" },
     ]);
   });
+
+  it("a call.to_crm delivery is filled in at send time from the call's id (0330)", async () => {
+    db.due = [{ ...due(9, "https://crm.example.com"), event: "call.to_crm", payload: { sessionId: "s1", sentBy: "r1" } }];
+    await GET(req("Bearer c"));
+    const sent = vi.mocked(sendSigned).mock.calls.at(-1)![2] as string;
+    expect(JSON.parse(sent)).toMatchObject({ event: "call.to_crm", data: { call: { id: "s1" }, brief: { summary: "built at send time" } } });
+  });
 });
+

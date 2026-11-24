@@ -544,3 +544,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       next-action: review the proposed citations and wording rules; on approval, apply the rules to the coaching prompt and add the line on the Coaching tab
       done 2026-11-24: approved "Rules + cite 3 studies" — docs/tbc/2026-11-24-coaching-research.
 
+- [ ] 2026-11-24 · crm · CUSTOMER SETUP: "Send to CRM" (docs/tbc/2026-11-24-crm-send) works once a company admin adds a webhook in Remote Sales → Protection → Webhooks subscribed to "A call is sent to your CRM", wired into their CRM (its own automation or a connector such as Zapier)
+      why-unresolved: external config each customer owns (§1.5.3); until then reps see a plain 409 telling them who sets it up
+      next-action: include it in onboarding for any company using Macro Mode; build a native Salesforce/HubSpot connector only if customers ask

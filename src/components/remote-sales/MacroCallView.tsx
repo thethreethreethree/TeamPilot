@@ -225,6 +225,19 @@ function FollowUp({ sessionId }: { sessionId: string }) {
   const [busy, setBusy] = useState<"email" | "text" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  // "Send to CRM" (0330; the PDF's "API integration (SalesForce/whatever platform the company uses)").
+  const [crm, setCrm] = useState<{ state: "idle" | "sending" | "sent" | "failed"; note?: string }>({ state: "idle" });
+  const sendToCrm = async () => {
+    setCrm({ state: "sending" });
+    try {
+      const r = await fetch(`/api/coach/remote/${sessionId}/send-to-crm`, { method: "POST" });
+      const j = (await r.json().catch(() => ({}))) as { queued?: number; error?: string };
+      if (!r.ok) return setCrm({ state: "failed", note: j.error ?? "Couldn't send it. Try again." });
+      setCrm({ state: "sent", note: "Sent to your CRM — the brief, key points, next steps and follow-up go to your company's connection within a few minutes." });
+    } catch {
+      setCrm({ state: "failed", note: "Couldn't reach the server. Try again." });
+    }
+  };
   useEffect(() => {
     let live = true;
     fetch(`/api/coach/remote/${encodeURIComponent(sessionId)}/followup`, { cache: "no-store" })
@@ -290,7 +303,18 @@ function FollowUp({ sessionId }: { sessionId: string }) {
           </button>
         </div>
       )}
-      <p className="mt-2 text-[11px] text-muted">Sending to Salesforce or HubSpot comes later; for now, copy it.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void sendToCrm()}
+          disabled={crm.state === "sending" || crm.state === "sent"}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-default px-3 py-1.5 text-xs text-primary hover:border-brand disabled:opacity-50"
+        >
+          {crm.state === "sending" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          {crm.state === "sent" ? "Sent to CRM" : "Send to CRM"}
+        </button>
+        {crm.note && <p role="status" className={`text-[11px] ${crm.state === "failed" ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}>{crm.note}</p>}
+      </div>
     </div>
   );
 }
