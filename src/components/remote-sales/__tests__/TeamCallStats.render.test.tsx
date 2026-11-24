@@ -23,6 +23,7 @@ describe("TeamCallStats (F10.9)", () => {
     expect(rows[2]!.textContent).toContain("60%");
     expect(rows[2]!.textContent).toContain("1:15");
     expect(rows[2]!.textContent).toContain("—");
+    expect(screen.getByRole("link", { name: "Ana" }).getAttribute("href")).toMatch(/^\/dashboard\/remote-sales\/search\?rep=a&from=\d{4}-\d{2}-\d{2}$/);
     fireEvent.click(screen.getByRole("button", { name: "90 days" }));
     await waitFor(() => expect(urls).toContain("/api/coach/remote/team-stats?days=90"));
   });

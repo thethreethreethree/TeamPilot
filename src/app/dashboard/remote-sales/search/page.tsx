@@ -89,7 +89,11 @@ export default function SearchCallsPage() {
   }, []);
 
   useEffect(() => {
-    void run(EMPTY);
+    // Filters can arrive in the URL (2026-11-25): Team call stats links a rep's row to ?rep=<id>, and any shared
+    // search link opens as that search. Same parser as a saved search (fromQuery); unknown keys are ignored.
+    const initial = typeof window !== "undefined" && window.location.search ? fromQuery(window.location.search.slice(1)) : EMPTY;
+    setF(initial);
+    void run(initial);
     fetch("/api/coach/remote/saved-searches")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { available: boolean; searches: Saved[] } | null) => {

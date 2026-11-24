@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { BarChart3, Loader2 } from "lucide-react";
 import type { Averages, RepStats } from "@/lib/coach/remote/teamStats";
 
@@ -10,6 +11,8 @@ import type { Averages, RepStats } from "@/lib/coach/remote/teamStats";
  * reps alphabetically — the team's own norms, not a ranking. Renders nothing for a rep (the route is manager-only).
  */
 type Resp = { days: number; reps: RepStats[]; team: Averages };
+/** YYYY-MM-DD of `days` ago, the Search "from" filter for the same period. */
+const sinceDay = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 const pct = (x: number | null) => (x == null ? "—" : `${Math.round(x * 100)}%`);
 const mmss = (ms: number | null) => (ms == null ? "—" : `${Math.floor(ms / 60000)}:${String(Math.round((ms % 60000) / 1000)).padStart(2, "0")}`);
 const secs = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)} s`);
@@ -90,7 +93,12 @@ export function TeamCallStats() {
                 </tr>
                 {data.reps.map((r) => (
                   <tr key={r.repId} className="border-t border-default">
-                    <td className="py-1.5 pr-3 text-primary">{r.name}</td>
+                    <td className="py-1.5 pr-3 text-primary">
+                      {/* The rep's calls in the same period, on Search (F10.9: click a row for that person). */}
+                      <Link href={`/dashboard/remote-sales/search?rep=${encodeURIComponent(r.repId)}&from=${sinceDay(data.days)}`} className="hover:underline">
+                        {r.name}
+                      </Link>
+                    </td>
                     {COLS.map(([label, f]) => (
                       <td key={label} className="py-1.5 pr-3 text-right tabular-nums text-secondary">{f(r)}</td>
                     ))}
