@@ -4,7 +4,8 @@ import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdminRole, isAssignableOrgRole, ADMIN_ROLES } from "@/lib/roles";
+import { isAssignableOrgRole } from "@/lib/roles";
+import { setMemberRole } from "@/lib/team/setMemberRole";
 
 /**
  * POST /api/team/set-role — set a team member's ORG ROLE / tier (founder 2026-08-29, org hierarchy stage 2).
@@ -35,44 +36,8 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
 
-  const sb = createAdminClient();
-
-  // INV15 company-pin: the target must be in the caller's company. A non-null row scoped to company_id is the gate.
-  const { data: target } = await sb
-    .from("profiles")
-    .select("id, role, company_id")
-    .eq("id", body.memberId)
-    .maybeSingle();
-  if (!target || (target.company_id as string | null) !== ctx.companyId) {
-    return NextResponse.json({ error: "Member not found in your company." }, { status: 404 });
-  }
-
-  // Last-admin safety: refuse a demotion that would leave the company with zero admins.
-  const wasAdmin = isAdminRole(target.role as string | null);
-  const willBeAdmin = isAdminRole(body.role);
-  if (wasAdmin && !willBeAdmin) {
-    const { count } = await sb
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("company_id", ctx.companyId)
-      .in("role", [...ADMIN_ROLES]);
-    if ((count ?? 0) <= 1) {
-      return NextResponse.json(
-        { error: "This is your company's only admin — promote someone to a C-Suite role first, then change this one." },
-        { status: 409 },
-      );
-    }
-  }
-
-  const { error } = await sb
-    .from("profiles")
-    .update({ role: body.role })
-    .eq("id", body.memberId)
-    .eq("company_id", ctx.companyId); // belt-and-suspenders tenant scope on the write itself
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error(`[team/set-role] update failed member=${body.memberId}: ${error.message}`);
-    return NextResponse.json({ error: "Couldn't update the role." }, { status: 500 });
-  }
+  // The rules (company pin, last-admin safety, the scoped write) live in setMemberRole — shared with the team CSV import.
+  const r = await setMemberRole(createAdminClient(), ctx.companyId, body.memberId, body.role);
+  if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   return NextResponse.json({ ok: true, role: body.role });
 }

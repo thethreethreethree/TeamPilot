@@ -57,3 +57,19 @@ describe("planImport", () => {
     expect(plan[1]).toMatchObject({ manager: "on_join", managerId: "u-boss" }); // carried on the invitation (0288)
   });
 });
+
+describe("planImport — role changes for existing members (F2.8, 2026-11-25)", () => {
+  const accounts = new Map([["ann@x.com", ["u-ann"]], ["bo@x.com", ["u-bo"]]]);
+  const members = new Map([
+    ["u-ann", { id: "u-ann", status: "active", role: "Member" }],
+    ["u-bo", { id: "u-bo", status: "active", role: "Manager" }],
+  ]);
+  it("a different role is a change from the current one; the same or a blank role is none", () => {
+    const plan = planImport([
+      { line: 2, email: "ann@x.com", role: "Manager", managerEmail: null },
+      { line: 3, email: "bo@x.com", role: "Manager", managerEmail: null },
+      { line: 4, email: "bo@x.com", role: null, managerEmail: null },
+    ], accounts, members, new Set());
+    expect(plan.map((p) => p.roleFrom)).toEqual(["Member", null, null]);
+  });
+});

@@ -4,6 +4,7 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 vi.mock("@/lib/team/createInvitation", () => ({ createInvitation: vi.fn(async () => ({ ok: true, invitationId: "i1", code: "CODE" })) }));
+vi.mock("@/lib/team/setMemberRole", () => ({ setMemberRole: vi.fn(async () => ({ ok: true, from: "Member" })) }));
 const db = vi.hoisted(() => ({ profiles: [] as unknown[], updates: [] as unknown[] }));
 vi.mock("@/lib/supabase/admin", () => ({
   findAuthUsersByEmails: vi.fn(async () => new Map([["ann@x.com", ["u-ann"]], ["boss@x.com", ["u-boss"]]])),
@@ -76,5 +77,20 @@ describe("POST /api/team/import", () => {
     expect(createInvitation).toHaveBeenCalledWith(expect.anything(), "new@x.com", "Member", { managerId: "u-boss", knownAccountIds: [] });
     expect(body.results[0].result).toBe("invited; will report to boss@x.com when they join");
     expect(db.updates).toEqual([]);
+  });
+
+  it("role change for an existing member: shown in the preview, applied through setMemberRole (F2.8)", async () => {
+    const { setMemberRole } = await import("@/lib/team/setMemberRole");
+    const preview = await (await POST(post({ csv: "email,role\nann@x.com,Lead", apply: false }))).json();
+    expect(preview.plan[0].roleChange).toEqual({ from: "Member", to: "Lead" });
+    expect(setMemberRole).not.toHaveBeenCalled();
+    const done = await (await POST(post({ csv: "email,role\nann@x.com,Lead", apply: true }))).json();
+    expect(setMemberRole).toHaveBeenCalledWith(expect.anything(), "co1", "u-ann", "Lead");
+    expect(done.results).toContainEqual(expect.objectContaining({ email: "ann@x.com", ok: true, result: "role: Member → Lead" }));
+  });
+  it("the same role: no change", async () => {
+    const { setMemberRole } = await import("@/lib/team/setMemberRole");
+    await POST(post({ csv: "email,role\nann@x.com,Member", apply: true }));
+    expect(setMemberRole).not.toHaveBeenCalled();
   });
 });

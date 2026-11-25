@@ -7,6 +7,7 @@ import { isAdminRole, isInvitableRole } from "@/lib/roles";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { assertValidManager, TreeError, type Person as TreePerson } from "@/lib/coach/remote/access";
 import { createInvitation } from "@/lib/team/createInvitation";
+import { setMemberRole } from "@/lib/team/setMemberRole";
 import { parseTeamCsv, planImport, type RowPlan } from "@/lib/team/teamCsv";
 
 /**
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load your team. Nothing was imported." }, { status: 500 });
   }
   const rows = (profs ?? []) as Array<Record<string, unknown>>;
-  const members = new Map(rows.map((r) => [String(r.id), { id: String(r.id), status: String(r.status) }]));
+  const members = new Map(rows.map((r) => [String(r.id), { id: String(r.id), status: String(r.status), role: (r.role as string | null) ?? null }]));
   const pending = new Set(((invs ?? []) as Array<{ email: string }>).map((i) => i.email.toLowerCase()));
   const plan = planImport(parsed.rows, accounts, members, pending);
 
@@ -102,6 +103,8 @@ export async function POST(req: NextRequest) {
     email: p.email,
     person: p.person,
     role: p.role ?? "Member",
+    // F2.8: an existing member whose role changes ("Member → Manager"); null when it doesn't.
+    roleChange: p.person === "member" && p.roleFrom !== null && p.role ? { from: p.roleFrom, to: p.role } : null,
     manager: loops.has(p.line) ? "loop" : p.manager,
     managerEmail: p.managerEmail,
   });
@@ -120,6 +123,11 @@ export async function POST(req: NextRequest) {
         : r.ok && r.managerCarried ? `invited; will report to ${p.managerEmail} when they join`
         : `invited; set their manager (${p.managerEmail}) after they join`;
       out.push(r.ok ? { line: p.line, email: p.email, ok: true, result: said, inviteCode: r.code } : { line: p.line, email: p.email, ok: false, result: r.error });
+    } else if (p.person === "member" && p.personId && p.role && p.roleFrom !== null) {
+      // The Team page's own rules (setMemberRole), one row at a time — so "never the last admin" is re-checked after
+      // each earlier row's change.
+      const r = await setMemberRole(sb, ctx.companyId, p.personId, p.role);
+      out.push(r.ok ? { line: p.line, email: p.email, ok: true, result: `role: ${p.roleFrom ?? "none"} → ${p.role}` } : { line: p.line, email: p.email, ok: false, result: r.error });
     } else if (p.person === "ambiguous") {
       out.push({ line: p.line, email: p.email, ok: false, result: "More than one account uses this email; add them on the Team page." });
     }

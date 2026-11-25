@@ -5,7 +5,9 @@
  *   · a new email → an invitation with that role (same path and gates as inviting one person: createInvitation);
  *   · manager_email → who they report to. Set now when both are already on the team; for someone being invited, set it
  *     on the Team page once they have joined (an invitation has no person to attach a manager to yet).
- * A person already on the team keeps their role: roles change on the Team page, where their own checks live.
+ * A person already on the team whose row names a different role gets that role (2026-11-25, ledger F2.8) — through
+ * setMemberRole, the same rules as the Team page (company pin, never the last admin), applied row by row. A blank role
+ * leaves an existing person's role as it is.
  */
 export const MAX_ROWS = 200;
 
@@ -80,7 +82,7 @@ export function parseTeamCsv(text: string, isInvitableRole: (r: string) => boole
   return { rows, errors, warnings };
 }
 
-export type Person = { id: string; status: string };
+export type Person = { id: string; status: string; role?: string | null };
 export type RowPlan = {
   line: number;
   email: string;
@@ -90,6 +92,8 @@ export type RowPlan = {
   personId: string | null;
   managerId: string | null;
   role: string | null;
+  /** An existing member whose row names a different role: their role now (the change is from → role). */
+  roleFrom: string | null;
 };
 
 /**
@@ -111,7 +115,9 @@ export function planImport(
     const who = memberIdFor(r.email);
     const person: RowPlan["person"] = who.ambiguous ? "ambiguous" : who.id ? "member" : pending.has(r.email) ? "pending" : "invite";
     if (person === "invite") invitedHere.add(r.email);
-    return { line: r.line, email: r.email, person, manager: "none", managerEmail: r.managerEmail, personId: who.id, managerId: null, role: r.role };
+    const now = who.id ? members.get(who.id)?.role ?? null : null;
+    const roleFrom = person === "member" && r.role && now !== r.role ? now : null;
+    return { line: r.line, email: r.email, person, manager: "none", managerEmail: r.managerEmail, personId: who.id, managerId: null, role: r.role, roleFrom };
   });
   for (const p of plans) {
     if (!p.managerEmail) continue;

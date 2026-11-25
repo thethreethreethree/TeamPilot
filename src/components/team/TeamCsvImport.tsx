@@ -7,12 +7,12 @@ import { FileUp, Loader2 } from "lucide-react";
  * Team page → Import from a CSV (RSS Phase 9; Gong F2.8). Company admins only (the page shows it on amAdmin; the route
  * checks again). Choose a file → see what each row will do → Import. A file with any bad row imports nothing.
  */
-type PlanRow = { line: number; email: string; person: "invite" | "member" | "pending" | "ambiguous"; role: string; manager: string; managerEmail: string | null };
+type PlanRow = { line: number; email: string; person: "invite" | "member" | "pending" | "ambiguous"; role: string; roleChange?: { from: string | null; to: string } | null; manager: string; managerEmail: string | null };
 type Result = { line: number; email: string; ok: boolean; result: string };
 
 const PERSON: Record<PlanRow["person"], string> = {
   invite: "will be invited",
-  member: "already on the team (role unchanged)",
+  member: "already on the team",
   pending: "already has an invitation",
   ambiguous: "more than one account uses this email: add them on this page",
 };
@@ -71,7 +71,7 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
     await send(text, false);
   };
 
-  const actions = plan ? plan.filter((p) => p.person === "invite" || p.manager === "set").length : 0; // on_join rides on its invite
+  const actions = plan ? plan.filter((p) => p.person === "invite" || p.manager === "set" || !!p.roleChange).length : 0; // on_join rides on its invite
 
   if (!open) {
     return (
@@ -87,7 +87,8 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
           <h2 className="text-sm font-semibold text-primary">Import a team from a CSV file</h2>
           <p className="mt-1 text-xs text-secondary">
             Columns: <code>email</code> (required), <code>role</code>, <code>manager_email</code>. New people are invited, as if you
-            invited each one; managers are set for people already on the team. You&apos;ll see what will happen before anything does.
+            invited each one; for people already on the team, managers are set and a different role is changed (never leaving the company
+            without an admin). You&apos;ll see what will happen before anything does.
           </p>
         </div>
         <button type="button" onClick={() => setOpen(false)} className="ml-auto text-xs text-muted hover:text-primary">Close</button>
@@ -110,7 +111,11 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
           <ul className="space-y-1 text-xs">
             {plan.map((p) => (
               <li key={p.line} className="border-b border-default pb-1 last:border-b-0">
-                <span className="text-primary">{p.email}</span> <span className="text-secondary">· {PERSON[p.person]}{p.person === "invite" ? ` as ${p.role}` : ""}</span>
+                <span className="text-primary">{p.email}</span> <span className="text-secondary">
+                  · {PERSON[p.person]}
+                  {p.person === "invite" ? ` as ${p.role}` : ""}
+                  {p.roleChange ? ` · role ${p.roleChange.from ?? "none"} → ${p.roleChange.to}` : p.person === "member" ? " (role unchanged)" : ""}
+                </span>
                 {managerWords(p) && <span className="block text-muted">{managerWords(p)}</span>}
               </li>
             ))}
