@@ -2532,6 +2532,8 @@ const ERASURE_EXTENSIONS = new Map([
     "Legal erasure reaches pipeline prospects never linked to an erased call: a match function and 0316's exact prospect step (name/organization removed, renamed '(erased on request)', its to-do Tasks blanked), called only by the same erasure route for the same request, before rss_erase_sessions."],
   ["0322_erasure_day_plans.sql",
     "Legal erasure reaches reps' day plans (remote_day_plans), which name customers but are tied to no call: a match function and a replace-the-identifier function, called only by the same erasure route for the same request, before rss_erase_sessions; remote_day_plans' rules made erasure-aware with 0285's exact pattern. §3.1.1(2): that customer's data and nothing else."],
+  ["0350_erasure_events_by_subject.sql",
+    "Legal erasure deletes a call's events by subject alone (they may have been filed under another company's id before 0349); every subject is one of the requesting company's own calls, checked at the top of the function. Same function, same single caller."],
   ["0343_call_speaker_names.sql",
     "Speaker names on a call (F8.5): a customer's name is personal data, so rss_erase_sessions (0317's exact body) also deletes call_speaker_names, whose append-only rules yield to erasure with 0285's exact pattern. Same function, same single caller."],
   ["0317_erasure_retires_scenarios.sql",

@@ -67,3 +67,11 @@ describe("legal erasure covers every call-keyed table with text", () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe("erasure reaches a call's events wherever they were filed (0350)", () => {
+  it("the latest body deletes call events by subject alone, not only those under the requesting company", () => {
+    const body = latestEraseBody();
+    expect(body).toMatch(/delete from events where subject = any \(subjects\);/);
+    expect(body).not.toMatch(/delete from events where company_id = p_company and subject = any \(subjects\)/);
+  });
+});
