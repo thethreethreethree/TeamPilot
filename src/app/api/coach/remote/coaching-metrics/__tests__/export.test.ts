@@ -58,8 +58,9 @@ describe("coaching export (F16.11)", () => {
     expect(res.headers.get("Content-Disposition")).toMatch(/attachment; filename="coaching-\d{4}-\d{2}-\d{2}\.csv"/);
     const csv = await res.text();
     const [header, row] = csv.trim().split("\r\n");
-    expect(header).toBe("person,feedback_given,calls_listened,period_start,period_end");
-    expect(row).toMatch(/^"?'=Mia \(manager\)"?,1,1,/); // a leading "=" is neutralized so a spreadsheet can't run it
+    expect(header).toBe("person,feedback_given,calls_with_feedback,calls_with_comments,calls_listened,period_start,period_end");
+    // feedback 1, on 1 call, which got a comment, and 1 call listened (F16.8 columns, 2026-11-25)
+    expect(row).toMatch(/^"?'=Mia \(manager\)"?,1,1,1,1,/); // a leading "=" is neutralized so a spreadsheet can't run it
     expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "session.export", meta: { kind: "coaching_metrics", rows: 1 } }));
   });
 });

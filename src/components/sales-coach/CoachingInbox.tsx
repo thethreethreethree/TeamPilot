@@ -38,6 +38,9 @@ type Metrics =
       since: string;
       sessions: number;
       feedbackGiven: Record<string, number>;
+      /** F16.8: distinct calls with feedback / with a comment sent, per manager. Absent from an older server. */
+      callsWithFeedback?: Record<string, number>;
+      callsWithComments?: Record<string, number>;
       callsListened: Record<string, number>;
       /** F16.5 (2026-11-25): one row per rep — RepCoaching from feedback.ts, already sorted overdue-first. */
       byRep?: RepCoaching[];
@@ -201,6 +204,8 @@ export function CoachingInbox() {
                   <tr>
                     <th className="py-1 font-normal">Manager</th>
                     <th className="py-1 font-normal">Feedback given</th>
+                    <th className="py-1 font-normal">Calls with feedback</th>
+                    <th className="py-1 font-normal">Calls with comments</th>
                     <th className="py-1 font-normal">Calls listened to</th>
                   </tr>
                 </thead>
@@ -209,6 +214,8 @@ export function CoachingInbox() {
                     <tr key={id} className="border-t border-default">
                       <td className="py-1.5 text-primary">{names[id] ?? "A teammate"}</td>
                       <td className="py-1.5 tabular-nums text-primary">{metrics.feedbackGiven[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithFeedback?.[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithComments?.[id] ?? 0}</td>
                       <td className="py-1.5 tabular-nums text-primary">{metrics.callsListened[id] ?? 0}</td>
                     </tr>
                   ))}

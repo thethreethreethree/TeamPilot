@@ -561,3 +561,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-25 · webhooks · VERIFIED MISSING: production /api/health (commit 7f02329) reports capabilities.webhooks = false — RSS_WEBHOOK_SIGNING_SECRET is not set in Vercel. Until it is, every webhook (session.scored, session.closed, deal.closed, call.to_crm) is queued and not sent, and "Send to CRM" tells the rep it isn't switched on (docs/tbc/2026-11-24-crm-send-fail-loud). Same check also shows email = false.
       why-unresolved: founder-owned config (the item at line 176)
       next-action: set RSS_WEBHOOK_SIGNING_SECRET (a long random string) in Vercel → redeploy → /api/health shows webhooks: true
+- [ ] 2026-11-25 · privacy · RE-ASKED with new evidence: production /api/health shows anthropic = false — every AI read runs on DeepSeek, which the privacy page doesn't name, while it names Anthropic (src/app/privacy/page.tsx:305). Founder picker 2026-11-25: "Leave it for now" (same as 2026-11-23).
+      why-unresolved: founder decision
+      next-action: when revisited — name DeepSeek and drop any no-training claim we can't stand behind, or set ANTHROPIC_API_KEY so the page is true
