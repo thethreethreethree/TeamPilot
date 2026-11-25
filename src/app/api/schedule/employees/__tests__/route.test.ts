@@ -27,7 +27,7 @@ function fakeSb() {
         insertedRow = row;
         return { select: () => ({ single: async () => ({ data: { id: "e1", company_id: row.company_id, name: row.name, role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }, error: null }) }) };
       },
-      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: [{ id: "e1", company_id: "co1", name: "Ana", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }], error: null }) }) }) }),
+      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: [{ id: "e1", company_id: "co1", name: "Ana", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }], error: null }), order: () => ({ range: async () => ({ data: [{ id: "e1", company_id: "co1", name: "Ana", role: null, employment_type: null, skills: [], certifications: [], max_hours_week: null, min_hours_week: null, status: "active" }], error: null }) }) }) }) }),
     }),
   };
 }

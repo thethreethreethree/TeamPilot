@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
           .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .eq("company_id", companyId)
           .gte("started_at", cutoff)
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "team-activity" },
     );
   } catch (e) {

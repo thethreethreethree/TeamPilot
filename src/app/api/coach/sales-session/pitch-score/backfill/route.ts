@@ -124,7 +124,7 @@ async function unscoredSessionIds(
         .from("pitch_scores")
         .select("session_id")
         .eq("company_id", companyId)
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: "pitch-score backfill: scored session ids" }
   );
   const done = new Set(scored.map((r) => r.session_id).filter((v): v is string => !!v));
@@ -144,7 +144,7 @@ async function unscoredSessionIds(
       // No context = in person, the same coalesce pitch_scores_by_channel (0301) uses.
       const scoped =
         module === "remote_sales" ? q.in("context", ["phone", "video"]) : q.or("context.is.null,context.eq.in_person");
-      return scoped.order("started_at", { ascending: true }).range(from, to);
+      return scoped.order("started_at", { ascending: true }).order("id", { ascending: true }).range(from, to);
     },
     { label: "pitch-score backfill: candidate sessions" }
   );
@@ -183,7 +183,7 @@ async function sessionsWithRepSpeech(
           .select("session_id, text")
           .eq("speaker", "agent")
           .in("session_id", chunk)
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "pitch-score backfill: rep lines" }
     );
     for (const r of rows) {

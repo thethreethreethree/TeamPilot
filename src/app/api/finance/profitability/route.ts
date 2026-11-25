@@ -24,13 +24,13 @@ export async function GET() {
     // sum falls to null → an honest null loaded_margin, never a flattering number.
     fetchAllPagedResult<{ project_id: string; month: string; allocated_overhead: number | null }>(
       (from, to) =>
-        sb.from("fin_overhead_allocation").select("project_id, month, allocated_overhead").range(from, to),
+        sb.from("fin_overhead_allocation").select("project_id, month, allocated_overhead").order("project_id", { ascending: true }).order("month", { ascending: true }).range(from, to),
       { label: "profitability overhead allocation" },
     ),
     // Overhead that could be allocated to NOBODY. Surfaced, never absorbed. Paged for the same reason (summed
     // in JS below); per-month so smaller, but same class.
     fetchAllPagedResult<{ month: string; unallocated_overhead: number }>(
-      (from, to) => sb.from("fin_overhead_unallocated").select("month, unallocated_overhead").range(from, to),
+      (from, to) => sb.from("fin_overhead_unallocated").select("month, unallocated_overhead").order("month", { ascending: true }).range(from, to),
       { label: "profitability unallocated overhead" },
     ),
   ]);

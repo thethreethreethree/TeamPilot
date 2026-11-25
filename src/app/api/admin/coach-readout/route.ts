@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
       supabase
         .from("chat_topics")
         .select("id, coach_enabled, status, close_durability, created_at, closed_at")
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: "coach-readout topics" },
   );
   if (topicsErr) {
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
   // passes 1000 chat messages the per-topic counts were UNDERCOUNTED (a wrong-but-authoritative number). Uses
   // the same fetchAllPagedResult already wired for the event reads below.
   const { data: msgs, error: msgErr } = await fetchAllPagedResult<{ topic_id: string }>(
-    (from, to) => supabase.from("chat_messages").select("topic_id").range(from, to),
+    (from, to) => supabase.from("chat_messages").select("topic_id").order("id", { ascending: true }).range(from, to),
     { label: "coach-readout message counts" },
   );
   if (msgErr) {
@@ -294,7 +294,7 @@ export async function GET(req: NextRequest) {
         .from("tasks")
         .select("id, status, linked_decision_id, linked_chat_topic_id, created_at, updated_at")
         .is("deleted_at", null)
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: "coach-readout tasks" },
   );
   const tasksAll = tasksRows ?? [];

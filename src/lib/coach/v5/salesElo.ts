@@ -254,7 +254,7 @@ export async function getAgentEloGames(agentId: string): Promise<EloGame[]> {
         .select("session_id, payload, created_at")
         .eq("agent_id", agentId)
         .order("created_at", { ascending: false })
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: `salesElo after_pitch_summaries agent=${agentId}` },
   ).catch((e: unknown) => {
     // eslint-disable-next-line no-console

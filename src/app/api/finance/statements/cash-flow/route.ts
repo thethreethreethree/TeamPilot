@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
   const { data, error } = await fetchAllPagedResult<{ period_id: string; section: string; net_amount: number }>(
     (from, to) => {
       const base = sb.from("fin_cash_flow_summary").select("period_id, section, net_amount");
-      return (periodId ? base.eq("period_id", periodId) : base).range(from, to);
+      // A unique order (the view's key) so pages neither repeat nor skip a row (paging sweep 2026-11-26).
+      return (periodId ? base.eq("period_id", periodId) : base).order("period_id", { ascending: true }).order("section", { ascending: true }).range(from, to);
     },
     { label: "cash flow summary" },
   );

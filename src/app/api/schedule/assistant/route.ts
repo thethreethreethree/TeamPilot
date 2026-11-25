@@ -57,8 +57,8 @@ export async function POST(req: NextRequest) {
   let today: string;
   try {
     const [evRows, empRows, settings] = await Promise.all([
-      fetchAllPaged<EventRow>((f, t) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(f, t), { label: "assistant events" }),
-      fetchAllPaged<EmployeeRow>((f, t) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("name").range(f, t), { label: "assistant roster" }),
+      fetchAllPaged<EventRow>((f, t) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).order("id", { ascending: true }).range(f, t), { label: "assistant events" }),
+      fetchAllPaged<EmployeeRow>((f, t) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", ctx.companyId).order("name").order("id", { ascending: true }).range(f, t), { label: "assistant roster" }),
       getScheduleSettings(sb, ctx.companyId),
     ]);
     employees = empRows.map(rowToEmployee);

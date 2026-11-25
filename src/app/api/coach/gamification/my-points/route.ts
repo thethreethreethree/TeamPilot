@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         .eq("agent_id", ctx.userId)
         .eq("reason", "session_score")
         .order("created_at", { ascending: true })
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: "my-points ledger" },
   );
   if (error || !data) {

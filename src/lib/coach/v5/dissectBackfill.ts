@@ -150,7 +150,7 @@ export async function runDissectBackfill(args: {
             .from("coaching_transcript_segments_current")
             .select("session_id")
             .in("session_id", missingIds)
-            .range(from, to),
+            .order("id", { ascending: true }).range(from, to),
         { label: "backfill-content-check" },
       )
     : [];

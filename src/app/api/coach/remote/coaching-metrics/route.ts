@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         .in("context", ["phone", "video"])
         .gte("started_at", callsSince)
         .order("started_at", { ascending: true })
-        .range(from, to),
+        .order("id", { ascending: true }).range(from, to),
     { label: "coaching-metrics sessions", maxRows: 50_000 },
   );
   if (error) {

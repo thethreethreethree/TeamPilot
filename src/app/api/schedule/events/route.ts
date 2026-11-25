@@ -73,7 +73,7 @@ async function enforceAssignmentAuthority(
     : { kind: "assign", shiftId, employeeId: assigneeId };
 
   const [evRows, empRows, settings] = await Promise.all([
-    fetchAllPaged<EventRow>((from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", companyId).order("seq", { ascending: true }).range(from, to), { label: "schedule_event" }),
+    fetchAllPaged<EventRow>((from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", companyId).order("seq", { ascending: true }).order("id", { ascending: true }).range(from, to), { label: "schedule_event" }),
     fetchAllPaged<EmployeeRow>((from, to) => sb.from("schedule_employee").select(EMPLOYEE_COLUMNS).eq("company_id", companyId).order("id").range(from, to), { label: "schedule_employee" }),
     getScheduleSettings(sb, companyId),
   ]);
@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
           .select(EVENT_COLUMNS)
           .eq("company_id", companyId)
           .order("seq", { ascending: true })
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "schedule_event log" },
     );
   } catch (e) {

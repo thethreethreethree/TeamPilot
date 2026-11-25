@@ -41,7 +41,7 @@ export async function GET(_req: NextRequest) {
           .select(EMPLOYEE_COLUMNS)
           .eq("company_id", ctx.companyId)
           .order("name", { ascending: true })
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "schedule_employee roster" },
     );
     return NextResponse.json({ employees: rows.map(rowToEmployee) });

@@ -91,7 +91,7 @@ export async function generateTeamTrainingBrief(
   try {
     const kpiRows = await fetchAllPaged<{ doors_knocked: number; sold: number; no_answer: number }>(
       (from, to) =>
-        admin.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").in("rep_id", agentIds).range(from, to),
+        admin.from("rep_kpi_daily").select("doors_knocked, sold, no_answer").in("rep_id", agentIds).order("rep_id", { ascending: true }).order("local_date", { ascending: true }).range(from, to),
       { label: "team-brief-door-kpi" },
     );
     let knocked = 0, sold = 0, noAnswer = 0;
@@ -245,7 +245,7 @@ export async function runTeamBriefPregeneration(
   let lookupFailed = false;
   const rows = await fetchAllPaged<{ company_id: string }>(
     (from, to) =>
-      admin.from("events").select("company_id").eq("kind", "coach.dissect_generated").gte("created_at", cutoff).range(from, to),
+      admin.from("events").select("company_id").eq("kind", "coach.dissect_generated").gte("created_at", cutoff).order("id", { ascending: true }).range(from, to),
     { label: "team-brief-pregen-companies" },
   ).catch((err) => {
     lookupFailed = true;

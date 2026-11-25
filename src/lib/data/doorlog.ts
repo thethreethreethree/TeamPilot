@@ -241,7 +241,7 @@ export async function getAllTimeKpi(
         .from("rep_kpi_daily")
         .select("doors_knocked, sold, no_answer")
         .eq("rep_id", repId)
-        .range(from, to),
+        .order("local_date", { ascending: true }).range(from, to),
     { label: "all-time door KPI" },
   );
   let doorsKnocked = 0;
@@ -300,7 +300,7 @@ export async function getTodaysMetrics(
         const base = sb.from("rep_kpi_daily").select("doors_knocked, sold").eq("rep_id", repId);
         const lo = since ? base.gte("local_date", since) : base;
         const bounded = until ? lo.lte("local_date", until) : lo;
-        return bounded.range(from, to);
+        return bounded.order("rep_id", { ascending: true }).order("local_date", { ascending: true }).range(from, to);
       },
       { label: "todays-metrics kpi" },
     ),
@@ -315,7 +315,7 @@ export async function getTodaysMetrics(
           .eq("status", "complete");
         const lo = since ? base.gte("door_knocks.local_date", since) : base;
         const bounded = until ? lo.lte("door_knocks.local_date", until) : lo;
-        return bounded.range(from, to);
+        return bounded.order("id", { ascending: true }).range(from, to);
       },
       { label: "todays-metrics scores" },
     ),

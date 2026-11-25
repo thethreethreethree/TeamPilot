@@ -68,7 +68,7 @@ describe("GET /api/schedule/timeoff (the list)", () => {
       from: (table: string) => ({
         select: () => ({
           eq: () => ({
-            order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }) }),
+            order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }), order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : employees, error: null }) }) }),
             maybeSingle: async () => ({ data: null, error: null }), // companies settings read → defaults
           }),
         }),

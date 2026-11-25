@@ -2703,10 +2703,62 @@ const RAW_STORAGE_WRITERS = new Map([
   }
 }
 
+// ═══ INVARIANT 42 — a paged read orders by a UNIQUE key last (OFFSET paging must not repeat or skip rows) ═══════
+//
+// LEARNED: 2026-11-26. The tracker preview paged transcript lines of 30 calls ordered by `seq` alone — every call has a
+// line 1, so pages could repeat or skip lines with no error. A sweep found 42 paged reads ordered by a non-unique key
+// (started_at, created_at, seq, name) or by nothing: KPI, coaching metrics, schedule, finance views, door log, hides.
+// Fixed in two commits (0349ef69 and this one). The rule: the LAST .order() of a statement that calls .range(from, to)
+// is "id", or the read is listed here with the key that is unique for it.
+const PAGING_UNIQUE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/hide-phrases/route.ts::call_unhides::hide_id", "call_unhides_once: unique (hide_id) (0337)."],
+  ["src/lib/coach/remote/hidePhrases.ts::call_unhides::hide_id", "call_unhides_once: unique (hide_id) (0337)."],
+  ["src/lib/coach/remote/hidePhrases.ts::rss_hidden_calls_for::session_id", "the function returns DISTINCT session ids (0347)."],
+  ["src/lib/coach/remote/hidePhrases.ts::coaching_transcript_segments_current::seq", "one call (eq session_id); the current view has one line per seq."],
+  ["src/lib/coach/remote/followThrough.ts::coaching_transcript_segments_current::seq", "one call (eq session_id); the current view has one line per seq."],
+  ["src/app/api/coach/remote/trackers/preview/route.ts::coaching_transcript_segments_current::session_id,seq", "(session_id, seq) is unique in the current view."],
+  ["src/lib/coach/remote/adoptionRead.ts::session_interaction_stats::session_id,transcript_version", "unique (session_id, transcript_version) (0277)."],
+  ["src/app/api/finance/profitability/route.ts::fin_overhead_allocation::project_id,month", "the view is one row per (company, project, month); RLS pins the company."],
+  ["src/app/api/finance/profitability/route.ts::fin_overhead_unallocated::month", "the view is one row per (company, month); RLS pins the company."],
+  ["src/app/api/finance/statements/cash-flow/route.ts::fin_cash_flow_summary::period_id,section", "the view is one row per (company, period, section); RLS pins the company."],
+  ["src/lib/coach/v5/teamTrainingBrief.ts::rep_kpi_daily::rep_id,local_date", "the view is one row per (company, rep, local_date)."],
+  ["src/lib/data/doorlog.ts::rep_kpi_daily::local_date", "one rep (eq rep_id); the view is one row per (rep, local_date)."],
+  ["src/lib/data/doorlog.ts::rep_kpi_daily::rep_id,local_date", "the view is one row per (company, rep, local_date)."],
+]);
+{
+  const seen = new Set();
+  for (const f of FILES) {
+    if (/src\/lib\/supabase\/paginate\.ts$/.test(f.path)) continue; // the helper itself
+    const re = /\.range\(\s*(from|f|start|offset|page\w*)\s*,/g;
+    let m;
+    while ((m = re.exec(f.sql))) {
+      const before = f.sql.slice(0, m.index);
+      const a = Math.max(before.lastIndexOf(".from("), before.lastIndexOf(".rpc("));
+      if (a < 0) continue;
+      const stmt = f.sql.slice(a, m.index);
+      const source = (stmt.match(/\.(?:from|rpc)\(\s*["'`]([a-z_]+)["'`]/) || [])[1] ?? "?";
+      const orders = [...stmt.matchAll(/\.order\(\s*["'`]([a-z_.]+)["'`]/g)].map((x) => x[1]);
+      if (orders[orders.length - 1] === "id") continue;
+      const key = `${f.path}::${source}::${orders.join(",")}`;
+      seen.add(key);
+      if (PAGING_UNIQUE_ALLOWLIST.has(key)) continue;
+      findings.push({
+        rule: "A paged read is not ordered by a unique key last (OFFSET pages can repeat or skip rows)",
+        file: f.path,
+        why: `${source} is paged with .range() ordered by [${orders.join(", ") || "nothing"}]. Add .order("id") as the last order, or list\n` +
+          "      it in PAGING_UNIQUE_ALLOWLIST with the key that is unique for this read.",
+      });
+    }
+  }
+  for (const key of PAGING_UNIQUE_ALLOWLIST.keys()) {
+    if (!seen.has(key)) findings.push({ rule: "A stale paging allowlist entry", file: key.split("::")[0], why: `${key} no longer matches a paged read; remove it.` });
+  }
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size + AUDIT_ROUTE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size + AUDIT_ROUTE_ALLOWLIST.size + PAGING_UNIQUE_ALLOWLIST.size}`);
 console.log(`  Append-only rule tables: ${RULE_TABLES.size} (replayed from the migrations)`);
 console.log(`  Violations:           ${findings.length}`);
 
@@ -2734,7 +2786,8 @@ if (findings.length === 0) {
       " transcripts are read from coaching_transcript_segments_current (a repaired call never shows two versions) ·" +
       " no delete/update/upsert on a table whose append-only rule would silently drop it ·" +
       " every sales-session handler that runs or serves sales coaching asks isSalesCall (no sales coaching on a meeting) ·" +
-      " no session kind is compared by hand; isSalesCall / resolveCoachingMode is the one verdict."
+      " no session kind is compared by hand; isSalesCall / resolveCoachingMode is the one verdict ·" +
+      " every paged read orders by a unique key last (no OFFSET page repeats or skips a row)."
   );
   process.exit(0);
 }

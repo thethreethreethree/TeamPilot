@@ -27,7 +27,7 @@ let rpcArgs: Record<string, unknown> | null = null;
 function fakeSb(existing: { name: string }[] = [], events: unknown[] = []) {
   return {
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : existing, error: null }) }) }) }),
+      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : existing, error: null }), order: () => ({ range: async () => ({ data: table === "schedule_event" ? events : existing, error: null }) }) }) }) }),
     }),
     rpc: async (_fn: string, args: Record<string, unknown>) => {
       rpcArgs = args;

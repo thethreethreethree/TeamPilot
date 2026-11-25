@@ -124,7 +124,7 @@ export async function GET(req: Request) {
           .in("context", [...contextsOf("sales_coach")]) // Sales Coach: in-person only (0301, founder 2026-11-22)
           .in("agent_id", memberIds)
           .order("started_at", { ascending: true })
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "team KPI sessions" },
     );
   let sessRows;

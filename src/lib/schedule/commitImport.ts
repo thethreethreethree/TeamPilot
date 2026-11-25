@@ -23,7 +23,7 @@ const num = (o: unknown, k: string): number => {
 export async function readExistingShifts(sb: SbClient, companyId: string): Promise<{ id: string; date: string }[]> {
   const evRows = await fetchAllPaged<EventRow>(
     (from, to) =>
-      sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", companyId).order("seq", { ascending: true }).range(from, to),
+      sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", companyId).order("seq", { ascending: true }).order("id", { ascending: true }).range(from, to),
     { label: "schedule_event (existing shifts)" },
   );
   const state = deriveState(evRows.map(rowToEvent));

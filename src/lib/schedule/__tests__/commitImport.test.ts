@@ -28,7 +28,7 @@ function sb(events: unknown[], rpc: RpcFn, throwOnRead = false) {
     from: () => ({
       select: () => ({
         eq: () => ({
-          order: () => ({ range: async () => (throwOnRead ? Promise.reject(new Error("read boom")) : { data: events, error: null }) }),
+          order: () => ({ range: async () => (throwOnRead ? Promise.reject(new Error("read boom")) : { data: events, error: null }), order: () => ({ range: async () => (throwOnRead ? Promise.reject(new Error("read boom")) : { data: events, error: null }) }) }),
         }),
       }),
     }),

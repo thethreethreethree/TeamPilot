@@ -2823,7 +2823,7 @@ export async function routeNewConversation(args: {
           .eq("company_id", args.companyId)
           .in("assigned_agent_id", agentIds)
           .in("status", OPEN_CONVERSATION_STATUSES)
-          .range(from, to),
+          .order("id", { ascending: true }).range(from, to),
       { label: "routeNewConversation load count" },
     );
   } catch {

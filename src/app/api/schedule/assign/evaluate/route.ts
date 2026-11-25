@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   try {
     const [evRows, empRows, settings] = await Promise.all([
       fetchAllPaged<EventRow>(
-        (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).range(from, to),
+        (from, to) => sb.from("schedule_event").select(EVENT_COLUMNS).eq("company_id", ctx.companyId).order("seq", { ascending: true }).order("id", { ascending: true }).range(from, to),
         { label: "schedule_event" },
       ),
       fetchAllPaged<EmployeeRow>(
