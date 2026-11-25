@@ -63,3 +63,15 @@ describe("a hidden call is hidden in every table that holds its rows", () => {
     expect(Object.keys(MAY_STAY_VISIBLE).filter((t) => !judged.has(t))).toEqual([]);
   });
 });
+
+describe("a call's AI reads follow the call's access (0348, founder picker 2026-11-26)", () => {
+  it("events about a call or a score are readable only through the call's / score's own read rule", () => {
+    const last = [...all.matchAll(/create policy rss_call_events_follow_call on public\.events[\s\S]*?;/g)].pop()?.[0] ?? "";
+    expect(last).toMatch(/as restrictive for select/);
+    expect(last).toMatch(/subject in \(select 'sales_session:' \|\| s\.id::text from public\.coaching_sessions s\)/);
+    expect(last).toMatch(/subject in \(select 'pitch:' \|\| p\.id::text from public\.pitch_scores p\)/);
+    // dropped later without being recreated?
+    const dropAt = all.lastIndexOf("drop policy if exists rss_call_events_follow_call on public.events");
+    expect(all.lastIndexOf("create policy rss_call_events_follow_call on public.events")).toBeGreaterThan(dropAt);
+  });
+});
