@@ -5,6 +5,7 @@ import { DisputeQueue } from "@/components/sales-coach/DisputeQueue";
 import { UnscoredBacklog } from "@/components/sales-coach/UnscoredBacklog";
 import { TeamUsage } from "@/components/remote-sales/TeamUsage";
 import { TeamCallStats } from "@/components/remote-sales/TeamCallStats";
+import { TeamCoverage } from "@/components/remote-sales/TeamCoverage";
 import { WeeklyRoutine } from "@/components/remote-sales/WeeklyRoutine";
 
 /**
@@ -29,6 +30,8 @@ export default function RemoteSalesCoachingPage() {
       <TeamUsage />
       {/* Team call stats (F10.9, 2026-11-25): interaction stats per rep and for the team, 7 / 30 / 90 days. */}
       <TeamCallStats />
+      {/* What the team's calls cover (F10.11, 2026-11-25): share of calls per tracker and per topic. */}
+      <TeamCoverage />
       <section aria-label="Score disputes" id="score-disputes" className="scroll-mt-20">
         <h2 className="mb-2 text-sm font-semibold text-primary">Score disputes</h2>
         <DisputeQueue module="remote_sales" />
