@@ -88,3 +88,22 @@ describe('timedSegments (RSS Phase 2: stored end times, estimated old calls)', (
     expect(r.untimed).toBe(2);
   });
 });
+
+describe("questionMarkers (F9.6, 26 Nov)", () => {
+  it("lists the rep's questions with their times, by the same rule as the question rate", async () => {
+    const { questionMarkers, computeInteractionStats } = await import("../stats");
+    const segs = [
+      { speaker: "rep" as const, startMs: 1000, endMs: 3000, text: "How are you handling billing today?" },
+      { speaker: "customer" as const, startMs: 3500, endMs: 6000, text: "What do you mean?" },
+      { speaker: "rep" as const, startMs: 6500, endMs: 8000, text: "We cover that." },
+      { speaker: "rep" as const, startMs: 9000, endMs: 10000, text: "could you send the contract" },
+    ];
+    const q = questionMarkers(segs);
+    expect(q).toEqual([
+      { atMs: 1000, text: "How are you handling billing today?" },
+      { atMs: 9000, text: "could you send the contract" },
+    ]);
+    // agrees with the stat: 2 questions over the 9 s span → 800 per hour
+    expect(computeInteractionStats(segs).repQuestionsPerHour).toBe(Math.round((2 / 9000) * 3_600_000 * 10) / 10);
+  });
+});

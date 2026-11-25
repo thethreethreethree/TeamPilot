@@ -50,6 +50,8 @@ type Wire =
       lanes: Lanes;
       averages: (Partial<Stats> & { sessions: number }) | null;
       audioUrl: string | null;
+      /** F9.6 (2026-11-26): the rep's questions with their times. Absent from an older server. */
+      questions?: Array<{ atMs: number; text: string }>;
     };
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
@@ -561,6 +563,21 @@ export function RemoteCallPanel({
         {tile("Questions / hour", num(stats.repQuestionsPerHour), a ? num(a.repQuestionsPerHour) : null)}
         {tile("Interactivity /10", num(stats.interactivity), a ? num(a.interactivity) : null, stats.interactivity == null ? "Only one side spoke." : undefined)}
       </div>
+      {wire.questions && wire.questions.length > 0 && (
+        <details className="rounded-lg border border-default bg-base p-2 text-xs">
+          <summary className="cursor-pointer text-secondary hover:text-primary">Questions asked by the rep ({wire.questions.length})</summary>
+          <ul className="mt-1 space-y-0.5">
+            {wire.questions.map((q, i) => (
+              <li key={`${q.atMs}-${i}`}>
+                <button type="button" onClick={() => seek(q.atMs / 1000)} className="text-left text-secondary hover:text-primary" title="Play from here">
+                  <span className="mr-1.5 tabular-nums text-muted">{mmss(q.atMs)}</span>
+                  {q.text}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p className="text-[11px] text-muted">
         Measured from this call only; your averages are your own last 30 days, not a target.
         {wire.estimated ? " Some lines' end times were estimated (until the next person spoke), so pauses count as talk." : ""}

@@ -187,3 +187,14 @@ export function timedSegments(
   });
   return { segments, estimated, untimed };
 }
+
+/**
+ * Points of interest (2026-11-26; Gong ledger F9.6: "auto-flag questions asked … as timeline markers"): the rep's
+ * questions, in order, with when they were asked — by the SAME isQuestion rule the question rate counts, so the list
+ * and the "Questions / hour" tile always agree. Pure.
+ */
+export function questionMarkers(segments: Segment[]): Array<{ atMs: number; text: string }> {
+  return validateSegments(segments)
+    .filter((s) => s.speaker === 'rep' && isQuestion(s.text))
+    .map((s) => ({ atMs: s.startMs, text: s.text.trim().slice(0, 160) }));
+}

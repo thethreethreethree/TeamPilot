@@ -67,5 +67,6 @@ describe("GET /api/coach/remote/:id/stats", () => {
     expect(body.stats.talkRatioTime).toBeCloseTo(3000 / 5500, 5);
     expect(body.averages).toMatchObject({ talkRatioTime: 0.5, sessions: 1 });
     expect(JSON.stringify(body)).not.toMatch(/benchmark/i);
+    expect(body.questions).toEqual([{ atMs: 0, text: "How are you?" }]); // F9.6 points of interest
   });
 });

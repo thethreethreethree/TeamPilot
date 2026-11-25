@@ -76,3 +76,19 @@ describe("RemoteCallPanel — saving to a folder (F12.6 / F9.16)", () => {
     expect(posts[1]).toMatchObject({ scope: "mine", folderName: "Objections", note: "great reframe at 3:10" });
   });
 });
+
+describe("RemoteCallPanel — questions asked (F9.6)", () => {
+  it("lists the rep's questions with their times on the full page, and not in Macro Mode", async () => {
+    const withQ = { ...WIRE, questions: [{ atMs: 65_000, text: "What's driving the change this quarter?" }] };
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? withQ : { trims: [] }) })));
+    render(<RemoteCallPanel sessionId="s1" />);
+    expect(await screen.findByText("Questions asked by the rep (1)")).toBeTruthy();
+    const q = screen.getByRole("button", { name: /What's driving the change this quarter\?/ });
+    expect(q.textContent).toContain("1:05");
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? withQ : { trims: [] }) })));
+    render(<RemoteCallPanel sessionId="s1" simple />);
+    await screen.findByRole("button", { name: "Back 15 seconds" });
+    expect(screen.queryByText(/Questions asked by the rep/)).toBeNull();
+  });
+});

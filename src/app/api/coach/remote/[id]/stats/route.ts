@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { getSession } from "@/lib/data/salesCoach";
 import { loadSessionTiming } from "@/lib/coach/remote/interactionStats";
-import { computeInteractionStats, talkTimeLanes } from "@/lib/coach/remote/stats";
+import { computeInteractionStats, questionMarkers, talkTimeLanes } from "@/lib/coach/remote/stats";
 import { assetUrlToStoragePath, signAssetUrl } from "@/lib/storage/assets";
 
 /**
@@ -45,6 +45,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
   const stats = computeInteractionStats(timing.segments);
   const lanes = talkTimeLanes(timing.segments);
+  // F9.6 (2026-11-26): the rep's questions as points on the timeline — the same rule as the question rate.
+  const questions = questionMarkers(timing.segments);
 
   // The rep's own last 30 days, latest transcript version per session, this session excluded.
   let averages: Avg | null = null;
@@ -93,5 +95,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     lanes,
     averages,
     audioUrl,
+    questions,
   });
 }
