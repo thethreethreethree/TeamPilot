@@ -3,11 +3,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1", isAdmin: false })) }));
 vi.mock("@/lib/storage/assets", () => ({ assetUrlToStoragePath: () => "p", signAssetUrl: vi.fn(async () => "https://signed/a") }));
-const st = vi.hoisted(() => ({ grant: null as unknown, audits: [] as unknown[], reads: [] as string[] }));
+const st = vi.hoisted(() => ({ grant: null as unknown, audits: [] as unknown[], reads: [] as string[], hidden: false }));
 vi.mock("@/lib/coach/remote/callGrants", () => ({ activeGrant: vi.fn(async () => st.grant) }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async (_a: unknown, e: unknown) => (st.audits.push(e), true)) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
+    rpc: async () => ({ data: st.hidden, error: null }),
     from: (t: string) => {
       st.reads.push(t);
       const q: Record<string, unknown> = {};
@@ -26,6 +27,7 @@ beforeEach(() => {
   st.grant = null;
   st.audits = [];
   st.reads = [];
+  st.hidden = false;
 });
 
 describe("GET shared call (0336)", () => {
@@ -40,5 +42,12 @@ describe("GET shared call (0336)", () => {
     expect(j).toMatchObject({ call: { label: "Acme", repName: "Rae" }, reason: "training", audioUrl: "https://signed/a", highlights: { keyPoints: ["Price matters"] } });
     expect(j.transcript).toEqual([{ speaker: "customer", text: "Too pricey", seq: 1 }]);
     expect(st.audits).toEqual([expect.objectContaining({ action: "call.view_granted", objectId: "s1", meta: { grantId: "g1" } })]);
+  });
+  it("a grant doesn't open a call hidden by a company phrase (0337)", async () => {
+    st.grant = { id: "g1", reason: "training" };
+    st.hidden = true;
+    const r = await get();
+    expect(r.status).toBe(404);
+    expect(st.reads).toEqual([]);
   });
 });

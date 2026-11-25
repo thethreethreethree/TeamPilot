@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
@@ -29,6 +30,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Couldn't open the call." }, { status: 500 });
   }
   if (!grant) return NextResponse.json({ error: "You don't have access to this call." }, { status: 404 });
+  // A call hidden by a company phrase (0337) stays hidden from a grantee too: only its rep and admins can read it.
+  try {
+    if ((await hiddenFrom(admin, [id], ctx.userId)).has(id)) return NextResponse.json({ error: "This call is hidden by a company rule." }, { status: 404 });
+  } catch (e) {
+    console.error(`[shared-call] hidden check failed session=${id}: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't open the call." }, { status: 500 });
+  }
 
   const [sess, segs, brief, trims] = await Promise.all([
     admin.from("coaching_sessions").select("id, agent_id, client_label, started_at, audio_asset_url").eq("id", id).eq("company_id", ctx.companyId).maybeSingle(),

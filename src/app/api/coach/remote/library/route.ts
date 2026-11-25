@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -101,8 +102,18 @@ export async function GET(req: NextRequest) {
   const nameById = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name]));
   const folderById = new Map(folders.map((f) => [f.id, f]));
 
+  // Hide-by-phrase (0337): a call hidden from this viewer never appears, whatever folder holds it — the same rule the
+  // database applies (hiddenFrom → rss_call_hidden_for). A failed check shows nothing rather than a hidden call.
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenFrom(admin, items.map((i) => String(i.session_id)), ctx.userId);
+  } catch (e) {
+    console.error(`[library] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
+  }
   const out = [];
   for (const i of items) {
+    if (hidden.has(String(i.session_id))) continue;
     const folder = folderById.get(String(i.folder_id));
     const viewerIsRep = String(i.rep_id) === ctx.userId;
     // From the tree only — NOT "I added it": a manager moved off a rep's chain must stop hearing their calls.

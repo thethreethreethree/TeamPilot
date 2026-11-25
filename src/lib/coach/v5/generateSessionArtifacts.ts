@@ -1,5 +1,6 @@
 import type { SalesSession, TranscriptSegment } from "@/lib/data/salesCoach";
 import { runAndStoreDissect } from "./salesDissect";
+import { scanCallForHidePhrases } from "@/lib/coach/remote/hidePhrases";
 import { runAndStoreSummary } from "./salesSummary";
 import { runAndStorePivot } from "./salesPivot";
 import { runAndStoreMoments } from "./salesMoments";
@@ -56,6 +57,8 @@ export async function generateSessionArtifacts(args: {
   // Keyword trackers (RSS Phase 3, migration 0276): match the transcript that just landed. Deterministic, no AI
   // call, never throws; phone/video sales sessions only (door sessions return 0 inside).
   await scanSessionTrackers(sessionId);
+  // Hide-by-phrase (0337): an admin's phrase in this call's transcript hides it from all but its rep and admins.
+  await scanCallForHidePhrases(null, sessionId); // never throws
   // Smart trackers (0329): one AI read of this call against all the company's smart trackers; none → no AI call.
   await scanSmartTrackers(sessionId);
   // Interaction stats (RSS Phase 2, migration 0277): deterministic, no AI call, never throws; phone/video only.

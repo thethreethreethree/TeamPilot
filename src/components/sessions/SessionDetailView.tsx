@@ -48,6 +48,7 @@ import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { CallPipelineLink } from "@/components/remote-sales/CallPipelineLink";
 import { ScenarioFromCallLink } from "@/components/remote-sales/ScenarioFromCallLink";
 import { CallAccessGrants } from "@/components/remote-sales/CallAccessGrants";
+import { HiddenCallNotice } from "@/components/remote-sales/HiddenCallNotice";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -492,6 +493,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
           {/* The General Sales Interface PDF's picture: the three tabs on the left, the player and talk lanes on the
               right; on a phone the player comes first. "That's it. Nothing else." (founder 2026-11-25) — stage chips,
               consent, downloads, clips, trims, stats and notes are in the full call page (stage chips only while it's processing), one tap away. */}
+          <HiddenCallNotice sessionId={id} />
           <StageChips sessionId={id} hideWhenReady />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
             <div className="lg:sticky lg:top-4 lg:order-2">
@@ -524,6 +526,9 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
           {module === "remote_sales" ? "Back to calls" : "Back to sessions"}
         </Link>
+        {/* 0337 (F33.8): a company phrase hid this call — the database refuses it to anyone but its rep and admins,
+            so for them `session` is null here; the notice says why. Renders nothing when the call isn't hidden. */}
+        {module === "remote_sales" && <HiddenCallNotice sessionId={id} />}
         {/* RSS Phase 1: where a phone/video session is in processing (renders nothing for door or meetings). */}
         {session && isRemoteContext(session.context) && <StageChips sessionId={id} />}
         {session && isRemoteContext(session.context) && session.status !== "active" && <ConsentStatus sessionId={id} />}

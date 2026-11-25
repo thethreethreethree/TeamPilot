@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { HidePhrasesPanel } from "@/components/remote-sales/HidePhrasesPanel";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { VocabularySettings } from "@/components/remote-sales/VocabularySettings";
@@ -281,6 +282,8 @@ export function ProtectionSettings() {
 
       <ErasurePanel />
       <WebhooksPanel />
+      {/* 0337 (F33.8): admin phrases that hide calls from all but the rep and admins. */}
+      <HidePhrasesPanel />
     </div>
   );
 }

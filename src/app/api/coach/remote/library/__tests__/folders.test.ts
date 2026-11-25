@@ -16,6 +16,7 @@ vi.mock("@/lib/coach/remote/library", async (orig) => ({
 const st = vi.hoisted(() => ({ lookups: [] as Array<[string, unknown]>, inserts: [] as Array<{ t: string; row: Record<string, unknown> }>, existing: [] as unknown[] }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
+    rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
     from: (t: string) => {
       const b: Record<string, unknown> = {};
       for (const m of ["select", "in", "order", "limit"]) b[m] = () => b;

@@ -39,6 +39,10 @@ export const AUDIT_ACTIONS = [
   "call.grant",
   "call.grant_revoke",
   "call.view_granted",
+  // Hide-by-phrase (0337, F33.8): an admin added / retired a phrase, or unhid a call.
+  "call.hide_phrase_add",
+  "call.hide_phrase_retire",
+  "call.unhide",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

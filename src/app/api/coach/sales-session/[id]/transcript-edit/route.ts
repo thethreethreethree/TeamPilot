@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { scanCallForHidePhrases } from "@/lib/coach/remote/hidePhrases";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await recordAudit(admin, { companyId: a.ctx.companyId, actorId: a.ctx.userId, action: "transcript.edit", objectType: "coaching_session", objectId: id, meta: { seq, version, field: "speaker" } });
     after(async () => {
       await scanSessionTrackers(id, admin);
+      await scanCallForHidePhrases(admin, id); // 0337: a corrected line can contain a hide phrase
       await storeInteractionStats(id, admin);
       if (typeof version === "number") await carrySmartHits(id, version, seq, admin);
     });
@@ -161,6 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // The free, deterministic reads follow the corrected words; both never throw.
   after(async () => {
     await scanSessionTrackers(id, admin);
+      await scanCallForHidePhrases(admin, id); // 0337: a corrected line can contain a hide phrase
     await storeInteractionStats(id, admin);
     // Smart-tracker hits on the untouched lines follow the new version (no AI call; 0329).
     if (typeof version === "number") await carrySmartHits(id, version, seq, admin);

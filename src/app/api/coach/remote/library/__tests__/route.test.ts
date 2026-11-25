@@ -37,6 +37,7 @@ const DATA: Record<string, unknown[]> = {
 };
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
+    rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
     from: (t: string) => {
       const b: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "order", "limit", "insert"]) b[m] = () => b;
