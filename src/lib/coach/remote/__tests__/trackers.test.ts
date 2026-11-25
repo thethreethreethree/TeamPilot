@@ -42,3 +42,22 @@ describe("partial-call window (0335, F11.3)", () => {
     expect(matchTracker({ ...T, within_first_seconds: null }, [seg(null)])).toHaveLength(1);
   });
 });
+
+describe("trackerAppliesTo (0344, F11.5)", () => {
+  it("no dates: every call; dated: from the start of the start day through the end of the end day (UTC)", async () => {
+    const { trackerAppliesTo } = await import("../trackers");
+    expect(trackerAppliesTo({}, null)).toBe(true);
+    const t = { starts_on: "2026-12-01", ends_on: "2026-12-31" };
+    expect(trackerAppliesTo(t, "2026-11-30T23:59:59Z")).toBe(false);
+    expect(trackerAppliesTo(t, "2026-12-01T00:00:00Z")).toBe(true);
+    expect(trackerAppliesTo(t, "2026-12-31T23:59:59Z")).toBe(true);
+    expect(trackerAppliesTo(t, "2027-01-01T00:00:00Z")).toBe(false);
+    expect(trackerAppliesTo({ starts_on: "2026-12-01" }, "2027-06-01T00:00:00Z")).toBe(true);
+    expect(trackerAppliesTo({ ends_on: "2026-12-01" }, "2026-01-01T00:00:00Z")).toBe(true);
+  });
+  it("a dated tracker leaves out a call with no known start", async () => {
+    const { trackerAppliesTo } = await import("../trackers");
+    expect(trackerAppliesTo({ starts_on: "2026-12-01" }, null)).toBe(false);
+    expect(trackerAppliesTo({ ends_on: "2026-12-01" }, "not a date")).toBe(false);
+  });
+});

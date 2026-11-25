@@ -59,6 +59,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-11 · health-backend-probe · migration 0271 applied, and `/api/health` on production shows `backend.quota.fileStorage.level` other than "unknown" — 0271 APPLIED; system_storage_usage() answers on production (0.77 GB after the 2026-11-21 cleanup). Still open: the deployed /api/health reading it (needs the push)
       why-unresolved: the project is suspended (402), so `db:verify`/`db:apply` cannot run until service is restored.
       next-action: after the founder restores the plan: `npm run db:verify` then `npm run db:apply`; curl production health.
+      2026-11-26: production /api/health (commit 93d52ea) reports backend.quota.fileStorage {level: "warn", pctUsed: 71.4,
+      quotaSource: "default-free-plan"} — the probe is live and reading; overall status "degraded" comes from this warn.
+      Open only in that the quota source is the free-plan default, not the project's actual plan limit.
 - [ ] 2026-11-11 · health-backend-probe · a person is alerted when `/api/health` is 503 or "degraded"
       why-unresolved: production has Sentry and email off; no monitor watches health. The endpoint is honest but unwatched.
       next-action: founder sets up an uptime monitor (non-200 + keyword "degraded") and/or adds NEXT_PUBLIC_SENTRY_DSN.

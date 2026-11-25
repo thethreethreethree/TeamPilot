@@ -16,7 +16,17 @@ import { AdoptionBoard } from "./AdoptionBoard";
  * any words. Saving one reads the last calls for it in the background (the route), so there is no preview or scan.
  */
 type Kind = "keyword" | "smart";
-type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind; within_first_seconds?: number | null };
+type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null };
+/** 0344 (F11.5): "from 1 Dec" / "until 31 Dec" / "1–31 Dec"; future start = scheduled. */
+const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+function datesLabel(t: Tracker): string {
+  if (!t.starts_on && !t.ends_on) return "";
+  const today = new Date().toISOString().slice(0, 10);
+  if (t.ends_on && t.ends_on < today) return ` · ended ${fmtDay(t.ends_on)}`;
+  if (t.starts_on && t.starts_on > today) return ` · scheduled from ${fmtDay(t.starts_on)}${t.ends_on ? ` until ${fmtDay(t.ends_on)}` : ""}`;
+  if (t.starts_on && t.ends_on) return ` · ${fmtDay(t.starts_on)} – ${fmtDay(t.ends_on)}`;
+  return t.starts_on ? ` · from ${fmtDay(t.starts_on)}` : ` · until ${fmtDay(t.ends_on!)}`;
+}
 type Preview = {
   callsChecked: number;
   callsWithHits: number;
@@ -41,6 +51,8 @@ export function KeywordTrackers() {
   const [kind, setKind] = useState<Kind>("keyword");
   // 0335 (F11.3): only the first N minutes of a call; empty = the whole call.
   const [windowMin, setWindowMin] = useState("");
+  const [startsOn, setStartsOn] = useState("");
+  const [endsOn, setEndsOn] = useState("");
   const windowMinutes = (): number | null | "bad" => {
     if (!windowMin.trim()) return null;
     const n = Number(windowMin);
@@ -105,15 +117,21 @@ export function KeywordTrackers() {
       setMsg("The window is between 0.5 and 60 minutes — or leave it empty for the whole call.");
       return;
     }
+    if (startsOn && endsOn && endsOn < startsOn) {
+      setMsg("The end date can't be before the start date.");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w });
+      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w, startsOn: startsOn || null, endsOn: endsOn || null });
       if (!ok) return setMsg(j.error ?? "Couldn't save the tracker.");
       setName("");
       setPhrases("");
       setSide("any");
       setWindowMin("");
+      setStartsOn("");
+      setEndsOn("");
       setPreview(null);
       setMsg(
         kind === "smart"
@@ -180,7 +198,8 @@ export function KeywordTrackers() {
                   )}
                   <span className="text-xs text-muted">
                     {t.active ? SIDE[t.side] : "Switched off"}
-                    {t.within_first_seconds ? ` · first ${Math.round((t.within_first_seconds / 60) * 10) / 10} min` : ""} ·{" "}
+                    {t.within_first_seconds ? ` · first ${Math.round((t.within_first_seconds / 60) * 10) / 10} min` : ""}
+                    {datesLabel(t)} ·{" "}
                     {t.kind === "smart" ? t.phrases.map((p) => `“${p}”`).join(" ") : t.phrases.join(", ")}
                   </span>
                   <button
@@ -270,6 +289,16 @@ export function KeywordTrackers() {
                   className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary"
                 />
                 <span className="mt-0.5 block text-[11px]">e.g. 2 — for a disclosure that must come early. Lines with no time aren&apos;t counted.</span>
+              </label>
+              <label className="text-xs text-muted">
+                Start date (optional)
+                <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.currentTarget.value)} aria-label="Start date" className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary" />
+                <span className="mt-0.5 block text-[11px]">Only calls from this day on. A past date reads back from then; a future one waits until that day.</span>
+              </label>
+              <label className="text-xs text-muted">
+                End date (optional)
+                <input type="date" value={endsOn} onChange={(e) => setEndsOn(e.currentTarget.value)} aria-label="End date" className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary" />
+                <span className="mt-0.5 block text-[11px]">Calls after this day aren&apos;t counted — e.g. the end of a campaign.</span>
               </label>
               <label className="text-xs text-muted md:col-span-2">
                 {kind === "smart"

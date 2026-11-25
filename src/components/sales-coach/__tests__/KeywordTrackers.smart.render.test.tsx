@@ -32,6 +32,6 @@ describe("KeywordTrackers — smart", () => {
     fireEvent.change(screen.getByLabelText(/Example sentences/), { target: { value: "Can you call me next week\n\nI need to think about it" } });
     fireEvent.click(screen.getByRole("button", { name: "Add tracker" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/Reading your last 7 calls/));
-    expect(posts).toEqual([{ name: "Call me later", phrases: ["Can you call me next week", "I need to think about it"], side: "any", kind: "smart", withinFirstMinutes: null }]);
+    expect(posts).toEqual([{ name: "Call me later", phrases: ["Can you call me next week", "I need to think about it"], side: "any", kind: "smart", withinFirstMinutes: null, startsOn: null, endsOn: null }]);
   });
 });

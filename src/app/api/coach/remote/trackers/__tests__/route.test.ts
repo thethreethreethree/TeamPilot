@@ -23,6 +23,7 @@ const db = vi.hoisted(() => ({
   sessions: [] as Array<{ id: string; agent_id: string; session_kind?: string | null }>,
   smartOn: 0,
   updateFound: true,
+  ranges: [] as Array<[string, string, unknown]>, // 0344: gte/lt on the backfill list
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -32,6 +33,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       const b: Record<string, unknown> = {};
       for (const m of ["select", "in", "neq", "order", "limit"]) b[m] = () => b;
       b.eq = (k: string, v: unknown) => (filters.push([k, v]), b);
+      b.gte = (k: string, v: unknown) => (db.ranges.push(["gte", k, v]), b);
+      b.lt = (k: string, v: unknown) => (db.ranges.push(["lt", k, v]), b);
       b.insert = (row: Record<string, unknown>) => (db.inserts.push(row), b);
       b.update = (p: Record<string, unknown>) => ((patch = p), b);
       b.maybeSingle = async () => {
@@ -66,6 +69,7 @@ beforeEach(() => {
   db.smartOn = 0;
   later.fns = [];
   db.updateFound = true;
+  db.ranges = [];
   mock(requireSalesCoachManager).mockResolvedValue(MGR);
 });
 
@@ -80,7 +84,7 @@ describe("POST /api/coach/remote/trackers", () => {
     const res = await POST(req({ name: "Competitors", phrases: ["  Spectrum ", "spectrum", "XFINITY"], side: "customer", company_id: "evil" }));
     expect(res.status).toBe(201);
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", within_first_seconds: null, created_by: "mgr1" },
+      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", within_first_seconds: null, starts_on: null, ends_on: null, created_by: "mgr1" },
     ]);
   });
 
@@ -121,7 +125,7 @@ describe("POST — smart trackers (0329)", () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ id: "t-new", backfilling: 2 });
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", within_first_seconds: null, created_by: "mgr1" },
+      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", within_first_seconds: null, starts_on: null, ends_on: null, created_by: "mgr1" },
     ]);
     expect(scanSmartTrackers).not.toHaveBeenCalled(); // nothing before the response
     for (const f of later.fns) await f();
@@ -159,5 +163,24 @@ describe("PATCH /api/coach/remote/trackers", () => {
   it("another company's tracker is a 404", async () => {
     db.updateFound = false;
     expect((await PATCH(req({ id: "11111111-1111-4111-8111-111111111111" }, "PATCH"))).status).toBe(404);
+  });
+});
+
+describe("POST — start and end dates (0344, F11.5)", () => {
+  it("stores the dates; an end before the start is refused and nothing is written", async () => {
+    expect((await POST(req({ name: "Campaign", phrases: ["promo"], startsOn: "2026-12-01", endsOn: "2026-12-31" }))).status).toBe(201);
+    expect(db.inserts[0]).toMatchObject({ starts_on: "2026-12-01", ends_on: "2026-12-31" });
+    db.inserts = [];
+    expect((await POST(req({ name: "Bad", phrases: ["promo"], startsOn: "2026-12-31", endsOn: "2026-12-01" }))).status).toBe(400);
+    expect((await POST(req({ name: "Bad", phrases: ["promo"], startsOn: "Dec 1" }))).status).toBe(400);
+    expect(db.inserts).toEqual([]);
+  });
+  it("a dated smart tracker reads back only calls inside its dates (end = through that whole day)", async () => {
+    db.sessions = [{ id: "s1", agent_id: "r1" }];
+    expect((await POST(req({ name: "Locked", phrases: ["We're locked in"], kind: "smart", startsOn: "2026-11-01", endsOn: "2026-11-15" }))).status).toBe(201);
+    expect(db.ranges).toEqual([
+      ["gte", "started_at", "2026-11-01T00:00:00Z"],
+      ["lt", "started_at", "2026-11-16T00:00:00.000Z"],
+    ]);
   });
 });

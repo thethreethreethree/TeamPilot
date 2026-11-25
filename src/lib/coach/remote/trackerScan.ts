@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
-import { matchTracker, type KeywordTracker, type Segment } from "./trackers";
+import { matchTracker, trackerAppliesTo, type KeywordTracker, type Segment } from "./trackers";
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 
 /**
@@ -33,7 +33,7 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
 
     const { data: trackerRows, error: tErr } = await admin
       .from("keyword_trackers")
-      .select("id, name, phrases, side, kind, within_first_seconds")
+      .select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on")
       .eq("company_id", companyId)
       .eq("active", true);
     if (tErr) {
@@ -41,7 +41,10 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
       return null;
     }
     // Smart trackers (0329) are matched by meaning in smartTrackerScan.ts, never as phrases here.
-    const trackers = ((trackerRows ?? []) as Array<KeywordTracker & { kind?: string }>).filter((t) => (t.kind ?? "keyword") !== "smart");
+    // Smart trackers are matched elsewhere; a dated tracker (0344) counts only on calls inside its dates.
+    const trackers = ((trackerRows ?? []) as Array<KeywordTracker & { kind?: string }>).filter(
+      (t) => (t.kind ?? "keyword") !== "smart" && trackerAppliesTo(t, (s.started_at as string | null) ?? null),
+    );
     if (trackers.length === 0) return 0;
 
     const { data: segRows, error: sErr } = await admin

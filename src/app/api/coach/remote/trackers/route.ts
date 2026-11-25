@@ -42,7 +42,10 @@ const CreateBody = z.object({
   kind: z.enum(["keyword", "smart"]).default("keyword"),
   // 0335: count only the first N minutes of a call (null/absent = the whole call). 0.5 to 60 minutes.
   withinFirstMinutes: z.number().min(0.5).max(60).nullable().optional(),
-});
+  // 0344 (F11.5): count only calls that started on or after startsOn and no later than endsOn (YYYY-MM-DD, UTC).
+  startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+}).refine((b) => !b.startsOn || !b.endsOn || b.endsOn >= b.startsOn, { message: "The end date can't be before the start date." });
 const ScanBody = z.object({ action: z.literal("scan") });
 const PatchBody = z.object({ id: z.string().uuid() });
 
@@ -54,7 +57,7 @@ export async function GET(req: NextRequest) {
 
   const db = callerScopedDb(req) ?? (await createClient());
   const [{ data, error }, manager] = await Promise.all([
-    db.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds, active, created_at").order("active", { ascending: false }).order("name"),
+    db.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on, active, created_at").order("active", { ascending: false }).order("name"),
     requireSalesCoachManager(req),
   ]);
   if (error) {
@@ -136,6 +139,8 @@ export async function POST(req: NextRequest) {
       side: body.side,
       kind: body.kind,
       within_first_seconds: body.withinFirstMinutes != null ? Math.round(body.withinFirstMinutes * 60) : null,
+      starts_on: body.startsOn ?? null,
+      ends_on: body.endsOn ?? null,
       created_by: manager.userId,
     })
     .select("id")
@@ -150,14 +155,16 @@ export async function POST(req: NextRequest) {
 
   // Backfill: the manager's most recent finished sales calls (their reporting tree, like "scan"), read for this
   // tracker alone after the response — the list is chosen now, while the request's auth is in hand.
-  const { data: recent, error: rErr } = await admin
+  // A dated tracker (0344) reads back only calls inside its dates (a past start date is "from then on").
+  let rq = admin
     .from("coaching_sessions")
     .select("id, agent_id, session_kind")
     .eq("company_id", manager.companyId)
     .in("context", ["phone", "video"])
-    .neq("status", "active")
-    .order("started_at", { ascending: false })
-    .limit(SMART_BACKFILL_CALLS * 4);
+    .neq("status", "active");
+  if (body.startsOn) rq = rq.gte("started_at", `${body.startsOn}T00:00:00Z`);
+  if (body.endsOn) rq = rq.lt("started_at", new Date(Date.parse(`${body.endsOn}T00:00:00Z`) + 86_400_000).toISOString());
+  const { data: recent, error: rErr } = await rq.order("started_at", { ascending: false }).limit(SMART_BACKFILL_CALLS * 4);
   if (rErr) {
     console.error(`[remote/trackers] backfill list failed company=${manager.companyId}: ${rErr.message}`);
     return NextResponse.json({ id, backfilling: 0 }, { status: 201 });

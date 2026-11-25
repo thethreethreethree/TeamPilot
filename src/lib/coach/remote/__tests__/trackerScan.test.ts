@@ -62,3 +62,16 @@ describe("scanSessionTrackers", () => {
     expect(await scanSessionTrackers("s1", broken)).toBeNull();
   });
 });
+
+describe("scanSessionTrackers — tracker dates (0344, F11.5)", () => {
+  it("a tracker dated outside the call's start isn't matched; one inside is", async () => {
+    const segs = [{ speaker: "customer", text: "We have Spectrum", seq: 3, spoken_at: null, version: 2 }];
+    const later = fake(S, segs, [{ ...T[0], starts_on: "2026-12-01" }]); // the call is 15 Nov
+    expect(await scanSessionTrackers("s1", later.db)).toBe(0);
+    expect(later.inserts).toEqual([]);
+    const ended = fake(S, segs, [{ ...T[0], ends_on: "2026-11-14" }]);
+    expect(await scanSessionTrackers("s1", ended.db)).toBe(0);
+    const inside = fake(S, segs, [{ ...T[0], starts_on: "2026-11-01", ends_on: "2026-11-15" }]);
+    expect(await scanSessionTrackers("s1", inside.db)).toBe(1);
+  });
+});

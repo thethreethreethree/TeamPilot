@@ -6,7 +6,21 @@ export type Speaker = 'rep' | 'customer' | 'unknown';
 export interface Segment { speaker: Speaker; startMs: number | null; text: string; seq?: number }
 
 /** `within_first_seconds` (0335): count only lines said in the first N seconds of the call; null/absent = the whole call. */
-export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any'; within_first_seconds?: number | null }
+export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any'; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null }
+
+/**
+ * Whether a tracker counts on a call that started at `callStartIso` (0344, F11.5): on or after its start date, and no
+ * later than the end of its end date (UTC calendar days, as stored). No dates → always. A call with no known start can't
+ * be placed, so a dated tracker leaves it out.
+ */
+export function trackerAppliesTo(t: { starts_on?: string | null; ends_on?: string | null }, callStartIso: string | null | undefined): boolean {
+  if (!t.starts_on && !t.ends_on) return true;
+  const at = callStartIso ? Date.parse(callStartIso) : NaN;
+  if (!Number.isFinite(at)) return false;
+  if (t.starts_on && at < Date.parse(`${t.starts_on}T00:00:00Z`)) return false;
+  if (t.ends_on && at >= Date.parse(`${t.ends_on}T00:00:00Z`) + 86_400_000) return false;
+  return true;
+}
 
 /** Whether a line at `startMs` is inside the tracker's window. No window → always. A line with no time can't be placed. */
 export function inWindow(withinFirstSeconds: number | null | undefined, startMs: number | null): boolean {
