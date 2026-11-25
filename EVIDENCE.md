@@ -96,3 +96,30 @@ Compared with the code [OBSERVED]:
 Present and matching: the three tabs and their sections in order; Send to CRM; scorechart 0–100 + did well / improve + cited research; agenda / bring up again / reviewed checklist with Add to calendar; Open $ / Closed Won / Closed Lost tiles; To do / stage / next / last call / amount per prospect; brain dump, needle movers, yesterday.
 
 Not opened: the linked video "Using Gong Engage to Manage My Pipeline" (a YouTube link in the PDF).
+
+# EVIDENCE — Gong capture `~/sitegrab-captures/GONG/gong.io-2026-11-22` (founder, 2026-11-25: "inspect the gong system images")
+
+- **Path:** `/Users/elostate/sitegrab-captures/GONG/gong.io-2026-11-22/` · `desktop/` 760 PNGs (3.7 GB, 2880 px wide, up to
+  ~15,600 px tall) · `pages.txt` 115,961 B (1,588 URLs; byte-identical to the `GONG 2` capture's) · `failures.json` (829 pages
+  not captured: `net::ERR_INTERNET_DISCONNECTED`).
+- **How it was read:** macOS Vision OCR of every page in 2,400 px tiles (scratchpad `gongocr/tools/ocr.swift`). **No image
+  was viewed by eye** — the image reads were refused (four helper agents and two direct reads). Every fact below is [OCR]:
+  words recognised from the screenshot, including inside product mock-ups; layout and drawn elements are unknown.
+- **A fact from inside** [OCR]: `670_call-spotlight.png` (2880×10604) shows a call outline with the contents row
+  "Introduction • Current Sales Process • Top Priorities • Challenges • Ideal Customer Profile • Visibility Into Deals •
+  Identifying Successful Calls" and chips "OUTCOME" / "NEXT STEP" ("Rep to send meeting invite").
+- **Three records, different fields** [OCR]: `009_actionable-sales-analytics` — a stat column "Talk Ratio … BEST PRACTICE …
+  Team Avg 51%"; `008_account-management-software` — Coaching Inbox columns "Team Members · Coaching Activity · Recorded
+  Calls · Feedback · Attended/Listened", row "Ben Duke · 180 Calls · 1 of 3"; `224_blog__gong-for-onboarding` — Team stats
+  tabs "STATS · ACTIVITY · INTERACTION · TOPICS · TRACKERS · SCORECARDS · GONG USAGE · COACHING RECEIVED".
+- **What it adds:** 217 of the 760 pages are not in `GONG 2` (122 blog posts, all 79 customer stories, 16 product pages incl.
+  call-spotlight, complete-sales-coaching, conversation-intelligence, call-sharing). Per-image lines (760, one per PNG) and
+  the facts mapped to ledger ids: scratchpad `gongocr/evidence_lines.txt`, `gongocr/FINDINGS.md`.
+- **Used so far:** the question list on the call page (F9.6, 6fff9bad) answers the "questions asked" points of interest;
+  saved-search follows (F12.7) match the "saved filter … alerting them" behaviour. Best-practice bands and topic advice per
+  rep are recorded, not built (Gong benchmarks as targets are out of scope per the build plan's reference README).
+
+## Not opened
+
+All 760 PNGs by eye (read as files by OCR only), and all 197 product-page tiles cut for viewing. Blog/customer pages beyond
+212, 022, 224, 076, 308, 383, 425 were OCR-ranked, not read.
