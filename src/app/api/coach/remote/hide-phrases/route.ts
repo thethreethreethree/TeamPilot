@@ -5,11 +5,12 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
-import { activeHidePhrases, scanCallForHidePhrases } from "@/lib/coach/remote/hidePhrases";
+import { activeHidePhrases, hiddenCallsForCompany, scanCallForHidePhrases } from "@/lib/coach/remote/hidePhrases";
 
 /**
  * /api/coach/remote/hide-phrases — a company admin's phrases that hide calls (0337, F33.8). Admins only.
- *   GET    → the phrases (active ones), each with how many calls it currently hides.
+ *   GET    → the phrases (active ones), each with how many calls it currently hides, and the hidden calls themselves
+ *            (any phrase, retired or not; label, date, rep name) so an admin can open and unhide one.
  *   POST   { phrase } → added; the company's phone/video calls from the last 90 days are checked for it in the
  *          background (that phrase only). Audited.
  *   DELETE { phraseId } → retired: no new hides; calls it already hid stay hidden until an admin unhides them. Audited.
@@ -44,8 +45,16 @@ export async function GET(req: NextRequest) {
       : { data: [], error: null };
     if (uErr) throw new Error(uErr.message);
     const unhidden = new Set(((un ?? []) as Array<{ hide_id: string }>).map((u) => String(u.hide_id)));
+    const calls = await hiddenCallsForCompany(g.admin, g.ctx.companyId);
+    const repIds = [...new Set(calls.map((c) => c.repId))];
+    const { data: reps, error: pErr } = repIds.length
+      ? await g.admin.from("profiles").select("id, full_name").eq("company_id", g.ctx.companyId).in("id", repIds)
+      : { data: [], error: null };
+    if (pErr) throw new Error(pErr.message);
+    const name = new Map(((reps ?? []) as Array<{ id: string; full_name: string | null }>).map((r) => [String(r.id), r.full_name]));
     return NextResponse.json({
       phrases: phrases.map((p) => ({ ...p, hiding: hideRows.filter((h) => String(h.phrase_id) === p.id && !unhidden.has(String(h.id))).length })),
+      hiddenCalls: calls.map((c) => ({ sessionId: c.sessionId, label: c.label, startedAt: c.startedAt, rep: name.get(c.repId) ?? null, phrases: c.phrases })),
     });
   } catch (e) {
     console.error(`[hide-phrases] read failed company=${g.ctx.companyId}: ${e instanceof Error ? e.message : String(e)}`);

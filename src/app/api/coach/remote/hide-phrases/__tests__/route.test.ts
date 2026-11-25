@@ -15,6 +15,7 @@ const st = vi.hoisted(() => ({
 vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: (fn: () => Promise<void>) => st.afters.push(fn) }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async (_a: unknown, e: unknown) => (st.audits.push(e), true)) }));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenCallsForCompany: vi.fn(async () => [{ sessionId: "s9", label: "Acme", startedAt: "2026-11-20T10:00:00Z", repId: "rep1", phrases: ["retired phrase"] }]),
   activeHidePhrases: vi.fn(async () => [{ id: "p1", phrase: "personal call" }]),
   scanCallForHidePhrases: vi.fn(async (_a: unknown, id: string, only: unknown) => void st.scans.push([id, only])),
 }));
@@ -26,7 +27,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.eq = (c: string, v: unknown) => (st.eqs.push([t, c, v]), q);
       q.limit = async () => (st.recentErr ? { data: null, error: st.recentErr } : { data: [{ id: "s1" }, { id: "s2" }], error: null });
       q.maybeSingle = async () => ({ data: st.phrase, error: null });
-      q.then = (res: (v: unknown) => unknown) =>
+      if (t === "profiles") q.then = (res: (v: unknown) => unknown) => res({ data: [{ id: "rep1", full_name: "Ana" }], error: null });
+      if (t !== "profiles") q.then = (res: (v: unknown) => unknown) =>
         res(t === "call_hides" ? { data: [{ id: "h1", phrase_id: "p1" }, { id: "h2", phrase_id: "p1" }], error: null } : t === "call_unhides" ? { data: [{ hide_id: "h2" }], error: null } : { data: [], error: null });
       q.insert = (row: unknown) => {
         st.inserts.push({ t, row });
@@ -58,6 +60,10 @@ describe("hide phrases (0337)", () => {
   it("GET counts only hides that weren't unhidden", async () => {
     const j = (await ((await GET(req("GET"))) as Response).json()) as { phrases: Array<{ hiding: number }> };
     expect(j.phrases).toEqual([{ id: "p1", phrase: "personal call", hiding: 1 }]);
+  });
+  it("GET lists the hidden calls with the rep's name, even ones a retired phrase hid", async () => {
+    const j = (await ((await GET(req("GET"))) as Response).json()) as { hiddenCalls: unknown[] };
+    expect(j.hiddenCalls).toEqual([{ sessionId: "s9", label: "Acme", startedAt: "2026-11-20T10:00:00Z", rep: "Ana", phrases: ["retired phrase"] }]);
   });
   it("POST adds for the admin's company, audits, and checks recent calls for that phrase only, after the response", async () => {
     const r = (await POST(req("POST", { phrase: "  personal call " }))) as Response;

@@ -9,9 +9,11 @@ import { useCallback, useEffect, useState } from "react";
  * call). The panel renders nothing for a non-admin (the route answers 403).
  */
 type P = { id: string; phrase: string; hiding: number };
+type H = { sessionId: string; label: string | null; startedAt: string | null; rep: string | null; phrases: string[] };
 
 export function HidePhrasesPanel() {
   const [phrases, setPhrases] = useState<P[] | null>(null);
+  const [calls, setCalls] = useState<H[]>([]);
   const [state, setState] = useState<"loading" | "hidden" | "failed" | "ok">("loading");
   const [text, setText] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -21,7 +23,9 @@ export function HidePhrasesPanel() {
       const r = await fetch("/api/coach/remote/hide-phrases", { cache: "no-store" });
       if (r.status === 403) return setState("hidden");
       if (!r.ok) return setState("failed");
-      setPhrases(((await r.json()) as { phrases: P[] }).phrases);
+      const j = (await r.json()) as { phrases: P[]; hiddenCalls?: H[] };
+      setPhrases(j.phrases);
+      setCalls(j.hiddenCalls ?? []);
       setState("ok");
     } catch {
       setState("failed");
@@ -71,6 +75,26 @@ export function HidePhrasesPanel() {
         </ul>
       ) : (
         <p className="mt-2 text-xs text-secondary">No phrases yet.</p>
+      )}
+      {calls.length > 0 && (
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer text-secondary hover:text-primary">Hidden calls ({calls.length})</summary>
+          <ul className="mt-1 space-y-1">
+            {calls.map((c) => (
+              <li key={c.sessionId}>
+                <a href={`/dashboard/remote-sales/calls/${encodeURIComponent(c.sessionId)}`} className="text-primary underline-offset-2 hover:underline">
+                  {c.label ?? "Call"}
+                </a>
+                <span className="text-muted">
+                  {" "}
+                  · {c.rep ?? "a rep"}
+                  {c.startedAt ? ` · ${new Date(c.startedAt).toLocaleDateString()}` : ""} · {c.phrases.map((p) => `“${p}”`).join(", ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-muted">Open a call to unhide it.</p>
+        </details>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <input value={text} onChange={(e) => setText(e.currentTarget.value)} maxLength={120} placeholder="e.g. this is a personal call" aria-label="Phrase" className="min-w-0 flex-1 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />

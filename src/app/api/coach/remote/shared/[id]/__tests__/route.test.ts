@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       for (const m of ["select", "eq", "order", "limit", "in"]) q[m] = () => q;
       q.maybeSingle = async () => ({ data: t === "coaching_sessions" ? { agent_id: "rep1", client_label: "Acme", started_at: "2026-11-20T10:00:00Z", audio_asset_url: "assets/a" } : { full_name: "Rae" }, error: null });
       q.then = (res: (v: unknown) => unknown) =>
-        res({ data: t === "coaching_transcript_segments_current" ? [{ speaker: "customer", text: "Too pricey", seq: 1 }] : t === "remote_call_briefs" ? [{ key_points: [{ text: "Price matters" }], next_steps: [] }] : [], error: null });
+        res({ data: t === "coaching_transcript_segments_current" ? [{ speaker: "customer", text: "Too pricey", seq: 1 }] : t === "remote_call_briefs" ? [{ key_points: [{ text: "Price matters" }], next_steps: [] }] : t === "call_hides" && st.hidden ? [{ session_id: "s1" }] : [], error: null });
       return q;
     },
   }),
@@ -48,6 +48,6 @@ describe("GET shared call (0336)", () => {
     st.hidden = true;
     const r = await get();
     expect(r.status).toBe(404);
-    expect(st.reads).toEqual([]);
+    expect(st.reads).toEqual(["call_hides"]); // only the hide check itself — nothing of the call's content
   });
 });
