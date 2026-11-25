@@ -16,6 +16,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.maybeSingle = async () => ({ data: t === "coaching_sessions" ? { agent_id: "rep1", client_label: "Acme", started_at: "2026-11-20T10:00:00Z", audio_asset_url: "assets/a" } : { full_name: "Rae" }, error: null });
       q.then = (res: (v: unknown) => unknown) =>
         res({ data: t === "coaching_transcript_segments_current" ? [{ speaker: "customer", text: "Too pricey", seq: 1 }] : t === "remote_call_briefs" ? [{ key_points: [{ text: "Price matters" }], next_steps: [] }] : t === "call_hides" && st.hidden ? [{ session_id: "s1" }] : [], error: null });
+      // Paged reads (review 2026-11-26): the first page is the data, later pages empty.
+      q.range = (f: number) => new Promise((res) => (q.then as (r: (x: unknown) => unknown) => unknown)((x: unknown) => res(f > 0 ? { data: [], error: null } : x)));
       return q;
     },
   }),

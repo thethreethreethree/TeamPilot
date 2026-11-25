@@ -41,6 +41,8 @@ export type CallSearchFilters = {
   topic?: string;
   /** Remote Sales' own search: phone and video calls only (founder 2026-11-22, separate from Sales Coach). */
   remoteOnly?: boolean;
+  /** Internal (never parsed from a URL): calls that ENDED at or after this time — a followed search's "new" (0342). */
+  endedAfter?: string;
 };
 
 export type CallSearchHit = { seq: number; speaker: string; text: string; atMs: number | null };
@@ -280,6 +282,7 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
   if (f.outcome) query = query.eq("outcome", f.outcome);
   if (f.from) query = query.gte("started_at", f.from);
   if (f.to) query = query.lte("started_at", f.to);
+  if (f.endedAfter) query = query.gte("ended_at", f.endedAfter);
   const { data: sessions, error: sErr } = await query;
   if (sErr) {
     console.error(`[callSearch] session read failed: ${sErr.message}`);

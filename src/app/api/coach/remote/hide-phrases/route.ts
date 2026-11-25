@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { activeHidePhrases, hiddenCallsForCompany, scanCallForHidePhrases } from "@/lib/coach/remote/hidePhrases";
 
 /**
@@ -35,16 +36,25 @@ export async function GET(req: NextRequest) {
   if ("res" in g) return g.res;
   try {
     const phrases = await activeHidePhrases(g.admin, g.ctx.companyId);
-    const { data: hides, error } = phrases.length
-      ? await g.admin.from("call_hides").select("id, phrase_id").eq("company_id", g.ctx.companyId).in("phrase_id", phrases.map((p) => p.id))
-      : { data: [], error: null };
-    if (error) throw new Error(error.message);
-    const hideRows = (hides ?? []) as Array<{ id: string; phrase_id: string }>;
-    const { data: un, error: uErr } = hideRows.length
-      ? await g.admin.from("call_unhides").select("hide_id").eq("company_id", g.ctx.companyId).in("hide_id", hideRows.map((h) => h.id))
-      : { data: [], error: null };
-    if (uErr) throw new Error(uErr.message);
-    const unhidden = new Set(((un ?? []) as Array<{ hide_id: string }>).map((u) => String(u.hide_id)));
+    // Paged and chunked (review 2026-11-26): a phrase can hide thousands of calls.
+    const hideRows: Array<{ id: string; phrase_id: string }> = [];
+    if (phrases.length) {
+      const { data, error } = await fetchAllPagedResult<{ id: string; phrase_id: string }>(
+        (f, t) => g.admin.from("call_hides").select("id, phrase_id").eq("company_id", g.ctx.companyId).in("phrase_id", phrases.map((p) => p.id)).order("id", { ascending: true }).range(f, t),
+        { label: "hide-phrase hides", maxRows: 200_000 },
+      );
+      if (error) throw new Error(error.message);
+      hideRows.push(...(data ?? []));
+    }
+    const unhidden = new Set<string>();
+    for (let i = 0; i < hideRows.length; i += 150) {
+      const { data, error } = await fetchAllPagedResult<{ hide_id: string }>(
+        (f, t) => g.admin.from("call_unhides").select("hide_id").eq("company_id", g.ctx.companyId).in("hide_id", hideRows.slice(i, i + 150).map((h) => h.id)).order("hide_id", { ascending: true }).range(f, t),
+        { label: "hide-phrase unhides", maxRows: 200_000 },
+      );
+      if (error) throw new Error(error.message);
+      for (const u of data ?? []) unhidden.add(String(u.hide_id));
+    }
     const calls = await hiddenCallsForCompany(g.admin, g.ctx.companyId);
     const repIds = [...new Set(calls.map((c) => c.repId))];
     const { data: reps, error: pErr } = repIds.length

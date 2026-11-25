@@ -35,14 +35,15 @@ export function followStates(events: SearchEvent[]): Map<string, FollowState> {
 export const NEW_CAP = 50;
 
 /**
- * How many calls match `query` and started after `since` — Remote Sales calls only, through `db` (the caller's own
- * client). The search's own "from" date still applies if it is later. null = couldn't run (never shown as 0).
+ * How many calls match `query` and ENDED after `since` — Remote Sales calls only, through `db` (the caller's own
+ * client). "Ended", not "started" (review 2026-11-26): a call still in progress or processing when the person looked
+ * is counted once it ends, instead of slipping past. The search's own date filters apply as saved. null = couldn't run
+ * (never shown as 0); capped = the count is a floor (too many matches to count, or the word search hit its read cap).
  */
 export async function newMatches(db: SupabaseClient, query: string, since: string): Promise<{ count: number; capped: boolean } | null> {
   const parsed = parseCallSearch(new URLSearchParams(query));
   if ("error" in parsed) return null;
-  const from = parsed.filters.from && Date.parse(parsed.filters.from) > Date.parse(since) ? parsed.filters.from : since;
-  const r = await runCallSearch(db, { ...parsed.filters, from, remoteOnly: true });
+  const r = await runCallSearch(db, { ...parsed.filters, endedAfter: since, remoteOnly: true });
   if (!r.ok) return null;
   return { count: Math.min(r.rows.length, NEW_CAP), capped: r.rows.length > NEW_CAP || r.truncated || r.narrower === true };
 }

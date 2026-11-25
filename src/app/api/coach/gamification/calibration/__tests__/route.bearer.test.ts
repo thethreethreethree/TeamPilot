@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * is a DISTINCT auth path from my-points (manager gate + admin reads, not an owner caller-scoped read), so it earns
  * its own test. resolveApiAuth is stubbed to a Bearer-authenticated manager; the admin client is faked per-table.
  */
+// 0337: no call is hidden in these tests (the hide's own rules are tested in hidePhrases.test.ts).
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async () => new Set()), hiddenInCompanyFrom: vi.fn(async () => new Set()) }));
 vi.mock("@/lib/api/treeAccess", () => ({
   // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
   treeAllowsRep: vi.fn(async () => true),

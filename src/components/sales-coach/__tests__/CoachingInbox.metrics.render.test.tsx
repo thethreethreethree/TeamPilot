@@ -66,3 +66,20 @@ describe("coaching metrics", () => {
     expect(await screen.findByText("3 h (1)")).toBeTruthy();
   });
 });
+
+describe("CoachingInbox — switching team (review 2026-11-26)", () => {
+  it("a failed load for the new team shows the failure, not the previous team's rows", async () => {
+    const { render, screen, waitFor } = await import("@testing-library/react");
+    const { CoachingInbox } = await import("../CoachingInbox");
+    let fail = false;
+    vi.stubGlobal("fetch", vi.fn((u: string) => {
+      if (u.includes("coaching-inbox")) return fail ? Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "Team not found." }) }) : Promise.resolve({ ok: true, status: 200, json: async () => ({ available: true, items: [{ id: "a", sessionId: "s1", repId: "r1", repName: "Old Team Rep", callLabel: "Acme", context: "phone", callAt: "2026-11-20T10:00:00Z", message: null, createdAt: "2026-11-20T10:00:00Z", open: true, toYou: true, toNamedManager: false, youListenedSeconds: 0 }] }) });
+      return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+    }));
+    const { rerender } = render(<CoachingInbox team="t1" />);
+    expect(await screen.findByText(/Old Team Rep/)).toBeTruthy();
+    fail = true;
+    rerender(<CoachingInbox team="t2" />);
+    await waitFor(() => expect(screen.queryByText(/Old Team Rep/)).toBeNull());
+  });
+});

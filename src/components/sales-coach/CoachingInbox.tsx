@@ -76,6 +76,12 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
 
   useEffect(() => {
     let live = true;
+    // A new team: clear the last one's numbers first, so a failed or refused load never leaves them on screen
+    // under the new team's name (review 2026-11-26).
+    setWire(null);
+    setMetrics(null);
+    setFailed(false);
+    setOpenRep(null);
     fetch(withTeam("/api/coach/remote/coaching-inbox", team))
       .then(async (r) => {
         if (r.status === 403) return null; // not a manager: render nothing

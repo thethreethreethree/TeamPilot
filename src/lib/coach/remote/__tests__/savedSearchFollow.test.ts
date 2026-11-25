@@ -32,13 +32,15 @@ describe("followStates (0342)", () => {
 });
 
 describe("newMatches (0342)", () => {
-  it("runs the saved filters, Remote Sales only, from the later of `since` and the search's own from date", async () => {
+  it("runs the saved filters, Remote Sales only, counting calls that ENDED since (the saved dates still apply)", async () => {
     run.calls = [];
     run.result = { ok: true, rows: [1, 2], truncated: false };
     expect(await newMatches({} as never, "q=price&from=2026-11-01", "2026-11-20T00:00:00Z")).toEqual({ count: 2, capped: false });
-    expect(run.calls[0]).toMatchObject({ q: "price", from: "2026-11-20T00:00:00Z", remoteOnly: true });
-    await newMatches({} as never, "from=2026-11-25", "2026-11-20T00:00:00Z");
-    expect((run.calls[1] as { from: string }).from).toBe(new Date("2026-11-25").toISOString());
+    expect(run.calls[0]).toMatchObject({ q: "price", from: new Date("2026-11-01").toISOString(), endedAfter: "2026-11-20T00:00:00Z", remoteOnly: true });
+  });
+  it("a word search that hit its read cap is a floor (capped), not a confident count", async () => {
+    run.result = { ok: true, rows: [], truncated: false, narrower: true };
+    expect(await newMatches({} as never, "q=price", "2026-11-20T00:00:00Z")).toEqual({ count: 0, capped: true });
   });
   it("caps the count and says so; a failed run or a bad query is null", async () => {
     run.result = { ok: true, rows: Array.from({ length: NEW_CAP + 5 }, (_, i) => i), truncated: false };

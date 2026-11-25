@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 
 /** GET /api/coach/remote/coaching-metrics (RSS Phase 4). D8 was NOT DECIDED (409, never a guessed number) until the
  *  founder decided it on 2026-11-22; it now computes under the chosen rule. */
+// 0337: no call is hidden in these tests (the hide's own rules are tested in hidePhrases.test.ts).
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async () => new Set()), hiddenInCompanyFrom: vi.fn(async () => new Set()) }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn(async () => ({ userId: "mgr1", companyId: "co1" })) }));
 vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async () => []) }));

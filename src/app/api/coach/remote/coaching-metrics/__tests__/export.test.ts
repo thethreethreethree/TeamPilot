@@ -8,6 +8,8 @@ const DAY = 86_400_000;
 const now = Date.now();
 const iso = (daysAgo: number) => new Date(now - daysAgo * DAY).toISOString();
 
+// 0337: no call is hidden in these tests (the hide's own rules are tested in hidePhrases.test.ts).
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async () => new Set()), hiddenInCompanyFrom: vi.fn(async () => new Set()) }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn(async () => ({ userId: "mgr1", companyId: "co1" })) }));

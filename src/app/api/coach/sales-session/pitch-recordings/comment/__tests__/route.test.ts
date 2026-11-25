@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
     },
     from: (table: string) => {
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in"]) b[m] = () => b;
+      for (const m of ["select", "eq", "in", "order"]) b[m] = () => b;
       b.maybeSingle = async () =>
         table === "pitch_scores"
           ? { data: { id: "p1", company_id: "co1", rep_id: "rep1", session_id: "s1" }, error: null }
@@ -41,6 +41,8 @@ vi.mock("@/lib/supabase/admin", () => ({
         r.then = (res: (v: unknown) => unknown) => res({ error: null });
         return r;
       };
+      // Paged reads (review 2026-11-26): the first page is the data, later pages empty.
+      b.range = (f: number) => new Promise((res) => (b.then as (r: (x: unknown) => unknown) => unknown)((x: unknown) => res(f > 0 ? { data: [], error: null } : x)));
       return b;
     },
   }),

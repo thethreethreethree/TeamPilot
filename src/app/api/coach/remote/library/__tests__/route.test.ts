@@ -5,6 +5,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * rep's consent stands, and never learns an unapproved one exists; the rep and a manager the tree allows see it
  * with its approval state; removed items are gone; peers cannot add to the company library.
  */
+// 0337: no call is hidden in these tests (the hide's own rules are tested in hidePhrases.test.ts).
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async () => new Set()), hiddenInCompanyFrom: vi.fn(async () => new Set()) }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 const who = vi.hoisted(() => ({ userId: "peer", manager: false, tree: [] as string[] }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: who.userId, companyId: "co1" })) }));

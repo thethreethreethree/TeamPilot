@@ -1,5 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
+
+/**
+ * Review 2026-11-26: every read here is paged (PostgREST returns at most 1000 rows — an unpaged read silently drops the
+ * rest) and every id list is chunked (a long .in() list makes a URL too long to send). A failed read throws.
+ */
+const CHUNK = 150;
+async function allRows<T>(label: string, make: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
+  const { data, error } = await fetchAllPagedResult<T>(make, { label, maxRows: 200_000 });
+  if (error) throw new Error(`${label} read failed: ${error.message}`);
+  return data ?? [];
+}
+const chunks = <T,>(xs: T[]) => Array.from({ length: Math.ceil(xs.length / CHUNK) }, (_, i) => xs.slice(i * CHUNK, (i + 1) * CHUNK));
 
 /**
  * Hide-by-phrase (0337; Gong ledger F33.8; founder pickers "Hide by phrase, admin rules", "Real hide, in stages").
@@ -37,13 +50,15 @@ export async function activeHidePhrases(admin: SupabaseClient, companyId: string
  * a call hidden by a phrase that was later retired can still be found and unhidden. Throws on a failed read.
  */
 export async function hiddenCallsForCompany(admin: SupabaseClient, companyId: string, limit = 200) {
-  const { data: hides, error } = await admin.from("call_hides").select("id, session_id, phrase, created_at").eq("company_id", companyId).order("created_at", { ascending: false }).limit(1000);
-  if (error) throw new Error(`call hides read failed: ${error.message}`);
-  const rows = (hides ?? []) as Array<{ id: string; session_id: string; phrase: string; created_at: string }>;
+  const rows = await allRows<{ id: string; session_id: string; phrase: string; created_at: string }>("call hides", (f, t) =>
+    admin.from("call_hides").select("id, session_id, phrase, created_at").eq("company_id", companyId).order("created_at", { ascending: false }).order("id", { ascending: true }).range(f, t),
+  );
   if (!rows.length) return [];
-  const { data: un, error: uErr } = await admin.from("call_unhides").select("hide_id").eq("company_id", companyId).in("hide_id", rows.map((h) => h.id));
-  if (uErr) throw new Error(`call unhides read failed: ${uErr.message}`);
-  const gone = new Set(((un ?? []) as Array<{ hide_id: string }>).map((u) => String(u.hide_id)));
+  const gone = new Set<string>();
+  for (const ids of chunks(rows.map((h) => String(h.id)))) {
+    const un = await allRows<{ hide_id: string }>("call unhides", (f, t) => admin.from("call_unhides").select("hide_id").eq("company_id", companyId).in("hide_id", ids).order("hide_id", { ascending: true }).range(f, t));
+    for (const u of un) gone.add(String(u.hide_id));
+  }
   const bySession = new Map<string, { sessionId: string; phrases: string[]; hiddenAt: string }>();
   for (const h of rows) {
     if (gone.has(String(h.id))) continue;
@@ -53,9 +68,12 @@ export async function hiddenCallsForCompany(admin: SupabaseClient, companyId: st
   }
   const list = [...bySession.values()].slice(0, limit);
   if (!list.length) return [];
-  const { data: ss, error: sErr } = await admin.from("coaching_sessions").select("id, client_label, started_at, agent_id").eq("company_id", companyId).in("id", list.map((l) => l.sessionId));
-  if (sErr) throw new Error(`hidden calls read failed: ${sErr.message}`);
-  const info = new Map(((ss ?? []) as Array<{ id: string; client_label: string | null; started_at: string | null; agent_id: string }>).map((x) => [String(x.id), x]));
+  const info = new Map<string, { id: string; client_label: string | null; started_at: string | null; agent_id: string }>();
+  for (const ids of chunks(list.map((l) => l.sessionId))) {
+    const { data: ss, error: sErr } = await admin.from("coaching_sessions").select("id, client_label, started_at, agent_id").eq("company_id", companyId).in("id", ids);
+    if (sErr) throw new Error(`hidden calls read failed: ${sErr.message}`);
+    for (const x of (ss ?? []) as Array<{ id: string; client_label: string | null; started_at: string | null; agent_id: string }>) info.set(String(x.id), x);
+  }
   return list
     .filter((l) => info.has(l.sessionId))
     .map((l) => ({ ...l, label: info.get(l.sessionId)!.client_label, startedAt: info.get(l.sessionId)!.started_at, repId: String(info.get(l.sessionId)!.agent_id) }));
@@ -80,12 +98,16 @@ export async function scanCallForHidePhrases(client: SupabaseClient | null, sess
     const companyId = String(s.company_id);
     const phrases = only ?? (await activeHidePhrases(admin, companyId));
     if (!phrases.length) return [];
-    const { data: segs, error } = await admin.from("coaching_transcript_segments_current").select("text").eq("session_id", sessionId).order("seq", { ascending: true });
+    // Paged: a phrase said after the 1000th line must still hide the call (review 2026-11-26).
+    const { data: segs, error } = await fetchAllPagedResult<{ text: string }>(
+      (f, t) => admin.from("coaching_transcript_segments_current").select("text, seq").eq("session_id", sessionId).order("seq", { ascending: true }).range(f, t),
+      { label: "hide-phrase transcript", maxRows: 100_000 },
+    );
     if (error) {
       console.error(`[hidePhrases] transcript read failed session=${sessionId}: ${error.message}`);
       return null;
     }
-    const text = ((segs ?? []) as Array<{ text: string }>).map((x) => x.text).join(" \n ");
+    const text = (segs ?? []).map((x) => x.text).join(" \n ");
     const hits = matchHidePhrases(text, phrases);
     const hid: string[] = [];
     for (const h of hits) {
@@ -112,10 +134,9 @@ export async function hiddenFrom(admin: SupabaseClient, sessionIds: string[], vi
   // come from the caller's company-scoped reads; hides are keyed by session, so no other company's row can match.
   const all = [...new Set(sessionIds)];
   const withHide = new Set<string>();
-  for (let i = 0; i < all.length; i += 200) {
-    const { data, error } = await admin.from("call_hides").select("session_id").in("session_id", all.slice(i, i + 200));
-    if (error) throw new Error(`hidden check failed: ${error.message}`);
-    for (const r of (data ?? []) as Array<{ session_id: string }>) withHide.add(String(r.session_id));
+  for (const ids of chunks(all)) {
+    const rows = await allRows<{ session_id: string }>("hidden check", (f, t) => admin.from("call_hides").select("session_id").in("session_id", ids).order("session_id", { ascending: true }).range(f, t));
+    for (const r of rows) withHide.add(String(r.session_id));
   }
   const ids = all.filter((id) => withHide.has(id));
   const results = await Promise.all(
@@ -129,21 +150,14 @@ export async function hiddenFrom(admin: SupabaseClient, sessionIds: string[], vi
 }
 
 /**
- * For a company-wide list (0337): every call of this company hidden FROM this viewer. A company has few hides, so this
- * reads its hide rows once (not one check per listed call) and asks the database rule (rss_call_hidden_for) about each
- * call that has one — the same verdict as hiddenFrom (§2.2). Throws on a failed read: a route must not show a call it
+ * For a company-wide list (0337): every call of this company hidden FROM this viewer, from one database call that
+ * judges each of the company's hidden calls with rss_call_hidden_for — the same verdict as hiddenFrom (§2.2). Throws on a failed read: a route must not show a call it
  * couldn't confirm is visible.
  */
 export async function hiddenInCompanyFrom(admin: SupabaseClient, companyId: string, viewerId: string): Promise<Set<string>> {
-  const { data, error } = await admin.from("call_hides").select("session_id").eq("company_id", companyId);
-  if (error) throw new Error(`hidden check failed: ${error.message}`);
-  const ids = [...new Set(((data ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))];
-  const results = await Promise.all(
-    ids.map(async (id) => {
-      const { data: h, error: e } = await admin.rpc("rss_call_hidden_for", { p_session: id, viewer: viewerId });
-      if (e) throw new Error(`hidden check failed: ${e.message}`);
-      return [id, h === true] as const;
-    }),
+  // One call (0345's rss_hidden_calls_for: the company's active hides, each judged by rss_call_hidden_for), paged.
+  const rows = await allRows<string | { rss_hidden_calls_for?: string }>("hidden check", (f, t) =>
+    admin.rpc("rss_hidden_calls_for", { p_company: companyId, p_viewer: viewerId }).range(f, t) as unknown as PromiseLike<{ data: Array<string | { rss_hidden_calls_for?: string }> | null; error: { message: string } | null }>,
   );
-  return new Set(results.filter(([, h]) => h).map(([id]) => id));
+  return new Set(rows.map((r) => String(typeof r === "string" ? r : r.rss_hidden_calls_for)));
 }

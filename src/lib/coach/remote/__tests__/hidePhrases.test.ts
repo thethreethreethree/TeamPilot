@@ -38,6 +38,7 @@ describe("hiddenCallsForCompany (0337)", () => {
       const q: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "order", "limit"]) q[m] = () => q;
       q.then = (res: (v: unknown) => unknown) => res({ data: rows[t] ?? [], error: null });
+      q.range = async (f: number) => ({ data: f > 0 ? [] : rows[t] ?? [], error: null });
       return q;
     },
   });
@@ -67,7 +68,11 @@ describe("hiddenFrom (0337)", () => {
       from: () => {
         const q: Record<string, unknown> = {};
         q.select = () => q;
-        q.in = (_c: string, ids: string[]) => ({ then: (res: (v: unknown) => unknown) => res({ data: ids.filter((i) => i !== "s3").map((session_id) => ({ session_id })).filter((r) => r.session_id !== "s1"), error: null }) });
+        q.in = (_c: string, ids: string[]) => {
+          const page = { data: ids.filter((i) => i !== "s3").map((session_id) => ({ session_id })).filter((r) => r.session_id !== "s1"), error: null };
+          const o: Record<string, unknown> = { order: () => o, range: async (f: number) => (f > 0 ? { data: [], error: null } : page) };
+          return o;
+        };
         return q;
       },
       rpc: async (_f: string, a: { p_session: string }) => (asked.push(a.p_session), { data: a.p_session === "s2", error: null }),
@@ -79,7 +84,36 @@ describe("hiddenFrom (0337)", () => {
   });
   it("a failed read throws — a route must not show a call it couldn't confirm is visible", async () => {
     const { hiddenFrom } = await import("../hidePhrases");
-    const admin = { from: () => ({ select: () => ({ in: () => ({ then: (res: (v: unknown) => unknown) => res({ data: null, error: { message: "boom" } }) }) }) }) };
+    const fail = { data: null, error: { message: "boom" } };
+    const o: Record<string, unknown> = { order: () => o, range: async () => fail };
+    const admin = { from: () => ({ select: () => ({ in: () => o }) }) };
     await expect(hiddenFrom(admin as never, ["s1"], "mgr")).rejects.toThrow("hidden check failed");
+  });
+});
+
+describe("review 2026-11-26: reads are paged", () => {
+  it("a phrase said after the 1000th line still hides the call", async () => {
+    const { scanCallForHidePhrases } = await import("../hidePhrases");
+    const lines = Array.from({ length: 1200 }, (_, i) => ({ text: i === 1150 ? "this is a personal call" : `line ${i}`, seq: i }));
+    const inserts: unknown[] = [];
+    const admin = {
+      from: (t: string) => {
+        const q: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "in", "order"]) q[m] = () => q;
+        q.maybeSingle = async () => ({ data: { company_id: "co1", context: "phone" }, error: null });
+        q.range = async (f: number, to: number) => ({ data: t === "coaching_transcript_segments_current" ? lines.slice(f, to + 1) : [], error: null });
+        q.insert = async (row: unknown) => (inserts.push(row), { error: null });
+        return q;
+      },
+    };
+    expect(await scanCallForHidePhrases(admin as never, "s1", [{ id: "p1", phrase: "personal call" }])).toEqual(["personal call"]);
+    expect(inserts).toHaveLength(1);
+  });
+  it("the company-wide check is one paged database call, not one per hidden call", async () => {
+    const { hiddenInCompanyFrom } = await import("../hidePhrases");
+    const rpcs: Array<[string, unknown]> = [];
+    const admin = { rpc: (fn: string, args: unknown) => (rpcs.push([fn, args]), { range: async (f: number) => ({ data: f > 0 ? [] : ["s1", "s2"], error: null }) }) };
+    expect([...(await hiddenInCompanyFrom(admin as never, "co1", "mgr"))].sort()).toEqual(["s1", "s2"]);
+    expect(rpcs).toEqual([["rss_hidden_calls_for", { p_company: "co1", p_viewer: "mgr" }]]);
   });
 });

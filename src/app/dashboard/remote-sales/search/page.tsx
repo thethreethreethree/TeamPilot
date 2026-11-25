@@ -138,7 +138,7 @@ export default function SearchCallsPage() {
     const nf = fromQuery(s.query);
     setF(nf);
     void run(nf);
-    if (s.following && s.newCount) {
+    if (s.following && (s.newCount || s.newCapped)) {
       // Opened: the new calls are seen. The badge clears only once the server has the record.
       void searchEvent(s.id, "seen").then((r) => r?.ok && setSaved((xs) => xs.map((x) => (x.id === s.id ? { ...x, newCount: 0, newCapped: false } : x))));
     }
@@ -269,6 +269,11 @@ export default function SearchCallsPage() {
                     <button type="button" onClick={() => openSaved(s)} className="min-w-0 flex-1 truncate text-left text-brand hover:underline">
                       {s.name}
                     </button>
+                    {s.following && !s.newCount && s.newCapped ? (
+                      <span className="rounded-full bg-brand/10 px-1.5 text-[10px] text-secondary" title="Too many matches to count — open the search to see them">
+                        new?
+                      </span>
+                    ) : null}
                     {s.following && s.newCount ? (
                       <span className="rounded-full bg-brand/15 px-1.5 text-[10px] font-semibold text-primary" title="Calls that matched since you last opened this search">
                         {s.newCount}

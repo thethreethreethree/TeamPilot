@@ -28,6 +28,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.limit = async () => (st.recentErr ? { data: null, error: st.recentErr } : { data: [{ id: "s1" }, { id: "s2" }], error: null });
       q.maybeSingle = async () => ({ data: st.phrase, error: null });
       if (t === "profiles") q.then = (res: (v: unknown) => unknown) => res({ data: [{ id: "rep1", full_name: "Ana" }], error: null });
+      q.range = async (f: number) =>
+        f > 0 ? { data: [], error: null } : t === "call_hides" ? { data: [{ id: "h1", phrase_id: "p1" }, { id: "h2", phrase_id: "p1" }], error: null } : t === "call_unhides" ? { data: [{ hide_id: "h2" }], error: null } : { data: [], error: null };
       if (t !== "profiles") q.then = (res: (v: unknown) => unknown) =>
         res(t === "call_hides" ? { data: [{ id: "h1", phrase_id: "p1" }, { id: "h2", phrase_id: "p1" }], error: null } : t === "call_unhides" ? { data: [{ hide_id: "h2" }], error: null } : { data: [], error: null });
       q.insert = (row: unknown) => {

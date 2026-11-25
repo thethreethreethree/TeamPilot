@@ -50,4 +50,11 @@ describe("Search — following a saved search (0342)", () => {
     expect(await screen.findByText("Couldn't change that saved search.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Follow Demos: show new matching calls" }).getAttribute("aria-pressed")).toBe("false");
   });
+  it("a count that couldn't be completed shows 'new?', never nothing", async () => {
+    vi.stubGlobal("fetch", vi.fn((u: string) =>
+      u === "/api/coach/remote/saved-searches" ? json({ available: true, searches: [{ id: "s9", name: "Busy", query: "q=the", following: true, newCount: 0, newCapped: true }] }) : json({ rows: [], trackers: [], members: [] }),
+    ));
+    render(<SearchCallsPage />);
+    expect(await screen.findByText("new?")).toBeTruthy();
+  });
 });
