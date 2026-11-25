@@ -27,3 +27,11 @@ severity: low
 ```
 npm run check → exit 0 · Test Files 963 passed | 1 skipped · Tests 6948 passed | 15 skipped
 ```
+
+## After deploy (2026-11-26, production, one transaction each, ROLLED BACK)
+
+```
+node writeTest.mjs  → rep records an event on their own call: accepted · rep records an unrelated event: accepted · rep records on a brand-new live session: accepted
+node writeTest2.mjs → rep files a dispute event on their own score (pitch:): accepted · a company admin records on the rep's call: accepted · a company admin records on the rep's score: accepted
+node eventRate.mjs  → no events written on production since 2026-11-19 (no live traffic to observe; the gap predates 0348/0349)
+```
