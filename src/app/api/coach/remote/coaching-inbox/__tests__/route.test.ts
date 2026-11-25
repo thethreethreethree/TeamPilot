@@ -14,6 +14,13 @@ vi.mock("@/lib/coach/remote/feedback", async (orig) => ({
     { kind: "comment_sent_to_rep", managerId: "mgr1", repId: "rep2", at: new Date("2026-11-20T12:00:00Z"), sessionId: "s2" },
   ]),
 }));
+const hide = vi.hoisted(() => ({ ids: new Set<string>(), fail: false }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => {
+    if (hide.fail) throw new Error("boom");
+    return new Set(ids.filter((i) => hide.ids.has(i)));
+  }),
+}));
 const db = vi.hoisted(() => ({ eqs: [] as Array<[string, string, unknown]> }));
 const recent = new Date(Date.now() - 3_600_000).toISOString();
 const DATA: Record<string, Array<Record<string, unknown>>> = {
@@ -53,6 +60,8 @@ import { GET } from "../route";
 const mock = <T,>(f: T) => f as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => {
   db.eqs = [];
+  hide.ids = new Set();
+  hide.fail = false;
 });
 
 describe("GET coaching-inbox", () => {
@@ -69,5 +78,14 @@ describe("GET coaching-inbox", () => {
     for (const t of ["feedback_requests", "coaching_sessions", "profiles", "listen_events"]) {
       expect(db.eqs).toContainEqual([t, "company_id", "co1"]);
     }
+  });
+  it("a request about a call a company phrase hid from this manager leaves the inbox (0337)", async () => {
+    hide.ids = new Set(["s1"]);
+    const body = await (await GET(new Request("http://t/x") as never)).json();
+    expect(body.items.map((i: { id: string }) => i.id)).toEqual(["b"]);
+  });
+  it("a failed hide check is a 500, not an inbox that might name a hidden call (0337)", async () => {
+    hide.fail = true;
+    expect((await GET(new Request("http://t/x") as never)).status).toBe(500);
   });
 });

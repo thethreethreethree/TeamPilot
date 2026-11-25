@@ -1,4 +1,5 @@
 import "server-only";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { askCoachTurn } from "@/lib/claude";
@@ -230,7 +231,18 @@ export async function listChats(companyId: string, userId: string, sessionId: st
     .order("created_at", { ascending: false })
     .limit(20);
   if (error) return { available: false as const };
-  const ids = ((chats ?? []) as Array<{ id: string }>).map((c) => c.id);
+  // 0337: a chat that covers any call a company phrase hid from the asker is withheld — its answers quote the call.
+  // The database's verdict (hiddenFrom); a failed check withholds them all ("unavailable"), never shows them.
+  const listed = (chats ?? []) as Array<{ id: string; session_ids: string[] | null }>;
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenFrom(admin, listed.flatMap((c) => c.session_ids ?? []), userId);
+  } catch (e) {
+    console.error(`[askCoach] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return { available: false as const };
+  }
+  const shown = listed.filter((c) => !(c.session_ids ?? []).some((id) => hidden.has(String(id))));
+  const ids = shown.map((c) => c.id);
   const { data: turns } = ids.length
     ? await admin
         .from("ask_coach_turns")
@@ -245,7 +257,7 @@ export async function listChats(companyId: string, userId: string, sessionId: st
   }
   return {
     available: true as const,
-    chats: ((chats ?? []) as Array<{ id: string; title: string; session_ids: string[]; created_at: string }>).map((c) => ({
+    chats: (shown as Array<{ id: string; title: string; session_ids: string[]; created_at: string }>).map((c) => ({
       id: c.id,
       title: c.title,
       sessionIds: c.session_ids,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hiddenFrom, hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { readBody } from "@/lib/api/validate";
@@ -63,10 +64,19 @@ export async function GET(req: NextRequest) {
     : { data: [] as Array<{ id: string; agent_id: string }> };
   const agentBySession = new Map((poolSessions ?? []).map((s) => [String(s.id), String(s.agent_id)]));
   const visibleAgents = new Set(await treeFilterReps(req, [...new Set(agentBySession.values())]));
+  // 0337: a call a company phrase hid from this manager never enters the pool — its transcript would be served as
+  // "next to score". The database's verdict; a failed check is a 500 (never a transcript it couldn't clear).
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenInCompanyFrom(admin, mgr.companyId, mgr.userId);
+  } catch (e) {
+    console.error(`[calibration] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load calibration." }, { status: 500 });
+  }
   const modelBySession = new Map<string, DimScores>();
   for (const a of aps ?? []) {
     const agent = agentBySession.get(String(a.session_id));
-    if (!agent || !visibleAgents.has(agent)) continue;
+    if (!agent || !visibleAgents.has(agent) || hidden.has(String(a.session_id))) continue;
     const m = modelScores(a.payload);
     if (Object.keys(m).length > 0 && !modelBySession.has(String(a.session_id))) {
       modelBySession.set(String(a.session_id), m);
@@ -165,6 +175,11 @@ export async function POST(req: NextRequest) {
   if (!sess || !(await treeAllowsRep(req, String(sess.agent_id)))) {
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
+  // 0337: scoring a call a company phrase hid from this manager would reveal its model scores — 404, as for a
+  // session they may not see. The database's verdict; a failed check is a 500, nothing written.
+  const hid = await hiddenFrom(admin, [body.sessionId], mgr.userId).then((h) => h.has(body.sessionId), () => null);
+  if (hid === null) return NextResponse.json({ error: "Couldn't check this call. Try again." }, { status: 500 });
+  if (hid) return NextResponse.json({ error: "Session not found." }, { status: 404 });
 
   // Store the blind score (idempotent per manager+session via the unique index).
   const { error } = await admin

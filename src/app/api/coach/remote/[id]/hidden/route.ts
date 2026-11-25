@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { readBody } from "@/lib/api/validate";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { recordAudit } from "@/lib/audit/recordAudit";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 
 /**
  * /api/coach/remote/[id]/hidden — is this call hidden by a phrase (0337, F33.8), and by which. Company-pinned.
@@ -35,8 +36,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const active = await load(admin, ctx.companyId, id);
     if (!active.length) return NextResponse.json({ hidden: false, phrases: [], canSee: true, hides: [] });
-    const { data: s } = await admin.from("coaching_sessions").select("agent_id").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
-    const canSee = ctx.isAdmin || (s?.agent_id as string | undefined) === ctx.userId;
+    // The database's own verdict (rss_call_hidden_for: not its rep, not a company admin), never re-derived here (§2.2).
+    const canSee = !(await hiddenFrom(admin, [id], ctx.userId)).has(id);
     return NextResponse.json({ hidden: true, phrases: [...new Set(active.map((h) => h.phrase))], canSee, hides: ctx.isAdmin ? active : [] });
   } catch (e) {
     console.error(`[call-hidden] read failed session=${id}: ${e instanceof Error ? e.message : String(e)}`);

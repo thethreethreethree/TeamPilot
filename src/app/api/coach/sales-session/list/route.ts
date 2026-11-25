@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readIssueFor } from "@/lib/coach/v5/readIssue";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -115,7 +116,15 @@ export async function GET(req: Request) {
   if (sErr) {
     return NextResponse.json({ degraded: true });
   }
-  const sessions = sessionsData ?? [];
+  // 0337: a phone/video call a company phrase hid from this viewer is left out (its label and rep would name a call
+  // the database refuses them). The database's verdict; a failed check reads as degraded, never as "shown".
+  let hiddenSet: Set<string>;
+  try {
+    hiddenSet = ctx.isManager ? await hiddenInCompanyFrom(admin, ctx.companyId, ctx.userId) : new Set();
+  } catch {
+    return NextResponse.json({ degraded: true });
+  }
+  const sessions = (sessionsData ?? []).filter((s) => !hiddenSet.has(String(s.id)));
 
   // Which sessions have a dissect / summary / review — one bounded query,
   // scoped to exactly these sessions' subjects.

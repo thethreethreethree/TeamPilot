@@ -127,3 +127,23 @@ export async function hiddenFrom(admin: SupabaseClient, sessionIds: string[], vi
   );
   return new Set(results.filter(([, h]) => h).map(([id]) => id));
 }
+
+/**
+ * For a company-wide list (0337): every call of this company hidden FROM this viewer. A company has few hides, so this
+ * reads its hide rows once (not one check per listed call) and asks the database rule (rss_call_hidden_for) about each
+ * call that has one — the same verdict as hiddenFrom (§2.2). Throws on a failed read: a route must not show a call it
+ * couldn't confirm is visible.
+ */
+export async function hiddenInCompanyFrom(admin: SupabaseClient, companyId: string, viewerId: string): Promise<Set<string>> {
+  const { data, error } = await admin.from("call_hides").select("session_id").eq("company_id", companyId);
+  if (error) throw new Error(`hidden check failed: ${error.message}`);
+  const ids = [...new Set(((data ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))];
+  const results = await Promise.all(
+    ids.map(async (id) => {
+      const { data: h, error: e } = await admin.rpc("rss_call_hidden_for", { p_session: id, viewer: viewerId });
+      if (e) throw new Error(`hidden check failed: ${e.message}`);
+      return [id, h === true] as const;
+    }),
+  );
+  return new Set(results.filter(([, h]) => h).map(([id]) => id));
+}

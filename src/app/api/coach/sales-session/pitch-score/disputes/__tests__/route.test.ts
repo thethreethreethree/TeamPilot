@@ -17,6 +17,14 @@ vi.mock("@/lib/api/treeAccess", () => ({
   treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// 0337: no hidden calls unless a test says so; the verdict itself is tested in hidePhrases.test.ts.
+const hide = vi.hoisted(() => ({ ids: new Set<string>(), fail: false }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenInCompanyFrom: vi.fn(async () => {
+    if (hide.fail) throw new Error("boom");
+    return hide.ids;
+  }),
+}));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/coach/pitchScore/readDisputes", () => ({ readDisputes: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
@@ -122,6 +130,24 @@ describe("GET — the queue", () => {
     asMock(readDisputes).mockResolvedValue(both);
     const remote = await (await GET(getReq("module=remote_sales"))).json();
     expect(remote.disputes.map((d: { id: string }) => d.id)).toEqual(["d2"]);
+  });
+
+  it("a dispute on a call a company phrase hid from this manager leaves the queue (0337)", async () => {
+    asMock(readDisputes).mockResolvedValue([
+      { id: "d1", pitchId: "p-door", repId: "rep1", note: "a", open: true, sessionId: "s-hidden" },
+      { id: "d3", pitchId: "p-door", repId: "rep1", note: "b", open: true, sessionId: "s-ok" },
+    ]);
+    hide.ids = new Set(["s-hidden"]);
+    const body = await (await GET(getReq())).json();
+    hide.ids = new Set();
+    expect(body.disputes.map((d: { id: string }) => d.id)).toEqual(["d3"]);
+  });
+  it("a failed hide check is a 500, not a queue that might show a hidden call (0337)", async () => {
+    asMock(readDisputes).mockResolvedValue([{ id: "d1", pitchId: "p-door", repId: "rep1", note: "a", open: true }]);
+    hide.fail = true;
+    const res = await GET(getReq());
+    hide.fail = false;
+    expect(res.status).toBe(500);
   });
 
   it("500s rather than showing an empty queue when the read fails", async () => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { toCsv } from "@/lib/export/toCsv";
+import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
@@ -63,7 +64,16 @@ export async function GET(req: NextRequest) {
   }
   const all = sessions ?? [];
   const allowed = new Set(await treeFilterReps(req, [...new Set(all.map((s) => String(s.agent_id)))]));
-  const mine = all.filter((s) => allowed.has(String(s.agent_id)));
+  // 0337: calls a company phrase hid from this manager are left out — of the counts as well as the uncoached lists,
+  // so no number points at a call they can't open. The database's verdict; a failed check is a 500.
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenInCompanyFrom(admin, mgr.companyId, mgr.userId);
+  } catch (e) {
+    console.error(`[coaching-metrics] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
+  }
+  const mine = all.filter((s) => allowed.has(String(s.agent_id)) && !hidden.has(String(s.id)));
   const ids = mine.map((s) => String(s.id));
 
   const feedbackGiven: Record<string, number> = {};
@@ -144,8 +154,10 @@ export async function GET(req: NextRequest) {
     const names = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "Unnamed teammate"]));
     // A recent request can be about a call older than the 180 days read above; load that call's coaching too, or its
     // answer is never seen and the request counts as open forever (review 2026-11-25).
+    // 0337: requests about a call hidden from this manager are left out too, like the call itself.
+    const shownReqs = ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).filter((r) => !hidden.has(String(r.session_id)));
     const inView = new Set(ids);
-    const extra = [...new Set(((reqs ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))].filter((id) => !inView.has(id));
+    const extra = [...new Set(shownReqs.map((r) => String(r.session_id)))].filter((id) => !inView.has(id));
     const requestEvents = [...events];
     try {
       for (let i = 0; i < extra.length; i += CHUNK) requestEvents.push(...(await loadCoachingEvents(admin, mgr.companyId, extra.slice(i, i + CHUNK))));
@@ -153,7 +165,7 @@ export async function GET(req: NextRequest) {
       console.error(`[coaching-metrics] request-call coaching read failed company=${mgr.companyId}: ${e instanceof Error ? e.message : String(e)}`);
       return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
     }
-    const requestRows = ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).map((r) => ({
+    const requestRows = shownReqs.map((r) => ({
       sessionId: String(r.session_id),
       managerId: r.recipient_id,
       requesterId: String(r.requester_id),

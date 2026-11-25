@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { notifyDisputeAnswered } from "@/lib/coach/gamification/notify";
 import { contextsOf, type CallModule } from "@/lib/coach/sessionContext";
 import { z } from "zod";
@@ -62,7 +63,15 @@ export async function GET(req: NextRequest) {
   // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
   // readDisputes reads the company with the service role; only the reps this manager may see are kept.
   const visible = new Set(await treeFilterReps(req, [...new Set(disputes.map((d) => d.repId))]));
-  const mine = disputes.filter((d) => visible.has(d.repId));
+  // 0337: disputes on a call a company phrase hid from this manager leave the queue (the database's verdict).
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenInCompanyFrom(createAdminClient(), mgr.companyId, mgr.userId);
+  } catch (e) {
+    console.error(`[pitch-disputes] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Could not load the dispute queue." }, { status: 500 });
+  }
+  const mine = disputes.filter((d) => visible.has(d.repId) && !(d.sessionId && hidden.has(String(d.sessionId))));
 
   // Each module's queue holds its own calls' disputes (founder 2026-11-22: Remote Sales separate from Sales Coach):
   // ?module=remote_sales → phone/video; default → in-person. The channel comes from pitch_scores_by_channel (0301), the

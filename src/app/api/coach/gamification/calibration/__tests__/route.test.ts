@@ -12,6 +12,12 @@ vi.mock("@/lib/api/treeAccess", () => ({
   treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// 0337: no hidden calls unless a test says so; the verdict itself is tested in hidePhrases.test.ts.
+const hide = vi.hoisted(() => ({ ids: new Set<string>() }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenInCompanyFrom: vi.fn(async () => hide.ids),
+  hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => new Set(ids.filter((i) => hide.ids.has(i)))),
+}));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 
@@ -54,7 +60,10 @@ const postReq = (body: unknown) =>
     body: JSON.stringify(body),
   }) as never;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  hide.ids = new Set();
+});
 
 describe("calibration route — manager gate", () => {
   it("403 when unauthenticated", async () => {
@@ -222,6 +231,33 @@ describe("reporting tree", () => {
     });
     const scores = { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 };
     expect((await POST(postReq({ sessionId: "11111111-1111-4111-8111-111111111111", scores }))).status).toBe(404);
+    expect(cap.upsert).toBeUndefined();
+  });
+});
+
+describe("a call hidden by a company phrase (0337)", () => {
+  it("never enters the pool — its transcript isn't served as the next to score", async () => {
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    setTables({
+      after_pitch_summaries: { data: [{ session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } }] },
+      gamification_calibration: { data: [] },
+      coaching_sessions: { data: [{ id: "s1", agent_id: "r1" }] },
+    });
+    hide.ids = new Set(["s1"]);
+    const body = await (await GET(getReq())).json();
+    expect(body.pool).toBe(0);
+    expect(body.next).toBeNull();
+  });
+  it("submitting a score for it is a 404 and nothing is written", async () => {
+    setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
+    const cap = setTables({
+      after_pitch_summaries: { data: { session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } } },
+      coaching_sessions: { data: { id: "s1", agent_id: "r1" } },
+    });
+    const SID = "11111111-1111-4111-8111-111111111111";
+    hide.ids = new Set([SID]);
+    const res = await POST(postReq({ sessionId: SID, scores: { opener: 7, objection: 6, tone: 6, close: 5, next_step: 6 } }));
+    expect(res.status).toBe(404);
     expect(cap.upsert).toBeUndefined();
   });
 });

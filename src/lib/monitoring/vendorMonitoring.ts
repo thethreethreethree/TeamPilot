@@ -1,4 +1,5 @@
 import "server-only";
+import { hiddenCallsForCompany } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -94,7 +95,16 @@ export async function listCompanySessions(
     .eq("company_id", companyId)
     .order("started_at", { ascending: false })
     .limit(limit);
-  const rows = data ?? [];
+  // 0337: vendor staff never see a call a company phrase hid (they are neither its rep nor the company's admin). A
+  // failed hide check fails safe — nothing listed — like an unmonitorable company.
+  let hidden: Set<string>;
+  try {
+    hidden = new Set((await hiddenCallsForCompany(sb, companyId, 10_000)).map((h) => h.sessionId));
+  } catch (e) {
+    console.error(`[vendorMonitoring] hidden check failed company=${companyId}: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+  const rows = (data ?? []).filter((r) => !hidden.has(String(r.id)));
   const agentIds = [...new Set(rows.map((r) => r.agent_id as string))];
   const { data: profs } = agentIds.length
     ? await sb.from("profiles").select("id, full_name").in("id", agentIds)
@@ -130,6 +140,13 @@ export async function getMonitoredSession(
   if (!session) return null;
   const companyId = session.company_id as string;
   if (!(await isCompanyMonitorable(companyId))) return null;
+  // 0337: a hidden call is not shown to vendor staff; a failed check fails safe (null, as for "not found").
+  try {
+    if ((await hiddenCallsForCompany(sb, companyId, 10_000)).some((h) => h.sessionId === sessionId)) return null;
+  } catch (e) {
+    console.error(`[vendorMonitoring] hidden check failed session=${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
 
   const [{ data: segs }, { data: profs }] = await Promise.all([
     sb

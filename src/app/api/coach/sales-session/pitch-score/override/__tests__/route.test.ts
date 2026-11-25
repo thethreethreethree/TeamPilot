@@ -27,6 +27,14 @@ vi.mock("@/lib/api/treeAccess", () => ({
   treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// 0337: no hidden calls unless a test says so; the verdict itself is tested in hidePhrases.test.ts.
+const hide = vi.hoisted(() => ({ ids: new Set<string>(), fail: false }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenFrom: vi.fn(async () => {
+    if (hide.fail) throw new Error("boom");
+    return hide.ids;
+  }),
+}));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: vi.fn(() => null) }));
 vi.mock("@/lib/coach/pitchScore/readPitchScore", () => ({
@@ -140,6 +148,23 @@ describe("who and where come from the session, never the body", () => {
   it("reads the evidence for the pitch's own session", async () => {
     await POST(req());
     expect(asMock(readPitchScore).mock.calls[0]![0]).toBe(SESSION_ID);
+  });
+});
+
+describe("a call hidden by a company phrase (0337)", () => {
+  it("can't be corrected by a manager it's hidden from — 404, nothing applied", async () => {
+    hide.ids = new Set([SESSION_ID]);
+    const res = await POST(req());
+    hide.ids = new Set();
+    expect(res.status).toBe(404);
+    expect(applyOverride).not.toHaveBeenCalled();
+  });
+  it("a failed hide check is a 500, nothing applied", async () => {
+    hide.fail = true;
+    const res = await POST(req());
+    hide.fail = false;
+    expect(res.status).toBe(500);
+    expect(applyOverride).not.toHaveBeenCalled();
   });
 });
 

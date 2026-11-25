@@ -4,6 +4,8 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 const who = vi.hoisted(() => ({ ctx: { userId: "mgr", companyId: "co1", isAdmin: false } as unknown }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => who.ctx) }));
 const st = vi.hoisted(() => ({ hides: [] as unknown[], unhides: [] as unknown[], inserts: [] as Array<{ t: string; row: unknown }>, audits: [] as unknown[] }));
+// The verdict is the SQL rule's; here it is "hidden unless the rep (rep1) or the admin (adm)".
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async (_a: unknown, ids: string[], viewer: string) => new Set(viewer === "rep1" || viewer === "adm" ? [] : ids)) }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async (_a: unknown, e: unknown) => (st.audits.push(e), true)) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({

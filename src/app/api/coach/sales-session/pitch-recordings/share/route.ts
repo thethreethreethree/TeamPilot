@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
@@ -89,6 +90,14 @@ export async function POST(req: NextRequest) {
   // Reporting tree (RSS Phase 0 step 8): service-role route, so it asks the RLS question explicitly.
   if (!(await treeAllowsRep(req, String(pitch.rep_id)))) {
     return NextResponse.json({ error: "Recording not found." }, { status: 404 });
+  }
+  // 0337: a call a company phrase hid from this manager can't be commented on, shared or corrected — they can't open
+  // it. The database's verdict (hiddenFrom); a failed check is a 500, never a write to a call it couldn't clear.
+  if (pitch.session_id) {
+    const sid = String(pitch.session_id);
+    const hid = await hiddenFrom(admin, [sid], manager.userId).then((h) => h.has(sid), () => null);
+    if (hid === null) return NextResponse.json({ error: "Couldn't check this call. Try again." }, { status: 500 });
+    if (hid) return NextResponse.json({ error: "Recording not found." }, { status: 404 });
   }
   if (String(pitch.rep_id) === manager.userId) {
     // A manager's own pitch needs no permission from anyone else, and a self-addressed request

@@ -9,6 +9,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// 0337: no hidden calls unless a test says so; the verdict itself is tested in hidePhrases.test.ts.
+const hide = vi.hoisted(() => ({ ids: new Set<string>(), fail: false, calls: 0 }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenInCompanyFrom: vi.fn(async () => {
+    hide.calls++;
+    if (hide.fail) throw new Error("boom");
+    return hide.ids;
+  }),
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -160,6 +169,13 @@ function richAdmin(opts: {
       };
       return chain;
     }
+    if (table === "profiles") {
+      // A manager's list names each call's rep (0337 tests run as a manager).
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "in"]) chain[m] = () => chain;
+      chain.then = (res: (v: unknown) => unknown) => res({ data: [], error: null });
+      return chain;
+    }
     throw new Error(`unexpected table ${table}`);
   };
   return { from, signalOrderCalls, badgeOrderCalls };
@@ -240,6 +256,25 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
     expect(body.sessions[0].hasDissect).toBe(true);
     expect(body.sessions[0].hasSummary).toBe(true);
     expect(body.sessions[0].hasReview).toBe(false);
+  });
+
+  it("a manager's list leaves out calls a company phrase hid from them; a failed check is degraded (0337)", async () => {
+    setCaller("boss", MANAGER);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(richAdmin({ sessions: [session({ id: "s1" }), session({ id: "s2" })] }));
+    hide.ids = new Set(["s1"]);
+    const body = await (await GET(req())).json();
+    hide.ids = new Set();
+    expect(body.sessions.map((x: { id: string }) => x.id)).toEqual(["s2"]);
+    hide.fail = true;
+    const failed = await (await GET(req())).json();
+    hide.fail = false;
+    expect(failed).toEqual({ degraded: true });
+  });
+  it("a rep's own list isn't hide-checked — the rep always sees their own calls (0337)", async () => {
+    setCaller("rep1", REP);
+    hide.calls = 0;
+    await GET(req());
+    expect(hide.calls).toBe(0);
   });
 
   it("REGRESSION (finding 3): the 'reviewed' filter returns ended sessions WITH a review event (status='reviewed' is never written)", async () => {

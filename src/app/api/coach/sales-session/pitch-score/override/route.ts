@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
@@ -96,6 +97,14 @@ export async function POST(req: NextRequest) {
   // asks — through the caller's client — before touching a rep's data. Not on the tree yet → allowed, as today.
   if (!(await treeAllowsRep(req, String(row.rep_id)))) {
     return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
+  }
+  // 0337: a call a company phrase hid from this manager can't be commented on, shared or corrected — they can't open
+  // it. The database's verdict (hiddenFrom); a failed check is a 500, never a write to a call it couldn't clear.
+  if (row.session_id) {
+    const sid = String(row.session_id);
+    const hid = await hiddenFrom(admin, [sid], mgr.userId).then((h) => h.has(sid), () => null);
+    if (hid === null) return NextResponse.json({ error: "Couldn't check this call. Try again." }, { status: 500 });
+    if (hid) return NextResponse.json({ error: "Pitch not found." }, { status: 404 });
   }
   if (!row.session_id) {
     return NextResponse.json({ error: "That pitch has no session to read." }, { status: 409 });

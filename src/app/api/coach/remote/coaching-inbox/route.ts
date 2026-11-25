@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
@@ -40,7 +41,17 @@ export async function GET(req: NextRequest) {
   type Row = { id: string; session_id: string; requester_id: string; recipient_id: string | null; message: string | null; created_at: string };
   const all = (reqRows ?? []) as Row[];
   const visible = new Set(await treeFilterReps(req, [...new Set(all.map((r) => String(r.requester_id)))]));
-  const rows = all.filter((r) => visible.has(String(r.requester_id)) && String(r.requester_id) !== mgr.userId);
+  const inTree = all.filter((r) => visible.has(String(r.requester_id)) && String(r.requester_id) !== mgr.userId);
+  // 0337: a call a company phrase hid from this manager leaves the inbox — its label and link would name a call the
+  // database refuses them. The verdict is the database's (hiddenFrom → rss_call_hidden_for); a failed check is a 500.
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenFrom(admin, inTree.map((r) => String(r.session_id)), mgr.userId);
+  } catch (e) {
+    console.error(`[coaching-inbox] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: "Couldn't load the coaching inbox." }, { status: 500 });
+  }
+  const rows = inTree.filter((r) => !hidden.has(String(r.session_id)));
   if (rows.length === 0) return NextResponse.json({ available: true, items: [] });
 
   const sessionIds = [...new Set(rows.map((r) => String(r.session_id)))];

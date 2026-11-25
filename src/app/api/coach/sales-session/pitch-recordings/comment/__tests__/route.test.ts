@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
   canSee: new Set<string>(),
   people: [] as Array<{ id: string; full_name: string }>,
   rpcs: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+  hidden: false, // 0337: the call s1 has an active hide that applies to the commenting manager
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -19,6 +20,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       db.rpcs.push({ fn, args: a });
       // 0296: a comment that carries visibility or mentions is written by rss_insert_comment in one transaction.
       if (fn === "rss_insert_comment") return { data: "c1", error: null };
+      if (fn === "rss_call_hidden_for") return { data: db.hidden, error: null };
       return { data: db.canSee.has(a.viewer as string), error: null };
     },
     from: (table: string) => {
@@ -28,7 +30,8 @@ vi.mock("@/lib/supabase/admin", () => ({
         table === "pitch_scores"
           ? { data: { id: "p1", company_id: "co1", rep_id: "rep1", session_id: "s1" }, error: null }
           : { data: { full_name: "Mia Manager" }, error: null };
-      b.then = (res: (v: unknown) => unknown) => res({ data: table === "profiles" ? db.people : [], error: null });
+      b.then = (res: (v: unknown) => unknown) =>
+        res({ data: table === "profiles" ? db.people : table === "call_hides" && db.hidden ? [{ session_id: "s1" }] : [], error: null });
       b.insert = (row: unknown) => {
         db.inserts.push({ table, row });
         const r: Record<string, unknown> = {
@@ -54,6 +57,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   db.inserts = [];
   db.rpcs = [];
+  db.hidden = false;
   db.canSee = new Set(["m2", "rep1"]);
   db.people = [{ id: "m2", full_name: "Sam Manager" }, { id: "rep1", full_name: "Rae Rep" }, { id: "m9", full_name: "Out Oftree" }];
 });
@@ -90,5 +94,14 @@ describe("POST pitch-recordings/comment — visibility and @mentions (0293)", ()
   it("the author is never mentioned (or notified) by their own comment", async () => {
     await post({ mentions: ["m1", "m2"] });
     expect(notifyCommentMention).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a call hidden by a company phrase (0337)", () => {
+  it("a manager it's hidden from can't comment on it — 404, nothing written", async () => {
+    db.hidden = true;
+    expect((await post({ sendToRep: true })).status).toBe(404);
+    expect(commentRows()).toEqual([]);
+    expect(db.rpcs.map((r) => r.fn)).toEqual(["rss_call_hidden_for"]);
   });
 });

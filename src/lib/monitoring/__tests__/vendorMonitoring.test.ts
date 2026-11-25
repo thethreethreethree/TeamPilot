@@ -36,6 +36,15 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => fakeClient(ROWS, queried),
 }));
 
+// 0337 (F33.8): which calls a company phrase hid; vendor staff never see them. A failed check fails safe.
+const hide = vi.hoisted(() => ({ ids: [] as string[], fail: false }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenCallsForCompany: vi.fn(async () => {
+    if (hide.fail) throw new Error("boom");
+    return hide.ids.map((sessionId) => ({ sessionId }));
+  }),
+}));
+
 import {
   isCompanyMonitorable,
   getMonitoredSession,
@@ -45,6 +54,8 @@ import {
 beforeEach(() => {
   queried.length = 0;
   ROWS = {};
+  hide.ids = [];
+  hide.fail = false;
 });
 
 describe("vendorMonitoring allowlist boundary", () => {
@@ -92,5 +103,25 @@ describe("vendorMonitoring allowlist boundary", () => {
     const result = await listCompanySessions("coX");
     expect(result).toEqual([]);
     expect(queried).not.toContain("coaching_sessions");
+  });
+});
+
+describe("vendor monitoring never shows a call a company phrase hid (0337)", () => {
+  const ON = { vendor_monitoring_scope: { company_id: "co1" }, profiles: [] };
+  it("the list leaves it out; a failed check lists nothing", async () => {
+    ROWS = { ...ON, coaching_sessions: [{ id: "s1", agent_id: "r1" }, { id: "s2", agent_id: "r1" }] };
+    hide.ids = ["s1"];
+    expect((await listCompanySessions("co1")).map((x) => x.id)).toEqual(["s2"]);
+    hide.fail = true;
+    expect(await listCompanySessions("co1")).toEqual([]);
+  });
+  it("the single call is null — and its transcript isn't read — when hidden or when the check fails", async () => {
+    ROWS = { ...ON, coaching_sessions: { id: "s1", company_id: "co1", agent_id: "r1" }, coaching_transcript_segments_current: [{ speaker: "agent", text: "hi", seq: 0 }] };
+    hide.ids = ["s1"];
+    expect(await getMonitoredSession("s1")).toBeNull();
+    hide.ids = [];
+    hide.fail = true;
+    expect(await getMonitoredSession("s1")).toBeNull();
+    expect(queried).not.toContain("coaching_transcript_segments_current");
   });
 });
