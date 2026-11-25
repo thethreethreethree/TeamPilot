@@ -1,5 +1,7 @@
 "use client";
 
+import { TeamPicker } from "@/components/remote-sales/TeamPicker";
+import { withTeam } from "@/lib/coach/remote/teamQuery";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PERIOD_METRICS, type PeriodDays } from "@/lib/coach/kpi/period";
 import Link from "next/link";
@@ -193,9 +195,9 @@ export default function KpiAnalyticsPage() {
   // after a target changes, the per-rep Quota columns (which come from THIS route, not /me) must refresh too, or
   // they'd stay "building" until a full reload — a layer-3 continuity gap. `initial` gates the one-time
   // default-to-company scope so a quota refresh doesn't yank a manager back out of the "Mine" view they chose.
-  const loadTeam = useCallback(async (initial: boolean) => {
+  const loadTeam = useCallback(async (initial: boolean, pick = "") => {
     try {
-      const res = await fetch("/api/coach/kpi/team");
+      const res = await fetch(withTeam("/api/coach/kpi/team", pick || undefined));
       if (!res.ok) return;
       const j = (await res.json()) as {
         agents: TeamAgent[];
@@ -204,7 +206,8 @@ export default function KpiAnalyticsPage() {
       };
       if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
       setTeamQuotaTarget(typeof j.monthlyQuotaTarget === "number" ? j.monthlyQuotaTarget : null);
-      if (Array.isArray(j.agents) && j.agents.length > 0) setTeam(j.agents);
+      // A chosen team replaces the rows even when it is empty (else the previous team's rows would stay, F23.8).
+      if (Array.isArray(j.agents) && (j.agents.length > 0 || pick)) setTeam(j.agents);
       // A 200 here = the viewer is a manager/admin (the route 403s non-managers). On first load, default their
       // headline cards to the WHOLE-COMPANY aggregate so Layer-1 shows real business numbers instead of a sparse
       // per-rep "building" — the "per-business KPI" the founder asked for. They can toggle back to "Mine".
@@ -217,6 +220,12 @@ export default function KpiAnalyticsPage() {
   useEffect(() => {
     void loadTeam(true);
   }, [loadTeam]);
+  // F23.8 (2026-11-26): one manager's team in the per-rep table.
+  const [teamPick, setTeamPick] = useState("");
+  const pickTeam = (t: string) => {
+    setTeamPick(t);
+    void loadTeam(false, t);
+  };
 
   // Save (or clear) the company's monthly quota target, then recompute so Quota leaves "building" immediately.
   const saveQuota = useCallback(
@@ -697,6 +706,8 @@ export default function KpiAnalyticsPage() {
             <Users className="w-4 h-4 text-brand" aria-hidden />
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
+            {/* The picker narrows this per-rep table only; the headline cards above stay the company / your own. */}
+            <TeamPicker value={teamPick} onChange={pickTeam} />
             <button
               type="button"
               onClick={exportTeamCsv}
