@@ -137,6 +137,8 @@ export default function LibraryPage() {
   }
   const folderInfo = new Map((wire && wire.available ? wire.folders ?? [] : []).map((f) => [f.id, f]));
   const archivedFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => f.archived) : [];
+  // Folders with nothing you can see in them still need an Archive button (review 2026-11-26).
+  const emptyFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => !f.archived && f.canArchive && !groups.has(f.id)) : [];
 
   return (
     <>
@@ -219,6 +221,22 @@ export default function LibraryPage() {
             </ul>
           </section>
         ))}
+
+        {emptyFolders.length > 0 && (
+          <details className="rounded-2xl border border-default bg-surface p-3 text-xs">
+            <summary className="cursor-pointer text-secondary hover:text-primary">Empty folders ({emptyFolders.length})</summary>
+            <ul className="mt-2 space-y-1">
+              {emptyFolders.map((f) => (
+                <li key={f.id} className="flex items-center gap-2">
+                  <span className="text-primary">{f.name}</span>
+                  <button type="button" onClick={() => void setArchived(f.id, true)} aria-label={`Archive folder ${f.name}`} className="ml-auto text-secondary hover:text-primary">
+                    Archive
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
 
         {archivedFolders.length > 0 && (
           <details className="rounded-2xl border border-default bg-surface p-3 text-xs">

@@ -30,6 +30,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       b.insert = (row: Record<string, unknown>) => (st.inserts.push({ t, row }), b);
       b.maybeSingle = async () => ({ data: t === "library_folders" ? (st.folder ?? { id: "f-new" }) : { id: "item-1" }, error: null });
       b.then = (res: (v: unknown) => unknown) => res({ data: t === "library_folders" ? st.existing : t === "library_folder_events" ? st.events : [], error: null });
+      b.range = async (f: number) => ({ data: f > 0 ? [] : t === "library_folder_events" ? st.events : [], error: null });
       return b;
     },
   }),

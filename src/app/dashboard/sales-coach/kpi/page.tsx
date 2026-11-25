@@ -195,15 +195,31 @@ export default function KpiAnalyticsPage() {
   // after a target changes, the per-rep Quota columns (which come from THIS route, not /me) must refresh too, or
   // they'd stay "building" until a full reload — a layer-3 continuity gap. `initial` gates the one-time
   // default-to-company scope so a quota refresh doesn't yank a manager back out of the "Mine" view they chose.
+  // F23.8: the chosen team, a request sequence (a slower earlier response must not overwrite a newer team's rows), and
+  // an error for a team that couldn't load (review 2026-11-26).
+  const [teamPick, setTeamPick] = useState("");
+  const [teamErr, setTeamErr] = useState<string | null>(null);
+  const teamSeq = useRef(0);
   const loadTeam = useCallback(async (initial: boolean, pick = "") => {
+    const seq = ++teamSeq.current;
     try {
       const res = await fetch(withTeam("/api/coach/kpi/team", pick || undefined));
-      if (!res.ok) return;
+      if (seq !== teamSeq.current) return;
+      if (!res.ok) {
+        // A chosen team that can't load clears the rows and says so, never leaving the previous team's under its name.
+        if (pick) {
+          setTeam([]);
+          setTeamErr(res.status === 404 ? "That team isn't one you can see." : "Couldn't load that team. Try again.");
+        }
+        return;
+      }
+      setTeamErr(null);
       const j = (await res.json()) as {
         agents: TeamAgent[];
         alertDropPct?: number;
         monthlyQuotaTarget?: number | null;
       };
+      if (seq !== teamSeq.current) return;
       if (typeof j.alertDropPct === "number") setAlertDropPct(j.alertDropPct);
       setTeamQuotaTarget(typeof j.monthlyQuotaTarget === "number" ? j.monthlyQuotaTarget : null);
       // A chosen team replaces the rows even when it is empty (else the previous team's rows would stay, F23.8).
@@ -221,7 +237,6 @@ export default function KpiAnalyticsPage() {
     void loadTeam(true);
   }, [loadTeam]);
   // F23.8 (2026-11-26): one manager's team in the per-rep table.
-  const [teamPick, setTeamPick] = useState("");
   const pickTeam = (t: string) => {
     setTeamPick(t);
     void loadTeam(false, t);
@@ -258,14 +273,14 @@ export default function KpiAnalyticsPage() {
         setTeamQuotaTarget(target);
         setEditingQuota(false);
         void loadMe(); // recompute the headline Quota (from /me) against the new target
-        void loadTeam(false); // refresh the per-rep Quota columns (from /team) so they don't lag behind
+        void loadTeam(false, teamPick); // keep the chosen team (review 2026-11-26); refresh the per-rep Quota columns (from /team) so they don't lag behind
       } catch {
         setQuotaError("Couldn't save — check your connection and try again.");
       } finally {
         setSavingQuota(false);
       }
     },
-    [loadMe, loadTeam]
+    [loadMe, loadTeam, teamPick]
   );
 
   // CSV export (spec: Exports). Client-side, routed through the formula-safe toCsv writer.
@@ -708,6 +723,7 @@ export default function KpiAnalyticsPage() {
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
             {/* The picker narrows this per-rep table only; the headline cards above stay the company / your own. */}
             <TeamPicker value={teamPick} onChange={pickTeam} />
+            {teamErr && <span role="alert" className="text-xs text-amber-700 dark:text-amber-300">{teamErr}</span>}
             <button
               type="button"
               onClick={exportTeamCsv}

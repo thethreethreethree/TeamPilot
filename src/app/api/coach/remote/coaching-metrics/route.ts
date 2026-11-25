@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
   // Gong F16.9: coaching is counted by WHEN IT HAPPENED (the last 30 days), not by when the call started — a manager
   // who reviews a six-week-old call today is coaching today. Calls are looked up over a bounded 180 days.
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const callsSince = new Date(Date.now() - 180 * DAY).toISOString();
+  // 210, not 180 (review 2026-11-26): the "30 days before" comparison must reach the same call ages as this month's.
+  const callsSince = new Date(Date.now() - 210 * DAY).toISOString();
   type S = { id: string; agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null; client_label: string | null };
   // Every session in the window: PostgREST caps a read at 1000, and a capped read would undercount silently.
   const { data: sessions, error } = await fetchAllPagedResult<S>(

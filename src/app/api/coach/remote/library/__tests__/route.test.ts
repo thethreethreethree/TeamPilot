@@ -45,6 +45,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       for (const m of ["select", "eq", "in", "order", "limit", "insert"]) b[m] = () => b;
       b.maybeSingle = async () => ({ data: null, error: null });
       b.then = (res: (v: unknown) => unknown) => res({ data: DATA[t] ?? [], error: null });
+      b.range = async (f: number) => ({ data: f > 0 ? [] : DATA[t] ?? [], error: null }); // paged reads (0346 events)
       return b;
     },
   }),

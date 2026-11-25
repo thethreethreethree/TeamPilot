@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { createClient } from "@/lib/supabase/server";
@@ -41,14 +42,18 @@ type Item = { id: string; folder_id: string; session_id: string; snippet_id: str
 
 /** Archived folders among `folderIds` (0346), from the append-only events; chunked; throws on a failed read. */
 async function archivedFor(admin: ReturnType<typeof createAdminClient>, companyId: string, folderIds: string[]): Promise<Set<string>> {
+  // Paged (review 2026-11-26): every event is read, so a folder's latest archive/restore is never cut off by a cap.
   const rows: Array<{ id: number; folder_id: string; kind: string }> = [];
   for (let i = 0; i < folderIds.length; i += 150) {
-    const { data, error } = await admin.from("library_folder_events").select("id, folder_id, kind").eq("company_id", companyId).in("folder_id", folderIds.slice(i, i + 150)).order("id", { ascending: false }).limit(1000);
+    const { data, error } = await fetchAllPagedResult<{ id: number; folder_id: string; kind: string }>(
+      (from, to) => admin.from("library_folder_events").select("id, folder_id, kind").eq("company_id", companyId).in("folder_id", folderIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      { label: "library folder events", maxRows: 200_000 },
+    );
     if (error) {
-      if (MISSING.has(String(error.code))) return new Set();
+      if (/PGRST205|42P01|does not exist/.test(error.message)) return new Set();
       throw new Error(error.message);
     }
-    rows.push(...((data ?? []) as typeof rows));
+    rows.push(...(data ?? []));
   }
   return archivedFolderIds(rows);
 }

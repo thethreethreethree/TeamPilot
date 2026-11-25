@@ -144,7 +144,8 @@ export function RemoteCallPanel({
       (["mine", "company"] as const).map((scope) =>
         fetch(`/api/coach/remote/library?scope=${scope}`, { cache: "no-store" })
           .then((r) => (r.ok ? r.json() : null))
-          .then((j: { folders?: Array<{ name: string }> } | null) => (j?.folders ?? []).map((f) => f.name))
+          // Archived folders (0346) aren't offered as places to save.
+          .then((j: { folders?: Array<{ name: string; archived?: boolean }> } | null) => (j?.folders ?? []).filter((f) => !f.archived).map((f) => f.name))
           .catch(() => [] as string[]),
       ),
     ).then((lists) => live && setFolderNames([...new Set(["Listen later", ...lists.flat()])].sort()));
@@ -429,8 +430,8 @@ export function RemoteCallPanel({
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "add", scope: "mine", sessionId, folderName: "Listen later", note: saveNoteText.trim() || undefined }),
                   });
-                  const j = (await r.json().catch(() => ({}))) as { error?: string };
-                  setSaveNote(r.ok ? "Added to “Listen later” in your library." : j.error ?? "Couldn't save it.");
+                  const j = (await r.json().catch(() => ({}))) as { error?: string; restored?: boolean };
+                  setSaveNote(r.ok ? `Added to “Listen later” in your library.${j.restored ? " That folder was archived — it's back in your library now." : ""}` : j.error ?? "Couldn't save it.");
                   if (r.ok) setSaveNoteText("");
                 } catch {
                   setSaveNote("Couldn't reach the server. Try again.");
@@ -456,9 +457,10 @@ export function RemoteCallPanel({
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ action: "add", scope, sessionId, clip, folderName: folder.trim() || undefined, note: saveNoteText.trim() || undefined }),
                       });
-                      const j = (await r.json().catch(() => ({}))) as { error?: string; needsApproval?: boolean; pitchId?: string | null };
+                      const j = (await r.json().catch(() => ({}))) as { error?: string; needsApproval?: boolean; pitchId?: string | null; restored?: boolean };
                       if (!r.ok) { setSaveNote(j.error ?? "Couldn't save it."); return; }
                       let msg = `Saved to ${folder.trim() ? `“${folder.trim()}” in ` : ""}${scope === "company" ? "the company library" : "your library"}.`;
+                      if (j.restored) msg += " That folder was archived — it's back in the list now.";
                       if (j.needsApproval && j.pitchId) {
                         // One consent path: the existing team-example request (0260), which also rings the rep's bell.
                         const ask = await fetch("/api/coach/sales-session/pitch-recordings/share", {
