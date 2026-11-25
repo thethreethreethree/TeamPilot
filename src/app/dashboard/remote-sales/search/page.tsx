@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Loader2, Search, Star, X } from "lucide-react";
+import { Bell, BellRing, Download, Loader2, Search, Star, X } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
@@ -20,7 +20,8 @@ import { REMOTE_ELEMENTS } from "@/lib/coach/pitchScore/rubricRemote";
  */
 type Hit = { seq: number; speaker: string; text: string; atMs: number | null };
 type Row = { sessionId: string; repName: string | null; channel: string; callLabel: string | null; startedAt: string; outcome: string | null; score: number | null; hits: Hit[] };
-type Saved = { id: string; name: string; query: string };
+// following/newCount: 0342 (F12.7) — a followed search shows how many calls matched since you last opened it.
+type Saved = { id: string; name: string; query: string; following?: boolean; newCount?: number | null; newCapped?: boolean };
 type Filters = {
   q: string; channel: string; rep: string; outcome: string; from: string; to: string; scoreMin: string; scoreMax: string; tracker: string;
   // 2026-11-22 (Phase 5): a rubric item and the grade the call got on it, the rep's talk share, disputed calls.
@@ -130,6 +131,22 @@ export default function SearchCallsPage() {
       setSaved([j.search, ...saved]);
       setSaveName("");
     } else setErr(j.error ?? "Couldn't save the search.");
+  };
+  const searchEvent = (id: string, kind: "follow" | "unfollow" | "seen") =>
+    fetch("/api/coach/remote/saved-searches/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, kind }) }).catch(() => null);
+  const openSaved = (s: Saved) => {
+    const nf = fromQuery(s.query);
+    setF(nf);
+    void run(nf);
+    if (s.following && s.newCount) {
+      // Opened: the new calls are seen. The badge clears only once the server has the record.
+      void searchEvent(s.id, "seen").then((r) => r?.ok && setSaved((xs) => xs.map((x) => (x.id === s.id ? { ...x, newCount: 0, newCapped: false } : x))));
+    }
+  };
+  const toggleFollow = async (s: Saved) => {
+    const r = await searchEvent(s.id, s.following ? "unfollow" : "follow");
+    if (r?.ok) setSaved((xs) => xs.map((x) => (x.id === s.id ? { ...x, following: !s.following, newCount: 0, newCapped: false } : x)));
+    else setErr("Couldn't change that saved search.");
   };
   const unsave = async (id: string) => {
     const r = await fetch("/api/coach/remote/saved-searches", {
@@ -249,8 +266,25 @@ export default function SearchCallsPage() {
                 </div>
                 {saved.map((s) => (
                   <div key={s.id} className="flex items-center gap-1 text-xs">
-                    <button type="button" onClick={() => { const nf = fromQuery(s.query); setF(nf); void run(nf); }} className="min-w-0 flex-1 truncate text-left text-brand hover:underline">
+                    <button type="button" onClick={() => openSaved(s)} className="min-w-0 flex-1 truncate text-left text-brand hover:underline">
                       {s.name}
+                    </button>
+                    {s.following && s.newCount ? (
+                      <span className="rounded-full bg-brand/15 px-1.5 text-[10px] font-semibold text-primary" title="Calls that matched since you last opened this search">
+                        {s.newCount}
+                        {s.newCapped ? "+" : ""} new
+                      </span>
+                    ) : null}
+                    {s.following && s.newCount === null && <span className="text-[10px] text-muted" title="Couldn't check for new calls">?</span>}
+                    <button
+                      type="button"
+                      onClick={() => void toggleFollow(s)}
+                      aria-pressed={s.following === true}
+                      aria-label={s.following ? `Stop following ${s.name}` : `Follow ${s.name}: show new matching calls`}
+                      title={s.following ? "Following: new matching calls are counted here" : "Follow: count new matching calls here"}
+                      className={`p-0.5 ${s.following ? "text-brand" : "text-muted hover:text-primary"}`}
+                    >
+                      {s.following ? <BellRing className="h-3 w-3" aria-hidden /> : <Bell className="h-3 w-3" aria-hidden />}
                     </button>
                     <button type="button" onClick={() => unsave(s.id)} aria-label={`Remove saved search ${s.name}`} className="p-0.5 text-muted hover:text-primary">
                       <X className="h-3 w-3" aria-hidden />

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { parseCallSearch } from "@/lib/coach/remote/search";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { createClient } from "@/lib/supabase/server";
+import { followStates, newMatches, type SearchEvent } from "@/lib/coach/remote/savedSearchFollow";
 
 /**
  * /api/coach/remote/saved-searches — a person's own named searches (RSS Phase 5, Gong F12.2; 0280).
- *   GET   → { available, searches: [{ id, name, query }] } (not removed, newest first)
+ *   GET   → { available, searches: [{ id, name, query, following, newCount, newCapped }] } (not removed, newest first).
+ *           Followed searches (0342, F12.7) are run through the caller's OWN client for calls that started since the
+ *           later of the follow and the last open — so the count obeys the reporting tree and hidden calls. newCount
+ *           null = couldn't check (never shown as 0).
  *   POST  { name, query } → saves. `query` is the search's query string, validated by the same parseCallSearch.
  *   PATCH { id } → removes (stamps removed_at once; a trigger forbids any other change).
  * Owner and company are stamped from auth; every statement names both (INV29).
@@ -31,14 +38,45 @@ export async function GET(req: NextRequest) {
     console.error(`[saved-searches] read failed: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
   }
-  return NextResponse.json({
-    available: true,
-    searches: ((data ?? []) as Array<{ id: string; name: string; filters: { query?: string } }>).map((s) => ({
-      id: s.id,
-      name: s.name,
-      query: typeof s.filters?.query === "string" ? s.filters.query : "",
-    })),
-  });
+  const list = ((data ?? []) as Array<{ id: string; name: string; filters: { query?: string } }>).map((s) => ({
+    id: String(s.id),
+    name: s.name,
+    query: typeof s.filters?.query === "string" ? s.filters.query : "",
+  }));
+  // Follow state (0342). A missing table reads as "nothing followed" only while the migration is absent.
+  let states = new Map<string, { following: boolean; since: string | null }>();
+  if (list.length) {
+    // Paged: every event counts (an old follow must not fall off behind many "seen" rows).
+    const admin = createAdminClient();
+    const { data: evs, error: eErr } = await fetchAllPagedResult<SearchEvent>(
+      (from, to) =>
+        admin
+          .from("saved_search_events")
+          .select("search_id, kind, created_at")
+          .eq("company_id", ctx.companyId)
+          .eq("owner_id", ctx.userId)
+          .in("search_id", list.map((s) => s.id))
+          .order("id", { ascending: false })
+          .range(from, to),
+      { label: "saved-search events", maxRows: 20_000 },
+    );
+    const eCode = (eErr as { code?: string } | null)?.code;
+    if (eErr && !MISSING.has(String(eCode)) && !/PGRST205|42P01|does not exist/.test(eErr.message)) {
+      console.error(`[saved-searches] follow read failed: ${eErr.message}`);
+      return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
+    }
+    states = followStates(((evs ?? []) as SearchEvent[]).map((e) => ({ ...e, search_id: String(e.search_id) })));
+  }
+  const db = callerScopedDb(req) ?? (await createClient());
+  const searches = await Promise.all(
+    list.map(async (s) => {
+      const st = states.get(s.id);
+      if (!st?.following || !st.since) return { ...s, following: false, newCount: 0, newCapped: false };
+      const m = await newMatches(db, s.query, st.since).catch(() => null);
+      return { ...s, following: true, newCount: m ? m.count : null, newCapped: m ? m.capped : false };
+    }),
+  );
+  return NextResponse.json({ available: true, searches });
 }
 
 export async function POST(req: NextRequest) {
@@ -67,7 +105,7 @@ export async function POST(req: NextRequest) {
     console.error(`[saved-searches] insert failed: ${error?.message ?? "no row"}`);
     return NextResponse.json({ error: "Couldn't save the search." }, { status: 500 });
   }
-  return NextResponse.json({ search: { id: data.id, name, query } });
+  return NextResponse.json({ search: { id: data.id, name, query, following: false, newCount: 0, newCapped: false } });
 }
 
 export async function PATCH(req: NextRequest) {

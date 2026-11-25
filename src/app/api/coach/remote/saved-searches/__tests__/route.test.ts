@@ -9,6 +9,15 @@ const st = vi.hoisted(() => ({
   filters: [] as Array<[string, string, unknown]>,
   inserts: [] as unknown[],
   updateRows: [{ id: "ss1" }] as unknown[] | null,
+  events: [] as unknown[], // 0342 follow/seen rows
+  newCalls: { count: 3, capped: false } as { count: number; capped: boolean } | null,
+  sinceAsked: [] as string[],
+}));
+vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: () => ({}) }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/coach/remote/savedSearchFollow", async (orig) => ({
+  ...(await orig<typeof import("@/lib/coach/remote/savedSearchFollow")>()),
+  newMatches: vi.fn(async (_db: unknown, _q: string, since: string) => (st.sinceAsked.push(since), st.newCalls)),
 }));
 
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
@@ -18,7 +27,7 @@ vi.mock("@/lib/coach/remote/search", () => ({
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    from: () => {
+    from: (table: string) => {
       let op = "select";
       const q: Record<string, unknown> = {};
       const rec = (m: string) => (c: string, v: unknown) => (st.filters.push([op, `${m}:${c}`, v]), q);
@@ -26,7 +35,12 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.eq = rec("eq");
       q.is = rec("is");
       q.order = () => q;
-      q.limit = async () => ({ data: [{ id: "ss1", name: "Price objections", filters: { query: "q=price" } }], error: null });
+      q.in = () => q;
+      q.range = async (from: number) => ({ data: from > 0 ? [] : st.events, error: null });
+      q.limit = async () =>
+        table === "saved_search_events"
+          ? { data: st.events, error: null }
+          : { data: [{ id: "ss1", name: "Price objections", filters: { query: "q=price" } }], error: null };
       q.insert = (row: unknown) => {
         st.inserts.push(row);
         return { select: () => ({ maybeSingle: async () => ({ data: { id: "ss-new" }, error: null }) }) };
@@ -50,12 +64,15 @@ beforeEach(() => {
   st.filters = [];
   st.inserts = [];
   st.updateRows = [{ id: "ss1" }];
+  st.events = [];
+  st.newCalls = { count: 3, capped: false };
+  st.sinceAsked = [];
 });
 
 describe("saved searches", () => {
   it("reads only the caller's own, in their company", async () => {
     const body = await (await GET(req("GET"))).json();
-    expect(body.searches).toEqual([{ id: "ss1", name: "Price objections", query: "q=price" }]);
+    expect(body.searches).toEqual([{ id: "ss1", name: "Price objections", query: "q=price", following: false, newCount: 0, newCapped: false }]);
     expect(scoped("select")).toEqual({ company: true, owner: true });
   });
 
@@ -78,5 +95,26 @@ describe("saved searches", () => {
   it("a removal that touched nothing — not theirs, or already removed — is 'not found'", async () => {
     st.updateRows = [];
     expect((await PATCH(req("PATCH", { id: "someone-elses" }))).status).toBe(404);
+  });
+  it("a followed search counts calls since the later of the follow and the last open (0342)", async () => {
+    st.events = [
+      { search_id: "ss1", kind: "seen", created_at: "2026-11-25T12:00:00Z" },
+      { search_id: "ss1", kind: "follow", created_at: "2026-11-20T09:00:00Z" },
+    ];
+    const body = await (await GET(req("GET"))).json();
+    expect(body.searches[0]).toMatchObject({ following: true, newCount: 3, newCapped: false });
+    expect(st.sinceAsked).toEqual(["2026-11-25T12:00:00Z"]);
+    expect(st.filters.filter(([, k]) => k === "eq:owner_id").length).toBeGreaterThanOrEqual(2); // both reads owner-pinned
+  });
+  it("an unfollowed search runs no search; a failed run is null, never 0 (0342)", async () => {
+    st.events = [
+      { search_id: "ss1", kind: "unfollow", created_at: "2026-11-25T12:00:00Z" },
+      { search_id: "ss1", kind: "follow", created_at: "2026-11-20T09:00:00Z" },
+    ];
+    expect((await (await GET(req("GET"))).json()).searches[0]).toMatchObject({ following: false, newCount: 0 });
+    expect(st.sinceAsked).toEqual([]);
+    st.events = [{ search_id: "ss1", kind: "follow", created_at: "2026-11-20T09:00:00Z" }];
+    st.newCalls = null;
+    expect((await (await GET(req("GET"))).json()).searches[0]).toMatchObject({ following: true, newCount: null });
   });
 });
